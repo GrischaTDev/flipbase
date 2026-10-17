@@ -56,7 +56,7 @@ begin
  if not found then raise exception 'Quellkonto nicht verfuegbar.' using errcode='42501';end if;
  select * into v_source from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=v_account.id and id::text=p_source_reference->>'entryId' and external_id=p_source_reference->>'externalId' and kind='publication' for share;
  if not found then raise exception 'Quellinserat nicht verfuegbar.' using errcode='42501';end if;
- v_fingerprint:=encode(extensions.digest(public.kleinanzeigen_saved_listing_source(v_source.body,v_account.external_account_id,v_source.external_id)::text,'sha256'),'hex');
+ v_fingerprint:=encode(extensions.digest(public.kleinanzeigen_saved_publication_source(p_workspace_id,v_account.id,v_source.external_id)::text,'sha256'),'hex');
  if v_source.id is null or v_fingerprint is distinct from p_source_reference->>'fingerprint' then raise exception 'Vollständige Quelle nicht bestätigt.' using errcode='42501';end if;
  perform 1 from public.kleinanzeigen_connections where workspace_id=p_workspace_id and id=p_target_connection_id and status<>'disconnected' for share;
  if not found then raise exception 'Zielkonto nicht verfügbar.' using errcode='42501';end if;

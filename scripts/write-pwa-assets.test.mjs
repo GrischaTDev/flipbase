@@ -18,14 +18,22 @@ async function fixture() {
   await writeFile(join(root, 'deployment.json'), '{"commit":"release"}');
   await writeFile(
     join(root, 'sw.js'),
-    'const BUILD_ID="__PWA_BUILD_ID__"; const INVENTORY_HASH="__PWA_INVENTORY_SHA256__";',
+    'const BUILD_ID="__PWA_BUILD_ID__"; const INVENTORY_HASH="__PWA_INVENTORY_SHA256__"; const VERSION=__PWA_VERSION_JSON__;',
+  );
+  await writeFile(
+    join(root, 'build-version.json'),
+    JSON.stringify({ nummer: '0.42.7', commit: 'abcdef0', stand: '2026-10-18' }),
   );
   return root;
 }
 function build(root) {
-  const result = spawnSync(process.execPath, [script.pathname.replace(/^\/(\w:)/, '$1'), root], {
-    encoding: 'utf8',
-  });
+  const result = spawnSync(
+    process.execPath,
+    [script.pathname.replace(/^\/(\w:)/, '$1'), root, join(root, 'build-version.json')],
+    {
+      encoding: 'utf8',
+    },
+  );
   assert.equal(result.status, 0, result.stderr);
 }
 test('inventory contains all app chunks, content hashes and a baked worker identity; excludes business/deployment data', async () => {
@@ -47,12 +55,14 @@ test('inventory contains all app chunks, content hashes and a baked worker ident
     assert.ok(worker.includes(inventory.buildId));
     assert.ok(worker.includes(createHash('sha256').update(text).digest('hex')));
     assert.equal(worker.includes('__PWA_'), false);
+    assert.ok(worker.includes('0.42.7'));
+    assert.equal(inventory.versionLabel, '0.42.7');
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 test('same input produces same identity; a new lazy chunk or worker change produces a new build', async () => {
-  const roots = await Promise.all([fixture(), fixture(), fixture()]);
+  const roots = await Promise.all([fixture(), fixture(), fixture(), fixture()]);
   try {
     build(roots[0]);
     build(roots[1]);
@@ -65,6 +75,12 @@ test('same input produces same identity; a new lazy chunk or worker change produ
     build(roots[2]);
     assert.notEqual(
       JSON.parse(await readFile(join(roots[2], 'pwa-assets.json'), 'utf8')).buildId,
+      first,
+    );
+    await writeFile(join(roots[3], 'build-version.json'), JSON.stringify({ nummer: '0.42.8' }));
+    build(roots[3]);
+    assert.notEqual(
+      JSON.parse(await readFile(join(roots[3], 'pwa-assets.json'), 'utf8')).buildId,
       first,
     );
   } finally {

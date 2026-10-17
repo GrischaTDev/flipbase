@@ -1,8 +1,12 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
+import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 import { TestBed } from '@angular/core/testing';
 import { ChildrenOutletContexts } from '@angular/router';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { PwaUpdateNoticeComponent } from '../../shared/components/pwa-update-notice/pwa-update-notice.component';
+import { PushNavigationService } from './push-navigation.service';
 import { WorkspaceContextLockService } from './workspace-context-lock.service';
 import { PwaUpdateService } from './pwa-update.service';
 
@@ -15,6 +19,17 @@ const registration = Object.assign(new EventTarget(), {
   installing: null,
   update: vi.fn().mockResolvedValue(undefined),
 });
+let restoreRendering: (() => void) | undefined;
+beforeAll(async () => {
+  restoreRendering = await prepareMarketplaceRendering([
+    {
+      type: PwaUpdateNoticeComponent,
+      path: 'src/app/shared/components/pwa-update-notice/pwa-update-notice.component.ts',
+    },
+    { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
+  ]);
+});
+afterAll(() => restoreRendering?.());
 beforeEach(() => {
   Object.defineProperty(registration, 'waiting', { configurable: true, value: waiting });
   Object.defineProperty(navigator, 'serviceWorker', {
@@ -26,7 +41,9 @@ beforeEach(() => {
   dirty.mockReturnValue(false);
   waiting.postMessage.mockClear();
   TestBed.configureTestingModule({
+    imports: [PwaUpdateNoticeComponent],
     providers: [
+      { provide: PushNavigationService, useValue: { pending: signal(false) } },
       PwaUpdateService,
       { provide: WorkspaceContextLockService, useValue: { locked } },
       {
@@ -224,4 +241,93 @@ it('rechecks dirty/saving state on commit and releases a blocked attempt', () =>
     }),
   );
   expect(service.isApplying()).toBe(false);
+});
+
+it('keeps the initiating update closed while stale waiting reports arrive during reload', async () => {
+  receive('PWA_WAITING_STATUS');
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('section')).not.toBeNull();
+  const result = service.applyUpdate();
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('button')?.disabled).toBe(true);
+  const attempt = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )?.[0];
+  receive('PWA_PREPARE_UPDATE', { attemptId: attempt.attemptId });
+  receive('PWA_UPDATE_RESULT', { attemptId: attempt.attemptId, result: 'applied' });
+  Object.assign(navigator.serviceWorker, { controller: waiting });
+  const reload = vi.fn();
+  vi.stubGlobal('window', { location: { reload } });
+  try {
+    navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+    expect(await result).toBe('applied');
+    expect(service.updateAvailable()).toBe(false);
+    expect(service.isApplying()).toBe(true);
+    receive('PWA_WAITING_STATUS');
+    receive('PWA_ACTIVE_STATUS');
+    expect(service.updateAvailable()).toBe(false);
+    expect(reload).toHaveBeenCalledOnce();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('section')).toBeNull();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+it('shows the confirmed waiting version instead of the version of the loaded document', () => {
+  receive('PWA_WAITING_STATUS', { version: '0.42.7' });
+  expect(service.availableVersion()).toBe('0.42.7');
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('Flipbase 0.42.7 ist bereit.');
+  const replacement = { postMessage: vi.fn() };
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: replacement });
+  void service.checkForUpdate();
+  expect(service.availableVersion()).toBe('');
+});
+it('accepts legacy workers without version metadata without claiming the loaded version', () => {
+  receive('PWA_WAITING_STATUS');
+  expect(service.updateAvailable()).toBe(true);
+  expect(service.availableVersion()).toBe('');
+});
+
+it('keeps the newer waiting version when the active worker reports an older update', () => {
+  const active = { postMessage: vi.fn() };
+  Object.assign(navigator.serviceWorker, { controller: active });
+  receive('PWA_WAITING_STATUS', { version: '0.42.7' });
+  navigator.serviceWorker.dispatchEvent(
+    Object.assign(new Event('message'), {
+      source: active,
+      data: { type: 'PWA_ACTIVE_STATUS', buildId: 'c'.repeat(64), version: '0.41.0' },
+    }),
+  );
+  expect(service.availableVersion()).toBe('0.42.7');
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
+  void service.checkForUpdate();
+  expect(service.availableVersion()).toBe('0.41.0');
+});
+it('never displays malformed or foreign waiting version metadata', () => {
+  navigator.serviceWorker.dispatchEvent(
+    Object.assign(new Event('message'), {
+      source: { postMessage: vi.fn() },
+      data: { type: 'PWA_WAITING_STATUS', buildId: 'a'.repeat(64), version: '9.9.9' },
+    }),
+  );
+  expect(service.availableVersion()).toBe('');
+  receive('PWA_WAITING_STATUS', { version: '<b>0.42.7</b>' });
+  expect(service.availableVersion()).toBe('');
+  expect(service.updateAvailable()).toBe(true);
+});
+
+it('does not offer the older controller build during a same-document worker handover', () => {
+  const active = { postMessage: vi.fn() };
+  Object.assign(navigator.serviceWorker, { controller: active });
+  receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64), version: '0.42.7' });
+  navigator.serviceWorker.dispatchEvent(
+    Object.assign(new Event('message'), {
+      source: active,
+      data: { type: 'PWA_ACTIVE_STATUS', buildId: 'c'.repeat(64), version: '0.41.0' },
+    }),
+  );
+  expect(service.updateAvailable()).toBe(false);
 });

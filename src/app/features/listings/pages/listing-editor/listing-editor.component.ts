@@ -9,10 +9,14 @@ import {
   computed,
   effect,
   inject,
+  Injector,
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '../../../../core/services/auth.service';
+import { KleinanzeigenAccountService } from '../../../marketplaces/services/kleinanzeigen-account.service';
+import { KleinanzeigenExtensionBridge } from '../../../marketplaces/services/kleinanzeigen-extension-bridge';
 import { Location } from '@angular/common';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
@@ -61,6 +65,7 @@ import type { InventoryItem } from '../../../../core/models/flipbase.models';
     TwoColumnLayoutComponent,
     KleinanzeigenTransferTargetComponent,
   ],
+  providers: [KleinanzeigenExtensionBridge],
   templateUrl: './listing-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(window:beforeunload)': 'beforeUnload($event)' },
@@ -76,6 +81,81 @@ export class ListingEditorComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly injector = inject(Injector);
+  private readonly selectedMarketplaceAccount = (() => {
+    const connectionId = this.route.snapshot.queryParamMap?.get('connectionId');
+    return connectionId
+      ? {
+          connectionId,
+          workspaceId: this.route.snapshot.queryParamMap.get('workspaceId'),
+          userId: this.injector.get(AuthService).currentUser()?.id,
+        }
+      : null;
+  })();
+  readonly accountSelectionError = signal<string | null>(null);
+  readonly selectedAccountName = signal('');
+  private async validateSelectedAccount(): Promise<boolean> {
+    const target = this.selectedMarketplaceAccount;
+    if (!target) return true;
+    const auth = this.injector.get(AuthService);
+    const current = () =>
+      auth.currentUser()?.id === target.userId &&
+      !!target.userId &&
+      target.workspaceId === this.workspaceService.currentWorkspace()?.id &&
+      !this.workspaceService.currentWorkspace()?.archived_at;
+    this.accountSelectionError.set(null);
+    try {
+      if (!current() || !target.workspaceId)
+        throw new Error(
+          'Die Kontoauswahl gehört nicht mehr zu Deinem aktuellen Arbeitsbereich. Wähle das Konto erneut in der Marktplatzübersicht.',
+        );
+      const result = await this.injector
+        .get(KleinanzeigenAccountService)
+        .readAccounts(target.workspaceId);
+      const account = result.canManage
+        ? result.accounts.find(
+            (row) =>
+              row.connectionId === target.connectionId && row.workspaceId === target.workspaceId,
+          )
+        : null;
+      if (!current()) return false;
+      if (!account || account.status !== 'connected' || !account.localGrant?.active)
+        throw new Error(
+          'Das ausgewählte Kleinanzeigen-Konto ist nicht mehr verbunden. Erneuere seine Freigabe in der Marktplatzübersicht.',
+        );
+      const binding = await this.injector
+        .get(KleinanzeigenExtensionBridge)
+        .status(target.workspaceId);
+      if (!current()) return false;
+      if (!binding)
+        throw new Error(
+          'In diesem Browser fehlt die Freigabe für das gewählte Konto. Erneuere sie in der Marktplatzübersicht.',
+        );
+      if (
+        binding.connectionId !== account.connectionId ||
+        binding.externalAccountId !== account.externalAccountId ||
+        binding.generation !== account.localGrant.generation ||
+        Date.parse(binding.expiresAt) <= Date.now()
+      )
+        throw new Error(
+          'Die lokale Freigabe passt nicht zum gewählten Konto. Prüfe seine Verbindung in der Marktplatzübersicht.',
+        );
+      this.selectedAccountName.set(account.displayName);
+      return true;
+    } catch (error) {
+      if (current())
+        this.accountSelectionError.set(
+          error instanceof Error
+            ? error.message
+            : 'Das ausgewählte Konto konnte nicht geprüft werden.',
+        );
+      else
+        this.accountSelectionError.set(
+          'Der Benutzer oder Arbeitsbereich wurde gewechselt. Wähle das Konto erneut in der Marktplatzübersicht.',
+        );
+      return false;
+    }
+  }
   private baseline = '';
   private imageBaseline = '[]';
   private targetBaseline = 'null';
@@ -393,6 +473,7 @@ export class ListingEditorComponent {
     }
     this.isSaving.set(true);
     try {
+      if (!(await this.validateSelectedAccount())) return;
       const content = this.content();
       const selectedItem = this.selectedItem();
       const result = this.isEdit()
@@ -492,6 +573,7 @@ export class ListingEditorComponent {
   }
   private async publishListing(row: ListingRow): Promise<void> {
     const payload = await this.listingService.buildExtensionPayload(row);
+    if (!(await this.validateSelectedAccount())) return;
     const published = await this.extension.publish(payload.payload);
     if (!published?.success) {
       this.toast.error('Kleinanzeigen konnte nicht geöffnet werden.', published?.error);

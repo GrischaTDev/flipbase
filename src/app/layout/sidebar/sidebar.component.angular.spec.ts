@@ -414,12 +414,12 @@ describe('SidebarComponent', () => {
       expect(label?.getAttribute('tabindex')).toBeNull();
     }
     const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
-    expect(links[0].textContent?.trim()).toBe('Alle Marktplätze');
-    expect(links[0].getAttribute('href')).toBe('/marketplaces/overview');
-    expect(links[1].textContent?.trim()).toBe('Konten');
+    expect(element.querySelector('a[href="/marketplaces/overview"]')).toBeNull();
+    expect(element.querySelector('a[aria-label="Zurück zu Flipbase"]')).not.toBeNull();
+    expect(links[0].textContent?.trim()).toBe('Konten');
     expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);
-    links[2].click();
+    links[1].click();
     expect(closed).toHaveBeenCalledOnce();
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/marketplaces/vinted/overview');

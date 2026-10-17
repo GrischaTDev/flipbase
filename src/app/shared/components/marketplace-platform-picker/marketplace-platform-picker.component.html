@@ -1,0 +1,30 @@
+<div class="flex flex-wrap justify-center gap-3">
+  @for (platform of platforms(); track platform) {
+    <button
+      type="button"
+      class="relative flex min-h-24 min-w-28 flex-1 basis-28 flex-col items-center justify-center gap-3 rounded-xl border border-fb-border bg-fb-surface p-4 text-sm font-medium text-fb-text-primary transition-colors hover:bg-[color-mix(in_srgb,var(--platform-color)_10%,var(--fb-bg-surface))] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-text-primary disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+      [style.--platform-color]="appearance(platform).color"
+      [style.background-color]="
+        selectedPlatforms().includes(platform)
+          ? 'color-mix(in srgb, var(--platform-color) 20%, var(--fb-bg-surface))'
+          : null
+      "
+      [style.border-color]="
+        selectedPlatforms().includes(platform) ? appearance(platform).color : null
+      "
+      [disabled]="disabled() || disabledPlatforms().includes(platform)"
+      [attr.aria-pressed]="selectedPlatforms().includes(platform)"
+      (click)="select(platform)"
+    >
+      <img [ngSrc]="appearance(platform).logo!" width="32" height="32" alt="" />
+      <span>{{ label(platform) }}</span>
+      @if (selectedPlatforms().includes(platform)) {
+        <svg
+          [lucideIcon]="checkIcon"
+          class="absolute right-2 top-2 size-4"
+          aria-hidden="true"
+        ></svg>
+      }
+    </button>
+  }
+</div>

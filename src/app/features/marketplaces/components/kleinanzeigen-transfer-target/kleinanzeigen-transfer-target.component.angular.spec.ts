@@ -170,6 +170,24 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
     expect(f.componentInstance.schema()).toBeNull();
     expect(f.componentInstance.error()).toContain('Unterkategorie');
   });
+  it('lädt gespeicherte Endkategorie automatisch und bietet nach Fehler einen konkreten Wiederholweg', async () => {
+    schemas.browse.mockRejectedValue(new Error('Die Eigenschaften sind gerade nicht erreichbar.'));
+    const f = TestBed.createComponent(KleinanzeigenTransferTargetComponent);
+    f.componentRef.setInput('listing', { ...listing, categoryId: '153/160/hemden' });
+    f.componentRef.setInput('content', content);
+    f.detectChanges();
+    await f.whenStable();
+    f.detectChanges();
+    await expect
+      .poll(() => f.componentInstance.error())
+      .toBe('Die Eigenschaften sind gerade nicht erreichbar.');
+    f.detectChanges();
+    expect(schemas.browse).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: '9' }),
+      '153/160/hemden',
+    );
+    expect(f.nativeElement.textContent).toContain('Eigenschaften erneut laden');
+  });
   it('rendert Kategorieangaben und sperrt den Submit bei ungespeicherten Änderungen', async () => {
     const schema = {
       categoryPath: '153/160/shirts',

@@ -124,6 +124,7 @@ export function createWorker({
   vm.runInContext(
     template
       .replaceAll('__PWA_BUILD_ID__', inventory.buildId)
+      .replaceAll('__PWA_VERSION_JSON__', JSON.stringify('0.42.7'))
       .replaceAll('__PWA_INVENTORY_SHA256__', hash(inventoryText)),
     context,
   );

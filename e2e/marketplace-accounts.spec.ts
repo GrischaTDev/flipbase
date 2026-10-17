@@ -72,9 +72,11 @@ for (const width of [1440, 390]) {
     await page.reload();
     await expect(names).toHaveText(['Testkonto A', 'Testkonto B']);
     if (width === 1440) {
-      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
-      await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
-      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
+      await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
+      await expect(page.locator('html')).toHaveClass(/dark/u);
+      await expect(
+        page.getByRole('button', { name: 'Helles Design aktivieren', exact: true }),
+      ).toBeVisible();
       await evidence(page, 'vinted-account-grid-dark-1440');
     }
     await page.getByRole('button', { name: 'Testkonto A einstellen', exact: true }).click();

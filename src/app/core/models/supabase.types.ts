@@ -9721,6 +9721,14 @@ export type Database = {
         }
         Returns: Json
       }
+      kleinanzeigen_saved_publication_source: {
+        Args: {
+          p_connection_id: string
+          p_external_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       kleinanzeigen_store_form_schema: {
         Args: {
           p_connection_id: number

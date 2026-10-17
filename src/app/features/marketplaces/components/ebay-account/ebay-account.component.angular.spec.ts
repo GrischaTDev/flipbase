@@ -316,6 +316,42 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it('kehrt nach offizieller Freigabe nur im passenden Benutzer- und Workspacekontext zur Übersicht zurück', async () => {
+    sessionStorage.setItem(
+      'flipbase:ebay:overview-return',
+      JSON.stringify({ userId: 'user-a', workspaceId: 'workspace-a' }),
+    );
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          queryParamMap: convertToParamMap({ ebay_result: 'connected', workspace: 'workspace-a' }),
+        },
+      },
+    });
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    await render(false, 'connection');
+    expect(navigate).toHaveBeenCalledWith(['/marketplaces/overview'], {
+      queryParams: { ebay_result: 'connected', workspace: 'workspace-a' },
+      replaceUrl: true,
+    });
+    expect(sessionStorage.getItem('flipbase:ebay:overview-return')).toBeNull();
+  });
+  it('leitet eine Freigaberückkehr nach Benutzerwechsel nicht in den vorherigen Kontodialog um', async () => {
+    sessionStorage.setItem(
+      'flipbase:ebay:overview-return',
+      JSON.stringify({ userId: 'anderer-benutzer', workspaceId: 'workspace-a' }),
+    );
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          queryParamMap: convertToParamMap({ ebay_result: 'connected', workspace: 'workspace-a' }),
+        },
+      },
+    });
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    await render(false, 'connection');
+    expect(navigate).not.toHaveBeenCalled();
+  });
   it('zeigt normalen Nutzern Konto, aktive Inserate und getrennte Bestellzustände', async () => {
     const fixture = await render();
     const element = fixture.nativeElement as HTMLElement;

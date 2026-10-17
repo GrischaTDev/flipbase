@@ -70,7 +70,13 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     currentUser: signal<{ id: string } | null>({ id: '49000000-0000-4000-8000-000000000001' }),
   };
   const api = { readAccounts: vi.fn() };
-  const actions = { connect: vi.fn(), synchronize: vi.fn(), disconnect: vi.fn(), cancel: vi.fn() };
+  const actions = {
+    reconnect: vi.fn(),
+    connect: vi.fn(),
+    synchronize: vi.fn(),
+    disconnect: vi.fn(),
+    cancel: vi.fn(),
+  };
   const bridge = {
     capabilities: signal({ accounts: true, sync: true, publish: false }),
     checking: signal(false),
@@ -140,6 +146,27 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     fixture.detectChanges();
     expect(element.querySelectorAll('article')).toHaveLength(0);
     expect(element.textContent).toContain('Dieses Konto ist nicht mehr verfügbar');
+  });
+  it('erneuert die abgelaufene Freigabe im gewählten Konto nach bewusster Bestätigung', async () => {
+    bridge.status.mockResolvedValue(null);
+    const fixture = await create();
+    fixture.componentRef.setInput('connectionId', first.connectionId);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('keine gültige Freigabe');
+    expect(element.textContent).not.toContain('anderes Kleinanzeigen-Konto');
+    fixture.componentInstance.publishPermission.setValue(true);
+    actions.reconnect.mockResolvedValue({ ...first, generation: 2, canPublish: true });
+    const renew = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Freigabe erneuern'),
+    );
+    expect(renew).toBeDefined();
+    expect(actions.reconnect).not.toHaveBeenCalled();
+    renew!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(actions.reconnect).toHaveBeenCalledWith(first, true);
+    expect(fixture.componentInstance.localBinding()?.generation).toBe(2);
   });
   it('erhält den letzten bestätigten Bestand bei einem gescheiterten neuen Abruf', async () => {
     const fixture = await create();

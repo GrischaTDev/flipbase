@@ -1,5 +1,6 @@
 /* Nur geprüfte App-Dateien; Anmeldung, API und Privatmedien bleiben im Netzwerk. */
 const BUILD_ID = '__PWA_BUILD_ID__';
+const VERSION = __PWA_VERSION_JSON__;
 const INVENTORY_HASH = '__PWA_INVENTORY_SHA256__';
 const CACHE_PREFIX = 'flipbase-app-';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
@@ -419,9 +420,9 @@ async function advanceUpdate(attempt) {
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'PWA_ACTIVE_QUERY')
-    event.source?.postMessage({ type: 'PWA_ACTIVE_STATUS', buildId: BUILD_ID });
+    event.source?.postMessage({ type: 'PWA_ACTIVE_STATUS', buildId: BUILD_ID, version: VERSION });
   if (event.data?.type === 'PWA_UPDATE_QUERY')
-    event.source?.postMessage({ type: 'PWA_WAITING_STATUS', buildId: BUILD_ID });
+    event.source?.postMessage({ type: 'PWA_WAITING_STATUS', buildId: BUILD_ID, version: VERSION });
   if (event.data?.type === 'ACTIVATE_UPDATE') event.waitUntil(beginUpdate(event));
   if (['PWA_UPDATE_ACK', 'PWA_UPDATE_COMMIT_ACK', 'PWA_UPDATE_REVOKE'].includes(event.data?.type))
     event.waitUntil(updateReply(event));

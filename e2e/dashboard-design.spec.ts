@@ -34,14 +34,14 @@ for (const theme of ['light', 'dark'] as const) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(message.text());
+      if (message.type() === 'error')
+        errors.push(message.text() + ' ' + JSON.stringify(message.location()));
     });
     await page.setViewportSize({ width: 1440, height: 1100 });
     await startDashboard(page);
     if (theme === 'dark') {
-      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
-      await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
-      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
+      await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
+      await expect(page.locator('html')).toHaveClass(/dark/u);
     }
     const cards = page.locator('[aria-label="Kennzahlen"] [data-kpi]');
     await expect(cards).toHaveCount(5);

@@ -6,7 +6,13 @@
     aria-label="App aktualisieren"
     aria-live="polite"
   >
-    <p class="font-semibold">Eine neue Flipbase-Version ist bereit.</p>
+    <p class="font-semibold">
+      @if (updates.availableVersion(); as version) {
+        Flipbase {{ version }} ist bereit.
+      } @else {
+        Eine neue Flipbase-Version ist bereit.
+      }
+    </p>
     <p class="mt-1 text-fb-text-secondary">
       {{ updates.message() || 'Du kannst nach dem Speichern deiner Eingaben aktualisieren.' }}
     </p>

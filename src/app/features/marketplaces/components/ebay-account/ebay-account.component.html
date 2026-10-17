@@ -88,7 +88,7 @@
                   connection.username
                 }}</span>
               }
-              <app-badge [tone]="connection.status === 'connected' ? 'success' : 'neutral'">
+              <app-badge [tone]="connection.status === 'connected' ? 'neutral' : 'caution'">
                 {{
                   connection.status === 'connected'
                     ? 'Verbunden'

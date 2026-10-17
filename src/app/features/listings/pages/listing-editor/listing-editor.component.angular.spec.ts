@@ -3,6 +3,9 @@ import { signal } from '@angular/core';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { AuthService } from '../../../../core/services/auth.service';
+import { KleinanzeigenAccountService } from '../../../marketplaces/services/kleinanzeigen-account.service';
+import { KleinanzeigenExtensionBridge } from '../../../marketplaces/services/kleinanzeigen-extension-bridge';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
@@ -180,7 +183,30 @@ describe('ListingEditorComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  function createEditor(options: { readonly extensionAvailable?: boolean } = {}) {
+  function createEditor(
+    options: {
+      readonly extensionAvailable?: boolean;
+      readonly connectionId?: string;
+      readonly workspaceId?: string;
+    } = {},
+  ) {
+    const account = {
+      workspaceId: 'workspace-a',
+      connectionId: 'account-a',
+      externalAccountId: '123',
+      displayName: 'Gewähltes Konto',
+      status: 'connected',
+      localGrant: { active: true, generation: 1 },
+    };
+    const accountApi = {
+      readAccounts: vi.fn().mockResolvedValue({ canManage: true, accounts: [account] }),
+    };
+    const accountBridge = {
+      status: vi
+        .fn()
+        .mockResolvedValue({ ...account, generation: 1, expiresAt: '2099-01-01T00:00:00Z' }),
+    };
+
     const items = signal<ListingEditorItem[]>([
       {
         id: 'item-expected-value',
@@ -345,6 +371,9 @@ describe('ListingEditorComponent', () => {
     TestBed.configureTestingModule({
       imports: [ListingEditorComponent],
       providers: [
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
+        { provide: KleinanzeigenAccountService, useValue: accountApi },
+        { provide: KleinanzeigenExtensionBridge, useValue: accountBridge },
         provideRouter([{ path: 'listings', component: ListingEditorComponent }]),
         {
           provide: ListingService,
@@ -387,13 +416,28 @@ describe('ListingEditorComponent', () => {
           },
         },
         { provide: ConfirmDialogService, useValue: { frage: confirmOverwrite } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: { get: () => null },
+              queryParamMap: {
+                get: (name: string) =>
+                  name === 'connectionId'
+                    ? (options.connectionId ?? null)
+                    : (options.workspaceId ?? null),
+              },
+            },
+          },
+        },
         { provide: ToastService, useValue: { error: vi.fn(), success: vi.fn(), warning } },
       ],
     });
 
     return {
       editor: TestBed.runInInjectionContext(() => new ListingEditorComponent()),
+      accountApi,
+      accountBridge,
       buildExtensionPayload,
       confirmOverwrite,
       generateKleinanzeigenListing,
@@ -407,6 +451,34 @@ describe('ListingEditorComponent', () => {
     };
   }
 
+  it('prüft das gewählte Konto vor dem Vorbereiten und übernimmt keine fremde lokale Bindung', async () => {
+    const { editor, accountBridge, prepare, publish } = createEditor({
+      connectionId: 'account-a',
+      workspaceId: 'workspace-a',
+    });
+    editor.form.patchValue({ inventoryItemId: 'item-expected-value', title: 'Kamera', price: 79 });
+    accountBridge.status.mockResolvedValue({
+      connectionId: 'anderes-konto',
+      externalAccountId: '456',
+      generation: 1,
+      expiresAt: '2099-01-01T00:00:00Z',
+    });
+    await editor.save();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+    expect(editor.accountSelectionError()).toContain('passt nicht zum gewählten Konto');
+  });
+  it('bereitet bei bestätigter Kontoauswahl im aktuellen Arbeitsbereich das neue Inserat vor', async () => {
+    const { editor, accountApi, prepare } = createEditor({
+      connectionId: 'account-a',
+      workspaceId: 'workspace-a',
+    });
+    editor.form.patchValue({ inventoryItemId: 'item-expected-value', title: 'Kamera', price: 79 });
+    await editor.save();
+    expect(accountApi.readAccounts).toHaveBeenCalledWith('workspace-a');
+    expect(prepare).toHaveBeenCalled();
+    expect(editor.selectedAccountName()).toBe('Gewähltes Konto');
+  });
   it('loads listing data for a directly opened editor route', () => {
     const { load } = createEditor();
 

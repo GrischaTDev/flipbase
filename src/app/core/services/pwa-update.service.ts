@@ -18,9 +18,13 @@ export class PwaUpdateService {
   readonly updateAvailable = signal(false);
   readonly isApplying = signal(false);
   readonly message = signal('');
+  readonly availableVersion = signal('');
   private registration: ServiceWorkerRegistration | null = null;
   private targetBuild = '';
   private activeBuild = '';
+  private targetVersion = '';
+  private activeVersion = '';
+  private reloading = false;
   private targetWorker: ServiceWorker | null = null;
   private readonly synchronizedWorkers = new WeakSet<ServiceWorker>();
   private activationAttemptId = '';
@@ -36,9 +40,12 @@ export class PwaUpdateService {
       const changed = () => {
         this.activeBuild = '';
         if (this.initiator && this.barrier) {
+          // Ein veralteter waiting-Verweis oder verspätete Statusantworten dürfen
+          // den bereits übernommenen Bau während des Neuladens nicht erneut anbieten.
+          this.reloading = true;
+          this.updateAvailable.set(false);
           this.complete('applied');
-          this.releaseBarrier();
-          this.inspectWaitingWorker();
+          this.releaseBarrier(true);
           window.location.reload();
         } else {
           this.releaseBarrier();
@@ -106,15 +113,38 @@ export class PwaUpdateService {
   }
 
   private inspectWaitingWorker(): void {
+    if (this.reloading) return;
     const waiting = this.registration?.waiting ?? null;
     if (waiting !== this.targetWorker) {
       this.targetWorker = waiting;
       this.targetBuild = '';
-      this.updateAvailable.set(this.isDifferentBuild(this.activeBuild));
+      this.targetVersion = '';
+      this.refreshOffer();
       this.message.set('');
     }
     waiting?.postMessage({ type: 'PWA_UPDATE_QUERY' });
     navigator.serviceWorker.controller?.postMessage({ type: 'PWA_ACTIVE_QUERY' });
+  }
+
+  private refreshOffer(): void {
+    const waitingUpdate = this.isDifferentBuild(this.targetBuild);
+    // Eine bereits aktuelle HTML-Ansicht übernimmt nur ihren eigenen Worker.
+    // Dessen alter Controller ist während dieser Übergabe keine neue Version.
+    const waitingIsCurrent =
+      !!this.targetBuild && this.targetBuild === document.documentElement.dataset['flipbaseBuild'];
+    const activeUpdate = !waitingIsCurrent && this.isDifferentBuild(this.activeBuild);
+    this.updateAvailable.set(!this.reloading && (waitingUpdate || activeUpdate));
+    this.availableVersion.set(
+      waitingUpdate ? this.targetVersion : activeUpdate ? this.activeVersion : '',
+    );
+  }
+
+  private readVersion(value: unknown): string {
+    return typeof value === 'string' &&
+      value.length <= 80 &&
+      /^\d+\.\d+\.\d+(?:-[\da-zA-Z.-]+)?(?:\+[\da-zA-Z.-]+)?$/.test(value)
+      ? value
+      : '';
   }
 
   private isDifferentBuild(buildId: string): boolean {
@@ -141,6 +171,7 @@ export class PwaUpdateService {
   }
 
   async applyUpdate(): Promise<UpdateResult> {
+    if (this.reloading) return 'blocked';
     if (!this.isSafe()) {
       this.message.set('Speichere oder verwerfe zuerst deine offenen Änderungen.');
       return 'blocked';
@@ -150,6 +181,9 @@ export class PwaUpdateService {
     // Andere Tabs können den Worker bereits aktiviert haben. Dieses Dokument
     // darf erst nach seiner eigenen Eingabeprüfung auf den neuen Bau wechseln.
     if (!waiting && this.isDifferentBuild(this.activeBuild)) {
+      this.reloading = true;
+      this.updateAvailable.set(false);
+      this.isApplying.set(true);
       window.location.reload();
       return 'applied';
     }
@@ -179,6 +213,7 @@ export class PwaUpdateService {
   }
 
   private receiveMessage(event: MessageEvent): void {
+    if (this.reloading) return;
     const payload: unknown = event.data;
     if (!payload || typeof payload !== 'object') return;
     const message = payload as Record<string, unknown>;
@@ -190,9 +225,8 @@ export class PwaUpdateService {
       /^[a-f0-9]{64}$/.test(message['buildId'])
     ) {
       this.activeBuild = message['buildId'];
-      this.updateAvailable.set(
-        this.isDifferentBuild(this.activeBuild) || this.isDifferentBuild(this.targetBuild),
-      );
+      this.activeVersion = this.readVersion(message['version']);
+      this.refreshOffer();
       return;
     }
     const worker = this.barrier?.worker ?? this.registration?.waiting;
@@ -200,8 +234,9 @@ export class PwaUpdateService {
     if (message['type'] === 'PWA_WAITING_STATUS') {
       if (!/^[a-f0-9]{64}$/.test(message['buildId'])) return;
       this.targetBuild = message['buildId'];
+      this.targetVersion = this.readVersion(message['version']);
       const isCurrentBuild = this.targetBuild === document.documentElement.dataset['flipbaseBuild'];
-      this.updateAvailable.set(!isCurrentBuild || this.isDifferentBuild(this.activeBuild));
+      this.refreshOffer();
       // Der bisherige Netzwerk-Worker kann bereits diese HTML-Version geladen haben.
       // Nur nach derselben Eingabeprüfung übernehmen; andere Fenster dürfen weiterhin blockieren.
       if (isCurrentBuild && !this.synchronizedWorkers.has(worker) && this.isSafe()) {
@@ -272,12 +307,12 @@ export class PwaUpdateService {
     this.completion?.(result);
     this.completion = null;
   }
-  private releaseBarrier(): void {
+  private releaseBarrier(keepApplying = false): void {
     if (this.releaseTimer) clearTimeout(this.releaseTimer);
     this.releaseTimer = null;
     this.barrier = null;
     this.initiator = false;
     this.activationAttemptId = '';
-    this.isApplying.set(false);
+    this.isApplying.set(keepApplying);
   }
 }

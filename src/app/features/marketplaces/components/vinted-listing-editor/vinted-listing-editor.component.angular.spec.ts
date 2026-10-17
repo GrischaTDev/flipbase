@@ -72,7 +72,7 @@ async function settle() {
   for (let index = 0; index < 12; index++) await Promise.resolve();
   TestBed.tick();
 }
-function setup() {
+function setup(query: Record<string, string> = {}) {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
   const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
@@ -102,7 +102,7 @@ function setup() {
         provide: ActivatedRoute,
         useValue: {
           paramMap: new BehaviorSubject(convertToParamMap({})),
-          snapshot: { paramMap: convertToParamMap({}) },
+          snapshot: { paramMap: convertToParamMap({}), queryParamMap: convertToParamMap(query) },
         },
       },
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
@@ -139,6 +139,21 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('übernimmt das ausdrücklich gewählte Konto aus der Übersicht', async () => {
+    const { component, connections } = setup({
+      connectionId: 'account-b',
+      workspaceId: 'workspace-a',
+    });
+    connections.set([account, { ...account, connectionId: 'account-b' }]);
+    await settle();
+    expect(component.form.controls.connectionId.value).toBe('account-b');
+  });
+  it('übernimmt keine Kontovorwahl aus einem anderen Arbeitsbereich', async () => {
+    const { component } = setup({ connectionId: 'account-a', workspaceId: 'workspace-b' });
+    await settle();
+    expect(component.form.controls.connectionId.value).toBeNull();
+    expect(component.error()).toContain('nicht mehr verfügbar');
+  });
   it('saves pending input first, opens only the saved revision and rejects a previous preview after an immediate edit', async () => {
     const { component, create } = setup();
     await settle();

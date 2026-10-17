@@ -21,6 +21,8 @@ import type {
 export class KleinanzeigenListingFieldsComponent {
   readonly schema = input.required<KleinanzeigenProviderSchema>();
   readonly attributes = input.required<FormRecord<FormControl<string>>>();
+  readonly showAttributes = input(true);
+  readonly errors = input<Readonly<Record<string, string>>>({});
   readonly shippingEnabled = input(false);
   readonly shippingGroup = input.required<FormControl<string>>();
   readonly selectedGroup = input<string>('');

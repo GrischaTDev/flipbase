@@ -40,6 +40,7 @@ class AccountManagementStub {
 }
 Component({
   selector: 'app-marketplace-accounts',
+  inputs: ['embedded'],
   template: '',
   providers: [
     { provide: MarketplaceAccountsComponent, useExisting: forwardRef(() => AccountManagementStub) },

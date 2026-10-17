@@ -11,10 +11,12 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
   untracked,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideRefreshCw, LucideSettings, LucidePlus, LucideTrash2 } from '@lucide/angular';
@@ -43,6 +45,7 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 @Component({
   selector: 'app-vinted-account-grid',
   imports: [
+    NgTemplateOutlet,
     CdkDrag,
     CdkDragPlaceholder,
     CdkDropList,
@@ -62,6 +65,10 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
   host: { class: 'block min-w-0 @container' },
 })
 export class VintedAccountGridComponent {
+  readonly managementOnly = input(false);
+  readonly managedConnectionId = input<string | null>(null);
+  readonly addAccount = input(false);
+  private appliedManagementContext: string | null = null;
   readonly accounts = inject(MarketplaceAccountStore);
   readonly runtime = inject(VintedLocalRuntimeStore);
   readonly extension = inject(VintedLocalExtensionBridge);
@@ -142,6 +149,26 @@ export class VintedAccountGridComponent {
   readonly deleteIcon = LucideTrash2;
 
   constructor() {
+    effect(() => {
+      const key = JSON.stringify([this.context(), this.managedConnectionId(), this.addAccount()]);
+      const management = this.management();
+      if (
+        !this.managementOnly() ||
+        !management ||
+        this.accounts.loading() ||
+        !this.accounts.canManage() ||
+        key === this.appliedManagementContext
+      )
+        return;
+      const account = this.accounts
+        .connections()
+        .find((item) => item.connectionId === this.managedConnectionId());
+      this.appliedManagementContext = key;
+      untracked(() => {
+        if (account) this.openSettings(account);
+        else if (this.addAccount()) management.openDialog();
+      });
+    });
     // Jeder Abruf aktualisiert die Kontenliste; der Abrufzustand wird dann mit erneuert.
     effect(() => {
       const accounts = this.accounts.connections();
@@ -272,7 +299,8 @@ export class VintedAccountGridComponent {
     const account = this.localSwitchAccount();
     if (!account) return;
     this.localSwitchSelection.set(null);
-    await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
+    if (this.managementOnly()) this.management()?.openLocalLogin(account);
+    else await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
   }
   async syncCloudAccount(account: MarketplaceConnection): Promise<void> {
     if (

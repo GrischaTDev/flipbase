@@ -3,6 +3,15 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, join, relative, sep } from 'node:path';
 
 const output = resolve(process.argv[2] ?? 'dist/flipbase/browser');
+const versionPath = resolve(process.argv[3] ?? '.angular/cache/flipbase-build-version.json');
+const versionMetadata = JSON.parse(await readFile(versionPath, 'utf8'));
+const versionLabel = versionMetadata.nummer;
+if (
+  typeof versionLabel !== 'string' ||
+  versionLabel.length > 80 ||
+  !/^\d+\.\d+\.\d+(?:-[\da-zA-Z.-]+)?(?:\+[\da-zA-Z.-]+)?$/.test(versionLabel)
+)
+  throw new Error('Lesbare Version des Angular-Baus fehlt oder ist ungültig.');
 const sha256 = (content) => createHash('sha256').update(content).digest('hex');
 const rootFiles =
   /^(?:index\.html|manifest\.webmanifest|favicon\.ico|app-startup\.js|[\w-]+\.(?:js|css))$/;
@@ -28,7 +37,11 @@ async function collect(directory) {
 
 const workerPath = join(output, 'sw.js');
 const template = await readFile(workerPath, 'utf8');
-if (!template.includes('__PWA_BUILD_ID__') || !template.includes('__PWA_INVENTORY_SHA256__')) {
+if (
+  !template.includes('__PWA_BUILD_ID__') ||
+  !template.includes('__PWA_INVENTORY_SHA256__') ||
+  !template.includes('__PWA_VERSION_JSON__')
+) {
   throw new Error(
     'PWA-Bau erwartet die unveränderte Worker-Vorlage. Erzeuge zuerst einen frischen Angular-Bau.',
   );
@@ -38,7 +51,7 @@ const assets = (await collect(output)).sort((left, right) =>
 );
 if (!assets.some((asset) => asset.url === '/index.html'))
   throw new Error('index.html fehlt im PWA-Bau.');
-const buildId = sha256(JSON.stringify({ assets, template }));
+const buildId = sha256(JSON.stringify({ assets, template, versionLabel }));
 // Die Identität folgt den unveränderten Eingabedateien. Erst danach trägt die
 // HTML-Hülle sie für noch laufende Clients ein; der Inventarhash prüft die Ausgabe.
 const indexPath = join(output, 'index.html');
@@ -48,12 +61,13 @@ await writeFile(
 );
 const indexAsset = assets.find((asset) => asset.url === '/index.html');
 indexAsset.sha256 = sha256(await readFile(indexPath));
-const inventory = JSON.stringify({ version: 1, buildId, assets });
+const inventory = JSON.stringify({ version: 1, buildId, versionLabel, assets });
 await writeFile(join(output, 'pwa-assets.json'), inventory);
 await writeFile(
   workerPath,
   template
     .replaceAll('__PWA_BUILD_ID__', buildId)
-    .replaceAll('__PWA_INVENTORY_SHA256__', sha256(inventory)),
+    .replaceAll('__PWA_INVENTORY_SHA256__', sha256(inventory))
+    .replaceAll('__PWA_VERSION_JSON__', JSON.stringify(versionLabel)),
 );
 console.log(`PWA-Bau ${buildId.slice(0, 12)}: ${assets.length} geprüfte App-Dateien.`);

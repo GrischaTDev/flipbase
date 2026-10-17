@@ -104,4 +104,22 @@ describe('Kontogebundene Kleinanzeigen-Formularfelder', () => {
     await expect(f.service.browse(scope, '')).rejects.toThrow('Erweiterung');
     expect(f.bridge.status).not.toHaveBeenCalled();
   });
+  it('meldet bei fehlender oder abgelaufener Freigabe kein erfundenes anderes Browserprofil', async () => {
+    const f = fixture();
+    f.bridge.status.mockResolvedValue(null);
+    await expect(f.service.browse(scope, '153')).rejects.toThrow('Freigabe');
+    expect(f.service.bindingIssue()).toBe('missing');
+    expect(f.bridge.loadFormSchema).not.toHaveBeenCalled();
+  });
+  it('unterscheidet eine veraltete Freigabe desselben Kontos und kann danach erneut prüfen', async () => {
+    const f = fixture();
+    f.bridge.status.mockResolvedValue({ ...scope, generation: 1 });
+    await expect(f.service.browse(scope, '153')).rejects.toThrow('Freigabe');
+    expect(f.service.bindingIssue()).toBe('stale_grant');
+    expect(f.bridge.loadFormSchema).not.toHaveBeenCalled();
+    f.bridge.status.mockResolvedValue(scope);
+    f.bridge.loadFormSchema.mockResolvedValue({ categoryPath: '153' });
+    await f.service.browse(scope, '153');
+    expect(f.service.bindingIssue()).toBeNull();
+  });
 });

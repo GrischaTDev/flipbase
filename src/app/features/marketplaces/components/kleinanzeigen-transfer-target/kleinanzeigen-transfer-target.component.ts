@@ -67,6 +67,7 @@ export class KleinanzeigenTransferTargetComponent {
   readonly targetName = signal('');
   readonly error = signal<string | null>(null);
   readonly busy = signal(false);
+  readonly schemaLoadFailed = signal(false);
   readonly schema = signal<KleinanzeigenProviderSchema | null>(null);
   readonly schemaRevision = signal<string | null>(null);
   readonly choices = signal<readonly KleinanzeigenCategoryChoice[]>([]);
@@ -124,6 +125,8 @@ export class KleinanzeigenTransferTargetComponent {
       untracked(() => {
         this.generation++;
         this.schemas.cancel();
+        this.error.set(null);
+        this.schemaLoadFailed.set(false);
         this.schema.set(null);
         this.schemaRevision.set(listing.schemaRevision ?? null);
         this.choices.set([]);
@@ -174,6 +177,12 @@ export class KleinanzeigenTransferTargetComponent {
           generation: account.localGrant.generation,
           accountType: account.accountType,
         });
+      if (
+        this.scope() &&
+        listing.categoryId &&
+        this.categorySource.getCategory(listing.categoryId)?.isLeaf
+      )
+        await this.browse(listing.categoryId);
     } catch {
       if (generation === this.generation)
         this.error.set('Das Zielkonto konnte nicht geprüft werden.');
@@ -183,6 +192,7 @@ export class KleinanzeigenTransferTargetComponent {
     if (this.busy()) return;
     const previousFields = this.content().categoryFields;
     this.schema.set(null);
+    this.schemaLoadFailed.set(false);
     this.schemaRevision.set(null);
     this.error.set(null);
     for (const key of Object.keys(this.attributes.controls))
@@ -210,6 +220,7 @@ export class KleinanzeigenTransferTargetComponent {
     const generation = this.generation;
     this.busy.set(true);
     this.error.set(null);
+    this.schemaLoadFailed.set(false);
     try {
       const result = await this.schemas.browse(scope, path);
       if (generation !== this.generation) return;
@@ -239,10 +250,14 @@ export class KleinanzeigenTransferTargetComponent {
       this.loadingFields = false;
       this.emitFields();
     } catch (error) {
-      if (generation === this.generation)
+      if (generation === this.generation) {
+        this.schemaLoadFailed.set(true);
         this.error.set(
-          error instanceof Error ? error.message : 'Die Kategorie konnte nicht geprüft werden.',
+          error instanceof Error
+            ? error.message
+            : 'Die Eigenschaften konnten nicht geladen werden.',
         );
+      }
     } finally {
       this.loadingFields = false;
       if (generation === this.generation) this.busy.set(false);

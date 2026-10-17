@@ -5,6 +5,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -25,11 +26,13 @@ import { CLOUD_PURCHASE_PENDING_MESSAGE } from '../../services/marketplace-cloud
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
 import { LucideLink2 } from '@lucide/angular';
+import { VintedLocalConnectComponent } from '../vinted-local-connect/vinted-local-connect.component';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
   selector: 'app-marketplace-accounts',
   imports: [
+    VintedLocalConnectComponent,
     ReactiveFormsModule,
     ButtonComponent,
     LoadingIndicatorComponent,
@@ -45,6 +48,7 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceAccountsComponent {
+  readonly embedded = input(false);
   readonly store = inject(MarketplaceAccountStore);
   readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly extension = inject(VintedLocalExtensionBridge);
@@ -78,7 +82,7 @@ export class MarketplaceAccountsComponent {
   private readonly dialogState = signal<{
     context: string;
     connectionId: string | null;
-    mode: 'create' | 'rename' | 'login' | 'delete';
+    mode: 'create' | 'rename' | 'login' | 'local_login' | 'delete';
     newAccount: boolean;
     cloudSetupId?: string;
   } | null>(null);
@@ -154,6 +158,22 @@ export class MarketplaceAccountsComponent {
       newAccount: !connection,
     });
   }
+  openLocalLogin(connection: MarketplaceConnection): void {
+    if (
+      this.controlsDisabled() ||
+      !this.hasConnection(connection) ||
+      connection.status === 'paused' ||
+      connection.status === 'blocked'
+    )
+      return;
+    this.dialogRevision++;
+    this.dialogState.set({
+      context: this.context(),
+      connectionId: connection.connectionId,
+      mode: 'local_login',
+      newAccount: false,
+    });
+  }
   async openLogin(connection: MarketplaceConnection): Promise<void> {
     if (
       this.controlsDisabled() ||
@@ -165,7 +185,15 @@ export class MarketplaceAccountsComponent {
     const context = this.context();
     const revision = ++this.dialogRevision;
     if (connection.executionMode === 'local') {
-      await this.router.navigate(['/marketplaces/vinted/local-connect', connection.connectionId]);
+      if (this.embedded())
+        this.dialogState.set({
+          context,
+          connectionId: connection.connectionId,
+          mode: 'local_login',
+          newAccount: false,
+        });
+      else
+        await this.router.navigate(['/marketplaces/vinted/local-connect', connection.connectionId]);
       return;
     }
     this.store.clearMutationError();
@@ -216,6 +244,7 @@ export class MarketplaceAccountsComponent {
     if (
       !dialog ||
       dialog.mode === 'login' ||
+      dialog.mode === 'local_login' ||
       dialog.mode === 'delete' ||
       this.name.invalid ||
       this.store.busy() ||
@@ -227,8 +256,11 @@ export class MarketplaceAccountsComponent {
       if (this.connectionMethod.value === 'local') {
         const connectionId = await this.store.createConnection(this.name.value);
         if (!connectionId || this.dialog() !== dialog || !this.store.canManage()) return;
-        this.closeDialog();
-        await this.router.navigate(['/marketplaces/vinted/local-connect', connectionId]);
+        if (this.embedded()) this.dialogState.set({ ...dialog, connectionId, mode: 'local_login' });
+        else {
+          this.closeDialog();
+          await this.router.navigate(['/marketplaces/vinted/local-connect', connectionId]);
+        }
         return;
       }
       await this.beginCloud({ displayName: this.name.value.trim() }, dialog);
@@ -294,7 +326,7 @@ export class MarketplaceAccountsComponent {
       }
       if (setup?.state === 'completed') {
         this.dialogState.set(null);
-        await this.router.navigate(['/marketplaces/vinted/overview']);
+        if (!this.embedded()) await this.router.navigate(['/marketplaces/vinted/overview']);
         return;
       }
       if (setup)

@@ -18,6 +18,12 @@
     [loading]="isSaving()"
     >{{ isEdit() ? 'Änderungen speichern' : 'Inserat vorbereiten' }}</app-button
   >
+  @if (accountSelectionError(); as error) {
+    <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+  }
+  @if (selectedAccountName(); as name) {
+    <p class="text-sm text-fb-text-secondary">Kleinanzeigen-Konto: {{ name }}</p>
+  }
   <form id="listing-editor-form" [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
     @if (transferListing(); as listing) {
       <app-kleinanzeigen-transfer-target

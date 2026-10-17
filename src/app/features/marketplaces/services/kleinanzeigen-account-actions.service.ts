@@ -36,6 +36,47 @@ export class KleinanzeigenAccountActionsService {
     this.assertCurrent(generation);
     return await this.extension.connect(proposal.nonce, binding);
   }
+  async reconnect(
+    account: KleinanzeigenAccountScope & { readonly externalAccountId: string },
+    canPublish: boolean,
+  ): Promise<KleinanzeigenBinding> {
+    const generation = this.generation;
+    const scope = { workspaceId: account.workspaceId, connectionId: account.connectionId };
+    const currentBinding = await this.extension.status(scope.workspaceId);
+    this.assertCurrent(generation);
+    if (currentBinding) {
+      if (
+        currentBinding.connectionId !== scope.connectionId ||
+        currentBinding.externalAccountId !== account.externalAccountId
+      )
+        throw new Error(
+          'In diesem Browser ist ein anderes Kleinanzeigen-Konto verbunden. Wähle das passende Konto.',
+        );
+      await this.extension.disconnect(scope);
+      this.assertCurrent(generation);
+    }
+    const proposal = await this.extension.prepare(
+      scope.workspaceId,
+      canPublish,
+      environment.supabaseUrl.replace(/\/$/u, '') + '/functions/v1/kleinanzeigen-local-extension',
+    );
+    this.assertCurrent(generation);
+    if (proposal.externalAccountId !== account.externalAccountId)
+      throw new Error(
+        'Melde Dich bei Kleinanzeigen im ausgewählten Konto an und versuche es erneut.',
+      );
+    const binding = await this.api.connect(scope.workspaceId, proposal, canPublish);
+    this.assertCurrent(generation);
+    if (
+      binding.workspaceId !== scope.workspaceId ||
+      binding.connectionId !== scope.connectionId ||
+      binding.externalAccountId !== account.externalAccountId
+    )
+      throw new Error(
+        'Die erneuerte Freigabe konnte nicht für das ausgewählte Konto bestätigt werden.',
+      );
+    return await this.extension.connect(proposal.nonce, binding);
+  }
   async synchronize(scope: KleinanzeigenAccountScope): Promise<KleinanzeigenSyncResult> {
     const generation = this.generation;
     const binding = await this.extension.status(scope.workspaceId);

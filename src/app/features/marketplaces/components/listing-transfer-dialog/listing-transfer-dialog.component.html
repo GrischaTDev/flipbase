@@ -1,177 +1,209 @@
-<app-modal-shell
-  title="Inserieren"
-  subtitle="Plattform und Konto wählen"
-  size="xl"
-  (closed)="close()"
->
-  <div class="grid min-w-0 gap-4 sm:grid-cols-2">
-    <div class="space-y-2">
-      <label for="transfer-platform" class="block text-sm font-medium text-fb-text-primary"
-        >Plattform</label
+<app-modal-shell title="Inserieren" [subtitle]="stepTitle()" size="xl" (closed)="close()">
+  @if (step() !== 'platform') {
+    <div>
+      <app-button [disabled]="busy() || publishing() || publicationPending()" (clicked)="back()">{{
+        step() === 'form' ? 'Zurück zur Kontoauswahl' : 'Zurück zur Plattformauswahl'
+      }}</app-button>
+    </div>
+  }
+  @if (step() === 'platform') {
+    <app-marketplace-platform-picker
+      [platforms]="availablePlatforms()"
+      [selectedPlatforms]="[]"
+      [disabledPlatforms]="unavailablePlatforms"
+      [disabled]="busy()"
+      (platformSelected)="selectPlatform($event)"
+    />
+  } @else if (step() === 'account') {
+    <div class="mx-auto w-full max-w-md space-y-2">
+      <label for="transfer-target" class="block text-sm font-medium text-fb-text-primary"
+        >Konto</label
       >
       <app-custom-select
-        triggerId="transfer-platform"
-        ariaLabel="Plattform"
-        [formControl]="platform"
-        [options]="platformOptions"
-        placeholder="Plattform auswählen"
+        triggerId="transfer-target"
+        ariaLabel="Konto"
+        [formControl]="target"
+        [options]="targetOptions()"
+        placeholder="Konto auswählen"
       />
+      @if (!accounts().length && !busy()) {
+        <p class="text-sm text-fb-text-secondary">Noch kein Kleinanzeigen-Konto vorhanden.</p>
+        <app-button (clicked)="accountManagementOpen.set(true)">Konto hinzufügen</app-button>
+      }
+      @if (busy()) {
+        <p class="text-sm text-fb-text-secondary" role="status">Inserat wird geöffnet …</p>
+      }
     </div>
-    @if (selectedPlatform() === 'kleinanzeigen') {
-      <div class="space-y-2">
-        <label for="transfer-target" class="block text-sm font-medium text-fb-text-primary"
-          >Konto</label
-        >
-        <app-custom-select
-          triggerId="transfer-target"
-          ariaLabel="Konto"
-          [formControl]="target"
-          [options]="targetOptions()"
-          placeholder="Konto auswählen"
-        />
-      </div>
-    }
-  </div>
-  @if (selectedPlatform() && selectedPlatform() !== 'kleinanzeigen') {
-    <p class="text-sm text-fb-text-secondary" role="status">
-      Die Übernahme auf diese Plattform steht noch nicht zur Verfügung. Der erste vollständige
-      Kopierweg führt von Vinted zu Kleinanzeigen.
-    </p>
-  }
-  @if (selectedPlatform() === 'kleinanzeigen' && !accounts().length && !busy()) {
-    <p class="text-sm text-fb-text-secondary">
-      Verbinde zuerst das gewünschte Kleinanzeigen-Konto über das Zahnrad am Konto.
-    </p>
-  }
-  @if (busy() && !preview()) {
-    <p class="text-sm text-fb-text-secondary" role="status">
-      Gespeicherte Inseratsangaben werden übernommen …
-    </p>
   }
   @if (preview(); as transfer) {
-    <p class="text-sm text-fb-text-secondary">
-      Die vorhandenen Angaben wurden aus Deinem gespeicherten Inserat übernommen. Fehlende oder
-      unpassende Angaben kannst Du hier ergänzen.
-    </p>
-    <form [formGroup]="form" class="space-y-5" (ngSubmit)="publish()">
-      <div class="grid min-w-0 gap-5 md:grid-cols-2">
-        <div class="min-w-0 space-y-4">
-          <app-text-field
-            formControlName="title"
-            label="Titel auf Kleinanzeigen"
-            [helpText]="form.controls.title.value.length + '/65 Zeichen'"
-            [error]="form.controls.title.invalid ? 'Prüfe den Titel: 1 bis 65 Zeichen.' : null"
+    <form [formGroup]="form" class="min-w-0 space-y-5" (ngSubmit)="publish()">
+      <section aria-label="Bilder">
+        <h3 class="mb-2 text-sm font-semibold text-fb-text-primary">Bilder</h3>
+        <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          @for (photo of transfer.originalPhotoReferences; track $index) {
+            <app-product-thumbnail
+              class="aspect-square w-full"
+              [src]="photo"
+              [alt]="'Bild ' + ($index + 1)"
+              size="gallery"
+            />
+          } @empty {
+            <p class="col-span-full text-sm text-fb-text-secondary">Keine Bilder gespeichert.</p>
+          }
+        </div>
+        @if (fieldErrors()['images']; as message) {
+          <p class="mt-2 text-sm text-[var(--fb-color-critical-text)]" role="alert">
+            {{ message }}
+          </p>
+        }
+      </section>
+      <app-text-field
+        formControlName="title"
+        label="Titel"
+        [error]="
+          form.controls.title.touched && form.controls.title.invalid
+            ? 'Prüfe den Titel: 1 bis 65 Zeichen.'
+            : null
+        "
+      />
+      <app-text-field
+        formControlName="description"
+        label="Beschreibung"
+        [multiline]="8"
+        [error]="
+          form.controls.description.touched && form.controls.description.invalid
+            ? 'Prüfe die Beschreibung: 1 bis 4.000 Zeichen.'
+            : null
+        "
+      />
+      <section class="space-y-3" aria-label="Kategorie und Eigenschaften">
+        <app-category-picker
+          [source]="categorySource"
+          [formControl]="categorySelection"
+          label="Kategorie"
+          placeholder="Kategorie suchen oder auswählen"
+        />
+        @if (!busy() && fieldErrors()['categoryId']; as message) {
+          <p class="text-sm text-[var(--fb-color-critical-text)]" role="alert">{{ message }}</p>
+        }
+        @if (busy()) {
+          <p class="text-sm text-fb-text-secondary" role="status">Eigenschaften werden geladen …</p>
+        }
+        @if (bindingIssue()) {
+          <app-button
+            [disabled]="busy() || publishing()"
+            (clicked)="accountManagementOpen.set(true)"
+            >{{
+              bindingIssue() === 'missing' ? 'Konto verbinden' : 'Freigabe erneuern'
+            }}</app-button
+          >
+        }
+        @if (schemaLoadFailed() && categoryPath() && !busy()) {
+          <app-button [disabled]="publishing()" (clicked)="selectCategory(categoryPath())"
+            >Eigenschaften erneut laden</app-button
+          >
+        }
+        @if (schema(); as currentSchema) {
+          <app-kleinanzeigen-listing-fields
+            [schema]="currentSchema"
+            [attributes]="attributes"
+            [errors]="fieldErrors()"
+            [shippingEnabled]="false"
+            [shippingGroup]="shippingGroup"
+            [selectedGroup]="selectedShippingGroup()"
+            [selectedMethods]="selectedShippingMethods()"
+            (methodsChanged)="chooseMethods($event)"
           />
-          <app-text-field
-            formControlName="description"
-            label="Beschreibung auf Kleinanzeigen"
-            [multiline]="10"
-            [helpText]="form.controls.description.value.length + '/4000 Zeichen'"
-            [error]="
-              form.controls.description.invalid
-                ? 'Prüfe die Beschreibung: 1 bis 4.000 Zeichen.'
-                : null
+        }
+      </section>
+      <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="transfer-price" class="mb-1 block text-sm font-medium text-fb-text-primary"
+            >Preis</label
+          >
+          <app-number-input
+            id="transfer-price"
+            formControlName="price"
+            ariaLabel="Preis in Euro"
+            [min]="0"
+            [step]="1"
+            [asCurrency]="true"
+            [ariaInvalid]="
+              form.controls.price.touched &&
+              (form.controls.price.invalid || !!fieldErrors()['priceCents'])
+            "
+            [ariaDescribedby]="
+              form.controls.price.touched &&
+              (form.controls.price.invalid || fieldErrors()['priceCents'])
+                ? 'transfer-price-error'
+                : ''
             "
           />
-          <div>
-            <label for="transfer-price" class="mb-1 block text-sm font-medium text-fb-text-primary"
-              >Preis in Euro</label
-            ><app-number-input
-              id="transfer-price"
-              formControlName="price"
-              ariaLabel="Preis in Euro"
-              [min]="0"
-              [step]="1"
-              [asCurrency]="true"
-            />
-            <p class="mt-1 text-xs text-fb-text-secondary">
-              Für das automatische Inserieren sind hier nur ganze Euro möglich. Centbeträge werden
-              zur Korrektur angezeigt.
+          @if (
+            form.controls.price.touched &&
+            (form.controls.price.invalid || fieldErrors()['priceCents'])
+          ) {
+            <p
+              id="transfer-price-error"
+              class="mt-1 text-sm text-[var(--fb-color-critical-text)]"
+              role="alert"
+            >
+              {{ fieldErrors()['priceCents'] || 'Trage einen gültigen Preis ein.' }}
             </p>
-          </div>
-          <app-custom-select
+          }
+        </div>
+        <div>
+          <label
+            for="transfer-price-type"
+            class="mb-1 block text-sm font-medium text-fb-text-primary"
+            >Preistyp</label
+          ><app-custom-select
+            triggerId="transfer-price-type"
             ariaLabel="Preistyp"
             formControlName="priceType"
             [options]="priceTypes"
           />
-          <app-text-field formControlName="postalCode" label="Postleitzahl" [maxLength]="5" />
-          <div>
-            <p class="mb-1 block text-sm font-medium text-fb-text-primary">Übergabe</p>
-            <app-custom-select
-              ariaLabel="Übergabe"
-              formControlName="shippingType"
-              [options]="shippingTypes"
-            />
-          </div>
         </div>
-        <div class="min-w-0 space-y-4">
-          <section class="space-y-3" aria-label="Kleinanzeigen-Kategorie">
-            <h3 class="text-sm font-semibold text-fb-text-primary">Kategorie und Eigenschaften</h3>
-            <app-category-picker
-              [source]="categorySource"
-              [formControl]="categorySelection"
-              label="Kleinanzeigen-Kategorie"
-              placeholder="Kategorie suchen oder auswählen"
-              helpText="Suche in den verfügbaren Kleinanzeigen-Kategorien oder öffne die Unterkategorien."
+      </div>
+      <div class="space-y-3">
+        <label for="transfer-shipping-type" class="block text-sm font-medium text-fb-text-primary"
+          >Versand</label
+        >
+        <app-custom-select
+          triggerId="transfer-shipping-type"
+          ariaLabel="Versand"
+          formControlName="shippingType"
+          [options]="shippingTypes"
+        />
+        @if (schema(); as currentSchema) {
+          @if (form.controls.shippingType.value === 'both') {
+            <app-kleinanzeigen-listing-fields
+              [schema]="currentSchema"
+              [attributes]="attributes"
+              [errors]="fieldErrors()"
+              [showAttributes]="false"
+              [shippingEnabled]="true"
+              [shippingGroup]="shippingGroup"
+              [selectedGroup]="selectedShippingGroup()"
+              [selectedMethods]="selectedShippingMethods()"
+              (methodsChanged)="chooseMethods($event)"
             />
-            @if (busy()) {
-              <p class="text-sm text-fb-text-secondary" role="status">
-                Kleinanzeigen-Eigenschaften werden geladen …
-              </p>
-            }
-            @if (categoryPath() && !schema() && !busy()) {
-              <app-button [disabled]="publishing()" (clicked)="selectCategory(categoryPath())"
-                >Eigenschaften laden</app-button
-              >
-            }
-            @if (schema(); as currentSchema) {
-              <app-kleinanzeigen-listing-fields
-                [schema]="currentSchema"
-                [attributes]="attributes"
-                [shippingEnabled]="form.controls.shippingType.value === 'both'"
-                [shippingGroup]="shippingGroup"
-                [selectedGroup]="selectedShippingGroup()"
-                [selectedMethods]="selectedShippingMethods()"
-                (methodsChanged)="chooseMethods($event)"
-              />
-            }
-          </section>
-          @if (attributeHints().length) {
-            <section class="rounded-lg border border-fb-border p-3" aria-label="Angaben aus Vinted">
-              <h3 class="text-sm font-semibold text-fb-text-primary">Angaben aus Vinted</h3>
-              <p class="mt-1 text-xs text-fb-text-secondary">
-                Passende gespeicherte Werte werden in die Kategorie übernommen. Prüfe die Angaben
-                und ergänze fehlende Werte.
-              </p>
-              <dl class="mt-3 space-y-2 text-sm">
-                @for (hint of attributeHints(); track hint.label) {
-                  <div>
-                    <dt class="text-fb-text-secondary">{{ hint.label }}</dt>
-                    <dd class="break-words text-fb-text-primary">{{ hint.value }}</dd>
-                  </div>
-                }
-              </dl>
-            </section>
           }
-          <section aria-label="Übernommene Bilder">
-            <h3 class="mb-2 text-sm font-semibold text-fb-text-primary">
-              {{ transfer.originalPhotoReferences.length }} Bilder aus Vinted
-            </h3>
-            <div class="mb-3 grid grid-cols-4 gap-2">
-              @for (photo of transfer.originalPhotoReferences; track $index) {
-                <app-product-thumbnail
-                  [src]="photo"
-                  [alt]="'Bild ' + ($index + 1) + ' aus Vinted'"
-                  size="gallery"
-                />
-              }
-            </div>
-            <p class="text-xs text-fb-text-secondary">
-              Beim Speichern werden alle Bilder gesichert. Reihenfolge und Bildauswahl kannst Du
-              danach vollständig bearbeiten.
-            </p>
-          </section>
-        </div>
+        }
+        @if (fieldErrors()['shippingType']; as message) {
+          <p class="text-sm text-[var(--fb-color-critical-text)]" role="alert">{{ message }}</p>
+        }
+        <app-text-field
+          formControlName="postalCode"
+          label="Postleitzahl"
+          [maxLength]="5"
+          [error]="
+            fieldErrors()['postalCode'] ||
+            (form.controls.postalCode.touched && form.controls.postalCode.invalid
+              ? 'Trage eine gültige Postleitzahl ein.'
+              : null)
+          "
+        />
       </div>
       @if (savedDraft(); as draft) {
         <app-kleinanzeigen-publication-panel
@@ -237,3 +269,20 @@
     }
   </div>
 </app-modal-shell>
+
+@if (accountManagementOpen()) {
+  <app-modal-shell
+    title="Kleinanzeigen-Konto verbinden"
+    size="lg"
+    (closed)="accountManagementOpen.set(false)"
+  >
+    <app-kleinanzeigen-accounts
+      [workspaceId]="source().workspaceId"
+      [connectionId]="target.value || null"
+      (changed)="accountChanged()"
+    />
+    <app-button modal-footer (clicked)="accountManagementOpen.set(false)"
+      >Zurück zum Inserat</app-button
+    >
+  </app-modal-shell>
+}
