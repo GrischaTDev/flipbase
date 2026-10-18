@@ -15,7 +15,7 @@ const coreTests = [
       (theme) =>
         `Einheitliche Seitenbreite > wendet Layoutwahl, Seitenwechsel und gespeicherte Breite an ${theme} @core-smoke`,
     ),
-    'Einheitliche Seitenbreite > hält alle Vinted-Seiten sowie Ausgaben, Steuern und Auswertungen im gemeinsamen Rahmen @core-smoke',
+    'Einheitliche Seitenbreite > hält alle Verwaltungsseiten im gemeinsamen Rahmen @core-smoke',
     ...[320, 390, 768].map(
       (width) =>
         `Einheitliche Seitenbreite > bleibt bei ${width}px per Touch bedienbar und ohne Überlauf @core-smoke`,

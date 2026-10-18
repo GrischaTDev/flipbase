@@ -2,12 +2,11 @@ import { Injectable, signal } from '@angular/core';
 
 export type PageWidth = 'narrow' | 'medium' | 'full';
 const STORAGE_KEY = 'flipbase_page_width';
-const WIDE_PAGES = new Set(['/dashboard', '/purchases', '/catalog', '/sales']);
 
-/** Die Tabellenübersichten bleiben nur im Standardlayout breit. */
-export function pageContentMaxWidth(width: PageWidth, url: string): string | null {
+/** Dieselbe Inhaltsbreite gilt für alle Verwaltungsseiten. */
+export function pageContentMaxWidth(width: PageWidth): string | null {
   if (width === 'narrow') return '64rem';
-  if (width === 'full' || WIDE_PAGES.has(url.split(/[?#]/, 1)[0])) return null;
+  if (width === 'full') return null;
   return '80rem';
 }
 

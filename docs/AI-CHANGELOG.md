@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Einheitliche Maximalbreite ohne Seitenausnahmen
+
+**Auftrag:** Nach der ersten Layout-Einführung ausdrücklich auch Dashboard sowie Einkaufs-, Artikel- und Verkaufsübersichten mit derselben Maximalbreite versehen.
+
+**Umsetzung:** Seitenausnahmen entfernt. Der Standard Mittel begrenzt den Inhalt überall auf 80rem / 1.280px. Schmal und Volle Breite bleiben browserlokal wählbar und wirken weiterhin auf alle Verwaltungsseiten. Nicht mehr benötigte URL-Auswertung samt Router-Abonnement aus der Shell entfernt. Bestehende Modell-, Shell- und Browserprüfungen sowie deren Soll-Liste und Gestaltungsrichtlinie an die neue Entscheidung angepasst. Eigener Zweig `juna/uniform-page-width` auf aktuellem Hauptzweig; fremde Dokumentationsänderungen im ursprünglichen Arbeitsordner unberührt.
+
+**Prüfung und Stand:** Bisherige Ausnahmen vor der Korrektur mit sechs erwarteten Fehlschlägen nachgewiesen. Anschließend alle 533 Anwendungstestdateien mit 5.591 Tests bestanden. Sechs bestehende Layoutfälle und 27 bestehende responsive Browserfälle unter Windows grün; die sechs Layoutfälle zusätzlich unter Linux mit Playwright 1.62.1 und 2 CPUs / 4 GiB geprüft. Damit sind 2.560px, Dashboard-/Tabellen-/Seitenwechsel, gespeicherte Breitenwahl, Hell/Dunkel, AXE am Profilmenü sowie Touch bei 320/390/768px abgesichert. Produktions- und Entwicklungsbau, Typen, Lint, Format, Suite-Audit und alle 33 Testauswahl-/Registrierungsprüfungen bestanden. Sichtbaren Dashboard-Nachweis nach geladenem Diagramm mit exakt 1.280px Inhalt und ohne Laufzeitfehler außerhalb des Repositories gesichert. Browserläufe mit simulierten Daten, ohne echte Anbieterzugriffe. Vollständige CI-/Produktions-PWA-Prüfungen bleiben vor einem Merge erforderlich. Kein Push, PR, Merge oder Deployment dieser Folgeänderung.
+
 ## 2026-10-18 - Juna - KI-Avatar auch bei automatischen Angeboten anzeigen
 
 **Auftrag und Ursache:** Im Nutzerbild trägt die automatische Textantwort bereits das KI-Avatar, das danach automatisch gesendete Angebot aber das Kontobild. Die serverseitige Herkunftserkennung prüfte nur Text-Versandbelege. Eine ausschließlich lesende Produktionsabfrage bestätigt für das gezeigte Gespräch einen passenden gespeicherten Angebotsbeleg; keine Nachricht oder kein Angebot wurde versendet.
