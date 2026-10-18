@@ -15,7 +15,7 @@ import { expect, openDashboard, test } from './support/fixtures';
 const horizontalOverflow = () =>
   document.documentElement.scrollWidth - document.documentElement.clientWidth;
 
-test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberlauf', async ({
+test('begrenzt Datenansichten auf breiten Bildschirmen ohne seitlichen Seitenüberlauf', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 2560, height: 1080 });
@@ -23,8 +23,9 @@ test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberla
   for (const route of ['/dashboard', '/purchases', '/inventory', '/sales']) {
     await page.goto(route);
     await expect(page.locator('main h1')).toBeVisible();
-    const bounds = await page.locator('#hauptinhalt').boundingBox();
-    expect(bounds!.width).toBeGreaterThan(2200);
+    const content = page.locator('[data-page-content]');
+    await expect(content).toHaveCSS('max-width', '1280px');
+    expect((await content.boundingBox())!.width).toBe(1280);
     expect(await page.evaluate(horizontalOverflow)).toBe(0);
   }
 });
@@ -90,8 +91,8 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
         await expect(content).toHaveCSS('max-width', '1024px');
         await page.getByRole('button', { name: 'Benutzermenü öffnen' }).click();
         await layout.getByRole('button', { name: 'Mittel', exact: true }).click();
-        await expect(content).toHaveCSS('max-width', 'none');
-        expect((await content.boundingBox())!.width).toBeGreaterThan(2200);
+        await expect(content).toHaveCSS('max-width', '1280px');
+        expect((await content.boundingBox())!.width).toBe(1280);
         await page.keyboard.press('Escape');
         await page.goto('/marketplaces/overview');
         await expect(content).toHaveCSS('max-width', '1280px');
@@ -107,39 +108,36 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
     );
   }
 
-  previewTest(
-    'hält alle Vinted-Seiten sowie Ausgaben, Steuern und Auswertungen im gemeinsamen Rahmen @core-smoke',
-    async ({ page }) => {
-      await page.setViewportSize({ width: 2560, height: 1080 });
-      await mockMarketplace(page);
-      for (const route of [
-        '/marketplaces/vinted/accounts',
-        '/vinted-bot',
-        '/vinted-bot/filters',
-        '/vinted-bot/favorites',
-        '/marketplaces/ebay/listings',
-        '/expenses',
-        '/accounting',
-        '/analytics',
-      ]) {
-        await page.goto(route);
-        await expect(page).toHaveURL(new RegExp(route.replaceAll('/', '\\/') + '$'));
-        await expect(page.locator('main h1').first()).toBeVisible();
-        const content = page.locator('[data-page-content]');
-        await expect(content).toHaveCSS('max-width', '1280px');
-        expect((await content.boundingBox())!.width).toBe(1280);
-        expect(await page.evaluate(horizontalOverflow)).toBe(0);
-      }
-      for (const route of ['/dashboard', '/purchases', '/catalog?view=stock', '/sales']) {
-        await page.goto(route);
-        await expect(page.locator('main h1').first()).toBeVisible();
-        const content = page.locator('[data-page-content]');
-        await expect(content).toHaveCSS('max-width', 'none');
-        expect((await content.boundingBox())!.width).toBeGreaterThan(2200);
-        expect(await page.evaluate(horizontalOverflow)).toBe(0);
-      }
-    },
-  );
+  previewTest('hält alle Verwaltungsseiten im gemeinsamen Rahmen @core-smoke', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1080 });
+    await mockMarketplace(page);
+    for (const route of [
+      '/marketplaces/vinted/accounts',
+      '/vinted-bot',
+      '/vinted-bot/filters',
+      '/vinted-bot/favorites',
+      '/marketplaces/ebay/listings',
+      '/expenses',
+      '/accounting',
+      '/analytics',
+    ]) {
+      await page.goto(route);
+      await expect(page).toHaveURL(new RegExp(route.replaceAll('/', '\\/') + '$'));
+      await expect(page.locator('main h1').first()).toBeVisible();
+      const content = page.locator('[data-page-content]');
+      await expect(content).toHaveCSS('max-width', '1280px');
+      expect((await content.boundingBox())!.width).toBe(1280);
+      expect(await page.evaluate(horizontalOverflow)).toBe(0);
+    }
+    for (const route of ['/dashboard', '/purchases', '/catalog?view=stock', '/sales']) {
+      await page.goto(route);
+      await expect(page.locator('main h1').first()).toBeVisible();
+      const content = page.locator('[data-page-content]');
+      await expect(content).toHaveCSS('max-width', '1280px');
+      expect((await content.boundingBox())!.width).toBe(1280);
+      expect(await page.evaluate(horizontalOverflow)).toBe(0);
+    }
+  });
 
   for (const width of [320, 390, 768]) {
     previewTest(

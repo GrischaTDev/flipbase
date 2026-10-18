@@ -39,30 +39,11 @@ describe('PageLayoutService', () => {
 });
 
 describe('pageContentMaxWidth', () => {
-  it.each(['/dashboard', '/purchases', '/catalog', '/catalog?view=stock', '/sales'])(
-    'lässt %s im Standard breit',
-    (url) => {
-      expect(pageContentMaxWidth('medium', url)).toBeNull();
-      expect(pageContentMaxWidth('narrow', url)).toBe('64rem');
-      expect(pageContentMaxWidth('full', url)).toBeNull();
-    },
-  );
-
   it.each([
-    '/marketplaces',
-    '/vinted-bot',
-    '/vinted-bot/filters',
-    '/vinted-bot/favorites',
-    '/marketplaces/ebay',
-    '/expenses',
-    '/accounting',
-    '/analytics',
-    '/purchases/new',
-    '/catalog/brands',
-    '/sales/new',
-  ])('begrenzt %s einheitlich', (url) => {
-    expect(pageContentMaxWidth('medium', url)).toBe('80rem');
-    expect(pageContentMaxWidth('narrow', url)).toBe('64rem');
-    expect(pageContentMaxWidth('full', url)).toBeNull();
+    ['narrow', '64rem'],
+    ['medium', '80rem'],
+    ['full', null],
+  ] as const)('wendet %s unabhängig von der Seite an', (width, expected) => {
+    expect(pageContentMaxWidth(width)).toBe(expected);
   });
 });
