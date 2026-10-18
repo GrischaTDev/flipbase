@@ -43,7 +43,11 @@ export class KleinanzeigenAccountService {
       workspaceId,
     );
     if (!result) throw new Error('Die Kleinanzeigen-Kontoübersicht konnte nicht geprüft werden.');
-    return result;
+    // Widerrufene Verknüpfungen bleiben als Datenhistorie erhalten, sind aber keine aktiven Konten.
+    return {
+      ...result,
+      accounts: result.accounts.filter((account) => account.status !== 'disconnected'),
+    };
   }
   async readPage(
     scope: KleinanzeigenAccountScope,

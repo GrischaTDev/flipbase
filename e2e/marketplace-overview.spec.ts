@@ -302,7 +302,7 @@ test('Kontextnavigation führt aus Vinted und eBay zur Übersicht zurück @core-
     exact: true,
   });
   await expect(
-    ebayDialog.getByRole('heading', { name: 'Dein eBay-Konto', exact: true }),
+    ebayDialog.getByRole('heading', { name: 'eBay-Testkonto', exact: true }),
   ).toBeVisible();
   await expect(page).toHaveURL(/marketplaces\/overview$/);
   expect(

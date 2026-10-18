@@ -1,5 +1,6 @@
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { ArticlePickerComponent } from '../../../../shared/components/article-picker/article-picker.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -67,6 +68,7 @@ describe('Persönliche eBay-Oberfläche', () => {
   };
   beforeAll(async () => {
     const restoreBindings = await prepareMarketplaceRendering([
+      { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
       {
         type: EbayListingPerformanceComponent,
         path: 'src/app/features/marketplaces/components/ebay-listing-performance/ebay-listing-performance.component.ts',
@@ -316,6 +318,107 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it('zeigt das einzelne eBay-Konto kompakt und öffnet die Verwaltung am Zahnrad', async () => {
+    const fixture = await render(true, 'connection');
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('eBay-Konten');
+    expect(element.textContent).toContain('seller-a');
+    expect(element.textContent).not.toContain('Erneut mit eBay verbinden');
+    expect(element.textContent).not.toContain('Konto hinzufügen');
+    const settings = element.querySelector<HTMLButtonElement>('[aria-label="seller-a einstellen"]');
+    expect(settings).not.toBeNull();
+    settings?.focus();
+    settings?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const dialog = element.querySelector<HTMLElement>('[role="dialog"]');
+    expect(dialog?.textContent).toContain('Erneut mit eBay verbinden');
+    expect(dialog?.textContent).toContain('Verbindung trennen');
+    expect(dialog?.textContent).toContain('ein eBay-Konto');
+    const results = await axe.run(dialog!, { rules: { 'color-contrast': { enabled: false } } });
+    expect(results.violations).toEqual([]);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(settings);
+    expect(api.loadListings).not.toHaveBeenCalled();
+    expect(api.loadOrders).not.toHaveBeenCalled();
+  });
+  it('startet die erste Kontoverbindung im Dialog und hält Fehler im Verbindungsablauf sichtbar', async () => {
+    api.loadStatus.mockResolvedValue({ configured: true, connection: null });
+    api.connect.mockRejectedValueOnce(new Error('Du brauchst Verwaltungszugriff.'));
+    const fixture = await render(true, 'connection');
+    const element = fixture.nativeElement as HTMLElement;
+    const add = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Konto hinzufügen',
+    );
+    expect(add).toBeDefined();
+    expect(element.textContent).not.toContain('Mit eBay verbinden');
+    add?.click();
+    fixture.detectChanges();
+    const connect = Array.from(element.querySelectorAll('[role="dialog"] button')).find(
+      (button) => button.textContent?.trim() === 'Mit eBay verbinden',
+    ) as HTMLButtonElement | undefined;
+    expect(connect).toBeDefined();
+    connect?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain(
+      'Du brauchst Verwaltungszugriff.',
+    );
+  });
+  it('bettet die Kontoverwaltung ohne eigenen Dialog in die Übersicht ein', async () => {
+    const fixture = await render(false, 'connection');
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
+    expect(element.querySelector('app-page-header')).toBeNull();
+    expect(element.textContent).toContain('Erneut mit eBay verbinden');
+    const disconnect = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Verbindung trennen',
+    );
+    disconnect?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Getrennt');
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
+  });
+  it('erlaubt nach einem fehlgeschlagenen Statusabruf die erneute Prüfung vor dem Hinzufügen', async () => {
+    api.loadStatus.mockRejectedValueOnce(new Error('eBay ist gerade nicht erreichbar.'));
+    api.loadStatus.mockResolvedValue({ configured: true, connection: null });
+    const fixture = await render(true, 'connection');
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('nicht erreichbar');
+    const retry = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Status aktualisieren',
+    );
+    expect(retry).toBeDefined();
+    retry?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[role="alert"]')).toBeNull();
+    const add = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Konto hinzufügen',
+    );
+    expect(add?.disabled).toBe(false);
+  });
+  it('schließt den Kontodialog beim Workspacewechsel und entfernt den vorherigen Kontostand', async () => {
+    const fixture = await render(true, 'connection');
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[aria-label="seller-a einstellen"]')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).not.toBeNull();
+    api.loadStatus.mockResolvedValueOnce({ configured: true, connection: null });
+    workspace.set({ id: 'workspace-b', archived_at: null });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
+    expect(element.textContent).not.toContain('seller-a');
+  });
   it('kehrt nach offizieller Freigabe nur im passenden Benutzer- und Workspacekontext zur Übersicht zurück', async () => {
     sessionStorage.setItem(
       'flipbase:ebay:overview-return',
@@ -432,8 +535,9 @@ describe('Persönliche eBay-Oberfläche', () => {
     await router.navigateByUrl('/marketplaces/ebay/connection');
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(element.textContent).toContain('eBay-Kontoverbindung');
-    expect(element.textContent).toContain('Erneut mit eBay verbinden');
+    expect(element.textContent).toContain('eBay-Konten');
+    expect(element.textContent).not.toContain('Erneut mit eBay verbinden');
+    expect(element.querySelector('[aria-label="seller-a einstellen"]')).not.toBeNull();
     expect(element.querySelector('app-data-table')).toBeNull();
     expect(api.loadOrders).not.toHaveBeenCalled();
     expect(api.loadListings).not.toHaveBeenCalled();

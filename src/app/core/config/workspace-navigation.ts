@@ -82,13 +82,6 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         platform: 'vinted',
       },
       {
-        path: '/vinted-bot',
-        labelKey: 'NAV.VINTED_FEED',
-        label: 'Vinted Feed',
-        icon: 'bot',
-        children: VINTED_BOT_NAVIGATION,
-      },
-      {
         path: '/marketplaces/ebay',
         labelKey: 'PLATFORMS.EBAY',
         label: 'eBay',
@@ -129,6 +122,13 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     labelKey: 'NAV.GROUP_TOOLS',
     label: 'Tools',
     items: [
+      {
+        path: '/vinted-bot',
+        labelKey: 'NAV.VINTED_FEED',
+        label: 'Vinted Feed',
+        icon: 'bot',
+        children: VINTED_BOT_NAVIGATION,
+      },
       {
         path: '/tools/brand-labels',
         labelKey: 'NAV.REFERENCE_LIBRARY',

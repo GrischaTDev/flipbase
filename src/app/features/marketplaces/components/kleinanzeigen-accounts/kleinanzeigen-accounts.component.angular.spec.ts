@@ -123,12 +123,75 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it('zeigt beim Hinzufügen keine zweite Kontenliste und verlangt zunächst das Entfernen der bestehenden Bindung', async () => {
+    const fixture = await create();
+    fixture.componentRef.setInput('setupOnly', true);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('article')).toHaveLength(0);
+    expect(element.textContent).toContain('Verbundenes Kleinanzeigen-Konto:');
+    expect(element.textContent).not.toContain('Dieses Browserprofil:');
+    expect(
+      Array.from(element.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Konto entfernen'),
+      ),
+    ).toBeDefined();
+    expect(
+      Array.from(element.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Angemeldetes Konto verbinden'),
+      ),
+    ).toBeUndefined();
+  });
+  it('löst nach einem früheren Serverwiderruf auch eine verwaiste lokale Bindung', async () => {
+    api.readAccounts.mockResolvedValue({ workspaceId: workspace, canManage: true, accounts: [] });
+    const fixture = await create();
+    fixture.componentRef.setInput('setupOnly', true);
+    fixture.detectChanges();
+    const remove = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ).find((button) => button.textContent?.includes('Konto entfernen'));
+    expect(remove).toBeDefined();
+    remove!.click();
+    fixture.detectChanges();
+    actions.disconnect.mockResolvedValue('done');
+    await fixture.componentInstance.confirmDisconnect();
+    expect(actions.disconnect).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: first.connectionId, workspaceId: workspace }),
+    );
+    expect(fixture.componentInstance.localBinding()).toBeNull();
+  });
+  it('gibt das Browserprofil nach bestätigtem Entfernen für ein anderes Konto frei', async () => {
+    const fixture = await create();
+    actions.disconnect.mockResolvedValue('done');
+    api.readAccounts.mockResolvedValue({
+      workspaceId: workspace,
+      canManage: true,
+      accounts: [second],
+    });
+    fixture.componentInstance.disconnecting.set(first);
+    await fixture.componentInstance.confirmDisconnect();
+    fixture.detectChanges();
+    expect(actions.disconnect).toHaveBeenCalledWith(first);
+    expect(fixture.componentInstance.localBinding()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Privates Testkonto');
+    await fixture.componentInstance.connect();
+    expect(actions.connect).toHaveBeenCalledWith(workspace, false);
+  });
+  it('behauptet nach einem gescheiterten Widerruf keine Entfernung', async () => {
+    const fixture = await create();
+    actions.disconnect.mockRejectedValue(new Error('Widerruf fehlgeschlagen'));
+    fixture.componentInstance.disconnecting.set(first);
+    await fixture.componentInstance.confirmDisconnect();
+    expect(fixture.componentInstance.localBinding()?.connectionId).toBe(first.connectionId);
+    expect(fixture.componentInstance.disconnecting()).toEqual(first);
+    expect(fixture.componentInstance.error()).toBe('Widerruf fehlgeschlagen');
+  });
   it('zeigt Konten getrennt und unterscheidet Inseratzahl vom offiziellen Kontingent', async () => {
     const fixture = await create();
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Privates Testkonto');
     expect(text).toContain('Zweites Testkonto');
-    expect(text).toContain('17 gespeicherte Inserate');
+    expect(text).toContain('17 Inserate');
     expect(text).toContain('8 von 100');
     expect(text).toContain('Gewerblich');
     expect(text).toContain('Inseratzahl unbekannt');
@@ -174,7 +237,7 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     await fixture.componentInstance.synchronize(first);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Abruf unterbrochen');
-    expect(fixture.nativeElement.textContent).toContain('17 gespeicherte Inserate');
+    expect(fixture.nativeElement.textContent).toContain('17 Inserate');
   });
   it.each([false, true])(
     'verbindet nur mit der ausdrücklich gewählten Schreibfreigabe %s',

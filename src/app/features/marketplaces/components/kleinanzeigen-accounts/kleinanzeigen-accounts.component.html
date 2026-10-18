@@ -5,18 +5,6 @@
   @if (notice(); as message) {
     <app-notice-banner>{{ message }}</app-notice-banner>
   }
-  <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
-    <h2 class="text-base font-semibold text-fb-text-primary">
-      {{ connectionId() ? 'Kleinanzeigen-Konto' : 'Deine Kleinanzeigen-Konten' }}
-    </h2>
-    <div class="flex flex-wrap gap-2">
-      <app-button [icon]="refreshIcon" [disabled]="busy() || loading()" (clicked)="reload()"
-        >Ansicht aktualisieren</app-button
-      ><app-button [disabled]="busy()" (clicked)="extension.checkInstallation()"
-        >Erweiterung prüfen</app-button
-      >
-    </div>
-  </div>
   @if (loading()) {
     <p class="flex items-center gap-2 text-sm text-fb-text-secondary" role="status">
       <app-loading-indicator />Konten werden geladen …
@@ -29,10 +17,7 @@
   }
   @if (canManage()) {
     @if (!connectionId()) {
-      <app-card
-        title="Browserprofil verbinden"
-        subtitle="Jedes Browserprofil verbindet genau ein angemeldetes Kleinanzeigen-Konto."
-      >
+      <app-card padding="none">
         @if (extension.checking()) {
           <p class="text-sm text-fb-text-secondary" role="status">Erweiterung wird geprüft …</p>
         }
@@ -44,11 +29,10 @@
         }
         @if (localBinding(); as binding) {
           <p class="text-sm text-fb-text-primary" data-testid="kleinanzeigen-local-binding">
-            Dieses Browserprofil: <strong>{{ binding.displayName }}</strong>
+            Verbundenes Kleinanzeigen-Konto: <strong>{{ binding.displayName }}</strong>
           </p>
           <p class="mt-1 text-xs text-fb-text-secondary">
-            Freigabe bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}. Zum Ändern der
-            Freigabe trennst Du die Verbindung und verbindest sie erneut.
+            Freigabe bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}.
           </p>
         } @else {
           <p class="mb-3 text-sm text-fb-text-secondary">
@@ -56,9 +40,8 @@
             Bestätigungsfenster der Erweiterung.
           </p>
           <app-custom-checkbox
-            presentation="row"
             [formControl]="publishPermission"
-            label="Inserate über dieses Browserprofil veröffentlichen"
+            label="Veröffentlichung erlauben"
           />
           <p class="mt-2 text-xs text-fb-text-secondary">
             Optional: Veröffentlichen nach Deiner Bestätigung in Flipbase. Bei Gebühren oder
@@ -68,19 +51,39 @@
         @if (profileIssue(); as issue) {
           <p class="mt-3 text-sm text-fb-text-secondary" role="status">{{ issue }}</p>
         }
-        <app-button
-          class="mt-4"
-          variant="primary"
-          size="touch"
-          [icon]="linkIcon"
-          [loading]="busy()"
-          [disabled]="!extension.capabilities().accounts || localBinding() !== null"
-          (clicked)="connect()"
-          >Angemeldetes Konto verbinden</app-button
-        >
+        @if (localBinding(); as binding) {
+          <app-button
+            class="mt-4"
+            variant="destructive"
+            [icon]="unplugIcon"
+            [disabled]="busy()"
+            (clicked)="disconnecting.set(binding)"
+            >Konto entfernen</app-button
+          >
+          <p class="mt-2 text-sm text-fb-text-secondary">
+            Entferne zuerst die Verknüpfung, um in diesem Browser ein anderes Konto hinzuzufügen.
+          </p>
+        } @else {
+          <div class="mt-4 flex flex-wrap gap-2">
+            <app-button
+              variant="primary"
+              [icon]="linkIcon"
+              [loading]="busy()"
+              [disabled]="!extension.capabilities().accounts || localBinding() !== null"
+              (clicked)="connect()"
+              >Angemeldetes Konto verbinden</app-button
+            >
+            <app-button
+              [icon]="refreshIcon"
+              [disabled]="busy()"
+              (clicked)="extension.checkInstallation()"
+              >Erweiterung prüfen</app-button
+            >
+          </div>
+        }
       </app-card>
     }
-    @if (!visibleAccounts().length && !loading()) {
+    @if (!setupOnly() && !visibleAccounts().length && !loading()) {
       <app-card
         ><p class="text-sm text-fb-text-secondary">
           @if (connectionId()) {
@@ -114,16 +117,14 @@
             <div class="space-y-1 text-sm text-fb-text-secondary">
               <p>
                 @if (account.listingCount !== null) {
-                  <strong class="text-fb-text-primary"
-                    >{{ account.listingCount }} gespeicherte Inserate</strong
-                  >
+                  <strong class="text-fb-text-primary">{{ account.listingCount }} Inserate</strong>
                 } @else {
                   Inseratzahl unbekannt
                 }
               </p>
               <p>
                 @if (account.lastSyncedAt) {
-                  Letzter vollständiger Abgleich:
+                  Letzter Abgleich:
                   {{ account.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm' }}
                 } @else {
                   Noch kein vollständiger Abgleich bestätigt
@@ -173,12 +174,11 @@
             }
             @if (!isBound(account) || !account.localGrant?.active) {
               <app-custom-checkbox
-                presentation="row"
                 [formControl]="publishPermission"
-                label="Inserate über dieses Browserprofil veröffentlichen"
+                label="Veröffentlichung erlauben"
               />
               <app-button
-                size="touch"
+                size="md"
                 variant="primary"
                 [disabled]="busy() || !extension.capabilities().accounts"
                 (clicked)="reconnect(account)"
@@ -187,7 +187,7 @@
             }
             <div class="flex flex-wrap gap-2">
               <app-button
-                size="touch"
+                size="md"
                 [icon]="refreshIcon"
                 [disabled]="!canSync(account)"
                 [loading]="busy() && isBound(account)"
@@ -195,11 +195,11 @@
                 >Inserate abgleichen</app-button
               ><app-button
                 variant="destructive"
-                size="touch"
+                size="md"
                 [icon]="unplugIcon"
                 [disabled]="busy()"
                 (clicked)="disconnecting.set(account)"
-                >Verbindung trennen</app-button
+                >Konto entfernen</app-button
               >
             </div>
           </article>
@@ -209,13 +209,10 @@
   }
 </div>
 @if (disconnecting(); as account) {
-  <app-modal-shell
-    title="Kontoverbindung trennen"
-    size="sm"
-    (closed)="!busy() && disconnecting.set(null)"
+  <app-modal-shell title="Konto entfernen" size="sm" (closed)="!busy() && disconnecting.set(null)"
     ><p class="text-sm text-fb-text-primary">
-      Möchtest Du die lokale Freigabe für <strong>{{ account.displayName }}</strong> widerrufen?
-      Deine gespeicherten Inserate bleiben erhalten.
+      Möchtest du <strong>{{ account.displayName }}</strong> aus Flipbase entfernen? Die Freigabe
+      wird widerrufen. Deine Anzeigen und dein Konto auf Kleinanzeigen bleiben erhalten.
     </p>
     <div modal-footer class="flex flex-wrap justify-end gap-2">
       <app-button [disabled]="busy()" (clicked)="disconnecting.set(null)">Abbrechen</app-button
@@ -224,7 +221,7 @@
         [icon]="unplugIcon"
         [loading]="busy()"
         (clicked)="confirmDisconnect()"
-        >Verbindung trennen</app-button
+        >Konto entfernen</app-button
       >
     </div></app-modal-shell
   >

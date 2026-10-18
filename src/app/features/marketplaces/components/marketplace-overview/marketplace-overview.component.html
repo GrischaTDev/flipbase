@@ -224,6 +224,7 @@
         @case ('kleinanzeigen') {
           @if (workspaceId(); as id) {
             <app-kleinanzeigen-accounts
+              [setupOnly]="true"
               [workspaceId]="id"
               (changed)="store.refreshPlatform('kleinanzeigen')"
             />

@@ -34,6 +34,36 @@ describe('Kleinanzeigen-Kontodienst', () => {
     });
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('entfernt widerrufene Konten aus allen aktiven Auswahllisten und behält erneuerbare Konten', async () => {
+    const account = {
+      workspaceId: workspace,
+      connectionId: '12',
+      externalAccountId: '123',
+      displayName: 'Testkonto',
+      accountType: 'private',
+      status: 'connected',
+      lastSyncedAt: null,
+      listingCount: null,
+      activeCount: null,
+      quota: null,
+      localGrant: null,
+      sync: null,
+    };
+    invoke.mockResolvedValue({
+      data: {
+        workspaceId: workspace,
+        canManage: true,
+        accounts: [
+          account,
+          { ...account, connectionId: '13', externalAccountId: '124', status: 'disconnected' },
+          { ...account, connectionId: '14', externalAccountId: '125', status: 'needs_login' },
+        ],
+      },
+      error: null,
+    });
+    const result = await TestBed.inject(KleinanzeigenAccountService).readAccounts(workspace);
+    expect(result.accounts.map((row) => row.connectionId)).toEqual(['12', '14']);
+  });
   it('sendet nur die genehmigten öffentlichen Angaben und erteilt standardmäßig keine Schreibfreigabe', async () => {
     invoke.mockResolvedValue({ data: binding, error: null });
     expect(await TestBed.inject(KleinanzeigenAccountService).connect(workspace, proposal)).toEqual(
