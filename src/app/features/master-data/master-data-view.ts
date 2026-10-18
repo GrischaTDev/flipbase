@@ -20,7 +20,7 @@ export const MASTER_DATA_SECTIONS = [
     id: 'platforms',
     label: 'Verkaufsplattformen',
     path: '/master-data/platforms',
-    createLabel: '',
+    createLabel: 'Plattform anlegen',
   },
   {
     id: 'sellers',

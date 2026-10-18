@@ -39,7 +39,11 @@ export const MASTER_DATA_TABLE_CONFIGS: Record<
   },
   master_platforms: {
     ...sorting,
-    defaultColumns: [name, { id: 'kind', label: 'Typ', visible: true, order: 1 }],
+    defaultColumns: [
+      name,
+      { id: 'kind', label: 'Typ', visible: true, order: 1 },
+      { ...actions, order: 2 },
+    ],
   },
 };
 

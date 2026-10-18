@@ -558,10 +558,16 @@
             <app-custom-select
               triggerId="sale-platform"
               ariaLabel="Verkaufsplattform"
-              [options]="plattformOptionen"
+              [options]="platformOptions()"
               formControlName="platform"
               [required]="true"
             />
+            @if (salePlatforms.error()) {
+              <div role="status" class="flex flex-wrap items-center gap-2 text-sm text-fb-critical">
+                <span>{{ salePlatforms.error() }}</span
+                ><app-button (clicked)="salePlatforms.reload()">Erneut laden</app-button>
+              </div>
+            }
           </div>
           <div>
             <label for="sale-date" class="mb-1.5 block text-[13px] font-semibold"

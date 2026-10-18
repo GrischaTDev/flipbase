@@ -69,10 +69,12 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
   });
   it.each(['light', 'dark'] as const)(
-    'verwendet im %s-Theme Markengelb, klares Rot und Grün für die drei Reihen',
+    'verwendet im %s-Theme Markengelb, Grau und Petrol für die drei Reihen',
     (theme) => {
       const options = createRevenueChartConfiguration(points, theme, false);
-      expect(options.colors).toEqual(['#fcc601', '#dc2626', '#16a34a']);
+      expect(options.colors).toEqual(
+        theme === 'light' ? ['#fcc601', '#9ca3af', '#006b73'] : ['#fcc601', '#a8b0bb', '#52b7bd'],
+      );
     },
   );
   it('deaktiviert Animationen bei reduzierter Bewegung und passt das Theme an', () => {

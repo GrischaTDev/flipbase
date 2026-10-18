@@ -6576,6 +6576,35 @@ export type Database = {
           },
         ]
       }
+      sale_platform_settings: {
+        Row: {
+          id: number
+          platforms: Json
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          id?: never
+          platforms: Json
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          id?: never
+          platforms?: Json
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_platform_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           buyer_notes: string | null
@@ -11886,6 +11915,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      sale_platform_list_valid: {
+        Args: { p_platforms: Json }
+        Returns: boolean
+      }
       save_label_brand: {
         Args: {
           p_expected_version: number
@@ -11941,6 +11974,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_sale_platforms: {
+        Args: {
+          p_expected_version: number
+          p_platforms: Json
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       save_server_webhook_config: {
         Args: { p_patch: Json; p_workspace_id: string }

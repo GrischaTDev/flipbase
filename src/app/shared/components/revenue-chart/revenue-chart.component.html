@@ -1,7 +1,7 @@
 <section class="space-y-3" aria-labelledby="revenue-chart-heading">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2 id="revenue-chart-heading" class="text-sm font-semibold text-fb-text-primary">
+      <h2 id="revenue-chart-heading" class="text-base font-semibold text-fb-text-primary">
         Umsatz, Ausgaben und Gewinn
       </h2>
       <p class="mt-1 text-xs text-fb-text-muted">
@@ -22,7 +22,7 @@
           >
             <span class="inline-flex items-center gap-1.5" [class.line-through]="!series.visible">
               <span
-                class="h-2.5 w-2.5 rounded-[3px]"
+                class="h-2.5 w-2.5 rounded-full"
                 data-chart-legend-indicator
                 [style.background-color]="series.color"
               ></span>
@@ -34,10 +34,10 @@
     </ul>
   </div>
 
-  <div class="relative min-h-[260px] w-full">
+  <div class="relative min-h-[320px] w-full">
     <div
       #chart
-      class="h-[260px] w-full"
+      class="h-[320px] w-full"
       role="img"
       aria-label="Umsatz, Ausgaben gesamt und Gewinn im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"

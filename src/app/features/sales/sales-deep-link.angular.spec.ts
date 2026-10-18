@@ -1,3 +1,4 @@
+import { SALE_PLATFORM_OPTIONS } from '../../core/config/sale-platform-options';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -139,7 +140,7 @@ beforeAll(async () => {
     'currentSort',
     'description',
   ]);
-  registerSignalInputs(MarketplacePlatformIdentityComponent, ['platform']);
+  registerSignalInputs(MarketplacePlatformIdentityComponent, ['platform', 'displayName']);
 });
 
 function saleMetricCell(host: HTMLElement, rowSelector: string, label: string): Element | null {
@@ -277,10 +278,7 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     ).toEqual([
       { value: 'all', label: 'Alle' },
       { value: 'returned', label: 'Retouren' },
-      { value: 'kleinanzeigen', label: 'Kleinanzeigen' },
-      { value: 'ebay', label: 'eBay' },
-      { value: 'vinted', label: 'Vinted' },
-      { value: 'custom_store', label: 'Shop' },
+      ...SALE_PLATFORM_OPTIONS.map(({ value, label }) => ({ value, label })),
     ]);
   });
 

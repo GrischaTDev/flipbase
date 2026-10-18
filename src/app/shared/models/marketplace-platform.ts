@@ -10,6 +10,8 @@ const labels: Readonly<Record<string, string>> = {
   kleinanzeigen: 'Kleinanzeigen',
   direct: 'Direktverkauf',
   custom_store: 'Shop',
+  other: 'Andere',
+  stockx: 'StockX',
 };
 
 const appearances: Readonly<Record<string, MarketplacePlatformAppearance>> = {

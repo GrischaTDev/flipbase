@@ -189,7 +189,7 @@ describe('SidebarComponent', () => {
 
   it('verlinkt das Flipbase-Logo mit dem Dashboard', async () => {
     const { element } = await renderAt('/catalog');
-    const brandLink = element.querySelector<HTMLAnchorElement>('a[aria-label="Zum Dashboard"]');
+    const brandLink = element.querySelector<HTMLAnchorElement>('a[aria-label="Zur Übersicht"]');
 
     expect(brandLink?.getAttribute('href')).toBe('/dashboard');
     expect(brandLink?.textContent).toContain('Flipbase');

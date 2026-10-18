@@ -84,7 +84,7 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
         await expect(content).toHaveCSS('max-width', '1024px');
         expect((await content.boundingBox())!.width).toBe(1024);
         await page.keyboard.press('Escape');
-        await page.getByRole('link', { name: 'Dashboard', exact: true }).first().click();
+        await page.getByRole('link', { name: 'Übersicht', exact: true }).first().click();
         await expect(page).toHaveURL(/\/dashboard$/);
         await expect(content).toHaveCSS('max-width', '1024px');
         await page.reload();

@@ -25,15 +25,15 @@ export const REVENUE_CHART_SERIES = [
 const palettes = {
   light: {
     revenue: '#fcc601',
-    totalExpenses: '#dc2626',
-    resultAfterDirectCosts: '#16a34a',
+    totalExpenses: '#9ca3af',
+    resultAfterDirectCosts: '#006b73',
     ticks: '#596273',
     grid: '#e2e6ec',
   },
   dark: {
     revenue: '#fcc601',
-    totalExpenses: '#dc2626',
-    resultAfterDirectCosts: '#16a34a',
+    totalExpenses: '#a8b0bb',
+    resultAfterDirectCosts: '#52b7bd',
     ticks: '#a8a8a8',
     grid: '#373737',
   },
@@ -82,7 +82,7 @@ export function createRevenueChartConfiguration(
   return {
     chart: {
       type: 'bar',
-      height: 260,
+      height: 320,
       width: '100%',
       fontFamily: 'Inter, system-ui, sans-serif',
       foreColor: palette.ticks,
@@ -115,7 +115,7 @@ export function createRevenueChartConfiguration(
     xaxis: {
       type: 'category',
       categories: points.map((point) => point.label),
-      tickPlacement: 'on',
+      tickPlacement: 'between',
       tickAmount: points.length > 1 ? Math.min(points.length - 1, 6) : undefined,
       labels: {
         rotate: 0,
@@ -134,7 +134,7 @@ export function createRevenueChartConfiguration(
     },
     grid: {
       borderColor: palette.grid,
-      strokeDashArray: 3,
+      strokeDashArray: 0,
       xaxis: { lines: { show: false } },
       padding: { left: 8, right: 12, top: 16, bottom: 0 },
     },

@@ -152,7 +152,7 @@ export class RevenueChartComponent {
       1,
       Math.max(0, (event.clientX - bounds.left) / Math.max(1, bounds.width)),
     );
-    const index = Math.round(position * (this.points().length - 1));
+    const index = Math.min(this.points().length - 1, Math.floor(position * this.points().length));
     this.requestedKeyboardPointIndex.set(index);
     this.showPoint(index, event.clientX, event.clientY);
   }

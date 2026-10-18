@@ -48,7 +48,7 @@ test('zählt Bestandsmengen und trennt die Altersgruppen überschneidungsfrei', 
     ],
     now,
   );
-  assert.deepEqual(result, { units: 5, slow: 1, old: 4, unknownAge: 0 });
+  assert.deepEqual(result, { units: 5, young: 0, middle: 0, slow: 1, old: 4, unknownAge: 0 });
 });
 test('lässt fehlende, ungültige und zukünftige Lagerdaten unbekannt', () => {
   const result = stockOverview(
@@ -76,4 +76,25 @@ test('zählt für die Verkaufskurve Buchungen statt Stückzahlen', () => {
     { date: '2026-09-23', quantity: 1 },
   ];
   assert.deepEqual(salesVolumes([{ date: '2026-09-01' }], sales, true), [2]);
+});
+
+test('nutzt für Mengenbestand das Einkaufsdatum und erhält die Grenzen 30/60/90', () => {
+  const result = stockOverview(
+    [],
+    [
+      {
+        remaining_quantity: 2,
+        received_at: '2026-10-18',
+        purchase: { purchase_date: '2026-07-20' },
+      },
+      {
+        remaining_quantity: 3,
+        received_at: '2026-10-18',
+        purchase: { purchase_date: '2026-08-19' },
+      },
+      { remaining_quantity: 4, received_at: '2026-09-18' },
+    ],
+    new Date(2026, 9, 18),
+  );
+  assert.deepEqual(result, { units: 9, young: 4, middle: 3, slow: 2, old: 0, unknownAge: 0 });
 });

@@ -17,6 +17,38 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Übersicht: freigegebene Gestaltung vom 18.10.2026
+
+Für die Übersicht hat der Nutzer ausdrücklich den zweiten Apple-inspirierten
+Bildentwurf freigegeben. Diese Entscheidung gilt für den Seiteninhalt der
+Übersicht; die gemeinsame Navigation und die übrigen Verwaltungsseiten behalten
+ihre bestehende Gestaltung. Die unten beschriebene zentrale Breitenwahl gilt
+weiterhin ohne Seitenausnahme.
+
+Vier Kennzahlen (Umsatz, Gewinn, Marge, Verkäufe) teilen sich eine ruhige Karte
+mit dezenten Symbolen und Trennlinien. Mini-Kurven, Kapital-Kennzahl und
+Aufgabenkarte entfallen. Weiße Flächen, zurückhaltende Schatten, 20px-Kartenradien
+und kapselartige Schnellaktionen sind ausdrücklich gewählte Flipbase-Werte aus
+dem Entwurf, keine behaupteten Originalmaße von Apple oder Shopify. Gemeinsame
+Bausteine stellen diese Gestaltung nur über ausdrücklich aktivierte Varianten dar.
+
+Das Diagramm verwendet Logo-Gelb `#fcc601`, Grau `#9ca3af` und Petrol `#006b73`;
+im dunklen Schema werden Grau und Petrol für die Lesbarkeit angepasst. Die
+Zeichenfläche ist 320px hoch; Tastaturauswahl und tabellarische Zusammenfassung
+bleiben erhalten. Negative Ergebnisse behalten ihre verständliche Kennzeichnung.
+
+Die drei Schnellaktionen heißen „Einkauf erfassen“, „Verkauf erfassen“ und
+„Inserat erstellen“. Die Inseratwahl führt zum vorhandenen Vinted-Editor;
+eBay und Kleinanzeigen sind als „Geplant“ gekennzeichnet. Die Bestandsgruppen
+nutzen das Einkaufsdatum, ersatzweise den Wareneingang; unbekannte und zukünftige
+Datumswerte werden nicht stillschweigend einer Altersgruppe zugeordnet.
+
+Verkaufsplattformen werden je Workspace in Stammdaten gepflegt. Namen und
+Reihenfolge gelten auch für Übersicht, Verkaufsfilter und Verkaufserfassung.
+Umbenennen ändert keine historische Kennung. Standard- und historische
+Plattformen bleiben erhalten; StockX ist ergänzt. Bekannte Plattformen verwenden
+ihre vorhandenen Logos, eigene Plattformen ein allgemeines Marktplatzsymbol.
+
 ## Einheitliche Seitenbreite
 
 Nutzerentscheidung vom 18.10.2026: Im Profilmenü unter „Layout“ gibt es

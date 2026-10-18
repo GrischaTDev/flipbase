@@ -6,7 +6,8 @@ async function startDashboard(page: Page) {
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openDashboard(page);
-  await page.getByRole('button', { name: 'Dieser Monat' }).click();
+  await page.getByRole('combobox', { name: 'Zeitraum wählen' }).click();
+  await page.getByRole('option', { name: 'Dieser Monat', exact: true }).click();
   await expect(page.locator('app-revenue-chart .apexcharts-svg')).toBeVisible();
   await expect(page.locator('app-revenue-chart [role="img"]')).toHaveAttribute(
     'aria-busy',
@@ -44,13 +45,13 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.locator('html')).toHaveClass(/dark/u);
     }
     const cards = page.locator('[aria-label="Kennzahlen"] [data-kpi]');
-    await expect(cards).toHaveCount(5);
+    await expect(cards).toHaveCount(4);
     const cardTops = await cards.evaluateAll((elements) =>
       elements.map((element) => Math.round(element.getBoundingClientRect().top)),
     );
     expect(new Set(cardTops).size).toBe(1);
     const periodHeight = await page
-      .getByRole('group', { name: 'Zeitraum wählen' })
+      .getByRole('combobox', { name: 'Zeitraum wählen' })
       .evaluate((element) => element.getBoundingClientRect().height);
     const platformHeight = await page
       .getByRole('combobox', { name: 'Plattform filtern' })

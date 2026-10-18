@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink, type Params } from '@angular/router';
 
-export type CardVariant = 'surface' | 'kpi' | 'subtle';
+export type CardVariant = 'surface' | 'kpi' | 'subtle' | 'overview';
 export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
 export type CardRounded = 'md' | 'lg' | 'xl';
 
@@ -29,7 +29,7 @@ export class CardComponent {
   readonly linkLabel = input('Karte öffnen');
 
   protected readonly cardClasses = computed(() => {
-    const base = `flex flex-col ${this.link() ? 'relative' : ''} ${this.overflowVisible() ? 'overflow-visible' : 'overflow-hidden'} border`;
+    const base = `flex flex-col ${this.link() ? 'relative' : ''} ${this.overflowVisible() ? 'overflow-visible' : 'overflow-hidden'} ${this.variant() === 'overview' ? 'border-0' : 'border'}`;
 
     const roundedClass =
       this.rounded() === 'xl'
@@ -42,9 +42,14 @@ export class CardComponent {
       surface: 'linear-surface border-transparent bg-fb-surface shadow-sm',
       kpi: 'linear-kpi border-transparent bg-fb-surface shadow-sm',
       subtle: 'border-fb-border-subtle bg-fb-subtle',
+      overview: 'border-transparent bg-fb-surface shadow-[0_4px_24px_-12px_rgb(15_23_42/0.14)]',
     };
 
-    return [base, roundedClass, variantClasses[this.variant()]].join(' ');
+    return [
+      base,
+      this.variant() === 'overview' ? 'rounded-[20px]' : roundedClass,
+      variantClasses[this.variant()],
+    ].join(' ');
   });
 
   protected readonly contentPaddingClass = computed(() => {
