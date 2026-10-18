@@ -76,6 +76,16 @@ an Testauswahl, Workflows, Abhängigkeiten oder Testkonfiguration brauchen selbs
 den breiten Prüfumfang. Dieser einmalige Lauf ist kein Zeitnachweis einer späteren
 gezielten Funktionsänderung.
 
+## Frische Sitzung je Browsergruppe
+
+Der Browserstarter führt die Standardauswahl (`chromium`) und vollständig
+geänderte Dateien (`changed-tests`) nacheinander als getrennte Playwright-Aufrufe
+aus. Jeder Aufruf durchläuft das globale Setup und erhält eine eigene frische
+Testsitzung. Ein langer erster Lauf kann dadurch die Anmeldung der zweiten Gruppe
+nicht verbrauchen. Die ausgewählten Fälle, Wartezeiten und Schutzprüfung der
+verbleibenden Sitzungsdauer bleiben unverändert. Ein Fehler stoppt vor der
+nächsten Gruppe und bleibt der Exitcode des Gesamtaufrufs.
+
 ## Freigabe und vollständige Regression
 
 Die CI-Sammelprüfung verlangt Erfolg für jeden ausgewählten Job und einen

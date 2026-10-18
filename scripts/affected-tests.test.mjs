@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { selectAffectedTests } from './affected-tests.mjs';
 
@@ -258,3 +261,94 @@ test('Kleinanzeigen-Erweiterungsänderungen wählen den Transferablauf und seine
   ]);
   assert.equal(plan.checks.marketplace, true);
 });
+
+function runBrowserGroups(plan, failProject = '') {
+  const directory = mkdtempSync(join(tmpdir(), 'flipbase-browser-groups-'));
+  try {
+    const cliDirectory = join(directory, 'node_modules', '@playwright', 'test');
+    mkdirSync(cliDirectory, { recursive: true });
+    const logPath = join(directory, 'invocations.jsonl');
+    writeFileSync(
+      join(cliDirectory, 'cli.js'),
+      `
+      const { appendFileSync } = require('node:fs');
+      const args = process.argv.slice(2);
+      const project = args.find((arg) => arg.startsWith('--project='))?.slice(10);
+      appendFileSync(process.env.BROWSER_GROUP_LOG, JSON.stringify({ project, args }) + '\\n');
+      // Ein gemeinsamer Aufruf bildet die abgelaufene Anmeldung der zweiten Gruppe nach.
+      process.exit(!project ? 86 : project === process.env.BROWSER_FAIL_PROJECT ? 7 : 0);
+    `,
+    );
+    const runner = fileURLToPath(new URL('./run-affected-tests.mjs', import.meta.url));
+    const result = spawnSync(process.execPath, [runner, 'browser', '--list'], {
+      cwd: directory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        AFFECTED_TEST_PLAN: JSON.stringify(plan),
+        BROWSER_GROUP_LOG: logPath,
+        BROWSER_FAIL_PROJECT: failProject,
+      },
+    });
+    const invocations = readFileSync(logPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    return { result, invocations };
+  } finally {
+    assert.equal(dirname(directory), resolve(tmpdir()));
+    assert.ok(basename(directory).startsWith('flipbase-browser-groups-'));
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+const twoBrowserGroups = {
+  full: true,
+  units: {},
+  browserFiles: ['e2e/core-smoke.spec.ts'],
+  changedBrowserFiles: ['e2e/admin-layout.spec.ts'],
+};
+
+test('jede Browsergruppe startet getrennt mit eigener Playwright-Vorbereitung', () => {
+  const { result, invocations } = runBrowserGroups(twoBrowserGroups);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    invocations.map(({ project }) => project),
+    ['chromium', 'changed-tests'],
+  );
+  assert.ok(invocations.every(({ args }) => args.includes('--list')));
+  assert.ok(
+    invocations.every(({ args }) => args.includes('--config=playwright.affected.config.ts')),
+  );
+});
+
+test('ein fehlgeschlagener Browserlauf stoppt vor der nächsten Gruppe', () => {
+  const { result, invocations } = runBrowserGroups(twoBrowserGroups, 'chromium');
+  assert.equal(result.status, 7);
+  assert.deepEqual(
+    invocations.map(({ project }) => project),
+    ['chromium'],
+  );
+});
+
+test('auch die zweite Browsergruppe muss erfolgreich sein', () => {
+  const { result, invocations } = runBrowserGroups(twoBrowserGroups, 'changed-tests');
+  assert.equal(result.status, 7);
+  assert.equal(invocations.length, 2);
+});
+
+for (const project of ['chromium', 'changed-tests']) {
+  test(`eine einzelne Browsergruppe ${project} wird genau einmal ausgeführt`, () => {
+    const plan = {
+      ...twoBrowserGroups,
+      browserFiles: project === 'chromium' ? twoBrowserGroups.browserFiles : [],
+      changedBrowserFiles: project === 'changed-tests' ? twoBrowserGroups.changedBrowserFiles : [],
+    };
+    const { result, invocations } = runBrowserGroups(plan);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+      invocations.map(({ project: actual }) => actual),
+      [project],
+    );
+  });
+}

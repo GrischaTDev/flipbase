@@ -1,6 +1,9 @@
 import '@angular/compiler';
 import { Component, input, output, signal } from '@angular/core';
+import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WorkspaceContextLockService } from '../../core/services/workspace-context-lock.service';
@@ -41,9 +44,53 @@ Component({ selector: 'router-outlet', template: '' })(RouterOutletStubComponent
 afterEach(() => TestBed.resetTestingModule());
 
 describe('ShellComponent', () => {
+  it('passt die Inhaltsbreite beim Navigieren und bei der Layoutwahl an', () => {
+    const events = new Subject<NavigationEnd>();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: Router, useValue: { url: '/marketplaces/overview', events } },
+        { provide: WorkspaceContextLockService, useValue: { locked: signal(false) } },
+      ],
+    });
+    TestBed.overrideComponent(ShellComponent, {
+      set: {
+        template: readFileSync('src/app/layout/shell/shell.component.html', 'utf8'),
+        imports: [
+          SidebarStubComponent,
+          HeaderStubComponent,
+          BottomNavStubComponent,
+          ConfirmDialogStubComponent,
+          WorkspaceModalStubComponent,
+          RouterOutletStubComponent,
+        ],
+      },
+    });
+    const fixture = TestBed.createComponent(ShellComponent);
+    fixture.detectChanges();
+    const content = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[data-page-content]',
+    )!;
+    expect(content.style.maxWidth).toBe('80rem');
+    events.next(new NavigationEnd(1, '/purchases', '/purchases'));
+    fixture.detectChanges();
+    expect(content.style.maxWidth).toBe('');
+    TestBed.inject(PageLayoutService).setWidth('narrow');
+    fixture.detectChanges();
+    expect(content.style.maxWidth).toBe('64rem');
+    events.next(new NavigationEnd(2, '/marketplaces/vinted/feed', '/marketplaces/vinted/feed'));
+    fixture.detectChanges();
+    expect(content.style.maxWidth).toBe('64rem');
+    TestBed.inject(PageLayoutService).setWidth('full');
+    fixture.detectChanges();
+    expect(content.style.maxWidth).toBe('');
+  });
+
   it('rendert eindeutige Druckhaken für alle Teile des Admin-Rahmens', () => {
     TestBed.configureTestingModule({
-      providers: [{ provide: WorkspaceContextLockService, useValue: { locked: signal(false) } }],
+      providers: [
+        provideRouter([]),
+        { provide: WorkspaceContextLockService, useValue: { locked: signal(false) } },
+      ],
     });
     TestBed.overrideComponent(ShellComponent, {
       set: {

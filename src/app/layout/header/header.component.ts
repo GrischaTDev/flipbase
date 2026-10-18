@@ -37,6 +37,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebhookService } from '../../core/services/webhook.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { AppNotification } from '../../core/models/webhook.models';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { Workspace } from '../../core/models/flipbase.models';
@@ -73,6 +74,7 @@ export class HeaderComponent {
   readonly feedbackNotifications = inject(MarketplaceFeedbackNotificationStore);
   readonly messageNotifications = inject(MarketplaceMessageNotificationStore);
   private readonly dialog = inject(ConfirmDialogService);
+  readonly pageLayout = inject(PageLayoutService);
   readonly themeService = inject(ThemeService);
   readonly pwaService = inject(PwaService);
   private readonly translate = inject(TranslateService);
