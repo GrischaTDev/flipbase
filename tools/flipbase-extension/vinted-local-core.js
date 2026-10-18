@@ -419,7 +419,11 @@
     // Beide belegten Preise passen in den vorhandenen Preislabel-Vertrag.
     return (
       formatter.format(amount) +
-      (originalAmount !== null ? ` statt ${formatter.format(originalAmount)}` : '')
+      (originalAmount !== null &&
+      originalAmount > amount &&
+      (!original.currency_code || original.currency_code === currency)
+        ? ` statt ${formatter.format(originalAmount)}`
+        : '')
     );
   }
 
@@ -809,7 +813,8 @@
     const item = record(conversation.item) ? conversation.item : {};
     const transaction = record(conversation.transaction) ? conversation.transaction : {};
     const other = record(conversation.opposite_user) ? conversation.opposite_user : {};
-    const price = transaction.offer_price ?? item.price;
+    // Ein privates Angebot ist kein Artikelpreis.
+    const price = item.price;
     const photos = item.photos ?? conversation.item_photos;
     const photo = Array.isArray(photos) ? photos[0] : null;
     let lastActiveAt = null;

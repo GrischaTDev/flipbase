@@ -830,6 +830,7 @@ for (const { width, theme } of [
     await expect(conversation.getByText('Zuletzt aktiv', { exact: false })).toBeVisible();
     await expect(page.getByRole('log')).toContainText('50,00 €');
     await expect(page.getByRole('log').locator('del')).toHaveText('58,00 €');
+    await expect(page.locator('[data-message-kind="offer"]')).toContainText(/58,00 €.*50,00 €/u);
     await expect(page.getByRole('log')).toContainText('Abgelehnt');
     await expect(page.locator('[data-message-kind="system"]')).toBeVisible();
     await expect(page.locator('[data-message-kind="system"]')).toHaveClass(/rounded-full/);

@@ -900,6 +900,8 @@ describe('Vollständiges Laden eines Gesprächs', () => {
         {
           id: 'offer-1',
           messageType: 'offer_message',
+          direction: 'outbound',
+          isAutomated: true,
           title: 'Offer Message',
           text: 'offer_message',
           priceLabel: '11,00 € statt 14,00 €',
@@ -922,6 +924,10 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     const log = fixture.nativeElement.querySelector('[role="log"]');
     expect(log?.textContent).not.toMatch(/Offer Message|offer_message|offer_request_message/);
     expect(log?.textContent).toContain('11,00 €');
+    const offer = log?.querySelector('[data-message-row="offer-1"]');
+    expect(offer?.textContent).toContain('Angebot gesendet');
+    expect(offer?.querySelector('del')?.textContent).toBe('14,00 €');
+    expect(offer?.textContent).toMatch(/14,00 €\s*Angebotspreis\s*11,00 €/u);
     expect(log?.textContent).toContain('Abgelehnt');
     expect(log?.textContent).toContain('Kannst Du 12 Euro machen?');
   });

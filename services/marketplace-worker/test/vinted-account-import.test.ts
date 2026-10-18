@@ -276,6 +276,7 @@ test('imports conversation article metadata from the inbox and enriches it from 
             item: {
               id: 81,
               title: 'Selected article',
+              price: { amount: '30.00', currency_code: 'EUR' },
               photos: [{ url: 'https://images.example.test/article.jpg' }],
             },
             transaction: {
@@ -297,9 +298,122 @@ test('imports conversation article metadata from the inbox and enriches it from 
   assert.equal(conversation?.body['itemId'], '81');
   assert.equal(conversation?.body['itemTitle'], 'Selected article');
   assert.equal(conversation?.body['itemImageUrl'], 'https://images.example.test/article.jpg');
-  assert.equal(conversation?.body['itemPrice'], 24);
+  assert.equal(conversation?.body['itemPrice'], 30);
   assert.equal(conversation?.body['itemCurrency'], 'EUR');
   assert.equal(conversation?.body['transactionStatus'], 'Offer received');
+});
+
+test('imports both offer prices without requiring a preformatted price label', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 456 }],
+    [
+      {
+        conversation: {
+          id: 456,
+          transaction: { offer_price: { amount: '15.30', currency_code: 'EUR' } },
+          messages: [
+            {
+              id: 9001,
+              entity_type: 'offer_message',
+              created_at_ts: '2026-10-10T19:00:00Z',
+              entity: {
+                user_id: 123,
+                price: { amount: '15.30', currency_code: 'EUR' },
+                original_price: { amount: '17.00', currency_code: 'EUR' },
+              },
+            },
+          ],
+        },
+      },
+    ],
+    '2026-10-10T20:00:00Z',
+  );
+  assert.equal(
+    result.entries.find((entry) => entry.kind === 'message')?.body['priceLabel'],
+    '15,30\u00a0€ statt 17,00\u00a0€',
+  );
+  const conversation = result.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['itemPrice'], null);
+  assert.equal(conversation?.body['itemCurrency'], null);
+});
+
+test('local and cloud imports separate article prices from offers and agree on price labels', async () => {
+  const core = createRequire(import.meta.url)(
+    '../../../tools/flipbase-extension/vinted-local-core.js',
+  );
+  const observedAt = '2026-10-10T20:00:00Z';
+  const profile = { user: { id: 123, login: 'testkonto' } };
+  const cases: [Record<string, unknown>, string][] = [
+    [
+      { price: { amount: '15.30', currency_code: 'EUR' }, original_price: '17.00' },
+      '15,30 € statt 17,00 €',
+    ],
+    [
+      { price: '15.30', original_price: { amount: '17.00', currency_code: 'EUR' } },
+      '15,30 € statt 17,00 €',
+    ],
+    [{ price: { amount: '15.30', currency_code: 'EUR' } }, '15,30 €'],
+    [{ price_label: '15,30 € statt 17,00 €' }, '15,30 € statt 17,00 €'],
+    [
+      {
+        price: { amount: '15.30', currency_code: 'EUR' },
+        original_price: { amount: '17.00', currency_code: 'USD' },
+      },
+      '15,30 €',
+    ],
+    [{ price: { amount: '15.30', currency_code: 'EUR' }, original_price: '15.30' }, '15,30 €'],
+  ];
+  for (const [entity, expected] of cases) {
+    for (const itemPrice of [17, null]) {
+      const conversation = {
+        id: 456,
+        unread: false,
+        updated_at: observedAt,
+        item: itemPrice === null ? undefined : { price: { amount: '17.00', currency_code: 'EUR' } },
+        transaction: { offer_price: { amount: '15.30', currency_code: 'EUR' } },
+        messages: [
+          {
+            id: 9001,
+            created_at_ts: observedAt,
+            entity_type: 'offer_message',
+            entity: { ...entity, user_id: 123 },
+          },
+        ],
+      };
+      const local = (await core.readInboxDetail(
+        async (path: string) => {
+          if (path === '/api/v2/users/current') return profile;
+          if (path === '/api/v2/conversations/456') return { conversation };
+          throw new Error(`Unexpected request: ${path}`);
+        },
+        '123',
+        { externalConversationId: '456', nextPage: 1, versions: [] },
+        () => observedAt,
+      )) as { entries: { kind: string; body: Record<string, unknown> }[] };
+      const cloud = parseVintedAccountImport(
+        { id: '123', username: 'testkonto' },
+        profile,
+        [],
+        [conversation],
+        [{ conversation }],
+        observedAt,
+      );
+      for (const result of [local, cloud]) {
+        assert.equal(
+          String(
+            result.entries.find((entry) => entry.kind === 'message')?.body['priceLabel'],
+          ).replaceAll('\u00a0', ' '),
+          expected,
+        );
+        const article = result.entries.find((entry) => entry.kind === 'conversation')?.body;
+        assert.equal(article?.['itemPrice'], itemPrice);
+        assert.equal(article?.['itemCurrency'], itemPrice === null ? null : 'EUR');
+      }
+    }
+  }
 });
 
 test('imports the current offer state from the offer message and updates it on a later read', async () => {

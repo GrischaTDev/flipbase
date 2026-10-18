@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Originalpreis und Rabatt im Vinted-Chat trennen
+
+**Auftrag:** Im Artikelstreifen des Chats den Originalpreis zeigen und bei gesendeten Angeboten den durchgestrichenen Originalpreis vor dem reduzierten Preis darstellen.
+
+**Umsetzung:** Cloud- und Erweiterungsimport verwenden für den Artikelpreis ausschließlich den gelieferten Artikelpreis statt des privaten Transaktionsangebots. Der Cloud-Import übernimmt nun auch getrennte Angebotspreise aus der Anbieterantwort und behält fertige Preislabels als Rückfall bei. Beide Abrufwege kennzeichnen nur einen tatsächlich höheren Originalbetrag derselben Währung als Reduzierung. Die Chatvorlage zeigt Originalpreis und Angebotspreis in dieser Reihenfolge, gruppiert beide Beträge auch auf kleinen Bildschirmen und ergänzt Bezeichnungen für Screenreader. Fehlende Originalpreise werden nicht aus Rabattregeln zurückgerechnet. Regressionen in den bestehenden Import-, Komponenten- und Browserdateien ergänzt; keine neue Testdatei.
+
+**Prüfungen:** 69 Importtests einschließlich gemeinsamer Cloud-/Erweiterungsfälle, 140 bestehende Erweiterungs-/Postfach-/Verhandlungstests, 125 betroffene Angular-Tests und vier Routentests sowie 28 Auswahl-/Browserregistrierungsprüfungen erfolgreich. 46 ausgewählte Browserfälle einschließlich zusätzlicher Touch-Prüfung, hell/dunkel und mobilen Breiten erfolgreich; nach abschließender Gruppierung der Preise erneut alle 58 Chat-Komponententests und 28 Postfach-Browserfälle erfolgreich. Mobile Bildkontrolle bestätigt beide Preise direkt nebeneinander. Produktionsbau, App-/Worker-Typprüfung, Lint, Formatierung und gemeinsame UI-Architekturprüfung erfolgreich. Vorhandene Bauhinweise zu fremden Vorlagen, Anfangspaketgröße und pako bleiben bestehen.
+
+**Integration:** Auf origin/master nach PR #435 erneut 127 betroffene Angular-Tests, vier Routentests, 140 Erweiterungstests sowie die Worker-Prüfung mit 690 erfolgreichen und acht regulär übersprungenen Fällen bestanden. Worker-Typprüfung und -Bau, App-Typprüfung und Produktionsbau ebenfalls erfolgreich. Der erste Worker-Gesamtlauf war durch Sandbox-Dateizugriffe gestört; ein kleiner Registry-Test und anschließend der Gesamtlauf im normalen Benutzerkontext bestätigten die Ursache und bestanden. Die acht Ausnahmen betreffen vorhandene System-/Symlink- und optionale Datenbankfälle; Linux-Abdeckung folgt über die Pflicht-CI.
+
+**Grenzen und Stand:** Lokale Windows-/Chromium-Prüfung mit vollständig simulierten Backendantworten gegen einen ruhenden Produktionsbau. Für die bestehenden HTTP-Fixtures ohne Produktions-CSP wie beim CI-Entwicklungsserver; kein CSP-, Linux- oder echter Versandnachweis. Keine Datenbankänderung und kein Angebot versendet. PR-Erstellung und Merge nach erfolgreichen Pflichtprüfungen am 18.10.2026 ausdrücklich freigegeben. Integration auf dem aktuellen origin/master; fremde Dokumentationsentwürfe bleiben außerhalb des PR.
+
 ## 2026-10-18 - Juna - Gesamte Marktplatz-Rückmeldung nachbessern
 
 **Auftrag:** Nutzer stellt klar, dass die vollständige Rückmeldung zur Marktplatzübersicht, Konto-/Plattformauswahl, Header-/Updatebedienung und einfachem Inserieren erwartet ist. Kategorie-PR #434 hat nur Baum und Filter geliefert. Fehlende Beschreibung und falsche Browserprofilmeldung zusätzlich ursächlich prüfen. Alle ursprünglichen Punkte in Abnahme und Umsetzungsplan erfasst; aktueller Hauptzweig in eigenem Worktree, fremde uncommittete Analyse bleibt unverändert. Keine echte Anbieter-Veröffentlichung.
