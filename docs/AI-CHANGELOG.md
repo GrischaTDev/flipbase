@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Desktop- und Touch-Buttongrößen getrennt absichern
+
+**Auftrag:** Verhindern, dass die größeren Tablet-/Touchbuttons versehentlich das kompakte Desktopdesign ersetzen.
+
+**Ergebnis:** Bestehende gemeinsame Buttonregeln gegengelesen und im Browser bei 834 und 1.440 Pixeln jeweils mit Maus und Touch gemessen: normale Text- und Symbolaktionen bei Maus 28 Pixel, bei grobem Zeiger 44 Pixel Mindestgröße; Schrift jeweils 13 Pixel. Die größeren bisherigen Desktopbreiten-Bildbelege stammten aus der ausdrücklich aktivierten Touch-Testmatrix. Keine globale Größen- oder CSS-Änderung erforderlich. Einen gezielten Pflicht-Browserfall einschließlich Soll-Listen-Eintrag ergänzt, der beide Eingabemodi bei identischer Breite sowie Symbolbreite und Schrift prüft.
+
+**Prüfungen und Grenzen:** Neuer Browserfall mit allen vier Kombinationen erfolgreich; lokale ruhende Vorschau mit Anbieter-Fixtures, keine produktiven Kontenaktionen. Eigenen Nachweis um echte Maus-/Touch-Vergleichsbilder ergänzt. Keine erneute Produktbereitstellung, kein neuer PR oder Push; Freigabe für den bereits vorbereiteten Zweig bleibt offen.
+
 ## 2026-10-18 - Juna - Kleinanzeigen- und eBay-Kontenansichten vereinheitlichen
 
 **Auftrag:** Kontenseiten an das bestehende Design angleichen, große Sonderbuttons und die doppelte Kleinanzeigen-Kontendarstellung entfernen, Kontoentfernung und Wechsel im Browser ermöglichen, Inserate verständlich benennen und den Vinted Feed unter Tools einordnen.

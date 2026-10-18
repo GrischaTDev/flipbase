@@ -209,3 +209,53 @@ test('Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-sm
       .getByRole('button', { name: 'Inserate abgleichen', exact: true }),
   ).toBeDisabled();
 });
+
+test('Desktop- und Touch-Buttons bleiben bei gleicher Breite getrennt @core-smoke', async ({
+  browser,
+}, testInfo) => {
+  for (const width of [834, 1440]) {
+    for (const hasTouch of [false, true]) {
+      const context = await browser.newContext({
+        baseURL: testInfo.project.use.baseURL,
+        viewport: { width, height: 1000 },
+        hasTouch,
+        storageState: { cookies: [], origins: [] },
+        serviceWorkers: 'block',
+        reducedMotion: 'reduce',
+      });
+      try {
+        const page = await context.newPage();
+        await mockKleinanzeigen(page);
+        await page.goto('/marketplaces/kleinanzeigen');
+        expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(hasTouch);
+        const add = page.getByRole('button', { name: 'Konto hinzufügen', exact: true });
+        const list = page.getByRole('button', {
+          name: 'Inserate von Kleinanzeigen Testkonto A anzeigen',
+          exact: true,
+        });
+        const settings = page.getByRole('button', {
+          name: 'Konto Kleinanzeigen Testkonto A verwalten',
+          exact: true,
+        });
+        for (const button of [add, list, settings]) {
+          await expect(button).toBeVisible();
+          const height = await button.evaluate((element) => element.getBoundingClientRect().height);
+          expect(height).toBe(hasTouch ? 44 : 28);
+          await expect(button).toHaveCSS('font-size', '13px');
+        }
+        expect(await settings.evaluate((element) => element.getBoundingClientRect().width)).toBe(
+          hasTouch ? 44 : 28,
+        );
+        if (width === 1440)
+          await page.screenshot({
+            path: testInfo.outputPath(
+              hasTouch ? 'kleinanzeigen-touch-1440.png' : 'kleinanzeigen-mouse-1440.png',
+            ),
+            animations: 'disabled',
+          });
+      } finally {
+        await context.close();
+      }
+    }
+  }
+});

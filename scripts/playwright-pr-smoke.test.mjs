@@ -72,6 +72,7 @@ const coreTests = [
     'Ein unterbrochener Kleinanzeigen-Abgleich erhält den bestätigten Bestand @core-smoke',
     'Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neuladen entfernt @core-smoke',
     'Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-smoke',
+    'Desktop- und Touch-Buttons bleiben bei gleicher Breite getrennt @core-smoke',
   ].map((title) => ['kleinanzeigen-accounts.spec.ts', title]),
   [
     'marketplace-overview.spec.ts',
