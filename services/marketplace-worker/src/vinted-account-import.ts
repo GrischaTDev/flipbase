@@ -268,10 +268,30 @@ function messageText(entity: Record<string, unknown> | null): string | null {
   );
 }
 
+function offerPriceLabel(entity: Record<string, unknown> | null): string | null {
+  const offered = record(entity?.['price']);
+  const original = record(entity?.['original_price']);
+  const amount = decimal(offered?.['amount'] ?? entity?.['price']);
+  const originalAmount = decimal(original?.['amount'] ?? entity?.['original_price']);
+  const currency = string(offered?.['currency_code'] ?? original?.['currency_code']);
+  if (amount === null || !currency || !/^[A-Z]{3}$/.test(currency))
+    return string(entity?.['price_label']);
+  const formatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency });
+  return (
+    formatter.format(amount) +
+    (originalAmount !== null &&
+    originalAmount > amount &&
+    (!original?.['currency_code'] || original['currency_code'] === currency)
+      ? ` statt ${formatter.format(originalAmount)}`
+      : '')
+  );
+}
+
 function parseConversationItem(conversation: Record<string, unknown> | null) {
   const item = record(conversation?.['item']);
   const transaction = record(conversation?.['transaction']);
-  const rawPrice = transaction?.['offer_price'] ?? item?.['price'];
+  // Ein privates Angebot ist kein Artikelpreis.
+  const rawPrice = item?.['price'];
   const money = record(rawPrice);
   const photos = item?.['photos'] ?? conversation?.['item_photos'];
   const photo = record(Array.isArray(photos) ? photos[0] : null);
@@ -547,7 +567,9 @@ export function parseVintedAccountImport(
       );
       const senderId = identifier(entity?.['user_id']) ?? identifier(entity?.['sender_id']);
       const direction = senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown';
-      const priceLabel = string(entity?.['price_label']);
+      const priceLabel = ['offer_request_message', 'offer_message'].includes(messageType ?? '')
+        ? offerPriceLabel(entity)
+        : string(entity?.['price_label']);
       const photos = entity?.['photos'];
       const imageUrls = [
         ...new Set(
