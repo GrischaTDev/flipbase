@@ -1,7 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { filter, map } from 'rxjs';
+import { RouterOutlet } from '@angular/router';
 import { PageLayoutService, pageContentMaxWidth } from '../../core/services/page-layout.service';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
@@ -27,18 +25,8 @@ import { WorkspaceContextLockService } from '../../core/services/workspace-conte
 export class ShellComponent {
   private readonly workspaceContext = inject(WorkspaceContextLockService);
 
-  private readonly router = inject(Router);
   private readonly pageLayout = inject(PageLayoutService);
-  private readonly currentUrl = toSignal(
-    this.router.events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      map((event) => event.urlAfterRedirects),
-    ),
-    { initialValue: this.router.url },
-  );
-  readonly contentMaxWidth = computed(() =>
-    pageContentMaxWidth(this.pageLayout.width(), this.currentUrl()),
-  );
+  readonly contentMaxWidth = computed(() => pageContentMaxWidth(this.pageLayout.width()));
 
   readonly isSidebarOpen = signal<boolean>(false);
   readonly isCreateWorkspaceModalOpen = signal<boolean>(false);
