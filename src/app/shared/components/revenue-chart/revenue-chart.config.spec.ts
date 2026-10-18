@@ -57,7 +57,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(options.plotOptions.bar).toMatchObject({
       borderRadius: 3,
       borderRadiusApplication: 'end',
-      columnWidth: '58%',
+      columnWidth: '64%',
       horizontal: false,
     });
     expect(options.stroke.width).toBe(0);
@@ -75,6 +75,16 @@ describe('Revenue-Chart-Konfiguration', () => {
       expect(options.colors).toEqual(
         theme === 'light' ? ['#fcc601', '#9ca3af', '#006b73'] : ['#fcc601', '#a8b0bb', '#52b7bd'],
       );
+      expect(options.fill.type).toBe('image');
+      const tiles = options.fill.image?.src as string[];
+      expect(tiles).toHaveLength(3);
+      tiles.forEach((tile, index) => {
+        const svg = decodeURIComponent(tile.slice('data:image/svg+xml,'.length));
+        expect(svg).toContain(`fill="${options.colors[index]}"`);
+        expect(svg).toContain('stroke-opacity="0.16"');
+        expect(tile).toMatch(/^data:image\/svg\+xml,/);
+        expect(svg).not.toContain('href=');
+      });
     },
   );
   it('deaktiviert Animationen bei reduzierter Bewegung und passt das Theme an', () => {

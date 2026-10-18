@@ -79,6 +79,14 @@
       (keydown)="handleKeyboardNavigation($event)"
     ></div>
     @if (activeTooltip(); as tooltip) {
+      <span
+        data-chart-selection-guide
+        class="pointer-events-none absolute border-l border-dashed border-fb-text-muted/50"
+        aria-hidden="true"
+        [style.left.px]="tooltip.guideLeft"
+        [style.top.px]="tooltip.guideTop"
+        [style.height.px]="tooltip.guideHeight"
+      ></span>
       <div
         role="status"
         aria-live="polite"

@@ -2,6 +2,7 @@ import type {
   ApexAxisChartSeries,
   ApexChart,
   ApexDataLabels,
+  ApexFill,
   ApexGrid,
   ApexLegend,
   ApexMarkers,
@@ -46,6 +47,12 @@ const axisFormatter = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 0,
 });
 
+/** Eine deckende Grundfarbe mit sehr feinen hellen Linien statt transparenter Lücken. */
+function stripedColumnFill(color: string): string {
+  const tile = `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><rect width="8" height="8" fill="${color}"/><path d="M-2 2L2-2M0 8L8 0M6 10L10 6" fill="none" stroke="white" stroke-opacity="0.16" stroke-width="1"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(tile)}`;
+}
+
 export function formatChartAmount(value: number | null): string {
   return value === null ? 'unbekannt' : euroFormatter.format(value);
 }
@@ -65,6 +72,7 @@ export interface RevenueChartConfiguration {
   chart: ApexChart;
   series: ApexAxisChartSeries;
   colors: string[];
+  fill: ApexFill;
   dataLabels: ApexDataLabels;
   stroke: ApexStroke;
   markers: ApexMarkers;
@@ -104,11 +112,20 @@ export function createRevenueChartConfiguration(
     },
     series: buildRevenueSeries(points),
     colors: REVENUE_CHART_SERIES.map((series) => palette[series.key]),
+    fill: {
+      type: 'image',
+      opacity: 1,
+      image: {
+        src: REVENUE_CHART_SERIES.map((series) => stripedColumnFill(palette[series.key])),
+        width: 8,
+        height: 8,
+      },
+    },
     stroke: { width: 0 },
     plotOptions: {
       bar: {
         horizontal: false,
-        columnWidth: '58%',
+        columnWidth: '64%',
         borderRadius: 3,
         borderRadiusApplication: 'end',
       },

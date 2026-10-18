@@ -296,6 +296,17 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
   await page.goto('/dashboard');
   const value = page.locator('[data-kpi="revenue"] .metric-value');
   await expect(value).toHaveText(/1\.234\.567,89\s*€/);
+  const columnTextures = page.locator('app-revenue-chart defs pattern image');
+  await expect.poll(() => columnTextures.count()).toBeGreaterThan(0);
+  expect(
+    await columnTextures.evaluateAll((images) =>
+      images.every((image) =>
+        (image.getAttribute('href') ?? image.getAttribute('xlink:href') ?? '').startsWith(
+          'data:image/svg+xml,',
+        ),
+      ),
+    ),
+  ).toBe(true);
   await expect(page.locator('[data-kpi="sales"]')).not.toContainText('Stück verkauft');
   await page.setViewportSize({ width: 1440, height: 1100 });
   const lowerCards = await page

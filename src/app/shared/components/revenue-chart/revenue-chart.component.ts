@@ -45,6 +45,9 @@ interface VisibleRevenueTooltip {
   readonly left: number;
   readonly top: number;
   readonly width: number;
+  readonly guideLeft: number;
+  readonly guideTop: number;
+  readonly guideHeight: number;
 }
 
 /** Ergebnisdiagramm mit vollständiger tabellarischer Alternative. */
@@ -223,6 +226,9 @@ export class RevenueChartComponent {
       left: Math.max(8, Math.min(left, chartWidth - width - 8)),
       top: Math.max(8, Math.min(top, chartHeight - 150, viewportHeight - 190)),
       width,
+      guideLeft: pointCenter,
+      guideTop: grid?.height ? grid.top - (bounds?.top ?? 0) : 0,
+      guideHeight: grid?.height ?? 0,
     });
   }
 

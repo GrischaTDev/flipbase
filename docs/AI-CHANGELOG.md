@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-19 - Juna - Feine Schraffur und Orientierung im Ergebnisdiagramm
+
+**Auftrag und Umsetzung:** Das Diagramm enger an den freigegebenen Entwurf angleichen und die vom Nutzer gewünschte feine Streifentextur ergänzen. ApexCharts bleibt erhalten. Drei lokal erzeugte SVG-Kacheln kombinieren die unveränderten Reihenfarben mit dünnen diagonalen weißen Linien bei 16 Prozent Deckkraft; die Grundfläche bleibt deckend. Die Bildfüllung wird vollständig eingebettet, ohne Anbieterzugriff oder neue Abhängigkeit. Säulengruppen etwas breiter und eine gemeinsame gestrichelte Auswahllinie für Pointer/Tastatur ergänzt. Daten, unbekannte/negative Werte und gespeicherte Plattformen unverändert.
+
+**Prüfung:** Alle zehn Konfigurations- und 26 betroffenen Angular-Prüfungen sowie neun bestehende Browserfälle zu Touch, Hell/Dunkel, AXE und großen Beträgen bestanden. Bestehende Konfigurations-/Browserfälle sichern eingebettete Texturen und weiterhin die Reihenfarben ab. Zusätzliche Browserabnahme mit gefüllten Beispieldaten bestätigt die sichtbare Schraffur, begrenzte Wertanzeige, Auswahllinie, mobile Größenanpassung sowie korrekte dunkle Texturen nach Themewechsel und das Aus-/Einblenden einer Datenreihe. Keine Laufzeitfehler; Detail-, Desktop-, Mobil- und Dunkelaufnahmen außerhalb des Repositorys gesichert und mit dem Entwurf verglichen. Die bestehende Produktions-CSP erlaubt die verwendeten eingebetteten Bilddaten bereits. Format, Lint, Typprüfung und Produktionsbau bestanden; keine Datenbank- oder Produktionsänderung und kein Push.
+
 ## 2026-10-18 - Juna - Passendes Symbol für die zentrale Übersicht
 
 **Auftrag und Umsetzung:** Die zentrale Übersicht erhält ein Haus-Symbol als erkennbaren Einstieg ins Geschäft. Das bisherige Dashboard-Raster ersetzt: einheitlich im Seitentitel, in der Seitenleiste und in der mobilen Navigation einschließlich der Rückwege aus den Marktplätzen. Vorhandenes Lucide-Symbol, keine neue Abhängigkeit. Alle 50 bestehenden betroffenen Komponentenprüfungen sowie Format, Lint und Produktionsbau bestanden; kein Push oder Deployment.

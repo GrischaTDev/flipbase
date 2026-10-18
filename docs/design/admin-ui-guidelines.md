@@ -52,6 +52,14 @@ und eine innerhalb der Zeichenfläche begrenzte Detailanzeige mit Farbpunkten.
 Es bleibt bei ApexCharts. Apples Swift Charts ist ein natives SwiftUI-Framework;
 das freigegebene Mockup war ein erzeugtes Bild, kein Swift-Charts-Ergebnis.
 
+Nutzerentscheidung vom 19.10.2026: Die Diagrammsäulen erhalten eine feine diagonale
+Schraffur wie die wahrgenommene Textur im Bildentwurf. Die unveränderten
+Reihenfarben bleiben als deckende Grundfläche erhalten; dünne weiße Linien mit
+16 Prozent Deckkraft bilden das Muster. Die Säulengruppen nutzen 64 Prozent der
+verfügbaren Breite. Eine gestrichelte senkrechte Linie markiert die ausgewählte
+Datumsgruppe sowohl bei Pointer- als auch bei Tastaturbedienung. Diese Werte
+sind Flipbase-Gestaltungsentscheidungen, keine behaupteten Apple-Originalwerte.
+
 Die drei Schnellaktionen heißen „Einkauf erfassen“, „Verkauf erfassen“ und
 „Inserat erstellen“. Die Inseratwahl führt zum vorhandenen Vinted-Editor;
 eBay und Kleinanzeigen sind als „Geplant“ gekennzeichnet. Die Bestandsgruppen
