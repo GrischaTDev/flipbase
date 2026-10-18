@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Passendes Symbol für die zentrale Übersicht
+
+**Auftrag und Umsetzung:** Die zentrale Übersicht erhält ein Haus-Symbol als erkennbaren Einstieg ins Geschäft. Das bisherige Dashboard-Raster ersetzt: einheitlich im Seitentitel, in der Seitenleiste und in der mobilen Navigation einschließlich der Rückwege aus den Marktplätzen. Vorhandenes Lucide-Symbol, keine neue Abhängigkeit. Alle 50 bestehenden betroffenen Komponentenprüfungen sowie Format, Lint und Produktionsbau bestanden; kein Push oder Deployment.
+
 ## 2026-10-18 - Juna - Datum links in der Verkaufsübersicht erhalten
 
 **Auftrag:** Datum in „Letzte Verkäufe“ als eigene Spalte links vor den Artikelnamen wiederherstellen und die technische Grenze von Swift Charts erklären.

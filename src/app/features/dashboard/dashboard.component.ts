@@ -13,7 +13,7 @@ import {
   LucideChartNoAxesCombined,
   LucideCoins,
   LucideDynamicIcon,
-  LucideLayoutDashboard,
+  LucideHouse,
   LucidePackage,
   LucidePercent,
   LucideShoppingBag,
@@ -231,7 +231,7 @@ export class DashboardComponent {
   ];
   readonly listingDialogOpen = signal(false);
   readonly listingPlatforms = ['vinted', 'ebay', 'kleinanzeigen'] as const;
-  readonly overviewIcon = LucideLayoutDashboard;
+  readonly overviewIcon = LucideHouse;
   readonly packageIcon = LucidePackage;
   readonly listingIcon = LucideTag;
   readonly viewAllIcon = LucideArrowRight;
