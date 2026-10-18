@@ -180,8 +180,15 @@ begin
         select 1 from public.marketplace_favorite_message_events f
         join public.marketplace_account_entries conversation on conversation.id = e.parent_id
           and conversation.workspace_id = e.workspace_id and conversation.connection_id = e.connection_id and conversation.kind = 'conversation'
+        join public.marketplace_connections connection on connection.workspace_id=f.workspace_id and connection.id=f.connection_id
         where f.workspace_id = e.workspace_id and f.connection_id = e.connection_id and f.state = 'sent'
-          and f.external_message_id = e.external_id
+          and (f.external_account_id is null or f.external_account_id=connection.external_account_id)
+          and (
+            (f.external_message_id=e.external_id and coalesce(e.body->>'messageType','') not in ('offer_message','offer_request_message'))
+            or (f.offer_state='sent' and f.external_offer_id=e.external_id
+              and e.body->>'messageType' in ('offer_message','offer_request_message')
+              and f.external_conversation_id=conversation.external_id)
+          )
           and (f.external_conversation_id is null or f.external_conversation_id = conversation.external_id)
       ) or exists (
         select 1 from public.marketplace_negotiation_jobs job
@@ -190,7 +197,12 @@ begin
         join public.marketplace_account_entries conversation on conversation.id=e.parent_id
           and conversation.workspace_id=e.workspace_id and conversation.connection_id=e.connection_id and conversation.kind='conversation'
         where job.workspace_id=e.workspace_id and job.connection_id=e.connection_id and job.conversation_id=e.parent_id
-          and job.automated and job.state='sent' and job.action='message' and job.command->>'kind'='message'
+          and job.automated and job.state='sent' and (
+            (job.action='message' and job.command->>'kind'='message'
+              and coalesce(e.body->>'messageType','') not in ('offer_message','offer_request_message'))
+            or (job.action='counter' and job.command->>'kind'='offer'
+              and e.body->>'messageType' in ('offer_message','offer_request_message'))
+          )
           and job.external_id=e.external_id and job.command->>'externalConversationId'=conversation.external_id
       ))) else '{}'::jsonb end) order by e.position) filter (where e.position <= 50), '[]'::jsonb),
     case when count(*) > 50 then max(e.id::text) filter (where e.position = 50) else null end

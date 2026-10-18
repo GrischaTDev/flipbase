@@ -156,6 +156,8 @@ create index marketplace_negotiation_settings_authorizer on public.marketplace_n
 create index marketplace_negotiation_jobs_requester on public.marketplace_negotiation_jobs(requested_by);
 create index marketplace_negotiation_jobs_message_origin on public.marketplace_negotiation_jobs(workspace_id,connection_id,conversation_id,external_id)
   where automated and state='sent' and action='message' and command->>'kind'='message';
+create index marketplace_negotiation_jobs_offer_origin on public.marketplace_negotiation_jobs(workspace_id,connection_id,conversation_id,external_id)
+  where automated and state='sent' and action='counter' and command->>'kind'='offer';
 
 alter table public.marketplace_negotiation_settings enable row level security;
 alter table public.marketplace_negotiation_threads enable row level security;

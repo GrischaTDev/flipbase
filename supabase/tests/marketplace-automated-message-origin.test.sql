@@ -31,6 +31,20 @@ from generate_series(1,12) n where n not in (2,9,10);
 insert into public.marketplace_favorite_message_events(workspace_id,connection_id,external_id,actor_id,item_id,event_at,setting_version,title,state,external_message_id,external_conversation_id) values
  ('38800000-0000-4000-8000-000000000012','38800000-0000-4000-8000-000000000023',gen_random_uuid(),'9','100',now(),1,'Hallo!','sent','9','500');
 
+-- Angebotsbelege sind von Nachrichtenbelegen getrennt, auch bei gleicher Anbieter-ID.
+update public.marketplace_connections set external_account_id='123' where id='38800000-0000-4000-8000-000000000021';
+update public.marketplace_account_entries set body=body || jsonb_build_object('messageType',case when external_id='19' then 'text_message' else 'offer_message' end,
+ 'direction',case when external_id='20' then 'inbound' when external_id='21' then 'unknown' else 'outbound' end)
+ where kind='message' and connection_id='38800000-0000-4000-8000-000000000021' and external_id::integer between 13 and 25;
+insert into public.marketplace_favorite_message_events(workspace_id,connection_id,external_id,actor_id,item_id,event_at,setting_version,title,state,execution_mode,external_account_id,external_message_id,external_conversation_id,offer_state,external_offer_id)
+select '38800000-0000-4000-8000-000000000011',case when n=18 then '38800000-0000-4000-8000-000000000022'::uuid else '38800000-0000-4000-8000-000000000021'::uuid end,
+ gen_random_uuid(),n::text,'100',now(),1,'Automatisches Angebot','sent',case when n=13 then 'cloud' else 'local' end,
+ case when n=22 then '999' else '123' end,case when n=23 then n::text else (1000+n)::text end,
+ case when n=17 then '999' when n=24 then null else '500' end,
+ case when n=15 then 'outcome_unknown' when n=16 then 'failed' else 'sent' end,
+ case when n=23 then (1000+n)::text else n::text end
+from generate_series(13,24) n;
+
 create function pg_temp.page(p_cursor text default null) returns jsonb language sql as $$
  select public.marketplace_read_page('38800000-0000-4000-8000-000000000011','38800000-0000-4000-8000-000000000021','message',p_cursor,'38800000-0000-4000-8000-000000000031');
 $$;
@@ -58,12 +72,26 @@ select is(pg_temp.automated('9'),false,'Gleiche Nachrichten-ID aus anderem Works
 select is(pg_temp.automated('10'),false,'Importiertes isAutomated wird durch den Versandbeleg ersetzt');
 select is(pg_temp.automated('11'),true,'Bestätigte lokale Antwort mit Gesprächs-ID erkannt');
 select is(pg_temp.automated('12'),false,'Fehlgeschlagener Versand bleibt unmarkiert');
+select is(pg_temp.automated('13'),true,'Bestätigtes automatisches Cloud-Angebot bekommt Bot-Herkunft');
+select is(pg_temp.automated('14'),true,'Bestätigtes automatisches Extension-Angebot bekommt Bot-Herkunft');
+select is(pg_temp.automated('15'),false,'Unklarer Angebotsversand bekommt keine Bot-Herkunft');
+select is(pg_temp.automated('16'),false,'Fehlgeschlagenes Angebot bekommt keine Bot-Herkunft');
+select is(pg_temp.automated('17'),false,'Angebotsbeleg aus anderem Gespräch passt nicht');
+select is(pg_temp.automated('18'),false,'Angebotsbeleg aus anderem Konto passt nicht');
+select is(pg_temp.automated('19'),false,'Angebots-ID ist kein Beleg für eine Textnachricht');
+select is(pg_temp.automated('20'),false,'Eingehendes Angebot bleibt ohne eigene Bot-Herkunft');
+select is(pg_temp.automated('21'),false,'Unbekannte Angebotsrichtung bleibt ohne eigene Bot-Herkunft');
+select is(pg_temp.automated('22'),false,'Angebotsbeleg einer früheren Kontoidentität passt nicht');
+select is(pg_temp.automated('23'),false,'Nachrichten-ID ist kein Beleg für ein Angebot');
+select is(pg_temp.automated('24'),false,'Angebotsbeleg ohne bestätigte Gesprächs-ID bleibt unmarkiert');
+select is(pg_temp.automated('25'),false,'Manuelles Angebot bekommt kein Bot-Avatar');
 select throws_ok($$select public.marketplace_read_page('38800000-0000-4000-8000-000000000012','38800000-0000-4000-8000-000000000023','activity')$$,'42501',null,'Fremder Workspace wird abgelehnt');
 select throws_ok($$select public.marketplace_read_page('38800000-0000-4000-8000-000000000011','38800000-0000-4000-8000-000000000022','message',null,'38800000-0000-4000-8000-000000000031')$$,'42501',null,'Fremdes Gespräch wird abgelehnt');
 reset role;
 update public.marketplace_account_entries set body='{"direction":"outbound","text":"Erneut importiert"}' where kind='message' and external_id='1' and connection_id='38800000-0000-4000-8000-000000000021';
 set local role authenticated;
 select is(pg_temp.automated('1'),true,'Neue Synchronisierung erhält die bestätigte Herkunft');
+select is(pg_temp.automated('13'),true,'Bereits gespeicherte Angebote erhalten Herkunft ohne erneuten Versand');
 select set_config('request.jwt.claims','{"sub":"38800000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select pg_temp.page()$$,'42501',null,'Anderer Betreiber erhält keine Nachrichten dieses Workspaces');
 select set_config('request.jwt.claims','{}',true);

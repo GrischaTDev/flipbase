@@ -312,6 +312,8 @@ select is(public.marketplace_read_negotiation('42600000-0000-4000-8000-000000000
 reset role;
 
 insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,parent_id,body) values
+ ('42600000-0000-4000-8000-000000000011','42600000-0000-4000-8000-000000000021','message','901','42600000-0000-4000-8000-000000000031','{"direction":"outbound","messageType":"offer_message"}'),
+ ('42600000-0000-4000-8000-000000000011','42600000-0000-4000-8000-000000000022','message','910','42600000-0000-4000-8000-000000000032','{"direction":"outbound","messageType":"offer_request_message"}'),
  ('42600000-0000-4000-8000-000000000011','42600000-0000-4000-8000-000000000021','message','903','42600000-0000-4000-8000-000000000031','{"text":"Gleicher Text","direction":"outbound"}'),
  ('42600000-0000-4000-8000-000000000011','42600000-0000-4000-8000-000000000021','message','911','42600000-0000-4000-8000-000000000033','{"text":"Gleicher Text","direction":"outbound"}'),
  ('42600000-0000-4000-8000-000000000011','42600000-0000-4000-8000-000000000021','message','912','42600000-0000-4000-8000-000000000031','{"text":"Gleicher Text","direction":"outbound","isAutomated":true}');
@@ -320,6 +322,8 @@ create function pg_temp.bot(p_id text,p_conversation uuid default '42600000-0000
 $$;
 set local role authenticated;
 select is(pg_temp.bot('903'),true,'Confirmed automatic negotiation text has bot origin');
+select is(pg_temp.bot('901'),true,'Confirmed automatic counteroffer has bot origin');
+select is((select (entry->>'isAutomated')::boolean from jsonb_array_elements(public.marketplace_read_page('42600000-0000-4000-8000-000000000011','42600000-0000-4000-8000-000000000022','message',null,'42600000-0000-4000-8000-000000000032')->'items') entry where entry->>'externalId'='910'),true,'Confirmed automatic cloud counteroffer has bot origin');
 select is(pg_temp.bot('911','42600000-0000-4000-8000-000000000033'),false,'Manual offer proof is not an automatic text proof');
 select is(pg_temp.bot('912'),false,'Provider isAutomated and matching text cannot forge origin');
 reset role;
@@ -334,9 +338,30 @@ set local role authenticated;
 select is(pg_temp.bot('903'),false,'Unknown text outcome has no bot origin');
 reset role;
 rollback to savepoint bot_origin_case;
+update public.marketplace_negotiation_jobs set automated=false where external_id='901';
+set local role authenticated;
+select is(pg_temp.bot('901'),false,'Manual counteroffer keeps the account avatar');
+reset role;
+rollback to savepoint bot_origin_case;
+update public.marketplace_negotiation_jobs set state='outcome_unknown' where external_id='901';
+set local role authenticated;
+select is(pg_temp.bot('901'),false,'Unconfirmed counteroffer has no bot origin');
+reset role;
+rollback to savepoint bot_origin_case;
+update public.marketplace_account_entries set body='{"direction":"outbound","messageType":"text_message"}' where connection_id='42600000-0000-4000-8000-000000000021' and external_id='901';
+set local role authenticated;
+select is(pg_temp.bot('901'),false,'Counteroffer receipt cannot mark a text message');
+reset role;
+rollback to savepoint bot_origin_case;
+update public.marketplace_negotiation_jobs set command=jsonb_set(command,'{externalConversationId}','"778"') where external_id='901';
+set local role authenticated;
+select is(pg_temp.bot('901'),false,'Counteroffer receipt from a different conversation does not match');
+reset role;
+rollback to savepoint bot_origin_case;
 update public.marketplace_connections set external_account_id='125' where id='42600000-0000-4000-8000-000000000021';
 set local role authenticated;
 select is(pg_temp.bot('903'),false,'Old identity proof cannot mark a changed account');
+select is(pg_temp.bot('901'),false,'Old counteroffer receipt cannot mark a changed account');
 reset role;
 rollback to savepoint bot_origin_case;
 select set_config('request.jwt.claim.sub','42600000-0000-4000-8000-000000000002',true);
