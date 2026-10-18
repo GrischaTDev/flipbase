@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Einheitliche Inhaltsbreite mit Layoutwahl
+
+**Auftrag:** Die Breite der Marktplatzübersicht für alle Verwaltungsseiten vereinheitlichen, besonders Vinted-Feed, Suchfilter, Favoriten, Ausgaben, Steuern und Auswertungen. Im Profilmenü drei Breiten anbieten. Nutzer bestätigt: Standard mit breiten Ausnahmen; eigene Schmal-/Vollwahl gilt überall.
+
+**Umsetzung:** Zentrale Begrenzung des Seiteninhalts in der Shell: Schmal 64rem, Mittel 80rem als Standard und volle verfügbare Breite. Nur Dashboard sowie Einkaufs-, Artikel- und Verkaufsübersicht bleiben im Standard breit; Detail- und Erfassungsseiten folgen Mittel. Auswahl wirkt sofort, über Seitenwechsel hinweg und nach Neuladen im selben Browser; gesperrter Browserspeicher verhindert die laufende Auswahl nicht. Profilmenü mit beschrifteter Tastatur-/Touch-Auswahl und eindeutigem Auswahlzustand. Frühere äußere Seitenlimits sowie doppelte Seitenabstände entfernt; Formulare, Dialoge, Textabsätze, Shop und Druckdokumente behalten ihre fachlichen Grenzen. Gestaltungsrichtlinie und bestehende CI-Soll-Liste ergänzt. Eigener Zweig `juna/page-content-width` auf aktuellem Integrationsstand, fremder Arbeitsordner unverändert.
+
+**Prüfung:** Alle 533 Anwendungstestdateien mit 5.604 Tests bestanden, darunter 20 Breiten-/Speicherfälle und 13 Header-/Shell-Fälle. Sechs neue Browserfälle prüfen 2.560px, Seitenwechsel, Neuladen, breite Ausnahmen, 320/390/768px und Touch einschließlich kurzem Querformat. 65 bestehende Browserfälle für Marktplatzübersicht, Vinted-Arbeitsfläche, Feed/Favoriten, Einstellungen/eBay und responsive Ansichten geprüft; 64 direkt bestanden, der Offline-Wiederholfall anschließend gezielt mit dem tatsächlichen CI-Wartefenster (15 statt lokal zunächst 5 Sekunden) bestanden. AXE am Profilmenü in Hell/Dunkel ohne Befund, Desktop-/Mobilbilder außerhalb des Repositories und keine Browser-Laufzeitfehler in der sichtbaren Stichprobe. Produktions- und Entwicklungsbau, Typen, Lint, Format, Suite-Audit, 28 Testauswahl-/Registrierungsprüfungen und 41 PWA-Skriptprüfungen bestanden. Für den Windows-Bau wurde ausschließlich die Abhängigkeitsverknüpfung im eigenen Worktree durch eine echte lokale Kopie ersetzt.
+
+**PR-Freigabe:** Nutzer hat PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen und anschließendes Aufräumen ausdrücklich freigegeben. Vor dem ersten Push auf den aktuellen Hauptzweig mit der Vinted-Chatpreiskorrektur gesetzt; ausschließlich den Dokumentationskonflikt unter Erhalt beider Einträge aufgelöst.
+
+**Grenzen beim lokalen Abschluss:** Browserläufe gegen ruhende lokale Vorschau mit simulierten Daten, ohne echte Anbieterzugriffe. Vollständige CI-Browserregression, Linux und Produktions-PWA-Lebenszyklus noch nicht ausgeführt; Docker-Engine war nicht gestartet. Kein Push, PR, Merge oder Deployment. Lokale Profil-/Layoutpräferenz bleibt gerätebezogen.
+
 ## 2026-10-18 - Juna - Originalpreis und Rabatt im Vinted-Chat trennen
 
 **Auftrag:** Im Artikelstreifen des Chats den Originalpreis zeigen und bei gesendeten Angeboten den durchgestrichenen Originalpreis vor dem reduzierten Preis darstellen.

@@ -17,6 +17,22 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Einheitliche Seitenbreite
+
+Nutzerentscheidung vom 18.10.2026: Im Profilmenü unter „Layout“ gibt es
+„Schmal“ (64rem / 1.024px), „Mittel“ (80rem / 1.280px) und „Volle Breite“.
+Mittel ist der Standard, angelehnt an die bisherige Marktplatzübersicht.
+Die Auswahl gilt für den Inhaltsbereich der gesamten Verwaltungsoberfläche
+und wird im jeweiligen Browser gespeichert. Kleine Fenster nutzen weiterhin
+den verfügbaren Platz mit den üblichen Seitenabständen.
+
+Nur im Standard bleiben Dashboard sowie die Übersichten für Einkäufe,
+Artikel und Verkäufe breit. Schmal und Volle Breite gelten ausdrücklich auch
+auf diesen Seiten. Detail- und Erfassungsseiten verwenden den gemeinsamen
+Standard. Die Shell setzt die Begrenzung zentral; einzelne Seiten definieren
+keine zusätzliche äußere Maximalbreite. Fachliche Innenbereiche wie Formulare,
+Textabsätze, Dialoge und Druckdokumente dürfen weiterhin eigene Grenzen haben.
+
 ## Online-Alter von Inseraten
 
 Nutzerentscheidung vom 16.10.2026: Die Laufzeit eines Inserats wird einheitlich in

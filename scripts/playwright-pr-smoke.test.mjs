@@ -11,6 +11,18 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   ...[
+    ...['light', 'dark'].map(
+      (theme) =>
+        `Einheitliche Seitenbreite > wendet Layoutwahl, Seitenwechsel und gespeicherte Breite an ${theme} @core-smoke`,
+    ),
+    'Einheitliche Seitenbreite > hält alle Vinted-Seiten sowie Ausgaben, Steuern und Auswertungen im gemeinsamen Rahmen @core-smoke',
+    ...[320, 390, 768].map(
+      (width) =>
+        `Einheitliche Seitenbreite > bleibt bei ${width}px per Touch bedienbar und ohne Überlauf @core-smoke`,
+    ),
+  ].map((title) => ['admin-layout.spec.ts', title]),
+
+  ...[
     'Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchbar @core-smoke',
     'Eine verlorene Annahmeantwort wird ohne zweiten Auftrag fortgesetzt @core-smoke',
     'Ein gewechseltes Browserkonto stoppt vor der Auftragsannahme @core-smoke',

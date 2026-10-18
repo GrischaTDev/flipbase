@@ -383,8 +383,39 @@
             <p class="text-[11px] text-fb-text-muted truncate">{{ auth.userEmail() }}</p>
           </div>
 
-          <!-- Sprache -->
+          <!-- Layout und Sprache -->
           <div class="px-3 py-2 border-b border-fb-border space-y-2.5">
+            <div>
+              <span
+                id="header-layout-label"
+                class="mb-1 block text-[11px] font-semibold text-fb-text-muted"
+              >
+                {{ 'COMMON.LAYOUT' | translate }}
+              </span>
+              <div
+                data-header-action="layout"
+                role="group"
+                aria-labelledby="header-layout-label"
+                class="flex items-center rounded-lg border border-fb-border bg-fb-subtle p-0.5"
+              >
+                @for (width of pageLayout.options; track width) {
+                  <button
+                    type="button"
+                    (click)="pageLayout.setWidth(width)"
+                    [attr.data-page-width]="width"
+                    [attr.aria-pressed]="pageLayout.width() === width"
+                    class="min-h-8 flex-1 cursor-pointer whitespace-nowrap rounded-md px-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary pointer-coarse:min-h-11"
+                    [class.bg-fb-surface]="pageLayout.width() === width"
+                    [class.text-fb-text-primary]="pageLayout.width() === width"
+                    [class.shadow-xs]="pageLayout.width() === width"
+                    [class.text-fb-text-secondary]="pageLayout.width() !== width"
+                  >
+                    {{ 'COMMON.PAGE_WIDTH_' + width | translate }}
+                  </button>
+                }
+              </div>
+            </div>
+
             <!-- Sprache -->
             <div>
               <span class="text-[11px] font-semibold text-fb-text-muted block mb-1">

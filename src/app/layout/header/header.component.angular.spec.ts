@@ -8,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TRANSLATIONS_DE, TRANSLATIONS_EN } from '../../core/i18n/translations';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
@@ -153,6 +154,33 @@ describe('HeaderComponent', () => {
     await fixture.whenStable();
     return fixture;
   }
+
+  it('bietet drei Layoutbreiten mit sofortiger Auswahl und eindeutigem Zustand an', async () => {
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('button[aria-controls="header-user-menu"]')!.click();
+    fixture.detectChanges();
+    const buttons = [...element.querySelectorAll<HTMLButtonElement>('[data-page-width]')];
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      'Schmal',
+      'Mittel',
+      'Volle Breite',
+    ]);
+    expect(buttons.map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'true',
+      'false',
+    ]);
+    buttons[0].click();
+    fixture.detectChanges();
+    expect(TestBed.inject(PageLayoutService).width()).toBe('narrow');
+    expect(buttons.map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'true',
+      'false',
+      'false',
+    ]);
+    expect(element.querySelector('#header-user-menu')).not.toBeNull();
+  });
 
   it('zeigt Nachrichteneingänge mit Kontogespräch und markiert nur die Flipbase-Meldung', async () => {
     const incoming: AppNotification = {
