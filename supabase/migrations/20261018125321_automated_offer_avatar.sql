@@ -1,8 +1,8 @@
--- Zweck: Automatische Favoriten- und Gegenangebote im Chat anhand bestätigter Versandbelege kennzeichnen.
+-- Zweck: KI-Avatar für bestätigte automatische Angebote und Inseratspreis in bestehenden Chatköpfen.
 -- Betroffen: marketplace_read_page, marketplace_favorite_message_events und marketplace_negotiation_jobs (nur Indizes).
--- Migration unit 1: schema_changes
--- Transaction mode: transactional
--- Boundary reason: default
+-- migration unit 1: schema_changes
+-- transaction mode: transactional
+-- boundary reason: default
 
 set check_function_bodies = false;
 
@@ -39,7 +39,15 @@ begin
   )
   select coalesce(jsonb_agg((e.body || jsonb_build_object('id', e.id, 'workspaceId', e.workspace_id, 'connectionId', e.connection_id)
     || case when p_kind='conversation' then jsonb_build_object('readVersion',e.current_read_version,
-      'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end) else '{}'::jsonb end
+      'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end)
+      -- Der Artikelstreifen zeigt den gespeicherten Inseratspreis, keinen privaten Transaktionspreis.
+      || coalesce((select jsonb_build_object('itemPrice',publication.body->'price','itemCurrency',publication.body->'currency')
+        from public.marketplace_account_entries publication
+        where publication.workspace_id=e.workspace_id and publication.connection_id=e.connection_id
+          and publication.kind='publication' and publication.external_id=e.body->>'itemId'
+          and e.body->>'isBundle' is distinct from 'true'
+          and case when jsonb_typeof(publication.body->'price')='number' then (publication.body->>'price')::numeric>=0 else false end
+          and publication.body->>'currency' ~ '^[A-Z]{3}$'),'{}'::jsonb) else '{}'::jsonb end
     || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id, 'externalId', e.external_id,
       -- Nur bestätigte Versandbelege zu diesem Konto und Gespräch kennzeichnen; Anbietertexte sind keine Herkunftsbelege.
       'isAutomated', coalesce(e.body->>'direction' = 'outbound', false) and (exists (

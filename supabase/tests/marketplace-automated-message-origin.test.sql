@@ -92,6 +92,69 @@ update public.marketplace_account_entries set body='{"direction":"outbound","tex
 set local role authenticated;
 select is(pg_temp.automated('1'),true,'Neue Synchronisierung erhält die bestätigte Herkunft');
 select is(pg_temp.automated('13'),true,'Bereits gespeicherte Angebote erhalten Herkunft ohne erneuten Versand');
+reset role;
+-- Die Kopfzeile verwendet den vorhandenen Inseratspreis statt eines alten privaten Angebotspreises.
+update public.marketplace_account_entries set body='{"itemId":"100","itemPrice":24.21,"itemCurrency":"EUR"}'
+ where id='38800000-0000-4000-8000-000000000031';
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values
+ ('38800000-0000-4000-8000-000000000011','38800000-0000-4000-8000-000000000021','publication','100','{"price":26.9,"currency":"EUR"}'),
+ ('38800000-0000-4000-8000-000000000011','38800000-0000-4000-8000-000000000022','publication','100','{"price":99,"currency":"USD"}'),
+ ('38800000-0000-4000-8000-000000000012','38800000-0000-4000-8000-000000000023','publication','100','{"price":88,"currency":"GBP"}');
+create function pg_temp.article() returns jsonb language sql as $$
+ select public.marketplace_read_snapshot('38800000-0000-4000-8000-000000000011','38800000-0000-4000-8000-000000000021')->'conversations'->'items'->0;
+$$;
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,26.9::numeric,'Alter Angebotspreis im Kopf wird durch den passenden Inseratspreis ersetzt');
+select is(pg_temp.article()->>'itemCurrency','EUR','Preis und Währung stammen gemeinsam aus demselben Inserat');
+reset role;
+savepoint article_price_case;
+update public.marketplace_account_entries set body='{"price":0,"currency":"USD"}' where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,0::numeric,'Gültiger Nullpreis bleibt sichtbar');
+select is(pg_temp.article()->>'itemCurrency','USD','Geänderte Inseratswährung wird zusammen mit dem Inseratspreis übernommen');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body=jsonb_set(body,'{itemId}','"101"') where id='38800000-0000-4000-8000-000000000031';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Andere Artikelkennung übernimmt keinen fremden Inseratspreis');
+reset role;
+rollback to savepoint article_price_case;
+delete from public.marketplace_account_entries where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Gleiche Artikelkennung anderer Konten oder Workspaces wird nicht übernommen');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body='{"price":"26.9","currency":"EUR"}' where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Ungültiger Inseratspreistyp erhält den bisherigen Kopfpreis');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body='{"price":26.9,"currency":null}' where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Fehlende Inseratswährung erzeugt kein gemischtes Preispaar');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body='{"price":-1,"currency":"EUR"}' where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Negativer Inseratspreis erhält den bisherigen Kopfpreis');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body='{"price":26.9,"currency":"Euro"}' where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is(pg_temp.article()->>'itemCurrency','EUR','Ungültige Inseratswährung erhält die bisherige Währung');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body=jsonb_set(body,'{isBundle}','true') where id='38800000-0000-4000-8000-000000000031';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Bekanntes Bundle übernimmt keinen Einzelartikelpreis');
+reset role;
+rollback to savepoint article_price_case;
+update public.marketplace_account_entries set body='{"price":null,"currency":"EUR"}' where kind='publication' and connection_id='38800000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is((pg_temp.article()->>'itemPrice')::numeric,24.21::numeric,'Fehlender Inseratspreis erhält den bisherigen Kopfpreis');
+reset role;
+rollback to savepoint article_price_case;
+set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"38800000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select pg_temp.page()$$,'42501',null,'Anderer Betreiber erhält keine Nachrichten dieses Workspaces');
 select set_config('request.jwt.claims','{}',true);
