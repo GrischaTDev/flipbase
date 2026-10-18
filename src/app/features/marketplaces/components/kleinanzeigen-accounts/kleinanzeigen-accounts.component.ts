@@ -49,13 +49,16 @@ import type {
 export class KleinanzeigenAccountsComponent {
   readonly workspaceId = input.required<string>();
   readonly connectionId = input<string | null>(null);
+  readonly setupOnly = input(false);
   readonly changed = output<void>();
+  readonly connected = output<void>();
   private readonly auth = inject(AuthService);
   private readonly api = inject(KleinanzeigenAccountService);
   private readonly actions = inject(KleinanzeigenAccountActionsService);
   readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly accounts = signal<readonly KleinanzeigenAccount[]>([]);
   readonly visibleAccounts = computed(() => {
+    if (this.setupOnly()) return [];
     const connectionId = this.connectionId();
     return connectionId
       ? this.accounts().filter((account) => account.connectionId === connectionId)
@@ -68,7 +71,10 @@ export class KleinanzeigenAccountsComponent {
   readonly notice = signal<string | null>(null);
   readonly localBinding = signal<KleinanzeigenBinding | null | undefined>(undefined);
   readonly profileIssue = signal<string | null>(null);
-  readonly disconnecting = signal<KleinanzeigenAccount | null>(null);
+  readonly disconnecting = signal<Pick<
+    KleinanzeigenAccount,
+    'workspaceId' | 'connectionId' | 'externalAccountId' | 'displayName'
+  > | null>(null);
   readonly publishPermission = new FormControl(false, { nonNullable: true });
   readonly refreshIcon = LucideRefreshCw;
   readonly linkIcon = LucideLink;
@@ -158,10 +164,18 @@ export class KleinanzeigenAccountsComponent {
       );
     }
   }
-  private known(account: KleinanzeigenAccount): boolean {
+  private known(
+    account: Pick<KleinanzeigenAccount, 'workspaceId' | 'connectionId' | 'externalAccountId'>,
+  ): boolean {
     return (
       account.workspaceId === this.workspaceId() &&
-      this.accounts().some((row) => row.connectionId === account.connectionId)
+      (this.accounts().some(
+        (row) =>
+          row.connectionId === account.connectionId &&
+          row.externalAccountId === account.externalAccountId,
+      ) ||
+        (this.localBinding()?.connectionId === account.connectionId &&
+          this.localBinding()?.externalAccountId === account.externalAccountId))
     );
   }
   isBound(account: KleinanzeigenAccount): boolean {
@@ -202,7 +216,10 @@ export class KleinanzeigenAccountsComponent {
       this.localBinding.set(binding);
       this.notice.set('Kontoverbindung freigegeben. Du kannst die Inserate jetzt abgleichen.');
       await this.reload(workspaceId);
-      if (this.current(context)) this.changed.emit();
+      if (this.current(context)) {
+        this.changed.emit();
+        this.connected.emit();
+      }
     } catch (error) {
       if (this.current(context))
         this.error.set(
@@ -297,7 +314,7 @@ export class KleinanzeigenAccountsComponent {
       this.notice.set(
         result === 'unavailable'
           ? 'Die Freigabe ist widerrufen. Die lokale Erweiterung war nicht erreichbar; ihre bisherige Freigabe kann nicht mehr verwendet werden.'
-          : 'Die Kontoverbindung ist getrennt. Deine gespeicherten Inserate bleiben erhalten.',
+          : 'Das Konto wurde aus Flipbase entfernt. Deine Anzeigen auf Kleinanzeigen bleiben erhalten.',
       );
       await this.reload();
       if (this.current(context)) this.changed.emit();

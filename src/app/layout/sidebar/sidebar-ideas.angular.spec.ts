@@ -94,14 +94,15 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(names).toEqual(['Warenwirtschaft', 'Marktplätze', 'Finanzen', 'Tools']);
     expect(links).toEqual([
       ['/purchases', '/catalog', '/sales'],
-      [
-        '/marketplaces/overview',
-        '/vinted-bot',
-        '/marketplaces/ebay',
-        '/marketplaces/kleinanzeigen',
-      ],
+      ['/marketplaces/overview', '/marketplaces/ebay', '/marketplaces/kleinanzeigen'],
       ['/expenses', '/accounting', '/analytics'],
-      ['/tools/brand-labels', '/image-optimizer', '/deal-calculator', '/deal-calculator/ebay'],
+      [
+        '/vinted-bot',
+        '/tools/brand-labels',
+        '/image-optimizer',
+        '/deal-calculator',
+        '/deal-calculator/ebay',
+      ],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
     expect(element.textContent).not.toContain('Werkzeuge & Ertrag');

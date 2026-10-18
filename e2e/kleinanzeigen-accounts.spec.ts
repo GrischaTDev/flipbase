@@ -12,6 +12,11 @@ for (const theme of ['light', 'dark'] as const)
         '-Theme bedienbar @core-smoke',
       async ({ page }, testInfo) => {
         await mockKleinanzeigen(page);
+        const runtimeErrors: string[] = [];
+        page.on('pageerror', (error) => runtimeErrors.push(error.message));
+        page.on('console', (message) => {
+          if (message.type() === 'error') runtimeErrors.push(message.text());
+        });
         await page.setViewportSize({ width, height: 1000 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
         await page.goto('/marketplaces/kleinanzeigen');
@@ -22,17 +27,40 @@ for (const theme of ['light', 'dark'] as const)
         await expect(
           page.getByRole('heading', { name: 'Deine Kleinanzeigen-Konten', exact: true }),
         ).toBeVisible();
-        const account = page.getByRole('article', {
-          name: 'Kleinanzeigen-Konto Kleinanzeigen Testkonto A',
-          exact: true,
-        });
-        await expect(account.getByText('26 gespeicherte Inserate', { exact: true })).toBeVisible();
         await expect(
-          account.getByText('8 von 100 Anzeigen in 30 Tagen beobachtet', { exact: true }),
+          page.getByRole('button', { name: 'Konto hinzufügen', exact: true }),
         ).toBeVisible();
+        await expect(page.getByText('Browserprofil verbinden', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('Gespeicherte Inserate', { exact: true })).toHaveCount(0);
         const listings = page.locator('app-marketplace-listing-section').filter({
           has: page.getByRole('heading', { name: 'Kleinanzeigen Testkonto A', exact: true }),
         });
+        await expect(listings.getByText('26 Inserate', { exact: true })).toBeVisible();
+        const settings = listings.getByRole('button', {
+          name: 'Konto Kleinanzeigen Testkonto A verwalten',
+          exact: true,
+        });
+        await settings.tap();
+        const accountDialog = page.getByRole('dialog', {
+          name: 'Konto Kleinanzeigen Testkonto A verwalten',
+          exact: true,
+        });
+        await expect(
+          accountDialog.getByText('8 von 100 Anzeigen in 30 Tagen beobachtet', { exact: true }),
+        ).toBeVisible();
+        await expect(
+          accountDialog.getByRole('button', { name: 'Konto entfernen', exact: true }),
+        ).toBeVisible();
+        await page.evaluate(axe.source);
+        expect(
+          await accountDialog.evaluate(
+            async (element) =>
+              (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
+          ),
+        ).toEqual([]);
+        await page.keyboard.press('Escape');
+        await expect(accountDialog).toHaveCount(0);
+        await expect(settings).toBeFocused();
         await listings
           .getByRole('button', { name: 'Inserate von Kleinanzeigen Testkonto A anzeigen' })
           .tap();
@@ -74,7 +102,8 @@ for (const theme of ['light', 'dark'] as const)
                 (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
             ),
         ).toEqual([]);
-        if (width === 1440 && theme === 'light')
+        expect(runtimeErrors).toEqual([]);
+        if ((width === 1440 || width === 390) && theme === 'light')
           await page.screenshot({
             path: testInfo.outputPath('kleinanzeigen-accounts.png'),
             fullPage: true,
@@ -87,47 +116,96 @@ test('Ein unterbrochener Kleinanzeigen-Abgleich erhält den bestätigten Bestand
 }) => {
   await mockKleinanzeigen(page, { syncFailure: true });
   await page.goto('/marketplaces/kleinanzeigen');
-  const account = page.getByRole('article', {
-    name: 'Kleinanzeigen-Konto Kleinanzeigen Testkonto A',
+  await page
+    .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
+    .click();
+  const account = page.getByRole('dialog', {
+    name: 'Konto Kleinanzeigen Testkonto A verwalten',
     exact: true,
   });
   await account.getByRole('button', { name: 'Inserate abgleichen', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Der Abgleich wurde unterbrochen.');
-  await expect(account.getByText('26 gespeicherte Inserate', { exact: true })).toBeVisible();
+  await expect(account.getByText('26 Inserate', { exact: true })).toBeVisible();
 });
-test('Kleinanzeigen-Verbindung wird gezielt widerrufen und behält gespeicherte Inserate @core-smoke', async ({
+test('Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neuladen entfernt @core-smoke', async ({
   page,
 }) => {
   const fixture = await mockKleinanzeigen(page);
   await page.goto('/marketplaces/kleinanzeigen');
-  const account = page.getByRole('article', {
-    name: 'Kleinanzeigen-Konto Kleinanzeigen Testkonto A',
+  await page
+    .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
+    .click();
+  const management = page.getByRole('dialog', {
+    name: 'Konto Kleinanzeigen Testkonto A verwalten',
     exact: true,
   });
-  await account.getByRole('button', { name: 'Verbindung trennen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Kontoverbindung trennen' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Verbindung trennen', exact: true }).click();
+  await management.getByRole('button', { name: 'Konto entfernen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Konto entfernen', exact: true });
+  await expect(dialog).toContainText(
+    'Deine Anzeigen und dein Konto auf Kleinanzeigen bleiben erhalten.',
+  );
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(account.getByText('Nicht verbunden', { exact: true })).toBeVisible();
-  await expect(account.getByText('26 gespeicherte Inserate', { exact: true })).toBeVisible();
+  expect(fixture.requests.filter((body) => body['action'] === 'disconnect')).toEqual([]);
+  await management.getByRole('button', { name: 'Konto entfernen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Konto entfernen', exact: true }).click();
+  await expect(management).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Kleinanzeigen Testkonto A', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Kleinanzeigen Testkonto B', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+  const setup = page.getByRole('dialog', { name: 'Kleinanzeigen-Konto hinzufügen', exact: true });
+  await expect(
+    setup.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
+  ).toBeEnabled();
+  await setup.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Deine Kleinanzeigen-Konten', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Kleinanzeigen Testkonto A', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+  const reopenedSetup = page.getByRole('dialog', {
+    name: 'Kleinanzeigen-Konto hinzufügen',
+    exact: true,
+  });
+  await reopenedSetup.getByRole('button', { name: 'Konto entfernen', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Konto entfernen', exact: true })
+    .getByRole('button', { name: 'Konto entfernen', exact: true })
+    .click();
+  await expect(
+    reopenedSetup.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
+  ).toBeEnabled();
   expect(
     fixture.requests
       .filter((body) => body['action'] === 'disconnect')
       .map((body) => body['connectionId']),
-  ).toEqual([fixture.connectionId]);
+  ).toEqual([fixture.connectionId, fixture.connectionId]);
 });
+
 test('Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-smoke', async ({
   page,
 }) => {
   await mockKleinanzeigen(page, { available: false });
   await page.goto('/marketplaces/kleinanzeigen');
+  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+  const setup = page.getByRole('dialog', { name: 'Kleinanzeigen-Konto hinzufügen', exact: true });
   await expect(
-    page.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
+    setup.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
   ).toBeDisabled();
+  await setup.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
+    .click();
   await expect(
     page
-      .getByRole('article', { name: 'Kleinanzeigen-Konto Kleinanzeigen Testkonto A', exact: true })
+      .getByRole('dialog', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
       .getByRole('button', { name: 'Inserate abgleichen', exact: true }),
   ).toBeDisabled();
 });

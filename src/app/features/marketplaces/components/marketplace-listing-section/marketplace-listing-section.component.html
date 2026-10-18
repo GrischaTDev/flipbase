@@ -1,6 +1,6 @@
 <app-card padding="none">
   <div class="flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
-    <div class="min-w-0 flex-1 space-y-1">
+    <div class="min-w-0 basis-full flex-1 space-y-1 sm:basis-0">
       <h3 class="break-words text-sm font-semibold text-fb-text-primary">
         @if (showAccountManagement()) {
           <a
@@ -18,7 +18,7 @@
         @if (section().account.platform === 'ebay' && section().page) {
           <span>{{ section().page!.total }} aktive Inserate</span>
         } @else if (section().account.listingCount !== null) {
-          <span>{{ section().account.listingCount }} gespeicherte Inserate</span>
+          <span>{{ section().account.listingCount }} Inserate</span>
         } @else {
           <span>Inseratzahl unbekannt</span>
         }
@@ -233,7 +233,7 @@
           <p class="text-xs text-fb-text-secondary">
             {{ section().page!.items.length }} von {{ section().page!.total ?? 'unbekannt vielen' }}
             @if (section().account.platform !== 'ebay') {
-              gespeicherten Inseraten
+              Inseraten
             } @else {
               aktiven Inseraten
             }

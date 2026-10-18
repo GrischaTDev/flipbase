@@ -1,50 +1,52 @@
-<div class="mx-auto min-w-0 space-y-5">
-  <app-page-header
-    title="Kleinanzeigen"
-    subtitle="Verbinde deine Konten und verwalte deinen gespeicherten Inseratsbestand."
-    [icon]="storeIcon"
-  >
-    <div class="flex flex-wrap gap-2">
-      <app-button variant="secondary" link="/marketplaces/overview">Marktplatzübersicht</app-button
-      ><app-button variant="secondary" link="/settings/marketplaces"
-        >Marktplatz-Einstellungen</app-button
-      >
+<div class="min-w-0 space-y-5">
+  <app-page-header title="Kleinanzeigen" [icon]="storeIcon">
+    <div header-actions>
+      @if (workspace.currentWorkspace(); as current) {
+        @if (!current.archived_at) {
+          <app-button variant="primary" [icon]="addIcon" (clicked)="adding.set(true)"
+            >Konto hinzufügen</app-button
+          >
+        }
+      }
     </div>
   </app-page-header>
   @if (workspace.currentWorkspace(); as current) {
     @if (!current.archived_at) {
-      <app-kleinanzeigen-accounts [workspaceId]="current.id" (changed)="reloadListings()" />
-      <section class="min-w-0 space-y-3" aria-labelledby="kleinanzeigen-saved-heading">
-        <h2 id="kleinanzeigen-saved-heading" class="text-base font-semibold text-fb-text-primary">
-          Gespeicherte Inserate
+      <section class="min-w-0 space-y-3" aria-labelledby="kleinanzeigen-accounts-heading">
+        <h2
+          id="kleinanzeigen-accounts-heading"
+          class="text-base font-semibold text-fb-text-primary"
+        >
+          Deine Kleinanzeigen-Konten
         </h2>
-        <p class="text-sm text-fb-text-secondary">
-          Ein vollständiger Abgleich übernimmt den Bestand des verbundenen Kontos. Ein unbekanntes
-          Veröffentlichungsdatum bleibt als unbekannt gekennzeichnet.
-        </p>
         @for (group of store.platforms(); track group.platform) {
           @if (group.error) {
             <app-card
               ><p class="text-sm text-fb-text-secondary" role="alert">{{ group.error }}</p>
-              <app-button variant="secondary" (clicked)="store.retryPlatform(group.platform)"
+              <app-button class="mt-3" (clicked)="store.retryPlatform(group.platform)"
                 >Erneut versuchen</app-button
-              ></app-card
-            >
+              >
+            </app-card>
           } @else if (group.loading) {
-            <p class="text-sm text-fb-text-secondary" role="status">
-              Inseratskonten werden geladen …
-            </p>
+            <p class="text-sm text-fb-text-secondary" role="status">Konten werden geladen …</p>
           } @else if (!group.accounts.length) {
             <app-card
-              ><p class="text-sm text-fb-text-secondary">
-                Verbinde ein Konto und gleiche es ab, um deine Inserate hier zu sehen.
-              </p></app-card
+              ><div class="space-y-3 py-6 text-center">
+                <p class="text-sm text-fb-text-secondary">
+                  Noch keine Kleinanzeigen-Konten vorhanden.
+                </p>
+                <app-button [icon]="addIcon" (clicked)="adding.set(true)"
+                  >Konto hinzufügen</app-button
+                >
+              </div></app-card
             >
           }
           @for (account of store.visibleAccounts(group); track accountKey(account)) {
             @if (store.section(account); as section) {
               <app-marketplace-listing-section
                 [section]="section"
+                [showAccountManagement]="true"
+                (accountManagementRequested)="managing.set(account)"
                 (toggled)="store.expand(account)"
                 (retried)="store.retry(account)"
                 (queryChanged)="store.setQuery(accountKey(account), $event)"
@@ -57,6 +59,39 @@
           }
         }
       </section>
+      @if (adding()) {
+        <app-modal-shell
+          title="Kleinanzeigen-Konto hinzufügen"
+          size="md"
+          (closed)="adding.set(false)"
+        >
+          <app-kleinanzeigen-accounts
+            [workspaceId]="current.id"
+            [setupOnly]="true"
+            (changed)="reloadListings()"
+            (connected)="adding.set(false)"
+          />
+          <div modal-footer class="flex justify-end">
+            <app-button (clicked)="adding.set(false)">Schließen</app-button>
+          </div>
+        </app-modal-shell>
+      }
+      @if (managing(); as account) {
+        <app-modal-shell
+          [title]="'Konto ' + account.displayName + ' verwalten'"
+          size="md"
+          (closed)="managing.set(null)"
+        >
+          <app-kleinanzeigen-accounts
+            [workspaceId]="current.id"
+            [connectionId]="account.connectionId"
+            (changed)="reloadListings()"
+          />
+          <div modal-footer class="flex justify-end">
+            <app-button (clicked)="managing.set(null)">Schließen</app-button>
+          </div>
+        </app-modal-shell>
+      }
     }
   }
 </div>

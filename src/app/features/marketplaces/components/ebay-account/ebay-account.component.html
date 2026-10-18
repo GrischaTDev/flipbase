@@ -1,9 +1,27 @@
-<div class="space-y-4">
+<section class="space-y-4" [attr.aria-label]="showData() ? pageTitle() : null">
   @if (showData()) {
     <app-page-header
       [title]="pageTitle()"
-      [subtitle]="store.connection()?.username ? 'Konto: ' + store.connection()?.username : ''"
+      [subtitle]="
+        page() === 'connection'
+          ? 'Verbinde und verwalte Dein eBay-Konto.'
+          : store.connection()?.username
+            ? 'Konto: ' + store.connection()?.username
+            : ''
+      "
     >
+      @if (page() === 'connection' && !store.connection()) {
+        <div header-actions>
+          <app-button
+            variant="primary"
+            [icon]="addIcon"
+            [ariaHaspopup]="'dialog'"
+            [disabled]="accountBusy() || !store.isConfigured()"
+            (clicked)="settingsOpen.set(true)"
+            >Konto hinzufügen</app-button
+          >
+        </div>
+      }
       @if (
         page() !== 'connection' &&
         !showingStatistics() &&
@@ -30,123 +48,108 @@
     store.connection()?.status !== 'connected' ||
     !store.isConfigured()
   ) {
-    <div class="mx-auto w-full max-w-2xl">
-      <app-card padding="lg">
-        <section
-          class="space-y-6 py-6"
-          aria-labelledby="ebay-connection-heading"
-          [class.text-center]="store.connection()?.status !== 'connected'"
+    @if (!showData()) {
+      <ng-container [ngTemplateOutlet]="accountManagement" />
+    } @else {
+      @if (store.error(); as error) {
+        @if (!settingsOpen()) {
+          <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+        }
+      }
+      @if (store.isLoading()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Verbindungsstatus wird geprüft …</p>
+      } @else if (!workspace.currentWorkspace() || workspace.currentWorkspace()?.archived_at) {
+        <p class="text-sm text-fb-text-secondary">
+          Wähle einen aktiven Workspace, um Dein eBay-Konto zu verbinden.
+        </p>
+      } @else if (!store.isConfigured() && !store.error()) {
+        <p role="status" class="text-sm text-fb-text-secondary">
+          Die eBay-Anbindung wird noch eingerichtet. Sobald sie verfügbar ist, kannst Du Dein Konto
+          hier verbinden.
+        </p>
+      }
+      @if (!store.isConfigured() && !settingsOpen()) {
+        <app-button
+          size="slim"
+          [icon]="refreshIcon"
+          [disabled]="accountBusy()"
+          (clicked)="refresh()"
+          >Status aktualisieren</app-button
         >
-          <div class="space-y-3">
-            @if (store.connection()?.status !== 'connected') {
-              <div class="mx-auto flex size-16 items-center justify-center rounded-xl bg-fb-subtle">
-                <svg
-                  [lucideIcon]="connectIcon"
-                  class="size-8 text-fb-text-primary"
-                  aria-hidden="true"
-                ></svg>
+      }
+      @if (store.connection(); as connection) {
+        <div
+          class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,17rem),1fr))] gap-4"
+          aria-label="eBay-Konten"
+        >
+          <app-card padding="none">
+            <div class="space-y-3 p-4 sm:p-5">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 items-start gap-3">
+                  <app-product-thumbnail [src]="null" alt="" size="avatar" />
+                  <div class="min-w-0 pt-0.5">
+                    <h2 class="truncate text-sm font-semibold leading-snug text-fb-text-primary">
+                      {{ connection.username || 'eBay-Konto' }}
+                    </h2>
+                    <p class="mt-0.5 text-xs text-fb-text-secondary">eBay</p>
+                  </div>
+                </div>
+                <app-button
+                  class="-mr-1 -mt-0.5 shrink-0"
+                  variant="ghost"
+                  size="slim"
+                  [iconOnly]="true"
+                  [icon]="settingsIcon"
+                  [ariaLabel]="(connection.username || 'eBay-Konto') + ' einstellen'"
+                  [ariaHaspopup]="'dialog'"
+                  [disabled]="accountBusy()"
+                  (clicked)="settingsOpen.set(true)"
+                />
               </div>
-            }
-            <h2 id="ebay-connection-heading" class="text-xl font-semibold text-fb-text-primary">
-              {{
-                store.connection()?.status === 'connected'
-                  ? 'Dein eBay-Konto'
-                  : 'Verbinde dein eBay-Konto'
-              }}
-            </h2>
-            @if (store.connection()?.status !== 'connected') {
-              <p class="mx-auto max-w-md text-sm text-fb-text-secondary">
-                Melde dich bei eBay an und erlaube Flipbase den Zugriff auf deine Inserate und
-                Bestellungen.
-              </p>
-            }
-          </div>
-          @if (store.error(); as error) {
-            <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
-          }
-          @if (store.isLoading()) {
-            <p role="status" class="text-sm text-fb-text-secondary">
-              Verbindungsstatus wird geprüft …
-            </p>
-          } @else if (!workspace.currentWorkspace() || workspace.currentWorkspace()?.archived_at) {
-            <p class="text-sm text-fb-text-secondary">
-              Wähle einen aktiven Workspace, um dein eBay-Konto zu verbinden.
-            </p>
-          } @else if (!store.isConfigured() && !store.error()) {
-            <p role="status" class="text-sm text-fb-text-secondary">
-              Die eBay-Anbindung wird noch eingerichtet. Sobald sie verfügbar ist, kannst du dein
-              Konto hier verbinden.
-            </p>
-          }
-          @if (store.connection(); as connection) {
-            <div
-              class="flex flex-wrap items-center gap-3"
-              [class.justify-center]="connection.status !== 'connected'"
-            >
-              @if (connection.username) {
-                <span class="text-lg font-semibold text-fb-text-primary">{{
-                  connection.username
-                }}</span>
-              }
-              <app-badge [tone]="connection.status === 'connected' ? 'neutral' : 'caution'">
-                {{
-                  connection.status === 'connected'
-                    ? 'Verbunden'
-                    : connection.status === 'needs_login'
-                      ? 'Anmeldung erforderlich'
-                      : 'Getrennt'
-                }}
-              </app-badge>
-              @if (connection.environment === 'sandbox') {
-                <app-badge tone="caution">eBay-Testumgebung</app-badge>
+              <ng-container [ngTemplateOutlet]="connectionStatus" />
+              @if (connection.lastReadAt) {
+                <p class="text-xs text-fb-text-secondary">
+                  Letzter Abruf: {{ connection.lastReadAt | date: 'dd.MM.yyyy HH:mm' }}
+                </p>
               }
             </div>
-          }
-          <div
-            class="flex flex-col gap-3 sm:flex-row sm:flex-wrap"
-            [class.justify-center]="store.connection()?.status !== 'connected'"
-          >
-            @if (store.isConfigured()) {
-              <app-button
-                size="touch"
-                [wrapLabel]="true"
-                [variant]="store.connection()?.status === 'connected' ? 'secondary' : 'primary'"
-                [icon]="connectIcon"
-                [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
-                (clicked)="connect()"
-              >
-                {{
-                  store.connection()?.status === 'connected'
-                    ? 'Erneut mit eBay verbinden'
-                    : 'Mit eBay verbinden'
-                }}
-              </app-button>
-            }
-            <app-button
-              size="touch"
-              [icon]="refreshIcon"
-              [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
-              (clicked)="refresh()"
-              >Status aktualisieren</app-button
-            >
-          </div>
-          @if (store.connection(); as connection) {
-            @if (connection.status !== 'disconnected') {
-              <div class="border-t border-fb-border pt-5">
-                <app-button
-                  size="touch"
-                  variant="destructive"
-                  [icon]="disconnectIcon"
-                  [disabled]="store.isLoading()"
-                  (clicked)="store.disconnect()"
-                  >Verbindung trennen</app-button
+            <div class="border-t border-fb-line bg-fb-subtle/50 px-3.5 py-2.5 sm:px-4 sm:py-3">
+              @if (connection.status === 'connected' && store.isConfigured()) {
+                <app-button size="slim" [fullWidth]="true" link="/marketplaces/ebay/listings"
+                  >Inserate ansehen</app-button
                 >
-              </div>
-            }
-          }
-        </section>
-      </app-card>
-    </div>
+              } @else {
+                <app-button
+                  size="slim"
+                  [fullWidth]="true"
+                  [ariaHaspopup]="'dialog'"
+                  [disabled]="accountBusy()"
+                  (clicked)="settingsOpen.set(true)"
+                  >Verbindung prüfen</app-button
+                >
+              }
+            </div>
+          </app-card>
+        </div>
+      } @else if (!store.isLoading()) {
+        <app-card>
+          <h2 class="text-sm font-semibold text-fb-text-primary">Noch kein eBay-Konto verbunden</h2>
+          <p class="mt-1 text-[13px] text-fb-text-secondary">
+            Füge Dein Konto hinzu, um Deine Inserate und Bestellungen in Flipbase zu sehen.
+          </p>
+        </app-card>
+      }
+      @if (page() !== 'connection' && !store.connection()) {
+        <app-button
+          variant="primary"
+          [icon]="addIcon"
+          [ariaHaspopup]="'dialog'"
+          [disabled]="accountBusy() || !store.isConfigured()"
+          (clicked)="settingsOpen.set(true)"
+          >Konto hinzufügen</app-button
+        >
+      }
+    }
   }
   @if (
     showData() &&
@@ -443,4 +446,99 @@
       }
     }
   }
-</div>
+</section>
+
+<ng-template #connectionStatus>
+  @if (store.connection(); as connection) {
+    <div class="flex flex-wrap items-center gap-1.5" aria-live="polite">
+      <app-badge size="sm" [tone]="connection.status === 'connected' ? 'neutral' : 'caution'">{{
+        connection.status === 'connected'
+          ? 'Verbunden'
+          : connection.status === 'needs_login'
+            ? 'Anmeldung erforderlich'
+            : 'Getrennt'
+      }}</app-badge>
+      @if (connection.environment === 'sandbox') {
+        <app-badge size="sm" tone="caution">eBay-Testumgebung</app-badge>
+      }
+    </div>
+  }
+</ng-template>
+<ng-template #accountManagement>
+  <section class="space-y-4" aria-label="eBay-Verbindung verwalten">
+    <div>
+      <h3 class="text-sm font-semibold text-fb-text-primary">
+        {{ store.connection()?.username || 'Verbindung mit eBay' }}
+      </h3>
+      <p class="mt-1 text-[13px] text-fb-text-secondary">
+        Melde Dich bei eBay an und erlaube Flipbase den Zugriff auf Deine Inserate und Bestellungen.
+      </p>
+      <p class="mt-2 text-xs text-fb-text-secondary">
+        Pro Workspace kann derzeit ein eBay-Konto verbunden werden.
+      </p>
+    </div>
+    @if (store.error(); as error) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+    }
+    @if (store.isLoading()) {
+      <p role="status" class="text-sm text-fb-text-secondary">Verbindungsstatus wird geprüft …</p>
+    } @else if (!workspace.currentWorkspace() || workspace.currentWorkspace()?.archived_at) {
+      <p class="text-sm text-fb-text-secondary">
+        Wähle einen aktiven Workspace, um Dein eBay-Konto zu verbinden.
+      </p>
+    } @else if (!store.isConfigured() && !store.error()) {
+      <p role="status" class="text-sm text-fb-text-secondary">
+        Die eBay-Anbindung wird noch eingerichtet. Sobald sie verfügbar ist, kannst Du Dein Konto
+        hier verbinden.
+      </p>
+    }
+    <ng-container [ngTemplateOutlet]="connectionStatus" />
+    <div class="flex flex-wrap gap-2">
+      @if (store.isConfigured()) {
+        <app-button
+          size="slim"
+          [variant]="store.connection()?.status === 'connected' ? 'secondary' : 'primary'"
+          [icon]="connectIcon"
+          [disabled]="accountBusy()"
+          (clicked)="connect()"
+          >{{
+            store.connection()?.status === 'connected'
+              ? 'Erneut mit eBay verbinden'
+              : 'Mit eBay verbinden'
+          }}</app-button
+        >
+      }
+      <app-button size="slim" [icon]="refreshIcon" [disabled]="accountBusy()" (clicked)="refresh()"
+        >Status aktualisieren</app-button
+      >
+    </div>
+    @if (store.connection(); as connection) {
+      @if (connection.status !== 'disconnected') {
+        <section class="space-y-3 border-t border-fb-line pt-4" aria-label="Verbindung trennen">
+          <p class="text-[13px] text-fb-text-secondary">
+            Trenne die Verbindung zwischen Deinem eBay-Konto und diesem Workspace.
+          </p>
+          <app-button
+            size="slim"
+            variant="destructive"
+            [icon]="disconnectIcon"
+            [disabled]="store.isLoading()"
+            (clicked)="store.disconnect()"
+            >Verbindung trennen</app-button
+          >
+        </section>
+      }
+    }
+  </section>
+</ng-template>
+@if (showData() && settingsOpen()) {
+  <app-modal-shell
+    [title]="store.connection() ? 'eBay-Konto – Einstellungen' : 'eBay-Konto hinzufügen'"
+    presentation="center"
+    size="md"
+    [hasFooter]="false"
+    (closed)="settingsOpen.set(false)"
+  >
+    <ng-container [ngTemplateOutlet]="accountManagement" />
+  </app-modal-shell>
+}

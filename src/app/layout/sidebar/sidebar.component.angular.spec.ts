@@ -248,6 +248,13 @@ describe('SidebarComponent', () => {
   it('klappt die Unterpunkte fuer Vinted-Bot auf und hebt die aktive Seite hervor', async () => {
     const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
 
+    expect(
+      element.querySelector('[data-navigation-group="tools"] > ul > li > a[href="/vinted-bot"]'),
+    ).not.toBeNull();
+    expect(
+      element.querySelector('[data-navigation-group="marketplaces"] a[href="/vinted-bot"]'),
+    ).toBeNull();
+
     expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
       'Vinted Feed',
       'Suchfilter',
@@ -273,12 +280,20 @@ describe('SidebarComponent', () => {
     expect(element.querySelector('a[href="/marketplaces/ebay"]')).toBeNull();
     expect(element.querySelector('a[href="/marketplaces/kleinanzeigen"]')).toBeNull();
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
-    expect(element.querySelector('a[href="/vinted-bot"]')).not.toBeNull();
+    expect(
+      element.querySelector('[data-navigation-group="tools"] a[href="/vinted-bot"]'),
+    ).not.toBeNull();
 
     await settings.setMarketplaceEnabled('vinted', false);
     fixture.detectChanges();
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).toBeNull();
     expect(element.querySelector('a[href="/vinted-bot"]')).toBeNull();
+
+    await settings.setMarketplaceEnabled('vinted', true);
+    fixture.detectChanges();
+    expect(
+      element.querySelector('[data-navigation-group="tools"] a[href="/vinted-bot"]'),
+    ).not.toBeNull();
   });
 
   it('besitzt eine Pufferzone im Sidebar-Footer gegen den Browser-Link-Tooltip', async () => {
