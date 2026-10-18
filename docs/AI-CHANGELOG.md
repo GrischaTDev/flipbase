@@ -40,6 +40,28 @@
 
 **Stand:** Eigener Zweig `juna/dashboard-overview-platforms` auf `40b11b22`; fremder ursprünglicher Arbeitsordner unberührt. Browser lokal unter Windows/Chromium, Datenbank unter Linux im eigenen Docker-Projekt; keine Anbieterzugriffe und keine Produktionsänderung. Die tatsächliche CI-Auswahl ist wegen Schema und gemeinsamer Bausteine umfassend (61 Browserdateien und Produktions-PWA); der vollständige Linux-/Browser-/PWA-Pflichtlauf steht vor Merge noch aus. Kein Push, PR, Merge oder Deployment. Abschlussfreigabe wird nach der lokalen Prüfung erfragt.
 
+## 2026-10-18 - Juna - Kontenseiten-PR ausdrücklich freigeben
+
+**Auftrag und Freigabe:** Alle vorbereiteten Kontenseiten-, Menü- und Desktop-/Touch-Prüfänderungen als PR veröffentlichen und nach erfolgreichen Pflichtprüfungen mit Merge-Commit integrieren; anschließend eigenen Zweig und Worktree aufräumen.
+
+**Integration:** Zwischenzeitlich integrierte einheitliche Seitenbreite aus origin/master übernommen. Ausschließlich der Changelog musste unter Erhalt beider unabhängiger Einträge zusammengeführt werden; produktive Änderungen und Browser-Sollliste waren konfliktfrei. Betroffene Layout-/Kontenprüfungen vor dem Push erneut ausführen; vollständige Pflicht-CI und öffentliche Bereitstellung nach dem PR prüfen. Fremde Zweige und ungesicherte Dateien im Hauptverzeichnis unberührt.
+
+## 2026-10-18 - Juna - Desktop- und Touch-Buttongrößen getrennt absichern
+
+**Auftrag:** Verhindern, dass die größeren Tablet-/Touchbuttons versehentlich das kompakte Desktopdesign ersetzen.
+
+**Ergebnis:** Bestehende gemeinsame Buttonregeln gegengelesen und im Browser bei 834 und 1.440 Pixeln jeweils mit Maus und Touch gemessen: normale Text- und Symbolaktionen bei Maus 28 Pixel, bei grobem Zeiger 44 Pixel Mindestgröße; Schrift jeweils 13 Pixel. Die größeren bisherigen Desktopbreiten-Bildbelege stammten aus der ausdrücklich aktivierten Touch-Testmatrix. Keine globale Größen- oder CSS-Änderung erforderlich. Einen gezielten Pflicht-Browserfall einschließlich Soll-Listen-Eintrag ergänzt, der beide Eingabemodi bei identischer Breite sowie Symbolbreite und Schrift prüft.
+
+**Prüfungen und Grenzen:** Neuer Browserfall mit allen vier Kombinationen erfolgreich; lokale ruhende Vorschau mit Anbieter-Fixtures, keine produktiven Kontenaktionen. Eigenen Nachweis um echte Maus-/Touch-Vergleichsbilder ergänzt. Keine erneute Produktbereitstellung, kein neuer PR oder Push; Freigabe für den bereits vorbereiteten Zweig bleibt offen.
+
+## 2026-10-18 - Juna - Kleinanzeigen- und eBay-Kontenansichten vereinheitlichen
+
+**Auftrag:** Kontenseiten an das bestehende Design angleichen, große Sonderbuttons und die doppelte Kleinanzeigen-Kontendarstellung entfernen, Kontoentfernung und Wechsel im Browser ermöglichen, Inserate verständlich benennen und den Vinted Feed unter Tools einordnen.
+
+**Ergebnis:** Kleinanzeigen verwendet dieselben Konto-/Inseratkarten wie die Marktplatzübersicht; Einrichtung und Verwaltung öffnen getrennte Modals. eBay zeigt eine kompakte Kontokarte mit Einstellungsdialog und bietet entsprechend seiner bestehenden Grenze kein zweites Konto an. Gemeinsame Standardbuttons statt Touch-Sondergröße. Die bestätigte Kleinanzeigen-Entfernung widerruft die bestehende Freigabe und blendet getrennte Konten in allen aktiven Auswahllisten aus; Originaldaten und Anbieteranzeigen bleiben erhalten. Auch eine lokal verbliebene Bindung nach einem früheren Serverwiderruf lässt sich gezielt lösen. Nutzer-/Workspacegrenzen und gesonderte Veröffentlichungsfreigabe bleiben erhalten. Sichtbare Listen heißen Inserate. Auf kleinen Bildschirmen stehen die Kontoaktionen unter den Kontoinformationen, damit Namen und Status nicht zusammengedrückt werden. Vinted Feed einschließlich Untermenüs unter Tools verschoben, bestehende Sichtbarkeitsrechte erhalten.
+
+**Prüfungen und Grenzen:** Neue Regressionen vor der Korrektur rot; vollständiger Anwendungslauf mit 5.614 Fällen erfolgreich, danach gezielte 40 Konto-/Servicefälle einschließlich verwaister Bindung erfolgreich. Typprüfung, Lint und regulärer Produktionsbau erfolgreich. Der erste lokale Bau scheiterte an laufwerksübergreifenden Modulpfaden; unveränderte gesperrte Abhängigkeiten lokal installiert, keine Paketänderung. 57 bestehende betroffene Browserfälle erfolgreich: 11 Kleinanzeigen, 21 Übersicht, 24 Übertragung mit Kontingent-/Gebührenstopp und ein eBay-Fall mit drei Breiten. AXE einschließlich Kontrast, Escape/Fokusrückgabe, Touch, Hell/Dunkel und Konsolenfehler in der Kleinanzeigen-Matrix geprüft. Nach der visuellen Handyabnahme den Kartenkopf korrigiert und die 16 betroffenen Layoutfälle erneut geprüft. 48 Testauswahl-/Shared-UI-/Browserregistrierungsfälle erfolgreich; Shared-UI-Audit ohne Befund. Zwei umbenannte Fälle in der verbindlichen Soll-Liste aktualisiert. Unabhängiges Review und dessen Korrektur nachgeprüft. Browserprüfung gegen ruhende lokale Vorschau und Anbieter-Fixtures unter Windows; die breitere CI-Auswahl einschließlich Linux/PWA steht nach PR-Freigabe noch aus. Keine echte Kontoentfernung, Freigabe, Anmeldung oder Veröffentlichung vorgenommen; keine Datenbank-, Anbieter- oder Erweiterungsänderung. Noch kein Push/PR für diesen Zweig.
+
 ## 2026-10-18 - Juna - Einheitliche Maximalbreite ohne Seitenausnahmen
 
 **Auftrag:** Nach der ersten Layout-Einführung ausdrücklich auch Dashboard sowie Einkaufs-, Artikel- und Verkaufsübersichten mit derselben Maximalbreite versehen.

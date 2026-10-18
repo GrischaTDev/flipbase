@@ -13,16 +13,17 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideExternalLink,
   LucideLink2,
+  LucidePlus,
+  LucideSettings,
   LucideRefreshCw,
   LucideUnlink,
   LucideClipboardCheck,
   LucidePencil,
-  LucideDynamicIcon,
 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -33,6 +34,7 @@ import { DataTableComponent } from '../../../../shared/components/data-table/dat
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import type { EbayListing } from '../../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { EbayAccountStore } from '../../services/ebay-account.store';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traffic-overview.component';
@@ -41,6 +43,8 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
   selector: 'app-ebay-account',
   imports: [
     DatePipe,
+    NgTemplateOutlet,
+    ModalShellComponent,
     DecimalPipe,
     ProductThumbnailComponent,
     ButtonComponent,
@@ -50,7 +54,6 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
     PageHeaderComponent,
     EbayArticleMappingComponent,
     EbayTrafficOverviewComponent,
-    LucideDynamicIcon,
   ],
   providers: [EbayAccountStore],
   templateUrl: './ebay-account.component.html',
@@ -69,11 +72,15 @@ export class EbayAccountComponent {
       case 'statistics':
         return 'eBay-Statistiken';
       case 'connection':
-        return 'eBay-Kontoverbindung';
+        return 'eBay-Konten';
       default:
         return 'eBay-Inserate';
     }
   });
+  readonly settingsOpen = signal(false);
+  readonly accountBusy = computed(
+    () => this.store.isLoading() || this.store.isReading() || this.store.trafficLoading(),
+  );
   readonly selectedListing = signal<EbayListing | null>(null);
   readonly searchText = signal('');
   readonly store = inject(EbayAccountStore);
@@ -84,6 +91,8 @@ export class EbayAccountComponent {
   private readonly injector = inject(Injector);
   private readonly mappingPanel = viewChild<ElementRef<HTMLElement>>('mappingPanel');
   private mappingTrigger: HTMLElement | null = null;
+  readonly addIcon = LucidePlus;
+  readonly settingsIcon = LucideSettings;
   readonly connectIcon = LucideLink2;
   readonly disconnectIcon = LucideUnlink;
   readonly refreshIcon = LucideRefreshCw;
@@ -151,6 +160,7 @@ export class EbayAccountComponent {
         this.showData() && (this.page() === 'listings' || this.page() === 'orders');
       const section = this.page() === 'orders' ? 'orders' : 'listings';
       this.searchText.set('');
+      this.settingsOpen.set(false);
       untracked(
         () =>
           void this.store.initialize(

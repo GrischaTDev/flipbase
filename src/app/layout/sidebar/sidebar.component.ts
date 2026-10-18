@@ -141,7 +141,7 @@ export class SidebarComponent {
     const settings = this.marketplaceSettingsService.settings();
 
     return WORKSPACE_NAVIGATION_GROUPS.map((group) => {
-      if (group.id !== 'marketplaces') {
+      if (group.id !== 'marketplaces' && group.id !== 'tools') {
         return group;
       }
 

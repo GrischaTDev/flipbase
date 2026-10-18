@@ -121,7 +121,7 @@ for (const width of [1280, 390, 1024]) {
   });
 }
 
-test('eBay has a centered connection entry and keeps the connected account in its marketplace @pwa-layout', async ({
+test('eBay uses compact account cards and opens connection management in a dialog @pwa-layout', async ({
   page,
 }, testInfo) => {
   await settingsBackend(page);
@@ -160,7 +160,7 @@ test('eBay has a centered connection entry and keeps the connected account in it
   await page.goto('/settings/marketplaces');
   await page.getByRole('link', { name: 'eBay-Konto verbinden und verwalten' }).click();
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/connection$/);
-  await expect(page.getByRole('heading', { name: 'Verbinde dein eBay-Konto' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Noch kein eBay-Konto verbunden' })).toBeVisible();
   await page.evaluate(axe.source);
   expect(
     await page.evaluate(
@@ -169,12 +169,22 @@ test('eBay has a centered connection entry and keeps the connected account in it
     ),
   ).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('ebay-connect.png'), animations: 'disabled' });
-  await page.getByRole('button', { name: 'Mit eBay verbinden', exact: true }).click();
+  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+  const connectDialog = page.getByRole('dialog', { name: 'eBay-Konto hinzufügen', exact: true });
+  await expect(connectDialog).toBeVisible();
+  await expect(
+    connectDialog.getByText('Pro Workspace kann derzeit ein eBay-Konto verbunden werden.'),
+  ).toBeVisible();
+  await connectDialog.getByRole('button', { name: 'Mit eBay verbinden', exact: true }).click();
   await expect(page).toHaveURL(/auth\.ebay\.com\/oauth2\/authorize/);
   expect(connectRequests).toBe(1);
   connected = true;
   await page.goto(`/marketplaces/ebay/connection?ebay_result=connected&workspace=${workspaceId}`);
-  await expect(page.getByRole('heading', { name: 'Dein eBay-Konto' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'eBay-Konten', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Konto hinzufügen', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Erneut mit eBay verbinden', exact: true }),
+  ).toHaveCount(0);
   await expect(page.getByText('Testkonto', { exact: true })).toBeVisible();
   for (const width of [1280, 390, 1024]) {
     await page.setViewportSize({ width, height: 900 });
@@ -185,5 +195,33 @@ test('eBay has a centered connection entry and keeps the connected account in it
       path: testInfo.outputPath(`ebay-connected-${width}.png`),
       animations: 'disabled',
     });
+    await page.getByRole('button', { name: 'Testkonto einstellen', exact: true }).click();
+    const settingsDialog = page.getByRole('dialog', {
+      name: 'eBay-Konto – Einstellungen',
+      exact: true,
+    });
+    await expect(
+      settingsDialog.getByRole('button', { name: 'Verbindung trennen', exact: true }),
+    ).toBeVisible();
+    await settingsDialog.evaluate(async (element) => {
+      await Promise.allSettled(
+        element
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+          .map((animation) => animation.finished),
+      );
+    });
+    await page.evaluate(axe.source);
+    expect(
+      await page.evaluate(
+        async () =>
+          (await (window as unknown as { axe: typeof axe }).axe.run('app-ebay-account')).violations,
+      ),
+    ).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(settingsDialog).toBeHidden();
+    await expect(
+      page.getByRole('button', { name: 'Testkonto einstellen', exact: true }),
+    ).toBeFocused();
   }
 });

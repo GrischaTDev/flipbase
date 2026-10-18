@@ -27,16 +27,33 @@ describe('Arbeitsnavigation', () => {
         [
           '/marketplaces/overview',
           '/marketplaces/vinted',
-          '/vinted-bot',
           '/marketplaces/ebay',
           '/marketplaces/kleinanzeigen',
         ],
         ['/expenses', '/accounting', '/analytics'],
-        ['/tools/brand-labels', '/image-optimizer', '/deal-calculator', '/deal-calculator/ebay'],
+        [
+          '/vinted-bot',
+          '/tools/brand-labels',
+          '/image-optimizer',
+          '/deal-calculator',
+          '/deal-calculator/ebay',
+        ],
       ],
     );
   });
 
+  it('führt den Vinted Feed unter Tools mit seiner bisherigen Route und den Unterpunkten', () => {
+    const groupsWithFeed = WORKSPACE_NAVIGATION_GROUPS.filter((group) =>
+      group.items.some((item) => item.path === '/vinted-bot'),
+    );
+    assert.deepEqual(
+      groupsWithFeed.map((group) => group.id),
+      ['tools'],
+    );
+    const feed = groupsWithFeed[0]?.items.find((item) => item.path === '/vinted-bot');
+    assert.equal(feed?.labelKey, 'NAV.VINTED_FEED');
+    assert.equal(feed?.children, VINTED_BOT_NAVIGATION);
+  });
   it('haelt ausschliesslich die drei zurueckgestellten Bereiche unter Ideen erreichbar', () => {
     assert.equal(IDEAS_NAVIGATION.label, 'Ideen');
     assert.deepEqual(
@@ -58,7 +75,6 @@ describe('Arbeitsnavigation', () => {
       [
         ['/marketplaces/overview', undefined],
         ['/marketplaces/vinted', 'vinted'],
-        ['/vinted-bot', undefined],
         ['/marketplaces/ebay', 'ebay'],
         ['/marketplaces/kleinanzeigen', 'kleinanzeigen'],
       ],

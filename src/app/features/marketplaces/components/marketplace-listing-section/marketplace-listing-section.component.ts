@@ -100,7 +100,7 @@ export class MarketplaceListingSectionComponent {
   readonly partiallyChecked = computed(() => this.selected().size > 0 && !this.allChecked());
   readonly platformLabel = marketplacePlatformLabel;
   readonly stateOptions = computed(() => [
-    { value: 'all', label: 'Alle gespeicherten Inserate' },
+    { value: 'all', label: 'Alle Inserate' },
     { value: 'active', label: 'Online' },
     ...(this.section().account.platform === 'kleinanzeigen'
       ? []

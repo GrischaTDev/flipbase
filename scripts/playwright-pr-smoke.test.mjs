@@ -70,8 +70,9 @@ const coreTests = [
   ),
   ...[
     'Ein unterbrochener Kleinanzeigen-Abgleich erhält den bestätigten Bestand @core-smoke',
-    'Kleinanzeigen-Verbindung wird gezielt widerrufen und behält gespeicherte Inserate @core-smoke',
+    'Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neuladen entfernt @core-smoke',
     'Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-smoke',
+    'Desktop- und Touch-Buttons bleiben bei gleicher Breite getrennt @core-smoke',
   ].map((title) => ['kleinanzeigen-accounts.spec.ts', title]),
   [
     'marketplace-overview.spec.ts',
@@ -139,7 +140,7 @@ const coreTests = [
   ]),
   [
     'settings-layout.spec.ts',
-    'eBay has a centered connection entry and keeps the connected account in its marketplace @pwa-layout',
+    'eBay uses compact account cards and opens connection management in a dialog @pwa-layout',
   ],
   [
     'pwa-install-device.spec.ts',

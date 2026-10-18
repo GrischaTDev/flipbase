@@ -277,6 +277,7 @@
     (closed)="accountManagementOpen.set(false)"
   >
     <app-kleinanzeigen-accounts
+      [setupOnly]="!target.value"
       [workspaceId]="source().workspaceId"
       [connectionId]="target.value || null"
       (changed)="accountChanged()"
