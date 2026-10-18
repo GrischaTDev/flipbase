@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-19 - Juna - Übersichts-PR freigeben und zusammenführen
+
+**Freigabe:** Nutzer hat die fertige Übersicht einschließlich Plattformverwaltung, Schnellaktionen, Datumsspalte, Haus-Symbol und schraffiertem Diagramm abgenommen. Branch-Push, PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen sowie anschließendes Aufräumen sind ausdrücklich freigegeben.
+
+**Integration und Prüfumfang:** Aktuellen Hauptzweig `0a29ee5e` übernommen. Nur das Änderungsprotokoll war konfliktbehaftet; beide unabhängigen Einträge erhalten. Navigation und Seitenleiste konfliktfrei zusammengeführt. Wegen neuer Plattform-Speicherung und gemeinsamer UI-Bausteine wählt die tatsächliche CI-Auswahl den umfassenden Umfang: 227 Node-, 48 DOM-, 260 Angular-Dateien, 61 Browserdateien sowie Produktions-PWA. Die bestehenden Datenbanknachweise gelten für das unveränderte neue Schema und die transaktional geprüfte Migration; der Hauptzweig enthält seitdem keine Datenbankänderung. Lokale Integrationsprüfungen laufen vor dem ersten Push erneut. Linux-/Browser-/PWA-Pflichtprüfungen und die öffentliche Bereitstellung werden anhand der CI kontrolliert. Fremde Zweige und ungesicherte Dateien im ursprünglichen Arbeitsordner bleiben unberührt.
+
+**Lokale Integrationsabnahme:** Sämtliche 535 Anwendungstestdateien mit 5.609 Fällen bestanden. Vollständiges Format, Lint, Typprüfung, Suite-Audit und Produktionsbau erfolgreich; Workflow-Prüfungen mit 521 erfolgreichen und sechs regulär übersprungenen Fällen. Ein Windows-Zeilenendenfehler der lokalen TOML-Datei wurde durch Normalisieren auf den bestehenden LF-Vertrag behoben; keine zusätzliche Konfigurationsänderung. Schema und neue Migration weiterhin inhaltsgleich. In der vollständigen Browserauswahl einen veralteten Login-Selektor von „Dashboard“ auf den freigegebenen Titel „Übersicht“ berichtigt; keine Änderung an Anmeldung oder Testbedingungen. Die bisherigen lokalen Browser-/Datenbanknachweise und die noch ausstehenden umfassenden Linux-/PWA-Prüfungen werden im PR ausdrücklich benannt.
+
 ## 2026-10-19 - Juna - Feine Schraffur und Orientierung im Ergebnisdiagramm
 
 **Auftrag und Umsetzung:** Das Diagramm enger an den freigegebenen Entwurf angleichen und die vom Nutzer gewünschte feine Streifentextur ergänzen. ApexCharts bleibt erhalten. Drei lokal erzeugte SVG-Kacheln kombinieren die unveränderten Reihenfarben mit dünnen diagonalen weißen Linien bei 16 Prozent Deckkraft; die Grundfläche bleibt deckend. Die Bildfüllung wird vollständig eingebettet, ohne Anbieterzugriff oder neue Abhängigkeit. Säulengruppen etwas breiter und eine gemeinsame gestrichelte Auswahllinie für Pointer/Tastatur ergänzt. Daten, unbekannte/negative Werte und gespeicherte Plattformen unverändert.
