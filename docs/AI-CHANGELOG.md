@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Datum links in der Verkaufsübersicht erhalten
+
+**Auftrag:** Datum in „Letzte Verkäufe“ als eigene Spalte links vor den Artikelnamen wiederherstellen und die technische Grenze von Swift Charts erklären.
+
+**Umsetzung:** Reihenfolge wieder Datum, Artikel, Plattform, Gewinn. Ruhiger Tabellenstil, drei letzte Verkäufe, Plattformlogos und gleiche Kartenhöhen bleiben erhalten. Datumswerte stehen nicht mehr unter dem Artikelnamen. Bei wenig Platz ist die Tabelle innerhalb ihrer Region horizontal erreichbar. Apple-Dokumentation geprüft: Swift Charts baut auf SwiftUI für native Apple-Plattformen auf; Apple bietet keine direkt in Angular verwendbare Browser-Version. Keine neue Abhängigkeit und keine Datenbankänderung.
+
+**Prüfung:** Bestehenden Dashboard-Test um die getrennte Datumsspalte vor dem Artikel ergänzt; alle 19 Dashboard-Komponentenprüfungen und neun bestehende Touch-/Hell-/Dunkel-Browserfälle bestanden. Mit gefüllten HTTP-Beispieldaten die Spaltenfolge sowie getrennte Zellen für Datum und Artikel geprüft, gleiche Karten- und Inhaltshöhen bestätigt, Desktop-/Mobilaufnahmen gesichert und keine Laufzeitfehler beobachtet. Format, Lint und Produktionsbau bestanden. Vorschau auf eigenem freien Port 4206; den bereits belegten Port 4200 nicht verändert. Kein Push oder Deployment.
+
 ## 2026-10-18 - Juna - Übersicht näher am Bildentwurf ausrichten
 
 **Auftrag:** Zusätzliche Stückzahl unter „Verkäufe“ entfernen; Diagramm, Verkaufstabelle und Bestandsdarstellung näher am freigegebenen Bild gestalten. Beide unteren Karten sollen auch mit unterschiedlich viel Inhalt gleich hoch wirken. Frage nach Apples Diagramm-Framework klären.

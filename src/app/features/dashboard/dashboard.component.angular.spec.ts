@@ -501,8 +501,14 @@ describe('DashboardComponent', () => {
       'Letzte Verkäufe – Tabelle',
     );
     expect(kpi('sales')).not.toContain('Stück verkauft');
-    expect(headers).toEqual(['Artikel', 'Plattform', 'Gewinn']);
-    expect(journal?.querySelector('tbody tr td:nth-child(3)')?.className).toContain('positive');
+    expect(headers).toEqual(['Datum', 'Artikel', 'Plattform', 'Gewinn']);
+    expect(journal?.querySelector('tbody tr td:first-child')?.textContent?.trim()).toBe(
+      '30.08.2026',
+    );
+    expect(journal?.querySelector('tbody tr td:nth-child(2)')?.textContent).not.toContain(
+      '30.08.2026',
+    );
+    expect(journal?.querySelector('tbody tr td:nth-child(4)')?.className).toContain('positive');
   });
 
   it('zeigt die wichtigsten Schnellaktionen im Dashboard', () => {
@@ -544,7 +550,7 @@ describe('DashboardComponent', () => {
     const cells = journal?.querySelectorAll('tbody tr td');
 
     expect(cells?.[1]?.className).not.toContain('negative');
-    expect(cells?.[2]?.className).toContain('negative');
+    expect(cells?.[3]?.className).toContain('negative');
   });
 
   it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {
@@ -704,7 +710,7 @@ describe('DashboardComponent', () => {
       })),
     });
     const host = createDashboard().nativeElement as HTMLElement;
-    const cells = [...host.querySelectorAll('.sales-table tbody td:nth-child(2)')];
+    const cells = [...host.querySelectorAll('.sales-table tbody td:nth-child(3)')];
     for (const [index, platform] of ['vinted', 'kleinanzeigen', 'ebay'].entries()) {
       expect(cells[index].querySelector('img')?.getAttribute('src')).toBe(
         `/images/platforms/${platform}.svg`,

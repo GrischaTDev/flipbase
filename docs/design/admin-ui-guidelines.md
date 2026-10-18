@@ -40,7 +40,10 @@ bleiben erhalten. Negative Ergebnisse behalten ihre verständliche Kennzeichnung
 Weitere Nutzerkorrektur vom 18.10.2026: Unter der Kennzahl „Verkäufe“ erscheint
 keine zusätzliche Stückzahl. Die unteren Karten erhalten gleiche Außenhöhen und
 gleich endende Inhaltsbereiche. Die Übersicht zeigt wie im freigegebenen Bild
-drei letzte Verkäufe; das Datum steht beim Artikel. Die vollständige Liste bleibt
+drei letzte Verkäufe. Präzisierung vom 18.10.2026: Das Datum steht in einer
+eigenen Spalte ganz links vor dem Artikelnamen, nicht unter ihm. Auf schmalen
+Bildschirmen bleibt die Tabelle bei Bedarf innerhalb ihrer Region horizontal
+erreichbar. Die vollständige Liste bleibt
 über „Alle anzeigen“ erreichbar. Eine eigene ruhige Tabelle ersetzt dort den
 allgemeinen Tabellenstil. Die Bestandsbalken sind 16px hoch, der erste gelb,
 die weiteren grau; sie verteilen sich passend zur Höhe der Verkaufsliste.

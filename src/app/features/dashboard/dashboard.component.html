@@ -151,17 +151,18 @@
           >
             <table
               data-shared-ui-exception="static-table"
-              class="sales-table h-full w-full table-fixed border-separate border-spacing-0 text-[13px]"
+              class="sales-table h-full w-full min-w-[440px] table-fixed border-separate border-spacing-0 text-[13px]"
             >
               <caption class="sr-only">
                 Die drei letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
               </caption>
               <thead>
                 <tr class="bg-fb-subtle text-left text-fb-text-secondary">
-                  <th scope="col" class="w-[45%] rounded-l-lg px-2 py-2 font-medium sm:px-3">
-                    Artikel
+                  <th scope="col" class="w-[20%] rounded-l-lg px-2 py-2 font-medium sm:px-3">
+                    Datum
                   </th>
-                  <th scope="col" class="w-[28%] px-2 py-2 font-medium sm:px-3">Plattform</th>
+                  <th scope="col" class="w-[30%] px-2 py-2 font-medium sm:px-3">Artikel</th>
+                  <th scope="col" class="w-[30%] px-2 py-2 font-medium sm:px-3">Plattform</th>
                   <th scope="col" class="rounded-r-lg px-2 py-2 text-right font-medium sm:px-3">
                     Gewinn
                   </th>
@@ -171,6 +172,11 @@
                 @for (row of recentSales(); track row.saleId) {
                   <tr class="group">
                     <td
+                      class="border-b border-fb-line/60 px-2 py-2.5 align-middle whitespace-nowrap text-xs text-fb-text-secondary tabular-nums group-last:border-0 sm:px-3"
+                    >
+                      {{ row.date | date: 'dd.MM.yyyy' }}
+                    </td>
+                    <td
                       class="border-b border-fb-line/60 px-2 py-2.5 align-middle group-last:border-0 sm:px-3"
                     >
                       <app-button
@@ -179,12 +185,9 @@
                         [queryParams]="{ saleId: row.saleId }"
                         [title]="row.articles"
                         contentAlign="start"
-                        ><span class="min-w-20 text-left"
-                          ><span class="article-title line-clamp-2">{{ row.articles }}</span
-                          ><span class="mt-0.5 block text-xs font-normal text-fb-text-muted">{{
-                            row.date | date: 'dd.MM.yyyy'
-                          }}</span></span
-                        ></app-button
+                        ><span class="article-title line-clamp-2 min-w-20 text-left">{{
+                          row.articles
+                        }}</span></app-button
                       >
                     </td>
                     <td
