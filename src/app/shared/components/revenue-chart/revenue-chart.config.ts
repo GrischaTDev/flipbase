@@ -40,6 +40,11 @@ const palettes = {
 };
 
 const euroFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const axisFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+});
 
 export function formatChartAmount(value: number | null): string {
   return value === null ? 'unbekannt' : euroFormatter.format(value);
@@ -82,7 +87,7 @@ export function createRevenueChartConfiguration(
   return {
     chart: {
       type: 'bar',
-      height: 320,
+      height: 280,
       width: '100%',
       fontFamily: 'Inter, system-ui, sans-serif',
       foreColor: palette.ticks,
@@ -103,8 +108,8 @@ export function createRevenueChartConfiguration(
     plotOptions: {
       bar: {
         horizontal: false,
-        columnWidth: '64%',
-        borderRadius: 4,
+        columnWidth: '58%',
+        borderRadius: 3,
         borderRadiusApplication: 'end',
       },
     },
@@ -127,16 +132,18 @@ export function createRevenueChartConfiguration(
       tooltip: { enabled: false },
     },
     yaxis: {
+      tickAmount: 4,
+      forceNiceScale: true,
       labels: {
-        formatter: (value) => formatChartAmount(value),
+        formatter: (value) => axisFormatter.format(value),
         style: { fontSize: '12px', colors: [palette.ticks] },
       },
     },
     grid: {
       borderColor: palette.grid,
       strokeDashArray: 0,
-      xaxis: { lines: { show: false } },
-      padding: { left: 8, right: 12, top: 16, bottom: 0 },
+      xaxis: { lines: { show: true } },
+      padding: { left: 4, right: 8, top: 0, bottom: 0 },
     },
     theme: { mode: theme },
     responsive: [

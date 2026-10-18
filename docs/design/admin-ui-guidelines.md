@@ -34,8 +34,20 @@ Bausteine stellen diese Gestaltung nur über ausdrücklich aktivierte Varianten 
 
 Das Diagramm verwendet Logo-Gelb `#fcc601`, Grau `#9ca3af` und Petrol `#006b73`;
 im dunklen Schema werden Grau und Petrol für die Lesbarkeit angepasst. Die
-Zeichenfläche ist 320px hoch; Tastaturauswahl und tabellarische Zusammenfassung
+Zeichenfläche ist nach der Nachbesserung 280px hoch; Tastaturauswahl und tabellarische Zusammenfassung
 bleiben erhalten. Negative Ergebnisse behalten ihre verständliche Kennzeichnung.
+
+Weitere Nutzerkorrektur vom 18.10.2026: Unter der Kennzahl „Verkäufe“ erscheint
+keine zusätzliche Stückzahl. Die unteren Karten erhalten gleiche Außenhöhen und
+gleich endende Inhaltsbereiche. Die Übersicht zeigt wie im freigegebenen Bild
+drei letzte Verkäufe; das Datum steht beim Artikel. Die vollständige Liste bleibt
+über „Alle anzeigen“ erreichbar. Eine eigene ruhige Tabelle ersetzt dort den
+allgemeinen Tabellenstil. Die Bestandsbalken sind 16px hoch, der erste gelb,
+die weiteren grau; sie verteilen sich passend zur Höhe der Verkaufsliste.
+Das Diagramm verwendet ein feines vollständiges Raster, kürzere Achsenwerte
+und eine innerhalb der Zeichenfläche begrenzte Detailanzeige mit Farbpunkten.
+Es bleibt bei ApexCharts. Apples Swift Charts ist ein natives SwiftUI-Framework;
+das freigegebene Mockup war ein erzeugtes Bild, kein Swift-Charts-Ergebnis.
 
 Die drei Schnellaktionen heißen „Einkauf erfassen“, „Verkauf erfassen“ und
 „Inserat erstellen“. Die Inseratwahl führt zum vorhandenen Vinted-Editor;

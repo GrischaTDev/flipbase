@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Übersicht näher am Bildentwurf ausrichten
+
+**Auftrag:** Zusätzliche Stückzahl unter „Verkäufe“ entfernen; Diagramm, Verkaufstabelle und Bestandsdarstellung näher am freigegebenen Bild gestalten. Beide unteren Karten sollen auch mit unterschiedlich viel Inhalt gleich hoch wirken. Frage nach Apples Diagramm-Framework klären.
+
+**Änderung:** Die Verkäufe-Kennzahl zeigt keine zusätzliche Stückzahl. Kompakte Vorschau mit drei Verkäufen, Datum beim Artikelnamen und eigenem ruhigen Tabellenstil; Plattformlogos, echte Gewinnwerte und vollständige Liste über „Alle anzeigen“ bleiben vorhanden. Beide Karten nutzen den vorhandenen füllenden Kartenaufbau; Bestandsbalken verteilen sich über dieselbe Inhaltshöhe. Erste Gruppe gelb, weitere grau, kräftigere Balken wie im Entwurf. Diagramm auf 280px Zeichenhöhe verdichtet, weniger Kopf-Leerraum, feines Raster und kürzere Achsenwerte. Detailanzeige mit Farbpunkten und getrennten Werten. Bei der Sichtprüfung einen bestehenden Beschnitt durch feste Tooltip-Positionierung gefunden: lokale Koordinaten und Begrenzung innerhalb der Zeichenfläche verhindern den abgeschnittenen Tooltip. Tastatur, unbekannte und negative Werte bleiben erhalten. Kein Frameworkwechsel: Swift Charts ist laut Apple ein natives SwiftUI-Framework; das Mockup war ein erzeugtes Bild.
+
+**Prüfung:** 26 betroffene Angular- und 17 Modell-/Konfigurationsprüfungen bestanden. Neun bestehende Browserfälle für Touch bei 320/390/834/1194px, Hell/Dunkel, AXE und große Beträge bestanden. Bestehende Prüfungen um fehlende Zusatzzeile sowie gleiche Kartenhöhen ergänzt; ein verschobener Diagrammbereich ist als Tooltip-Regression abgesichert. Zusätzliche Browserabnahme mit gefüllten, ausdrücklich als Beispieldaten benannten HTTP-Fixtures: beide Karten exakt 291px hoch, Verkaufs- und Bestandsinhalt enden bei derselben Position; Pointer- und Tastaturdetails vollständig innerhalb der Zeichenfläche, kein Seitenüberlauf nach mobiler Diagrammanpassung und keine Laufzeitfehler. Bildschirmaufnahmen außerhalb des Repositorys gesichert. Keine echte Anmeldung, keine Anbieterzugriffe, keine Datenbankänderung. Produktionsbau, Typen, Format, Lint, gemeinsamer UI-Check und 48 Auswahl-/Registrierungsprüfungen bestanden. Vollständige Linux-/PWA-Pflicht-CI bleibt vor Merge erforderlich; kein Push oder Deployment.
+
 ## 2026-10-18 - Juna - Übersicht vereinfachen und Verkaufsplattformen vereinheitlichen
 
 **Auftrag:** Den freigegebenen zweiten Bildentwurf umsetzen, ergänzt um dezente Kennzahlensymbole und Plattformlogos bei Verkäufen. Verkaufsplattformen zentral pflegen und sortieren; Schnellaktionen auf Einkauf, Verkauf und Inseratwahl begrenzen.

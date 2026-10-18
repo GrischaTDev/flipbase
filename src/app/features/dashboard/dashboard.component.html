@@ -131,9 +131,9 @@
   </app-card>
   <div class="bottom-grid grid min-w-0 gap-5 xl:grid-cols-[1.1fr_1fr]">
     <section class="recent min-w-0" aria-labelledby="sales-table-heading">
-      <app-card variant="overview" padding="lg" class="h-full">
+      <app-card variant="overview" padding="lg" contentLayout="fill" class="h-full">
         <div class="overview-header mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="sales-table-heading" class="text-base font-semibold">Letzte Verkäufe</h2>
+          <h2 id="sales-table-heading" class="text-lg font-semibold">Letzte Verkäufe</h2>
           <app-button variant="plain" link="/sales" [icon]="viewAllIcon" iconPosition="end"
             >Alle anzeigen</app-button
           >
@@ -144,64 +144,74 @@
           </p>
         } @else if (recentSales().length > 0) {
           <div
-            class="table-wrap overflow-x-auto"
+            class="table-wrap flex-1 overflow-x-auto rounded-xl"
             role="region"
             aria-label="Letzte Verkäufe – Tabelle"
             tabindex="0"
           >
-            <table data-shared-ui-exception="static-table" class="linear-table sales-table w-full">
+            <table
+              data-shared-ui-exception="static-table"
+              class="sales-table h-full w-full table-fixed border-separate border-spacing-0 text-[13px]"
+            >
               <caption class="sr-only">
-                Die fünf letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
+                Die drei letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
               </caption>
               <thead>
-                <tr>
-                  <th scope="col">Datum</th>
-                  <th scope="col">Artikel</th>
-                  <th scope="col">Plattform</th>
-                  <th scope="col" class="text-right">Gewinn</th>
+                <tr class="bg-fb-subtle text-left text-fb-text-secondary">
+                  <th scope="col" class="w-[45%] rounded-l-lg px-2 py-2 font-medium sm:px-3">
+                    Artikel
+                  </th>
+                  <th scope="col" class="w-[28%] px-2 py-2 font-medium sm:px-3">Plattform</th>
+                  <th scope="col" class="rounded-r-lg px-2 py-2 text-right font-medium sm:px-3">
+                    Gewinn
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 @for (row of recentSales(); track row.saleId) {
-                  <tr>
-                    <td class="whitespace-nowrap text-xs text-fb-text-secondary">
-                      {{ row.date | date: 'dd.MM.yyyy' }}
-                    </td>
-                    <td>
+                  <tr class="group">
+                    <td
+                      class="border-b border-fb-line/60 px-2 py-2.5 align-middle group-last:border-0 sm:px-3"
+                    >
                       <app-button
                         variant="plain"
                         link="/sales"
                         [queryParams]="{ saleId: row.saleId }"
                         [title]="row.articles"
                         contentAlign="start"
-                        ><span class="article-title line-clamp-2 min-w-20 text-left">{{
-                          row.articles
-                        }}</span></app-button
+                        ><span class="min-w-20 text-left"
+                          ><span class="article-title line-clamp-2">{{ row.articles }}</span
+                          ><span class="mt-0.5 block text-xs font-normal text-fb-text-muted">{{
+                            row.date | date: 'dd.MM.yyyy'
+                          }}</span></span
+                        ></app-button
                       >
                     </td>
-                    <td>
+                    <td
+                      class="border-b border-fb-line/60 px-2 py-2.5 align-middle group-last:border-0 sm:px-3"
+                    >
                       <app-marketplace-platform-identity
+                        class="max-w-full [&>span]:max-w-full"
                         [platform]="row.platform"
                         [displayName]="salePlatforms.label(row.platform)"
                       />
                     </td>
                     <td
-                      class="amount-cell text-right whitespace-nowrap tabular-nums"
+                      class="amount-cell border-b border-fb-line/60 px-2 py-2.5 text-right align-middle whitespace-nowrap font-medium tabular-nums group-last:border-0 sm:px-3"
                       [class.positive]="
                         row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
                       "
                       [class.negative]="
                         row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
                       "
-                      [class.text-fb-success]="
-                        row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts > 0
-                      "
                       [class.text-fb-critical]="
                         row.resultAfterDirectCosts !== null && row.resultAfterDirectCosts < 0
                       "
                     >
                       @if (row.resultAfterDirectCosts === null) {
-                        <span class="text-xs text-fb-text-muted">Kosten noch offen</span>
+                        <span class="text-xs whitespace-normal text-fb-text-muted"
+                          >Kosten noch offen</span
+                        >
                       } @else {
                         {{
                           row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
@@ -232,9 +242,9 @@
       </app-card>
     </section>
     <section aria-labelledby="inventory-overview-heading" class="min-w-0">
-      <app-card variant="overview" padding="lg" class="h-full">
+      <app-card variant="overview" padding="lg" contentLayout="fill" class="h-full">
         <div class="overview-header flex items-center justify-between gap-2">
-          <h2 id="inventory-overview-heading" class="text-base font-semibold">Bestand im Blick</h2>
+          <h2 id="inventory-overview-heading" class="text-lg font-semibold">Bestand im Blick</h2>
           <app-button
             variant="plain"
             link="/catalog"
@@ -249,18 +259,21 @@
             {{ loadError() ? 'Bestand nicht verfügbar.' : 'Bestand wird geladen …' }}
           </p>
         } @else {
-          <p class="mt-2 mb-4 text-2xl font-semibold tabular-nums">{{ stock().units }} Stück</p>
+          <p class="mt-2 mb-5 text-[28px] leading-tight font-semibold tracking-tight tabular-nums">
+            {{ stock().units }} Stück
+          </p>
           <dl
-            class="stock-list grid gap-4 text-[13px]"
+            class="stock-list grid min-h-40 flex-1 content-between gap-5 pb-2 text-[13px]"
             aria-label="Lagerdauer ab Einkaufsdatum, ersatzweise Wareneingang"
           >
-            @for (age of stockAges(); track age.label) {
+            @for (age of stockAges(); track age.label; let first = $first) {
               <div class="grid grid-cols-[6.5rem_minmax(0,1fr)_2.5rem] items-center gap-3">
                 <dt class="text-fb-text-secondary">{{ age.label }}</dt>
                 <dd class="contents">
-                  <span class="h-2.5 overflow-hidden rounded-full bg-fb-subtle" aria-hidden="true"
+                  <span class="h-4 overflow-hidden rounded-full bg-fb-subtle" aria-hidden="true"
                     ><span
-                      class="block h-full rounded-full bg-[#006b73] dark:bg-[#52b7bd]"
+                      class="block h-full rounded-full"
+                      [class]="first ? 'bg-fb-primary' : 'bg-gray-400 dark:bg-gray-500'"
                       [style.width.%]="age.share"
                     ></span
                   ></span>

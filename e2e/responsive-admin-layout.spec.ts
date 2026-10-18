@@ -296,6 +296,18 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
   await page.goto('/dashboard');
   const value = page.locator('[data-kpi="revenue"] .metric-value');
   await expect(value).toHaveText(/1\.234\.567,89\s*€/);
+  await expect(page.locator('[data-kpi="sales"]')).not.toContainText('Stück verkauft');
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  const lowerCards = await page
+    .locator('.bottom-grid app-card')
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
+  expect(lowerCards).toHaveLength(2);
+  expect(Math.abs(lowerCards[0].top - lowerCards[1].top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(lowerCards[0].height - lowerCards[1].height)).toBeLessThanOrEqual(1);
+  const stockList = await page.locator('.stock-list').boundingBox();
+  expect(
+    Math.abs(lowerCards[1].bottom - (stockList!.y + stockList!.height) - 20),
+  ).toBeLessThanOrEqual(1);
   for (const width of [320, 390, 834, 1194]) {
     await page.setViewportSize({ width, height: 1000 });
     await expect

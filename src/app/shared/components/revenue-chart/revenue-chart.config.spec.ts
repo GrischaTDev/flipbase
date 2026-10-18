@@ -55,9 +55,9 @@ describe('Revenue-Chart-Konfiguration', () => {
     const options = createRevenueChartConfiguration(points, 'light', false);
     expect(options.chart.type).toBe('bar');
     expect(options.plotOptions.bar).toMatchObject({
-      borderRadius: 4,
+      borderRadius: 3,
       borderRadiusApplication: 'end',
-      columnWidth: '64%',
+      columnWidth: '58%',
       horizontal: false,
     });
     expect(options.stroke.width).toBe(0);
@@ -66,7 +66,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(options.series[1].data).toEqual([25.95, null]);
     expect(options.series[2].data).toEqual([-16.02, null]);
     expect(options.tooltip.enabled).toBe(false);
-    expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
+    expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25 €');
   });
   it.each(['light', 'dark'] as const)(
     'verwendet im %s-Theme Markengelb, Grau und Petrol für die drei Reihen',

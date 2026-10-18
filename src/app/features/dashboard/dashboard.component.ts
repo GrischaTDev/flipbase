@@ -139,7 +139,7 @@ export class DashboardComponent {
       share: this.stock().units ? (entry.units / this.stock().units) * 100 : 0,
     })),
   );
-  readonly recentSales = computed(() => this.report().rows.slice(0, 5));
+  readonly recentSales = computed(() => this.report().rows.slice(0, 3));
   readonly comparisonLabel = computed(
     () =>
       ({
@@ -222,7 +222,6 @@ export class DashboardComponent {
         LucideShoppingCart,
         String(report.rows.length),
         'Anzahl bestätigter Verkäufe, nicht die Stückzahl.',
-        `${report.soldItems} Stück verkauft`,
       ),
     ];
   });
