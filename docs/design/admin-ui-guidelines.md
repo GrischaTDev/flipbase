@@ -17,6 +17,61 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Übersicht: freigegebene Gestaltung vom 18.10.2026
+
+Für die Übersicht hat der Nutzer ausdrücklich den zweiten Apple-inspirierten
+Bildentwurf freigegeben. Diese Entscheidung gilt für den Seiteninhalt der
+Übersicht; die gemeinsame Navigation und die übrigen Verwaltungsseiten behalten
+ihre bestehende Gestaltung. Die unten beschriebene zentrale Breitenwahl gilt
+weiterhin ohne Seitenausnahme.
+
+Vier Kennzahlen (Umsatz, Gewinn, Marge, Verkäufe) teilen sich eine ruhige Karte
+mit dezenten Symbolen und Trennlinien. Mini-Kurven, Kapital-Kennzahl und
+Aufgabenkarte entfallen. Weiße Flächen, zurückhaltende Schatten, 20px-Kartenradien
+und kapselartige Schnellaktionen sind ausdrücklich gewählte Flipbase-Werte aus
+dem Entwurf, keine behaupteten Originalmaße von Apple oder Shopify. Gemeinsame
+Bausteine stellen diese Gestaltung nur über ausdrücklich aktivierte Varianten dar.
+
+Das Diagramm verwendet Logo-Gelb `#fcc601`, Grau `#9ca3af` und Petrol `#006b73`;
+im dunklen Schema werden Grau und Petrol für die Lesbarkeit angepasst. Die
+Zeichenfläche ist nach der Nachbesserung 280px hoch; Tastaturauswahl und tabellarische Zusammenfassung
+bleiben erhalten. Negative Ergebnisse behalten ihre verständliche Kennzeichnung.
+
+Weitere Nutzerkorrektur vom 18.10.2026: Unter der Kennzahl „Verkäufe“ erscheint
+keine zusätzliche Stückzahl. Die unteren Karten erhalten gleiche Außenhöhen und
+gleich endende Inhaltsbereiche. Die Übersicht zeigt wie im freigegebenen Bild
+drei letzte Verkäufe. Präzisierung vom 18.10.2026: Das Datum steht in einer
+eigenen Spalte ganz links vor dem Artikelnamen, nicht unter ihm. Auf schmalen
+Bildschirmen bleibt die Tabelle bei Bedarf innerhalb ihrer Region horizontal
+erreichbar. Die vollständige Liste bleibt
+über „Alle anzeigen“ erreichbar. Eine eigene ruhige Tabelle ersetzt dort den
+allgemeinen Tabellenstil. Die Bestandsbalken sind 16px hoch, der erste gelb,
+die weiteren grau; sie verteilen sich passend zur Höhe der Verkaufsliste.
+Das Diagramm verwendet ein feines vollständiges Raster, kürzere Achsenwerte
+und eine innerhalb der Zeichenfläche begrenzte Detailanzeige mit Farbpunkten.
+Es bleibt bei ApexCharts. Apples Swift Charts ist ein natives SwiftUI-Framework;
+das freigegebene Mockup war ein erzeugtes Bild, kein Swift-Charts-Ergebnis.
+
+Nutzerentscheidung vom 19.10.2026: Die Diagrammsäulen erhalten eine feine diagonale
+Schraffur wie die wahrgenommene Textur im Bildentwurf. Die unveränderten
+Reihenfarben bleiben als deckende Grundfläche erhalten; dünne weiße Linien mit
+16 Prozent Deckkraft bilden das Muster. Die Säulengruppen nutzen 64 Prozent der
+verfügbaren Breite. Eine gestrichelte senkrechte Linie markiert die ausgewählte
+Datumsgruppe sowohl bei Pointer- als auch bei Tastaturbedienung. Diese Werte
+sind Flipbase-Gestaltungsentscheidungen, keine behaupteten Apple-Originalwerte.
+
+Die drei Schnellaktionen heißen „Einkauf erfassen“, „Verkauf erfassen“ und
+„Inserat erstellen“. Die Inseratwahl führt zum vorhandenen Vinted-Editor;
+eBay und Kleinanzeigen sind als „Geplant“ gekennzeichnet. Die Bestandsgruppen
+nutzen das Einkaufsdatum, ersatzweise den Wareneingang; unbekannte und zukünftige
+Datumswerte werden nicht stillschweigend einer Altersgruppe zugeordnet.
+
+Verkaufsplattformen werden je Workspace in Stammdaten gepflegt. Namen und
+Reihenfolge gelten auch für Übersicht, Verkaufsfilter und Verkaufserfassung.
+Umbenennen ändert keine historische Kennung. Standard- und historische
+Plattformen bleiben erhalten; StockX ist ergänzt. Bekannte Plattformen verwenden
+ihre vorhandenen Logos, eigene Plattformen ein allgemeines Marktplatzsymbol.
+
 ## Einheitliche Seitenbreite
 
 Nutzerentscheidung vom 18.10.2026: Im Profilmenü unter „Layout“ gibt es

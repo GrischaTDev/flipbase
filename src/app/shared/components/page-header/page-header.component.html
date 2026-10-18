@@ -18,12 +18,20 @@
         @if (icon(); as pageIcon) {
           <svg
             [lucideIcon]="pageIcon"
-            class="h-5 w-5 shrink-0 text-fb-text-secondary"
+            [class]="
+              appearance() === 'overview'
+                ? 'size-7 shrink-0 text-fb-text-primary'
+                : 'size-5 shrink-0 text-fb-text-secondary'
+            "
             aria-hidden="true"
           ></svg>
         }
         <h1
-          class="min-w-0 break-words text-xl leading-7 font-[450] tracking-tight text-fb-text-primary"
+          [class]="
+            appearance() === 'overview'
+              ? 'min-w-0 break-words text-[28px] leading-9 font-semibold tracking-tight text-fb-text-primary'
+              : 'min-w-0 break-words text-xl leading-7 font-[450] tracking-tight text-fb-text-primary'
+          "
         >
           {{ title() }}
         </h1>

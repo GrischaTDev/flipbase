@@ -122,16 +122,12 @@ test.describe('Touch-Dashboard', () => {
         await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
         await page.goto('/dashboard');
         const dashboard = page.locator('app-dashboard');
-        await expect(dashboard.locator('[data-kpi]')).toHaveCount(5);
-        await page.getByRole('button', { name: 'Dieser Monat', exact: true }).click();
-        await expect(
-          page.getByRole('button', { name: 'Dieser Monat', exact: true }),
-        ).toHaveAttribute('aria-pressed', 'true');
+        await expect(dashboard.locator('[data-kpi]')).toHaveCount(4);
+        await page.getByRole('combobox', { name: 'Zeitraum wählen' }).click();
+        await page.getByRole('option', { name: 'Dieser Monat', exact: true }).click();
         await screenshot(page, `dashboard-touch-${theme}-${width}`);
         const geometry = await dashboard.evaluate((root) => ({
-          periodHeight: root
-            .querySelector('[aria-label="Zeitraum wählen"] button')!
-            .getBoundingClientRect().height,
+          periodHeight: root.querySelector('#dashboard-range')!.getBoundingClientRect().height,
           platformHeight: root.querySelector('#dashboard-platform')!.getBoundingClientRect().height,
           cards: [...root.querySelectorAll('[data-kpi]')].map((card) =>
             card.getBoundingClientRect().toJSON(),
@@ -278,31 +274,51 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
 }) => {
   await mockResponsiveWorkspace(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/rest/v1/inventory_items?**', (route) =>
+  await page.route('**/rest/v1/sales?**', (route) =>
     route.fulfill({
       json: [
         {
           id: '25000000-0000-4000-8000-000000000051',
           workspace_id: workspaceId,
-          title: 'Artikel mit hohem Bestandswert',
-          condition: 'good',
-          status: 'listed',
-          allocated_purchase_cost: 1234567.89,
-          costs: [],
-          media: [],
-          purchase: {
-            id: '25000000-0000-4000-8000-000000000052',
-            workspace_id: workspaceId,
-            purchase_price: 1234567.89,
-            entry_status: 'finalized',
-          },
+          platform: 'ebay',
+          sale_date: new Date().toISOString().slice(0, 10),
+          sale_price: 1234567.89,
+          platform_fee: 0,
+          shipping_cost: 0,
+          packaging_cost: 0,
+          other_costs: 0,
+          lines: [],
+          has_persisted_lines: false,
         },
       ],
     }),
   );
   await page.goto('/dashboard');
-  const value = page.locator('[data-kpi="inventory-capital"] .metric-value');
+  const value = page.locator('[data-kpi="revenue"] .metric-value');
   await expect(value).toHaveText(/1\.234\.567,89\s*€/);
+  const columnTextures = page.locator('app-revenue-chart defs pattern image');
+  await expect.poll(() => columnTextures.count()).toBeGreaterThan(0);
+  expect(
+    await columnTextures.evaluateAll((images) =>
+      images.every((image) =>
+        (image.getAttribute('href') ?? image.getAttribute('xlink:href') ?? '').startsWith(
+          'data:image/svg+xml,',
+        ),
+      ),
+    ),
+  ).toBe(true);
+  await expect(page.locator('[data-kpi="sales"]')).not.toContainText('Stück verkauft');
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  const lowerCards = await page
+    .locator('.bottom-grid app-card')
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
+  expect(lowerCards).toHaveLength(2);
+  expect(Math.abs(lowerCards[0].top - lowerCards[1].top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(lowerCards[0].height - lowerCards[1].height)).toBeLessThanOrEqual(1);
+  const stockList = await page.locator('.stock-list').boundingBox();
+  expect(
+    Math.abs(lowerCards[1].bottom - (stockList!.y + stockList!.height) - 20),
+  ).toBeLessThanOrEqual(1);
   for (const width of [320, 390, 834, 1194]) {
     await page.setViewportSize({ width, height: 1000 });
     await expect

@@ -6,7 +6,8 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur @pr-smoke', async
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openDashboard(page);
-  await page.getByRole('button', { name: 'Dieser Monat' }).click();
+  await page.getByRole('combobox', { name: 'Zeitraum wählen' }).click();
+  await page.getByRole('option', { name: 'Dieser Monat', exact: true }).click();
   await expect(page.locator('app-revenue-chart .apexcharts-svg')).toBeVisible();
 
   const navigator = page.getByRole('slider', {

@@ -1,77 +1,51 @@
 import { expect, openDashboard, test } from './support/fixtures';
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`richtet Dashboard-Spalten und Kartenköpfe im ${theme}-Theme einheitlich aus`, async ({
-    page,
-  }) => {
+  test(`zeigt die vereinfachte Übersicht ohne Überlauf im ${theme}-Theme`, async ({ page }) => {
     await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 1664, height: 1100 });
     await openDashboard(page);
-    await expect(page.getByText('61–90 Tage im Bestand', { exact: true })).toBeVisible();
     const dashboard = page.locator('app-dashboard');
-    await expect(dashboard.locator('.overview-header')).toHaveCount(3);
-    await expect(dashboard.locator('.quick-icon svg')).toHaveCount(4);
-
+    await expect(dashboard.locator('[data-kpi]')).toHaveCount(4);
+    await expect(dashboard.locator('[data-kpi] svg')).toHaveCount(4);
+    await expect(dashboard.getByText('61–90 Tage', { exact: true })).toBeVisible();
+    await expect(dashboard.getByText('Zu erledigen', { exact: true })).toHaveCount(0);
+    await expect(dashboard.getByText('Bilder optimieren', { exact: true })).toHaveCount(0);
     for (const width of [1664, 1440, 1200, 900, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1100 });
-      const geometry = await dashboard.evaluate((root) => {
-        const bounds = (selector: string) => {
-          const element = root.querySelector(selector);
-          if (!element) throw new Error(`Dashboard-Element fehlt: ${selector}`);
-          const rect = element.getBoundingClientRect();
-          return { x: rect.x, width: rect.width };
-        };
-        return {
-          tasks: bounds('.side-stack > app-card:first-child'),
-          quick: bounds('.side-stack > app-card:last-child'),
-          stock: bounds('[aria-labelledby="inventory-overview-heading"] > app-card'),
-          headerHeights: [...root.querySelectorAll('.overview-header')].map(
-            (header) =>
-              header.closest('app-card')!.firstElementChild!.getBoundingClientRect().height,
-          ),
-          iconColors: [...root.querySelectorAll('.header-icon, .quick-icon')].map(
-            (icon) => getComputedStyle(icon).backgroundColor,
-          ),
-          iconTextGaps: [...root.querySelectorAll('.quick-tile')].map(
-            (tile) =>
-              tile.querySelector('.quick-copy')!.getBoundingClientRect().left -
-              tile.querySelector('.quick-icon')!.getBoundingClientRect().right,
-          ),
-          overflow: document.documentElement.scrollWidth - window.innerWidth,
-        };
-      });
-
-      for (const card of [geometry.tasks, geometry.quick]) {
-        expect(Math.abs(card.x - geometry.stock.x), `Linke Kante bei ${width}px`).toBeLessThan(1);
-        expect(
-          Math.abs(card.width - geometry.stock.width),
-          `Kartenbreite bei ${width}px`,
-        ).toBeLessThan(1);
-      }
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), {
+          message: `Überlauf bei ${width}px`,
+        })
+        .toBeLessThanOrEqual(0);
       expect(
-        Math.max(...geometry.headerHeights) - Math.min(...geometry.headerHeights),
-        `Gleiche Kopfzeilenhöhe bei ${width}px`,
-      ).toBeLessThan(1);
-      expect(geometry.iconColors).toEqual(Array(7).fill('rgb(252, 198, 1)'));
-      expect(geometry.iconTextGaps.every((gap) => gap >= 12)).toBe(true);
-      expect(geometry.overflow, `Kein Seitenüberlauf bei ${width}px`).toBeLessThanOrEqual(0);
+        await dashboard.locator('[data-kpi="sales"]').evaluate((element) => {
+          const container = element.closest('[aria-label="Kennzahlen"]')!.getBoundingClientRect();
+          return element.getBoundingClientRect().right <= container.right + 1;
+        }),
+      ).toBe(true);
     }
-
-    const viewAll = dashboard.getByRole('link', { name: 'Alle anzeigen', exact: true });
-    await expect(viewAll).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-    await expect(viewAll).toHaveAttribute('href', '/sales');
-    await expect(dashboard.getByText('Langsam drehend', { exact: true })).toHaveCount(0);
-    for (const [label, href] of [
+    for (const [name, href] of [
       ['Einkauf erfassen', '/purchases/new'],
       ['Verkauf erfassen', '/sales/new'],
-      ['Inserat erstellen', '/listings/new'],
-      ['Bilder optimieren', '/image-optimizer'],
-    ]) {
-      await expect(dashboard.getByRole('link', { name: new RegExp(label) })).toHaveAttribute(
+    ])
+      await expect(dashboard.getByRole('link', { name, exact: true })).toHaveAttribute(
         'href',
         href,
       );
-    }
+    await dashboard.getByRole('button', { name: 'Inserat erstellen', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Inserat erstellen' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('link', { name: 'Vinted' })).toHaveAttribute(
+      'href',
+      '/marketplaces/vinted/listings/new',
+    );
+    await expect(dialog.getByText('Geplant', { exact: true })).toHaveCount(2);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      dashboard.getByRole('button', { name: 'Inserat erstellen', exact: true }),
+    ).toBeFocused();
   });
 }

@@ -12,6 +12,12 @@ import { resolve } from 'node:path';
 import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DashboardReport, InventoryItem, Sale, StockLot } from '../../core/models/flipbase.models';
+import { SalePlatformsService } from '../../core/services/sale-platforms.service';
+import { SALE_PLATFORM_OPTIONS } from '../../core/config/sale-platform-options';
+import { mergeSalePlatforms } from '../../core/models/sale-platforms';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { DashboardReportService } from '../../core/services/dashboard-report.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { InventoryService } from '../../core/services/inventory.service';
@@ -37,6 +43,16 @@ interface AngularInputMetadata {
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './modal-shell.component.scss':
+    'src/app/shared/components/modal-shell/modal-shell.component.scss',
+  './modal-shell.component.html':
+    'src/app/shared/components/modal-shell/modal-shell.component.html',
+  './marketplace-platform-identity.component.html':
+    'src/app/shared/components/marketplace-platform-identity/marketplace-platform-identity.component.html',
+  './page-header.component.scss':
+    'src/app/shared/components/page-header/page-header.component.scss',
+  './page-header.component.html':
+    'src/app/shared/components/page-header/page-header.component.html',
   './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
   './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
   './button.component.html': 'src/app/shared/components/button/button.component.html',
@@ -47,7 +63,7 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/custom-select/custom-select.component.html',
   './custom-select.component.scss':
     'src/app/shared/components/custom-select/custom-select.component.scss',
-  './dashboard.component.css': 'src/app/features/dashboard/dashboard.component.css',
+
   './dashboard.component.html': 'src/app/features/dashboard/dashboard.component.html',
   './beta-discord-banner.component.html':
     'src/app/features/beta-discord/components/beta-discord-banner/beta-discord-banner.component.html',
@@ -119,6 +135,7 @@ beforeAll(async () => {
       ButtonComponent,
       [
         'variant',
+        'shape',
         'size',
         'link',
         'icon',
@@ -132,7 +149,10 @@ beforeAll(async () => {
         'ariaLabel',
       ],
     ],
-    [CardComponent, ['padding', 'rounded']],
+    [CardComponent, ['padding', 'rounded', 'variant', 'contentLayout']],
+    [PageHeaderComponent, ['title', 'subtitle', 'icon', 'appearance']],
+    [MarketplacePlatformIdentityComponent, ['platform', 'displayName']],
+    [ModalShellComponent, ['title', 'subtitle', 'size', 'hasFooter']],
     [
       DashboardKpiCardComponent,
       ['label', 'value', 'icon', 'hint', 'change', 'comparisonLabel', 'size', 'valueTone'],
@@ -244,6 +264,20 @@ beforeEach(() => {
   TestBed.configureTestingModule({
     imports: [DashboardComponent],
     providers: [
+      {
+        provide: SalePlatformsService,
+        useValue: {
+          options: () =>
+            mergeSalePlatforms(
+              [],
+              sales().map((entry) => entry.platform),
+            ),
+          label: (value: string) =>
+            mergeSalePlatforms([], [value]).find((entry) => entry.value === value)!.label,
+          error: signal(null),
+          reload: vi.fn(),
+        },
+      },
       provideRouter([]),
       {
         provide: SalesService,
@@ -334,7 +368,7 @@ afterEach(() => {
 });
 
 function sale(platform: string): Sale {
-  return { platform } as Sale;
+  return { platform, workspace_id: 'workspace-1' } as Sale;
 }
 
 function createDashboard() {
@@ -398,14 +432,14 @@ describe('DashboardComponent', () => {
       });
       expect(fixture.componentInstance.report().rows).toHaveLength(1);
       expect(host.textContent).toContain('Kosten noch offen');
-      expect(host.textContent).toContain('Zu erledigen');
-      expect(host.textContent).toContain('1 Verkauf ohne nachvollziehbare Kosten');
+      expect(host.textContent).not.toContain('Zu erledigen');
+      expect(host.textContent).toContain('Kosten teilweise offen');
     } finally {
       createReport.mockImplementation(() => emptyReport);
     }
   });
 
-  it('fokussiert das Dashboard auf fünf Kernkennzahlen und eine kompakte Verkaufsliste', () => {
+  it('fokussiert das Dashboard auf vier Kernkennzahlen und eine kompakte Verkaufsliste', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,
       grossProfit: 20.09,
@@ -413,6 +447,7 @@ describe('DashboardComponent', () => {
       averageMarginPercent: 46.74,
       inventoryCostValue: 116.67,
       inventoryItemsWithoutCost: 5,
+      soldItems: 6,
       rows: [
         {
           saleId: 'sale-1',
@@ -438,19 +473,19 @@ describe('DashboardComponent', () => {
       header.textContent?.replace(/\s+/g, ' ').trim(),
     );
 
-    expect(host.querySelector('h1')?.textContent?.trim()).toBe('Dashboard');
+    expect(host.querySelector('h1')?.textContent?.trim()).toBe('Übersicht');
     expect(
       [...kpiSection.querySelectorAll('[data-kpi]')].map((card) =>
         card.querySelector('h2')?.textContent?.trim(),
       ),
-    ).toEqual(['Umsatz', 'Gewinn', 'Marge', 'Kapital im Bestand', 'Verkäufe']);
+    ).toEqual(['Umsatz', 'Gewinn', 'Marge', 'Verkäufe']);
 
     const kpi = (name: string) =>
       host.querySelector(`[data-kpi="${name}"]`)?.textContent?.replace(/\s+/g, ' ').trim();
     expect(kpi('revenue')).toContain('42,98 €');
     expect(kpi('gross-profit')).toContain('20,09 €');
     expect(kpi('margin')).toContain('46,74 %');
-    expect(kpi('inventory-capital')).toContain('116,67 €');
+    expect(host.querySelector('[data-kpi="inventory-capital"]')).toBeNull();
     expect(host.querySelector('[data-kpi="purchases"]')).toBeNull();
     expect(host.querySelector('[data-kpi="operating-expenses"]')).toBeNull();
     expect(host.querySelector('[data-kpi="total-expenses"]')).toBeNull();
@@ -465,14 +500,15 @@ describe('DashboardComponent', () => {
     expect(journal?.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
       'Letzte Verkäufe – Tabelle',
     );
+    expect(kpi('sales')).not.toContain('Stück verkauft');
     expect(headers).toEqual(['Datum', 'Artikel', 'Plattform', 'Gewinn']);
-    expect(journal?.querySelector('tbody tr td:nth-child(4)')?.className).toContain('positive');
-
-    expect(host.querySelector('#platform-overview-heading')?.textContent?.trim()).toBe(
-      'Plattform-Verteilung',
+    expect(journal?.querySelector('tbody tr td:first-child')?.textContent?.trim()).toBe(
+      '30.08.2026',
     );
-    expect(host.textContent).toContain('eBay');
-    expect(host.textContent).toContain('100 %');
+    expect(journal?.querySelector('tbody tr td:nth-child(2)')?.textContent).not.toContain(
+      '30.08.2026',
+    );
+    expect(journal?.querySelector('tbody tr td:nth-child(4)')?.className).toContain('positive');
   });
 
   it('zeigt die wichtigsten Schnellaktionen im Dashboard', () => {
@@ -483,7 +519,8 @@ describe('DashboardComponent', () => {
     expect(text).toContain('Einkauf erfassen');
     expect(text).toContain('Verkauf erfassen');
     expect(text).toContain('Inserat erstellen');
-    expect(text).toContain('Bilder optimieren');
+    expect(text).not.toContain('Bilder optimieren');
+    expect(text).not.toContain('Zu erledigen');
   });
 
   it('markiert einen negativen Verkaufsgewinn eindeutig, ohne den Artikel als Fehler zu färben', () => {
@@ -529,7 +566,7 @@ describe('DashboardComponent', () => {
     }
   });
 
-  it('erstellt eindeutige, deutsch sortierte Plattformoptionen für den Shared Select', () => {
+  it('übernimmt die zentrale Plattformreihenfolge für den Shared Select', () => {
     sales.set([sale('vinted'), sale('ebay'), sale('vinted')]);
 
     const fixture = createDashboard();
@@ -538,18 +575,17 @@ describe('DashboardComponent', () => {
 
     expect(component.platformSelectOptions()).toEqual([
       { value: 'all', label: 'Alle Plattformen' },
-      { value: 'ebay', label: 'eBay' },
-      { value: 'vinted', label: 'Vinted' },
+      ...SALE_PLATFORM_OPTIONS.map(({ value, label }) => ({ value, label })),
     ]);
     expect(host.querySelector('select#dashboard-platform')).toBeNull();
-    expect(host.querySelectorAll('app-custom-select')).toHaveLength(1);
+    expect(host.querySelectorAll('app-custom-select')).toHaveLength(2);
   });
 
   it('übernimmt die Plattformauswahl aus dem Shared Select für den Bericht', () => {
     sales.set([sale('ebay'), sale('vinted')]);
     const fixture = createDashboard();
     const component = fixture.componentInstance;
-    const select = fixture.debugElement.query(By.directive(CustomSelectComponent))
+    const select = fixture.debugElement.queryAll(By.directive(CustomSelectComponent))[1]
       .componentInstance as CustomSelectComponent<string> & {
       valueChange: EventEmitter<string | null>;
     };
@@ -597,24 +633,18 @@ describe('DashboardComponent', () => {
     expect(hints[0]?.getAttribute('role')).toBe('status');
   });
 
-  it('rendert die Zeitraumwahl als gedrückte Gruppe und besteht AXE im Header', async () => {
+  it('zeigt den Titel mit Icon und besteht AXE im Header', async () => {
     const fixture = createDashboard();
     const host = fixture.nativeElement as HTMLElement;
-    const periodGroup = host.querySelector('[aria-label="Zeitraum wählen"]') as HTMLElement;
-
-    expect(periodGroup.getAttribute('role')).toBe('group');
-    expect(host.querySelector('header')?.textContent).toContain('Dashboard');
+    expect(host.querySelector('h1')?.textContent).toContain('Übersicht');
+    expect(host.querySelector('app-page-header svg')).not.toBeNull();
     expect(
-      Array.from(periodGroup.querySelectorAll('button')).every((button) =>
-        button.hasAttribute('aria-pressed'),
-      ),
-    ).toBe(true);
-
-    const result = await axe.run(host.querySelector('header') as HTMLElement, {
-      rules: { 'color-contrast': { enabled: false } },
-    });
-
-    expect(result.violations).toEqual([]);
+      (
+        await axe.run(host.querySelector('header')!, {
+          rules: { 'color-contrast': { enabled: false } },
+        })
+      ).violations,
+    ).toEqual([]);
   });
 
   it('zeigt bei Ladefehlern keine scheinbar vollständigen Bestands- oder Nullwerte', () => {
@@ -626,7 +656,7 @@ describe('DashboardComponent', () => {
     );
     expect(
       [...host.querySelectorAll('.metric-value')].map((node) => node.textContent?.trim()),
-    ).toEqual(['–', '–', '–', '–', '–']);
+    ).toEqual(['–', '–', '–', '–']);
     expect(host.textContent).not.toContain('Keine offenen Kostenangaben.');
   });
 
@@ -639,7 +669,7 @@ describe('DashboardComponent', () => {
     expect(fixture.componentInstance.ready()).toBe(false);
     expect(
       fixture.nativeElement
-        .querySelector('[data-kpi="inventory-capital"] .metric-value')
+        .querySelector('[data-kpi="revenue"] .metric-value')
         ?.textContent?.trim(),
     ).toBe('–');
   });
@@ -658,7 +688,7 @@ describe('DashboardComponent', () => {
     expect(
       fixture.nativeElement.querySelector('[data-kpi="revenue"] .metric-value')?.textContent,
     ).toMatch(/0,00/);
-    expect(fixture.nativeElement.textContent).toContain('Keine offenen Kostenangaben.');
+    expect(fixture.nativeElement.textContent).toContain('Keine bestätigten Verkäufe');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
@@ -691,108 +721,25 @@ describe('DashboardComponent', () => {
     expect(cells[0].textContent).toContain('Vinted');
     expect(cells[1].textContent).toContain('Kleinanzeigen');
     expect(cells[2].textContent).toContain('eBay');
-    expect(cells[3].textContent).toContain('Flohmarkt');
-    expect(cells[3].querySelector('svg')).not.toBeNull();
+    expect(cells).toHaveLength(3);
   });
 
-  it('bindet Donut und Legende an die Plattform statt an deren Umsatzrang', () => {
-    const rows = signal([
-      { platform: 'vinted', revenue: 80 },
-      { platform: 'ebay', revenue: 20 },
-      { platform: 'kleinanzeigen', revenue: 10 },
-    ]);
-    createReport.mockImplementation(() => ({
-      ...emptyReport,
-      rows: rows().map((row, index) => ({
-        ...row,
-        saleId: `rank-sale-${index}`,
-        date: '2026-09-23',
-        articles: 'Artikel',
-        quantity: 1,
-        costOfGoodsSold: 0,
-        sellingCosts: 0,
-        resultAfterDirectCosts: row.revenue,
-        marginPercent: 100,
-        profit: row.revenue,
-      })),
-    }));
+  it('zeigt Kennzahlenicons ohne Mini-Kurven und vier Lagergruppen', () => {
+    const host = createDashboard().nativeElement as HTMLElement;
+    expect(host.querySelectorAll('[data-kpi] svg')).toHaveLength(4);
+    expect(host.querySelectorAll('.sparkline')).toHaveLength(0);
+    expect(
+      [...host.querySelectorAll('.stock-list dt')].map((entry) => entry.textContent?.trim()),
+    ).toEqual(['Bis 30 Tage', '31–60 Tage', '61–90 Tage', 'Über 90 Tage']);
+    expect(host.textContent).not.toContain('Durchschnittl. EK');
+  });
+  it('öffnet die Marktplatzwahl mit Vinted und zwei Platzhaltern', () => {
     const fixture = createDashboard();
-    const host = fixture.nativeElement as HTMLElement;
-    const expectPalette = () => {
-      for (const platform of ['vinted', 'kleinanzeigen', 'ebay']) {
-        const segment = host.querySelector<SVGElement>(`.donut [data-platform="${platform}"]`);
-        const marker = host.querySelector<HTMLElement>(
-          `.platform-legend [data-platform="${platform}"]`,
-        );
-        expect(segment?.style.stroke).toBe(`var(--fb-platform-${platform})`);
-        expect(marker?.style.backgroundColor).toBe(`var(--fb-platform-${platform})`);
-      }
-    };
-    expectPalette();
-    rows.set([
-      { platform: 'vinted', revenue: 5 },
-      { platform: 'ebay', revenue: 20 },
-      { platform: 'kleinanzeigen', revenue: 100 },
-    ]);
+    fixture.componentInstance.listingDialogOpen.set(true);
     fixture.detectChanges();
-    expectPalette();
-  });
-
-  it('zeigt alle Bestands- und Überschriftsicons mit getrennten Warn- und Kritisch-Zuständen', () => {
-    const oldDate = new Date(Date.now() - 120 * 86400000).toISOString();
-    const slowDate = new Date(Date.now() - 70 * 86400000).toISOString();
-    inventoryItems.set([
-      { id: 'old', workspace_id: 'workspace-1', status: 'ready', created_at: oldDate },
-      { id: 'slow', workspace_id: 'workspace-1', status: 'ready', created_at: slowDate },
-    ] as InventoryItem[]);
-    const host = createDashboard().nativeElement as HTMLElement;
-    const terms = [...host.querySelectorAll('.stock-list dt')];
-    expect(terms).toHaveLength(5);
-    expect(terms.every((term) => term.querySelector('svg[aria-hidden="true"]'))).toBe(true);
-    expect(host.querySelectorAll('.bottom-grid .header-icon svg')).toHaveLength(3);
-    expect(terms[3].nextElementSibling?.classList.contains('stock-warning')).toBe(true);
-    expect(terms[4].nextElementSibling?.classList.contains('negative')).toBe(true);
-  });
-  it('verwendet für alle drei Übersichtskarten denselben Kopf mit Icon, Titel und Untertitel', () => {
-    const host = createDashboard().nativeElement as HTMLElement;
-    const headers = [...host.querySelectorAll('.bottom-grid .overview-header')];
-    expect(headers).toHaveLength(3);
-    expect(headers.map((header) => header.querySelector('h2')?.id)).toEqual([
-      'sales-table-heading',
-      'platform-overview-heading',
-      'inventory-overview-heading',
-    ]);
-    for (const header of headers) {
-      expect(header.querySelectorAll('.header-icon svg')).toHaveLength(1);
-      expect(header.querySelector('.subtitle')?.textContent?.trim()).not.toBe('');
-    }
-    const salesAction = host.querySelector('.recent .overview-header app-button');
-    expect(salesAction?.querySelector('a')?.className).toContain('linear-btn-primary');
-  });
-
-  it('trennt bei Schnellaktionen die Icon-Fläche vom lesbaren Titel und Hinweis', () => {
-    const fixture = createDashboard();
-    const tiles = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.quick-tile')];
-    expect(tiles).toHaveLength(4);
-    for (const [index, tile] of tiles.entries()) {
-      expect(tile.querySelectorAll('.quick-icon svg')).toHaveLength(1);
-      expect(tile.querySelector('.quick-copy strong')?.textContent).toBe(
-        fixture.componentInstance.quickActions[index].label,
-      );
-      expect(tile.querySelector('.quick-copy small')?.textContent?.trim()).not.toBe('');
-      expect(tile.querySelector('a')?.getAttribute('href')).toBe(
-        fixture.componentInstance.quickActions[index].link,
-      );
-    }
-  });
-
-  it('beschriftet die Lagergruppe ohne Fachjargon und ohne doppelte Zeitangabe', () => {
-    const host = createDashboard().nativeElement as HTMLElement;
-    const labels = [...host.querySelectorAll('.stock-list dt')].map((node) =>
-      node.textContent?.replace(/\s+/g, ' ').trim(),
-    );
-    expect(labels).toContain('61–90 Tage im Bestand');
-    expect(host.textContent).not.toContain('Langsam drehend');
-    expect(host.querySelector('.stock-age-icon')?.closest('dt')?.querySelector('small')).toBeNull();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('a[href="/marketplaces/vinted/listings/new"]')).not.toBeNull();
+    expect(host.querySelectorAll('app-modal-shell app-badge')).toHaveLength(2);
+    expect(host.querySelector('a[href="/listings/new"]')).toBeNull();
   });
 });

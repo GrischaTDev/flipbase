@@ -55,7 +55,7 @@ export const TRANSLATIONS_DE = {
     REPORTS: 'Auswertungen',
     PRICE_RESEARCH: 'Preisrecherche',
     CALCULATION: 'Kalkulation',
-    DASHBOARD: 'Dashboard',
+    DASHBOARD: 'Übersicht',
     PURCHASES: 'Einkäufe',
     INVENTORY: 'Inventar',
     CATALOG: 'Artikel',
@@ -206,7 +206,7 @@ export const TRANSLATIONS_DE = {
       'Die Discord-Verbindung konnte nicht gestartet werden. Bitte versuche es später erneut.',
     CONNECTING: 'Discord wird verbunden',
     WAIT: 'Einen Moment bitte.',
-    BACK: 'Zum Dashboard',
+    BACK: 'Zur Übersicht',
   },
   COMMON: {
     SAVE: 'Speichern',

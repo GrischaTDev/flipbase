@@ -2,6 +2,7 @@ import type {
   ApexAxisChartSeries,
   ApexChart,
   ApexDataLabels,
+  ApexFill,
   ApexGrid,
   ApexLegend,
   ApexMarkers,
@@ -25,21 +26,32 @@ export const REVENUE_CHART_SERIES = [
 const palettes = {
   light: {
     revenue: '#fcc601',
-    totalExpenses: '#dc2626',
-    resultAfterDirectCosts: '#16a34a',
+    totalExpenses: '#9ca3af',
+    resultAfterDirectCosts: '#006b73',
     ticks: '#596273',
     grid: '#e2e6ec',
   },
   dark: {
     revenue: '#fcc601',
-    totalExpenses: '#dc2626',
-    resultAfterDirectCosts: '#16a34a',
+    totalExpenses: '#a8b0bb',
+    resultAfterDirectCosts: '#52b7bd',
     ticks: '#a8a8a8',
     grid: '#373737',
   },
 };
 
 const euroFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const axisFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+});
+
+/** Eine deckende Grundfarbe mit sehr feinen hellen Linien statt transparenter Lücken. */
+function stripedColumnFill(color: string): string {
+  const tile = `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><rect width="8" height="8" fill="${color}"/><path d="M-2 2L2-2M0 8L8 0M6 10L10 6" fill="none" stroke="white" stroke-opacity="0.16" stroke-width="1"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(tile)}`;
+}
 
 export function formatChartAmount(value: number | null): string {
   return value === null ? 'unbekannt' : euroFormatter.format(value);
@@ -60,6 +72,7 @@ export interface RevenueChartConfiguration {
   chart: ApexChart;
   series: ApexAxisChartSeries;
   colors: string[];
+  fill: ApexFill;
   dataLabels: ApexDataLabels;
   stroke: ApexStroke;
   markers: ApexMarkers;
@@ -82,7 +95,7 @@ export function createRevenueChartConfiguration(
   return {
     chart: {
       type: 'bar',
-      height: 260,
+      height: 280,
       width: '100%',
       fontFamily: 'Inter, system-ui, sans-serif',
       foreColor: palette.ticks,
@@ -99,12 +112,21 @@ export function createRevenueChartConfiguration(
     },
     series: buildRevenueSeries(points),
     colors: REVENUE_CHART_SERIES.map((series) => palette[series.key]),
+    fill: {
+      type: 'image',
+      opacity: 1,
+      image: {
+        src: REVENUE_CHART_SERIES.map((series) => stripedColumnFill(palette[series.key])),
+        width: 8,
+        height: 8,
+      },
+    },
     stroke: { width: 0 },
     plotOptions: {
       bar: {
         horizontal: false,
         columnWidth: '64%',
-        borderRadius: 4,
+        borderRadius: 3,
         borderRadiusApplication: 'end',
       },
     },
@@ -115,7 +137,7 @@ export function createRevenueChartConfiguration(
     xaxis: {
       type: 'category',
       categories: points.map((point) => point.label),
-      tickPlacement: 'on',
+      tickPlacement: 'between',
       tickAmount: points.length > 1 ? Math.min(points.length - 1, 6) : undefined,
       labels: {
         rotate: 0,
@@ -127,16 +149,18 @@ export function createRevenueChartConfiguration(
       tooltip: { enabled: false },
     },
     yaxis: {
+      tickAmount: 4,
+      forceNiceScale: true,
       labels: {
-        formatter: (value) => formatChartAmount(value),
+        formatter: (value) => axisFormatter.format(value),
         style: { fontSize: '12px', colors: [palette.ticks] },
       },
     },
     grid: {
       borderColor: palette.grid,
-      strokeDashArray: 3,
-      xaxis: { lines: { show: false } },
-      padding: { left: 8, right: 12, top: 16, bottom: 0 },
+      strokeDashArray: 0,
+      xaxis: { lines: { show: true } },
+      padding: { left: 4, right: 8, top: 0, bottom: 0 },
     },
     theme: { mode: theme },
     responsive: [

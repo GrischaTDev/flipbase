@@ -6,7 +6,7 @@
       </app-badge>
     }
 
-    @if (section !== 'platforms' && canEdit()) {
+    @if (canEdit()) {
       <div header-actions>
         <app-button
           variant="primary"
@@ -28,8 +28,9 @@
   } @else {
     @if (section === 'platforms') {
       <p class="text-sm text-fb-text-secondary">
-        Diese Systemvorgaben stehen in der Verkaufserfassung zur Auswahl. Verbundene Konten werden
-        weiterhin in den Einstellungen verwaltet.
+        Diese Reihenfolge gilt für die Plattformauswahl in der Übersicht und bei Verkäufen. Du
+        kannst Plattformen hinzufügen und per Ziehen oder mit den Pfeilen verschieben. Verbundene
+        Konten verwaltest du weiterhin unter Marktplätze.
       </p>
     }
 
@@ -40,7 +41,7 @@
       [searchPlaceholder]="currentSection.label + ' durchsuchen …'"
       [searchAriaLabel]="currentSection.label + ' durchsuchen'"
       [columns]="tableState().columns"
-      [sortOptions]="tableConfig.sortOptions"
+      [sortOptions]="section === 'platforms' ? [] : tableConfig.sortOptions"
       [currentSort]="tableState().sort"
       [viewModified]="viewModified()"
       (columnVisibilityToggled)="toggleColumn($event)"
@@ -82,14 +83,45 @@
               }
             </tr>
           </thead>
-          <tbody>
+          <tbody
+            cdkDropList
+            [cdkDropListDisabled]="
+              section !== 'platforms' || !canEdit() || isSaving() || search().trim().length > 0
+            "
+            (cdkDropListDropped)="dropPlatform($event)"
+          >
             @for (row of rows(); track row.id) {
-              <tr [class.opacity-60]="row.isActive === false">
+              <tr
+                cdkDrag
+                [cdkDragDisabled]="
+                  section !== 'platforms' || !canEdit() || isSaving() || search().trim().length > 0
+                "
+                [class.opacity-60]="row.isActive === false"
+              >
                 @for (column of columns(); track column.id) {
                   <td [class.text-right]="column.id === 'actions'">
                     @switch (column.id) {
                       @case ('name') {
-                        <span class="font-semibold text-fb-text-primary">{{ row.name }}</span>
+                        @if (section === 'platforms') {
+                          <span class="inline-flex items-center gap-2">
+                            @if (canEdit()) {
+                              <app-button
+                                cdkDragHandle
+                                variant="ghost"
+                                [icon]="gripIcon"
+                                [iconOnly]="true"
+                                [ariaLabel]="row.name + ' ziehen'"
+                                [disabled]="isSaving() || search().trim().length > 0"
+                              />
+                            }
+                            <app-marketplace-platform-identity
+                              [platform]="row.id"
+                              [displayName]="row.name"
+                            />
+                          </span>
+                        } @else {
+                          <span class="font-semibold text-fb-text-primary">{{ row.name }}</span>
+                        }
                       }
                       @case ('kind') {
                         {{ row.kind }}
@@ -101,6 +133,22 @@
                       }
                       @case ('actions') {
                         <div class="inline-flex items-center gap-1">
+                          @if (canEdit() && section === 'platforms') {
+                            <app-table-action-button
+                              [icon]="moveUpIcon"
+                              [label]="row.name + ' nach oben verschieben'"
+                              [disabled]="isSaving() || allRows()[0]?.id === row.id"
+                              (clicked)="movePlatform(row, -1)"
+                            />
+                            <app-table-action-button
+                              [icon]="moveDownIcon"
+                              [label]="row.name + ' nach unten verschieben'"
+                              [disabled]="
+                                isSaving() || allRows()[allRows().length - 1]?.id === row.id
+                              "
+                              (clicked)="movePlatform(row, 1)"
+                            />
+                          }
                           @if (canEdit()) {
                             <app-table-action-button
                               [icon]="editIcon"

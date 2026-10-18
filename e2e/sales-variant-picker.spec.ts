@@ -135,17 +135,24 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt kompakte Verka
   }
   await picker.getByRole('button', { name: 'Hinzufügen (2)', exact: true }).click();
   await expect(picker).toHaveCount(0);
-  await expect(page.locator('[data-sale-article-variant]').nth(0)).toContainText('Größe 36,5');
-  await expect(page.locator('[data-sale-article-variant]').nth(1)).toContainText('Größe 38');
-  await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).nth(0).fill('40');
-  await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).nth(1).fill('25');
-  const quantities = page.getByRole('spinbutton', { name: 'Menge', exact: true });
-  await quantities.nth(0).fill('2');
+  const firstVariant = page.locator('[data-sale-line]').filter({ hasText: 'Größe 36,5' });
+  const secondVariant = page.locator('[data-sale-line]').filter({ hasText: 'Größe 38' });
+  await expect(firstVariant).toHaveCount(1);
+  await expect(secondVariant).toHaveCount(1);
+  await firstVariant
+    .getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true })
+    .fill('40');
+  await secondVariant
+    .getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true })
+    .fill('25');
+  const firstQuantity = firstVariant.getByRole('spinbutton', { name: 'Menge', exact: true });
+  const secondQuantity = secondVariant.getByRole('spinbutton', { name: 'Menge', exact: true });
+  await firstQuantity.fill('2');
   await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
   await expect(page).toHaveURL(/\/sales\/new$/);
-  await expect(quantities.nth(0)).toHaveAttribute('aria-invalid', 'true');
-  await quantities.nth(0).fill('1');
-  await quantities.nth(1).fill('2');
+  await expect(firstQuantity).toHaveAttribute('aria-invalid', 'true');
+  await firstQuantity.fill('1');
+  await secondQuantity.fill('2');
   await page.getByRole('spinbutton', { name: 'Plattformgebühr', exact: true }).fill('6.19');
   await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
   await expect(page).toHaveURL(/\/sales$/);

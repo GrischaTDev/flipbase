@@ -1,3 +1,5 @@
+import { SalePlatformsService } from '../../../../core/services/sale-platforms.service';
+import { SALE_PLATFORM_OPTIONS } from '../../../../core/config/sale-platform-options';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import '@angular/compiler';
@@ -40,6 +42,16 @@ import type {
 
 function saleSourceProviders() {
   return [
+    {
+      provide: SalePlatformsService,
+      useValue: {
+        error: signal(null),
+        reload: vi.fn(),
+        options: () => SALE_PLATFORM_OPTIONS,
+        label: (value: string) =>
+          SALE_PLATFORM_OPTIONS.find((entry) => entry.value === value)?.label ?? value,
+      },
+    },
     { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'workspace-1' }) } },
     {
       provide: PurchaseService,

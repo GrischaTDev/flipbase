@@ -174,7 +174,7 @@ describe('RevenueChartComponent', () => {
   });
 
   it('zeigt für Pointer und Tastatur dieselben Details innerhalb der Fenstergrenzen', async () => {
-    const { fixture, component } = setup();
+    const { fixture, component, host } = setup();
     await fixture.whenStable();
     component.handleKeyboardFocus();
     const keyboard = component.activeTooltip();
@@ -185,6 +185,26 @@ describe('RevenueChartComponent', () => {
       (component.activeTooltip()?.left ?? 0) + (component.activeTooltip()?.width ?? 0),
     ).toBeLessThanOrEqual(window.innerWidth - 8);
     expect(component.activeTooltip()?.top).toBeLessThan(window.innerHeight - 100);
+    // Die Karte kann feste Positionen durch ihren Layout-Kontext beschneiden.
+    // Die Wertanzeige muss deshalb in den Koordinaten der Zeichenfläche bleiben.
+    const chartElement = host.querySelector('[role="img"]') as HTMLElement;
+    vi.spyOn(chartElement, 'getBoundingClientRect').mockReturnValue({
+      left: 500,
+      top: 200,
+      width: 400,
+      height: 280,
+      right: 900,
+      bottom: 480,
+      x: 500,
+      y: 200,
+      toJSON: () => ({}),
+    });
+    component.handlePointer({ clientX: 530, clientY: 460 } as PointerEvent);
+    expect(component.activeTooltip()?.left).toBe(8);
+    expect(
+      (component.activeTooltip()?.left ?? 0) + (component.activeTooltip()?.width ?? 0),
+    ).toBeLessThanOrEqual(392);
+    expect(component.activeTooltip()?.top).toBeLessThanOrEqual(130);
   });
 
   it('schaltet Legenden per gemeinsamem Button um und erhält sämtliche Tabellendaten', async () => {

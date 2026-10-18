@@ -39,7 +39,7 @@ export class ButtonComponent {
   readonly tone = input<TableActionTone>('brand');
   readonly size = input<ButtonSize>('md');
   readonly density = input<'default' | 'compact'>('default');
-  readonly shape = input<'default' | 'circle'>('default');
+  readonly shape = input<'default' | 'circle' | 'capsule'>('default');
   readonly loading = input<boolean>(false);
   readonly disabled = input<boolean>(false);
   readonly icon = input<LucideIconInput | null>(null);
@@ -178,7 +178,7 @@ export class ButtonComponent {
         ? this.density() === 'compact'
           ? 'min-h-11 rounded-lg py-2 text-[13px]'
           : 'min-h-18 rounded-lg py-3 text-sm'
-        : this.shape() === 'circle'
+        : this.shape() === 'circle' || this.shape() === 'capsule'
           ? sizeClasses.replace('rounded-lg', 'rounded-full')
           : sizeClasses,
       horizontalPadding,

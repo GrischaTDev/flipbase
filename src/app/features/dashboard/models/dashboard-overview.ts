@@ -41,6 +41,7 @@ interface StockItem {
 }
 
 interface StockLot {
+  readonly purchase?: { readonly purchase_date?: string };
   readonly remaining_quantity: number;
   readonly received_at: string;
 }
@@ -64,7 +65,7 @@ export function stockOverview(
   now = new Date(),
 ) {
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000;
-  const result = { units: 0, slow: 0, old: 0, unknownAge: 0 };
+  const result = { units: 0, young: 0, middle: 0, slow: 0, old: 0, unknownAge: 0 };
   const add = (quantity: number, date: string | undefined) => {
     if (!Number.isFinite(quantity) || quantity <= 0) return;
     result.units += quantity;
@@ -72,13 +73,16 @@ export function stockOverview(
     if (day === null || day > today) result.unknownAge += quantity;
     else if (today - day > 90) result.old += quantity;
     else if (today - day > 60) result.slow += quantity;
+    else if (today - day > 30) result.middle += quantity;
+    else result.young += quantity;
   };
   // Derselbe physische Bestand wie in DashboardReportService.inventoryValue, auch reservierte Ware.
   for (const item of items) {
     if (item.status !== 'sold' && item.status !== 'archived')
       add(1, item.purchase?.purchase_date ?? item.created_at);
   }
-  for (const lot of lots) add(lot.remaining_quantity, lot.received_at);
+  for (const lot of lots)
+    add(lot.remaining_quantity, lot.purchase?.purchase_date ?? lot.received_at);
   return result;
 }
 

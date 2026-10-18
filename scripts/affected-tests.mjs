@@ -26,7 +26,12 @@ const featureSpecs = {
     'article-workspace',
     'product-integration',
   ],
-  dashboard: ['dashboard-interactions', 'dashboard-layout', 'responsive-admin-layout'],
+  dashboard: [
+    'dashboard-interactions',
+    'dashboard-layout',
+    'dashboard-design',
+    'responsive-admin-layout',
+  ],
   'deal-calculator': [],
   'deal-monitor': ['deal-monitor', 'sniper-administration'],
   'ebay-fee-calculator': [],
@@ -35,7 +40,7 @@ const featureSpecs = {
   'image-optimizer': ['core-smoke'],
   inventory: ['inventory-sale', 'inventory-archive-columns', 'article-stock-removal'],
   listings: ['listing-studio', 'vinted-listing-drafts', 'vinted-listing-edge-cases'],
-  'master-data': ['brand-label-library', 'clothing-size-guide'],
+  'master-data': ['brand-label-library', 'clothing-size-guide', 'sale-platforms'],
   onboarding: ['beta-registration', 'company-settings'],
   'platform-admin': ['beta-registration', 'sniper-administration', 'beta-access-lifecycle'],
   purchases: [
