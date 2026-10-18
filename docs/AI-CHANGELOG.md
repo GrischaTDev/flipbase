@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-18 - Juna - Layout-PR freigeben und Browsergruppen isolieren
+
+**Auftrag:** PR erstellen und nach erfolgreichen Pflichtprüfungen mergen; Zweig und Worktree anschließend aufräumen.
+
+**Zwischenstand und Fehlerursache:** PR #437 erstellt, aktuellen Hauptzweig übernommen und alle übrigen CI-Prüfungen einschließlich Produktions-PWA unter Linux erfolgreich. Im Browserlauf bestanden 218 Fälle, bevor die Gruppe mit vollständig geänderten Testdateien begann. Deren gemeinsame Anmeldung war nach dem rund 20-minütigen ersten Lauf abgelaufen; Abbruch vor dem ersten Seitenaufruf in der bestehenden Layoutprüfung, kein nachgewiesener Anwendungsfehler. Kein unveränderter Neustart und kein Merge.
+
+**Korrektur:** Der Browserstarter führt die beiden unveränderten Auswahlen nacheinander in eigenen Playwright-Prozessen aus. Jeder Prozess erhält über das vorhandene globale Setup eine frische Anmeldung. Alle 230 Fälle bleiben ausgewählt; die Sitzungsprüfung, Wartezeiten und der Abbruch beim ersten Fehler bleiben bestehen. Fünf Schutzfälle bilden den ursprünglichen Fehler sowie beide einzelnen Gruppen und Fehlerweitergabe aus erster oder zweiter Gruppe nach. Vor der Korrektur fehlgeschlagen; danach alle 33 Auswahl-/Starterprüfungen unter Windows bestanden. Die fünf neuen Unterprozessfälle bestehen zusätzlich unter Linux mit dem vorhandenen Node-22-Abbild, ohne Netzwerk und mit 2 CPUs / 1 GiB Arbeitsspeicher. Die echte Playwright-Auflistung bestätigt weiterhin 218 plus 12 Fälle; Format und Lint bestehen. Unabhängige Diff-Prüfung ohne Befund. Endgültige CI-Abnahme und Merge folgen erst nach grünem Lauf.
+
 ## 2026-10-18 - Juna - Einheitliche Inhaltsbreite mit Layoutwahl
 
 **Auftrag:** Die Breite der Marktplatzübersicht für alle Verwaltungsseiten vereinheitlichen, besonders Vinted-Feed, Suchfilter, Favoriten, Ausgaben, Steuern und Auswertungen. Im Profilmenü drei Breiten anbieten. Nutzer bestätigt: Standard mit breiten Ausnahmen; eigene Schmal-/Vollwahl gilt überall.
