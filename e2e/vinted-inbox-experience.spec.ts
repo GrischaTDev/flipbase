@@ -251,6 +251,21 @@ async function inboxFixture(
                 messageType: 'text_message',
               }))
             : []),
+          ...(automatedReply
+            ? [
+                {
+                  ...scope,
+                  id: '25000000-0000-4000-8000-000000000066',
+                  conversationId: body['p_parent_id'],
+                  title: 'Angebot',
+                  direction: 'outbound',
+                  occurredAt: now,
+                  messageType: 'offer_message',
+                  priceLabel: '50,00 € statt 58,00 €',
+                  isAutomated: true,
+                },
+              ]
+            : []),
           {
             ...scope,
             id: '25000000-0000-4000-8000-000000000061',
@@ -295,7 +310,7 @@ async function inboxFixture(
             messageType: 'status_message',
           },
         ].reverse(),
-        total: (longHistory ? 28 : 4) + (automatedReply ? 1 : 0),
+        total: (longHistory ? 28 : 4) + (automatedReply ? 2 : 0),
         nextCursor: null,
       },
     });
@@ -443,13 +458,32 @@ for (const cloud of [true, false]) {
       if (width === 390) {
         await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
         await expect(page.locator('html')).toHaveClass(/dark/u);
+        await page.evaluate(async () => {
+          await Promise.all(
+            document
+              .getAnimations()
+              .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+              .map((animation) => animation.finished.catch(() => undefined)),
+          );
+        });
       }
       const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
-      const bot = conversation.locator('[data-automated-message-avatar]');
+      const bot = conversation
+        .locator('[data-automated-message-avatar]')
+        .filter({ visible: true })
+        .first();
+      await expect(conversation.locator('[data-automated-message-avatar]')).toHaveCount(2);
+      await expect(
+        conversation.locator(
+          '[data-message-row="25000000-0000-4000-8000-000000000066"] [data-automated-message-avatar]',
+        ),
+      ).toHaveAttribute('aria-label', 'Automatisch von Flipbase gesendet');
       await expect(bot).toBeVisible();
       await expect(bot).toHaveAttribute('title', 'Automatisch von Flipbase gesendet');
       await expect(
-        conversation.getByRole('img', { name: 'Automatisch von Flipbase gesendet', exact: true }),
+        conversation
+          .getByRole('img', { name: 'Automatisch von Flipbase gesendet', exact: true })
+          .first(),
       ).toBeVisible();
       await expect(
         conversation.locator('[data-message-row="25000000-0000-4000-8000-000000000062"]'),

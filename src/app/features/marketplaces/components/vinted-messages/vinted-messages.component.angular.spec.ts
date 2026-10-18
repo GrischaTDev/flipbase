@@ -1344,6 +1344,19 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
             messageType: 'text',
             isAutomated: true,
           },
+          {
+            id: 'auto-offer',
+            direction: 'outbound',
+            messageType: 'offer_message',
+            priceLabel: '15,30 € statt 17,00 €',
+            isAutomated: true,
+          },
+          {
+            id: 'manual-offer',
+            direction: 'outbound',
+            messageType: 'offer_message',
+            priceLabel: '15,30 € statt 17,00 €',
+          },
           { id: 'manual', text: 'Hallo!', direction: 'outbound', messageType: 'text' },
           {
             id: 'incoming',
@@ -1370,7 +1383,15 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
       expect(bot?.getAttribute('title')).toBe('Automatisch von Flipbase gesendet');
       expect(bot?.querySelector('svg')).not.toBeNull();
       expect(bot?.querySelector('app-product-thumbnail')).toBeNull();
-      expect(host.querySelectorAll('[data-automated-message-avatar]')).toHaveLength(1);
+      expect(host.querySelectorAll('[data-automated-message-avatar]')).toHaveLength(2);
+      expect(
+        host
+          .querySelector('[data-message-row="auto-offer"] [data-automated-message-avatar]')
+          ?.getAttribute('aria-label'),
+      ).toBe('Automatisch von Flipbase gesendet');
+      expect(
+        host.querySelector('[data-message-row="manual-offer"] app-product-thumbnail'),
+      ).not.toBeNull();
       expect(
         host.querySelector('[data-message-row="manual"] app-product-thumbnail'),
       ).not.toBeNull();

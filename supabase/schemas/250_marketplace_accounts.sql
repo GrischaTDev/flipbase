@@ -173,15 +173,30 @@ begin
   )
   select coalesce(jsonb_agg((e.body || jsonb_build_object('id', e.id, 'workspaceId', e.workspace_id, 'connectionId', e.connection_id)
     || case when p_kind='conversation' then jsonb_build_object('readVersion',e.current_read_version,
-      'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end) else '{}'::jsonb end
+      'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end)
+      -- Der Artikelstreifen zeigt den gespeicherten Inseratspreis, keinen privaten Transaktionspreis.
+      || coalesce((select jsonb_build_object('itemPrice',publication.body->'price','itemCurrency',publication.body->'currency')
+        from public.marketplace_account_entries publication
+        where publication.workspace_id=e.workspace_id and publication.connection_id=e.connection_id
+          and publication.kind='publication' and publication.external_id=e.body->>'itemId'
+          and e.body->>'isBundle' is distinct from 'true'
+          and case when jsonb_typeof(publication.body->'price')='number' then (publication.body->>'price')::numeric>=0 else false end
+          and publication.body->>'currency' ~ '^[A-Z]{3}$'),'{}'::jsonb) else '{}'::jsonb end
     || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id, 'externalId', e.external_id,
       -- Nur bestätigte Versandbelege zu diesem Konto und Gespräch kennzeichnen; Anbietertexte sind keine Herkunftsbelege.
       'isAutomated', coalesce(e.body->>'direction' = 'outbound', false) and (exists (
         select 1 from public.marketplace_favorite_message_events f
         join public.marketplace_account_entries conversation on conversation.id = e.parent_id
           and conversation.workspace_id = e.workspace_id and conversation.connection_id = e.connection_id and conversation.kind = 'conversation'
+        join public.marketplace_connections connection on connection.workspace_id=f.workspace_id and connection.id=f.connection_id
         where f.workspace_id = e.workspace_id and f.connection_id = e.connection_id and f.state = 'sent'
-          and f.external_message_id = e.external_id
+          and (f.external_account_id is null or f.external_account_id=connection.external_account_id)
+          and (
+            (f.external_message_id=e.external_id and coalesce(e.body->>'messageType','') not in ('offer_message','offer_request_message'))
+            or (f.offer_state='sent' and f.external_offer_id=e.external_id
+              and e.body->>'messageType' in ('offer_message','offer_request_message')
+              and f.external_conversation_id=conversation.external_id)
+          )
           and (f.external_conversation_id is null or f.external_conversation_id = conversation.external_id)
       ) or exists (
         select 1 from public.marketplace_negotiation_jobs job
@@ -190,7 +205,12 @@ begin
         join public.marketplace_account_entries conversation on conversation.id=e.parent_id
           and conversation.workspace_id=e.workspace_id and conversation.connection_id=e.connection_id and conversation.kind='conversation'
         where job.workspace_id=e.workspace_id and job.connection_id=e.connection_id and job.conversation_id=e.parent_id
-          and job.automated and job.state='sent' and job.action='message' and job.command->>'kind'='message'
+          and job.automated and job.state='sent' and (
+            (job.action='message' and job.command->>'kind'='message'
+              and coalesce(e.body->>'messageType','') not in ('offer_message','offer_request_message'))
+            or (job.action='counter' and job.command->>'kind'='offer'
+              and e.body->>'messageType' in ('offer_message','offer_request_message'))
+          )
           and job.external_id=e.external_id and job.command->>'externalConversationId'=conversation.external_id
       ))) else '{}'::jsonb end) order by e.position) filter (where e.position <= 50), '[]'::jsonb),
     case when count(*) > 50 then max(e.id::text) filter (where e.position = 50) else null end
