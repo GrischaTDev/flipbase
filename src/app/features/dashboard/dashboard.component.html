@@ -184,8 +184,9 @@
                         link="/sales"
                         [queryParams]="{ saleId: row.saleId }"
                         [title]="row.articles"
+                        [fullWidth]="true"
                         contentAlign="start"
-                        ><span class="article-title line-clamp-2 min-w-20 text-left">{{
+                        ><span class="article-title block truncate text-left">{{
                           row.articles
                         }}</span></app-button
                       >
