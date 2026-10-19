@@ -34,7 +34,7 @@ const palettes = {
   dark: {
     revenue: '#fcc601',
     totalExpenses: '#a8b0bb',
-    resultAfterDirectCosts: '#52b7bd',
+    resultAfterDirectCosts: '#288b78',
     ticks: '#a8a8a8',
     grid: '#373737',
   },
@@ -49,7 +49,7 @@ const axisFormatter = new Intl.NumberFormat('de-DE', {
 
 /** Eine deckende Grundfarbe mit sehr feinen hellen Linien statt transparenter Lücken. */
 function stripedColumnFill(color: string): string {
-  const tile = `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><rect width="8" height="8" fill="${color}"/><path d="M-2 2L2-2M0 8L8 0M6 10L10 6" fill="none" stroke="white" stroke-opacity="0.16" stroke-width="1"/></svg>`;
+  const tile = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><rect width="12" height="12" fill="${color}"/><path d="M-2 2L2-2M0 12L12 0M10 14L14 10" fill="none" stroke="white" stroke-opacity="0.16" stroke-width="1"/></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(tile)}`;
 }
 
@@ -117,8 +117,8 @@ export function createRevenueChartConfiguration(
       opacity: 1,
       image: {
         src: REVENUE_CHART_SERIES.map((series) => stripedColumnFill(palette[series.key])),
-        width: 8,
-        height: 8,
+        width: 12,
+        height: 12,
       },
     },
     stroke: { width: 0 },

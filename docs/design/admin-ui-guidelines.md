@@ -32,8 +32,10 @@ und kapselartige Schnellaktionen sind ausdrücklich gewählte Flipbase-Werte aus
 dem Entwurf, keine behaupteten Originalmaße von Apple oder Shopify. Gemeinsame
 Bausteine stellen diese Gestaltung nur über ausdrücklich aktivierte Varianten dar.
 
-Das Diagramm verwendet Logo-Gelb `#fcc601`, Grau `#9ca3af` und Petrol `#006b73`;
-im dunklen Schema werden Grau und Petrol für die Lesbarkeit angepasst. Die
+Das Diagramm verwendet Logo-Gelb `#fcc601`, Grau `#9ca3af` und Petrol `#006b73`.
+Nutzerpräzisierung vom 19.10.2026: Der helle Gewinnton entspricht dem eingereichten
+Bildausschnitt und bleibt erhalten. Im dunklen Schema ersetzt gedecktes Grün
+`#288b78` das bisher deutlich hellere Türkis; Grau bleibt dort `#a8b0bb`. Die
 Zeichenfläche ist nach der Nachbesserung 280px hoch; Tastaturauswahl und tabellarische Zusammenfassung
 bleiben erhalten. Negative Ergebnisse behalten ihre verständliche Kennzeichnung.
 
@@ -68,6 +70,10 @@ Reihenfarben bleiben als deckende Grundfläche erhalten; dünne weiße Linien mi
 verfügbaren Breite. Eine gestrichelte senkrechte Linie markiert die ausgewählte
 Datumsgruppe sowohl bei Pointer- als auch bei Tastaturbedienung. Diese Werte
 sind Flipbase-Gestaltungsentscheidungen, keine behaupteten Apple-Originalwerte.
+Weitere Nutzerpräzisierung vom 19.10.2026: Die diagonalen Streifen stehen weiter
+auseinander. Die Musterkachel misst 12 × 12px statt 8 × 8px; Linienstärke und
+Deckkraft bleiben erhalten. Die größere Wiederholungsperiode gilt für alle drei
+Reihen in beiden Farbschemata.
 
 Die drei Schnellaktionen heißen „Einkauf erfassen“, „Verkauf erfassen“ und
 „Inserat erstellen“. Die Inseratwahl führt zum vorhandenen Vinted-Editor;
