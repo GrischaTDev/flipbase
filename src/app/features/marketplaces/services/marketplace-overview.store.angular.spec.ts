@@ -166,14 +166,12 @@ describe('Kontextgetrennte Marktplatzübersicht', () => {
     await store.refreshPlatform('vinted');
     expect(store.section(account)?.selection).toEqual([]);
   });
-  it('entfernt beim Aktualisieren verschwundene Konten und deren Filter', async () => {
+  it('entfernt beim Aktualisieren verschwundene Konten und deren Inseratbereiche', async () => {
     const store = TestBed.inject(MarketplaceOverviewStore);
     await store.load('ws-a');
-    store.selectAccount('vinted', account.connectionId);
     api.loadAccounts.mockResolvedValue([]);
     await store.refreshPlatform('vinted');
     expect(store.section(account)).toBeUndefined();
-    expect(store.accountFilter('vinted')).toBe('');
     expect(store.platforms().find((group) => group.platform === 'vinted')?.accounts).toEqual([]);
   });
   it('übernimmt nach einem Workspacewechsel keine verspätete Plattformaktualisierung', async () => {

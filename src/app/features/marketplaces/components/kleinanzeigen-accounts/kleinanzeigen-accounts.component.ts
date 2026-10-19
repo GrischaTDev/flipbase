@@ -1,3 +1,8 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
+import {
+  kleinanzeigenAccountStatus,
+  kleinanzeigenSyncIssue,
+} from '../../models/kleinanzeigen-account-status';
 import { AuthService } from '../../../../core/services/auth.service';
 import {
   ChangeDetectionStrategy,
@@ -10,15 +15,14 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
+  type TemplateRef,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { LucideRefreshCw, LucideLink, LucideUnplug } from '@lucide/angular';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { KleinanzeigenAccountService } from '../../services/kleinanzeigen-account.service';
@@ -31,13 +35,12 @@ import type {
 @Component({
   selector: 'app-kleinanzeigen-accounts',
   imports: [
+    MarketplaceAccountHeaderComponent,
     DatePipe,
-    ReactiveFormsModule,
-    CardComponent,
+    NgTemplateOutlet,
     ButtonComponent,
     BadgeComponent,
     NoticeBannerComponent,
-    CustomCheckboxComponent,
     LoadingIndicatorComponent,
     ModalShellComponent,
   ],
@@ -50,6 +53,9 @@ export class KleinanzeigenAccountsComponent {
   readonly workspaceId = input.required<string>();
   readonly connectionId = input<string | null>(null);
   readonly setupOnly = input(false);
+  readonly actionsInFooter = input(false);
+  readonly connectionActions = viewChild<TemplateRef<unknown>>('connectionActionsTemplate');
+  readonly managementActions = viewChild<TemplateRef<unknown>>('managementActionsTemplate');
   readonly changed = output<void>();
   readonly connected = output<void>();
   private readonly auth = inject(AuthService);
@@ -75,7 +81,8 @@ export class KleinanzeigenAccountsComponent {
     KleinanzeigenAccount,
     'workspaceId' | 'connectionId' | 'externalAccountId' | 'displayName'
   > | null>(null);
-  readonly publishPermission = new FormControl(false, { nonNullable: true });
+  readonly connectionStatus = kleinanzeigenAccountStatus;
+  readonly syncIssue = kleinanzeigenSyncIssue;
   readonly refreshIcon = LucideRefreshCw;
   readonly linkIcon = LucideLink;
   readonly unplugIcon = LucideUnplug;
@@ -84,10 +91,6 @@ export class KleinanzeigenAccountsComponent {
   private destroyed = false;
   constructor() {
     this.extension.checkInstallation();
-    effect(() => {
-      if (this.busy()) this.publishPermission.disable({ emitEvent: false });
-      else this.publishPermission.enable({ emitEvent: false });
-    });
     effect(() => {
       const workspaceId = this.workspaceId();
       const userId = this.auth.currentUser()?.id;
@@ -103,7 +106,6 @@ export class KleinanzeigenAccountsComponent {
         this.disconnecting.set(null);
         this.localBinding.set(undefined);
         this.profileIssue.set(null);
-        this.publishPermission.setValue(false);
         if (userId) void this.reload(workspaceId);
       });
     });
@@ -206,12 +208,11 @@ export class KleinanzeigenAccountsComponent {
       return;
     const context = this.contextVersion;
     const workspaceId = this.workspaceId();
-    const publish = this.publishPermission.value;
     this.busy.set(true);
     this.error.set(null);
     this.notice.set(null);
     try {
-      const binding = await this.actions.connect(workspaceId, publish);
+      const binding = await this.actions.connect(workspaceId, true);
       if (!this.current(context)) return;
       this.localBinding.set(binding);
       this.notice.set('Kontoverbindung freigegeben. Du kannst die Inserate jetzt abgleichen.');
@@ -242,7 +243,7 @@ export class KleinanzeigenAccountsComponent {
     this.error.set(null);
     this.notice.set(null);
     try {
-      const binding = await this.actions.reconnect(account, this.publishPermission.value);
+      const binding = await this.actions.reconnect(account, true);
       if (!this.current(context)) return;
       if (
         binding.workspaceId !== account.workspaceId ||
@@ -333,14 +334,5 @@ export class KleinanzeigenAccountsComponent {
       : account.accountType === 'commercial'
         ? 'Gewerblich'
         : 'Kontotyp unbekannt';
-  }
-  accountStatusLabel(account: KleinanzeigenAccount): string {
-    return account.status === 'disconnected'
-      ? 'Nicht verbunden'
-      : !account.localGrant?.active || (this.localBinding() === null && !this.isBound(account))
-        ? 'Freigabe erneuern'
-        : !account.lastSyncedAt
-          ? 'Noch kein Abgleich'
-          : 'Verbunden';
   }
 }

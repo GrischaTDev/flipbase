@@ -1,13 +1,9 @@
-<div class="w-full space-y-1.5">
-  @if (label()) {
-    <span
-      [id]="fieldId() + '-label'"
-      class="block text-[13px] font-semibold text-fb-text-primary"
-      [class.sr-only]="labelHidden()"
-      >{{ label() }}</span
-    >
-  }
-
+<app-form-field
+  [controlId]="fieldId()"
+  [label]="label()"
+  [labelHidden]="labelHidden()"
+  [helpText]="helpText()"
+>
   <div class="relative">
     <button
       #trigger
@@ -20,8 +16,7 @@
       [disabled]="isDisabled()"
       (click)="toggle()"
       (keydown)="onTriggerKeydown($event)"
-      class="linear-input flex min-h-8 w-full items-center gap-2 rounded-lg py-1.5 pl-3 pr-16 text-left text-[13px] !bg-fb-bg !text-fb-text-primary outline-none transition-colors focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
-      [class.border-fb-primary]="isOpen()"
+      class="linear-input flex min-h-7 w-full items-center gap-2 rounded-lg py-1 pl-3 pr-16 pointer-coarse:pr-20 text-left text-[13px] outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
     >
       <span [id]="fieldId() + '-value'" class="min-w-0 flex-1 truncate">
         @if (selected()) {
@@ -43,7 +38,7 @@
         type="button"
         (click)="clear()"
         aria-label="Kategorie entfernen"
-        class="absolute right-8 top-1/2 -translate-y-1/2 rounded-md p-1 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+        class="absolute right-8 top-1/2 flex min-h-6 min-w-6 -translate-y-1/2 items-center justify-center rounded-md p-1 pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)]"
       >
         <svg [lucideIcon]="clearIcon" class="size-3.5" aria-hidden="true"></svg>
       </button>
@@ -55,7 +50,7 @@
         [attr.aria-label]="label() || 'Kategorie wählen'"
         [attr.popover]="supportsPopover ? 'manual' : null"
         (wheel)="onPanelWheel($event)"
-        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex h-96 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface text-fb-text-primary shadow-lg"
+        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex h-96 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-[var(--fb-control-menu-border)] bg-[var(--fb-control-menu)] text-fb-text-primary shadow-[0_8px_32px_rgb(0_0_0/0.18)]"
         [style.left.px]="supportsPopover ? panelPosition().left : null"
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
@@ -74,7 +69,7 @@
           [value]="searchTerm()"
           (input)="onSearchInput($event)"
           (keydown)="onSearchKeydown($event)"
-          class="m-1.5 min-h-8 shrink-0 rounded-lg border border-fb-border bg-fb-bg px-2.5 py-1.5 text-[13px] text-fb-text-primary placeholder:text-fb-text-muted outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+          class="linear-input m-1.5 min-h-7 shrink-0 rounded-[7px] px-2.5 py-0.5 text-[13px] text-fb-text-primary pointer-coarse:min-h-11"
         />
 
         @if (!isSearching() && currentParent(); as parent) {
@@ -82,7 +77,7 @@
             <button
               type="button"
               (click)="back()"
-              class="flex min-h-9 w-full items-center gap-2 border-b border-fb-line px-3 text-left text-[13px] text-fb-text-secondary transition-colors hover:bg-fb-surface-alt hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+              class="flex min-h-7 w-full pointer-coarse:min-h-11 items-center gap-2 border-b border-fb-line px-3 text-left text-[13px] text-fb-text-secondary transition-colors hover:bg-fb-surface-alt hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)]"
             >
               <svg [lucideIcon]="chevronLeftIcon" class="size-4" aria-hidden="true"></svg>
               {{ backLabel() }}
@@ -92,7 +87,7 @@
               (click)="select(parent)"
               [disabled]="parent.isSelectable === false"
               [attr.aria-label]="parentPath() + ' auswählen'"
-              class="flex min-h-10 w-full items-center gap-2 bg-fb-surface-alt px-4 text-left text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
+              class="flex min-h-8 w-full pointer-coarse:min-h-11 items-center gap-2 bg-fb-surface-alt px-4 text-left text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)]"
             >
               <span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
                 @if (value() === parent.id) {
@@ -153,9 +148,9 @@
                 [attr.aria-selected]="value() === category.id"
                 (click)="activate(category)"
                 (mousemove)="activeIndex.set(index)"
-                class="group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary transition-colors"
+                class="group flex min-h-6 w-full items-center gap-2 rounded-md px-2.5 py-0.5 pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary transition-colors"
                 [class.bg-fb-surface-alt]="activeIndex() === index"
-                [class.text-fb-primary]="value() === category.id"
+                [class.min-h-10]="isSearching()"
                 [class.font-semibold]="value() === category.id"
               >
                 <span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
@@ -200,9 +195,4 @@
   @if (selected()?.isDeprecated) {
     <p class="text-xs text-fb-text-muted">Kategorie wird nicht mehr geführt.</p>
   }
-  @if (helpText()) {
-    <p [id]="fieldId() + '-help'" class="text-xs leading-relaxed text-fb-text-muted">
-      {{ helpText() }}
-    </p>
-  }
-</div>
+</app-form-field>

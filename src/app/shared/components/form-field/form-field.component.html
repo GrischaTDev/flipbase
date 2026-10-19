@@ -1,0 +1,30 @@
+<div class="flex min-w-0 flex-col gap-[var(--fb-field-label-gap)]">
+  @if (label()) {
+    <div
+      class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"
+      [class.sr-only]="labelHidden()"
+    >
+      <label [for]="controlId()" [id]="controlId() + '-label'" class="fb-field-label">
+        {{ label() }}
+        @if (required()) {
+          <span data-required-indicator aria-hidden="true" class="text-fb-primary">*</span>
+        }
+      </label>
+      <ng-content select="[fieldActions]" />
+    </div>
+  }
+  <ng-content />
+  @if (error()) {
+    <p
+      [id]="controlId() + '-error'"
+      role="alert"
+      class="text-xs leading-[18px] text-[var(--fb-field-error)]"
+    >
+      {{ error() }}
+    </p>
+  } @else if (helpText()) {
+    <p [id]="controlId() + '-help'" class="text-xs leading-[18px] text-fb-text-muted">
+      {{ helpText() }}
+    </p>
+  }
+</div>

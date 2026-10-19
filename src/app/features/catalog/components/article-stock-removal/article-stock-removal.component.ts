@@ -1,3 +1,4 @@
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -18,6 +19,7 @@ export interface StockRemovalTarget {
 @Component({
   selector: 'app-article-stock-removal',
   imports: [
+    TextFieldComponent,
     ReactiveFormsModule,
     ModalShellComponent,
     ButtonComponent,

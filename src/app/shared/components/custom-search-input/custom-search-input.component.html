@@ -39,6 +39,7 @@
     (blur)="onBlur()"
     [class]="inputClasses()"
     [class.pr-8]="clearable() && value()"
+    [class.pointer-coarse:pr-14]="clearable() && value()"
     [class.pr-3]="!clearable() || !value()"
   />
 
@@ -47,7 +48,7 @@
     <button
       type="button"
       (click)="onClear()"
-      class="absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-md text-fb-text-muted transition-colors hover:bg-fb-line/60 hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary cursor-pointer"
+      class="absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-md text-fb-text-muted transition-colors hover:bg-fb-line/60 hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary cursor-pointer"
       title="Suche zurücksetzen"
     >
       <svg

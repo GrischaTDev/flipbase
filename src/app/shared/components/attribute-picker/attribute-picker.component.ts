@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -26,7 +27,7 @@ function normalized(value: string): string {
 /** Einzel- oder Mehrfachauswahl aus Vorschlägen mit eigener Bezeichnung. */
 @Component({
   selector: 'app-attribute-picker',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, FormFieldComponent],
   templateUrl: './attribute-picker.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [

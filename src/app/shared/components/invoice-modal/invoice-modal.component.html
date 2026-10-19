@@ -6,14 +6,14 @@
   Schaltflaechen - gehoert dagegen zur Anwendung und faerbt mit.
 -->
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:z-auto overflow-y-auto animate-fade-in"
+  class="fixed inset-0 fb-dialog-overlay z-50 flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:z-auto overflow-y-auto animate-fade-in"
   appModalDialog
   schliesstBeiKlickAussen
   dialogTitel="Rechnung / Gutschrift"
   (dialogClose)="closed.emit()"
 >
   <div
-    class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl print:border-none print:shadow-none print:max-w-none print:max-h-none print:rounded-none print:bg-white print:text-black my-auto animate-modal-card"
+    class="fb-dialog-surface bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl print:border-none print:shadow-none print:max-w-none print:max-h-none print:rounded-none print:bg-white print:text-black my-auto animate-modal-card"
   >
     <!-- Modal Header (Hidden on Print) -->
     <div
@@ -50,11 +50,11 @@
 
       <div class="flex items-center gap-2">
         <!-- Send Email Button -->
-        <button
+        <app-button
           type="button"
-          (click)="sendEmail()"
+          (clicked)="sendEmail()"
           [disabled]="isSendingEmail()"
-          class="linear-btn-secondary px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+          variant="secondary"
           title="Kaufbestätigung & Rechnung für den E-Mail-Versand vorbereiten"
         >
           @if (isSendingEmail()) {
@@ -66,17 +66,12 @@
             <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
             <span>E-Mail vorbereiten</span>
           }
-        </button>
+        </app-button>
 
         <!-- Print / PDF Button -->
-        <button
-          type="button"
-          (click)="printInvoice()"
-          class="linear-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
-        >
-          <svg [lucideIcon]="printerIcon" class="w-3.5 h-3.5"></svg>
+        <app-button type="button" (clicked)="printInvoice()" variant="primary" [icon]="printerIcon">
           <span>Drucken / Als PDF speichern</span>
-        </button>
+        </app-button>
 
         <!-- Close Button -->
         <button

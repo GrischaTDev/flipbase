@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../button/button.component';
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { BusinessEvent } from '../../../core/models/business-event.models';
 import { mapRecordChanges } from '../../utils/record-changes';
@@ -22,12 +23,13 @@ export function mapRecordHistoryDetails(changes: unknown): readonly RecordHistor
 
 @Component({
   selector: 'app-record-history',
-  imports: [],
+  imports: [ButtonComponent],
   templateUrl: './record-history.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RecordHistoryComponent {
   readonly heading = input('Änderungsverlauf');
+  readonly appearance = input<'default' | 'section'>('default');
   readonly events = input<readonly BusinessEvent[]>([]);
   readonly loading = input(false);
   readonly error = input<string | null>(null);

@@ -243,7 +243,7 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
     expect(cells.slice(4, 8)).toEqual(['Prüfen', 'Prüfen', 'Prüfen', 'Prüfen']);
     const marginCell = element.querySelectorAll('tbody td')[5];
     expect(marginCell.classList.contains('text-fb-text-secondary')).toBe(true);
-    expect(marginCell.classList.contains('text-fb-finance-positive')).toBe(false);
+    expect(marginCell.classList.contains('text-fb-success')).toBe(false);
     expect(element.querySelectorAll('tbody td')[7].classList.contains('text-fb-text-primary')).toBe(
       true,
     );
@@ -253,7 +253,7 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
     expect(actions).toHaveLength(3);
     expect(actions.every((button) => button.disabled)).toBe(true);
     expect(
-      Array.from(element.querySelectorAll('.kpi-value'))
+      Array.from(element.querySelectorAll('[data-finance-value]'))
         .slice(1)
         .every((value) => value.textContent?.trim() === 'Prüfen'),
     ).toBe(true);
@@ -289,15 +289,11 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
     expect(cells[6]).toContain('16,81');
     expect(cells[7]).toContain('3,19');
     const rows = element.querySelectorAll('tbody tr');
-    expect(rows[0].querySelectorAll('td')[5].classList.contains('text-fb-finance-positive')).toBe(
-      true,
-    );
+    expect(rows[0].querySelectorAll('td')[5].classList.contains('text-fb-success')).toBe(true);
     expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-finance-negative')).toBe(
       true,
     );
-    expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-finance-positive')).toBe(
-      false,
-    );
+    expect(rows[1].querySelectorAll('td')[5].classList.contains('text-fb-success')).toBe(false);
     expect(element.querySelector('[role="status"]')?.textContent).not.toContain(
       'Positionen prüfen',
     );
@@ -333,7 +329,7 @@ describe('Steuerjournal – ungeklärte Kosten', () => {
     );
 
     expect(amounts).toHaveLength(3);
-    expect(amounts[0]?.className).toContain('text-fb-finance-positive');
+    expect(amounts[0]?.className).toContain('text-fb-success');
     expect(amounts[1]?.className).toContain('text-fb-finance-negative');
     expect(amounts[2]?.className).toContain('text-fb-text-primary');
     expect(amounts[2]?.className).not.toMatch(/text-fb-finance-(positive|negative)/);

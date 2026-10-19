@@ -252,13 +252,29 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 ## Styling
 
 - Vor UI-Änderungen `docs/design/admin-ui-guidelines.md` lesen. Dort stehen
-  Shopify-Quellen, der Messvertrag und die verbindlichen Nutzerentscheidungen.
+  die aktuellen Apple-Quellen, der Maßvertrag und verbindliche Nutzerentscheidungen.
 - Das helle Logo-Gelb `#fcc601` bleibt der primäre Markenakzent. Nicht ungefragt
   durch Orange, Goldbraun oder ein anderes Gelb ersetzen.
 - Radien, Schatten, Dichte und Bewegung anhand der dokumentierten Referenz
-  umsetzen. Ungeprüfte Schätzwerte nicht als Shopify-Originalwerte ausgeben.
-- Steuer & DATEV vorerst nur auf Tabellenebene angleichen; die übrige Seite
-  bleibt aus diesem Designumbau ausgeklammert.
+  umsetzen. Native Apple-Aussagen, Kit-Beispiele und Flipbase-Webwerte trennen.
+  Ungeprüfte Schätzwerte nicht als Originalwerte ausgeben.
+- Designanpassungen erhalten die bestehende Seitenanordnung, Spaltenzuordnung,
+  Abschnittsreihenfolge und Funktionen. Layoutänderungen nur mit gesondertem
+  Auftrag. Vorher-/Nachhervergleiche vollständig oder klar als Ausschnitt zeigen.
+- Für normale Aktionen, Felder, Auswahl und Dialoge vorhandene Shared Components
+  verwenden. Fehlende Rollen dort ergänzen, keine parallelen lokalen Varianten.
+- Fachseiten steuern nur Platzierung und Außenabstände. Keine inneren Controls
+  per Nachfahrenselektor, ::ng-deep, Inline-Stil oder !important überschreiben.
+  Widersprüchliche Altregeln entfernen; keine neue Vorrangregel darüberlegen.
+- Normale Buttonicons über den icon-Eingang setzen, kein SVG im Textslot.
+  Touch-Zusatzflächen dürfen keinen Eingabetext überlagern.
+- Labels, Pflichtangaben, Hinweise und Fehler über app-form-field vereinheitlichen.
+  Technische/native Spezialflächen nur nach den dokumentierten Ausnahmen.
+- Shared-UI-Prüfung und tatsächliche Verbraucher in Hell/Dunkel sowie Maus/Touch
+  prüfen; historische Shopify-Regeln haben keinen Vorrang vor dem aktuellen Vertrag.
+- Auf Nutzerauftrag umfasst die Gestaltung auch Ausgaben, Steuer/DATEV,
+  Bankabgleich und Auswertung vollständig. Bestehende Anordnung, Berechnungen,
+  Beleg-/Druckdarstellung und Export-/Speicherabläufe erhalten.
 
 - Tailwind-Klassen direkt im HTML. Eigene CSS-/SCSS-Dateien vermeiden.
 - SCSS nur, wenn es nicht anders geht (komplexe Animationen) oder das HTML durch

@@ -1,15 +1,27 @@
 @if (title() || subtitle()) {
-  <div
-    data-card-header
-    class="flex items-center justify-between border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5"
-    [class.shrink-0]="contentLayout() === 'fill'"
-  >
+  <div data-card-header [class]="headerClasses()" [class.shrink-0]="contentLayout() === 'fill'">
     <div class="min-w-0">
       @if (title()) {
-        <h2 class="text-sm font-bold text-fb-text-primary truncate">{{ title() }}</h2>
+        <h2
+          [class]="
+            sectionAppearance()
+              ? 'text-[15px] leading-5 font-semibold text-fb-text-primary break-words'
+              : 'text-sm font-bold text-fb-text-primary truncate'
+          "
+        >
+          {{ title() }}
+        </h2>
       }
       @if (subtitle()) {
-        <p class="text-xs text-fb-text-muted truncate mt-0.5">{{ subtitle() }}</p>
+        <p
+          [class]="
+            sectionAppearance()
+              ? 'mt-1 text-[13px] leading-[18px] text-fb-text-secondary'
+              : 'text-xs text-fb-text-muted truncate mt-0.5'
+          "
+        >
+          {{ subtitle() }}
+        </p>
       }
     </div>
     <div class="flex items-center gap-2 shrink-0">
@@ -18,7 +30,11 @@
   </div>
 } @else {
   <div
-    class="empty:hidden border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5"
+    [class]="
+      sectionAppearance()
+        ? 'empty:hidden px-5 pt-5'
+        : 'empty:hidden border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5'
+    "
     [class.shrink-0]="contentLayout() === 'fill'"
   >
     <ng-content select="[card-header]" />

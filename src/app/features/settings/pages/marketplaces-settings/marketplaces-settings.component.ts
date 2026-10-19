@@ -1,17 +1,17 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { LucideExternalLink as ExternalLink } from '@lucide/angular';
+import { NgTemplateOutlet } from '@angular/common';
+import { LucideArrowRight } from '@lucide/angular';
 import {
   MarketplaceId,
   MarketplaceSettingsService,
 } from '../../../../core/services/marketplace-settings.service';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { MarketplacePlatformPickerComponent } from '../../../../shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-marketplaces-settings',
-  imports: [ButtonComponent, CardComponent, BadgeComponent, MarketplacePlatformPickerComponent],
+  imports: [NgTemplateOutlet, ButtonComponent, CardComponent, MarketplacePlatformPickerComponent],
   templateUrl: './marketplaces-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -30,12 +30,8 @@ export class MarketplacesSettingsComponent {
     void this.onToggle(platform, !this.marketplaceSettings.settings()[platform]);
   }
 
-  readonly externalLinkIcon = ExternalLink;
+  readonly overviewIcon = LucideArrowRight;
 
-  readonly isVintedEnabled = this.marketplaceSettings.isVintedEnabled;
-  readonly isEbayEnabled = this.marketplaceSettings.isEbayEnabled;
-  readonly isKleinanzeigenEnabled = this.marketplaceSettings.isKleinanzeigenEnabled;
-  readonly activeCount = this.marketplaceSettings.activeCount;
   readonly settingsLoading = this.marketplaceSettings.loading;
   readonly settingsSaving = this.marketplaceSettings.saving;
   readonly settingsReady = this.marketplaceSettings.ready;

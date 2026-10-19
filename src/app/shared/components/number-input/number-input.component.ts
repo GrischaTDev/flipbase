@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,8 +21,8 @@ let nextUniqueId = 0;
  */
 @Component({
   selector: 'app-number-input',
+  imports: [FormFieldComponent],
   templateUrl: './number-input.component.html',
-  styleUrl: './number-input.component.scss',
   host: {
     class: 'block',
     '[attr.id]': 'null',
@@ -36,6 +37,9 @@ let nextUniqueId = 0;
   ],
 })
 export class NumberInputComponent implements ControlValueAccessor {
+  readonly label = input('');
+  readonly helpText = input('');
+  readonly error = input<string | null>(null);
   readonly value = model<number | null>(null);
 
   // Canonical English Inputs

@@ -504,22 +504,22 @@
   @if (row.inventoryItem?.sale_state === 'legacy_sold_unverified') {
     <div class="mt-2 w-64 space-y-2">
       <div class="flex flex-wrap gap-1.5">
-        <button
+        <app-button
           data-restore-stock
           type="button"
-          (click)="emitRestoreLegacy(row.inventoryItem!)"
-          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
+          (clicked)="emitRestoreLegacy(row.inventoryItem!)"
+          variant="secondary"
         >
           Artikel ist noch vorhanden
-        </button>
-        <button
+        </app-button>
+        <app-button
           data-reconcile-sale
           type="button"
-          (click)="reconcileSale.emit(row.inventoryItem!)"
-          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
+          (clicked)="reconcileSale.emit(row.inventoryItem!)"
+          variant="secondary"
         >
           Verkauf nachtragen
-        </button>
+        </app-button>
       </div>
     </div>
   }

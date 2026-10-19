@@ -368,11 +368,8 @@
                         ? 'Details der Sendungsverfolgung einklappen'
                         : 'Details der Sendungsverfolgung ausklappen'
                     "
+                    [icon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
                   >
-                    <svg
-                      [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
-                      class="w-4 h-4"
-                    ></svg>
                   </app-button>
                 }
               </div>
@@ -459,11 +456,8 @@
                     (clicked)="copyTrackingNumber()"
                     [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
                     [ariaLabel]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+                    [icon]="trackingCopied() ? checkSmallIcon : copyIcon"
                   >
-                    <svg
-                      [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
-                      class="w-3 h-3"
-                    ></svg>
                   </app-button>
                 </div>
 
@@ -472,8 +466,12 @@
                 </p>
 
                 <div class="flex flex-col gap-2 pt-1">
-                  <app-button variant="secondary" type="button" (clicked)="openTrackingPortal()">
-                    <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
+                  <app-button
+                    variant="secondary"
+                    type="button"
+                    (clicked)="openTrackingPortal()"
+                    [icon]="linkIcon"
+                  >
                     <span>Bei {{ info.carrier_name }} verfolgen</span>
                   </app-button>
 
@@ -483,8 +481,8 @@
                       type="button"
                       (clicked)="markDeliveredAndSync()"
                       [disabled]="isMarkingDelivered()"
+                      [icon]="checkIcon"
                     >
-                      <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
                       <span>{{
                         isMarkingDelivered() ? 'Speichere...' : 'Als zugestellt eintragen'
                       }}</span>

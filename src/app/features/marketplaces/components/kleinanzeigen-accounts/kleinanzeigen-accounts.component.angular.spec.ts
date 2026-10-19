@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import { AuthService } from '../../../../core/services/auth.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -8,11 +9,9 @@ import { KleinanzeigenAccountsComponent } from './kleinanzeigen-accounts.compone
 import { KleinanzeigenAccountService } from '../../services/kleinanzeigen-account.service';
 import { KleinanzeigenAccountActionsService } from '../../services/kleinanzeigen-account-actions.service';
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
@@ -46,15 +45,17 @@ let restore: () => void;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
     {
+      type: MarketplaceAccountHeaderComponent,
+      path: 'src/app/shared/components/marketplace-account-header/marketplace-account-header.component.ts',
+    },
+    {
       type: KleinanzeigenAccountsComponent,
       path: 'src/app/features/marketplaces/components/kleinanzeigen-accounts/kleinanzeigen-accounts.component.ts',
     },
     ...[
-      [CardComponent, 'card'],
       [ButtonComponent, 'button'],
       [BadgeComponent, 'badge'],
       [NoticeBannerComponent, 'notice-banner'],
-      [CustomCheckboxComponent, 'custom-checkbox'],
       [LoadingIndicatorComponent, 'loading-indicator'],
       [ModalShellComponent, 'modal-shell'],
     ].map(([type, name]) => ({
@@ -138,7 +139,7 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     ).toBeDefined();
     expect(
       Array.from(element.querySelectorAll('button')).find((button) =>
-        button.textContent?.includes('Angemeldetes Konto verbinden'),
+        button.textContent?.includes('Konto verbinden'),
       ),
     ).toBeUndefined();
   });
@@ -175,7 +176,7 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     expect(fixture.componentInstance.localBinding()).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Privates Testkonto');
     await fixture.componentInstance.connect();
-    expect(actions.connect).toHaveBeenCalledWith(workspace, false);
+    expect(actions.connect).toHaveBeenCalledWith(workspace, true);
   });
   it('behauptet nach einem gescheiterten Widerruf keine Entfernung', async () => {
     const fixture = await create();
@@ -191,8 +192,8 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Privates Testkonto');
     expect(text).toContain('Zweites Testkonto');
-    expect(text).toContain('17 Inserate');
-    expect(text).toContain('8 von 100');
+    expect(text).toMatch(/Inserate\s+17/u);
+    expect(text).toMatch(/8\s*\/\s*100/u);
     expect(text).toContain('Gewerblich');
     expect(text).toContain('Inseratzahl unbekannt');
   });
@@ -218,7 +219,6 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('keine gültige Freigabe');
     expect(element.textContent).not.toContain('anderes Kleinanzeigen-Konto');
-    fixture.componentInstance.publishPermission.setValue(true);
     actions.reconnect.mockResolvedValue({ ...first, generation: 2, canPublish: true });
     const renew = Array.from(element.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Freigabe erneuern'),
@@ -231,24 +231,50 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     expect(actions.reconnect).toHaveBeenCalledWith(first, true);
     expect(fixture.componentInstance.localBinding()?.generation).toBe(2);
   });
+  it('bietet für eine bestehende Lesefreigabe die Erneuerung mit Veröffentlichung an', async () => {
+    const fixture = await create();
+    fixture.componentRef.setInput('connectionId', first.connectionId);
+    fixture.detectChanges();
+    actions.reconnect.mockResolvedValue({ ...first, generation: 2, canPublish: true });
+    const renew = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ).find((button) => button.textContent?.includes('Freigabe erneuern'));
+    expect(renew).toBeDefined();
+    renew!.click();
+    await fixture.whenStable();
+    expect(actions.reconnect).toHaveBeenCalledWith(first, true);
+    expect(fixture.componentInstance.localBinding()?.canPublish).toBe(true);
+  });
   it('erhält den letzten bestätigten Bestand bei einem gescheiterten neuen Abruf', async () => {
     const fixture = await create();
     actions.synchronize.mockRejectedValue(new Error('Abruf unterbrochen'));
     await fixture.componentInstance.synchronize(first);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Abruf unterbrochen');
-    expect(fixture.nativeElement.textContent).toContain('17 Inserate');
+    expect(fixture.nativeElement.textContent).toMatch(/Inserate\s+17/u);
   });
-  it.each([false, true])(
-    'verbindet nur mit der ausdrücklich gewählten Schreibfreigabe %s',
-    async (allowed) => {
-      bridge.status.mockResolvedValue(null);
-      const fixture = await create();
-      fixture.componentInstance.publishPermission.setValue(allowed);
-      await fixture.componentInstance.connect();
-      expect(actions.connect).toHaveBeenCalledWith(workspace, allowed);
-    },
-  );
+  it('fragt beim Hinzufügen die Veröffentlichungsfreigabe ohne zusätzliche Checkbox an', async () => {
+    bridge.status.mockResolvedValue(null);
+    const fixture = await create();
+    fixture.componentRef.setInput('setupOnly', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="checkbox"]')).toBeNull();
+    expect(actions.connect).not.toHaveBeenCalled();
+    await fixture.componentInstance.connect();
+    expect(actions.connect).toHaveBeenCalledWith(workspace, true);
+  });
+  it('behauptet bei abgelehnter Erweiterungsbestätigung keine neue Verbindung', async () => {
+    bridge.status.mockResolvedValue(null);
+    actions.connect.mockRejectedValue(new Error('Verbindung abgebrochen'));
+    const fixture = await create();
+    const connected = vi.fn();
+    fixture.componentInstance.connected.subscribe(connected);
+    await fixture.componentInstance.connect();
+    expect(actions.connect).toHaveBeenCalledWith(workspace, true);
+    expect(fixture.componentInstance.localBinding()).toBeNull();
+    expect(fixture.componentInstance.error()).toBe('Verbindung abgebrochen');
+    expect(connected).not.toHaveBeenCalled();
+  });
   it('bietet ohne Kleinanzeigen-Fähigkeit die Einrichtung statt einer vermeintlich bereiten Verbindung an', async () => {
     bridge.capabilities.set({ accounts: false, sync: false, publish: false });
     const fixture = await create();
@@ -257,8 +283,7 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
       fixture.nativeElement.querySelectorAll('button'),
     ) as HTMLButtonElement[];
     expect(
-      buttons.find((button) => button.textContent?.includes('Angemeldetes Konto verbinden'))
-        ?.disabled,
+      buttons.find((button) => button.textContent?.includes('Konto verbinden'))?.disabled,
     ).toBe(true);
     expect(actions.connect).not.toHaveBeenCalled();
   });

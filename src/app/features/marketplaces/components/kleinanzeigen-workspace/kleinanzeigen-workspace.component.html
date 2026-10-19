@@ -23,9 +23,7 @@
           @if (group.error) {
             <app-card
               ><p class="text-sm text-fb-text-secondary" role="alert">{{ group.error }}</p>
-              <app-button class="mt-3" (clicked)="store.retryPlatform(group.platform)"
-                >Erneut versuchen</app-button
-              >
+              <app-button class="mt-3" (clicked)="reloadListings()">Erneut versuchen</app-button>
             </app-card>
           } @else if (group.loading) {
             <p class="text-sm text-fb-text-secondary" role="status">Konten werden geladen …</p>
@@ -41,13 +39,13 @@
               </div></app-card
             >
           }
-          @for (account of store.visibleAccounts(group); track accountKey(account)) {
+          @for (account of group.accounts; track accountKey(account)) {
             @if (store.section(account); as section) {
               <app-marketplace-listing-section
                 [section]="section"
+                [collapsible]="false"
                 [showAccountManagement]="true"
                 (accountManagementRequested)="managing.set(account)"
-                (toggled)="store.expand(account)"
                 (retried)="store.retry(account)"
                 (queryChanged)="store.setQuery(accountKey(account), $event)"
                 (selectionChanged)="store.toggleSelection($event.reference, $event.checked)"
@@ -68,11 +66,15 @@
           <app-kleinanzeigen-accounts
             [workspaceId]="current.id"
             [setupOnly]="true"
+            [actionsInFooter]="true"
             (changed)="reloadListings()"
             (connected)="adding.set(false)"
           />
-          <div modal-footer class="flex justify-end">
+          <div modal-footer class="flex flex-wrap justify-end gap-2">
             <app-button (clicked)="adding.set(false)">Schließen</app-button>
+            <ng-container
+              [ngTemplateOutlet]="kleinanzeigenAccount()?.connectionActions() ?? null"
+            />
           </div>
         </app-modal-shell>
       }
@@ -85,10 +87,13 @@
           <app-kleinanzeigen-accounts
             [workspaceId]="current.id"
             [connectionId]="account.connectionId"
+            [actionsInFooter]="true"
             (changed)="reloadListings()"
           />
-          <div modal-footer class="flex justify-end">
-            <app-button (clicked)="managing.set(null)">Schließen</app-button>
+          <div modal-footer class="flex flex-wrap justify-end gap-2">
+            <ng-container
+              [ngTemplateOutlet]="kleinanzeigenAccount()?.managementActions() ?? null"
+            />
           </div>
         </app-modal-shell>
       }

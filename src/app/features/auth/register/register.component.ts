@@ -1,3 +1,4 @@
+import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   AbstractControl,
@@ -47,6 +48,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
 @Component({
   selector: 'app-register',
   imports: [
+    TextFieldComponent,
     ReactiveFormsModule,
     RouterLink,
     TranslatePipe,

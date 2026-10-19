@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
@@ -5,7 +6,7 @@ import type { PurchaseDetailRow } from '../../models/purchase-presentation.model
 
 @Component({
   selector: 'app-purchase-detail-table',
-  imports: [RouterLink, CostStateComponent],
+  imports: [ButtonComponent, RouterLink, CostStateComponent],
   templateUrl: './purchase-detail-table.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

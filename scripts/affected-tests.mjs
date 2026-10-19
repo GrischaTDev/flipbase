@@ -13,7 +13,7 @@ import {
 
 const exec = promisify(execFile);
 const featureSpecs = {
-  accounting: ['purchase-tax-costs', 'company-documents'],
+  accounting: ['purchase-tax-costs', 'company-documents', 'responsive-admin-layout'],
   analytics: ['responsive-admin-layout'],
   audit: ['company-documents'],
   auth: ['login', 'beta-registration', 'beta-access-lifecycle', 'local-supabase'],
@@ -35,8 +35,8 @@ const featureSpecs = {
   'deal-calculator': [],
   'deal-monitor': ['deal-monitor', 'sniper-administration'],
   'ebay-fee-calculator': [],
-  expenses: ['expense-recurrence-contract'],
-  fulfillment: ['company-shop-shipping'],
+  expenses: ['expense-recurrence-contract', 'responsive-admin-layout'],
+  fulfillment: ['company-shop-shipping', 'responsive-admin-layout'],
   'image-optimizer': ['core-smoke'],
   inventory: ['inventory-sale', 'inventory-archive-columns', 'article-stock-removal'],
   listings: ['listing-studio', 'vinted-listing-drafts', 'vinted-listing-edge-cases'],
@@ -292,6 +292,37 @@ export async function readSelectionFiles(cwd = process.cwd()) {
   );
 }
 
+export function buildUnitMatrix(plan) {
+  const matrix = [];
+  for (const suite of ['node', 'dom', 'angular']) {
+    const files = plan.units[suite].length;
+    if (!files) continue;
+    // Die vollständigen Angular-Gruppen müssen einschließlich Vorbereitung in
+    // das bestehende Zehn-Minuten-Limit passen; alle Dateien bleiben enthalten.
+    const shards = plan.full && suite === 'angular' ? Math.ceil(files / 100) : 1;
+    for (let shard = 1; shard <= shards; shard++)
+      matrix.push({ suite, shard: String(shard) + '/' + String(shards) });
+  }
+  return matrix;
+}
+
+export function buildBrowserMatrix(plan) {
+  return [
+    { project: 'chromium', files: plan.browserFiles },
+    { project: 'changed-tests', files: plan.changedBrowserFiles },
+  ]
+    .filter(({ files }) => files.length)
+    .flatMap(({ project, files }) => {
+      // Jede Teilgruppe erhält einen eigenen Runner und eine frische Anmeldung.
+      // Nicht mehr Teilgruppen als Dateien erzeugen, damit kleine Änderungen keine leeren Jobs erhalten.
+      const groups = plan.full ? Math.min(3, files.length) : 1;
+      return Array.from({ length: groups }, (_, index) => ({
+        project,
+        shard: String(index + 1) + '/' + String(groups),
+      }));
+    });
+}
+
 async function main() {
   const paths = process.argv.includes('--paths')
     ? process.argv.slice(process.argv.indexOf('--paths') + 1)
@@ -302,13 +333,8 @@ async function main() {
         headSha: process.env.HEAD_SHA,
       });
   const plan = selectAffectedTests(paths, await readSelectionFiles());
-  const matrix = [];
-  for (const suite of ['node', 'dom', 'angular']) {
-    if (!plan.units[suite].length) continue;
-    const shards = plan.full && suite === 'angular' ? 2 : 1;
-    for (let shard = 1; shard <= shards; shard++)
-      matrix.push({ suite, shard: `${shard}/${shards}` });
-  }
+  const matrix = buildUnitMatrix(plan);
+  const browserMatrix = buildBrowserMatrix(plan);
   const output = {
     test_plan: JSON.stringify(plan),
     selection_hash: selectionHash(plan),
@@ -316,7 +342,10 @@ async function main() {
     unit_matrix: JSON.stringify({
       include: matrix.length ? matrix : [{ suite: 'node', shard: '1/1' }],
     }),
-    browser_required: plan.browserFiles.length + plan.changedBrowserFiles.length > 0,
+    browser_required: browserMatrix.length > 0,
+    browser_matrix: JSON.stringify({
+      include: browserMatrix.length ? browserMatrix : [{ project: 'chromium', shard: '1/1' }],
+    }),
     pwa_required: plan.pwa,
     marketplace_required: plan.checks.marketplace,
     landing_required: plan.checks.landing,

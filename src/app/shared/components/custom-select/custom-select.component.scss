@@ -39,3 +39,25 @@
     background: var(--fb-border-hover);
   }
 }
+
+/* Native Kit-Menüs: 12px Radius, 5px Rand, Haken links. Solide Web-Alternative. */
+.custom-select-menu.macos-menu {
+  border-radius: 12px;
+  padding: 5px 4px;
+  background: var(--fb-control-menu);
+  border-color: var(--fb-control-menu-border);
+  font-family: var(--fb-control-font);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .custom-select-menu.macos-menu {
+    backdrop-filter: none;
+    background: var(--fb-bg-surface);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .custom-select-menu.macos-menu {
+    animation: none;
+  }
+}

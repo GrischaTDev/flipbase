@@ -216,6 +216,21 @@ describe('CustomSelectComponent', () => {
     expect(fixture.componentInstance.isOpen()).toBe(false);
   });
 
+  it('stellt den Fokus vor einer Dialogaktion auf den bleibenden Auslöser zurück', () => {
+    const fixture = createSelect({ actionLabel: 'Verkäufer erstellen', searchable: true });
+    const trigger = triggerOf(fixture);
+    const focusedAtAction: Element[] = [];
+    fixture.componentInstance.action.subscribe(() => focusedAtAction.push(document.activeElement!));
+    trigger.click();
+    fixture.detectChanges();
+    const action = fixture.nativeElement.querySelector(
+      '[data-custom-select-action]',
+    ) as HTMLButtonElement;
+    action.focus();
+    action.click();
+    expect(focusedAtAction).toEqual([trigger]);
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+  });
   it.each(['default', 'pill', 'filter'] as const)(
     'rendert die %s-Variante als benannte geschlossene Combobox',
     (variant) => {
@@ -684,9 +699,13 @@ describe('CustomSelectComponent', () => {
   it.each([
     ['geschlossen', false, false],
     ['geöffnet', true, false],
+    ['mit Erstellen-Aktion', true, false],
     ['deaktiviert', false, true],
   ] as const)('besteht AXE im Zustand %s', async (_state, open, disabled) => {
-    const fixture = createSelect({ disabled });
+    const fixture = createSelect({
+      disabled,
+      actionLabel: _state === 'mit Erstellen-Aktion' ? 'Verkäufer erstellen' : undefined,
+    });
     if (open) {
       triggerOf(fixture).click();
       fixture.detectChanges();
@@ -698,4 +717,22 @@ describe('CustomSelectComponent', () => {
 
     expect(result.violations).toEqual([]);
   });
+});
+
+it('behält Auswahl und Tastaturbedienung mit dem gemeinsamen Standardmenü', () => {
+  const fixture = createSelect({ value: 'vinted' });
+  fixture.detectChanges();
+  const changed = vi.fn();
+  fixture.componentInstance.registerOnChange(changed);
+  expect(triggerOf(fixture).textContent).toContain('Vinted');
+  keydown(fixture, 'ArrowDown');
+  expect(fixture.nativeElement.querySelector('.macos-menu')).not.toBeNull();
+  const selected = optionElements(fixture).find(
+    (option) => option.getAttribute('aria-selected') === 'true',
+  );
+  expect(selected?.querySelector('svg')?.classList.contains('invisible')).toBe(false);
+  keydown(fixture, 'Home');
+  keydown(fixture, 'Enter');
+  expect(changed).toHaveBeenCalledWith('all');
+  expect(fixture.nativeElement.querySelector('[role="listbox"]')).toBeNull();
 });

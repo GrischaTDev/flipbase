@@ -31,9 +31,9 @@ export class ModalShellComponent {
 
   protected readonly cardClasses = computed(() => {
     if (this.presentation() === 'drawer')
-      return 'linear-surface flex h-dvh w-full max-w-lg flex-col overflow-hidden shadow-lg animate-modal-card';
+      return 'linear-surface fb-dialog-surface flex h-dvh w-full max-w-lg flex-col overflow-hidden animate-modal-card';
     const base =
-      'linear-surface flex min-h-0 max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl shadow-lg animate-modal-card sm:max-h-[calc(100dvh-3rem)]';
+      'linear-surface fb-dialog-surface flex min-h-0 max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl animate-modal-card sm:max-h-[calc(100dvh-3rem)]';
 
     const sizeClasses: Record<ModalSize, string> = {
       sm: 'max-w-md',
@@ -48,8 +48,8 @@ export class ModalShellComponent {
 
   protected readonly overlayClasses = computed(() =>
     this.presentation() === 'drawer'
-      ? 'fb-safe-drawer fixed inset-0 z-50 flex h-dvh items-stretch justify-end overflow-hidden bg-black/50 animate-fade-in'
-      : 'fb-safe-modal fixed inset-0 z-50 flex h-dvh items-center justify-center overflow-hidden bg-black/50 p-3 sm:p-6 animate-fade-in',
+      ? 'fb-dialog-overlay fb-safe-drawer fixed inset-0 z-50 flex h-dvh items-stretch justify-end overflow-hidden animate-fade-in'
+      : 'fb-dialog-overlay fb-safe-modal fixed inset-0 z-50 flex h-dvh items-center justify-center overflow-hidden p-3 sm:p-6 animate-fade-in',
   );
 
   protected readonly iconToneClasses = computed(() => {

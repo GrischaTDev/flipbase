@@ -1,0 +1,1486 @@
+{
+  "checkedAt": "2026-10-19T12:27:46.400Z",
+  "method": "getComputedStyle and getBoundingClientRect on existing routes with mocked backend; finite transitions settled",
+  "applicationChanged": false,
+  "figma": {
+    "fileKey": "mBbHXoMOjwhqC1y6eYLk1b",
+    "freshReadSucceeded": false,
+    "reason": "Starter MCP tool call limit"
+  },
+  "nativeDeviceMeasurements": false,
+  "scenarios": [
+    {
+      "sourceClass": "F-rendered",
+      "platform": "Windows / Chromium",
+      "nativeOsBuild": null,
+      "inputMode": {
+        "coarse": false,
+        "touch": 2,
+        "rootFont": "16px"
+      },
+      "theme": "light",
+      "state": "rest and pressed",
+      "unit": "CSS px",
+      "viewportWidth": 1440,
+      "width": 1440,
+      "name": {
+        "text": "",
+        "width": 782,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "description": {
+        "text": "",
+        "width": 782,
+        "height": 90,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "brand": {
+        "text": "",
+        "width": 298,
+        "height": 30,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["6px", "32px", "6px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 298,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "0px", "0px", "10px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(232, 232, 237)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 782,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 298,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 298,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "primary": {
+        "text": "Speichern",
+        "width": 89.40625,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "12px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(252, 198, 1)",
+        "color": "rgb(26, 26, 26)",
+        "minHeight": "0px"
+      },
+      "pageTitle": {
+        "text": "Leinenhemd · Salbeigrün",
+        "width": 282.71875,
+        "height": 32,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "lineHeight": "32px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "card": {
+        "text": "Grunddaten  Name  Beschreibung KategorieKategorie wählen",
+        "width": 824,
+        "height": 339.5,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "12px",
+        "border": "1px solid rgb(229, 229, 234)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "cardTitle": {
+        "text": "Grunddaten",
+        "width": 85.828125,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": 271,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 630.5,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 876.5,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 1081.5,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 271,
+          "x": 1105
+        },
+        {
+          "text": "Kennungen",
+          "y": 817,
+          "x": 1105
+        },
+        {
+          "text": "Shop",
+          "y": 1068.5,
+          "x": 1105
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 1263,
+          "x": 1105
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ],
+      "labelGap": 6,
+      "modalTitle": {
+        "text": "Artikel bearbeiten",
+        "width": 351.75,
+        "height": 22,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "fontWeight": "600",
+        "lineHeight": "22px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "modalDescription": {
+        "text": "",
+        "width": 526,
+        "height": 74,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "modalLabel": {
+        "text": "Artikelname / Produkttitel",
+        "width": 157.796875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "modalCard": {
+        "text": "Artikel bearbeiten Angaben ändern – Zustand, Marktwert und Beschreibung Artikeln",
+        "width": 576,
+        "height": 917,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "16px",
+        "border": "1px solid rgba(0, 0, 0, 0.1)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        },
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": true
+        }
+      ]
+    },
+    {
+      "sourceClass": "F-rendered",
+      "platform": "Windows / Chromium",
+      "nativeOsBuild": null,
+      "inputMode": {
+        "coarse": false,
+        "touch": 2,
+        "rootFont": "16px"
+      },
+      "theme": "dark",
+      "state": "rest and pressed",
+      "unit": "CSS px",
+      "viewportWidth": 1440,
+      "width": 1440,
+      "name": {
+        "text": "",
+        "width": 782,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "description": {
+        "text": "",
+        "width": 782,
+        "height": 90,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "brand": {
+        "text": "",
+        "width": 298,
+        "height": 30,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["6px", "32px", "6px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 298,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "0px", "0px", "10px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(57, 57, 61)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 782,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 298,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 298,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "primary": {
+        "text": "Speichern",
+        "width": 89.40625,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "12px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(252, 198, 1)",
+        "color": "rgb(26, 26, 26)",
+        "minHeight": "0px"
+      },
+      "pageTitle": {
+        "text": "Leinenhemd · Salbeigrün",
+        "width": 282.71875,
+        "height": 32,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "lineHeight": "32px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "card": {
+        "text": "Grunddaten  Name  Beschreibung KategorieKategorie wählen",
+        "width": 824,
+        "height": 339.5,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "12px",
+        "border": "1px solid rgb(57, 57, 61)",
+        "bg": "rgb(40, 40, 43)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "cardTitle": {
+        "text": "Grunddaten",
+        "width": 85.828125,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": 271,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 630.5,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 876.5,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 1081.5,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 271,
+          "x": 1105
+        },
+        {
+          "text": "Kennungen",
+          "y": 817,
+          "x": 1105
+        },
+        {
+          "text": "Shop",
+          "y": 1068.5,
+          "x": 1105
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 1263,
+          "x": 1105
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ],
+      "labelGap": 6,
+      "modalTitle": {
+        "text": "Artikel bearbeiten",
+        "width": 351.75,
+        "height": 22,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "fontWeight": "600",
+        "lineHeight": "22px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "modalDescription": {
+        "text": "",
+        "width": 526,
+        "height": 74,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "modalLabel": {
+        "text": "Artikelname / Produkttitel",
+        "width": 157.796875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "modalCard": {
+        "text": "Artikel bearbeiten Angaben ändern – Zustand, Marktwert und Beschreibung Artikeln",
+        "width": 576,
+        "height": 917,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "16px",
+        "border": "1px solid rgba(255, 255, 255, 0.2)",
+        "bg": "rgb(30, 30, 30)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        },
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": true
+        }
+      ]
+    },
+    {
+      "sourceClass": "F-rendered",
+      "platform": "Windows / Chromium",
+      "nativeOsBuild": null,
+      "inputMode": {
+        "coarse": true,
+        "touch": 1,
+        "rootFont": "16px"
+      },
+      "theme": "light",
+      "state": "rest and pressed",
+      "unit": "CSS px",
+      "viewportWidth": 834,
+      "width": 834,
+      "name": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "description": {
+        "text": "",
+        "width": 536,
+        "height": 90,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "brand": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["6px", "32px", "6px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "0px", "0px", "10px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(232, 232, 237)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 536,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 536,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 536,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "primary": {
+        "text": "Speichern",
+        "width": 89.40625,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "12px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(252, 198, 1)",
+        "color": "rgb(26, 26, 26)",
+        "minHeight": "44px"
+      },
+      "pageTitle": {
+        "text": "Leinenhemd · Salbeigrün",
+        "width": 282.71875,
+        "height": 32,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "lineHeight": "32px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "card": {
+        "text": "Grunddaten  Name  Beschreibung KategorieKategorie wählen",
+        "width": 578,
+        "height": 369.5,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "12px",
+        "border": "1px solid rgb(229, 229, 234)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "cardTitle": {
+        "text": "Grunddaten",
+        "width": 85.828125,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": -235,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 154.5,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 410,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 663.5,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 968,
+          "x": 261
+        },
+        {
+          "text": "Kennungen",
+          "y": 1608,
+          "x": 261
+        },
+        {
+          "text": "Shop",
+          "y": 1891.5,
+          "x": 261
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 2066.5,
+          "x": 261
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ],
+      "labelGap": 6,
+      "modalTitle": {
+        "text": "Artikel bearbeiten",
+        "width": 351.75,
+        "height": 22,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "fontWeight": "600",
+        "lineHeight": "22px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "modalDescription": {
+        "text": "",
+        "width": 526,
+        "height": 74,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "modalLabel": {
+        "text": "Artikelname / Produkttitel",
+        "width": 157.796875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "modalCard": {
+        "text": "Artikel bearbeiten Angaben ändern – Zustand, Marktwert und Beschreibung Artikeln",
+        "width": 576,
+        "height": 976,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "16px",
+        "border": "1px solid rgba(0, 0, 0, 0.1)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "0px"
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        },
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": true
+        }
+      ]
+    },
+    {
+      "sourceClass": "F-rendered",
+      "platform": "Windows / Chromium",
+      "nativeOsBuild": null,
+      "inputMode": {
+        "coarse": true,
+        "touch": 1,
+        "rootFont": "16px"
+      },
+      "theme": "dark",
+      "state": "rest and pressed",
+      "unit": "CSS px",
+      "viewportWidth": 834,
+      "width": 834,
+      "name": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "description": {
+        "text": "",
+        "width": 536,
+        "height": 90,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "brand": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["6px", "32px", "6px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "0px", "0px", "10px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(57, 57, 61)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 536,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 536,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 536,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "primary": {
+        "text": "Speichern",
+        "width": 89.40625,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "16px",
+        "padding": ["0px", "12px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(252, 198, 1)",
+        "color": "rgb(26, 26, 26)",
+        "minHeight": "44px"
+      },
+      "pageTitle": {
+        "text": "Leinenhemd · Salbeigrün",
+        "width": 282.71875,
+        "height": 32,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "lineHeight": "32px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "card": {
+        "text": "Grunddaten  Name  Beschreibung KategorieKategorie wählen",
+        "width": 578,
+        "height": 369.5,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "12px",
+        "border": "1px solid rgb(57, 57, 61)",
+        "bg": "rgb(40, 40, 43)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "cardTitle": {
+        "text": "Grunddaten",
+        "width": 85.828125,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": -235,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 154.5,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 410,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 663.5,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 968,
+          "x": 261
+        },
+        {
+          "text": "Kennungen",
+          "y": 1608,
+          "x": 261
+        },
+        {
+          "text": "Shop",
+          "y": 1891.5,
+          "x": 261
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 2066.5,
+          "x": 261
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ],
+      "labelGap": 6,
+      "modalTitle": {
+        "text": "Artikel bearbeiten",
+        "width": 351.75,
+        "height": 22,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "fontWeight": "600",
+        "lineHeight": "22px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "modalDescription": {
+        "text": "",
+        "width": 526,
+        "height": 74,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "modalLabel": {
+        "text": "Artikelname / Produkttitel",
+        "width": 157.796875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "510",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "modalCard": {
+        "text": "Artikel bearbeiten Angaben ändern – Zustand, Marktwert und Beschreibung Artikeln",
+        "width": 576,
+        "height": 976,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "24px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "16px",
+        "border": "1px solid rgba(255, 255, 255, 0.2)",
+        "bg": "rgb(30, 30, 30)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "0px"
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        },
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": true
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "text-fields",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/text-fields.md",
+      "status": 200,
+      "bytes": 7134,
+      "sha256": "c289bd148fabe4eba8d1bca66591f492ad8b0d1df6b689e231e243ca45f05127"
+    },
+    {
+      "name": "text-views",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/text-views.md",
+      "status": 200,
+      "bytes": 3595,
+      "sha256": "d8de2d418267473e5ccc7ebe13875e2df6735ac134bf8528755674506e316e45"
+    },
+    {
+      "name": "layout",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/layout.md",
+      "status": 200,
+      "bytes": 27356,
+      "sha256": "5077e15025a413628c9eea9a2796b2a9b22f9a7495260c0389c61aad7c0695b3"
+    },
+    {
+      "name": "typography",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/typography.md",
+      "status": 200,
+      "bytes": 75299,
+      "sha256": "8f13b72736ce97f71c35a627f79b6aed44fe80865417e0889ca10c2ee69cde6e"
+    },
+    {
+      "name": "buttons",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/buttons.md",
+      "status": 200,
+      "bytes": 24101,
+      "sha256": "fcc4b119addcf8aed3257b9b87a7014fd180051f2688049d39a81fd330d340ee"
+    },
+    {
+      "name": "sheets",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/sheets.md",
+      "status": 200,
+      "bytes": 16505,
+      "sha256": "62c1b4120c4d4963bec45e6813dd5aee43d878d254a71db24c53a20291a17181"
+    },
+    {
+      "name": "entering-data",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/entering-data.md",
+      "status": 200,
+      "bytes": 5604,
+      "sha256": "d0a187595dd861882b66cb16efb9c438ac84b1a73d48ced44f928ea934d11bd7"
+    },
+    {
+      "name": "menus",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/menus.md",
+      "status": 200,
+      "bytes": 17930,
+      "sha256": "03d5e859101dde4f1cec08bf3aa65c5f6b7970182c72c7defcd63fd52d163bb5"
+    },
+    {
+      "name": "pop-up-buttons",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/pop-up-buttons.md",
+      "status": 200,
+      "bytes": 4461,
+      "sha256": "b16243f97a573b8d81dcbfdeb24c1d5780ef742e9509e3d330a3a3f46b41faed"
+    },
+    {
+      "name": "combo-boxes",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/combo-boxes.md",
+      "status": 200,
+      "bytes": 2297,
+      "sha256": "11371f1f37ba34b5ed7ee4651c3cec91b339b69c1738ccdfd67ae9de3bc3be86"
+    },
+    {
+      "name": "accessibility",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility.md",
+      "status": 200,
+      "bytes": 26319,
+      "sha256": "54c5dd3667681cfc8be5762af8e815dc3aa1a2b6767e17fea8a97f05885c309b"
+    },
+    {
+      "name": "toolbars",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/toolbars.md",
+      "status": 200,
+      "bytes": 23345,
+      "sha256": "169f639272411e6fb542cb4bda966063f3fbb357d6be99c67d24f8b962cc31e8"
+    },
+    {
+      "name": "materials",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/materials.md",
+      "status": 200,
+      "bytes": 21544,
+      "sha256": "707360f892e1c3c84313594ac608f5505303ed4f6e6e9ca752bf72724aa758cd"
+    },
+    {
+      "name": "designing-for-macos",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/designing-for-macos.md",
+      "status": 200,
+      "bytes": 4228,
+      "sha256": "74a7dc6c36d64d05da9034852456dbad996c0d000bcaf6d1e46e4db5ae958466"
+    },
+    {
+      "name": "modality",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/modality.md",
+      "status": 200,
+      "bytes": 6869,
+      "sha256": "d8d5df6a38b4d63325f7bec2dd3552ebc464bec0b1188a32d0199481b31df7da"
+    },
+    {
+      "name": "swiftui-form",
+      "url": "https://developer.apple.com/tutorials/data/documentation/swiftui/form.json",
+      "status": 200,
+      "bytes": 16596,
+      "sha256": "c1eb870a277e5de2908720da4a688cd73d7b6a3d2af370f8da51485040d48f5b"
+    },
+    {
+      "name": "swiftui-labeledcontent",
+      "url": "https://developer.apple.com/tutorials/data/documentation/swiftui/labeledcontent.json",
+      "status": 200,
+      "bytes": 28273,
+      "sha256": "339a47fe9c7a9c84b69a03be470d9a8a372f8ac95875c0284f0bc8ef2bec3e9b"
+    },
+    {
+      "name": "swiftui-formstyle",
+      "url": "https://developer.apple.com/tutorials/data/documentation/swiftui/formstyle.json",
+      "status": 200,
+      "bytes": 24750,
+      "sha256": "23e715ad19dd46bbcbfb5de075219c615a1f9f8c5c9dce5653be153f1530b1a6"
+    },
+    {
+      "name": "swiftui-groupedformstyle",
+      "url": "https://developer.apple.com/tutorials/data/documentation/swiftui/groupedformstyle.json",
+      "status": 200,
+      "bytes": 7933,
+      "sha256": "87fe8b0078b028b9ca8ccef39e71fac3c8e8944e1ffa1bb68062dd4c7ac2723b"
+    },
+    {
+      "name": "swiftui-columnsformstyle",
+      "url": "https://developer.apple.com/tutorials/data/documentation/swiftui/columnsformstyle.json",
+      "status": 200,
+      "bytes": 8078,
+      "sha256": "6e44874df47563653e0e28d5cf148a1f437a39f49ea64b72891271f1c8f32bca"
+    },
+    {
+      "name": "swiftui-controlsize",
+      "url": "https://developer.apple.com/tutorials/data/documentation/swiftui/controlsize.json",
+      "status": 200,
+      "bytes": 13369,
+      "sha256": "f389ea41a9cdb3fb5cb3924cbad482368e824eabbb41763931857ea5ed9f1b00"
+    },
+    {
+      "name": "labels",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/labels.md",
+      "status": 200,
+      "bytes": 6834,
+      "sha256": "1afda93914583e8d23038eb6c7f42b2feb81b9aa023c275106c435ae84df8a79"
+    },
+    {
+      "name": "alerts",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/alerts.md",
+      "status": 200,
+      "bytes": 12797,
+      "sha256": "3ca74ae37739632d178e5a25f02a1f6ba48d566368cbcc2205922fadd09f0d3d"
+    },
+    {
+      "name": "appkit",
+      "url": "https://developer.apple.com/tutorials/data/documentation/appkit.json",
+      "status": 200,
+      "bytes": 33445,
+      "sha256": "91aad1693f30330386ad3fee162ab2a29c80d822aa5c264d4298e11f7357650e"
+    },
+    {
+      "name": "uikit",
+      "url": "https://developer.apple.com/tutorials/data/documentation/uikit.json",
+      "status": 200,
+      "bytes": 52856,
+      "sha256": "fb2467d1ce78e8fd6557a33256dc4f1bf732ae89162c62e60b74ba6040c78bf2"
+    }
+  ]
+}

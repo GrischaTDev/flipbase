@@ -59,6 +59,7 @@ describe('ButtonComponent', () => {
     fixture.detectChanges();
     const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
     expect(button.classList).toContain('min-h-18');
+    expect(button.classList).toContain('gap-2');
     fixture.componentRef.setInput('density', 'compact');
     fixture.detectChanges();
     expect(button.classList).toContain('min-h-11');
@@ -73,7 +74,7 @@ describe('ButtonComponent', () => {
     const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
     expect(button.classList.contains('h-9')).toBe(true);
     expect(button.classList.contains('px-2')).toBe(true);
-    expect(button.classList.contains('rounded-lg')).toBe(true);
+    expect(button.classList.contains('rounded-md')).toBe(true);
   });
   it('übermittelt den umschaltbaren Zustand an den nativen Button', () => {
     fixture.componentRef.setInput('ariaPressed', true);

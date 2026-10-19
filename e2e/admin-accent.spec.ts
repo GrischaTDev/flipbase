@@ -1,4 +1,13 @@
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, test, type Page } from '@playwright/test';
+import { mockMarketplace } from './support/marketplace-account-fixture';
+
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+async function openDashboard(page: Page) {
+  await mockMarketplace(page);
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  await page.goto('/dashboard');
+  await expect(page.locator('main h1')).toBeVisible();
+}
 
 test('zeigt den primaeren Einkaufsknopf in Logo-Gelb mit lesbarer Schrift', async ({ page }) => {
   await openDashboard(page);
@@ -14,8 +23,8 @@ test('zeigt den primaeren Einkaufsknopf in Logo-Gelb mit lesbarer Schrift', asyn
 
 test('zeigt primaere Admin-Aktionen auch im dunklen Design in Logo-Gelb', async ({ page }) => {
   await openDashboard(page);
-  await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/purchases');
+  await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
 
   // .first(): siehe Kommentar im hellen Pendant oben.
   const button = page.getByRole('button', { name: 'Neuer Einkauf' }).first();
@@ -36,8 +45,8 @@ test('zeigt Verkauf erfassen im hellen Admin in Logo-Gelb', async ({ page }) => 
 
 test('zeigt Verkauf erfassen im dunklen Admin in Logo-Gelb', async ({ page }) => {
   await openDashboard(page);
-  await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/sales');
+  await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
 
   const button = page.getByRole('button', { name: 'Verkauf erfassen' }).first();
   await expect(button).toBeVisible();
@@ -45,15 +54,15 @@ test('zeigt Verkauf erfassen im dunklen Admin in Logo-Gelb', async ({ page }) =>
   await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
 
-test('behält im dunklen Admin die aktive Sidebarfläche in vollem Logo-Gelb', async ({ page }) => {
+test('trennt im dunklen Admin neutrale Navigation von gelben Hauptaktionen', async ({ page }) => {
   await openDashboard(page);
-  await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/purchases');
+  await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
 
   const activeLink = page.locator('app-sidebar a[aria-current="page"]');
   await expect(activeLink).toBeVisible();
-  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(40, 40, 43)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(242, 242, 247)');
 });
 
 test('hält umgebogene Indigo-Aktionsflächen im hellen Admin gelb und kontrastreich', async ({

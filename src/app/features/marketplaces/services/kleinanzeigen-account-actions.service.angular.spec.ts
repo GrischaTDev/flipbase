@@ -66,6 +66,20 @@ describe('Kleinanzeigen-Kontoaktionen', () => {
     expect(api.connect).toHaveBeenCalledWith(workspace, proposal, false);
     expect(bridge.connect).toHaveBeenCalledWith(proposal.nonce, binding);
   });
+  it('überträgt die angefragte Veröffentlichungsfreigabe an Erweiterung und Server', async () => {
+    const publishingBinding = { ...binding, canPublish: true };
+    api.connect.mockResolvedValue(publishingBinding);
+    bridge.connect.mockResolvedValue(publishingBinding);
+    const actions = TestBed.inject(KleinanzeigenAccountActionsService);
+    expect(await actions.connect(workspace, true)).toEqual(publishingBinding);
+    expect(bridge.prepare).toHaveBeenCalledWith(
+      workspace,
+      true,
+      expect.stringContaining('/functions/v1/kleinanzeigen-local-extension'),
+    );
+    expect(api.connect).toHaveBeenCalledWith(workspace, proposal, true);
+    expect(bridge.connect).toHaveBeenCalledWith(proposal.nonce, publishingBinding);
+  });
   it('startet für ein anderes Browserkonto keinen Serverauftrag', async () => {
     bridge.status.mockResolvedValue({ ...binding, connectionId: '13' });
     await expect(

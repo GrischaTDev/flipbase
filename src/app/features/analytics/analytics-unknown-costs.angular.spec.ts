@@ -13,6 +13,7 @@ import { SalesService } from '../../core/services/sales.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
+import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { AnalyticsComponent } from './analytics.component';
 
 interface InputMetadata {
@@ -47,6 +48,13 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(ButtonComponent, ['tone']);
+  registerSignalInputs(CustomSelectComponent, [
+    'ariaLabel',
+    'variant',
+    'widthClass',
+    'options',
+    'value',
+  ]);
   registerSignalInputs(TableActionButtonComponent, [
     'icon',
     'label',
@@ -133,7 +141,9 @@ function cardText(host: HTMLElement, label: string): string {
   const labels = [...host.querySelectorAll('span, strong')];
   const target = labels.find((node) => node.textContent?.trim() === label);
   expect(target, label).toBeDefined();
-  return target!.closest('.linear-surface')!.textContent ?? '';
+  return (
+    (target!.closest('[data-finance-metric]') ?? target!.closest('app-card'))!.textContent ?? ''
+  );
 }
 
 describe('Analytics: offene Kosten bis zur sichtbaren Auswertung', () => {
@@ -206,7 +216,7 @@ describe('Analytics: offene Kosten bis zur sichtbaren Auswertung', () => {
   });
 
   it.each([
-    { profit: 30, color: 'text-fb-finance-positive' },
+    { profit: 30, color: 'text-fb-success' },
     { profit: -10, color: 'text-fb-finance-negative' },
     { profit: 0, color: 'text-fb-text-primary' },
     { profit: null, color: 'text-fb-text-primary' },

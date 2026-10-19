@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../button/button.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -26,7 +27,7 @@ import { SyncStatusService } from '../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-invoice-modal',
-  imports: [ModalDialogDirective, CurrencyPipe, DatePipe, LucideDynamicIcon],
+  imports: [ButtonComponent, ModalDialogDirective, CurrencyPipe, DatePipe, LucideDynamicIcon],
   templateUrl: './invoice-modal.component.html',
   styleUrl: './invoice-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

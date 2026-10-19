@@ -1,3 +1,5 @@
+import { TextFieldComponent } from '../text-field/text-field.component';
+import { ButtonComponent } from '../button/button.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -32,7 +34,13 @@ declare class BarcodeDetector {
 
 @Component({
   selector: 'app-barcode-scanner',
-  imports: [ModalDialogDirective, ReactiveFormsModule, LucideDynamicIcon],
+  imports: [
+    TextFieldComponent,
+    ButtonComponent,
+    ModalDialogDirective,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+  ],
   templateUrl: './barcode-scanner.component.html',
   styleUrl: './barcode-scanner.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

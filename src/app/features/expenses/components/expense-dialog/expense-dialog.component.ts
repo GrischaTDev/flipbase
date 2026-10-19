@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
 import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -46,6 +47,7 @@ function localDateKey(date = new Date()): string {
 @Component({
   selector: 'app-expense-dialog',
   imports: [
+    FormFieldComponent,
     CurrencyPipe,
     ReactiveFormsModule,
     ModalShellComponent,

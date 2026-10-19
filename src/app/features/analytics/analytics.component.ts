@@ -1,8 +1,13 @@
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { CardComponent } from '../../shared/components/card/card.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import {
   LucideDynamicIcon,
@@ -70,9 +75,11 @@ type AnalyticsSection =
   selector: 'app-analytics',
   imports: [
     CurrencyPipe,
+    CustomSelectComponent,
     LucideDynamicIcon,
     TableActionButtonComponent,
     ButtonComponent,
+    CardComponent,
     BadgeComponent,
     PageHeaderComponent,
   ],
@@ -89,14 +96,17 @@ export class AnalyticsComponent {
   ];
   readonly sections: readonly { value: AnalyticsSection; label: string; icon: LucideIconInput }[] =
     [
-      { value: 'overview', label: 'Gesamtübersicht', icon: TrendingUp },
-      { value: 'holding', label: 'Holding-Modus', icon: Building },
-      { value: 'platforms', label: 'Plattform-Rentabilität & Gebühren', icon: BarChart3 },
-      { value: 'velocity', label: 'Haltedauer & Kapitalumschlag', icon: Zap },
-      { value: 'cohorts', label: 'Einkaufs-Kohorten & Recovery', icon: Boxes },
-      { value: 'heatmap', label: 'Verkäufe nach Wochentag', icon: Clock },
-      { value: 'categories', label: 'Kategorien & Sell-Through', icon: Tag },
+      { value: 'overview', label: 'Übersicht', icon: TrendingUp },
+      { value: 'holding', label: 'Alle Workspaces', icon: Building },
+      { value: 'platforms', label: 'Plattformen', icon: BarChart3 },
+      { value: 'velocity', label: 'Bestand & Kapital', icon: Zap },
+      { value: 'cohorts', label: 'Einkaufsgruppen', icon: Boxes },
+      { value: 'heatmap', label: 'Wochentage', icon: Clock },
+      { value: 'categories', label: 'Kategorien', icon: Tag },
     ];
+  readonly sectionOptions: readonly SelectOption<AnalyticsSection>[] = this.sections.map(
+    ({ value, label }) => ({ value, label }),
+  );
   readonly analyticsService = inject(AnalyticsService);
   readonly salesService = inject(SalesService);
   readonly purchaseService = inject(PurchaseService);

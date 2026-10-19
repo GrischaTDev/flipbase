@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../button/button.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,7 +31,7 @@ import { LoggerService } from '../../../core/services/logger.service';
 
 @Component({
   selector: 'app-ai-photo-scanner-modal',
-  imports: [ModalDialogDirective, CurrencyPipe, LucideDynamicIcon],
+  imports: [ButtonComponent, ModalDialogDirective, CurrencyPipe, LucideDynamicIcon],
   templateUrl: './ai-photo-scanner-modal.component.html',
   styleUrl: './ai-photo-scanner-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

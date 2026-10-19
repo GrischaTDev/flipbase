@@ -1,5 +1,6 @@
-<div class="space-y-4 animate-fade-in">
+<div class="min-w-0 space-y-5 animate-fade-in">
   <app-page-header
+    appearance="content"
     title="Ausgaben"
     subtitle="Betriebsausgaben, laufende Kosten und Belege im Blick behalten."
     [icon]="pageIcon"
@@ -15,13 +16,13 @@
   </app-page-header>
 
   <div
-    class="inline-flex rounded-lg border border-fb-line bg-fb-well p-1"
+    class="inline-flex max-w-full flex-wrap gap-1 rounded-lg bg-fb-subtle p-1"
     role="group"
     aria-label="Ausgabenansicht"
   >
     <app-button
       size="slim"
-      [variant]="activeTab() === 'expenses' ? 'secondary' : 'ghost'"
+      variant="segment"
       [ariaPressed]="activeTab() === 'expenses'"
       (clicked)="setTab('expenses')"
     >
@@ -29,7 +30,7 @@
     </app-button>
     <app-button
       size="slim"
-      [variant]="activeTab() === 'recurring' ? 'secondary' : 'ghost'"
+      variant="segment"
       [ariaPressed]="activeTab() === 'recurring'"
       (clicked)="setTab('recurring')"
     >
@@ -38,25 +39,29 @@
   </div>
 
   @if (activeTab() === 'expenses') {
-    <section aria-label="Ausgabensummen" class="grid gap-3 sm:grid-cols-3">
-      <app-card rounded="xl">
-        <p class="text-xs font-medium text-fb-text-muted">Gesamt</p>
-        <p class="mt-1 font-mono text-lg font-semibold text-fb-text-primary">
-          {{ summary().total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-        </p>
-      </app-card>
-      <app-card rounded="xl">
-        <p class="text-xs font-medium text-fb-text-muted">Bezahlt</p>
-        <p class="mt-1 font-mono text-lg font-semibold text-fb-success">
-          {{ summary().paid | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-        </p>
-      </app-card>
-      <app-card rounded="xl">
-        <p class="text-xs font-medium text-fb-text-muted">Offen</p>
-        <p class="mt-1 font-mono text-lg font-semibold text-fb-warning">
-          {{ summary().open | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-        </p>
-      </app-card>
+    <section aria-label="Ausgabensummen">
+      <app-card variant="section" padding="none"
+        ><div class="grid grid-cols-1 gap-px bg-fb-border-subtle sm:grid-cols-3">
+          <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+            <p class="text-xs font-medium text-fb-text-muted">Gesamt</p>
+            <p class="mt-1 tabular-nums text-2xl font-semibold text-fb-text-primary">
+              {{ summary().total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </p>
+          </div>
+          <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+            <p class="text-xs font-medium text-fb-text-muted">Bezahlt</p>
+            <p class="mt-1 tabular-nums text-2xl font-semibold text-fb-success">
+              {{ summary().paid | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </p>
+          </div>
+          <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+            <p class="text-xs font-medium text-fb-text-muted">Offen</p>
+            <p class="mt-1 tabular-nums text-2xl font-semibold text-fb-text-primary">
+              {{ summary().open | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </p>
+          </div>
+        </div></app-card
+      >
     </section>
 
     <p class="text-xs text-fb-text-muted">
@@ -84,60 +89,54 @@
       (sortChanged)="onSortChanged($event)"
       (viewResetRequested)="resetView()"
     >
-      <app-custom-select
+      <div
         table-view
-        ariaLabel="Status filtern"
-        triggerId="expense-status-filter"
-        variant="toolbar"
-        widthClass="w-36"
-        [options]="statusOptions"
-        [value]="statusFilter()"
-        (valueChange)="setStatus($event)"
-      />
-      <div table-filters class="flex flex-wrap items-center gap-2">
-        <div
-          class="inline-flex items-center gap-1 rounded-lg border border-fb-line bg-fb-well p-1"
-          role="group"
-          aria-label="Ausgabenzeitraum"
-        >
-          <app-button
-            size="slim"
-            variant="ghost"
-            [icon]="previousMonthIcon"
-            [iconOnly]="true"
-            ariaLabel="Vorheriger Monat"
-            title="Vorheriger Monat"
-            (clicked)="moveExpensePeriod(-1)"
-          />
-          <span
-            class="min-w-28 px-1 text-center text-xs font-medium text-fb-text-primary"
-            aria-live="polite"
-          >
-            {{ expensePeriodLabel() }}
-          </span>
-          <app-button
-            size="slim"
-            variant="ghost"
-            [icon]="nextMonthIcon"
-            [iconOnly]="true"
-            ariaLabel="Nächster Monat"
-            title="Nächster Monat"
-            (clicked)="moveExpensePeriod(1)"
-          />
-          <app-button
-            size="slim"
-            [variant]="expensePeriod() === null ? 'secondary' : 'ghost'"
-            [ariaPressed]="expensePeriod() === null"
-            (clicked)="showAllExpensePeriods()"
-          >
-            Alle
-          </app-button>
-        </div>
+        class="flex max-w-full items-center gap-1"
+        role="group"
+        aria-label="Monat wählen"
+      >
+        <app-custom-select
+          ariaLabel="Ausgabenzeitraum"
+          triggerId="expense-period-filter"
+          variant="toolbar"
+          widthClass="w-56"
+          [options]="expensePeriodOptions()"
+          [value]="expensePeriod() ?? 'all'"
+          (valueChange)="setExpensePeriod($event)"
+        />
+        <app-button
+          variant="ghost"
+          [icon]="previousMonthIcon"
+          [iconOnly]="true"
+          ariaLabel="Vorheriger Monat"
+          title="Vorheriger Monat"
+          (clicked)="moveExpensePeriod(-1)"
+        />
+        <app-button
+          variant="ghost"
+          [icon]="nextMonthIcon"
+          [iconOnly]="true"
+          ariaLabel="Nächster Monat"
+          title="Nächster Monat"
+          (clicked)="moveExpensePeriod(1)"
+        />
+      </div>
+      <div table-filters class="contents">
+        <app-custom-select
+          ariaLabel="Status filtern"
+          triggerId="expense-status-filter"
+          variant="toolbar"
+          widthClass="w-44"
+          [options]="statusOptions"
+          [value]="statusFilter()"
+          (valueChange)="setStatus($event)"
+        />
+
         <app-custom-select
           ariaLabel="Kategorie filtern"
           triggerId="expense-category-filter"
           variant="toolbar"
-          widthClass="min-w-44 max-w-64"
+          widthClass="min-w-52 max-w-64"
           [options]="categoryOptions()"
           [value]="categoryFilter()"
           (valueChange)="setCategory($event)"
@@ -247,17 +246,17 @@
                       </td>
                     }
                     @case ('quantity') {
-                      <td class="text-right font-mono text-fb-text-secondary">
+                      <td class="text-right tabular-nums text-fb-text-secondary">
                         {{ expense.quantity }}
                       </td>
                     }
                     @case ('gross_amount') {
-                      <td class="text-right font-mono text-fb-text-primary">
+                      <td class="text-right tabular-nums text-fb-text-primary">
                         {{ expense.gross_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                       </td>
                     }
                     @case ('vat_rate') {
-                      <td class="text-right font-mono text-fb-text-secondary">
+                      <td class="text-right tabular-nums text-fb-text-secondary">
                         {{
                           expense.vat_rate === null ? 'Nicht ausgewiesen' : expense.vat_rate + ' %'
                         }}
@@ -338,7 +337,7 @@
     </app-data-table>
   } @else {
     <section class="space-y-3" aria-labelledby="recurring-expenses-heading">
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="recurring-expenses-heading" class="text-sm font-semibold text-fb-text-primary">
             Wiederkehrende Ausgaben
@@ -380,9 +379,11 @@
                   <td class="font-semibold text-fb-text-primary">{{ rule.title }}</td>
                   <td class="text-fb-text-secondary">{{ rule.vendor_name || '–' }}</td>
                   <td class="text-fb-text-secondary">{{ categoryName(rule.category_id) }}</td>
-                  <td class="text-right font-mono text-fb-text-secondary">{{ rule.quantity }}</td>
+                  <td class="text-right tabular-nums text-fb-text-secondary">
+                    {{ rule.quantity }}
+                  </td>
                   <td class="text-fb-text-secondary">{{ frequencyLabel(rule.frequency) }}</td>
-                  <td class="text-right font-mono text-fb-text-primary">
+                  <td class="text-right tabular-nums text-fb-text-primary">
                     {{ rule.gross_amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
                   <td class="text-fb-text-secondary">

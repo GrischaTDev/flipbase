@@ -60,18 +60,13 @@
           formControlName="reason"
         />
         <div>
-          <label
-            for="stock-removal-notes"
-            class="mb-1 block text-sm font-medium text-fb-text-primary"
-            >Notiz (optional)</label
-          >
-          <textarea
+          <app-text-field
             id="stock-removal-notes"
+            label="Notiz (optional)"
             formControlName="notes"
-            maxlength="1000"
-            rows="2"
-            class="linear-input w-full rounded-md px-2.5 py-2 text-sm"
-          ></textarea>
+            [maxLength]="1000"
+            [multiline]="2"
+          />
         </div>
         <button type="submit" class="sr-only" tabindex="-1">Bestandsabgang buchen</button>
       </form>

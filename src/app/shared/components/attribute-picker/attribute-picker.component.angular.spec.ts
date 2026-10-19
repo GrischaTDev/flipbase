@@ -112,7 +112,7 @@ describe('AttributePickerComponent', () => {
     fixture.detectChanges();
     expect(
       (fixture.nativeElement as HTMLElement).querySelectorAll(
-        '[role="option"] span[aria-hidden="true"]',
+        '[role="option"] span[aria-hidden="true"][style]',
       ),
     ).toHaveLength(2);
   });

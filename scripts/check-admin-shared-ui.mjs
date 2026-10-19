@@ -34,6 +34,20 @@ const legacyNativeFormControlPaths = new Set();
 const legacyCustomModalPaths = new Set();
 
 const approvedTableExceptions = new Map([
+  // Feste KI-Treffer ohne Suche/Spaltenwahl; Tageswerte als Textalternative zum Diagramm.
+  [
+    'src/app/features/catalog/components/product-dialog/product-dialog.component.html',
+    new Set(['static-table']),
+  ],
+  [
+    'src/app/features/marketplaces/components/ebay-traffic-overview/ebay-traffic-overview.component.html',
+    new Set(['static-table']),
+  ],
+  // Positionseditor im Verkaufsformular, keine verwaltete Datensatzliste.
+  [
+    'src/app/features/sales/components/sale-create-modal/sale-create-modal.component.html',
+    new Set(['embedded-table']),
+  ],
   [
     'src/app/features/purchases/pages/purchase-print/purchase-print.component.html',
     new Set(['static-table']),
@@ -83,7 +97,10 @@ function templateElements(source, path) {
     for (const node of nodes ?? []) {
       const nextAncestors = typeof node.name === 'string' ? [...ancestors, node] : ancestors;
       if (typeof node.name === 'string') elements.push({ node, ancestors });
-      walk(node.children, nextAncestors);
+      for (const key of ['children', 'branches', 'cases']) walk(node[key], nextAncestors);
+      for (const key of ['empty', 'placeholder', 'loading', 'error']) {
+        if (node[key]) walk([node[key]], nextAncestors);
+      }
     }
   };
   walk(parsed.nodes, []);
@@ -96,8 +113,44 @@ export function findAdminSharedUiViolations(path, source) {
   const elements = templateElements(source, path);
   const tables = elements.filter(({ node }) => node.name === 'table');
 
+  const sharedControls = new Set([
+    'app-button',
+    'app-text-field',
+    'app-number-input',
+    'app-custom-select',
+    'app-custom-search-input',
+    'app-brand-picker',
+    'app-category-picker',
+    'app-attribute-picker',
+    'app-form-field',
+  ]);
+  for (const { node } of elements) {
+    if (
+      ['button', 'a', 'label'].includes(node.name) &&
+      /\blinear-btn-(?:primary|secondary)\b/u.test(attributeValue(node, 'class') || '')
+    ) {
+      violations.push({ rule: 'native-styled-action', line: node.sourceSpan.start.line + 1 });
+    }
+    if (!sharedControls.has(node.name)) continue;
+    const classes = attributeValue(node, 'class') || '';
+    if (
+      /\[&[^\]]*\]:|(?:^|\s)!(?:h-|min-h-|rounded-|bg-|text-|border-|p[xytrbl]?-)/u.test(classes)
+    ) {
+      violations.push({ rule: 'shared-control-override', line: node.sourceSpan.start.line + 1 });
+    }
+  }
+
   for (const { node } of elements) {
     if (node.name !== 'app-button') continue;
+    if (
+      (node.children ?? []).some(
+        (child) =>
+          String(child.name).endsWith(':svg') &&
+          child.inputs?.some((binding) => binding.name === 'lucideIcon'),
+      )
+    ) {
+      violations.push({ rule: 'projected-button-icon', line: node.sourceSpan.start.line + 1 });
+    }
     const text = (node.children ?? [])
       .filter((child) => typeof child.value === 'string')
       .map((child) => child.value)
@@ -210,6 +263,34 @@ export function findAdminSharedUiViolations(path, source) {
   );
 }
 
+export function findAdminSharedStyleViolations(path, source) {
+  const normalizedPath = path.replaceAll('\\', '/');
+  const feature = normalizedPath.startsWith('src/app/features/');
+  const dialogs = normalizedPath === 'src/styles/flipbase-dialogs.css';
+  if (!feature && !dialogs) return [];
+  const violations = [];
+  const withoutComments = source.replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+    comment.replace(/[^\n]/gu, ' '),
+  );
+  for (const match of withoutComments.matchAll(/([^{}]+)\{/gu)) {
+    const selector = match[1];
+    if (
+      (dialogs && /\blabel\b/u.test(selector)) ||
+      (feature &&
+        /app-(?:button|text-field|number-input|custom-select|custom-search-input|brand-picker|category-picker|attribute-picker|form-field)\b|\.linear-input\b|\.fb-button\b/u.test(
+          selector,
+        ))
+    ) {
+      const firstCharacter = selector.search(/\S/u);
+      violations.push({
+        rule: 'shared-control-css-override',
+        line: lineAt(source, match.index + Math.max(firstCharacter, 0)),
+      });
+    }
+  }
+  return violations;
+}
+
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = await Promise.all(
@@ -218,7 +299,7 @@ async function collectHtmlFiles(directory) {
       return entry.isDirectory() ? collectHtmlFiles(path) : [path];
     }),
   );
-  return files.flat().filter((path) => path.endsWith('.html'));
+  return files.flat().filter((path) => /\.(?:html|css|scss)$/u.test(path));
 }
 
 export async function checkAdminSharedUi(root = process.cwd()) {
@@ -226,12 +307,40 @@ export async function checkAdminSharedUi(root = process.cwd()) {
   const files = (await collectHtmlFiles(featuresRoot)).filter(
     (path) => !relative(featuresRoot, path).replaceAll('\\', '/').startsWith('store/'),
   );
+  const sharedRoot = resolve(root, 'src/app/shared/components');
+  const sharedFiles = await collectHtmlFiles(sharedRoot).catch((error) => {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  });
+  files.push(...sharedFiles.filter((file) => file.endsWith('.html')));
+  const dialogsPath = resolve(root, 'src/styles/flipbase-dialogs.css');
+  const dialogsExist = await readFile(dialogsPath, 'utf8').then(
+    () => true,
+    (error) => {
+      if (error.code === 'ENOENT') return false;
+      throw error;
+    },
+  );
+  if (dialogsExist) files.push(dialogsPath);
   const violations = [];
 
   for (const path of files) {
     const source = await readFile(path, 'utf8');
     const relativePath = relative(root, path).replaceAll('\\', '/');
-    for (const violation of findAdminSharedUiViolations(relativePath, source)) {
+    const findings = path.endsWith('.html')
+      ? findAdminSharedUiViolations(relativePath, source)
+      : findAdminSharedStyleViolations(relativePath, source);
+    const shared = relativePath.startsWith('src/app/shared/');
+    const compositeForm = /\/(?:workspace-modal|barcode-scanner)\//u.test(relativePath);
+    for (const violation of findings) {
+      if (
+        shared &&
+        !['native-styled-action', 'shared-control-override', 'projected-button-icon'].includes(
+          violation.rule,
+        ) &&
+        !(compositeForm && violation.rule === 'native-form-control')
+      )
+        continue;
       violations.push(`${relativePath}:${violation.line} ${violation.rule}`);
     }
   }

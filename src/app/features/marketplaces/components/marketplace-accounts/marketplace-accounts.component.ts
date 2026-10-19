@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -32,6 +33,7 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
 @Component({
   selector: 'app-marketplace-accounts',
   imports: [
+    MarketplaceAccountHeaderComponent,
     VintedLocalConnectComponent,
     ReactiveFormsModule,
     ButtonComponent,

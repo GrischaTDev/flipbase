@@ -17,14 +17,14 @@
   }
   @if (canManage()) {
     @if (!connectionId()) {
-      <app-card padding="none">
+      <div>
         @if (extension.checking()) {
           <p class="text-sm text-fb-text-secondary" role="status">Erweiterung wird geprüft …</p>
         }
-        @if (!extension.capabilities().accounts) {
+        @if (!extension.checking() && !extension.capabilities().accounts) {
           <app-notice-banner class="mb-4"
-            >Die Kleinanzeigen-Funktion der Flipbase-Erweiterung ist in diesem Browserprofil noch
-            nicht erreichbar. Aktualisiere die Erweiterung und lade Flipbase neu.</app-notice-banner
+            >Die Flipbase-Erweiterung ist nicht erreichbar. Prüfe, ob sie in diesem Browser
+            aktiviert ist.</app-notice-banner
           >
         }
         @if (localBinding(); as binding) {
@@ -35,18 +35,11 @@
             Freigabe bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}.
           </p>
         } @else {
-          <p class="mb-3 text-sm text-fb-text-secondary">
-            Melde Dich bei Kleinanzeigen im gewünschten Konto an. Prüfe den erkannten Kontonamen im
-            Bestätigungsfenster der Erweiterung.
-          </p>
-          <app-custom-checkbox
-            [formControl]="publishPermission"
-            label="Veröffentlichung erlauben"
+          <app-marketplace-account-header
+            platform="kleinanzeigen"
+            [centered]="true"
+            description="Verbinde das Kleinanzeigen-Konto, mit dem Du in diesem Browser angemeldet bist."
           />
-          <p class="mt-2 text-xs text-fb-text-secondary">
-            Optional: Veröffentlichen nach Deiner Bestätigung in Flipbase. Bei Gebühren oder
-            unbekanntem Kontingent wird gestoppt.
-          </p>
         }
         @if (profileIssue(); as issue) {
           <p class="mt-3 text-sm text-fb-text-secondary" role="status">{{ issue }}</p>
@@ -64,28 +57,17 @@
             Entferne zuerst die Verknüpfung, um in diesem Browser ein anderes Konto hinzuzufügen.
           </p>
         } @else {
-          <div class="mt-4 flex flex-wrap gap-2">
-            <app-button
-              variant="primary"
-              [icon]="linkIcon"
-              [loading]="busy()"
-              [disabled]="!extension.capabilities().accounts || localBinding() !== null"
-              (clicked)="connect()"
-              >Angemeldetes Konto verbinden</app-button
-            >
-            <app-button
-              [icon]="refreshIcon"
-              [disabled]="busy()"
-              (clicked)="extension.checkInstallation()"
-              >Erweiterung prüfen</app-button
-            >
-          </div>
+          @if (!actionsInFooter()) {
+            <div class="mt-5 flex flex-wrap gap-2">
+              <ng-container [ngTemplateOutlet]="connectionActionsTemplate" />
+            </div>
+          }
         }
-      </app-card>
+      </div>
     }
     @if (!setupOnly() && !visibleAccounts().length && !loading()) {
-      <app-card
-        ><p class="text-sm text-fb-text-secondary">
+      <div>
+        <p class="text-sm text-fb-text-secondary">
           @if (connectionId()) {
             Dieses Konto ist nicht mehr verfügbar. Schließe die Verwaltung und aktualisiere die
             Übersicht.
@@ -93,74 +75,81 @@
             Noch kein Kleinanzeigen-Konto verbunden. Verbinde zuerst das gewünschte Konto in diesem
             Browserprofil.
           }
-        </p></app-card
-      >
+        </p>
+      </div>
     }
-    <div class="grid min-w-0 gap-4" [class.lg:grid-cols-2]="!connectionId()">
-      @for (account of visibleAccounts(); track account.connectionId) {
-        <app-card>
+    @if (visibleAccounts().length) {
+      <div class="grid min-w-0 gap-4" [class.lg:grid-cols-2]="!connectionId()">
+        @for (account of visibleAccounts(); track account.connectionId) {
           <article
             class="min-w-0 space-y-4"
             [attr.aria-label]="'Kleinanzeigen-Konto ' + account.displayName"
           >
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div class="min-w-0">
-                <h3 class="break-words text-sm font-semibold text-fb-text-primary">
-                  {{ account.displayName }}
-                </h3>
-                <p class="mt-1 text-xs text-fb-text-secondary">{{ accountTypeLabel(account) }}</p>
+            @let status = connectionStatus(account);
+            <app-marketplace-account-header
+              platform="kleinanzeigen"
+              [title]="account.displayName"
+              [description]="accountTypeLabel(account)"
+            >
+              <app-badge [tone]="status.tone">{{ status.label }}</app-badge>
+            </app-marketplace-account-header>
+            <dl class="grid grid-cols-2 divide-x divide-fb-line border-y border-fb-line py-4">
+              <div class="space-y-1 pr-4">
+                <dt class="text-xs text-fb-text-secondary">Inserate</dt>
+                <dd class="text-xl font-semibold tabular-nums text-fb-text-primary">
+                  {{ account.listingCount ?? '—' }}
+                </dd>
+                @if (account.listingCount === null) {
+                  <dd class="text-xs text-fb-text-muted">Inseratzahl unbekannt</dd>
+                }
               </div>
-              <app-badge [tone]="account.localGrant?.active ? 'neutral' : 'caution'">{{
-                accountStatusLabel(account)
-              }}</app-badge>
-            </div>
-            <div class="space-y-1 text-sm text-fb-text-secondary">
-              <p>
-                @if (account.listingCount !== null) {
-                  <strong class="text-fb-text-primary">{{ account.listingCount }} Inserate</strong>
-                } @else {
-                  Inseratzahl unbekannt
-                }
-              </p>
-              <p>
-                @if (account.lastSyncedAt) {
-                  Letzter Abgleich:
-                  {{ account.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm' }}
-                } @else {
-                  Noch kein vollständiger Abgleich bestätigt
-                }
-              </p>
-            </div>
-            @if (account.accountType === 'private') {
-              @if (account.quota; as quota) {
-                <div class="space-y-1">
-                  <p class="text-sm text-fb-text-primary">
-                    {{ quota.used }} von 100 Anzeigen in 30 Tagen beobachtet
-                  </p>
-                  <p class="text-xs text-fb-text-secondary">
-                    Kontoeinstellungen, geprüft am
-                    {{ quota.observedAt | date: 'dd.MM.yyyy, HH:mm' }}. Vor dem Inserieren wird
-                    erneut geprüft.
-                  </p>
+              <div class="space-y-1 pl-4">
+                <dt class="text-xs text-fb-text-secondary">Kostenloses Kontingent</dt>
+                @if (account.accountType === 'private' && account.quota; as quota) {
+                  <dd
+                    class="text-xl font-semibold tabular-nums text-fb-text-primary"
+                    [attr.aria-label]="quota.used + ' von 100 Anzeigen in 30 Tagen beobachtet'"
+                  >
+                    {{ quota.used }}
+                    <span class="text-sm font-normal text-fb-text-muted">/ 100</span>
+                  </dd>
+                  <dd class="text-xs text-fb-text-secondary">In 30 Tagen beobachtet</dd>
+
                   @if (quota.used >= 100) {
-                    <app-badge tone="critical">Kostenloses Kontingent ausgeschöpft</app-badge>
+                    <dd>
+                      <app-badge tone="critical">Kostenloses Kontingent ausgeschöpft</app-badge>
+                    </dd>
                   }
+                } @else {
+                  <dd class="text-sm font-medium text-fb-text-primary">
+                    {{ account.accountType === 'private' ? 'Unbekannt' : 'Nicht bestätigt' }}
+                  </dd>
+                  <dd class="text-xs text-fb-text-secondary">Mit einem Inseratabgleich prüfen</dd>
+                }
+              </div>
+            </dl>
+            <dl class="space-y-3 text-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <dt class="text-fb-text-secondary">Letzter Abgleich</dt>
+                <dd class="font-medium text-fb-text-primary">
+                  {{
+                    account.lastSyncedAt
+                      ? (account.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
+                      : 'Noch kein vollständiger Abgleich bestätigt'
+                  }}
+                </dd>
+              </div>
+              @if (account.quota; as quota) {
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <dt class="text-fb-text-secondary">Kontingent geprüft</dt>
+                  <dd class="text-fb-text-secondary">
+                    {{ quota.observedAt | date: 'dd.MM.yyyy, HH:mm' }}
+                  </dd>
                 </div>
-              } @else {
-                <p class="text-sm text-fb-text-secondary">
-                  Kontingent noch unbekannt. Zum Prüfen die Inserate abgleichen.
-                </p>
               }
-            } @else {
-              <p class="text-sm text-fb-text-secondary">
-                Für diesen Kontotyp ist das kostenlose Privatkontingent nicht bestätigt.
-              </p>
-            }
-            @if (account.sync?.state === 'failed') {
-              <app-notice-banner
-                >Der letzte Abruf wurde unterbrochen. Der zuletzt bestätigte Bestand bleibt
-                erhalten.</app-notice-banner
-              >
+            </dl>
+            @if (syncIssue(account); as message) {
+              <app-notice-banner>{{ message }}</app-notice-banner>
             }
             @if (account.sync?.state === 'reading' || account.sync?.state === 'queued') {
               <p class="text-sm text-fb-text-secondary" role="status">
@@ -172,40 +161,39 @@
                 {{ bindingNotice(account) }}
               </p>
             }
-            @if (!isBound(account) || !account.localGrant?.active) {
-              <app-custom-checkbox
-                [formControl]="publishPermission"
-                label="Veröffentlichung erlauben"
-              />
-              <app-button
-                size="md"
-                variant="primary"
-                [disabled]="busy() || !extension.capabilities().accounts"
-                (clicked)="reconnect(account)"
-                >Freigabe erneuern</app-button
-              >
+            @if (!actionsInFooter()) {
+              <div class="flex flex-wrap justify-end gap-2 border-t border-fb-line pt-4">
+                <app-button
+                  variant="destructive"
+                  [icon]="unplugIcon"
+                  [disabled]="busy()"
+                  (clicked)="disconnecting.set(account)"
+                  >Konto entfernen</app-button
+                >
+                @if (
+                  !isBound(account) || !account.localGrant?.active || !account.localGrant.canPublish
+                ) {
+                  <app-button
+                    [variant]="canSync(account) ? 'secondary' : 'primary'"
+                    [disabled]="busy() || !extension.capabilities().accounts"
+                    (clicked)="reconnect(account)"
+                    >Freigabe erneuern</app-button
+                  >
+                }
+                <app-button
+                  [variant]="canSync(account) ? 'primary' : 'secondary'"
+                  [icon]="refreshIcon"
+                  [disabled]="!canSync(account)"
+                  [loading]="busy() && isBound(account)"
+                  (clicked)="synchronize(account)"
+                  >Inserate abgleichen</app-button
+                >
+              </div>
             }
-            <div class="flex flex-wrap gap-2">
-              <app-button
-                size="md"
-                [icon]="refreshIcon"
-                [disabled]="!canSync(account)"
-                [loading]="busy() && isBound(account)"
-                (clicked)="synchronize(account)"
-                >Inserate abgleichen</app-button
-              ><app-button
-                variant="destructive"
-                size="md"
-                [icon]="unplugIcon"
-                [disabled]="busy()"
-                (clicked)="disconnecting.set(account)"
-                >Konto entfernen</app-button
-              >
-            </div>
           </article>
-        </app-card>
-      }
-    </div>
+        }
+      </div>
+    }
   }
 </div>
 @if (disconnecting(); as account) {
@@ -226,3 +214,53 @@
     </div></app-modal-shell
   >
 }
+
+<ng-template #connectionActionsTemplate>
+  @if (canManage() && !connectionId() && !localBinding()) {
+    <app-button
+      variant="primary"
+      [icon]="linkIcon"
+      [loading]="busy()"
+      [disabled]="!extension.capabilities().accounts || localBinding() !== null"
+      (clicked)="connect()"
+      >Konto verbinden</app-button
+    >
+    @if (!extension.capabilities().accounts) {
+      <app-button
+        [icon]="refreshIcon"
+        [loading]="extension.checking()"
+        [disabled]="busy()"
+        (clicked)="extension.checkInstallation()"
+        >Erweiterung prüfen</app-button
+      >
+    }
+  }
+</ng-template>
+
+<ng-template #managementActionsTemplate>
+  @for (account of visibleAccounts(); track account.connectionId) {
+    <app-button
+      variant="destructive"
+      [icon]="unplugIcon"
+      [disabled]="busy()"
+      (clicked)="disconnecting.set(account)"
+      >Konto entfernen</app-button
+    >
+    @if (!isBound(account) || !account.localGrant?.active || !account.localGrant.canPublish) {
+      <app-button
+        [variant]="canSync(account) ? 'secondary' : 'primary'"
+        [disabled]="busy() || !extension.capabilities().accounts"
+        (clicked)="reconnect(account)"
+        >Freigabe erneuern</app-button
+      >
+    }
+    <app-button
+      [variant]="canSync(account) ? 'primary' : 'secondary'"
+      [icon]="refreshIcon"
+      [disabled]="!canSync(account)"
+      [loading]="busy() && isBound(account)"
+      (clicked)="synchronize(account)"
+      >Inserate abgleichen</app-button
+    >
+  }
+</ng-template>

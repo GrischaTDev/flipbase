@@ -5,6 +5,7 @@ import {
   LucideInfo as Info,
 } from '@lucide/angular';
 import { ModalDialogDirective } from '../../directives/modal-dialog.directive';
+import { ButtonComponent } from '../button/button.component';
 import { ConfirmDialogService } from './confirm-dialog.service';
 
 /**
@@ -16,7 +17,7 @@ import { ConfirmDialogService } from './confirm-dialog.service';
  */
 @Component({
   selector: 'app-confirm-dialog',
-  imports: [ModalDialogDirective, LucideDynamicIcon],
+  imports: [ModalDialogDirective, LucideDynamicIcon, ButtonComponent],
   templateUrl: './confirm-dialog.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,

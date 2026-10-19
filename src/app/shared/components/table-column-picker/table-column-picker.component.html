@@ -1,7 +1,7 @@
 <button
   #trigger
   type="button"
-  class="linear-btn-secondary inline-flex min-h-9 items-center gap-1.5 cursor-pointer rounded-md px-2.5 text-[13px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+  class="fb-button inline-flex min-h-7 items-center gap-1.5 cursor-pointer rounded-md border border-transparent bg-[var(--fb-control-bg)] px-3 text-[13px] font-medium text-[var(--fb-control-text)] hover:bg-[var(--fb-control-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
   [attr.aria-expanded]="isOpen()"
   [attr.aria-controls]="panelId"
   aria-haspopup="dialog"
@@ -43,13 +43,15 @@
         }
       </label>
     }
-    <button
+    <app-button
       type="button"
-      class="linear-btn-secondary mt-1.5 w-full rounded-md px-2 py-2 text-[13px]"
-      (click)="showAll()"
+      variant="secondary"
+      class="mt-1.5"
+      [fullWidth]="true"
+      (clicked)="showAll()"
     >
       Alle Spalten
-    </button>
+    </app-button>
   </fieldset>
 }
 @if (saveError(); as error) {

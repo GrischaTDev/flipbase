@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../button/button.component';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -16,7 +17,7 @@ import { TableColumnOption } from '../../../core/models/table-preferences';
 let nextPickerId = 0;
 @Component({
   selector: 'app-table-column-picker',
-  imports: [LucideDynamicIcon],
+  imports: [ButtonComponent, LucideDynamicIcon],
   templateUrl: './table-column-picker.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {

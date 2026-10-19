@@ -20,8 +20,8 @@
     />
 
     <div>
-      <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
       <app-custom-select
+        label="Kategorie"
         formControlName="category_id"
         ariaLabel="Kategorie"
         [options]="categoryOptions()"
@@ -30,10 +30,8 @@
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div>
-        <label for="recurring-expense-quantity" class="mb-1.5 block text-[13px] font-semibold">
-          Menge
-        </label>
         <app-number-input
+          label="Menge"
           id="recurring-expense-quantity"
           ariaLabel="Menge"
           formControlName="quantity"
@@ -43,10 +41,8 @@
         />
       </div>
       <div>
-        <label for="recurring-expense-gross-amount" class="mb-1.5 block text-[13px] font-semibold">
-          Gesamtbetrag
-        </label>
         <app-number-input
+          label="Gesamtbetrag"
           id="recurring-expense-gross-amount"
           ariaLabel="Gesamtbetrag"
           formControlName="gross_amount"
@@ -99,8 +95,8 @@
     </div>
 
     <div>
-      <span class="mb-1.5 block text-[13px] font-semibold">Rhythmus</span>
       <app-custom-select
+        label="Rhythmus"
         formControlName="frequency"
         ariaLabel="Wiederholungsrhythmus"
         [options]="frequencyOptions"
@@ -109,12 +105,20 @@
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Startdatum</span>
-        <app-date-picker formControlName="start_date" ariaLabel="Startdatum" />
+        <app-form-field controlId="finance-recurring-expense-dialog-start-date" label="Startdatum">
+          <app-date-picker
+            feldId="finance-recurring-expense-dialog-start-date"
+            formControlName="start_date"
+            ariaLabel="Startdatum"
+        /></app-form-field>
       </div>
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Enddatum</span>
-        <app-date-picker formControlName="end_date" ariaLabel="Enddatum" />
+        <app-form-field controlId="finance-recurring-expense-dialog-end-date" label="Enddatum">
+          <app-date-picker
+            feldId="finance-recurring-expense-dialog-end-date"
+            formControlName="end_date"
+            ariaLabel="Enddatum"
+        /></app-form-field>
       </div>
     </div>
 

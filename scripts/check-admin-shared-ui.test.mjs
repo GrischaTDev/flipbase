@@ -3,7 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { checkAdminSharedUi, findAdminSharedUiViolations } from './check-admin-shared-ui.mjs';
+import {
+  checkAdminSharedUi,
+  findAdminSharedStyleViolations,
+  findAdminSharedUiViolations,
+} from './check-admin-shared-ui.mjs';
 
 test('rejects native selects, local status pills and black primary variants in admin templates', () => {
   const source = `
@@ -223,4 +227,84 @@ test('prevents new native controls in the unified purchase workspace but allows 
   assert.deepEqual(findAdminSharedUiViolations(path, '<input type="file" />'), [
     { rule: 'native-workspace-control', line: 1 },
   ]);
+});
+
+test('rejects local overrides of shared control internals and geometry', () => {
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/example.html',
+      '<app-text-field class="[&_input]:rounded-full" />\n<app-button class="!h-12 !bg-red-500">Speichern</app-button>',
+    ),
+    [
+      { rule: 'shared-control-override', line: 1 },
+      { rule: 'shared-control-override', line: 2 },
+    ],
+  );
+});
+test('allows shared control placement and explicit supported variants', () => {
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/example.html',
+      '<app-text-field class="col-span-2 min-w-0" />\n<app-button shape="capsule" class="shrink-0" />',
+    ),
+    [],
+  );
+});
+
+test('checks shared controls inside Angular control flow', () => {
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/example.html',
+      '@if (enabled) { <app-text-field class="[&_input]:rounded-full" /> }',
+    ),
+    [{ rule: 'shared-control-override', line: 1 }],
+  );
+});
+test('rejects legacy styled native actions', () => {
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/example.html',
+      '<button class="linear-btn-primary">Speichern</button>',
+    ),
+    [{ rule: 'native-styled-action', line: 1 }],
+  );
+});
+
+test('rejects feature CSS that overrides shared controls', () => {
+  assert.deepEqual(
+    findAdminSharedStyleViolations(
+      'src/app/features/example/example.scss',
+      'app-text-field input { border: 2px solid black; }\n:host ::ng-deep app-custom-select button { border-radius: 99px; }',
+    ),
+    [
+      { rule: 'shared-control-css-override', line: 1 },
+      { rule: 'shared-control-css-override', line: 2 },
+    ],
+  );
+  assert.deepEqual(
+    findAdminSharedStyleViolations(
+      'src/app/features/example/example.scss',
+      '@media print { .receipt { color: black; } }',
+    ),
+    [],
+  );
+});
+
+test('requires the shared icon API for normal button icons', () => {
+  assert.deepEqual(
+    findAdminSharedUiViolations(
+      'src/app/features/example/example.html',
+      '<app-button><svg [lucideIcon]="saveIcon"></svg><span>Speichern</span></app-button>',
+    ),
+    [{ rule: 'projected-button-icon', line: 1 }],
+  );
+});
+test('rejects modal label overrides of the central field role', () => {
+  assert.deepEqual(
+    findAdminSharedStyleViolations(
+      'src/styles/flipbase-dialogs.css',
+      'app-modal-shell label { font-weight: 510; }',
+    ),
+    [{ rule: 'shared-control-css-override', line: 1 }],
+  );
 });

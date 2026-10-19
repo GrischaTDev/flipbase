@@ -4,14 +4,14 @@
   Design mit.
 -->
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+  class="fixed inset-0 fb-dialog-overlay z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
   appModalDialog
   schliesstBeiKlickAussen
   dialogTitel="Etiketten drucken"
   (dialogClose)="closed.emit()"
 >
   <div
-    class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl p-6 space-y-4 my-auto animate-modal-card"
+    class="fb-dialog-surface bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl p-6 space-y-4 my-auto animate-modal-card"
   >
     <!-- Modal Header -->
     <div class="flex items-start justify-between border-b border-fb-border pb-3 shrink-0 no-print">
@@ -31,14 +31,9 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <button
-          type="button"
-          (click)="printLabels()"
-          class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
-        >
-          <svg [lucideIcon]="printerIcon" class="w-4 h-4"></svg>
+        <app-button type="button" (clicked)="printLabels()" variant="primary" [icon]="printerIcon">
           <span>Jetzt drucken</span>
-        </button>
+        </app-button>
 
         <button
           type="button"

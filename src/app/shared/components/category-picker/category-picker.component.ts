@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -43,7 +44,7 @@ let nextCategoryPickerId = 0;
  */
 @Component({
   selector: 'app-category-picker',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, FormFieldComponent],
   templateUrl: './category-picker.component.html',
   styleUrl: './category-picker.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,7 +55,11 @@ let nextCategoryPickerId = 0;
       multi: true,
     },
   ],
-  host: { class: 'block w-full', '(document:click)': 'onDocumentClick($event)' },
+  host: {
+    class: 'block w-full',
+    '[attr.id]': 'null',
+    '(document:click)': 'onDocumentClick($event)',
+  },
 })
 export class CategoryPickerComponent implements ControlValueAccessor {
   readonly source = input<CategoryPickerSource | null>(null);

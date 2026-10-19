@@ -12,9 +12,9 @@
       Speichere zuerst deine Änderungen, um Varianten zu bearbeiten.
     </p>
   }
-  <ul class="divide-y divide-fb-line rounded-lg border border-fb-border">
+  <ul class="divide-y divide-fb-line">
     @for (variant of orderedVariants(); track variant.id) {
-      <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[13px]">
+      <li class="flex flex-wrap items-center justify-between gap-3 py-3 text-[13px]">
         <div class="min-w-0">
           @if (variant.id === product().id) {
             <span class="font-semibold text-fb-text-primary">
@@ -23,7 +23,7 @@
           } @else {
             <a
               [routerLink]="['/catalog', variant.id]"
-              class="font-semibold text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+              class="font-semibold text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fb-control-focus)]"
             >
               {{ variant.size || 'Ohne Größe' }} · {{ variant.color || 'Ohne Farbe' }}
             </a>
@@ -62,7 +62,12 @@
 </div>
 
 @if (dialogOpen()) {
-  <app-modal-shell title="Variante hinzufügen" size="lg" (closed)="closeDialog()">
+  <app-modal-shell
+    title="Variante hinzufügen"
+    size="lg"
+    [hasFooter]="false"
+    (closed)="closeDialog()"
+  >
     <app-product-variant-create-form
       [product]="product()"
       (cancelled)="closeDialog()"

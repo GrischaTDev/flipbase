@@ -1,3 +1,7 @@
+import {
+  kleinanzeigenAccountStatus,
+  kleinanzeigenSyncIssue,
+} from '../models/kleinanzeigen-account-status';
 import { KleinanzeigenAccountService } from './kleinanzeigen-account.service';
 import { Injectable, inject } from '@angular/core';
 import type { MarketplaceId } from '../../../core/services/marketplace-settings.service';
@@ -26,15 +30,13 @@ export class MarketplaceOverviewService {
       return result.accounts.map((account) => ({
         platform,
         ...account,
+        connectionStatus: kleinanzeigenAccountStatus(account),
         observedAt: account.lastSyncedAt,
         completeness: account.lastSyncedAt ? 'complete' : 'unknown',
         supportsSearch: true,
         supportsStatus: true,
         canEdit: false,
-        error:
-          account.sync?.state === 'failed'
-            ? 'Der letzte Abruf wurde abgebrochen. Du siehst den zuletzt vollständig bestätigten Bestand.'
-            : null,
+        error: kleinanzeigenSyncIssue(account),
       }));
     }
     if (platform === 'ebay') {

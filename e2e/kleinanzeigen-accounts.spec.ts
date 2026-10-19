@@ -11,7 +11,7 @@ for (const theme of ['light', 'dark'] as const)
         theme +
         '-Theme bedienbar @core-smoke',
       async ({ page }, testInfo) => {
-        await mockKleinanzeigen(page);
+        await mockKleinanzeigen(page, { connectionStatus: 'needs_login' });
         const runtimeErrors: string[] = [];
         page.on('pageerror', (error) => runtimeErrors.push(error.message));
         page.on('console', (message) => {
@@ -35,7 +35,7 @@ for (const theme of ['light', 'dark'] as const)
         const listings = page.locator('app-marketplace-listing-section').filter({
           has: page.getByRole('heading', { name: 'Kleinanzeigen Testkonto A', exact: true }),
         });
-        await expect(listings.getByText('26 Inserate', { exact: true })).toBeVisible();
+        await expect(listings.locator('dl').getByText('26', { exact: true })).toBeVisible();
         const settings = listings.getByRole('button', {
           name: 'Konto Kleinanzeigen Testkonto A verwalten',
           exact: true,
@@ -46,11 +46,49 @@ for (const theme of ['light', 'dark'] as const)
           exact: true,
         });
         await expect(
-          accountDialog.getByText('8 von 100 Anzeigen in 30 Tagen beobachtet', { exact: true }),
+          accountDialog.getByLabel('8 von 100 Anzeigen in 30 Tagen beobachtet', { exact: true }),
         ).toBeVisible();
         await expect(
           accountDialog.getByRole('button', { name: 'Konto entfernen', exact: true }),
         ).toBeVisible();
+        const footer = accountDialog.locator('[modal-footer]');
+        await expect(
+          footer.getByRole('button', { name: 'Konto entfernen', exact: true }),
+        ).toHaveCount(1);
+        await expect(
+          footer.getByRole('button', { name: 'Inserate abgleichen', exact: true }),
+        ).toHaveCount(1);
+        await expect(
+          accountDialog.getByRole('button', { name: 'Schließen', exact: true }),
+        ).toHaveCount(0);
+        await expect
+          .poll(() =>
+            accountDialog
+              .locator('app-marketplace-account-header')
+              .evaluate((element) =>
+                Math.abs(
+                  element.querySelector('img')!.getBoundingClientRect().top +
+                    element.querySelector('img')!.getBoundingClientRect().height / 2 -
+                    (element.querySelector('h3')!.parentElement!.getBoundingClientRect().top +
+                      element.querySelector('h3')!.parentElement!.getBoundingClientRect().height /
+                        2),
+                ),
+              ),
+          )
+          .toBeLessThanOrEqual(1);
+        const accountHeader = accountDialog.locator('app-marketplace-account-header');
+        await expect
+          .poll(() =>
+            accountHeader.evaluate((element) => {
+              const name = element.querySelector('h3')!.getBoundingClientRect();
+              const badge = element.querySelector('app-badge')!.getBoundingClientRect();
+              return badge.left >= name.right;
+            }),
+          )
+          .toBe(true);
+        await expect(
+          accountDialog.locator('app-badge').filter({ hasText: 'Verbunden' }).locator('span'),
+        ).toHaveClass(/bg-fb-badge-success/);
         await page.evaluate(axe.source);
         expect(
           await accountDialog.evaluate(
@@ -61,9 +99,15 @@ for (const theme of ['light', 'dark'] as const)
         await page.keyboard.press('Escape');
         await expect(accountDialog).toHaveCount(0);
         await expect(settings).toBeFocused();
-        await listings
-          .getByRole('button', { name: 'Inserate von Kleinanzeigen Testkonto A anzeigen' })
-          .tap();
+        await expect(
+          listings.getByRole('button', { name: 'Inserate von Kleinanzeigen Testkonto A anzeigen' }),
+        ).toHaveCount(0);
+        await expect(
+          listings.locator('app-badge').filter({ hasText: 'Verbunden' }).locator('span'),
+        ).toHaveClass(/bg-fb-badge-success/);
+        await expect(
+          listings.getByRole('heading', { name: 'Inserate', exact: true }),
+        ).toBeVisible();
         const checkbox = listings.getByRole('checkbox', {
           name: 'KA Jacke 01 auswählen',
           exact: true,
@@ -125,7 +169,7 @@ test('Ein unterbrochener Kleinanzeigen-Abgleich erhält den bestätigten Bestand
   });
   await account.getByRole('button', { name: 'Inserate abgleichen', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Der Abgleich wurde unterbrochen.');
-  await expect(account.getByText('26 Inserate', { exact: true })).toBeVisible();
+  await expect(account.getByText('26', { exact: true })).toBeVisible();
 });
 test('Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neuladen entfernt @core-smoke', async ({
   page,
@@ -159,8 +203,12 @@ test('Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neulade
   await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
   const setup = page.getByRole('dialog', { name: 'Kleinanzeigen-Konto hinzufügen', exact: true });
   await expect(
-    setup.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
+    setup.locator('footer').getByRole('button', { name: 'Konto verbinden', exact: true }),
   ).toBeEnabled();
+  await expect(setup.getByRole('checkbox')).toHaveCount(0);
+  await expect(setup.getByRole('button', { name: 'Erweiterung prüfen', exact: true })).toHaveCount(
+    0,
+  );
   await setup.getByRole('button', { name: 'Schließen', exact: true }).click();
   await page.reload();
   await expect(
@@ -180,7 +228,7 @@ test('Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neulade
     .getByRole('button', { name: 'Konto entfernen', exact: true })
     .click();
   await expect(
-    reopenedSetup.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
+    reopenedSetup.getByRole('button', { name: 'Konto verbinden', exact: true }),
   ).toBeEnabled();
   expect(
     fixture.requests
@@ -196,9 +244,10 @@ test('Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-sm
   await page.goto('/marketplaces/kleinanzeigen');
   await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
   const setup = page.getByRole('dialog', { name: 'Kleinanzeigen-Konto hinzufügen', exact: true });
+  await expect(setup.getByRole('button', { name: 'Konto verbinden', exact: true })).toBeDisabled();
   await expect(
-    setup.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
-  ).toBeDisabled();
+    setup.getByRole('button', { name: 'Erweiterung prüfen', exact: true }),
+  ).toBeVisible();
   await setup.getByRole('button', { name: 'Schließen', exact: true }).click();
   await page
     .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
@@ -237,7 +286,8 @@ test('Desktop- und Touch-Buttons bleiben bei gleicher Breite getrennt @core-smok
           name: 'Konto Kleinanzeigen Testkonto A verwalten',
           exact: true,
         });
-        for (const button of [add, list, settings]) {
+        await expect(list).toHaveCount(0);
+        for (const button of [add, settings]) {
           await expect(button).toBeVisible();
           const height = await button.evaluate((element) => element.getBoundingClientRect().height);
           expect(height).toBe(hasTouch ? 44 : 28);
