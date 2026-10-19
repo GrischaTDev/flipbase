@@ -213,6 +213,32 @@ Anfragen. Die Oberfläche unterscheidet die letzte Betriebsmeldung von einem
 erfolgreichen Vinted-Abruf und kennzeichnet alte Werte. Fundzahlen über 24 Stunden
 zählen beim ersten entdeckenden Auftrag, nicht mehrfach bei Überlappung.
 
+### Sitzungserneuerung und Feeddiagnose
+
+Vinted kann einen Katalogabruf mit HTTP 307 auf `/session-refresh` umleiten.
+Der Browser darf diese reguläre Erneuerung einmal je Abruf abschließen, wenn
+sie auf derselben Herkunft bleibt und `ref_url` exakt auf die ursprünglich
+angeforderte Katalog- oder Startseite zeigt. Erst der danach geladene Katalog
+wird ausgewertet; die Erneuerungsseite selbst zählt nicht als Fund oder Erfolg.
+Das gemeinsame Abrufzeitlimit bleibt bestehen. Andere Weiterleitungen,
+Anmeldeseiten, wiederholte Erneuerungen und markierte Prüfseiten bleiben Fehler.
+
+Für einen tatsächlichen Feedstillstand immer gemeinsam prüfen:
+
+- `sniper_queries.last_success_at`, `last_error_kind`, `last_error_message`
+  und `consecutive_failures`: Erfolg und Fehler je aktivem Markenauftrag.
+- `sniper_runtime_status.reported_at` gegenüber `vinted_last_success_at`:
+  eine aktuelle Betriebsmeldung belegt noch keinen erfolgreichen Vinted-Abruf.
+- `sniper_listings.first_seen_at`: tatsächlicher neuer Artikelzulauf.
+- Docker-Logs mit `query_failed`, `categories_refresh_failed` und `cycle`.
+
+Der Dockerzustand `healthy` bestätigt einen lebendigen Sammeltakt. Er genügt
+nicht als Nachweis für frische Artikel. Betriebsmeldungen werden überschrieben;
+Docker-Logs rotieren. Für längere Rückblicke zusätzlich die gespeicherten
+Erfolgs-/Fehlerzeiten je Auftrag heranziehen. Keine Cookies oder Tokens für eine
+Diagnose ausgeben. Der aktuelle Ausfallbericht steht unter
+[`docs/audit/2026-10-19-vinted-feed-session-refresh.md`](../../docs/audit/2026-10-19-vinted-feed-session-refresh.md).
+
 ### Gleichmäßige Abrufe und Zugriffspausen
 
 Alle Vinted-Anfragen teilen sich einen Mindestabstand: standardmäßig zehn
