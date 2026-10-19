@@ -2,6 +2,8 @@
 
 ## 2026-10-19 - Juna - Artikelspalte verbreitern und Plattformen kompakt anzeigen
 
+**Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach allen erfolgreichen ausgewählten Prüfungen ausdrücklich freigegeben. Aktueller Hauptzweig unverändert `6b4fff5c`; lokale Umsetzung als `42c09f9c` geprüft. Vor dem Merge die vollständige betroffene Browserauswahl einschließlich echter lokaler Anmeldung unter Linux abwarten. Danach mit Merge-Commit integrieren, öffentliche Bereitstellung prüfen und eigenen Zweig samt Arbeitsordner aufräumen.
+
 **Auftrag:** In „Letzte Verkäufe“ mehr Platz für Artikelnamen schaffen und die Plattformspalte auf das Logo ohne sichtbaren Namen reduzieren.
 
 **Umsetzung:** Plattformspalte auf 80px begrenzt. Datum und Gewinn behalten jeweils 20 Prozent der Tabellenbreite; der Artikel erhält den übrigen Raum. Die zuvor gesicherte Kürzung innerhalb der Zelle, vollständiger Linkname und Tooltip bleiben erhalten. Den gemeinsamen Plattformbaustein um eine ausdrücklich aktivierte Logoanzeige ergänzt; der Plattformname bleibt als Screenreader-Text und Tooltip erhalten. Eigene Plattformen behalten das allgemeine Marktplatzsymbol. Nur die Verkaufszeilen der Übersicht aktivieren die neue Darstellung; Stammdaten, Verkaufsliste und Inseratwahl behalten sichtbare Namen. Gestaltungsentscheidung dokumentiert.
