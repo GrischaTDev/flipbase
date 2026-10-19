@@ -1,3 +1,5 @@
+import { TextFieldComponent } from '../text-field/text-field.component';
+import { ButtonComponent } from '../button/button.component';
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideDynamicIcon, LucideX as X, LucidePlus as Plus } from '@lucide/angular';
@@ -7,7 +9,13 @@ import { ToastService } from '../toast/toast.service';
 
 @Component({
   selector: 'app-workspace-modal',
-  imports: [ModalDialogDirective, ReactiveFormsModule, LucideDynamicIcon],
+  imports: [
+    TextFieldComponent,
+    ButtonComponent,
+    ModalDialogDirective,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+  ],
   templateUrl: './workspace-modal.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,

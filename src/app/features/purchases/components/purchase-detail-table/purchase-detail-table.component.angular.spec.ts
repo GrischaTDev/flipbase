@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -27,6 +28,10 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  const buttonMetadata = (
+    ButtonComponent as unknown as { ɵcmp: { outputs: Record<string, string> } }
+  ).ɵcmp;
+  buttonMetadata.outputs = { ...buttonMetadata.outputs, clicked: 'clicked' };
   const metadata = (CostStateComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
   costStateInputs = { inputs: metadata.inputs, declaredInputs: metadata.declaredInputs };
   metadata.inputs = { ...metadata.inputs, state: ['state', 1, null] };
@@ -160,7 +165,7 @@ describe('PurchaseDetailTableComponent', () => {
       }),
     ]);
     const host = fixture.nativeElement as HTMLElement;
-    const capture = host.querySelector<HTMLButtonElement>('[data-capture-individual]');
+    const capture = host.querySelector<HTMLButtonElement>('[data-capture-individual] button');
     const emitted: string[] = [];
     fixture.componentInstance.captureIndividual.subscribe((lineId) => emitted.push(lineId));
 

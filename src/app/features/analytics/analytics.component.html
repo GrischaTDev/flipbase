@@ -1,19 +1,19 @@
-<div class="space-y-6 animate-fade-in">
+<div class="min-w-0 space-y-5 animate-fade-in">
   <app-page-header
-    title="Analytics & Performance Cockpit"
-    subtitle="Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit & Kohorten-Refinanzierung."
+    appearance="content"
+    title="Auswertung"
+    subtitle="Umsatz, Gewinn und Bestandsentwicklung im Blick behalten."
   >
-    <app-badge header-badge>Profit Intelligence</app-badge>
     <div
       header-actions
-      class="flex max-w-full flex-wrap gap-1"
+      class="flex max-w-full flex-wrap gap-1 rounded-lg bg-fb-subtle p-1"
       role="group"
       aria-label="Auswertungszeitraum wählen"
     >
       @for (option of rangeOptions; track option.value) {
         <app-button
           size="slim"
-          [variant]="timeRange() === option.value ? 'primary' : 'secondary'"
+          variant="segment"
           [ariaPressed]="timeRange() === option.value"
           (clicked)="setTimeRange(option.value)"
           >{{ option.label }}</app-button
@@ -23,727 +23,791 @@
   </app-page-header>
 
   <!-- Top Financial KPI Summary Grid -->
-  <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4 font-mono">
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-        <span class="font-bold uppercase tracking-wider text-[10px]">Bruttoumsatz</span>
-        <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-indigo-400"></svg>
+  <app-card variant="section" padding="none"
+    ><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-fb-border-subtle">
+      <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+        <div class="space-y-1 min-w-0">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+            <span class="font-semibold text-xs">Bruttoumsatz</span>
+            <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-fb-text-secondary"></svg>
+          </div>
+          <div class="text-2xl font-semibold text-fb-text-primary">
+            {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          </div>
+          <span class="text-xs text-fb-text-muted block font-sans">
+            {{ currentSales().length }} Verkäufe im Zeitraum
+          </span>
+        </div>
       </div>
-      <div class="text-2xl font-black text-fb-text-primary">
-        {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </div>
-      <span class="text-[10px] text-fb-text-muted block font-sans">
-        {{ currentSales().length }} Verkäufe im Zeitraum
-      </span>
-    </div>
 
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-        <span class="font-bold uppercase tracking-wider text-[10px]">Reingewinn (Netto)</span>
-        <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
+      <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+        <div class="space-y-1 min-w-0">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+            <span class="font-semibold text-xs">Reingewinn (Netto)</span>
+            <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-fb-success"></svg>
+          </div>
+          <div class="text-2xl font-semibold text-fb-success">
+            {{
+              totalNetProfit() === null
+                ? 'Offen'
+                : (totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+            }}
+          </div>
+          <span class="text-xs text-fb-text-muted block font-sans">
+            Nach Abzug aller Gebühren & EK
+          </span>
+        </div>
       </div>
-      <div class="text-2xl font-black text-emerald-400">
-        {{
-          totalNetProfit() === null
-            ? 'Offen'
-            : (totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-        }}
-      </div>
-      <span class="text-[10px] text-fb-text-muted block font-sans">
-        Nach Abzug aller Gebühren & EK
-      </span>
-    </div>
 
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-        <span class="font-bold uppercase tracking-wider text-[10px]">Durchschnittl. ROI</span>
-        <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-indigo-400"></svg>
+      <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+        <div class="space-y-1 min-w-0">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+            <span class="font-semibold text-xs">Durchschnittl. ROI</span>
+            <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-fb-text-secondary"></svg>
+          </div>
+          <div class="text-2xl font-semibold text-fb-text-secondary">
+            {{ avgRoi() === null ? 'Offen' : avgRoi() + '%' }}
+          </div>
+          <span class="text-xs text-fb-text-muted block font-sans">
+            Kapitalrendite pro verkaufter Artikel
+          </span>
+        </div>
       </div>
-      <div class="text-2xl font-black text-indigo-400">
-        {{ avgRoi() === null ? 'Offen' : avgRoi() + '%' }}
-      </div>
-      <span class="text-[10px] text-fb-text-muted block font-sans">
-        Kapitalrendite pro verkaufter Artikel
-      </span>
-    </div>
 
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-        <span class="font-bold uppercase tracking-wider text-[10px]">Ø Haltedauer</span>
-        <svg [lucideIcon]="clockIcon" class="w-4 h-4 text-amber-400"></svg>
+      <div data-finance-metric class="min-w-0 bg-fb-surface p-5">
+        <div class="space-y-1 min-w-0">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+            <span class="font-semibold text-xs">Ø Haltedauer</span>
+            <svg [lucideIcon]="clockIcon" class="w-4 h-4 text-fb-text-primary"></svg>
+          </div>
+          <div class="text-2xl font-semibold text-fb-text-primary">{{ avgHoldingDays() }} Tage</div>
+          <span class="text-xs text-fb-text-muted block font-sans">
+            Von Einkauf bis zum Verkauf
+          </span>
+        </div>
       </div>
-      <div class="text-2xl font-black text-amber-400">{{ avgHoldingDays() }} Tage</div>
-      <span class="text-[10px] text-fb-text-muted block font-sans">
-        Von Einkauf bis zum Verkauf
-      </span>
-    </div>
-  </div>
-
-  <div
-    class="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-fb-border py-2"
-    role="group"
-    aria-label="Auswertungsbereich wählen"
-    tabindex="0"
+    </div></app-card
   >
-    @for (section of sections; track section.value) {
-      <app-button
-        class="shrink-0"
-        [variant]="activeSection() === section.value ? 'primary' : 'secondary'"
-        [ariaPressed]="activeSection() === section.value"
-        [icon]="section.icon"
-        (clicked)="setSection(section.value)"
-        ><span class="whitespace-nowrap"
-          >{{ section.label }}
-          @if (section.value === 'holding') {
-            ({{ holdingSummary().workspacesCount }} Mandanten)
-          }
-        </span></app-button
-      >
-    }
-  </div>
 
-  <!-- Tab 1: Overview -->
-  @if (activeSection() === 'overview') {
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
-      <!-- Left: Recent Top Profits (7 cols) -->
-      <div class="lg:col-span-7 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center gap-2 border-b border-fb-border pb-3">
-          <svg [lucideIcon]="trophyIcon" class="w-4 h-4 text-amber-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Top-Gewinnbringer im Zeitraum
-          </h2>
-        </div>
-
-        <div class="divide-y divide-fb-border">
-          @for (sale of currentSales().slice(0, 5); track sale.id) {
-            <div class="py-3 flex items-center justify-between text-xs">
-              <div class="space-y-0.5">
-                <strong class="text-fb-text-primary block">{{
-                  sale.inventory_item?.title || 'Verkaufter Artikel'
-                }}</strong>
-                <div class="flex items-center gap-2 text-[10px] text-fb-text-muted">
-                  <span class="uppercase font-mono font-bold text-indigo-400">{{
-                    sale.platform
-                  }}</span>
-                  <span>•</span>
-                  <span
-                    >VK: {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
-                  >
-                  <span>•</span>
-                  <span>{{ sale.holding_duration_days || 0 }} Tage Haltedauer</span>
-                </div>
-              </div>
-
-              <div class="text-right font-mono">
-                <span class="font-bold text-emerald-400 text-sm block">
-                  {{
-                    saleProfit(sale) === null
-                      ? 'Offen'
-                      : (saleProfit(sale) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                  }}
-                </span>
-                <span class="text-[10px] text-fb-text-muted"
-                  >ROI: {{ saleRoi(sale) === null ? 'Offen' : saleRoi(sale) + '%' }}</span
-                >
-              </div>
-            </div>
-          } @empty {
-            <div class="p-8 text-center text-xs text-fb-text-muted">
-              Keine Verkäufe im gewählten Zeitraum.
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- Right: Quick Platform Breakdown (5 cols) -->
-      <div class="lg:col-span-5 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center gap-2 border-b border-fb-border pb-3">
-          <svg [lucideIcon]="storeIcon" class="w-4 h-4 text-indigo-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Plattform-Umsatzverteilung
-          </h2>
-        </div>
-
-        <div class="space-y-3">
-          @for (p of platformPerformance(); track p.platform) {
-            <div class="space-y-1">
-              <div class="flex justify-between text-xs">
-                <strong class="text-fb-text-primary">{{ p.platformLabel }}</strong>
-                <span class="font-mono font-bold text-emerald-400">{{
-                  p.netProfit === null
-                    ? 'Offen'
-                    : (p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                }}</span>
-              </div>
-              <div
-                class="w-full h-2 rounded-full bg-fb-subtle overflow-hidden flex border border-fb-border"
-              >
-                <div
-                  class="h-full bg-indigo-500"
-                  [style.width.%]="(p.grossRevenue / (totalRevenue() || 1)) * 100"
-                ></div>
-              </div>
-              <div class="flex justify-between text-[10px] text-fb-text-muted">
-                <span
-                  >{{ p.salesCount }} Verkäufe ({{
-                    ((p.grossRevenue / (totalRevenue() || 1)) * 100).toFixed(0)
-                  }}% Umsatz)</span
-                >
-                <span>Gebührenquote: {{ p.effectiveFeePercent }}%</span>
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- Tab 2: Platforms & Fees Matrix -->
-  @if (activeSection() === 'platforms') {
-    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="flex items-center justify-between border-b border-fb-border pb-3">
-        <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Plattform-Rentabilitäts-Matrix & Gebührenvergleich
-          </h2>
-          <p class="text-[11px] text-fb-text-muted mt-0.5">
-            Vergleiche die tatsächliche Rentabilität unter Berücksichtigung von Verkaufsgebühren.
-          </p>
-        </div>
-      </div>
-
-      <div class="overflow-x-auto">
-        <table
-          data-shared-ui-exception="static-table"
-          class="linear-table w-full text-left font-sans"
-        >
-          <thead
-            class="bg-fb-subtle text-fb-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-fb-border"
+  <div class="grid min-w-0 items-start gap-6 xl:grid-cols-[200px_minmax(0,1fr)]">
+    <aside class="hidden min-w-0 xl:block">
+      <p class="mb-2 px-3 text-xs font-medium text-fb-text-muted">Auswertungen</p>
+      <div role="group" aria-label="Auswertungsbereich wählen" class="space-y-1">
+        @for (section of sections; track section.value) {
+          <app-button
+            variant="list-row"
+            density="compact"
+            [fullWidth]="true"
+            [wrapLabel]="true"
+            contentAlign="start"
+            [ariaPressed]="activeSection() === section.value"
+            [icon]="section.icon"
+            (clicked)="setSection(section.value)"
+            >{{ section.label }}</app-button
           >
-            <tr>
-              <th class="p-3">Plattform</th>
-              <th class="p-3 text-right">Verkäufe</th>
-              <th class="p-3 text-right">Bruttoumsatz</th>
-              <th class="p-3 text-right">Gezahlte Gebühren</th>
-              <th class="p-3 text-right">Effektive Gebühr (%)</th>
-              <th class="p-3 text-right">Reingewinn (Netto)</th>
-              <th class="p-3 text-right">Nettomarge</th>
-              <th class="p-3 text-right">Ø Haltedauer</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-fb-border font-mono">
-            @for (p of platformPerformance(); track p.platform) {
-              <tr class="hover:bg-fb-surface-hover transition">
-                <td class="p-3 font-sans font-bold text-fb-text-primary">
-                  {{ p.platformLabel }}
-                </td>
-                <td class="p-3 text-right text-fb-text-secondary">{{ p.salesCount }}x</td>
-                <td class="p-3 text-right font-bold text-fb-text-primary">
-                  {{ p.grossRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </td>
-                <td class="p-3 text-right text-fb-text-secondary">
-                  -{{ p.platformFees | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </td>
-                <td
-                  class="p-3 text-right font-bold"
-                  [class.text-emerald-400]="p.effectiveFeePercent === 0"
-                  [class.text-amber-400]="p.effectiveFeePercent > 0"
-                >
-                  {{ p.effectiveFeePercent }}%
-                </td>
-                <td
-                  class="p-3 text-right font-bold"
-                  [class.text-fb-finance-positive]="p.netProfit !== null && p.netProfit > 0"
-                  [class.text-fb-finance-negative]="p.netProfit !== null && p.netProfit < 0"
-                  [class.text-fb-text-primary]="p.netProfit === null || p.netProfit === 0"
-                >
-                  {{
-                    p.netProfit === null
-                      ? 'Offen'
-                      : (p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                  }}
-                </td>
-                <td class="p-3 text-right text-indigo-300 font-bold">
-                  {{ p.profitMargin === null ? 'Offen' : p.profitMargin + '%' }}
-                </td>
-                <td class="p-3 text-right text-fb-text-muted">{{ p.avgHoldingDays }} Tage</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  }
-
-  <!-- Tab 3: Velocity & Holding Duration -->
-  @if (activeSection() === 'velocity') {
-    @let vel = holdingDurationAnalysis();
-    <div class="space-y-5 animate-fade-in">
-      <!-- Velocity KPI Row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono">
-        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
-            >Kapitalumschlag / Jahr</span
-          >
-          <span class="text-2xl font-black text-indigo-400">{{ vel.capitalTurnoverRate }}x</span>
-          <span class="text-[10px] text-fb-text-muted font-sans block">Umschlagshäufigkeit</span>
-        </div>
-
-        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
-            >Durchschnitt</span
-          >
-          <span class="text-2xl font-black text-fb-text-primary"
-            >{{ vel.avgOverallDays }} Tage</span
-          >
-          <span class="text-[10px] text-fb-text-muted font-sans block"
-            >Bis zum erfolgreichen Verkauf</span
-          >
-        </div>
-
-        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
-            >Schnellster Verkauf</span
-          >
-          <span class="text-2xl font-black text-emerald-400">{{ vel.fastestSaleDays }} Tage</span>
-          <span class="text-[10px] text-fb-text-muted font-sans block">Blitzschneller Flip</span>
-        </div>
-
-        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
-            >Längste Haltedauer</span
-          >
-          <span class="text-2xl font-black text-rose-400">{{ vel.slowestSaleDays }} Tage</span>
-          <span class="text-[10px] text-fb-text-muted font-sans block">Langsamster Artikel</span>
-        </div>
-      </div>
-
-      <!-- Speed Buckets Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        @for (b of vel.buckets; track b.label) {
-          <div
-            class="linear-surface rounded-2xl p-5 border border-fb-border shadow-xl space-y-2 font-sans"
-          >
-            <div class="flex items-center justify-between">
-              <strong class="text-xs text-fb-text-primary">{{ b.label }}</strong>
-              <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-secondary border border-fb-border"
-              >
-                {{ b.percent }}%
-              </span>
-            </div>
-
-            <div class="text-xl font-black font-mono text-fb-text-primary">
-              {{ b.count }} Verkäufe
-            </div>
-
-            <div
-              class="flex justify-between text-[11px] font-mono pt-2 border-t border-fb-border text-fb-text-muted"
-            >
-              <span
-                >Gewinn:
-                <strong class="text-emerald-400">{{
-                  b.totalProfit === null
-                    ? 'Offen'
-                    : (b.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                }}</strong></span
-              >
-              <span
-                >ROI: <strong>{{ b.avgRoi === null ? 'Offen' : b.avgRoi + '%' }}</strong></span
-              >
-            </div>
-          </div>
         }
       </div>
-    </div>
-  }
-
-  <!-- Tab 4: Cohort Analysis -->
-  @if (activeSection() === 'cohorts') {
-    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="border-b border-fb-border pb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-          Monatliche Einkaufs-Kohorten & Break-Even Refinanzierung
-        </h2>
-        <p class="text-[11px] text-fb-text-muted mt-0.5">
-          Verfolge, wie schnell jede Einkaufscharge ihr investiertes Kapital wieder einspielt
-          (Break-Even Recovery Rate).
-        </p>
+    </aside>
+    <section class="min-w-0 space-y-5" aria-label="Aktuelle Auswertung">
+      <div class="xl:hidden">
+        <app-custom-select
+          ariaLabel="Auswertungsbereich"
+          variant="toolbar"
+          widthClass="w-full"
+          [options]="sectionOptions"
+          [value]="activeSection()"
+          (valueChange)="setSection($event ?? 'overview')"
+        />
       </div>
 
-      <div class="space-y-4">
-        @for (c of monthlyCohorts(); track c.monthKey) {
-          <div class="p-4 rounded-xl bg-fb-subtle border border-fb-border space-y-3">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <div class="flex items-center gap-2">
-                <strong class="text-sm font-bold text-fb-text-primary">{{ c.monthLabel }}</strong>
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
-                  [class.bg-emerald-500/15]="c.isProfitable"
-                  [class.text-emerald-400]="c.isProfitable"
-                  [class.border]="c.isProfitable"
-                  [class.border-emerald-500/30]="c.isProfitable"
-                  [class.bg-amber-500/15]="!c.isProfitable"
-                  [class.text-amber-400]="!c.isProfitable"
-                >
-                  {{
-                    c.isProfitable === null
-                      ? 'Ergebnis offen'
-                      : c.isProfitable
-                        ? 'Break-Even erreicht'
-                        : 'In Refinanzierung'
-                  }}
-                </span>
+      <!-- Tab 1: Overview -->
+      @if (activeSection() === 'overview') {
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
+          <!-- Left: Recent Top Profits (7 cols) -->
+          <app-card variant="section" padding="lg" class="lg:col-span-7 min-w-0"
+            ><div class="space-y-4 min-w-0">
+              <div class="flex items-center gap-2 border-b border-fb-border pb-3">
+                <svg [lucideIcon]="trophyIcon" class="w-4 h-4 text-fb-text-primary"></svg>
+                <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                  Top-Gewinnbringer im Zeitraum
+                </h2>
               </div>
 
-              <div class="flex items-center gap-4 font-mono">
-                <span
-                  >Investiert:
-                  <strong>{{
-                    c.invested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                  }}</strong></span
-                >
-                <span
-                  >Erlöst:
-                  <strong class="text-emerald-400">{{
-                    c.realizedRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                  }}</strong></span
-                >
-              </div>
-            </div>
-
-            <!-- Recovery Progress Bar -->
-            <div class="space-y-1">
-              <div
-                class="w-full h-3 rounded-full bg-fb-surface overflow-hidden flex border border-fb-border"
-              >
-                <div
-                  class="h-full transition-all duration-500"
-                  [class.bg-emerald-500]="c.isProfitable"
-                  [class.bg-indigo-500]="!c.isProfitable"
-                  [style.width.%]="c.recoveryPercent > 100 ? 100 : c.recoveryPercent"
-                ></div>
-              </div>
-              <div class="flex justify-between text-[10px] text-fb-text-muted font-mono">
-                <span
-                  >Refinanzierungs-Quote:
-                  <strong class="text-fb-text-primary">{{ c.recoveryPercent }}%</strong></span
-                >
-                <span>{{ c.soldCount }} von {{ c.itemsCount }} Artikel verkauft</span>
-              </div>
-            </div>
-          </div>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- Tab 5: Sales Heatmap -->
-  @if (activeSection() === 'heatmap') {
-    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="border-b border-fb-border pb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-          Verkäufe nach Wochentag
-        </h2>
-        <p class="text-[11px] text-fb-text-muted mt-0.5">
-          An welchen Tagen deine Artikel weggehen – hilfreich, um Inserate zu platzieren.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
-        @for (day of salesHeatmap(); track day.dayName) {
-          <div
-            class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-2 text-center font-sans"
-          >
-            <strong class="text-xs text-fb-text-primary block border-b border-fb-border pb-1">
-              {{ day.dayName }}
-            </strong>
-
-            <div class="text-lg font-black font-mono text-indigo-400">
-              {{ day.totalSales }}
-            </div>
-            <div class="text-[10px] text-fb-text-muted font-mono">
-              {{ day.totalRevenue | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
-            </div>
-          </div>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- Tab 6: Categories -->
-  @if (activeSection() === 'categories') {
-    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="border-b border-fb-border pb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-          Kategorie-Rentabilität & Sell-Through Ränge
-        </h2>
-        <p class="text-[11px] text-fb-text-muted mt-0.5">
-          Welche Warenkategorien erzielen den höchsten Gewinn und ROI?
-        </p>
-      </div>
-
-      <div class="overflow-x-auto">
-        <table data-shared-ui-exception="static-table" class="linear-table w-full text-left">
-          <thead
-            class="bg-fb-subtle text-fb-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-fb-border"
-          >
-            <tr>
-              <th class="p-3">Kategorie</th>
-              <th class="p-3 text-right">Bestand</th>
-              <th class="p-3 text-right">Verkauft</th>
-              <th class="p-3 text-right">Umsatz</th>
-              <th class="p-3 text-right">Nettogewinn</th>
-              <th class="p-3 text-right">Ø ROI</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-fb-border font-mono">
-            @for (cat of categoryRankings(); track cat.category) {
-              <tr class="hover:bg-fb-surface-hover transition">
-                <td class="p-3 font-sans font-bold text-fb-text-primary">{{ cat.category }}</td>
-                <td class="p-3 text-right text-fb-text-secondary">{{ cat.itemsCount }}</td>
-                <td class="p-3 text-right text-fb-text-secondary">{{ cat.soldCount }}</td>
-                <td class="p-3 text-right font-bold text-fb-text-primary">
-                  {{ cat.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </td>
-                <td
-                  class="p-3 text-right font-bold"
-                  [class.text-fb-finance-positive]="cat.profit !== null && cat.profit > 0"
-                  [class.text-fb-finance-negative]="cat.profit !== null && cat.profit < 0"
-                  [class.text-fb-text-primary]="cat.profit === null || cat.profit === 0"
-                >
-                  {{
-                    cat.profit === null
-                      ? 'Offen'
-                      : (cat.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                  }}
-                </td>
-                <td class="p-3 text-right font-bold text-indigo-300">
-                  {{ cat.avgRoi === null ? 'Offen' : cat.avgRoi + '%' }}
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  }
-
-  <!-- Section: Holding & Multi-Workspace Consolidation -->
-  @if (activeSection() === 'holding') {
-    @let holding = holdingSummary();
-    <div class="space-y-6 animate-fade-in">
-      <!-- Holding Top Aggregation Cards -->
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4 font-mono">
-        <div
-          class="linear-surface p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 shadow-xl space-y-1"
-        >
-          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-purple-300"
-              >Konsolidierter Umsatz</span
-            >
-            <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-purple-400"></svg>
-          </div>
-          <div class="text-2xl font-black text-fb-text-primary">
-            {{ holding.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-          </div>
-          <span class="text-[10px] text-fb-text-muted block font-sans">
-            Über {{ holding.workspacesCount }} Reselling-Gewerbe
-          </span>
-        </div>
-
-        <div
-          class="linear-surface p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 shadow-xl space-y-1"
-        >
-          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-emerald-400"
-              >Realisierter Holding-Gewinn</span
-            >
-            <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
-          </div>
-          <div class="text-2xl font-black text-emerald-400">
-            {{
-              holding.totalNetProfit === null
-                ? 'Offen'
-                : (holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-            }}
-          </div>
-          <span class="text-[10px] text-fb-text-muted block font-sans">
-            Gesamter Nettogewinn nach Abzug aller Kosten
-          </span>
-        </div>
-
-        <div
-          class="linear-surface p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 shadow-xl space-y-1"
-        >
-          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-indigo-300"
-              >Lagerbestandswert (EK)</span
-            >
-            <svg [lucideIcon]="boxesIcon" class="w-4 h-4 text-indigo-400"></svg>
-          </div>
-          <div class="text-2xl font-black text-indigo-300">
-            {{
-              holding.totalInventoryValue === null
-                ? 'Offen'
-                : (holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-            }}
-          </div>
-          <span class="text-[10px] text-fb-text-muted block font-sans">
-            {{ holding.totalInventoryCount }} aktive Artikel gebunden
-          </span>
-        </div>
-
-        <div
-          class="linear-surface p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-xl space-y-1"
-        >
-          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-amber-300"
-              >Holding Durchschnitts-ROI</span
-            >
-            <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-amber-400"></svg>
-          </div>
-          <div class="text-2xl font-black text-amber-400">
-            {{ holding.averageRoi === null ? 'Offen' : holding.averageRoi + '%' }}
-          </div>
-          <span class="text-[10px] text-fb-text-muted block font-sans">
-            Durchschnitt der Workspace-Renditen
-          </span>
-        </div>
-      </div>
-
-      <!-- Tenant Performance Comparison Table -->
-      <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl border border-fb-border">
-        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
-          <div class="flex items-center gap-2">
-            <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-purple-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-              Mandanten- & Gewerbevergleich (Performance Matrix)
-            </h2>
-          </div>
-          <span
-            class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold"
-          >
-            {{ holding.workspacesCount }} Mandanten aktiv
-          </span>
-        </div>
-
-        <p class="text-xs text-fb-text-muted">
-          Detaillierte Gegenüberstellung aller eigenständigen Reselling-Accounts und Workspaces.
-        </p>
-
-        <div class="overflow-x-auto">
-          <table data-shared-ui-exception="static-table" class="linear-table w-full text-left">
-            <thead
-              class="bg-fb-subtle text-fb-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-fb-border"
-            >
-              <tr>
-                <th class="p-3">Mandant / Workspace</th>
-                <th class="p-3">Steuerprofil</th>
-                <th class="p-3 text-right">Lagerbestand (EK)</th>
-                <th class="p-3 text-right">Einkäufe</th>
-                <th class="p-3 text-right">Umsatz</th>
-                <th class="p-3 text-right">Nettogewinn</th>
-                <th class="p-3 text-right">Ø ROI</th>
-                <th scope="col" class="p-3 text-center">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-fb-border font-mono">
-              @for (wsSummary of holding.workspaceSummaries; track wsSummary.workspace.id) {
-                <tr
-                  class="hover:bg-fb-surface-hover transition"
-                  [class.bg-purple-500/5]="
-                    workspaceService.currentWorkspace()?.id === wsSummary.workspace.id
-                  "
-                >
-                  <td class="p-3 font-sans">
-                    <div class="flex items-center gap-2">
-                      <strong class="text-fb-text-primary text-xs block">{{
-                        wsSummary.workspace.name
+              <div class="divide-y divide-fb-border">
+                @for (sale of currentSales().slice(0, 5); track sale.id) {
+                  <div class="py-3 flex min-w-0 items-center justify-between gap-3 text-xs">
+                    <div class="min-w-0 flex-1 space-y-0.5">
+                      <strong class="text-fb-text-primary block break-words">{{
+                        sale.inventory_item?.title || 'Verkaufter Artikel'
                       }}</strong>
-                      @if (workspaceService.currentWorkspace()?.id === wsSummary.workspace.id) {
+                      <div
+                        class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fb-text-muted"
+                      >
+                        <span class="tabular-nums font-semibold text-fb-text-secondary">{{
+                          sale.platform
+                        }}</span>
+                        <span>•</span>
                         <span
-                          class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold"
+                          >VK:
+                          {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
                         >
-                          AKTIV
-                        </span>
-                      }
+                        <span>•</span>
+                        <span>{{ sale.holding_duration_days || 0 }} Tage Haltedauer</span>
+                      </div>
                     </div>
-                    <span class="text-[10px] text-fb-text-muted font-mono"
-                      >ID: {{ wsSummary.workspace.id }}</span
+
+                    <div class="shrink-0 text-right tabular-nums">
+                      <span class="font-semibold text-fb-success text-sm block">
+                        {{
+                          saleProfit(sale) === null
+                            ? 'Offen'
+                            : (saleProfit(sale) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                        }}
+                      </span>
+                      <span class="text-xs text-fb-text-muted"
+                        >ROI: {{ saleRoi(sale) === null ? 'Offen' : saleRoi(sale) + '%' }}</span
+                      >
+                    </div>
+                  </div>
+                } @empty {
+                  <div class="p-8 text-center text-xs text-fb-text-muted">
+                    Keine Verkäufe im gewählten Zeitraum.
+                  </div>
+                }
+              </div>
+            </div></app-card
+          >
+
+          <!-- Right: Quick Platform Breakdown (5 cols) -->
+          <app-card variant="section" padding="lg" class="lg:col-span-5 min-w-0"
+            ><div class="space-y-4 min-w-0">
+              <div class="flex items-center gap-2 border-b border-fb-border pb-3">
+                <svg [lucideIcon]="storeIcon" class="w-4 h-4 text-fb-text-secondary"></svg>
+                <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                  Plattform-Umsatzverteilung
+                </h2>
+              </div>
+
+              <div class="space-y-3">
+                @for (p of platformPerformance(); track p.platform) {
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                      <strong class="text-fb-text-primary">{{ p.platformLabel }}</strong>
+                      <span class="tabular-nums font-semibold text-fb-success">{{
+                        p.netProfit === null
+                          ? 'Offen'
+                          : (p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                      }}</span>
+                    </div>
+                    <div
+                      class="w-full h-2 rounded-full bg-fb-subtle overflow-hidden flex border border-fb-border"
                     >
-                  </td>
-
-                  <td class="p-3 font-sans text-fb-text-secondary text-[11px]">
-                    <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle border border-fb-border"
-                    >
-                      § 25a UStG (Diff)
-                    </span>
-                  </td>
-
-                  <td class="p-3 text-right text-indigo-300 font-bold">
-                    {{
-                      wsSummary.inventoryValue === null
-                        ? 'Offen'
-                        : (wsSummary.inventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                    }}
-                    <span class="text-[10px] text-fb-text-muted block font-normal"
-                      >({{ wsSummary.inventoryCount }} Stk.)</span
-                    >
-                  </td>
-
-                  <td class="p-3 text-right text-fb-text-secondary">
-                    {{ wsSummary.totalInvested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-
-                  <td class="p-3 text-right font-bold text-fb-text-primary">
-                    {{ wsSummary.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    <span class="text-[10px] text-fb-text-muted block font-normal"
-                      >{{ wsSummary.salesCount }} Verkäufe</span
-                    >
-                  </td>
-
-                  <td
-                    class="p-3 text-right font-bold"
-                    [class.text-fb-finance-positive]="
-                      wsSummary.totalProfit !== null && wsSummary.totalProfit > 0
-                    "
-                    [class.text-fb-finance-negative]="
-                      wsSummary.totalProfit !== null && wsSummary.totalProfit < 0
-                    "
-                    [class.text-fb-text-primary]="
-                      wsSummary.totalProfit === null || wsSummary.totalProfit === 0
-                    "
-                  >
-                    {{
-                      wsSummary.totalProfit === null
-                        ? 'Offen'
-                        : (wsSummary.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                    }}
-                  </td>
-
-                  <td class="p-3 text-right font-bold text-indigo-300">
-                    {{ wsSummary.roi === null ? 'Offen' : wsSummary.roi + '%' }}
-                  </td>
-
-                  <td class="p-3 text-center font-sans">
-                    @if (workspaceService.currentWorkspace()?.id !== wsSummary.workspace.id) {
-                      <app-table-action-button
-                        (clicked)="switchToWorkspace(wsSummary.workspace.id)"
-                        [icon]="nextIcon"
-                        [label]="'Zu ' + wsSummary.workspace.name + ' wechseln'"
-                      />
-                    } @else {
-                      <span class="text-[11px] text-emerald-400 font-semibold">Ausgewählt</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+                      <div
+                        class="h-full bg-fb-primary"
+                        [style.width.%]="(p.grossRevenue / (totalRevenue() || 1)) * 100"
+                      ></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-fb-text-muted">
+                      <span
+                        >{{ p.salesCount }} Verkäufe ({{
+                          ((p.grossRevenue / (totalRevenue() || 1)) * 100).toFixed(0)
+                        }}% Umsatz)</span
+                      >
+                      <span>Gebührenquote: {{ p.effectiveFeePercent }}%</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div></app-card
+          >
         </div>
-      </div>
-    </div>
-  }
+      }
+
+      <!-- Tab 2: Platforms & Fees Matrix -->
+      @if (activeSection() === 'platforms') {
+        <app-card variant="section" padding="lg" class="animate-fade-in min-w-0"
+          ><div class="space-y-4 min-w-0">
+            <div class="flex items-center justify-between border-b border-fb-border pb-3">
+              <div>
+                <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                  Plattform-Rentabilitäts-Matrix & Gebührenvergleich
+                </h2>
+                <p class="text-xs text-fb-text-muted mt-0.5">
+                  Vergleiche die tatsächliche Rentabilität unter Berücksichtigung von
+                  Verkaufsgebühren.
+                </p>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Auswertungsdaten">
+              <table
+                data-shared-ui-exception="static-table"
+                class="linear-table w-full text-left font-sans min-w-[640px] text-[13px]"
+              >
+                <thead
+                  class="bg-fb-subtle text-fb-text-muted text-xs font-semibold border-b border-fb-border"
+                >
+                  <tr>
+                    <th scope="col" class="p-3">Plattform</th>
+                    <th scope="col" class="p-3 text-right">Verkäufe</th>
+                    <th scope="col" class="p-3 text-right">Bruttoumsatz</th>
+                    <th scope="col" class="p-3 text-right">Gezahlte Gebühren</th>
+                    <th scope="col" class="p-3 text-right">Effektive Gebühr (%)</th>
+                    <th scope="col" class="p-3 text-right">Reingewinn (Netto)</th>
+                    <th scope="col" class="p-3 text-right">Nettomarge</th>
+                    <th scope="col" class="p-3 text-right">Ø Haltedauer</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-fb-border tabular-nums">
+                  @for (p of platformPerformance(); track p.platform) {
+                    <tr class="hover:bg-fb-surface-hover transition">
+                      <td class="p-3 font-sans font-semibold text-fb-text-primary">
+                        {{ p.platformLabel }}
+                      </td>
+                      <td class="p-3 text-right text-fb-text-secondary">{{ p.salesCount }}x</td>
+                      <td class="p-3 text-right font-semibold text-fb-text-primary">
+                        {{ p.grossRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                      <td class="p-3 text-right text-fb-text-secondary">
+                        -{{ p.platformFees | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                      <td
+                        class="p-3 text-right font-semibold"
+                        [class.text-fb-success]="p.effectiveFeePercent === 0"
+                        [class.text-fb-text-primary]="p.effectiveFeePercent > 0"
+                      >
+                        {{ p.effectiveFeePercent }}%
+                      </td>
+                      <td
+                        class="p-3 text-right font-semibold"
+                        [class.text-fb-success]="p.netProfit !== null && p.netProfit > 0"
+                        [class.text-fb-finance-negative]="p.netProfit !== null && p.netProfit < 0"
+                        [class.text-fb-text-primary]="p.netProfit === null || p.netProfit === 0"
+                      >
+                        {{
+                          p.netProfit === null
+                            ? 'Offen'
+                            : (p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                        }}
+                      </td>
+                      <td class="p-3 text-right text-fb-text-primary font-semibold">
+                        {{ p.profitMargin === null ? 'Offen' : p.profitMargin + '%' }}
+                      </td>
+                      <td class="p-3 text-right text-fb-text-muted">{{ p.avgHoldingDays }} Tage</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div></app-card
+        >
+      }
+
+      <!-- Tab 3: Velocity & Holding Duration -->
+      @if (activeSection() === 'velocity') {
+        @let vel = holdingDurationAnalysis();
+        <div class="space-y-5 animate-fade-in">
+          <!-- Velocity KPI Row -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 tabular-nums">
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <span class="text-xs font-sans font-semibold text-fb-text-muted block"
+                  >Kapitalumschlag / Jahr</span
+                >
+                <span class="text-2xl font-semibold text-fb-text-secondary"
+                  >{{ vel.capitalTurnoverRate }}x</span
+                >
+                <span class="text-xs text-fb-text-muted font-sans block">Umschlagshäufigkeit</span>
+              </div></app-card
+            >
+
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <span class="text-xs font-sans font-semibold text-fb-text-muted block"
+                  >Durchschnitt</span
+                >
+                <span class="text-2xl font-semibold text-fb-text-primary"
+                  >{{ vel.avgOverallDays }} Tage</span
+                >
+                <span class="text-xs text-fb-text-muted font-sans block"
+                  >Bis zum erfolgreichen Verkauf</span
+                >
+              </div></app-card
+            >
+
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <span class="text-xs font-sans font-semibold text-fb-text-muted block"
+                  >Schnellster Verkauf</span
+                >
+                <span class="text-2xl font-semibold text-fb-success"
+                  >{{ vel.fastestSaleDays }} Tage</span
+                >
+                <span class="text-xs text-fb-text-muted font-sans block">Blitzschneller Flip</span>
+              </div></app-card
+            >
+
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <span class="text-xs font-sans font-semibold text-fb-text-muted block"
+                  >Längste Haltedauer</span
+                >
+                <span class="text-2xl font-semibold text-fb-finance-negative"
+                  >{{ vel.slowestSaleDays }} Tage</span
+                >
+                <span class="text-xs text-fb-text-muted font-sans block">Langsamster Artikel</span>
+              </div></app-card
+            >
+          </div>
+
+          <!-- Speed Buckets Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            @for (b of vel.buckets; track b.label) {
+              <app-card variant="section" padding="lg" class="min-w-0"
+                ><div class="space-y-2 font-sans min-w-0">
+                  <div class="flex items-center justify-between">
+                    <strong class="text-xs text-fb-text-primary">{{ b.label }}</strong>
+                    <span
+                      class="px-2 py-0.5 rounded text-xs tabular-nums font-semibold bg-fb-subtle text-fb-text-secondary border border-fb-border"
+                    >
+                      {{ b.percent }}%
+                    </span>
+                  </div>
+
+                  <div class="text-xl font-semibold tabular-nums text-fb-text-primary">
+                    {{ b.count }} Verkäufe
+                  </div>
+
+                  <div
+                    class="flex justify-between text-xs tabular-nums pt-2 border-t border-fb-border text-fb-text-muted"
+                  >
+                    <span
+                      >Gewinn:
+                      <strong class="text-fb-success">{{
+                        b.totalProfit === null
+                          ? 'Offen'
+                          : (b.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                      }}</strong></span
+                    >
+                    <span
+                      >ROI:
+                      <strong>{{ b.avgRoi === null ? 'Offen' : b.avgRoi + '%' }}</strong></span
+                    >
+                  </div>
+                </div></app-card
+              >
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Tab 4: Cohort Analysis -->
+      @if (activeSection() === 'cohorts') {
+        <app-card variant="section" padding="lg" class="animate-fade-in min-w-0"
+          ><div class="space-y-4 min-w-0">
+            <div class="border-b border-fb-border pb-3">
+              <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                Monatliche Einkaufs-Kohorten & Break-Even Refinanzierung
+              </h2>
+              <p class="text-xs text-fb-text-muted mt-0.5">
+                Verfolge, wie schnell jede Einkaufscharge ihr investiertes Kapital wieder einspielt
+                (Break-Even Recovery Rate).
+              </p>
+            </div>
+
+            <div class="space-y-4">
+              @for (c of monthlyCohorts(); track c.monthKey) {
+                <div class="p-4 rounded-xl bg-fb-subtle border border-fb-border space-y-3">
+                  <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                  >
+                    <div class="flex items-center gap-2">
+                      <strong class="text-sm font-semibold text-fb-text-primary">{{
+                        c.monthLabel
+                      }}</strong>
+                      <app-badge
+                        [tone]="
+                          c.isProfitable === null
+                            ? 'neutral'
+                            : c.isProfitable
+                              ? 'success'
+                              : 'neutral'
+                        "
+                      >
+                        {{
+                          c.isProfitable === null
+                            ? 'Ergebnis offen'
+                            : c.isProfitable
+                              ? 'Break-Even erreicht'
+                              : 'In Refinanzierung'
+                        }}
+                      </app-badge>
+                    </div>
+
+                    <div class="flex items-center gap-4 tabular-nums">
+                      <span
+                        >Investiert:
+                        <strong>{{
+                          c.invested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                        }}</strong></span
+                      >
+                      <span
+                        >Erlöst:
+                        <strong class="text-fb-success">{{
+                          c.realizedRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                        }}</strong></span
+                      >
+                    </div>
+                  </div>
+
+                  <!-- Recovery Progress Bar -->
+                  <div class="space-y-1">
+                    <div
+                      class="w-full h-3 rounded-full bg-fb-surface overflow-hidden flex border border-fb-border"
+                    >
+                      <div
+                        class="h-full transition-all duration-500"
+                        [class.bg-fb-success]="c.isProfitable"
+                        [class.bg-fb-primary]="!c.isProfitable"
+                        [style.width.%]="c.recoveryPercent > 100 ? 100 : c.recoveryPercent"
+                      ></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-fb-text-muted tabular-nums">
+                      <span
+                        >Refinanzierungs-Quote:
+                        <strong class="text-fb-text-primary">{{ c.recoveryPercent }}%</strong></span
+                      >
+                      <span>{{ c.soldCount }} von {{ c.itemsCount }} Artikel verkauft</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div></app-card
+        >
+      }
+
+      <!-- Tab 5: Sales Heatmap -->
+      @if (activeSection() === 'heatmap') {
+        <app-card variant="section" padding="lg" class="animate-fade-in min-w-0"
+          ><div class="space-y-4 min-w-0">
+            <div class="border-b border-fb-border pb-3">
+              <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                Verkäufe nach Wochentag
+              </h2>
+              <p class="text-xs text-fb-text-muted mt-0.5">
+                An welchen Tagen deine Artikel weggehen – hilfreich, um Inserate zu platzieren.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+              @for (day of salesHeatmap(); track day.dayName) {
+                <div
+                  class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-2 text-center font-sans"
+                >
+                  <strong class="text-xs text-fb-text-primary block border-b border-fb-border pb-1">
+                    {{ day.dayName }}
+                  </strong>
+
+                  <div class="text-lg font-semibold tabular-nums text-fb-text-secondary">
+                    {{ day.totalSales }}
+                  </div>
+                  <div class="text-xs text-fb-text-muted tabular-nums">
+                    {{ day.totalRevenue | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
+                  </div>
+                </div>
+              }
+            </div>
+          </div></app-card
+        >
+      }
+
+      <!-- Tab 6: Categories -->
+      @if (activeSection() === 'categories') {
+        <app-card variant="section" padding="lg" class="animate-fade-in min-w-0"
+          ><div class="space-y-4 min-w-0">
+            <div class="border-b border-fb-border pb-3">
+              <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                Kategorie-Rentabilität & Sell-Through Ränge
+              </h2>
+              <p class="text-xs text-fb-text-muted mt-0.5">
+                Welche Warenkategorien erzielen den höchsten Gewinn und ROI?
+              </p>
+            </div>
+
+            <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Auswertungsdaten">
+              <table
+                data-shared-ui-exception="static-table"
+                class="linear-table w-full text-left min-w-[640px] text-[13px]"
+              >
+                <thead
+                  class="bg-fb-subtle text-fb-text-muted text-xs font-semibold border-b border-fb-border"
+                >
+                  <tr>
+                    <th scope="col" class="p-3">Kategorie</th>
+                    <th scope="col" class="p-3 text-right">Bestand</th>
+                    <th scope="col" class="p-3 text-right">Verkauft</th>
+                    <th scope="col" class="p-3 text-right">Umsatz</th>
+                    <th scope="col" class="p-3 text-right">Nettogewinn</th>
+                    <th scope="col" class="p-3 text-right">Ø ROI</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-fb-border tabular-nums">
+                  @for (cat of categoryRankings(); track cat.category) {
+                    <tr class="hover:bg-fb-surface-hover transition">
+                      <td class="p-3 font-sans font-semibold text-fb-text-primary">
+                        {{ cat.category }}
+                      </td>
+                      <td class="p-3 text-right text-fb-text-secondary">{{ cat.itemsCount }}</td>
+                      <td class="p-3 text-right text-fb-text-secondary">{{ cat.soldCount }}</td>
+                      <td class="p-3 text-right font-semibold text-fb-text-primary">
+                        {{ cat.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                      <td
+                        class="p-3 text-right font-semibold"
+                        [class.text-fb-success]="cat.profit !== null && cat.profit > 0"
+                        [class.text-fb-finance-negative]="cat.profit !== null && cat.profit < 0"
+                        [class.text-fb-text-primary]="cat.profit === null || cat.profit === 0"
+                      >
+                        {{
+                          cat.profit === null
+                            ? 'Offen'
+                            : (cat.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                        }}
+                      </td>
+                      <td class="p-3 text-right font-semibold text-fb-text-primary">
+                        {{ cat.avgRoi === null ? 'Offen' : cat.avgRoi + '%' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div></app-card
+        >
+      }
+
+      <!-- Section: Holding & Multi-Workspace Consolidation -->
+      @if (activeSection() === 'holding') {
+        @let holding = holdingSummary();
+        <div class="space-y-6 animate-fade-in">
+          <!-- Holding Top Aggregation Cards -->
+          <div
+            class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4 tabular-nums"
+          >
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+                  <span class="font-semibold text-xs text-fb-text-primary"
+                    >Konsolidierter Umsatz</span
+                  >
+                  <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-fb-text-secondary"></svg>
+                </div>
+                <div class="text-2xl font-semibold text-fb-text-primary">
+                  {{ holding.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </div>
+                <span class="text-xs text-fb-text-muted block font-sans">
+                  Über {{ holding.workspacesCount }} Reselling-Gewerbe
+                </span>
+              </div></app-card
+            >
+
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+                  <span class="font-semibold text-xs text-fb-success"
+                    >Realisierter Holding-Gewinn</span
+                  >
+                  <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-fb-success"></svg>
+                </div>
+                <div class="text-2xl font-semibold text-fb-success">
+                  {{
+                    holding.totalNetProfit === null
+                      ? 'Offen'
+                      : (holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  }}
+                </div>
+                <span class="text-xs text-fb-text-muted block font-sans">
+                  Gesamter Nettogewinn nach Abzug aller Kosten
+                </span>
+              </div></app-card
+            >
+
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+                  <span class="font-semibold text-xs text-fb-text-primary"
+                    >Lagerbestandswert (EK)</span
+                  >
+                  <svg [lucideIcon]="boxesIcon" class="w-4 h-4 text-fb-text-secondary"></svg>
+                </div>
+                <div class="text-2xl font-semibold text-fb-text-primary">
+                  {{
+                    holding.totalInventoryValue === null
+                      ? 'Offen'
+                      : (holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  }}
+                </div>
+                <span class="text-xs text-fb-text-muted block font-sans">
+                  {{ holding.totalInventoryCount }} aktive Artikel gebunden
+                </span>
+              </div></app-card
+            >
+
+            <app-card variant="section" padding="lg" class="min-w-0"
+              ><div class="space-y-1 min-w-0">
+                <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
+                  <span class="font-semibold text-xs text-fb-text-secondary"
+                    >Holding Durchschnitts-ROI</span
+                  >
+                  <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-fb-text-primary"></svg>
+                </div>
+                <div class="text-2xl font-semibold text-fb-text-primary">
+                  {{ holding.averageRoi === null ? 'Offen' : holding.averageRoi + '%' }}
+                </div>
+                <span class="text-xs text-fb-text-muted block font-sans">
+                  Durchschnitt der Workspace-Renditen
+                </span>
+              </div></app-card
+            >
+          </div>
+
+          <!-- Tenant Performance Comparison Table -->
+          <app-card variant="section" padding="lg" class="min-w-0"
+            ><div class="space-y-4 min-w-0">
+              <div class="flex items-center justify-between pb-2 border-b border-fb-border">
+                <div class="flex items-center gap-2">
+                  <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-fb-text-secondary"></svg>
+                  <h2 class="text-[15px] leading-5 font-semibold text-fb-text-primary">
+                    Mandanten- & Gewerbevergleich (Performance Matrix)
+                  </h2>
+                </div>
+                <app-badge tone="neutral">
+                  {{ holding.workspacesCount }} Mandanten aktiv
+                </app-badge>
+              </div>
+
+              <p class="text-xs text-fb-text-muted">
+                Detaillierte Gegenüberstellung aller eigenständigen Reselling-Accounts und
+                Workspaces.
+              </p>
+
+              <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Auswertungsdaten">
+                <table
+                  data-shared-ui-exception="static-table"
+                  class="linear-table w-full text-left min-w-[640px] text-[13px]"
+                >
+                  <thead
+                    class="bg-fb-subtle text-fb-text-muted text-xs font-semibold border-b border-fb-border"
+                  >
+                    <tr>
+                      <th scope="col" class="p-3">Mandant / Workspace</th>
+                      <th scope="col" class="p-3">Steuerprofil</th>
+                      <th scope="col" class="p-3 text-right">Lagerbestand (EK)</th>
+                      <th scope="col" class="p-3 text-right">Einkäufe</th>
+                      <th scope="col" class="p-3 text-right">Umsatz</th>
+                      <th scope="col" class="p-3 text-right">Nettogewinn</th>
+                      <th scope="col" class="p-3 text-right">Ø ROI</th>
+                      <th scope="col" class="p-3 text-center">Aktionen</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-fb-border tabular-nums">
+                    @for (wsSummary of holding.workspaceSummaries; track wsSummary.workspace.id) {
+                      <tr
+                        class="hover:bg-fb-surface-hover transition"
+                        [class.bg-fb-subtle]="
+                          workspaceService.currentWorkspace()?.id === wsSummary.workspace.id
+                        "
+                      >
+                        <td class="p-3 font-sans">
+                          <div class="flex items-center gap-2">
+                            <strong class="text-fb-text-primary text-xs block">{{
+                              wsSummary.workspace.name
+                            }}</strong>
+                            @if (
+                              workspaceService.currentWorkspace()?.id === wsSummary.workspace.id
+                            ) {
+                              <app-badge tone="success"> AKTIV </app-badge>
+                            }
+                          </div>
+                          <span class="text-xs text-fb-text-muted tabular-nums"
+                            >ID: {{ wsSummary.workspace.id }}</span
+                          >
+                        </td>
+
+                        <td class="p-3 font-sans text-fb-text-secondary text-xs">
+                          <app-badge tone="neutral"> § 25a UStG (Diff) </app-badge>
+                        </td>
+
+                        <td class="p-3 text-right text-fb-text-primary font-semibold">
+                          {{
+                            wsSummary.inventoryValue === null
+                              ? 'Offen'
+                              : (wsSummary.inventoryValue
+                                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                          }}
+                          <span class="text-xs text-fb-text-muted block font-normal"
+                            >({{ wsSummary.inventoryCount }} Stk.)</span
+                          >
+                        </td>
+
+                        <td class="p-3 text-right text-fb-text-secondary">
+                          {{
+                            wsSummary.totalInvested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        </td>
+
+                        <td class="p-3 text-right font-semibold text-fb-text-primary">
+                          {{ wsSummary.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                          <span class="text-xs text-fb-text-muted block font-normal"
+                            >{{ wsSummary.salesCount }} Verkäufe</span
+                          >
+                        </td>
+
+                        <td
+                          class="p-3 text-right font-semibold"
+                          [class.text-fb-success]="
+                            wsSummary.totalProfit !== null && wsSummary.totalProfit > 0
+                          "
+                          [class.text-fb-finance-negative]="
+                            wsSummary.totalProfit !== null && wsSummary.totalProfit < 0
+                          "
+                          [class.text-fb-text-primary]="
+                            wsSummary.totalProfit === null || wsSummary.totalProfit === 0
+                          "
+                        >
+                          {{
+                            wsSummary.totalProfit === null
+                              ? 'Offen'
+                              : (wsSummary.totalProfit
+                                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                          }}
+                        </td>
+
+                        <td class="p-3 text-right font-semibold text-fb-text-primary">
+                          {{ wsSummary.roi === null ? 'Offen' : wsSummary.roi + '%' }}
+                        </td>
+
+                        <td class="p-3 text-center font-sans">
+                          @if (workspaceService.currentWorkspace()?.id !== wsSummary.workspace.id) {
+                            <app-table-action-button
+                              (clicked)="switchToWorkspace(wsSummary.workspace.id)"
+                              [icon]="nextIcon"
+                              [label]="'Zu ' + wsSummary.workspace.name + ' wechseln'"
+                            />
+                          } @else {
+                            <span class="text-xs text-fb-success font-semibold">Ausgewählt</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div></app-card
+          >
+        </div>
+      }
+    </section>
+  </div>
 </div>

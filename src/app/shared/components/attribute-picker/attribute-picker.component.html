@@ -1,17 +1,14 @@
-<div class="space-y-1.5">
-  <label [for]="fieldId()" class="block text-[13px] font-semibold text-fb-text-primary">
-    {{ label() }}
-  </label>
+<app-form-field [controlId]="fieldId()" [label]="label()">
   <div class="relative">
     <div
       #fieldContainer
-      class="linear-input flex min-h-8 w-full flex-wrap items-center gap-1 rounded-lg px-2 py-1 transition-colors focus-within:border-fb-primary focus-within:ring-2 focus-within:ring-fb-primary/50"
+      class="linear-input flex min-h-7 w-full flex-wrap items-center gap-1 rounded-[7px] px-2 py-0.5 transition-colors pointer-coarse:min-h-11"
       [class.opacity-40]="isDisabled()"
     >
       @if (multiple()) {
         @for (item of selected(); track item) {
           <span
-            class="inline-flex items-center gap-1 rounded-md border border-fb-border bg-fb-subtle px-1.5 py-0.5 text-[13px] text-fb-text-primary"
+            class="inline-flex items-center gap-1 rounded-md border border-transparent bg-fb-subtle px-1.5 py-0.5 text-[13px] text-fb-text-primary"
           >
             @if (swatches()[item]) {
               <span
@@ -26,7 +23,7 @@
               [attr.aria-label]="item + ' entfernen'"
               [disabled]="isDisabled()"
               (click)="remove(item)"
-              class="rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+              class="flex min-h-5 min-w-5 items-center justify-center rounded p-0.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
             >
               <svg [lucideIcon]="removeIcon" class="size-3.5" aria-hidden="true"></svg>
             </button>
@@ -56,7 +53,7 @@
         (focus)="open()"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
-        class="min-w-24 flex-1 bg-transparent px-1 py-0.5 text-[13px] text-fb-text-primary outline-none disabled:cursor-not-allowed"
+        class="min-w-24 flex-1 bg-transparent px-1 py-0.5 [font-size:inherit] [line-height:inherit] text-fb-text-primary outline-none disabled:cursor-not-allowed"
       />
     </div>
     @if (isOpen()) {
@@ -64,7 +61,7 @@
         #panel
         [attr.popover]="supportsPopover ? 'manual' : null"
         (wheel)="onPanelWheel($event)"
-        class="left-0 top-full z-50 w-full min-w-60 rounded-xl border border-fb-border bg-fb-surface p-1.5 shadow-lg"
+        class="left-0 top-full z-50 w-full min-w-60 rounded-xl border border-[var(--fb-control-menu-border)] bg-[var(--fb-control-menu)] p-1 shadow-[0_8px_32px_rgb(0_0_0/0.18)]"
         [class.fixed]="supportsPopover"
         [class.inset-auto]="supportsPopover"
         [class.absolute]="!supportsPopover"
@@ -89,10 +86,15 @@
               [attr.aria-disabled]="limitReached() && !selected().includes(option) ? 'true' : null"
               [class.opacity-50]="limitReached() && !selected().includes(option)"
               (click)="choose(option)"
-              class="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+              class="flex min-h-6 w-full items-center justify-between rounded-md px-2.5 py-0.5 pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
               [class.bg-fb-surface-hover]="activeIndex() === index"
             >
-              <span class="flex min-w-0 items-center gap-2">
+              <span class="flex min-w-0 items-center gap-2"
+                ><span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                  @if (selected().includes(option)) {
+                    <svg [lucideIcon]="checkIcon" class="size-4"></svg>
+                  }
+                </span>
                 @if (swatches()[option]) {
                   <span
                     class="size-4 shrink-0 rounded-full border border-fb-border"
@@ -102,9 +104,6 @@
                 }
                 <span class="truncate">{{ option }}</span>
               </span>
-              @if (selected().includes(option)) {
-                <svg [lucideIcon]="checkIcon" class="size-4" aria-hidden="true"></svg>
-              }
             </button>
           }
           @if (customValue(); as custom) {
@@ -114,7 +113,7 @@
               [id]="listboxId() + '-' + matches().length"
               aria-selected="false"
               (click)="choose(custom)"
-              class="min-h-8 w-full rounded-lg px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+              class="min-h-6 w-full rounded-md bg-[var(--fb-control-bg)] px-2.5 py-0.5 font-medium pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
             >
               „{{ custom }}“ übernehmen
             </button>
@@ -125,4 +124,4 @@
       </div>
     }
   </div>
-</div>
+</app-form-field>

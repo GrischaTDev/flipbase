@@ -13,7 +13,7 @@ import {
 
 const exec = promisify(execFile);
 const featureSpecs = {
-  accounting: ['purchase-tax-costs', 'company-documents'],
+  accounting: ['purchase-tax-costs', 'company-documents', 'responsive-admin-layout'],
   analytics: ['responsive-admin-layout'],
   audit: ['company-documents'],
   auth: ['login', 'beta-registration', 'beta-access-lifecycle', 'local-supabase'],
@@ -35,8 +35,8 @@ const featureSpecs = {
   'deal-calculator': [],
   'deal-monitor': ['deal-monitor', 'sniper-administration'],
   'ebay-fee-calculator': [],
-  expenses: ['expense-recurrence-contract'],
-  fulfillment: ['company-shop-shipping'],
+  expenses: ['expense-recurrence-contract', 'responsive-admin-layout'],
+  fulfillment: ['company-shop-shipping', 'responsive-admin-layout'],
   'image-optimizer': ['core-smoke'],
   inventory: ['inventory-sale', 'inventory-archive-columns', 'article-stock-removal'],
   listings: ['listing-studio', 'vinted-listing-drafts', 'vinted-listing-edge-cases'],

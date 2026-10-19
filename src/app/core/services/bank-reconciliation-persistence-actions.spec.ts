@@ -221,4 +221,46 @@ describe('BankReconciliationService – bestätigte Persistenz', () => {
     expect(ergebnis.problems.every(({ reportedBySyncStatus }) => reportedBySyncStatus)).toBe(true);
     expect(syncStatus.fehler()).toHaveLength(1);
   });
+  it('ändert bei manueller Zuordnung nur die gewählte ungebookte Bankzeile', async () => {
+    const tx = transaction('20000000-0000-4000-8000-000000000011');
+    tx.status = 'pending';
+    service.transactions.set([tx]);
+    const eq = vi.fn().mockReturnThis();
+    const inside = vi.fn().mockReturnThis();
+    const select = vi.fn(async () => ({ data: [{ id: tx.id }], error: null }));
+    const update = vi.fn(() => ({ eq, in: inside, select }));
+    Object.assign((service as unknown as { supabase: { client: object } }).supabase.client, {
+      from: vi.fn(() => ({ update })),
+    });
+    const result = await service.manualAssign(tx.id, tx.match!);
+    expect(result.success).toBe(true);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'matched',
+        match_json: expect.objectContaining({ confidenceLabel: 'manual' }),
+      }),
+    );
+    expect(eq).toHaveBeenCalledWith('workspace_id', 'ws-1');
+    expect(eq).toHaveBeenCalledWith('id', tx.id);
+    expect(inside).toHaveBeenCalledWith('status', ['pending', 'matched']);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('behält bei fehlendem Update-Treffer die bisherige manuelle Zuordnung bei', async () => {
+    const tx = transaction('20000000-0000-4000-8000-000000000012');
+    tx.status = 'pending';
+    service.transactions.set([tx]);
+    const query = {
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      select: vi.fn(async () => ({ data: [], error: null })),
+    };
+    Object.assign((service as unknown as { supabase: { client: object } }).supabase.client, {
+      from: vi.fn(() => ({ update: () => query })),
+    });
+    const result = await service.manualAssign(tx.id, tx.match!);
+    expect(result.success).toBe(false);
+    expect(service.transactions()[0].status).toBe('pending');
+    expect(rpc).not.toHaveBeenCalled();
+  });
 });

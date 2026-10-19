@@ -235,3 +235,159 @@ test('eBay uses compact account cards and opens connection management in a dialo
     ).toBeFocused();
   }
 });
+
+for (const hasTouch of [false, true]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test.describe('Apple-Controlrollen ' + (hasTouch ? 'Touch' : 'Desktop') + ' ' + theme, () => {
+      test.use({ viewport: { width: hasTouch ? 834 : 1440, height: 1000 }, hasTouch });
+      test('Shell bleibt beim Seitenwechsel gleich und Controls behalten ihre Rollen', async ({
+        page,
+      }, testInfo) => {
+        await settingsBackend(page);
+        await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const readShell = () =>
+          page.evaluate(() => {
+            const header = document.querySelector('app-header > header')!;
+            const sidebar = document.querySelector('app-sidebar > aside')!;
+            return {
+              header: getComputedStyle(header).backgroundColor,
+              sidebar: getComputedStyle(sidebar).backgroundColor,
+              height: header.getBoundingClientRect().height,
+            };
+          });
+        await page.goto('/dashboard');
+        await expect(page.getByRole('heading', { name: 'Übersicht', exact: true })).toBeVisible();
+        const shell = await readShell();
+        await page.goto('/purchases');
+        const filter = page.getByRole('combobox', { name: 'Nach Verkäufer filtern', exact: true });
+        await expect(filter).toBeVisible();
+        expect(await readShell()).toEqual(shell);
+        expect((await filter.boundingBox())!.width).toBeLessThanOrEqual(224);
+        await expect(filter).toHaveCSS('border-radius', '6px');
+        const primary = page
+          .locator('app-page-header')
+          .getByRole('button', { name: 'Neuer Einkauf', exact: true });
+        await expect(primary).toHaveCSS('border-radius', '6px');
+        await filter.click();
+        const filterMenu = page.getByRole('listbox', {
+          name: 'Nach Verkäufer filtern',
+          exact: true,
+        });
+        await expect(filterMenu).toBeVisible();
+        await expect(page.locator('.custom-select-menu').filter({ has: filterMenu })).toHaveCSS(
+          'border-color',
+          theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
+        );
+        await filter.press('Escape');
+        await expect(filter).toBeFocused();
+        await page.goto('/purchases/new');
+        const seller = page.getByRole('combobox', { name: 'Verkäufer auswählen', exact: true });
+        await expect(seller).toBeVisible();
+        expect(await readShell()).toEqual(shell);
+        await expect(seller).toHaveCSS(
+          'background-color',
+          theme === 'light' ? 'rgb(232, 232, 237)' : 'rgb(57, 57, 61)',
+        );
+        await seller.click();
+        const sellerMenu = page.getByRole('listbox', { name: 'Verkäufer auswählen', exact: true });
+        await expect(sellerMenu).toBeVisible();
+        const createSeller = page.getByRole('button', {
+          name: 'Verkäufer erstellen',
+          exact: true,
+        });
+        await expect(createSeller.locator('svg')).toBeVisible();
+        await expect(createSeller).toHaveCSS(
+          'background-color',
+          theme === 'light' ? 'rgb(232, 232, 237)' : 'rgb(57, 57, 61)',
+        );
+        expect(
+          await createSeller.evaluate((button) => button.closest('[role="listbox"]')),
+        ).toBeNull();
+        await page.evaluate(axe.source);
+        expect(
+          await page.evaluate(
+            async () =>
+              (await (window as unknown as { axe: typeof axe }).axe.run('.custom-select-menu'))
+                .violations,
+          ),
+        ).toEqual([]);
+        await page.screenshot({ path: testInfo.outputPath('apple-seller-menu.png') });
+        await createSeller.click();
+        const dialog = page.getByRole('dialog', { name: /Verkäufer/ });
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator('[data-modal-surface]')).toHaveCSS('border-radius', '16px');
+        await expect(dialog.locator('[data-modal-surface]')).toHaveCSS(
+          'border-color',
+          theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+        );
+        expect(
+          await dialog
+            .locator('[data-modal-surface]')
+            .evaluate((e) => getComputedStyle(e).boxShadow),
+        ).toContain('18px 27px');
+        await expect(dialog.locator('[data-modal-surface]')).toHaveCSS(
+          'background-color',
+          theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(30, 30, 30)',
+        );
+        const close = dialog.getByRole('button', { name: 'Dialog schließen' });
+        await expect.poll(async () => (await close.boundingBox())?.height).toBe(hasTouch ? 44 : 28);
+        await close.focus();
+        await page.keyboard.press('Shift+Tab');
+        await expect(dialog.locator(':focus')).toHaveCount(1);
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+        await expect(seller).toBeFocused();
+        await page.goto('/catalog/new');
+        const name = page.getByRole('textbox', { name: 'Name', exact: true });
+        await expect(name).toBeVisible();
+        expect(await readShell()).toEqual(shell);
+        await expect(name).toHaveCSS(
+          'border-color',
+          theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
+        );
+        await name.focus();
+        await expect(name).toHaveCSS('outline-style', 'none');
+        await expect(name).toHaveCSS(
+          'box-shadow',
+          (theme === 'light' ? 'rgb(0, 122, 255)' : 'rgb(10, 132, 255)') + ' 0px 0px 0px 2px',
+        );
+        expect((await name.boundingBox())!.height).toBe(hasTouch ? 44 : 28);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        await page.evaluate(axe.source);
+        expect(
+          await page.evaluate(
+            async () =>
+              (await (window as unknown as { axe: typeof axe }).axe.run('main')).violations,
+          ),
+        ).toEqual([]);
+        await page.screenshot({ path: testInfo.outputPath('apple-form-focus.png') });
+        await page.goto('/auth/set-password');
+        const terms = page.getByRole('button', { name: 'AGB', exact: true });
+        await terms.click();
+        const publicDialog = page.getByRole('dialog');
+        await expect(page.locator('app-shell')).toHaveCount(0);
+        await expect(publicDialog).toHaveCSS(
+          'background-color',
+          theme === 'light' ? 'rgba(0, 0, 0, 0.28)' : 'rgba(0, 0, 0, 0.45)',
+        );
+        await expect(publicDialog.locator('[data-modal-surface]')).toHaveCSS(
+          'border-radius',
+          '16px',
+        );
+        const publicClose = publicDialog.getByRole('button', { name: 'Dialog schließen' });
+        await expect
+          .poll(async () => (await publicClose.boundingBox())?.height)
+          .toBe(hasTouch ? 44 : 28);
+        await page.keyboard.press('Escape');
+        await expect(publicDialog).toHaveCount(0);
+        await expect(terms).toBeFocused();
+        await page.getByRole('button', { name: 'Datenschutzerklärung', exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Dialog schließen' }).click();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+      });
+    });
+  }
+}

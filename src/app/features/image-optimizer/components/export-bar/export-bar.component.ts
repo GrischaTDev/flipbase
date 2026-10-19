@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
 export type ExportStatus =
@@ -7,7 +8,7 @@ export type ExportStatus =
 /** Statuszeile und Export-Knopf. */
 @Component({
   selector: 'app-export-bar',
-  imports: [],
+  imports: [ButtonComponent],
   templateUrl: './export-bar.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

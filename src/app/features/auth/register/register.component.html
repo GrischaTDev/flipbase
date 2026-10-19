@@ -146,94 +146,62 @@
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
         <!-- Full Name -->
         <div>
-          <label
-            for="regFullName"
-            class="block text-xs font-semibold text-fb-text-secondary mb-1.5"
-          >
-            {{ 'AUTH.FULL_NAME' | translate }}
-          </label>
-          <div class="relative flex items-center">
-            <div
-              class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
-            >
-              <svg [lucideIcon]="userIcon" class="w-4 h-4"></svg>
-            </div>
-            <input
-              id="regFullName"
-              type="text"
-              formControlName="fullName"
-              [placeholder]="'AUTH.FULL_NAME_PLACEHOLDER' | translate"
-              autocomplete="name"
-              class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
-            />
-          </div>
-          @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
-            <p class="text-[11px] text-rose-400 mt-1 pl-1">
-              {{ 'AUTH.FULL_NAME_ERROR' | translate }}
-            </p>
-          }
+          <app-text-field
+            id="regFullName"
+            size="comfortable"
+            [label]="'AUTH.FULL_NAME' | translate"
+            formControlName="fullName"
+            type="text"
+            [prefixIcon]="userIcon"
+            autocomplete="name"
+            [placeholder]="'AUTH.FULL_NAME_PLACEHOLDER' | translate"
+            [error]="
+              form.controls.fullName.touched && form.controls.fullName.invalid
+                ? ('AUTH.FULL_NAME_ERROR' | translate)
+                : null
+            "
+          />
         </div>
 
         <!-- Email -->
         <div>
-          <label for="regEmail" class="block text-xs font-semibold text-fb-text-secondary mb-1.5">
-            {{ 'AUTH.EMAIL' | translate }}
-          </label>
-          <div class="relative flex items-center">
-            <div
-              class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
-            >
-              <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
-            </div>
-            <input
-              id="regEmail"
-              type="email"
-              formControlName="email"
-              [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
-              autocomplete="email"
-              class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
-            />
-          </div>
-          @if (form.controls.email.touched && form.controls.email.invalid) {
-            <p class="text-[11px] text-rose-400 mt-1 pl-1">
-              {{ 'AUTH.EMAIL_ERROR' | translate }}
-            </p>
-          }
+          <app-text-field
+            id="regEmail"
+            size="comfortable"
+            [label]="'AUTH.EMAIL' | translate"
+            formControlName="email"
+            type="email"
+            [prefixIcon]="mailIcon"
+            autocomplete="email"
+            [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
+            [error]="
+              form.controls.email.touched && form.controls.email.invalid
+                ? ('AUTH.EMAIL_ERROR' | translate)
+                : null
+            "
+          />
         </div>
 
         <!-- Password -->
         <div>
-          <label
-            for="regPassword"
-            class="block text-xs font-semibold text-fb-text-secondary mb-1.5"
-          >
-            {{ 'AUTH.PASSWORD' | translate }}
-          </label>
-          <div class="relative flex items-center">
-            <div
-              class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
-            >
-              <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
-            </div>
-            <input
-              id="regPassword"
-              [type]="showPassword() ? 'text' : 'password'"
-              formControlName="password"
-              [placeholder]="'AUTH.PASSWORD_PLACEHOLDER' | translate"
-              autocomplete="new-password"
-              class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
-            />
-            <button
-              type="button"
-              (click)="toggleShowPassword()"
-              class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-fb-text-muted hover:text-fb-text-primary cursor-pointer transition"
-              [attr.aria-label]="
-                (showPassword() ? 'AUTH.PASSWORD_HIDE' : 'AUTH.PASSWORD_SHOW') | translate
-              "
-            >
-              <svg [lucideIcon]="showPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
-            </button>
-          </div>
+          <app-text-field
+            id="regPassword"
+            size="comfortable"
+            [label]="'AUTH.PASSWORD' | translate"
+            formControlName="password"
+            type="password"
+            [prefixIcon]="lockIcon"
+            autocomplete="new-password"
+            [placeholder]="'AUTH.PASSWORD_PLACEHOLDER' | translate"
+            [error]="
+              form.controls.password.touched && form.controls.password.invalid
+                ? ('AUTH.PASSWORD_LENGTH_ERROR' | translate)
+                : null
+            "
+            [revealable]="true"
+            [showPasswordLabel]="'AUTH.PASSWORD_SHOW' | translate"
+            [hidePasswordLabel]="'AUTH.PASSWORD_HIDE' | translate"
+          />
 
           <!-- Password Strength Meter -->
           @if (passwordValue().length > 0) {
@@ -258,58 +226,25 @@
               </div>
             </div>
           }
-          @if (form.controls.password.touched && form.controls.password.invalid) {
-            <p class="text-[11px] text-rose-400 mt-1 pl-1">
-              {{ 'AUTH.PASSWORD_LENGTH_ERROR' | translate }}
-            </p>
-          }
         </div>
 
         <!-- Confirm Password -->
         <div>
-          <label
-            for="regConfirmPassword"
-            class="block text-xs font-semibold text-fb-text-secondary mb-1.5"
-          >
-            {{ 'AUTH.PASSWORD_CONFIRM' | translate }}
-          </label>
-          <div class="relative flex items-center">
-            <div
-              class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
-            >
-              <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
-            </div>
-            <input
-              id="regConfirmPassword"
-              [type]="showConfirmPassword() ? 'text' : 'password'"
-              formControlName="confirmPassword"
-              [placeholder]="'AUTH.PASSWORD_CONFIRM_PLACEHOLDER' | translate"
-              autocomplete="new-password"
-              class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
-              [class.border-rose-500]="isPasswordMismatch"
-              [class.border-emerald-500]="isPasswordMatch"
-            />
-            <button
-              type="button"
-              (click)="toggleShowConfirmPassword()"
-              class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-alt/60 cursor-pointer transition focus:outline-hidden focus:ring-2 focus:ring-amber-500/50"
-              [attr.aria-label]="
-                (showConfirmPassword() ? 'AUTH.PASSWORD_HIDE' : 'AUTH.PASSWORD_SHOW') | translate
-              "
-            >
-              <svg
-                [lucideIcon]="showConfirmPassword() ? eyeOffIcon : eyeIcon"
-                class="w-4 h-4"
-              ></svg>
-            </button>
-          </div>
+          <app-text-field
+            id="regConfirmPassword"
+            size="comfortable"
+            [label]="'AUTH.PASSWORD_CONFIRM' | translate"
+            formControlName="confirmPassword"
+            type="password"
+            [prefixIcon]="lockIcon"
+            autocomplete="new-password"
+            [placeholder]="'AUTH.PASSWORD_CONFIRM_PLACEHOLDER' | translate"
+            [error]="isPasswordMismatch ? ('AUTH.PASSWORD_MATCH_ERROR' | translate) : null"
+            [revealable]="true"
+            [showPasswordLabel]="'AUTH.PASSWORD_SHOW' | translate"
+            [hidePasswordLabel]="'AUTH.PASSWORD_HIDE' | translate"
+          />
 
-          @if (isPasswordMismatch) {
-            <p class="text-[11px] text-rose-400 mt-1 pl-1 flex items-center gap-1">
-              <span>✕</span>
-              <span>{{ 'AUTH.PASSWORD_MATCH_ERROR' | translate }}</span>
-            </p>
-          }
           @if (isPasswordMatch) {
             <p
               class="text-[11px] text-emerald-500 dark:text-emerald-400 mt-1 pl-1 flex items-center gap-1"

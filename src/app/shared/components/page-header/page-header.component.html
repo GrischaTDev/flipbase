@@ -4,7 +4,7 @@
       <a
         data-item-back-link
         [routerLink]="backLink()"
-        class="inline-flex items-center gap-1.5 text-[13px] font-semibold text-fb-text-muted hover:text-fb-text-primary transition-colors select-none py-0.5"
+        class="inline-flex min-h-7 items-center gap-1.5 rounded-md text-[13px] font-medium text-fb-text-muted transition-colors select-none hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11"
       >
         <svg [lucideIcon]="backIcon" class="w-3.5 h-3.5" aria-hidden="true"></svg>
         <span>{{ backLabel() }}</span>
@@ -30,7 +30,9 @@
           [class]="
             appearance() === 'overview'
               ? 'min-w-0 break-words text-[28px] leading-9 font-semibold tracking-tight text-fb-text-primary'
-              : 'min-w-0 break-words text-xl leading-7 font-[450] tracking-tight text-fb-text-primary'
+              : appearance() === 'content'
+                ? 'min-w-0 break-words text-[26px] leading-8 font-semibold tracking-tight text-fb-text-primary'
+                : 'min-w-0 break-words text-xl leading-7 font-[450] tracking-tight text-fb-text-primary'
           "
         >
           {{ title() }}

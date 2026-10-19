@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../button/button.component';
 import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
@@ -20,6 +21,7 @@ export type LabelFormat = 'compact' | 'standard' | 'large';
 @Component({
   selector: 'app-inventory-label-modal',
   imports: [
+    ButtonComponent,
     BarcodeComponent,
     ModalDialogDirective,
     CurrencyPipe,

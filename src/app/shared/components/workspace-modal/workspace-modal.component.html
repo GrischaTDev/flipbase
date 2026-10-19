@@ -1,11 +1,11 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+  class="fixed inset-0 fb-dialog-overlay flex items-center justify-center p-4 z-50 animate-fade-in"
   appModalDialog
   dialogTitel="Neuen Workspace erstellen"
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-fb-line animate-modal-card"
+    class="linear-surface fb-dialog-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-fb-line animate-modal-card"
   >
     <div class="flex items-center justify-between mb-4 pb-3 border-b border-fb-line">
       <h3 class="text-sm font-bold text-fb-text-primary">Neuen Workspace erstellen</h3>
@@ -32,37 +32,26 @@
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label
-          for="workspaceName"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
-          Workspace Name
-        </label>
-        <input
+        <app-text-field
           id="workspaceName"
-          type="text"
+          label="Workspace-Name"
           formControlName="name"
           placeholder="z.B. Mein Reselling-Business"
-          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
         />
       </div>
 
       <div class="flex justify-end gap-2.5 pt-3 border-t border-fb-line">
-        <button
-          type="button"
-          (click)="closed.emit()"
-          class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-        >
+        <app-button type="button" (clicked)="closed.emit()" variant="secondary">
           Abbrechen
-        </button>
-        <button
+        </app-button>
+        <app-button
           type="submit"
           [disabled]="form.invalid || isSubmitting()"
-          class="linear-btn-primary px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 transition flex items-center gap-1.5 cursor-pointer"
+          variant="primary"
+          [icon]="plusIcon"
         >
-          <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
           <span>{{ isSubmitting() ? 'Erstelle...' : 'Erstellen' }}</span>
-        </button>
+        </app-button>
       </div>
     </form>
   </div>

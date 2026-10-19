@@ -1,61 +1,51 @@
 @if (dialog.anfrage(); as anfrage) {
   <div
-    class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in"
+    class="fb-dialog-overlay fb-safe-modal fixed inset-0 z-[100] flex h-dvh items-center justify-center overflow-hidden p-4 animate-fade-in"
     appModalDialog
     schliesstBeiKlickAussen
     [dialogTitel]="anfrage.titel"
     (dialogClose)="dialog.antworte(false)"
   >
     <div
-      class="bg-fb-surface border border-fb-border rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-modal-card"
+      class="fb-dialog-surface flex max-h-[calc(100dvh-2rem)] w-full max-w-[390px] flex-col overflow-hidden rounded-2xl animate-modal-card"
     >
-      <div class="flex items-start gap-3">
-        <div
-          class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
-          [class.bg-rose-500/15]="anfrage.gefahr"
-          [class.border-rose-500/30]="anfrage.gefahr"
-          [class.text-rose-400]="anfrage.gefahr"
-          [class.bg-indigo-500/15]="!anfrage.gefahr"
-          [class.border-indigo-500/30]="!anfrage.gefahr"
-          [class.text-indigo-400]="!anfrage.gefahr"
-        >
-          <svg [lucideIcon]="anfrage.gefahr ? warnIcon : infoIcon" class="w-4 h-4"></svg>
-        </div>
-
-        <div class="min-w-0 space-y-1.5">
-          <h2 class="text-sm font-bold text-fb-text-primary">{{ anfrage.titel }}</h2>
-          <p class="text-xs text-fb-text-secondary leading-relaxed whitespace-pre-line">
-            {{ anfrage.text }}
-          </p>
+      <div class="min-h-0 overflow-y-auto overscroll-contain px-6 pt-6 pb-5">
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            [class.bg-fb-critical-surface]="anfrage.gefahr"
+            [class.text-fb-critical]="anfrage.gefahr"
+            [class.bg-fb-info-surface]="!anfrage.gefahr"
+            [class.text-fb-info]="!anfrage.gefahr"
+          >
+            <svg
+              [lucideIcon]="anfrage.gefahr ? warnIcon : infoIcon"
+              class="h-4 w-4"
+              aria-hidden="true"
+            ></svg>
+          </div>
+          <div class="min-w-0 space-y-2">
+            <h2 class="text-[13px] leading-4 font-semibold text-fb-text-primary">
+              {{ anfrage.titel }}
+            </h2>
+            <p class="text-[13px] leading-[18px] text-fb-text-secondary whitespace-pre-line">
+              {{ anfrage.text }}
+            </p>
+          </div>
         </div>
       </div>
-
-      <div class="flex justify-end gap-2 pt-1">
-        <!-- Bei einem Hinweis gibt es nichts abzulehnen, deshalb entfaellt die
-             zweite Schaltflaeche - sonst muesste man sich zwischen zwei
-             gleichbedeutenden Antworten entscheiden. -->
+      <div class="flex shrink-0 flex-wrap justify-end gap-2 px-5 pt-1 pb-5">
         @if (!anfrage.nurHinweis) {
-          <button
-            type="button"
-            (click)="dialog.antworte(false)"
-            class="linear-btn-secondary px-4 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
-          >
+          <app-button variant="secondary" (clicked)="dialog.antworte(false)">
             {{ anfrage.abbrechenText || 'Abbrechen' }}
-          </button>
+          </app-button>
         }
-
-        <button
-          type="button"
-          (click)="dialog.antworte(true)"
-          class="px-4 py-1.5 rounded-xl text-xs font-bold cursor-pointer border transition"
-          [class.bg-rose-600]="anfrage.gefahr"
-          [class.border-rose-500]="anfrage.gefahr"
-          [class.text-white]="anfrage.gefahr"
-          [class.hover:bg-rose-500]="anfrage.gefahr"
-          [class.linear-btn-primary]="!anfrage.gefahr"
+        <app-button
+          [variant]="anfrage.gefahr ? 'destructive' : 'primary'"
+          (clicked)="dialog.antworte(true)"
         >
           {{ anfrage.bestaetigenText || 'Bestätigen' }}
-        </button>
+        </app-button>
       </div>
     </div>
   </div>

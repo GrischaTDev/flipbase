@@ -934,13 +934,36 @@ export class BankReconciliationService {
    * Manually assigns an unmatched transaction.
    */
   async manualAssign(txId: string, match: BankReconciliationMatch): Promise<BankMutationResult> {
-    this.captureContext();
-    if (!this.transactions().some((tx) => tx.id === txId)) {
+    const context = this.captureContext();
+    const tx = this.transactions().find((t) => t.id === txId);
+    const incomeTarget = match.targetType === 'sale' || match.targetType === 'store_order';
+    const expenseTarget =
+      match.targetType === 'purchase' || match.targetType === 'operating_expense';
+    const duplicate = this.transactions().some(
+      (t) =>
+        t.id !== txId &&
+        (t.status === 'matched' || t.status === 'booked') &&
+        t.match?.targetType === match.targetType &&
+        t.match.targetId === match.targetId,
+    );
+    if (
+      !tx ||
+      !['pending', 'matched'].includes(tx.status) ||
+      tx.currency !== 'EUR' ||
+      !Number.isFinite(tx.amount) ||
+      !(tx.amount > 0 ? incomeTarget : tx.amount < 0 && expenseTarget) ||
+      !match.targetId.trim() ||
+      !Number.isFinite(match.targetAmount) ||
+      match.targetAmount <= 0 ||
+      duplicate
+    ) {
+      const message =
+        'Diese Bankbewegung oder dieser Eintrag kann nicht zugeordnet werden. Bitte aktualisiere die Auswahl.';
       return {
         status: 'failed',
         success: false,
-        message: 'Transaktion nicht gefunden.',
-        problem: { error: new Error('Transaktion nicht gefunden.'), reportedBySyncStatus: false },
+        message,
+        problem: { error: new Error(message), reportedBySyncStatus: false },
       };
     }
     const aktualisiert = this.transactions().map((t) =>
@@ -952,7 +975,55 @@ export class BankReconciliationService {
           }
         : t,
     );
-    return this.persistTransactions(aktualisiert, 'Zuordnen der Banktransaktion');
+    if (!this.supabase)
+      return this.persistTransactions(aktualisiert, 'Zuordnen der Banktransaktion', context);
+    if (!context.workspaceId || !this.isCurrentContext(context))
+      return this.fehlgeschlageneMutation(
+        'Zuordnen der Banktransaktion',
+        new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+      );
+    this.loadRequestId++;
+    try {
+      const { data, error } = await this.supabase.client
+        .from('bank_transactions')
+        .update({
+          status: 'matched',
+          match_json: { ...match, confidence: 100, confidenceLabel: 'manual' } as unknown as Json,
+        })
+        .eq('workspace_id', context.workspaceId)
+        .eq('id', txId)
+        .eq('amount', tx.amount)
+        .eq('currency', tx.currency)
+        .in('status', ['pending', 'matched'])
+        .select('id');
+      if (error || data?.length !== 1 || data[0].id !== txId)
+        return this.fehlgeschlageneMutation(
+          'Zuordnen der Banktransaktion',
+          error ??
+            new Error(
+              'Die Bankbewegung wurde inzwischen verändert. Bitte aktualisiere die Auswahl.',
+            ),
+        );
+      if (!this.isCurrentContext(context))
+        return this.fehlgeschlageneMutation(
+          'Zuordnen der Banktransaktion',
+          new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+        );
+      this.transactions.update((list) =>
+        list.map((current) =>
+          current.id === txId
+            ? {
+                ...current,
+                status: 'matched',
+                match: { ...match, confidence: 100, confidenceLabel: 'manual' },
+              }
+            : current,
+        ),
+      );
+      return { status: 'success', success: true, message: 'Bankbewegung wurde zugeordnet.' };
+    } catch (error: unknown) {
+      return this.fehlgeschlageneMutation('Zuordnen der Banktransaktion', error);
+    }
   }
 
   /**

@@ -17,12 +17,12 @@
     }
   </div>
 
-  <button
+  <app-button
     type="button"
-    (click)="exportRequested.emit()"
+    (clicked)="exportRequested.emit()"
     [disabled]="isBusy() || !canExport()"
-    class="linear-btn-primary cursor-pointer rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-40"
+    variant="primary"
   >
     {{ isBusy() ? 'Bilder werden erzeugt …' : 'Bilder exportieren' }}
-  </button>
+  </app-button>
 </section>

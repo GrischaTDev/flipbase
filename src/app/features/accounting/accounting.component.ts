@@ -1,3 +1,4 @@
+import { BankAssignmentDialogComponent } from './components/bank-assignment-dialog/bank-assignment-dialog.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -70,6 +71,7 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
 @Component({
   selector: 'app-accounting',
   imports: [
+    BankAssignmentDialogComponent,
     PageHeaderComponent,
     CardComponent,
     ModalShellComponent,

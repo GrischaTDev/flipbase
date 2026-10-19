@@ -1,0 +1,723 @@
+{
+  "date": "2026-10-19",
+  "kind": "Gerenderte Flipbase-Webwerte unter Windows/Chromium; keine native Apple-Gerätemessung.",
+  "source": "2026-10-19-apple-form-audit.md",
+  "results": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "inputMode": {
+        "coarse": false,
+        "touch": 2,
+        "rootFont": "16px"
+      },
+      "name": {
+        "text": "",
+        "width": 782,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "brand": {
+        "text": "",
+        "width": 298,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "32px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 298,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "16px",
+        "padding": ["0px", "0px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(232, 232, 237)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "28px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 36.40625,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 39.09375,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 35.671875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "labelGap": 6,
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "rgba(0, 0, 0, 0.1) 0px 0px 0px 999px inset",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        }
+      ],
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": 271,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 629,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 875,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 1080,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 271,
+          "x": 1105
+        },
+        {
+          "text": "Kennungen",
+          "y": 815,
+          "x": 1105
+        },
+        {
+          "text": "Shop",
+          "y": 1065,
+          "x": 1105
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 1259.5,
+          "x": 1105
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "inputMode": {
+        "coarse": false,
+        "touch": 2,
+        "rootFont": "16px"
+      },
+      "name": {
+        "text": "",
+        "width": 782,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "brand": {
+        "text": "",
+        "width": 298,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "16px",
+        "padding": ["4px", "32px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 298,
+        "height": 28,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "16px",
+        "padding": ["0px", "0px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(57, 57, 61)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "28px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 36.40625,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 39.09375,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 35.671875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "labelGap": 6,
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "rgba(255, 255, 255, 0.1) 0px 0px 0px 999px inset",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        }
+      ],
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": 271,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 629,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 875,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 1080,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 271,
+          "x": 1105
+        },
+        {
+          "text": "Kennungen",
+          "y": 815,
+          "x": 1105
+        },
+        {
+          "text": "Shop",
+          "y": 1065,
+          "x": 1105
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 1259.5,
+          "x": 1105
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ]
+    },
+    {
+      "width": 834,
+      "theme": "light",
+      "inputMode": {
+        "coarse": true,
+        "touch": 1,
+        "rootFont": "16px"
+      },
+      "name": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "20px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "brand": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "20px",
+        "padding": ["4px", "48px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(0, 0, 0, 0.08)",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(232, 232, 237)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "44px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 36.40625,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 39.09375,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 35.671875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(29, 29, 31)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(29, 29, 31)",
+        "minHeight": "auto"
+      },
+      "labelGap": 6,
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(222, 222, 228)",
+          "color": "rgb(29, 29, 31)",
+          "shadow": "rgba(0, 0, 0, 0.1) 0px 0px 0px 999px inset",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        }
+      ],
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": -255,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 155,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 410.5,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 664,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 968.5,
+          "x": 261
+        },
+        {
+          "text": "Kennungen",
+          "y": 1620.5,
+          "x": 261
+        },
+        {
+          "text": "Shop",
+          "y": 1902.5,
+          "x": 261
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 2077.5,
+          "x": 261
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ]
+    },
+    {
+      "width": 834,
+      "theme": "dark",
+      "inputMode": {
+        "coarse": true,
+        "touch": 1,
+        "rootFont": "16px"
+      },
+      "name": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "20px",
+        "padding": ["4px", "12px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "brand": {
+        "text": "",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "lineHeight": "20px",
+        "padding": ["4px", "48px", "4px", "12px"],
+        "radius": "7px",
+        "border": "1px solid rgba(255, 255, 255, 0.12)",
+        "bg": "rgb(51, 51, 54)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "condition": {
+        "text": "Gebraucht",
+        "width": 536,
+        "height": 44,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "12px"],
+        "radius": "6px",
+        "border": "1px solid rgba(0, 0, 0, 0)",
+        "bg": "rgb(57, 57, 61)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "44px"
+      },
+      "nameLabel": {
+        "text": "Name",
+        "width": 36.40625,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "brandLabel": {
+        "text": "Marke",
+        "width": 39.09375,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "colorLabel": {
+        "text": "Farbe",
+        "width": 35.671875,
+        "height": 20,
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Inter, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "20px",
+        "padding": ["0px", "0px", "0px", "0px"],
+        "radius": "0px",
+        "border": "0px solid rgb(242, 242, 247)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(242, 242, 247)",
+        "minHeight": "auto"
+      },
+      "labelGap": 6,
+      "buttonPress": {
+        "hover": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "none",
+          "transform": "none",
+          "opacity": "1"
+        },
+        "pressed": {
+          "bg": "rgb(72, 72, 77)",
+          "color": "rgb(242, 242, 247)",
+          "shadow": "rgba(255, 255, 255, 0.1) 0px 0px 0px 999px inset",
+          "transform": "none",
+          "opacity": "1"
+        }
+      },
+      "modalTitleInputLabels": [
+        {
+          "text": "Artikelname / Produkttitel",
+          "visuallyHidden": false
+        }
+      ],
+      "sections": [
+        {
+          "text": "Grunddaten",
+          "y": -255,
+          "x": 261
+        },
+        {
+          "text": "Bilder",
+          "y": 155,
+          "x": 261
+        },
+        {
+          "text": "Varianten",
+          "y": 410.5,
+          "x": 261
+        },
+        {
+          "text": "Suchmaschineneintrag",
+          "y": 664,
+          "x": 261
+        },
+        {
+          "text": "Eigenschaften",
+          "y": 968.5,
+          "x": 261
+        },
+        {
+          "text": "Kennungen",
+          "y": 1620.5,
+          "x": 261
+        },
+        {
+          "text": "Shop",
+          "y": 1902.5,
+          "x": 261
+        },
+        {
+          "text": "Einkauf und Bestand",
+          "y": 2077.5,
+          "x": 261
+        },
+        {
+          "text": "Bestand",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Wareneingänge",
+          "y": 0,
+          "x": 0
+        },
+        {
+          "text": "Positionen und Einkaufsherkunft",
+          "y": 0,
+          "x": 0
+        }
+      ]
+    }
+  ]
+}

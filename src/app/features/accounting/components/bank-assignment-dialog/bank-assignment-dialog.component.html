@@ -1,0 +1,93 @@
+<app-modal-shell
+  title="Bankbewegung zuordnen"
+  [icon]="assignIcon"
+  iconTone="neutral"
+  size="md"
+  (closed)="close()"
+>
+  @let tx = transaction();
+  <div class="space-y-1 border-b border-fb-border-subtle pb-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <p class="min-w-0 break-words text-[15px] font-semibold text-fb-text-primary">
+        {{ tx.counterpartyName }}
+      </p>
+      <p class="shrink-0 text-lg font-semibold tabular-nums text-fb-text-primary">
+        {{ tx.amount | currency: tx.currency : 'symbol' : '1.2-2' : 'de' }}
+      </p>
+    </div>
+    <p class="text-xs text-fb-text-muted">{{ tx.bookingDate | date: 'dd.MM.yyyy' }}</p>
+    <p class="break-words text-[13px] text-fb-text-secondary">{{ tx.purpose }}</p>
+  </div>
+  @if (!contextValid()) {
+    <p role="alert" class="text-[13px] text-fb-critical">
+      Dein Arbeitsbereich oder Deine Anmeldung hat sich geändert. Öffne die Zuordnung erneut.
+    </p>
+  } @else {
+    <app-custom-select
+      label="Zuordnen zu"
+      ariaLabel="Zuordnen zu"
+      [options]="typeOptions()"
+      [value]="type()"
+      [disabled]="saving()"
+      (valueChange)="changeType($event)"
+    />
+    <app-custom-select
+      label="Eintrag"
+      ariaLabel="Eintrag"
+      placeholder="Eintrag suchen …"
+      [searchable]="true"
+      [options]="targetOptions()"
+      [value]="selectedKey()"
+      [disabled]="loading() || saving()"
+      (valueChange)="select($event)"
+    />
+    @if (loading()) {
+      <p role="status" class="text-[13px] text-fb-text-secondary">Einträge werden geladen …</p>
+    } @else if (!error() && targets().length === 0) {
+      <p role="status" class="text-[13px] text-fb-text-secondary">
+        Keine verfügbaren Einträge in diesem Bereich.
+      </p>
+    }
+    @if (selected(); as target) {
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+        <dt class="text-fb-text-secondary">Betrag des Eintrags</dt>
+        <dd class="text-right tabular-nums text-fb-text-primary">
+          {{ target.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </dd>
+        @if (difference() !== 0) {
+          <dt class="text-fb-text-secondary">Differenz</dt>
+          <dd class="text-right tabular-nums font-medium text-fb-text-primary">
+            {{ difference() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          </dd>
+        }
+      </dl>
+      @if (difference() !== 0) {
+        <app-custom-checkbox
+          presentation="row"
+          label="Abweichenden Betrag bestätigen"
+          ariaLabel="Abweichenden Betrag bestätigen"
+          [checked]="differenceConfirmed()"
+          [disabled]="saving()"
+          (checkedChange)="differenceConfirmed.set($event)"
+        />
+      }
+    }
+    @if (error(); as message) {
+      <div class="space-y-2">
+        <p role="alert" class="break-words text-[13px] text-fb-critical">{{ message }}</p>
+        <app-button [disabled]="saving() || loading()" (clicked)="load()"
+          >Auswahl aktualisieren</app-button
+        >
+      </div>
+    }
+    @if (saving()) {
+      <p role="status" class="text-[13px] text-fb-text-secondary">Zuordnung wird gespeichert …</p>
+    }
+  }
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button [disabled]="saving()" (clicked)="close()">Abbrechen</app-button>
+    <app-button variant="primary" [disabled]="!canSave()" [loading]="saving()" (clicked)="save()"
+      >Zuordnung speichern</app-button
+    >
+  </div>
+</app-modal-shell>

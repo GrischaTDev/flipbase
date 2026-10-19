@@ -1,81 +1,30 @@
-<div class="space-y-5 animate-fade-in">
-  <!-- Polaris Page Header -->
+<div class="space-y-6 animate-fade-in">
+  <!-- Gemeinsamer Artikelkopf -->
   <app-page-header
+    appearance="content"
     [title]="currentItem()?.title || 'Artikeldetail'"
     [backLink]="backTarget()"
     [backLabel]="backLabel()"
   >
-    @if (currentItem(); as item) {
-      <div header-badge class="flex items-center gap-1.5">
-        <app-badge tone="neutral">
-          {{ item.condition | itemConditionLabel }}
-        </app-badge>
-        @if (item.category) {
-          <app-badge tone="info">
-            {{ item.category }}
-          </app-badge>
-        }
-        @if (item.brand) {
-          <span class="text-xs text-fb-text-muted font-medium">{{ item.brand }}</span>
-        }
-      </div>
-    }
-
-    <div header-actions class="flex items-center gap-2">
-      <button
-        type="button"
-        (click)="isLabelModalOpen.set(true)"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
-        title="Lager- & Barcode-Etikett drucken"
+    <div header-actions class="flex max-w-full flex-wrap items-center gap-2">
+      <app-button variant="ghost" [icon]="printerIcon" (clicked)="isLabelModalOpen.set(true)"
+        >Etikett drucken</app-button
       >
-        <svg
-          [lucideIcon]="printerIcon"
-          aria-hidden="true"
-          class="w-3.5 h-3.5 text-indigo-400"
-        ></svg>
-        <span>Etikett drucken</span>
-      </button>
 
-      <a
-        [routerLink]="['/shop/item', currentItem()?.id]"
-        target="_blank"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-fb-text-primary"
-        title="Im Online-Shop ansehen"
-      >
-        <svg [lucideIcon]="storeIcon" aria-hidden="true" class="w-3.5 h-3.5 text-indigo-400"></svg>
-        <span>Im Shop ansehen</span>
-      </a>
-
-      <a
-        [routerLink]="['/research']"
+      <app-button
+        variant="ghost"
+        [icon]="searchIcon"
+        link="/research"
         [queryParams]="{ query: currentItem()?.title }"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+        >Preise recherchieren</app-button
       >
-        <svg
-          [lucideIcon]="searchIcon"
-          aria-hidden="true"
-          class="w-3.5 h-3.5 text-emerald-400"
-        ></svg>
-        <span>Market Research</span>
-      </a>
-
       @if (currentItem(); as actionItem) {
         @if (!isMutationLocked(actionItem)) {
-          <button
-            type="button"
-            (click)="openEditModal()"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+          <app-button variant="primary" [icon]="editIcon" (clicked)="openEditModal()"
+            >Bearbeiten</app-button
           >
-            <svg
-              [lucideIcon]="editIcon"
-              aria-hidden="true"
-              class="w-3.5 h-3.5 text-indigo-400"
-            ></svg>
-            <span>Bearbeiten</span>
-          </button>
-
           @if (canOfferDelete(actionItem)) {
-            <app-button variant="ghost" size="slim" [icon]="trashIcon" (clicked)="onDeleteItem()"
+            <app-button variant="ghost" [icon]="trashIcon" (clicked)="onDeleteItem()"
               >Löschen</app-button
             >
           }
@@ -86,36 +35,26 @@
 
   @if (currentItem(); as item) {
     <!-- Main Item Card -->
-    <app-card padding="md">
+    <app-card variant="section" padding="md">
       <div class="space-y-5">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-start gap-3.5">
-            <div
-              class="w-12 h-12 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-secondary flex items-center justify-center shrink-0 overflow-hidden"
-            >
-              @if (mediaList().length > 0) {
-                <img
-                  [src]="getMediaUrl(mediaList()[0].storage_path)"
-                  [alt]="item.title"
-                  class="w-full h-full object-cover"
-                />
-              } @else {
-                <svg [lucideIcon]="boxesIcon" aria-hidden="true" class="w-6 h-6"></svg>
-              }
-            </div>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex min-w-0 items-center gap-3">
+            <app-product-thumbnail
+              [src]="mediaList().length ? getMediaUrl(mediaList()[0].storage_path) : null"
+              [alt]="item.title"
+              size="md"
+            />
 
             <div>
               <div class="flex flex-wrap items-center gap-1.5 mb-1">
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-fb-subtle text-fb-text-secondary border border-fb-border"
+                  class="rounded-md bg-fb-subtle px-2 py-1 text-xs font-medium text-fb-text-secondary"
                 >
                   {{ item.condition | itemConditionLabel }}
                 </span>
 
                 @if (item.category) {
-                  <span
-                    class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                  >
+                  <span class="rounded-md bg-fb-subtle px-2 py-1 text-xs text-fb-text-secondary">
                     {{ item.category }}
                   </span>
                 }
@@ -125,14 +64,12 @@
                 }
               </div>
 
-              <p class="text-base md:text-lg font-bold text-fb-text-primary">{{ item.title }}</p>
+              <p class="text-[13px] text-fb-text-secondary">Einzeln nachverfolgter Artikel</p>
             </div>
           </div>
 
           <div class="flex flex-col sm:items-end gap-1 shrink-0">
-            <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
-              >Status</span
-            >
+            <span class="text-[13px] font-medium text-fb-text-secondary">Status</span>
             @if (detailPresentation(); as row) {
               @if (row.status.kind === 'editable') {
                 <app-custom-select
@@ -164,30 +101,24 @@
         </div>
 
         <!-- Financial Metrics Ribbon -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-fb-border font-mono">
-          <div class="linear-kpi p-3 rounded-lg">
-            <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
-              >Kostenanteil</span
-            >
-            <span class="text-base font-bold text-fb-text-primary mt-1 block">
+        <div class="grid grid-cols-2 gap-x-5 gap-y-4 border-t border-fb-line pt-5 sm:grid-cols-4">
+          <div class="min-w-0">
+            <span class="block text-[13px] text-fb-text-secondary">Kostenanteil</span>
+            <span class="mt-1 block text-xl font-semibold tabular-nums text-fb-text-primary">
               <app-cost-state [state]="purchaseCostShareState()" />
             </span>
           </div>
 
-          <div class="linear-kpi p-3 rounded-lg">
-            <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
-              >Zusatzkosten</span
-            >
-            <span class="text-base font-bold text-amber-400 mt-1 block">
+          <div class="min-w-0">
+            <span class="block text-[13px] text-fb-text-secondary">Zusatzkosten</span>
+            <span class="mt-1 block text-xl font-semibold tabular-nums text-fb-text-primary">
               <app-cost-state [state]="additionalCostState()" />
             </span>
           </div>
 
-          <div class="linear-kpi p-3 rounded-lg">
-            <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
-              >Gesamt</span
-            >
-            <span class="text-base font-bold text-fb-text-primary mt-1 block">
+          <div class="min-w-0">
+            <span class="block text-[13px] text-fb-text-secondary">Gesamt</span>
+            <span class="mt-1 block text-xl font-semibold tabular-nums text-fb-text-primary">
               @if (detailPresentation(); as row) {
                 <app-cost-state [state]="row.costPerUnit" />
               } @else {
@@ -196,11 +127,9 @@
             </span>
           </div>
 
-          <div class="linear-kpi p-3 rounded-lg">
-            <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
-              >Bestandswert</span
-            >
-            <span class="text-base font-bold text-fb-text-primary mt-1 block">
+          <div class="min-w-0">
+            <span class="block text-[13px] text-fb-text-secondary">Bestandswert</span>
+            <span class="mt-1 block text-xl font-semibold tabular-nums text-fb-text-primary">
               @if (detailPresentation(); as row) {
                 <app-cost-state [state]="row.inventoryValue" />
               } @else {
@@ -211,6 +140,22 @@
         </div>
       </div>
     </app-card>
+
+    @if (item.description || item.condition_notes) {
+      <app-card variant="section" title="Beschreibung">
+        <div class="space-y-4 text-[13px] leading-relaxed text-fb-text-primary">
+          @if (item.description) {
+            <p class="whitespace-pre-wrap [overflow-wrap:anywhere]">{{ item.description }}</p>
+          }
+          @if (item.condition_notes) {
+            <div>
+              <h3 class="mb-1 font-medium text-fb-text-secondary">Zustandsnotiz</h3>
+              <p class="whitespace-pre-wrap [overflow-wrap:anywhere]">{{ item.condition_notes }}</p>
+            </div>
+          }
+        </div>
+      </app-card>
+    }
 
     @if (item.sale_state === 'legacy_sold_unverified') {
       <section
@@ -226,20 +171,12 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            (click)="onRestoreLegacySoldItem()"
-            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold"
-          >
+          <app-button type="button" (clicked)="onRestoreLegacySoldItem()" variant="secondary">
             Artikel ist noch vorhanden
-          </button>
-          <button
-            type="button"
-            (click)="openLegacySaleReconciliation()"
-            class="linear-btn-primary rounded-lg px-3 py-2 text-xs font-semibold"
-          >
+          </app-button>
+          <app-button type="button" (clicked)="openLegacySaleReconciliation()" variant="primary">
             Verkauf nachtragen
-          </button>
+          </app-button>
         </div>
       </section>
     } @else if (item.sale_state === 'legacy_sale_header_without_line') {
@@ -273,7 +210,7 @@
         <section class="linear-surface rounded-xl p-4" aria-labelledby="item-sales-title">
           <h2
             id="item-sales-title"
-            class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+            class="text-[15px] font-semibold leading-5 text-fb-text-primary"
           >
             Verkaufsbezug
           </h2>
@@ -298,12 +235,12 @@
                     }
                   </p>
                 </div>
-                <a
+                <app-button
                   data-item-sale-link
-                  [routerLink]="['/sales']"
+                  link="/sales"
                   [queryParams]="{ saleId: sale.id }"
-                  class="linear-btn-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
-                  >Verkauf öffnen</a
+                  variant="secondary"
+                  >Verkauf öffnen</app-button
                 >
               </article>
             }
@@ -314,32 +251,28 @@
 
     <!-- Webshop & Online-Store Veröffentlichung -->
     <div
-      class="linear-surface rounded-xl p-4 md:p-5 space-y-3 border border-indigo-500/30 bg-indigo-500/5"
+      class="space-y-5 rounded-xl border border-fb-border-subtle bg-fb-surface p-5 shadow-[0_1px_3px_rgb(0_0_0/0.03)]"
     >
-      <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-fb-border"
-      >
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-0">
         <div class="flex items-center gap-2.5">
           <div
-            class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fb-subtle text-fb-text-secondary"
           >
             <svg [lucideIcon]="storeIcon" class="w-4 h-4"></svg>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-                Eigener Webshop & Online-Store
-              </h2>
+              <h2 class="text-[15px] font-semibold leading-5 text-fb-text-primary">Shop</h2>
               @if (item.is_public_store !== false && item.status !== 'sold') {
                 <span
-                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
                 >
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span>Live im Shop</span>
                 </span>
               } @else {
                 <span
-                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-muted border border-fb-border"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-fb-subtle text-fb-text-muted border border-fb-border"
                 >
                   <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
                   <span>Nicht gelistet</span>
@@ -347,8 +280,7 @@
               }
             </div>
             <p class="text-[11px] text-fb-text-muted mt-0.5">
-              Steuere, ob dieser Artikel in deinem öffentlichen Kunden-Store gelistet und direkt
-              online kaufbar ist.
+              Sichtbarkeit und Verkaufspreis im Shop.
             </p>
           </div>
         </div>
@@ -356,95 +288,79 @@
         <div class="flex items-center gap-2">
           <!-- Toggle Button -->
           @if (!isMutationLocked(item)) {
-            <button
-              type="button"
-              (click)="onTogglePublicStore(item.is_public_store === false)"
-              class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border"
-              [class.bg-emerald-600]="item.is_public_store !== false"
-              [class.text-fb-text-primary]="item.is_public_store !== false"
-              [class.border-emerald-500]="item.is_public_store !== false"
-              [class.bg-fb-surface]="item.is_public_store === false"
-              [class.text-fb-text-secondary]="item.is_public_store === false"
-              [class.border-fb-border]="item.is_public_store === false"
+            <app-button
+              variant="secondary"
+              [ariaPressed]="item.is_public_store !== false"
+              [icon]="item.is_public_store !== false ? checkIcon : storeIcon"
+              (clicked)="onTogglePublicStore(item.is_public_store === false)"
             >
-              <svg
-                [lucideIcon]="item.is_public_store !== false ? checkIcon : storeIcon"
-                class="w-3.5 h-3.5"
-              ></svg>
-              <span>{{
-                item.is_public_store !== false ? 'Im Webshop aktiv' : 'Im Webshop aktivieren'
-              }}</span>
-            </button>
+              {{ item.is_public_store !== false ? 'Im Webshop aktiv' : 'Im Webshop aktivieren' }}
+            </app-button>
           }
 
           <!-- Direct View in Store Link -->
-          <a
-            [routerLink]="['/shop/item', item.id]"
+          <app-button
+            [href]="'/shop/item/' + item.id"
             target="_blank"
-            class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-fb-text-primary flex items-center gap-1.5"
+            variant="secondary"
             title="Öffentliche Kundenvorschau aufrufen"
+            [icon]="linkIcon"
           >
             <span>Im Shop ansehen</span>
-            <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
-          </a>
+          </app-button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-fb-text-muted font-mono">
-        <div>
-          <span class="font-sans block text-[10px]">Shop-Verkaufspreis:</span>
-          <strong class="text-fb-text-primary text-sm">{{
-            (item.expected_value === null || item.expected_value === undefined) &&
-            item.allocated_purchase_cost === null
-              ? 'Offen'
-              : (item.expected_value ?? item.allocated_purchase_cost! * 1.5
-                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-          }}</strong>
+      <dl class="border-t border-fb-line pt-4">
+        <div class="flex items-center justify-between gap-4 text-[13px]">
+          <dt class="text-fb-text-secondary">Shoppreis</dt>
+          <dd class="text-base font-semibold tabular-nums text-fb-text-primary">
+            {{
+              (item.expected_value === null || item.expected_value === undefined) &&
+              item.allocated_purchase_cost === null
+                ? 'Offen'
+                : (item.expected_value ?? item.allocated_purchase_cost! * 1.5
+                  | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+            }}
+          </dd>
         </div>
-        <div>
-          <span class="font-sans block text-[10px]">Shop-URL:</span>
-          <span class="text-indigo-400 font-sans text-xs">/shop/item/{{ item.id }}</span>
-        </div>
-        <div>
-          <span class="font-sans block text-[10px]">Zahlungsmethoden:</span>
-          <span class="text-fb-text-secondary font-sans text-xs">Stripe, PayPal, Überweisung</span>
-        </div>
-      </div>
+      </dl>
     </div>
 
     <!-- Foto-Galerie & Belege (Supabase Storage) -->
-    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-      <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-fb-border"
-      >
+    <div
+      class="space-y-5 rounded-xl border border-fb-border-subtle bg-fb-surface p-5 shadow-[0_1px_3px_rgb(0_0_0/0.03)]"
+    >
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-0">
         <div class="flex items-center gap-2">
           <svg [lucideIcon]="imageIcon" class="w-4 h-4 text-emerald-400"></svg>
           <div>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-              Produktbilder & Kaufbelege (Supabase Storage)
+            <h2 class="text-[15px] font-semibold leading-5 text-fb-text-primary">
+              Bilder und Belege
             </h2>
-            <span class="text-[11px] text-fb-text-muted">
-              {{ mediaList().length }} Datei(en) im Cloud-Speicher hinterlegt
-            </span>
+            <span class="text-[11px] text-fb-text-muted"> {{ mediaList().length }} Dateien </span>
           </div>
         </div>
 
         <!-- Upload Button -->
         @if (!isMutationLocked(item)) {
-          <label
-            class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0"
+          <app-button
+            variant="secondary"
+            [icon]="uploadIcon"
+            [loading]="isUploading()"
+            [disabled]="isUploading()"
+            (clicked)="itemMediaInput.click()"
+            >Fotos hochladen</app-button
           >
-            <svg [lucideIcon]="uploadIcon" class="w-3.5 h-3.5"></svg>
-            <span>{{ isUploading() ? 'Wird hochgeladen...' : 'Fotos hochladen' }}</span>
-            <input
-              type="file"
-              multiple
-              accept="image/*,application/pdf"
-              (change)="onFilesSelected($event)"
-              [disabled]="isUploading()"
-              class="hidden"
-            />
-          </label>
+          <input
+            #itemMediaInput
+            type="file"
+            multiple
+            accept="image/*,application/pdf"
+            (change)="onFilesSelected($event)"
+            [disabled]="isUploading()"
+            class="hidden"
+          />
         }
       </div>
 
@@ -500,12 +416,12 @@
 
                 <!-- Quick Action Overlay on Hover -->
                 <div
-                  class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5"
+                  class="absolute inset-0 flex flex-wrap items-center justify-center gap-1.5 bg-black/50 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
                 >
                   <button
                     type="button"
                     (click)="previewModalUrl.set(getMediaUrl(media.storage_path))"
-                    class="p-1.5 rounded bg-fb-surface/90 text-fb-text-primary hover:text-emerald-400 transition cursor-pointer"
+                    class="flex min-h-7 min-w-7 items-center justify-center rounded-md bg-fb-surface/95 p-1.5 text-fb-text-primary focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:text-emerald-400 transition cursor-pointer"
                     title="Vollbild"
                   >
                     <svg [lucideIcon]="eyeIcon" class="w-3.5 h-3.5"></svg>
@@ -515,7 +431,7 @@
                     <button
                       type="button"
                       (click)="onSetPrimary(media)"
-                      class="p-1.5 rounded bg-fb-surface/90 text-fb-text-primary hover:text-amber-400 transition cursor-pointer"
+                      class="flex min-h-7 min-w-7 items-center justify-center rounded-md bg-fb-surface/95 p-1.5 text-fb-text-primary focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:text-amber-400 transition cursor-pointer"
                       title="Als Hauptbild setzen"
                     >
                       <svg [lucideIcon]="starIcon" class="w-3.5 h-3.5"></svg>
@@ -526,7 +442,7 @@
                     <button
                       type="button"
                       (click)="onDeleteMedia(media)"
-                      class="p-1.5 rounded bg-fb-surface/90 text-fb-text-primary hover:text-rose-400 transition cursor-pointer"
+                      class="flex min-h-7 min-w-7 items-center justify-center rounded-md bg-fb-surface/95 p-1.5 text-fb-text-primary focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:text-rose-400 transition cursor-pointer"
                       title="Löschen"
                     >
                       <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -556,7 +472,7 @@
             Noch keine Fotos oder Belege hochgeladen
           </p>
           <p class="text-[11px] text-fb-text-muted mt-0.5">
-            Lade Produktfotos für Inserate oder Einkaufsbelege direkt in Supabase Storage hoch.
+            Füge Produktfotos oder Einkaufsbelege hinzu.
           </p>
         </div>
       }
@@ -566,7 +482,7 @@
       <!-- Left Column: Origin & Item Costs (7 cols) -->
       <div main class="space-y-4">
         <!-- Origin Card -->
-        <app-card title="Herkunft & Einkauf" padding="md">
+        <app-card variant="section" title="Herkunft & Einkauf" padding="md">
           <div class="space-y-3">
             @if (item.purchase) {
               <div
@@ -584,12 +500,9 @@
                   </p>
                 </div>
 
-                <a
-                  [routerLink]="['/purchases', item.purchase.id]"
-                  class="linear-btn-secondary px-2.5 py-1 rounded-md text-xs font-semibold"
-                >
+                <app-button [link]="'/purchases/' + item.purchase.id" variant="secondary">
                   Einkauf ansehen
-                </a>
+                </app-button>
               </div>
             } @else {
               @if (detailPresentation(); as row) {
@@ -610,28 +523,26 @@
         </app-card>
 
         <!-- Item Costs Card (Reparatur, Reinigung, Ersatzteile) -->
-        <app-card padding="md">
-          <div card-header class="flex items-center justify-between pb-2 border-b border-fb-border">
+        <app-card variant="section" padding="md">
+          <div card-header class="flex items-center justify-between pb-0">
             <div class="flex items-center gap-2">
               <svg
                 [lucideIcon]="wrenchIcon"
                 aria-hidden="true"
                 class="w-4 h-4 text-amber-400"
               ></svg>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-                Artikelkosten (Reparatur, Reinigung, Teile)
-              </h2>
+              <h2 class="text-[15px] font-semibold leading-5 text-fb-text-primary">Zusatzkosten</h2>
             </div>
 
             @if (!isMutationLocked(item)) {
-              <button
+              <app-button
                 type="button"
-                (click)="isAddingCost.set(!isAddingCost())"
-                class="linear-btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer"
+                (clicked)="isAddingCost.set(!isAddingCost())"
+                variant="secondary"
+                [icon]="plusIcon"
               >
-                <svg [lucideIcon]="plusIcon" aria-hidden="true" class="w-3 h-3"></svg>
                 <span>Kosten erfassen</span>
-              </button>
+              </app-button>
             }
           </div>
 
@@ -721,16 +632,14 @@
 
       <!-- Right Column: Activity History (5 cols) -->
       <div sidebar class="space-y-4">
-        <app-card padding="md">
-          <div card-header class="flex items-center gap-2 pb-2 border-b border-fb-border">
+        <app-card variant="section" padding="md">
+          <div card-header class="flex items-center gap-2 pb-0">
             <svg
               [lucideIcon]="historyIcon"
               aria-hidden="true"
               class="w-4 h-4 text-indigo-400"
             ></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-              Aktivitäts-Historie
-            </h2>
+            <h2 class="text-[15px] font-semibold leading-5 text-fb-text-primary">Aktivitäten</h2>
           </div>
 
           <div class="space-y-2.5 pt-3">
@@ -757,7 +666,24 @@
       </div>
     </app-two-column-layout>
 
-    <app-record-history-container [entityType]="'inventory_item'" [entityId]="item.id" />
+    <app-record-history-container
+      appearance="section"
+      [entityType]="'inventory_item'"
+      [entityId]="item.id"
+    />
+  } @else {
+    @if (inventoryService.isLoading()) {
+      <p role="status" class="py-12 text-center text-sm text-fb-text-secondary">
+        Artikel wird geladen …
+      </p>
+    } @else {
+      <app-card variant="section" title="Artikel nicht verfügbar" rounded="xl">
+        <p class="text-[13px] leading-5 text-fb-text-secondary">
+          Dieser Artikel ist im aktuellen Workspace nicht vorhanden oder nicht zugänglich.
+        </p>
+        <app-button class="mt-4" [link]="backTarget()">Zur Artikelliste</app-button>
+      </app-card>
+    }
   }
 
   <!-- Fullscreen Image Preview Modal -->

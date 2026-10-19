@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import 'intl-tel-input/styles';
 @import './styles/flipbase-theme.css';
+@import './styles/flipbase-shell.css';
+@import './styles/flipbase-dialogs.css';
 
 /* Gemeinsame Bildschirmränder für installierte Apps und Displayaussparungen. */
 .fb-safe-header {
@@ -812,10 +814,6 @@ html:not(.dark) .fb-admin :is(.linear-card, .linear-card-interactive, .linear-kp
   background: var(--fb-bg-surface);
 }
 
-html:not(.dark) .fb-admin .linear-btn-primary:hover {
-  background: var(--fb-primary-hover);
-}
-
 html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   background-color: var(--fb-primary);
   color: var(--fb-text-on-accent);
@@ -873,29 +871,36 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   height: 1rem;
 }
 
-.fb-admin form label {
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
-  letter-spacing: normal;
-  text-transform: none;
+.fb-field-label {
+  font-family: var(--fb-control-font);
+  font-size: var(--fb-field-label-size);
+  line-height: var(--fb-field-label-line-height);
+  font-weight: var(--fb-field-label-weight);
+  color: var(--fb-control-text);
 }
 
-.fb-admin form :is(input, select, textarea) {
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
+.fb-select-trigger {
+  font-family: var(--fb-control-font);
+  font-size: var(--fb-control-font-size);
+  line-height: var(--fb-control-line-height);
 }
 
-.fb-admin :is(.linear-btn-primary, .linear-btn-secondary):not(.fb-button) {
-  min-height: 1.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
+/* Gemeinsame Controls behalten Größenrollen; kurze Zustandswechsel ohne Sprung. */
+.fb-button {
+  font-family: var(--fb-control-font);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
 }
-
-/* Die gemeinsame Komponente steuert ihre Geometrie; gemessene Adminbuttons
-   haben keinen animierten Zustandswechsel. */
-.fb-admin .fb-button {
-  transition: none;
+.fb-button:active:not(:disabled):not([aria-disabled='true']) {
+  box-shadow: inset 0 0 0 999px var(--fb-control-pressed-overlay);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-button {
+    transition: none;
+  }
 }
 
 @keyframes beta-progress-fill {
@@ -905,13 +910,6 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   to {
     transform: scaleX(1);
   }
-}
-
-.fb-admin .linear-input {
-  min-height: 2rem;
-  border-radius: 0.5rem;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
 }
 
 /* intl-tel-input übernimmt die Farben der Verwaltungsoberfläche. */
@@ -947,20 +945,160 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   line-height: 1.125rem;
 }
 
-.fb-admin table:not(.linear-table) {
+@media screen {
+  /* Gemeinsame Datentabellen, nach macOS Table/Outline View.
+ * 20px-Kitzeilen werden im Web bewusst nicht übernommen:
+ * Textzeilen ab 40px, Bild-/Aktionszeilen wachsen mit ihrem Inhalt.
+ * Das separat abgestimmte Dashboard bleibt ausgenommen.
+ */
+  :root {
+    --fb-table-alternate: rgb(0 0 0 / 3%);
+    --fb-table-divider: rgb(0 0 0 / 8%);
+  }
+  html.dark {
+    --fb-table-alternate: rgb(255 255 255 / 4%);
+    --fb-table-divider: rgb(255 255 255 / 10%);
+  }
+  .fb-admin table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table)) {
+    width: 100%;
+    font-size: 0.8125rem;
+    text-align: left;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    thead {
+    background: var(--fb-bg-surface);
+    font-size: 0.75rem;
+    color: var(--fb-text-secondary);
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    thead
+    tr
+    th {
+    height: 2rem;
+    padding: 0.125rem 0.75rem;
+    background: var(--fb-bg-surface);
+    color: var(--fb-text-secondary);
+    border-bottom: 1px solid var(--fb-table-divider);
+    border-radius: 0;
+    font-weight: 510;
+    white-space: nowrap;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    thead
+    tr
+    th
+    + th {
+    background-image: linear-gradient(var(--fb-table-divider), var(--fb-table-divider));
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: 1px 14px;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    tbody
+    tr {
+    transition: background-color 120ms ease;
+  }
+  /* Fachliche Hervorhebungen und Auswahlfarben behalten Vorrang. */
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    tbody
+    tr:nth-child(even):not([class^='bg-']):not([class*=' bg-']):not([aria-selected='true']) {
+    background-color: var(--fb-table-alternate);
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    tbody
+    tr:hover {
+    background-color: var(--fb-bg-surface-hover);
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    tbody
+    tr
+    td {
+    height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 0;
+    vertical-align: middle;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    td:not(:first-child) {
+    font-variant-numeric: tabular-nums;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    td.text-right {
+    white-space: nowrap;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    tbody
+    tr:last-child
+    td:first-child {
+    border-bottom-left-radius: 8px;
+  }
+  .fb-admin
+    table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+    tbody
+    tr:last-child
+    td:last-child {
+    border-bottom-right-radius: 8px;
+  }
+  .fb-admin app-data-table > section {
+    border-color: var(--fb-table-divider);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 3%);
+  }
+  .fb-admin [data-data-table-toolbar] {
+    border-bottom-color: var(--fb-table-divider);
+  }
+  @media (pointer: coarse) {
+    .fb-admin
+      table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+      :is(th, td) {
+      height: 44px;
+    }
+    .fb-admin app-table-sort-header > button {
+      min-height: 44px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fb-admin
+      table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
+      tbody
+      tr {
+      transition: none;
+    }
+  }
+  html:not(.dark) .fb-admin [data-purchase-row] > svg,
+  html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
+    color: var(--fb-text-muted);
+  }
+}
+
+/* Beleg-/Papieransichten behalten ihre bisherige Geometrie, auch in der Vorschau. */
+.fb-admin :is(app-purchase-print, .din-a4-sheet) table:not(.linear-table) {
   font-size: 0.8125rem;
 }
 
-.fb-admin table td {
+.fb-admin :is(app-purchase-print, .din-a4-sheet) table td {
   padding: 0.75rem 1rem;
 }
 
-.fb-admin table:not(.linear-table) thead {
+.fb-admin :is(app-purchase-print, .din-a4-sheet) table:not(.linear-table) thead {
   font-size: 0.8125rem;
   color: var(--fb-text-secondary);
 }
 
-.fb-admin table:not(.linear-table) th {
+.fb-admin :is(app-purchase-print, .din-a4-sheet) table:not(.linear-table) th {
   min-height: 2.75rem;
   padding: 0.625rem 1rem;
   border-bottom: 1px solid var(--fb-line);
@@ -970,63 +1108,46 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   white-space: nowrap;
 }
 
-.fb-admin table:not(.linear-table) tbody tr {
+.fb-admin :is(app-purchase-print, .din-a4-sheet) table:not(.linear-table) tbody tr {
   transition: background-color 150ms ease;
 }
 
-.fb-admin table:not(.linear-table) tbody tr:hover {
+.fb-admin :is(app-purchase-print, .din-a4-sheet) table:not(.linear-table) tbody tr:hover {
   background-color: var(--fb-bg-surface-hover);
 }
 
-html:not(.dark) .fb-admin [data-purchase-row] > svg,
-html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
-  color: var(--fb-text-muted);
-}
+/* Bestehende Tabellen-Druckdarstellung bleibt vom Bildschirmumbau getrennt. */
+@media print {
+  .fb-admin table:not(.linear-table) {
+    font-size: 0.8125rem;
+  }
 
-/* Dichte und Lesbarkeit gelten in beiden Modi, Farben bleiben tokenbasiert. */
-.fb-admin .linear-table {
-  font-size: 0.8125rem;
-  border-collapse: separate;
-  border-spacing: 0;
-}
+  .fb-admin table td {
+    padding: 0.75rem 1rem;
+  }
 
-.fb-admin .linear-table thead {
-  background-color: var(--fb-bg-well);
-  font-size: 0.75rem;
-  text-transform: none;
-  letter-spacing: normal;
-}
+  .fb-admin table:not(.linear-table) thead {
+    font-size: 0.8125rem;
+    color: var(--fb-text-secondary);
+  }
 
-.fb-admin .linear-table th {
-  height: 2.25rem;
-  padding: 0.375rem 0.75rem;
-  color: var(--fb-text-secondary);
-  white-space: nowrap;
-  font-weight: 550;
-  border-bottom: 1px solid var(--fb-line);
-}
+  .fb-admin table:not(.linear-table) th {
+    min-height: 2.75rem;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--fb-line);
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: nowrap;
+  }
 
-.fb-admin .linear-table thead tr th:first-child,
-.fb-admin .linear-table thead tr th:last-child,
-.fb-admin .linear-table tbody tr:last-child td:first-child,
-.fb-admin .linear-table tbody tr:last-child td:last-child {
-  border-radius: 0;
-}
+  .fb-admin table:not(.linear-table) tbody tr {
+    transition: background-color 150ms ease;
+  }
 
-.fb-admin .linear-table tbody tr {
-  transition: background-color 150ms ease;
-}
-
-.fb-admin .linear-table tbody tr:hover {
-  background-color: var(--fb-bg-surface-hover);
-}
-
-.fb-admin .linear-table td:not(:first-child) {
-  font-variant-numeric: tabular-nums;
-}
-
-.fb-admin .linear-table td.text-right {
-  white-space: nowrap;
+  .fb-admin table:not(.linear-table) tbody tr:hover {
+    background-color: var(--fb-bg-surface-hover);
+  }
 }
 
 .linear-surface {
@@ -1086,22 +1207,48 @@ html.dark .linear-kpi::before {
 }
 
 .linear-input {
-  background-color: var(--fb-bg-subtle);
-  border: 1px solid var(--fb-border);
-  color: var(--fb-text-primary);
+  min-height: var(--fb-control-height);
+  font-size: var(--fb-control-font-size);
+  line-height: var(--fb-control-line-height);
+  background-color: var(--fb-field-bg);
+  border: 1px solid var(--fb-field-border);
+  border-radius: var(--fb-control-radius);
+  color: var(--fb-control-text);
+  font-family: var(--fb-control-font);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
 .linear-input::placeholder {
-  color: var(--fb-text-dimmed);
+  color: var(--fb-control-placeholder);
 }
 
-.linear-input:focus {
+.linear-input:is(button, select) {
+  background-color: var(--fb-control-bg);
+  border-color: transparent;
+}
+.linear-input:is(button, select):hover:not(:disabled) {
+  background-color: var(--fb-control-hover);
+}
+.linear-input:is(:focus, :focus-within) {
   outline: none;
-  border-color: var(--fb-border-focus);
-  box-shadow: 0 0 0 2px var(--fb-primary-subtle);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--fb-control-focus);
+}
+.linear-input[aria-invalid='true'] {
+  border-color: var(--fb-field-error);
+}
+.linear-input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 2px var(--fb-field-error);
+}
+@media (pointer: coarse) {
+  .linear-input,
+  .fb-select-trigger {
+    min-height: var(--fb-control-touch-height);
+    font-size: var(--fb-control-touch-font-size);
+    line-height: var(--fb-control-touch-line-height);
+  }
 }
 
 /*
@@ -1195,35 +1342,27 @@ html:not(.dark) select.linear-input {
 .linear-btn-primary {
   background: var(--fb-primary);
   color: var(--fb-text-on-accent);
-  border: 1px solid var(--fb-primary-border);
-  box-shadow: var(--fb-shadow-sm);
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+  border: 1px solid transparent;
+  box-shadow: none;
 }
 
 .linear-btn-primary:hover {
   background: var(--fb-primary-hover);
-  border-color: var(--fb-primary-hover);
-  box-shadow: var(--fb-shadow-md);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .linear-btn-secondary {
-  background-color: var(--fb-bg-surface);
-  border: 1px solid var(--fb-border);
-  color: var(--fb-text-secondary);
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    box-shadow 150ms ease;
+  background-color: var(--fb-control-bg);
+  border: 1px solid transparent;
+  color: var(--fb-control-text);
+  box-shadow: none;
 }
 
 .linear-btn-secondary:hover {
-  background-color: var(--fb-bg-surface-hover);
-  border-color: var(--fb-border-hover);
-  color: var(--fb-text-primary);
+  background-color: var(--fb-control-hover);
+  border-color: transparent;
+  color: var(--fb-control-text);
 }
 
 /* Kacheln und Kennzahlen.
@@ -1251,45 +1390,6 @@ html:not(.dark) select.linear-input {
   font-weight: 700;
   line-height: 1.75rem;
   color: var(--fb-text-primary);
-}
-
-/* Datentabellen */
-.linear-table {
-  width: 100%;
-  text-align: left;
-  font-size: 0.8125rem;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.linear-table thead tr th {
-  background-color: var(--fb-bg-well);
-  border-bottom: 1px solid var(--fb-line);
-  color: var(--fb-text-muted);
-}
-
-.linear-table thead tr th:first-child {
-  border-top-left-radius: 0;
-}
-
-.linear-table thead tr th:last-child {
-  border-top-right-radius: 0;
-}
-
-.linear-table tbody tr td {
-  border-bottom: 1px solid var(--fb-line);
-}
-
-.linear-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.linear-table tbody tr:last-child td:first-child {
-  border-bottom-left-radius: 0;
-}
-
-.linear-table tbody tr:last-child td:last-child {
-  border-bottom-right-radius: 0;
 }
 
 /* Animationen */

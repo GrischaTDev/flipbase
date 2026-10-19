@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,7 +16,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { LucideDynamicIcon, LucidePlus, LucideX } from '@lucide/angular';
+import { LucideCheck, LucideDynamicIcon, LucidePlus, LucideX } from '@lucide/angular';
 import { Brand } from '../../../core/models/product-category.models';
 import { BrandService } from '../../../core/services/brand.service';
 
@@ -27,7 +28,7 @@ let nextBrandPickerId = 0;
 /** Auswahl einer Marke des Workspace; unbekannte Marken lassen sich direkt anlegen. */
 @Component({
   selector: 'app-brand-picker',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, FormFieldComponent],
   templateUrl: './brand-picker.component.html',
   styleUrl: './brand-picker.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,7 +39,11 @@ let nextBrandPickerId = 0;
       multi: true,
     },
   ],
-  host: { class: 'block w-full', '(document:click)': 'onDocumentClick($event)' },
+  host: {
+    class: 'block w-full',
+    '[attr.id]': 'null',
+    '(document:click)': 'onDocumentClick($event)',
+  },
 })
 export class BrandPickerComponent implements ControlValueAccessor {
   protected readonly brandService = inject(BrandService);
@@ -83,6 +88,7 @@ export class BrandPickerComponent implements ControlValueAccessor {
     return this.isOpen() && index >= 0 && index < this.optionCount() ? this.optionId(index) : null;
   });
 
+  protected readonly checkIcon = LucideCheck;
   protected readonly clearIcon = LucideX;
   protected readonly plusIcon = LucidePlus;
 

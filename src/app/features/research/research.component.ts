@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../../shared/components/button/button.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -54,6 +55,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 @Component({
   selector: 'app-research',
   imports: [
+    ButtonComponent,
     ModalShellComponent,
     NumberInputComponent,
     TextFieldComponent,

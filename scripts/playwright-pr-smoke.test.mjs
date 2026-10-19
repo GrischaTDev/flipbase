@@ -441,7 +441,7 @@ const regressionTests = [
   ],
   [
     'product-integration.spec.ts',
-    'Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker @pr-smoke',
+    'Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan erlaubt manuelle Auswahl @pr-smoke',
   ],
   [
     'purchase-dropdown-layer.spec.ts',

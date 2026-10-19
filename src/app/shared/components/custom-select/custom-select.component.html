@@ -1,243 +1,178 @@
-<div class="relative max-w-full text-left" [class]="widthClass()">
-  <!-- Trigger Button -->
-  @if (variant() === 'pill') {
-    <button
-      #trigger
-      type="button"
-      role="combobox"
-      aria-haspopup="listbox"
-      (click)="toggleDropdown($event)"
-      (keydown)="onTriggerKeydown($event)"
-      (blur)="onTriggerBlur()"
-      [disabled]="effectiveDisabled()"
-      [id]="resolvedTriggerId()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-expanded]="isOpen()"
-      [attr.aria-controls]="isOpen() ? listboxId() : null"
-      [attr.aria-activedescendant]="activeDescendantId()"
-      [attr.aria-disabled]="effectiveDisabled()"
-      [attr.aria-required]="required()"
-      class="inline-flex min-h-9 items-center justify-between gap-1.5 rounded-full border px-3 py-1 text-[13px] font-semibold transition cursor-pointer shadow-sm outline-none select-none max-w-full focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
-      [class.opacity-50]="effectiveDisabled()"
-      [class.cursor-not-allowed]="effectiveDisabled()"
-      [class]="
-        selectedOption()?.colorClass ||
-        'bg-fb-subtle text-fb-text-primary border-fb-border hover:border-fb-border-hover'
-      "
-    >
-      <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
-      <svg
-        [lucideIcon]="chevronIcon"
-        class="w-3 h-3 shrink-0 opacity-70 transition-transform duration-200"
-        [class.rotate-180]="isOpen()"
-      ></svg>
-    </button>
-  } @else if (variant() === 'toolbar') {
-    <button
-      #trigger
-      type="button"
-      role="combobox"
-      aria-haspopup="listbox"
-      (click)="toggleDropdown($event)"
-      (keydown)="onTriggerKeydown($event)"
-      (blur)="onTriggerBlur()"
-      [disabled]="effectiveDisabled()"
-      [id]="resolvedTriggerId()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-expanded]="isOpen()"
-      [attr.aria-controls]="isOpen() ? listboxId() : null"
-      [attr.aria-activedescendant]="activeDescendantId()"
-      [attr.aria-required]="required()"
-      class="inline-flex h-8 w-full max-w-full items-center justify-between gap-1 rounded-lg border border-fb-border-subtle bg-fb-subtle px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:border-fb-border hover:bg-fb-surface-hover focus-visible:border-fb-primary focus-visible:bg-fb-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fb-primary"
-    >
-      <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
-      <svg [lucideIcon]="chevronIcon" class="size-3 shrink-0 opacity-70"></svg>
-    </button>
-  } @else if (variant() === 'filter') {
-    <button
-      #trigger
-      type="button"
-      role="combobox"
-      aria-haspopup="listbox"
-      (click)="toggleDropdown($event)"
-      (keydown)="onTriggerKeydown($event)"
-      (blur)="onTriggerBlur()"
-      [disabled]="effectiveDisabled()"
-      [id]="resolvedTriggerId()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-expanded]="isOpen()"
-      [attr.aria-controls]="isOpen() ? listboxId() : null"
-      [attr.aria-activedescendant]="activeDescendantId()"
-      [attr.aria-disabled]="effectiveDisabled()"
-      [attr.aria-required]="required()"
-      class="linear-input w-full flex min-h-8 pointer-coarse:min-h-11! items-center justify-between gap-2 rounded-md px-2.5 py-1 text-[13px] font-medium cursor-pointer transition-colors select-none text-fb-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
-      [class.opacity-50]="effectiveDisabled()"
-      [class.cursor-not-allowed]="effectiveDisabled()"
-      [class.border-fb-primary]="isOpen()"
-    >
-      <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
-      <svg
-        [lucideIcon]="chevronIcon"
-        class="w-3.5 h-3.5 text-fb-text-muted shrink-0 transition-transform duration-200"
-        [class.rotate-180]="isOpen()"
-      ></svg>
-    </button>
-  } @else if (searchable()) {
-    <div class="relative">
-      <input
+<app-form-field
+  [controlId]="resolvedTriggerId()"
+  [label]="label()"
+  [required]="required()"
+  [helpText]="helpText()"
+  [error]="error()"
+>
+  <div class="relative text-left" [class]="widthClass()">
+    @if (searchable()) {
+      <div class="relative">
+        <input
+          #trigger
+          type="text"
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
+          autocomplete="off"
+          [disabled]="effectiveDisabled()"
+          [id]="resolvedTriggerId()"
+          [attr.aria-label]="ariaLabel() || null"
+          [attr.aria-describedby]="
+            error()
+              ? resolvedTriggerId() + '-error'
+              : helpText()
+                ? resolvedTriggerId() + '-help'
+                : null
+          "
+          [attr.aria-invalid]="error() ? 'true' : null"
+          [attr.aria-expanded]="isOpen()"
+          [attr.aria-controls]="isOpen() ? listboxId() : null"
+          [attr.aria-activedescendant]="activeDescendantId()"
+          [attr.aria-required]="required()"
+          [placeholder]="placeholder()"
+          [value]="isOpen() ? query() : (selectedOption()?.label ?? '')"
+          (focus)="onSearchFocus()"
+          (click)="onSearchFocus()"
+          (input)="onSearchInput($event)"
+          (keydown)="onSearchKeydown($event)"
+          (blur)="onTriggerBlur()"
+          class="linear-input min-h-7 w-full py-1 pl-2.5 pr-9 text-[13px] font-medium outline-none disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:min-h-11"
+        />
+        <svg
+          [lucideIcon]="popupChevron"
+          aria-hidden="true"
+          class="pointer-events-none absolute right-2.5 top-1/2 size-3 -translate-y-1/2 text-fb-text-muted"
+        ></svg>
+      </div>
+    } @else {
+      <button
         #trigger
-        type="text"
+        type="button"
         role="combobox"
         aria-haspopup="listbox"
-        aria-autocomplete="list"
-        autocomplete="off"
+        (click)="toggleDropdown($event)"
+        (keydown)="onTriggerKeydown($event)"
+        (blur)="onTriggerBlur()"
         [disabled]="effectiveDisabled()"
         [id]="resolvedTriggerId()"
-        [attr.aria-label]="ariaLabel()"
+        [attr.aria-label]="ariaLabel() || null"
+        [attr.aria-describedby]="
+          error()
+            ? resolvedTriggerId() + '-error'
+            : helpText()
+              ? resolvedTriggerId() + '-help'
+              : null
+        "
+        [attr.aria-invalid]="error() ? 'true' : null"
         [attr.aria-expanded]="isOpen()"
         [attr.aria-controls]="isOpen() ? listboxId() : null"
         [attr.aria-activedescendant]="activeDescendantId()"
+        [attr.aria-disabled]="effectiveDisabled()"
         [attr.aria-required]="required()"
-        [placeholder]="placeholder()"
-        [value]="isOpen() ? query() : (selectedOption()?.label ?? '')"
-        (focus)="onSearchFocus()"
-        (click)="onSearchFocus()"
-        (input)="onSearchInput($event)"
-        (keydown)="onSearchKeydown($event)"
-        (blur)="onTriggerBlur()"
-        class="linear-input w-full rounded-md py-1 pl-2.5 pr-9 text-[13px] font-medium text-fb-text-primary transition-colors outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
-        [class.min-h-8]="size() === 'sm'"
-        [class.min-h-9]="size() === 'md'"
-        [class.border-fb-primary]="isOpen()"
-      />
-      <svg
-        [lucideIcon]="chevronIcon"
-        aria-hidden="true"
-        class="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fb-text-muted"
-      ></svg>
-    </div>
-  } @else {
-    <!-- Default Form Select Variant -->
-    <button
-      #trigger
-      type="button"
-      role="combobox"
-      aria-haspopup="listbox"
-      (click)="toggleDropdown($event)"
-      (keydown)="onTriggerKeydown($event)"
-      (blur)="onTriggerBlur()"
-      [disabled]="effectiveDisabled()"
-      [id]="resolvedTriggerId()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-expanded]="isOpen()"
-      [attr.aria-controls]="isOpen() ? listboxId() : null"
-      [attr.aria-activedescendant]="activeDescendantId()"
-      [attr.aria-disabled]="effectiveDisabled()"
-      [attr.aria-required]="required()"
-      class="linear-input w-full flex items-center justify-between gap-2 rounded-md font-medium cursor-pointer transition-colors select-none text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
-      [class]="groessenKlasse()"
-      [class.opacity-50]="effectiveDisabled()"
-      [class.cursor-not-allowed]="effectiveDisabled()"
-      [class.border-fb-primary]="isOpen()"
-    >
-      <div class="flex items-center gap-2 truncate">
+        [class]="triggerClasses()"
+      >
         @if (selectedOption()?.badgeClass) {
-          <span class="w-2 h-2 rounded-full shrink-0" [class]="selectedOption()?.badgeClass"></span>
+          <span
+            class="ml-1 size-2 shrink-0 rounded-full"
+            [class]="selectedOption()?.badgeClass"
+          ></span>
         }
-        <span class="truncate" [class.text-fb-text-muted]="!selectedOption()">
+        <span
+          class="min-w-0 flex-1 truncate text-left"
+          [class.text-fb-text-muted]="!selectedOption()"
+        >
           {{ selectedOption()?.label || placeholder() }}
         </span>
-      </div>
-      <svg
-        [lucideIcon]="chevronIcon"
-        class="w-4 h-4 text-fb-text-muted shrink-0 transition-transform duration-200"
-        [class.rotate-180]="isOpen()"
-      ></svg>
-    </button>
-  }
+        <span
+          class="flex h-6 w-7 shrink-0 items-center justify-center pointer-coarse:h-10 pointer-coarse:w-11"
+        >
+          <svg [lucideIcon]="popupChevron" class="size-3" aria-hidden="true"></svg>
+        </span>
+      </button>
+    }
 
-  <!-- Floating Dropdown Panel -->
-  @if (isOpen()) {
-    <div
-      #panel
-      role="listbox"
-      tabindex="-1"
-      [attr.popover]="supportsPopover ? 'manual' : null"
-      [attr.aria-label]="ariaLabel()"
-      (keydown)="onTriggerKeydown($event)"
-      (wheel)="onPanelWheel($event)"
-      [id]="listboxId()"
-      class="custom-select-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 max-h-60 overflow-y-auto overscroll-contain outline-none"
-      [class.bottom-full]="!supportsPopover && isDropUp()"
-      [class.mb-1.5]="!supportsPopover && isDropUp()"
-      [class.top-full]="!supportsPopover && !isDropUp()"
-      [class.mt-1.5]="!supportsPopover && !isDropUp()"
-      [class.right-0]="!supportsPopover && variant() === 'pill'"
-      [class.left-0]="!supportsPopover && variant() !== 'pill'"
-      [style.left.px]="supportsPopover ? panelPosition().left : null"
-      [style.top.px]="supportsPopover ? panelPosition().top : null"
-      [style.width.px]="supportsPopover ? panelPosition().width : null"
-      [style.min-width.px]="supportsPopover ? panelPosition().width : minPanelWidth()"
-      [style.max-height.px]="supportsPopover ? panelPosition().maxHeight : null"
-    >
-      <div class="space-y-0.5 px-1">
-        @for (option of visibleOptions(); track option.value; let index = $index) {
-          @let isSelected = value() === option.value;
-          @let isActive = activeIndex() === index;
-          <button
-            type="button"
-            role="option"
-            tabindex="-1"
-            (click)="selectOption(option, $event)"
-            [disabled]="effectiveDisabled()"
-            [id]="optionId(index)"
-            [attr.aria-selected]="isSelected"
-            [attr.aria-disabled]="effectiveDisabled()"
-            class="w-full flex min-h-9 items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[13px] font-medium text-left transition-colors cursor-pointer select-none"
-            [class.ring-1]="isActive"
-            [class.ring-fb-primary/50]="isActive"
-            [class.bg-fb-primary-subtle]="isSelected"
-            [class.text-fb-primary]="isSelected"
-            [class.font-bold]="isSelected"
-            [class.text-fb-text-secondary]="!isSelected"
-            [class.hover:bg-fb-surface-alt]="!isSelected"
-            [class.hover:text-fb-text-primary]="!isSelected"
-          >
-            <div class="flex items-center gap-2 truncate">
-              @if (option.badgeClass) {
-                <span class="w-2 h-2 rounded-full shrink-0" [class]="option.badgeClass"></span>
-              }
-              <span class="truncate">{{ option.label }}</span>
+    <!-- Floating Dropdown Panel -->
+    @if (isOpen()) {
+      <div
+        #panel
+        tabindex="-1"
+        [attr.popover]="supportsPopover ? 'manual' : null"
+        (keydown)="onTriggerKeydown($event)"
+        (wheel)="onPanelWheel($event)"
+        class="custom-select-menu macos-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 max-h-60 overflow-y-auto overscroll-contain outline-none"
+        [class.bottom-full]="!supportsPopover && isDropUp()"
+        [class.mb-1.5]="!supportsPopover && isDropUp()"
+        [class.top-full]="!supportsPopover && !isDropUp()"
+        [class.mt-1.5]="!supportsPopover && !isDropUp()"
+        [class.right-0]="!supportsPopover && variant() === 'pill'"
+        [class.left-0]="!supportsPopover && variant() !== 'pill'"
+        [style.left.px]="supportsPopover ? panelPosition().left : null"
+        [style.top.px]="supportsPopover ? panelPosition().top : null"
+        [style.width.px]="supportsPopover ? panelPosition().width : null"
+        [style.min-width.px]="supportsPopover ? panelPosition().width : minPanelWidth()"
+        [style.max-height.px]="supportsPopover ? panelPosition().maxHeight : null"
+      >
+        <div
+          role="listbox"
+          [id]="listboxId()"
+          [attr.aria-label]="ariaLabel() || label() || null"
+          class="space-y-0.5 px-1"
+        >
+          @for (option of visibleOptions(); track option.value; let index = $index) {
+            @let isSelected = value() === option.value;
+            @let isActive = activeIndex() === index;
+            <button
+              type="button"
+              role="option"
+              tabindex="-1"
+              (click)="selectOption(option, $event)"
+              [disabled]="effectiveDisabled()"
+              [id]="optionId(index)"
+              [attr.aria-selected]="isSelected"
+              [attr.aria-disabled]="effectiveDisabled()"
+              class="flex min-h-6 w-full cursor-pointer select-none items-center gap-2 rounded-[5px] px-2 py-0 text-left text-[13px] leading-4 font-[510] text-[var(--fb-control-text)] hover:bg-[var(--fb-control-hover)] pointer-coarse:min-h-11"
+              [class.bg-[var(--fb-control-hover)]]="isActive"
+            >
+              <svg
+                [lucideIcon]="checkIcon"
+                class="size-3 shrink-0"
+                [class.invisible]="!isSelected"
+                aria-hidden="true"
+              ></svg>
+              <div class="flex items-center gap-2 truncate">
+                @if (option.badgeClass) {
+                  <span class="w-2 h-2 rounded-full shrink-0" [class]="option.badgeClass"></span>
+                }
+                <span class="truncate">{{ option.label }}</span>
+              </div>
+            </button>
+          }
+          @if (searchable() && visibleOptions().length === 0) {
+            <div
+              role="option"
+              aria-disabled="true"
+              aria-selected="false"
+              class="px-2.5 py-2 text-[13px] text-fb-text-muted"
+            >
+              Keine passenden Einträge
             </div>
-
-            @if (isSelected) {
-              <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5 text-fb-primary shrink-0"></svg>
-            }
-          </button>
-        }
-        @if (searchable() && visibleOptions().length === 0) {
-          <div
-            role="option"
-            aria-disabled="true"
-            aria-selected="false"
-            class="px-2.5 py-2 text-[13px] text-fb-text-muted"
-          >
-            Keine passenden Einträge
+          }
+        </div>
+        @if (actionLabel()) {
+          <div class="mt-1 border-t border-fb-line px-1 pt-1">
+            <button
+              type="button"
+              data-custom-select-action
+              class="flex w-full min-h-7 items-center gap-2 rounded-md bg-[var(--fb-control-bg)] px-2.5 py-1 text-left text-[13px] font-medium text-[var(--fb-control-text)] hover:bg-[var(--fb-control-hover)] focus-visible:outline-2 focus-visible:outline-[color:var(--fb-control-focus)] pointer-coarse:min-h-11"
+              (click)="triggerAction()"
+            >
+              <svg [lucideIcon]="actionIcon" class="size-3.5 shrink-0" aria-hidden="true"></svg>
+              {{ actionLabel() }}
+            </button>
           </div>
         }
       </div>
-      @if (actionLabel()) {
-        <div class="mt-1 border-t border-fb-line px-1 pt-1">
-          <button
-            type="button"
-            data-custom-select-action
-            class="w-full rounded-md px-2.5 py-2 text-left text-[13px] font-semibold text-fb-primary hover:bg-fb-primary-subtle"
-            (click)="triggerAction()"
-          >
-            {{ actionLabel() }}
-          </button>
-        </div>
-      }
-    </div>
-  }
-</div>
+    }
+  </div>
+</app-form-field>

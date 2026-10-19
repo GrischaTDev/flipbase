@@ -24,8 +24,8 @@
     />
 
     <div>
-      <span class="mb-1.5 block text-[13px] font-semibold">Kategorie</span>
       <app-custom-select
+        label="Kategorie"
         formControlName="category_id"
         ariaLabel="Ausgabenkategorie"
         [options]="categoryOptions()"
@@ -34,8 +34,8 @@
 
     <div class="grid gap-4 sm:grid-cols-[8rem_1fr]">
       <div>
-        <label for="expense-quantity" class="mb-1.5 block text-[13px] font-semibold">Menge</label>
         <app-number-input
+          label="Menge"
           id="expense-quantity"
           ariaLabel="Menge"
           formControlName="quantity"
@@ -45,11 +45,10 @@
         />
       </div>
       <div>
-        <label for="expense-gross-amount" class="mb-1.5 block text-[13px] font-semibold">
-          Gesamtbetrag
-        </label>
         <app-number-input
+          label="Gesamtbetrag"
           id="expense-gross-amount"
+          helpText="Betrag, den du laut Beleg insgesamt bezahlt hast."
           data-gross-amount
           ariaLabel="Gesamtbetrag"
           formControlName="gross_amount"
@@ -58,9 +57,6 @@
           [asCurrency]="true"
           [showStepper]="false"
         />
-        <span class="mt-1 block text-xs text-fb-text-muted">
-          Betrag, den du laut Beleg insgesamt bezahlt hast.
-        </span>
       </div>
     </div>
 
@@ -112,12 +108,16 @@
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Ausgabedatum</span>
-        <app-date-picker formControlName="expense_date" ariaLabel="Ausgabedatum" />
+        <app-form-field controlId="finance-expense-dialog-expense-date" label="Ausgabedatum">
+          <app-date-picker
+            feldId="finance-expense-dialog-expense-date"
+            formControlName="expense_date"
+            ariaLabel="Ausgabedatum"
+        /></app-form-field>
       </div>
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Status</span>
         <app-custom-select
+          label="Status"
           formControlName="status"
           ariaLabel="Ausgabenstatus"
           [options]="statusOptions"
@@ -128,18 +128,26 @@
 
     @if (form.controls.status.value === 'paid') {
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Bezahlt am</span>
-        <app-date-picker formControlName="payment_date" ariaLabel="Zahlungsdatum" />
+        <app-form-field controlId="finance-expense-dialog-payment-date" label="Bezahlt am">
+          <app-date-picker
+            feldId="finance-expense-dialog-payment-date"
+            formControlName="payment_date"
+            ariaLabel="Zahlungsdatum"
+        /></app-form-field>
       </div>
     } @else {
       <div>
-        <span class="mb-1.5 block text-[13px] font-semibold">Fällig am</span>
-        <app-date-picker formControlName="due_date" ariaLabel="Fälligkeitsdatum" />
+        <app-form-field controlId="finance-expense-dialog-due-date" label="Fällig am">
+          <app-date-picker
+            feldId="finance-expense-dialog-due-date"
+            formControlName="due_date"
+            ariaLabel="Fälligkeitsdatum"
+        /></app-form-field>
       </div>
     }
 
     <div class="space-y-2">
-      <span class="block text-[13px] font-semibold">Beleg</span>
+      <span class="block text-[13px] font-medium">Beleg</span>
       <label
         class="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-fb-border bg-fb-subtle px-4 py-3 text-center transition hover:bg-fb-surface-hover"
         [class.border-fb-primary]="isDraggingDocument()"

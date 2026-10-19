@@ -72,7 +72,7 @@ import { RecordHistoryContainer } from '../../../audit/components/record-history
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 
 const purchaseReturnPath = /^\/purchases\/([A-Za-z0-9_-]+)$/;
 
@@ -100,7 +100,7 @@ export function validatePurchaseReturnTo(value: string | null | undefined): stri
     PageHeaderComponent,
     TwoColumnLayoutComponent,
     CardComponent,
-    BadgeComponent,
+    ProductThumbnailComponent,
     ButtonComponent,
     TextFieldComponent,
     NumberInputComponent,

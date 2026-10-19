@@ -352,3 +352,51 @@ for (const project of ['chromium', 'changed-tests']) {
     );
   });
 }
+
+test('Finanzseiten wählen die vorhandenen Browserfälle für gemeinsame Controls', () => {
+  for (const feature of ['accounting', 'analytics', 'expenses', 'fulfillment']) {
+    const source = 'src/app/features/' + feature + '/' + feature + '.component.html';
+    const plan = selectAffectedTests([source], {
+      [source]: '<app-card />',
+      'e2e/responsive-admin-layout.spec.ts': '',
+    });
+    assert.equal(plan.full, false);
+    assert.ok(plan.browserFiles.includes('e2e/responsive-admin-layout.spec.ts'), feature);
+    assert.equal(plan.pwa, false);
+  }
+});
+
+test('Bankzuordnung wählt ihre Modelle, Dienste und den bestehenden Finanz-Browserfall', () => {
+  const root = 'src/app/features/accounting/';
+  const model = root + 'models/bank-assignment.models';
+  const service = root + 'services/bank-assignment.service';
+  const dialog = root + 'components/bank-assignment-dialog/bank-assignment-dialog.component';
+  const bank = 'src/app/core/services/bank-reconciliation.service';
+  const sources = {
+    [model + '.ts']: 'export const target = 1;',
+    [model + '.spec.ts']: "import './bank-assignment.models';",
+    [service + '.ts']:
+      "import '../models/bank-assignment.models'; import '../../../core/services/bank-reconciliation.service';",
+    [service + '.spec.ts']: "import './bank-assignment.service';",
+    [dialog + '.ts']:
+      "@Component({templateUrl: './bank-assignment-dialog.component.html'}) import '../../services/bank-assignment.service';",
+    [dialog + '.html']: '<app-custom-select />',
+    [bank + '.ts']: 'export class BankReconciliationService {}',
+    [bank + '.spec.ts']: "import './bank-reconciliation.service';",
+    'e2e/responsive-admin-layout.spec.ts': '',
+  };
+  for (const changed of [model + '.ts', service + '.ts', dialog + '.html', bank + '.ts']) {
+    const plan = selectAffectedTests([changed], sources);
+    assert.equal(plan.full, false, changed);
+    assert.ok(plan.browserFiles.includes('e2e/responsive-admin-layout.spec.ts'), changed);
+    assert.equal(plan.pwa, false, changed);
+    if (changed === model + '.ts') {
+      assert.ok(plan.units.node.includes(model + '.spec.ts'));
+      assert.ok(plan.units.node.includes(service + '.spec.ts'));
+    }
+    if (changed === bank + '.ts') {
+      assert.ok(plan.units.node.includes(bank + '.spec.ts'));
+      assert.ok(plan.units.node.includes(service + '.spec.ts'));
+    }
+  }
+});

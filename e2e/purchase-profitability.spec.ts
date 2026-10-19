@@ -228,6 +228,28 @@ for (const theme of ['light', 'dark']) {
         ).toHaveCount(0);
         await expect(search).toHaveValue('Schuhe');
       }
+
+      // Belege behalten ihre Papierdarstellung auch bei dunkler App und im Druck.
+      const printablePurchase = purchases[0];
+      await page.route('**/rest/v1/purchases?**', (route) =>
+        route.fulfill({ json: printablePurchase }),
+      );
+      await page.route('**/rest/v1/purchase_lines?**', (route) =>
+        route.fulfill({ json: printablePurchase.purchase_lines }),
+      );
+      await page.goto('/purchases/complete/print');
+      const paperTable = page.locator('app-purchase-print table');
+      await expect(paperTable).toBeVisible();
+      for (const media of ['screen', 'print'] as const) {
+        await page.emulateMedia({ media, colorScheme: theme as 'light' | 'dark' });
+        await expect(paperTable.locator('tbody td').first()).toHaveCSS('padding-top', '12px');
+        await expect(paperTable.locator('tbody td').first()).toHaveCSS('padding-left', '16px');
+        await expect(paperTable.locator('thead th').first()).toHaveCSS(
+          'background-color',
+          'rgba(0, 0, 0, 0)',
+        );
+        await expect(paperTable.locator('thead th').first()).toHaveCSS('background-image', 'none');
+      }
       expect(errors).toEqual([]);
     });
   }

@@ -1,3 +1,4 @@
+import { LucideTrash2 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { isValidCompanyIban, maskCompanyIban } from '../../../../core/models/company-store.models';
 import {
@@ -71,6 +72,7 @@ function validIban(control: AbstractControl<string>): ValidationErrors | null {
   },
 })
 export class CompanySettingsComponent {
+  protected readonly removeIcon = LucideTrash2;
   private readonly store = inject(StoreService);
   readonly maskIban = maskCompanyIban;
   readonly company = inject(CompanyProfileService);

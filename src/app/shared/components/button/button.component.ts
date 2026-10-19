@@ -7,6 +7,7 @@ export type ButtonVariant =
   | 'primary'
   | 'discord'
   | 'secondary'
+  | 'segment'
   | 'brand-hover'
   | 'favorite'
   | 'image-overlay'
@@ -72,9 +73,9 @@ export class ButtonComponent {
     const focusColor =
       this.variant() === 'table-action'
         ? 'focus-visible:outline-fb-text-primary'
-        : 'focus-visible:outline-fb-primary';
+        : 'focus-visible:outline-[color:var(--fb-control-focus)]';
     const base =
-      'fb-button inline-flex items-center font-[550] ' +
+      'fb-button inline-flex items-center font-medium ' +
       (this.wrapLabel() ? 'leading-normal ' : 'leading-4 ') +
       'select-none cursor-pointer ' +
       (this.variant() === 'thumbnail-remove'
@@ -88,10 +89,12 @@ export class ButtonComponent {
       this.contentAlign() === 'start' ? 'justify-start text-left' : 'justify-center';
 
     const variantStyles: Record<ButtonVariant, string> = {
-      primary: 'linear-btn-primary font-semibold text-fb-on-accent shadow-sm',
+      primary: 'linear-btn-primary text-fb-on-accent',
       discord: 'bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-sm font-semibold',
-      secondary:
-        'linear-btn-secondary text-fb-text-secondary border border-fb-border hover:text-fb-text-primary hover:bg-fb-surface-hover shadow-sm',
+      secondary: 'linear-btn-secondary',
+      segment: this.ariaPressed()
+        ? 'bg-fb-surface text-fb-text-primary shadow-sm font-medium'
+        : 'bg-transparent text-fb-text-secondary hover:bg-fb-surface-hover font-medium',
       'brand-hover':
         'bg-fb-surface text-fb-text-secondary border border-fb-border shadow-sm hover:bg-fb-brand-strong hover:border-fb-brand-strong hover:text-fb-on-accent focus-visible:bg-fb-brand-strong focus-visible:text-fb-on-accent',
       favorite: this.ariaPressed()
@@ -176,11 +179,13 @@ export class ButtonComponent {
       this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
       this.variant() === 'list-row'
         ? this.density() === 'compact'
-          ? 'min-h-11 rounded-lg py-2 text-[13px]'
-          : 'min-h-18 rounded-lg py-3 text-sm'
+          ? 'min-h-11 rounded-lg py-2 text-[13px] gap-2'
+          : 'min-h-18 rounded-lg py-3 text-sm gap-2'
         : this.shape() === 'circle' || this.shape() === 'capsule'
           ? sizeClasses.replace('rounded-lg', 'rounded-full')
-          : sizeClasses,
+          : ['table-action', 'thumbnail-remove', 'image-overlay'].includes(this.variant())
+            ? sizeClasses
+            : sizeClasses.replace('rounded-lg', 'rounded-md'),
       horizontalPadding,
     ]
       .filter(Boolean)

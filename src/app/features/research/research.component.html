@@ -109,18 +109,14 @@
           />
         </div>
 
-        <button
+        <app-button
           type="submit"
           [disabled]="researchService.isLoading()"
-          class="linear-btn-primary px-5 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+          variant="primary"
+          [icon]="researchService.isLoading() ? sparklesIcon : searchIcon"
         >
-          <svg
-            [lucideIcon]="researchService.isLoading() ? sparklesIcon : searchIcon"
-            class="w-4 h-4"
-            [class.animate-spin]="researchService.isLoading()"
-          ></svg>
           <span>{{ researchService.isLoading() ? 'Analysiere...' : 'Preise recherchieren' }}</span>
-        </button>
+        </app-button>
       </div>
     </form>
 
@@ -159,25 +155,25 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <button
+            <app-button
               type="button"
-              (click)="onAddCurrentSearchToRadar()"
+              (clicked)="onAddCurrentSearchToRadar()"
               [disabled]="isRadarMutationPending()"
-              class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-indigo-200"
+              variant="secondary"
               title="Diesen Artikel im Konkurrenz-Radar überwachen"
+              [icon]="radarIcon"
             >
-              <svg [lucideIcon]="radarIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>+ Im Radar überwachen</span>
-            </button>
+            </app-button>
 
-            <button
+            <app-button
               type="button"
-              (click)="openInDealCalculator()"
-              class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              (clicked)="openInDealCalculator()"
+              variant="primary"
+              [icon]="calcIcon"
             >
-              <svg [lucideIcon]="calcIcon" class="w-3.5 h-3.5"></svg>
               <span>Im Kalkulator öffnen</span>
-            </button>
+            </app-button>
           </div>
         </div>
 
@@ -416,23 +412,19 @@
              etwas abruft und in Wahrheit Zufallszahlen erzeugt hat, ist die
              schlechtere Variante. -->
         @if (priceTrackerService.marktdatenAngebunden) {
-          <button
+          <app-button
             type="button"
-            (click)="onScanRadarLive()"
+            (clicked)="onScanRadarLive()"
             [disabled]="priceTrackerService.isScanning()"
-            class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+            variant="primary"
+            [icon]="refreshIcon"
           >
-            <svg
-              [lucideIcon]="refreshIcon"
-              class="w-4 h-4"
-              [class.animate-spin]="priceTrackerService.isScanning()"
-            ></svg>
             <span>{{
               priceTrackerService.isScanning()
                 ? 'Scanne Plattformen...'
                 : 'Live-Marktpreise jetzt scannen'
             }}</span>
-          </button>
+          </app-button>
         }
       </div>
 
@@ -604,19 +596,19 @@
             <!-- Right: 1-Click Repricing & Actions -->
             <div class="flex items-center gap-2 shrink-0">
               @if (item.marketDataVerified) {
-                <button
+                <app-button
                   type="button"
-                  (click)="onApplyRadarPrice(item.id)"
-                  class="linear-btn-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+                  (clicked)="onApplyRadarPrice(item.id)"
+                  variant="primary"
                   [title]="'Preis im Inventar auf ' + item.recommendedPrice + ' € anpassen'"
+                  [icon]="zapIcon"
                 >
-                  <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-amber-300"></svg>
                   <span
                     >Auf
                     {{ item.recommendedPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                     anpassen</span
                   >
-                </button>
+                </app-button>
 
                 <button
                   type="button"

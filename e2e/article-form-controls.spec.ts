@@ -47,9 +47,9 @@ test('Artikel-Auswahlfelder bleiben beim Scrollen und erneuten Öffnen bedienbar
 
   const color = page.locator('app-attribute-picker').filter({ has: page.getByText('Farbe') });
   await color.getByRole('combobox').click();
-  await color.getByRole('option', { name: 'Grün' }).click();
+  await color.getByRole('option', { name: 'Grün', exact: true }).click();
   await color.getByRole('combobox').click();
-  await expect(color.getByRole('option', { name: 'Blau' })).toBeVisible();
+  await expect(color.getByRole('option', { name: 'Blau', exact: true })).toBeVisible();
   await color.getByRole('combobox').press('Escape');
 
   const condition = page.locator('app-custom-select[triggerId="product-condition"]');

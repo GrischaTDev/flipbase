@@ -1,12 +1,13 @@
-<div class="space-y-4 animate-fade-in">
+<div class="space-y-6 animate-fade-in">
   <app-page-header
+    appearance="content"
     title="Artikel"
     [icon]="bookOpenIcon"
-    subtitle="Artikelinformationen ansehen und bearbeiten."
+    subtitle="Deine Artikel, Varianten und Bestände."
   >
     <div header-actions class="flex flex-wrap gap-2">
-      <app-button link="/catalog/brands">Marken verwalten</app-button>
-      <app-button (clicked)="csvInput.click()">CSV importieren</app-button>
+      <app-button variant="ghost" link="/catalog/brands">Marken verwalten</app-button>
+      <app-button variant="ghost" (clicked)="csvInput.click()">CSV importieren</app-button>
       <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
       <input
         #csvInput
@@ -71,14 +72,14 @@
             Es werden nur Artikelstammdaten angelegt – kein Bestand.
           </p>
         </div>
-        <button
+        <app-button
           type="button"
-          class="linear-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
+          variant="primary"
           [disabled]="isImportingCsv() || csvHasErrors()"
-          (click)="importCsv()"
+          (clicked)="importCsv()"
         >
           {{ isImportingCsv() ? 'Import läuft…' : 'Import bestätigen' }}
-        </button>
+        </app-button>
       </div>
       <div class="overflow-x-auto">
         <table class="linear-table w-full text-xs" data-shared-ui-exception="static-table">
@@ -219,7 +220,7 @@
                 @switch (column.id) {
                   @case ('title') {
                     <td class="px-4 py-3">
-                      <div class="flex items-center gap-2">
+                      <div class="flex min-w-0 items-center gap-3">
                         <app-product-thumbnail
                           (imageFailed)="imageFailed(product)"
                           [src]="imageUrl(product)"
@@ -228,7 +229,7 @@
                         <a
                           [routerLink]="product.detailLink"
                           [queryParams]="{ returnTo: '/catalog' }"
-                          class="min-w-0 break-words font-semibold text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+                          class="min-w-0 break-words font-semibold text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)]"
                           >{{ product.title }}</a
                         >
                       </div>
@@ -327,9 +328,9 @@
         </tbody>
       </table>
     </div>
-    <div table-mobile class="space-y-2 p-2 md:hidden">
+    <div table-mobile class="divide-y divide-fb-line md:hidden">
       @for (product of filteredProducts(); track product.key; let index = $index) {
-        <article class="rounded-lg border border-fb-line bg-fb-well p-3">
+        <article class="p-4">
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="flex items-center gap-2">
@@ -342,7 +343,7 @@
                   <a
                     [routerLink]="product.detailLink"
                     [queryParams]="{ returnTo: '/catalog' }"
-                    class="break-words text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-fb-primary"
+                    class="break-words text-fb-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)]"
                     >{{ product.title }}</a
                   >
                 </h2>

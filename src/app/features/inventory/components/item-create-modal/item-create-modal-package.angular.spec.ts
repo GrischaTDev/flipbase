@@ -174,6 +174,8 @@ describe('Gemeinsame Artikelbearbeitung für Paketinhalt', () => {
       purchase_id: 'purchase',
       source_package_line_id: 'package',
       title: 'Ein Paar Schuhe',
+      description: 'Vorhandene Beschreibung',
+      condition_notes: 'Leichte Gebrauchsspuren',
       category_id: 'el-6-6',
       brand_id: 'brand-1',
       condition: 'used',
@@ -226,6 +228,14 @@ describe('Gemeinsame Artikelbearbeitung für Paketinhalt', () => {
     Object.assign(fixture.componentInstance, { item: signal(item), presentation: signal('page') });
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+    const description = host.querySelector<HTMLTextAreaElement>('#itemDescription');
+    const conditionNotes = host.querySelector<HTMLTextAreaElement>('#itemConditionNotes');
+    expect(description?.value).toBe('Vorhandene Beschreibung');
+    expect(conditionNotes?.value).toBe('Leichte Gebrauchsspuren');
+    description!.value = 'Neue Beschreibung';
+    description!.dispatchEvent(new Event('input', { bubbles: true }));
+    conditionNotes!.value = 'Zustand erneut geprüft';
+    conditionNotes!.dispatchEvent(new Event('input', { bubbles: true }));
     const costInput = host.querySelector<HTMLInputElement>('#itemCost')!;
     expect(costInput.value).toBe(cost === null ? '' : String(cost));
     expect(fixture.componentInstance.form.getRawValue()).toMatchObject({
@@ -243,6 +253,8 @@ describe('Gemeinsame Artikelbearbeitung für Paketinhalt', () => {
       'content',
       expect.objectContaining({
         title: title.value,
+        description: 'Neue Beschreibung',
+        condition_notes: 'Zustand erneut geprüft',
         allocated_purchase_cost: cost,
         purchase_id: 'purchase',
         categoryId: null,

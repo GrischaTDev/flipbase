@@ -161,7 +161,9 @@ describe('Einkauf-drucken-Vorlagen', () => {
   });
 
   it('begrenzt die globalen Druckregeln auf die Einkaufsdruckseite', () => {
-    const printRules = readCssBlock(globalStyles, '@media print');
+    const printRules = [...globalStyles.matchAll(/@media print\s*\{/g)]
+      .map((match) => readCssBlock(globalStyles.slice(match.index), '@media print'))
+      .join('\n');
     const pageRules = readCssBlock(globalStyles, '@page purchase-receipt');
     const frameRule = readCssRuleBlock(
       printRules,

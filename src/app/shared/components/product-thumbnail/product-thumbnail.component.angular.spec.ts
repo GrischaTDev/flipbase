@@ -152,4 +152,20 @@ describe('ProductThumbnailComponent', () => {
     expect(host().firstElementChild?.classList.contains('h-[260px]')).toBe(false);
     expect(host().querySelector('img')?.classList.contains('object-contain')).toBe(true);
   });
+
+  it('hält Kleidungsfarbe stabil und verwendet für Profile weiterhin den neutralen Platzhalter', () => {
+    fixture.componentRef.setInput('alt', 'Patagonia Fleecejacke');
+    fixture.detectChanges();
+    const color = (fixture.nativeElement.firstElementChild as HTMLElement).style.backgroundColor;
+    expect(color).not.toBe('');
+    expect(fixture.nativeElement.querySelector('svg[lucideShirt]')).not.toBeNull();
+    fixture.detectChanges();
+    expect((fixture.nativeElement.firstElementChild as HTMLElement).style.backgroundColor).toBe(
+      color,
+    );
+    fixture.componentRef.setInput('size', 'profile');
+    fixture.detectChanges();
+    expect((fixture.nativeElement.firstElementChild as HTMLElement).style.backgroundColor).toBe('');
+    expect(fixture.nativeElement.querySelector('svg[lucideImage]')).not.toBeNull();
+  });
 });
