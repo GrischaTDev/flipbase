@@ -306,6 +306,23 @@ export function buildUnitMatrix(plan) {
   return matrix;
 }
 
+export function buildBrowserMatrix(plan) {
+  return [
+    { project: 'chromium', files: plan.browserFiles },
+    { project: 'changed-tests', files: plan.changedBrowserFiles },
+  ]
+    .filter(({ files }) => files.length)
+    .flatMap(({ project, files }) => {
+      // Jede Teilgruppe erhält einen eigenen Runner und eine frische Anmeldung.
+      // Nicht mehr Teilgruppen als Dateien erzeugen, damit kleine Änderungen keine leeren Jobs erhalten.
+      const groups = plan.full ? Math.min(3, files.length) : 1;
+      return Array.from({ length: groups }, (_, index) => ({
+        project,
+        shard: String(index + 1) + '/' + String(groups),
+      }));
+    });
+}
+
 async function main() {
   const paths = process.argv.includes('--paths')
     ? process.argv.slice(process.argv.indexOf('--paths') + 1)
@@ -317,6 +334,7 @@ async function main() {
       });
   const plan = selectAffectedTests(paths, await readSelectionFiles());
   const matrix = buildUnitMatrix(plan);
+  const browserMatrix = buildBrowserMatrix(plan);
   const output = {
     test_plan: JSON.stringify(plan),
     selection_hash: selectionHash(plan),
@@ -324,7 +342,10 @@ async function main() {
     unit_matrix: JSON.stringify({
       include: matrix.length ? matrix : [{ suite: 'node', shard: '1/1' }],
     }),
-    browser_required: plan.browserFiles.length + plan.changedBrowserFiles.length > 0,
+    browser_required: browserMatrix.length > 0,
+    browser_matrix: JSON.stringify({
+      include: browserMatrix.length ? browserMatrix : [{ project: 'chromium', shard: '1/1' }],
+    }),
     pwa_required: plan.pwa,
     marketplace_required: plan.checks.marketplace,
     landing_required: plan.checks.landing,

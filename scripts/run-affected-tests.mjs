@@ -39,9 +39,13 @@ if (kind === 'unit') {
     ...(plan.browserFiles.length ? ['chromium'] : []),
     ...(plan.changedBrowserFiles.length ? ['changed-tests'] : []),
   ];
+  const selectedProject = process.env.AFFECTED_BROWSER_PROJECT;
+  if (selectedProject && !projects.includes(selectedProject))
+    throw new Error('Nicht ausgewählte Browsergruppe angefordert.');
+  const selectedProjects = selectedProject ? [selectedProject] : projects;
   const browserArgs = process.argv.slice(3);
   const explicitShard = browserArgs.some((arg) => arg === '--shard' || arg.startsWith('--shard='));
-  commands = projects.flatMap((project) => {
+  commands = selectedProjects.flatMap((project) => {
     // Die volle Auswahl überschreitet auf langsameren Runnern eine 15-Minuten-
     // Sitzung. Drei getrennte Aufrufe behalten alle Fälle und erneuern nur die Anmeldung.
     const groups =

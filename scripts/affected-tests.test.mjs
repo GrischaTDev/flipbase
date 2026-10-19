@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { selectAffectedTests, buildUnitMatrix } from './affected-tests.mjs';
+import { selectAffectedTests, buildUnitMatrix, buildBrowserMatrix } from './affected-tests.mjs';
 
 const files = {
   'src/app/shared/components/product-gallery/product-gallery.component.ts': `@Component({templateUrl: './product-gallery.component.html'}) export class Gallery {}`,
@@ -262,7 +262,13 @@ test('Kleinanzeigen-Erweiterungsänderungen wählen den Transferablauf und seine
   assert.equal(plan.checks.marketplace, true);
 });
 
-function runBrowserGroups(plan, failProject = '', browserArgs = ['--list'], failShard = '') {
+function runBrowserGroups(
+  plan,
+  failProject = '',
+  browserArgs = ['--list'],
+  failShard = '',
+  project = '',
+) {
   const directory = mkdtempSync(join(tmpdir(), 'flipbase-browser-groups-'));
   try {
     const cliDirectory = join(directory, 'node_modules', '@playwright', 'test');
@@ -290,6 +296,7 @@ function runBrowserGroups(plan, failProject = '', browserArgs = ['--list'], fail
         BROWSER_GROUP_LOG: logPath,
         BROWSER_FAIL_PROJECT: failProject,
         BROWSER_FAIL_SHARD: failShard,
+        AFFECTED_BROWSER_PROJECT: project,
       },
     });
     const invocations = readFileSync(logPath, 'utf8')
@@ -465,4 +472,91 @@ test('vollständige Angular-Matrix verteilt alle Dateien auf ausreichend kleine 
     [{ suite: 'angular', shard: '1/1' }],
   );
   assert.deepEqual(buildUnitMatrix({ full: true, units: { node: [], dom: [], angular: [] } }), []);
+});
+
+test('die Browsermatrix enthält jeden gewählten Bereich und jede Teilgruppe genau einmal', () => {
+  for (const full of [false, true]) {
+    for (const normal of [false, true]) {
+      for (const changed of [false, true]) {
+        const plan = {
+          ...twoBrowserGroups,
+          full,
+          browserFiles: normal ? twoBrowserGroups.browserFiles : [],
+          changedBrowserFiles: changed ? twoBrowserGroups.changedBrowserFiles : [],
+        };
+        const groups = 1;
+        const expected = [normal ? 'chromium' : null, changed ? 'changed-tests' : null]
+          .filter(Boolean)
+          .flatMap((project) =>
+            Array.from({ length: groups }, (_, index) => ({
+              project,
+              shard: String(index + 1) + '/' + String(groups),
+            })),
+          );
+        assert.deepEqual(buildBrowserMatrix(plan), expected);
+      }
+    }
+  }
+});
+
+test('ein Browsermatrixjob führt ausschließlich seine gewählte Teilgruppe aus', () => {
+  for (const { project, shard } of buildBrowserMatrix(twoBrowserGroups)) {
+    const { result, invocations } = runBrowserGroups(
+      twoBrowserGroups,
+      '',
+      ['--shard=' + shard],
+      '',
+      project,
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(invocations.length, 1);
+    assert.equal(invocations[0].project, project);
+    assert.ok(invocations[0].args.includes('--shard=' + shard));
+  }
+});
+
+test('die Browsermatrix reicht einen Testfehler unverändert an die Pflichtfreigabe weiter', () => {
+  const { result, invocations } = runBrowserGroups(
+    twoBrowserGroups,
+    'changed-tests',
+    ['--shard=2/3'],
+    '2/3',
+    'changed-tests',
+  );
+  assert.equal(result.status, 7);
+  assert.equal(invocations.length, 1);
+});
+
+test('eine nicht gewählte Browsermatrixgruppe kann nie erfolgreich sein', () => {
+  for (const project of ['missing', 'changed-tests']) {
+    const runner = fileURLToPath(new URL('./run-affected-tests.mjs', import.meta.url));
+    const result = spawnSync(process.execPath, [runner, 'browser', '--list'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        AFFECTED_TEST_PLAN: JSON.stringify({ ...twoBrowserGroups, changedBrowserFiles: [] }),
+        AFFECTED_BROWSER_PROJECT: project,
+      },
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Nicht ausgewählte Browsergruppe/);
+  }
+});
+
+test('wenige Browserdateien erzeugen keine leeren Teilgruppen', () => {
+  for (const count of [1, 2, 3, 12]) {
+    const plan = {
+      ...twoBrowserGroups,
+      browserFiles: [],
+      changedBrowserFiles: Array(count).fill('e2e/example.spec.ts'),
+    };
+    const expected = Math.min(3, count);
+    assert.deepEqual(
+      buildBrowserMatrix(plan),
+      Array.from({ length: expected }, (_, index) => ({
+        project: 'changed-tests',
+        shard: String(index + 1) + '/' + String(expected),
+      })),
+    );
+  }
 });

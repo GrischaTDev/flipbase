@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { readSelectionFiles, selectAffectedTests } from './affected-tests.mjs';
+import { readSelectionFiles, selectAffectedTests, buildBrowserMatrix } from './affected-tests.mjs';
 
 const executeFile = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -669,4 +669,45 @@ test('CI installiert den vollständigen Chromium und prüft die echte MV3-Wieder
     ci,
     /name: Install Chromium for browser and extension tests\s+run: npx playwright install --with-deps chromium/u,
   );
+});
+
+test('die echten CI-Browserteilgruppen enthalten die vollständige Auswahl genau einmal', async () => {
+  const plan = selectAffectedTests(
+    ['src/styles.scss', 'e2e/responsive-admin-layout.spec.ts', 'e2e/marketplace-overview.spec.ts'],
+    await readSelectionFiles(root),
+  );
+  assert.equal(plan.full, true);
+  const env = { AFFECTED_TEST_PLAN: JSON.stringify(plan) };
+  const { selected: complete } = await listTests('playwright.affected.config.ts', [], env);
+  const grouped = [];
+  for (const { project, shard } of buildBrowserMatrix(plan)) {
+    const { selected } = await listTests(
+      'playwright.affected.config.ts',
+      ['--project=' + project, '--shard=' + shard],
+      env,
+    );
+    assert.ok(selected.length > 0, project + ' ' + shard);
+    grouped.push(...selected);
+  }
+  assert.equal(new Set(keys(grouped)).size, grouped.length);
+  assert.deepEqual(keys(grouped), keys(complete));
+});
+
+test('CI verlangt alle Browsermatrixjobs innerhalb der bisherigen Schutzgrenzen', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const ci = await readFile('.github/workflows/ci.yml', 'utf8');
+  const browserJob = ci.split('  browser-smoke:')[1]?.split('  pwa:')[0] ?? '';
+  assert.match(browserJob, /fail-fast: false/);
+  assert.ok(browserJob.includes('matrix: ${{ fromJSON(needs.changes.outputs.browser_matrix) }}'));
+  assert.ok(browserJob.includes('AFFECTED_BROWSER_PROJECT: ${{ matrix.project }}'));
+  assert.ok(browserJob.includes('browser --shard=${{ matrix.shard }}'));
+  assert.match(browserJob, /timeout-minutes: 30/);
+  assert.ok(
+    browserJob.includes(
+      'name: browser-smoke-failure-${{ matrix.project }}-${{ strategy.job-index }}',
+    ),
+  );
+  const required = ci.split('  required-checks:')[1]?.split('  deploy:')[0] ?? '';
+  assert.ok(required.includes('browser-smoke'));
+  assert.ok(required.includes('BROWSER_RESULT: ${{ needs.browser-smoke.result }}'));
 });
