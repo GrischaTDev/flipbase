@@ -262,7 +262,7 @@ test('Kleinanzeigen-Erweiterungsänderungen wählen den Transferablauf und seine
   assert.equal(plan.checks.marketplace, true);
 });
 
-function runBrowserGroups(plan, failProject = '') {
+function runBrowserGroups(plan, failProject = '', browserArgs = ['--list'], failShard = '') {
   const directory = mkdtempSync(join(tmpdir(), 'flipbase-browser-groups-'));
   try {
     const cliDirectory = join(directory, 'node_modules', '@playwright', 'test');
@@ -276,11 +276,12 @@ function runBrowserGroups(plan, failProject = '') {
       const project = args.find((arg) => arg.startsWith('--project='))?.slice(10);
       appendFileSync(process.env.BROWSER_GROUP_LOG, JSON.stringify({ project, args }) + '\\n');
       // Ein gemeinsamer Aufruf bildet die abgelaufene Anmeldung der zweiten Gruppe nach.
-      process.exit(!project ? 86 : project === process.env.BROWSER_FAIL_PROJECT ? 7 : 0);
+      const fail = project === process.env.BROWSER_FAIL_PROJECT && (!process.env.BROWSER_FAIL_SHARD || args.includes('--shard=' + process.env.BROWSER_FAIL_SHARD));
+      process.exit(!project ? 86 : fail ? 7 : 0);
     `,
     );
     const runner = fileURLToPath(new URL('./run-affected-tests.mjs', import.meta.url));
-    const result = spawnSync(process.execPath, [runner, 'browser', '--list'], {
+    const result = spawnSync(process.execPath, [runner, 'browser', ...browserArgs], {
       cwd: directory,
       encoding: 'utf8',
       env: {
@@ -288,6 +289,7 @@ function runBrowserGroups(plan, failProject = '') {
         AFFECTED_TEST_PLAN: JSON.stringify(plan),
         BROWSER_GROUP_LOG: logPath,
         BROWSER_FAIL_PROJECT: failProject,
+        BROWSER_FAIL_SHARD: failShard,
       },
     });
     const invocations = readFileSync(logPath, 'utf8')
@@ -335,6 +337,36 @@ test('auch die zweite Browsergruppe muss erfolgreich sein', () => {
   const { result, invocations } = runBrowserGroups(twoBrowserGroups, 'changed-tests');
   assert.equal(result.status, 7);
   assert.equal(invocations.length, 2);
+});
+
+test('die umfassende Browserauswahl erhält drei getrennte frische Sitzungen', () => {
+  const { result, invocations } = runBrowserGroups(twoBrowserGroups, '', []);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    invocations.map(({ project, args }) => [
+      project,
+      args.find((arg) => arg.startsWith('--shard=')) ?? null,
+    ]),
+    [
+      ['chromium', '--shard=1/3'],
+      ['chromium', '--shard=2/3'],
+      ['chromium', '--shard=3/3'],
+      ['changed-tests', null],
+    ],
+  );
+});
+
+test('ein Fehler in der zweiten Teilgruppe stoppt vor weiteren Browserfällen', () => {
+  const { result, invocations } = runBrowserGroups(twoBrowserGroups, 'chromium', [], '2/3');
+  assert.equal(result.status, 7);
+  assert.equal(invocations.length, 2);
+});
+
+test('gezielte Browserläufe bleiben ohne zusätzliche Teilgruppen', () => {
+  const { result, invocations } = runBrowserGroups({ ...twoBrowserGroups, full: false }, '', []);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(invocations.length, 2);
+  assert.ok(invocations.every(({ args }) => !args.some((arg) => arg.startsWith('--shard='))));
 });
 
 for (const project of ['chromium', 'changed-tests']) {

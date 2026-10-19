@@ -65,7 +65,12 @@ describe('root-globaler Toast-Container', () => {
         { provide: WebPushService, useValue: {} },
         {
           provide: PwaService,
-          useValue: { updateAvailable: signal(false), installDialogOpen: signal(false) },
+          useValue: {
+            updateAvailable: signal(false),
+            checkingForUpdate: signal(false),
+            updateCheckError: signal(''),
+            installDialogOpen: signal(false),
+          },
         },
         { provide: PushNavigationService, useValue: { pending: signal(null) } },
         { provide: OfflinePurchaseContextService, useValue: {} },

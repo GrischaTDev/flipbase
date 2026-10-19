@@ -564,6 +564,27 @@ test('breite Änderung erhält die bisherige vollständige PR-Auswahl', async ()
   assert.equal(plan.pwa, true);
 });
 
+test('drei frische Browsergruppen enthalten jeden vollständigen PR-Fall genau einmal', async () => {
+  const plan = selectAffectedTests(
+    ['scripts/run-affected-tests.mjs'],
+    await readSelectionFiles(root),
+  );
+  assert.equal(plan.full, true);
+  const groups = [];
+  for (let group = 1; group <= 3; group += 1) {
+    const { report, selected } = await listTests(
+      'playwright.affected.config.ts',
+      ['--project=chromium', `--shard=${group}/3`],
+      { AFFECTED_TEST_PLAN: JSON.stringify(plan) },
+    );
+    assert.equal(report.config.fullyParallel, true);
+    assert.ok(selected.length > 0 && selected.length <= Math.ceil(coreTests.length / 3));
+    groups.push(...selected);
+  }
+  assert.equal(new Set(keys(groups)).size, groups.length);
+  assert.deepEqual(keys(groups), keys(coreTests));
+});
+
 test('PR-Auswahl: alle Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));

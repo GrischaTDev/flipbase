@@ -51,7 +51,9 @@ test('an arbitrary URL is rejected instead of becoming a notification destinatio
     `/push/open?context=${encodeURIComponent(JSON.stringify({ ...payload, target: { kind: 'settings', url: 'https://example.com' } }))}`,
   );
   await expect(page.locator('app-push-entry [role="status"]')).toContainText('kein gültiges Ziel');
-  await expect(page.getByRole('button', { name: 'Erneut prüfen' })).toBeDisabled();
+  await expect(
+    page.locator('app-push-entry').getByRole('button', { name: 'Erneut prüfen' }),
+  ).toBeDisabled();
 });
 test('a controller message preserves an open unsaved purchase @worker', async ({ page }) => {
   await backend(page);
