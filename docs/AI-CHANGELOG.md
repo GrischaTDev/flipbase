@@ -6,7 +6,7 @@
 
 **Integration:** Arbeitsstand zunächst im eigenen Zweig mit dfddb8da lokal gesichert. Origin/master mit Stand 7b80b8fa integriert; damit kommen die aktuelle Startübersicht, Verkaufsplattformen und die nachfolgenden Darstellungsverbesserungen hinzu. Einziger Konflikt im Änderungsprotokoll unter Erhalt der Einträge beider Seiten gelöst und deren Überschriften vollständig geprüft. Produktdateien ohne direkte Konflikte zusammengeführt. Paketdateien und gesperrte Abhängigkeiten unverändert. Fremde Zweige und der Hauptcheckout bleiben unberührt.
 
-**Prüfung und Betrieb:** Gemeinsamen Bau, Typen und betroffene Marktplatzprüfungen nach der Integration ausführen. Entwicklungsserver anschließend mit der vorhandenen Konfiguration für bestehende Flipbase-Daten neu starten. Kein Push, PR, Produktionsdeployment oder zusätzlicher Datenbankeingriff.
+**Prüfung und Betrieb:** Gemeinsamer Produktionsbau und Typprüfung erfolgreich. Alle 145 betroffenen Komponententests, 61 bestehende Browserfälle einschließlich Kontenverwaltung, Übersicht, Einstellungen, Übertragung und Gebührenstopp sowie neun Registrierungsprüfungen bestanden. Shared-UI ohne Befund. Entwicklungsserver mit der vorhandenen Konfiguration für bestehende Flipbase-Daten neu gestartet; Marktplatzübersicht mit HTTP 200 erreichbar. Aktueller origin/master nachweislich vollständig in HEAD enthalten. Keine produktiven Testaktionen; kein Push, PR, Produktionsdeployment oder zusätzlicher Datenbankeingriff.
 
 ## 2026-10-19 - Juna - Lokalen Testserver erneut starten
 
