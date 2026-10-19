@@ -14,6 +14,10 @@ export interface MarketplaceOverviewAccount {
   readonly connectionId: string;
   readonly displayName: string;
   readonly status: string;
+  readonly connectionStatus?: {
+    readonly label: string;
+    readonly tone: 'success' | 'caution' | 'neutral';
+  };
   readonly activeCount: number | null;
   readonly listingCount: number | null;
   readonly observedAt: string | null;

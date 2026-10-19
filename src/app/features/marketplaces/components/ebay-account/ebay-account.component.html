@@ -451,7 +451,7 @@
 <ng-template #connectionStatus>
   @if (store.connection(); as connection) {
     <div class="flex flex-wrap items-center gap-1.5" aria-live="polite">
-      <app-badge size="sm" [tone]="connection.status === 'connected' ? 'neutral' : 'caution'">{{
+      <app-badge size="sm" [tone]="connection.status === 'connected' ? 'success' : 'caution'">{{
         connection.status === 'connected'
           ? 'Verbunden'
           : connection.status === 'needs_login'
@@ -466,17 +466,38 @@
 </ng-template>
 <ng-template #accountManagement>
   <section class="space-y-4" aria-label="eBay-Verbindung verwalten">
-    <div>
-      <h3 class="text-sm font-semibold text-fb-text-primary">
-        {{ store.connection()?.username || 'Verbindung mit eBay' }}
-      </h3>
-      <p class="mt-1 text-[13px] text-fb-text-secondary">
-        Melde Dich bei eBay an und erlaube Flipbase den Zugriff auf Deine Inserate und Bestellungen.
-      </p>
-      <p class="mt-2 text-xs text-fb-text-secondary">
-        Pro Workspace kann derzeit ein eBay-Konto verbunden werden.
-      </p>
-    </div>
+    <app-marketplace-account-header
+      platform="ebay"
+      [centered]="!store.connection()"
+      [title]="store.connection()?.username || ''"
+      [description]="
+        store.connection()
+          ? 'eBay-Konto'
+          : 'Melde Dich bei eBay an und verbinde Dein Konto mit Flipbase.'
+      "
+    >
+      <ng-container [ngTemplateOutlet]="connectionStatus" />
+    </app-marketplace-account-header>
+    @if (store.connection(); as connection) {
+      <dl class="space-y-3 border-y border-fb-line py-4 text-sm">
+        <div class="flex flex-wrap justify-between gap-2">
+          <dt class="text-fb-text-secondary">Letzter Abruf</dt>
+          <dd class="font-medium text-fb-text-primary">
+            {{
+              connection.lastReadAt
+                ? (connection.lastReadAt | date: 'dd.MM.yyyy, HH:mm')
+                : 'Noch kein Abruf'
+            }}
+          </dd>
+        </div>
+        <div class="flex flex-wrap justify-between gap-2">
+          <dt class="text-fb-text-secondary">Umgebung</dt>
+          <dd class="text-fb-text-primary">
+            {{ connection.environment === 'sandbox' ? 'eBay-Testumgebung' : 'eBay' }}
+          </dd>
+        </div>
+      </dl>
+    }
     @if (store.error(); as error) {
       <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
     }
@@ -492,42 +513,18 @@
         hier verbinden.
       </p>
     }
-    <ng-container [ngTemplateOutlet]="connectionStatus" />
-    <div class="flex flex-wrap gap-2">
-      @if (store.isConfigured()) {
-        <app-button
-          size="slim"
-          [variant]="store.connection()?.status === 'connected' ? 'secondary' : 'primary'"
-          [icon]="connectIcon"
-          [disabled]="accountBusy()"
-          (clicked)="connect()"
-          >{{
-            store.connection()?.status === 'connected'
-              ? 'Erneut mit eBay verbinden'
-              : 'Mit eBay verbinden'
-          }}</app-button
+    @if (store.connection()?.status === 'connected' && store.isConfigured()) {
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <span class="text-sm text-fb-text-secondary">Berechtigungen</span>
+        <app-button [icon]="connectIcon" [disabled]="accountBusy()" (clicked)="connect()"
+          >Erneut mit eBay verbinden</app-button
         >
-      }
-      <app-button size="slim" [icon]="refreshIcon" [disabled]="accountBusy()" (clicked)="refresh()"
-        >Status aktualisieren</app-button
-      >
-    </div>
-    @if (store.connection(); as connection) {
-      @if (connection.status !== 'disconnected') {
-        <section class="space-y-3 border-t border-fb-line pt-4" aria-label="Verbindung trennen">
-          <p class="text-[13px] text-fb-text-secondary">
-            Trenne die Verbindung zwischen Deinem eBay-Konto und diesem Workspace.
-          </p>
-          <app-button
-            size="slim"
-            variant="destructive"
-            [icon]="disconnectIcon"
-            [disabled]="store.isLoading()"
-            (clicked)="store.disconnect()"
-            >Verbindung trennen</app-button
-          >
-        </section>
-      }
+      </div>
+    }
+    @if (!actionsInFooter() && !settingsOpen()) {
+      <div class="flex flex-wrap justify-end gap-2">
+        <ng-container [ngTemplateOutlet]="dialogActionsTemplate" />
+      </div>
     }
   </section>
 </ng-template>
@@ -536,9 +533,46 @@
     [title]="store.connection() ? 'eBay-Konto – Einstellungen' : 'eBay-Konto hinzufügen'"
     presentation="center"
     size="md"
-    [hasFooter]="false"
     (closed)="settingsOpen.set(false)"
   >
     <ng-container [ngTemplateOutlet]="accountManagement" />
+    <div modal-footer class="flex flex-wrap justify-end gap-2">
+      @if (!store.connection()) {
+        <app-button variant="ghost" (clicked)="settingsOpen.set(false)">Schließen</app-button>
+      }
+      <ng-container [ngTemplateOutlet]="dialogActionsTemplate" />
+    </div>
   </app-modal-shell>
 }
+
+<ng-template #dialogActionsTemplate>
+  @if (store.connection(); as connection) {
+    @if (connection.status !== 'disconnected') {
+      <app-button
+        variant="destructive"
+        [icon]="disconnectIcon"
+        [disabled]="store.isLoading()"
+        (clicked)="store.disconnect()"
+        >Verbindung trennen</app-button
+      >
+    }
+  }
+  @if (store.isConfigured() && store.connection()?.status !== 'connected') {
+    <app-button
+      variant="primary"
+      [icon]="connectIcon"
+      [disabled]="accountBusy()"
+      (clicked)="connect()"
+      >Mit eBay verbinden</app-button
+    >
+  }
+  @if (store.connection()?.status === 'connected' || !store.isConfigured() || store.error()) {
+    <app-button
+      [variant]="store.connection()?.status === 'connected' ? 'primary' : 'secondary'"
+      [icon]="refreshIcon"
+      [disabled]="accountBusy()"
+      (clicked)="refresh()"
+      >Status aktualisieren</app-button
+    >
+  }
+</ng-template>

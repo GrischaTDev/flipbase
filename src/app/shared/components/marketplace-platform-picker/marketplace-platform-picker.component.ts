@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
-import { LucideCheck, LucideDynamicIcon } from '@lucide/angular';
+import { LucideCheck, LucideChevronRight, LucideDynamicIcon } from '@lucide/angular';
 import type { MarketplaceId } from '../../../core/services/marketplace-settings.service';
 import {
   marketplacePlatformAppearance,
@@ -14,6 +14,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplacePlatformPickerComponent {
+  readonly selectionMode = input<'toggle' | 'navigate'>('toggle');
+  readonly presentation = input<'tiles' | 'list'>('tiles');
   readonly platforms = input.required<readonly MarketplaceId[]>();
   readonly selectedPlatforms = input.required<readonly MarketplaceId[]>();
   readonly disabledPlatforms = input<readonly MarketplaceId[]>([]);
@@ -22,6 +24,7 @@ export class MarketplacePlatformPickerComponent {
   readonly appearance = marketplacePlatformAppearance;
   readonly label = marketplacePlatformLabel;
   readonly checkIcon = LucideCheck;
+  readonly nextIcon = LucideChevronRight;
 
   select(platform: MarketplaceId): void {
     if (!this.disabled() && !this.disabledPlatforms().includes(platform))

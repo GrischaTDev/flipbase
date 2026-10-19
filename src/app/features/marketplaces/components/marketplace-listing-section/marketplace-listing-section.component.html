@@ -1,7 +1,23 @@
-<app-card padding="none">
-  <div class="flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
-    <div class="min-w-0 basis-full flex-1 space-y-1 sm:basis-0">
-      <h3 class="break-words text-sm font-semibold text-fb-text-primary">
+@if (collapsible()) {
+  <app-card padding="none">
+    <ng-container [ngTemplateOutlet]="accountHeader" />
+    <ng-container [ngTemplateOutlet]="listingsContent" />
+  </app-card>
+} @else {
+  <app-card padding="none">
+    <ng-container [ngTemplateOutlet]="accountHeader" />
+  </app-card>
+  <app-card class="mt-4" padding="none">
+    <h3 card-header class="text-sm font-bold text-fb-text-primary">Inserate</h3>
+    <ng-container [ngTemplateOutlet]="listingsContent" />
+  </app-card>
+}
+<ng-template #accountHeader>
+  <div
+    class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 p-4 lg:grid-cols-[minmax(10rem,1fr)_minmax(0,1fr)_10rem]"
+  >
+    <div class="grid min-w-0 grid-cols-1 items-center gap-2 xl:grid-cols-[minmax(0,1fr)_9.5rem]">
+      <h3 class="min-w-0 break-words text-sm font-semibold text-fb-text-primary">
         @if (showAccountManagement()) {
           <a
             [routerLink]="accountLink()"
@@ -13,57 +29,85 @@
           {{ section().account.displayName }}
         }
       </h3>
-      <div class="flex flex-wrap items-center gap-2 text-xs text-fb-text-secondary">
-        <app-badge [tone]="accountStatusTone()">{{ accountStatus() }}</app-badge>
-        @if (section().account.platform === 'ebay' && section().page) {
-          <span>{{ section().page!.total }} aktive Inserate</span>
-        } @else if (section().account.listingCount !== null) {
-          <span>{{ section().account.listingCount }} Inserate</span>
-        } @else {
-          <span>Inseratzahl unbekannt</span>
-        }
-      </div>
-      <p class="text-xs text-fb-text-muted">
-        @if (section().account.observedAt; as observedAt) {
-          Letzter Abgleich: {{ observedAt | date: 'dd.MM.yyyy, HH:mm' }}
-        } @else {
-          Noch kein Abgleich bestätigt
-        }
-      </p>
+      <app-badge class="justify-self-start" [tone]="accountStatusTone()">{{
+        accountStatus()
+      }}</app-badge>
     </div>
-    <app-button
-      variant="secondary"
-      [icon]="section().expanded ? upIcon : downIcon"
-      [ariaLabel]="
-        'Inserate von ' +
-        section().account.displayName +
-        (section().expanded ? ' ausblenden' : ' anzeigen')
-      "
-      [ariaExpanded]="section().expanded"
-      [ariaControls]="panelId()"
-      (clicked)="toggled.emit()"
+    <dl
+      class="col-span-2 row-start-2 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 border-t border-fb-line pt-3 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l lg:pl-5 lg:pt-0"
     >
-      {{ section().expanded ? 'Ausblenden' : 'Inserate anzeigen' }}
-    </app-button>
-    @if (showAccountManagement()) {
-      <app-button
-        variant="ghost"
-        size="slim"
-        [iconOnly]="true"
-        [icon]="settingsIcon"
-        [ariaLabel]="'Konto ' + section().account.displayName + ' verwalten'"
-        [title]="'Konto ' + section().account.displayName + ' verwalten'"
-        (clicked)="accountManagementRequested.emit()"
-      />
-    }
+      <div class="min-w-0 space-y-1">
+        <dt class="text-xs text-fb-text-secondary">
+          {{
+            section().account.platform === 'ebay' && section().page ? 'Aktive Inserate' : 'Inserate'
+          }}
+        </dt>
+        <dd class="text-sm font-semibold tabular-nums text-fb-text-primary">
+          @if (section().account.platform === 'ebay' && section().page) {
+            {{ section().page!.total | number }}
+          } @else if (section().account.listingCount !== null) {
+            {{ section().account.listingCount | number }}
+          } @else {
+            <span class="font-normal text-fb-text-muted">Unbekannt</span>
+          }
+        </dd>
+      </div>
+      <div class="min-w-0 space-y-1">
+        <dt class="text-xs text-fb-text-secondary">Letzter Abgleich</dt>
+        <dd class="text-sm tabular-nums text-fb-text-primary">
+          @if (section().account.observedAt; as observedAt) {
+            {{ observedAt | date: 'dd.MM.yyyy, HH:mm' }}
+          } @else {
+            <span class="text-fb-text-muted">Noch nicht abgeglichen</span>
+          }
+        </dd>
+      </div>
+    </dl>
+    <div
+      class="col-start-2 row-start-1 flex shrink-0 items-center justify-end gap-1 lg:col-start-3"
+    >
+      @if (collapsible()) {
+        <app-button
+          variant="ghost"
+          [icon]="section().expanded ? upIcon : downIcon"
+          [ariaLabel]="
+            'Inserate von ' +
+            section().account.displayName +
+            (section().expanded ? ' ausblenden' : ' anzeigen')
+          "
+          [ariaExpanded]="section().expanded"
+          [ariaControls]="panelId()"
+          (clicked)="toggled.emit()"
+          >{{ section().expanded ? 'Ausblenden' : 'Inserate' }}</app-button
+        >
+      }
+      @if (showAccountManagement()) {
+        <app-button
+          variant="ghost"
+          size="slim"
+          [iconOnly]="true"
+          [icon]="settingsIcon"
+          [ariaLabel]="'Konto ' + section().account.displayName + ' verwalten'"
+          [title]="'Konto ' + section().account.displayName + ' verwalten'"
+          (clicked)="accountManagementRequested.emit()"
+        />
+      }
+    </div>
   </div>
   @if (section().account.error) {
     <p class="px-4 pb-3 text-xs text-fb-text-secondary" role="status">
       {{ section().account.error }}
     </p>
   }
+</ng-template>
+<ng-template #listingsContent>
   @if (section().expanded) {
-    <div [id]="panelId()" class="min-w-0 border-t border-fb-border-subtle">
+    <div
+      [id]="panelId()"
+      class="min-w-0"
+      [class.border-t]="collapsible()"
+      [class.border-fb-border-subtle]="collapsible()"
+    >
       <app-data-table
         [ariaLabel]="'Inserate von ' + section().account.displayName"
         [searchEnabled]="section().account.supportsSearch"
@@ -256,7 +300,8 @@
       }
     </div>
   }
-</app-card>
+</ng-template>
+
 <ng-template #price let-item>
   @if (item.priceCents === null) {
     Preis unbekannt

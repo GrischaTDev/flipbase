@@ -1,11 +1,4 @@
 <app-modal-shell title="Inserieren" [subtitle]="stepTitle()" size="xl" (closed)="close()">
-  @if (step() !== 'platform') {
-    <div>
-      <app-button [disabled]="busy() || publishing() || publicationPending()" (clicked)="back()">{{
-        step() === 'form' ? 'Zurück zur Kontoauswahl' : 'Zurück zur Plattformauswahl'
-      }}</app-button>
-    </div>
-  }
   @if (step() === 'platform') {
     <app-marketplace-platform-picker
       [platforms]="availablePlatforms()"
@@ -237,6 +230,18 @@
     } @else if (notice(); as message) {
       <app-notice-banner class="w-full">{{ message }}</app-notice-banner>
     }
+    @if (step() !== 'platform') {
+      <div>
+        <app-button
+          [disabled]="busy() || publishing() || publicationPending()"
+          (clicked)="back()"
+          >{{
+            step() === 'form' ? 'Zurück zur Kontoauswahl' : 'Zurück zur Plattformauswahl'
+          }}</app-button
+        >
+      </div>
+    }
+
     <app-button [disabled]="busy() || publishing()" (clicked)="close()">Schließen</app-button>
     @if (preview()) {
       <app-button
@@ -278,12 +283,18 @@
   >
     <app-kleinanzeigen-accounts
       [setupOnly]="!target.value"
+      [actionsInFooter]="true"
       [workspaceId]="source().workspaceId"
       [connectionId]="target.value || null"
       (changed)="accountChanged()"
     />
-    <app-button modal-footer (clicked)="accountManagementOpen.set(false)"
-      >Zurück zum Inserat</app-button
-    >
+    <div modal-footer class="flex flex-wrap justify-end gap-2">
+      <app-button (clicked)="accountManagementOpen.set(false)">Zurück zum Inserat</app-button>
+      @if (!target.value) {
+        <ng-container [ngTemplateOutlet]="kleinanzeigenAccount()?.connectionActions() ?? null" />
+      } @else {
+        <ng-container [ngTemplateOutlet]="kleinanzeigenAccount()?.managementActions() ?? null" />
+      }
+    </div>
   </app-modal-shell>
 }

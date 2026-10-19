@@ -101,6 +101,14 @@
       @if (cloud.error(); as error) {
         <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
       }
+      @if (currentDialog.mode === 'create') {
+        <app-marketplace-account-header
+          class="mb-5"
+          platform="vinted"
+          [centered]="true"
+          description="Verbinde Dein Vinted-Konto lokal oder über die Cloud."
+        />
+      }
       <form id="marketplace-account-form" [formGroup]="form" (ngSubmit)="save()">
         @if (currentDialog.mode === 'create') {
           <p class="mb-4 text-sm text-fb-text-secondary">
@@ -156,35 +164,40 @@
               </app-notice-banner>
             }
             <p class="mt-4 text-sm text-fb-text-secondary">
-              Über „Verknüpfen“ in der Flipbase-Logo-Blase gelangst Du zu dieser Einrichtung. Fahre
-              jetzt hier mit der vorbereiteten Kontoverbindung fort.
+              Melde Dich im gewünschten Browserprofil bei Vinted an. Danach bestätigst Du Dein Konto
+              in der Erweiterung.
             </p>
-            <ol class="mt-4 list-decimal space-y-2 pl-5 text-sm text-fb-text-secondary">
-              <li>
-                Erstelle für jedes Vinted-Konto ein eigenes Browserprofil in Chrome oder Brave.
-              </li>
-              <li>
-                Installiere das bereitgestellte Flipbase-Erweiterungspaket in diesem Profil: Öffne
-                die Erweiterungsverwaltung, aktiviere den Entwicklermodus und wähle „Entpackte
-                Erweiterung laden“.
-              </li>
-              <li>
-                Melde Dich in diesem Profil bei Deinem gewünschten Vinted-Konto und bei Flipbase an.
-              </li>
-              <li>
-                Wähle „Weiter zur lokalen Verbindung“. Prüfe anschließend den erkannten Vinted-Namen
-                und bestätige dieses Konto.
-              </li>
-            </ol>
+            <details class="mt-4 text-sm text-fb-text-secondary">
+              <summary
+                class="cursor-pointer rounded-sm font-medium text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+              >
+                Erweiterung einrichten
+              </summary>
+              <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-fb-text-secondary">
+                <li>
+                  Erstelle für jedes Vinted-Konto ein eigenes Browserprofil in Chrome oder Brave.
+                </li>
+                <li>
+                  Installiere das bereitgestellte Flipbase-Erweiterungspaket in diesem Profil: Öffne
+                  die Erweiterungsverwaltung, aktiviere den Entwicklermodus und wähle „Entpackte
+                  Erweiterung laden“.
+                </li>
+                <li>
+                  Melde Dich in diesem Profil bei Deinem gewünschten Vinted-Konto und bei Flipbase
+                  an.
+                </li>
+                <li>
+                  Wähle „Weiter zur lokalen Verbindung“. Prüfe anschließend den erkannten
+                  Vinted-Namen und bestätige dieses Konto.
+                </li>
+              </ol>
+            </details>
           } @else {
             <p class="mt-3 text-sm text-fb-text-secondary">
               Zuerst wird eine freie Cloud-IP geprüft und reserviert. Anschließend meldest Du Dich
               im Cloudbrowser bei Vinted an.
             </p>
           }
-          <p class="mt-3 text-sm text-fb-text-secondary">
-            Der interne Name hilft Dir, Deine Konten in Flipbase auseinanderzuhalten.
-          </p>
         }
         @if (store.mutationError(); as error) {
           <app-notice-banner class="mt-3" announcement="alert">{{ error }}</app-notice-banner>

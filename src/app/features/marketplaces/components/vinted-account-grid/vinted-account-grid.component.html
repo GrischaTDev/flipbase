@@ -401,23 +401,15 @@
   @let status = accountStatus(account);
   <ng-template #accountSettings>
     <div class="space-y-5">
+      <app-marketplace-account-header
+        platform="vinted"
+        [title]="account.displayName"
+        [description]="account.executionMode === 'local' ? 'Lokale Verbindung' : 'Cloud-Verbindung'"
+      >
+        <app-badge [tone]="status.tone">{{ status.label }}</app-badge>
+      </app-marketplace-account-header>
       <section class="space-y-3" aria-label="Verbindung">
-        <div>
-          <h3 class="text-sm font-semibold text-fb-text-primary">Verbindung</h3>
-          <p class="mt-1 text-[13px] text-fb-text-secondary">
-            {{
-              account.executionMode === 'local'
-                ? 'Dieses Konto wird über die Erweiterung im zugehörigen Browserprofil ausgeführt.'
-                : 'Dieses Konto wird über den Cloudbrowser ausgeführt.'
-            }}
-          </p>
-        </div>
-        <app-badge
-          size="sm"
-          [tone]="status.tone === 'success' ? 'neutral' : status.tone"
-          class="max-w-full [&>span]:h-auto [&>span]:min-h-5 [&>span]:py-0.5"
-          >{{ status.label }}</app-badge
-        >
+        <h3 class="text-sm font-semibold text-fb-text-primary">Verbindung</h3>
         @if (account.executionMode === 'local') {
           @if (status.action === 'profile') {
             <p class="text-[13px] text-fb-text-secondary">

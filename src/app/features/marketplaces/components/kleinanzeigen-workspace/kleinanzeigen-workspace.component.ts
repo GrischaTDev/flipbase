@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,6 +6,7 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { LucideStore, LucidePlus } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -21,6 +23,7 @@ import { overviewAccountKey } from '../../models/marketplace-overview-normalizat
 @Component({
   selector: 'app-kleinanzeigen-workspace',
   imports: [
+    NgTemplateOutlet,
     PageHeaderComponent,
     ModalShellComponent,
     ButtonComponent,
@@ -34,6 +37,7 @@ import { overviewAccountKey } from '../../models/marketplace-overview-normalizat
   host: { class: 'block min-w-0' },
 })
 export class KleinanzeigenWorkspaceComponent {
+  readonly kleinanzeigenAccount = viewChild(KleinanzeigenAccountsComponent);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   readonly store = inject(MarketplaceOverviewStore);
@@ -56,11 +60,6 @@ export class KleinanzeigenWorkspaceComponent {
     const workspace = this.workspace.currentWorkspace();
     const userId = this.auth.currentUser()?.id;
     if (!workspace || workspace.archived_at || !userId) return;
-    const expanded = new Set(
-      Object.values(this.store.sections())
-        .filter((section) => section.expanded)
-        .map((section) => this.accountKey(section.account)),
-    );
     await this.store.load(workspace.id, ['kleinanzeigen']);
     if (
       this.workspace.currentWorkspace()?.id !== workspace.id ||
@@ -81,7 +80,7 @@ export class KleinanzeigenWorkspaceComponent {
       this.store
         .platforms()
         .flatMap((group) => group.accounts)
-        .filter((account) => expanded.has(this.accountKey(account)))
+        .filter((account) => !this.store.section(account)?.expanded)
         .map((account) => this.store.expand(account)),
     );
   }

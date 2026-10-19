@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
@@ -203,7 +204,7 @@ it('erlaubt unbekannten Erweiterungsstatus mit Profilanleitung und freie lokale 
   fixture.componentInstance.name.setValue('Mein Konto');
   fixture.detectChanges();
   expect(fixture.nativeElement.textContent).toContain('Chrome oder Brave');
-  expect(fixture.nativeElement.textContent).toContain('Logo-Blase');
+  expect(fixture.nativeElement.textContent).toContain('Erweiterung einrichten');
   expect(extension.checkInstallation).toHaveBeenCalled();
   extension.localAccount.set(null);
   createConnection.mockResolvedValue('new-account');
@@ -555,6 +556,10 @@ it('meldet einen gescheiterten Wechsel ohne offenen Dialog als Toast statt als b
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: MarketplaceAccountHeaderComponent,
+      path: 'src/app/shared/components/marketplace-account-header/marketplace-account-header.component.ts',
+    },
     {
       type: VintedLocalConnectComponent,
       path: 'src/app/features/marketplaces/components/vinted-local-connect/vinted-local-connect.component.ts',

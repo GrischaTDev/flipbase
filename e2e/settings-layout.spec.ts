@@ -87,6 +87,17 @@ for (const width of [1280, 390, 1024]) {
       await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
       const feature = page.locator(selector);
       await expect(feature.locator('app-card').first()).toBeVisible();
+      if (path === 'marketplaces') {
+        await expect(
+          feature.getByRole('link', { name: 'Konten und Inserate verwalten', exact: true }),
+        ).toHaveAttribute('href', '/marketplaces/overview');
+        await expect(feature.getByRole('link')).toHaveCount(1);
+        for (const platform of ['Vinted', 'eBay', 'Kleinanzeigen']) {
+          await expect(
+            feature.getByRole('button', { name: platform, exact: true }),
+          ).toHaveAttribute('aria-pressed', 'true');
+        }
+      }
       for (const theme of ['light', 'dark']) {
         await page.evaluate(
           (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
@@ -157,8 +168,7 @@ test('eBay uses compact account cards and opens connection management in a dialo
       body: '<html lang="de"><title>eBay-Testanmeldung</title><body>eBay-Testanmeldung</body></html>',
     }),
   );
-  await page.goto('/settings/marketplaces');
-  await page.getByRole('link', { name: 'eBay-Konto verbinden und verwalten' }).click();
+  await page.goto('/marketplaces/ebay/connection');
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/connection$/);
   await expect(page.getByRole('heading', { name: 'Noch kein eBay-Konto verbunden' })).toBeVisible();
   await page.evaluate(axe.source);
@@ -173,7 +183,7 @@ test('eBay uses compact account cards and opens connection management in a dialo
   const connectDialog = page.getByRole('dialog', { name: 'eBay-Konto hinzufügen', exact: true });
   await expect(connectDialog).toBeVisible();
   await expect(
-    connectDialog.getByText('Pro Workspace kann derzeit ein eBay-Konto verbunden werden.'),
+    connectDialog.getByText('Melde Dich bei eBay an und verbinde Dein Konto mit Flipbase.'),
   ).toBeVisible();
   await connectDialog.getByRole('button', { name: 'Mit eBay verbinden', exact: true }).click();
   await expect(page).toHaveURL(/auth\.ebay\.com\/oauth2\/authorize/);

@@ -6,8 +6,9 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucidePlus, LucideRefreshCw, LucideSettings, LucideStore } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -20,18 +21,13 @@ import {
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import {
   marketplacePlatformAppearance,
   marketplacePlatformLabel,
 } from '../../../../shared/models/marketplace-platform';
 import { MarketplacesSettingsComponent } from '../../../settings/pages/marketplaces-settings/marketplaces-settings.component';
-import {
-  MarketplaceOverviewStore,
-  type MarketplaceOverviewPlatformState,
-} from '../../services/marketplace-overview.store';
+import { MarketplaceOverviewStore } from '../../services/marketplace-overview.store';
 import { MarketplaceListingSectionComponent } from '../marketplace-listing-section/marketplace-listing-section.component';
 import { overviewAccountKey } from '../../models/marketplace-overview-normalization';
 import type { MarketplaceOverviewAccount } from '../../models/marketplace-overview.models';
@@ -43,6 +39,7 @@ import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleina
 @Component({
   selector: 'app-marketplace-overview',
   imports: [
+    NgTemplateOutlet,
     NgOptimizedImage,
     MarketplacePlatformPickerComponent,
     VintedAccountManagementComponent,
@@ -50,8 +47,6 @@ import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleina
     PageHeaderComponent,
     CardComponent,
     ButtonComponent,
-    BadgeComponent,
-    CustomSelectComponent,
     ModalShellComponent,
     MarketplacesSettingsComponent,
     MarketplaceListingSectionComponent,
@@ -63,6 +58,8 @@ import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleina
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceOverviewComponent {
+  readonly kleinanzeigenAccount = viewChild(KleinanzeigenAccountsComponent);
+  readonly ebayAccount = viewChild(EbayAccountComponent);
   readonly store = inject(MarketplaceOverviewStore);
   readonly settings = inject(MarketplaceSettingsService);
   private readonly auth = inject(AuthService);
@@ -165,17 +162,6 @@ export class MarketplaceOverviewComponent {
   }
   platformLogo(platform: MarketplaceId): string {
     return marketplacePlatformAppearance(platform).logo!;
-  }
-  accountOptions(
-    group: MarketplaceOverviewPlatformState,
-  ): readonly { value: string; label: string }[] {
-    return [
-      { value: '', label: 'Alle Konten' },
-      ...group.accounts.map((account) => ({
-        value: account.connectionId,
-        label: account.displayName,
-      })),
-    ];
   }
   manageLink(platform: MarketplaceId): string {
     return platform === 'vinted'

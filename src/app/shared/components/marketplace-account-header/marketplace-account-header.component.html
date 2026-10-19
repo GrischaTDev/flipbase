@@ -1,0 +1,30 @@
+<div
+  class="flex min-w-0 items-center gap-3"
+  [class.flex-col]="centered()"
+  [class.py-4]="centered()"
+  [class.text-center]="centered()"
+>
+  <div class="flex size-14 shrink-0 items-center justify-center rounded-xl bg-fb-subtle">
+    @if (appearance().logo; as logo) {
+      <img [ngSrc]="logo" width="36" height="36" alt="" class="size-9 object-contain" />
+    }
+  </div>
+  <div class="min-w-0 space-y-1.5" [class.flex-1]="!centered()">
+    @if (title()) {
+      <h3 class="break-words text-base font-semibold leading-snug text-fb-text-primary">
+        {{ title() }}
+      </h3>
+    }
+    @if (description()) {
+      <p class="max-w-sm text-sm leading-relaxed text-fb-text-secondary">{{ description() }}</p>
+    }
+  </div>
+  <div
+    class="flex shrink-0 flex-wrap items-center gap-2 empty:hidden"
+    [class.justify-center]="centered()"
+    [class.justify-end]="!centered()"
+    [class.ml-auto]="!centered()"
+  >
+    <ng-content />
+  </div>
+</div>

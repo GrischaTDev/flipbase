@@ -99,7 +99,7 @@ const coreTests = [
     ]),
   ),
   ...[
-    'Sichtbarkeit bleibt nach Neuladen erhalten und Accountauswahl trennt Listen @core-smoke',
+    'Sichtbarkeit bleibt nach Neuladen erhalten und alle Accountlisten bleiben getrennt @core-smoke',
     'Ein Vinted-Ausfall erhält die eBay-Inserate und bietet keine fremden Filter an @core-smoke',
   ].map((title) => ['marketplace-overview.spec.ts', title]),
   ...['light', 'dark'].flatMap((theme) =>
