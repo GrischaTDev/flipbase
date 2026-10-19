@@ -2,6 +2,8 @@
 
 ## 2026-10-19 - Juna - Artikelnamen in den letzten Verkäufen begrenzen
 
+**Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach sämtlichen erfolgreichen ausgewählten Prüfungen ausdrücklich freigegeben. Aktueller Hauptzweig weiterhin `2b4f7185`; der Fehlerfix ist lokal als `fc05d0f8` geprüft. Die CI prüft zusätzlich die vollständige betroffene Browserauswahl unter Linux einschließlich echter lokaler Anmeldung. Erst nach erfolgreicher Sammelprüfung mit Merge-Commit integrieren, öffentliche Bereitstellung kontrollieren und eigenen Zweig samt Arbeitsordner aufräumen.
+
 **Auftrag:** Überlaufende Artikelnamen in „Letzte Verkäufe“ korrigieren. Der zwischenzeitliche Auftrag zu „Konto hinzufügen“ wurde vom Nutzer als Nachricht für einen anderen Chat zurückgenommen; keine entsprechenden Oberflächenänderungen vorgenommen.
 
 **Ursache und Umsetzung:** Der Link zum Verkauf konnte seine feste Tabellenspalte überbreiten; die bisherige Zweizeilenbegrenzung begrenzte seine Breite nicht. Den vorhandenen gemeinsamen Button ausdrücklich auf die Zellenbreite setzen und den Artikelnamen einzeilig mit Auslassungspunkten kürzen. Vollständiger Linkname, Tooltip, Verkaufsziel, Datumsspalte und Plattformdarstellung bleiben erhalten. Keine globale Buttonänderung.
