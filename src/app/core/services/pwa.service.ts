@@ -38,6 +38,8 @@ export class PwaService {
   readonly swRegistered = signal(false);
   readonly offlineAssetsReady = signal(false);
   readonly updateAvailable = this.updates?.updateAvailable ?? signal(false);
+  readonly checkingForUpdate = this.updates?.checkingForUpdate ?? signal(false);
+  readonly updateCheckError = this.updates?.checkError ?? signal('');
   readonly installState = computed<PwaInstallState>(() => {
     if (this.isStandalone()) return 'standalone';
     if (!this.isMobileDevice()) return 'unsupported';
@@ -54,6 +56,7 @@ export class PwaService {
       : 'Öffne Flipbase in Chrome oder einem anderen Browser mit App-Installation. Wähle im Browser-Menü "App installieren" oder "Zum Startbildschirm hinzufügen", falls angeboten. Öffne die Seite dafür direkt im Browser statt in einer anderen App.';
   });
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
+  private registrationInFlight: Promise<void> | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -86,6 +89,13 @@ export class PwaService {
       });
       this.listen(window, 'online', () => this.isOnline.set(true));
       this.listen(window, 'offline', () => this.isOnline.set(false));
+    }
+    if (
+      environment.production &&
+      typeof navigator !== 'undefined' &&
+      'serviceWorker' in navigator
+    ) {
+      this.updates?.setRegistrationRecovery(() => this.registerServiceWorker());
     }
     void this.registerServiceWorker();
   }
@@ -152,13 +162,20 @@ export class PwaService {
     }
   }
 
-  async registerServiceWorker(): Promise<void> {
+  registerServiceWorker(): Promise<void> {
     if (
       !environment.production ||
       typeof navigator === 'undefined' ||
       !('serviceWorker' in navigator)
     )
-      return;
+      return Promise.resolve();
+    this.registrationInFlight ??= this.performRegistration().finally(() => {
+      this.registrationInFlight = null;
+    });
+    return this.registrationInFlight;
+  }
+
+  private async performRegistration(): Promise<void> {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', {
         updateViaCache: 'none',
@@ -182,6 +199,7 @@ export class PwaService {
       inspect();
       this.swRegistered.set(true);
     } catch (error) {
+      this.updates?.reportRegistrationFailure();
       this.logger.warn('Service-Worker-Registrierung fehlgeschlagen!', error);
     }
   }
