@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { TestBed } from '@angular/core/testing';
 import { ChildrenOutletContexts } from '@angular/router';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
@@ -9,6 +10,8 @@ import { PwaUpdateNoticeComponent } from '../../shared/components/pwa-update-not
 import { PushNavigationService } from './push-navigation.service';
 import { WorkspaceContextLockService } from './workspace-context-lock.service';
 import { PwaUpdateService } from './pwa-update.service';
+import { PwaService } from './pwa.service';
+import { environment } from '../../../environments/environment';
 
 const locked = signal(false);
 const dirty = vi.fn(() => false);
@@ -27,10 +30,12 @@ beforeAll(async () => {
       path: 'src/app/shared/components/pwa-update-notice/pwa-update-notice.component.ts',
     },
     { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
+    { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
   ]);
 });
 afterAll(() => restoreRendering?.());
-beforeEach(() => {
+beforeEach(async () => {
+  registration.update.mockReset().mockResolvedValue(undefined);
   Object.defineProperty(registration, 'waiting', { configurable: true, value: waiting });
   Object.defineProperty(navigator, 'serviceWorker', {
     configurable: true,
@@ -59,6 +64,7 @@ beforeEach(() => {
   });
   service = TestBed.inject(PwaUpdateService);
   service.connect(registration as unknown as ServiceWorkerRegistration);
+  await service.checkForUpdate();
   waiting.postMessage.mockClear();
 });
 afterEach(() => {
@@ -171,6 +177,7 @@ it('retries a blocked legacy handover when the current view resumes, without req
     attemptId: first.attemptId,
     result: 'blocked',
   });
+  await Promise.resolve();
   await Promise.resolve();
   await service.checkForUpdate();
   receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
@@ -317,6 +324,212 @@ it('never displays malformed or foreign waiting version metadata', () => {
   receive('PWA_WAITING_STATUS', { version: '<b>0.42.7</b>' });
   expect(service.availableVersion()).toBe('');
   expect(service.updateAvailable()).toBe(true);
+});
+
+it('checks again on return within a minute and also when a suspended page is restored', async () => {
+  await service.checkForUpdate();
+  registration.update.mockClear();
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  document.dispatchEvent(new Event('visibilitychange'));
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  document.dispatchEvent(new Event('visibilitychange'));
+  await Promise.resolve();
+  expect(registration.update).toHaveBeenCalledOnce();
+  await service.checkForUpdate();
+  registration.update.mockClear();
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  await Promise.resolve();
+  expect(registration.update).toHaveBeenCalledOnce();
+});
+
+it('shows a bounded check after a long background pause, then releases the screen on timeout', async () => {
+  vi.useFakeTimers();
+  await service.checkForUpdate();
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  document.dispatchEvent(new Event('visibilitychange'));
+  await vi.advanceTimersByTimeAsync(61_000);
+  registration.update.mockImplementation(() => new Promise(() => undefined));
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  document.dispatchEvent(new Event('visibilitychange'));
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('Suche nach Aktualisierungen');
+  await vi.advanceTimersByTimeAsync(8000);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
+  expect(fixture.nativeElement.textContent).toContain('Erneut prüfen');
+});
+
+it('shows a mandatory full update screen without postponing and keeps open entries accessible', () => {
+  receive('PWA_WAITING_STATUS');
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).not.toBeNull();
+  expect(fixture.nativeElement.textContent).not.toContain('Später');
+  expect(fixture.nativeElement.querySelector('img')?.getAttribute('alt')).toBe('Flipbase');
+  locked.set(true);
+  fixture.changeDetectorRef.markForCheck();
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
+  expect(fixture.nativeElement.textContent).toContain('Speichere');
+  locked.set(false);
+  fixture.changeDetectorRef.markForCheck();
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).not.toBeNull();
+});
+
+it('leaves an unsaved form reachable when an update arrives', async () => {
+  dirty.mockReturnValue(true);
+  receive('PWA_WAITING_STATUS');
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(service.hasOpenChanges()).toBe(true);
+  expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
+  expect(fixture.nativeElement.textContent).toContain('Speichere');
+  expect(await service.applyUpdate()).toBe('blocked');
+});
+
+it('still checks the server when a sleeping worker no longer accepts status messages', async () => {
+  waiting.postMessage.mockImplementationOnce(() => {
+    throw new DOMException('worker stopped', 'InvalidStateError');
+  });
+  registration.update.mockClear();
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  await service.checkForUpdate();
+  expect(registration.update).toHaveBeenCalledOnce();
+});
+
+it('bundles simultaneous return events into one network check and can retry after a failure', async () => {
+  let finish: (() => void) | undefined;
+  registration.update.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  registration.update.mockClear();
+  window.dispatchEvent(new Event('focus'));
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  document.dispatchEvent(new Event('visibilitychange'));
+  await Promise.resolve();
+  expect(registration.update).toHaveBeenCalledOnce();
+  finish?.();
+  await service.checkForUpdate();
+  registration.update.mockRejectedValueOnce(new Error('offline'));
+  window.dispatchEvent(new Event('online'));
+  await service.checkForUpdate();
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('Erneut prüfen');
+  await service.checkForUpdate({ force: true });
+  expect(service.checkError()).toBe('');
+});
+
+it('protects a dirty legacy form without route guards and reopens the update screen after leaving it', async () => {
+  const form = document.createElement('form');
+  form.classList.add('ng-dirty');
+  document.body.append(form);
+  try {
+    receive('PWA_WAITING_STATUS');
+    const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
+    expect(await service.applyUpdate()).toBe('blocked');
+    form.remove();
+    await vi.waitFor(
+      () => {
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).not.toBeNull();
+      },
+      { timeout: 2000 },
+    );
+  } finally {
+    form.remove();
+  }
+});
+
+it('retries a failed initial registration when returning online', async () => {
+  const production = environment.production;
+  environment.production = true;
+  const register = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('temporary 503'))
+    .mockResolvedValue(registration);
+  Object.assign(navigator.serviceWorker, { register });
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers: [
+      PwaUpdateService,
+      PwaService,
+      { provide: WorkspaceContextLockService, useValue: { locked } },
+    ],
+  });
+  try {
+    service = TestBed.inject(PwaUpdateService);
+    const pwa = TestBed.inject(PwaService);
+    await pwa.registerServiceWorker();
+    expect(service.checkError()).not.toBe('');
+    window.dispatchEvent(new Event('online'));
+    await service.checkForUpdate();
+    expect(register).toHaveBeenCalledTimes(2);
+    expect(service.checkError()).toBe('');
+  } finally {
+    environment.production = production;
+  }
+});
+
+it('blocks activation while a pristine legacy form is saving', async () => {
+  const form = document.createElement('form');
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.setAttribute('aria-busy', 'true');
+  form.append(submit);
+  document.body.append(form);
+  try {
+    receive('PWA_WAITING_STATUS');
+    expect(await service.applyUpdate()).toBe('blocked');
+  } finally {
+    form.remove();
+  }
+});
+
+it('keeps standalone Angular controls outside a form accessible', async () => {
+  const input = document.createElement('input');
+  input.classList.add('ng-dirty');
+  input.value = 'Neuer Workspace';
+  document.body.append(input);
+  try {
+    receive('PWA_WAITING_STATUS');
+    expect(await service.applyUpdate()).toBe('blocked');
+    expect(input.value).toBe('Neuer Workspace');
+  } finally {
+    input.remove();
+  }
+});
+
+it('retries a same-document worker handover when a temporary busy state ends', async () => {
+  const busy = document.createElement('button');
+  busy.setAttribute('aria-busy', 'true');
+  document.body.append(busy);
+  try {
+    receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
+    expect(waiting.postMessage).not.toHaveBeenCalled();
+    waiting.postMessage.mockImplementation((message) => {
+      if (message.type === 'PWA_UPDATE_QUERY')
+        receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
+    });
+    busy.remove();
+    await vi.waitFor(
+      () =>
+        expect(waiting.postMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'ACTIVATE_UPDATE' }),
+        ),
+      { timeout: 2000 },
+    );
+  } finally {
+    busy.remove();
+    waiting.postMessage.mockReset();
+  }
 });
 
 it('does not offer the older controller build during a same-document worker handover', () => {

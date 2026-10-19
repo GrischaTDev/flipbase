@@ -1,28 +1,62 @@
-@if (
-  !pushNavigation.pending() && updates.updateAvailable() && (!postponed() || updates.isApplying())
-) {
-  <section
-    class="pointer-events-auto fixed right-3 top-[calc(env(safe-area-inset-top)+4.5rem)] z-40 max-w-[min(24rem,calc(100vw-1.5rem))] rounded-lg border border-fb-border bg-fb-surface p-4 text-sm text-fb-text-primary shadow-lg"
-    aria-label="App aktualisieren"
-    aria-live="polite"
-  >
-    <p class="font-semibold">
-      @if (updates.availableVersion(); as version) {
-        Flipbase {{ version }} ist bereit.
-      } @else {
-        Eine neue Flipbase-Version ist bereit.
-      }
-    </p>
-    <p class="mt-1 text-fb-text-secondary">
-      {{ updates.message() || 'Du kannst nach dem Speichern deiner Eingaben aktualisieren.' }}
-    </p>
-    <div class="mt-3 flex flex-wrap gap-2">
-      <app-button (clicked)="updates.applyUpdate()" [loading]="updates.isApplying()"
-        >Jetzt aktualisieren</app-button
+@if (!pushNavigation.pending()) {
+  @if ((updates.updateAvailable() || updates.checkingForUpdate()) && !updates.hasOpenChanges()) {
+    <section aria-label="App aktualisieren">
+      <div
+        appModalDialog
+        data-pwa-update-screen
+        dialogTitel="App aktualisieren"
+        [schliesstMitEscape]="false"
+        class="fixed inset-0 z-[100] flex min-h-dvh items-center justify-center overflow-y-auto bg-fb-bg-app px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] text-fb-text-primary"
       >
-      <app-button variant="plain" (clicked)="postponed.set(true)" [disabled]="updates.isApplying()"
-        >Später</app-button
+        <div class="my-auto flex w-full max-w-md flex-col items-center gap-6 text-center">
+          <img ngSrc="/images/logo-mark.png" width="80" height="80" alt="Flipbase" />
+          @if (updates.updateAvailable()) {
+            <h1 class="text-2xl font-semibold tracking-tight">Eine neue Version ist verfügbar</h1>
+            @if (updates.availableVersion(); as version) {
+              <p class="text-sm text-fb-text-secondary">Flipbase {{ version }} ist bereit.</p>
+            }
+            <p class="text-sm text-fb-text-secondary" role="status">
+              {{ updates.message() || 'Aktualisiere Flipbase, um weiterzuarbeiten.' }}
+            </p>
+            <app-button
+              variant="primary"
+              size="touch"
+              [loading]="updates.isApplying()"
+              (clicked)="updates.applyUpdate()"
+              >Jetzt aktualisieren</app-button
+            >
+          } @else {
+            <h1 class="text-2xl font-semibold tracking-tight">Flipbase</h1>
+            <p class="text-sm text-fb-text-secondary" role="status">
+              Suche nach Aktualisierungen …
+            </p>
+          }
+        </div>
+      </div>
+    </section>
+  } @else if (updates.updateAvailable()) {
+    <section
+      aria-label="App aktualisieren"
+      role="status"
+      class="pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[70] mx-auto max-w-xl rounded-lg border border-fb-border bg-fb-surface p-4 text-sm text-fb-text-primary shadow-lg"
+    >
+      <p class="font-semibold">Eine neue Flipbase-Version ist bereit.</p>
+      <p class="mt-1 text-fb-text-secondary">
+        Speichere oder verwerfe zuerst Deine offenen Eingaben und schließe die Eingabeansicht.
+        Danach kannst Du Flipbase aktualisieren.
+      </p>
+    </section>
+  } @else if (updates.checkError()) {
+    <section
+      aria-label="Updateprüfung"
+      class="pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[70] mx-auto max-w-xl rounded-lg border border-fb-border bg-fb-surface p-4 text-sm text-fb-text-primary shadow-lg"
+    >
+      <p role="status">{{ updates.checkError() }}</p>
+      <app-button
+        variant="plain"
+        (clicked)="updates.checkForUpdate({ force: true, showScreen: true })"
+        >Erneut prüfen</app-button
       >
-    </div>
-  </section>
+    </section>
+  }
 }

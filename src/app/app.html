@@ -3,7 +3,7 @@
 @defer (when pwa.installDialogOpen()) {
   <app-pwa-install-dialog />
 }
-@defer (when pwa.updateAvailable()) {
+@defer (when pwa.updateAvailable() || pwa.checkingForUpdate() || pwa.updateCheckError()) {
   <app-pwa-update-notice />
 }
 @defer (when pushNavigation.pending()) {

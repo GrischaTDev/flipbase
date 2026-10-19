@@ -19,6 +19,8 @@ export class PwaUpdateService {
   readonly isApplying = signal(false);
   readonly message = signal('');
   readonly availableVersion = signal('');
+  readonly checkingForUpdate = signal(false);
+  readonly checkError = signal('');
   private registration: ServiceWorkerRegistration | null = null;
   private targetBuild = '';
   private activeBuild = '';
@@ -32,6 +34,12 @@ export class PwaUpdateService {
   private completion: ((result: UpdateResult) => void) | null = null;
   private initiator = false;
   private lastUpdateCheck = 0;
+  private hiddenSince: number | null = null;
+  private checkInFlight: Promise<void> | null = null;
+  private checkAbort: AbortController | null = null;
+  private registrationRecovery: (() => Promise<void>) | null = null;
+  private readonly entryRevision = signal(0);
+  private lastSynchronizationProbe = 0;
   private releaseTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -54,18 +62,43 @@ export class PwaUpdateService {
       };
       navigator.serviceWorker.addEventListener('message', receive);
       navigator.serviceWorker.addEventListener('controllerchange', changed);
-      const focused = () => void this.checkForUpdate();
+      const focused = () => void this.checkForUpdate({ force: true });
+      const restored = () => this.resume();
       window.addEventListener('focus', focused);
       window.addEventListener('online', focused);
+      window.addEventListener('pageshow', restored);
       const updateTimer = setInterval(() => {
         if (document.visibilityState === 'visible' && navigator.onLine) void this.checkForUpdate();
       }, 60_000);
+      // Ältere Formulare ohne Routenschutz während eines Updatehinweises mitprüfen.
+      const entryTimer = setInterval(() => {
+        const waitingIsCurrent =
+          !!this.targetBuild &&
+          this.targetBuild === document.documentElement.dataset['flipbaseBuild'] &&
+          this.registration?.waiting === this.targetWorker;
+        if (this.updateAvailable() || this.checkingForUpdate() || waitingIsCurrent)
+          this.entryRevision.update((value) => value + 1);
+        // Eine kurz beschäftigte Ansicht darf die Übernahme ihres bereits
+        // geladenen Baus nicht bis zum nächsten Fokuswechsel liegenlassen.
+        if (
+          waitingIsCurrent &&
+          !this.reloading &&
+          !this.isApplying() &&
+          this.isSafe() &&
+          Date.now() - this.lastSynchronizationProbe >= 5000
+        ) {
+          this.lastSynchronizationProbe = Date.now();
+          this.inspectWaitingWorker();
+        }
+      }, 500);
       this.destroyRef.onDestroy(() => {
         navigator.serviceWorker.removeEventListener('message', receive);
         navigator.serviceWorker.removeEventListener('controllerchange', changed);
         window.removeEventListener('focus', focused);
         window.removeEventListener('online', focused);
+        window.removeEventListener('pageshow', restored);
         clearInterval(updateTimer);
+        clearInterval(entryTimer);
       });
     }
     if (typeof document !== 'undefined') {
@@ -79,7 +112,8 @@ export class PwaUpdateService {
       const edits = ['beforeinput', 'pointerdown', 'keydown', 'click', 'submit'];
       for (const name of edits) document.addEventListener(name, preventEdit, true);
       const resume = () => {
-        if (document.visibilityState === 'visible') void this.checkForUpdate();
+        if (document.visibilityState === 'hidden') this.hiddenSince = Date.now();
+        else this.resume();
       };
       document.addEventListener('visibilitychange', resume);
       this.destroyRef.onDestroy(() => {
@@ -91,6 +125,7 @@ export class PwaUpdateService {
       if (this.contextLock.locked() && this.barrier) this.revokeBarrier();
     });
     this.destroyRef.onDestroy(() => {
+      this.checkAbort?.abort();
       this.complete('failed');
       this.releaseBarrier();
     });
@@ -110,6 +145,17 @@ export class PwaUpdateService {
     this.destroyRef.onDestroy(() => registration.removeEventListener('updatefound', found));
     found();
     inspect();
+    void this.checkForUpdate({ force: true, showScreen: true });
+  }
+
+  setRegistrationRecovery(recover: () => Promise<void>): void {
+    this.registrationRecovery = recover;
+  }
+
+  reportRegistrationFailure(): void {
+    this.checkError.set(
+      'Der Update-Dienst konnte nicht gestartet werden. Bitte prüfe Deine Verbindung und versuche es erneut.',
+    );
   }
 
   private inspectWaitingWorker(): void {
@@ -122,8 +168,17 @@ export class PwaUpdateService {
       this.refreshOffer();
       this.message.set('');
     }
-    waiting?.postMessage({ type: 'PWA_UPDATE_QUERY' });
-    navigator.serviceWorker.controller?.postMessage({ type: 'PWA_ACTIVE_QUERY' });
+    this.queryWorker(waiting, 'PWA_UPDATE_QUERY');
+    this.queryWorker(navigator.serviceWorker?.controller, 'PWA_ACTIVE_QUERY');
+  }
+
+  private queryWorker(worker: ServiceWorker | null | undefined, type: string): void {
+    try {
+      worker?.postMessage({ type });
+    } catch {
+      // Ein nach der Hintergrundpause beendeter Worker darf die anschließende
+      // Netzwerkprüfung nicht abbrechen. Deren Fehler erhält einen sichtbaren Hinweis.
+    }
   }
 
   private refreshOffer(): void {
@@ -154,20 +209,99 @@ export class PwaUpdateService {
     );
   }
 
-  private isSafe(): boolean {
-    return !this.contextLock.locked() && !hasOpenEntry(this.contexts);
+  hasOpenChanges(): boolean {
+    this.entryRevision();
+    return (
+      this.contextLock.locked() ||
+      hasOpenEntry(this.contexts) ||
+      Array.from(
+        document.querySelectorAll(
+          '.ng-dirty, .ng-pending, [aria-busy="true"], [appModalDialog], dialog[open]',
+        ),
+      ).some((element) => !element.closest('[data-pwa-update-screen]'))
+    );
   }
 
-  async checkForUpdate(): Promise<void> {
+  private isSafe(): boolean {
+    return !this.hasOpenChanges();
+  }
+
+  private resume(): void {
+    const showScreen = this.hiddenSince !== null && Date.now() - this.hiddenSince >= 60_000;
+    this.hiddenSince = null;
+    void this.checkForUpdate({ force: true, showScreen });
+  }
+
+  checkForUpdate(options: { force?: boolean; showScreen?: boolean } = {}): Promise<void> {
     this.inspectWaitingWorker();
-    const now = Date.now();
-    if (!this.registration || now - this.lastUpdateCheck < 60_000) return;
-    this.lastUpdateCheck = now;
-    try {
-      await this.registration.update();
-    } catch {
-      this.message.set('Die Prüfung auf eine neue Version ist gerade nicht möglich.');
+    if (this.checkInFlight) {
+      if (options.showScreen) this.checkingForUpdate.set(true);
+      return this.checkInFlight;
     }
+    const now = Date.now();
+    if (
+      (!this.registration && !this.registrationRecovery) ||
+      (!options.force && now - this.lastUpdateCheck < 60_000)
+    )
+      return Promise.resolve();
+    if (!navigator.onLine) {
+      this.checkError.set(
+        'Du bist offline. Die Updateprüfung startet wieder, sobald Du online bist.',
+      );
+      return Promise.resolve();
+    }
+    this.lastUpdateCheck = now;
+    this.checkError.set('');
+    this.checkingForUpdate.set(options.showScreen === true);
+    const abort = new AbortController();
+    this.checkAbort = abort;
+    // update() und die anschließende Installation können bei pausierten Seiten
+    // hängen. Nur die Anzeige begrenzen; eine spätere fertige Version bleibt erkennbar.
+    let timeout: ReturnType<typeof setTimeout>;
+    const limit = new Promise<void>((resolve, reject) => {
+      timeout = setTimeout(() => reject(new Error('Updateprüfung ohne Antwort')), 8000);
+      abort.signal.addEventListener('abort', () => resolve(), { once: true });
+    });
+    const inspect = async () => {
+      if (!this.registration) await this.registrationRecovery?.();
+      if (abort.signal.aborted) return;
+      if (!this.registration) throw new Error('Update-Dienst nicht erreichbar');
+      // Nach einer Wiederherstellung den aktuellen Browser-Verweis verwenden.
+      const current = options.force
+        ? await navigator.serviceWorker.getRegistration?.('/')
+        : undefined;
+      if (abort.signal.aborted) return;
+      if (current && current !== this.registration) this.connect(current);
+      const registration = this.registration!;
+      await registration.update();
+      if (abort.signal.aborted) return;
+      const installing = registration.installing;
+      if (installing && installing.state !== 'installed' && installing.state !== 'redundant') {
+        await new Promise<void>((resolve) => {
+          const changed = () => {
+            if (installing.state === 'installed' || installing.state === 'redundant') resolve();
+          };
+          installing.addEventListener('statechange', changed, { signal: abort.signal });
+          abort.signal.addEventListener('abort', () => resolve(), { once: true });
+          changed();
+        });
+      }
+      if (!abort.signal.aborted) this.inspectWaitingWorker();
+    };
+    this.checkInFlight = Promise.race([inspect(), limit])
+      .catch(() => {
+        this.checkError.set(
+          'Die Updateprüfung konnte nicht abgeschlossen werden. Bitte versuche es erneut.',
+        );
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+        abort.abort();
+        this.checkAbort = null;
+        this.checkingForUpdate.set(false);
+        this.checkInFlight = null;
+      });
+    return this.checkInFlight;
   }
 
   async applyUpdate(): Promise<UpdateResult> {

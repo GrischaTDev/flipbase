@@ -35,10 +35,47 @@ Fehlende oder gelöschte Details fallen auf die allgemeine Meldung zurück.
 Nachrichten und Bestellungen bleiben ohne Kontaktdaten.
 
 Online-Tabs prüfen im sichtbaren Zustand regelmäßig im Minutenabstand auf neue
-Versionen. Auch nach Aktivierung in einem anderen Tab bleibt auf älteren Ansichten
-ein Update-Angebot sichtbar. Offene Eingaben müssen zuerst gespeichert oder
-verworfen werden. Für iPad-Push Flipbase vom Home-Bildschirm starten, nicht als
+Versionen. Start, Rückkehr in den Vordergrund, wiederhergestellte Seiten und eine
+erneute Netzwerkverbindung lösen zusätzlich eine Prüfung aus, auch innerhalb
+dieser Minute. Gleichzeitige Ereignisse teilen sich eine laufende Prüfung.
+Nach mindestens einer Minute im Hintergrund erscheint ohne offene Eingaben kurz
+die Logo-Prüfungsansicht. Nach spätestens acht Sekunden wird sie bei Problemen
+durch einen Hinweis mit „Erneut prüfen“ ersetzt; eine später fertig installierte
+Version wird weiterhin erkannt. Eine fehlgeschlagene Startregistrierung wird bei
+Rückkehr, erneuter Verbindung oder ausdrücklicher Wiederholung erneut versucht.
+
+Eine bestätigte neue Version zeigt eine bildschirmfüllende Logo-Ansicht mit
+„Jetzt aktualisieren“, ohne „Später“ oder Schließen per Escape. Auch nach
+Aktivierung in einem anderen Tab bleibt auf älteren Ansichten diese Ansicht
+sichtbar. Offene Eingaben, laufende Aktionen und andere Eingabedialoge haben
+Vorrang: Die Maske bleibt bedienbar und erhält einen dauerhaften Speicherhinweis.
+Vorhandene Routensperren, Angular-Formulare und eigenständige Angular-Felder mit
+offenen Änderungen oder ausstehender Prüfung sowie als beschäftigt markierte
+Aktionen werden berücksichtigt. Ältere Masken setzen ihren Änderungsstatus nach
+dem Speichern teilweise nicht zurück; dort erst speichern und anschließend die
+Eingabeansicht verlassen. Kein Update speichert oder verwirft selbst Eingaben.
+
+Für iPad-Push Flipbase vom Home-Bildschirm starten, nicht als
 normalen Chrome-Tab. Browser und Home-App separat auf ihre Version prüfen.
+
+### Update-Rückkehr auf echten Apple-Geräten
+
+Nutzerentscheidung vom 19.10.2026: verpflichtende volle Aktualisierungsansicht,
+erneute Prüfung beim Zurückkehren und Schutz offener Eingaben. Nachgewiesene
+Quellenlücken waren die Minutenbegrenzung auch für Rückkehrereignisse, fehlendes
+`pageshow`, ein möglicher Abbruch vor der Netzwerkprüfung bei nicht mehr
+erreichbarem Worker und fehlende Wiederholung nach Registrierungsfehlern. Das
+beweist keine konkrete Ursache auf dem gemeldeten iPad.
+
+Home-App mit älterer Baukennung vor Veröffentlichung öffnen und anschließend
+in den Hintergrund legen. Nach Veröffentlichung einmal nach kurzer und einmal
+nach mindestens einer Minute zurückkehren. Neue Version muss angeboten werden,
+ohne erst einen weiteren Minutentakt abzuwarten. Dasselbe mit offenem Einkauf,
+bearbeitetem Kontoprofil, einem einzelnen Einstellungsfeld und laufender
+Speicherung wiederholen: Eingaben bleiben erreichbar und unverändert; nach
+Abschluss beziehungsweise Schließen erscheint die volle Aktualisierungsansicht.
+Bei Offline-Rückkehr darf keine dauerhafte Logo-Sperre entstehen. Geräteversion,
+Baukennungen und tatsächlich aufgetretene Netzwerk-/Workerfehler protokollieren.
 
 Vor dem Test das Gerät und die gewünschten Kategorien aktivieren, dann Flipbase
 schließen und das Gerät sperren. Erst danach eine neue echte Marktplatznachricht

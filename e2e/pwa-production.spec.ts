@@ -1,4 +1,5 @@
 import { devices, expect, test } from '@playwright/test';
+import axe from 'axe-core';
 import { launchPwaLifecycleBrowser } from './support/pwa-lifecycle-browser';
 
 test('startup works with production CSP, theme and reduced motion', async ({ page }) => {
@@ -111,10 +112,72 @@ test('a real second build waits for an unsaved second window before activation @
   await other.goto('/purchases/new');
   await other.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
   await other.getByLabel('Verkäuferangabe, falls bekannt').fill('Ungespeichert');
+  const legacyForm = await context.newPage();
+  await configure(legacyForm);
+  await legacyForm.goto('/settings/account');
+  await legacyForm
+    .getByRole('textbox', { name: 'Angezeigter Name', exact: true })
+    .fill('Offene Einstellung');
   await page.request.post('/api/__pwa_test__/build');
   try {
-    await page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.update());
+    // Rückkehr aus einer wiederhergestellten Ansicht muss ohne manuelles update() prüfen.
+    await page.evaluate(() =>
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
+    );
     await expect(page.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
+    const screen = page.getByRole('dialog', { name: 'App aktualisieren' });
+    await expect(screen).toBeVisible();
+    await expect(screen.getByRole('button', { name: 'Später' })).toHaveCount(0);
+    await page.bringToFront();
+    await expect
+      .poll(() => screen.evaluate((element) => element.contains(document.activeElement)))
+      .toBe(true);
+    await page.keyboard.press('Tab');
+    await expect
+      .poll(() => screen.evaluate((element) => element.contains(document.activeElement)))
+      .toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(screen).toBeVisible();
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.evaluate(
+        (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
+        colorScheme,
+      );
+      await page.evaluate(async () => {
+        document.body.getBoundingClientRect();
+        await Promise.allSettled(
+          document
+            .getAnimations()
+            .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+            .map((animation) => animation.finished),
+        );
+      });
+      expect(
+        await screen
+          .getByRole('button', { name: 'Jetzt aktualisieren' })
+          .evaluate((element) => getComputedStyle(element).backgroundColor),
+      ).toBe('rgb(252, 198, 1)');
+      await page.evaluate(axe.source);
+      expect(
+        await page.evaluate(
+          async () =>
+            (await (window as unknown as { axe: typeof axe }).axe.run('[aria-modal="true"]'))
+              .violations,
+        ),
+      ).toEqual([]);
+    }
+    const viewport = page.viewportSize()!;
+    const bounds = await screen.boundingBox();
+    expect(bounds?.width).toBe(viewport.width);
+    expect(bounds?.height).toBe(viewport.height);
+    await expect(other.getByRole('dialog', { name: 'App aktualisieren' })).toHaveCount(0);
+    await expect(legacyForm.getByRole('dialog', { name: 'App aktualisieren' })).toHaveCount(0);
+    await expect(
+      legacyForm.getByRole('textbox', { name: 'Angezeigter Name', exact: true }),
+    ).toHaveValue('Offene Einstellung');
+    await expect(
+      other.getByRole('status').filter({ hasText: 'Speichere oder verwerfe' }),
+    ).toBeVisible();
     await pressUpdate(page);
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toContainText(
       /offen|gespeichert|blockiert|schließe andere Flipbase/,
@@ -124,10 +187,11 @@ test('a real second build waits for an unsaved second window before activation @
     );
     await expect(other.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Ungespeichert');
     await other.close();
+    await legacyForm.close();
     const unchanged = await context.newPage();
     await configure(unchanged);
     await unchanged.goto('/settings/notifications');
-    await expect(unchanged.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+    await expect(unchanged.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
     await pressUpdate(page);
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
@@ -281,19 +345,25 @@ test('legacy network-worker handover does not repeatedly offer the already loade
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-legacy-handover-blocked', 'true');
   await legacy.close();
-  await Promise.all([
-    page.waitForEvent('load'),
-    page.evaluate(() => window.dispatchEvent(new Event('focus'))),
-  ]);
+  // Die Rückkehrprüfung kann schon beim Schließen des anderen Fensters
+  // übernehmen. Den bestätigten Workerzustand statt eines zweiten load prüfen.
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
   await expect
     .poll(() =>
-      page.evaluate(async () => {
-        const registration = await navigator.serviceWorker.getRegistration('/');
-        return (
-          !registration?.waiting && navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')
-        );
-      }),
+      page
+        .evaluate(async () => {
+          const registration = await navigator.serviceWorker.getRegistration('/');
+          return (
+            !registration?.waiting &&
+            navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')
+          );
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.message.includes('Execution context was destroyed'))
+            return false;
+          throw error;
+        }),
     )
     .toBe(true);
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
