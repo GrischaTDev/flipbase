@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-19 - Juna - Gewinnfarbe und Streifenabstand an die Bildreferenz angleichen
+
+**Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach sämtlichen erfolgreichen ausgewählten Prüfungen ausdrücklich freigegeben. Aktueller Hauptzweig unverändert `7b4870ff`; lokale Umsetzung als `a2a9d5dd` geprüft. Vor dem Merge die vollständige betroffene Browserauswahl unter Linux einschließlich echter lokaler Anmeldung abwarten. Anschließend mit Merge-Commit integrieren, öffentliche Bereitstellung prüfen und eigenen Zweig samt Arbeitsordner aufräumen.
+
+**Auftrag:** Gewinn dunkler und näher am eingereichten Bild darstellen; diagonale Streifen in den Diagrammsäulen weiter auseinander setzen.
+
+**Referenz und Umsetzung:** Bildausschnitt angesehen und die häufigste Grundfarbe der Gewinnsäule direkt ausgelesen: `#006b73`. Dieser Wert wird bereits im hellen Schema verwendet und bleibt erhalten. Im dunklen Schema wurde bisher `#52b7bd` verwendet; dort jetzt gedecktes Grün `#288b78`. Gelb und Grau unverändert. SVG-Kachel und tatsächliche Apex-Bildfüllung von 8 × 8px auf 12 × 12px vergrößert, Linienstärke 1px und Weiß mit 16 Prozent Deckkraft erhalten. Legende und Details verwenden weiterhin dieselbe Palette wie die Säulen. Verbindliche Gestaltungsregel aktualisiert.
+
+**Prüfung:** Vorhandene Konfigurationsfälle an die gewünschte dunkle Gewinnfarbe und 12px-Musterperiode angepasst; vor der Änderung schlagen beide Themenfälle erwartungsgemäß fehl. Alle 15 ausgewählten Modell-/Finanzfarbenprüfungen und 30 Routen-, Dashboard- und Diagrammkomponentenfälle bestanden. Neun vorhandene Browserfälle für Touch bei 320/390/834/1.194px in Hell/Dunkel einschließlich AXE sowie große Werte erfolgreich. Zusätzliche gefüllte Abnahme mit HTTP-Beispieldaten: tatsächliche Musterfüllungen, dunkle Palette nach Themenwechsel, Pointer-/Tastaturdetails und Legendenschalter ohne Laufzeitfehler. Desktop-, Mobil- und gezielte Diagrammaufnahmen in beiden Farbschemata außerhalb des Repositorys gesichert und angesehen. Format, Lint, Typprüfung und Produktionsbau bestanden. Eine externe Sichtprüfungsannahme zu Bildbreiten korrigiert: Apex erzeugt bei der 12px-Kachel eine 13px-breite Bildfläche; intrinsische SVG-Größe und tatsächliche 12px-Höhe gesichert. Kein Anwendungsfehler und keine Abschwächung der bestehenden Prüfungen.
+
+**Prüfumfang:** Die tatsächliche Auswahl umfasst die zwei Diagramm-/Finanzfarbenmodelle, drei Routen-/Dashboard-/Diagrammkomponenten und vier vorhandene Browserdateien, kein PWA- oder Datenbanklauf. Lokal Chromium unter Windows mit simulierten HTTP-Antworten; die übrigen vorhandenen Fälle mit echter lokaler Anmeldung und die Linux-CI bleiben vor dem Merge erforderlich. Keine neuen oder verschobenen Testdateien.
+
+**Arbeitsstand:** Eigener Zweig `juna/overview-chart-green` auf `7b4870ff`. Keine neue Abhängigkeit, Datenbankänderung, Anbieteraktion oder Veröffentlichung; fremde Arbeitsordner bleiben unverändert.
+
 ## 2026-10-19 - Juna - Artikelspalte verbreitern und Plattformen kompakt anzeigen
 
 **Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach allen erfolgreichen ausgewählten Prüfungen ausdrücklich freigegeben. Aktueller Hauptzweig unverändert `6b4fff5c`; lokale Umsetzung als `42c09f9c` geprüft. Vor dem Merge die vollständige betroffene Browserauswahl einschließlich echter lokaler Anmeldung unter Linux abwarten. Danach mit Merge-Commit integrieren, öffentliche Bereitstellung prüfen und eigenen Zweig samt Arbeitsordner aufräumen.

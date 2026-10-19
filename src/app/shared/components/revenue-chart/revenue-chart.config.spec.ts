@@ -69,19 +69,21 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25 €');
   });
   it.each(['light', 'dark'] as const)(
-    'verwendet im %s-Theme Markengelb, Grau und Petrol für die drei Reihen',
+    'verwendet im %s-Theme die Referenzfarben mit dunklem Gewinn und weiter Schraffur',
     (theme) => {
       const options = createRevenueChartConfiguration(points, theme, false);
       expect(options.colors).toEqual(
-        theme === 'light' ? ['#fcc601', '#9ca3af', '#006b73'] : ['#fcc601', '#a8b0bb', '#52b7bd'],
+        theme === 'light' ? ['#fcc601', '#9ca3af', '#006b73'] : ['#fcc601', '#a8b0bb', '#288b78'],
       );
       expect(options.fill.type).toBe('image');
+      expect(options.fill.image).toMatchObject({ width: 12, height: 12 });
       const tiles = options.fill.image?.src as string[];
       expect(tiles).toHaveLength(3);
       tiles.forEach((tile, index) => {
         const svg = decodeURIComponent(tile.slice('data:image/svg+xml,'.length));
         expect(svg).toContain(`fill="${options.colors[index]}"`);
         expect(svg).toContain('stroke-opacity="0.16"');
+        expect(svg).toContain('viewBox="0 0 12 12"');
         expect(tile).toMatch(/^data:image\/svg\+xml,/);
         expect(svg).not.toContain('href=');
       });
