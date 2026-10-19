@@ -2,6 +2,8 @@
 
 ## 2026-10-19 - Juna - Vinted-Feed nach blockierter Sitzungserneuerung wiederherstellen
 
+**Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach erfolgreichen Tests ausdrücklich freigegeben. Aktueller Hauptzweig vor dem Push weiterhin `45d84e7a`, geprüfte Korrektur `f4eb4848`; keine erneute fachliche Änderung. Nach allen Pflichtprüfungen mit Merge-Commit integrieren, Veröffentlichung und Feed prüfen, eigenen Remote-/lokalen Zweig und Worktree aufräumen.
+
 **Auftrag:** Wieder ausgefallenen Feed einschließlich vorhandener Fehleraufzeichnung untersuchen, wiederherstellen und die belegte Ursache beheben.
 
 **Befund:** Alle drei aktiven Marken zuletzt am 09.10. erfolgreich, jeweils 952 Folgefehler mit HTTP 307; alter Artikelbestand regulär abgelaufen. Laufender Container und aktuelle Betriebsmeldung verdecken den ausbleibenden Zulauf. Ein begrenzter Browserabruf belegt Vinteds normale Weiterleitung zu `/session-refresh` mit exaktem Katalogrückziel; der bisherige Dokumentleser bricht alle Weiterleitungen ab. Rotierende Logs und gespeicherte Erfolgs-/Fehlerzeiten sind vorhanden, eine aktive externe Ausfallalarmierung damit nicht belegt.
