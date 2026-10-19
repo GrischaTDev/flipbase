@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-19 - Juna - Artikelnamen in den letzten Verkäufen begrenzen
+
+**Auftrag:** Überlaufende Artikelnamen in „Letzte Verkäufe“ korrigieren. Der zwischenzeitliche Auftrag zu „Konto hinzufügen“ wurde vom Nutzer als Nachricht für einen anderen Chat zurückgenommen; keine entsprechenden Oberflächenänderungen vorgenommen.
+
+**Ursache und Umsetzung:** Der Link zum Verkauf konnte seine feste Tabellenspalte überbreiten; die bisherige Zweizeilenbegrenzung begrenzte seine Breite nicht. Den vorhandenen gemeinsamen Button ausdrücklich auf die Zellenbreite setzen und den Artikelnamen einzeilig mit Auslassungspunkten kürzen. Vollständiger Linkname, Tooltip, Verkaufsziel, Datumsspalte und Plattformdarstellung bleiben erhalten. Keine globale Buttonänderung.
+
+**Prüfung:** Den vorhandenen Browserfall für große Dashboardwerte um einen sehr langen Artikelnamen mit ungetrennter Artikelnummer ergänzt. Der Fall scheitert vor der Korrektur bei 1.440px: Link und Titel überragen die Artikelspalte. Nach der Korrektur besteht die Prüfung bei 1.440/1.194/834/390/320px einschließlich tatsächlicher Kürzung, Spaltenbegrenzung, unverändertem Verkaufslink, vollständigem zugänglichem Namen und Tastaturfokus. Nach der Unterbrechung alle 23 ausgewählten Routen-/Dashboard-Komponentenfälle und neun gezielte Browserfälle erfolgreich geprüft; Touch bei 320/390/834/1.194px in Hell/Dunkel einschließlich AXE und Laufzeitfehlerkontrolle. Desktop- und Mobilaufnahmen außerhalb des Repositorys gesichert und angesehen. Format, Lint, Typprüfung und Produktionsbau erfolgreich. Keine neuen oder verschobenen Testfälle; tatsächliche Browserauswahl zusätzlich mit dem CI-Starter aufgelistet. Browserprüfungen verwenden ausschließlich lokale HTTP-Beispieldaten; Browser-Plugin nicht verfügbar, vorhandenes Playwright verwendet.
+
+**Prüfgrenze:** Die zusätzlichen bestehenden Browserfälle mit echter lokaler Anmeldung sind vor dem PR noch offen: Die Docker-Engine ist auch im normalen Benutzerkontext nicht erreichbar. Kein fremdes Projekt angehalten oder zurückgesetzt. Der konkrete Tabellenfehler ist mit gefüllten Beispieldaten vor und nach der Änderung belegt; keine Aussage über einen bereits erfolgreichen Linux-/CI-Lauf.
+
+**Arbeitsstand:** Eigener Zweig `juna/overview-sale-title` auf `2b4f7185` im zuvor unbenutzten Arbeitsordner. Fremde Zweige und ungesicherte Dokumentation bleiben erhalten. Keine Kontoverbindung, Anbieteraktion, Datenbankänderung, Veröffentlichung oder Push.
+
 ## 2026-10-19 - Juna - Übersichts-PR freigeben und zusammenführen
 
 **CI-Nachprüfung:** Erster PR-Lauf: Qualität, alle Anwendungstests, Datenbank und Produktions-PWA erfolgreich; erste Browsergruppe mit 191 erfolgreichen Fällen. In der zweiten Gruppe scheitert der bestehende Login-Test, weil sein frisch angelegtes Konto ohne abgeschlossene Workspace-Einrichtung korrekt zum Einrichtungsdialog gelangt. Mit eigener lokaler Supabase und echtem Browser identisch reproduziert. Testkonto jetzt wie im globalen Browser-Setup ausdrücklich als eingerichtet vorbereiten, einschließlich Prüfung der tatsächlichen Workspace-Aktualisierung. Anmeldung, Weiterleitung und Überschrift bleiben unverändert streng geprüft; keine Änderung an der Anwendungslogik. Gezielte Nachprüfung mit echter Anmeldung gegen die eigene lokale Supabase erfolgreich (1/1); Format und Lint der Änderung bestanden. Vollständigen PR-Pflichtlauf vor dem Merge erneut ausführen.

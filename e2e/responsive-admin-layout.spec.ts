@@ -272,6 +272,7 @@ test('Auswertungen behalten lesbare Zeiträume und erreichbare Bereiche bei 320p
 test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke', async ({
   page,
 }) => {
+  const articleTitle = `Vintage Jacke mit sehr langem Artikelnamen ${'Artikelnummer'.repeat(24)}`;
   await mockResponsiveWorkspace(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('**/rest/v1/sales?**', (route) =>
@@ -289,6 +290,15 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
           other_costs: 0,
           lines: [],
           has_persisted_lines: false,
+          inventory_item_id: '25000000-0000-4000-8000-000000000052',
+          inventory_item: {
+            id: '25000000-0000-4000-8000-000000000052',
+            workspace_id: workspaceId,
+            title: articleTitle,
+            status: 'sold',
+            allocated_purchase_cost: 1,
+            costs: [],
+          },
         },
       ],
     }),
@@ -319,8 +329,32 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
   expect(
     Math.abs(lowerCards[1].bottom - (stockList!.y + stockList!.height) - 20),
   ).toBeLessThanOrEqual(1);
-  for (const width of [320, 390, 834, 1194]) {
+  const articleLink = page.locator('.sales-table').getByRole('link', { name: articleTitle });
+  await expect(articleLink).toHaveAttribute('title', articleTitle);
+  await expect(articleLink).toHaveAttribute('href', /\/sales\?saleId=/);
+  for (const width of [1440, 1194, 834, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    const articleGeometry = await articleLink.evaluate((element) => {
+      const cell = element.closest('td')!;
+      const title = element.querySelector('.article-title')!;
+      const cellBounds = cell.getBoundingClientRect();
+      const linkBounds = element.getBoundingClientRect();
+      const titleBounds = title.getBoundingClientRect();
+      const contentRight =
+        cellBounds.right - Number.parseFloat(getComputedStyle(cell).paddingRight);
+      return {
+        linkFits: linkBounds.right <= contentRight + 1,
+        titleFits: titleBounds.right <= contentRight + 1,
+        shortened: title.scrollWidth > title.clientWidth,
+        textOverflow: getComputedStyle(title).textOverflow,
+      };
+    });
+    expect(articleGeometry, `Artikelspalte bei ${width}px`).toEqual({
+      linkFits: true,
+      titleFits: true,
+      shortened: true,
+      textOverflow: 'ellipsis',
+    });
     await expect
       .poll(() =>
         page.locator('app-revenue-chart [role="img"]').evaluate((element) => {
@@ -344,5 +378,12 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
       ),
     ).toBe(0);
     await screenshot(page, `dashboard-large-value-${width}`);
+    const screenshotDirectory = process.env['RESPONSIVE_SCREENSHOT_DIR'];
+    if (screenshotDirectory)
+      await page.locator('.recent').screenshot({
+        path: join(screenshotDirectory, `dashboard-sale-title-${width}.png`),
+      });
   }
+  await articleLink.focus();
+  await expect(articleLink).toBeFocused();
 });
