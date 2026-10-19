@@ -2,6 +2,8 @@
 
 ## 2026-10-19 - Juna - Gewinnfarbe und Streifenabstand an die Bildreferenz angleichen
 
+**Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach sämtlichen erfolgreichen ausgewählten Prüfungen ausdrücklich freigegeben. Aktueller Hauptzweig unverändert `7b4870ff`; lokale Umsetzung als `a2a9d5dd` geprüft. Vor dem Merge die vollständige betroffene Browserauswahl unter Linux einschließlich echter lokaler Anmeldung abwarten. Anschließend mit Merge-Commit integrieren, öffentliche Bereitstellung prüfen und eigenen Zweig samt Arbeitsordner aufräumen.
+
 **Auftrag:** Gewinn dunkler und näher am eingereichten Bild darstellen; diagonale Streifen in den Diagrammsäulen weiter auseinander setzen.
 
 **Referenz und Umsetzung:** Bildausschnitt angesehen und die häufigste Grundfarbe der Gewinnsäule direkt ausgelesen: `#006b73`. Dieser Wert wird bereits im hellen Schema verwendet und bleibt erhalten. Im dunklen Schema wurde bisher `#52b7bd` verwendet; dort jetzt gedecktes Grün `#288b78`. Gelb und Grau unverändert. SVG-Kachel und tatsächliche Apex-Bildfüllung von 8 × 8px auf 12 × 12px vergrößert, Linienstärke 1px und Weiß mit 16 Prozent Deckkraft erhalten. Legende und Details verwenden weiterhin dieselbe Palette wie die Säulen. Verbindliche Gestaltungsregel aktualisiert.
