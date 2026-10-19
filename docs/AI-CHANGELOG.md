@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-19 - Juna - Artikelspalte verbreitern und Plattformen kompakt anzeigen
+
+**Auftrag:** In „Letzte Verkäufe“ mehr Platz für Artikelnamen schaffen und die Plattformspalte auf das Logo ohne sichtbaren Namen reduzieren.
+
+**Umsetzung:** Plattformspalte auf 80px begrenzt. Datum und Gewinn behalten jeweils 20 Prozent der Tabellenbreite; der Artikel erhält den übrigen Raum. Die zuvor gesicherte Kürzung innerhalb der Zelle, vollständiger Linkname und Tooltip bleiben erhalten. Den gemeinsamen Plattformbaustein um eine ausdrücklich aktivierte Logoanzeige ergänzt; der Plattformname bleibt als Screenreader-Text und Tooltip erhalten. Eigene Plattformen behalten das allgemeine Marktplatzsymbol. Nur die Verkaufszeilen der Übersicht aktivieren die neue Darstellung; Stammdaten, Verkaufsliste und Inseratwahl behalten sichtbare Namen. Gestaltungsentscheidung dokumentiert.
+
+**Prüfung:** Vorhandene Komponenten- und Browserfälle um unsichtbare, weiterhin zugängliche Plattformnamen und mindestens doppelte Artikelbreite gegenüber der Plattform erweitert. Die Komponentenprüfung scheitert vor der Änderung am noch sichtbaren Namen. Nach der Umsetzung alle 39 ausgewählten Routen-, Dashboard- und Verkaufsprüfungen sowie neun gezielte Browserfälle erfolgreich. Artikelnamen, Kürzung, Spaltenbreiten, Logo, Tooltip und Tastaturfokus bei 1.440/1.194/834/390/320px geprüft; Touch und AXE in Hell/Dunkel bei 320/390/834/1.194px ohne Laufzeitfehler. Ein im gefüllten Zustand gefundener 4px-Seitenüberlauf entstand durch die absolute Position des Screenreader-Texts; im Logo-Modus jetzt relativ zum eigenen Element begrenzt und die betroffene Prüfung erneut erfolgreich. Format, Lint, Typprüfung und Produktionsbau bestanden. Desktop-/Mobilaufnahmen außerhalb des Repositorys gesichert und angesehen. Keine neuen oder verschobenen Testdateien.
+
+**Prüfumfang:** Die tatsächliche Auswahl berücksichtigt die drei Verbraucher des gemeinsamen Plattformbausteins: Übersicht, Verkäufe und Stammdaten. Drei Angular-Dateien und elf Browserdateien sind ausgewählt, kein PWA- oder Datenbanklauf. Lokal Chromium unter Windows mit HTTP-Beispieldaten; zusätzliche Fälle mit echter lokaler Anmeldung sowie die Linux-CI bleiben vor einem Merge erforderlich. Bestehende Verkaufs-Komponentenprüfungen sind lokal mitgelaufen; die sichtbaren Namen außerhalb der Verkaufszeilen bleiben der Standard.
+
+**Arbeitsstand:** Eigener Zweig `juna/overview-sale-columns` auf `6b4fff5c`. Fremde Arbeitsordner bleiben unverändert. Keine Datenbankänderung, neue Abhängigkeit, Anbieteraktion oder Veröffentlichung.
+
 ## 2026-10-19 - Juna - Artikelnamen in den letzten Verkäufen begrenzen
 
 **Abschlussfreigabe:** Nutzer hat PR-Erstellung und Merge nach sämtlichen erfolgreichen ausgewählten Prüfungen ausdrücklich freigegeben. Aktueller Hauptzweig weiterhin `2b4f7185`; der Fehlerfix ist lokal als `fc05d0f8` geprüft. Die CI prüft zusätzlich die vollständige betroffene Browserauswahl unter Linux einschließlich echter lokaler Anmeldung. Erst nach erfolgreicher Sammelprüfung mit Merge-Commit integrieren, öffentliche Bereitstellung kontrollieren und eigenen Zweig samt Arbeitsordner aufräumen.

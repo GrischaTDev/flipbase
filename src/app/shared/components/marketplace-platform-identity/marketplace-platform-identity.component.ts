@@ -16,6 +16,7 @@ import {
 export class MarketplacePlatformIdentityComponent {
   readonly displayName = input<string | null>(null);
   readonly platform = input.required<string>();
+  readonly iconOnly = input(false);
 
   readonly label = computed(() => this.displayName() ?? marketplacePlatformLabel(this.platform()));
   readonly appearance = computed(() => marketplacePlatformAppearance(this.platform()));

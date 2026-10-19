@@ -47,6 +47,15 @@ erreichbar. Die vollständige Liste bleibt
 über „Alle anzeigen“ erreichbar. Eine eigene ruhige Tabelle ersetzt dort den
 allgemeinen Tabellenstil. Die Bestandsbalken sind 16px hoch, der erste gelb,
 die weiteren grau; sie verteilen sich passend zur Höhe der Verkaufsliste.
+
+Nutzerpräzisierung vom 19.10.2026: In „Letzte Verkäufe“ bekommt der Artikelname
+den verfügbaren Raum zwischen Datum, Plattform und Gewinn. Die Plattformspalte
+ist kompakt (80px) und zeigt ausschließlich das Logo beziehungsweise bei eigenen
+Plattformen das allgemeine Marktplatzsymbol. Der Name bleibt als Tooltip und
+für Screenreader erhalten. Datum und Gewinn behalten jeweils 20 Prozent der
+Tabellenbreite. Lange Artikelnamen werden innerhalb ihrer Zelle mit „…“ gekürzt.
+Andere Plattformanzeigen behalten ihre sichtbaren Namen.
+
 Das Diagramm verwendet ein feines vollständiges Raster, kürzere Achsenwerte
 und eine innerhalb der Zeichenfläche begrenzte Detailanzeige mit Farbpunkten.
 Es bleibt bei ApexCharts. Apples Swift Charts ist ein natives SwiftUI-Framework;

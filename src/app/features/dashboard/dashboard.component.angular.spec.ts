@@ -151,7 +151,7 @@ beforeAll(async () => {
     ],
     [CardComponent, ['padding', 'rounded', 'variant', 'contentLayout']],
     [PageHeaderComponent, ['title', 'subtitle', 'icon', 'appearance']],
-    [MarketplacePlatformIdentityComponent, ['platform', 'displayName']],
+    [MarketplacePlatformIdentityComponent, ['platform', 'displayName', 'iconOnly']],
     [ModalShellComponent, ['title', 'subtitle', 'size', 'hasFooter']],
     [
       DashboardKpiCardComponent,
@@ -692,7 +692,7 @@ describe('DashboardComponent', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
-  it('zeigt die Plattformlogos neben lesbaren Namen statt neutraler Plattform-Badges', () => {
+  it('zeigt in den letzten Verkäufen nur Plattformlogos mit zugänglichen Namen', () => {
     createReport.mockReturnValue({
       ...emptyReport,
       rows: ['vinted', 'kleinanzeigen', 'ebay', 'Flohmarkt'].map((platform, index) => ({
@@ -717,6 +717,12 @@ describe('DashboardComponent', () => {
       );
       expect(cells[index].querySelector('img')?.getAttribute('alt')).toBe('');
       expect(cells[index].querySelector('app-badge')).toBeNull();
+      expect(cells[index].querySelector('.sr-only')?.textContent?.trim()).toBe(
+        ['Vinted', 'Kleinanzeigen', 'eBay'][index],
+      );
+      expect(cells[index].querySelector('[title]')?.getAttribute('title')).toBe(
+        ['Vinted', 'Kleinanzeigen', 'eBay'][index],
+      );
     }
     expect(cells[0].textContent).toContain('Vinted');
     expect(cells[1].textContent).toContain('Kleinanzeigen');
@@ -740,6 +746,9 @@ describe('DashboardComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('a[href="/marketplaces/vinted/listings/new"]')).not.toBeNull();
     expect(host.querySelectorAll('app-modal-shell app-badge')).toHaveLength(2);
+    expect(
+      host.querySelector('app-modal-shell app-marketplace-platform-identity .sr-only'),
+    ).toBeNull();
     expect(host.querySelector('a[href="/listings/new"]')).toBeNull();
   });
 });
