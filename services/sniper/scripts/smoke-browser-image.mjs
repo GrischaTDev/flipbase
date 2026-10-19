@@ -21,7 +21,26 @@ const inputEvents = new Set();
 let cookie = '';
 let renewalExpires = 0;
 let catalogRequests = 0;
+let sessionRefreshes = 0;
 const server = createServer((request, response) => {
+  const url = new URL(request.url, 'http://localhost');
+  if (url.pathname === '/session-refresh') {
+    sessionRefreshes++;
+    if ((url.searchParams.get('ref_url') ?? '').includes('session_refresh_challenge')) {
+      response.end('<title>Just a moment...</title>challenge-running');
+      return;
+    }
+    response.setHeader('Set-Cookie', 'refreshed=yes; Path=/');
+    response.end('<html><script>setTimeout(() => location.replace(' + JSON.stringify(url.searchParams.get('ref_url')) + '), 25)</script></html>');
+    return;
+  }
+  if (url.searchParams.has('session_refresh') || url.searchParams.has('session_loop') || url.searchParams.has('session_refresh_challenge')) {
+    if (!(request.headers.cookie ?? '').includes('refreshed=yes') || url.searchParams.has('session_loop') || url.searchParams.has('session_refresh_challenge')) {
+      response.writeHead(307, { location: '/session-refresh?ref_url=' + encodeURIComponent(request.url) });
+      response.end();
+    } else response.end('<html>Refreshed catalog</html>');
+    return;
+  }
   if (request.url.startsWith('/executed')) { scripts++; renewalExpires = Date.now() + 1800; response.end('ok'); return; }
   if (request.url === '/renew.js') { response.setHeader('Content-Type', 'application/javascript'); response.end('setTimeout(() => fetch("/executed"), 75)'); return; }
   if (request.url.startsWith('/input')) { inputEvents.add(new URL(request.url, 'http://localhost').searchParams.get('text')); response.end('ok'); return; }
@@ -54,6 +73,17 @@ try {
     await new Promise(resolve => setTimeout(resolve, 250));
   }
   assert.equal(scripts, 4);
+  const refreshed = await browser.fetch(baseUrl + '/catalog?session_refresh');
+  assert.equal(refreshed.status, 200);
+  assert.match(await refreshed.text(), /Refreshed catalog/);
+  assert.equal(sessionRefreshes, 1, 'A normal session refresh must complete before returning catalog data');
+  const loop = await browser.fetch(baseUrl + '/catalog?session_loop');
+  assert.equal(loop.status, 307, 'A repeated session refresh must remain an error');
+  assert.equal(sessionRefreshes, 2, 'Each catalog attempt may refresh its session only once');
+  const refreshChallenge = await browser.fetch(baseUrl + '/catalog?session_refresh_challenge');
+  assert.equal(refreshChallenge.status, 200, 'The original challenge status must reach the collector');
+  assert.match(await refreshChallenge.text(), /challenge-running/, 'The existing HTML challenge detection must also receive refresh pages');
+  assert.equal(sessionRefreshes, 3);
   const challenge = await browser.fetch(baseUrl + '/catalog?challenge');
   assert.equal(challenge.status, 403, 'Native rendering must not turn a challenge into success');
   assert.equal(challenge.headers.get('cf-mitigated'), 'challenge');
@@ -105,7 +135,7 @@ try {
   assert.match(cookie, /sniper_smoke=persisted/, 'Cookies must survive native Chrome restart');
   await new Promise(resolve => setTimeout(resolve, 250));
   assert.equal(scripts, beforeRestart + 1, 'Restarted automatic navigation must allow session renewal');
-  console.log('Chrome sandbox, private CDP, manual image/input, automatic script renewal, original challenge status, abort recovery and profile persistence verified.');
+  console.log('Chrome sandbox, private CDP, manual image/input, automatic script and redirect renewal, bounded refresh loops, original challenge status, abort recovery and profile persistence verified.');
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 `;
 let created = false;

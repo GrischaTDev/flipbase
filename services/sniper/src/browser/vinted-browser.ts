@@ -27,6 +27,7 @@ export async function readBrowserDocument(
   let mainFrameId = '';
   let loaderId: string | undefined;
   let documentResponse: Response | undefined;
+  let sessionRefreshUrl: string | undefined;
   const loadedDocuments = new Set<string>();
   const pausedRequests = new Set<string>();
   let resolveResponse: (response: Response) => void = () => undefined;
@@ -53,6 +54,12 @@ export async function readBrowserDocument(
     loadedDocuments.add(event.loaderId);
     completeDocument();
   };
+  const onFrameNavigated = (event: { frame: { id: string; url: string; loaderId: string } }) => {
+    if (event.frame.id !== mainFrameId) return;
+    // Die Erneuerungsseite ist kein Katalog. Nur dessen neuer Ladevorgang zählt.
+    loaderId = event.frame.url === url.href ? event.frame.loaderId : undefined;
+    completeDocument();
+  };
   const processPaused = async (event: PausedRequest) => {
     pausedRequests.add(event.requestId);
     if (!settled && event.frameId !== mainFrameId) {
@@ -63,7 +70,7 @@ export async function readBrowserDocument(
       pausedRequests.delete(event.requestId);
       return;
     }
-    if (settled || event.request.url !== url.href) {
+    if (settled || (event.request.url !== url.href && event.request.url !== sessionRefreshUrl)) {
       await session.send('Fetch.failRequest', {
         requestId: event.requestId,
         errorReason: 'Aborted',
@@ -82,6 +89,22 @@ export async function readBrowserDocument(
     for (const header of event.responseHeaders ?? []) {
       if (!['set-cookie', 'content-encoding', 'content-length'].includes(header.name.toLowerCase()))
         headers.append(header.name, header.value);
+    }
+    // Vinteds reguläre Sitzungserneuerung einmal innerhalb desselben Zeitlimits zulassen.
+    // Andere Weiterleitungen und abweichende Rückziele bleiben gesperrt.
+    const refreshTarget =
+      status === 307 &&
+      headers.get('cf-mitigated') !== 'challenge' &&
+      !sessionRefreshUrl &&
+      event.request.url === url.href
+        ? sessionRefreshTarget(headers.get('location'), url)
+        : null;
+    if (refreshTarget) {
+      sessionRefreshUrl = refreshTarget;
+      loaderId = undefined;
+      await session.send('Fetch.continueResponse', { requestId: event.requestId });
+      pausedRequests.delete(event.requestId);
+      return;
     }
     const chunks: Buffer[] = [];
     if (![204, 304].includes(status) && !(status >= 300 && status < 400)) {
@@ -104,12 +127,21 @@ export async function readBrowserDocument(
       }
     }
     requestSignal.throwIfAborted();
-    documentResponse = new Response(
-      [204, 304].includes(status) ? null : Buffer.concat(chunks).toString('utf8'),
-      { status, headers },
-    );
+    const body = Buffer.concat(chunks);
+    const html = body.toString('utf8');
+    const currentResponse = new Response([204, 304].includes(status) ? null : html, {
+      status,
+      headers,
+    });
+    const refreshing = event.request.url === sessionRefreshUrl;
+    if (!refreshing || !currentResponse.ok || headers.get('cf-mitigated') === 'challenge')
+      documentResponse = currentResponse;
+    const refreshChallenge =
+      refreshing &&
+      (html.includes('challenge-running') || html.includes('<title>Just a moment...</title>'));
+    // Prüfseiteninhalt unverändert an die bestehende Sammlerprüfung weiterreichen.
     // Weiterleitungen starten keinen unbestellten Katalog-/Loginabruf.
-    if ([204, 304].includes(status) || (status >= 300 && status < 400)) {
+    if (refreshChallenge || [204, 304].includes(status) || (status >= 300 && status < 400)) {
       await session.send('Fetch.failRequest', {
         requestId: event.requestId,
         errorReason: 'Aborted',
@@ -117,7 +149,7 @@ export async function readBrowserDocument(
       pausedRequests.delete(event.requestId);
       settled = true;
       completed = true;
-      resolveResponse(documentResponse);
+      resolveResponse(currentResponse);
       return;
     }
     // Das gelesene Original bleibt ausführbar: Sitzungs-Skripte dürfen Cookies erneuern.
@@ -128,15 +160,15 @@ export async function readBrowserDocument(
       responseHeaders: (event.responseHeaders ?? []).filter(
         (header) => !['content-encoding', 'content-length'].includes(header.name.toLowerCase()),
       ),
-      body: Buffer.concat(chunks).toString('base64'),
+      body: body.toString('base64'),
     });
     pausedRequests.delete(event.requestId);
     if (settled) return;
     // Eine bekannte Ablehnung darf nicht durch langsame Nebenanfragen zum Timeout werden.
-    if (!documentResponse.ok || headers.get('cf-mitigated') === 'challenge') {
+    if (!currentResponse.ok || headers.get('cf-mitigated') === 'challenge') {
       settled = true;
       completed = true;
-      resolveResponse(documentResponse);
+      resolveResponse(currentResponse);
       return;
     }
     completeDocument();
@@ -151,6 +183,7 @@ export async function readBrowserDocument(
   };
   session.on('Fetch.requestPaused', onPaused);
   session.on('Page.lifecycleEvent', onLifecycle);
+  session.on('Page.frameNavigated', onFrameNavigated);
   try {
     await session.send('Page.enable');
     const { frameTree } = await session.send('Page.getFrameTree');
@@ -167,7 +200,7 @@ export async function readBrowserDocument(
     requestSignal.throwIfAborted();
     const navigation = session.send('Page.navigate', { url: url.href }).then((result) => {
       if (result.errorText && !settled) throw browserNetworkError(result.errorText);
-      loaderId = result.loaderId;
+      if (!sessionRefreshUrl) loaderId ??= result.loaderId;
       completeDocument();
       return response;
     });
@@ -177,6 +210,7 @@ export async function readBrowserDocument(
     settled = true;
     session.off('Fetch.requestPaused', onPaused);
     session.off('Page.lifecycleEvent', onLifecycle);
+    session.off('Page.frameNavigated', onFrameNavigated);
     requestSignal.removeEventListener('abort', onAbort);
     // Erfolgreiche Seiten bleiben lebendig, auch für verzögert gestartete Erneuerung.
     if (!completed) await session.send('Page.stopLoading').catch(() => undefined);
@@ -187,6 +221,26 @@ export async function readBrowserDocument(
     }
     await session.send('Fetch.disable').catch(() => undefined);
     await session.send('Page.setLifecycleEventsEnabled', { enabled: false }).catch(() => undefined);
+  }
+}
+
+function sessionRefreshTarget(location: string | null, requestedUrl: URL): string | null {
+  if (!location) return null;
+  try {
+    const target = new URL(location, requestedUrl);
+    if (
+      target.origin !== requestedUrl.origin ||
+      target.username ||
+      target.password ||
+      target.hash ||
+      target.pathname !== '/session-refresh' ||
+      target.searchParams.size !== 1 ||
+      target.searchParams.get('ref_url') !== requestedUrl.pathname + requestedUrl.search
+    )
+      return null;
+    return target.href;
+  } catch {
+    return null;
   }
 }
 
