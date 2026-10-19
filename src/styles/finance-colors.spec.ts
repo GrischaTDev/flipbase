@@ -38,12 +38,16 @@ describe('Finanzfarben im Admin', () => {
   it.each([
     { theme: 'light', selector: ':root', background: '#ffffff' },
     { theme: 'dark', selector: 'html.dark', background: '#2b2b2b' },
-  ] as const)('teilt im $theme-Theme das Diagrammrot mit dem Admin-Badge', (mode) => {
-    const chartRed = createRevenueChartConfiguration([], mode.theme, true).colors[1];
-    const badgeRed = declaration(mode.selector, '--fb-color-admin-surface');
-    expect(badgeRed).toBe(chartRed);
-    expect(contrast(badgeRed ?? '', '#ffffff')).toBeGreaterThanOrEqual(4.5);
-  });
+  ] as const)(
+    'erhält im $theme-Theme das lesbare Admin-Rot unabhängig von der ruhigen Chartpalette',
+    (mode) => {
+      const chartRed = createRevenueChartConfiguration([], mode.theme, true).colors[1];
+      const badgeRed = declaration(mode.selector, '--fb-color-admin-surface');
+      expect(badgeRed).toBe('#dc2626');
+      expect(chartRed).toBe(mode.theme === 'light' ? '#9ca3af' : '#a8b0bb');
+      expect(contrast(badgeRed ?? '', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 
   it.each([
     { selector: ':root', background: '#ffffff' },

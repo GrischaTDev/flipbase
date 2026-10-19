@@ -16,7 +16,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideDatabase as Database,
-  LucideLayoutDashboard as LayoutDashboard,
+  LucideHouse as House,
   LucideShoppingBag as ShoppingBag,
   LucideBookOpen as BookOpen,
   LucideSearch as Search,
@@ -73,7 +73,7 @@ import {
 } from '../../core/config/ebay-workspace-navigation';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
-  dashboard: LayoutDashboard,
+  dashboard: House,
   database: Database,
   shoppingBag: ShoppingBag,
   users: Users,

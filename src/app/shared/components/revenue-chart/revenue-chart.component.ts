@@ -37,10 +37,17 @@ export const REVENUE_CHART_LOADER = new InjectionToken<RevenueChartLoader>('REVE
 
 interface VisibleRevenueTooltip {
   readonly title: string;
-  readonly lines: readonly string[];
+  readonly lines: readonly {
+    readonly label: string;
+    readonly value: string;
+    readonly color: string;
+  }[];
   readonly left: number;
   readonly top: number;
   readonly width: number;
+  readonly guideLeft: number;
+  readonly guideTop: number;
+  readonly guideHeight: number;
 }
 
 /** Ergebnisdiagramm mit vollständiger tabellarischer Alternative. */
@@ -152,7 +159,7 @@ export class RevenueChartComponent {
       1,
       Math.max(0, (event.clientX - bounds.left) / Math.max(1, bounds.width)),
     );
-    const index = Math.round(position * (this.points().length - 1));
+    const index = Math.min(this.points().length - 1, Math.floor(position * this.points().length));
     this.requestedKeyboardPointIndex.set(index);
     this.showPoint(index, event.clientX, event.clientY);
   }
@@ -198,22 +205,30 @@ export class RevenueChartComponent {
     const bounds = this.chartElement()?.nativeElement.getBoundingClientRect();
     const viewportWidth = typeof window === 'undefined' ? 1024 : window.innerWidth;
     const viewportHeight = typeof window === 'undefined' ? 768 : window.innerHeight;
-    const width = Math.min(360, viewportWidth - 16);
-    const left =
-      (clientX ??
-        (bounds?.left ?? 0) +
-          (bounds?.width ?? 0) *
-            (this.points().length === 1 ? 0.5 : index / (this.points().length - 1))) -
-      width / 2;
-    const top = (clientY ?? (bounds?.top ?? 0) + 100) + 12;
+    const chartWidth = bounds?.width || viewportWidth;
+    const chartHeight = bounds?.height || viewportHeight;
+    const width = Math.min(260, chartWidth - 16, viewportWidth - 16);
+    const grid = this.chartElement()
+      ?.nativeElement.querySelector('.apexcharts-grid')
+      ?.getBoundingClientRect();
+    const pointCenter = grid?.width
+      ? grid.left - (bounds?.left ?? 0) + grid.width * ((index + 0.5) / this.points().length)
+      : chartWidth * ((index + 0.5) / this.points().length);
+    const left = (clientX === undefined ? pointCenter : clientX - (bounds?.left ?? 0)) - width / 2;
+    const top = (clientY === undefined ? 60 : clientY - (bounds?.top ?? 0)) + 12;
     this.activeTooltip.set({
       title: point.label,
-      lines: REVENUE_CHART_SERIES.map(
-        (series) => `${series.label}: ${formatChartAmount(point[series.key])}`,
-      ),
-      left: Math.max(8, Math.min(left, viewportWidth - width - 8)),
-      top: Math.max(8, Math.min(top, viewportHeight - 190)),
+      lines: REVENUE_CHART_SERIES.map((series) => ({
+        label: series.label,
+        value: formatChartAmount(point[series.key]),
+        color: revenueChartPalette(this.themeService.currentTheme())[series.key],
+      })),
+      left: Math.max(8, Math.min(left, chartWidth - width - 8)),
+      top: Math.max(8, Math.min(top, chartHeight - 150, viewportHeight - 190)),
       width,
+      guideLeft: pointCenter,
+      guideTop: grid?.height ? grid.top - (bounds?.top ?? 0) : 0,
+      guideHeight: grid?.height ?? 0,
     });
   }
 

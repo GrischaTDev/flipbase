@@ -1,10 +1,10 @@
-<section class="space-y-3" aria-labelledby="revenue-chart-heading">
+<section class="space-y-1" aria-labelledby="revenue-chart-heading">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2 id="revenue-chart-heading" class="text-sm font-semibold text-fb-text-primary">
+      <h2 id="revenue-chart-heading" class="text-lg font-semibold text-fb-text-primary">
         Umsatz, Ausgaben und Gewinn
       </h2>
-      <p class="mt-1 text-xs text-fb-text-muted">
+      <p class="sr-only">
         Gewinn aus Verkäufen; Ausgaben gesamt inklusive Einkäufe und Betriebsausgaben.
       </p>
     </div>
@@ -22,7 +22,7 @@
           >
             <span class="inline-flex items-center gap-1.5" [class.line-through]="!series.visible">
               <span
-                class="h-2.5 w-2.5 rounded-[3px]"
+                class="h-2.5 w-2.5 rounded-full"
                 data-chart-legend-indicator
                 [style.background-color]="series.color"
               ></span>
@@ -34,10 +34,10 @@
     </ul>
   </div>
 
-  <div class="relative min-h-[260px] w-full">
+  <div class="relative min-h-[280px] w-full">
     <div
       #chart
-      class="h-[260px] w-full"
+      class="h-[280px] w-full"
       role="img"
       aria-label="Umsatz, Ausgaben gesamt und Gewinn im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
@@ -79,19 +79,36 @@
       (keydown)="handleKeyboardNavigation($event)"
     ></div>
     @if (activeTooltip(); as tooltip) {
+      <span
+        data-chart-selection-guide
+        class="pointer-events-none absolute border-l border-dashed border-fb-text-muted/50"
+        aria-hidden="true"
+        [style.left.px]="tooltip.guideLeft"
+        [style.top.px]="tooltip.guideTop"
+        [style.height.px]="tooltip.guideHeight"
+      ></span>
       <div
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        class="pointer-events-none fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-lg border border-fb-line bg-fb-surface px-3 py-2 text-[13px] leading-5 text-fb-text-primary shadow-lg"
+        class="pointer-events-none absolute z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-fb-line bg-fb-surface px-3.5 py-3 text-[13px] leading-5 text-fb-text-primary shadow-[0_4px_20px_rgb(15_23_42/0.12)]"
         [style.left.px]="tooltip.left"
         [style.top.px]="tooltip.top"
         [style.width.px]="tooltip.width"
       >
         <p class="font-semibold">{{ tooltip.title }}</p>
-        <ul class="mt-1 space-y-0.5">
-          @for (line of tooltip.lines; track line) {
-            <li>{{ line }}</li>
+        <ul class="mt-2 space-y-1">
+          @for (line of tooltip.lines; track line.label) {
+            <li class="flex items-center justify-between gap-4">
+              <span class="inline-flex items-center gap-2 text-fb-text-secondary"
+                ><span
+                  class="size-2.5 shrink-0 rounded-full"
+                  [style.background-color]="line.color"
+                  aria-hidden="true"
+                ></span
+                >{{ line.label }}<span class="sr-only">:</span></span
+              ><span class="font-semibold tabular-nums">{{ line.value }}</span>
+            </li>
           }
         </ul>
       </div>

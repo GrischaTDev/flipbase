@@ -21,6 +21,12 @@
     </p>
   }
 
+  @if (salePlatforms.error()) {
+    <div role="status" class="flex flex-wrap items-center gap-2 text-sm text-fb-critical">
+      <span>{{ salePlatforms.error() }}</span
+      ><app-button (clicked)="salePlatforms.reload()">Erneut laden</app-button>
+    </div>
+  }
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 gap-3">
     <div
@@ -240,6 +246,7 @@
                               data-sales-platform-identity
                               class="block max-w-40 text-xs font-normal text-fb-text-muted"
                               [platform]="sale.platform"
+                              [displayName]="salePlatforms.label(sale.platform)"
                             />
                           }
                         </div>
@@ -260,6 +267,7 @@
                         data-sales-platform-identity
                         class="max-w-40 text-xs text-fb-text-secondary"
                         [platform]="sale.platform"
+                        [displayName]="salePlatforms.label(sale.platform)"
                       />
                     </td>
                   }
@@ -430,6 +438,7 @@
                   data-sales-platform-identity
                   class="min-w-0 max-w-36 font-sans"
                   [platform]="sale.platform"
+                  [displayName]="salePlatforms.label(sale.platform)"
                 />
               </div>
             </div>

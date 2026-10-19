@@ -7,7 +7,7 @@ import { isVintedWorkspaceRoute } from '../../core/config/vinted-workspace-navig
 import { isEbayWorkspaceRoute } from '../../core/config/ebay-workspace-navigation';
 import {
   LucideDynamicIcon,
-  LucideLayoutDashboard as LayoutDashboard,
+  LucideHouse as House,
   LucideShoppingBag as ShoppingBag,
   LucideBoxes as Boxes,
   LucideTrendingUp as TrendingUp,
@@ -37,13 +37,13 @@ export class BottomNavComponent {
   readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
   readonly ebayContext = computed(() => isEbayWorkspaceRoute(this.currentUrl()));
   readonly ebayLinks = [
-    { path: '/dashboard', label: 'Flipbase', icon: LayoutDashboard },
+    { path: '/dashboard', label: 'Flipbase', icon: House },
     { path: '/marketplaces/ebay/listings', label: 'Inserate', icon: Boxes },
     { path: '/marketplaces/ebay/orders', label: 'Bestellungen', icon: ShoppingBag },
     { path: '/marketplaces/ebay/statistics', label: 'Statistiken', icon: BarChart },
   ];
   readonly vintedLinks = [
-    { path: '/dashboard', label: 'Flipbase', icon: LayoutDashboard },
+    { path: '/dashboard', label: 'Flipbase', icon: House },
     { path: '/marketplaces/vinted/accounts', label: 'Konten', icon: Boxes },
     { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: ShoppingBag },
     { path: '/marketplaces/vinted/listings', label: 'Inserate', icon: TrendingUp },
@@ -51,7 +51,7 @@ export class BottomNavComponent {
   readonly isMenuOpen = input<boolean>(false);
   readonly toggleMenu = output<void>();
 
-  readonly DashboardIcon = LayoutDashboard;
+  readonly DashboardIcon = House;
   readonly PurchasesIcon = ShoppingBag;
   readonly InventoryIcon = Boxes;
   readonly SalesIcon = TrendingUp;

@@ -24,7 +24,11 @@ import {
   MasterDataColumnId,
   MasterDataTableId,
 } from '../../core/config/master-data-table.config';
-import { SALE_PLATFORM_OPTIONS } from '../../core/config/sale-platform-options';
+import { DragDropModule, type CdkDragDrop } from '@angular/cdk/drag-drop';
+import { SalePlatformsService } from '../../core/services/sale-platforms.service';
+import { validateSalePlatformName } from '../../core/models/sale-platforms';
+import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
+import { LucideArrowUp, LucideArrowDown, LucideGripVertical } from '@lucide/angular';
 import type { Source } from '../../core/models/flipbase.models';
 import {
   tableStateDiffersFromDefaults,
@@ -68,6 +72,8 @@ type DialogMode = 'create' | 'edit' | 'merge' | 'archive';
   selector: 'app-master-data',
   imports: [
     ReactiveFormsModule,
+    DragDropModule,
+    MarketplacePlatformIdentityComponent,
     BadgeComponent,
     ButtonComponent,
     CustomSelectComponent,
@@ -96,6 +102,10 @@ export class MasterDataComponent {
   private readonly toast = inject(ToastService);
   private readonly brands = inject(BrandService);
   private readonly sources = inject(SourcesService);
+  readonly salePlatforms = inject(SalePlatformsService);
+  readonly moveUpIcon = LucideArrowUp;
+  readonly moveDownIcon = LucideArrowDown;
+  readonly gripIcon = LucideGripVertical;
 
   readonly section = resolveMasterDataSection(this.route.snapshot.data['masterDataSection']);
   readonly tabs = MASTER_DATA_SECTIONS;
@@ -181,10 +191,10 @@ export class MasterDataComponent {
     }
 
     if (this.section === 'platforms') {
-      return SALE_PLATFORM_OPTIONS.map((platform) => ({
+      return this.salePlatforms.options().map((platform) => ({
         id: platform.value,
-        name: platform.displayName,
-        kind: 'Systemvorgabe',
+        name: platform.label,
+        kind: platform.value.startsWith('custom:') ? 'Eigene Plattform' : 'Verkaufsplattform',
         isActive: null,
       }));
     }
@@ -192,12 +202,16 @@ export class MasterDataComponent {
     return [];
   });
   readonly rows = computed(() =>
-    selectMasterDataRows(
-      this.allRows(),
-      this.search(),
-      this.section === 'sources' ? this.status() : 'all',
-      this.tableState().sort.direction,
-    ),
+    this.section === 'platforms'
+      ? this.allRows().filter((row) =>
+          row.name.toLocaleLowerCase('de').includes(this.search().trim().toLocaleLowerCase('de')),
+        )
+      : selectMasterDataRows(
+          this.allRows(),
+          this.search(),
+          this.section === 'sources' ? this.status() : 'all',
+          this.tableState().sort.direction,
+        ),
   );
   readonly replacementOptions = computed<readonly SelectOption<string>[]>(() => [
     { value: '', label: 'Zielmarke wählen' },
@@ -216,7 +230,8 @@ export class MasterDataComponent {
         : 'Quelle archivieren';
     }
 
-    const label = this.section === 'brands' ? 'Marke' : 'Quelle';
+    const label =
+      this.section === 'brands' ? 'Marke' : this.section === 'platforms' ? 'Plattform' : 'Quelle';
     return `${label} ${mode === 'create' ? 'anlegen' : 'bearbeiten'}`;
   });
 
@@ -242,14 +257,17 @@ export class MasterDataComponent {
     const version = ++this.loadVersion;
     this.loadError.set(null);
 
-    if (!workspaceId || this.section === 'sellers' || this.section === 'platforms') {
+    if (!workspaceId || this.section === 'sellers') {
       this.loading.set(false);
       return;
     }
 
     this.loading.set(true);
     try {
-      if (this.section === 'brands') {
+      if (this.section === 'platforms') {
+        await this.salePlatforms.reload();
+        if (this.salePlatforms.error()) throw new Error(this.salePlatforms.error()!);
+      } else if (this.section === 'brands') {
         await this.brands.reload();
         if (this.brands.loadError()) throw this.brands.loadError();
       } else {
@@ -292,15 +310,17 @@ export class MasterDataComponent {
   }
 
   create(): void {
-    if (!this.canEdit() || this.loading() || this.isSaving() || this.section === 'platforms')
-      return;
+    if (!this.canEdit() || this.loading() || this.isSaving()) return;
 
     if (this.section === 'sellers') this.sellers()?.openCreateDialog();
     else this.openDialog('create');
   }
 
   edit(row: MasterDataRow): void {
-    if (this.canEdit() && (this.section === 'brands' || this.section === 'sources')) {
+    if (
+      this.canEdit() &&
+      (this.section === 'brands' || this.section === 'sources' || this.section === 'platforms')
+    ) {
       this.openDialog('edit', row);
     }
   }
@@ -319,7 +339,9 @@ export class MasterDataComponent {
   }
 
   isSaving(): boolean {
-    return this.section === 'sellers' ? (this.sellers()?.isSaving() ?? false) : this.saving();
+    return this.section === 'sellers'
+      ? (this.sellers()?.isSaving() ?? false)
+      : this.saving() || this.salePlatforms.saving();
   }
 
   onBeforeUnload(event: BeforeUnloadEvent): void {
@@ -358,7 +380,10 @@ export class MasterDataComponent {
     }
 
     if (mode === 'create' || mode === 'edit') {
-      const message = validateMasterDataName(this.name.value, this.allRows(), row?.id);
+      const message =
+        this.section === 'platforms'
+          ? validateSalePlatformName(this.name.value, this.salePlatforms.options(), row?.id)
+          : validateMasterDataName(this.name.value, this.allRows(), row?.id);
       if (message) {
         this.dialogError.set(message);
         return;
@@ -388,6 +413,16 @@ export class MasterDataComponent {
       } else if (mode === 'archive' && row) {
         const result = await this.sources.setSourceArchiviert(row.id, row.isActive !== false);
         if (result.error) throw result.error;
+      } else if (this.section === 'platforms') {
+        const label = this.name.value.normalize('NFKC').trim();
+        const platforms =
+          mode === 'create'
+            ? [...this.salePlatforms.options(), { value: `custom:${crypto.randomUUID()}`, label }]
+            : this.salePlatforms
+                .options()
+                .map((entry) => (entry.value === row!.id ? { ...entry, label } : entry));
+        const error = await this.salePlatforms.save(platforms);
+        if (error) throw new Error(error);
       } else if (this.section === 'brands') {
         const result =
           mode === 'create'
@@ -431,6 +466,35 @@ export class MasterDataComponent {
     } finally {
       if (!this.destroyRef.destroyed) this.saving.set(false);
     }
+  }
+
+  async movePlatform(row: MasterDataRow, offset: number): Promise<void> {
+    const from = this.salePlatforms.options().findIndex((entry) => entry.value === row.id);
+    await this.reorderPlatform(from, from + offset);
+  }
+
+  async dropPlatform(event: CdkDragDrop<unknown>): Promise<void> {
+    if (this.search().trim()) return;
+    await this.reorderPlatform(event.previousIndex, event.currentIndex);
+  }
+
+  private async reorderPlatform(from: number, to: number): Promise<void> {
+    const platforms = [...this.salePlatforms.options()];
+    if (
+      !this.canEdit() ||
+      this.isSaving() ||
+      this.loading() ||
+      from < 0 ||
+      to < 0 ||
+      to >= platforms.length ||
+      from === to
+    )
+      return;
+    const [entry] = platforms.splice(from, 1);
+    platforms.splice(to, 0, entry);
+    const error = await this.salePlatforms.save(platforms);
+    if (error) this.toast.error(error);
+    else this.toast.success('Reihenfolge gespeichert.');
   }
 
   private openDialog(mode: DialogMode, row: MasterDataRow | null = null): void {

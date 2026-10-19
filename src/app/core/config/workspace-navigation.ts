@@ -42,7 +42,7 @@ export interface WorkspaceNavigationGroup {
 export const DASHBOARD_NAVIGATION: WorkspaceNavigationItem = {
   path: '/dashboard',
   labelKey: 'NAV.DASHBOARD',
-  label: 'Dashboard',
+  label: 'Übersicht',
   icon: 'dashboard',
 };
 

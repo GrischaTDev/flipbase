@@ -14,9 +14,11 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplacePlatformIdentityComponent {
+  readonly displayName = input<string | null>(null);
   readonly platform = input.required<string>();
+  readonly iconOnly = input(false);
 
-  readonly label = computed(() => marketplacePlatformLabel(this.platform()));
+  readonly label = computed(() => this.displayName() ?? marketplacePlatformLabel(this.platform()));
   readonly appearance = computed(() => marketplacePlatformAppearance(this.platform()));
   readonly storeIcon = LucideStore;
 }

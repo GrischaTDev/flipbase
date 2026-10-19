@@ -55,7 +55,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     const options = createRevenueChartConfiguration(points, 'light', false);
     expect(options.chart.type).toBe('bar');
     expect(options.plotOptions.bar).toMatchObject({
-      borderRadius: 4,
+      borderRadius: 3,
       borderRadiusApplication: 'end',
       columnWidth: '64%',
       horizontal: false,
@@ -66,13 +66,27 @@ describe('Revenue-Chart-Konfiguration', () => {
     expect(options.series[1].data).toEqual([25.95, null]);
     expect(options.series[2].data).toEqual([-16.02, null]);
     expect(options.tooltip.enabled).toBe(false);
-    expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25,00 €');
+    expect(options.yaxis.labels?.formatter?.(-25)).toBe('-25 €');
   });
   it.each(['light', 'dark'] as const)(
-    'verwendet im %s-Theme Markengelb, klares Rot und Grün für die drei Reihen',
+    'verwendet im %s-Theme die Referenzfarben mit dunklem Gewinn und weiter Schraffur',
     (theme) => {
       const options = createRevenueChartConfiguration(points, theme, false);
-      expect(options.colors).toEqual(['#fcc601', '#dc2626', '#16a34a']);
+      expect(options.colors).toEqual(
+        theme === 'light' ? ['#fcc601', '#9ca3af', '#006b73'] : ['#fcc601', '#a8b0bb', '#288b78'],
+      );
+      expect(options.fill.type).toBe('image');
+      expect(options.fill.image).toMatchObject({ width: 12, height: 12 });
+      const tiles = options.fill.image?.src as string[];
+      expect(tiles).toHaveLength(3);
+      tiles.forEach((tile, index) => {
+        const svg = decodeURIComponent(tile.slice('data:image/svg+xml,'.length));
+        expect(svg).toContain(`fill="${options.colors[index]}"`);
+        expect(svg).toContain('stroke-opacity="0.16"');
+        expect(svg).toContain('viewBox="0 0 12 12"');
+        expect(tile).toMatch(/^data:image\/svg\+xml,/);
+        expect(svg).not.toContain('href=');
+      });
     },
   );
   it('deaktiviert Animationen bei reduzierter Bewegung und passt das Theme an', () => {

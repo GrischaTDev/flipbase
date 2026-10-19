@@ -13,6 +13,7 @@ import { LucideArrowLeft, LucideDynamicIcon, LucideIconInput } from '@lucide/ang
   },
 })
 export class PageHeaderComponent {
+  readonly appearance = input<'default' | 'overview'>('default');
   readonly title = input<string>('');
   readonly subtitle = input<string>('');
   readonly icon = input<LucideIconInput | null>(null);
