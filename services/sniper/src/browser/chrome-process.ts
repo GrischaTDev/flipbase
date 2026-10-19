@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import { chmod, lstat, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { removeOrphanedProfileLocks } from './profile-locks.js';
 import { sleep } from '../vinted/session.js';
 
 export interface ChromeProcessOptions {
@@ -29,6 +29,9 @@ export class ChromeProcess {
 
   get endpoint(): string {
     return `http://127.0.0.1:${this.options.cdpPort}`;
+  }
+  get hasFailed(): boolean {
+    return this.failed;
   }
   get isReady(): boolean {
     return this.ready;
@@ -70,13 +73,7 @@ export class ChromeProcess {
     if (process.getuid && profile.uid !== process.getuid())
       throw new Error('Browserprofil gehört einem anderen Benutzer.');
     await chmod(this.options.profileDir, 0o700);
-    const lock = await lstat(join(this.options.profileDir, 'SingletonLock')).catch(
-      (error: NodeJS.ErrnoException) => {
-        if (error.code !== 'ENOENT') throw error;
-        return null;
-      },
-    );
-    if (lock) throw new Error('Browserprofil ist bereits belegt.');
+    await removeOrphanedProfileLocks(this.options.profileDir, this.options.cdpPort);
     if (await this.cdpReady()) throw new Error('Browserport ist bereits belegt.');
     this.launch('Xvfb', [':99', '-screen', '0', '1280x900x24', '-nolisten', 'tcp']);
     let displayReady = false;

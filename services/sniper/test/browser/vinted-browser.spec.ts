@@ -436,4 +436,28 @@ describe('readBrowserDocument', () => {
     expect(fail).toBeLessThan(disable);
     expect(commands.some((command) => command.method === 'Fetch.fulfillRequest')).toBe(false);
   });
+  it('bounds a stuck protocol cleanup after abort', async () => {
+    const { session, commands } = protocol(200, [], 'catalog');
+    const controller = new AbortController();
+    const send = session.send.bind(session);
+    session.send = ((method: string, params?: Record<string, unknown>) => {
+      if (method === 'Page.navigate') {
+        controller.abort(new Error('renderer crashed'));
+        return new Promise(() => undefined);
+      }
+      if (method === 'Page.stopLoading') {
+        commands.push({ method, params });
+        return new Promise(() => undefined);
+      }
+      return send(method as 'IO.read', params as { handle: string });
+    }) as CDPSession['send'];
+    const result = await Promise.race([
+      readBrowserDocument(session, catalogUrl, controller.signal).catch((error: unknown) =>
+        error instanceof Error ? error.message : 'unknown',
+      ),
+      new Promise<string>((resolve) => setTimeout(() => resolve('still blocked'), 2300)),
+    ]);
+    expect(result).toBe('renderer crashed');
+    expect(commands.some((command) => command.method === 'Fetch.disable')).toBe(false);
+  });
 });
