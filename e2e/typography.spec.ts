@@ -9,7 +9,7 @@ async function openDashboard(page: Page) {
   await expect(page.locator('main h1')).toBeVisible();
 }
 
-test('verwendet die Systemschrift im Verwaltungsbereich und Inter als lokalen Fallback', async ({
+test('verwendet die Systemschrift im Verwaltungsbereich und Inter als lokalen Fallback @core-smoke', async ({
   page,
 }) => {
   const fontRequests: string[] = [];

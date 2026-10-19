@@ -367,6 +367,10 @@ const coreTests = [
     'sidebar-navigation.spec.ts',
     'hält die Sidebar kompakt und hebt den aktiven Bereich neutral hervor @pr-smoke',
   ],
+  [
+    'typography.spec.ts',
+    'verwendet die Systemschrift im Verwaltungsbereich und Inter als lokalen Fallback @core-smoke',
+  ],
   ...[1440, 1024, 768, 390, 320].map((width) => [
     'vinted-account-grid.spec.ts',
     `öffnet Vinted-Kontokacheln und behält die Auswahl nach Neuladen bei ${width}px @marketplace-preview @core-smoke`,

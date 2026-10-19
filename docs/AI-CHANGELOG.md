@@ -14,6 +14,8 @@
 
 **Finale Shell-Nachweise:** Elf vorhandene Farb-, Navigations- und Schrift-Browserfälle nach der Sidebar-Klassenkorrektur erfolgreich, einschließlich Hell/Dunkel, echter Touch-Konfiguration, Fokus, AXE, Scrollen und sieben Fachseiten.31 bestehende Angular-Navigationsfälle,40 Auswahl-/Soll-Listen-Prüfungen, Format, gezieltes Lint, Typen und Produktionsbau (PWA1263f75a27d8/271 App-Dateien) grün. Tatsächliche vollständige Browserliste geprüft:150 Standardfälle und129 Fälle in zwölf vollständig geänderten Dateien. Keine Kernmarkierung entfernt, Pflichtfall umbenannt und in beiden Registrierungen erhalten. Am Code hat sich gegenüber dem zuvor umfassend geprüften Stand nur die alte Schriftklasse geändert; fachfremde Modelltests lokal nicht nochmals wiederholt. Der neue PR-Lauf prüft vor dem Merge trotzdem wieder den vollständigen geforderten Umfang.
 
+**Dauerhafter Schutz des tatsächlichen Schriftfehlers:** Vorhandenen Sieben-Seiten-Schriftfall als Pflichtfall aufgenommen, weil er die konkret nachgewiesene Sidebar-Überschreibung erkennt. Keine neue pauschale Fallserie. Soll-Liste entsprechend ergänzt;40 Auswahl-/Registrierungsfälle und der Schriftfall erneut grün. Dadurch bleibt die Korrektur auch bei späteren breiten gemeinsamen Stiländerungen geschützt, statt nur bei Änderungen an der Testdatei selbst.
+
 ## 2026-10-19 - Juna - Manuelle Bankzuordnung mit gemeinsamem Auswahlfenster ergänzen
 
 **Auftrag:** Den bisher fehlenden manuellen Ablauf im Bankabgleich einschließlich Auswahlfenster im neuen Finanzdesign vollständig umsetzen.
