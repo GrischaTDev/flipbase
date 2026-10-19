@@ -161,9 +161,12 @@
                   <th scope="col" class="w-[20%] rounded-l-lg px-2 py-2 font-medium sm:px-3">
                     Datum
                   </th>
-                  <th scope="col" class="w-[30%] px-2 py-2 font-medium sm:px-3">Artikel</th>
-                  <th scope="col" class="w-[30%] px-2 py-2 font-medium sm:px-3">Plattform</th>
-                  <th scope="col" class="rounded-r-lg px-2 py-2 text-right font-medium sm:px-3">
+                  <th scope="col" class="px-2 py-2 font-medium sm:px-3">Artikel</th>
+                  <th scope="col" class="w-20 px-2 py-2 font-medium sm:px-3">Plattform</th>
+                  <th
+                    scope="col"
+                    class="w-[20%] rounded-r-lg px-2 py-2 text-right font-medium sm:px-3"
+                  >
                     Gewinn
                   </th>
                 </tr>
@@ -198,6 +201,7 @@
                         class="max-w-full [&>span]:max-w-full"
                         [platform]="row.platform"
                         [displayName]="salePlatforms.label(row.platform)"
+                        [iconOnly]="true"
                       />
                     </td>
                     <td

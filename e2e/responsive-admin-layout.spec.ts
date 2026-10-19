@@ -332,6 +332,10 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
   const articleLink = page.locator('.sales-table').getByRole('link', { name: articleTitle });
   await expect(articleLink).toHaveAttribute('title', articleTitle);
   await expect(articleLink).toHaveAttribute('href', /\/sales\?saleId=/);
+  const platformCell = page.locator('.sales-table tbody td:nth-child(3)');
+  await expect(platformCell.locator('img')).toBeVisible();
+  await expect(platformCell.getByText('eBay', { exact: true })).toHaveClass(/sr-only/);
+  await expect(platformCell.locator('[title]')).toHaveAttribute('title', 'eBay');
   for (const width of [1440, 1194, 834, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     const articleGeometry = await articleLink.evaluate((element) => {
@@ -342,11 +346,13 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
       const titleBounds = title.getBoundingClientRect();
       const contentRight =
         cellBounds.right - Number.parseFloat(getComputedStyle(cell).paddingRight);
+      const platformBounds = cell.nextElementSibling!.getBoundingClientRect();
       return {
         linkFits: linkBounds.right <= contentRight + 1,
         titleFits: titleBounds.right <= contentRight + 1,
         shortened: title.scrollWidth > title.clientWidth,
         textOverflow: getComputedStyle(title).textOverflow,
+        articleHasPriority: cellBounds.width >= 2 * platformBounds.width,
       };
     });
     expect(articleGeometry, `Artikelspalte bei ${width}px`).toEqual({
@@ -354,6 +360,7 @@ test('große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke'
       titleFits: true,
       shortened: true,
       textOverflow: 'ellipsis',
+      articleHasPriority: true,
     });
     await expect
       .poll(() =>
