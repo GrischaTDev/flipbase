@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { selectAffectedTests } from './affected-tests.mjs';
+import { selectAffectedTests, buildUnitMatrix } from './affected-tests.mjs';
 
 const files = {
   'src/app/shared/components/product-gallery/product-gallery.component.ts': `@Component({templateUrl: './product-gallery.component.html'}) export class Gallery {}`,
@@ -431,4 +431,38 @@ test('Bankzuordnung wählt ihre Modelle, Dienste und den bestehenden Finanz-Brow
       assert.ok(plan.units.node.includes(service + '.spec.ts'));
     }
   }
+});
+
+test('vollständige Angular-Matrix verteilt alle Dateien auf ausreichend kleine Jobs', () => {
+  for (const [count, groups] of [
+    [1, 1],
+    [100, 1],
+    [101, 2],
+    [260, 3],
+  ]) {
+    const plan = {
+      full: true,
+      units: {
+        node: ['a.spec.ts'],
+        dom: [],
+        angular: Array.from({ length: count }, (_, i) => 'case-' + i + '.angular.spec.ts'),
+      },
+    };
+    const matrix = buildUnitMatrix(plan);
+    assert.deepEqual(matrix, [
+      { suite: 'node', shard: '1/1' },
+      ...Array.from({ length: groups }, (_, i) => ({
+        suite: 'angular',
+        shard: i + 1 + '/' + groups,
+      })),
+    ]);
+  }
+  assert.deepEqual(
+    buildUnitMatrix({
+      full: false,
+      units: { node: [], dom: [], angular: Array(260).fill('case.angular.spec.ts') },
+    }),
+    [{ suite: 'angular', shard: '1/1' }],
+  );
+  assert.deepEqual(buildUnitMatrix({ full: true, units: { node: [], dom: [], angular: [] } }), []);
 });

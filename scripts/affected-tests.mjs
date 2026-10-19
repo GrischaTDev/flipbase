@@ -292,6 +292,20 @@ export async function readSelectionFiles(cwd = process.cwd()) {
   );
 }
 
+export function buildUnitMatrix(plan) {
+  const matrix = [];
+  for (const suite of ['node', 'dom', 'angular']) {
+    const files = plan.units[suite].length;
+    if (!files) continue;
+    // Die vollständigen Angular-Gruppen müssen einschließlich Vorbereitung in
+    // das bestehende Zehn-Minuten-Limit passen; alle Dateien bleiben enthalten.
+    const shards = plan.full && suite === 'angular' ? Math.ceil(files / 100) : 1;
+    for (let shard = 1; shard <= shards; shard++)
+      matrix.push({ suite, shard: String(shard) + '/' + String(shards) });
+  }
+  return matrix;
+}
+
 async function main() {
   const paths = process.argv.includes('--paths')
     ? process.argv.slice(process.argv.indexOf('--paths') + 1)
@@ -302,13 +316,7 @@ async function main() {
         headSha: process.env.HEAD_SHA,
       });
   const plan = selectAffectedTests(paths, await readSelectionFiles());
-  const matrix = [];
-  for (const suite of ['node', 'dom', 'angular']) {
-    if (!plan.units[suite].length) continue;
-    const shards = plan.full && suite === 'angular' ? 2 : 1;
-    for (let shard = 1; shard <= shards; shard++)
-      matrix.push({ suite, shard: `${shard}/${shards}` });
-  }
+  const matrix = buildUnitMatrix(plan);
   const output = {
     test_plan: JSON.stringify(plan),
     selection_hash: selectionHash(plan),

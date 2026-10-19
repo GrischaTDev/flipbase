@@ -102,9 +102,7 @@ test('keeps per-item tax visible in the tax journal @pr-smoke', async ({ page, w
 
   await openDashboard(page);
   await page.goto('/accounting');
-  await expect(
-    page.getByRole('heading', { name: 'Finanzen, Steuern & Bankabgleich' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Steuer & DATEV', exact: true })).toBeVisible();
   // Zeitraum bewusst über die Oberfläche setzen statt sich auf den Startwert der
   // Komponente zu verlassen (der ändert sich unabhängig von diesem Test).
   await page.getByRole('combobox', { name: 'Steuerjahr', exact: true }).click();

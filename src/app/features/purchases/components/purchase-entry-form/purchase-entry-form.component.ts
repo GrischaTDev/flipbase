@@ -842,7 +842,9 @@ export class PurchaseEntryFormComponent {
   }
 
   isSaving(): boolean {
-    return this.isSubmitting() || (this.offlineSaving?.() ?? false);
+    // Der lokale Puffer ist bereits über reviewQueue serialisiert. Ein normaler
+    // Speicherklick reiht sich dahinter ein, statt währenddessen verloren zu gehen.
+    return this.isSubmitting();
   }
 
   canSaveDraft(): boolean {
