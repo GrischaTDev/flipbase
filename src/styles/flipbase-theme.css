@@ -1,23 +1,49 @@
 /*
   Flipbase Theme – Farben und Design-Variablen
 
-  Die Marke besitzt genau zwei warme Leitfarben:
-    Gelb   #FCC601  – Brand, Navigation, Primaeraktion
-    Orange #F89D13  – Warnung und warmer Sekundaerakzent
+  Markenakzent und Warnmarkierung: Gelb #FCC601.
+  Warntexte bleiben im hellen Modus neutral und lesbar, im dunklen Modus gelb.
 
   Alle Komponenten greifen auf zentrale Farbnamen statt auf konkrete Tailwind-Farben zu.
   Dadurch bleiben Badge, Toast, Avatar, Navigation und Statusdarstellungen
-  in derselben Farbfamilie. Die Rollen orientieren sich an Shopify Polaris:
+  in derselben Farbfamilie. Aktuell gilt die Apple-orientierte Flipbase-Richtlinie:
   neutrale Oberflaechen, sparsame Farbflaechen, Farbe traegt Bedeutung.
 */
 
 :root {
+  /* Apple-Kit/Lissie: gemeinsame Web-Controls, Herkunft im Maßvertrag. */
+  --fb-control-font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --fb-control-radius: 7px;
+  /* F: Flipbase-Webmaße, keine unveränderten nativen Apple-Punktwerte. */
+  --fb-control-height: 28px;
+  --fb-control-touch-height: 44px;
+  --fb-control-font-size: 13px;
+  --fb-control-line-height: 16px;
+  --fb-control-touch-font-size: 16px;
+  --fb-control-touch-line-height: 20px;
+  --fb-field-padding-x: 12px;
+  --fb-field-label-size: 13px;
+  --fb-field-label-line-height: 20px;
+  --fb-field-label-weight: 500;
+  --fb-field-label-gap: 6px;
+  --fb-control-pressed-overlay: rgb(0 0 0 / 10%);
+  --fb-control-text: #1d1d1f;
+  --fb-control-placeholder: #68686f;
+  --fb-control-bg: #e8e8ed;
+  --fb-control-hover: #dedee4;
+  --fb-control-menu: #f1f1f4;
+  --fb-control-focus: #007aff;
+  --fb-control-menu-border: rgb(0 0 0 / 8%);
+  --fb-field-bg: #fff;
+  --fb-field-border: rgb(0 0 0 / 8%);
+  --fb-field-error: #b42332;
+
   /* Dashboard-Plattformen: feste Identität statt rangabhängiger Diagrammfarben. */
   --fb-platform-vinted: #0db9bc;
   --fb-platform-kleinanzeigen: #65c52d;
   --fb-platform-ebay: #2f78ff;
   --fb-platform-other: #bdc5d0;
-  --fb-dashboard-warning-text: #bd5000;
+  --fb-dashboard-warning-text: #303030;
 
   /* Brand */
   --fb-color-brand: #fcc601;
@@ -42,8 +68,8 @@
   --fb-badge-on-brand: #614900;
   --fb-badge-success: #d8f2e8;
   --fb-badge-on-success: #08674d;
-  --fb-badge-warning: #ffe1c9;
-  --fb-badge-on-warning: #8e3d0a;
+  --fb-badge-warning: #fff1a8;
+  --fb-badge-on-warning: #303030;
   --fb-badge-critical: #ffe2e4;
   --fb-badge-on-critical: #a51f28;
   --fb-badge-neutral: #e8ebef;
@@ -57,11 +83,11 @@
   --fb-color-success-surface: rgb(134 201 140 / 14%);
   --fb-color-success-border: rgb(63 111 73 / 28%);
 
-  /* Warnung – aus dem Orange der Wort-/Bildmarke abgeleitet. */
-  --fb-color-warning: #f89d13;
-  --fb-color-warning-text: #9a5708;
-  --fb-color-warning-surface: rgb(248 157 19 / 14%);
-  --fb-color-warning-border: rgb(154 87 8 / 28%);
+  /* Warnung – Marken-Gelb mit neutralem, gut lesbarem Text; kein Braun/Orange. */
+  --fb-color-warning: #fcc601;
+  --fb-color-warning-text: #303030;
+  --fb-color-warning-surface: rgb(252 198 1 / 14%);
+  --fb-color-warning-border: rgb(252 198 1 / 35%);
 
   /* Kritisch / Fehler – warmes Coral statt kaltem Signalrot. */
   --fb-color-critical: #f58c8c;
@@ -98,7 +124,19 @@
 }
 
 html.dark {
-  --fb-dashboard-warning-text: #ffad42;
+  --fb-control-text: #f2f2f7;
+  --fb-control-placeholder: #aaaab2;
+  --fb-control-bg: #39393d;
+  --fb-control-hover: #48484d;
+  --fb-control-menu: #303033;
+  --fb-control-focus: #0a84ff;
+  --fb-control-pressed-overlay: rgb(255 255 255 / 10%);
+  --fb-control-menu-border: rgb(255 255 255 / 12%);
+  --fb-field-bg: #333336;
+  --fb-field-border: rgb(255 255 255 / 12%);
+  --fb-field-error: #ffadb3;
+
+  --fb-dashboard-warning-text: #fcc601;
 
   --fb-color-brand: #fcc601;
   --fb-color-brand-text: #fcc601;
@@ -119,8 +157,8 @@ html.dark {
   --fb-badge-on-brand: #ffe56a;
   --fb-badge-success: #204837;
   --fb-badge-on-success: #86dfbb;
-  --fb-badge-warning: #4a2d1e;
-  --fb-badge-on-warning: #ffba8a;
+  --fb-badge-warning: #343434;
+  --fb-badge-on-warning: #fcc601;
   --fb-badge-critical: #4c242c;
   --fb-badge-on-critical: #ffadb3;
   --fb-badge-neutral: #353c46;
@@ -133,10 +171,10 @@ html.dark {
   --fb-color-success-surface: rgb(143 203 120 / 13%);
   --fb-color-success-border: rgb(143 203 120 / 28%);
 
-  --fb-color-warning: #f89d13;
-  --fb-color-warning-text: #f7b653;
-  --fb-color-warning-surface: rgb(248 157 19 / 13%);
-  --fb-color-warning-border: rgb(248 157 19 / 28%);
+  --fb-color-warning: #fcc601;
+  --fb-color-warning-text: #fcc601;
+  --fb-color-warning-surface: rgb(252 198 1 / 13%);
+  --fb-color-warning-border: rgb(252 198 1 / 28%);
 
   --fb-color-critical: #f58c8c;
   --fb-color-critical-text: #f7aaaa;
@@ -227,8 +265,8 @@ html.dark .fb-admin {
   --fb-c-amber-300: var(--fb-color-warning-text);
   --fb-c-amber-400: var(--fb-color-warning);
   --fb-c-amber-500: var(--fb-color-warning);
-  --fb-c-amber-600: #8a5606;
-  --fb-c-amber-700: #7a4c05;
+  --fb-c-amber-600: var(--fb-color-warning-text);
+  --fb-c-amber-700: var(--fb-color-warning-text);
 
   --fb-c-rose-300: var(--fb-color-critical-text);
   --fb-c-rose-400: var(--fb-color-critical);

@@ -1,8 +1,24 @@
-<section class="linear-surface rounded-xl p-4 space-y-3" aria-labelledby="record-history-heading">
-  <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-fb-line pb-2">
+<section
+  [class]="
+    appearance() === 'section'
+      ? 'space-y-4 rounded-xl border border-fb-border-subtle bg-fb-surface p-5 shadow-[0_1px_3px_rgb(0_0_0/0.03)]'
+      : 'linear-surface rounded-xl p-4 space-y-3'
+  "
+  aria-labelledby="record-history-heading"
+>
+  <div
+    class="flex flex-wrap items-baseline justify-between gap-2"
+    [class.border-b]="appearance() !== 'section'"
+    [class.border-fb-line]="appearance() !== 'section'"
+    [class.pb-2]="appearance() !== 'section'"
+  >
     <h2
       id="record-history-heading"
-      class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+      [class]="
+        appearance() === 'section'
+          ? 'text-[15px] font-semibold text-fb-text-primary'
+          : 'text-xs font-bold uppercase tracking-wider text-fb-text-primary'
+      "
     >
       {{ heading() }}
     </h2>
@@ -21,13 +37,9 @@
       role="alert"
     >
       <p>Der Änderungsverlauf konnte nicht geladen werden: {{ error() }}</p>
-      <button
-        type="button"
-        (click)="retryRequested.emit()"
-        class="linear-btn-secondary mt-2 px-2.5 py-1 rounded-md text-xs font-semibold"
-      >
+      <app-button type="button" (clicked)="retryRequested.emit()" variant="secondary" class="mt-2">
         Wiederholen
-      </button>
+      </app-button>
     </div>
   } @else if (events().length === 0) {
     <p class="text-xs text-fb-text-muted">Noch keine Änderungen protokolliert.</p>
@@ -47,15 +59,16 @@
                 <p class="mt-1 text-[11px] text-fb-text-secondary">{{ event.reason }}</p>
               }
               @if (detailsFor(event).length > 0) {
-                <button
+                <app-button
                   type="button"
-                  class="linear-btn-secondary mt-2 rounded-md px-2.5 py-1 text-xs font-semibold"
-                  (click)="toggleDetails(event.id)"
-                  [attr.aria-expanded]="expanded"
-                  [attr.aria-controls]="'record-history-details-' + event.id"
+                  variant="secondary"
+                  class="mt-2"
+                  (clicked)="toggleDetails(event.id)"
+                  [ariaExpanded]="expanded"
+                  [ariaControls]="'record-history-details-' + event.id"
                 >
                   {{ expanded ? 'Details ausblenden' : 'Details ansehen' }}
-                </button>
+                </app-button>
               }
             </div>
             <time
@@ -84,14 +97,15 @@
       }
     </ol>
     @if (hasMore()) {
-      <button
+      <app-button
         type="button"
-        (click)="loadMoreRequested.emit()"
+        (clicked)="loadMoreRequested.emit()"
         [disabled]="loading()"
-        class="linear-btn-secondary w-full px-3 py-1.5 rounded-md text-xs font-semibold disabled:opacity-50"
+        variant="secondary"
+        [fullWidth]="true"
       >
         {{ loading() ? 'Weitere Änderungen werden geladen…' : 'Weitere Änderungen laden' }}
-      </button>
+      </app-button>
     }
   }
 </section>

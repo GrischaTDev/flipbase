@@ -54,12 +54,6 @@
             >
               {{ platformLabel(group.platform) }}
             </h2>
-            @if (!group.loading && !group.error) {
-              <app-badge tone="neutral"
-                >{{ group.accounts.length }}
-                {{ group.accounts.length === 1 ? 'Konto' : 'Konten' }}</app-badge
-              >
-            }
           </div>
         </div>
         @if (group.loading) {
@@ -93,17 +87,7 @@
             </div></app-card
           >
         } @else {
-          @if (group.accounts.length > 1) {
-            <app-custom-select
-              variant="filter"
-              widthClass="w-full sm:w-64"
-              [options]="accountOptions(group)"
-              [ariaLabel]="platformLabel(group.platform) + '-Account auswählen'"
-              [value]="store.accountFilter(group.platform)"
-              (valueChange)="store.selectAccount(group.platform, $event ?? '')"
-            />
-          }
-          @for (account of store.visibleAccounts(group); track accountKey(account)) {
+          @for (account of group.accounts; track accountKey(account)) {
             @if (store.section(account); as section) {
               <app-marketplace-listing-section
                 [showAccountManagement]="true"
@@ -148,7 +132,7 @@
 @if (createOpen()) {
   <app-modal-shell title="Inserat erstellen" size="md" (closed)="createOpen.set(false)">
     @if (!createPlatform()) {
-      <p class="mb-4 text-sm text-fb-text-secondary">Wähle die Plattform.</p>
+      <p class="mb-6 text-center text-sm text-fb-text-secondary">Wähle die Plattform.</p>
       <app-marketplace-platform-picker
         [platforms]="enabledPlatforms()"
         [selectedPlatforms]="selectedCreatePlatforms()"
@@ -200,10 +184,17 @@
   </app-modal-shell>
 }
 @if (addOpen()) {
-  <app-modal-shell title="Konto hinzufügen" size="lg" (closed)="closeAdd()">
+  <app-modal-shell
+    title="Konto hinzufügen"
+    [size]="addPlatform() ? 'lg' : 'md'"
+    [hasFooter]="addPlatform() !== null"
+    (closed)="closeAdd()"
+  >
     @if (!addPlatform()) {
       <p class="mb-4 text-sm text-fb-text-secondary">Wähle die Plattform.</p>
       <app-marketplace-platform-picker
+        presentation="list"
+        selectionMode="navigate"
         [platforms]="enabledPlatforms()"
         [selectedPlatforms]="selectedAddPlatforms()"
         (platformSelected)="addPlatform.set($event)"
@@ -219,30 +210,40 @@
           <app-vinted-account-management [addAccount]="true" />
         }
         @case ('ebay') {
-          <app-ebay-account page="connection" [returnToOverview]="true" />
+          <app-ebay-account page="connection" [returnToOverview]="true" [actionsInFooter]="true" />
         }
         @case ('kleinanzeigen') {
           @if (workspaceId(); as id) {
             <app-kleinanzeigen-accounts
               [setupOnly]="true"
+              [actionsInFooter]="true"
               [workspaceId]="id"
               (changed)="store.refreshPlatform('kleinanzeigen')"
+              (connected)="closeAdd()"
             />
           }
         }
       }
     }
-    <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-2">
       @if (addPlatform()) {
-        <app-button (clicked)="addPlatform.set(null)">Zurück</app-button>
+        <app-button variant="ghost" (clicked)="addPlatform.set(null)">Zurück</app-button>
       }
-      <app-button (clicked)="closeAdd()">Schließen</app-button>
+      <div class="ml-auto flex flex-wrap justify-end gap-2">
+        @if (addPlatform() === 'ebay') {
+          <ng-container [ngTemplateOutlet]="ebayAccount()?.dialogActions() ?? null" />
+        }
+        @if (addPlatform() === 'kleinanzeigen') {
+          <ng-container [ngTemplateOutlet]="kleinanzeigenAccount()?.connectionActions() ?? null" />
+        }
+      </div>
     </div>
   </app-modal-shell>
 }
 @if (managedAccount(); as account) {
   <app-modal-shell
     [title]="'Konto ' + account.displayName + ' verwalten'"
+    [hasFooter]="account.platform !== 'vinted'"
     size="lg"
     (closed)="closeAccount()"
   >
@@ -251,16 +252,24 @@
         <app-vinted-account-management [connectionId]="account.connectionId" />
       }
       @case ('ebay') {
-        <app-ebay-account page="connection" [returnToOverview]="true" />
+        <app-ebay-account page="connection" [returnToOverview]="true" [actionsInFooter]="true" />
       }
       @case ('kleinanzeigen') {
         <app-kleinanzeigen-accounts
           [workspaceId]="account.workspaceId"
           [connectionId]="account.connectionId"
+          [actionsInFooter]="true"
           (changed)="store.refreshPlatform('kleinanzeigen')"
         />
       }
     }
-    <app-button modal-footer variant="secondary" (clicked)="closeAccount()">Schließen</app-button>
+    <div modal-footer class="flex flex-wrap justify-end gap-2">
+      @if (account.platform === 'ebay') {
+        <ng-container [ngTemplateOutlet]="ebayAccount()?.dialogActions() ?? null" />
+      }
+      @if (account.platform === 'kleinanzeigen') {
+        <ng-container [ngTemplateOutlet]="kleinanzeigenAccount()?.managementActions() ?? null" />
+      }
+    </div>
   </app-modal-shell>
 }

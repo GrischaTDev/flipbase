@@ -99,19 +99,13 @@
     </h2>
     <div class="quick-grid grid grid-cols-1 gap-3 sm:grid-cols-3">
       @for (action of quickActions; track action.link) {
-        <app-button
-          size="touch"
-          shape="capsule"
-          [fullWidth]="true"
-          [link]="action.link"
-          [icon]="action.icon"
-          >{{ action.label }}</app-button
-        >
+        <app-button size="touch" [fullWidth]="true" [link]="action.link" [icon]="action.icon">{{
+          action.label
+        }}</app-button>
       }
       <app-button
         variant="primary"
         size="touch"
-        shape="capsule"
         [fullWidth]="true"
         [icon]="listingIcon"
         (clicked)="listingDialogOpen.set(true)"

@@ -1,7 +1,16 @@
 import axe from 'axe-core';
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, test, type Page } from '@playwright/test';
+import { mockMarketplace } from './support/marketplace-account-fixture';
 
-test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke', async ({
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+async function openDashboard(page: Page) {
+  await mockMarketplace(page);
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  await page.goto('/dashboard');
+  await expect(page.locator('main h1')).toBeVisible();
+}
+
+test('hält die Sidebar kompakt und hebt den aktiven Bereich neutral hervor @pr-smoke', async ({
   page,
 }) => {
   await openDashboard(page);
@@ -13,9 +22,9 @@ test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor
 
   await expect(sidebar).toBeVisible();
   await expect(activeLink).toHaveText(/Verkäufe/);
-  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
-  await expect(activeIcon).toHaveCSS('color', 'rgb(26, 26, 26)');
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(29, 29, 31)');
+  await expect(activeIcon).toHaveCSS('color', 'rgb(29, 29, 31)');
 
   const demoBadge = sidebar.locator('span', { hasText: 'Demo' });
   await expect(demoBadge).toHaveCount(1);
@@ -40,7 +49,7 @@ test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor
     .locator('nav a')
     .first()
     .evaluate((element) => element.getBoundingClientRect().height);
-  expect(firstLinkHeight).toBeLessThanOrEqual(34);
+  expect(firstLinkHeight).toBe(36);
 
   const firstLink = sidebar.locator('nav a').first();
   await firstLink.focus();
@@ -57,18 +66,17 @@ test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor
   expect(accessibility.violations).toEqual([]);
 });
 
-test('verwendet im dunklen Design das helle Logo-Gelb für den aktiven Menüpunkt', async ({
-  page,
-}) => {
+test('verwendet im dunklen Design eine neutrale aktive Auswahlfläche', async ({ page }) => {
   await openDashboard(page);
-  await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
   await page.goto('/sales');
+  await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
 
   const activeLink = page.locator('app-sidebar a[aria-current="page"]');
   const activeIcon = activeLink.locator('svg').first();
-  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
-  await expect(activeIcon).toHaveCSS('color', 'rgb(26, 26, 26)');
+  await expect(activeLink).toHaveCSS('background-color', 'rgb(40, 40, 43)');
+  await expect(activeLink).toHaveCSS('color', 'rgb(242, 242, 247)');
+  await expect(activeIcon).toHaveCSS('color', 'rgb(242, 242, 247)');
 
   const demoBadge = page.locator('app-sidebar span', { hasText: 'Demo' });
   await expect(demoBadge).toHaveCount(1);
@@ -78,22 +86,25 @@ test('verwendet im dunklen Design das helle Logo-Gelb für den aktiven Menüpunk
   }
 });
 
-test('übernimmt den gelben aktiven Zustand auch in der mobilen Navigation', async ({ page }) => {
-  await openDashboard(page);
-  await page.setViewportSize({ width: 390, height: 900 });
-  await page.goto('/sales');
+test.describe('Mobile Navigation mit Touch', () => {
+  test.use({ hasTouch: true });
+  test('übernimmt den gelben aktiven Zustand auch in der mobilen Navigation', async ({ page }) => {
+    await openDashboard(page);
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto('/sales');
 
-  const activeLink = page.locator('app-bottom-nav a[aria-current="page"]');
-  await expect(activeLink).toHaveText('Verkauf');
-  await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
-  await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
+    const activeLink = page.locator('app-bottom-nav a[aria-current="page"]');
+    await expect(activeLink).toHaveText('Verkauf');
+    await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+    await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
 
-  const sidebar = page.locator('app-sidebar > aside[aria-label="Hauptnavigation"]');
-  const sidebarLinkHeight = await sidebar
-    .locator('nav a')
-    .first()
-    .evaluate((element) => element.getBoundingClientRect().height);
-  expect(sidebarLinkHeight).toBeGreaterThanOrEqual(44);
+    const sidebar = page.locator('app-sidebar > aside[aria-label="Hauptnavigation"]');
+    const sidebarLinkHeight = await sidebar
+      .locator('nav a')
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(sidebarLinkHeight).toBeGreaterThanOrEqual(44);
+  });
 });
 
 test('bindet die Desktop-Sidebar an den Viewport und lässt die Navigation intern scrollen', async ({

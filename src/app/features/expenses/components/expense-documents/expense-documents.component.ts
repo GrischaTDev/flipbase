@@ -1,3 +1,4 @@
+import { LucideTrash2 } from '@lucide/angular';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -28,6 +29,7 @@ import { ExpenseDocumentPreviewDialogComponent } from '../expense-document-previ
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExpenseDocumentsComponent implements OnInit {
+  protected readonly removeIcon = LucideTrash2;
   readonly documentService = inject(ExpenseDocumentService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly workspaceContext = inject(WorkspaceContextLockService);

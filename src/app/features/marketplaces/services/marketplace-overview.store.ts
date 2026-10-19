@@ -46,7 +46,6 @@ export class MarketplaceOverviewStore {
   private readonly platformRequests = new Map<MarketplaceId, number>();
   private readonly platformState = signal<readonly MarketplaceOverviewPlatformState[]>([]);
   private readonly sectionState = signal<Readonly<Record<string, MarketplaceOverviewSection>>>({});
-  private readonly filters = signal<Readonly<Partial<Record<MarketplaceId, string>>>>({});
   private readonly current = computed(() => {
     const workspace = this.workspace.currentWorkspace();
     const owner = this.owner();
@@ -68,7 +67,6 @@ export class MarketplaceOverviewStore {
     const userId = this.auth.currentUser()?.id;
     this.owner.set(userId ? { userId, workspaceId } : null);
     this.sectionState.set({});
-    this.filters.set({});
     this.requests.clear();
     this.platformState.set(
       enabled.map((platform) => ({ platform, accounts: [], loading: true, error: null })),
@@ -145,9 +143,6 @@ export class MarketplaceOverviewStore {
         }
         return next;
       });
-      const filter = this.accountFilter(platform);
-      if (filter && !accounts.some((account) => account.connectionId === filter))
-        this.filters.update((filters) => ({ ...filters, [platform]: '' }));
       if (preserveSections)
         await Promise.all(
           accounts.map(async (account) => {
@@ -174,32 +169,6 @@ export class MarketplaceOverviewStore {
 
   section(account: MarketplaceOverviewAccount): MarketplaceOverviewSection | undefined {
     return this.sections()[overviewAccountKey(account)];
-  }
-  accountFilter(platform: MarketplaceId): string {
-    return this.current() ? (this.filters()[platform] ?? '') : '';
-  }
-  visibleAccounts(
-    platform: MarketplaceOverviewPlatformState,
-  ): readonly MarketplaceOverviewAccount[] {
-    const filter = this.accountFilter(platform.platform);
-    return filter
-      ? platform.accounts.filter((account) => account.connectionId === filter)
-      : platform.accounts;
-  }
-  selectAccount(platform: MarketplaceId, connectionId: string): void {
-    if (!this.current()) return;
-    const group = this.platforms().find((item) => item.platform === platform);
-    if (connectionId && !group?.accounts.some((account) => account.connectionId === connectionId))
-      return;
-    this.filters.update((value) => ({ ...value, [platform]: connectionId }));
-    this.sectionState.update((sections) =>
-      Object.fromEntries(
-        Object.entries(sections).map(([key, section]) => [
-          key,
-          section.account.platform === platform ? { ...section, selection: [] } : section,
-        ]),
-      ),
-    );
   }
   async expand(account: MarketplaceOverviewAccount): Promise<void> {
     const key = overviewAccountKey(account);

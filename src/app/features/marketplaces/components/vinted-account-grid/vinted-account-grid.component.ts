@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import {
   CdkDrag,
   CdkDragPlaceholder,
@@ -45,6 +46,7 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 @Component({
   selector: 'app-vinted-account-grid',
   imports: [
+    MarketplaceAccountHeaderComponent,
     NgTemplateOutlet,
     CdkDrag,
     CdkDragPlaceholder,

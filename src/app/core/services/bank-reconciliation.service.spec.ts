@@ -328,4 +328,51 @@ describe('BankReconciliationService', () => {
       expect(gesendet.parameter?.['p_transactions']).toEqual([]);
     });
   });
+  describe('Manuelle Zuordnung', () => {
+    const tx: BankTransaction = {
+      id: 'manual-tx',
+      bookingDate: '2026-10-19',
+      counterpartyName: 'Käufer',
+      purpose: 'Hemd',
+      amount: 80,
+      currency: 'EUR',
+      status: 'pending',
+    };
+    const match = {
+      targetType: 'sale' as const,
+      targetId: 'sale-1',
+      targetReference: 'VK-1',
+      targetAmount: 80,
+      confidence: 0,
+      confidenceLabel: 'probable' as const,
+      reason: 'Manuell',
+    };
+    it('speichert manuell als bereit und bucht nicht automatisch', async () => {
+      service.transactions.set([tx]);
+      expect((await service.manualAssign(tx.id, match)).success).toBe(true);
+      expect(service.transactions()[0]).toMatchObject({
+        status: 'matched',
+        match: { confidence: 100, confidenceLabel: 'manual' },
+      });
+      expect(service.transactions()[0].bookedAt).toBeUndefined();
+    });
+    it('verändert gebuchte und ignorierte Bewegungen nicht', async () => {
+      for (const status of ['booked', 'ignored'] as const) {
+        service.transactions.set([{ ...tx, status }]);
+        expect((await service.manualAssign(tx.id, match)).success).toBe(false);
+        expect(service.transactions()[0].status).toBe(status);
+      }
+    });
+    it('verhindert doppelte Ziele, falsche Richtung und unbekannte Zielarten', async () => {
+      service.transactions.set([tx, { ...tx, id: 'already', status: 'booked', match }]);
+      expect((await service.manualAssign(tx.id, match)).success).toBe(false);
+      service.transactions.set([tx]);
+      expect(
+        (await service.manualAssign(tx.id, { ...match, targetType: 'purchase' })).success,
+      ).toBe(false);
+      expect((await service.manualAssign(tx.id, { ...match, targetType: 'unknown' })).success).toBe(
+        false,
+      );
+    });
+  });
 });

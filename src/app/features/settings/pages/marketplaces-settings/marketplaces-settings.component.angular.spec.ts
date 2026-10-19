@@ -6,7 +6,6 @@ import { provideRouter } from '@angular/router';
 import { glob, readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { MarketplaceSettingsService } from '../../../../core/services/marketplace-settings.service';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { MarketplacePlatformPickerComponent } from '../../../../shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -45,8 +44,8 @@ describe('MarketplacesSettingsComponent', () => {
 
     registerSignalInputs(MarketplacesSettingsComponent, ['showAccountManagement']);
     registerSignalInputs(CardComponent, ['padding']);
-    registerSignalInputs(BadgeComponent, ['tone']);
     registerSignalInputs(MarketplacePlatformPickerComponent, [
+      'presentation',
       'platforms',
       'selectedPlatforms',
       'disabledPlatforms',
@@ -56,7 +55,7 @@ describe('MarketplacesSettingsComponent', () => {
       MarketplacePlatformPickerComponent as unknown as { ɵcmp: AngularInputMetadata }
     ).ɵcmp;
     pickerMetadata.outputs = { ...pickerMetadata.outputs, platformSelected: 'platformSelected' };
-    registerSignalInputs(ButtonComponent, ['size', 'icon', 'link', 'wrapLabel']);
+    registerSignalInputs(ButtonComponent, ['size', 'icon', 'link', 'variant', 'wrapLabel']);
   });
 
   beforeEach(async () => {
@@ -114,10 +113,10 @@ describe('MarketplacesSettingsComponent', () => {
     expect(element.textContent).toContain('Vinted');
     expect(element.textContent).toContain('eBay');
     expect(element.textContent).toContain('Kleinanzeigen');
-    expect(element.textContent).toContain('3 von 3 aktiv');
+    expect(element.querySelectorAll('button[aria-pressed="true"]')).toHaveLength(3);
   });
 
-  it('schaltet Marktplätze um, wenn Checkbox geändert wird', async () => {
+  it('schaltet die Sichtbarkeit eines Marktplatzes unabhängig von der Kontoverwaltung um', async () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
     const service = TestBed.inject(MarketplaceSettingsService);
     fixture.detectChanges();
@@ -126,7 +125,11 @@ describe('MarketplacesSettingsComponent', () => {
     fixture.detectChanges();
 
     expect(service.isVintedEnabled()).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('2 von 3 aktiv');
+    expect(
+      fixture.nativeElement
+        .querySelector('button[aria-label="Vinted"]')
+        .getAttribute('aria-pressed'),
+    ).toBe('false');
   });
   it('bietet im Sichtbarkeitsdialog nur Marktplatzschalter ohne Kontoverwaltung', () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
@@ -134,28 +137,29 @@ describe('MarketplacesSettingsComponent', () => {
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelectorAll('a')).toHaveLength(0);
-    expect(element.textContent).not.toContain('verwalte ihre Konten');
-    expect(element.textContent).toContain('3 von 3 aktiv');
+    expect(element.querySelectorAll('app-card')).toHaveLength(0);
+    expect(element.querySelectorAll('button[aria-pressed="true"]')).toHaveLength(3);
   });
-  it('behält die Kontolinks bei, wenn die Route keinen Sichtbarkeitswert liefert', () => {
+  it('bietet die zentrale Verwaltung an, wenn die Route keinen Sichtbarkeitswert liefert', () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
     fixture.componentRef.setInput('showAccountManagement', undefined);
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).not.toBeNull();
-    expect(element.querySelector('a[href="/marketplaces/vinted/accounts"]')).not.toBeNull();
-    expect(element.querySelector('a[href="/marketplaces/kleinanzeigen"]')).not.toBeNull();
+    expect(element.querySelectorAll('a')).toHaveLength(1);
+    expect(element.querySelector('a[href="/marketplaces/overview"]')).not.toBeNull();
   });
-  it('öffnet die eBay-Kontoverbindung und verbirgt sie nach Abschalten des Kanals', () => {
+  it('behält die zentrale Verwaltung nach dem Ausblenden eines Marktplatzes erreichbar', async () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).not.toBeNull();
-    element
-      .querySelector<HTMLButtonElement>('app-marketplace-platform-picker button:nth-child(2)')
-      ?.click();
+    expect(element.querySelector('a[href="/marketplaces/overview"]')).not.toBeNull();
+    element.querySelector<HTMLButtonElement>('button[aria-label="eBay"]')?.click();
+    await fixture.whenStable();
     fixture.detectChanges();
-    expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).toBeNull();
-    expect(element.textContent).toContain('2 von 3 aktiv');
+    expect(TestBed.inject(MarketplaceSettingsService).isEbayEnabled()).toBe(false);
+    expect(element.querySelector('button[aria-label="eBay"]')?.getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+    expect(element.querySelector('a[href="/marketplaces/overview"]')).not.toBeNull();
   });
 });

@@ -654,7 +654,7 @@ describe('StockPositionListComponent', () => {
     expect(row.textContent).not.toContain('Prüfgrund');
     expect(host.querySelector('input[id*="legacy-reason"]')).toBeNull();
 
-    row.querySelector<HTMLElement>('[data-restore-stock]')?.click();
+    row.querySelector<HTMLElement>('[data-restore-stock] button')?.click();
 
     expect(restoreLegacy).toHaveBeenCalledWith({
       ...einzelstueck,
@@ -672,7 +672,7 @@ describe('StockPositionListComponent', () => {
 
     expect(row.textContent).toContain('Korrektur erforderlich');
     expect(row.querySelector('[data-item-sell]')).toBeNull();
-    expect(row.querySelector('[data-restore-stock]')).toBeNull();
+    expect(row.querySelector('[data-restore-stock] button')).toBeNull();
     expect(row.querySelector('[data-reconcile-sale]')).toBeNull();
   });
 

@@ -140,6 +140,38 @@ describe('Zentrale Marktplatzdaten', () => {
     expect(accounts[0].listingCount).toBeNull();
     expect(accounts[0].error).toBeTruthy();
   });
+  it.each(['needs_login', 'connected'] as const)(
+    'zeigt eine aktive Kleinanzeigen-Verknüpfung trotz technischem Abgleichstatus %s grün',
+    async (status) => {
+      kleinanzeigen.readAccounts.mockResolvedValue({
+        canManage: true,
+        accounts: [
+          {
+            workspaceId: 'ws-a',
+            connectionId: 'ka-a',
+            displayName: 'KA A',
+            status,
+            lastSyncedAt: null,
+            listingCount: null,
+            activeCount: null,
+            sync: null,
+            localGrant: {
+              active: true,
+              canPublish: true,
+              generation: 1,
+              expiresAt: '2026-10-20T00:00:00Z',
+            },
+          },
+        ],
+      });
+      const [account] = await TestBed.inject(MarketplaceOverviewService).loadAccounts(
+        'ws-a',
+        'kleinanzeigen',
+      );
+      expect(account.status).toBe(status);
+      expect(account.connectionStatus).toEqual({ label: 'Verbunden', tone: 'success' });
+    },
+  );
   it('delegiert Kleinanzeigen-Konten und Inserate getrennt an deren eigenen Dienst', async () => {
     const row = {
       workspaceId: 'ws-a',

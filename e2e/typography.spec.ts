@@ -1,6 +1,17 @@
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, test, type Page } from '@playwright/test';
+import { mockMarketplace } from './support/marketplace-account-fixture';
 
-test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+async function openDashboard(page: Page) {
+  await mockMarketplace(page);
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  await page.goto('/dashboard');
+  await expect(page.locator('main h1')).toBeVisible();
+}
+
+test('verwendet die Systemschrift im Verwaltungsbereich und Inter als lokalen Fallback @core-smoke', async ({
+  page,
+}) => {
   const fontRequests: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'font') fontRequests.push(request.url());
@@ -19,9 +30,12 @@ test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
   await expect(page.locator('body')).toHaveCSS('font-family', /^"?Inter"?,/);
   await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveCSS(
     'font-family',
-    /^"?Inter"?,/,
+    /^"?-apple-system"?,/,
   );
-  await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^"?Inter"?,/);
+  await expect(page.locator('[data-kpi] .metric-value').first()).toHaveCSS(
+    'font-family',
+    /^"?-apple-system"?,/,
+  );
 
   for (const route of [
     '/dashboard',
@@ -32,8 +46,8 @@ test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
     '/accounting',
   ]) {
     await page.goto(route);
-    await expect(page.locator('main')).toBeVisible();
-    const nonInterElements = await page.evaluate(() => {
+    await expect(page.locator('main h1')).toBeVisible();
+    const unexpectedFontElements = await page.evaluate(() => {
       const isVisible = (element: HTMLElement): boolean => {
         const style = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -50,10 +64,14 @@ test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
         .map((element) => ({
           element: element.tagName.toLowerCase(),
           fontFamily: getComputedStyle(element).fontFamily,
+          admin: !!element.closest('app-shell.fb-admin'),
         }))
-        .filter(({ fontFamily }) => !/^"?Inter"?,/.test(fontFamily));
+        .filter(
+          ({ fontFamily, admin }) =>
+            !(admin ? /^"?-apple-system"?,/ : /^"?Inter"?,/).test(fontFamily),
+        );
     });
-    expect(nonInterElements, `Nicht-Inter-Elemente auf ${route}`).toEqual([]);
+    expect(unexpectedFontElements, `Unerwartete Schrift auf ${route}`).toEqual([]);
   }
 
   await page.evaluate(() => {

@@ -1,52 +1,49 @@
-<app-card padding="lg">
-  <section class="space-y-6" aria-labelledby="marketplaces-heading">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="marketplaces-heading" class="text-lg font-semibold text-fb-text-primary">
-        Deine Marktplätze
-      </h2>
-      <app-badge tone="neutral">{{ activeCount() }} von 3 aktiv</app-badge>
-    </div>
-    <p class="text-sm text-fb-text-secondary">
-      Wähle, welche Verkaufskanäle du unter Marktplätze sehen möchtest.
-      @if (showAccountManagement()) {
-        Hier kannst du auch ihre Konten verwalten.
-      }
-    </p>
-    @if (settingsError(); as error) {
+<section class="space-y-4" aria-labelledby="marketplaces-heading">
+  <div class="space-y-1">
+    <h2 id="marketplaces-heading" class="text-base font-semibold text-fb-text-primary">
+      Im Menü anzeigen
+    </h2>
+    <p class="text-sm text-fb-text-secondary">Wähle die Marktplätze, die Du verwenden möchtest.</p>
+  </div>
+  @if (settingsError(); as error) {
+    <div class="space-y-3">
       <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
       @if (!settingsReady()) {
-        <app-button variant="secondary" [disabled]="settingsLoading()" (clicked)="onRetry()"
+        <app-button [disabled]="settingsLoading()" (clicked)="onRetry()"
           >Erneut versuchen</app-button
         >
       }
-    }
-    @if (settingsLoading()) {
-      <p role="status" class="text-sm text-fb-text-secondary">Deine Marktplätze werden geladen …</p>
-    }
-    <app-marketplace-platform-picker
-      [platforms]="platforms"
-      [selectedPlatforms]="selectedPlatforms()"
-      [disabled]="!settingsReady() || settingsSaving()"
-      (platformSelected)="togglePlatform($event)"
-    />
-    @if (showAccountManagement()) {
-      <div class="flex flex-wrap justify-center gap-3">
-        @if (isVintedEnabled()) {
-          <app-button link="/marketplaces/vinted/accounts">Vinted-Konten verwalten</app-button>
-        }
-        @if (isEbayEnabled()) {
-          <app-button link="/marketplaces/ebay/connection"
-            >eBay-Konto verbinden und verwalten</app-button
-          >
-        }
-        @if (isKleinanzeigenEnabled()) {
-          <app-button link="/marketplaces/kleinanzeigen">Kleinanzeigen öffnen</app-button>
-        }
+    </div>
+  }
+  @if (settingsLoading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Deine Marktplätze werden geladen …</p>
+  }
+  @if (showAccountManagement()) {
+    <app-card padding="none">
+      <ng-container [ngTemplateOutlet]="platformChoices" />
+      <div class="flex justify-end border-t border-fb-line px-4 py-3">
+        <app-button
+          variant="ghost"
+          link="/marketplaces/overview"
+          [icon]="overviewIcon"
+          [wrapLabel]="true"
+          >Konten und Inserate verwalten</app-button
+        >
       </div>
-    }
-    <p class="text-sm text-fb-text-secondary">
-      Die Auswahl steuert die Anzeige im Menü. Konten, Freigaben und laufende Aufträge bleiben
-      erhalten.
-    </p>
-  </section>
-</app-card>
+    </app-card>
+  } @else {
+    <ng-container [ngTemplateOutlet]="platformChoices" />
+  }
+  <p class="text-xs text-fb-text-secondary">
+    Ausblenden ändert keine Konten, Freigaben oder laufenden Aufträge.
+  </p>
+</section>
+<ng-template #platformChoices>
+  <app-marketplace-platform-picker
+    presentation="list"
+    [platforms]="platforms"
+    [selectedPlatforms]="selectedPlatforms()"
+    [disabled]="!settingsReady() || settingsSaving()"
+    (platformSelected)="togglePlatform($event)"
+  />
+</ng-template>

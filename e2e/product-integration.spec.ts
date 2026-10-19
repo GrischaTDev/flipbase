@@ -68,7 +68,7 @@ for (const theme of ['light', 'dark'] as const)
       const background = await page
         .locator('.fb-admin')
         .evaluate((element) => getComputedStyle(element).getPropertyValue('--fb-bg-app').trim());
-      expect(background).toBe(theme === 'dark' ? '#1f1f1f' : '#f1f1f1');
+      expect(background).toBe(theme === 'dark' ? '#1c1c1e' : '#f5f5f7');
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       const title = 'SehrLangerProduktnameOhneTrennzeichenFürDieMobileEinkaufserfassung';
@@ -92,7 +92,8 @@ for (const theme of ['light', 'dark'] as const)
       await price.fill('0');
       await expect(editor.locator('tbody tr')).toContainText('0,00');
       await price.fill('');
-      await expect(editor.locator('tbody tr')).toContainText('Offen');
+      await expect(price).toHaveValue('');
+      await expect(editor.locator('tbody tr')).toContainText('0,00');
       await editor.getByRole('spinbutton', { name: 'Menge für ' + title, exact: true }).fill('12');
       const remove = editor.getByRole('button', {
         name: 'Artikel ' + title + ' entfernen',
@@ -138,11 +139,15 @@ for (const theme of ['light', 'dark'] as const)
     });
   }
 
-test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker @pr-smoke', async ({
+test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan erlaubt manuelle Auswahl @pr-smoke', async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400)
+      errors.push(`${response.status()} ${new URL(response.url()).pathname}`);
+  });
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
@@ -171,6 +176,13 @@ test('Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffn
   await page.getByRole('button', { name: 'Barcode scannen', exact: true }).click();
   await page.getByRole('textbox', { name: 'Barcode scannen oder eingeben' }).fill('unbekannt');
   await page.getByRole('textbox', { name: 'Barcode scannen oder eingeben' }).press('Enter');
+  await expect(
+    page.getByText(
+      'Artikel nicht im Inventar vorhanden. Für die Online-Suche ist eine gültige EAN/GTIN nötig.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Artikel auswählen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Produkt erstellen', exact: true })).toBeVisible();
 });
@@ -214,5 +226,12 @@ test('verweigerte Kamera lässt Hardwareeingabe und Picker erreichbar', async ({
   const input = page.getByRole('textbox', { name: 'Barcode scannen oder eingeben' });
   await input.fill('unbekannt');
   await input.press('Enter');
+  await expect(
+    page.getByText(
+      'Artikel nicht im Inventar vorhanden. Für die Online-Suche ist eine gültige EAN/GTIN nötig.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Artikel auswählen' })).toBeVisible();
 });

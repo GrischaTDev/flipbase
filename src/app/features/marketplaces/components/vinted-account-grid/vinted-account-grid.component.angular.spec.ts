@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import '@angular/compiler';
 import { Component, computed, forwardRef, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -104,6 +105,10 @@ beforeAll(async () => {
     return Promise.resolve(readFileSync(path, 'utf8'));
   });
   restore = await prepareMarketplaceRendering([
+    {
+      type: MarketplaceAccountHeaderComponent,
+      path: 'src/app/shared/components/marketplace-account-header/marketplace-account-header.component.ts',
+    },
     {
       type: VintedAccountGridComponent,
       path: 'src/app/features/marketplaces/components/vinted-account-grid/vinted-account-grid.component.ts',
@@ -370,7 +375,13 @@ describe('Kompakte Vinted-Konten', () => {
     const dialog = element.querySelector('[role="dialog"]');
     expect(
       [...(dialog?.querySelectorAll('h3') ?? [])].map((heading) => heading.textContent?.trim()),
-    ).toEqual(['Verbindung', 'Benachrichtigungen', 'Kontoverwaltung', 'Trennen und entfernen']);
+    ).toEqual([
+      'Testkonto A',
+      'Verbindung',
+      'Benachrichtigungen',
+      'Kontoverwaltung',
+      'Trennen und entfernen',
+    ]);
     expect(dialog?.textContent).toContain('Verbindung prüfen');
     expect(dialog?.textContent).toContain('Konto entfernen');
     expect(dialog?.textContent).toContain('gespeicherten Daten bleiben erhalten');

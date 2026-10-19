@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,7 +11,6 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import {
-  LucideCircleAlert,
   LucideDynamicIcon,
   LucideEye,
   LucideEyeOff,
@@ -24,9 +24,8 @@ export type TextFieldType = 'text' | 'email' | 'password' | 'search' | 'url' | '
 
 @Component({
   selector: 'app-text-field',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, FormFieldComponent],
   templateUrl: './text-field.component.html',
-  styleUrl: './text-field.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {
@@ -75,7 +74,6 @@ export class TextFieldComponent implements ControlValueAccessor {
   readonly passwordVisible = signal(false);
 
   protected readonly clearIcon = LucideX;
-  protected readonly errorIcon = LucideCircleAlert;
   protected readonly eyeIcon = LucideEye;
   protected readonly eyeOffIcon = LucideEyeOff;
   protected readonly effectiveInputType = computed(() =>
@@ -96,17 +94,16 @@ export class TextFieldComponent implements ControlValueAccessor {
 
   protected readonly inputClasses = computed(() => {
     const base =
-      'linear-input min-h-8 w-full px-3 text-[13px] transition-colors outline-none ' +
+      'linear-input min-h-7 pointer-coarse:!min-h-11 w-full px-[var(--fb-field-padding-x)] text-[13px] transition-colors outline-none ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
     const mono = this.monospaced() ? 'font-mono' : '';
-    const err = this.error()
-      ? 'border-rose-500/70 focus:border-rose-500 focus:ring-rose-500/30 text-rose-300'
-      : '';
+    const err = this.error() ? 'border-[var(--fb-field-error)]' : '';
 
     const pl = this.prefixIcon() ? 'pl-9' : this.prefix() ? 'pl-7' : '';
-    const pr = this.clearable() || this.suffix() || this.revealable() ? 'pr-10' : '';
-    const size = this.size() === 'comfortable' ? '!min-h-10' : '';
+    const pr =
+      this.clearable() || this.suffix() || this.revealable() ? 'pr-10 pointer-coarse:pr-12' : '';
+    const size = this.size() === 'comfortable' ? '!min-h-10 pointer-coarse:!min-h-11' : '';
 
     const appearance =
       this.appearance() === 'message'

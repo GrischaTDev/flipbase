@@ -167,4 +167,21 @@ describe('TextFieldComponent', () => {
     expect(input.type).toBe('text');
     expect(button.getAttribute('aria-label')).toBe('Passwort verbergen');
   });
+  it('verknüpft das Feld genau einmal mit Label und wechselnder Rückmeldung', () => {
+    fixture.componentRef.setInput('id', 'single-field');
+    fixture.componentRef.setInput('label', 'Artikelname');
+    fixture.componentRef.setInput('helpText', 'Kurzer Titel');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const field = host.querySelector('input') as HTMLInputElement;
+    expect(field.labels).toHaveLength(1);
+    expect(field.labels?.[0]?.textContent).toContain('Artikelname');
+    expect(field.getAttribute('aria-describedby')).toBe('single-field-help');
+    fixture.componentRef.setInput('error', 'Bitte einen Titel eingeben');
+    fixture.detectChanges();
+    expect(host.querySelector('#single-field-help')).toBeNull();
+    expect(host.querySelector('#single-field-error')?.getAttribute('role')).toBe('alert');
+    expect(field.getAttribute('aria-describedby')).toBe('single-field-error');
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+  });
 });

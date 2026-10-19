@@ -455,6 +455,24 @@ describe('ExpensesComponent', () => {
     expect(component.expensePeriod()).toBeNull();
   });
 
+  it('bietet auch alte Belegmonate an und trennt Alle Zeiträume von einem konkreten Monat', () => {
+    const { fixture, expenseService } = createFixture();
+    expenseService.expenses.set([{ ...expenses[0], expense_date: '2022-12-31' }]);
+    const component = fixture.componentInstance;
+    expect(component.expensePeriodOptions()).toContainEqual({
+      value: '2022-12',
+      label: 'Dezember 2022',
+    });
+    component.setExpensePeriod('2022-12');
+    expect(component.visibleExpenses()).toHaveLength(1);
+    expect(component.expensePeriodOptions().some((option) => option.value === '2023-01')).toBe(
+      true,
+    );
+    component.setExpensePeriod('all');
+    expect(component.expensePeriod()).toBeNull();
+    expect(expenseService.expenses()[0].expense_date).toBe('2022-12-31');
+  });
+
   it('stellt beim Zurücksetzen wieder den aktuellen Monat ein', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 8, 19, 12));

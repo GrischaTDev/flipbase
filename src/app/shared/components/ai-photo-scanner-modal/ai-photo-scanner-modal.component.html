@@ -1,12 +1,12 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+  class="fixed inset-0 fb-dialog-overlay z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
   appModalDialog
   schliesstBeiKlickAussen
   dialogTitel="Artikel per Foto erkennen"
   (dialogClose)="closed.emit()"
 >
   <div
-    class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto animate-modal-card"
+    class="fb-dialog-surface bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto animate-modal-card"
   >
     <!-- Modal Header -->
     <div class="flex items-start justify-between border-b border-fb-border pb-3">
@@ -113,27 +113,23 @@
               class="absolute inset-0 bg-black/90 p-4 text-center flex flex-col items-center justify-center text-xs text-rose-400 space-y-2"
             >
               <p>{{ cameraError() }}</p>
-              <button
-                type="button"
-                (click)="activeTab.set('upload')"
-                class="linear-btn-secondary px-3 py-1 rounded-lg text-xs"
-              >
+              <app-button type="button" (clicked)="activeTab.set('upload')" variant="secondary">
                 Zum Datei-Upload wechseln
-              </button>
+              </app-button>
             </div>
           }
         </div>
 
         @if (isCameraActive()) {
           <div class="flex justify-center pt-1">
-            <button
+            <app-button
               type="button"
-              (click)="capturePhoto()"
-              class="linear-btn-primary px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+              (clicked)="capturePhoto()"
+              variant="primary"
+              [icon]="cameraIcon"
             >
-              <svg [lucideIcon]="cameraIcon" class="w-4 h-4"></svg>
               <span>Foto aufnehmen & analysieren</span>
-            </button>
+            </app-button>
           </div>
         }
       </div>
@@ -234,24 +230,24 @@
 
         <!-- Bottom Actions -->
         <div class="flex items-center justify-between pt-2 border-t border-fb-border">
-          <button
+          <app-button
             type="button"
-            (click)="resetScan()"
-            class="linear-btn-secondary px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            (clicked)="resetScan()"
+            variant="secondary"
+            [icon]="refreshIcon"
           >
-            <svg [lucideIcon]="refreshIcon" class="w-3.5 h-3.5"></svg>
             <span>Anderes Foto</span>
-          </button>
+          </app-button>
 
           @if (scanResult()) {
-            <button
+            <app-button
               type="button"
-              (click)="applyResult()"
-              class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+              (clicked)="applyResult()"
+              variant="primary"
+              [icon]="checkIcon"
             >
-              <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
               <span>Attribute übernehmen</span>
-            </button>
+            </app-button>
           }
         </div>
       </div>

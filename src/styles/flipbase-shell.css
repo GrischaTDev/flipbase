@@ -1,0 +1,163 @@
+/* Gemeinsame Verwaltungs-Shell: konstante Farben und Geometrie beim Seitenwechsel.
+ * Rollen und geprüfte Referenzen: docs/design/apple-ui-reference.md.
+ */
+app-shell.fb-admin {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
+}
+html:not(.dark) app-shell.fb-admin {
+  --fb-bg-app: #f5f5f7;
+  --fb-bg-header: #fafafc;
+  --fb-bg-sidebar: #f5f5f7;
+  --fb-bg-surface: #fff;
+  --fb-bg-subtle: #f0f0f3;
+  --fb-bg-surface-hover: #ededf1;
+  --fb-text-primary: #1d1d1f;
+  --fb-text-secondary: #505057;
+  --fb-text-muted: #5f5f66;
+  --fb-border: #d9d9df;
+  --fb-border-subtle: #e5e5ea;
+  --fb-line: #e5e5ea;
+  --fb-border-focus: var(--fb-control-focus);
+  --fb-mac-control: #e8e8ed;
+  --fb-mac-control-hover: #dedee4;
+  --fb-mac-menu: #f1f1f4;
+}
+html.dark app-shell.fb-admin {
+  --fb-bg-app: #1c1c1e;
+  --fb-bg-header: #1c1c1e;
+  --fb-bg-sidebar: #242426;
+  --fb-bg-surface: #28282b;
+  --fb-bg-subtle: #333336;
+  --fb-bg-surface-hover: #39393d;
+  --fb-text-primary: #f2f2f7;
+  --fb-text-secondary: #c9c9cf;
+  --fb-text-muted: #aaaab2;
+  --fb-border: #48484d;
+  --fb-border-subtle: #39393d;
+  --fb-line: #39393d;
+  --fb-border-focus: var(--fb-control-focus);
+  --fb-mac-control: #39393d;
+  --fb-mac-control-hover: #48484d;
+  --fb-mac-menu: #303033;
+}
+app-shell.fb-admin app-header > header {
+  min-height: calc(4rem + var(--fb-safe-top, 0px));
+  background: var(--fb-bg-header);
+  border-bottom: 1px solid var(--fb-border-subtle);
+  box-shadow: none;
+}
+app-shell.fb-admin
+  app-header
+  :is([aria-controls='header-workspace-menu'], [aria-controls='header-user-menu']) {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  background: transparent;
+}
+app-shell.fb-admin
+  app-header
+  :is(
+    [aria-label='Benachrichtigungen'],
+    [aria-label='Helles Design aktivieren'],
+    [aria-label='Dunkles Design aktivieren']
+  ) {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border-color: transparent;
+  background: transparent;
+}
+app-shell.fb-admin app-header button:hover {
+  background-color: var(--fb-mac-control);
+}
+app-shell.fb-admin
+  app-header
+  :is(#header-workspace-menu, #header-notification-menu, #header-user-menu) {
+  border-radius: 12px;
+  background: var(--fb-mac-menu);
+  border-color: var(--fb-control-menu-border);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 18%);
+}
+app-shell.fb-admin app-sidebar > aside {
+  background: var(--fb-bg-sidebar);
+  border-color: var(--fb-border-subtle);
+}
+app-shell.fb-admin app-sidebar nav a {
+  min-height: 36px;
+  border-radius: 8px;
+}
+app-shell.fb-admin app-sidebar nav a[aria-current='page'] {
+  background: var(--fb-bg-surface);
+  color: var(--fb-text-primary);
+  border-color: transparent;
+}
+app-shell.fb-admin app-dashboard .linear-surface {
+  border: 1px solid var(--fb-border-subtle);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 3%);
+}
+app-shell.fb-admin app-dashboard .quick-grid .linear-btn-secondary {
+  background: var(--fb-mac-control);
+  border-color: transparent;
+  box-shadow: none;
+}
+app-shell.fb-admin app-dashboard .quick-grid .linear-btn-secondary:hover {
+  background: var(--fb-mac-control-hover);
+}
+app-shell.fb-admin app-dashboard .fb-button {
+  font-family: var(--font-sans);
+  font-weight: 510;
+}
+app-shell.fb-admin app-dashboard app-card h2:not([id^='metric-']) {
+  font-size: 17px;
+  line-height: 22px;
+}
+app-shell.fb-admin app-dashboard .sales-table thead {
+  font-size: 12px;
+}
+app-shell.fb-admin app-dashboard .sales-table tbody tr:hover {
+  background: var(--fb-bg-subtle);
+}
+@media (pointer: coarse) {
+  app-shell.fb-admin
+    app-header
+    :is(
+      [aria-controls='header-workspace-menu'],
+      [aria-controls='header-user-menu'],
+      [aria-label='Benachrichtigungen'],
+      [aria-label='Helles Design aktivieren'],
+      [aria-label='Dunkles Design aktivieren']
+    ) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  app-shell.fb-admin app-sidebar nav a {
+    min-height: 44px;
+  }
+}
+
+app-shell.fb-admin app-header [aria-controls='header-user-menu'] > div:first-child {
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+@media (pointer: coarse) {
+  app-shell.fb-admin
+    app-header
+    :is(#header-workspace-menu, #header-user-menu, #header-notification-menu)
+    button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+app-shell.fb-admin app-sidebar nav a[aria-current='page'] > svg {
+  color: var(--fb-text-primary);
+}
+app-shell.fb-admin app-header button:focus-visible,
+app-shell.fb-admin app-sidebar nav a:focus-visible {
+  outline: 2px solid var(--fb-control-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}

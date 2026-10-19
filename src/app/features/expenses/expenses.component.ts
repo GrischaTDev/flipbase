@@ -155,6 +155,31 @@ export class ExpensesComponent {
     })),
   ]);
 
+  readonly expensePeriodOptions = computed<readonly SelectOption<string>[]>(() => {
+    const center = this.expensePeriod() ?? localMonthKey();
+    const months = new Set<string>([center, localMonthKey()]);
+    for (let offset = -12; offset <= 12; offset++) months.add(shiftMonthKey(center, offset));
+    for (const expense of this.expenseService.expenses()) {
+      const month = expense.expense_date.slice(0, 7);
+      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) months.add(month);
+    }
+    const formatter = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
+    return [
+      { value: 'all', label: 'Alle Zeiträume' },
+      ...[...months]
+        .sort()
+        .reverse()
+        .map((value) => {
+          const [year, month] = value.split('-').map(Number);
+          return { value, label: formatter.format(new Date(year, month - 1, 1)) };
+        }),
+    ];
+  });
+
+  setExpensePeriod(value: string | null): void {
+    this.expensePeriod.set(!value || value === 'all' ? null : value);
+  }
+
   readonly expensePeriodLabel = computed(() => {
     const period = this.expensePeriod();
     if (period === null) return 'Alle Zeiträume';
@@ -383,8 +408,8 @@ export class ExpensesComponent {
     return rule ? nextExpenseOccurrence(rule, localDateKey()) : null;
   }
 
-  statusTone(status: ExpenseStatus): 'success' | 'caution' {
-    return status === 'paid' ? 'success' : 'caution';
+  statusTone(status: ExpenseStatus): 'success' | 'neutral' {
+    return status === 'paid' ? 'success' : 'neutral';
   }
 
   private async loadDocumentSummary(): Promise<void> {

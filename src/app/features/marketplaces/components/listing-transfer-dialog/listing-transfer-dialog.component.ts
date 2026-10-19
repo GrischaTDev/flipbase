@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleinanzeigen-accounts.component';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { kleinanzeigenCategories } from '../../models/kleinanzeigen-categories';
@@ -22,6 +23,7 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   FormControl,
@@ -66,6 +68,7 @@ import {
 @Component({
   selector: 'app-listing-transfer-dialog',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     MarketplacePlatformPickerComponent,
     KleinanzeigenAccountsComponent,
@@ -90,6 +93,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ListingTransferDialogComponent {
+  readonly kleinanzeigenAccount = viewChild(KleinanzeigenAccountsComponent);
   readonly source = input.required<MarketplaceListingReference>();
   readonly targetConnectionId = input<string | null>(null);
   readonly closed = output<void>();

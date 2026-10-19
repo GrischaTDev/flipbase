@@ -1,0 +1,42 @@
+/* Fensterrolle aus dem macOS-Kit: Sheet/Small Dialog, jeweils Radius 16px.
+ * Kopf-/Formularabstände und Touchziele sind bewusste Webanpassungen.
+ * Diese Regeln bleiben getrennt von allgemeinen Inhaltskarten.
+ */
+:root {
+  --fb-dialog-bg: #fff;
+  --fb-dialog-edge: rgb(0 0 0 / 10%);
+  --fb-dialog-shadow: 0 0 0.5px rgb(0 0 0 / 35%), 0 18px 27px rgb(0 0 0 / 30%);
+  --fb-dialog-overlay: rgb(0 0 0 / 28%);
+}
+html.dark {
+  --fb-dialog-bg: #1e1e1e;
+  --fb-dialog-edge: rgb(255 255 255 / 20%);
+  --fb-dialog-shadow: 0 0 0.5px rgb(0 0 0 / 80%), 0 18px 27px rgb(0 0 0 / 57%);
+  --fb-dialog-overlay: rgb(0 0 0 / 45%);
+}
+@media screen {
+  .fb-dialog-overlay {
+    background: var(--fb-dialog-overlay);
+  }
+  .fb-dialog-overlay > .fb-dialog-surface {
+    --fb-bg-surface: var(--fb-dialog-bg);
+    background: var(--fb-dialog-bg);
+    border: 1px solid var(--fb-dialog-edge);
+    box-shadow: var(--fb-dialog-shadow);
+  }
+  .fb-dialog-surface:not(.h-dvh) {
+    border-radius: 16px;
+  }
+  .fb-dialog-surface footer app-button {
+    min-width: 80px;
+  }
+  .fb-dialog-surface footer app-button > :is(button, a) {
+    width: 100%;
+  }
+  @media (pointer: coarse) {
+    .fb-modal-close {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { ArticlePickerComponent } from '../../../../shared/components/article-picker/article-picker.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
@@ -68,6 +69,10 @@ describe('Persönliche eBay-Oberfläche', () => {
   };
   beforeAll(async () => {
     const restoreBindings = await prepareMarketplaceRendering([
+      {
+        type: MarketplaceAccountHeaderComponent,
+        path: 'src/app/shared/components/marketplace-account-header/marketplace-account-header.component.ts',
+      },
       { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
       {
         type: EbayListingPerformanceComponent,
@@ -335,7 +340,8 @@ describe('Persönliche eBay-Oberfläche', () => {
     const dialog = element.querySelector<HTMLElement>('[role="dialog"]');
     expect(dialog?.textContent).toContain('Erneut mit eBay verbinden');
     expect(dialog?.textContent).toContain('Verbindung trennen');
-    expect(dialog?.textContent).toContain('ein eBay-Konto');
+    expect(dialog?.textContent).toContain('Berechtigungen');
+    expect(dialog?.textContent).toContain('Letzter Abruf');
     const results = await axe.run(dialog!, { rules: { 'color-contrast': { enabled: false } } });
     expect(results.violations).toEqual([]);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

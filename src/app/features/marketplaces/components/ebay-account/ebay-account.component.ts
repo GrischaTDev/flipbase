@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,6 +13,7 @@ import {
   signal,
   untracked,
   viewChild,
+  type TemplateRef,
 } from '@angular/core';
 import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -42,6 +44,7 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
 @Component({
   selector: 'app-ebay-account',
   imports: [
+    MarketplaceAccountHeaderComponent,
     DatePipe,
     NgTemplateOutlet,
     ModalShellComponent,
@@ -78,6 +81,8 @@ export class EbayAccountComponent {
     }
   });
   readonly settingsOpen = signal(false);
+  readonly actionsInFooter = input(false);
+  readonly dialogActions = viewChild<TemplateRef<unknown>>('dialogActionsTemplate');
   readonly accountBusy = computed(
     () => this.store.isLoading() || this.store.isReading() || this.store.trafficLoading(),
   );

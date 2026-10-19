@@ -179,15 +179,15 @@
                 </strong>
               </div>
 
-              <button
+              <app-button
                 type="button"
-                (click)="onBundleCandidate(candidate)"
+                (clicked)="onBundleCandidate(candidate)"
                 [disabled]="isBundling()"
-                class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-50"
+                variant="primary"
+                [icon]="sparklesIcon"
               >
-                <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></svg>
                 <span>Als Sammelpaket bündeln</span>
-              </button>
+              </app-button>
             </div>
           </div>
         }
@@ -197,20 +197,13 @@
 
   <!-- Status Filter Tabs -->
   <div class="flex items-center gap-2 border-b border-fb-border pb-1 text-xs">
-    <button
-      type="button"
-      (click)="selectedStatusTab.set('ready_to_pack')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-amber-600]="selectedStatusTab() === 'ready_to_pack'"
-      [class.text-fb-text-primary]="selectedStatusTab() === 'ready_to_pack'"
-      [class.border-amber-500]="selectedStatusTab() === 'ready_to_pack'"
-      [class.bg-fb-surface]="selectedStatusTab() !== 'ready_to_pack'"
-      [class.text-fb-text-secondary]="selectedStatusTab() !== 'ready_to_pack'"
-      [class.border-fb-border]="selectedStatusTab() !== 'ready_to_pack'"
+    <app-button
+      variant="segment"
+      [ariaPressed]="selectedStatusTab() === 'ready_to_pack'"
+      [icon]="packageIcon"
+      (clicked)="selectedStatusTab.set('ready_to_pack')"
+      >Zu verpacken ({{ fulfillmentService.readyToPackCount() }})</app-button
     >
-      <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5"></svg>
-      <span>Zu verpacken ({{ fulfillmentService.readyToPackCount() }})</span>
-    </button>
 
     <button
       type="button"
@@ -370,63 +363,63 @@
                  Nummer ueber "Sendungsnummer erfassen" eintragen. -->
 
             <!-- Print Label Button -->
-            <button
+            <app-button
               type="button"
-              (click)="openLabelModal(order)"
-              class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+              (clicked)="openLabelModal(order)"
+              variant="primary"
+              [icon]="printIcon"
             >
-              <svg [lucideIcon]="printIcon" class="w-3.5 h-3.5"></svg>
               <span>Versandetikett drucken</span>
-            </button>
+            </app-button>
 
             <!-- Packing Slip Button -->
-            <button
+            <app-button
               type="button"
-              (click)="openSlipModal(order)"
-              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              (clicked)="openSlipModal(order)"
+              variant="secondary"
+              [icon]="fileIcon"
             >
-              <svg [lucideIcon]="fileIcon" class="w-3.5 h-3.5 text-fb-text-muted"></svg>
               <span>Lieferschein</span>
-            </button>
+            </app-button>
 
             <!-- Unbundle Button if bundled and not yet shipped -->
             @if (order.is_bundled && order.status === 'ready_to_pack') {
-              <button
+              <app-button
                 type="button"
-                (click)="onUnbundleOrder(order)"
-                class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-rose-300"
+                (clicked)="onUnbundleOrder(order)"
+                variant="secondary"
                 title="Sammelpaket wieder aufteilen"
+                [icon]="returnIcon"
               >
-                <svg [lucideIcon]="returnIcon" class="w-3.5 h-3.5"></svg>
                 <span>Entbündeln</span>
-              </button>
+              </app-button>
             }
 
             <!-- Tracking / Ship Button -->
             @if (order.status !== 'delivered') {
-              <button
+              <app-button
                 type="button"
-                (click)="openTrackingModal(order)"
-                class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-amber-300"
+                (clicked)="openTrackingModal(order)"
+                variant="secondary"
+                [icon]="truckIcon"
               >
-                <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5"></svg>
                 <span>{{
                   order.tracking_number ? 'Tracking bearbeiten' : 'Als Versendet markieren'
                 }}</span>
-              </button>
+              </app-button>
             }
 
             @if (order.status === 'shipped') {
-              <button
+              <app-button
                 type="button"
-                (click)="markDelivered(order.id)"
+                (clicked)="markDelivered(order.id)"
                 [disabled]="deliveringOrderId() !== null"
-                class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-emerald-400"
+                variant="secondary"
                 title="Als Zugestellt markieren"
+                [icon]="checkIcon"
               >
-                <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
                 <span>Zugestellt</span>
-              </button>
+              </app-button>
             }
           </div>
         </div>
@@ -529,8 +522,7 @@
 
       <div modal-footer class="flex items-center justify-between w-full no-print">
         <app-button variant="secondary" (clicked)="closeLabelModal()"> Schließen </app-button>
-        <app-button variant="primary" (clicked)="printDocument()">
-          <svg [lucideIcon]="printIcon" class="w-4 h-4 mr-1.5"></svg>
+        <app-button variant="primary" (clicked)="printDocument()" [icon]="printIcon">
           <span>Jetzt drucken (DIN-A6)</span>
         </app-button>
       </div>
@@ -611,8 +603,7 @@
 
       <div modal-footer class="flex items-center justify-between w-full no-print">
         <app-button variant="secondary" (clicked)="closeSlipModal()"> Schließen </app-button>
-        <app-button variant="primary" (clicked)="printDocument()">
-          <svg [lucideIcon]="printIcon" class="w-4 h-4 mr-1.5"></svg>
+        <app-button variant="primary" (clicked)="printDocument()" [icon]="printIcon">
           <span>Lieferschein drucken</span>
         </app-button>
       </div>
@@ -654,8 +645,12 @@
 
         <div class="flex justify-end gap-2 pt-2 border-t border-fb-border">
           <app-button variant="secondary" (clicked)="closeTrackingModal()"> Abbrechen </app-button>
-          <app-button type="submit" variant="primary" [disabled]="trackingForm.invalid">
-            <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5 mr-1.5"></svg>
+          <app-button
+            type="submit"
+            variant="primary"
+            [disabled]="trackingForm.invalid"
+            [icon]="checkIcon"
+          >
             <span>Speichern & Versenden</span>
           </app-button>
         </div>

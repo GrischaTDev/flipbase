@@ -3,7 +3,13 @@ import { mockMarketplaceOverview } from './marketplace-overview-fixture';
 import { workspaceId } from './marketplace-account-fixture';
 export async function mockKleinanzeigen(
   page: Page,
-  options: { syncFailure?: boolean; quotaUsed?: number; available?: boolean } = {},
+  options: {
+    syncFailure?: boolean;
+    quotaUsed?: number;
+    available?: boolean;
+    connectionStatus?: 'connected' | 'needs_login';
+    publishingAllowed?: boolean;
+  } = {},
 ) {
   await mockMarketplaceOverview(page);
   const observedAt = '2026-10-16T06:00:00Z';
@@ -17,12 +23,17 @@ export async function mockKleinanzeigen(
     externalAccountId: '123',
     displayName: 'Kleinanzeigen Testkonto A',
     accountType: 'private',
-    status: 'connected',
+    status: options.connectionStatus ?? 'connected',
     lastSyncedAt: observedAt,
     listingCount: 26,
     activeCount: null,
     quota: { used: options.quotaUsed ?? 8, observedAt, source: 'account_settings' },
-    localGrant: { active: true, canPublish: false, generation: 1, expiresAt },
+    localGrant: {
+      active: true,
+      canPublish: options.publishingAllowed ?? false,
+      generation: 1,
+      expiresAt,
+    },
     sync: null,
   };
   const other = {
@@ -45,7 +56,7 @@ export async function mockKleinanzeigen(
     status: 'connected',
     generation: 1,
     expiresAt,
-    canPublish: false,
+    canPublish: options.publishingAllowed ?? false,
   };
   await page.addInitScript(
     ({ binding, available, syncFailure }) => {

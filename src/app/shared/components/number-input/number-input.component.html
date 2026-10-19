@@ -1,27 +1,37 @@
-<div class="relative flex items-center">
-  <input
-    type="number"
-    [id]="effectiveId()"
-    [value]="value()"
-    [step]="effectiveStep()"
-    [min]="effectiveMin()"
-    [max]="effectiveMax()"
-    [placeholder]="effectivePlaceholder()"
-    [attr.aria-label]="effectiveAriaLabel() || null"
-    [attr.aria-describedby]="ariaDescribedby() || null"
-    [attr.aria-invalid]="ariaInvalid() ? 'true' : null"
-    [disabled]="effectiveDisabled()"
-    (input)="handleInput($event)"
-    (blur)="handleBlur()"
-    class="linear-input min-h-8 w-full rounded-md px-2.5 py-1 text-[13px] transition-colors"
-    [class.pr-8]="!!effectiveUnit()"
-    [class.font-mono]="effectiveAsCurrency()"
-    [class.font-bold]="effectiveAsCurrency()"
-  />
+<app-form-field
+  [controlId]="effectiveId()"
+  [label]="label()"
+  [helpText]="helpText()"
+  [error]="error()"
+>
+  <div class="relative flex items-center">
+    <input
+      type="number"
+      [id]="effectiveId()"
+      [value]="value()"
+      [step]="effectiveStep()"
+      [min]="effectiveMin()"
+      [max]="effectiveMax()"
+      [placeholder]="effectivePlaceholder()"
+      [attr.aria-label]="effectiveAriaLabel() || null"
+      [attr.aria-describedby]="
+        ariaDescribedby() ||
+        (error() ? effectiveId() + '-error' : helpText() ? effectiveId() + '-help' : null)
+      "
+      [attr.aria-invalid]="ariaInvalid() || error() ? 'true' : null"
+      [disabled]="effectiveDisabled()"
+      (input)="handleInput($event)"
+      (blur)="handleBlur()"
+      class="linear-input min-h-7 w-full rounded-md px-[var(--fb-field-padding-x)] py-1 text-[13px] transition-colors"
+      [class.pr-8]="!!effectiveUnit()"
+      [class.font-mono]="effectiveAsCurrency()"
+      [class.font-bold]="effectiveAsCurrency()"
+    />
 
-  @if (effectiveUnit()) {
-    <span class="pointer-events-none absolute right-3 text-[13px] text-fb-text-dimmed">
-      {{ effectiveUnit() }}
-    </span>
-  }
-</div>
+    @if (effectiveUnit()) {
+      <span class="pointer-events-none absolute right-3 text-[13px] text-fb-text-dimmed">
+        {{ effectiveUnit() }}
+      </span>
+    }
+  </div>
+</app-form-field>

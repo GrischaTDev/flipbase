@@ -1,17 +1,12 @@
-<div class="space-y-1.5 w-full">
-  @if (label()) {
-    <label
-      [for]="fieldId()"
-      class="block text-[13px] font-semibold text-fb-text-primary"
-      [class.sr-only]="labelHidden()"
-    >
-      {{ label() }}
-      @if (required()) {
-        <span data-required-indicator aria-hidden="true" class="text-fb-primary">*</span>
-      }
-    </label>
-  }
-
+<app-form-field
+  [controlId]="fieldId()"
+  [label]="label()"
+  [labelHidden]="labelHidden()"
+  [required]="required()"
+  [helpText]="helpText()"
+  [error]="error()"
+>
+  <ng-content select="[fieldActions]" ngProjectAs="[fieldActions]" />
   <div class="relative flex items-center">
     @if (prefixIcon(); as pIcon) {
       <div class="absolute left-3 flex items-center pointer-events-none text-fb-text-muted">
@@ -73,7 +68,7 @@
         [attr.aria-label]="passwordVisible() ? hidePasswordLabel() : showPasswordLabel()"
         [attr.aria-pressed]="passwordVisible()"
         (click)="togglePasswordVisibility()"
-        class="absolute inset-y-0 right-0 flex min-w-10 items-center justify-center rounded-r-lg text-fb-text-muted hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-40"
+        class="absolute inset-y-0 right-0 flex min-w-10 pointer-coarse:min-w-11 items-center justify-center rounded-r-lg text-fb-text-muted hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-40"
       >
         <svg
           [lucideIcon]="passwordVisible() ? eyeOffIcon : eyeIcon"
@@ -85,7 +80,7 @@
       <button
         type="button"
         (click)="handleClear()"
-        class="absolute right-2.5 p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition-colors cursor-pointer"
+        class="absolute right-1 flex size-6 items-center justify-center pointer-coarse:size-11 rounded-full text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition-colors cursor-pointer"
         aria-label="Eingabe leeren"
       >
         <svg [lucideIcon]="clearIcon" class="w-3.5 h-3.5" aria-hidden="true"></svg>
@@ -96,15 +91,4 @@
       </span>
     }
   </div>
-
-  @if (error()) {
-    <p [id]="fieldId() + '-error'" class="flex items-center gap-1.5 text-xs text-rose-400">
-      <svg [lucideIcon]="errorIcon" class="w-3.5 h-3.5 shrink-0" aria-hidden="true"></svg>
-      <span>{{ error() }}</span>
-    </p>
-  } @else if (helpText()) {
-    <p [id]="fieldId() + '-help'" class="text-xs text-fb-text-muted leading-relaxed">
-      {{ helpText() }}
-    </p>
-  }
-</div>
+</app-form-field>

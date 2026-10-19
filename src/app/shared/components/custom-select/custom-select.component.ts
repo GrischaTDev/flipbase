@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,7 +20,8 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import {
   LucideDynamicIcon,
   LucideIconInput,
-  LucideChevronDown as ChevronDown,
+  LucideChevronsUpDown,
+  LucidePlus,
   LucideCheck as Check,
 } from '@lucide/angular';
 
@@ -37,7 +39,7 @@ let nextCustomSelectId = 0;
 
 @Component({
   selector: 'app-custom-select',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, FormFieldComponent],
   templateUrl: './custom-select.component.html',
   styleUrl: './custom-select.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -77,6 +79,34 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly placeholder = input<string>('Bitte wählen...');
   readonly variant = input<'default' | 'pill' | 'filter' | 'toolbar'>('default');
   readonly size = input<'sm' | 'md'>('sm');
+  protected readonly popupChevron = LucideChevronsUpDown;
+  protected readonly actionIcon = LucidePlus;
+  protected readonly triggerClasses = computed(() => {
+    const base =
+      'fb-select-trigger flex w-full cursor-pointer items-center gap-2 overflow-hidden border text-[13px] leading-4 font-medium text-[var(--fb-control-text)] [font-family:var(--fb-control-font)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--fb-control-focus)] disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:min-h-11';
+    if (this.variant() === 'pill') {
+      return (
+        base +
+        ' min-h-7 rounded-md px-3 ' +
+        (this.selectedOption()?.colorClass ||
+          'border-transparent bg-[var(--fb-control-bg)] hover:bg-[var(--fb-control-hover)]')
+      );
+    }
+    if (this.variant() === 'filter' || this.variant() === 'toolbar') {
+      return (
+        base +
+        ' min-h-7 rounded-md border-transparent bg-[var(--fb-control-bg)] pl-3 hover:bg-[var(--fb-control-hover)]'
+      );
+    }
+    return (
+      base +
+      ' rounded-md border-transparent bg-[var(--fb-control-bg)] pl-3 hover:bg-[var(--fb-control-hover)] ' +
+      'min-h-7'
+    );
+  });
+  readonly label = input('');
+  readonly helpText = input('');
+  readonly error = input<string | null>(null);
   readonly disabled = input<boolean>(false);
   readonly widthClass = input<string>('w-full');
   readonly minPanelWidth = input(160);
@@ -86,14 +116,6 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly actionLabel = input<string | null>(null);
   readonly required = input(false);
   readonly action = output<void>();
-
-  /**
-   * Formularfelder folgen der gemessenen Admin-Referenz: 32 px im normalen
-   * Zustand. `md` bleibt als bewusst groessere 36-px-Variante verfuegbar.
-   */
-  readonly groessenKlasse = computed(() =>
-    this.size() === 'sm' ? 'min-h-8 px-2.5 py-1 text-[13px]' : 'min-h-9 px-3 py-1.5 text-[13px]',
-  );
 
   readonly isOpen = signal<boolean>(false);
   readonly isDisabled = signal<boolean>(false);
@@ -123,7 +145,6 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       : null,
   );
 
-  readonly chevronIcon = ChevronDown;
   readonly checkIcon = Check;
 
   private onChange: (value: T | null) => void = () => undefined;
@@ -305,6 +326,11 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   triggerAction(): void {
     if (this.effectiveDisabled()) return;
     this.closeDropdown(false);
+    // Ein nachfolgender Dialog merkt sich diesen bleibenden Auslöser,
+    // statt den beim Schließen des Menüs entfernten Aktionsbutton.
+    this.suppressSearchFocus = true;
+    this.trigger().nativeElement.focus();
+    this.suppressSearchFocus = false;
     this.action.emit();
   }
 

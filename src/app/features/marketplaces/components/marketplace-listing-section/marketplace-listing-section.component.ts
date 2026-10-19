@@ -61,6 +61,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 export class MarketplaceListingSectionComponent {
   readonly section = input.required<MarketplaceOverviewSection>();
   readonly showAccountManagement = input(false);
+  readonly collapsible = input(true);
   readonly accountManagementRequested = output<void>();
   readonly toggled = output<void>();
   readonly transferPublished = output<KleinanzeigenListingJob>();
@@ -122,12 +123,18 @@ export class MarketplaceListingSectionComponent {
       ? { connectionId: this.section().account.connectionId }
       : null,
   );
-  readonly accountStatusTone = computed(() =>
-    ['needs_login', 'blocked', 'disconnected'].includes(this.section().account.status)
-      ? 'caution'
-      : 'neutral',
+  readonly accountStatusTone = computed(
+    () =>
+      this.section().account.connectionStatus?.tone ??
+      (['needs_login', 'blocked', 'disconnected'].includes(this.section().account.status)
+        ? 'caution'
+        : this.section().account.status === 'connected'
+          ? 'success'
+          : 'neutral'),
   );
   readonly accountStatus = computed(() => {
+    const connectionStatus = this.section().account.connectionStatus;
+    if (connectionStatus) return connectionStatus.label;
     const status = this.section().account.status;
     return (
       (

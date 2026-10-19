@@ -1,13 +1,12 @@
-<div class="w-full space-y-1.5">
-  @if (label()) {
-    <label
-      [for]="fieldId()"
-      class="block text-[13px] font-semibold text-fb-text-primary"
-      [class.sr-only]="labelHidden()"
-      >{{ label() }}</label
-    >
-  }
-
+<app-form-field
+  [controlId]="fieldId()"
+  [label]="label()"
+  [labelHidden]="labelHidden()"
+  [error]="createError()"
+  [helpText]="
+    showPendingHint() ? 'Noch nicht übernommen – Marke auswählen oder neu anlegen.' : helpText()
+  "
+>
   <div class="relative">
     <input
       #field
@@ -25,7 +24,7 @@
         createError()
           ? fieldId() + '-error'
           : showPendingHint()
-            ? fieldId() + '-pending'
+            ? fieldId() + '-help'
             : helpText()
               ? fieldId() + '-help'
               : null
@@ -37,14 +36,14 @@
       (click)="openList()"
       (input)="onInput($event)"
       (keydown)="onKeydown($event)"
-      class="linear-input min-h-8 w-full rounded-lg py-1.5 pl-3 pr-8 text-[13px] outline-none transition-colors focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
+      class="linear-input min-h-7 w-full rounded-lg py-1 pl-[var(--fb-field-padding-x)] pr-8 pointer-coarse:pr-12 text-[13px] outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
     />
     @if (query() && !isDisabled()) {
       <button
         type="button"
         (click)="clear()"
         aria-label="Marke entfernen"
-        class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
+        class="absolute right-1 top-1/2 flex min-h-6 min-w-6 -translate-y-1/2 items-center justify-center rounded-md p-1 pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
       >
         <svg [lucideIcon]="clearIcon" class="size-3.5" aria-hidden="true"></svg>
       </button>
@@ -53,7 +52,7 @@
       <div
         #panel
         [attr.popover]="supportsPopover ? 'manual' : null"
-        class="brand-picker-panel fb-popover-enter absolute left-0 top-full z-50 mt-1.5 w-full rounded-xl border border-fb-border bg-fb-surface p-1.5 shadow-lg"
+        class="brand-picker-panel fb-popover-enter absolute left-0 top-full z-50 mt-1.5 w-full rounded-xl border border-[var(--fb-control-menu-border)] bg-[var(--fb-control-menu)] p-1 shadow-[0_8px_32px_rgb(0_0_0/0.18)]"
         [style.left.px]="supportsPopover ? panelPosition().left : null"
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
@@ -64,7 +63,7 @@
             <button
               type="button"
               (click)="retryLoad()"
-              class="min-h-8 rounded-lg px-2 text-[13px] font-semibold text-fb-primary transition-colors hover:bg-fb-primary-subtle"
+              class="min-h-8 rounded-lg px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-primary-subtle"
             >
               Erneut versuchen
             </button>
@@ -95,11 +94,15 @@
               [attr.aria-selected]="value() === brand.id"
               (click)="choose(brand)"
               (mousemove)="activeIndex.set(index)"
-              class="flex min-h-9 w-full items-center rounded-md px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary transition-colors"
+              class="flex min-h-6 w-full items-center gap-2 rounded-md px-2.5 py-0.5 pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary transition-colors"
               [class.bg-fb-surface-alt]="activeIndex() === index"
               [class.font-semibold]="value() === brand.id"
             >
-              <span class="truncate">{{ brand.name }}</span>
+              <span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                @if (value() === brand.id) {
+                  <svg [lucideIcon]="checkIcon" class="size-4"></svg>
+                }</span
+              ><span class="truncate">{{ brand.name }}</span>
             </button>
           }
           @if (canCreate()) {
@@ -112,7 +115,7 @@
               [disabled]="creating()"
               (click)="createFromQuery()"
               (mousemove)="activeIndex.set(createIndex())"
-              class="flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] font-semibold text-fb-primary transition-colors disabled:opacity-60"
+              class="flex min-h-6 w-full items-center gap-2 rounded-md bg-[var(--fb-control-bg)] px-2.5 py-0.5 pointer-coarse:min-h-11 text-left text-[13px] font-medium text-fb-text-primary transition-colors disabled:opacity-60"
               [class.bg-fb-primary-subtle]="activeIndex() === createIndex()"
             >
               <svg [lucideIcon]="plusIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
@@ -123,18 +126,4 @@
       </div>
     }
   </div>
-
-  @if (createError(); as message) {
-    <p [id]="fieldId() + '-error'" class="text-xs text-rose-700 dark:text-rose-400" role="alert">
-      {{ message }}
-    </p>
-  } @else if (showPendingHint()) {
-    <p [id]="fieldId() + '-pending'" class="text-xs text-fb-text-muted">
-      Noch nicht übernommen – Marke auswählen oder neu anlegen.
-    </p>
-  } @else if (helpText()) {
-    <p [id]="fieldId() + '-help'" class="text-xs leading-relaxed text-fb-text-muted">
-      {{ helpText() }}
-    </p>
-  }
-</div>
+</app-form-field>

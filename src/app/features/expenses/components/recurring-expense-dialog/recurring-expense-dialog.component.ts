@@ -1,3 +1,4 @@
+import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -56,6 +57,7 @@ function positiveInteger(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-recurring-expense-dialog',
   imports: [
+    FormFieldComponent,
     ReactiveFormsModule,
     ModalShellComponent,
     ButtonComponent,

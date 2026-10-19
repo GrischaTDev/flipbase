@@ -14,6 +14,8 @@ Verbraucher berücksichtigt. Gelöschte Pfade bleiben dabei auflösbar.
 
 - **Anwendungstests:** Nur direkt geänderte oder davon abhängige Modell-, DOM-
   und Angular-Testdateien. Nur benötigte Testsuiten bekommen einen Job.
+  Die vollständige Angular-Auswahl wird mit höchstens etwa100 Dateien je Gruppe
+  aufgeteilt. Alle Dateien bleiben enthalten; das Zehn-Minuten-Limit je Job bleibt bestehen.
 - **Browserfälle:** Die berührten Funktionen werden über die ausdrücklich
   gepflegte Zuordnung `featureSpecs` und Marketplace-Unterbereiche bestehenden
   Browserdateien zugeordnet. Bei gezielter Auswahl laufen die zugehörigen Dateien
@@ -91,6 +93,14 @@ Teilgruppen sämtliche vorgesehenen Fälle genau einmal enthalten.
 Die ausgewählten Fälle, Wartezeiten und Schutzprüfung der
 verbleibenden Sitzungsdauer bleiben unverändert. Ein Fehler stoppt vor der
 nächsten Gruppe und bleibt der Exitcode des Gesamtaufrufs.
+
+Die CI verteilt die gewählten Browserbereiche auf eigene Matrixjobs. Bei einer
+umfassenden Auswahl erhält jeder Bereich bis zu drei Teilgruppen (höchstens so viele wie Dateien), bei gezielter Auswahl
+eine. Jeder Job besitzt eine eigene lokale Datenbank und Testsitzung. Er führt
+nur seinen Bereich und seine Teilgruppe aus. Das bisherige 30-Minuten-Limit und
+alle Fälle bleiben erhalten; Fehler eines beliebigen Jobs blockieren die gemeinsame
+Pflichtfreigabe. Andere Gruppen werden bei einem Fehler nicht vorzeitig beendet,
+damit ihre eigenen Ergebnisse und eindeutig benannten Aufzeichnungen erhalten bleiben.
 
 ## Freigabe und vollständige Regression
 

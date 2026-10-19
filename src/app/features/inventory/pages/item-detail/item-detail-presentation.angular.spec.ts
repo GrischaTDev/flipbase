@@ -1,3 +1,4 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -59,6 +60,16 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  registerSignalInputs(ButtonComponent, [
+    'link',
+    'href',
+    'target',
+    'queryParams',
+    'ariaLabel',
+    'variant',
+    'disabled',
+    'loading',
+  ]);
   registerSignalInputs(CustomSelectComponent, [
     'options',
     'value',
@@ -72,9 +83,10 @@ beforeAll(async () => {
     'triggerId',
   ]);
   registerSignalInputs(CostStateComponent, ['state']);
-  registerSignalInputs(RecordHistoryContainer, ['entityType', 'entityId', 'heading']);
+  registerSignalInputs(RecordHistoryContainer, ['entityType', 'entityId', 'heading', 'appearance']);
   registerSignalInputs(RecordHistoryComponent, [
     'heading',
+    'appearance',
     'events',
     'loading',
     'error',
@@ -223,7 +235,7 @@ describe('ItemDetailComponent – Inventardarstellung', () => {
       true,
     );
     expect(host.querySelector('app-custom-select')).toBeNull();
-    const saleLinks = host.querySelectorAll<HTMLAnchorElement>('[data-item-sale-link]');
+    const saleLinks = host.querySelectorAll<HTMLAnchorElement>('[data-item-sale-link] a');
     expect(saleLinks).toHaveLength(3);
     expect(Array.from(saleLinks).map((link) => link.getAttribute('href'))).toEqual([
       '/sales?saleId=sale-active',

@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { readSelectionFiles, selectAffectedTests } from './affected-tests.mjs';
+import { readSelectionFiles, selectAffectedTests, buildBrowserMatrix } from './affected-tests.mjs';
 
 const executeFile = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -99,7 +99,7 @@ const coreTests = [
     ]),
   ),
   ...[
-    'Sichtbarkeit bleibt nach Neuladen erhalten und Accountauswahl trennt Listen @core-smoke',
+    'Sichtbarkeit bleibt nach Neuladen erhalten und alle Accountlisten bleiben getrennt @core-smoke',
     'Ein Vinted-Ausfall erhält die eBay-Inserate und bietet keine fremden Filter an @core-smoke',
   ].map((title) => ['marketplace-overview.spec.ts', title]),
   ...['light', 'dark'].flatMap((theme) =>
@@ -365,7 +365,11 @@ const coreTests = [
   ],
   [
     'sidebar-navigation.spec.ts',
-    'hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke',
+    'hält die Sidebar kompakt und hebt den aktiven Bereich neutral hervor @pr-smoke',
+  ],
+  [
+    'typography.spec.ts',
+    'verwendet die Systemschrift im Verwaltungsbereich und Inter als lokalen Fallback @core-smoke',
   ],
   ...[1440, 1024, 768, 390, 320].map((width) => [
     'vinted-account-grid.spec.ts',
@@ -441,7 +445,7 @@ const regressionTests = [
   ],
   [
     'product-integration.spec.ts',
-    'Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan öffnet den Picker @pr-smoke',
+    'Produktbild bleibt nach erneutem Laden sichtbar und unbekannter Scan erlaubt manuelle Auswahl @pr-smoke',
   ],
   [
     'purchase-dropdown-layer.spec.ts',
@@ -665,4 +669,45 @@ test('CI installiert den vollständigen Chromium und prüft die echte MV3-Wieder
     ci,
     /name: Install Chromium for browser and extension tests\s+run: npx playwright install --with-deps chromium/u,
   );
+});
+
+test('die echten CI-Browserteilgruppen enthalten die vollständige Auswahl genau einmal', async () => {
+  const plan = selectAffectedTests(
+    ['src/styles.scss', 'e2e/responsive-admin-layout.spec.ts', 'e2e/marketplace-overview.spec.ts'],
+    await readSelectionFiles(root),
+  );
+  assert.equal(plan.full, true);
+  const env = { AFFECTED_TEST_PLAN: JSON.stringify(plan) };
+  const { selected: complete } = await listTests('playwright.affected.config.ts', [], env);
+  const grouped = [];
+  for (const { project, shard } of buildBrowserMatrix(plan)) {
+    const { selected } = await listTests(
+      'playwright.affected.config.ts',
+      ['--project=' + project, '--shard=' + shard],
+      env,
+    );
+    assert.ok(selected.length > 0, project + ' ' + shard);
+    grouped.push(...selected);
+  }
+  assert.equal(new Set(keys(grouped)).size, grouped.length);
+  assert.deepEqual(keys(grouped), keys(complete));
+});
+
+test('CI verlangt alle Browsermatrixjobs innerhalb der bisherigen Schutzgrenzen', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const ci = await readFile('.github/workflows/ci.yml', 'utf8');
+  const browserJob = ci.split('  browser-smoke:')[1]?.split('  pwa:')[0] ?? '';
+  assert.match(browserJob, /fail-fast: false/);
+  assert.ok(browserJob.includes('matrix: ${{ fromJSON(needs.changes.outputs.browser_matrix) }}'));
+  assert.ok(browserJob.includes('AFFECTED_BROWSER_PROJECT: ${{ matrix.project }}'));
+  assert.ok(browserJob.includes('browser --shard=${{ matrix.shard }}'));
+  assert.match(browserJob, /timeout-minutes: 30/);
+  assert.ok(
+    browserJob.includes(
+      'name: browser-smoke-failure-${{ matrix.project }}-${{ strategy.job-index }}',
+    ),
+  );
+  const required = ci.split('  required-checks:')[1]?.split('  deploy:')[0] ?? '';
+  assert.ok(required.includes('browser-smoke'));
+  assert.ok(required.includes('BROWSER_RESULT: ${{ needs.browser-smoke.result }}'));
 });

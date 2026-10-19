@@ -3,7 +3,12 @@ import { accountIds, mockMarketplace, workspaceId } from './marketplace-account-
 
 export async function mockMarketplaceOverview(
   page: Page,
-  options: { vintedFailure?: boolean; multipleWorkspaces?: boolean; deniedVinted?: boolean } = {},
+  options: {
+    vintedFailure?: boolean;
+    multipleWorkspaces?: boolean;
+    deniedVinted?: boolean;
+    pausedSecondAccount?: boolean;
+  } = {},
 ) {
   const calls = await mockMarketplace(page);
   await page.route('**/functions/v1/kleinanzeigen-account', (route) => {
@@ -63,7 +68,7 @@ export async function mockMarketplaceOverview(
           executionMode: 'cloud',
           displayName: 'Testkonto ' + String.fromCharCode(65 + index),
           externalAccountId: String(100 + index),
-          status: 'connected',
+          status: index === 1 && options.pausedSecondAccount ? 'paused' : 'connected',
           capabilities: {},
           allowedActions: [],
           lastSyncedAt: '2026-10-15T10:00:00Z',

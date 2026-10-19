@@ -6,11 +6,11 @@ import {
   linkedSignal,
   output,
 } from '@angular/core';
-import { LucideImage } from '@lucide/angular';
+import { LucideImage, LucideShirt } from '@lucide/angular';
 
 @Component({
   selector: 'app-product-thumbnail',
-  imports: [LucideImage],
+  imports: [LucideImage, LucideShirt],
   templateUrl: './product-thumbnail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'inline-flex shrink-0 align-middle', '[class.w-full]': "size() === 'reference'" },
@@ -18,6 +18,18 @@ import { LucideImage } from '@lucide/angular';
 export class ProductThumbnailComponent {
   readonly src = input<string | null>(null);
   readonly alt = input('');
+  readonly garmentPlaceholder = computed(() =>
+    ['sm', 'md', 'listing', 'listing-detail', 'gallery'].includes(this.size()),
+  );
+  readonly placeholderColor = computed(() => {
+    if (!this.garmentPlaceholder()) return null;
+    const colors = ['#e6d6bf', '#d2d9dc', '#b7c2b0', '#b3c3d6', '#d8cbc7'];
+    const hash = Array.from(this.alt()).reduce(
+      (value, char) => (value * 31 + char.charCodeAt(0)) >>> 0,
+      0,
+    );
+    return colors[hash % colors.length];
+  });
   readonly size = input<
     | 'sm'
     | 'md'

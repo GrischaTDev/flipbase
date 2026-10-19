@@ -36,14 +36,14 @@
                 }
 
                 @if (row.captureRemaining > 0 && canCaptureIndividual()) {
-                  <button
+                  <app-button
                     type="button"
                     data-capture-individual
-                    (click)="captureIndividual.emit(row.id)"
-                    class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    (clicked)="captureIndividual.emit(row.id)"
+                    variant="primary"
                   >
                     Artikel erfassen
-                  </button>
+                  </app-button>
                 }
               </div>
             </td>

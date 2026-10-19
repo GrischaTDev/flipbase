@@ -57,58 +57,58 @@
     </div>
   }
 
-  <form id="itemCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
-    <div>
-      <div class="flex items-center justify-between mb-1">
-        <label
-          for="itemTitle"
-          class="block text-[11px] font-semibold uppercase tracking-wider text-fb-text-muted"
+  <form id="itemCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-5">
+    <app-text-field
+      id="itemTitle"
+      formControlName="title"
+      placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55 wie neu"
+      label="Artikelname / Produkttitel"
+    >
+      <div fieldActions class="flex flex-wrap items-center gap-1.5">
+        <!-- Barcode Scanner Button -->
+        <app-button
+          size="slim"
+          variant="secondary"
+          [icon]="barcodeIcon"
+          (clicked)="isScanningBarcode.set(true)"
+          title="Barcode / EAN scannen"
         >
-          Artikelname / Produkttitel
-        </label>
+          Barcode
+        </app-button>
 
-        <div class="flex items-center gap-1.5">
-          <!-- Barcode Scanner Button -->
-          <app-button
-            size="slim"
-            variant="secondary"
-            [icon]="barcodeIcon"
-            (clicked)="isScanningBarcode.set(true)"
-            title="Barcode / EAN scannen"
-          >
-            Barcode
-          </app-button>
-
-          <!-- KI Autofill Button -->
-          <app-button
-            size="slim"
-            variant="secondary"
-            [icon]="sparklesIcon"
-            [disabled]="isAiLoading() || !form.get('title')?.value"
-            [loading]="isAiLoading()"
-            (clicked)="onAiAutofill()"
-          >
-            {{ isAiLoading() ? 'Lese Titel...' : 'Titel auswerten' }}
-          </app-button>
-        </div>
+        <!-- KI Autofill Button -->
+        <app-button
+          size="slim"
+          variant="secondary"
+          [icon]="sparklesIcon"
+          [disabled]="isAiLoading() || !form.get('title')?.value"
+          [loading]="isAiLoading()"
+          (clicked)="onAiAutofill()"
+        >
+          {{ isAiLoading() ? 'Lese Titel...' : 'Titel auswerten' }}
+        </app-button>
       </div>
-      <app-text-field
-        id="itemTitle"
-        formControlName="title"
-        placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55 wie neu"
-        [labelHidden]="true"
-        label="Artikelname / Produkttitel"
-      />
-    </div>
+    </app-text-field>
+
+    <app-text-field
+      id="itemDescription"
+      label="Beschreibung"
+      formControlName="description"
+      [multiline]="4"
+    />
+    <app-text-field
+      id="itemConditionNotes"
+      label="Notiz zum Zustand"
+      formControlName="condition_notes"
+      [multiline]="3"
+    />
 
     <!-- 1:1 Image Cropper & Upload Preview Section -->
-    <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border">
-      <div class="flex items-center justify-between mb-2">
+    <div class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-1.5">
           <svg [lucideIcon]="imageIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-          <span class="text-[11px] font-bold uppercase tracking-wider text-fb-text-primary">
-            Produktfoto (1:1 Quadrat)
-          </span>
+          <span class="text-[13px] font-medium text-fb-text-primary"> Produktfoto </span>
         </div>
 
         <app-button
@@ -117,7 +117,7 @@
           [icon]="cropIcon"
           (clicked)="isCropperOpen.set(true)"
         >
-          {{ selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto zuschneiden & komprimieren' }}
+          {{ selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto hinzufügen' }}
         </app-button>
       </div>
 
@@ -150,8 +150,9 @@
           <button
             type="button"
             (click)="removeSelectedImage()"
-            class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+            class="flex min-h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-fb-text-muted transition-colors hover:bg-fb-critical-surface hover:text-fb-critical focus-visible:outline-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
             title="Foto entfernen"
+            aria-label="Foto entfernen"
           >
             <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
           </button>
@@ -166,16 +167,14 @@
             class="text-[11px] text-fb-text-secondary font-medium flex items-center justify-center gap-1.5"
           >
             <svg [lucideIcon]="cameraIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-            <span>Klicke hier, um ein Foto hochzuladen & im festen 1:1-Format zuzuschneiden</span>
+            <span>Foto hinzufügen und quadratisch zuschneiden</span>
           </p>
         </button>
       }
     </div>
 
     <div>
-      <span
-        class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        aria-hidden="true"
+      <span class="block text-[13px] font-medium text-fb-text-primary mb-1" aria-hidden="true"
         >Kategorie</span
       >
       <app-category-picker
@@ -189,9 +188,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
       <div>
-        <span
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-          aria-hidden="true"
+        <span class="block text-[13px] font-medium text-fb-text-primary mb-1" aria-hidden="true"
           >Marke</span
         >
         <app-brand-picker
@@ -204,10 +201,7 @@
       </div>
 
       <div>
-        <label
-          for="itemModel"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
+        <label for="itemModel" class="block text-[13px] font-medium text-fb-text-primary mb-1">
           Modell
         </label>
         <app-text-field
@@ -222,11 +216,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
       <div>
-        <span
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
-          Zustand
-        </span>
+        <span class="block text-[13px] font-medium text-fb-text-primary mb-1"> Zustand </span>
         <app-custom-select
           ariaLabel="Zustand"
           triggerId="itemCondition"
@@ -236,11 +226,7 @@
       </div>
 
       <div>
-        <span
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
-          Status
-        </span>
+        <span class="block text-[13px] font-medium text-fb-text-primary mb-1"> Status </span>
         <app-custom-select
           ariaLabel="Status"
           triggerId="itemStatus"
@@ -250,10 +236,7 @@
       </div>
 
       <div>
-        <label
-          for="itemEan"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
+        <label for="itemEan" class="block text-[13px] font-medium text-fb-text-primary mb-1">
           EAN / Barcode
         </label>
         <app-text-field
@@ -272,10 +255,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
       <div>
-        <label
-          for="itemCost"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
+        <label for="itemCost" class="block text-[13px] font-medium text-fb-text-primary mb-1">
           Direkte Anschaffungskosten (€)
         </label>
         <app-number-input
@@ -293,7 +273,7 @@
       <div>
         <label
           for="itemExpectedValue"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+          class="block text-[13px] font-medium text-fb-text-primary mb-1"
         >
           Erwarteter Marktwert (€)
         </label>
@@ -314,10 +294,7 @@
          Artikel, nicht um weitere Stuecke. -->
     @if (!istBearbeitung()) {
       <div>
-        <label
-          for="itemAnzahl"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-        >
+        <label for="itemAnzahl" class="block text-[13px] font-medium text-fb-text-primary mb-1">
           Anzahl gleicher Stücke
         </label>
         <app-number-input
@@ -339,7 +316,7 @@
     <div>
       <label
         for="itemPurchaseSelect"
-        class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+        class="block text-[13px] font-medium text-fb-text-primary mb-1"
       >
         Zugehöriger Einkauf
       </label>

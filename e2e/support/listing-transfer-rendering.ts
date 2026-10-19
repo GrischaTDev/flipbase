@@ -1,3 +1,4 @@
+import { MarketplaceAccountHeaderComponent } from '../../src/app/shared/components/marketplace-account-header/marketplace-account-header.component';
 import { KleinanzeigenAccountsComponent } from '../../src/app/features/marketplaces/components/kleinanzeigen-accounts/kleinanzeigen-accounts.component';
 import { CardComponent } from '../../src/app/shared/components/card/card.component';
 import { BadgeComponent } from '../../src/app/shared/components/badge/badge.component';
@@ -18,6 +19,10 @@ import { ProductThumbnailComponent } from '../../src/app/shared/components/produ
 import { CustomCheckboxComponent } from '../../src/app/shared/components/custom-checkbox/custom-checkbox.component';
 import { ModalDialogDirective } from '../../src/app/shared/directives/modal-dialog.directive';
 export const listingTransferRendering = [
+  {
+    type: MarketplaceAccountHeaderComponent,
+    path: 'src/app/shared/components/marketplace-account-header/marketplace-account-header.component.ts',
+  },
   {
     type: KleinanzeigenAccountsComponent,
     path: 'src/app/features/marketplaces/components/kleinanzeigen-accounts/kleinanzeigen-accounts.component.ts',

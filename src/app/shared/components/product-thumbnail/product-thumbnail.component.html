@@ -1,5 +1,6 @@
 <span
   class="inline-flex shrink-0 items-center justify-center overflow-hidden bg-fb-well text-fb-text-muted"
+  [style.background-color]="!imageSource() ? placeholderColor() : null"
   [class.border]="!flush()"
   [class.border-fb-border]="!flush()"
   [class.size-10]="size() === 'sm'"
@@ -40,7 +41,11 @@
       [attr.aria-label]="alt() || null"
       [attr.aria-hidden]="alt() ? null : 'true'"
     >
-      <svg lucideImage class="size-4" aria-hidden="true"></svg>
+      @if (garmentPlaceholder()) {
+        <svg lucideShirt class="size-6 text-[#434744]" aria-hidden="true"></svg>
+      } @else {
+        <svg lucideImage class="size-4" aria-hidden="true"></svg>
+      }
     </span>
   }
 </span>

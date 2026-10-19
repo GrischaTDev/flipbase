@@ -1,16 +1,16 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+  class="fixed inset-0 fb-dialog-overlay flex items-center justify-center p-4 z-50 animate-fade-in"
   appModalDialog
   schliesstBeiKlickAussen
   dialogTitel="Barcode scannen"
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-fb-border flex flex-col space-y-4 animate-modal-card"
+    class="linear-surface fb-dialog-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-fb-border flex flex-col space-y-4 animate-modal-card"
   >
     <!-- Header -->
     <div class="flex items-center justify-between pb-3 border-b border-fb-border">
-      <div class="flex items-center gap-2">
+      <div class="flex items-end gap-2">
         <div
           class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
         >
@@ -113,28 +113,23 @@
 
     <!-- Manual Barcode Entry Fallback -->
     <div class="space-y-1.5 pt-2 border-t border-fb-border">
-      <label
-        for="barcod-oder-ean-barcode-manuell"
-        class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
-      >
-        Oder EAN / Barcode manuell eingeben
-      </label>
       <form (ngSubmit)="onManualSubmit()" class="flex items-center gap-2">
-        <input
+        <app-text-field
+          class="min-w-0 flex-1"
           id="barcod-oder-ean-barcode-manuell"
-          type="text"
+          label="Oder EAN / Barcode manuell eingeben"
           [formControl]="manualEanControl"
+          [monospaced]="true"
           placeholder="z.B. 4005317316719"
-          class="linear-input flex-1 px-3 py-1.5 rounded-lg text-xs font-mono"
         />
-        <button
+        <app-button
           type="submit"
           [disabled]="!manualEanControl.value"
-          class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer flex items-center gap-1"
+          variant="primary"
+          [icon]="searchIcon"
         >
-          <svg [lucideIcon]="searchIcon" class="w-3.5 h-3.5"></svg>
           <span>Übernehmen</span>
-        </button>
+        </app-button>
       </form>
     </div>
   </div>

@@ -29,7 +29,10 @@ import { PurchaseEntryFormComponent } from './purchase-entry-form.component';
 import { OfflinePurchaseTransferService } from '../../services/offline-purchase-transfer.service';
 import { OfflinePurchaseDraftStore } from '../../services/offline-purchase-draft.store';
 import { PurchaseBufferService } from '../../services/purchase-buffer.service';
-import type { OfflinePurchaseDraft } from '../../models/offline-purchase-draft.models';
+import type {
+  OfflinePurchaseDraft,
+  OfflinePurchaseReview,
+} from '../../models/offline-purchase-draft.models';
 import type { PurchaseLineDraft } from '../purchase-line-editor/purchase-line-editor.component';
 
 class PurchaseEntrySelectStubComponent implements ControlValueAccessor {
@@ -504,6 +507,44 @@ describe('normal purchase entry buffer recovery', () => {
   }
 
   afterEach(() => vi.restoreAllMocks());
+
+  it('keeps explicit save available during local buffering and serializes the transfer', async () => {
+    const state = bufferedComponent();
+    let releaseReview: () => void = () => undefined;
+    const reviewGate = new Promise<void>((resolve) => {
+      releaseReview = resolve;
+    });
+    const saveReview = vi.fn(async (draft: OfflinePurchaseDraft, review: OfflinePurchaseReview) => {
+      await reviewGate;
+      return { ...draft, review, revision: draft.revision + 1 };
+    });
+    Object.assign(state.transfer, { saveReview });
+    const internal = state.komponente as unknown as { persistOfflineReview(): Promise<void> };
+    internal.persistOfflineReview = (
+      PurchaseEntryFormComponent.prototype as unknown as { persistOfflineReview(): Promise<void> }
+    ).persistOfflineReview;
+    const backgroundSave = internal.persistOfflineReview();
+    let explicitSave: Promise<void> | undefined;
+    try {
+      await vi.waitFor(() => expect(state.komponente.offlineSaving()).toBe(true));
+      expect(state.komponente.canSaveDraft()).toBe(true);
+      explicitSave = state.komponente.onSubmit();
+      expect(state.komponente.isSubmitting()).toBe(true);
+      expect(state.komponente.canSaveDraft()).toBe(false);
+      await state.komponente.onSubmit();
+      expect(state.transfer.queue).not.toHaveBeenCalled();
+      expect(saveReview).toHaveBeenCalledOnce();
+      releaseReview();
+      await Promise.all([backgroundSave, explicitSave]);
+      expect(state.transfer.queue).toHaveBeenCalledOnce();
+      expect(state.transfer.transfer).toHaveBeenCalledOnce();
+      expect(state.purchaseService.createPurchase).not.toHaveBeenCalled();
+    } finally {
+      releaseReview();
+      await backgroundSave;
+      await explicitSave;
+    }
+  });
 
   it('does not queue or create when finalizing offline', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
