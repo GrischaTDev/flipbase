@@ -6,6 +6,7 @@ import { BrowserSessionController } from './browser/browser-session.js';
 import { createOperatorVerifier, startBrowserApi } from './browser/browser-http-api.js';
 import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
+import { startCollectorWatchdog } from './runtime/collector-watchdog.js';
 import { RequestBudget } from './runtime/budget.js';
 import { countingFetch } from './runtime/counting-fetch.js';
 import { pacedVintedFetch } from './runtime/paced-vinted-fetch.js';
@@ -125,9 +126,20 @@ startHealthServer(health, config.healthPort, (error) => {
 });
 
 const controller = new AbortController();
+const stopWatchdog = startCollectorWatchdog({
+  isLive: () => health.isLive(),
+  needsBrowserRestart: () => browser.needsRestart,
+  closeBrowser: async () => {
+    controller.abort();
+    await browser.close();
+  },
+  exit: (code) => process.exit(code),
+  log,
+});
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     log.info('shutdown_requested', { signal });
+    stopWatchdog();
     controller.abort();
   });
 }
@@ -265,6 +277,7 @@ while (!controller.signal.aborted) {
   await sleep(config.tickIntervalMs);
 }
 
+stopWatchdog();
 await browser.close();
 browserApi.close();
 log.info('stopped');

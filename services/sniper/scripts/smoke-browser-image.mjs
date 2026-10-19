@@ -12,7 +12,7 @@ const docker = (...args) =>
 const probe = String.raw`
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, symlink } from 'node:fs/promises';
 import { ChromeVintedBrowser } from './dist/browser/vinted-browser.js';
 import { chromium } from 'playwright';
 await mkdir(process.env.HOME, { recursive: true });
@@ -135,7 +135,34 @@ try {
   assert.match(cookie, /sniper_smoke=persisted/, 'Cookies must survive native Chrome restart');
   await new Promise(resolve => setTimeout(resolve, 250));
   assert.equal(scripts, beforeRestart + 1, 'Restarted automatic navigation must allow session renewal');
-  console.log('Chrome sandbox, private CDP, manual image/input, automatic script and redirect renewal, bounded refresh loops, original challenge status, abort recovery and profile persistence verified.');
+  // Mehrere Wechsel mit echten Tabs, Cookies und unverändertem Browserprofil.
+  renewalExpires = Date.now() + 60000;
+  const tabIds = new Set();
+  const memorySamples = [];
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const response = await browser.fetch(baseUrl + '/catalog');
+    assert.equal(response.status, 200);
+    assert.match(cookie, /sniper_smoke=persisted/);
+    const targets = await (await fetch('http://127.0.0.1:9228/json/list')).json();
+    const pages = targets.filter(target => target.type === 'page');
+    assert.equal(pages.length, 1, 'Tab replacement must leave exactly one page');
+    tabIds.add(pages[0].id);
+    const bytes = await readFile('/sys/fs/cgroup/memory.current', 'utf8').catch(() => null);
+    if (bytes !== null) memorySamples.push(Number(bytes));
+  }
+  assert.ok(tabIds.size >= 3, 'Forty automatic requests must actually replace the tab repeatedly');
+  await browser.close();
+  await symlink('feed-2147483647', '/profile/SingletonLock');
+  await symlink('123456789', '/profile/SingletonCookie');
+  await symlink('/tmp/com.google.Chrome.orphan/SingletonSocket', '/profile/SingletonSocket');
+  browser = new ChromeVintedBrowser(baseUrl, options);
+  renewalExpires = Date.now() + 10000;
+  const recovered = await browser.fetch(baseUrl + '/catalog');
+  assert.equal(recovered.status, 200, 'A stopped owner with orphaned profile links must not block restart');
+  assert.match(cookie, /sniper_smoke=persisted/, 'Orphan cleanup must preserve browser cookies');
+  console.log(JSON.stringify({ automaticRequests: 40, observedTabs: tabIds.size,
+    maximumSampledMemoryMiB: memorySamples.length ? Math.ceil(Math.max(...memorySamples) / 1024 / 1024) : null }));
+  console.log('Chrome sandbox, private CDP, manual image/input, automatic script and redirect renewal, bounded refresh loops, original challenge status, abort recovery, repeated tab replacement, orphaned profile recovery and cookie persistence verified.');
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 `;
 let created = false;

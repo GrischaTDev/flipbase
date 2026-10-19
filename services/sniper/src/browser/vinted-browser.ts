@@ -1,5 +1,6 @@
 import { chromium, type CDPSession } from 'playwright';
 import type { BrowserInput } from './browser-types.js';
+import { BrowserCleanup } from './browser-cleanup.js';
 import { BrowserDesktop } from './browser-desktop.js';
 import { ChromeProcess, type ChromeProcessOptions } from './chrome-process.js';
 import { VintedNetworkError } from '../vinted/errors.js';
@@ -18,6 +19,7 @@ export async function readBrowserDocument(
   session: CDPSession,
   url: URL,
   signal?: AbortSignal,
+  cleanup = new BrowserCleanup(),
 ): Promise<Response> {
   signal?.throwIfAborted();
   const timeout = AbortSignal.timeout(20_000);
@@ -123,7 +125,7 @@ export async function readBrowserDocument(
           if (chunk.eof) break;
         }
       } finally {
-        await session.send('IO.close', { handle: stream });
+        if (!cleanup.expired) await session.send('IO.close', { handle: stream });
       }
     }
     requestSignal.throwIfAborted();
@@ -213,14 +215,14 @@ export async function readBrowserDocument(
     session.off('Page.frameNavigated', onFrameNavigated);
     requestSignal.removeEventListener('abort', onAbort);
     // Erfolgreiche Seiten bleiben lebendig, auch für verzögert gestartete Erneuerung.
-    if (!completed) await session.send('Page.stopLoading').catch(() => undefined);
+    if (!completed) await cleanup.run(() => session.send('Page.stopLoading'));
     for (const requestId of pausedRequests) {
-      await session
-        .send('Fetch.failRequest', { requestId, errorReason: 'Aborted' })
-        .catch(() => undefined);
+      await cleanup.run(() =>
+        session.send('Fetch.failRequest', { requestId, errorReason: 'Aborted' }),
+      );
     }
-    await session.send('Fetch.disable').catch(() => undefined);
-    await session.send('Page.setLifecycleEventsEnabled', { enabled: false }).catch(() => undefined);
+    await cleanup.run(() => session.send('Fetch.disable'));
+    await cleanup.run(() => session.send('Page.setLifecycleEventsEnabled', { enabled: false }));
   }
 }
 
@@ -263,6 +265,14 @@ export class ChromeVintedBrowser implements VintedBrowser {
   private readonly runtime: ChromeProcess;
   private readonly desktop: BrowserDesktop;
   private manual = false;
+  private requestsSinceTabChange = 0;
+  private recycleAfterFailure = false;
+  private unresponsive = false;
+  private closing: Promise<void> | undefined;
+
+  get needsRestart(): boolean {
+    return this.unresponsive || this.runtime.hasFailed;
+  }
 
   constructor(
     private readonly baseUrl: string,
@@ -287,25 +297,60 @@ export class ChromeVintedBrowser implements VintedBrowser {
 
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
     if (this.manual) throw new Error('Die Botsitzung wird gerade manuell bedient.');
+    if (this.needsRestart) throw new Error('Der Feed-Browser muss neu gestartet werden.');
     const url = this.validateUrl(input);
     init?.signal?.throwIfAborted();
-    await this.runtime.start();
-    const browser = await chromium.connectOverCDP(this.runtime.endpoint, {
-      noDefaults: true,
-      timeout: 5000,
-    });
+    const cleanup = new BrowserCleanup();
+    let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
     try {
+      await this.runtime.start();
+      if (this.needsRestart) throw new Error('Der Feed-Browser wird bereits beendet.');
+      browser = await chromium.connectOverCDP(this.runtime.endpoint, {
+        noDefaults: true,
+        timeout: 5000,
+      });
+      if (this.needsRestart) throw new Error('Der Feed-Browser wird bereits beendet.');
       const context = browser.contexts()[0];
       if (!context) throw new Error('Browserkontext fehlt.');
-      const page = context.pages()[0] ?? (await context.newPage());
+      let page = context.pages()[0];
+      if (!page || this.requestsSinceTabChange >= 15 || this.recycleAfterFailure) {
+        try {
+          // Erst Ersatz öffnen, damit Chrome beim letzten geschlossenen Tab weiterläuft.
+          const replacement = await context.newPage();
+          for (const previous of context.pages().filter((candidate) => candidate !== replacement))
+            await previous.close();
+          page = replacement;
+          this.requestsSinceTabChange = 0;
+          this.recycleAfterFailure = false;
+        } catch (error) {
+          // Ungeklärte alte Tabs nicht durch immer neue Ersatz-Tabs vermehren.
+          this.unresponsive = true;
+          throw error;
+        }
+      }
       const session = await context.newCDPSession(page);
       try {
-        return await readBrowserDocument(session, url, init?.signal ?? undefined);
+        const response = await readBrowserDocument(
+          session,
+          url,
+          init?.signal ?? undefined,
+          cleanup,
+        );
+        this.requestsSinceTabChange++;
+        return response;
       } finally {
-        await session.detach().catch(() => undefined);
+        await cleanup.run(() => session.detach());
       }
+    } catch (error) {
+      this.recycleAfterFailure = true;
+      if (!browser) this.unresponsive = true;
+      throw error;
     } finally {
-      await browser.close();
+      if (browser) {
+        const connection = browser;
+        await cleanup.run(() => connection.close());
+      }
+      if (cleanup.expired) this.unresponsive = true;
     }
   }
 
@@ -341,6 +386,8 @@ export class ChromeVintedBrowser implements VintedBrowser {
       } finally {
         await session.detach();
       }
+      this.requestsSinceTabChange = 0;
+      this.recycleAfterFailure = false;
       this.manual = false;
     } finally {
       await browser.close();
@@ -358,18 +405,24 @@ export class ChromeVintedBrowser implements VintedBrowser {
   }
 
   async close(): Promise<void> {
+    this.unresponsive = true;
+    this.closing ??= this.closeRuntime();
+    await this.closing;
+  }
+
+  private async closeRuntime(): Promise<void> {
     try {
       if (this.runtime.isReady) {
         const browser = await chromium.connectOverCDP(this.runtime.endpoint, {
           noDefaults: true,
           timeout: 5000,
         });
-        try {
+        const cleanup = new BrowserCleanup();
+        await cleanup.run(async () => {
           const session = await browser.newBrowserCDPSession();
-          await session.send('Browser.close');
-        } finally {
-          await browser.close().catch(() => undefined);
-        }
+          if (!cleanup.expired) await session.send('Browser.close');
+        });
+        await cleanup.run(() => browser.close());
       }
     } finally {
       await this.runtime.stop(2000);

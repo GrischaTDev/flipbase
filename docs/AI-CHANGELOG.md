@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-19 - Juna - Browser-Speicherabbruch des Vinted-Feeds wiederherstellen und absichern
+
+**Auftrag:** Während des freigegebenen PR-Abschlusses den erneut veralteten Feedstatus nach Hinzufügen von Blauer untersuchen und den Abruf wiederherstellen.
+
+**Abschluss von PR #447:** Nach erfolgreichen Pflichtprüfungen mit `4adcc781` gemergt, Produktionslauf `39306033344` einschließlich öffentlicher Kontrolle erfolgreich. Laufender Browserleser per Prüfsumme mit getestetem Abbild verglichen. Eigenen Remote-/lokalen Zweig gelöscht und Worktree archiviert; fremde Zweige erhalten. Gegen zwischenzeitlichen aktuellen origin/master ausschließlich additiven Protokollkonflikt mit beiden Seiten aufgelöst und erneut erfolgreiche CI abgewartet.
+
+**Befund und Sofortmaßnahme:** Kernel bestätigt um 20:49:01 Uhr einen Chrome-Renderer-OOM an 2 GiB; Blauer war zuvor bereits erfolgreich. Node blieb in Browserbereinigung hängen, Betriebsmeldung seit 20:48 Uhr veraltet. Vorheriger Release #446 ersetzte den Container, verwaiste Profilsperren verhinderten danach den Start. Nur Feedcontainer gestoppt, fehlende Browserprozesse und freien Port geprüft, genau drei verwaiste Sperr-Symlinks entfernt, Profil/Cookies erhalten. Wiederanlauf 20:56:28 Uhr und anschließend alle vier Marken erfolgreich. Auch nach #447-Deployment aktuelle Betriebsmeldungen und Fehlerzähler null; zweiter Fehler damit nicht als erneut gescheiterte Sitzungserneuerung eingeordnet.
+
+**Freigabe und Korrektur:** Die bereits erteilte Nutzerfreigabe für PR und Merge nach erfolgreichen Tests gilt weiterhin für die zusätzliche Korrektur desselben Feed-Ausfalls. Separater eigener Zweig `juna/vinted-feed-browser-recovery` auf veröffentlichtem origin/master. Tabwechsel vor Abruf 16, gemeinsame begrenzte Bereinigung einschließlich äußerer Verbindung, Erholung nur bei echtem Stillstand/unbrauchbarem Browser und sichere Startbereinigung verwaister Sperren. Bestehende Fortschrittsbewertung für Anbieterfehler, leere Durchläufe und Pausen erhalten. Gleichzeitigen Shutdown und späte Verbindungsantworten zusätzlich rot/grün abgesichert. Keine Speichererhöhung, Filter-/Takt-/Schema-/Abhängigkeitsänderung; fremden Entwurf ausschließlich gelesen.
+
+**Prüfung und Grenzen:** Linux 358 Fälle erfolgreich; Windows 351 erfolgreich und sieben echte Linux-Symlinkfälle vorgesehen übersprungen. Typen, Dienstbau, Registrierung und echter Chrome-Smoke mit 40 zusätzlichen Abrufen, drei Tabs, Sitzungscookies und tatsächlichem verwaistem Profil erfolgreich. Unabhängige Reviews ohne offene wichtige Befunde. Kein Nachweis mehrstündiger realer Speicherstabilität; neue Korrektur noch nicht veröffentlicht. Lokale Testpakete nach Junction-Nebenwirkung der alten Archivierung exakt aus unveränderter Sperrdatei wiederhergestellt; neue Arbeitskopie besitzt eigene Pakete. Ausführlicher Bericht: `docs/audit/2026-10-19-vinted-feed-browser-recovery.md`.
+
 ## 2026-10-19 - Juna - Vinted-Feed nach blockierter Sitzungserneuerung wiederherstellen
 
 **Integration vor dem Merge:** Während PR #447 geprüft wurde, wurde PR #446 in `origin/master` übernommen (`df6ea689`). Aktuellen Hauptzweig integriert und ausschließlich den additiven Protokollkonflikt unter Erhalt beider vollständigen Seiten aufgelöst. Der Feedcode und seine Abhängigkeiten unterscheiden sich durch diese Integration nicht; tatsächliche CI-Auswahl erneut geprüft.

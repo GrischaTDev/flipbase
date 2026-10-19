@@ -239,6 +239,30 @@ Erfolgs-/Fehlerzeiten je Auftrag heranziehen. Keine Cookies oder Tokens für ein
 Diagnose ausgeben. Der aktuelle Ausfallbericht steht unter
 [`docs/audit/2026-10-19-vinted-feed-session-refresh.md`](../../docs/audit/2026-10-19-vinted-feed-session-refresh.md).
 
+### Erholung nach Browserausfällen
+
+Der automatische Leser ersetzt seinen Tab vor dem 16. abgeschlossenen Abruf.
+Der Ersatz öffnet zuerst, damit Chrome beim Schließen des bisherigen letzten
+Tabs weiterläuft. Cookies bleiben im selben Profil; manuelle Bedienung setzt
+diesen Zähler nach sicherem Abschluss zurück. Ein ungeklärter Wechsel erzeugt
+keine weiteren Tabs.
+
+Dokumentbereinigung, Ablösen der Sitzung und Verbindungsabbau teilen eine
+Frist von zwei Sekunden. Ein unbrauchbarer Browser wird nicht weiterverwendet.
+Eine unabhängige Überwachung prüft alle 15 Sekunden den bestehenden
+Taktfortschritt und den Browserzustand. Nach echtem Stillstand oder bestätigtem
+Browserausfall beendet sie den Dienst nach begrenztem geordnetem Schließen mit
+Fehlercode; die vorhandene Docker-Neustartregel übernimmt. Abgeschlossene
+Fehlversuche, leere Runden und bewusst pausierte Abfragen bleiben Fortschritt
+und lösen allein keinen Neustart aus.
+
+Beim Start dürfen nur nachweislich verwaiste, benutzereigene Sperr-Symlinks
+entfernt werden: bestätigtes Profil, gültige fehlende Besitzer-PID und tatsächlich
+freier Browserport. Unbekannte Eigentümer, Dateitypen und Prozesszustände bleiben
+gesperrt. Ausschließlich eine Containerinstanz darf dieses Profil verwenden.
+Cookies, Profildaten und Symlinkziele werden nicht gelöscht. Eine bestehende
+Vinted-Pause bleibt bei einem Neustart gespeichert.
+
 ### Gleichmäßige Abrufe und Zugriffspausen
 
 Alle Vinted-Anfragen teilen sich einen Mindestabstand: standardmäßig zehn
