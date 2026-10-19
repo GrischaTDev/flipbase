@@ -2,6 +2,8 @@
 
 ## 2026-10-19 - Juna - Verbindliche App-Aktualisierung und Prüfung bei Rückkehr
 
+**CI-Nachprüfung:** PR #445 wurde nach der Freigabe erstellt. Im ersten Lauf waren Qualität, sämtliche Anwendungstests und Produktions-PWA erfolgreich. Der umfassende Browserlauf stoppte nach 140 bestandenen Fällen am unveränderten Sitzungsschutz: Die gemeinsame Anmeldung galt nur 15 Minuten; 84 weitere Fälle waren noch offen. Den langen Standardlauf deshalb in drei sequenzielle Teilgruppen mit jeweils frischem globalem Setup aufgeteilt. Alle 225 vorgesehenen Browserfälle bleiben genau einmal enthalten, gezielte Auswahl und ausdrücklich vorgegebene Gruppen unverändert. Weder Sitzungslaufzeit, Sicherheitsmarge noch Wartezeiten oder Assertions abgeschwächt. Neue Runner-Regressionen vor der Korrektur rot; danach 37 Runner-/Registrierungsprüfungen unter Windows und in einer eigenständigen Linux-Kopie (Node 22.23.3) erfolgreich. Vollständige Workflow-Prüfung: 525 erfolgreich, sechs bestehende bedingte Skips, Shared-UI-Audit ohne Befund. Format, Lint und unabhängiges Review erfolgreich. CI muss den korrigierten vollständigen Lauf vor dem Merge bestätigen.
+
 **Abschlussfreigabe:** Nutzer hat PR-Erstellung, Branch-Push und Merge nach erfolgreichen Pflichtprüfungen ausdrücklich freigegeben. Umsetzung als `d0eff639` lokal geprüft; aktuelles `origin/master` vor dem Push unverändert `7b80b8fa`. Nach erfolgreicher CI per Merge-Commit integrieren, Veröffentlichung prüfen und eigenen Zweig samt Arbeitsbereich aufräumen.
 
 **Auftrag:** Freigegebenen Ablauf mit voller Aktualisierungsseite ohne „Später“, Prüfung beim Zurückkehren und Schutz offener Eingaben umsetzen; ausbleibende iPad-Hinweise untersuchen.

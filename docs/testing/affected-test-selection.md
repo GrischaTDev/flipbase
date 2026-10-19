@@ -82,7 +82,13 @@ Der Browserstarter führt die Standardauswahl (`chromium`) und vollständig
 geänderte Dateien (`changed-tests`) nacheinander als getrennte Playwright-Aufrufe
 aus. Jeder Aufruf durchläuft das globale Setup und erhält eine eigene frische
 Testsitzung. Ein langer erster Lauf kann dadurch die Anmeldung der zweiten Gruppe
-nicht verbrauchen. Die ausgewählten Fälle, Wartezeiten und Schutzprüfung der
+nicht verbrauchen. Die umfassende Standardauswahl wird zusätzlich in drei
+gleichmäßig verteilte Teilgruppen aufgeteilt; auch jede dieser Teilgruppen
+startet mit eigenem globalen Setup und frischer Anmeldung. Eine reine Auflistung,
+gezielte Auswahl oder ausdrücklich übergebene Teilgruppe wird nicht nochmals
+unterteilt. Der Test der echten Playwright-Auflistung bestätigt, dass die drei
+Teilgruppen sämtliche vorgesehenen Fälle genau einmal enthalten.
+Die ausgewählten Fälle, Wartezeiten und Schutzprüfung der
 verbleibenden Sitzungsdauer bleiben unverändert. Ein Fehler stoppt vor der
 nächsten Gruppe und bleibt der Exitcode des Gesamtaufrufs.
 

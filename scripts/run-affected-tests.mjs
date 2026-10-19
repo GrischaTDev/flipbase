@@ -39,13 +39,24 @@ if (kind === 'unit') {
     ...(plan.browserFiles.length ? ['chromium'] : []),
     ...(plan.changedBrowserFiles.length ? ['changed-tests'] : []),
   ];
-  commands = projects.map((project) => [
-    'node_modules/@playwright/test/cli.js',
-    'test',
-    '--config=playwright.affected.config.ts',
-    `--project=${project}`,
-    ...process.argv.slice(3),
-  ]);
+  const browserArgs = process.argv.slice(3);
+  const explicitShard = browserArgs.some((arg) => arg === '--shard' || arg.startsWith('--shard='));
+  commands = projects.flatMap((project) => {
+    // Die volle Auswahl überschreitet auf langsameren Runnern eine 15-Minuten-
+    // Sitzung. Drei getrennte Aufrufe behalten alle Fälle und erneuern nur die Anmeldung.
+    const groups =
+      plan.full && project === 'chromium' && !browserArgs.includes('--list') && !explicitShard
+        ? 3
+        : 1;
+    return Array.from({ length: groups }, (_, index) => [
+      'node_modules/@playwright/test/cli.js',
+      'test',
+      '--config=playwright.affected.config.ts',
+      `--project=${project}`,
+      ...(groups > 1 ? [`--shard=${index + 1}/${groups}`] : []),
+      ...browserArgs,
+    ]);
+  });
 } else throw new Error('Unbekannte Testart.');
 for (const args of commands) {
   const exitCode = await new Promise((resolve) => {
