@@ -42,6 +42,7 @@ export interface ChromiumContainerLauncherOptions {
 
 async function executeDocker(argumentsList: string[], input?: string): Promise<string> {
   return new Promise((resolve, reject) => {
+    let inputFailed = false;
     const child = execFile(
       'docker',
       ['--host=unix:///var/run/docker.sock', ...argumentsList],
@@ -52,16 +53,22 @@ async function executeDocker(argumentsList: string[], input?: string): Promise<s
         env: { PATH: process.env.PATH, HOME: process.env.HOME },
       },
       (error, stdout) =>
-        error
+        error || inputFailed
           ? reject(new Error('Docker-Sitzungsoperation fehlgeschlagen'))
           : resolve(stdout.trim()),
     );
+    // Ein früh beendeter Docker-Aufruf darf nicht den ganzen Broker beenden.
+    // Erst der Prozessabschluss bestätigt das Ende der Operation.
+    child.stdin?.on('error', () => {
+      inputFailed = true;
+    });
     child.stdin?.end(input ?? '');
   });
 }
 
 async function executeDockerDesktop(argumentsList: string[], input?: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
+    let inputFailed = false;
     const child = execFile(
       'docker',
       ['--host=unix:///var/run/docker.sock', ...argumentsList],
@@ -72,8 +79,13 @@ async function executeDockerDesktop(argumentsList: string[], input?: string): Pr
         env: { PATH: process.env.PATH, HOME: process.env.HOME },
       },
       (error, stdout) =>
-        error ? reject(new Error('Private Browserbedienung fehlgeschlagen')) : resolve(stdout),
+        error || inputFailed
+          ? reject(new Error('Private Browserbedienung fehlgeschlagen'))
+          : resolve(stdout),
     );
+    child.stdin?.on('error', () => {
+      inputFailed = true;
+    });
     child.stdin?.end(input ?? '');
   });
 }

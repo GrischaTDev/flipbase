@@ -46,7 +46,8 @@ services:
       chromium-control: {}
   chromium-host-broker:
     image: ${FLIPBASE_CHROMIUM_BROKER_IMAGE:?Geprüftes Broker-Abbild erforderlich}
-    restart: 'no'
+    # Der Worker prüft beim Wiederanlauf Berechtigung und verwaiste Sitzungen.
+    restart: unless-stopped
     init: true
     user: '1000:1000'
     environment:
