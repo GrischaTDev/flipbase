@@ -107,6 +107,14 @@ export class PwaUpdateService {
         // Zwischen Zustimmung und Aktivierung darf kein neues Edit beginnen.
         event.preventDefault();
         event.stopImmediatePropagation();
+        // Die Updatefläche enthält keine Eingaben. Weitere Berührungen bleiben
+        // gesperrt, dürfen die laufende Aktualisierung aber nicht widerrufen.
+        if (
+          ['pointerdown', 'click', 'keydown'].includes(event.type) &&
+          event.target instanceof Element &&
+          event.target.closest('[data-pwa-update-screen]')
+        )
+          return;
         this.revokeBarrier();
       };
       const edits = ['beforeinput', 'pointerdown', 'keydown', 'click', 'submit'];
