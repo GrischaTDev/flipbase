@@ -492,7 +492,8 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
 
 test('Fotogrenze gilt bei der Auswahl, unvollständiger Entwurf bleibt speicherbar @marketplace-preview', async ({
   page,
-}) => {
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const state = await mockDrafts(page);
   await page.goto('/marketplaces/vinted/listings/new');
   const editor = page.locator('app-vinted-listing-editor');
@@ -514,6 +515,21 @@ test('Fotogrenze gilt bei der Auswahl, unvollständiger Entwurf bleibt speicherb
   expect(state.draft().images).toHaveLength(20);
   expect(state.draft().content.title).toBe('');
   expect(state.draft().content.priceCents).toBeNull();
+  await page.evaluate(axe.source);
+  expect(
+    await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-vinted-listing-editor') as HTMLElement,
+          )
+        ).violations,
+    ),
+  ).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath('listing-editor-missing-fields-mobile.png'),
+    fullPage: false,
+  });
 });
 
 test('Gelesene Textgrenzen erscheinen vor der Veröffentlichung und kürzen vorhandenen Text nicht @marketplace-preview', async ({

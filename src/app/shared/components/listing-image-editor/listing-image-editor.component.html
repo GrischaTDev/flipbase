@@ -8,11 +8,13 @@
     Stelle. Die Pfeile funktionieren auch mit der Tastatur.
   </p>
   @if (errors().length) {
-    <ul role="alert" class="text-xs text-fb-critical">
-      @for (error of errors(); track error) {
-        <li>{{ error }}</li>
-      }
-    </ul>
+    <div role="alert" class="text-xs text-fb-critical">
+      <ul>
+        @for (error of errors(); track error) {
+          <li>{{ error }}</li>
+        }
+      </ul>
+    </div>
   }
   <div
     class="rounded-lg border border-dashed border-fb-border bg-fb-subtle p-4 text-center"
