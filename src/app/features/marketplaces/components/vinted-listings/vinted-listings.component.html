@@ -6,16 +6,44 @@
     <h2 class="text-sm font-semibold text-fb-text-primary">
       Kleiderschrank ({{ publications.total }})
     </h2>
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-fb-text-secondary">Änderungen</span>
-      <app-custom-select
-        ariaLabel="Zeitraum für Inseratänderungen"
-        variant="filter"
-        widthClass="w-40"
-        [options]="statistics.options"
-        [value]="statistics.period()"
-        (valueChange)="statistics.selectPeriod($event)"
-      />
+    <div class="flex max-w-full flex-wrap items-center justify-end gap-3">
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-fb-text-secondary">Änderungen</span>
+        <app-custom-select
+          ariaLabel="Zeitraum für Inseratänderungen"
+          variant="filter"
+          widthClass="w-40"
+          [options]="statistics.options"
+          [value]="statistics.period()"
+          (valueChange)="statistics.selectPeriod($event)"
+        />
+      </div>
+      <div
+        class="inline-flex shrink-0 gap-1 rounded-lg bg-fb-subtle p-1"
+        role="group"
+        aria-label="Kleiderschrankansicht"
+      >
+        <app-button
+          variant="segment"
+          size="slim"
+          [icon]="gridIcon"
+          [iconOnly]="true"
+          ariaLabel="Rasteransicht"
+          title="Rasteransicht"
+          [ariaPressed]="viewMode() === 'grid'"
+          (clicked)="viewMode.set('grid')"
+        />
+        <app-button
+          variant="segment"
+          size="slim"
+          [icon]="listIcon"
+          [iconOnly]="true"
+          ariaLabel="Listenansicht"
+          title="Listenansicht"
+          [ariaPressed]="viewMode() === 'list'"
+          (clicked)="viewMode.set('list')"
+        />
+      </div>
     </div>
   </div>
   @if (statistics.error(); as error) {
@@ -26,7 +54,13 @@
       Zeitraum vorliegt.
     </p>
   }
-  <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+  <div
+    [class]="
+      viewMode() === 'grid'
+        ? 'grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
+        : 'min-w-0 space-y-2'
+    "
+  >
     @for (entry of publications.items; track entry.id) {
       <div class="min-w-0 space-y-2">
         <a
@@ -35,57 +69,131 @@
           [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
         >
           <app-card padding="none" class="h-full min-w-0 overflow-hidden">
-            <div class="relative overflow-hidden">
-              <app-product-thumbnail
-                class="block w-full"
-                [src]="entry.imageUrl"
-                [alt]="entry.title"
-                size="listing"
-                [flush]="true"
-              />
-              @if (entry.promoted) {
-                <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
-              }
-            </div>
-            <div class="p-3">
-              <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ entry.title }}</h2>
-              <app-vinted-listing-age
-                class="mt-2"
-                [publishedAt]="entry.publishedAt"
-                [publicationAge]="entry.publicationAge"
-                [compact]="true"
-              />
-              @if (entry.brand || entry.size) {
-                <p class="mt-1 truncate text-xs text-fb-text-secondary">
-                  {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
-                </p>
-              }
-              <p class="mt-3 text-base font-semibold text-fb-text-primary">
-                {{
-                  entry.price === null
-                    ? 'Preis unbekannt'
-                    : (entry.price | currency: entry.currency)
-                }}
-              </p>
-              <div class="mt-2 flex items-center justify-between gap-2">
-                @if (entry.status) {
-                  <p
-                    class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary"
-                    [attr.title]="'Zustand: ' + entry.status"
-                  >
-                    <span class="sr-only">Zustand: </span>{{ entry.status }}
-                  </p>
-                }
-                <app-vinted-listing-metrics
-                  class="ml-auto"
-                  [metrics]="entry.metrics"
-                  [change]="statistics.change(entry)"
-                  [periodLabel]="statistics.periodLabel()"
-                  [attr.title]="statistics.comparisonLabel(entry)"
-                  [highlighted]="metricDisplay.highlighted().has(entry.id)"
+            @if (viewMode() === 'grid') {
+              <div class="relative overflow-hidden">
+                <app-product-thumbnail
+                  class="block w-full"
+                  [src]="entry.imageUrl"
+                  [alt]="entry.title"
+                  size="listing"
+                  [flush]="true"
                 />
+                @if (entry.promoted) {
+                  <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
+                }
               </div>
-            </div>
+              <div class="p-3">
+                <h2 class="truncate text-sm font-semibold text-fb-text-primary">
+                  {{ entry.title }}
+                </h2>
+                <div class="mt-2 flex min-w-0 items-center justify-between gap-2">
+                  @if (entry.brand || entry.size) {
+                    <p
+                      class="min-w-0 truncate text-xs text-fb-text-secondary"
+                      [attr.title]="(entry.brand ?? '') + ' ' + (entry.size ?? '')"
+                    >
+                      {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+                    </p>
+                  }
+                  <app-vinted-listing-age
+                    class="ml-auto shrink-0"
+                    [publishedAt]="entry.publishedAt"
+                    [publicationAge]="entry.publicationAge"
+                    [compact]="true"
+                  />
+                </div>
+                <p class="mt-3 text-base font-semibold text-fb-text-primary">
+                  {{
+                    entry.price === null
+                      ? 'Preis unbekannt'
+                      : (entry.price | currency: entry.currency)
+                  }}
+                </p>
+                <div class="mt-2 flex items-center justify-between gap-2">
+                  @if (entry.status) {
+                    <p
+                      class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary"
+                      [attr.title]="'Zustand: ' + entry.status"
+                    >
+                      <span class="sr-only">Zustand: </span>{{ entry.status }}
+                    </p>
+                  }
+                  <app-vinted-listing-metrics
+                    class="ml-auto"
+                    [metrics]="entry.metrics"
+                    [change]="statistics.change(entry)"
+                    [periodLabel]="statistics.periodLabel()"
+                    [attr.title]="statistics.comparisonLabel(entry)"
+                    [highlighted]="metricDisplay.highlighted().has(entry.id)"
+                  />
+                </div>
+              </div>
+            } @else {
+              <div class="flex min-w-0 items-center gap-3 p-3">
+                <app-product-thumbnail
+                  [src]="entry.imageUrl"
+                  [alt]="entry.title"
+                  size="md"
+                  fit="cover"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex min-w-0 items-start justify-between gap-3">
+                    <h2
+                      class="min-w-0 truncate text-sm font-semibold text-fb-text-primary"
+                      [attr.title]="entry.title"
+                    >
+                      {{ entry.title }}
+                    </h2>
+                    <p
+                      class="shrink-0 whitespace-nowrap text-sm font-semibold text-fb-text-primary"
+                    >
+                      {{
+                        entry.price === null
+                          ? 'Preis unbekannt'
+                          : (entry.price | currency: entry.currency)
+                      }}
+                    </p>
+                  </div>
+                  <div class="mt-1 flex min-w-0 items-center justify-between gap-2">
+                    @if (entry.brand || entry.size) {
+                      <p
+                        class="min-w-0 truncate text-xs text-fb-text-secondary"
+                        [attr.title]="(entry.brand ?? '') + ' ' + (entry.size ?? '')"
+                      >
+                        {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+                      </p>
+                    }
+                    <app-vinted-listing-age
+                      class="ml-auto shrink-0"
+                      [publishedAt]="entry.publishedAt"
+                      [publicationAge]="entry.publicationAge"
+                      [compact]="true"
+                    />
+                  </div>
+                  <div class="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    @if (entry.status) {
+                      <p
+                        class="min-w-0 truncate text-xs text-fb-text-secondary"
+                        [attr.title]="'Zustand: ' + entry.status"
+                      >
+                        <span class="sr-only">Zustand: </span>{{ entry.status }}
+                      </p>
+                    }
+                    @if (entry.promoted) {
+                      <app-badge class="shrink-0" tone="info">Gepusht</app-badge>
+                    }
+                    <app-vinted-listing-metrics
+                      class="ml-auto max-w-full"
+                      [metrics]="entry.metrics"
+                      [change]="statistics.change(entry)"
+                      [periodLabel]="statistics.periodLabel()"
+                      [attr.title]="statistics.comparisonLabel(entry)"
+                      [highlighted]="metricDisplay.highlighted().has(entry.id)"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
           </app-card>
         </a>
         <app-listing-transfer-action

@@ -6,8 +6,10 @@ import {
   computed,
   effect,
   inject,
+  signal,
   untracked,
 } from '@angular/core';
+import { LucideLayoutGrid, LucideList } from '@lucide/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -42,6 +44,9 @@ import { createVintedListingMetricDisplay } from './vinted-listing-metric-displa
   host: { class: 'relative block min-w-0 w-full max-w-full overflow-hidden' },
 })
 export class VintedListingsComponent {
+  readonly viewMode = signal<'grid' | 'list'>('grid');
+  readonly gridIcon = LucideLayoutGrid;
+  readonly listIcon = LucideList;
   readonly store = inject(MarketplaceAccountStore);
   readonly statistics = inject(MarketplaceListingStatisticsStore);
   private readonly workspace = inject(WorkspaceService);
