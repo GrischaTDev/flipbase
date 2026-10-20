@@ -19,9 +19,11 @@ test('reading new category choices requires one context and authority before res
     close: () => Promise.resolve(),
     contexts: () => [context],
   } as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection);
+  const stoppedAt = (step: string) => (error: unknown) =>
+    error instanceof VintedListingReadError && error.step === step;
   await assert.rejects(
     actions.readListingCategory!('123', 1223, [5], () => Promise.reject(new Error('revoked'))),
-    /revoked/,
+    stoppedAt('authorize'),
   );
   assert.equal(pages, 0);
   const ambiguous = vintedBrowserActions({
@@ -31,12 +33,12 @@ test('reading new category choices requires one context and authority before res
   } as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection);
   await assert.rejects(
     ambiguous.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
-    /Exklusiv/,
+    stoppedAt('reserve'),
   );
   assert.equal(pages, 0);
   await assert.rejects(
     actions.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
-    /page reserved/,
+    stoppedAt('reserve'),
   );
   assert.equal(pages, 1);
 });

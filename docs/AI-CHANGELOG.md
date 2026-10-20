@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-20 - Juna - Abbruch der echten Vinted-Kategorieprüfung eingrenzen
+
+**Auftrag und Grenze:** Nach PR #453 den weiterhin fehlgeschlagenen Kategorieabruf beheben und die JAKO-Fußballschuhe für 18 € aus Wiehen Store bis zur internen Veröffentlichungsprüfung prüfen. Das bestehende Inserat darf weder geändert noch dupliziert werden. Fortsetzung der noch offenen Live-Abnahme im zuvor für PR und Merge nach erfolgreichen Pflichtprüfungen freigegebenen Umfang; erforderliche gezielte Dienstkorrektur ist durch den aktuellen Behebungsauftrag umfasst. Keine neue Anzeige, Löschung oder Nachricht.
+
+**Befund:** Erneuter echter Kategorieabruf auf der regulär aktualisierten App 0.365.4 scheitert; Worker und Broker laufen weiter. Die Kategorieelemente der angemeldeten Vinted-Maske entsprechen den erwarteten Kennzeichnungen. Laufende Images und den tatsächlich enthaltenen Kategoriecode ausschließlich lesend geprüft. Der Sitzungsbroker ersetzt jeden Aktionsfehler durch eine unterbrochene Sitzung; Kategorieabrufe bewahren den ursprünglichen Schritt bislang nicht. Die konkrete Ursache im Anbieterformular bleibt deshalb unbewiesen.
+
+**Diagnose-Nachtrag:** Feste Schritte von Autorisierung und Seitenreservierung über Navigation und Formular bis Kategorie und einzelnen Auswahlfeldern über das bestehende isolierte Fehlerprotokoll erhalten. HTTP bewahrt diesen geprüften Schritt vor der Brokerumschreibung. Keine zusätzliche Übernahme beliebiger Fehlermeldungen; die unabhängige Prüfung hat den zunächst geplanten neuen generischen Detail-Sink als zu weitgehend erkannt, er wurde vor Veröffentlichung entfernt. Keine Rohfehler, Artikelinhalte oder Zugangsdaten im neuen Protokollpfad; Berechtigungen, Reservierung, Schließung und Veröffentlichungsgrenzen bleiben erhalten.
+
+**Prüfung:** Neue Regression für ein fehlendes Größenfeld im echten lokalen Browsertransport und HTTP-Regression mit Brokerumschreibung zuerst rot, danach grün. Fehlende Größenoptionen werden als `size` statt pauschalem Sitzungsabbruch erkannt; keine Uploads oder Speicheraktionen. Vollständige lokale Worker-Suite: 693 bestanden, acht bestehende Überspringungen. Worker-Typprüfung und Bau erfolgreich; betroffene Formular-Browserfälle, Lint, Format und Testauswahl zusätzlich geprüft. Kein Nachweis einer bereits behobenen echten Anbieterursache; gezielter Rollout und erneuter Abruf sind der nächste Diagnoseschritt.
+
 ## 2026-10-20 - Juna - Vinted-Inseraterstellung vor Relisting abschließen
 
 **Auftrag:** Die drei besprochenen Punkte umsetzen: frühe Eingabegrenzen, verständliche Kontovoraussetzungen und gezielte Prüfung des vorhandenen Veröffentlichungswegs. Bedienumbau und Relisting bleiben nachgelagert. Nutzer wählt die JAKO-j-sfg-Twist-Fußballschuhe für 18 € aus Wiehen Store; nach Bestätigung, dass sie bereits online sind, begrenzt er den echten Artikeltest ausdrücklich auf die interne Vorbereitung bis zur Veröffentlichungsprüfung. Kein Ersatz und keine doppelte Anzeige.

@@ -4,6 +4,8 @@ import type { AddressInfo } from 'node:net';
 import { MarketplaceBrowserHttpApi } from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
+import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
+import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
 
 const workspaceId = '46600000-0000-4000-8000-000000000001',
   connectionId = '46600000-0000-4000-8000-000000000002';
@@ -31,6 +33,7 @@ async function fixture(
     revoke?: boolean;
     waitForRead?: () => Promise<void>;
     listingPublishingEnabled?: boolean;
+    failAtStep?: 'form' | 'size';
   } = {},
 ) {
   let opened = 0,
@@ -43,6 +46,7 @@ async function fixture(
     readListingCategory: async (account, category, parents, authorize) => {
       reads++;
       targets.push([account, category, parents]);
+      if (options.failAtStep) throw new VintedListingReadError(options.failAtStep);
       await options.waitForRead?.();
       if (options.revoke) revoked = true;
       await authorize();
@@ -79,7 +83,11 @@ async function fixture(
         _scope: BrowserSessionScope,
         _id: string,
         operation: (browser: BrowserInfo) => Promise<T>,
-      ) => operation(browser),
+      ) =>
+        operation(browser).catch((error: unknown) => {
+          if (options.failAtStep) throw new MarketplaceBrowserSessionEndedError('interrupted');
+          throw error;
+        }),
       close: () => {
         closed++;
         return Promise.resolve();
@@ -121,6 +129,20 @@ test('category HTTP read binds account and category to the caller and releases i
     assert.equal(f.closed(), 1);
   } finally {
     await f.close();
+  }
+});
+
+test('category HTTP read retains the fixed failed step after broker cleanup', async () => {
+  for (const step of ['form', 'size'] as const) {
+    const f = await fixture({ failAtStep: step });
+    try {
+      const response = await f.request({ workspaceId, connectionId, categoryId: 1223 });
+      assert.equal(response.status, 409);
+      assert.deepEqual(await response.json(), { code: 'vinted_listing_read_failed', step });
+      assert.equal(f.closed(), 1);
+    } finally {
+      await f.close();
+    }
   }
 });
 test('category HTTP read rejects extra inputs, invalid categories and foreign scope before browser reads', async () => {
