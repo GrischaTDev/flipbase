@@ -152,6 +152,33 @@ test('a real second build waits for an unsaved second window before activation @
             .map((animation) => animation.finished),
         );
       });
+      // Die Updatefläche muss wie die Startfläche deckend sein; die App darf
+      // auch an den Bildschirmrändern nicht durchscheinen.
+      const startupBackground = await page.evaluate(() => {
+        const startup = document.createElement('section');
+        startup.className = 'fb-app-startup';
+        document.querySelector('[data-pwa-update-screen]')!.append(startup);
+        const background = getComputedStyle(startup).backgroundColor;
+        startup.remove();
+        return background;
+      });
+      expect(startupBackground).not.toBe('rgba(0, 0, 0, 0)');
+      await expect(screen).toHaveCSS('background-color', startupBackground);
+      expect(
+        await screen.evaluate((element) => {
+          const points = [
+            [1, 1],
+            [innerWidth - 2, 1],
+            [1, innerHeight - 2],
+            [innerWidth - 2, innerHeight - 2],
+          ];
+          return points.every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
+        }),
+      ).toBe(true);
+      await testInfo.attach(`update-screen-${colorScheme}`, {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      });
       expect(
         await screen
           .getByRole('button', { name: 'Jetzt aktualisieren' })

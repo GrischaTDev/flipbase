@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-20 - Juna - Deckenden Hintergrund für die App-Aktualisierung wiederherstellen
+
+**Auftrag und Ursache:** Die verpflichtende Updatefläche scheint über dem Kleiderschrank durch. Ihre Klasse `bg-fb-bg-app` ist nicht als Tailwind-Farbe definiert; der vorhandene Anwendungshintergrund heißt `bg-fb-bg`. Genau diese Klasse korrigiert, ohne Updateablauf, Eingabeschutz oder Dialogverhalten zu ändern. Der zusätzlich gemeldete mobile Hinweis oben rechts mit „Flipbase … ist bereit“ entspricht der früheren, bereits durch die Vollbildanzeige ersetzten Vorlage; ein noch geöffneter älterer App-Bau ist damit die naheliegende Erklärung, am echten Nutzergerät aber nicht nachgewiesen.
+
+**Prüfung:** Bestehenden Produktions-PWA-Fall mit zwei echten Bauten um deckende Startflächenfarbe in Hell/Dunkel und Abdeckung der Bildschirmecken erweitert. Android-Fall zuerst gezielt rot: erwartet `rgb(241, 241, 241)`, tatsächlich `rgba(0, 0, 0, 0)`. Danach beide Produktionsbauten und die vollständigen Chromium-/Android-PWA-Projekte unter Linux mit Node 22.23.3 und Playwright 1.62.1 erfolgreich: 21 Fälle bestanden, ein bestehender ausschließlich für Android vorgesehener Lebenszyklusfall auf Desktop übersprungen. Enthalten sind Touch, Fokusfalle, AXE, offene Eingaben, ältere Worker und eingefrorene Hintergrundansichten. Zusätzlich 41 PWA-Skriptfälle, 33 Angular-Fälle in Update-/App-Rendering und 15 Node-/DOM-Fälle des PWA-Dienstes sowie ESLint, Typprüfung, Format und Suite-Audit erfolgreich. Unabhängiger statischer Review der Änderung ohne Befund; dieser Eintrag umfasst auch die Reviewsitzung.
+
+**Sichtprüfung und Grenzen:** Den betroffenen Updatefall zur dauerhaften Screenshotaufzeichnung zusätzlich auf Desktop und Android ausgeführt, beide erfolgreich; heller Smartphone- und dunkler Desktop-Screenshot visuell geprüft, ohne durchscheinenden Inhalt oder zusätzliches Eckfenster. Browser-Plugin nicht verfügbar, deshalb vorhandenen Playwright-Ablauf genutzt. WebKit lokal wegen fehlender Systembibliotheken nicht ausführbar; keine Prüfungen umgangen oder abgeschwächt. Die automatische Auswahl verlangt wegen der zentralen App-Abhängigkeit zusätzlich den umfassenden CI-Lauf; lokal gezielt den betroffenen PWA-Bereich geprüft. Keine Aussage über eine bereits erfolgte Veröffentlichung oder native iPhone-/iPad-Abnahme.
+
 ## 2026-10-20 - Juna - Vinted-Anpassungen für PR und Veröffentlichung abschließen
 
 **Freigabe:** Nutzer autorisiert Branch-Push, PR gegen `master`, Merge-Commit nach erfolgreichen Pflichtprüfungen und anschließende Bereinigung des eigenen Branches. `origin/master` vor dem Abschluss unverändert auf `624a8eba`; kein Integrationskonflikt.
