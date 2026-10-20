@@ -9,6 +9,38 @@ import {
 import { vintedBrowserActions } from '../../src/vinted-browser-actions.ts';
 import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
 import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
+import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
+
+test('category read preserves the failing field through the isolated transport without saving', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    const f = await fixture(
+      { route: context.route.bind(context), goto: () => Promise.resolve(null) },
+      { publishing: true },
+    );
+    await context.addInitScript(() => {
+      const observer = new MutationObserver(() => {
+        document
+          .querySelectorAll('#size-options [role="checkbox"]')
+          .forEach((option) => option.remove());
+      });
+      observer.observe(document, { childList: true, subtree: true });
+    });
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    await assert.rejects(
+      actions.readListingCategory!('123', 1223, [5], f.authorize),
+      (error: unknown) => error instanceof VintedListingReadError && error.step === 'size',
+    );
+    assert.equal(context.pages().length, 0);
+    assert.equal(f.writes(), 0);
+    assert.equal(f.uploads(), 0);
+    assert.equal(f.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
 
 test('equivalent category suggestions with the same ID remain selectable', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -155,7 +187,7 @@ test('discards category choices when authority is revoked during reading', async
     };
     await assert.rejects(
       readVintedListingNewCategory(page, '123', 1223, [5], authorize),
-      /revoked/,
+      (error: unknown) => error instanceof VintedListingReadError && error.step === 'size',
     );
     assert.equal(page.isClosed(), true);
     assert.equal(f.writes(), 0);

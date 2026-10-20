@@ -187,9 +187,11 @@ export async function readVintedListingCategoryFields(
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
     authorize?: () => Promise<void>;
     readCategoryId?: () => Promise<number | null>;
+    onReadField?: (field: VintedListingChoiceField | 'metadata') => void;
   } = {},
 ): Promise<VintedListingCategoryFields> {
   const category = options.readCategoryId ? { readCategoryId: options.readCategoryId } : {};
+  options.onReadField?.('category');
   await options.authorize?.();
   await readVintedListingChoices(
     page,
@@ -200,11 +202,17 @@ export async function readVintedListingCategoryFields(
     category,
   );
   await options.authorize?.();
+  options.onReadField?.('condition');
   await page.locator('#condition').waitFor({ state: 'visible', timeout: 5000 });
+  options.onReadField?.('metadata');
   const { presentFields, ...metadata } = await page.evaluate(collectVintedListingFormMetadata);
   const fields: VintedListingChoiceSnapshot[] = [];
-  for (const field of presentFields) fields.push(await readPopup(page, field, [], options));
+  for (const field of presentFields) {
+    options.onReadField?.(field);
+    fields.push(await readPopup(page, field, [], options));
+  }
   // Während des Abrufs können Kategorie oder Konto wechseln. Keine gemischte Auswahl zurückgeben.
+  options.onReadField?.('category');
   await readVintedListingChoices(
     page,
     accountId,

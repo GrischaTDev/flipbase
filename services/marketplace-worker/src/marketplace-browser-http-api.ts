@@ -615,18 +615,28 @@ export class MarketplaceBrowserHttpApi {
             await source.authorize(scope, target.accountId);
             await checkBrowser();
           };
-          const fields = await this.broker.run(scope, currentSessionId, async (browser) => {
-            if (!browser.readListingCategory) throw new RequestError(503);
-            return parseVintedListingCategoryFields(
-              await browser.readListingCategory(
-                target.accountId,
-                categoryId,
-                target.categoryPath,
-                authorize,
-              ),
-              categoryId,
-            );
-          });
+          let readFailure: VintedListingReadError | undefined;
+          const fields = await this.broker
+            .run(scope, currentSessionId, async (browser) => {
+              if (!browser.readListingCategory) throw new RequestError(503);
+              try {
+                return parseVintedListingCategoryFields(
+                  await browser.readListingCategory(
+                    target.accountId,
+                    categoryId,
+                    target.categoryPath,
+                    authorize,
+                  ),
+                  categoryId,
+                );
+              } catch (error) {
+                if (error instanceof VintedListingReadError) readFailure = error;
+                throw error;
+              }
+            })
+            .catch((error: unknown) => {
+              throw readFailure ?? error;
+            });
           await authorize();
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;

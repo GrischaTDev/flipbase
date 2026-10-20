@@ -2,6 +2,11 @@ import type { Page, Locator } from 'playwright';
 import type { VintedListingCategoryFields } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
+  VintedInteractionRequiredError,
+  VintedVerificationRequiredError,
+} from './vinted-browser-reader.ts';
+import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
+import {
   parseVintedListingCategoryFields,
   parseVintedListingChoices,
   collectVintedListingChoices,
@@ -122,15 +127,19 @@ export async function readVintedListingNewCategory(
   authorize: () => Promise<void>,
 ): Promise<VintedListingCategoryFields> {
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
+  let step: VintedListingReadStep = 'authorize';
   try {
     await authorize();
+    step = 'navigate';
     await page.goto('https://www.vinted.de/items/new', {
       waitUntil: 'domcontentloaded',
       timeout: 15_000,
     });
+    step = 'form';
     await page
       .locator('#content input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
+    step = 'category';
     const text = await selectVintedListingNewCategory(
       page,
       accountId,
@@ -148,16 +157,31 @@ export async function readVintedListingNewCategory(
       )
         throw invalid();
     };
+    step = 'identity';
     await check();
     const fields = await readVintedListingCategoryFields(
       page,
       accountId,
       categoryId,
       categoryPath,
-      { authorize: check },
+      {
+        authorize: check,
+        onReadField: (field) => {
+          step = field;
+        },
+      },
     );
+    step = 'changed';
     await check();
+    step = 'parse';
     return parseVintedListingCategoryFields(fields, categoryId);
+  } catch (error) {
+    if (
+      error instanceof VintedInteractionRequiredError ||
+      error instanceof VintedVerificationRequiredError
+    )
+      throw error;
+    throw new VintedListingReadError(step);
   } finally {
     await page.close();
   }

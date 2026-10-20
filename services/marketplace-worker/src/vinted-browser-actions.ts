@@ -88,10 +88,19 @@ export function vintedBrowserActions(
   return {
     readListingCategory: afterSessionRenewal(
       async (accountId, categoryId, categoryPath, authorize) => {
-        await authorize();
+        try {
+          await authorize();
+        } catch {
+          throw new VintedListingReadError('authorize');
+        }
         const contexts = connection.contexts?.();
-        if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
-        const page = await contexts[0]!.newPage();
+        if (!contexts || contexts.length !== 1) throw new VintedListingReadError('reserve');
+        let page: Page;
+        try {
+          page = await contexts[0]!.newPage();
+        } catch {
+          throw new VintedListingReadError('reserve');
+        }
         return readVintedListingNewCategory(page, accountId, categoryId, categoryPath, authorize);
       },
     ),
