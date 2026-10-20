@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import childProcess from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
+import { Writable } from 'node:stream';
+import { test, type TestContext } from 'node:test';
 import type { Browser, BrowserContext } from 'playwright';
 import { ChromiumContainerLauncher } from '../src/chromium-container-launcher.ts';
 import { CloudBrowserStoppedUncleanlyError } from '../src/gologin-cloud-browser.ts';
@@ -20,6 +23,7 @@ function fixture(
     startupFailure?: boolean;
     legacyRuntime?: boolean;
     onStartFailure?: (stage: string) => void;
+    nativeDesktop?: boolean;
   } = {},
 ) {
   const calls: { args: string[]; input?: string }[] = [];
@@ -58,10 +62,12 @@ function fixture(
     verifyFirewall: async () => {
       if (settings.firewallUnavailable) throw new Error('Firewall nicht geprüft');
     },
-    executeDesktop: async (args, input) => {
-      calls.push({ args, input });
-      return Buffer.alloc(0);
-    },
+    executeDesktop: settings.nativeDesktop
+      ? undefined
+      : async (args, input) => {
+          calls.push({ args, input });
+          return Buffer.alloc(0);
+        },
     execute: async (args, input) => {
       calls.push({ args, input });
       if (args[0] === 'image')
@@ -173,6 +179,68 @@ function fixture(
     },
   };
 }
+
+function breakDockerInput(t: TestContext): { completed: () => boolean } {
+  let completed = false;
+  let failNext = true;
+  const replacement = ((
+    _command: string,
+    _arguments: string[],
+    options: { encoding?: string },
+    callback: (error: Error | null, stdout: string | Buffer) => void,
+  ) => {
+    const stdin = new Writable({
+      write(_chunk, _encoding, finish) {
+        if (failNext) {
+          failNext = false;
+          finish(Object.assign(new Error('private-input-and-provider-error'), { code: 'EPIPE' }));
+        } else {
+          finish();
+        }
+      },
+    });
+    setImmediate(() => {
+      completed = true;
+      // Auch ein erfolgreicher Prozessabschluss darf den Eingabefehler nicht verdecken.
+      callback(null, options.encoding === 'buffer' ? Buffer.alloc(0) : '');
+    });
+    return { stdin };
+  }) as typeof childProcess.execFile;
+  t.mock.method(childProcess, 'execFile', replacement);
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  return { completed: () => completed };
+}
+
+test('a broken Docker input rejects the operation without crashing or confirming cleanup', async (t) => {
+  const child = breakDockerInput(t);
+  const launcher = new ChromiumContainerLauncher({
+    image: `ghcr.io/grischatdev/flipbase-chromium-session:sha-${'b'.repeat(40)}`,
+    profileRoot: '/controller/profiles',
+    hostProfileRoot: '/host/profiles',
+    hostId: 'pilot-01',
+    network: 'flipbase-browser',
+  });
+  await assert.rejects(launcher.inspectProfileProcesses('/controller/profiles/account-1'), {
+    message: 'Docker-Sitzungsoperation fehlgeschlagen',
+  });
+  assert.equal(child.completed(), true);
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('a broken desktop input rejects only that action and hides private pipe errors', async (t) => {
+  const { launcher } = fixture(0, false, { nativeDesktop: true });
+  await launcher.launch('/controller/profiles/account-1');
+  const child = breakDockerInput(t);
+  await assert.rejects(launcher.desktop('/controller/profiles/account-1').type('private-input'), {
+    message: 'Browserbedienung fehlgeschlagen',
+  });
+  assert.equal(child.completed(), true);
+  await launcher.desktop('/controller/profiles/account-1').type('next-input');
+});
 
 test('reports rejected firewall verification without creating a browser container', async () => {
   const failures: string[] = [];
