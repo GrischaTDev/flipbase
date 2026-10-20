@@ -37,6 +37,7 @@ afterAll(() => restoreRendering?.());
 beforeEach(async () => {
   registration.update.mockReset().mockResolvedValue(undefined);
   Object.defineProperty(registration, 'waiting', { configurable: true, value: waiting });
+  Object.defineProperty(registration, 'installing', { configurable: true, value: null });
   Object.defineProperty(navigator, 'serviceWorker', {
     configurable: true,
     value: new EventTarget(),
@@ -394,6 +395,35 @@ it('shows a bounded check after a long background pause, then releases the scree
   fixture.detectChanges();
   expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
   expect(fixture.nativeElement.textContent).toContain('Erneut prüfen');
+});
+
+it('finishes the check while a slow update keeps downloading and offers it when ready', async () => {
+  vi.useFakeTimers();
+  const installing = Object.assign(new EventTarget(), {
+    state: 'installing',
+    postMessage: vi.fn(),
+  });
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
+  Object.defineProperty(registration, 'installing', { configurable: true, value: installing });
+  registration.dispatchEvent(new Event('updatefound'));
+  const check = service.checkForUpdate({ force: true, showScreen: true });
+  await vi.advanceTimersByTimeAsync(8100);
+  await check;
+  expect(service.checkError()).toBe('');
+  expect(service.checkingForUpdate()).toBe(false);
+  expect(service.updateAvailable()).toBe(false);
+  installing.state = 'installed';
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: installing });
+  installing.dispatchEvent(new Event('statechange'));
+  expect(installing.postMessage).toHaveBeenCalledWith({ type: 'PWA_UPDATE_QUERY' });
+  navigator.serviceWorker.dispatchEvent(
+    Object.assign(new Event('message'), {
+      source: installing,
+      data: { type: 'PWA_WAITING_STATUS', buildId: 'a'.repeat(64), version: '0.42.8' },
+    }),
+  );
+  expect(service.updateAvailable()).toBe(true);
+  expect(service.availableVersion()).toBe('0.42.8');
 });
 
 it('shows a mandatory full update screen without postponing and keeps open entries accessible', () => {

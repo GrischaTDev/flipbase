@@ -6,6 +6,7 @@ import { build } from 'esbuild';
 const root = resolve(process.env.PWA_TEST_ROOT ?? 'dist/flipbase/browser');
 const secondRoot = process.env.PWA_TEST_BUILD_B ? resolve(process.env.PWA_TEST_BUILD_B) : null;
 let activeRoot = root;
+let delayedAsset = '';
 const port = Number(process.env.PWA_TEST_PORT ?? 4218);
 const security = await readFile(
   new URL('../docker/security-headers.conf', import.meta.url),
@@ -39,7 +40,19 @@ const server = createServer(async (request, response) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('X-Frame-Options', 'DENY');
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
+  const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+  const path = requestUrl.pathname;
+  if (path === '/api/__pwa_test__/asset-delay' && request.method === 'POST') {
+    const asset = requestUrl.searchParams.get('path') ?? '';
+    if (asset && !/^\/fonts\/[\w.-]+$/.test(asset)) {
+      response.writeHead(400).end();
+      return;
+    }
+    delayedAsset = asset;
+    response.setHeader('Cache-Control', 'no-store');
+    response.end('ok');
+    return;
+  }
   if (path === '/api/__pwa_test__/file-roundtrip' && request.method === 'POST') {
     const chunks = [];
     let length = 0;
@@ -124,6 +137,7 @@ const server = createServer(async (request, response) => {
       }
     }
     const extension = extname(file);
+    if (path === delayedAsset) await new Promise((resolve) => setTimeout(resolve, 12_000));
     response.setHeader('Content-Type', mime[extension] ?? 'application/octet-stream');
     response.setHeader(
       'Cache-Control',

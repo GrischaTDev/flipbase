@@ -263,8 +263,8 @@ export class PwaUpdateService {
     this.checkingForUpdate.set(options.showScreen === true);
     const abort = new AbortController();
     this.checkAbort = abort;
-    // update() und die anschließende Installation können bei pausierten Seiten
-    // hängen. Nur die Anzeige begrenzen; eine spätere fertige Version bleibt erkennbar.
+    // Nur die Netzwerkprüfung begrenzen. Die anschließende Installation kann
+    // mobil länger dauern und wird unabhängig über updatefound/statechange erkannt.
     let timeout: ReturnType<typeof setTimeout>;
     const limit = new Promise<void>((resolve, reject) => {
       timeout = setTimeout(() => reject(new Error('Updateprüfung ohne Antwort')), 8000);
@@ -282,18 +282,6 @@ export class PwaUpdateService {
       if (current && current !== this.registration) this.connect(current);
       const registration = this.registration!;
       await registration.update();
-      if (abort.signal.aborted) return;
-      const installing = registration.installing;
-      if (installing && installing.state !== 'installed' && installing.state !== 'redundant') {
-        await new Promise<void>((resolve) => {
-          const changed = () => {
-            if (installing.state === 'installed' || installing.state === 'redundant') resolve();
-          };
-          installing.addEventListener('statechange', changed, { signal: abort.signal });
-          abort.signal.addEventListener('abort', () => resolve(), { once: true });
-          changed();
-        });
-      }
       if (!abort.signal.aborted) this.inspectWaitingWorker();
     };
     this.checkInFlight = Promise.race([inspect(), limit])
