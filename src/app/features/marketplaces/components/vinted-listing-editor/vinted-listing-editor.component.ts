@@ -60,6 +60,14 @@ import {
   validVintedListingBrand,
   type VintedListingBrandSelection,
 } from '../../models/vinted-listing-brand-selection';
+import {
+  parseVintedListingCategoryFields,
+  type VintedListingCategoryFields,
+} from '../../models/vinted-listing-category-fields';
+import {
+  validateVintedListingEditor,
+  vintedListingAccountIssue,
+} from '../../models/vinted-listing-editor-validation';
 
 const textOptions = { nonNullable: true as const, validators: [Validators.maxLength(20000)] };
 const labels = (text: string) =>
@@ -145,6 +153,10 @@ export class VintedListingEditorComponent {
     readonly content: VintedListingContent;
   } | null>(null);
   private readonly selectedFields = signal<VintedListingFieldSelection | null>(null);
+  private readonly categorySnapshot = signal<{
+    readonly scopeKey: string;
+    readonly schema: VintedListingCategoryFields;
+  } | null>(null);
   private readonly selectedBrand = signal<
     (VintedListingBrandSelection & { categoryId: number | null }) | null
   >(null);
@@ -171,8 +183,20 @@ export class VintedListingEditorComponent {
     { value: null, label: 'Noch kein Konto auswählen' },
     ...this.store
       .connections()
+      .filter(
+        (account) => account.marketplace === 'vinted' && account.workspaceId === this.workspaceId(),
+      )
       .map((account) => ({ value: account.connectionId, label: account.displayName })),
   ]);
+  readonly selectedAccount = computed(() => {
+    this.changed();
+    return this.store
+      .connections()
+      .find((account) => account.connectionId === this.form.controls.connectionId.value);
+  });
+  readonly accountIssue = computed(() =>
+    vintedListingAccountIssue(this.selectedAccount(), this.workspaceId()),
+  );
   readonly categorySource = computed(() => {
     try {
       return this.categories().length ? vintedCategorySource(this.categories()) : null;
@@ -183,8 +207,12 @@ export class VintedListingEditorComponent {
   readonly priceError = computed(() => {
     this.changed();
     try {
-      parseVintedListingPrice(this.form.controls.price.value);
-      return null;
+      const price = parseVintedListingPrice(this.form.controls.price.value);
+      return price === null
+        ? 'Ergänze bitte: Verkaufspreis.'
+        : price <= 0
+          ? 'Der Verkaufspreis muss größer als 0 € sein.'
+          : null;
     } catch (error) {
       return error instanceof Error ? error.message : 'Ungültiger Verkaufspreis.';
     }
@@ -254,6 +282,50 @@ export class VintedListingEditorComponent {
       this.currentCategoryId(),
     ]);
   });
+  readonly categorySchema = computed(() => {
+    const snapshot = this.categorySnapshot();
+    return snapshot?.scopeKey === this.fieldSelectionScope() ? snapshot.schema : null;
+  });
+  readonly fieldErrors = computed(() => {
+    const stored = this.draft()?.images ?? [];
+    const photos = this.images().map((image) => {
+      const saved = stored.find((entry) => entry.id === image.key);
+      return {
+        mimeType: image.file?.type ?? saved?.mimeType ?? '',
+        byteSize: image.file?.size ?? saved?.byteSize ?? 0,
+      };
+    });
+    return validateVintedListingEditor(this.content(), photos, this.categorySchema());
+  });
+  readonly additionalFieldErrors = computed(() =>
+    Object.entries(this.fieldErrors())
+      .filter(
+        ([field]) =>
+          ![
+            'title',
+            'description',
+            'price',
+            'category',
+            'photos',
+            'brand',
+            'size',
+            'condition',
+            'color',
+            'material',
+            'package',
+          ].includes(field),
+      )
+      .map(([, message]) => message),
+  );
+  readonly publicationHint = computed(
+    () =>
+      this.accountIssue() ??
+      (this.currentCategoryId() === null
+        ? 'Wähle eine Kategorie und rufe danach über „Vinted-Angaben auswählen“ die aktuellen Pflichtangaben und Textgrenzen ab.'
+        : this.categorySchema() === null
+          ? 'Über „Vinted-Angaben auswählen“ kannst Du die aktuellen Pflichtangaben und Textgrenzen prüfen. Server- und Kontofreigabe werden vor der Veröffentlichung geprüft.'
+          : 'Ergänze die markierten Angaben. Server- und Kontofreigabe werden in „Veröffentlichung vorbereiten“ geprüft.'),
+  );
   readonly canSelectFields = computed(() => {
     this.changed();
     const account = this.store
@@ -264,6 +336,7 @@ export class VintedListingEditorComponent {
       !this.contentError() &&
       this.currentCategoryId() !== null &&
       !!account &&
+      this.accountIssue() === null &&
       account.workspaceId === this.workspaceId() &&
       account.status === 'connected' &&
       account.executionMode === 'cloud' &&
@@ -277,6 +350,7 @@ export class VintedListingEditorComponent {
       .find((value) => value.connectionId === draft?.connectionId);
     return (
       this.canSelectFields() &&
+      Object.keys(this.fieldErrors()).length === 0 &&
       !this.dirty() &&
       !!draft &&
       draft.workspaceId === this.workspaceId() &&
@@ -285,7 +359,9 @@ export class VintedListingEditorComponent {
     );
   });
   readonly canStartPublication = computed(
-    () => this.canPreparePublication() || (this.canSelectFields() && this.canSave()),
+    () =>
+      this.canPreparePublication() ||
+      (this.canSelectFields() && this.canSave() && Object.keys(this.fieldErrors()).length === 0),
   );
   private readonly publicationScope = computed(() =>
     JSON.stringify([
@@ -314,6 +390,8 @@ export class VintedListingEditorComponent {
     effect(() => {
       const scope = this.fieldSelectionScope();
       const selection = this.fieldSelection();
+      const snapshot = this.categorySnapshot();
+      if (snapshot && snapshot.scopeKey !== scope) untracked(() => this.categorySnapshot.set(null));
       if (selection && selection.scopeKey !== scope) untracked(() => this.closeFieldSelection());
     });
     effect(() => {
@@ -382,6 +460,24 @@ export class VintedListingEditorComponent {
   }
   closeFieldSelection(): void {
     this.fieldSelection.set(null);
+  }
+  categoryFieldsLoaded(schema: VintedListingCategoryFields): void {
+    const opened = this.fieldSelection();
+    if (!opened || !this.canSelectFields() || opened.scopeKey !== this.fieldSelectionScope())
+      return;
+    this.categorySnapshot.set({
+      scopeKey: opened.scopeKey,
+      schema: parseVintedListingCategoryFields(schema, opened.categoryId),
+    });
+  }
+  textLimitHelp(field: 'title' | 'description'): string {
+    this.changed();
+    const schema = this.categorySchema();
+    const maximum = field === 'title' ? schema?.titleMaxLength : schema?.descriptionMaxLength;
+    const length = this.form.controls[field].value.length;
+    return maximum == null
+      ? `${length} Zeichen. Die aktuelle Textgrenze erhältst Du über „Vinted-Angaben auswählen“.`
+      : `${length} von ${maximum} Zeichen.`;
   }
   selectFields(selection: VintedListingFieldSelection): void {
     const opened = this.fieldSelection();
@@ -593,6 +689,7 @@ export class VintedListingEditorComponent {
     this.draft.set(null);
     this.images.set([]);
     this.categories.set([]);
+    this.categorySnapshot.set(null);
     this.error.set(null);
     this.loadError.set(null);
     this.categoryError.set(null);

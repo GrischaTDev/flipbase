@@ -466,14 +466,121 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
   const state = await mockPublication(page, false);
   Object.assign(state.draft(), { content: { ...state.draft().content, description: '' } });
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
+  ).toBeDisabled();
+  expect(state.approvals).toEqual([]);
+  expect(state.enqueues).toEqual([]);
+  await editor
+    .getByRole('textbox', { name: 'Beschreibung', exact: true })
+    .fill('Vollständige Beschreibung.');
   await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
   const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
-  await expect(preview.getByText(/Beschreibung/).last()).toBeVisible();
+  await expect(preview.getByText('Vollständige Beschreibung.', { exact: true })).toBeVisible();
   await expect(preview.getByText(/auf diesem Server noch nicht verfügbar/)).toBeVisible();
   await expect(
     preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }),
   ).toBeDisabled();
   expect(state.approvals).toEqual([]);
+  expect(state.enqueues).toEqual([]);
+});
+
+test('Fotogrenze gilt bei der Auswahl, unvollständiger Entwurf bleibt speicherbar @marketplace-preview', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await mockDrafts(page);
+  await page.goto('/marketplaces/vinted/listings/new');
+  const editor = page.locator('app-vinted-listing-editor');
+  await editor.locator('input[type=file]').setInputFiles(
+    Array.from({ length: 21 }, (_, index) => ({
+      name: `foto-${index + 1}.png`,
+      mimeType: 'image/png',
+      buffer: state.pixel,
+    })),
+  );
+  await expect(editor.getByText(/20 von 20 Fotos/)).toBeVisible();
+  await expect(
+    editor.getByRole('alert').filter({ hasText: 'Du kannst höchstens 20 Bilder auswählen.' }),
+  ).toBeVisible();
+  await expect(
+    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
+  ).toBeDisabled();
+  await saveDraft(page);
+  expect(state.draft().images).toHaveLength(20);
+  expect(state.draft().content.title).toBe('');
+  expect(state.draft().content.priceCents).toBeNull();
+  await page.evaluate(axe.source);
+  expect(
+    await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-vinted-listing-editor') as HTMLElement,
+          )
+        ).violations,
+    ),
+  ).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath('listing-editor-missing-fields-mobile.png'),
+    fullPage: false,
+  });
+});
+
+test('Gelesene Textgrenzen erscheinen vor der Veröffentlichung und kürzen vorhandenen Text nicht @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page);
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  const title = editor.getByRole('textbox', { name: 'Titel', exact: true });
+  await title.fill('T'.repeat(101));
+  await editor.getByRole('button', { name: 'Vinted-Angaben auswählen', exact: true }).click();
+  const fields = page.getByRole('dialog', { name: 'Vinted-Angaben wählen', exact: true });
+  await expect(
+    fields.getByRole('button', { name: 'Angaben übernehmen', exact: true }),
+  ).toBeEnabled();
+  await fields.getByRole('button', { name: 'Angaben übernehmen', exact: true }).click();
+  await expect(title).toHaveValue('T'.repeat(101));
+  await expect(title).toHaveAttribute('maxlength', '100');
+  await expect(title).toHaveAttribute('aria-invalid', 'true');
+  await expect(
+    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
+  ).toBeDisabled();
+  await saveDraft(page);
+  expect(state.draft().content.title).toBe('T'.repeat(101));
+  await page.reload();
+  await expect(title).toHaveValue('T'.repeat(101));
+  expect(state.enqueues).toEqual([]);
+});
+
+test('Größerer alter Entwurf behält alle Fotos und kann nicht versehentlich veröffentlicht werden @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page);
+  const original = state.draft().images[0];
+  Object.assign(state.draft(), {
+    images: Array.from({ length: 21 }, (_, index) => ({
+      ...original,
+      id: String(index + 1),
+      fileName: `alt-${index + 1}.png`,
+    })),
+  });
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  await expect(editor.getByText(/21 von 20 Fotos/)).toBeVisible();
+  await expect(
+    editor.getByText('Vinted erlaubt höchstens 20 Fotos pro Inserat.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
+  ).toBeDisabled();
+  expect(state.draft().images).toHaveLength(21);
   expect(state.enqueues).toEqual([]);
 });
 test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplace-preview', async ({
