@@ -45,12 +45,18 @@
               <app-text-field
                 label="Titel"
                 placeholder="Zum Beispiel: Jeansjacke in Größe M"
+                [error]="fieldErrors()['title'] ?? null"
+                [helpText]="textLimitHelp('title')"
+                [maxLength]="categorySchema()?.titleMaxLength ?? 20000"
                 formControlName="title"
               />
               <app-text-field
                 label="Beschreibung"
                 placeholder="Beschreibe Deinen Artikel und seinen Zustand."
                 [multiline]="6"
+                [error]="fieldErrors()['description'] ?? null"
+                [helpText]="textLimitHelp('description')"
+                [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
                 formControlName="description"
               />
               @if (missingVariables().length) {
@@ -62,12 +68,18 @@
             </div>
           </app-card>
           <app-card>
+            <p class="mb-3 text-sm text-fb-text-secondary">
+              {{ images().length }} von 20 Fotos · JPEG, PNG oder WebP
+            </p>
+            @if (fieldErrors()['photos']; as photoError) {
+              <app-notice-banner>{{ photoError }}</app-notice-banner>
+            }
             <app-listing-image-editor
               [images]="images()"
               [disabled]="saving()"
               [acceptedFormats]="'image/jpeg,image/png,image/webp'"
               [validateFile]="validateImage"
-              [maximumImages]="100"
+              [maximumImages]="20"
               (imagesChange)="changeImages($event)"
               (editingChange)="setImageEditing($event)"
             />
@@ -84,6 +96,9 @@
               @if (categoryError()) {
                 <app-notice-banner>{{ categoryError() }}</app-notice-banner>
               }
+              @if (fieldErrors()['category']; as categoryIssue) {
+                <app-notice-banner>{{ categoryIssue }}</app-notice-banner>
+              }
               <div class="space-y-2">
                 <app-button
                   size="slim"
@@ -93,14 +108,15 @@
                   (clicked)="openFieldSelection()"
                   >Vinted-Angaben auswählen</app-button
                 >
-                <p class="text-xs text-fb-text-secondary">
-                  Wähle zuerst eine Kategorie und ein verbundenes Cloud-Konto, um die aktuellen
-                  Vinted-Angaben abzurufen.
-                </p>
+                <p class="text-xs text-fb-text-secondary">{{ publicationHint() }}</p>
               </div>
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="space-y-2">
-                  <app-text-field label="Marke" formControlName="brand" />
+                  <app-text-field
+                    label="Marke"
+                    [error]="fieldErrors()['brand'] ?? null"
+                    formControlName="brand"
+                  />
                   <app-button
                     size="slim"
                     variant="secondary"
@@ -110,16 +126,26 @@
                     >Bei Vinted auswählen</app-button
                   >
                 </div>
-                <app-text-field label="Größe" formControlName="size" />
-                <app-text-field label="Zustand" formControlName="condition" />
+                <app-text-field
+                  label="Größe"
+                  [error]="fieldErrors()['size'] ?? null"
+                  formControlName="size"
+                />
+                <app-text-field
+                  label="Zustand"
+                  [error]="fieldErrors()['condition'] ?? null"
+                  formControlName="condition"
+                />
                 <app-text-field
                   label="Farben"
                   helpText="Mehrere Farben mit Komma trennen."
+                  [error]="fieldErrors()['color'] ?? null"
                   formControlName="colors"
                 />
                 <app-text-field
                   label="Materialien"
                   helpText="Mehrere Materialien mit Komma trennen."
+                  [error]="fieldErrors()['material'] ?? null"
                   formControlName="materials"
                 />
               </div>
@@ -129,6 +155,17 @@
               <p class="text-sm text-fb-text-primary">
                 <span class="font-semibold">Paketgröße:</span> {{ packageLabel() }}
               </p>
+              @if (fieldErrors()['package']; as packageError) {
+                <app-notice-banner
+                  >{{ packageError }} Nutze „Vinted-Angaben auswählen“.</app-notice-banner
+                >
+              }
+              @for (message of additionalFieldErrors(); track $index) {
+                <app-notice-banner
+                  >{{ message }} Für diese Kategorie kann Flipbase noch nicht alle nötigen Angaben
+                  erfassen. Dein Entwurf bleibt speicherbar.</app-notice-banner
+                >
+              }
             </div>
           </app-card>
         </div>
@@ -148,6 +185,12 @@
                   formControlName="connectionId"
                 />
               </div>
+              <p role="status" class="text-sm text-fb-text-secondary">{{ publicationHint() }}</p>
+              @if (accountIssue()) {
+                <app-button variant="secondary" link="/marketplaces/vinted/accounts"
+                  >Vinted-Konten verwalten</app-button
+                >
+              }
               <app-text-field
                 label="Verkaufspreis"
                 suffix="€"
@@ -214,6 +257,7 @@
     [categoryId]="selection.categoryId"
     [content]="selection.content"
     [disabled]="!canSelectFields()"
+    (schemaLoaded)="categoryFieldsLoaded($event)"
     (selected)="selectFields($event)"
     (closed)="closeFieldSelection()"
   />

@@ -72,6 +72,37 @@ async function settle() {
   for (let index = 0; index < 12; index++) await Promise.resolve();
   TestBed.tick();
 }
+function publicationInput(f: ReturnType<typeof setup>) {
+  const image = {
+    id: '2',
+    storagePath: 'workspace-a/1/2.jpg',
+    fileName: 'jacke.jpg',
+    mimeType: 'image/jpeg',
+    byteSize: 123,
+  };
+  f.create.mockImplementation(async (_workspace, content, connectionId) => ({
+    ...draft,
+    content,
+    connectionId,
+    images: [image],
+  }));
+  f.component.images.set([
+    {
+      key: image.id,
+      storagePath: image.storagePath,
+      file: null,
+      fileName: image.fileName,
+      previewUrl: 'https://images.example.test/jacke.jpg',
+    },
+  ]);
+  f.component.form.patchValue({
+    title: 'Meine Jacke',
+    description: 'Gut erhalten.',
+    price: '18',
+    categoryId: '1223',
+    connectionId: 'account-a',
+  });
+}
 function setup(query: Record<string, string> = {}) {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
@@ -139,6 +170,28 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('speichert unvollständige Inhalte weiter, verhindert aber eine Veröffentlichung ohne Titel, Text, Preis und Foto', async () => {
+    const { component } = setup();
+    await settle();
+    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    expect(component.canSave()).toBe(true);
+    expect(component.canStartPublication()).toBe(false);
+    await component.save();
+    expect(component.draft()?.content.title).toBe('');
+    expect(component.dirty()).toBe(false);
+    expect(component.canPreparePublication()).toBe(false);
+    await component.openPublication();
+    expect(component.publication()).toBeNull();
+  });
+  it('meldet einen Nullpreis schon im Editor und erhält ihn im unvollständigen Entwurf', async () => {
+    const { component } = setup();
+    await settle();
+    component.form.controls.price.setValue('0,00');
+    expect(component.priceError()).toContain('größer als 0');
+    expect(component.canSave()).toBe(true);
+    await component.save();
+    expect(component.draft()?.content.priceCents).toBe(0);
+  });
   it('übernimmt das ausdrücklich gewählte Konto aus der Übersicht', async () => {
     const { component, connections } = setup({
       connectionId: 'account-b',
@@ -155,9 +208,10 @@ describe('Vinted-Inserateditor', () => {
     expect(component.error()).toContain('nicht mehr verfügbar');
   });
   it('saves pending input first, opens only the saved revision and rejects a previous preview after an immediate edit', async () => {
-    const { component, create } = setup();
+    const f = setup();
+    const { component, create } = f;
     await settle();
-    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    publicationInput(f);
     expect(component.canPreparePublication()).toBe(false);
     expect(component.canStartPublication()).toBe(true);
     const opening = component.openPublication();
@@ -175,9 +229,10 @@ describe('Vinted-Inserateditor', () => {
     expect(component.publication()).toBeNull();
   });
   it('closes an accepted preview and requests a history refresh without claiming Vinted success', async () => {
-    const { component, connections } = setup();
+    const f = setup();
+    const { component, connections } = f;
     await settle();
-    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    publicationInput(f);
     await component.save();
     component.openPublication();
     const accepted = queuedJob(component.draft()!.revision);
@@ -191,6 +246,66 @@ describe('Vinted-Inserateditor', () => {
     expect(component.jobRefresh()).toBe(1);
     await settle();
     expect(component.publication()).toBeNull();
+  });
+  it('zeigt gelesene Textgrenzen früh, erhält überlange Entwürfe und verwirft Grenzen nach Kategorieänderung', async () => {
+    const { component } = setup();
+    await settle();
+    component.form.patchValue({
+      categoryId: '1223',
+      connectionId: 'account-a',
+      title: 'Mein Titel',
+    });
+    component.openFieldSelection();
+    component.categoryFieldsLoaded({ ...listingCategoryFixture(), titleMaxLength: 5 });
+    expect(component.fieldErrors()['title']).toContain('5 Zeichen');
+    expect(component.textLimitHelp('title')).toBe('10 von 5 Zeichen.');
+    await component.save();
+    expect(component.draft()?.content.title).toBe('Mein Titel');
+    component.form.controls.categoryId.setValue('2738');
+    expect(component.categorySchema()).toBeNull();
+    expect(component.fieldErrors()['title']).toBeUndefined();
+  });
+  it.each(['workspace', 'connection', 'external-account', 'category'])(
+    'übernimmt keine verspätete Kategorieantwort nach Änderung von %s',
+    async (change) => {
+      const { component, workspace, connections } = setup();
+      await settle();
+      component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+      component.openFieldSelection();
+      if (change === 'workspace') workspace.set({ id: 'workspace-b', archived_at: null });
+      if (change === 'connection') component.form.controls.connectionId.setValue('account-b');
+      if (change === 'external-account')
+        connections.set([{ ...account, externalAccountId: '456' }]);
+      if (change === 'category') component.form.controls.categoryId.setValue('2738');
+      component.categoryFieldsLoaded(listingCategoryFixture());
+      expect(component.categorySchema()).toBeNull();
+    },
+  );
+  it('verwendet nach einem Kontowechsel und Rückwechsel keine frühere Kategorieantwort erneut', async () => {
+    const { component, connections } = setup();
+    await settle();
+    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    component.openFieldSelection();
+    component.categoryFieldsLoaded(listingCategoryFixture());
+    expect(component.categorySchema()).not.toBeNull();
+    connections.set([{ ...account, externalAccountId: '456' }]);
+    await settle();
+    connections.set([account]);
+    expect(component.categorySchema()).toBeNull();
+  });
+  it('bewahrt alle Fotos eines größeren alten Entwurfs, sperrt aber dessen Veröffentlichung', async () => {
+    const f = setup();
+    await settle();
+    publicationInput(f);
+    const image = f.component.images()[0];
+    f.component.images.set(
+      Array.from({ length: 21 }, (_, index) => ({ ...image, key: String(index + 1) })),
+    );
+    expect(f.component.images()).toHaveLength(21);
+    expect(f.component.fieldErrors()['photos']).toContain('20');
+    expect(f.component.canStartPublication()).toBe(false);
+    f.component.changeImages(f.component.images().slice(0, 20));
+    expect(f.component.canStartPublication()).toBe(true);
   });
   it('saves canonical category choices without overwriting pending title, brand or price', async () => {
     const { component, create } = setup();

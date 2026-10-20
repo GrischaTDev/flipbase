@@ -59,10 +59,12 @@ function setup() {
     conditionLabel: 'Sehr gut',
   });
   const selected = vi.fn(),
-    closed = vi.fn();
+    closed = vi.fn(),
+    schemaLoaded = vi.fn();
   fixture.componentInstance.selected.subscribe(selected);
   fixture.componentInstance.closed.subscribe(closed);
-  return { fixture, component: fixture.componentInstance, read, selected, closed };
+  fixture.componentInstance.schemaLoaded.subscribe(schemaLoaded);
+  return { fixture, component: fixture.componentInstance, read, selected, closed, schemaLoaded };
 }
 async function settle(f: ReturnType<typeof setup>) {
   f.fixture.detectChanges();
@@ -74,6 +76,13 @@ describe('Vinted category field dialog', () => {
     const f = setup();
     await settle(f);
     expect(f.read).toHaveBeenCalledWith('account-a', 1223);
+    expect(f.schemaLoaded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categoryId: 1223,
+        titleMaxLength: 100,
+        descriptionMaxLength: 2000,
+      }),
+    );
     expect(f.component.form.controls.sizeId.value).toBe(208);
     expect(f.component.form.controls.conditionId.value).toBe(2);
     expect(f.selected).not.toHaveBeenCalled();
@@ -142,6 +151,7 @@ describe('Vinted category field dialog', () => {
     resolve(listingCategoryFixture());
     for (let index = 0; index < 12; index++) await Promise.resolve();
     expect(f.component.schema()).toBeNull();
+    expect(f.schemaLoaded).not.toHaveBeenCalled();
     f.component.apply();
     expect(f.selected).not.toHaveBeenCalled();
     if (action === 'scope') {

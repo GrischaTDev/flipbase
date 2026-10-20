@@ -63,6 +63,7 @@ export class VintedListingFieldsDialogComponent {
   readonly content = input.required<VintedListingContent>();
   readonly disabled = input(false);
   readonly selected = output<VintedListingFieldSelection>();
+  readonly schemaLoaded = output<VintedListingCategoryFields>();
   readonly closed = output<void>();
   readonly schema = signal<VintedListingCategoryFields | null>(null);
   readonly loading = signal(false);
@@ -130,6 +131,7 @@ export class VintedListingFieldsDialogComponent {
       if (!this.current(generation, binding)) return;
       this.schema.set(schema);
       this.prefill(schema);
+      this.schemaLoaded.emit(schema);
     } catch (error) {
       if (this.current(generation, binding))
         this.error.set(

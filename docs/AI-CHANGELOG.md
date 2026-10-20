@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-20 - Juna - Vinted-Inseraterstellung vor Relisting abschließen
+
+**Auftrag:** Die drei besprochenen Punkte umsetzen: frühe Eingabegrenzen, verständliche Kontovoraussetzungen und gezielte Prüfung des vorhandenen Veröffentlichungswegs. Bedienumbau und Relisting bleiben nachgelagert. Nutzer wählt die JAKO-j-sfg-Twist-Fußballschuhe für 18 € aus Wiehen Store; nach Bestätigung, dass sie bereits online sind, begrenzt er den echten Artikeltest ausdrücklich auf die interne Vorbereitung bis zur Veröffentlichungsprüfung. Kein Ersatz und keine doppelte Anzeige.
+
+**Änderung:** Neue Fotoauswahl auf 20 begrenzt und Anzahl/Fehler direkt im Editor angezeigt; größere alte Entwürfe bleiben vollständig erhalten. Fehlende Titel-, Beschreibungs-, Preis-, Kategorie- und Fotoangaben sperren die Veröffentlichung, bleiben jedoch als Entwurf speicherbar. Nach ausdrücklichem Kategorieabruf werden aktuelle Textgrenzen und Auswahlfehler am Feld angezeigt; vorhandene Texte werden nicht gekürzt. Kategorieantworten sind an Nutzer, Arbeitsbereich, Kontoidentität, Verbindungsstatus und Kategorie gebunden und werden nach einem Wechsel verworfen. Fehlendes/lokales/pausiertes/abgemeldetes/gesperrtes Konto sowie unbekannte Identität erhalten konkrete Hinweise und einen Link zur Kontoverwaltung. Endgültige Markenprüfung, Serverfreigabe und Kontofreigabe bleiben in der bestehenden Vorschau.
+
+**Bisherige Prüfungen:** Neue Mindestangaben-/Nullpreisfälle zunächst rot, anschließend grün; weitere rote Regressionen für den Rückwechsel zum Konto und konkrete dynamische Textgrenzen bestätigt und korrigiert. Betroffene Modellauswahl 26 und Angular-Auswahl 76 Fälle erfolgreich. 14 echte Worker-Browserfälle gegen ausschließlich lokale Anbieterformulare erfolgreich; keine echte Vinted-Veröffentlichung daraus abgeleitet. Regulärer Produktionsbau, Typprüfung, gezieltes ESLint, Suite-Audit, gemeinsame UI-Architekturprüfung und 47 Auswahl-/Registrierungsfälle bestanden. Erster Editor-Browserlauf 25 erfolgreich und ein neuer Fall wegen falscher Buttonbeschriftung fehlgeschlagen; Ursache anhand Aufzeichnung geklärt, korrigierter Einzelfall erfolgreich. Abschließender Browserlauf und unabhängiger Review folgen.
+
+**Echter Prüfartikel:** In der bestehenden produktiven Oberfläche Titel, 18 €, fünf Fotos, Größe 36, Jako, Neu mit Etikett und Beschreibung gelesen. Bestehender lesender Bearbeitungsabruf liefert nur Teilangaben und lässt Fotos/weitere Merkmale unverändert. Bearbeitung ohne Eingaben geschlossen. Keine fehlende Anbieterkennung erfunden, kein Inserat gespeichert, veröffentlicht oder entfernt. Download der sichtbaren Fotos über die Browsersteuerung endete mit Zeitüberschreitung; kein vollständiger Bildexport behauptet. Die neue lokale Oberfläche und der bisher produktiv ausgelieferte Stand bleiben getrennte Nachweise.
+
 ## 2026-10-20 - Juna - Vinted-Browserdienst gegen geschlossene Eingabekanäle absichern
 
 **Auftrag:** Nach bestätigter Wiederherstellung den zugrunde liegenden Automatik-Ausfall dauerhaft beheben.

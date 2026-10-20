@@ -31,10 +31,23 @@ const fieldLabels: Readonly<Record<string, string>> = {
   attributes: 'Weitere Artikelangaben',
   form: 'Vinted-Formular',
 };
-function message(issue: VintedListingValidationIssue): string {
+export function vintedListingValidationMessage(
+  issue: VintedListingValidationIssue,
+  schema?: VintedListingCategoryFields,
+): string {
   const label = fieldLabels[issue.field] ?? issue.field;
   if (issue.field === 'photos' && issue.code === 'limit')
     return 'Vinted erlaubt höchstens 20 Fotos pro Inserat.';
+  if (issue.field === 'price' && issue.code === 'invalid')
+    return 'Der Verkaufspreis muss größer als 0 € sein.';
+  const textMaximum =
+    issue.field === 'title'
+      ? schema?.titleMaxLength
+      : issue.field === 'description'
+        ? schema?.descriptionMaxLength
+        : null;
+  if (issue.code === 'limit' && textMaximum != null)
+    return `${label}: höchstens ${textMaximum} Zeichen. Dein vorhandener Text bleibt erhalten.`;
   switch (issue.code) {
     case 'missing':
       return `Ergänze bitte: ${label}.`;
@@ -109,5 +122,9 @@ export function reviewVintedListingPublication(
   if (!brandConfirmed && !issues.some((issue) => issue.field === 'brand'))
     issues.push({ field: 'brand', code: 'unavailable' });
   if (aiPhoto && schema.aiPhoto === null) issues.push({ field: 'ai_photo', code: 'unavailable' });
-  return { ready: issues.length === 0, issues, messages: issues.map(message) };
+  return {
+    ready: issues.length === 0,
+    issues,
+    messages: issues.map((issue) => vintedListingValidationMessage(issue, schema)),
+  };
 }
