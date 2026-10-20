@@ -229,6 +229,42 @@ it('acknowledges the target attempt, then revokes and prevents edits during the 
     expect.objectContaining({ type: 'PWA_UPDATE_REVOKE', attemptId: 'attempt' }),
   );
 });
+it('keeps activation pending when the update screen is tapped again', async () => {
+  receive('PWA_WAITING_STATUS');
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  const result = service.applyUpdate();
+  const attempt = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )?.[0];
+  receive('PWA_PREPARE_UPDATE', { attemptId: attempt.attemptId });
+  fixture.detectChanges();
+  const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  waiting.postMessage.mockClear();
+  const screen = fixture.nativeElement.querySelector('[data-pwa-update-screen]') as HTMLElement;
+  for (const target of [button, screen]) {
+    for (const type of ['pointerdown', 'click', 'keydown']) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+  }
+  expect(waiting.postMessage).not.toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'PWA_UPDATE_REVOKE' }),
+  );
+  receive('PWA_COMMIT_UPDATE', { attemptId: attempt.attemptId });
+  expect(waiting.postMessage).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'PWA_UPDATE_COMMIT_ACK', safe: true }),
+  );
+  // Einen echten Änderungsversuch weiterhin blockieren und die Sperre aufheben.
+  document.dispatchEvent(new Event('beforeinput', { cancelable: true }));
+  expect(waiting.postMessage).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'PWA_UPDATE_REVOKE' }),
+  );
+  receive('PWA_UPDATE_RESULT', { attemptId: attempt.attemptId, result: 'blocked' });
+  expect(await result).toBe('blocked');
+});
 it('rechecks dirty/saving state on commit and releases a blocked attempt', () => {
   receive('PWA_PREPARE_UPDATE');
   dirty.mockReturnValue(true);

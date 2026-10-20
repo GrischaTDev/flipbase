@@ -152,6 +152,33 @@ test('a real second build waits for an unsaved second window before activation @
             .map((animation) => animation.finished),
         );
       });
+      // Die Updatefläche muss wie die Startfläche deckend sein; die App darf
+      // auch an den Bildschirmrändern nicht durchscheinen.
+      const startupBackground = await page.evaluate(() => {
+        const startup = document.createElement('section');
+        startup.className = 'fb-app-startup';
+        document.querySelector('[data-pwa-update-screen]')!.append(startup);
+        const background = getComputedStyle(startup).backgroundColor;
+        startup.remove();
+        return background;
+      });
+      expect(startupBackground).not.toBe('rgba(0, 0, 0, 0)');
+      await expect(screen).toHaveCSS('background-color', startupBackground);
+      expect(
+        await screen.evaluate((element) => {
+          const points = [
+            [1, 1],
+            [innerWidth - 2, 1],
+            [1, innerHeight - 2],
+            [innerWidth - 2, innerHeight - 2],
+          ];
+          return points.every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
+        }),
+      ).toBe(true);
+      await testInfo.attach(`update-screen-${colorScheme}`, {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      });
       expect(
         await screen
           .getByRole('button', { name: 'Jetzt aktualisieren' })
@@ -246,7 +273,13 @@ test('installed app updates while a frozen background view keeps unsaved entries
         { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
       );
     // Derselbe Standalone-Zweig wie beim Start über das installierte App-Symbol.
-    await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'standalone', { value: true });
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'PWA_PREPARE_UPDATE')
+          document.documentElement.dataset['pwaUpdatePrepared'] = 'true';
+      });
+    });
     await configure(page);
     await page.goto(`${origin}/settings/notifications`);
     await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
@@ -279,6 +312,27 @@ test('installed app updates while a frozen background view keeps unsaved entries
     await appInput.send('Input.dispatchTouchEvent', {
       type: 'touchStart',
       touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }],
+    });
+    await appInput.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(update).toBeDisabled();
+    await expect(page.locator('html')).toHaveAttribute('data-pwa-update-prepared', 'true');
+    // Erneutes Tippen auf die gesperrte Aktion darf die laufende Prüfung anderer
+    // Ansichten nicht als neuen Bearbeitungsversuch abbrechen.
+    for (let tap = 0; tap < 3; tap++) {
+      await appInput.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }],
+      });
+      await appInput.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    }
+    // Auch ein harmloses Tippen auf den Text der Updatefläche ist kein Edit.
+    const heading = await page
+      .getByRole('heading', { name: 'Eine neue Version ist verfügbar' })
+      .boundingBox();
+    if (!heading) throw new Error('Updateüberschrift fehlt.');
+    await appInput.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: heading.x + heading.width / 2, y: heading.y + heading.height / 2 }],
     });
     await appInput.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
