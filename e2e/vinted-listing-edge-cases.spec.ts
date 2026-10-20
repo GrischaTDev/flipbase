@@ -185,6 +185,15 @@ for (const width of [320, 390, 834, 1440]) {
         imageUrls: photos,
         price: 29.9,
         currency: 'EUR',
+        brand: index === 0 ? 'Eine besonders lange Testmarke ohne Zeilenumbruch' : null,
+        size: index === 0 ? 'M' : null,
+        status: index === 0 ? 'Sehr gut' : null,
+        promoted: index === 0,
+        metrics: {
+          views: index === 0 ? 1234 : null,
+          favorites: index === 0 ? 123 : null,
+          observedAt: '2026-10-15T12:00:00Z',
+        },
         occurredAt:
           hours === null
             ? null
@@ -203,7 +212,79 @@ for (const width of [320, 390, 834, 1440]) {
           },
         }),
       );
+      await page.route('**/rest/v1/rpc/marketplace_read_listing_metric_changes', (route) =>
+        route.fulfill({
+          json: {
+            workspaceId,
+            connectionId: accountIds[0],
+            periodMinutes: 5,
+            items: [
+              {
+                entryId,
+                observedAt: '2026-10-15T12:00:00Z',
+                baselineAt: '2026-10-15T11:55:00Z',
+                views: 12,
+                favorites: 3,
+              },
+            ],
+          },
+        }),
+      );
       await page.goto('/marketplaces/vinted/listings');
+      const gridView = page.getByRole('button', { name: 'Rasteransicht', exact: true });
+      const listView = page.getByRole('button', { name: 'Listenansicht', exact: true });
+      await expect(gridView).toHaveAttribute('aria-pressed', 'true');
+      await expect(listView).toHaveAttribute('aria-pressed', 'false');
+      const cards = page.locator('app-vinted-listings a[aria-label^="Inserat "]');
+      const firstThumbnail = cards.first().locator('app-product-thumbnail');
+      const gridWidth = (await firstThumbnail.boundingBox())!.width;
+      await listView.click();
+      await expect(listView).toHaveAttribute('aria-pressed', 'true');
+      await expect(gridView).toHaveAttribute('aria-pressed', 'false');
+      await expect(cards).toHaveCount(5);
+      await expect(cards.first()).toContainText(
+        'Eine besonders lange Testmarke ohne Zeilenumbruch',
+      );
+      await expect(cards.first()).toContainText('29,90');
+      await expect(cards.first().locator('app-vinted-listing-metrics')).toBeVisible();
+      await expect(cards.first().getByText('Gepusht', { exact: true })).toBeVisible();
+      await expect(cards.first().locator('[data-metric-increase="favorites"]')).toContainText('+3');
+      const listBounds = (await cards.first().boundingBox())!;
+      const statusBounds = (await cards
+        .first()
+        .locator('p[title="Zustand: Sehr gut"]')
+        .boundingBox())!;
+      expect(statusBounds.width).toBeGreaterThan(1);
+      const metricBounds = await cards
+        .first()
+        .locator('[data-views], [data-favorites], [data-metric-increase]')
+        .evaluateAll((elements) =>
+          elements.map((element) => {
+            const bounds = element.getBoundingClientRect();
+            return { left: bounds.left, right: bounds.right };
+          }),
+        );
+      for (const bounds of metricBounds) {
+        expect(bounds.left).toBeGreaterThanOrEqual(listBounds.x);
+        expect(bounds.right).toBeLessThanOrEqual(listBounds.x + listBounds.width);
+      }
+      expect((await firstThumbnail.boundingBox())!.width).toBeLessThan(gridWidth);
+      expect(listBounds.width).toBeGreaterThan(width / 2);
+      expect(listBounds.height).toBeLessThan(130);
+      await page.evaluate(axe.source);
+      expect(
+        (
+          await page.evaluate(() =>
+            (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listings'),
+          )
+        ).violations,
+      ).toEqual([]);
+      await checkPage(page, errors);
+      await screenshot(page, `vinted-list-view-${width}-${theme}`);
+      await gridView.focus();
+      await page.keyboard.press('Enter');
+      await expect(gridView).toHaveAttribute('aria-pressed', 'true');
+      expect((await firstThumbnail.boundingBox())!.width).toBeCloseTo(gridWidth, 0);
       await expect(page.locator('app-vinted-listing-age')).toHaveCount(5);
       await expect(
         page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
@@ -218,6 +299,9 @@ for (const width of [320, 390, 834, 1440]) {
           )
         ).violations,
       ).toEqual([]);
+      await listView.focus();
+      await page.keyboard.press('Space');
+      await expect(listView).toHaveAttribute('aria-pressed', 'true');
       await page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }).click();
       const gallery = page.locator('app-product-gallery');
       await expect(gallery.getByRole('button')).toHaveCount(5);

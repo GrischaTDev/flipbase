@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -27,6 +28,7 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import type { MarketplaceProfile } from '../../models/marketplace-read.models';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
+import { VintedListingClockService } from '../../services/vinted-listing-clock.service';
 
 @Component({
   selector: 'app-vinted-account-controls',
@@ -45,6 +47,7 @@ import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vin
   host: { class: 'block min-w-0' },
 })
 export class VintedAccountControlsComponent {
+  private readonly clock = inject(VintedListingClockService);
   readonly connections = input.required<readonly MarketplaceConnection[]>();
   readonly account = input.required<MarketplaceConnection>();
   readonly canManage = input(false);
@@ -75,6 +78,13 @@ export class VintedAccountControlsComponent {
   readonly syncedAt = computed(() =>
     this.inbox() ? this.inboxSyncedAt() : this.account().lastSyncedAt,
   );
+  readonly syncedAtDay = computed(() => {
+    const syncedAt = new Date(this.syncedAt() ?? '');
+    const today = new Date(this.clock.now());
+    if (syncedAt.toDateString() === today.toDateString()) return 'today';
+    today.setDate(today.getDate() - 1);
+    return syncedAt.toDateString() === today.toDateString() ? 'yesterday' : 'older';
+  });
   readonly accountSelected = output<string | null>();
   readonly refreshRequested = output<void>();
   readonly synchronized = output<MarketplaceSyncSchedule>();

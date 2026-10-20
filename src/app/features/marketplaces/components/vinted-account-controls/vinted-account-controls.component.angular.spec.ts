@@ -17,6 +17,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 import type { AccountScope } from '../../models/marketplace.models';
 import { MarketplaceFavoriteNotificationApiService } from '../../services/marketplace-favorite-notification-api.service';
 import { MarketplaceSyncScheduleApiService } from '../../services/marketplace-sync-schedule-api.service';
+import { VintedListingClockService } from '../../services/vinted-listing-clock.service';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync-schedule.component';
@@ -24,6 +25,7 @@ import { VintedCloudMessageSettingsComponent } from '../vinted-cloud-message-set
 import { VintedAccountControlsComponent } from './vinted-account-controls.component';
 
 const account = { ...createMarketplaceFixtures().connections[0], executionMode: 'local' as const };
+const clock = { now: signal(new Date(2026, 9, 20, 14).getTime()) };
 let restore: (() => void) | undefined;
 const favoriteApi = {
   readSettings: vi.fn(),
@@ -81,6 +83,7 @@ afterAll(() => restore?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
   vi.clearAllMocks();
+  clock.now.set(new Date(2026, 9, 20, 14).getTime());
   favoriteApi.readSettings.mockImplementation(async (scope: AccountScope) => ({
     ...scope,
     enabled: true,
@@ -108,6 +111,7 @@ beforeEach(() => {
       },
       { provide: MarketplaceFavoriteNotificationApiService, useValue: favoriteApi },
       { provide: MarketplaceSyncScheduleApiService, useValue: scheduleApi },
+      { provide: VintedListingClockService, useValue: clock },
     ],
   });
 });
@@ -257,5 +261,45 @@ describe('Benachrichtigungseinstellungen bei lokalen Vinted-Konten', () => {
     expect(element.textContent).toContain('Uhr');
     const greenDot = element.querySelector('.bg-emerald-500');
     expect(greenDot).not.toBeNull();
+  });
+  it.each([
+    ['heute', new Date(2026, 9, 20, 13, 36), '13:36 Uhr', '20.10.2026, 13:36:00'],
+    ['gestern', new Date(2026, 9, 19, 13, 36), 'Gestern • 13:36 Uhr', '19.10.2026, 13:36:00'],
+    ['vorgestern', new Date(2026, 9, 18, 13, 36), '18.10.2026 • 13:36 Uhr', '18.10.2026, 13:36:00'],
+  ])('zeigt für %s den passenden Aktualisierungszeitpunkt', async (_, date, label, title) => {
+    const fixture = await render();
+    fixture.componentRef.setInput('account', { ...account, lastSyncedAt: date.toISOString() });
+    await settle(fixture);
+    const time = fixture.nativeElement.querySelector('time') as HTMLTimeElement;
+    expect(time.textContent?.replace(/\s+/g, ' ').trim()).toBe(`Zuletzt aktualisiert: ${label}`);
+    expect(time.dateTime).toBe(date.toISOString());
+    expect(time.title).toBe(title);
+  });
+  it.each([
+    [new Date(2026, 9, 20, 0, 5), new Date(2026, 9, 19, 23, 55)],
+    [new Date(2026, 10, 1, 0, 5), new Date(2026, 9, 31, 23, 55)],
+    [new Date(2027, 0, 1, 0, 5), new Date(2026, 11, 31, 23, 55)],
+    [new Date(2026, 9, 26, 0, 5), new Date(2026, 9, 25, 0, 1)],
+  ])('erkennt gestern anhand des lokalen Kalendertags (%s)', async (now, syncedAt) => {
+    clock.now.set(now.getTime());
+    const fixture = await render();
+    fixture.componentRef.setInput('account', { ...account, lastSyncedAt: syncedAt.toISOString() });
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('time')?.textContent).toContain('Gestern');
+  });
+  it('wechselt bei unverändertem Kontostand von Uhrzeit zu gestern und danach zum Datum', async () => {
+    const syncedAt = new Date(2026, 9, 20, 13, 36).toISOString();
+    const fixture = await render();
+    fixture.componentRef.setInput('account', { ...account, lastSyncedAt: syncedAt });
+    await settle(fixture);
+    const text = () =>
+      fixture.nativeElement.querySelector('time')?.textContent.replace(/\s+/g, ' ').trim();
+    expect(text()).toBe('Zuletzt aktualisiert: 13:36 Uhr');
+    clock.now.set(new Date(2026, 9, 21, 0, 1).getTime());
+    await settle(fixture);
+    expect(text()).toBe('Zuletzt aktualisiert: Gestern • 13:36 Uhr');
+    clock.now.set(new Date(2026, 9, 22, 0, 1).getTime());
+    await settle(fixture);
+    expect(text()).toBe('Zuletzt aktualisiert: 20.10.2026 • 13:36 Uhr');
   });
 });

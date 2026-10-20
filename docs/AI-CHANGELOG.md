@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-20 - Juna - Vinted-Anpassungen für PR und Veröffentlichung abschließen
+
+**Freigabe:** Nutzer autorisiert Branch-Push, PR gegen `master`, Merge-Commit nach erfolgreichen Pflichtprüfungen und anschließende Bereinigung des eigenen Branches. `origin/master` vor dem Abschluss unverändert auf `624a8eba`; kein Integrationskonflikt.
+
+**Reviewkorrektur:** Unabhängiger Review bestätigt abgeschnittene mobile Kennzahlen bei gepushten Artikeln mit Änderungswerten. Bestehenden Browserfall um Zustand, Push-Badge, 1.234 Aufrufe (+12), 123 Favoriten (+3) und echte Geometrie erweitert; zuerst wegen Zustandbreite 0px fehlgeschlagen. Metadatenzeile darf umbrechen, Kennzahlen bleiben innerhalb der Karte. Nachreview bei 320px bestätigt 49px Zustandsbreite, vollständig sichtbare Änderungen und kompakte 126px Kartenhöhe; keine weiteren Befunde.
+
+**Prüfung und Übergabe:** Nach der Korrektur gesamte betroffene Angular-Auswahl mit 96 Fällen in fünf Dateien, vier Node-Routenfälle und 21 Browserfälle erfolgreich. Typen, gezieltes ESLint, Format und Produktionsbau ebenfalls erfolgreich; die CI-Auswahl für den Gesamtbranch ist vor Push dokumentiert. PR-Beschreibung vorbereitet. Git-Zugriff funktioniert, GitHub-API wird vom Cloud-Proxy mit HTTP 403 blockiert. Fehlende Netzwerkfreigaben für `api.github.com` und die öffentliche App im Cloud-Konfigurationsentwurf ergänzt; Übernahme ist vor PR-Erstellung, CI-Abfrage und Merge erforderlich. Keine Produktivänderung oder Umgehung der Pflichtprüfungen.
+
+## 2026-10-20 - Juna - Kleiderschrank zwischen Raster und Liste umschalten
+
+**Auftrag:** Zwei Buttons als gemeinsamen Umschalter für das bestehende Raster und eine Listenansicht ergänzen.
+
+**Änderung:** Vorhandene Segment-Buttons mit Raster-/Listensymbol, zugänglichen Beschriftungen und aktivem Zustand in der Kleiderschrank-Kopfzeile verwenden. Raster bleibt der Anfangszustand. Die Liste zeigt kleine Vorschaubilder, Titel, Marke/Größe, Preis, Tagesangabe, Zustand, Pushstatus und dieselben Kennzahlen mit Änderungsanzeigen. Gemeinsame Artikellinks, Nachladen, Auswahl und Transferaktion bleiben an den vorhandenen Daten angebunden. Die Ansichtswahl ist lokal für die geöffnete Komponente; keine zusätzliche Speicherung oder Backendänderung.
+
+**Prüfung:** Bestehenden Mosaik-/Zeit-Badge-Browserfall um Wechsel per Maus und Tastatur, aktiven Zustand, unveränderte Artikelanzahl, Listenmaße, Rückwechsel, AXE und Öffnen eines Artikels aus der Liste erweitert. Zunächst wegen fehlendem Umschalter erwartungsgemäß fehlgeschlagen, danach erfolgreich. Vollständige betroffene Browserauswahl mit 21 Fällen in `vinted-listing-edge-cases.spec.ts` und `vinted-workspace-ui.spec.ts` bestanden, einschließlich Umschalten und AXE bei 320/390/834/1440px in Hell/Dunkel; Desktop- und Smartphone-Screenshots visuell geprüft. Zusätzlich 80 Angular-Fälle in vier betroffenen Dateien, ESLint, Format, Typprüfung und Produktionsbau erfolgreich. Suite-Audit mit 538 Dateien und Shared-UI-Prüfung mit 242 Dateien ohne Befund; bestehende Buildwarnungen bleiben bestehen. Kein neuer pauschaler Browserfall, keine neue Abhängigkeit, keine Veröffentlichung.
+
+## 2026-10-20 - Juna - Marken im Kleiderschrank neben der Tagesangabe anzeigen
+
+**Auftrag:** Marke und Größe links, Tagesangabe rechts in derselben Zeile platzieren, damit Karten mit Markenangaben keine zusätzliche Höhe erhalten.
+
+**Änderung:** Marke und Größe stehen links in derselben Zeile wie das rechtsbündige Alters-Badge und werden bei langen Namen gekürzt. Auch ohne Marke bleibt die Tagesangabe rechts ausgerichtet. Die vollständige Angabe bleibt über den Tooltip verfügbar. Nur das vorhandene Kleiderschrank-Template angepasst; vorherige Änderung der Aktualisierungszeit auf demselben eigenen Zweig erhalten.
+
+**Befund und Prüfung:** Vorherige Browsermessung mit und ohne Marke sowie mit alleiniger Größe bestätigt rund 20px Höhenunterschied bei 1440/834/390/320px in Hell/Dunkel. Nachher acht Browserkombinationen erfolgreich: Karten mit/ohne Marke, mit alleiniger Größe und mit langem Markennamen sind jeweils gleich hoch, Marke und Tagesangabe liegen horizontal nebeneinander; keine Überläufe oder JavaScript-Ausnahmen. Bestehende Browserdateien `vinted-listing-edge-cases.spec.ts` und `vinted-workspace-ui.spec.ts` vollständig erfolgreich: 21 Fälle einschließlich AXE, Navigation und Galerie. 80 betroffene Angular-Fälle in vier Dateien, gezieltes ESLint, Formatprüfung, Typprüfung und Produktionsbau ebenfalls erfolgreich. Bestehende Buildwarnungen bleiben erhalten. Die endgültige Reihenfolge Marke links/Tage rechts zusätzlich mit erneutem Produktionsbau, ESLint, Formatprüfung und acht Browserkombinationen geprüft; rechtsbündige Tagesangabe auch bei fehlender Marke bestätigt. Screenshots und Messskript liegen außerhalb des Repositorys; kein neuer pauschaler Browsertest hinzugefügt. Nur lokale Testdaten, keine Veröffentlichung.
+
+## 2026-10-20 - Juna - Aktualisierungszeit auf der Vinted-Seite nach Kalendertag anzeigen
+
+**Auftrag:** In der Vinted-Kopfzeile bei einer Aktualisierung von heute nur die Uhrzeit, von gestern „Gestern“ und bei älteren Aktualisierungen das Datum anzeigen.
+
+**Änderung:** Bestehenden Zeitpunkt der letzten Synchronisierung nach lokalem Kalendertag darstellen: `13:36 Uhr`, `Gestern • 13:36 Uhr` oder `18.10.2026 • 13:36 Uhr`. Die vorhandene gemeinsame Vinted-Uhr aktualisiert die Tageszuordnung auch bei offen gebliebener Seite. Vollständiger Zeitstempel bleibt im Tooltip und im semantischen `datetime`-Attribut erhalten. Umsetzung auf `juna/vinted-sync-time-display`.
+
+**Prüfung:** Neue Fälle zunächst mit sieben erwarteten Fehlern gegen die alte Anzeige ausgeführt, danach alle 16 Komponentenfälle erfolgreich. Betroffene Angular-Komponenten und Routen: 90 Fälle in vier Dateien erfolgreich; zusätzlich vier Einstellungsroutenfälle. Lokale Kalendertage einschließlich Mitternacht, Monats-/Jahreswechsel und Zeitumstellung unter `Europe/Berlin` geprüft. ESLint, Typprüfung und Produktionsbau erfolgreich; bestehende Angular-/Bundlebudget-/CommonJS-Warnungen bleiben bestehen. Zusätzlicher Playwright-Nachweis mit kontrollierten lokalen Testdaten: zwölf Zeitangaben auf Desktop (1440px) und Smartphone mit Touch (390px), jeweils Hell/Dunkel und Europe/Berlin, ohne Konsolenfehler oder horizontalen Überlauf. Screenshots außerhalb des Repositorys visuell geprüft; Browser-Plugin nicht verfügbar. Zusätzlich beide bestehenden Browserdateien `marketplace-accounts.spec.ts` und `vinted-workspace-ui.spec.ts` vollständig ausgeführt: 37 Fälle erfolgreich, einschließlich 1440/390/320px, Hell/Dunkel, Kontoaktualisierung, Postfach und Bedienung. Die übrige Vinted-Regressionssuite wurde lokal nicht ausgeführt. Keine produktiven Daten oder entfernten Dienste geändert, noch kein Push oder PR.
+
 ## 2026-10-19 - Juna - Browser-Speicherabbruch des Vinted-Feeds wiederherstellen und absichern
 
 **Auftrag:** Während des freigegebenen PR-Abschlusses den erneut veralteten Feedstatus nach Hinzufügen von Blauer untersuchen und den Abruf wiederherstellen.
