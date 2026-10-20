@@ -64,6 +64,29 @@ test('equivalent category suggestions with the same ID remain selectable', async
   }
 });
 
+test('isolated category read accepts the observed native color grid without saving', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    const f = await fixture(
+      { route: context.route.bind(context), goto: () => Promise.resolve(null) },
+      { publishing: true, colorGrid: true },
+    );
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    const result = await actions.readListingCategory!('123', 1223, [5], f.authorize);
+    assert.deepEqual(result.fields.find((field) => field.field === 'color')?.choices, [
+      { id: 3, label: 'Grau', selected: false, disabled: false, sizeGroupId: null },
+    ]);
+    assert.equal(context.pages().length, 0);
+    assert.equal(f.writes(), 0);
+    assert.equal(f.uploads(), 0);
+    assert.equal(f.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('the real isolated transport returns current category choices and preserves user work', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

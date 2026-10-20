@@ -54,7 +54,9 @@ export async function openVintedListingChoices(
         ? '[role="radio"][id^="catalog-"]'
         : field === 'brand'
           ? '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand'
-          : `[role="${field === 'color' || field === 'material' ? 'checkbox' : 'radio'}"][id^="${field}-"]`;
+          : field === 'color'
+            ? '[role="checkbox"][id^="color-"],[role="checkbox"][data-testid^="filter-grid-option-"]:has([data-testid^="color-"])'
+            : `[role="${field === 'material' ? 'checkbox' : 'radio'}"][id^="${field}-"]`;
   await page
     .locator(selector)
     .filter({ visible: true })

@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-20 - Juna - Aktuelle Vinted-Farbauswahl lesen und prüfen
+
+**Auftrag:** Die noch offene Veröffentlichungsprüfung mit den JAKO-Fußballschuhen für 18 € aus Wiehen Store abschließen. Bestehendes Inserat unverändert lassen und keine zweite Anzeige oder Veröffentlichung auslösen. Fortsetzung des freigegebenen Abschlusses und des ausdrücklich beauftragten Browserdienst-Fixes; eigener Zweig auf dem aktuellen `origin/master` nach PR #454.
+
+**Belegte Ursache:** Diagnose-Nachtrag aus PR #454 nach erfolgreichen Pflichtprüfungen und beiden Abbildprüfungen mit `0d606c9e` gemergt. Veröffentlichte Worker-, Broker- und Sitzungsabbilder gezielt mit gesicherter aktiver Compose-Konfiguration ausgerollt; ausschließlich vier Abbildverweise geändert, Profile, IPs, Rechte und Freigaben erhalten. Laufender Kontoabruf zunächst abgewartet, sauberes Workerende und danach laufende korrekte Abbilder/Worker-Gesundheit bestätigt. Erneuter echter Kategorieabruf meldet jetzt eindeutig `step: color`. An der echten angemeldeten Vinted-Maske bestätigt: äußere Checkbox ohne `color-…`-ID, stattdessen `data-testid="filter-grid-option-7"` mit innerem `data-testid="color-7"`. Der alte Leser wartet auf die nicht mehr vorhandene äußere Farb-ID.
+
+**Änderung:** Gemeinsamer Formularleser und Worker-Warte-/Klickpfad unterstützen diese aktuelle Farbstruktur und die bisherige Struktur. Die neue Form wird nur bei genau einer gültigen inneren Farbkennung und Übereinstimmung mit Grid- sowie gegebenenfalls alter ID übernommen. Andere Grids und unsichtbare Optionen bleiben ausgeschlossen; widersprüchliche Kennungen werden abgewiesen. Bestehende Konto-, Kategorie-, Label-, Berechtigungs- und Rückleseprüfungen bleiben erhalten.
+
+**Prüfung:** Kategorieabruf durch den echten isolierten Browsertransport sowie Feldvorbereitung/Rücklesen gegen die beobachtete Grid-Struktur zunächst rot mit `color` beziehungsweise dem bisherigen Selektor-Timeout reproduziert, danach grün. Zusätzliche Fälle für andere/unsichtbare Grids und widersprüchliche Kennungen erfolgreich. Alle 46 betroffenen Formular-Browserfälle, 693 Worker-Tests mit acht bestehenden Überspringungen und 652 ausgewählte Angular-Fälle erfolgreich. Worker-Typen/Bau, gezieltes Lint, Formatierung, Suite-Audit und Vertrags-/Auswahlprüfungen erfolgreich; gemeinsamer Laufzeitbaustein wählt in CI zusätzlich die zugeordneten Marketplace-Browserdateien aus. Unabhängiger Fix-Review ohne offenen Befund.
+
+**Weitere Abschlussprüfungen:** Alle 30 ausgewählten Modellfälle und 50 Vertrags-/Auswahlfälle sowie Root-Typprüfung und Produktionsbau erfolgreich. Alle 47 betroffenen Oberflächenfälle für Inseratentwürfe, Randfälle und Arbeitsflächen erfolgreich, einschließlich schmaler Ansichten, Touch und Hell/Dunkel. Die zusätzliche CI-Auswahl des gemeinsamen Laufzeitbausteins bleibt erhalten.
+
+**Live-Grenze:** In einer eigenen, ungespeicherten internen Prüfmaske Originaltitel, vollständige Beschreibung, 18 € und alle fünf unveränderten Originalfotos vorbereitet. Das ursprüngliche Inserat nur gelesen. Noch keine Veröffentlichung und kein Ersatz; erfolgreiche echte Kategorie-/Veröffentlichungsprüfung erst nach Veröffentlichung und gezieltem Rollout des eigentlichen Farb-Fixes bestätigen.
+
 ## 2026-10-20 - Juna - Abbruch der echten Vinted-Kategorieprüfung eingrenzen
 
 **Auftrag und Grenze:** Nach PR #453 den weiterhin fehlgeschlagenen Kategorieabruf beheben und die JAKO-Fußballschuhe für 18 € aus Wiehen Store bis zur internen Veröffentlichungsprüfung prüfen. Das bestehende Inserat darf weder geändert noch dupliziert werden. Fortsetzung der noch offenen Live-Abnahme im zuvor für PR und Merge nach erfolgreichen Pflichtprüfungen freigegebenen Umfang; erforderliche gezielte Dienstkorrektur ist durch den aktuellen Behebungsauftrag umfasst. Keine neue Anzeige, Löschung oder Nachricht.
