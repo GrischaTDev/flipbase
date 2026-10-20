@@ -240,6 +240,94 @@ test('a real second build waits for an unsaved second window before activation @
   }
 });
 
+test('a real second build downloads in the background without a false startup error @worker', async ({
+  page,
+  context,
+}, testInfo) => {
+  const { mockMarketplace } = await import('./support/marketplace-account-fixture');
+  const configure = (target: typeof page) =>
+    mockMarketplace(
+      target,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
+    );
+  await configure(page);
+  await page.goto('/settings/notifications');
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
+  const oldBuild = await page.locator('html').getAttribute('data-flipbase-build');
+  const asset = await page.evaluate(async () => {
+    const inventory = await (await fetch('/pwa-assets.json')).json();
+    return inventory.assets.find((item: { url: string }) => item.url === '/fonts/fonts.css')
+      ?.url as string | undefined;
+  });
+  expect(asset).toBeDefined();
+  await page.request.post(`/api/__pwa_test__/asset-delay?path=${encodeURIComponent(asset!)}`);
+  await page.request.post('/api/__pwa_test__/build');
+  try {
+    // Ein erneuter Home-App-Start lädt zunächst das Dokument des aktiven alten
+    // Workers. Ein langsamer Dateidownload ist dabei noch kein Prüffehler.
+    const reopened = await context.newPage();
+    await reopened.addInitScript(() => {
+      Object.defineProperty(navigator, 'standalone', { value: true });
+      new MutationObserver(() => {
+        if (document.querySelector('[aria-label="Updateprüfung"]'))
+          document.documentElement.dataset['updateCheckFailed'] = 'true';
+      }).observe(document, { childList: true, subtree: true });
+    });
+    await configure(reopened);
+    await reopened.goto('/settings/notifications');
+    await expect
+      .poll(() =>
+        reopened.evaluate(
+          async () => (await navigator.serviceWorker.getRegistration('/'))?.installing?.state,
+        ),
+      )
+      .toBe('installing');
+    await expect(reopened.locator('[data-pwa-update-screen]')).toHaveCount(0);
+    await expect(reopened.getByRole('region', { name: 'Updateprüfung' })).toHaveCount(0);
+    await expect(reopened.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+    await testInfo.attach('slow-download-content', {
+      body: await reopened.screenshot(),
+      contentType: 'image/png',
+    });
+    await expect(reopened.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible({
+      timeout: 20_000,
+    });
+    expect(await reopened.locator('html').getAttribute('data-update-check-failed')).not.toBe(
+      'true',
+    );
+    await expect(reopened.locator('[data-pwa-update-screen]')).not.toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+    await testInfo.attach('slow-update-ready', {
+      body: await reopened.screenshot(),
+      contentType: 'image/png',
+    });
+    const update = reopened.getByRole('button', { name: 'Jetzt aktualisieren' });
+    if (testInfo.project.use.hasTouch) await update.tap();
+    else await update.click();
+    await expect(reopened.locator('html')).not.toHaveAttribute(
+      'data-flipbase-build',
+      oldBuild ?? '',
+    );
+    await expect(reopened.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+    await expect(reopened.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+  } finally {
+    await page.request.post('/api/__pwa_test__/asset-delay');
+    await page.request.post('/api/__pwa_test__/build');
+  }
+});
+
 test('installed app updates while a frozen background view keeps unsaved entries @worker', async ({
   browserName,
 }, testInfo) => {

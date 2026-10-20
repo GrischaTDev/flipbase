@@ -43,6 +43,10 @@ die Logo-Prüfungsansicht. Nach spätestens acht Sekunden wird sie bei Problemen
 durch einen Hinweis mit „Erneut prüfen“ ersetzt; eine später fertig installierte
 Version wird weiterhin erkannt. Eine fehlgeschlagene Startregistrierung wird bei
 Rückkehr, erneuter Verbindung oder ausdrücklicher Wiederholung erneut versucht.
+Die abgeschlossene Netzwerkprüfung wartet nicht auf das Herunterladen aller
+App-Dateien. Auch bei einem Download über acht Sekunden bleibt die vorhandene
+App bedienbar, ohne einen fehlgeschlagenen Prüfvorgang vorzutäuschen. Erst der
+vollständig installierte neue Stand löst die verpflichtende Updateansicht aus.
 
 Eine bestätigte neue Version zeigt eine bildschirmfüllende Logo-Ansicht mit
 „Jetzt aktualisieren“, ohne „Später“ oder Schließen per Escape. Auch nach
