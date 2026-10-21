@@ -7,9 +7,11 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
   forwardRef,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -62,6 +64,10 @@ export class AttributePickerComponent implements ControlValueAccessor {
   /** Höchstzahl gleichzeitig gewählter Werte bei Mehrfachauswahl; `null` begrenzt nicht. */
   readonly maxSelected = input<number | null>(null);
   readonly placeholder = input('Suchen oder eingeben');
+  /** Externe Suche bekommt den Rohtext; bestehende Auswahlfelder behalten ihre Bedienung. */
+  readonly queryChange = output<string>();
+  readonly liveText = input(false);
+  readonly error = input<string | null>(null);
   readonly id = input('');
   readonly fieldId = computed(() => this.id() || `attribute-picker-${this.instanceId}`);
   readonly listboxId = computed(() => `${this.fieldId()}-listbox`);
@@ -107,6 +113,11 @@ export class AttributePickerComponent implements ControlValueAccessor {
   private onTouched: () => void = () => undefined;
 
   constructor() {
+    effect(() => {
+      this.matches();
+      this.customValue();
+      if (this.isOpen()) afterNextRender(() => this.positionPanel(), { injector: this.injector });
+    });
     const updateOnViewportChange = (event: Event) => {
       if (this.panel()?.nativeElement.contains(event.target as Node)) return;
       if (this.isOpen()) this.positionPanel();
@@ -159,6 +170,8 @@ export class AttributePickerComponent implements ControlValueAccessor {
   onInput(event: Event): void {
     this.open();
     this.query.set((event.target as HTMLInputElement).value);
+    this.queryChange.emit(this.query());
+    if (this.liveText() && !this.multiple()) this.setValue(this.query());
     this.isEditing.set(true);
     this.activeIndex.set(0);
   }
@@ -257,10 +270,15 @@ export class AttributePickerComponent implements ControlValueAccessor {
         VIEWPORT_MARGIN,
         Math.min(rect.left, window.innerWidth - width - VIEWPORT_MARGIN),
       ),
-      top:
-        below + height > window.innerHeight - VIEWPORT_MARGIN && above >= VIEWPORT_MARGIN
-          ? above
-          : below,
+      top: Math.max(
+        VIEWPORT_MARGIN,
+        Math.min(
+          below + height > window.innerHeight - VIEWPORT_MARGIN && above >= VIEWPORT_MARGIN
+            ? above
+            : below,
+          window.innerHeight - height - VIEWPORT_MARGIN,
+        ),
+      ),
       width,
     });
   }

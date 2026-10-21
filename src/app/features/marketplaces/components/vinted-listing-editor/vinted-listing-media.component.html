@@ -1,0 +1,13 @@
+<app-product-media-editor
+  [images]="media()"
+  [disabled]="disabled()"
+  [maximumImages]="20"
+  [validateFile]="validateFile"
+  acceptedFormats="image/jpeg,image/png,image/webp"
+  fileHelpText="JPG, PNG oder WebP · höchstens 50 MB pro Bild"
+  [canEditAltText]="false"
+  [cropAspectRatio]="2 / 3"
+  cropTitle="Bild für Vinted zuschneiden"
+  (imagesChange)="change($event)"
+  (editingChange)="editingChange.emit($event)"
+/>

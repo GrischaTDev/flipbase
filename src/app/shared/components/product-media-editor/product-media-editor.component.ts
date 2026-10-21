@@ -56,11 +56,16 @@ export class ProductMediaEditorComponent {
   readonly canCrop = input(true);
   /** `false`: Bildname und Alternativtext entfallen; Position und Löschen bleiben. */
   readonly canDescribe = input(true);
+  readonly canEditAltText = input(true);
   /** Unter dieser Anzahl lässt sich kein Bild mehr entfernen. */
   readonly minimumImages = input(0);
   readonly maximumImages = input<number | null>(null);
   readonly validateFile = input<(file: File) => string | null>(imageFileError);
   readonly fileHelpText = input('JPG, PNG, WebP, GIF oder AVIF · höchstens 50 MB pro Bild');
+  readonly acceptedFormats = input(IMAGE_FILE_ACCEPT);
+  readonly cropAspectRatio = input(1);
+  readonly cropTitle = input('Bild quadratisch zuschneiden');
+  readonly editingChange = output<boolean>();
   readonly canRemove = computed(() => this.drafts().length > this.minimumImages());
   readonly imagesChange = output<readonly ProductImageDraft[]>();
   readonly imageFailed = output<ProductImageDraft>();
@@ -107,6 +112,7 @@ export class ProductMediaEditorComponent {
   private dragDepth = 0;
 
   constructor() {
+    effect(() => this.editingChange.emit(this.detailsKey() !== null || this.cropKey() !== null));
     effect(() => {
       if (this.disabled()) {
         this.cropKey.set(null);

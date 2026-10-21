@@ -11,6 +11,9 @@ import {
   untracked,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { NgTemplateOutlet } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
@@ -48,6 +51,8 @@ const multiples = [
   templateUrl: './vinted-listing-fields-dialog.component.html',
   imports: [
     ReactiveFormsModule,
+    NgTemplateOutlet,
+    AttributePickerComponent,
     ButtonComponent,
     CustomCheckboxComponent,
     CustomSelectComponent,
@@ -57,6 +62,10 @@ const multiples = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VintedListingFieldsDialogComponent {
+  readonly inline = input(false);
+  readonly section = input<'all' | 'details' | 'shipping'>('all');
+  readonly fieldSchema = input<VintedListingCategoryFields | null>(null);
+  readonly fieldErrors = input<Readonly<Record<string, string>>>({});
   readonly scopeKey = input.required<string>();
   readonly connectionId = input.required<string>();
   readonly categoryId = input.required<number>();
@@ -76,11 +85,22 @@ export class VintedListingFieldsDialogComponent {
   });
   readonly colorIds = signal<readonly number[]>([]);
   readonly materialIds = signal<readonly number[]>([]);
+  readonly colorLabels = new FormControl('', { nonNullable: true });
+  readonly materialLabels = new FormControl('', { nonNullable: true });
   readonly singleFields = computed(() =>
-    singles.filter((field) => this.schema()?.fields.some((value) => value.field === field.name)),
+    singles.filter(
+      (field) =>
+        (this.section() === 'all' ||
+          (this.section() === 'shipping') === (field.name === 'package')) &&
+        this.schema()?.fields.some((value) => value.field === field.name),
+    ),
   );
   readonly multipleFields = computed(() =>
-    multiples.filter((field) => this.schema()?.fields.some((value) => value.field === field.name)),
+    multiples.filter(
+      (field) =>
+        this.section() !== 'shipping' &&
+        this.schema()?.fields.some((value) => value.field === field.name),
+    ),
   );
   readonly canApply = computed(() => !!this.schema() && !this.loading() && !this.disabled());
   private readonly api = inject(VintedListingCategoryService);
@@ -94,7 +114,40 @@ export class VintedListingFieldsDialogComponent {
 
   constructor() {
     effect(() => {
+      const disabled = this.disabled() || this.loading();
+      for (const control of [this.colorLabels, this.materialLabels]) {
+        if (disabled) control.disable({ emitEvent: false });
+        else control.enable({ emitEvent: false });
+      }
+    });
+    for (const field of singles)
+      this.form.controls[field.control].valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+        if (this.inline()) this.apply(field.name);
+      });
+    for (const field of ['color', 'material'] as const) {
+      const control = field === 'color' ? this.colorLabels : this.materialLabels;
+      control.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+        const chosen = value ? value.split(' · ') : [];
+        const ids = chosen.map(
+          (label) => this.choices(field).find((choice) => choice.label === label)?.id,
+        );
+        if (ids.some((id) => id == null)) return;
+        (field === 'color' ? this.colorIds : this.materialIds).set(ids as number[]);
+        if (this.inline()) this.apply(field);
+      });
+    }
+    effect(() => {
+      const content = this.content(),
+        schema = this.schema();
+      if (this.inline() && schema)
+        untracked(() => {
+          this.initialContent.set(content);
+          this.prefill(schema);
+        });
+    });
+    effect(() => {
       const binding = this.binding();
+      const inherited = this.inline() && this.section() === 'shipping';
       untracked(() => {
         if (binding === this.loadedBinding) return;
         this.loadedBinding = binding;
@@ -103,8 +156,14 @@ export class VintedListingFieldsDialogComponent {
         this.loading.set(false);
         this.schema.set(null);
         this.initialContent.set(this.content());
-        void this.load();
+        if (!inherited) void this.load();
       });
+    });
+    effect(() => {
+      const inherited = this.inline() && this.section() === 'shipping';
+      const schema = this.fieldSchema();
+      const categoryId = this.categoryId();
+      if (inherited) this.schema.set(schema?.categoryId === categoryId ? schema : null);
     });
     this.destroyRef.onDestroy(() => this.generation++);
   }
@@ -153,8 +212,20 @@ export class VintedListingFieldsDialogComponent {
   singleOptions(field: SingleField): readonly SelectOption<number | null>[] {
     return [
       { value: null, label: 'Noch nicht festgelegt' },
-      ...this.choices(field).map((choice) => ({ value: choice.id, label: choice.label })),
+      ...this.choices(field).map((choice) => ({
+        value: choice.id,
+        label:
+          field === 'package'
+            ? choice.label
+                .replace(/^Empfohlen\s*/, '')
+                .split(/Für Artikel|Infos zu/)[0]
+                .trim()
+            : choice.label,
+      })),
     ];
+  }
+  labelsFor(field: MultipleField): readonly string[] {
+    return this.choices(field).map((choice) => choice.label);
   }
   selectedIds(field: MultipleField): readonly number[] {
     return field === 'color' ? this.colorIds() : this.materialIds();
@@ -199,7 +270,26 @@ export class VintedListingFieldsDialogComponent {
         return content.packageSizeId === null ? '' : 'Bereits festgelegt';
     }
   }
-  apply(): void {
+  unavailableLabel(field: SingleField | MultipleField): string {
+    const content = this.initialContent();
+    if (!content) return '';
+    if (field === 'color' || field === 'material') {
+      const labels = field === 'color' ? content.colorLabels : content.materialLabels;
+      const ids = this.selectedIds(field);
+      return labels
+        .filter(
+          (label) =>
+            !this.choices(field).some(
+              (choice) => choice.label === label && choice.id !== null && ids.includes(choice.id),
+            ),
+        )
+        .join(', ');
+    }
+    const control =
+      field === 'size' ? 'sizeId' : field === 'condition' ? 'conditionId' : 'packageSizeId';
+    return this.form.controls[control].value === null ? this.previousLabel(field) : '';
+  }
+  apply(changedField?: SingleField | MultipleField): void {
     const schema = this.schema();
     if (
       !schema ||
@@ -215,6 +305,20 @@ export class VintedListingFieldsDialogComponent {
         colorIds: this.colorIds(),
         materialIds: this.materialIds(),
       });
+      if (this.inline()) {
+        const included = changedField
+          ? [changedField]
+          : this.section() === 'shipping'
+            ? ['package']
+            : this.section() === 'details'
+              ? ['size', 'condition', 'color', 'material']
+              : selection.fields;
+        this.selected.emit({
+          ...selection,
+          fields: selection.fields.filter((field) => included.includes(field)),
+        });
+        return;
+      }
       this.error.set(null);
       this.selected.emit(selection);
     } catch (error) {
@@ -281,6 +385,20 @@ export class VintedListingFieldsDialogComponent {
     this.colorIds.set(content ? many('color', content.colorIds, content.colorLabels, 2) : []);
     this.materialIds.set(
       content ? many('material', content.materialIds, content.materialLabels, 3) : [],
+    );
+    this.colorLabels.setValue(
+      this.choices('color')
+        .filter((choice) => this.colorIds().includes(choice.id!))
+        .map((choice) => choice.label)
+        .join(' · '),
+      { emitEvent: false },
+    );
+    this.materialLabels.setValue(
+      this.choices('material')
+        .filter((choice) => this.materialIds().includes(choice.id!))
+        .map((choice) => choice.label)
+        .join(' · '),
+      { emitEvent: false },
     );
   }
 }
