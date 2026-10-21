@@ -482,9 +482,10 @@ for (const theme of ['light', 'dark'] as const) {
   for (const viewport of [
     { width: 1440, height: 1000 },
     { width: 390, height: 844 },
+    { width: 320, height: 844 },
   ]) {
     test.describe(`Kartenansicht ${theme} ${viewport.width}px`, () => {
-      test.use({ hasTouch: viewport.width === 390, isMobile: viewport.width === 390 });
+      test.use({ hasTouch: viewport.width <= 390, isMobile: viewport.width <= 390 });
       test(`Feed-Kompaktmodus ${theme} ${viewport.width}px @pr-smoke`, async ({
         page,
       }, testInfo) => {
@@ -507,6 +508,45 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(page.getByRole('article')).toHaveCount(8);
         const pageHeader = page.locator('app-page-header');
         const filters = page.locator('[data-feed-filters]');
+        const maxPrice = page.getByRole('spinbutton', { name: 'Höchstpreis in Euro' });
+        const resetFilters = page.getByRole('button', { name: 'Filter zurücksetzen', exact: true });
+        const filtersBeforeInput = await filters.boundingBox();
+        const priceBeforeInput = await maxPrice.boundingBox();
+        await expect(resetFilters).toBeHidden();
+        await maxPrice.fill('123.45');
+        await expect(resetFilters).toBeVisible();
+        const filtersAfterInput = await filters.boundingBox();
+        const priceAfterInput = await maxPrice.boundingBox();
+        const resetBox = await resetFilters.boundingBox();
+        expect(filtersAfterInput!.height).toBeCloseTo(filtersBeforeInput!.height, 0);
+        expect(priceAfterInput!.x).toBeCloseTo(priceBeforeInput!.x, 0);
+        expect(priceAfterInput!.width).toBeCloseTo(priceBeforeInput!.width, 0);
+        expect(resetBox!.x).toBeGreaterThanOrEqual(priceAfterInput!.x + priceAfterInput!.width);
+        expect(resetBox!.y + resetBox!.height).toBeCloseTo(
+          priceAfterInput!.y + priceAfterInput!.height,
+          0,
+        );
+        const priceTextFits = await maxPrice.evaluate((input: HTMLInputElement) => {
+          const styles = getComputedStyle(input);
+          const context = document.createElement('canvas').getContext('2d')!;
+          context.font = styles.font;
+          const available =
+            input.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+          return context.measureText(input.value).width <= available;
+        });
+        expect(priceTextFits).toBe(true);
+        await filters.screenshot({ path: testInfo.outputPath('feed-filters-active.png') });
+        if (viewport.width <= 390) {
+          expect(resetBox!.width).toBeGreaterThanOrEqual(44);
+          expect(resetBox!.height).toBeGreaterThanOrEqual(44);
+          await resetFilters.tap();
+        } else {
+          await resetFilters.focus();
+          await page.keyboard.press('Enter');
+        }
+        await expect(maxPrice).toHaveValue('');
+        await expect(resetFilters).toBeHidden();
+        expect((await filters.boundingBox())!.height).toBeCloseTo(filtersBeforeInput!.height, 0);
         const headerBefore = await pageHeader.innerHTML();
         // Das Zahlenfeld hinterlässt beim Blur ein leeres style-Attribut.
         // Dieser harmlose Browserzustand ist keine Änderung der Filterleiste.
@@ -573,7 +613,7 @@ for (const theme of ['light', 'dark'] as const) {
         await page
           .getByRole('region', { name: 'Artikel im Vinted Feed' })
           .screenshot({ path: testInfo.outputPath('feed-compact.png') });
-        if (viewport.width === 390) {
+        if (viewport.width <= 390) {
           const touchState = await savedFavorite.evaluate((button) => ({
             coarse: matchMedia('(pointer: coarse)').matches,
             minWidth: getComputedStyle(button).minWidth,
