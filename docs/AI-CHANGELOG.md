@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-21 - Juna - Übersichtsfilter auf Mobilgeräten über die volle Breite verteilen
+
+**Auftrag:** Die Auswahlfelder für Zeitraum und Plattform unter „Übersicht“ sollen auf Mobilgeräten gemeinsam die verfügbare Breite ausfüllen, ohne freien Rest rechts.
+
+**Befund und Änderung:** Beide Felder hatten unabhängig von der Bildschirmbreite feste Breiten von 160 beziehungsweise 176px. Die produktive Ansicht bei 390px bestätigt diese unterschiedlichen Breiten und verbleibenden Platz rechts. Die Filtergruppe verwendet unterhalb des vorhandenen `sm`-Haltepunkts zwei gleich breite Rasterspalten; die bestehenden Selects füllen ihre Spalte vollständig. Ihre Hosts dürfen bei langen Beschriftungen schrumpfen. Ab `sm` bleiben das bisherige Flexlayout und die bisherigen Feldbreiten erhalten. Ausschließlich das Dashboard-Template angepasst; vorhandene Shared Components und Filteranbindung weiterverwendet. Separater eigener Zweig `juna/dashboard-mobile-filter-width` auf aktuellem `origin/master`.
+
+**Prüfung:** Beide durch die Testauswahl ermittelten Angular-Dateien vollständig erfolgreich: 23 Fälle für Dashboard und Anwendungsrouten. Gezieltes ESLint, Formatprüfung, Typprüfung, Shared-UI-Prüfung mit 242 Dateien und Produktionsbau einschließlich Angular-Vorlagen erfolgreich; vorhandene fremde Template-, Bundlebudget- und CommonJS-Warnungen bleiben bestehen. Unabhängiger Code-Review ohne Befund. Die bisherige produktive Ansicht zusätzlich bei 320px gelesen: Das zweite Feld steht dort in einer zweiten Zeile. Die neue lokale Fassung wurde noch nicht im Browser abgenommen. Die vier ausgewählten bestehenden Browserdateien benötigen die lokale Supabase-Testumgebung; in dieser Arbeitsumgebung ist Docker nicht verfügbar, deshalb wurden diese Fälle nicht ausgeführt. Keine Prüfung abgeschwächt oder ersetzt.
+
+**Abschlussfreigabe:** Nutzer autorisiert ausdrücklich Branch-Push, PR gegen `master`, Merge-Commit nach allen erfolgreichen Pflichtprüfungen und anschließende Bereinigung ausschließlich des eigenen Zweigs. Vor dem ersten Push `origin/master` erneut abgerufen; unverändert bei `0d606c9e`. Der geprüfte Anwendungsstand ist unverändert. CI muss insbesondere die ausgewählten Browserdateien vollständig prüfen; die lokale Prüflücke bleibt im PR benannt.
+
 ## 2026-10-20 - Juna - Abbruch der echten Vinted-Kategorieprüfung eingrenzen
 
 **Auftrag und Grenze:** Nach PR #453 den weiterhin fehlgeschlagenen Kategorieabruf beheben und die JAKO-Fußballschuhe für 18 € aus Wiehen Store bis zur internen Veröffentlichungsprüfung prüfen. Das bestehende Inserat darf weder geändert noch dupliziert werden. Fortsetzung der noch offenen Live-Abnahme im zuvor für PR und Merge nach erfolgreichen Pflichtprüfungen freigegebenen Umfang; erforderliche gezielte Dienstkorrektur ist durch den aktuellen Behebungsauftrag umfasst. Keine neue Anzeige, Löschung oder Nachricht.
