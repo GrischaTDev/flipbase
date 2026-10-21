@@ -343,7 +343,9 @@ describe('DealMonitorComponent', () => {
     const filterCard = host.querySelector('app-card[data-feed-filters]');
     expect(filterCard).not.toBeNull();
     expect(filterCard?.classList.contains('overflow-visible')).toBe(true);
-    expect(host.querySelector('[data-feed-filter-reset]')).toBeNull();
+    const reset = host.querySelector<HTMLButtonElement>('[data-feed-filter-reset] button');
+    expect(reset).not.toBeNull();
+    expect(reset?.disabled).toBe(true);
 
     const feed = fixture.componentInstance;
     feed.selected.set('wl-1');
@@ -355,7 +357,7 @@ describe('DealMonitorComponent', () => {
     expect(feed.filtersActive()).toBe(true);
     expect(feed.priceError()).toContain('Mindestpreis');
 
-    const reset = host.querySelector<HTMLButtonElement>('[data-feed-filter-reset] button');
+    expect(reset?.disabled).toBe(false);
     expect(reset?.getAttribute('aria-label')).toBe('Filter zurücksetzen');
     expect(reset?.closest('.ml-auto')).not.toBeNull();
     reset?.click();
@@ -370,7 +372,7 @@ describe('DealMonitorComponent', () => {
     expect([feed.minPrice(), feed.maxPrice()]).toEqual([null, null]);
     expect(feed.priceError()).toBeNull();
     expect(feed.filtersActive()).toBe(false);
-    expect(host.querySelector('[data-feed-filter-reset]')).toBeNull();
+    expect(reset?.disabled).toBe(true);
     expect(mockApi.feed).toHaveBeenLastCalledWith(
       expect.objectContaining({
         watchlist: null,
