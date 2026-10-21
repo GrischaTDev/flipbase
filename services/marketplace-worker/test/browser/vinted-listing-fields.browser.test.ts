@@ -13,6 +13,31 @@ const content = {
   materialIds: [149],
   materialLabels: ['Acryl'],
 };
+
+test('prepares and rereads the observed native color grid without uploading or saving', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const f = await fixture(page, { colorGrid: true });
+    const result = await prepareVintedListingFields(
+      page,
+      '123',
+      content,
+      snapshot.images,
+      [5],
+      f.authorize,
+    );
+    assert.equal(await page.locator('#color').inputValue(), 'Grau');
+    assert.deepEqual(result.fields.find((field) => field.field === 'color')?.choices, [
+      { id: 3, label: 'Grau', selected: true, disabled: false, sizeGroupId: null },
+    ]);
+    assert.equal(f.writes(), 0);
+    assert.equal(f.uploads(), 0);
+    assert.equal(f.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
 test('finds an exact native brand outside popular choices and waits for asynchronous selection', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

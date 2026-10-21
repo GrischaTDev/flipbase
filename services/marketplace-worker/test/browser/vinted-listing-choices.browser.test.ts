@@ -2,9 +2,56 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
 import {
+  collectVintedListingChoices,
+  parseVintedListingChoices,
+} from '../../src/vinted-listing-contracts.ts';
+import {
   readVintedListingChoices,
   readVintedListingCategoryFields,
 } from '../../src/vinted-browser-listing-form.ts';
+
+test('color grids require agreeing color evidence and ignore unrelated or hidden grids', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div role="checkbox" data-testid="filter-grid-option-3" aria-label="Grau" aria-checked="true" aria-disabled="true"><div data-testid="color-3">Grau</div></div>
+      <div role="checkbox" id="color-7" aria-label="Rot" aria-checked="false">Rot</div>
+      <div role="checkbox" data-testid="filter-grid-option-99" aria-label="Keine Farbe" aria-checked="true">Andere Auswahl</div>
+      <div hidden><div role="checkbox" data-testid="filter-grid-option-12" aria-checked="true"><div data-testid="color-20">Veraltet</div></div></div>`);
+    assert.deepEqual(
+      parseVintedListingChoices(
+        'color',
+        await page.evaluate(collectVintedListingChoices, 'color' as const),
+      ).choices,
+      [
+        { id: 3, label: 'Grau', selected: true, disabled: true, sizeGroupId: null },
+        { id: 7, label: 'Rot', selected: false, disabled: false, sizeGroupId: null },
+      ],
+    );
+    for (const evidence of [
+      '<div data-testid="color-7">Rot</div>',
+      '<div data-testid="color-3">Grau</div><div data-testid="color-7">Rot</div>',
+    ]) {
+      await page.setContent(
+        `<div role="checkbox" data-testid="filter-grid-option-3" aria-label="Grau" aria-checked="false">${evidence}</div>`,
+      );
+      await assert.rejects(
+        page.evaluate(collectVintedListingChoices, 'color' as const),
+        /Farbauswahl nicht eindeutig/,
+      );
+    }
+    await page.setContent(
+      '<div role="checkbox" id="color-7" data-testid="filter-grid-option-3" aria-label="Grau" aria-checked="false"><div data-testid="color-3">Grau</div></div>',
+    );
+    await assert.rejects(
+      page.evaluate(collectVintedListingChoices, 'color' as const),
+      /Farbauswahl nicht eindeutig/,
+    );
+  } finally {
+    await browser.close();
+  }
+});
 
 test('reads actual popup choices and retains the category binding without saving', async () => {
   const browser = await chromium.launch({ headless: true });
