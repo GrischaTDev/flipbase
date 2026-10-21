@@ -16,6 +16,8 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import type { VintedListingScheduleSelection } from '../vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -85,6 +87,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     ButtonComponent,
     CardComponent,
     CustomSelectComponent,
+    CustomCheckboxComponent,
     EntryPageLayoutComponent,
     TextFieldComponent,
     TwoColumnLayoutComponent,
@@ -148,6 +151,8 @@ export class VintedListingEditorComponent {
     readonly account: MarketplaceConnection;
     readonly images: readonly ListingImageDraft[];
   } | null>(null);
+  readonly publicationBusy = signal(false);
+  readonly publicationSchedule = signal<VintedListingScheduleSelection | null>(null);
   readonly publicationAnnouncement = signal('');
   readonly jobRefresh = signal(0);
   readonly fieldSelection = signal<{
@@ -173,6 +178,7 @@ export class VintedListingEditorComponent {
   private requestId = crypto.randomUUID();
   readonly validateImage = vintedDraftImageError;
   readonly form = new FormGroup({
+    aiPhoto: new FormControl(false, { nonNullable: true }),
     title: new FormControl('', textOptions),
     description: new FormControl('', textOptions),
     price: new FormControl('', textOptions),
@@ -434,9 +440,23 @@ export class VintedListingEditorComponent {
       account: structuredClone(account),
       images: [...this.images()],
     });
+    setTimeout(() => {
+      this.host?.nativeElement
+        .querySelector<HTMLElement>('[data-publication-review]')
+        ?.focus({ preventScroll: true });
+      this.host?.nativeElement.scrollIntoView({ block: 'start' });
+    });
   }
   closePublication(): void {
+    this.publicationBusy.set(false);
     this.publication.set(null);
+  }
+  returnToEditor(): void {
+    if (this.publicationBusy()) return;
+    this.closePublication();
+    setTimeout(() =>
+      this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
+    );
   }
   publicationAccepted(job: VintedListingJob): void {
     const opened = this.publication();
@@ -455,7 +475,11 @@ export class VintedListingEditorComponent {
     this.publicationAnnouncement.set(
       'Die Veröffentlichung wurde beauftragt. Den bestätigten Vinted-Stand siehst Du im Auftragsverlauf.',
     );
+    this.publicationSchedule.set(null);
     this.jobRefresh.update((value) => value + 1);
+    setTimeout(() =>
+      this.host?.nativeElement.querySelector<HTMLElement>('[data-publication-result]')?.focus(),
+    );
   }
   openBrandSelection(): void {
     if (this.canSelectBrand()) this.brandSelectionContext.set(this.context());
@@ -625,6 +649,7 @@ export class VintedListingEditorComponent {
     await this.load(context, true, id);
   }
   async canLeave(): Promise<boolean> {
+    if (this.publicationBusy()) return false;
     if (this.activeSave) await this.activeSave;
     return (
       (!this.dirty() && !this.imageEditing()) ||
@@ -640,7 +665,7 @@ export class VintedListingEditorComponent {
     await this.router.navigate(['/marketplaces/vinted/listing-drafts']);
   }
   beforeUnload(event: BeforeUnloadEvent): void {
-    if (this.dirty() || this.saving() || this.imageEditing()) {
+    if (this.dirty() || this.saving() || this.imageEditing() || this.publicationBusy()) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -702,6 +727,7 @@ export class VintedListingEditorComponent {
     this.closeFieldSelection();
     this.closePublication();
     this.publicationAnnouncement.set('');
+    this.publicationSchedule.set(null);
     const generation = ++this.generation;
     this.activeSave = null;
     this.loading.set(true);
@@ -875,6 +901,7 @@ export class VintedListingEditorComponent {
       materialLabels = labels(values.materials);
     const content = parseVintedListingContent({
       ...previous,
+      aiPhoto: values.aiPhoto,
       title: values.title,
       description: values.description,
       priceCents,
@@ -924,6 +951,7 @@ export class VintedListingEditorComponent {
     this.selectedFields.set(null);
     this.form.reset(
       {
+        aiPhoto: content.aiPhoto ?? false,
         title: content.title,
         description: content.description,
         price:

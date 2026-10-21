@@ -10,6 +10,8 @@ begin
   for v_key, v_value in select key, value from jsonb_each(p_content) loop
     if v_key in ('title', 'description', 'categoryLabel', 'brandLabel', 'sizeLabel', 'conditionLabel') then
       if jsonb_typeof(v_value) <> 'string' or length(v_value #>> '{}') > 20000 or regexp_replace(v_value #>> '{}', E'[\\t\\n\\r]', '', 'g') ~ '[[:cntrl:]]' then return false; end if;
+    elsif v_key = 'aiPhoto' then
+      if jsonb_typeof(v_value) <> 'boolean' then return false; end if;
     elsif v_key = 'currency' then
       if v_value <> '"EUR"'::jsonb then return false; end if;
     elsif v_key in ('priceCents', 'categoryId', 'brandId', 'sizeId', 'conditionId', 'packageSizeId') then

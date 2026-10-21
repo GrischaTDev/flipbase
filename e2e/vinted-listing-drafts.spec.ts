@@ -12,7 +12,7 @@ async function saveDraft(page: Page) {
 }
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-async function mockDrafts(page: Page, planned = false) {
+async function mockDrafts(page: Page, planned = false, accountName?: string) {
   const pixel = Buffer.from(
     await page.evaluate(() => {
       const canvas = document.createElement('canvas');
@@ -37,6 +37,13 @@ async function mockDrafts(page: Page, planned = false) {
     undefined,
     false,
     planned ? 1 : 0,
+    accountName
+      ? {
+          origin: process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351',
+          userId: '25000000-0000-4000-8000-000000000001',
+          displayName: accountName,
+        }
+      : undefined,
   );
   let draft = {
     id: '9007199254740999',
@@ -255,8 +262,13 @@ async function mockDrafts(page: Page, planned = false) {
   };
 }
 
-async function mockPublication(page: Page, enabled = true, loseFirstResponse = false) {
-  const state = await mockDrafts(page, true);
+async function mockPublication(
+  page: Page,
+  enabled = true,
+  loseFirstResponse = false,
+  accountName?: string,
+) {
+  const state = await mockDrafts(page, true, accountName);
   const job = { ...state.jobs[0] };
   state.jobs.splice(0);
   Object.assign(state.draft(), {
@@ -409,7 +421,7 @@ for (const missing of ['account', 'photos'] as const) {
     else state.draft().images = [];
     await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
     const editor = page.locator('app-vinted-listing-editor');
-    await editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
+    await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
     await expect(
       missing === 'account'
         ? editor.getByRole('combobox', { name: 'Zielkonto für diesen Entwurf', exact: true })
@@ -439,7 +451,8 @@ for (const width of [1440, 390])
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
-      const state = await mockPublication(page);
+      const longAccountName = width === 390 ? 'MeinStore' + 'A'.repeat(100) : undefined;
+      const state = await mockPublication(page, true, false, longAccountName);
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
@@ -449,20 +462,41 @@ for (const width of [1440, 390])
       });
       await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
       const opener = page.getByRole('button', {
-        name: 'Veröffentlichung vorbereiten',
+        name: 'Weiter zur Prüfung',
         exact: true,
       });
+      const aiPhoto = page.getByRole('checkbox', {
+        name: 'Meine Fotos wurden mit KI erstellt oder verändert',
+      });
+      await aiPhoto.click();
+      await saveDraft(page);
+      await page.reload();
+      await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
       await opener.click();
-      const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+      const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
       await expect(
         preview.getByText('Deine gespeicherten Angaben passen zur aktuellen Vinted-Auswahl.'),
       ).toBeVisible();
       const submit = preview.getByRole('button', {
-        name: 'Freigeben und beauftragen',
+        name: 'Jetzt veröffentlichen',
         exact: true,
       });
-      await expect(submit).toBeDisabled();
-      await page.keyboard.press('Escape');
+      await expect(submit).toBeEnabled();
+      await expect(preview).toBeFocused();
+      if (longAccountName) {
+        const accountValue = preview.locator('dd').first();
+        await expect(accountValue).toHaveText(longAccountName);
+        expect(
+          await accountValue.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        ).toBe(true);
+      }
+      await expect(
+        page.getByRole('navigation', { name: 'Schritte der Inseraterstellung' }),
+      ).toBeInViewport();
+      await expect(
+        page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true }),
+      ).toHaveCount(0);
+      await preview.getByRole('button', { name: 'Zurück zum Bearbeiten', exact: true }).click();
       await expect(preview).not.toBeVisible();
       await expect(opener).toBeFocused();
       await opener.click();
@@ -481,17 +515,18 @@ for (const width of [1440, 390])
       await expect(
         preview.getByRole('button', { name: 'Termin ändern', exact: true }),
       ).toBeFocused();
-      const aiPhoto = preview.getByRole('checkbox', {
-        name: 'Meine Fotos wurden mit KI erstellt oder verändert',
-      });
-      await aiPhoto.click();
+      await preview.getByRole('button', { name: 'Zurück zum Bearbeiten', exact: true }).click();
       await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
-      const consent = preview.getByRole('checkbox', {
-        name: 'Ich erlaube Flipbase, Inserate über Testkonto A anzulegen.',
+      await opener.click();
+      await expect(
+        preview.getByRole('button', { name: 'Termin ändern', exact: true }),
+      ).toBeVisible();
+      await expect(preview.getByRole('checkbox')).toHaveCount(0);
+      const plannedSubmit = preview.getByRole('button', {
+        name: 'Veröffentlichung planen',
+        exact: true,
       });
-      await consent.click();
-      await expect(consent).toHaveAttribute('aria-checked', 'true');
-      await expect(submit).toBeEnabled();
+      await expect(plannedSubmit).toBeEnabled();
       expect(
         await page.evaluate(
           async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
@@ -501,15 +536,19 @@ for (const width of [1440, 390])
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
       ).toBe(true);
+      await page
+        .getByRole('heading', { name: 'Inserat prüfen', exact: true })
+        .scrollIntoViewIfNeeded();
       await page.screenshot({
         path: testInfo.outputPath(`publication-${width}-${dark ? 'dark' : 'light'}.png`),
         fullPage: false,
       });
       expect(state.approvals).toEqual([]);
       expect(state.enqueues).toEqual([]);
-      await submit.focus();
+      await plannedSubmit.focus();
       await page.keyboard.press('Enter');
       await expect(preview).not.toBeVisible();
+      await expect(page.locator('[data-publication-result]')).toBeFocused();
       await expect(
         page
           .locator('app-vinted-listing-job-panel')
@@ -546,26 +585,24 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
   await expect(
     editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
   ).not.toHaveAttribute('aria-invalid', 'true');
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
   await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toHaveAttribute(
     'aria-invalid',
     'true',
   );
-  await expect(
-    page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
-  ).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true })).toBeEnabled();
   await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toBeFocused();
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
   await editor
     .getByRole('textbox', { name: 'Beschreibung', exact: true })
     .fill('Vollständige Beschreibung.');
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
-  const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
   await expect(preview.getByText('Vollständige Beschreibung.', { exact: true })).toBeVisible();
   await expect(preview.getByText(/auf diesem Server noch nicht verfügbar/)).toBeVisible();
   await expect(
-    preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }),
+    preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
   ).toBeDisabled();
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
@@ -619,12 +656,12 @@ test('Gelesene Textgrenzen erscheinen vor der Veröffentlichung und kürzen vorh
   const editor = page.locator('app-vinted-listing-editor');
   const title = editor.getByRole('textbox', { name: 'Titel', exact: true });
   await expect(title).not.toHaveAttribute('aria-invalid', 'true');
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
   await expect(title).toHaveValue('T'.repeat(101));
   await expect(title).toHaveAttribute('maxlength', '100');
   await expect(title).toHaveAttribute('aria-invalid', 'true');
   await expect(
-    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
+    editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }),
   ).toBeEnabled();
   await editor
     .getByRole('textbox', { name: 'Beschreibung', exact: true })
@@ -651,12 +688,12 @@ test('Größerer alter Entwurf behält alle Fotos und kann nicht versehentlich v
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
   await expect(editor.getByText(/21 von 20 Fotos/)).toBeVisible();
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
   await expect(
     editor.getByText('Vinted erlaubt höchstens 20 Fotos pro Inserat.', { exact: true }),
   ).toBeVisible();
   await expect(
-    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
+    editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }),
   ).toBeEnabled();
   expect(state.draft().images).toHaveLength(21);
   expect(state.enqueues).toEqual([]);
@@ -666,13 +703,10 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
 }) => {
   const state = await mockPublication(page, true, true);
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
-  const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
   await expect(preview.getByText(/passen zur aktuellen Vinted-Auswahl/)).toBeVisible();
-  await preview
-    .getByRole('checkbox', { name: 'Ich erlaube Flipbase, Inserate über Testkonto A anzulegen.' })
-    .click();
-  await preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }).click();
+  await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   const retry = preview.getByRole('button', { name: 'Diesen Auftrag erneut prüfen', exact: true });
   await expect(retry).toBeEnabled();
   await expect(preview.getByRole('button', { name: 'Termin wählen', exact: true })).toBeDisabled();

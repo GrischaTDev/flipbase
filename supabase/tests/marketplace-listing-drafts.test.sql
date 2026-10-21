@@ -25,6 +25,10 @@ select ok(not public.marketplace_listing_content_valid('{"priceCents":12.5}'), '
 select ok(not public.marketplace_listing_content_valid('{"title":false}'), 'Textfelder erlauben keine booleschen Werte');
 select ok(not public.marketplace_listing_content_valid('{"title":"Hidden\u001f"}'), 'Unsichtbare Steuerzeichen sind gesperrt');
 select ok(not public.marketplace_listing_content_valid('{"unknown":true}'), 'Unbekannte Felder werden abgelehnt');
+select ok(public.marketplace_listing_content_valid('{"aiPhoto":true}'), 'KI-Fotos dürfen markiert werden');
+select ok(public.marketplace_listing_content_valid('{"aiPhoto":false}'), 'Originalfotos dürfen markiert werden');
+select ok(not public.marketplace_listing_content_valid('{"aiPhoto":"true"}'), 'Fotoangabe akzeptiert keinen Text');
+select ok(not public.marketplace_listing_content_valid('{"aiPhoto":null}'), 'Fotoangabe akzeptiert kein null');
 select ok(not public.marketplace_listing_content_valid('{"colorIds":[1,1]}'), 'Auswahlwerte dürfen nicht doppelt sein');
 select ok(not public.marketplace_listing_content_valid('{"attributes":{"constructor":"x"}}'), 'Gefährliche Attributnamen sind gesperrt');
 select ok(not has_table_privilege('anon', 'public.marketplace_listing_drafts', 'select'), 'Keine anonymen Entwürfe');
@@ -46,11 +50,12 @@ select is((select count(*) from public.marketplace_listing_drafts), 1::bigint, '
 select throws_ok($$select public.marketplace_create_listing_draft('46000000-0000-4000-8000-000000000011','46000000-0000-4000-8000-000000000022','{}')$$,
  '42501', null, 'Ein fremdes Zielkonto wird abgelehnt');
 select is((public.marketplace_save_listing_draft((select body->>'id' from draft_test_context), 1,
- '{"title":"Neue Jacke","priceCents":4200}', '46000000-0000-4000-8000-000000000021')->>'revision'), '2', 'Speichern erhöht die Revision');
+ '{"title":"Neue Jacke","priceCents":4200,"aiPhoto":true}', '46000000-0000-4000-8000-000000000021')->>'revision'), '2', 'Speichern erhöht die Revision');
 select throws_ok($$select public.marketplace_save_listing_draft((select body->>'id' from draft_test_context),1,'{"title":"Alter Tab"}',null)$$,
  '40001', null, 'Der alte Tab überschreibt keine neuere Revision');
 select is((public.marketplace_read_listing_draft((select body->>'id' from draft_test_context))->'content'->>'title'),
  'Neue Jacke', 'Nach Konflikt bleibt der neue Inhalt erhalten');
+select is((public.marketplace_read_listing_draft((select body->>'id' from draft_test_context))->'content'->>'aiPhoto'), 'true', 'Gespeicherte KI-Fotoangabe bleibt beim erneuten Laden erhalten');
 
 select set_config('request.jwt.claim.sub', '46000000-0000-4000-8000-000000000002', true);
 select is((select count(*) from public.marketplace_listing_drafts), 0::bigint, 'Fremde Entwürfe sind unsichtbar');

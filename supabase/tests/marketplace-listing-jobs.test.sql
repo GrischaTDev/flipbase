@@ -24,28 +24,30 @@ select set_config('request.jwt.claim.sub','46300000-0000-4000-8000-000000000001'
 select throws_ok($$select public.marketplace_enqueue_listing_internal('1',1,'publish','46300000-0000-4000-8000-000000000039',false)$$,'42501',null,'Clients dürfen die interne Annahmefunktion nicht direkt aufrufen');
 insert into listing_job_context(draft) select public.marketplace_create_listing_draft(
  '46300000-0000-4000-8000-000000000011','46300000-0000-4000-8000-000000000021',
- '{"title":"Testjacke","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"brandId":53,"brandLabel":"Nike","sizeId":208,"conditionId":2,"colorIds":[1],"materialIds":[44],"packageSizeId":2}');
-select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',false)$$,'42501',null,'Lesefreigaben erlauben keine Inserataktionen');
+ '{"aiPhoto":true,"title":"Testjacke","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"brandId":53,"brandLabel":"Nike","sizeId":208,"conditionId":2,"colorIds":[1],"materialIds":[44],"packageSizeId":2}');
+select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',true)$$,'42501',null,'Lesefreigaben erlauben keine Inserataktionen');
 update listing_job_context set permission=public.marketplace_approve_listings('46300000-0000-4000-8000-000000000011','46300000-0000-4000-8000-000000000021','46301');
 select is((select permission->>'allowed' from listing_job_context),'true','Eigene Kontoidentität wird ausdrücklich freigegeben');
 select throws_ok($$select public.marketplace_approve_listings('46300000-0000-4000-8000-000000000011','46300000-0000-4000-8000-000000000021','46302')$$,'42501',null,'Falsche Kontoidentität wird abgelehnt');
-select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',false)$$,'22023',null,'Veröffentlichung benötigt bestätigte Originalfotos');
+select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',true)$$,'22023',null,'Veröffentlichung benötigt bestätigte Originalfotos');
 reset role;
 insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
 select '46300000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46300000-0000-4000-8000-000000000011/'||(draft->>'id')||'/46300000-0000-4000-8000-000000000041.jpg','test.jpg','image/jpeg',123,'ready','46300000-0000-4000-8000-000000000001' from listing_job_context;
 update public.marketplace_listing_drafts set image_ids=array[(select id from public.marketplace_listing_images where created_by='46300000-0000-4000-8000-000000000001')] where id=(select (draft->>'id')::bigint from listing_job_context);
 insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',storage_path,'{"size":123,"mimetype":"image/jpeg"}' from public.marketplace_listing_images where created_by='46300000-0000-4000-8000-000000000001';
 set local role authenticated;
-update listing_job_context set job=public.marketplace_enqueue_listing((draft->>'id'),1,'publish','46300000-0000-4000-8000-000000000031',false);
+update listing_job_context set job=public.marketplace_enqueue_listing((draft->>'id'),1,'publish','46300000-0000-4000-8000-000000000031',true);
 select is((select job->>'state' from listing_job_context),'queued','Annahme ist kein Anbietererfolg');
 select is((select jsonb_typeof(job->'id') from listing_job_context),'string','Auftragskennungen bleiben verlustfreie Zeichenketten');
 select is((select job->>'executionMode' from listing_job_context),'local','Ausführer ist im Auftrag festgelegt');
-select is((public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',false)->>'id'),(select job->>'id' from listing_job_context),'Ein Doppelklick erzeugt nur einen Auftrag');
-select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',true)$$,'23505',null,'Eine Kennung darf keinen anderen Auftrag bezeichnen');
+select is((select snapshot->>'aiPhoto' from public.marketplace_listing_jobs),'true','Auftrag übernimmt die gewählte KI-Kennzeichnung');
+select ok((select not (snapshot->'content' ? 'aiPhoto') from public.marketplace_listing_jobs),'Provider-Inhalt enthält keine Entwurfsmetadaten');
+select is((public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',true)->>'id'),(select job->>'id' from listing_job_context),'Ein Doppelklick erzeugt nur einen Auftrag');
+select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',false)$$,'23505',null,'Eine Kennung darf keinen anderen Auftrag bezeichnen');
 select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000032',false)$$,'23505',null,'Parallele Aufträge für denselben Entwurf sind gesperrt');
 select public.marketplace_save_listing_draft((select draft->>'id' from listing_job_context),1,'{"title":"Neuer Titel"}','46300000-0000-4000-8000-000000000021');
 select is((select snapshot->'content'->>'title' from public.marketplace_listing_jobs),'Testjacke','Änderungen am Entwurf verändern den angenommenen Inhalt nicht');
-select is((public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',false)->>'id'),(select job->>'id' from listing_job_context),'Antwortverlust bleibt auch nach Entwurfsänderung idempotent');
+select is((public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),1,'publish','46300000-0000-4000-8000-000000000031',true)->>'id'),(select job->>'id' from listing_job_context),'Antwortverlust bleibt auch nach Entwurfsänderung idempotent');
 select throws_ok($$update public.marketplace_listing_jobs set state='confirmed'$$,'42501',null,'Ein Client kann keinen Anbietererfolg erfinden');
 select throws_ok($$select public.marketplace_cancel_listing_job((select job->>'id' from listing_job_context),2)$$,'40001',null,'Abbrechen benötigt die aktuelle Auftragsversion');
 select is((public.marketplace_cancel_listing_job((select job->>'id' from listing_job_context),1)->>'state'),'cancelled','Ein noch nicht begonnener Auftrag kann abgebrochen werden');
