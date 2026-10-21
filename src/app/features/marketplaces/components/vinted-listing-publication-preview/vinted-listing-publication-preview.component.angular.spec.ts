@@ -239,7 +239,7 @@ describe('Vinted publication preview', () => {
   it('loads current category, brand, permission, runtime and jobs without writing', async () => {
     const f = setup();
     await settle(f);
-    expect(f.read).toHaveBeenCalledWith(connectionId, 1223);
+    expect(f.read).toHaveBeenCalledWith(connectionId, 1223, { fresh: true });
     expect(f.search).toHaveBeenCalledWith('Jako', workspaceId);
     expect(f.component.review()?.ready).toBe(true);
     expect(f.component.canSubmit()).toBe(false);

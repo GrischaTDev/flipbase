@@ -26,6 +26,43 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('Private Vinted-Fotos', () => {
+  it('liest beim Umbenennen nur das eigene gespeicherte Foto und erhält seine Bytes', async () => {
+    const download = vi
+      .fn()
+      .mockResolvedValue({ data: new Blob(['original'], { type: 'image/jpeg' }), error: null });
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: SupabaseService,
+          useValue: { client: { storage: { from: () => ({ download }) } } },
+        },
+      ],
+    });
+    const current: VintedListingDraft = {
+      ...draft,
+      images: [
+        {
+          id: '7',
+          storagePath: 'workspace-a/5/7.jpg',
+          fileName: 'alt.jpg',
+          mimeType: 'image/jpeg',
+          byteSize: 8,
+        },
+      ],
+    };
+    const file = await TestBed.inject(VintedListingImageService).renamedFile(
+      current,
+      '7',
+      'neu.jpg',
+    );
+    expect(file.name).toBe('neu.jpg');
+    expect(file.size).toBe(8);
+    expect(download).toHaveBeenCalledWith('workspace-a/5/7.jpg');
+    await expect(
+      TestBed.inject(VintedListingImageService).renamedFile(current, '8', 'fremd.jpg'),
+    ).rejects.toThrow();
+    expect(download).toHaveBeenCalledTimes(1);
+  });
   it('rejects an unreadable image before reserving or uploading it', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('Invalid image')));
     const rpc = vi.fn();

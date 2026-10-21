@@ -15,6 +15,7 @@ import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-listing-category-fixture';
 import { buildVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
+import type { VintedListingDraft } from '../../models/vinted-listing-draft';
 
 const account = {
   marketplace: 'vinted',
@@ -170,12 +171,25 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('öffnet ruhig, speichert unvollständig und zeigt fehlende Angaben erst nach angeforderter Prüfung', async () => {
+    const { component } = setup();
+    await settle();
+    expect(component.visibleFieldErrors()).toEqual({});
+    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    expect(component.canStartPublication()).toBe(true);
+    await component.save();
+    expect(component.status()).toBe('Entwurf gespeichert');
+    expect(component.visibleFieldErrors()).toEqual({});
+    await component.openPublication();
+    expect(component.visibleFieldErrors()['title']).toBeTruthy();
+    expect(component.publication()).toBeNull();
+  });
   it('speichert unvollständige Inhalte weiter, verhindert aber eine Veröffentlichung ohne Titel, Text, Preis und Foto', async () => {
     const { component } = setup();
     await settle();
     component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
     expect(component.canSave()).toBe(true);
-    expect(component.canStartPublication()).toBe(false);
+    expect(component.canStartPublication()).toBe(true);
     await component.save();
     expect(component.draft()?.content.title).toBe('');
     expect(component.dirty()).toBe(false);
@@ -303,7 +317,9 @@ describe('Vinted-Inserateditor', () => {
     );
     expect(f.component.images()).toHaveLength(21);
     expect(f.component.fieldErrors()['photos']).toContain('20');
-    expect(f.component.canStartPublication()).toBe(false);
+    expect(f.component.canStartPublication()).toBe(true);
+    await f.component.openPublication();
+    expect(f.component.publication()).toBeNull();
     f.component.changeImages(f.component.images().slice(0, 20));
     expect(f.component.canStartPublication()).toBe(true);
   });
@@ -377,10 +393,12 @@ describe('Vinted-Inserateditor', () => {
       expect(component.form.controls.size.value).toBe('');
       expect(component.content().sizeId).toBeNull();
       await settle();
-      expect(component.fieldSelection()).toBeNull();
+      if (change === 'external-account' || change === 'category')
+        expect(component.fieldSelection()?.categoryId).toBe(change === 'category' ? 2738 : 1223);
+      else expect(component.fieldSelection()).toBeNull();
     },
   );
-  it('requires an eligible target and valid current form before opening the field chooser', async () => {
+  it('requires an eligible target and keeps category selection usable with an invalid price', async () => {
     const { component, connections } = setup();
     await settle();
     component.form.controls.categoryId.setValue('1223');
@@ -399,7 +417,13 @@ describe('Vinted-Inserateditor', () => {
     connections.set([account]);
     component.form.controls.price.setValue('20,');
     component.openFieldSelection();
-    expect(component.fieldSelection()).toBeNull();
+    expect(component.fieldSelection()?.categoryId).toBe(1223);
+    component.selectFields(selection(), true);
+    expect(component.form.controls.size.value).toBe('M');
+    expect(component.content().sizeId).toBe(208);
+    expect(component.content().categoryId).toBe(1223);
+    expect(component.form.controls.price.value).toBe('20,');
+    expect(component.error()).toBeNull();
   });
   it('keeps category fields absent from the response and rejects selections while saving', async () => {
     const { component } = setup();
@@ -575,6 +599,62 @@ describe('Vinted-Inserateditor', () => {
     expect(upload).toHaveBeenCalledWith(expect.objectContaining({ images }), file, '1');
     expect(component.dirty()).toBe(false);
   });
+  it.each(['rename', 'crop'] as const)(
+    'reserves an existing image for its own %s when a new main image comes first',
+    async (operation) => {
+      const { component, imageApi } = setup();
+      await settle();
+      const original = {
+        id: '2',
+        storagePath: 'workspace-a/1/2.jpg',
+        fileName: 'old.jpg',
+        mimeType: 'image/jpeg' as const,
+        byteSize: 3,
+      };
+      component.draft.set({ ...draft, images: [original] });
+      const newFile = new File(['new'], 'new.jpg', { type: 'image/jpeg' });
+      const replacement = new File(['old'], 'renamed.jpg', { type: 'image/jpeg' });
+      const renamedFile = vi.fn().mockResolvedValue(replacement);
+      let nextId = 3;
+      const upload = vi
+        .fn()
+        .mockImplementation(
+          async (current: VintedListingDraft, file: File, replaceId?: string) => ({
+            ...current,
+            revision: current.revision + 1,
+            images: [
+              ...current.images.filter((image) => image.id !== replaceId),
+              {
+                ...original,
+                id: String(nextId++),
+                fileName: file.name,
+              },
+            ],
+          }),
+        );
+      Object.assign(imageApi, { upload, renamedFile });
+      component.changeImages([
+        { key: 'new', file: newFile, storagePath: null, fileName: 'new.jpg', previewUrl: '' },
+        {
+          key: '2',
+          file: operation === 'crop' ? replacement : null,
+          storagePath: original.storagePath,
+          fileName: 'renamed.jpg',
+          previewUrl: '',
+        },
+      ]);
+      await component.save();
+      expect(upload).toHaveBeenCalledTimes(2);
+      expect(upload.mock.calls[0][2]).toBeUndefined();
+      expect(upload.mock.calls[1][2]).toBe('2');
+      expect(component.draft()?.images.map((image) => image.fileName)).toEqual([
+        'new.jpg',
+        'renamed.jpg',
+      ]);
+      expect(component.error()).toBeNull();
+      expect(component.dirty()).toBe(false);
+    },
+  );
   it('keeps typing during saving and queues the new revision', async () => {
     const { component, create } = setup();
     await settle();

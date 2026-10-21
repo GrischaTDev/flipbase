@@ -244,7 +244,7 @@ export class VintedListingPublicationPreviewComponent {
     try {
       if (draft.content.categoryId === null) throw new Error('Wähle zuerst eine Vinted-Kategorie.');
       const [schema, brands, permission, availability, jobs] = await Promise.all([
-        this.categoryApi.read(account.connectionId, draft.content.categoryId),
+        this.categoryApi.read(account.connectionId, draft.content.categoryId, { fresh: true }),
         draft.content.brandId !== null
           ? this.brandApi.search(draft.content.brandLabel.slice(0, 100), draft.workspaceId)
           : Promise.resolve([] as VintedBrand[]),

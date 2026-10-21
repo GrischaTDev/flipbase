@@ -50,7 +50,7 @@
         [attr.aria-label]="label() || 'Kategorie wählen'"
         [attr.popover]="supportsPopover ? 'manual' : null"
         (wheel)="onPanelWheel($event)"
-        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex h-96 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-[var(--fb-control-menu-border)] bg-[var(--fb-control-menu)] text-fb-text-primary shadow-[0_8px_32px_rgb(0_0_0/0.18)]"
+        class="category-picker-panel fb-popover-enter absolute left-0 top-0 z-50 flex max-h-[min(24rem,calc(100dvh-16px))] w-full min-w-0 flex-col overflow-clip rounded-xl border border-[var(--fb-control-menu-border)] bg-[var(--fb-control-menu)] text-fb-text-primary shadow-[0_8px_32px_rgb(0_0_0/0.18)]"
         [style.left.px]="supportsPopover ? panelPosition().left : null"
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
@@ -101,7 +101,7 @@
 
         <div
           #list
-          class="category-picker-list min-h-0 flex-1 overflow-y-scroll overscroll-contain border-t border-fb-line p-1.5"
+          class="category-picker-list min-h-0 overflow-y-auto overscroll-contain border-t border-fb-line p-1.5"
         >
           @switch (status()) {
             @case ('loading') {

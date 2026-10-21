@@ -42,6 +42,7 @@ export class ImageCropperModalComponent {
   readonly title = input('Bild zuschneiden');
   // Einkauf und Inventar behalten ihren bisherigen quadratischen Zuschnitt.
   readonly maintainAspectRatio = input(true);
+  readonly aspectRatio = input(1);
   readonly imageReady = output<CroppedImageResult>();
   readonly closed = output<void>();
 

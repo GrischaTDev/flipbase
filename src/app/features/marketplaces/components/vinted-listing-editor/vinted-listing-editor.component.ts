@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
   effect,
   inject,
@@ -22,7 +23,7 @@ import { TwoColumnLayoutComponent } from '../../../../shared/components/two-colu
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
-import { ListingImageEditorComponent } from '../../../../shared/components/listing-image-editor/listing-image-editor.component';
+import { VintedListingMediaComponent } from './vinted-listing-media.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
 import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import type { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
@@ -89,7 +90,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     TwoColumnLayoutComponent,
     NoticeBannerComponent,
     CategoryPickerComponent,
-    ListingImageEditorComponent,
+    VintedListingMediaComponent,
     VintedListingTemplatePanelComponent,
     VintedListingJobPanelComponent,
     VintedListingBrandDialogComponent,
@@ -111,6 +112,7 @@ export class VintedListingEditorComponent {
   private readonly categoryApi = inject(VintedCategoryService);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
@@ -133,6 +135,8 @@ export class VintedListingEditorComponent {
   readonly loadError = signal<string | null>(null);
   readonly conflict = signal(false);
   readonly progress = signal('');
+  readonly publicationAttempted = signal(false);
+  readonly saveAttempted = signal(false);
   readonly images = signal<readonly ListingImageDraft[]>([]);
   readonly categories = signal<readonly VintedCategory[]>([]);
   readonly categoryError = signal<string | null>(null);
@@ -160,6 +164,7 @@ export class VintedListingEditorComponent {
   private readonly selectedBrand = signal<
     (VintedListingBrandSelection & { categoryId: number | null }) | null
   >(null);
+  private brandEdited = false;
   private readonly referenceContent = signal(emptyVintedListingContent());
   private readonly changed = signal(0);
   private loadedContext: string | null = null;
@@ -220,7 +225,7 @@ export class VintedListingEditorComponent {
   readonly content = computed(() => {
     this.changed();
     try {
-      return this.contentSnapshot();
+      return this.contentSnapshot(true);
     } catch {
       return this.referenceContent();
     }
@@ -243,7 +248,7 @@ export class VintedListingEditorComponent {
         : this.dirty()
           ? 'Änderungen noch nicht gespeichert'
           : this.draft()
-            ? 'In Flipbase gespeichert'
+            ? 'Entwurf gespeichert'
             : 'Noch kein Entwurf angelegt',
   );
   readonly canSave = computed(
@@ -254,7 +259,6 @@ export class VintedListingEditorComponent {
       !this.saving() &&
       !this.imageEditing() &&
       !this.conflict() &&
-      !this.contentError() &&
       this.dirty(),
   );
   readonly canSelectBrand = computed(
@@ -268,6 +272,7 @@ export class VintedListingEditorComponent {
       !this.imageEditing() &&
       !this.conflict(),
   );
+  readonly brandScope = computed(() => this.context() ?? 'unavailable');
   private readonly fieldSelectionScope = computed(() => {
     this.changed();
     const connectionId = this.form.controls.connectionId.value;
@@ -298,7 +303,7 @@ export class VintedListingEditorComponent {
     return validateVintedListingEditor(this.content(), photos, this.categorySchema());
   });
   readonly additionalFieldErrors = computed(() =>
-    Object.entries(this.fieldErrors())
+    Object.entries(this.visibleFieldErrors())
       .filter(
         ([field]) =>
           ![
@@ -317,6 +322,9 @@ export class VintedListingEditorComponent {
       )
       .map(([, message]) => message),
   );
+  readonly visibleFieldErrors = computed<Readonly<Record<string, string>>>(() =>
+    this.publicationAttempted() ? this.fieldErrors() : {},
+  );
   readonly publicationHint = computed(
     () =>
       this.accountIssue() ??
@@ -333,7 +341,6 @@ export class VintedListingEditorComponent {
       .find((value) => value.connectionId === this.form.controls.connectionId.value);
     return (
       this.canSelectBrand() &&
-      !this.contentError() &&
       this.currentCategoryId() !== null &&
       !!account &&
       this.accountIssue() === null &&
@@ -358,11 +365,7 @@ export class VintedListingEditorComponent {
       account?.marketplace === 'vinted'
     );
   });
-  readonly canStartPublication = computed(
-    () =>
-      this.canPreparePublication() ||
-      (this.canSelectFields() && this.canSave() && Object.keys(this.fieldErrors()).length === 0),
-  );
+  readonly canStartPublication = computed(() => this.canSelectBrand());
   private readonly publicationScope = computed(() =>
     JSON.stringify([
       this.fieldSelectionScope(),
@@ -393,6 +396,8 @@ export class VintedListingEditorComponent {
       const snapshot = this.categorySnapshot();
       if (snapshot && snapshot.scopeKey !== scope) untracked(() => this.categorySnapshot.set(null));
       if (selection && selection.scopeKey !== scope) untracked(() => this.closeFieldSelection());
+      if (this.canSelectFields() && (!selection || selection.scopeKey !== scope))
+        untracked(() => this.openFieldSelection());
     });
     effect(() => {
       const opened = this.publication();
@@ -406,6 +411,12 @@ export class VintedListingEditorComponent {
   }
   /** Ungespeicherte Eingaben werden zuerst als Entwurf gesichert; die Vorschau zeigt nur Gespeichertes. */
   async openPublication(): Promise<void> {
+    if (!this.canStartPublication()) return;
+    this.publicationAttempted.set(true);
+    if (!this.canSelectFields() || this.contentError() || Object.keys(this.fieldErrors()).length) {
+      this.focusFirstIssue();
+      return;
+    }
     if (this.dirty()) {
       if (!this.canStartPublication()) return;
       await this.save();
@@ -455,7 +466,7 @@ export class VintedListingEditorComponent {
       scopeKey: this.fieldSelectionScope(),
       connectionId: this.form.controls.connectionId.value!,
       categoryId: this.currentCategoryId()!,
-      content: this.contentSnapshot(),
+      content: this.content(),
     });
   }
   closeFieldSelection(): void {
@@ -463,7 +474,7 @@ export class VintedListingEditorComponent {
   }
   categoryFieldsLoaded(schema: VintedListingCategoryFields): void {
     const opened = this.fieldSelection();
-    if (!opened || !this.canSelectFields() || opened.scopeKey !== this.fieldSelectionScope())
+    if (!opened || !this.store.canManage() || opened.scopeKey !== this.fieldSelectionScope())
       return;
     this.categorySnapshot.set({
       scopeKey: opened.scopeKey,
@@ -475,16 +486,14 @@ export class VintedListingEditorComponent {
     const schema = this.categorySchema();
     const maximum = field === 'title' ? schema?.titleMaxLength : schema?.descriptionMaxLength;
     const length = this.form.controls[field].value.length;
-    return maximum == null
-      ? `${length} Zeichen. Die aktuelle Textgrenze erhältst Du über „Vinted-Angaben auswählen“.`
-      : `${length} von ${maximum} Zeichen.`;
+    return maximum == null ? `${length} Zeichen` : `${length} von ${maximum} Zeichen.`;
   }
-  selectFields(selection: VintedListingFieldSelection): void {
+  selectFields(selection: VintedListingFieldSelection, keepOpen = false): void {
     const opened = this.fieldSelection();
     if (!opened || !this.canSelectFields() || opened.scopeKey !== this.fieldSelectionScope())
       return;
     try {
-      const content = applyVintedListingFieldSelection(this.contentSnapshot(), selection);
+      const content = applyVintedListingFieldSelection(this.content(), selection);
       if (selection.fields.includes('size'))
         this.form.controls.size.setValue(content.sizeLabel, { emitEvent: false });
       if (selection.fields.includes('condition'))
@@ -520,7 +529,7 @@ export class VintedListingEditorComponent {
           : (previous?.packageLabel ?? ''),
       });
       this.markChanged();
-      this.closeFieldSelection();
+      if (!keepOpen) this.closeFieldSelection();
     } catch (error) {
       this.error.set(
         error instanceof Error ? error.message : 'Die Auswahl konnte nicht übernommen werden.',
@@ -543,6 +552,15 @@ export class VintedListingEditorComponent {
     this.markChanged();
     this.closeBrandSelection();
   }
+  selectInlineBrand(selection: VintedListingBrandSelection): void {
+    this.openBrandSelection();
+    this.selectBrand(selection);
+  }
+  editBrand(label: string): void {
+    this.brandEdited = true;
+    this.selectedBrand.set(null);
+    this.form.controls.brand.setValue(label);
+  }
   changeImages(images: readonly ListingImageDraft[]): void {
     const previous = this.images();
     const changed =
@@ -551,7 +569,8 @@ export class VintedListingEditorComponent {
         (image, index) =>
           image.key !== previous[index]?.key ||
           image.file !== previous[index]?.file ||
-          image.storagePath !== previous[index]?.storagePath,
+          image.storagePath !== previous[index]?.storagePath ||
+          image.fileName !== previous[index]?.fileName,
       );
     this.images.set(images);
     if (changed) this.markChanged();
@@ -566,6 +585,7 @@ export class VintedListingEditorComponent {
   }
   /** Speichert ausschließlich auf ausdrücklichen Wunsch; die geöffnete Seite bleibt bestehen. */
   async save(): Promise<void> {
+    this.saveAttempted.set(true);
     if (this.activeSave) return this.activeSave;
     if (
       !this.context() ||
@@ -685,6 +705,8 @@ export class VintedListingEditorComponent {
     const generation = ++this.generation;
     this.activeSave = null;
     this.loading.set(true);
+    this.publicationAttempted.set(false);
+    this.saveAttempted.set(false);
     this.imageEditing.set(false);
     this.draft.set(null);
     this.images.set([]);
@@ -779,15 +801,21 @@ export class VintedListingEditorComponent {
       }
       const ids: string[] = [];
       let replaceIds = draft.images
-        .filter((stored) => !selection.some((image) => image.key === stored.id && !image.file))
+        // Beibehaltene Bilder bleiben für ihre eigene Ersetzung reserviert.
+        .filter((stored) => !selection.some((image) => image.key === stored.id))
         .map((image) => image.id);
       for (const [index, image] of selection.entries()) {
         let id = image.key;
-        if (image.file) {
+        const stored = draft.images.find((entry) => entry.id === image.key);
+        const renamed = stored && !image.file && stored.fileName !== image.fileName;
+        if (image.file || renamed) {
           this.progress.set(`Foto ${index + 1} von ${selection.length} wird hochgeladen …`);
           const oldIds = new Set(draft.images.map((entry) => entry.id));
-          const replaceId = replaceIds.includes(image.key) ? image.key : replaceIds[0];
-          draft = await this.imageApi.upload(draft, image.file, replaceId);
+          const replaceId = stored?.id ?? replaceIds[0];
+          const file =
+            image.file ?? (await this.imageApi.renamedFile(draft, image.key, image.fileName));
+          if (!this.current(generation, context)) return;
+          draft = await this.imageApi.upload(draft, file, replaceId);
           if (!this.current(generation, context)) return;
           replaceIds = replaceIds.filter((id) => id !== replaceId);
           const added = draft.images.find((entry) => !oldIds.has(entry.id));
@@ -830,8 +858,15 @@ export class VintedListingEditorComponent {
         this.conflict.set(true);
     }
   }
-  private contentSnapshot(): VintedListingContent {
+  private contentSnapshot(allowIncompletePrice = false): VintedListingContent {
     const values = this.form.getRawValue();
+    let priceCents: number | null;
+    try {
+      priceCents = parseVintedListingPrice(values.price);
+    } catch (error) {
+      if (!allowIncompletePrice) throw error;
+      priceCents = null;
+    }
     const previous = this.referenceContent();
     const categoryId = values.categoryId === null ? null : Number(values.categoryId);
     const categorySame = categoryId === previous.categoryId;
@@ -842,7 +877,7 @@ export class VintedListingEditorComponent {
       ...previous,
       title: values.title,
       description: values.description,
-      priceCents: parseVintedListingPrice(values.price),
+      priceCents,
       categoryId,
       categoryLabel:
         this.categories().find((category) => category.id === categoryId)?.path ??
@@ -853,7 +888,7 @@ export class VintedListingEditorComponent {
         selectedBrand.categoryId === categoryId &&
         selectedBrand.brandLabel === values.brand
           ? selectedBrand.brandId
-          : categorySame && values.brand === previous.brandLabel
+          : !this.brandEdited && categorySame && values.brand === previous.brandLabel
             ? previous.brandId
             : null,
       sizeLabel: values.size,
@@ -874,7 +909,17 @@ export class VintedListingEditorComponent {
       ? applyVintedListingFieldSelection(content, fields)
       : content;
   }
+  private focusFirstIssue(): void {
+    setTimeout(() =>
+      this.host?.nativeElement
+        .querySelector<HTMLElement>(
+          '[aria-invalid="true"]:not(:disabled), [data-listing-issue] input:not([hidden]):not([type="hidden"]):not(:disabled), [data-listing-issue] button:not(:disabled)',
+        )
+        ?.focus(),
+    );
+  }
   private patch(content: VintedListingContent, connectionId: string | null): void {
+    this.brandEdited = false;
     this.selectedBrand.set(null);
     this.selectedFields.set(null);
     this.form.reset(

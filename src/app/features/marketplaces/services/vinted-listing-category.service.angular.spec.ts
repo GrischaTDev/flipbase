@@ -56,6 +56,31 @@ function setup() {
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Vinted category service', () => {
+  it('liest für die Veröffentlichungsprüfung auch nach einem Cachetreffer frisch', async () => {
+    const f = setup();
+    await f.api.read('account-a', 1223);
+    const changed = { ...fields, titleMaxLength: 80 };
+    f.read.mockResolvedValue(changed);
+    expect(await f.api.read('account-a', 1223)).toEqual(fields);
+    expect(f.read).toHaveBeenCalledTimes(1);
+    expect(await f.api.read('account-a', 1223, { fresh: true })).toEqual(changed);
+    expect(f.read).toHaveBeenCalledTimes(2);
+    await f.api.read('account-a', 1223, { fresh: true });
+    expect(f.read).toHaveBeenCalledTimes(3);
+  });
+  it('fasst parallele Abrufe zusammen und trennt Kategorien und Kontoidentitäten im Cache', async () => {
+    const f = setup();
+    await Promise.all([f.api.read('account-a', 1223), f.api.read('account-a', 1223)]);
+    await f.api.read('account-a', 1223);
+    expect(f.read).toHaveBeenCalledTimes(1);
+    await f.api.read('account-a', 2);
+    expect(f.read).toHaveBeenCalledTimes(2);
+    f.connections.set([{ ...connection, externalAccountId: '456' }]);
+    await f.api.read('account-a', 1223);
+    expect(f.read).toHaveBeenCalledTimes(3);
+    f.canManage.set(false);
+    await expect(f.api.read('account-a', 1223)).rejects.toThrow();
+  });
   it('reads the explicitly chosen draft account without relying on another selected account', async () => {
     const f = setup();
     expect(await f.api.read('account-a', 1223)).toEqual(fields);

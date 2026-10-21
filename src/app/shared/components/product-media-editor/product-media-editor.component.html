@@ -6,18 +6,20 @@
   (drop)="onDrop($event)"
 >
   @if (shownErrors().length) {
-    <ul role="alert" class="space-y-1 text-[13px] text-rose-400">
-      @for (error of shownErrors(); track $index) {
-        <li>{{ error }}</li>
-      }
-    </ul>
+    <div role="alert">
+      <ul class="space-y-1 text-[13px] text-fb-critical">
+        @for (error of shownErrors(); track $index) {
+          <li>{{ error }}</li>
+        }
+      </ul>
+    </div>
   }
   <!-- Technischer Dateieingang; Shared-Button übernimmt die sichtbare Bedienung. -->
   <input
     #fileInput
     type="file"
     multiple
-    [accept]="accept"
+    [accept]="acceptedFormats()"
     [disabled]="disabled() || !canAdd()"
     hidden
     class="hidden"
@@ -160,14 +162,16 @@
             <p class="text-xs text-fb-critical">Bitte gib einen Bildnamen ein.</p>
           }
         </div>
-        <div class="space-y-1">
-          <app-text-field
-            label="Alternativtext"
-            formControlName="altText"
-            [maxLength]="500"
-            helpText="Beschreibe kurz, was auf dem Bild zu sehen ist."
-          />
-        </div>
+        @if (canEditAltText()) {
+          <div class="space-y-1">
+            <app-text-field
+              label="Alternativtext"
+              formControlName="altText"
+              [maxLength]="500"
+              helpText="Beschreibe kurz, was auf dem Bild zu sehen ist."
+            />
+          </div>
+        }
       }
       <div class="space-y-1">
         <span class="block text-[13px] font-medium text-fb-text-primary"
@@ -196,7 +200,8 @@
 @if (!disabled()) {
   @if (cropImage(); as image) {
     <app-image-cropper-modal
-      title="Bild quadratisch zuschneiden"
+      [title]="cropTitle()"
+      [aspectRatio]="cropAspectRatio()"
       [initialImageFile]="image.file"
       [initialImageUrl]="image.file ? null : image.previewUrl"
       [maintainAspectRatio]="true"
