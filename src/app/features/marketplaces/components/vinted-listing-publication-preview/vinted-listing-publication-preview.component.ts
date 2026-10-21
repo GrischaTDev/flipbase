@@ -10,12 +10,11 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideX } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
-import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
 import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
@@ -46,8 +45,8 @@ import {
   templateUrl: './vinted-listing-publication-preview.component.html',
   imports: [
     ButtonComponent,
-    CustomCheckboxComponent,
-    ModalShellComponent,
+    CardComponent,
+    TwoColumnLayoutComponent,
     NoticeBannerComponent,
     VintedListingScheduleDialogComponent,
   ],
@@ -64,19 +63,20 @@ export class VintedListingPublicationPreviewComponent {
   readonly closed = output<void>();
   readonly loading = signal(false);
   readonly busy = signal(false);
+  readonly busyChange = output<boolean>();
   readonly error = signal<string | null>(null);
   readonly schema = signal<VintedListingCategoryFields | null>(null);
   readonly brands = signal<readonly VintedBrand[]>([]);
   readonly permission = signal<VintedListingPermission | null>(null);
   readonly runtimeEnabled = signal(false);
   readonly jobs = signal<readonly VintedListingJob[]>([]);
-  readonly consent = signal(false);
-  readonly aiPhoto = signal(false);
+  readonly aiPhoto = computed(() => this.draft().content.aiPhoto ?? false);
+  readonly initialSchedule = input<VintedListingScheduleSelection | null>(null);
+  readonly scheduleChange = output<VintedListingScheduleSelection | null>();
   readonly schedule = signal<VintedListingScheduleSelection | null>(null);
   readonly planning = signal(false);
   private readonly intent = signal<VintedListingJobIntent | null>(null);
   readonly intentLocked = computed(() => this.intent() !== null);
-  readonly closeIcon = LucideX;
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
@@ -163,8 +163,7 @@ export class VintedListingPublicationPreviewComponent {
       this.runtimeEnabled() &&
       this.review()?.ready === true &&
       !this.blockedJob() &&
-      this.permission()?.executionMode === 'cloud' &&
-      (this.permission()?.allowed === true || this.consent()),
+      this.permission()?.executionMode === 'cloud',
   );
   readonly price = computed(() =>
     this.draft().content.priceCents === null
@@ -193,14 +192,13 @@ export class VintedListingPublicationPreviewComponent {
   readonly submitLabel = computed(() =>
     this.intentLocked()
       ? 'Diesen Auftrag erneut prüfen'
-      : this.permission()?.allowed
-        ? this.schedule()
-          ? 'Veröffentlichung planen'
-          : 'Sofort beauftragen'
-        : 'Freigeben und beauftragen',
+      : this.schedule()
+        ? 'Veröffentlichung planen'
+        : 'Jetzt veröffentlichen',
   );
 
   constructor() {
+    effect(() => this.busyChange.emit(this.busy()));
     effect(() => {
       const binding = this.binding();
       untracked(() => {
@@ -212,9 +210,7 @@ export class VintedListingPublicationPreviewComponent {
         this.loading.set(false);
         this.busy.set(false);
         this.intent.set(null);
-        this.consent.set(false);
-        this.aiPhoto.set(false);
-        this.schedule.set(null);
+        this.schedule.set(this.initialSchedule());
         this.planning.set(false);
         void this.load();
       });
@@ -313,6 +309,7 @@ export class VintedListingPublicationPreviewComponent {
       return;
     }
     this.schedule.set(selection);
+    this.scheduleChange.emit(selection);
     this.closeSchedule();
   }
   chooseNow(): void {
@@ -323,8 +320,10 @@ export class VintedListingPublicationPreviewComponent {
       !this.busy() &&
       !this.disabled() &&
       !this.intentLocked()
-    )
+    ) {
       this.schedule.set(null);
+      this.scheduleChange.emit(null);
+    }
   }
   async submit(): Promise<void> {
     const binding = this.binding();
@@ -387,42 +386,6 @@ export class VintedListingPublicationPreviewComponent {
           error instanceof Error
             ? error.message
             : 'Die Auftragsantwort fehlt. Prüfe den Verlauf oder prüfe denselben Auftrag erneut.',
-        );
-    } finally {
-      if (this.current(generation, binding)) this.busy.set(false);
-    }
-  }
-  async revoke(): Promise<void> {
-    const permission = this.permission(),
-      binding = this.binding();
-    if (
-      !permission?.allowed ||
-      this.busy() ||
-      this.loading() ||
-      this.disabled() ||
-      this.intentLocked() ||
-      this.closing ||
-      !this.available() ||
-      binding !== this.loadedBinding
-    )
-      return;
-    const generation = this.generation;
-    this.busy.set(true);
-    this.error.set(null);
-    try {
-      const next = await this.api.revoke(
-        this.draft().workspaceId,
-        this.account().connectionId,
-        permission.authorizationVersion,
-      );
-      if (this.current(generation, binding)) {
-        this.permission.set(next);
-        this.consent.set(false);
-      }
-    } catch (error) {
-      if (this.current(generation, binding))
-        this.error.set(
-          error instanceof Error ? error.message : 'Die Freigabe konnte nicht beendet werden.',
         );
     } finally {
       if (this.current(generation, binding)) this.busy.set(false);

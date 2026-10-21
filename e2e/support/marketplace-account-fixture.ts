@@ -30,7 +30,12 @@ export async function mockMarketplace(
   },
   localAccounts = false,
   accountCount = accountIds.length,
-  backend: { origin: string; userId: string; preserveExistingSession?: boolean } = {
+  backend: {
+    origin: string;
+    userId: string;
+    preserveExistingSession?: boolean;
+    displayName?: string;
+  } = {
     origin: process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351',
     userId: '25000000-0000-4000-8000-000000000001',
   },
@@ -84,7 +89,7 @@ export async function mockMarketplace(
     connectionId,
     marketplace: 'vinted',
     executionMode: localAccounts ? 'local' : 'cloud',
-    displayName: `Testkonto ${String.fromCharCode(65 + index)}`,
+    displayName: backend.displayName ?? `Testkonto ${String.fromCharCode(65 + index)}`,
     externalAccountId: importedFeedbacks ? String(100 + index) : null,
     status: importedFeedbacks ? 'connected' : 'needs_login',
     capabilities: {},

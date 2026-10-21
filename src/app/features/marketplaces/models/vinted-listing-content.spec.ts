@@ -8,6 +8,13 @@ import {
 } from './vinted-listing-content';
 
 describe('Vinted-Inseratentwürfe', () => {
+  it('speichert die KI-Fotoangabe und liest alte Entwürfe ohne Angabe', () => {
+    expect(parseVintedListingContent({ aiPhoto: true })).toHaveProperty('aiPhoto', true);
+    expect(parseVintedListingContent({ aiPhoto: false })).toHaveProperty('aiPhoto', false);
+    expect(parseVintedListingContent({ title: 'Alter Entwurf' })).toHaveProperty('aiPhoto', false);
+    expect(() => parseVintedListingContent({ aiPhoto: 'true' })).toThrow();
+    expect(() => parseVintedListingContent({ aiPhoto: null })).toThrow();
+  });
   it('verwirft alte Kategoriekennungen beim Kategorienwechsel durch eine Vorlage', () => {
     const content = {
       ...emptyVintedListingContent(),

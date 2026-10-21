@@ -1,23 +1,59 @@
 <app-entry-page-layout
-  [title]="openedSavedDraft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
-  backLabel="Zur Entwurfsübersicht"
-  (cancelled)="cancel()"
+  [title]="
+    publication()
+      ? 'Inserat prüfen'
+      : openedSavedDraft()
+        ? 'Entwurf bearbeiten'
+        : 'Inserat erstellen'
+  "
+  [backLabel]="publication() ? 'Zurück zum Bearbeiten' : 'Zur Entwurfsübersicht'"
+  (cancelled)="publication() ? returnToEditor() : cancel()"
 >
   <div entry-header-actions class="flex flex-wrap items-center gap-2">
-    <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
-    <app-button [disabled]="!canSave()" [loading]="saving()" (clicked)="save()"
-      >Entwurf speichern</app-button
-    >
-    <app-button
-      variant="secondary"
-      ariaHaspopup="dialog"
-      [disabled]="!canStartPublication()"
-      (clicked)="openPublication()"
-      >Veröffentlichung vorbereiten</app-button
-    >
+    @if (!publication()) {
+      <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
+      <app-button
+        variant="secondary"
+        [disabled]="!canSave()"
+        [loading]="saving()"
+        (clicked)="save()"
+        >Entwurf speichern</app-button
+      >
+      <app-button
+        data-review-opener
+        [disabled]="!canStartPublication()"
+        (clicked)="openPublication()"
+        >Weiter zur Prüfung</app-button
+      >
+    }
   </div>
+  <nav aria-label="Schritte der Inseraterstellung" class="mb-5">
+    <ol class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <li
+        [attr.aria-current]="!publication() ? 'step' : null"
+        [class.font-semibold]="!publication()"
+        class="text-fb-text-primary"
+      >
+        1. Erstellen
+      </li>
+      <li
+        [attr.aria-current]="publication() ? 'step' : null"
+        [class.font-semibold]="!!publication()"
+        class="text-fb-text-primary"
+      >
+        2. Prüfen
+      </li>
+    </ol>
+  </nav>
   @if (publicationAnnouncement()) {
-    <p role="status" class="text-sm text-fb-text-secondary">{{ publicationAnnouncement() }}</p>
+    <p
+      data-publication-result
+      tabindex="-1"
+      role="status"
+      class="text-sm text-fb-text-secondary focus:outline-none"
+    >
+      {{ publicationAnnouncement() }}
+    </p>
   }
   @if (error() || loadError()) {
     <app-notice-banner announcement="alert"
@@ -36,7 +72,7 @@
   } @else if (loading()) {
     <p role="status" class="text-sm text-fb-text-secondary">Entwurf wird geladen …</p>
   } @else if (!loadError()) {
-    <div [formGroup]="form">
+    <div [formGroup]="form" [hidden]="!!publication()">
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
           <app-card title="Fotos">
@@ -52,6 +88,12 @@
               [disabled]="saving()"
               (imagesChange)="changeImages($event)"
               (editingChange)="setImageEditing($event)"
+            />
+            <app-custom-checkbox
+              class="mt-4 block"
+              label="Meine Fotos wurden mit KI erstellt oder verändert"
+              formControlName="aiPhoto"
+              [disabled]="saving() || imageEditing()"
             />
             @if (visibleFieldErrors()['photos']; as message) {
               <p id="vinted-draft-photos-error" role="alert" class="mt-2 text-sm text-fb-critical">
@@ -213,16 +255,19 @@
       </app-two-column-layout>
     </div>
   }
+  @if (publication(); as opened) {
+    <app-vinted-listing-publication-preview
+      [scopeKey]="opened.scopeKey"
+      [userId]="opened.userId"
+      [draft]="opened.draft"
+      [account]="opened.account"
+      [images]="opened.images"
+      [initialSchedule]="publicationSchedule()"
+      (scheduleChange)="publicationSchedule.set($event)"
+      (busyChange)="publicationBusy.set($event)"
+      [disabled]="!canPreparePublication()"
+      (accepted)="publicationAccepted($event)"
+      (closed)="returnToEditor()"
+    />
+  }
 </app-entry-page-layout>
-@if (publication(); as opened) {
-  <app-vinted-listing-publication-preview
-    [scopeKey]="opened.scopeKey"
-    [userId]="opened.userId"
-    [draft]="opened.draft"
-    [account]="opened.account"
-    [images]="opened.images"
-    [disabled]="!canPreparePublication()"
-    (accepted)="publicationAccepted($event)"
-    (closed)="closePublication()"
-  />
-}

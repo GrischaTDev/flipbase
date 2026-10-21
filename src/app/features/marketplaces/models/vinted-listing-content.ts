@@ -6,6 +6,7 @@ export type VintedListingContentField = keyof VintedListingContent;
 
 export function emptyVintedListingContent(): VintedListingContent {
   return {
+    aiPhoto: false,
     title: '',
     description: '',
     priceCents: null,
@@ -73,6 +74,7 @@ export function parseVintedListingContent(value: unknown): VintedListingContent 
   const defaults = emptyVintedListingContent();
   if (Object.keys(input).some((key) => !Object.hasOwn(defaults, key))) return invalidContent();
   const source = { ...defaults, ...input };
+  if (typeof source.aiPhoto !== 'boolean') return invalidContent();
   const price = source.priceCents;
   if (price !== null && (typeof price !== 'number' || !Number.isSafeInteger(price) || price < 0))
     return invalidContent();
@@ -87,6 +89,7 @@ export function parseVintedListingContent(value: unknown): VintedListingContent 
       return invalidContent();
   }
   return {
+    aiPhoto: source.aiPhoto,
     title: text(source.title),
     description: text(source.description),
     priceCents: price,
