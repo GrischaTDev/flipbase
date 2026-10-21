@@ -66,8 +66,16 @@ for (const theme of ['light', 'dark'] as const) {
       const typography = await heading.evaluate((element) => ({
         font: parseFloat(getComputedStyle(element).fontSize),
         spacing: getComputedStyle(element).letterSpacing,
+        compactTableHeading: element.matches(
+          '#revenue-chart-summary thead th, .sales-table thead th',
+        ),
       }));
-      expect(typography.font).toBeGreaterThanOrEqual(13);
+      // Bestehende kompakte Tabellenrollen erhalten; Abschnittsüberschriften separat prüfen.
+      if (typography.compactTableHeading) {
+        expect(typography.font).toBe(12);
+      } else {
+        expect(typography.font).toBeGreaterThanOrEqual(13);
+      }
       expect(['normal', '0px']).toContain(typography.spacing);
     }
     const legend = page.getByRole('button', { name: 'Ausgaben gesamt', exact: true });
