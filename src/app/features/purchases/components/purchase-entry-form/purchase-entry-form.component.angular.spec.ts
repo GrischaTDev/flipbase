@@ -2052,6 +2052,9 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     await komponente.onSubmit();
 
     expect(purchaseService.createPurchase).toHaveBeenCalledOnce();
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({ purchase_price: null }),
+    );
     expect(komponente.errorMessage()).toBeNull();
   });
 

@@ -96,9 +96,14 @@ test('keeps receiving accessible for saved quantity drafts and blocks it while d
       exact: true,
     })
     .click();
+  await expect(page.getByRole('dialog', { name: 'Wareneingang erfassen' })).not.toBeVisible();
+  await expect(page.getByText('Wareneingang wurde gebucht.', { exact: true })).toBeVisible();
+  await expect(page.locator('app-purchase-entry-form')).not.toHaveAttribute('inert', '');
   await description.fill('Ungespeicherte Menge');
+  await expect(description).toHaveValue('Ungespeicherte Menge');
   await expect(
     page.getByRole('button', { name: 'Erfassung abschließen', exact: true }),
   ).toHaveCount(0);
-  await expect(page.locator('app-card[entry-main-extra]')).toHaveAttribute('inert', '');
+  await expect(page.locator('[entry-main-extra]')).toHaveAttribute('inert', '');
+  await expect(page.locator('[entry-sidebar-extra]')).toHaveAttribute('inert', '');
 });

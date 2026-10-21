@@ -948,7 +948,18 @@ export class PurchaseEntryFormComponent {
       source_id: f.source_id,
       supplier_id: f.supplier_id,
       purchase_date: f.purchase_date,
-      purchase_price: f.purchase_price,
+      // Die sichtbare Zwischensumme ist bei offenen Einzelpreisen noch kein vollständiger Warenbetrag.
+      purchase_price:
+        f.pricing_mode === 'individual' &&
+        purchaseLines.some(
+          (line) =>
+            line.priceMode === 'open' ||
+            line.priceMode === 'unpriced_mystery' ||
+            line.unitPurchasePrice === null ||
+            line.lineTotal === null,
+        )
+          ? null
+          : f.purchase_price,
       tracking_number: f.tracking_number?.trim() || null,
       tracking_carrier:
         f.tracking_carrier ||

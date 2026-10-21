@@ -111,7 +111,14 @@ test('applies cost adjustments only when the management dialog is saved', async 
   const adjustment = dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true });
   await expect(adjustment).toContainText('Auswählen');
   await adjustment.click();
-  await expect(dialog.getByRole('option')).toHaveCount(10);
+  await expect(dialog.getByRole('option')).toHaveText([
+    'Versandkosten',
+    'Käuferschutzgebühr',
+    'Zollgebühren',
+    'Versicherung',
+    'Rabatt',
+    'Sonstiges',
+  ]);
   await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
 
