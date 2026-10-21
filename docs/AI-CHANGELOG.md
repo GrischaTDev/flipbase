@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-21 - Juna - Unterbrochenen Abschluss der Vinted-Kategorieprüfung fortsetzen
+
+**Stand und Grenze:** Nach Unterbrechung beim Warten auf PR #455 fortgesetzt. Originalinserat unverändert; interner JAKO-Prüfentwurf 8 mit 18 € und fünf Originalfotos gespeichert, Auftragsverlauf ohne Anbieterauftrag. Kein Merge oder eigentlicher Farb-Fix-Rollout vor grüner Pflichtprüfung.
+
+**CI-Nachtrag:** Worker-/Sitzungsabbilder, Qualität, Modell- und Angular-Prüfungen erfolgreich. Der zusätzliche Browserlauf endet mit 171 erfolgreichen Fällen und einem Fehler in der Verhandlungsprüfung bei 390px/dunkel: späterer Wert 17 statt 7. Neun weitere Fälle dadurch nicht ausgeführt. Logs und Fehlerartefakt untersucht; der betroffene Test gibt unmittelbar nach dem Einheitenwechsel eine Zahl ein, ohne die Umrechnung von 60 Sekunden auf 1 Minute abzuwarten. Die genaue seltene Ereignisfolge ist bislang nicht reproduziert; keine bestätigte Produktursache behauptet. Zehn Wiederholungen unter Windows und fünf mit achtfacher CPU-Drossel sowie zehn gedrosselte Wiederholungen unter Linux/Node 22.23.3/Playwright 1.62.1 erfolgreich. Zusätzliche Zustandsprüfungen sichern jetzt die umgerechnete 1 vor und die eingegebene 7 nach der Eingabe; alle bisherigen Speicher-, Rücklese- und Barrierefreiheitsprüfungen bleiben erhalten. Kein pauschaler Wiederholungslauf und keine gelockerten Bedingungen. Unabhängiger Nachreview ohne Befund; 35 Auswahlprüfungen, gezieltes Lint und Format erfolgreich. Danach alle zehn Fälle der betroffenen Browserdatei gegen den Linux-Entwicklungsserver mit zwei CPU-Kernen und 4 GiB Speicher erfolgreich, einschließlich Desktop/Mobil und Hell/Dunkel. Archivierte Quellkopie enthält die versteckten Baukonfigurationen; keine fremden Projekte angehalten.
+
 ## 2026-10-20 - Juna - Aktuelle Vinted-Farbauswahl lesen und prüfen
 
 **Auftrag:** Die noch offene Veröffentlichungsprüfung mit den JAKO-Fußballschuhen für 18 € aus Wiehen Store abschließen. Bestehendes Inserat unverändert lassen und keine zweite Anzeige oder Veröffentlichung auslösen. Fortsetzung des freigegebenen Abschlusses und des ausdrücklich beauftragten Browserdienst-Fixes; eigener Zweig auf dem aktuellen `origin/master` nach PR #454.
