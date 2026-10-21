@@ -16,6 +16,8 @@
 
 **Abschlussgrenze:** Aktuelles `origin/master` erneut abgerufen und unverändert bei `28bd8878`. Noch kein Push, PR oder Merge; die neue Abschlussfreigabe wird gemäß AGENTS.md separat eingeholt. Foto-KI, Relisting und echte Veröffentlichung sind weiterhin nicht Bestandteil dieses Umbaus.
 
+**Abschlussfreigabe:** Nutzer bestätigt PR-Erstellung und Merge nach erfolgreichen Pflichtprüfungen einschließlich anschließender Bereinigung ausschließlich des eigenen Zweigs und Worktrees. Vor dem ersten Push `origin/master` erneut abgerufen; weiterhin `28bd8878`. Geprüfte Anwendungsdateien unverändert, Arbeitsverzeichnis sauber; die vorhandenen Nachweise und der konkrete Auswahlplan erneut geprüft, Formatierung und Git-Diff vor dem Push nochmals kontrolliert. Keine zusätzliche Freigabe für Foto-KI, Relisting oder eine Vinted-Veröffentlichung abgeleitet.
+
 ## 2026-10-21 - Juna - Bedienhinweise zur Inseraterstellung und Vintz-Fotoerkennung untersuchen
 
 **Auftrag:** Frühe Warnungen und beanstandete Hilfstexte entfernen; vorhandene Artikelgalerie wiederverwenden, Fotos vor Texte setzen, Artikeldetails und Preis rechts direkt bedienbar machen, Kategoriepanel verkleinern, Vinted-Markensuche als Vorschlagsfeld, passende Zuschnittvorgabe und kurze Speicherbestätigung. Vor Relisting zuerst diesen Bedienungsumbau behandeln. Zusätzlich den geöffneten Vintz-Editor auf KI-Funktionen, sichtbare Umsetzung und kostengünstige Alternativen untersuchen.
