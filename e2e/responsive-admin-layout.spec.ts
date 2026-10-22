@@ -8,6 +8,9 @@ import { mockMarketplace, workspaceId } from './support/marketplace-account-fixt
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
+// Der sichtbare Zuordnungszähler ist Teil des zugänglichen Namens.
+const bankTabName = /^Bankabgleich(?: \d+)?$/u;
+
 async function screenshot(page: Page, name: string) {
   const directory = process.env['RESPONSIVE_SCREENSHOT_DIR'];
   if (!directory) return;
@@ -555,7 +558,7 @@ test.describe('Finanzen behalten ihre Abläufe mit gemeinsamen Controls', () => 
           ).toBe(false);
           await audit('app-accounting');
           await report.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-          await page.getByRole('button', { name: 'Bankabgleich', exact: true }).click();
+          await page.getByRole('button', { name: bankTabName }).click();
           await expect(
             page.getByRole('button', { name: 'Datei auswählen', exact: true }),
           ).toBeVisible();
@@ -715,7 +718,7 @@ test.describe('Manuelle Bankzuordnung mit Auswahlfenster', () => {
           await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
           await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
           await page.goto('/accounting');
-          await page.getByRole('button', { name: 'Bankabgleich', exact: true }).click();
+          await page.getByRole('button', { name: bankTabName }).click();
           const incoming = page
             .getByRole('row')
             .filter({ has: page.getByRole('cell', { name: 'Vinted Auszahlung', exact: true }) });
@@ -828,7 +831,7 @@ test.describe('Manuelle Bankzuordnung mit Auswahlfenster', () => {
           await expect(dialog).toHaveCount(0);
           expect(fixture.transactions[1].match_json?.['targetType']).toBe('purchase');
           await page.reload();
-          await page.getByRole('button', { name: 'Bankabgleich', exact: true }).click();
+          await page.getByRole('button', { name: bankTabName }).click();
           await expect(outgoing.getByText('Kleiderpaket', { exact: false }).first()).toBeVisible();
         });
       });
@@ -844,7 +847,7 @@ test.describe('Manuelle Bankzuordnung bei Fehlern', () => {
         await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
         await page.goto('/accounting');
-        await page.getByRole('button', { name: 'Bankabgleich', exact: true }).click();
+        await page.getByRole('button', { name: bankTabName }).click();
         const incoming = page
           .getByRole('row')
           .filter({ has: page.getByRole('cell', { name: 'Vinted Auszahlung', exact: true }) });
