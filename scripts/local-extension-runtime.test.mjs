@@ -30,7 +30,7 @@ test('publication creation dates agree in local and cloud import without guessin
   const dates = (snapshot) =>
     snapshot.entries
       .filter((entry) => entry.kind === 'publication')
-      .map((entry) => entry.body.occurredAt);
+      .map((entry) => entry.body.createdAt);
   const expected = [
     '2026-10-01T10:30:00.000Z',
     '2026-10-01T10:30:00.000Z',
@@ -42,6 +42,89 @@ test('publication creation dates agree in local and cloud import without guessin
   ];
   assert.deepEqual(dates(local), expected);
   assert.deepEqual(dates(cloud), expected);
+  for (const snapshot of [local, cloud]) {
+    const publications = snapshot.entries.filter((entry) => entry.kind === 'publication');
+    assert.ok(publications.every((entry) => entry.body.occurredAt === null));
+    assert.deepEqual(
+      publications.map((entry) => entry.sortAt),
+      expected.map((date) => date ?? '1970-01-01T00:00:00.000Z'),
+    );
+  }
+});
+
+test('local and cloud wardrobe states require explicit provider evidence and preserve drafts', async () => {
+  const { parseVintedAccountImport } =
+    await import('../services/marketplace-worker/src/vinted-account-import.ts');
+  const identity = { id: '123', username: 'testkonto' };
+  const profile = { user: { id: 123, login: 'testkonto' } };
+  const observedAt = '2026-10-15T10:00:00Z';
+  const cases = [
+    [{ is_draft: true }, 'draft'],
+    [
+      { is_draft: true, is_hidden: true, is_closed: true, is_visible: true, is_reserved: true },
+      'draft',
+    ],
+    [{ is_hidden: true, is_visible: true, is_reserved: true }, 'hidden'],
+    [{ is_reserved: true, is_visible: true }, 'reserved'],
+    [{ is_reserved: true, is_visible: false }, 'reserved'],
+    [{ is_visible: true }, 'active'],
+    [{ is_draft: false, is_hidden: false, is_visible: true, is_reserved: false }, 'active'],
+    [{ is_visible: false }, 'unknown'],
+    [{ is_draft: false, is_hidden: false, is_reserved: false, is_closed: false }, 'unknown'],
+    [{ is_draft: 'true', is_visible: true }, 'unknown'],
+    [{ is_visible: 'true' }, 'unknown'],
+    [{ status: 'active' }, 'unknown'],
+    [{}, 'unknown'],
+  ];
+  const values = cases.map(([flags], index) => ({
+    id: 41 + index,
+    user_id: 123,
+    title: 'Artikel',
+    ...flags,
+  }));
+  const local = core.parseSnapshot(identity, profile, values, observedAt, true);
+  const cloud = parseVintedAccountImport(identity, profile, values, [], [], observedAt);
+  for (const snapshot of [local, cloud]) {
+    const publications = snapshot.entries.filter((entry) => entry.kind === 'publication');
+    assert.equal(publications.length, cases.length);
+    assert.deepEqual(
+      publications.map((entry) => entry.body.publicationState),
+      cases.map(([, state]) => state),
+    );
+    assert.ok(publications.every((entry) => entry.body.occurredAt === null));
+    assert.ok(publications.every((entry) => entry.sortAt === '1970-01-01T00:00:00.000Z'));
+  }
+});
+
+test('local import contracts accept only known publication states and nullable valid creation dates', () => {
+  const scope = {
+    workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    connectionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  };
+  const snapshot = core.parseSnapshot(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123, login: 'testkonto' } },
+    [{ id: 41, user_id: 123, title: 'Artikel' }],
+    '2026-10-15T10:00:00Z',
+    true,
+  );
+  const payload = (values) => ({
+    action: 'import',
+    ...scope,
+    snapshot: {
+      ...snapshot,
+      entries: snapshot.entries.map((entry) =>
+        entry.kind === 'publication' ? { ...entry, body: { ...entry.body, ...values } } : entry,
+      ),
+    },
+  });
+  for (const publicationState of ['active', 'reserved', 'draft', 'hidden', 'ended', 'unknown'])
+    for (const createdAt of [null, '2026-10-01T10:30:00.000Z'])
+      assert.ok(parseLocalExtensionRequest(payload({ publicationState, createdAt })));
+  for (const publicationState of [null, 'published', 'ACTIVE', '', true, {}, 1])
+    assert.equal(parseLocalExtensionRequest(payload({ publicationState })), null);
+  for (const createdAt of ['', 'yesterday', '2026-02-30T10:00:00Z', 1790850600, true, {}, []])
+    assert.equal(parseLocalExtensionRequest(payload({ createdAt })), null);
 });
 const messages = require('../tools/flipbase-extension/vinted-local-messages.js');
 const scheduler = require('../tools/flipbase-extension/vinted-local-scheduler.js');

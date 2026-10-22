@@ -217,6 +217,10 @@
                       [publishedAt]="item.publishedAt"
                       [publishedOn]="item.publishedOn ?? null"
                       [publicationAge]="item.publicationAge"
+                      [createdAt]="item.createdAt"
+                      [publicationState]="
+                        item.reference.platform === 'vinted' ? item.state : undefined
+                      "
                       [compact]="true"
                     />
                   </td>
@@ -261,6 +265,8 @@
                   [publishedAt]="item.publishedAt"
                   [publishedOn]="item.publishedOn ?? null"
                   [publicationAge]="item.publicationAge"
+                  [createdAt]="item.createdAt"
+                  [publicationState]="item.reference.platform === 'vinted' ? item.state : undefined"
                   [compact]="true"
                 />
                 <ng-container

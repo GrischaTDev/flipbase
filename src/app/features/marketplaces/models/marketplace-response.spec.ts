@@ -22,7 +22,11 @@ describe('Marktplatz-Antworten', () => {
   it('übernimmt das gerundete Anbieter-Alter getrennt vom Veröffentlichungsdatum', () => {
     const publicationAge = { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' };
     const result = parseMarketplacePage(
-      { items: [entry({ publicationAge })], total: 1, nextCursor: null },
+      {
+        items: [entry({ publicationAge, publicationState: 'active' })],
+        total: 1,
+        nextCursor: null,
+      },
       scope,
     ).items[0];
     expect(result.publishedAt).toBeNull();
@@ -31,7 +35,7 @@ describe('Marktplatz-Antworten', () => {
   it('trennt die explizite Veröffentlichungszeit von Änderungs- und Abrufzeiten', () => {
     for (const updatedAt of ['2026-10-14T10:00:00Z', '2026-10-15T10:00:00Z']) {
       const values = [
-        entry({ occurredAt: '2026-10-01T10:00:00Z', updatedAt }),
+        entry({ occurredAt: '2026-10-01T10:00:00Z', publicationState: 'active', updatedAt }),
         entry({ updatedAt }),
       ];
       const result = values.map(
@@ -42,6 +46,38 @@ describe('Marktplatz-Antworten', () => {
       expect(result[1].occurredAt).toBe(updatedAt);
     }
   });
+  it.each(['draft', 'hidden', 'unknown', 'ended', 'not-a-state', undefined])(
+    'zeigt bei Status %s keine alten Veröffentlichungsdaten als Online-Alter',
+    (publicationState) => {
+      const result = parseMarketplacePage(
+        {
+          items: [
+            entry({
+              publicationState,
+              createdAt: '2026-10-01T10:00:00Z',
+              occurredAt: '2026-10-15T10:00:00Z',
+              publicationAge: { value: 7, unit: 'day', observedAt: '2026-10-22T10:00:00Z' },
+              isClosed: false,
+              isReserved: false,
+              status: 'Sehr gut',
+            }),
+          ],
+          total: 1,
+          nextCursor: null,
+        },
+        scope,
+      ).items[0];
+      expect(result.createdAt).toBe('2026-10-01T10:00:00Z');
+      expect(result.publicationState).toBe(
+        publicationState === undefined || publicationState === 'not-a-state'
+          ? 'unknown'
+          : publicationState,
+      );
+      expect(result.publishedAt).toBeNull();
+      expect(result.publicationAge).toBeNull();
+      expect(result.status).toBe('Sehr gut');
+    },
+  );
   it.each([
     ['a'.repeat(32), 'a'.repeat(32)],
     ['invalid', null],

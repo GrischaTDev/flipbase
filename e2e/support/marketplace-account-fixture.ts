@@ -497,6 +497,7 @@ export async function mockMarketplace(
               ...scope,
               id: 'publication-1',
               title: 'Vintage-Schal · Testartikel',
+              publicationState: 'active',
               publicationAge: importedOverview?.publicationAge,
               text: importedOverview?.text,
               textState: importedOverview?.textState,

@@ -22,6 +22,7 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
         currency: 'EUR',
         isClosed: false,
         isReserved: index === 0,
+        publicationState: index === 0 ? 'reserved' : 'active',
         occurredAt: null,
         publicationAge: { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' },
       },
@@ -97,6 +98,24 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
     expect(page.nextCursor).toBeNull();
     expect(filters.find((query) => !query.head)?.values).toContainEqual(['limit', '26']);
   });
+  it.each(['active', 'reserved', 'draft', 'hidden', 'ended', 'unknown'] as const)(
+    'filtert Seite und Gesamtzahl gemeinsam nach dem belegten Veröffentlichungsstatus %s',
+    async (state) => {
+      const { api, filters } = service(0);
+      await api.readOverviewPublications(scope, { state, search: '', limit: 25 });
+      expect(filters).toHaveLength(2);
+      for (const query of filters) {
+        expect(query.values).toContainEqual(['body->>publicationState', state]);
+        expect(
+          query.values.some(
+            ([field]) => field === 'body->>isClosed' || field === 'body->>isReserved',
+          ),
+        ).toBe(false);
+        expect(query.values).toContainEqual(['workspace_id', scope.workspaceId]);
+        expect(query.values).toContainEqual(['connection_id', scope.connectionId]);
+      }
+    },
+  );
   it('nutzt den zusätzlichen Eintrag nur zur Erkennung einer Folgeseite', async () => {
     const { api } = service(26);
     const page = await api.readOverviewPublications(scope, { state: 'all', search: '', limit: 25 });

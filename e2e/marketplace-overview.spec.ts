@@ -11,7 +11,12 @@ for (const theme of ['light', 'dark'] as const)
     test(
       'Marktplatzübersicht bleibt bei ' + width + 'px im ' + theme + '-Theme bedienbar @core-smoke',
       async ({ page }, testInfo) => {
-        await mockMarketplaceOverview(page, { pausedSecondAccount: true });
+        await page.clock.install({ time: new Date('2026-10-15T12:00:00Z') });
+        const { publicationQueries } = await mockMarketplaceOverview(page, {
+          pausedSecondAccount: true,
+          publicationStates: true,
+          observedAt: '2026-10-15T12:00:00Z',
+        });
         await page.setViewportSize({ width, height: 1000 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
         await page.goto('/marketplaces/overview');
@@ -73,6 +78,48 @@ for (const theme of ['light', 'dark'] as const)
           vinted.getByRole('checkbox', { name: 'A Jacke 01 auswählen', exact: true }),
         ).toBeVisible();
         await expect(vinted.locator('app-vinted-listing-age:visible').first()).toContainText('2 T');
+        const stateCases = [
+          { state: 'active', title: 'A Jacke 01', label: 'Online', filter: 'Online' },
+          { state: 'reserved', title: 'A Jacke 02', label: 'Reserviert', filter: 'Reserviert' },
+          { state: 'draft', title: 'A Jacke 03', label: 'Entwurf', filter: 'Entwürfe' },
+          { state: 'hidden', title: 'A Jacke 04', label: 'Versteckt', filter: 'Versteckt' },
+          {
+            state: 'unknown',
+            title: 'A Jacke 05',
+            label: 'Status unbekannt',
+            filter: 'Status unbekannt',
+          },
+          { state: 'ended', title: 'A Jacke 06', label: 'Beendet', filter: 'Beendet' },
+        ];
+        const listingRow = (title: string) =>
+          width >= 768
+            ? vinted
+                .locator('tbody tr:visible')
+                .filter({ has: page.getByText(title, { exact: true }) })
+            : vinted.getByRole('article', { name: title, exact: true });
+        for (const stateCase of stateCases) {
+          await expect(
+            listingRow(stateCase.title).getByText(stateCase.label, { exact: true }),
+          ).toBeVisible();
+          if (stateCase.state !== 'active' && stateCase.state !== 'reserved')
+            await expect(listingRow(stateCase.title).locator('app-vinted-listing-age')).toHaveText(
+              '5 T · erstellt',
+            );
+        }
+        const draftAge = listingRow('A Jacke 03').locator('app-vinted-listing-age');
+        await expect(draftAge).toHaveText('5 T · erstellt');
+        await expect(draftAge.locator('[aria-label]')).toHaveAttribute(
+          'aria-label',
+          'Vor 5 Tagen erstellt',
+        );
+        await expect(draftAge.locator('app-badge')).toHaveAttribute('title', /Erstellt:/);
+        await expect(draftAge.locator('app-badge')).not.toHaveAttribute(
+          'title',
+          /online|Veröffentlicht/,
+        );
+        await expect(
+          listingRow('A Jacke 01').locator('app-vinted-listing-age app-badge'),
+        ).toHaveAttribute('title', /Erstellt:/);
         if (width >= 834) {
           const actionBounds = await vinted
             .locator('tbody tr')
@@ -108,6 +155,31 @@ for (const theme of ['light', 'dark'] as const)
         await expect(
           vinted.getByRole('checkbox', { name: 'A Jacke 01 auswählen', exact: true }),
         ).not.toBeChecked();
+        const statusFilter = vinted.getByRole('combobox', {
+          name: 'Inseratstatus für Testkonto A',
+          exact: true,
+        });
+        for (const stateCase of stateCases) {
+          await statusFilter.click();
+          await page.getByRole('option', { name: stateCase.filter, exact: true }).click();
+          await expect(listingRow(stateCase.title)).toBeVisible();
+          for (const other of stateCases.filter((candidate) => candidate.state !== stateCase.state))
+            await expect(listingRow(other.title)).toHaveCount(0);
+          const matchingQueries = publicationQueries.filter(
+            (query) =>
+              query.connectionId === accountIds[0] && query.state === `eq.${stateCase.state}`,
+          );
+          expect(matchingQueries.some((query) => query.method === 'GET')).toBe(true);
+          expect(matchingQueries.some((query) => query.method === 'HEAD')).toBe(true);
+        }
+        expect(
+          publicationQueries.every(
+            (query) => query.legacyClosed === null && query.legacyReserved === null,
+          ),
+        ).toBe(true);
+        await statusFilter.click();
+        await page.getByRole('option', { name: 'Alle Inserate', exact: true }).click();
+        await expect(listingRow('A Jacke 01')).toBeVisible();
         await vinted
           .getByRole('searchbox', { name: 'Inserate von Testkonto A durchsuchen' })
           .fill('Jacke 59');

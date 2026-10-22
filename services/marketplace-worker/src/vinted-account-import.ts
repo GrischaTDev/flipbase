@@ -7,6 +7,8 @@ import type { Page } from 'playwright';
 import {
   parseVintedPublicationAge,
   vintedPublicationAgeLabel,
+  type VintedPublicationAge,
+  type VintedPublicationState,
   type VintedPublicationVersion,
 } from './vinted-publication-age.ts';
 import { createHash } from 'node:crypto';
@@ -224,28 +226,66 @@ function image(value: unknown): string | null {
   }
 }
 
-/** Erstellungsdatum des Angebots; keine Foto-, Änderungs- oder Abrufzeit als Ersatz. */
-function publicationTime(item: Record<string, unknown>, observedAt: string): string | null {
-  for (const value of [item['created_at_ts'], item['created_at']]) {
-    let milliseconds: number;
-    if (typeof value === 'number' || (typeof value === 'string' && /^\d{10,13}$/.test(value))) {
-      const numeric = Number(value);
-      milliseconds = numeric < 10_000_000_000 ? numeric * 1000 : numeric;
-    } else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
-      const [year = 0, month = 0, day = 0] = value.slice(0, 10).split('-').map(Number);
-      if (
-        day < 1 ||
-        month < 1 ||
-        month > 12 ||
-        day > new Date(Date.UTC(year, month, 0)).getUTCDate()
-      )
-        continue;
-      milliseconds = Date.parse(value);
-    } else continue;
-    if (Number.isFinite(milliseconds) && milliseconds > 0 && milliseconds <= Date.parse(observedAt))
-      return new Date(milliseconds).toISOString();
-  }
+/** Nur gültige Anbieterzeitpunkte bis zum Zeitpunkt der Beobachtung übernehmen. */
+function itemTimestamp(value: unknown, observedAt: string): string | null {
+  let milliseconds: number;
+  if (typeof value === 'number' || (typeof value === 'string' && /^\d{10,13}$/.test(value))) {
+    const numeric = Number(value);
+    milliseconds = numeric < 10_000_000_000 ? numeric * 1000 : numeric;
+  } else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const [year = 0, month = 0, day = 0] = value.slice(0, 10).split('-').map(Number);
+    if (day < 1 || month < 1 || month > 12 || day > new Date(Date.UTC(year, month, 0)).getUTCDate())
+      return null;
+    milliseconds = Date.parse(value);
+  } else return null;
+  if (Number.isFinite(milliseconds) && milliseconds > 0 && milliseconds <= Date.parse(observedAt))
+    return new Date(milliseconds).toISOString();
   return null;
+}
+
+/** Artikel-Erstellung ist getrennt von einer bestätigten Veröffentlichung. */
+function itemCreationTime(item: Record<string, unknown>, observedAt: string): string | null {
+  return (
+    itemTimestamp(item['created_at_ts'], observedAt) ??
+    itemTimestamp(item['created_at'], observedAt)
+  );
+}
+
+function publicationState(item: Record<string, unknown>): VintedPublicationState {
+  if (item['is_draft'] === true) return 'draft';
+  if (item['is_hidden'] === true) return 'hidden';
+  if (item['is_closed'] === true) return 'ended';
+  if (
+    ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_visible'].some(
+      (field) => item[field] != null && typeof item[field] !== 'boolean',
+    )
+  )
+    return 'unknown';
+  if (item['is_reserved'] === true) return 'reserved';
+  return item['is_visible'] === true ? 'active' : 'unknown';
+}
+
+function publicationSortTime(body: Record<string, unknown>, observedAt: string): string {
+  const published = ['active', 'reserved', 'ended'].includes(String(body['publicationState']));
+  const occurredAt = published ? itemTimestamp(body['occurredAt'], observedAt) : null;
+  const createdAt = itemTimestamp(body['createdAt'], observedAt);
+  if (occurredAt || createdAt) return (occurredAt ?? createdAt)!;
+  const age = published ? parseVintedPublicationAge(body['publicationAge']) : null;
+  const anchor = age ? itemTimestamp(age.observedAt, observedAt) : null;
+  if (age && anchor) {
+    const seconds = {
+      minute: 60,
+      hour: 3600,
+      day: 86400,
+      week: 604800,
+      month: 2592000,
+      year: 31536000,
+    };
+    return new Date(
+      Math.max(0, Date.parse(anchor) - age.value * seconds[age.unit] * 1000),
+    ).toISOString();
+  }
+  return '1970-01-01T00:00:00.000Z';
 }
 
 function price(value: unknown): { amount: number | null; currency: string } {
@@ -438,8 +478,10 @@ export function parseVintedAccountImport(
     const item = record(raw);
     const id = identifier(item?.['id']);
     if (!id || publications.has(id) || identifier(item?.['user_id']) !== identity.id) continue;
-    if (item?.['is_closed'] === true) continue;
+    const state = publicationState(item!);
+    if (state === 'ended') continue;
     publications.add(id);
+    const createdAt = itemCreationTime(item!, observedAt);
     const money = price(item?.['price']);
     const photos = Array.isArray(item?.['photos']) ? item['photos'] : [];
     const firstPhoto = record(photos[0]);
@@ -450,10 +492,12 @@ export function parseVintedAccountImport(
     entries.push({
       kind: 'publication',
       externalId: id,
-      sortAt: observedAt,
+      sortAt: createdAt ?? '1970-01-01T00:00:00.000Z',
       body: {
         title: string(item?.['title']) ?? 'Inserat',
-        occurredAt: publicationTime(item!, observedAt),
+        publicationState: state,
+        createdAt,
+        occurredAt: null,
         text: typeof item?.['description'] === 'string' ? item['description'] : null,
         textState: typeof item?.['description'] === 'string' ? 'loaded' : 'not_loaded',
         price: money.amount,
@@ -1079,27 +1123,42 @@ export async function readVintedAccountImport(
   );
   const publicationAges = new Map<
     string,
-    { publicationAge: unknown; publicationAgeCheckedAt: string | null; occurredAt: string | null }
+    {
+      publicationAge: VintedPublicationAge | null;
+      publicationAgeCheckedAt: string | null;
+      createdAt: string | null;
+      occurredAt: string | null;
+    }
   >();
   const candidatesForAge = items.values
     .flatMap((raw) => {
       const item = record(raw);
       const id = identifier(item?.['id']);
-      if (!item || !id || identifier(item['user_id']) !== identity.id || item['is_closed'] === true)
-        return [];
+      if (!item || !id || identifier(item['user_id']) !== identity.id) return [];
+      const state = publicationState(item);
+      if (state === 'ended') return [];
       const previous = previousPublications.get(id);
-      const publicationAge = parseVintedPublicationAge(previous?.publicationAge);
+      const wasDraft = previous?.publicationState === 'draft';
+      const unpublished = state === 'draft' || state === 'hidden';
+      const publicationAge =
+        unpublished || wasDraft ? null : parseVintedPublicationAge(previous?.publicationAge);
+      const createdAt =
+        itemCreationTime(item, observedAt) ?? itemTimestamp(previous?.createdAt, observedAt);
       const occurredAt =
-        publicationTime({ created_at: previous?.occurredAt }, observedAt) ??
-        publicationTime(item, observedAt);
+        (state === 'active' || state === 'reserved') && !wasDraft
+          ? itemTimestamp(previous?.occurredAt, observedAt)
+          : null;
+      const checkedAt =
+        unpublished || wasDraft ? null : itemTimestamp(previous?.checkedAt, observedAt);
       publicationAges.set(id, {
         publicationAge,
-        publicationAgeCheckedAt: previous?.checkedAt ?? null,
+        publicationAgeCheckedAt: checkedAt,
+        createdAt,
         occurredAt,
       });
-      return occurredAt || publicationAge
+      return unpublished || occurredAt || publicationAge || (createdAt && !wasDraft)
         ? []
-        : [{ id, checkedAt: Date.parse(previous?.checkedAt ?? '') || 0 }];
+        : [{ id, checkedAt: Date.parse(checkedAt ?? '') || 0 }];
     })
     .sort((left, right) => left.checkedAt - right.checkedAt);
   // Alle fehlenden Angaben ergänzen; gespeicherte Alterswerte nicht erneut lesen.
@@ -1283,7 +1342,10 @@ export async function readVintedAccountImport(
     );
     for (const entry of snapshot.entries) {
       const age = entry.kind === 'publication' ? publicationAges.get(entry.externalId) : undefined;
-      if (age) Object.assign(entry.body, age);
+      if (age) {
+        Object.assign(entry.body, age);
+        entry.sortAt = publicationSortTime(entry.body, observedAt);
+      }
     }
     return {
       ...snapshot,

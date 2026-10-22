@@ -268,6 +268,8 @@ const publicationFields = [
   'text',
   'textState',
   'occurredAt',
+  'createdAt',
+  'publicationState',
   'price',
   'currency',
   'status',
@@ -324,6 +326,14 @@ const numericFields = [
 function validBody(body: Record<string, unknown>, kind: LocalExtensionEntry['kind']) {
   if (!keys(body, kind === 'profile' ? profileFields : publicationFields)) return false;
   for (const [field, input] of Object.entries(body)) {
+    if (field === 'publicationState') {
+      if (
+        typeof input !== 'string' ||
+        !['active', 'reserved', 'draft', 'hidden', 'ended', 'unknown'].includes(input)
+      )
+        return false;
+      continue;
+    }
     if (input === null) continue;
     if (field === 'imageUrl') {
       if (!image(input)) return false;
@@ -345,6 +355,16 @@ function validBody(body: Record<string, unknown>, kind: LocalExtensionEntry['kin
       if (input['observedAt'] !== null && !date(input['observedAt'])) return false;
     } else if (field === 'promoted' || field === 'isClosed' || field === 'isReserved') {
       if (typeof input !== 'boolean') return false;
+    } else if (field === 'createdAt') {
+      if (!date(input)) return false;
+      const [year = 0, month = 0, day = 0] = input.slice(0, 10).split('-').map(Number);
+      if (
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > new Date(Date.UTC(year, month, 0)).getUTCDate()
+      )
+        return false;
     } else if (field === 'occurredAt' || field === 'observedAt') {
       if (!date(input)) return false;
     } else if (field === 'bioState' || field === 'textState') {

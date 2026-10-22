@@ -126,11 +126,25 @@ begin
     if jsonb_typeof(v_entry) is distinct from 'object' or v_entry->>'kind' is null or v_entry->>'kind' not in ('profile','publication')
       or jsonb_typeof(v_entry->'body') is distinct from 'object' or jsonb_typeof(v_entry->'externalId') is distinct from 'string' or v_entry->>'externalId' !~ '^[1-9][0-9]{0,31}$'
       or jsonb_typeof(v_entry->'sortAt') is distinct from 'string'
-      or exists(select 1 from jsonb_object_keys(v_entry->'body') field where field<>all(case when v_entry->>'kind'='profile' then array['username','displayName','location','bio','bioState','imageUrl','feedbackCount','feedbackReputation','positiveFeedbackCount','neutralFeedbackCount','negativeFeedbackCount','itemCount','observedAt'] else array['title','text','textState','occurredAt','price','currency','status','imageUrl','imageUrls','metrics','promoted','brand','size','priceLabel','isClosed','isReserved'] end))
+      or exists(select 1 from jsonb_object_keys(v_entry->'body') field where field<>all(case when v_entry->>'kind'='profile' then array['username','displayName','location','bio','bioState','imageUrl','feedbackCount','feedbackReputation','positiveFeedbackCount','neutralFeedbackCount','negativeFeedbackCount','itemCount','observedAt'] else array['title','text','textState','occurredAt','createdAt','publicationState','publicationAge','price','currency','status','imageUrl','imageUrls','metrics','promoted','brand','size','priceLabel','isClosed','isReserved'] end))
       or (v_entry->>'kind'='profile' and (v_entry->>'externalId'<>v_grant.external_account_id or v_entry->'body'->>'username' is distinct from p_snapshot->'identity'->>'username')) then raise exception 'Ungültiger Kontoeintrag' using errcode='22023'; end if;
     begin
       if not isfinite((v_entry->>'sortAt')::timestamptz) then raise exception 'Ungültige Eintragszeit' using errcode='22023'; end if;
     exception when invalid_datetime_format or datetime_field_overflow then raise exception 'Ungültige Eintragszeit' using errcode='22023'; end;
+    if v_entry->>'kind'='publication' then
+      if (v_entry->'body' ? 'publicationState' and (
+          jsonb_typeof(v_entry->'body'->'publicationState') is distinct from 'string'
+          or v_entry->'body'->>'publicationState' not in ('active','reserved','draft','hidden','ended','unknown')))
+        or (coalesce(v_entry->'body'->'createdAt','null'::jsonb)<>'null'::jsonb and (
+          jsonb_typeof(v_entry->'body'->'createdAt') is distinct from 'string'
+          or not public.marketplace_publication_time_valid(v_entry->'body'->>'createdAt',v_observed)))
+        or (coalesce(v_entry->'body'->'occurredAt','null'::jsonb)<>'null'::jsonb and (
+          jsonb_typeof(v_entry->'body'->'occurredAt') is distinct from 'string'
+          or not public.marketplace_publication_time_valid(v_entry->'body'->>'occurredAt',v_observed)))
+        or (coalesce(v_entry->'body'->'publicationAge','null'::jsonb)<>'null'::jsonb
+          and public.marketplace_publication_age_sort_at(v_entry->'body'->'publicationAge',v_observed) is null)
+      then raise exception 'Ungültige Inseratquelle' using errcode='22023'; end if;
+    end if;
     insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at,observed_at)
       values(p_workspace_id,p_connection_id,v_entry->>'kind',v_entry->>'externalId',v_entry->'body',(v_entry->>'sortAt')::timestamptz,v_observed)
       on conflict(workspace_id,connection_id,kind,external_id) do update set body=excluded.body,sort_at=excluded.sort_at,observed_at=excluded.observed_at;

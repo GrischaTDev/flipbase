@@ -35,6 +35,26 @@ export interface VintedListingAge {
   readonly overdue: boolean;
   readonly approximate?: boolean;
   readonly dateOnly?: boolean;
+  readonly created?: boolean;
+}
+
+export function validListingTimestamp(
+  value: string | null | undefined,
+  now: number,
+): number | null {
+  const timestamp = value ? Date.parse(value) : NaN;
+  const calendar = value?.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  const validDay =
+    calendar &&
+    Number(calendar[3]) <=
+      new Date(Date.UTC(Number(calendar[1]), Number(calendar[2]), 0)).getUTCDate();
+  return validDay &&
+    Number.isFinite(timestamp) &&
+    timestamp > 0 &&
+    Number.isFinite(now) &&
+    timestamp <= now
+    ? timestamp
+    : null;
 }
 
 export function vintedListingAge(
@@ -42,14 +62,10 @@ export function vintedListingAge(
   now: number,
   approximate?: VintedPublicationAge | null,
   publishedOn?: string | null,
+  createdAt?: string | null,
 ): VintedListingAge {
-  const timestamp = publishedAt ? Date.parse(publishedAt) : NaN;
-  const calendar = publishedAt?.match(/^(\d{4})-(\d{2})-(\d{2})T/);
-  const validDay =
-    calendar &&
-    Number(calendar[3]) <=
-      new Date(Date.UTC(Number(calendar[1]), Number(calendar[2]), 0)).getUTCDate();
-  if (!validDay || !Number.isFinite(timestamp) || !Number.isFinite(now) || timestamp > now) {
+  const timestamp = validListingTimestamp(publishedAt, now);
+  if (timestamp === null) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(publishedOn ?? '') && Number.isFinite(now)) {
       const date = Date.parse(publishedOn! + 'T00:00:00Z');
       const parts = new Intl.DateTimeFormat('en', {
@@ -83,6 +99,20 @@ export function vintedListingAge(
         age.value * unitDuration[age.unit] + now - Date.parse(age.observedAt),
         true,
       );
+    }
+    const created = validListingTimestamp(createdAt, now);
+    if (created !== null) {
+      const days = Math.floor((now - created) / (24 * hour));
+      return {
+        tone: 'neutral',
+        compact: days === 0 ? '< 1 Tag · erstellt' : `${days} T · erstellt`,
+        text:
+          days === 0
+            ? 'Vor weniger als 1 Tag erstellt'
+            : `Vor ${days} ${days === 1 ? 'Tag' : 'Tagen'} erstellt`,
+        overdue: false,
+        created: true,
+      };
     }
     return {
       tone: 'neutral',

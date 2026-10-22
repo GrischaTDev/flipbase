@@ -1,5 +1,6 @@
 import type { AccountScope } from './marketplace.models';
 import type { MarketplaceEntry } from './marketplace-read.models';
+import { vintedPublicationIsOnline } from './vinted-publication-state';
 import type { EbayListing } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import type {
   MarketplaceListingReference,
@@ -44,16 +45,14 @@ export function normalizeVintedPublication(
     priceCents: cents(entry.price),
     currency: entry.currency,
     imageUrl: entry.imageUrl,
-    publishedAt: entry.publishedAt ?? null,
-    publicationAge: entry.publicationAge ?? null,
-    state:
-      entry.isClosed === true
-        ? 'ended'
-        : entry.isReserved === true
-          ? 'reserved'
-          : entry.isClosed === false && entry.isReserved === false
-            ? 'active'
-            : 'unknown',
+    publishedAt: vintedPublicationIsOnline(entry.publicationState)
+      ? (entry.publishedAt ?? null)
+      : null,
+    createdAt: entry.createdAt ?? null,
+    publicationAge: vintedPublicationIsOnline(entry.publicationState)
+      ? (entry.publicationAge ?? null)
+      : null,
+    state: entry.publicationState ?? 'unknown',
     actions: ['view'],
     detailLink: ['/marketplaces/vinted/listings', entry.connectionId, entry.id],
     externalUrl: null,

@@ -349,11 +349,7 @@ export class MarketplaceApiService {
           'body->>title',
           '%' + query.search.trim().replace(/[%_\\]/g, '\\$&') + '%',
         );
-      if (query.state === 'ended') request = request.eq('body->>isClosed', 'true');
-      if (query.state === 'reserved')
-        request = request.eq('body->>isReserved', 'true').eq('body->>isClosed', 'false');
-      if (query.state === 'active')
-        request = request.eq('body->>isReserved', 'false').eq('body->>isClosed', 'false');
+      if (query.state !== 'all') request = request.eq('body->>publicationState', query.state);
       return request;
     };
     let pageRequest = filtered(false)
@@ -383,19 +379,7 @@ export class MarketplaceApiService {
           scope,
         ).items[0],
     );
-    const items = parsed.map((entry, index) =>
-      normalizeVintedPublication({
-        ...entry,
-        isClosed:
-          typeof rows[index].body['isClosed'] === 'boolean'
-            ? (rows[index].body['isClosed'] as boolean)
-            : null,
-        isReserved:
-          typeof rows[index].body['isReserved'] === 'boolean'
-            ? (rows[index].body['isReserved'] as boolean)
-            : null,
-      }),
-    );
+    const items = parsed.map(normalizeVintedPublication);
     const last = rows.at(-1);
     return {
       items,

@@ -106,6 +106,13 @@ export class MarketplaceListingSectionComponent {
     ...(this.section().account.platform === 'kleinanzeigen'
       ? []
       : [{ value: 'reserved', label: 'Reserviert' }]),
+    ...(this.section().account.platform === 'vinted'
+      ? [
+          { value: 'draft', label: 'Entwürfe' },
+          { value: 'hidden', label: 'Versteckt' },
+          { value: 'unknown', label: 'Status unbekannt' },
+        ]
+      : []),
     { value: 'ended', label: 'Beendet' },
   ]);
   readonly accountLink = computed(() => {
@@ -155,6 +162,8 @@ export class MarketplaceListingSectionComponent {
     return {
       active: 'Online',
       reserved: 'Reserviert',
+      draft: 'Entwurf',
+      hidden: 'Versteckt',
       ended: 'Beendet',
       processing: 'Wird verarbeitet',
       unknown: 'Status unbekannt',
@@ -163,7 +172,13 @@ export class MarketplaceListingSectionComponent {
   changeState(value: string | null): void {
     this.cancelSearch();
     const state: MarketplaceListingQuery['state'] =
-      value === 'active' || value === 'reserved' || value === 'ended' ? value : 'all';
+      value === 'active' ||
+      value === 'reserved' ||
+      value === 'ended' ||
+      (this.section().account.platform === 'vinted' &&
+        (value === 'draft' || value === 'hidden' || value === 'unknown'))
+        ? value
+        : 'all';
     this.queryChanged.emit({ ...this.section().query, state, cursor: undefined });
   }
   search(value: string): void {

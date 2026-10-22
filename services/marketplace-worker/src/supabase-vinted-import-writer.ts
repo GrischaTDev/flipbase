@@ -3,6 +3,7 @@ import type { VintedAccountImport, VintedConversationVersion } from './vinted-ac
 
 import {
   parseVintedPublicationAge,
+  parseVintedPublicationState,
   type VintedPublicationVersion,
 } from './vinted-publication-age.ts';
 
@@ -85,7 +86,9 @@ export class SupabaseVintedImportWriter {
       return [
         {
           externalId: row['external_id'],
-          occurredAt: timestamp(row['flipbase_published_at']) ?? timestamp(body['occurredAt']),
+          publicationState: parseVintedPublicationState(body['publicationState']),
+          createdAt: timestamp(body['createdAt']),
+          occurredAt: timestamp(row['flipbase_published_at']),
           publicationAge: parseVintedPublicationAge(body['publicationAge']),
           checkedAt: timestamp(body['publicationAgeCheckedAt']),
         },

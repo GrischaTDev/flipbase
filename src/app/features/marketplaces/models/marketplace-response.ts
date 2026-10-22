@@ -1,4 +1,5 @@
 import { parseVintedPublicationAge } from './vinted-listing-age';
+import { parseVintedPublicationState, vintedPublicationIsOnline } from './vinted-publication-state';
 import type {
   AccountScope,
   Capability,
@@ -173,6 +174,7 @@ export function parseMarketplacePage(
     ids.add(id);
     const metrics =
       item['metrics'] === undefined || item['metrics'] === null ? {} : record(item['metrics']);
+    const publicationState = parseVintedPublicationState(item['publicationState']);
     return {
       ...scopeOf(item, scope),
       id,
@@ -184,8 +186,14 @@ export function parseMarketplacePage(
         : {}),
       occurredAt:
         timestamp(item['occurredAt']) ?? timestamp(item['sentAt']) ?? timestamp(item['updatedAt']),
-      publishedAt: timestamp(item['occurredAt']),
-      publicationAge: parseVintedPublicationAge(item['publicationAge']),
+      publishedAt: vintedPublicationIsOnline(publicationState)
+        ? timestamp(item['occurredAt'])
+        : null,
+      createdAt: timestamp(item['createdAt']),
+      publicationState,
+      publicationAge: vintedPublicationIsOnline(publicationState)
+        ? parseVintedPublicationAge(item['publicationAge'])
+        : null,
       price: nonnegative(item['price']),
       currency:
         typeof item['currency'] === 'string' && /^[A-Z]{3}$/.test(item['currency'])

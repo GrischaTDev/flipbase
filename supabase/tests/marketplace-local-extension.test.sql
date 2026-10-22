@@ -80,6 +80,18 @@ select is(pg_temp.ingest()->>'externalAccountId','123','Heartbeat resolves only 
 select throws_ok($$select pg_temp.ingest(repeat('a',64),pg_temp.snapshot('999'))$$,'42501',null,'Browser account switching stops import');
 select lives_ok($$select pg_temp.ingest(repeat('a',64),pg_temp.snapshot())$$,'Public profile and listings imported atomically');
 select is((select count(*)::integer from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021'),2,'Two public records stored');
+select lives_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body}','{"title":"Vinted-Entwurf","publicationState":"draft","createdAt":"2026-01-02T03:04:05Z","occurredAt":null,"publicationAge":null,"isClosed":false,"isReserved":false}'::jsonb))$$,'Lokaler Import akzeptiert validierten Vinted-Status und separate Quellerstellung');
+select is((select body->>'publicationState' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and external_id='456'),'draft','Lokaler Import speichert den tatsächlichen Entwurfstatus');
+select is((select sort_at from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and external_id='456'),'2026-01-02T03:04:05Z'::timestamptz,'SQL ignoriert den vom alten Client gesendeten Import-Sortierzeitpunkt');
+select lives_ok($$select pg_temp.ingest(repeat('a',64),pg_temp.snapshot())$$,'Lokaler Altimport ohne neue Felder bleibt kompatibel');
+select is((select body->>'publicationState' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and external_id='456'),'draft','Lokaler Altimport kann einen bekannten Entwurf nicht aktivieren');
+select throws_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body,publicationState}','"published-ish"'::jsonb))$$,'22023',null,'Unbekannter normalisierter Status wird abgelehnt');
+select throws_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body,createdAt}','"tomorrow"'::jsonb))$$,'22023',null,'Nicht-ISO-Erstellung wird abgelehnt');
+select throws_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body,createdAt}','"2099-01-01T00:00:00Z"'::jsonb))$$,'22023',null,'Zukünftige Quellerstellung wird abgelehnt');
+select throws_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body,publicationAge}','{"value":2,"unit":"decade","observedAt":"2026-10-01T00:00:00Z"}'::jsonb))$$,'22023',null,'Unbekannte Alterseinheit wird abgelehnt');
+select throws_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body,publicationAge}','{"value":2,"unit":"day"}'::jsonb))$$,'22023',null,'Neues gerundetes Alter braucht seinen tatsächlichen Quellenanker');
+select throws_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries,1,body,publicationAge}','{"value":2,"unit":"day","observedAt":"2026-10-01T00:00:00Z","untrusted":true}'::jsonb))$$,'22023',null,'Altersobjekt erlaubt keine unbekannten Zusatzfelder');
+
 select is((select status from public.marketplace_account_sync_sources where connection_id='35100000-0000-4000-8000-000000000021' and area='publications'),'partial','Partial source is explicit');
 select lives_ok($$select pg_temp.ingest(repeat('a',64),jsonb_set(pg_temp.snapshot(),'{entries}',jsonb_build_array(pg_temp.snapshot()->'entries'->0)))$$,'Partial empty listing page is accepted');
 select is((select count(*)::integer from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='publication'),1,'Partial missing listing is retained');

@@ -101,7 +101,15 @@ export class MarketplaceOverviewService {
   ): Promise<MarketplaceOverviewPage> {
     if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 100)
       throw new Error('Ungültige Seitengröße.');
-    if (!['all', 'active', 'reserved', 'ended'].includes(query.state))
+    if (
+      ![
+        'all',
+        'active',
+        'reserved',
+        'ended',
+        ...(account.platform === 'vinted' ? ['draft', 'hidden', 'unknown'] : []),
+      ].includes(query.state)
+    )
       throw new Error('Ungültige Inseratauswahl.');
     if (query.search.length > 200)
       throw new Error('Die Suche darf höchstens 200 Zeichen enthalten.');

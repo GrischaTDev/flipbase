@@ -8,6 +8,8 @@ export async function mockMarketplaceOverview(
     multipleWorkspaces?: boolean;
     deniedVinted?: boolean;
     pausedSecondAccount?: boolean;
+    publicationStates?: boolean;
+    observedAt?: string;
   } = {},
 ) {
   const calls = await mockMarketplace(page);
@@ -55,6 +57,13 @@ export async function mockMarketplaceOverview(
   }
   const requests: { connectionId: string | null; search: string | null; cursor: string | null }[] =
     [];
+  const publicationQueries: {
+    connectionId: string | null;
+    method: string;
+    state: string | null;
+    legacyClosed: string | null;
+    legacyReserved: string | null;
+  }[] = [];
   await page.route('**/rest/v1/rpc/marketplace_list_connections', (route) => {
     if (options.vintedFailure)
       return route.fulfill({ status: 503, json: { message: 'nicht erreichbar' } });
@@ -81,6 +90,13 @@ export async function mockMarketplaceOverview(
       params = url.searchParams;
     const connectionId = params.get('connection_id')?.replace('eq.', '') ?? null;
     if (params.get('kind') === 'eq.profile') return route.fulfill({ json: null });
+    publicationQueries.push({
+      connectionId,
+      method: route.request().method(),
+      state: params.get('body->>publicationState'),
+      legacyClosed: params.get('body->>isClosed'),
+      legacyReserved: params.get('body->>isReserved'),
+    });
     const accountIndex = accountIds.indexOf(connectionId ?? '');
     const rows = Array.from({ length: 60 }, (_, index) => ({
       id: '25000000-0000-4000-8000-' + String(1000 + index).padStart(12, '0'),
@@ -92,15 +108,27 @@ export async function mockMarketplaceOverview(
         currency: 'EUR',
         isClosed: false,
         isReserved: index === 1,
-        publishedAt: null,
-        publicationAge: { value: 2, unit: 'day', observedAt: new Date().toISOString() },
+        publicationState: options.publicationStates
+          ? (['active', 'reserved', 'draft', 'hidden', 'unknown', 'ended'][index] ?? 'active')
+          : index === 1
+            ? 'reserved'
+            : 'active',
+        createdAt: options.publicationStates ? '2026-10-10T12:00:00Z' : null,
+        // Alte Veröffentlichungsangaben dürfen Nicht-Online-Artikel nicht wieder aktiv machen.
+        occurredAt:
+          options.publicationStates && index >= 2 && index <= 5 ? '2026-10-13T12:00:00Z' : null,
+        publicationAge: {
+          value: 2,
+          unit: 'day',
+          observedAt: options.observedAt ?? new Date().toISOString(),
+        },
       },
     })).filter((row) => {
       const search = params.get('body->>title')?.replace(/^ilike\.%|%$/g, '');
       return (
         (!search || row.body.title.toLowerCase().includes(search.toLowerCase())) &&
-        (!params.get('body->>isReserved') ||
-          String(row.body.isReserved) === params.get('body->>isReserved')?.replace('eq.', ''))
+        (!params.get('body->>publicationState') ||
+          row.body.publicationState === params.get('body->>publicationState')?.replace('eq.', ''))
       );
     });
     if (route.request().method() === 'HEAD')
@@ -162,5 +190,5 @@ export async function mockMarketplaceOverview(
       });
     return route.fulfill({ status: 400, json: { error: 'unexpected_action' } });
   });
-  return { calls, requests };
+  return { calls, requests, publicationQueries };
 }
