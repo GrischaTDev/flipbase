@@ -487,7 +487,7 @@ test('legacy network-worker handover does not repeatedly offer the already loade
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-legacy-handover-blocked', 'true');
   const previousTimeOrigin = await page.evaluate(() => {
-    // Observe after the application listener whether its reload has already started.
+    // Nach dem Anwendungslistener beobachten, ob dessen Reload schon begonnen hat.
     navigator.serviceWorker.addEventListener(
       'controllerchange',
       () => (document.documentElement.dataset['legacyControllerChanged'] = 'true'),
@@ -501,8 +501,8 @@ test('legacy network-worker handover does not repeatedly offer the already loade
     return performance.timeOrigin;
   });
   await legacy.close();
-  // Closing the other window can already trigger the return check and handover.
-  // A document navigation that has started by then is expected.
+  // Die Rückkehrprüfung kann schon beim Schließen des anderen Fensters
+  // übernehmen. Ein bereits begonnener Dokumentwechsel ist dabei erwartbar.
   await page
     .evaluate(() => window.dispatchEvent(new Event('focus')))
     .catch((error: unknown) => {
@@ -520,8 +520,8 @@ test('legacy network-worker handover does not repeatedly offer the already loade
           const controllerHandled =
             document.documentElement.dataset['legacyControllerChanged'] === 'true';
           const unloading = document.documentElement.dataset['legacyDocumentUnloading'] === 'true';
-          // The already loaded build can take over without an automatic reload.
-          // An old document that has started unloading is not ready yet.
+          // Derselbe bereits geladene Bau darf auch ohne automatischen Reload
+          // übernehmen. Ein entladendes altes Dokument ist dagegen noch nicht bereit.
           return {
             documentSettled: (documentChanged || controllerHandled) && !unloading,
             waiting: registration?.waiting?.state ?? null,
