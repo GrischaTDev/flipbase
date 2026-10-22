@@ -44,5 +44,24 @@ select lives_ok($$select public.marketplace_commit_listing_image((select body->>
 select is(jsonb_array_length(public.marketplace_read_listing_draft((select body->>'id' from image_test_context where kind='draft'))->'images'),100,'Ersetzen benötigt keinen zusätzlichen Auswahlplatz');
 select is(public.marketplace_read_listing_draft((select body->>'id' from image_test_context where kind='draft'))->'images'->0->>'fileName','neu.jpg','Ersetzung behält die Titelbildposition');
 select is((select state from public.marketplace_listing_images where id=(select (body->>'id')::bigint from image_test_context where kind='asset')),'ready','Ersetztes Original bleibt für Sicherungen erhalten');
+insert into image_test_context values('pending',public.marketplace_reserve_listing_image((select body->>'id' from image_test_context where kind='draft'),'later.jpg','image/jpeg',120));
+insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',body->>'storagePath','{"mimetype":"image/jpeg","size":120}' from image_test_context where kind='pending';
+select lives_ok($$select public.marketplace_delete_listing_draft('46100000-0000-4000-8000-000000000011',(select body->>'id' from image_test_context where kind='draft'),4)$$,
+ 'Eine Arbeitskopie mit Fotos kann gelöscht werden');
+select throws_ok($$select public.marketplace_commit_listing_image((select body->>'id' from image_test_context where kind='draft'),4,(select body->>'id' from image_test_context where kind='pending'))$$,
+ '42501','Kein Zugriff auf diesen Entwurf.','Ein laufender Upload kann einen gelöschten Entwurf nicht mehr verändern');
+select throws_ok($$select public.marketplace_commit_listing_image((select body->>'id' from image_test_context where kind='draft'),4,(select body->>'id' from image_test_context where kind='replacement'))$$,
+ '42501','Kein Zugriff auf diesen Entwurf.','Auch eine wiederholte Uploadbestätigung kann gelöschte Entwürfe nicht öffnen');
+select is(public.marketplace_discard_listing_image((select body->>'id' from image_test_context where kind='pending')),
+ (select body->>'storagePath' from image_test_context where kind='pending'),'Ein abgewiesener Upload bleibt nach Entwurfslöschung gezielt bereinigbar');
+-- Der Storage-API-Kontext erlaubt Metadatenlöschung; Nutzerrolle und RLS bleiben aktiv.
+select set_config('storage.allow_delete_query','true',true);
+select lives_ok($$delete from storage.objects where bucket_id='marketplace-listing-media' and name=(select body->>'storagePath' from image_test_context where kind='pending')$$,
+ 'Der eigene unbestätigte Upload kann weiter über die Storage-Policy entfernt werden');
+select set_config('storage.allow_delete_query','false',true);
+select is((select state from public.marketplace_listing_images where id=(select (body->>'id')::bigint from image_test_context where kind='replacement')),
+ 'ready','Löschen der Arbeitskopie bewahrt die bestätigten Originaldaten');
+select is((select count(*) from storage.objects where bucket_id='marketplace-listing-media' and name=(select body->>'storagePath' from image_test_context where kind='replacement')),
+ 1::bigint,'Löschen der Arbeitskopie entfernt keine Storage-Datei');
 select * from finish();
 rollback;

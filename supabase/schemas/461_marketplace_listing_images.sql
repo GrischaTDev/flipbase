@@ -58,9 +58,7 @@ create or replace function public.marketplace_reserve_listing_image(p_draft_id t
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_draft public.marketplace_listing_drafts; v_image public.marketplace_listing_images; v_path text;
 begin
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint;
-  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
-  perform public.marketplace_lock_listing_workspace(v_draft.workspace_id);
+  v_draft:=public.marketplace_lock_listing_draft(p_draft_id);
   if p_file_name is null or length(p_file_name) not between 1 and 255 or p_mime_type is null or p_mime_type not in ('image/jpeg','image/png','image/webp') or p_byte_size is null or p_byte_size not between 1 and 52428800 then raise exception 'Bitte ein JPG-, PNG- oder WebP-Foto bis 50 MB auswählen.' using errcode='22023'; end if;
   -- Eigene Uploadgrenze; keine Behauptung über die zulässige Dateigröße bei Vinted.
   v_path:=v_draft.workspace_id::text||'/'||v_draft.id::text||'/'||gen_random_uuid()::text||case p_mime_type when 'image/jpeg' then '.jpg' when 'image/png' then '.png' else '.webp' end;
@@ -73,10 +71,7 @@ create or replace function public.marketplace_commit_listing_image(p_draft_id te
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_draft public.marketplace_listing_drafts; v_image public.marketplace_listing_images;
 begin
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint;
-  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
-  perform public.marketplace_lock_listing_workspace(v_draft.workspace_id);
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint for update;
+  v_draft:=public.marketplace_lock_listing_draft(p_draft_id);
   select * into v_image from public.marketplace_listing_images where id=p_image_id::bigint and draft_id=p_draft_id::bigint for update;
   if not found or v_image.created_by<>(select auth.uid()) then raise exception 'Kein Zugriff auf diesen Upload.' using errcode='42501'; end if;
   -- Bereits bestätigte Antwort darf erneut gelesen werden, ohne ein Bild doppelt anzuhängen.
@@ -96,10 +91,7 @@ create or replace function public.marketplace_set_listing_image_order(p_draft_id
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_draft public.marketplace_listing_drafts;
 begin
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint;
-  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
-  perform public.marketplace_lock_listing_workspace(v_draft.workspace_id);
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint for update;
+  v_draft:=public.marketplace_lock_listing_draft(p_draft_id);
   if p_expected_revision is null or v_draft.revision<>p_expected_revision then raise exception 'Der Entwurf wurde inzwischen geändert.' using errcode='40001'; end if;
   if p_image_ids is null or cardinality(p_image_ids)>100 or exists(select 1 from unnest(p_image_ids) id where id is null or id !~ '^[1-9][0-9]{0,18}$') or (select count(distinct id) from unnest(p_image_ids) id)<>cardinality(p_image_ids) then raise exception 'Ungültige Bildauswahl.' using errcode='22023'; end if;
   if exists(select 1 from unnest(p_image_ids) selected(id) where not exists(select 1 from public.marketplace_listing_images i where i.id=selected.id::bigint and i.draft_id=p_draft_id::bigint and i.state='ready')) then raise exception 'Diese Fotos gehören nicht zum Entwurf.' using errcode='42501'; end if;

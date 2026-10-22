@@ -26,6 +26,59 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('Private Vinted-Fotos', () => {
+  it('loads only each draft main image in one request and keeps partial failures as placeholders', async () => {
+    const firstImage = {
+      id: '7',
+      storagePath: 'workspace-a/5/7.jpg',
+      fileName: 'main.jpg',
+      mimeType: 'image/jpeg' as const,
+      byteSize: 8,
+    };
+    const first = {
+      ...draft,
+      images: [firstImage, { ...firstImage, id: '8', storagePath: 'workspace-a/5/8.jpg' }],
+    };
+    const second = {
+      ...draft,
+      id: '6',
+      images: [{ ...firstImage, id: '9', storagePath: 'workspace-a/6/9.jpg' }],
+    };
+    const createSignedUrls = vi.fn().mockResolvedValue({
+      data: [
+        { path: firstImage.storagePath, signedUrl: 'https://example.test/main', error: null },
+        { path: second.images[0].storagePath, signedUrl: '', error: 'Image unavailable' },
+      ],
+      error: null,
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: SupabaseService,
+          useValue: { client: { storage: { from: () => ({ createSignedUrls }) } } },
+        },
+      ],
+    });
+    const urls = await TestBed.inject(VintedListingImageService).thumbnailUrls([
+      first,
+      second,
+      { ...draft, id: '10' },
+    ]);
+    expect(createSignedUrls).toHaveBeenCalledExactlyOnceWith(
+      ['workspace-a/5/7.jpg', 'workspace-a/6/9.jpg'],
+      3600,
+    );
+    expect([...urls]).toEqual([['5', 'https://example.test/main']]);
+  });
+  it('does not request storage access for drafts without photos', async () => {
+    const from = vi.fn();
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { storage: { from } } } }],
+    });
+    expect(await TestBed.inject(VintedListingImageService).thumbnailUrls([draft])).toEqual(
+      new Map(),
+    );
+    expect(from).not.toHaveBeenCalled();
+  });
   it('liest beim Umbenennen nur das eigene gespeicherte Foto und erhält seine Bytes', async () => {
     const download = vi
       .fn()

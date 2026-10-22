@@ -219,7 +219,7 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 declare v_draft public.marketplace_listing_drafts; v_permission public.marketplace_listing_permissions; v_job public.marketplace_listing_jobs; v_previous public.marketplace_listing_jobs; v_images jsonb; v_hash text; v_request jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint;
+  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint and deleted_at is null;
   if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
   perform public.marketplace_lock_listing_workspace(v_draft.workspace_id);
   if p_expected_revision is null or p_expected_revision not between 1 and 9007199254740991 or p_request_id is null or p_action is null or p_action not in ('publish','vinted_draft') or p_ai_photo is null
@@ -242,7 +242,7 @@ begin
   select * into v_permission from public.marketplace_listing_permissions where workspace_id=v_draft.workspace_id and connection_id=v_draft.connection_id for share;
   if not public.marketplace_listing_permission_valid(v_permission.id,(select auth.uid())) then raise exception 'Inserataktionen sind für dieses Konto nicht freigegeben.' using errcode='42501'; end if;
   if p_scheduled_at is not null and p_scheduled_at<=clock_timestamp() then raise exception 'Der Veröffentlichungstermin muss in der Zukunft liegen.' using errcode='22023'; end if;
-  select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint for share;
+  v_draft:=public.marketplace_lock_listing_draft(p_draft_id);
   if v_draft.revision<>p_expected_revision then raise exception 'Der Entwurf wurde inzwischen geändert.' using errcode='40001'; end if;
   if v_draft.connection_id is distinct from v_permission.connection_id then raise exception 'Das Zielkonto wurde inzwischen geändert.' using errcode='40001'; end if;
   if p_replaces_job_id is not null then
