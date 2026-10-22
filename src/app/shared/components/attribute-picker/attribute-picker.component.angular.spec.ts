@@ -21,7 +21,16 @@ beforeEach(() => {
   const declared = metadata.declaredInputs;
   metadata.inputs = { ...inputs };
   metadata.declaredInputs = { ...declared };
-  for (const name of ['label', 'options', 'multiple', 'swatches', 'allowCustom', 'maxSelected']) {
+  for (const name of [
+    'label',
+    'options',
+    'multiple',
+    'swatches',
+    'allowCustom',
+    'maxSelected',
+    'liveText',
+    'error',
+  ]) {
     metadata.inputs[name] = [name, 1, null];
     metadata.declaredInputs[name] = name;
   }
@@ -48,6 +57,29 @@ function create(multiple = false) {
 }
 
 describe('AttributePickerComponent', () => {
+  it('verknüpft einen angeforderten Fehler mit dem bedienbaren Eingabefeld', () => {
+    const { fixture } = create();
+    fixture.componentRef.setInput('error', 'Bitte wähle ein Material.');
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    const message = fixture.nativeElement.querySelector(
+      '#' + input.getAttribute('aria-describedby'),
+    );
+    expect(message?.textContent).toContain('Bitte wähle ein Material.');
+  });
+  it('meldet Suchtext sofort für externe Vorschläge und behält freie Eingaben nur im aktivierten Modus', () => {
+    const { fixture, values } = create();
+    fixture.componentRef.setInput('liveText', true);
+    const queries: string[] = [];
+    fixture.componentInstance.queryChange.subscribe((value) => queries.push(value));
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    input.value = 'Nik';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(queries).toEqual(['Nik']);
+    expect(values).toContain('Nik');
+  });
   it('zeigt den gewählten Farbwert beim Öffnen und unmittelbar nach der Auswahl im Eingabefeld', () => {
     const { fixture, values } = create();
     fixture.componentRef.setInput('options', ['Rot', 'Blau']);

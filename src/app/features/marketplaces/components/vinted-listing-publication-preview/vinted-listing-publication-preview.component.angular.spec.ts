@@ -2,6 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
@@ -98,6 +100,11 @@ beforeAll(async () => {
       path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
     },
     { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
+    {
+      type: TwoColumnLayoutComponent,
+      path: 'src/app/shared/components/two-column-layout/two-column-layout.component.ts',
+    },
+    { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },
     { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
     {
       type: CustomCheckboxComponent,
@@ -239,28 +246,29 @@ describe('Vinted publication preview', () => {
   it('loads current category, brand, permission, runtime and jobs without writing', async () => {
     const f = setup();
     await settle(f);
-    expect(f.read).toHaveBeenCalledWith(connectionId, 1223);
+    expect(f.read).toHaveBeenCalledWith(connectionId, 1223, { fresh: true });
     expect(f.search).toHaveBeenCalledWith('Jako', workspaceId);
     expect(f.component.review()?.ready).toBe(true);
-    expect(f.component.canSubmit()).toBe(false);
+    expect(f.component.canSubmit()).toBe(true);
     expect(f.api.approve).not.toHaveBeenCalled();
     expect(f.api.enqueue).not.toHaveBeenCalled();
     f.fixture.destroy();
   });
-  it('approves only after explicit consent and enqueues the exact saved revision and chosen schedule', async () => {
+  it('approves only on submission without another checkbox and uses the saved photo flag', async () => {
     const f = setup();
+    const saved = { ...draft, content: { ...draft.content, aiPhoto: true } };
+    f.fixture.componentRef.setInput('draft', saved);
     await settle(f);
     f.component.selectSchedule({
       scheduledAt: '2099-10-25T01:30:00.000Z',
       timeZone: 'Europe/Berlin',
       latePolicy: 'pause_after_30_minutes',
     });
-    f.component.aiPhoto.set(true);
-    f.component.consent.set(true);
+    expect(f.api.approve).not.toHaveBeenCalled();
     await f.component.submit();
     expect(f.api.approve).toHaveBeenCalledWith(workspaceId, connectionId, '123');
     expect(f.api.enqueue).toHaveBeenCalledWith(
-      draft,
+      saved,
       expect.objectContaining({
         requestId: expect.any(String),
         action: 'publish',
@@ -305,7 +313,6 @@ describe('Vinted publication preview', () => {
     async (change) => {
       const f = setup();
       await settle(f);
-      f.component.consent.set(true);
       let resolve!: (value: {
         allowed: boolean;
         authorizationVersion: number;
@@ -352,7 +359,6 @@ describe('Vinted publication preview', () => {
       content: { ...draft.content, description: '' },
     });
     await settle(f);
-    f.component.consent.set(true);
     expect(f.component.review()?.ready).toBe(false);
     await f.component.submit();
     expect(f.api.approve).not.toHaveBeenCalled();
@@ -361,12 +367,9 @@ describe('Vinted publication preview', () => {
     expect(f.api.approve).not.toHaveBeenCalled();
     f.fixture.destroy();
   });
-  it('revokes the displayed permission version and rejects submission after close', async () => {
+  it('rejects submission after returning to the editor', async () => {
     const f = setup(true);
     await settle(f);
-    await f.component.revoke();
-    expect(f.api.revoke).toHaveBeenCalledWith(workspaceId, connectionId, 1);
-    expect(f.component.permission()?.allowed).toBe(false);
     f.component.close();
     await f.component.submit();
     expect(f.api.enqueue).not.toHaveBeenCalled();

@@ -1,28 +1,63 @@
 <app-entry-page-layout
-  [title]="openedSavedDraft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
-  subtitle="Bereite Dein Vinted-Inserat vor. Mit „Entwurf speichern“ sicherst Du den Stand in Flipbase."
-  backLabel="Zur Entwurfsübersicht"
-  (cancelled)="cancel()"
+  [title]="
+    publication()
+      ? 'Inserat prüfen'
+      : openedSavedDraft()
+        ? 'Entwurf bearbeiten'
+        : 'Inserat erstellen'
+  "
+  [backLabel]="publication() ? 'Zurück zum Bearbeiten' : 'Zur Entwurfsübersicht'"
+  (cancelled)="publication() ? returnToEditor() : cancel()"
 >
   <div entry-header-actions class="flex flex-wrap items-center gap-2">
-    <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
-    <app-button [disabled]="!canSave()" [loading]="saving()" (clicked)="save()"
-      >Entwurf speichern</app-button
-    >
-    <app-button
-      variant="secondary"
-      ariaHaspopup="dialog"
-      [disabled]="!canStartPublication()"
-      (clicked)="openPublication()"
-      >Veröffentlichung vorbereiten</app-button
-    >
+    @if (!publication()) {
+      <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
+      <app-button
+        variant="secondary"
+        [disabled]="!canSave()"
+        [loading]="saving()"
+        (clicked)="save()"
+        >Entwurf speichern</app-button
+      >
+      <app-button
+        data-review-opener
+        [disabled]="!canStartPublication()"
+        (clicked)="openPublication()"
+        >Weiter zur Prüfung</app-button
+      >
+    }
   </div>
+  <nav aria-label="Schritte der Inseraterstellung" class="mb-5">
+    <ol class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <li
+        [attr.aria-current]="!publication() ? 'step' : null"
+        [class.font-semibold]="!publication()"
+        class="text-fb-text-primary"
+      >
+        1. Erstellen
+      </li>
+      <li
+        [attr.aria-current]="publication() ? 'step' : null"
+        [class.font-semibold]="!!publication()"
+        class="text-fb-text-primary"
+      >
+        2. Prüfen
+      </li>
+    </ol>
+  </nav>
   @if (publicationAnnouncement()) {
-    <p role="status" class="text-sm text-fb-text-secondary">{{ publicationAnnouncement() }}</p>
+    <p
+      data-publication-result
+      tabindex="-1"
+      role="status"
+      class="text-sm text-fb-text-secondary focus:outline-none"
+    >
+      {{ publicationAnnouncement() }}
+    </p>
   }
   @if (error() || loadError()) {
-    <app-notice-banner announcement="alert">
-      <p>{{ error() || loadError() }}</p>
+    <app-notice-banner announcement="alert"
+      ><p>{{ error() || loadError() }}</p>
       @if (conflict() || loadError()) {
         <app-button variant="secondary" size="slim" (clicked)="reload()"
           >Gespeicherten Stand laden</app-button
@@ -37,15 +72,41 @@
   } @else if (loading()) {
     <p role="status" class="text-sm text-fb-text-secondary">Entwurf wird geladen …</p>
   } @else if (!loadError()) {
-    <div [formGroup]="form">
+    <div [formGroup]="form" [hidden]="!!publication()">
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
+          <app-card title="Fotos">
+            <p class="mb-3 text-xs text-fb-text-secondary">{{ images().length }} von 20 Fotos</p>
+            <app-vinted-listing-media
+              role="group"
+              aria-label="Fotos"
+              [attr.aria-describedby]="
+                visibleFieldErrors()['photos'] ? 'vinted-draft-photos-error' : null
+              "
+              [attr.data-listing-issue]="visibleFieldErrors()['photos'] ? '' : null"
+              [images]="images()"
+              [disabled]="saving()"
+              (imagesChange)="changeImages($event)"
+              (editingChange)="setImageEditing($event)"
+            />
+            <app-custom-checkbox
+              class="mt-4 block"
+              label="Meine Fotos wurden mit KI erstellt oder verändert"
+              formControlName="aiPhoto"
+              [disabled]="saving() || imageEditing()"
+            />
+            @if (visibleFieldErrors()['photos']; as message) {
+              <p id="vinted-draft-photos-error" role="alert" class="mt-2 text-sm text-fb-critical">
+                {{ message }}
+              </p>
+            }
+          </app-card>
           <app-card>
             <div class="space-y-4">
               <app-text-field
                 label="Titel"
                 placeholder="Zum Beispiel: Jeansjacke in Größe M"
-                [error]="fieldErrors()['title'] ?? null"
+                [error]="visibleFieldErrors()['title'] ?? null"
                 [helpText]="textLimitHelp('title')"
                 [maxLength]="categorySchema()?.titleMaxLength ?? 20000"
                 formControlName="title"
@@ -54,160 +115,18 @@
                 label="Beschreibung"
                 placeholder="Beschreibe Deinen Artikel und seinen Zustand."
                 [multiline]="6"
-                [error]="fieldErrors()['description'] ?? null"
+                [error]="visibleFieldErrors()['description'] ?? null"
                 [helpText]="textLimitHelp('description')"
                 [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
                 formControlName="description"
               />
-              @if (missingVariables().length) {
-                <app-notice-banner
-                  >In Deinem Text fehlen noch Angaben für:
-                  {{ missingVariables().join(', ') }}.</app-notice-banner
-                >
+              @if (publicationAttempted() && missingVariables().length) {
+                <p class="text-sm text-fb-critical">
+                  Ergänze im Text: {{ missingVariables().join(', ') }}.
+                </p>
               }
             </div>
           </app-card>
-          <app-card>
-            <p class="mb-3 text-sm text-fb-text-secondary">
-              {{ images().length }} von 20 Fotos · JPEG, PNG oder WebP
-            </p>
-            @if (fieldErrors()['photos']; as photoError) {
-              <app-notice-banner>{{ photoError }}</app-notice-banner>
-            }
-            <app-listing-image-editor
-              [images]="images()"
-              [disabled]="saving()"
-              [acceptedFormats]="'image/jpeg,image/png,image/webp'"
-              [validateFile]="validateImage"
-              [maximumImages]="20"
-              (imagesChange)="changeImages($event)"
-              (editingChange)="setImageEditing($event)"
-            />
-          </app-card>
-          <app-card title="Artikelangaben">
-            <div class="space-y-4">
-              @if (categorySource(); as source) {
-                <app-category-picker
-                  label="Vinted-Kategorie"
-                  [source]="source"
-                  formControlName="categoryId"
-                />
-              }
-              @if (categoryError()) {
-                <app-notice-banner>{{ categoryError() }}</app-notice-banner>
-              }
-              @if (fieldErrors()['category']; as categoryIssue) {
-                <app-notice-banner>{{ categoryIssue }}</app-notice-banner>
-              }
-              <div class="space-y-2">
-                <app-button
-                  size="slim"
-                  variant="secondary"
-                  ariaHaspopup="dialog"
-                  [disabled]="!canSelectFields()"
-                  (clicked)="openFieldSelection()"
-                  >Vinted-Angaben auswählen</app-button
-                >
-                <p class="text-xs text-fb-text-secondary">{{ publicationHint() }}</p>
-              </div>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div class="space-y-2">
-                  <app-text-field
-                    label="Marke"
-                    [error]="fieldErrors()['brand'] ?? null"
-                    formControlName="brand"
-                  />
-                  <app-button
-                    size="slim"
-                    variant="secondary"
-                    ariaHaspopup="dialog"
-                    [disabled]="!canSelectBrand()"
-                    (clicked)="openBrandSelection()"
-                    >Bei Vinted auswählen</app-button
-                  >
-                </div>
-                <app-text-field
-                  label="Größe"
-                  [error]="fieldErrors()['size'] ?? null"
-                  formControlName="size"
-                />
-                <app-text-field
-                  label="Zustand"
-                  [error]="fieldErrors()['condition'] ?? null"
-                  formControlName="condition"
-                />
-                <app-text-field
-                  label="Farben"
-                  helpText="Mehrere Farben mit Komma trennen."
-                  [error]="fieldErrors()['color'] ?? null"
-                  formControlName="colors"
-                />
-                <app-text-field
-                  label="Materialien"
-                  helpText="Mehrere Materialien mit Komma trennen."
-                  [error]="fieldErrors()['material'] ?? null"
-                  formControlName="materials"
-                />
-              </div>
-              <p class="text-xs text-fb-text-secondary">
-                Du kannst diese Angaben frei vorbereiten und später weiterbearbeiten.
-              </p>
-              <p class="text-sm text-fb-text-primary">
-                <span class="font-semibold">Paketgröße:</span> {{ packageLabel() }}
-              </p>
-              @if (fieldErrors()['package']; as packageError) {
-                <app-notice-banner
-                  >{{ packageError }} Nutze „Vinted-Angaben auswählen“.</app-notice-banner
-                >
-              }
-              @for (message of additionalFieldErrors(); track $index) {
-                <app-notice-banner
-                  >{{ message }} Für diese Kategorie kann Flipbase noch nicht alle nötigen Angaben
-                  erfassen. Dein Entwurf bleibt speicherbar.</app-notice-banner
-                >
-              }
-            </div>
-          </app-card>
-        </div>
-        <div sidebar class="space-y-4">
-          <app-card title="Konto und Preis">
-            <div class="space-y-4">
-              <div class="space-y-1.5">
-                <label
-                  for="vinted-draft-account"
-                  class="block text-[13px] font-semibold text-fb-text-primary"
-                  >Zielkonto</label
-                >
-                <app-custom-select
-                  triggerId="vinted-draft-account"
-                  ariaLabel="Zielkonto für diesen Entwurf"
-                  [options]="accountOptions()"
-                  formControlName="connectionId"
-                />
-              </div>
-              <p role="status" class="text-sm text-fb-text-secondary">{{ publicationHint() }}</p>
-              @if (accountIssue()) {
-                <app-button variant="secondary" link="/marketplaces/vinted/accounts"
-                  >Vinted-Konten verwalten</app-button
-                >
-              }
-              <app-text-field
-                label="Verkaufspreis"
-                suffix="€"
-                placeholder="Noch nicht festgelegt"
-                [error]="priceError()"
-                helpText="Einkaufskosten werden nicht als Verkaufspreis übernommen."
-                formControlName="price"
-              />
-              <app-notice-banner
-                >Speichern ändert nur Deinen Entwurf in Flipbase. Den Stand eines Anbieterauftrags
-                siehst Du im Auftragsverlauf.</app-notice-banner
-              >
-            </div>
-          </app-card>
-          @if (contentError() && !priceError()) {
-            <app-notice-banner announcement="alert">{{ contentError() }}</app-notice-banner>
-          }
           @if (workspaceId(); as workspaceId) {
             <app-vinted-listing-template-panel
               [workspaceId]="workspaceId"
@@ -215,6 +134,105 @@
               [disabled]="saving() || !!contentError()"
               (applied)="applyTemplate($event)"
             />
+          }
+        </div>
+        <div sidebar class="space-y-4">
+          <app-card title="Artikeldetails">
+            <div class="space-y-4">
+              <app-custom-select
+                triggerId="vinted-draft-account"
+                label="Zielkonto"
+                ariaLabel="Zielkonto für diesen Entwurf"
+                [error]="publicationAttempted() ? accountIssue() : null"
+                [options]="accountOptions()"
+                formControlName="connectionId"
+              />
+              @if (publicationAttempted() && accountIssue()) {
+                <app-button variant="secondary" link="/marketplaces/vinted/accounts"
+                  >Vinted-Konten verwalten</app-button
+                >
+              }
+              <div [attr.data-listing-issue]="visibleFieldErrors()['category'] ? '' : null">
+                @if (categorySource(); as source) {
+                  <app-category-picker
+                    label="Kategorie"
+                    [source]="source"
+                    formControlName="categoryId"
+                  />
+                }
+                @if (categoryError()) {
+                  <p role="alert" class="text-sm text-fb-critical">{{ categoryError() }}</p>
+                }
+                @if (visibleFieldErrors()['category']; as message) {
+                  <p class="text-xs text-fb-critical">{{ message }}</p>
+                }
+              </div>
+              @if (workspaceId(); as workspaceId) {
+                <div [attr.data-listing-issue]="visibleFieldErrors()['brand'] ? '' : null">
+                  <app-vinted-listing-brand-dialog
+                    [inline]="true"
+                    [scopeKey]="brandScope()"
+                    [workspaceId]="workspaceId"
+                    [initialLabel]="form.controls.brand.value"
+                    [fieldError]="visibleFieldErrors()['brand'] ?? null"
+                    [disabled]="!canSelectBrand()"
+                    (edited)="editBrand($event)"
+                    (selected)="selectInlineBrand($event)"
+                  />
+                </div>
+              }
+              @if (fieldSelection(); as selection) {
+                <app-vinted-listing-fields-dialog
+                  [inline]="true"
+                  section="details"
+                  [scopeKey]="selection.scopeKey"
+                  [connectionId]="selection.connectionId"
+                  [categoryId]="selection.categoryId"
+                  [content]="content()"
+                  [fieldErrors]="visibleFieldErrors()"
+                  [disabled]="saving() || imageEditing()"
+                  (schemaLoaded)="categoryFieldsLoaded($event)"
+                  (selected)="selectFields($event, true)"
+                />
+              }
+              @for (message of additionalFieldErrors(); track $index) {
+                <p class="text-sm text-fb-critical">{{ message }}</p>
+              }
+            </div>
+          </app-card>
+          <app-card title="Preis und Versand">
+            <div class="space-y-4">
+              <app-text-field
+                label="Verkaufspreis"
+                suffix="€"
+                placeholder="Noch nicht festgelegt"
+                [error]="
+                  publicationAttempted()
+                    ? priceError()
+                    : saveAttempted() && contentError()
+                      ? priceError()
+                      : null
+                "
+                formControlName="price"
+              />
+              @if (fieldSelection(); as selection) {
+                <app-vinted-listing-fields-dialog
+                  [inline]="true"
+                  section="shipping"
+                  [fieldSchema]="categorySchema()"
+                  [scopeKey]="selection.scopeKey"
+                  [connectionId]="selection.connectionId"
+                  [categoryId]="selection.categoryId"
+                  [content]="content()"
+                  [fieldErrors]="visibleFieldErrors()"
+                  [disabled]="saving() || imageEditing()"
+                  (selected)="selectFields($event, true)"
+                />
+              }
+            </div>
+          </app-card>
+          @if ((publicationAttempted() || saveAttempted()) && contentError()) {
+            <app-notice-banner announcement="alert">{{ contentError() }}</app-notice-banner>
           }
           @if (draft(); as savedDraft) {
             <app-vinted-listing-job-panel
@@ -237,40 +255,19 @@
       </app-two-column-layout>
     </div>
   }
-</app-entry-page-layout>
-@if (publication(); as opened) {
-  <app-vinted-listing-publication-preview
-    [scopeKey]="opened.scopeKey"
-    [userId]="opened.userId"
-    [draft]="opened.draft"
-    [account]="opened.account"
-    [images]="opened.images"
-    [disabled]="!canPreparePublication()"
-    (accepted)="publicationAccepted($event)"
-    (closed)="closePublication()"
-  />
-}
-@if (fieldSelection(); as selection) {
-  <app-vinted-listing-fields-dialog
-    [scopeKey]="selection.scopeKey"
-    [connectionId]="selection.connectionId"
-    [categoryId]="selection.categoryId"
-    [content]="selection.content"
-    [disabled]="!canSelectFields()"
-    (schemaLoaded)="categoryFieldsLoaded($event)"
-    (selected)="selectFields($event)"
-    (closed)="closeFieldSelection()"
-  />
-}
-@if (brandSelectionContext(); as scopeKey) {
-  @if (workspaceId(); as workspaceId) {
-    <app-vinted-listing-brand-dialog
-      [scopeKey]="scopeKey"
-      [workspaceId]="workspaceId"
-      [initialLabel]="form.controls.brand.value"
-      [disabled]="!canSelectBrand()"
-      (selected)="selectBrand($event)"
-      (closed)="closeBrandSelection()"
+  @if (publication(); as opened) {
+    <app-vinted-listing-publication-preview
+      [scopeKey]="opened.scopeKey"
+      [userId]="opened.userId"
+      [draft]="opened.draft"
+      [account]="opened.account"
+      [images]="opened.images"
+      [initialSchedule]="publicationSchedule()"
+      (scheduleChange)="publicationSchedule.set($event)"
+      (busyChange)="publicationBusy.set($event)"
+      [disabled]="!canPreparePublication()"
+      (accepted)="publicationAccepted($event)"
+      (closed)="returnToEditor()"
     />
   }
-}
+</app-entry-page-layout>

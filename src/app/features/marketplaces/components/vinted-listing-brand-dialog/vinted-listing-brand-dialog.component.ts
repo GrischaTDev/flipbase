@@ -17,6 +17,7 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import type { VintedBrand } from '../../../platform-admin/models/vinted-brand.model';
 import {
   validVintedListingBrand,
@@ -32,10 +33,17 @@ import {
     ModalShellComponent,
     NoticeBannerComponent,
     TextFieldComponent,
+    AttributePickerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VintedListingBrandDialogComponent {
+  readonly fieldError = input<string | null>(null);
+  readonly inline = input(false);
+  readonly edited = output<string>();
+  readonly labelControl = new FormControl('', { nonNullable: true });
+  readonly labels = computed(() => ['Keine Marke', ...this.results().map((brand) => brand.name)]);
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
   readonly scopeKey = input.required<string>();
   readonly workspaceId = input.required<string>();
   readonly initialLabel = input('');
@@ -59,6 +67,20 @@ export class VintedListingBrandDialogComponent {
 
   constructor() {
     effect(() => {
+      if (this.disabled()) this.labelControl.disable({ emitEvent: false });
+      else this.labelControl.enable({ emitEvent: false });
+    });
+    effect(() => {
+      const label = this.initialLabel();
+      if (this.inline()) untracked(() => this.labelControl.setValue(label, { emitEvent: false }));
+    });
+    this.labelControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((label) => {
+      this.edited.emit(label);
+      const brand = this.results().filter((brand) => brand.name === label);
+      if (brand.length === 1) this.choose(brand[0]);
+      if (label === 'Keine Marke') this.chooseNoBrand();
+    });
+    effect(() => {
       const binding = this.binding();
       const label = this.initialLabel();
       untracked(() => {
@@ -70,7 +92,19 @@ export class VintedListingBrandDialogComponent {
       });
     });
     this.query.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.invalidate());
-    this.destroyRef.onDestroy(() => this.generation++);
+    this.destroyRef.onDestroy(() => {
+      this.generation++;
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+    });
+  }
+  searchText(query: string): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.query.setValue(query);
+    if (query.trim() && query !== 'Keine Marke')
+      this.searchTimer = setTimeout(() => {
+        this.searchTimer = null;
+        void this.search();
+      }, 200);
   }
 
   async search(): Promise<void> {
@@ -125,7 +159,14 @@ export class VintedListingBrandDialogComponent {
     this.selected.emit({ brandId: brand.id, brandLabel: brand.name });
   }
   chooseNoBrand(): void {
-    if (this.canChoose()) this.selected.emit({ brandId: null, brandLabel: 'Keine Marke' });
+    if (
+      this.canChoose() ||
+      (this.inline() &&
+        !this.disabled() &&
+        !this.destroyRef.destroyed &&
+        this.loadedBinding === this.binding())
+    )
+      this.selected.emit({ brandId: null, brandLabel: 'Keine Marke' });
   }
   close(): void {
     if (this.closing) return;

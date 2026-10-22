@@ -19,6 +19,15 @@ export function vintedDraftImageError(file: File): string | null {
 export class VintedListingImageService {
   private readonly client = inject(SupabaseService).client;
   private readonly bucket = 'marketplace-listing-media';
+  async renamedFile(draft: VintedListingDraft, imageId: string, name: string): Promise<File> {
+    const image = draft.images.find((entry) => entry.id === imageId);
+    if (!image || !name.trim() || name.length > 255)
+      throw new Error('Das Foto konnte nicht zum Umbenennen zugeordnet werden.');
+    const { data, error } = await this.client.storage.from(this.bucket).download(image.storagePath);
+    if (error || !data || data.size !== image.byteSize || data.type !== image.mimeType)
+      throw new Error('Das Originalfoto konnte nicht geladen werden. Versuche es erneut.');
+    return new File([data], name.trim(), { type: image.mimeType });
+  }
   async previews(draft: VintedListingDraft): Promise<readonly ListingImageDraft[]> {
     if (!draft.images.length) return [];
     const { data, error } = await this.client.storage.from(this.bucket).createSignedUrls(

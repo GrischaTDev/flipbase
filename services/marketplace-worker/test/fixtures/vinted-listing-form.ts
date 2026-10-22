@@ -11,6 +11,7 @@ export async function createVintedListingFormFixture(
     active?: boolean;
     noSaveNavigation?: boolean;
     brandSearch?: 'matching' | 'wrong_label' | 'custom_only';
+    colorGrid?: boolean;
   } = {},
 ) {
   let writes = 0,
@@ -71,7 +72,7 @@ export async function createVintedListingFormFixture(
       ${options.brandSearch ? `<input id="brand-search-input" data-testid="brand-search--input" placeholder="Marke suchen"><div id="brand-results" hidden><div role="radio" id="brand-317425" aria-label="Jako-o" aria-checked="false">Jako-o</div>${options.brandSearch === 'custom_only' ? '' : `<div role="radio" id="brand-254956" aria-label="${options.brandSearch === 'wrong_label' ? 'Falsche Marke' : 'Jako'}" aria-checked="false">Jako</div>`}<div role="radio" id="custom-select-brand-radio" aria-checked="false">Jako als Markenname nutzen</div></div>` : ''}</div>
       <div hidden id="size-options"><div role="checkbox" data-testid="size-group-14-grid-option-208" aria-label="M" aria-checked="false" aria-disabled="${options.disabledSize ? 'true' : 'false'}">M</div><div role="checkbox" data-testid="size-group-14-grid-option-209" aria-label="L" aria-checked="false">L</div></div>
       <div hidden id="condition-options"><div role="radio" id="condition-2" aria-checked="false"><div data-testid="condition-2--title">Sehr gut</div></div></div>
-      <div hidden id="color-options"><div role="checkbox" id="color-3" aria-checked="false"><div data-testid="color-3--title">Grau</div></div></div>
+      <div hidden id="color-options">${options.colorGrid ? '<div role="checkbox" data-testid="filter-grid-option-3" aria-label="Grau" aria-checked="false"><div data-testid="color-3"><span>Grau</span></div></div>' : '<div role="checkbox" id="color-3" aria-checked="false"><div data-testid="color-3--title">Grau</div></div>'}</div>
       <div hidden id="material-options"><div role="checkbox" id="material-149" aria-checked="false"><div data-testid="material-149--title">Acryl</div></div></div>
       <button type="button" id="package-size-2">Mittel</button><label><input style="opacity:${options.hiddenPackage ? '0' : '1'}" type="radio" id="package_type_selector_2" aria-labelledby="package-size-2"></label>
       <button type="button" id="package-size-3">Groß</button><label><input style="opacity:${options.hiddenPackage ? '0' : '1'}" type="radio" id="package_type_selector_3" aria-labelledby="package-size-3" checked></label>

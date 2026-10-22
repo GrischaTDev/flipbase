@@ -71,6 +71,22 @@ describe('ProductMediaEditorComponent', () => {
     vi.unstubAllGlobals();
   });
 
+  it('meldet offene Bilddetails und Zuschnitt bis zum Schließen als Bearbeitung', () => {
+    const editing = vi.fn();
+    component.editingChange.subscribe(editing);
+    images.set([saved('first')]);
+    TestBed.tick();
+    component.openDetails('first');
+    TestBed.tick();
+    expect(editing).toHaveBeenLastCalledWith(true);
+    component.cropFromDetails();
+    TestBed.tick();
+    expect(editing).toHaveBeenLastCalledWith(true);
+    component.cropKey.set(null);
+    TestBed.tick();
+    expect(editing).toHaveBeenLastCalledWith(false);
+  });
+
   it('meldet mehrere Dateien sofort und erzeugt die Vorschauen in stabiler Auswahlreihenfolge', () => {
     component.addFiles([file, new File(['b'], 'second.webp', { type: 'image/webp' })]);
     expect(output).toHaveBeenCalledOnce();

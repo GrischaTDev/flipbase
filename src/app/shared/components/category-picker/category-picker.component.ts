@@ -135,6 +135,13 @@ export class CategoryPickerComponent implements ControlValueAccessor {
 
   constructor() {
     effect(() => {
+      this.entries();
+      this.status();
+      this.trail();
+      if (this.isOpen())
+        afterNextRender(() => this.positionPanel(false), { injector: this.injector });
+    });
+    effect(() => {
       if (!this.source()) return;
       untracked(() => {
         this.close(false);

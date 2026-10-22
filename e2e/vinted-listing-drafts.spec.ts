@@ -8,11 +8,11 @@ import { listingCategoryFixture } from './support/vinted-listing-category-fixtur
 async function saveDraft(page: Page) {
   const editor = page.locator('app-vinted-listing-editor');
   await editor.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await expect(editor.getByText('In Flipbase gespeichert', { exact: true })).toBeVisible();
+  await expect(editor.getByText('Entwurf gespeichert', { exact: true })).toBeVisible();
 }
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-async function mockDrafts(page: Page, planned = false) {
+async function mockDrafts(page: Page, planned = false, accountName?: string) {
   const pixel = Buffer.from(
     await page.evaluate(() => {
       const canvas = document.createElement('canvas');
@@ -37,6 +37,13 @@ async function mockDrafts(page: Page, planned = false) {
     undefined,
     false,
     planned ? 1 : 0,
+    accountName
+      ? {
+          origin: process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351',
+          userId: '25000000-0000-4000-8000-000000000001',
+          displayName: accountName,
+        }
+      : undefined,
   );
   let draft = {
     id: '9007199254740999',
@@ -237,6 +244,11 @@ async function mockDrafts(page: Page, planned = false) {
     }
     return route.fulfill({ contentType: 'image/png', body: pixel });
   });
+  await page.route('**/marketplace-browser/listings/category/read', (route) =>
+    route.fulfill({
+      json: { fields: listingCategoryFixture(Number(route.request().postDataJSON().categoryId)) },
+    }),
+  );
   return {
     creates,
     templateSaves,
@@ -250,8 +262,13 @@ async function mockDrafts(page: Page, planned = false) {
   };
 }
 
-async function mockPublication(page: Page, enabled = true, loseFirstResponse = false) {
-  const state = await mockDrafts(page, true);
+async function mockPublication(
+  page: Page,
+  enabled = true,
+  loseFirstResponse = false,
+  accountName?: string,
+) {
+  const state = await mockDrafts(page, true, accountName);
   const job = { ...state.jobs[0] };
   state.jobs.splice(0);
   Object.assign(state.draft(), {
@@ -357,13 +374,85 @@ async function mockPublication(page: Page, enabled = true, loseFirstResponse = f
   return { ...state, approvals, enqueues, revocations };
 }
 
+test('hält verspätete Markenvorschläge im kurzen Bildschirm sichtbar @marketplace-preview', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 460 });
+  await mockDrafts(page);
+  let release!: () => void;
+  let requested = false;
+  const response = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/functions/v1/vinted-brand-search', async (route) => {
+    requested = true;
+    await response;
+    await route.fulfill({
+      json: {
+        brands: Array.from({ length: 20 }, (_, index) => ({
+          id: index + 1,
+          name: `Marke ${index + 1}`,
+        })),
+      },
+    });
+  });
+  await page.goto('/marketplaces/vinted/listings/new');
+  const editor = page.locator('app-vinted-listing-editor');
+  await editor.getByRole('combobox', { name: 'Marke', exact: true }).fill('Marke');
+  await expect.poll(() => requested).toBe(true);
+  const panel = editor.locator('app-vinted-listing-brand-dialog [popover]');
+  await expect(panel).toBeVisible();
+  release();
+  await expect(page.getByRole('option', { name: 'Marke 20', exact: true })).toBeAttached();
+  await expect
+    .poll(async () => {
+      const box = await panel.boundingBox();
+      return box ? box.y + box.height : 9999;
+    })
+    .toBeLessThanOrEqual(452);
+});
+
+for (const missing of ['account', 'photos'] as const) {
+  test(`fokussiert ${missing === 'account' ? 'das fehlende Zielkonto' : 'die fehlenden Fotos'} nach angeforderter Prüfung @marketplace-preview`, async ({
+    page,
+  }) => {
+    const state = await mockPublication(page);
+    if (missing === 'account') state.draft().connectionId = null;
+    else state.draft().images = [];
+    await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+    const editor = page.locator('app-vinted-listing-editor');
+    await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+    await expect(
+      missing === 'account'
+        ? editor.getByRole('combobox', { name: 'Zielkonto für diesen Entwurf', exact: true })
+        : editor.getByRole('button', { name: 'Bilder hinzufügen', exact: true }),
+    ).toBeFocused();
+    if (missing === 'photos') {
+      await expect(
+        editor.getByRole('group', { name: 'Fotos', exact: true }),
+      ).toHaveAccessibleDescription(/Foto/);
+      await page.evaluate(axe.source);
+      expect(
+        await page.evaluate(
+          async () =>
+            (await (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listing-editor'))
+              .violations,
+        ),
+      ).toEqual([]);
+    }
+    expect(state.approvals).toEqual([]);
+    expect(state.enqueues).toEqual([]);
+  });
+}
+
 for (const width of [1440, 390])
   for (const dark of [false, true]) {
     test(`Inserat vor Veröffentlichung prüfen bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
-      const state = await mockPublication(page);
+      const longAccountName = width === 390 ? 'MeinStore' + 'A'.repeat(100) : undefined;
+      const state = await mockPublication(page, true, false, longAccountName);
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
@@ -373,20 +462,41 @@ for (const width of [1440, 390])
       });
       await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
       const opener = page.getByRole('button', {
-        name: 'Veröffentlichung vorbereiten',
+        name: 'Weiter zur Prüfung',
         exact: true,
       });
+      const aiPhoto = page.getByRole('checkbox', {
+        name: 'Meine Fotos wurden mit KI erstellt oder verändert',
+      });
+      await aiPhoto.click();
+      await saveDraft(page);
+      await page.reload();
+      await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
       await opener.click();
-      const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+      const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
       await expect(
         preview.getByText('Deine gespeicherten Angaben passen zur aktuellen Vinted-Auswahl.'),
       ).toBeVisible();
       const submit = preview.getByRole('button', {
-        name: 'Freigeben und beauftragen',
+        name: 'Jetzt veröffentlichen',
         exact: true,
       });
-      await expect(submit).toBeDisabled();
-      await page.keyboard.press('Escape');
+      await expect(submit).toBeEnabled();
+      await expect(preview).toBeFocused();
+      if (longAccountName) {
+        const accountValue = preview.locator('dd').first();
+        await expect(accountValue).toHaveText(longAccountName);
+        expect(
+          await accountValue.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        ).toBe(true);
+      }
+      await expect(
+        page.getByRole('navigation', { name: 'Schritte der Inseraterstellung' }),
+      ).toBeInViewport();
+      await expect(
+        page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true }),
+      ).toHaveCount(0);
+      await preview.getByRole('button', { name: 'Zurück zum Bearbeiten', exact: true }).click();
       await expect(preview).not.toBeVisible();
       await expect(opener).toBeFocused();
       await opener.click();
@@ -405,17 +515,18 @@ for (const width of [1440, 390])
       await expect(
         preview.getByRole('button', { name: 'Termin ändern', exact: true }),
       ).toBeFocused();
-      const aiPhoto = preview.getByRole('checkbox', {
-        name: 'Meine Fotos wurden mit KI erstellt oder verändert',
-      });
-      await aiPhoto.click();
+      await preview.getByRole('button', { name: 'Zurück zum Bearbeiten', exact: true }).click();
       await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
-      const consent = preview.getByRole('checkbox', {
-        name: 'Ich erlaube Flipbase, Inserate über Testkonto A anzulegen.',
+      await opener.click();
+      await expect(
+        preview.getByRole('button', { name: 'Termin ändern', exact: true }),
+      ).toBeVisible();
+      await expect(preview.getByRole('checkbox')).toHaveCount(0);
+      const plannedSubmit = preview.getByRole('button', {
+        name: 'Veröffentlichung planen',
+        exact: true,
       });
-      await consent.click();
-      await expect(consent).toHaveAttribute('aria-checked', 'true');
-      await expect(submit).toBeEnabled();
+      await expect(plannedSubmit).toBeEnabled();
       expect(
         await page.evaluate(
           async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
@@ -425,15 +536,19 @@ for (const width of [1440, 390])
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
       ).toBe(true);
+      await page
+        .getByRole('heading', { name: 'Inserat prüfen', exact: true })
+        .scrollIntoViewIfNeeded();
       await page.screenshot({
         path: testInfo.outputPath(`publication-${width}-${dark ? 'dark' : 'light'}.png`),
         fullPage: false,
       });
       expect(state.approvals).toEqual([]);
       expect(state.enqueues).toEqual([]);
-      await submit.focus();
+      await plannedSubmit.focus();
       await page.keyboard.press('Enter');
       await expect(preview).not.toBeVisible();
+      await expect(page.locator('[data-publication-result]')).toBeFocused();
       await expect(
         page
           .locator('app-vinted-listing-job-panel')
@@ -467,24 +582,27 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
   Object.assign(state.draft(), { content: { ...state.draft().content, description: '' } });
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
+  await expect(
+    editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
+  ).not.toHaveAttribute('aria-invalid', 'true');
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
   await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toHaveAttribute(
     'aria-invalid',
     'true',
   );
-  await expect(
-    page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
-  ).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true })).toBeEnabled();
+  await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toBeFocused();
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
   await editor
     .getByRole('textbox', { name: 'Beschreibung', exact: true })
     .fill('Vollständige Beschreibung.');
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
-  const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
   await expect(preview.getByText('Vollständige Beschreibung.', { exact: true })).toBeVisible();
   await expect(preview.getByText(/auf diesem Server noch nicht verfügbar/)).toBeVisible();
   await expect(
-    preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }),
+    preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
   ).toBeDisabled();
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
@@ -508,9 +626,6 @@ test('Fotogrenze gilt bei der Auswahl, unvollständiger Entwurf bleibt speicherb
   await expect(
     editor.getByRole('alert').filter({ hasText: 'Du kannst höchstens 20 Bilder auswählen.' }),
   ).toBeVisible();
-  await expect(
-    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
-  ).toBeDisabled();
   await saveDraft(page);
   expect(state.draft().images).toHaveLength(20);
   expect(state.draft().content.title).toBe('');
@@ -536,22 +651,21 @@ test('Gelesene Textgrenzen erscheinen vor der Veröffentlichung und kürzen vorh
   page,
 }) => {
   const state = await mockPublication(page);
+  state.draft().content.title = 'T'.repeat(101);
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
   const title = editor.getByRole('textbox', { name: 'Titel', exact: true });
-  await title.fill('T'.repeat(101));
-  await editor.getByRole('button', { name: 'Vinted-Angaben auswählen', exact: true }).click();
-  const fields = page.getByRole('dialog', { name: 'Vinted-Angaben wählen', exact: true });
-  await expect(
-    fields.getByRole('button', { name: 'Angaben übernehmen', exact: true }),
-  ).toBeEnabled();
-  await fields.getByRole('button', { name: 'Angaben übernehmen', exact: true }).click();
+  await expect(title).not.toHaveAttribute('aria-invalid', 'true');
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
   await expect(title).toHaveValue('T'.repeat(101));
   await expect(title).toHaveAttribute('maxlength', '100');
   await expect(title).toHaveAttribute('aria-invalid', 'true');
   await expect(
-    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
-  ).toBeDisabled();
+    editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }),
+  ).toBeEnabled();
+  await editor
+    .getByRole('textbox', { name: 'Beschreibung', exact: true })
+    .fill('Sehr gut erhalten. Ergänzung.');
   await saveDraft(page);
   expect(state.draft().content.title).toBe('T'.repeat(101));
   await page.reload();
@@ -574,12 +688,13 @@ test('Größerer alter Entwurf behält alle Fotos und kann nicht versehentlich v
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
   await expect(editor.getByText(/21 von 20 Fotos/)).toBeVisible();
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
   await expect(
     editor.getByText('Vinted erlaubt höchstens 20 Fotos pro Inserat.', { exact: true }),
   ).toBeVisible();
   await expect(
-    editor.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }),
-  ).toBeDisabled();
+    editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }),
+  ).toBeEnabled();
   expect(state.draft().images).toHaveLength(21);
   expect(state.enqueues).toEqual([]);
 });
@@ -588,13 +703,10 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
 }) => {
   const state = await mockPublication(page, true, true);
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
-  const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
   await expect(preview.getByText(/passen zur aktuellen Vinted-Auswahl/)).toBeVisible();
-  await preview
-    .getByRole('checkbox', { name: 'Ich erlaube Flipbase, Inserate über Testkonto A anzulegen.' })
-    .click();
-  await preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }).click();
+  await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   const retry = preview.getByRole('button', { name: 'Diesen Auftrag erneut prüfen', exact: true });
   await expect(retry).toBeEnabled();
   await expect(preview.getByRole('button', { name: 'Termin wählen', exact: true })).toBeDisabled();
@@ -701,7 +813,7 @@ for (const width of [1440, 390])
       await page.route('**/marketplace-browser/listings/category/read', (route) => {
         requests.push(route.request().postDataJSON());
         return route.fulfill({
-          json: { fields: listingCategoryFixture(requests.length === 3 ? 1223 : 2) },
+          json: { fields: listingCategoryFixture(2) },
         });
       });
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
@@ -711,59 +823,35 @@ for (const width of [1440, 390])
       const editor = page.locator('app-vinted-listing-editor');
       await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Meine Jacke');
       await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('20,50');
-      await editor.getByRole('button', { name: /^Vinted-Kategorie/ }).click();
+      await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
       await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Jacken');
       await page.getByRole('option', { name: /Jacken/ }).click();
       await saveDraft(page);
       await expect.poll(() => state.draft().content.categoryId).toBe(2);
-      const opener = editor.getByRole('button', { name: 'Vinted-Angaben auswählen', exact: true });
-      await opener.click();
-      const dialog = page.getByRole('dialog', { name: 'Vinted-Angaben wählen', exact: true });
       await expect(
-        dialog.getByRole('combobox', { name: 'Größe bei Vinted', exact: true }),
-      ).toBeVisible();
-      await page.keyboard.press('Escape');
-      await expect(dialog).not.toBeVisible();
-      await expect(opener).toBeFocused();
-      expect(state.draft().content.sizeId).toBeNull();
-      await opener.click();
-      const size = dialog.getByRole('combobox', { name: 'Größe bei Vinted', exact: true });
+        editor.getByRole('button', { name: 'Vinted-Angaben auswählen', exact: true }),
+      ).toHaveCount(0);
+      const size = editor.getByRole('combobox', { name: 'Größe', exact: true });
+      await expect(size).toBeVisible();
       await size.click();
       await expect(page.getByRole('option', { name: 'L', exact: true })).toHaveCount(0);
       await page.getByRole('option', { name: 'M', exact: true }).click();
-      await dialog.getByRole('combobox', { name: 'Zustand bei Vinted', exact: true }).click();
+      await editor.getByRole('combobox', { name: 'Zustand', exact: true }).click();
       await page.getByRole('option', { name: 'Sehr gut', exact: true }).click();
-      await dialog.getByRole('combobox', { name: 'Paketgröße bei Vinted', exact: true }).click();
+      await editor.getByRole('combobox', { name: 'Paketgröße', exact: true }).click();
       await page.getByRole('option', { name: 'Mittel', exact: true }).click();
-      await dialog.getByRole('checkbox', { name: 'Farben: Blau', exact: true }).focus();
-      await page.keyboard.press('Space');
-      await dialog.getByRole('checkbox', { name: 'Farben: Schwarz', exact: true }).click();
-      await expect(
-        dialog.getByRole('checkbox', { name: 'Farben: Weiß', exact: true }),
-      ).toBeDisabled();
-      await dialog.getByRole('checkbox', { name: 'Materialien: Baumwolle', exact: true }).click();
-      await page.evaluate(axe.source);
-      expect(
-        await page.evaluate(
-          async () =>
-            (
-              await (window as unknown as { axe: typeof axe }).axe.run(
-                document.querySelector('app-vinted-listing-fields-dialog') as HTMLElement,
-              )
-            ).violations,
-        ),
-      ).toEqual([]);
-      expect(await page.locator('form form').count()).toBe(0);
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-      ).toBe(true);
-      await page.screenshot({
-        path: testInfo.outputPath(`fields-${width}-${dark ? 'dark' : 'light'}.png`),
-        fullPage: false,
-      });
-      await dialog.getByRole('button', { name: 'Angaben übernehmen', exact: true }).focus();
-      await page.keyboard.press('Enter');
-      await expect(dialog).not.toBeVisible();
+      const colors = editor.getByRole('combobox', { name: 'Farben', exact: true });
+      await colors.click();
+      await page.getByRole('option', { name: 'Blau', exact: true }).click();
+      await page.getByRole('option', { name: 'Schwarz', exact: true }).click();
+      await expect(page.getByRole('option', { name: 'Weiß', exact: true })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.keyboard.press('Escape');
+      await editor.getByRole('combobox', { name: 'Materialien', exact: true }).click();
+      await page.getByRole('option', { name: 'Baumwolle', exact: true }).click();
+      await page.keyboard.press('Escape');
       await saveDraft(page);
       await expect.poll(() => state.draft().content.sizeId).toBe(208);
       expect(state.draft().content).toMatchObject({
@@ -775,30 +863,41 @@ for (const width of [1440, 390])
         materialIds: [44],
         packageSizeId: 2,
       });
-      expect(requests).toEqual(
-        Array.from({ length: 2 }, () => ({
-          workspaceId,
-          connectionId: accountIds[0],
-          categoryId: 2,
-        })),
-      );
-      await expect(editor.getByText('Paketgröße: Mittel', { exact: true })).toBeVisible();
+      expect(requests).toEqual([{ workspaceId, connectionId: accountIds[0], categoryId: 2 }]);
+      await page.evaluate(axe.source);
+      expect(
+        await page.evaluate(
+          async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
+        ),
+      ).toEqual([]);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`fields-${width}-${dark ? 'dark' : 'light'}.png`),
+        fullPage: false,
+      });
       await page.reload();
-      await expect(editor.getByRole('textbox', { name: 'Größe', exact: true })).toHaveValue('M');
-      await expect(
-        editor.getByText('Paketgröße: Bereits festgelegt', { exact: true }),
-      ).toBeVisible();
-      await editor.getByRole('textbox', { name: 'Größe', exact: true }).fill('XL');
-      await saveDraft(page);
-      await expect.poll(() => state.draft().content.sizeId).toBeNull();
-      expect(state.draft().content.conditionId).toBe(2);
-      await opener.click();
-      await expect(dialog.getByRole('alert')).toBeVisible();
-      await expect(
-        dialog.getByRole('button', { name: 'Angaben übernehmen', exact: true }),
-      ).toBeDisabled();
-      await page.keyboard.press('Escape');
-      await expect(editor.getByRole('textbox', { name: 'Größe', exact: true })).toHaveValue('XL');
+      await expect(size).toHaveValue('M');
+      await expect(editor.getByRole('combobox', { name: 'Paketgröße', exact: true })).toContainText(
+        'Mittel',
+      );
+      // Ein fehlgeschlagener Abruf nach neuem Laden erhält die gespeicherten Angaben.
+      await page.route('**/marketplace-browser/listings/category/read', (route) =>
+        route.fulfill({ status: 503, json: { error: 'Vinted gerade nicht erreichbar' } }),
+      );
+      await page.reload();
+      await expect(editor.getByRole('button', { name: 'Erneut laden', exact: true })).toBeVisible();
+      expect(state.draft().content.sizeId).toBe(208);
+      await page.unroute('**/marketplace-browser/listings/category/read');
+      await page.route('**/marketplace-browser/listings/category/read', (route) =>
+        route.fulfill({ json: { fields: listingCategoryFixture(2) } }),
+      );
+      await editor.getByRole('button', { name: 'Erneut laden', exact: true }).click();
+      await expect(size).toHaveValue('M');
+      await expect(editor.getByRole('combobox', { name: 'Paketgröße', exact: true })).toContainText(
+        'Mittel',
+      );
       expect(state.uploads()).toBe(0);
       expect(state.reschedules).toEqual([]);
       expect(state.jobCancels).toEqual([]);
@@ -828,58 +927,39 @@ for (const width of [1440, 390])
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
       await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
       const editor = page.locator('app-vinted-listing-editor');
-      const opener = editor.getByRole('button', { name: 'Bei Vinted auswählen', exact: true });
-      await opener.click();
-      const dialog = page.getByRole('dialog', { name: 'Vinted-Marke wählen', exact: true });
-      await expect(dialog).toBeVisible();
-      await page.keyboard.press('Escape');
-      await expect(dialog).not.toBeVisible();
-      await expect(opener).toBeFocused();
-      expect(searches).toEqual([]);
-      await opener.click();
-      await dialog.getByRole('textbox', { name: 'Vinted-Marke suchen', exact: true }).fill('Jako');
-      await dialog
-        .getByRole('textbox', { name: 'Vinted-Marke suchen', exact: true })
-        .press('Enter');
-      await expect(dialog.getByRole('button', { name: 'Jako', exact: true })).toBeVisible();
+      const brand = editor.getByRole('combobox', { name: 'Marke', exact: true });
+      await brand.fill('Jako');
+      await expect(page.getByRole('option', { name: 'Jako', exact: true })).toBeVisible();
       expect(searches).toEqual([{ keyword: 'Jako', workspaceId }]);
+      await page.getByRole('option', { name: 'Jako', exact: true }).click();
+      await page.keyboard.press('Escape');
+      await saveDraft(page);
+      await expect.poll(() => state.draft().content.brandId).toBe(254956);
+      expect(state.draft().content.brandLabel).toBe('Jako');
+      await page.reload();
+      await expect(brand).toHaveValue('Jako');
+      await brand.fill('Jako-o');
+      await saveDraft(page);
+      expect(state.draft().content.brandId).toBeNull();
+      await brand.fill('');
+      await page.getByRole('option', { name: 'Keine Marke', exact: true }).click();
+      await page.keyboard.press('Escape');
+      await saveDraft(page);
+      expect(state.draft().content.brandLabel).toBe('Keine Marke');
+      expect(state.draft().content.brandId).toBeNull();
       await page.evaluate(axe.source);
       expect(
         await page.evaluate(
-          async () =>
-            (
-              await (window as unknown as { axe: typeof axe }).axe.run(
-                document.querySelector('app-vinted-listing-brand-dialog') as HTMLElement,
-              )
-            ).violations,
+          async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
         ),
       ).toEqual([]);
-      expect(await page.locator('form form').count()).toBe(0);
       expect(
-        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
       ).toBe(true);
       await page.screenshot({
         path: testInfo.outputPath(`brand-${width}-${dark ? 'dark' : 'light'}.png`),
         fullPage: false,
       });
-      await dialog.getByRole('button', { name: 'Jako', exact: true }).focus();
-      await page.keyboard.press('Enter');
-      await expect(dialog).not.toBeVisible();
-      await saveDraft(page);
-      await expect.poll(() => state.draft().content.brandId).toBe(254956);
-      expect(state.draft().content.brandLabel).toBe('Jako');
-      await page.reload();
-      const brand = editor.getByRole('textbox', { name: 'Marke', exact: true });
-      await expect(brand).toHaveValue('Jako');
-      await brand.fill('Jako-o');
-      await saveDraft(page);
-      await expect.poll(() => state.draft().content.brandLabel).toBe('Jako-o');
-      expect(state.draft().content.brandId).toBeNull();
-      await opener.click();
-      await dialog.getByRole('button', { name: 'Keine Marke', exact: true }).click();
-      await saveDraft(page);
-      await expect.poll(() => state.draft().content.brandLabel).toBe('Keine Marke');
-      expect(state.draft().content.brandId).toBeNull();
       expect(state.uploads()).toBe(0);
       expect(state.reschedules).toEqual([]);
     });
@@ -979,7 +1059,7 @@ for (const width of [1440, 390])
         .getByRole('textbox', { name: 'Beschreibung', exact: true })
         .fill('Guter Zustand.\nOhne Flecken.');
       await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('45,50');
-      await editor.getByRole('textbox', { name: 'Marke', exact: true }).fill('Testmarke');
+      await editor.getByRole('combobox', { name: 'Marke', exact: true }).fill('Testmarke');
       // Ohne ausdrückliches Speichern entsteht kein Entwurf, auch nicht nach einer Pause.
       await page.waitForTimeout(1200);
       expect(state.creates).toHaveLength(0);
@@ -990,7 +1070,11 @@ for (const width of [1440, 390])
       await expect.poll(() => state.draft().content.priceCents).toBe(4550);
       expect(state.creates).toHaveLength(1);
       expect(state.creates[0]['p_connection_id']).toBeNull();
-      await editor.getByRole('button', { name: /^Vinted-Kategorie/ }).click();
+      await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+      await expect(page.getByRole('option', { name: /Kleidung/ })).toBeVisible();
+      expect(
+        (await page.getByRole('dialog', { name: 'Kategorie', exact: true }).boundingBox())!.height,
+      ).toBeLessThan(220);
       await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Jacken');
       await page.getByRole('option', { name: /Jacken/ }).click();
       await saveDraft(page);
@@ -1000,23 +1084,30 @@ for (const width of [1440, 390])
         { name: 'blue.png', mimeType: 'image/png', buffer: state.pixel },
         { name: 'second.png', mimeType: 'image/png', buffer: state.pixel },
       ]);
-      const crop = editor.getByRole('button', {
-        name: 'blue.png zuschneiden oder drehen',
+      const image = editor.getByRole('button', {
+        name: 'Hauptbild: blue.png, Details öffnen',
         exact: true,
       });
-      await crop.click();
-      const dialog = page.getByRole('dialog', { name: 'Bild zuschneiden', exact: true });
-      await expect(dialog).toBeVisible();
+      await image.click();
+      const details = page.getByRole('dialog', { name: 'Bilddetails', exact: true });
+      await details.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Bild für Vinted zuschneiden', exact: true });
       await expect(
         dialog.getByRole('button', { name: 'Bild übernehmen', exact: true }),
       ).toBeEnabled();
+      const frame = dialog.locator('.ngx-ic-cropper');
+      const rect = await frame.boundingBox();
+      expect(rect).not.toBeNull();
+      expect(rect!.width / rect!.height).toBeCloseTo(2 / 3, 1);
       await page.keyboard.press('Escape');
       await expect(dialog).not.toBeVisible();
-      await expect(crop).toBeFocused();
       await saveDraft(page);
       await expect.poll(() => state.draft().images.length).toBe(2);
-      await expect(editor.getByText('In Flipbase gespeichert', { exact: true })).toBeVisible();
-      await editor.getByRole('button', { name: 'blue.png nach hinten', exact: true }).click();
+      await expect(editor.getByText('Entwurf gespeichert', { exact: true })).toBeVisible();
+      await image.click();
+      await details.getByRole('combobox', { name: 'Position in der Galerie', exact: true }).click();
+      await page.getByRole('option', { name: '2', exact: true }).click();
+      await details.getByRole('button', { name: 'Übernehmen', exact: true }).click();
       await saveDraft(page);
       await expect.poll(() => state.draft().images[0]?.fileName).toBe('second.png');
       expect(state.uploads()).toBe(2);
@@ -1035,7 +1126,7 @@ for (const width of [1440, 390])
       await expect(editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
         '45,50',
       );
-      await expect(editor.getByRole('button', { name: /^Vinted-Kategorie/ })).toContainText(
+      await expect(editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ })).toContainText(
         'Jacken',
       );
       await editor
@@ -1060,7 +1151,7 @@ for (const width of [1440, 390])
         '45,50',
       );
       await expect(
-        editor.getByRole('button', { name: 'second.png nach hinten', exact: true }),
+        editor.getByRole('button', { name: 'Hauptbild: second.png, Details öffnen', exact: true }),
       ).toBeVisible();
       const history = editor.locator('app-vinted-listing-job-panel');
       await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();

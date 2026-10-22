@@ -9,10 +9,15 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
 import type { VintedBrand } from '../../../platform-admin/models/vinted-brand.model';
 import { VintedListingBrandDialogComponent } from './vinted-listing-brand-dialog.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: AttributePickerComponent,
+      path: 'src/app/shared/components/attribute-picker/attribute-picker.component.ts',
+    },
     {
       type: VintedListingBrandDialogComponent,
       path: 'src/app/features/marketplaces/components/vinted-listing-brand-dialog/vinted-listing-brand-dialog.component.ts',
@@ -34,7 +39,10 @@ beforeAll(async () => {
   ]);
 });
 afterAll(() => restore?.());
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  vi.useRealTimers();
+});
 const brands = [
   { id: 317425, name: 'Jako-o' },
   { id: 254956, name: 'Jako' },
@@ -57,6 +65,24 @@ function setup() {
   return { fixture, component: fixture.componentInstance, search, selected, closed };
 }
 describe('Vinted listing brand dialog', () => {
+  it('sucht direkt beim Tippen und bestätigt nur den gewählten Katalogtreffer', async () => {
+    vi.useFakeTimers();
+    const f = setup();
+    f.fixture.componentRef.setInput('inline', true);
+    f.fixture.detectChanges();
+    const edited = vi.fn();
+    f.component.edited.subscribe(edited);
+    f.component.searchText('Jako');
+    f.component.labelControl.setValue('Jako');
+    expect(edited).toHaveBeenCalledWith('Jako');
+    expect(f.selected).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(201);
+    f.fixture.detectChanges();
+    expect(f.search).toHaveBeenCalledWith('Jako', 'workspace-a');
+    f.component.labelControl.setValue('Jako');
+    expect(f.selected).toHaveBeenLastCalledWith({ brandId: 254956, brandLabel: 'Jako' });
+    expect(f.fixture.nativeElement.querySelector('dialog')).toBeNull();
+  });
   it('renders real choices and emits the chosen ID and canonical name together', async () => {
     const f = setup();
     await f.component.search();

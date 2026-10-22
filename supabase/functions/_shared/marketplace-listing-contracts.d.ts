@@ -1,5 +1,6 @@
 /** Unvollständige Arbeitskopie; keine Freigabe für eine Anbieteraktion. */
 export interface VintedListingContent {
+  readonly aiPhoto?: boolean;
   readonly title: string;
   readonly description: string;
   readonly priceCents: number | null;

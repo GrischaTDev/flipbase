@@ -11,10 +11,15 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { VintedListingFieldsDialogComponent } from './vinted-listing-fields-dialog.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: AttributePickerComponent,
+      path: 'src/app/shared/components/attribute-picker/attribute-picker.component.ts',
+    },
     {
       type: VintedListingFieldsDialogComponent,
       path: 'src/app/features/marketplaces/components/vinted-listing-fields-dialog/vinted-listing-fields-dialog.component.ts',
@@ -72,6 +77,50 @@ async function settle(f: ReturnType<typeof setup>) {
   f.fixture.detectChanges();
 }
 describe('Vinted category field dialog', () => {
+  it('sperrt direkte Farben und Materialien beim Speichern und gibt sie danach wieder frei', async () => {
+    const f = setup();
+    f.fixture.componentRef.setInput('inline', true);
+    await settle(f);
+    f.fixture.componentRef.setInput('disabled', true);
+    await settle(f);
+    expect(f.component.colorLabels.disabled).toBe(true);
+    expect(f.component.materialLabels.disabled).toBe(true);
+    f.fixture.componentRef.setInput('disabled', false);
+    await settle(f);
+    expect(f.component.colorLabels.enabled).toBe(true);
+    expect(f.component.materialLabels.enabled).toBe(true);
+    expect(f.selected).not.toHaveBeenCalled();
+  });
+  it('zeigt nicht mehr angebotene Entwurfswerte direkt an und erfindet dafür keine Kennungen', async () => {
+    const f = setup();
+    f.fixture.componentRef.setInput('inline', true);
+    f.fixture.componentRef.setInput('content', {
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      sizeLabel: 'Alte Sondergröße',
+      colorLabels: ['Alte Sonderfarbe'],
+    });
+    await settle(f);
+    expect(f.fixture.nativeElement.textContent).toContain('Bisher: Alte Sondergröße');
+    expect(f.fixture.nativeElement.textContent).toContain('Bisher: Alte Sonderfarbe');
+    expect(f.component.form.controls.sizeId.value).toBeNull();
+    expect(f.component.colorIds()).toEqual([]);
+    expect(f.selected).not.toHaveBeenCalled();
+  });
+  it('übernimmt im direkten Feld nur die geänderte Angabe und öffnet keinen Dialog', async () => {
+    const f = setup();
+    f.fixture.componentRef.setInput('inline', true);
+    f.fixture.componentRef.setInput('section', 'details');
+    await settle(f);
+    f.component.form.controls.sizeId.setValue(208);
+    expect(f.selected).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: ['size'],
+        values: expect.objectContaining({ sizeId: 208 }),
+      }),
+    );
+    expect(f.fixture.nativeElement.querySelector('dialog')).toBeNull();
+  });
   it('loads the explicit target once and applies real choices only on confirmation', async () => {
     const f = setup();
     await settle(f);

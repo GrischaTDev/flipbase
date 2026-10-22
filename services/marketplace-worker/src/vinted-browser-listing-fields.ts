@@ -61,9 +61,11 @@ function choiceLocator(
       .and(page.getByTestId(`size-group-${group}-grid-option-${id}`));
   if (field === 'category')
     return page.locator(`[role="radio"]#catalog-${id},[role="radio"]#catalog-suggestion-${id}`);
-  return page.locator(
-    `[role="${field === 'color' || field === 'material' ? 'checkbox' : 'radio'}"]#${field}-${id}`,
-  );
+  if (field === 'color')
+    return page.locator(
+      `[role="checkbox"]#color-${id},[role="checkbox"][data-testid="filter-grid-option-${id}"]:has([data-testid="color-${id}"])`,
+    );
+  return page.locator(`[role="${field === 'material' ? 'checkbox' : 'radio'}"]#${field}-${id}`);
 }
 async function clickEnabled(locator: Locator): Promise<void> {
   const choices = await locator.filter({ visible: true }).all();

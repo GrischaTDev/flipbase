@@ -223,7 +223,9 @@ for (const width of [1440, 390]) {
       await page.getByRole('option', { name: 'Individuelle Wartezeit', exact: true }).click();
       await view.getByRole('combobox', { name: 'Zeiteinheit', exact: true }).click();
       await page.getByRole('option', { name: 'Minuten', exact: true }).click();
+      await expect(view.getByLabel('Wartezeit nach dem Ereignis')).toHaveValue('1');
       await view.getByLabel('Wartezeit nach dem Ereignis').fill('7');
+      await expect(view.getByLabel('Wartezeit nach dem Ereignis')).toHaveValue('7');
       await expect(view).toContainText('45,00');
       await expect(view).toContainText('42,00');
       await expect(view).toContainText('40,00');

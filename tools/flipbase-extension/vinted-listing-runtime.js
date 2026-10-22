@@ -181,7 +181,8 @@
         '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand',
       size: '[role="checkbox"][data-testid^="size-group-"]',
       condition: '[role="radio"][id^="condition-"]',
-      color: '[role="checkbox"][id^="color-"]',
+      color:
+        '[role="checkbox"][id^="color-"],[role="checkbox"][data-testid^="filter-grid-option-"]:has([data-testid^="color-"])',
       material: '[role="checkbox"][id^="material-"]',
       package: 'input[id^="package_type_selector_"]',
     };
@@ -204,6 +205,25 @@
         }
       }
       if (hidden) continue;
+      let id = field === 'size' ? element.getAttribute('data-testid') : element.id;
+      if (
+        field === 'color' &&
+        element.getAttribute('data-testid')?.startsWith('filter-grid-option-')
+      ) {
+        const grid = /^filter-grid-option-([1-9][0-9]*)$/.exec(element.getAttribute('data-testid'));
+        const colors = [...element.querySelectorAll('[data-testid^="color-"]')].filter((color) =>
+          /^color-[1-9][0-9]*$/.test(color.getAttribute('data-testid')),
+        );
+        if (
+          !grid ||
+          colors.length !== 1 ||
+          colors[0].getAttribute('data-testid') !== 'color-' + grid[1] ||
+          (element.id && element.id !== 'color-' + grid[1])
+        )
+          throw new Error('Vinted-Farbauswahl nicht eindeutig.');
+        // Die innere Farbkennung und die äußere Grid-Kennung müssen dieselbe Farbe belegen.
+        id = 'color-' + grid[1];
+      }
       const labelledBy = (element.getAttribute('aria-labelledby') || '')
         .split(/\s+/)
         .map((id) => document.getElementById(id)?.textContent || '')
@@ -213,7 +233,7 @@
         '[data-testid$="--title"],[class*="__Cell__title"]',
       )?.textContent;
       result.push({
-        id: field === 'size' ? element.getAttribute('data-testid') : element.id,
+        id,
         label: (
           element.getAttribute('aria-label') ||
           labelledBy ||
