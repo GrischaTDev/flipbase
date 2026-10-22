@@ -486,28 +486,66 @@ test('legacy network-worker handover does not repeatedly offer the already loade
     .toBe('installed');
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-legacy-handover-blocked', 'true');
+  const previousTimeOrigin = await page.evaluate(() => {
+    // Observe after the application listener whether its reload has already started.
+    navigator.serviceWorker.addEventListener(
+      'controllerchange',
+      () => (document.documentElement.dataset['legacyControllerChanged'] = 'true'),
+      { once: true },
+    );
+    window.addEventListener(
+      'beforeunload',
+      () => (document.documentElement.dataset['legacyDocumentUnloading'] = 'true'),
+      { once: true },
+    );
+    return performance.timeOrigin;
+  });
   await legacy.close();
-  // Die Rückkehrprüfung kann schon beim Schließen des anderen Fensters
-  // übernehmen. Den bestätigten Workerzustand statt eines zweiten load prüfen.
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+  // Closing the other window can already trigger the return check and handover.
+  // A document navigation that has started by then is expected.
+  await page
+    .evaluate(() => window.dispatchEvent(new Event('focus')))
+    .catch((error: unknown) => {
+      if (error instanceof Error && error.message.includes('Execution context was destroyed'))
+        return;
+      throw error;
+    });
   await expect
     .poll(() =>
       page
-        .evaluate(async () => {
+        .evaluate(async (previousTimeOrigin) => {
           const registration = await navigator.serviceWorker.getRegistration('/');
-          return (
-            !registration?.waiting &&
-            navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')
-          );
-        })
+          const controller = navigator.serviceWorker.controller;
+          const documentChanged = performance.timeOrigin !== previousTimeOrigin;
+          const controllerHandled =
+            document.documentElement.dataset['legacyControllerChanged'] === 'true';
+          const unloading = document.documentElement.dataset['legacyDocumentUnloading'] === 'true';
+          // The already loaded build can take over without an automatic reload.
+          // An old document that has started unloading is not ready yet.
+          return {
+            documentSettled: (documentChanged || controllerHandled) && !unloading,
+            waiting: registration?.waiting?.state ?? null,
+            currentController: controller?.scriptURL.endsWith('/sw.js') ?? false,
+            controllerState: controller?.state ?? null,
+            documentChanged,
+            controllerHandled,
+            unloading,
+          };
+        }, previousTimeOrigin)
         .catch((error: unknown) => {
           if (error instanceof Error && error.message.includes('Execution context was destroyed'))
-            return false;
+            return { documentSettled: false };
           throw error;
         }),
     )
-    .toBe(true);
+    .toMatchObject({
+      documentSettled: true,
+      waiting: null,
+      currentController: true,
+      controllerState: 'activated',
+    });
+  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+  await expect(page.locator('#app-startup')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
