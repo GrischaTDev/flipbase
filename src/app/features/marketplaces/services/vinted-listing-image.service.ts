@@ -19,6 +19,28 @@ export function vintedDraftImageError(file: File): string | null {
 export class VintedListingImageService {
   private readonly client = inject(SupabaseService).client;
   private readonly bucket = 'marketplace-listing-media';
+  async thumbnailUrls(drafts: readonly VintedListingDraft[]): Promise<ReadonlyMap<string, string>> {
+    const covers = drafts.flatMap((draft) =>
+      draft.images[0] ? [{ id: draft.id, path: draft.images[0].storagePath }] : [],
+    );
+    if (!covers.length) return new Map();
+    const { data, error } = await this.client.storage.from(this.bucket).createSignedUrls(
+      covers.map((cover) => cover.path),
+      3600,
+    );
+    if (error) throw new Error('Die Vorschaubilder konnten nicht geladen werden.');
+    const urls = new Map(
+      (data ?? [])
+        .filter((image) => !image.error && image.signedUrl)
+        .map((image) => [image.path, image.signedUrl]),
+    );
+    return new Map(
+      covers.flatMap((cover) => {
+        const url = urls.get(cover.path);
+        return url ? [[cover.id, url] as const] : [];
+      }),
+    );
+  }
   async renamedFile(draft: VintedListingDraft, imageId: string, name: string): Promise<File> {
     const image = draft.images.find((entry) => entry.id === imageId);
     if (!image || !name.trim() || name.length > 255)

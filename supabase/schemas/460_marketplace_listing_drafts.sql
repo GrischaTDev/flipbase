@@ -60,16 +60,18 @@ create table public.marketplace_listing_drafts (
   foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete set null (connection_id),
   foreign key (workspace_id, inventory_item_id) references public.inventory_items(workspace_id, id) on delete set null (inventory_item_id),
   unique (workspace_id, id),
-  unique (workspace_id, created_by, request_id)
+  unique (workspace_id, created_by, request_id),
+  deleted_at timestamptz
 );
 comment on table public.marketplace_listing_drafts is 'Unvollständige Vinted-Arbeitskopien; jede Inhalts- und Bildänderung benötigt die aktuelle Revision.';
-create index marketplace_listing_drafts_workspace on public.marketplace_listing_drafts(workspace_id, updated_at desc, id desc);
+comment on column public.marketplace_listing_drafts.deleted_at is 'Gelöschte Arbeitskopien bleiben für abgeschlossene Aufträge und Originalfotos erhalten, sind aber nicht mehr lesbar oder bearbeitbar.';
+create index marketplace_listing_drafts_workspace on public.marketplace_listing_drafts(workspace_id, created_at desc, id desc) where deleted_at is null;
 create index marketplace_listing_drafts_connection on public.marketplace_listing_drafts(connection_id);
 create index marketplace_listing_drafts_creator on public.marketplace_listing_drafts(created_by);
 create index marketplace_listing_drafts_inventory on public.marketplace_listing_drafts(inventory_item_id);
 alter table public.marketplace_listing_drafts enable row level security;
 create policy "Eigene Inseratentwürfe lesen" on public.marketplace_listing_drafts
-for select to authenticated using (public.marketplace_can_manage(workspace_id));
+for select to authenticated using (deleted_at is null and public.marketplace_can_manage(workspace_id));
 create policy "Entwürfe nur per RPC anlegen" on public.marketplace_listing_drafts for insert to authenticated with check (false);
 create policy "Entwürfe nur per RPC ändern" on public.marketplace_listing_drafts for update to authenticated using (false) with check (false);
 create policy "Entwürfe nur per RPC löschen" on public.marketplace_listing_drafts for delete to authenticated using (false);
@@ -98,6 +100,22 @@ end;
 $$;
 revoke all on function public.marketplace_lock_listing_workspace(uuid) from public, anon, authenticated, service_role;
 
+-- Nach dem Workspace-Recht auch den aktiven Entwurf sperren und erneut prüfen.
+-- So können alte Tabs nach einer gleichzeitigen Löschung weder speichern noch veröffentlichen.
+create or replace function public.marketplace_lock_listing_draft(p_id text)
+returns public.marketplace_listing_drafts language plpgsql volatile security definer set search_path = '' as $$
+declare v_draft public.marketplace_listing_drafts;
+begin
+  select * into v_draft from public.marketplace_listing_drafts where id=p_id::bigint and deleted_at is null;
+  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
+  perform public.marketplace_lock_listing_workspace(v_draft.workspace_id);
+  select * into v_draft from public.marketplace_listing_drafts where id=p_id::bigint and deleted_at is null for update;
+  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
+  return v_draft;
+end;
+$$;
+revoke all on function public.marketplace_lock_listing_draft(text) from public, anon, authenticated, service_role;
+
 create or replace function public.marketplace_create_listing_draft(p_workspace_id uuid, p_connection_id uuid, p_content jsonb, p_inventory_item_id uuid default null, p_request_id uuid default gen_random_uuid())
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_draft public.marketplace_listing_drafts;
@@ -107,7 +125,10 @@ begin
   if p_request_id is null then raise exception 'Die Anfragekennung fehlt.' using errcode='22023'; end if;
   perform pg_advisory_xact_lock(hashtextextended(p_workspace_id::text||':'||(select auth.uid())::text||':'||p_request_id::text,460));
   select * into v_draft from public.marketplace_listing_drafts where workspace_id=p_workspace_id and created_by=(select auth.uid()) and request_id=p_request_id;
-  if found then return public.marketplace_listing_draft_document(v_draft); end if;
+  if found then
+    if v_draft.deleted_at is not null then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
+    return public.marketplace_listing_draft_document(v_draft);
+  end if;
   if p_connection_id is not null and not exists (select 1 from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted') then raise exception 'Kein Zugriff auf dieses Konto.' using errcode='42501'; end if;
   if p_inventory_item_id is not null and not exists (select 1 from public.inventory_items where workspace_id=p_workspace_id and id=p_inventory_item_id and archived_at is null) then raise exception 'Kein Zugriff auf diesen Artikel.' using errcode='42501'; end if;
   insert into public.marketplace_listing_drafts(workspace_id, connection_id, content, created_by, inventory_item_id, request_id)
@@ -120,7 +141,7 @@ create or replace function public.marketplace_read_listing_draft(p_id text)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare v_draft public.marketplace_listing_drafts;
 begin
-  select * into v_draft from public.marketplace_listing_drafts where id=p_id::bigint;
+  select * into v_draft from public.marketplace_listing_drafts where id=p_id::bigint and deleted_at is null;
   if not found or not public.marketplace_can_manage(v_draft.workspace_id) then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
   return public.marketplace_listing_draft_document(v_draft);
 end;
@@ -133,21 +154,35 @@ begin
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode='42501'; end if;
   if p_query is null or length(p_query)>160 or p_limit is null or p_limit not between 1 and 100 then raise exception 'Ungültige Entwurfssuche.' using errcode='22023'; end if;
   if p_cursor is not null and p_cursor<>'null'::jsonb then
-    if jsonb_typeof(p_cursor)<>'object' or coalesce(p_cursor->>'id','') !~ '^[1-9][0-9]{0,18}$' or coalesce(p_cursor->>'updatedAt','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' then raise exception 'Ungültiger Seitenzeiger.' using errcode='22023'; end if;
-    v_cursor_id:=(p_cursor->>'id')::bigint;v_cursor_at:=(p_cursor->>'updatedAt')::timestamptz;
+    if jsonb_typeof(p_cursor)<>'object' or jsonb_typeof(p_cursor->'id') is distinct from 'string'
+      or coalesce(p_cursor->>'id','') !~ '^[1-9][0-9]{0,18}$' then raise exception 'Ungültiger Seitenzeiger.' using errcode='22023'; end if;
+    v_cursor_id:=(p_cursor->>'id')::bigint;
+    if p_cursor ? 'createdAt' then
+      if jsonb_typeof(p_cursor->'createdAt') is distinct from 'string'
+        or coalesce(p_cursor->>'createdAt','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' then raise exception 'Ungültiger Seitenzeiger.' using errcode='22023'; end if;
+      v_cursor_at:=(p_cursor->>'createdAt')::timestamptz;
+    else
+      -- Bereits geöffnete ältere Clients senden nur updatedAt. Ihr Datum bestimmt niemals die Sortierung.
+      -- Auch gelöschte Arbeitskopien bleiben als eindeutig zugeordnete Cursor-Anker erhalten.
+      if jsonb_typeof(p_cursor->'updatedAt') is distinct from 'string'
+        or coalesce(p_cursor->>'updatedAt','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' then raise exception 'Ungültiger Seitenzeiger.' using errcode='22023'; end if;
+      perform (p_cursor->>'updatedAt')::timestamptz;
+      select created_at into v_cursor_at from public.marketplace_listing_drafts where workspace_id=p_workspace_id and id=v_cursor_id;
+      if not found then raise exception 'Ungültiger Seitenzeiger.' using errcode='22023'; end if;
+    end if;
   end if;
-  select coalesce(jsonb_agg(public.marketplace_listing_draft_document(d) order by d.updated_at desc,d.id desc),'[]'::jsonb) into v_rows from (
-    select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id
+  select coalesce(jsonb_agg(public.marketplace_listing_draft_document(d) order by d.created_at desc,d.id desc),'[]'::jsonb) into v_rows from (
+    select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id and deleted_at is null
       and (btrim(p_query)='' or position(lower(btrim(p_query)) in lower(content->>'title'))>0)
-      and (v_cursor_id is null or (updated_at,id)<(v_cursor_at,v_cursor_id))
-    order by updated_at desc,id desc limit p_limit+1
+      and (v_cursor_id is null or (created_at,id)<(v_cursor_at,v_cursor_id))
+    order by created_at desc,id desc limit p_limit+1
   ) d;
   v_more:=jsonb_array_length(v_rows)>p_limit;
   if v_more then
     v_last:=v_rows->(p_limit-1);
     select jsonb_agg(value order by position) into v_rows from jsonb_array_elements(v_rows) with ordinality page(value,position) where position<=p_limit;
   end if;
-  return jsonb_build_object('items',v_rows,'nextCursor',case when v_more then jsonb_build_object('id',v_last->>'id','updatedAt',v_last->>'updatedAt') else null end);
+  return jsonb_build_object('items',v_rows,'nextCursor',case when v_more then jsonb_build_object('id',v_last->>'id','createdAt',v_last->>'createdAt','updatedAt',v_last->>'updatedAt') else null end);
 end;
 $$;
 
@@ -155,11 +190,7 @@ create or replace function public.marketplace_save_listing_draft(p_id text, p_ex
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_draft public.marketplace_listing_drafts;
 begin
-  select * into v_draft from public.marketplace_listing_drafts where id=p_id::bigint;
-  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
-  perform public.marketplace_lock_listing_workspace(v_draft.workspace_id);
-  select * into v_draft from public.marketplace_listing_drafts where id=p_id::bigint for update;
-  if not found then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
+  v_draft:=public.marketplace_lock_listing_draft(p_id);
   if p_expected_revision is null or v_draft.revision <> p_expected_revision then raise exception 'Der Entwurf wurde auf einem anderen Gerät geändert. Lade den aktuellen Stand.' using errcode='40001'; end if;
   if not public.marketplace_listing_content_valid(p_content) then raise exception 'Ungültige Inseratangaben.' using errcode='22023'; end if;
   if p_connection_id is not null and not exists (select 1 from public.marketplace_connections where workspace_id=v_draft.workspace_id and id=p_connection_id and marketplace='vinted') then raise exception 'Kein Zugriff auf dieses Konto.' using errcode='42501'; end if;
@@ -168,5 +199,24 @@ begin
 end;
 $$;
 
+-- Nur die Arbeitskopie ausblenden: Auftragsverlauf, Originalfotos und öffentliche Inserate bleiben erhalten.
+-- Die Entwurfsperre serialisiert das Löschen mit Änderungen und der Annahme neuer Aufträge.
+create or replace function public.marketplace_delete_listing_draft(p_workspace_id uuid, p_id text, p_expected_revision bigint)
+returns void language plpgsql volatile security definer set search_path = '' as $$
+declare v_draft public.marketplace_listing_drafts;
+begin
+  v_draft:=public.marketplace_lock_listing_draft(p_id);
+  if p_workspace_id is null or v_draft.workspace_id<>p_workspace_id then raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501'; end if;
+  if p_expected_revision is null or v_draft.revision<>p_expected_revision then raise exception 'Der Entwurf wurde inzwischen geändert.' using errcode='40001'; end if;
+  if exists(select 1 from public.marketplace_listing_jobs where workspace_id=p_workspace_id and draft_id=v_draft.id
+    and state in ('queued','paused','claimed','writing','outcome_unknown')) then
+    raise exception 'Dieser Entwurf hat noch eine geplante, laufende oder ungeklärte Veröffentlichung.' using errcode='55000';
+  end if;
+  update public.marketplace_listing_drafts set deleted_at=now(),revision=revision+1,updated_at=now() where workspace_id=p_workspace_id and id=v_draft.id;
+end;
+$$;
+
 revoke all on function public.marketplace_create_listing_draft(uuid, uuid, jsonb, uuid, uuid), public.marketplace_read_listing_draft(text), public.marketplace_list_listing_drafts(uuid,text,jsonb,integer), public.marketplace_save_listing_draft(text, bigint, jsonb, uuid) from public, anon;
 grant execute on function public.marketplace_create_listing_draft(uuid, uuid, jsonb, uuid, uuid), public.marketplace_read_listing_draft(text), public.marketplace_list_listing_drafts(uuid,text,jsonb,integer), public.marketplace_save_listing_draft(text, bigint, jsonb, uuid) to authenticated;
+revoke all on function public.marketplace_delete_listing_draft(uuid, text, bigint) from public, anon;
+grant execute on function public.marketplace_delete_listing_draft(uuid, text, bigint) to authenticated;

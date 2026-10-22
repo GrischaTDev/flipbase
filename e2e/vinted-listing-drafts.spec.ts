@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
@@ -66,6 +66,11 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
     imageId = 0,
     uploads = 0,
     jobReads = 0;
+  let overviewDrafts: (typeof draft)[] | null = null;
+  let failNextDeletion = false;
+  const draftLists: Record<string, unknown>[] = [];
+  const draftDeletes: Record<string, unknown>[] = [];
+  const signedImageBatches: string[][] = [];
   const jobs = [
     {
       id: '1',
@@ -223,13 +228,37 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
       };
       templates = [...templates, template];
       return route.fulfill({ json: template });
-    } else if (name === 'marketplace_list_listing_drafts')
-      return route.fulfill({ json: { items: created ? [draft] : [], nextCursor: null } });
+    } else if (name === 'marketplace_list_listing_drafts') {
+      draftLists.push(body);
+      return route.fulfill({
+        json: { items: overviewDrafts ?? (created ? [draft] : []), nextCursor: null },
+      });
+    } else if (name === 'marketplace_delete_listing_draft') {
+      draftDeletes.push(body);
+      const selected = (overviewDrafts ?? (created ? [draft] : [])).find(
+        (entry) => entry.id === body['p_id'],
+      );
+      if (
+        !selected ||
+        body['p_workspace_id'] !== selected.workspaceId ||
+        body['p_expected_revision'] !== selected.revision
+      )
+        return route.fulfill({ status: 409, json: { code: '40001' } });
+      if (failNextDeletion) {
+        failNextDeletion = false;
+        return route.fulfill({ status: 409, json: { code: '55000' } });
+      }
+      if (overviewDrafts)
+        overviewDrafts = overviewDrafts.filter((entry) => entry.id !== selected.id);
+      else created = false;
+      return route.fulfill({ json: null });
+    }
     return route.fulfill({ json: draft });
   });
   await page.route('**/storage/v1/**', async (route) => {
     if (route.request().method() === 'POST' && route.request().url().includes('/object/sign/')) {
       const body = route.request().postDataJSON() as { paths: string[] };
+      signedImageBatches.push(body.paths);
       return route.fulfill({
         json: body.paths.map((path) => ({
           path,
@@ -254,6 +283,15 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
     templateSaves,
     jobCancels,
     reschedules,
+    draftLists,
+    draftDeletes,
+    signedImageBatches,
+    setOverviewDrafts: (items: (typeof draft)[]) => {
+      overviewDrafts = items;
+    },
+    failNextDelete: () => {
+      failNextDeletion = true;
+    },
     draft: () => draft,
     uploads: () => uploads,
     pixel,
@@ -1194,3 +1232,235 @@ for (const width of [1440, 390])
       expect(errors).toEqual([]);
     });
   }
+
+for (const width of [1440, 390]) {
+  test.describe(`Entwurfsübersicht bei ${width}px`, () => {
+    test.use({ hasTouch: width === 390 });
+
+    for (const dark of [false, true]) {
+      test(`zeigt und löscht Entwürfe in Raster und Liste ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height: 1000 });
+        const state = await mockDrafts(page, true);
+        if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
+        const newestTitle =
+          'Neue Lieblingsjacke mit besonders langem Titel für die Entwurfsübersicht';
+        const newest = {
+          ...state.draft(),
+          id: '9007199254741003',
+          revision: 3,
+          content: {
+            ...emptyVintedListingContent(),
+            title: newestTitle,
+            priceCents: 2550,
+            brandLabel: 'BesondersLangeMarkeOhneLeerzeichen',
+            sizeLabel: 'M',
+            conditionLabel: 'Sehr gut',
+          },
+          createdAt: '2026-10-20T12:00:00Z',
+          updatedAt: '2026-10-20T12:00:00Z',
+        };
+        newest.images = ['main', 'detail'].map((name, index) => ({
+          id: index === 0 ? '9' : '1',
+          storagePath: `${workspaceId}/${newest.id}/${name}.png`,
+          fileName: `${name}.png`,
+          mimeType: 'image/png',
+          byteSize: state.pixel.length,
+        }));
+        const older = {
+          ...state.draft(),
+          id: '9007199254741001',
+          revision: 7,
+          connectionId: null,
+          content: { ...emptyVintedListingContent(), title: 'Älterer Pullover' },
+          createdAt: '2026-10-18T10:00:00Z',
+          updatedAt: '2026-10-22T13:00:00Z',
+        };
+        const unnamed = {
+          ...state.draft(),
+          connectionId: null,
+          images: [
+            {
+              id: '2',
+              storagePath: `${workspaceId}/${state.draft().id}/unnamed.png`,
+              fileName: 'unnamed.png',
+              mimeType: 'image/png',
+              byteSize: state.pixel.length,
+            },
+          ],
+          createdAt: '2026-10-15T08:00:00Z',
+          updatedAt: '2026-10-21T13:00:00Z',
+        };
+        // Der Server liefert Erstelldaten absteigend; spätere Änderungen dürfen diese Folge nicht ersetzen.
+        const drafts = [newest, older, unnamed];
+        state.setOverviewDrafts(drafts);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.goto('/marketplaces/vinted/listing-drafts');
+        const overview = page.locator('app-vinted-listing-drafts');
+        const cards = overview.locator('app-card');
+        const links = overview.getByRole('link', { name: / bearbeiten$/ });
+        const views = overview.getByRole('group', { name: 'Entwurfsansicht', exact: true });
+        const gridView = views.getByRole('button', { name: 'Rasteransicht', exact: true });
+        const listView = views.getByRole('button', { name: 'Listenansicht', exact: true });
+        const deleteNewest = overview.getByRole('button', {
+          name: `${newestTitle} löschen`,
+          exact: true,
+        });
+        const deleteOlder = overview.getByRole('button', {
+          name: 'Älterer Pullover löschen',
+          exact: true,
+        });
+        const activate = (button: Locator) => (width === 390 ? button.tap() : button.click());
+
+        const checkRows = async () => {
+          await expect(cards).toHaveCount(3);
+          await expect(links).toHaveCount(3);
+          for (const [index, draft] of drafts.entries()) {
+            const title = draft.content.title || 'Unbenannter Entwurf';
+            await expect(links.nth(index)).toHaveAttribute('aria-label', `${title} bearbeiten`);
+            await expect(links.nth(index)).toHaveAttribute(
+              'href',
+              `/marketplaces/vinted/listing-drafts/${draft.id}`,
+            );
+            await expect(cards.nth(index).getByText('Entwurf', { exact: true })).toBeVisible();
+            await expect(cards.nth(index).locator('time')).toHaveAttribute(
+              'datetime',
+              draft.createdAt,
+            );
+            await expect(cards.nth(index).locator('time')).toContainText(
+              draft.createdAt.slice(0, 10).split('-').reverse().join('.'),
+            );
+          }
+          await expect(cards.first()).toContainText('25,50');
+          await expect(
+            cards.first().getByText(/BesondersLangeMarkeOhneLeerzeichen.*\bM\b/s),
+          ).toBeVisible();
+          await expect(cards.first()).toContainText('Testkonto A');
+          await expect(cards.nth(1)).toContainText('Noch offen');
+          await expect(cards.nth(1)).toContainText('Noch kein Konto');
+          await expect(cards.nth(1).locator('[data-product-placeholder]')).toBeVisible();
+          await expect(links.locator('button, a, [role="button"]')).toHaveCount(0);
+          await expect(overview.getByRole('button', { name: / löschen$/ })).toHaveCount(3);
+          expect(await deleteNewest.evaluate((button) => button.closest('a'))).toBeNull();
+        };
+        const checkAccessibility = async () => {
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+          ).toBe(true);
+          expect(
+            await page.evaluate(async () => {
+              const result = await (window as unknown as { axe: typeof axe }).axe.run(
+                document.querySelector('app-vinted-listing-drafts') as HTMLElement,
+              );
+              return result.violations;
+            }),
+          ).toEqual([]);
+        };
+
+        await expect(gridView).toHaveAttribute('aria-pressed', 'true');
+        await expect(listView).toHaveAttribute('aria-pressed', 'false');
+        await checkRows();
+        const mainImage = cards.first().locator('app-product-thumbnail img');
+        await expect(mainImage).toHaveAttribute(
+          'src',
+          new RegExp(`${newest.id}/main\\.png\\?token=fixture$`),
+        );
+        await expect
+          .poll(() => mainImage.evaluate((image) => (image as HTMLImageElement).naturalWidth > 0))
+          .toBe(true);
+        expect(state.signedImageBatches).toEqual([
+          [newest.images[0].storagePath, unnamed.images[0].storagePath],
+        ]);
+        expect(state.draftLists).toEqual([{ p_workspace_id: workspaceId, p_query: '' }]);
+        const gridBounds = (await cards.first().boundingBox())!;
+        const gridImageWidth = (await cards.first().locator('app-product-thumbnail').boundingBox())!
+          .width;
+        if (width === 390) {
+          expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+          for (const button of [gridView, listView, deleteNewest]) {
+            const bounds = (await button.boundingBox())!;
+            expect(bounds.width).toBeGreaterThanOrEqual(44);
+            expect(bounds.height).toBeGreaterThanOrEqual(44);
+          }
+        }
+        await page.evaluate(axe.source);
+        await checkAccessibility();
+        await page.screenshot({
+          path: testInfo.outputPath(`draft-overview-grid-${width}-${dark ? 'dark' : 'light'}.png`),
+          fullPage: true,
+        });
+
+        await activate(listView);
+        await expect(listView).toHaveAttribute('aria-pressed', 'true');
+        await expect(gridView).toHaveAttribute('aria-pressed', 'false');
+        await checkRows();
+        expect(
+          (await cards.first().locator('app-product-thumbnail').boundingBox())!.width,
+        ).toBeLessThan(gridImageWidth);
+        expect((await cards.first().boundingBox())!.height).toBeLessThan(gridBounds.height);
+        expect((await cards.first().boundingBox())!.width).toBeGreaterThan(width / 2);
+        await expect(mainImage).toHaveAttribute(
+          'src',
+          new RegExp(`${newest.id}/main\\.png\\?token=fixture$`),
+        );
+        await checkAccessibility();
+        await page.screenshot({
+          path: testInfo.outputPath(`draft-overview-list-${width}-${dark ? 'dark' : 'light'}.png`),
+          fullPage: true,
+        });
+
+        await gridView.focus();
+        await page.keyboard.press('Enter');
+        await expect(gridView).toHaveAttribute('aria-pressed', 'true');
+        await listView.focus();
+        await page.keyboard.press('Space');
+        await expect(listView).toHaveAttribute('aria-pressed', 'true');
+        expect(state.signedImageBatches).toHaveLength(1);
+
+        await activate(deleteNewest);
+        const dialog = page.getByRole('dialog', { name: 'Entwurf löschen?', exact: true });
+        await expect(dialog).toContainText(newestTitle);
+        expect(state.draftDeletes).toHaveLength(0);
+        await activate(dialog.getByRole('button', { name: 'Abbrechen', exact: true }));
+        await expect(dialog).not.toBeVisible();
+        await expect(deleteNewest).toBeFocused();
+        expect(state.draftDeletes).toHaveLength(0);
+        await checkRows();
+
+        state.failNextDelete();
+        await activate(deleteOlder);
+        await activate(dialog.getByRole('button', { name: 'Löschen', exact: true }));
+        await expect(dialog).not.toBeVisible();
+        await expect(overview.getByRole('alert')).toContainText(
+          'Dieser Entwurf hat noch eine geplante, laufende oder ungeklärte Veröffentlichung.',
+        );
+        await expect(deleteOlder).toBeEnabled();
+        await checkRows();
+        expect(state.draftDeletes).toEqual([
+          { p_workspace_id: workspaceId, p_id: older.id, p_expected_revision: older.revision },
+        ]);
+
+        await activate(deleteNewest);
+        await activate(dialog.getByRole('button', { name: 'Löschen', exact: true }));
+        await expect(dialog).not.toBeVisible();
+        await expect(overview.getByText('Entwurf gelöscht.', { exact: true })).toBeVisible();
+        await expect(links).toHaveCount(2);
+        await expect(links.first()).toHaveAttribute('aria-label', 'Älterer Pullover bearbeiten');
+        await expect(links.last()).toHaveAttribute('aria-label', 'Unbenannter Entwurf bearbeiten');
+        await expect(links.first()).toBeFocused();
+        await expect(deleteNewest).toHaveCount(0);
+        expect(state.draftDeletes).toEqual([
+          { p_workspace_id: workspaceId, p_id: older.id, p_expected_revision: older.revision },
+          { p_workspace_id: workspaceId, p_id: newest.id, p_expected_revision: newest.revision },
+        ]);
+        await expect(page).toHaveURL(/\/marketplaces\/vinted\/listing-drafts$/);
+        await page.reload();
+        await expect(links).toHaveCount(2);
+        await expect(deleteNewest).toHaveCount(0);
+        expect(errors).toEqual([]);
+      });
+    }
+  });
+}

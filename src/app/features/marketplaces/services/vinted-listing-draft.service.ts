@@ -6,12 +6,13 @@ import {
   listingResponse,
   parseVintedListingDraft,
   listingIdentifier,
+  VintedListingStorageError,
   type VintedListingDraft,
 } from '../models/vinted-listing-draft';
 
 export interface VintedListingDraftCursor {
   readonly id: string;
-  readonly updatedAt: string;
+  readonly createdAt: string;
 }
 export interface VintedListingDraftPage {
   readonly items: readonly VintedListingDraft[];
@@ -44,10 +45,14 @@ export class VintedListingDraftService {
       if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
         throw new Error('Der Seitenzeiger ist ungültig.');
       const value = candidate as Record<string, unknown>;
-      const updatedAt = value['updatedAt'];
-      if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt)))
+      const createdAt = value['createdAt'];
+      if (
+        typeof createdAt !== 'string' ||
+        !/^\d{4}-\d\d-\d\dT/.test(createdAt) ||
+        !Number.isFinite(Date.parse(createdAt))
+      )
         throw new Error('Der Seitenzeiger ist ungültig.');
-      nextCursor = { id: listingIdentifier(value['id']), updatedAt };
+      nextCursor = { id: listingIdentifier(value['id']), createdAt };
     }
     return {
       items: page['items'].map((value) => parseVintedListingDraft(value, workspaceId)),
@@ -99,5 +104,18 @@ export class VintedListingDraftService {
       draft.workspaceId,
       draft.id,
     );
+  }
+  async remove(draft: VintedListingDraft): Promise<void> {
+    const result = await this.client.rpc('marketplace_delete_listing_draft', {
+      p_workspace_id: draft.workspaceId,
+      p_id: draft.id,
+      p_expected_revision: draft.revision,
+    });
+    if (result.error?.code === '55000')
+      throw new VintedListingStorageError(
+        'request_failed',
+        'Dieser Entwurf hat noch eine geplante, laufende oder ungeklärte Veröffentlichung. Kläre den Auftrag, bevor du den Entwurf löschst.',
+      );
+    listingResponse(result);
   }
 }

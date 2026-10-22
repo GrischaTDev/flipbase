@@ -3983,6 +3983,7 @@ export type Database = {
           content: Json
           created_at: string
           created_by: string
+          deleted_at: string | null
           id: number
           image_ids: number[]
           inventory_item_id: string | null
@@ -3996,6 +3997,7 @@ export type Database = {
           content?: Json
           created_at?: string
           created_by: string
+          deleted_at?: string | null
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
@@ -4009,6 +4011,7 @@ export type Database = {
           content?: Json
           created_at?: string
           created_by?: string
+          deleted_at?: string | null
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
@@ -10497,6 +10500,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_delete_listing_draft: {
+        Args: {
+          p_expected_revision: number
+          p_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
       marketplace_delete_listing_template: {
         Args: {
           p_expected_revision: number
@@ -10985,6 +10996,29 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_lock_listing_draft: {
+        Args: { p_id: string }
+        Returns: {
+          connection_id: string | null
+          content: NonNullable<Json>
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          id: number
+          image_ids: number[]
+          inventory_item_id: string | null
+          request_id: string
+          revision: number
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "marketplace_listing_drafts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       marketplace_lock_listing_workspace: {
         Args: { p_workspace_id: string }
