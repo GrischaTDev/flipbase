@@ -6,9 +6,21 @@ export interface VintedPublicationAge {
 }
 export interface VintedPublicationVersion {
   externalId: string;
+  publicationState?: VintedPublicationState;
+  createdAt?: string | null;
   occurredAt: string | null;
   publicationAge: VintedPublicationAge | null;
   checkedAt: string | null;
+}
+
+export type VintedPublicationState =
+  'active' | 'reserved' | 'draft' | 'hidden' | 'ended' | 'unknown';
+
+export function parseVintedPublicationState(value: unknown): VintedPublicationState {
+  return typeof value === 'string' &&
+    ['active', 'reserved', 'draft', 'hidden', 'ended', 'unknown'].includes(value)
+    ? (value as VintedPublicationState)
+    : 'unknown';
 }
 
 export function parseVintedPublicationAge(value: unknown): VintedPublicationAge | null {
@@ -39,7 +51,7 @@ export function vintedPublicationAgeLabel(
 ): VintedPublicationAge | null {
   if (typeof label !== 'string' || label.length > 80) return null;
   const match =
-    /^(?:vor\s+)?(\d+|ein(?:e[rnm]?)?|an?|one)\s+(minuten?|minutes?|stunden?|hours?|tagen?|tage?|days?|wochen?|weeks?|monaten?|monate?|months?|jahren?|jahre?|years?)(?:\s+ago)?$/i.exec(
+    /^(?:vor\s+)?(\d+|ein(?:e[rnm]?)?|an?|one)\s+(minuten?|minutes?|stunden?|hours?|h|tagen?|tage?|days?|wochen?|weeks?|monaten?|monate?|months?|jahren?|jahre?|years?)(?:\s+ago)?$/i.exec(
       label.trim(),
     );
   if (!match) return null;
@@ -47,7 +59,7 @@ export function vintedPublicationAgeLabel(
   const sourceUnit = match[2]!.toLowerCase();
   const unit = /^(minut)/.test(sourceUnit)
     ? 'minute'
-    : /^(stund|hour)/.test(sourceUnit)
+    : /^(stund|hour|h$)/.test(sourceUnit)
       ? 'hour'
       : /^(tag|day)/.test(sourceUnit)
         ? 'day'

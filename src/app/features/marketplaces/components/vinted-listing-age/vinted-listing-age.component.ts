@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { vintedListingAge, type VintedPublicationAge } from '../../models/vinted-listing-age';
+import {
+  validListingTimestamp,
+  vintedListingAge,
+  type VintedPublicationAge,
+} from '../../models/vinted-listing-age';
+import type { VintedPublicationState } from '../../models/vinted-publication-state';
 import { VintedListingClockService } from '../../services/vinted-listing-clock.service';
 
 @Component({
@@ -14,22 +19,33 @@ export class VintedListingAgeComponent {
   readonly publishedAt = input<string | null | undefined>(null);
   readonly publishedOn = input<string | null | undefined>(null);
   readonly publicationAge = input<VintedPublicationAge | null | undefined>(null);
+  readonly createdAt = input<string | null | undefined>(null);
+  readonly publicationState = input<VintedPublicationState | 'processing' | undefined>(undefined);
   readonly compact = input(false);
   private readonly clock = inject(VintedListingClockService);
+  private readonly canShowPublication = computed(() => {
+    const state = this.publicationState();
+    return state === undefined || state === 'active' || state === 'reserved';
+  });
   readonly age = computed(() =>
     vintedListingAge(
-      this.publishedAt(),
+      this.canShowPublication() ? this.publishedAt() : null,
       this.clock.now(),
-      this.publicationAge(),
-      this.publishedOn(),
+      this.canShowPublication() ? this.publicationAge() : null,
+      this.canShowPublication() ? this.publishedOn() : null,
+      this.createdAt(),
     ),
   );
   readonly label = computed(() => this.age().text);
-  readonly dateTitle = computed(() =>
-    this.age().dateOnly
+  readonly dateTitle = computed(() => {
+    const title = this.age().dateOnly
       ? `${this.label()} · Veröffentlicht am: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(this.publishedOn()! + 'T00:00:00Z'))}`
       : this.age().tone === 'neutral' || this.age().approximate
         ? this.label() + (this.age().approximate ? ' · Gerundete Angabe von Vinted' : '')
-        : `${this.label()} · Veröffentlicht: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(this.publishedAt()!))}`,
-  );
+        : `${this.label()} · Veröffentlicht: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(this.publishedAt()!))}`;
+    const created = validListingTimestamp(this.createdAt(), this.clock.now());
+    return created === null
+      ? title
+      : `${title} · Erstellt: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(created)}`;
+  });
 }

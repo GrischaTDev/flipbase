@@ -117,6 +117,28 @@ describe('Zentrale Marktplatzdaten', () => {
     ).rejects.toThrow();
     expect(ebay.loadListings).not.toHaveBeenCalled();
   });
+  it.each(['draft', 'hidden', 'unknown'] as const)(
+    'erlaubt den Statusfilter %s nur für Vinted',
+    async (state) => {
+      const service = TestBed.inject(MarketplaceOverviewService);
+      const vintedAccount = { ...account, platform: 'vinted' as const };
+      const query = { state, search: '', limit: 25 };
+      api.readOverviewPublications.mockResolvedValue({
+        items: [],
+        total: 0,
+        nextCursor: null,
+        completeness: 'partial',
+      });
+      await service.loadListings(vintedAccount, query);
+      expect(api.readOverviewPublications).toHaveBeenCalledWith(vintedAccount, query);
+      await expect(service.loadListings(account, query)).rejects.toThrow('Inseratauswahl');
+      await expect(
+        service.loadListings({ ...account, platform: 'kleinanzeigen' }, query),
+      ).rejects.toThrow('Inseratauswahl');
+      expect(ebay.loadListings).not.toHaveBeenCalled();
+      expect(kleinanzeigen.readPage).not.toHaveBeenCalled();
+    },
+  );
   it('behält Vinted-Konten auch bei einem fehlgeschlagenen Vorschaulesen', async () => {
     api.canManage.mockResolvedValue(true);
     api.listConnections.mockResolvedValue({

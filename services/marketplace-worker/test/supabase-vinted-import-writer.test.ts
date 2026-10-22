@@ -217,13 +217,26 @@ test('publication cache remains bound to the active account and keeps exact and 
       return Response.json([
         {
           external_id: '41',
-          body: { occurredAt: null, publicationAge: age, publicationAgeCheckedAt: age.observedAt },
+          body: {
+            publicationState: 'active',
+            createdAt: '2026-10-01T10:00:00Z',
+            occurredAt: null,
+            publicationAge: age,
+            publicationAgeCheckedAt: age.observedAt,
+          },
         },
       ]);
     },
   });
   assert.deepEqual(await writer.publicationVersions(scope, sessionId), [
-    { externalId: '41', occurredAt: null, publicationAge: age, checkedAt: age.observedAt },
+    {
+      externalId: '41',
+      publicationState: 'active',
+      createdAt: '2026-10-01T10:00:00Z',
+      occurredAt: null,
+      publicationAge: age,
+      checkedAt: age.observedAt,
+    },
   ]);
   assert.equal(calls[1]?.url.pathname, '/rest/v1/rpc/marketplace_publication_versions');
   assert.equal(calls[1]?.init?.method, 'POST');
@@ -263,11 +276,66 @@ test('publication versions prefer confirmed Flipbase times and include publicati
     await writer.publicationVersions(scope, sessionId),
     ['41', '42'].map((externalId) => ({
       externalId,
+      publicationState: 'unknown',
+      createdAt: null,
       occurredAt: publishedAt,
       publicationAge: null,
       checkedAt: null,
     })),
   );
+});
+
+test('publication cache never promotes legacy creation timestamps or invalid states to confirmed publication evidence', async () => {
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: async (input) => {
+      if (String(input).endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: sessionId,
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      return Response.json([
+        {
+          external_id: '41',
+          body: {
+            occurredAt: '2026-10-01T10:00:00Z',
+            createdAt: '2026-10-01T10:00:00Z',
+            publicationState: 'draft',
+          },
+        },
+        {
+          external_id: '42',
+          body: {
+            occurredAt: '2026-10-01T10:00:00Z',
+            createdAt: false,
+            publicationState: 'published',
+          },
+        },
+      ]);
+    },
+  });
+  assert.deepEqual(await writer.publicationVersions(scope, sessionId), [
+    {
+      externalId: '41',
+      publicationState: 'draft',
+      createdAt: '2026-10-01T10:00:00Z',
+      occurredAt: null,
+      publicationAge: null,
+      checkedAt: null,
+    },
+    {
+      externalId: '42',
+      publicationState: 'unknown',
+      createdAt: null,
+      occurredAt: null,
+      publicationAge: null,
+      checkedAt: null,
+    },
+  ]);
 });
 
 test('publication versions reject an inactive session before accessing publication history', async () => {

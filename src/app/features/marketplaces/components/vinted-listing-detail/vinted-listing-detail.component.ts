@@ -14,6 +14,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
@@ -41,6 +42,7 @@ import {
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
+import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 
 @Component({
   selector: 'app-vinted-listing-detail',
@@ -49,6 +51,7 @@ import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-list
     CurrencyPipe,
     ReactiveFormsModule,
     ButtonComponent,
+    BadgeComponent,
     AttributePickerComponent,
     CardComponent,
     CustomSelectComponent,
@@ -66,6 +69,7 @@ import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-list
   host: { class: 'block min-w-0' },
 })
 export class VintedListingDetailComponent {
+  readonly publicationBadge = vintedPublicationBadge;
   readonly store = inject(MarketplaceAccountStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

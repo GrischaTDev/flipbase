@@ -27,14 +27,14 @@ insert into public.marketplace_connections(id,workspace_id,display_name,status) 
  ('34100000-0000-4000-8000-000000000023','34100000-0000-4000-8000-000000000012','Fremdes Konto','connected');
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('34100000-0000-4000-8000-000000000039','34100000-0000-4000-8000-000000000012','34100000-0000-4000-8000-000000000023','publication','item-foreign',
-  '{"title":"Fremd","metrics":{"views":1,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
+  '{"publicationState":"active","title":"Fremd","metrics":{"views":1,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
 update public.marketplace_account_entries set observed_at=now()-interval '1 hour',body=jsonb_set(body,'{metrics}','{"views":9000,"favorites":900}') where external_id='item-foreign';
 -- Artikel A auf Konto A: erste Messung vor 20 Tagen, danach vier weitere.
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('34100000-0000-4000-8000-000000000031','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000021','publication','item-a',
-  '{"title":"Jacke","imageUrl":"https://images.example.test/a.jpg","price":25,"currency":"EUR","metrics":{"views":100,"favorites":10}}',now()-interval '20 days',now()-interval '20 days'),
+  '{"publicationState":"active","title":"Jacke","imageUrl":"https://images.example.test/a.jpg","price":25,"currency":"EUR","metrics":{"views":100,"favorites":10}}',now()-interval '20 days',now()-interval '20 days'),
  ('34100000-0000-4000-8000-000000000032','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000022','publication','item-b',
-  '{"title":"Schal","metrics":{"views":5,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
+  '{"publicationState":"active","title":"Schal","metrics":{"views":5,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
 update public.marketplace_account_entries set observed_at=now()-interval '8 days',body=jsonb_set(body,'{metrics}','{"views":110,"favorites":11}') where external_id='item-a';
 update public.marketplace_account_entries set observed_at=now()-interval '2 days',body=jsonb_set(body,'{metrics}','{"views":150,"favorites":15}') where external_id='item-a';
 update public.marketplace_account_entries set observed_at=now()-interval '30 minutes',body=jsonb_set(body,'{metrics}','{"views":160,"favorites":null}') where external_id='item-a';
@@ -61,6 +61,21 @@ select is(pg_temp.overview('7d')->'totals'->>'favorites','7','Unbekannte Favorit
 select is(pg_temp.overview('7d')->'previousTotals'->>'views','10','Vorzeitraum zählt den Zuwachs von vor acht Tagen');
 select is(pg_temp.overview('7d')->'previousTotals'->>'favorites','1','Vorzeitraum zählt auch Favoriten');
 select is(pg_temp.overview('7d')->>'activeCount','1','Nur noch vorhandene Inserate zählen als aktiv');
+reset role;
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body)
+select '34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000021','publication','state-'||state,
+  jsonb_build_object('publicationState',state,'title',state)
+from unnest(array['draft','hidden','ended','unknown']) state;
+set local role authenticated;
+select is(pg_temp.overview('7d')->>'activeCount','1','Entwurf, verborgen, beendet und unbekannt zählen nicht als aktive Anzeigen');
+reset role;
+update public.marketplace_account_entries set body=jsonb_set(body,'{publicationState}','"reserved"'::jsonb) where external_id='state-hidden';
+set local role authenticated;
+select is(pg_temp.overview('7d')->>'activeCount','2','Ein aktuell belegtes reserviertes Inserat bleibt im veröffentlichten Bestand');
+reset role;
+delete from public.marketplace_account_entries where external_id like 'state-%' and workspace_id='34100000-0000-4000-8000-000000000011';
+set local role authenticated;
+
 select is(jsonb_array_length(pg_temp.overview('7d')->'buckets'),7,'Sieben Tage liefern sieben Abschnitte');
 select is((select sum((b->>'views')::int)::int from jsonb_array_elements(pg_temp.overview('7d')->'buckets') b),70,'Abschnitte ergeben zusammen die Summe');
 select is(pg_temp.overview('7d','34100000-0000-4000-8000-000000000021')->'totals'->>'views','50','Ein einzelnes Konto zeigt nur seine Aufrufe');
@@ -91,7 +106,7 @@ select is(pg_temp.overview('7d')->'totals'->>'views','70','Fremde Messungen flie
 reset role;
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('34100000-0000-4000-8000-000000000034','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000021','publication','item-c',
-  '{"title":"Hose","metrics":{"views":0,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
+  '{"publicationState":"active","title":"Hose","metrics":{"views":0,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
 update public.marketplace_account_entries set body=jsonb_set(body,'{metrics}','{"views":500,"favorites":0}'),
   observed_at=((date_trunc('day',now() at time zone 'Europe/Berlin')-interval '6 days') at time zone 'Europe/Berlin')-interval '1 second'
   where external_id='item-c';
@@ -107,7 +122,7 @@ select is((select count(*)::int from public.marketplace_listing_statistic_items)
 reset role;
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('34100000-0000-4000-8000-000000000033','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000022','publication','item-b',
-  '{"title":"Schal","metrics":{"views":27,"favorites":0}}',now()-interval '1 minute',now()-interval '1 minute');
+  '{"publicationState":"active","title":"Schal","metrics":{"views":27,"favorites":0}}',now()-interval '1 minute',now()-interval '1 minute');
 select is((select count(*)::int from public.marketplace_listing_statistic_items where external_id='item-b'),1,'Wiederkehrendes Inserat nutzt denselben Statistik-Datensatz');
 select is((select removed_at from public.marketplace_listing_statistic_items where external_id='item-b'),null,'Wiederkehrendes Inserat gilt wieder als online');
 set local role authenticated;

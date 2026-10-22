@@ -9,6 +9,7 @@ import {
   workspaceId,
 } from './support/marketplace-account-fixture';
 import { listingCurrentContentFixture } from '../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
+import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block', hasTouch: true });
 
@@ -25,6 +26,8 @@ interface ListingFixture {
   text: string | null;
   textState: 'loaded' | 'not_loaded';
   occurredAt?: string | null;
+  createdAt?: string | null;
+  publicationState?: 'active' | 'reserved' | 'draft' | 'hidden' | 'ended' | 'unknown';
   imageUrls?: readonly string[];
 }
 
@@ -36,6 +39,7 @@ async function prepareListing(page: Page, listing: ListingFixture) {
   await mockMarketplace(page, true, false, false, false, []);
   const entry = {
     id: entryId,
+    publicationState: 'active',
     ...listing,
     price: 29.9,
     currency: 'EUR',
@@ -171,6 +175,7 @@ for (const width of [320, 390, 834, 1440]) {
         textState: 'loaded' as const,
         imageUrls: photos,
         occurredAt: '2026-10-12T00:00:00Z',
+        createdAt: '2026-10-01T12:00:00Z',
       };
       const errors = await prepareListing(page, listing);
       await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
@@ -188,6 +193,8 @@ for (const width of [320, 390, 834, 1440]) {
         brand: index === 0 ? 'Eine besonders lange Testmarke ohne Zeilenumbruch' : null,
         size: index === 0 ? 'M' : null,
         status: index === 0 ? 'Sehr gut' : null,
+        publicationState: 'active',
+        createdAt: hours === null ? null : listing.createdAt,
         promoted: index === 0,
         metrics: {
           views: index === 0 ? 1234 : null,
@@ -199,6 +206,39 @@ for (const width of [320, 390, 834, 1440]) {
             ? null
             : new Date(Date.parse('2026-10-15T12:00:00Z') - hours * 3_600_000).toISOString(),
       }));
+      const stateCases = [
+        { state: 'reserved', title: 'Reservierter Testschal', label: 'Reserviert' },
+        { state: 'draft', title: 'Vinted-Entwurf', label: 'Entwurf' },
+        { state: 'hidden', title: 'Versteckter Testschal', label: 'Versteckt' },
+        { state: 'unknown', title: 'Testschal ohne Status', label: 'Status unbekannt' },
+        { state: 'ended', title: 'Beendeter Testschal', label: 'Beendet' },
+      ];
+      entries.push(
+        ...stateCases.map(({ state, title }, index) => ({
+          ...entries[0],
+          id: `publication-state-${index + 1}`,
+          title,
+          publicationState: state,
+          promoted: false,
+          brand: null,
+          size: null,
+          status: null,
+          createdAt: '2026-10-10T12:00:00Z',
+          // Ein alter Importzeitpunkt darf bei Entwürfen kein Online-Alter vortäuschen.
+          occurredAt: '2026-10-12T12:00:00Z',
+        })),
+      );
+      await page.route('**/rest/v1/marketplace_account_entries**', (route) => {
+        const query = new URL(route.request().url()).searchParams;
+        const id = query.get('id')?.replace('eq.', '');
+        if (!id) return route.fallback();
+        expect(query.get('workspace_id')).toBe(`eq.${workspaceId}`);
+        expect(query.get('connection_id')).toBe(`eq.${accountIds[0]}`);
+        expect(query.get('kind')).toBe('eq.publication');
+        const entry = entries.find((candidate) => candidate.id === id);
+        expect(entry).toBeDefined();
+        return route.fulfill({ json: { id, body: entry } });
+      });
       await page.route('**/rest/v1/rpc/marketplace_read_snapshot', (route) =>
         route.fulfill({
           json: {
@@ -230,6 +270,33 @@ for (const width of [320, 390, 834, 1440]) {
           },
         }),
       );
+      if ((width === 1440 && theme === 'light') || (width === 390 && theme === 'dark')) {
+        // Eine lokale Kopie mit gleichem Titel ändert den Anbieterstatus des Originals nicht.
+        await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', (route) =>
+          route.fulfill({
+            json: {
+              items: [
+                {
+                  id: '9007199254740999',
+                  workspaceId,
+                  connectionId: accountIds[0],
+                  revision: 1,
+                  content: { ...emptyVintedListingContent(), title },
+                  images: [],
+                  inventoryItemId: null,
+                  createdAt: '2026-10-14T12:00:00Z',
+                  updatedAt: '2026-10-14T12:00:00Z',
+                },
+              ],
+              nextCursor: null,
+            },
+          }),
+        );
+        await page.goto('/marketplaces/vinted/listing-drafts');
+        await expect(
+          page.locator('app-vinted-listing-drafts').getByText(title, { exact: true }),
+        ).toBeVisible();
+      }
       await page.goto('/marketplaces/vinted/listings');
       const gridView = page.getByRole('button', { name: 'Rasteransicht', exact: true });
       const listView = page.getByRole('button', { name: 'Listenansicht', exact: true });
@@ -241,7 +308,49 @@ for (const width of [320, 390, 834, 1440]) {
       await listView.click();
       await expect(listView).toHaveAttribute('aria-pressed', 'true');
       await expect(gridView).toHaveAttribute('aria-pressed', 'false');
-      await expect(cards).toHaveCount(5);
+      await expect(cards).toHaveCount(entries.length);
+      const checkPublicationStates = async () => {
+        for (const stateCase of stateCases) {
+          const card = page.getByRole('link', {
+            name: `Inserat ${stateCase.title} öffnen`,
+            exact: true,
+          });
+          await expect(card.getByText(stateCase.label, { exact: true })).toBeVisible();
+          if (stateCase.state !== 'reserved')
+            await expect(card.locator('app-vinted-listing-age')).toHaveText('5 T · erstellt');
+        }
+        const original = cards.first();
+        for (const label of [
+          'Entwurf',
+          'Versteckt',
+          'Status unbekannt',
+          'Reserviert',
+          'Beendet',
+          'Online',
+          'Aktiv',
+        ])
+          await expect(original.getByText(label, { exact: true })).toHaveCount(0);
+        await expect(original.locator('app-vinted-listing-age')).toHaveText('3 T');
+        const publicationTooltip = original.locator('app-vinted-listing-age app-badge');
+        await expect(publicationTooltip).toHaveAttribute('title', /Veröffentlicht:/);
+        await expect(publicationTooltip).toHaveAttribute('title', /Erstellt:/);
+        const draft = page.getByRole('link', {
+          name: 'Inserat Vinted-Entwurf öffnen',
+          exact: true,
+        });
+        const age = draft.locator('app-vinted-listing-age');
+        await expect(age).toHaveText('5 T · erstellt');
+        await expect(age.locator('[aria-label]')).toHaveAttribute(
+          'aria-label',
+          'Vor 5 Tagen erstellt',
+        );
+        await expect(age.locator('app-badge')).toHaveAttribute('title', /Erstellt:/);
+        await expect(age.locator('app-badge')).not.toHaveAttribute(
+          'title',
+          /online|Veröffentlicht/,
+        );
+      };
+      await checkPublicationStates();
       await expect(cards.first()).toContainText(
         'Eine besonders lange Testmarke ohne Zeilenumbruch',
       );
@@ -285,12 +394,13 @@ for (const width of [320, 390, 834, 1440]) {
       await page.keyboard.press('Enter');
       await expect(gridView).toHaveAttribute('aria-pressed', 'true');
       expect((await firstThumbnail.boundingBox())!.width).toBeCloseTo(gridWidth, 0);
-      await expect(page.locator('app-vinted-listing-age')).toHaveCount(5);
+      await expect(page.locator('app-vinted-listing-age')).toHaveCount(entries.length);
+      await checkPublicationStates();
       await expect(
         page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
       ).toHaveCount(0);
-      for (const text of ['3 T', '1 T', '5 T', '7 T', 'Alter unbekannt'])
-        await expect(page.getByText(text, { exact: true })).toBeVisible();
+      for (const [index, text] of ['3 T', '1 T', '5 T', '7 T', 'Alter unbekannt'].entries())
+        await expect(cards.nth(index).getByText(text, { exact: true })).toBeVisible();
       await page.evaluate(axe.source);
       expect(
         (
@@ -299,6 +409,15 @@ for (const width of [320, 390, 834, 1440]) {
           )
         ).violations,
       ).toEqual([]);
+      await page.getByRole('link', { name: 'Inserat Vinted-Entwurf öffnen', exact: true }).click();
+      const draftDetail = page.locator('app-vinted-listing-detail');
+      await expect(draftDetail.getByText('Entwurf', { exact: true })).toBeVisible();
+      await expect(draftDetail.locator('app-vinted-listing-age')).toHaveText(
+        'Vor 5 Tagen erstellt',
+      );
+      await expect(draftDetail.locator('app-vinted-listing-age')).not.toContainText('online');
+      await page.goBack();
+      await expect(cards).toHaveCount(entries.length);
       await listView.focus();
       await page.keyboard.press('Space');
       await expect(listView).toHaveAttribute('aria-pressed', 'true');
@@ -539,7 +658,7 @@ for (const width of [1440, 390]) {
       .poll(() =>
         page.evaluate(async () =>
           (
-            await (window as Window & { axe: typeof axe }).axe.run(
+            await (window as unknown as { axe: typeof axe }).axe.run(
               document.querySelector('[role="dialog"]')!,
             )
           ).violations.map((violation) => violation.id),
@@ -558,7 +677,7 @@ for (const width of [1440, 390]) {
     await page.evaluate(axe.source);
     const violations = await page.evaluate(async () =>
       (
-        await (window as Window & { axe: typeof axe }).axe.run(
+        await (window as unknown as { axe: typeof axe }).axe.run(
           document.querySelector('app-vinted-listing-detail')!,
         )
       ).violations.map((violation) => ({

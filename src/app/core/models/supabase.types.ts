@@ -11128,6 +11128,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_publication_age_sort_at: {
+        Args: { p_age: Json; p_observed_at: string }
+        Returns: string
+      }
       marketplace_publication_time_valid: {
         Args: { p_observed_at: string; p_time: string }
         Returns: boolean

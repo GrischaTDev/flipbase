@@ -59,12 +59,32 @@ describe('Gemeinsame Inseratdarstellung', () => {
   it('verwechselt den Artikelzustand nicht mit dem Veröffentlichungsstatus', () => {
     expect(normalizeVintedPublication(vinted).state).toBe('unknown');
     expect(normalizeVintedPublication({ ...vinted, isClosed: false, isReserved: true }).state).toBe(
-      'reserved',
+      'unknown',
     );
     expect(
       normalizeVintedPublication({ ...vinted, isClosed: false, isReserved: false }).state,
-    ).toBe('active');
+    ).toBe('unknown');
   });
+  it.each(['active', 'reserved', 'draft', 'hidden', 'ended', 'unknown'] as const)(
+    'übernimmt den bestätigten Vinted-Veröffentlichungsstatus %s',
+    (publicationState) => {
+      const item = normalizeVintedPublication({
+        ...vinted,
+        publicationState,
+        createdAt: '2026-10-01T09:00:00Z',
+        publishedAt: '2026-10-15T10:00:00Z',
+        publicationAge: { value: 7, unit: 'day', observedAt: '2026-10-22T10:00:00Z' },
+        isClosed: false,
+        isReserved: false,
+      });
+      expect(item.state).toBe(publicationState);
+      expect(item.createdAt).toBe('2026-10-01T09:00:00Z');
+      if (publicationState !== 'active' && publicationState !== 'reserved') {
+        expect(item.publishedAt).toBeNull();
+        expect(item.publicationAge).toBeNull();
+      }
+    },
+  );
   it('trennt identische IDs nach Plattform, Account und Workspace', () => {
     const first = normalizeVintedPublication(vinted).reference;
     expect(overviewListingKey(first)).not.toBe(

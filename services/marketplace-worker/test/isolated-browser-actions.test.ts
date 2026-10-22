@@ -644,6 +644,8 @@ test('isolated import passes validated publication ages through the real command
   const publications = [
     {
       externalId: '41',
+      publicationState: 'draft' as const,
+      createdAt: '2026-10-01T08:00:00.000Z',
       occurredAt: null,
       publicationAge: { value: 2, unit: 'day' as const, observedAt: '2026-10-15T10:00:00Z' },
       checkedAt: '2026-10-15T10:00:00Z',
@@ -692,6 +694,25 @@ test('isolated import passes validated publication ages through the real command
     ),
     /Inseratcache/,
   );
+  for (const values of [
+    { publicationState: 'published' },
+    { publicationState: null },
+    { publicationState: true },
+    { createdAt: false },
+    { createdAt: 'not-a-date' },
+  ]) {
+    await assert.rejects(
+      executeBrowserAction(
+        {
+          version: () => '',
+          importAccount: async () => assert.fail('invalid cache reached browser'),
+        },
+        { name: 'importAccount', arguments: [[], null, [{ ...publications[0], ...values }]] },
+        async () => undefined,
+        async () => undefined,
+      ),
+    );
+  }
 });
 
 test('isolated import keeps pending chat activity with a null detail check through the browser action boundary', async () => {

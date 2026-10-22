@@ -78,10 +78,10 @@ declare
   v_currency text := nullif(new.body->>'currency','');
   v_first_seen_at timestamptz := new.observed_at;
 begin
-  if new.kind <> 'publication' then return new; end if;
+  if new.kind <> 'publication' or new.body->>'publicationState'='draft' then return new; end if;
   if tg_op = 'UPDATE' then
     if new.observed_at <= old.observed_at then return new; end if;
-    v_first_seen_at := old.observed_at;
+    if old.body->>'publicationState' is distinct from 'draft' then v_first_seen_at := old.observed_at; end if;
   end if;
   -- Fehlende Angaben eines Abrufs überschreiben keine bekannten Stammdaten.
   insert into public.marketplace_listing_statistic_items as i(workspace_id,connection_id,external_id,title,image_url,price,currency,first_seen_at,last_seen_at)
@@ -95,7 +95,7 @@ begin
       last_seen_at = greatest(i.last_seen_at,excluded.last_seen_at),
       removed_at = null
     returning i.id into v_item_id;
-  if tg_op = 'UPDATE' then
+  if tg_op = 'UPDATE' and old.body->>'publicationState' is distinct from 'draft' then
     -- Beim ersten neuen Abruf bleibt auch die bereits gespeicherte Ausgangsbasis erhalten.
     insert into public.marketplace_listing_metric_observations(workspace_id,connection_id,entry_id,observed_at,views,favorites,statistic_item_id)
       values(old.workspace_id,old.connection_id,old.id,old.observed_at,public.marketplace_known_metric_count(old.body,'views'),public.marketplace_known_metric_count(old.body,'favorites'),v_item_id)
@@ -164,6 +164,7 @@ begin
       order by o.observed_at desc limit 1
     ) baseline on true
     where e.workspace_id=p_workspace_id and e.connection_id=p_connection_id and e.kind='publication'
+      and e.body->>'publicationState' is distinct from 'draft'
   )
   select coalesce(jsonb_agg(jsonb_build_object('entryId',id,'observedAt',observed_at,'baselineAt',baseline_at,
     'views',case when views is not null and previous_views is not null then greatest(0,views-previous_views) end,
@@ -266,7 +267,11 @@ begin
     'connectionId', p_connection_id,
     'period', p_period,
     'historyStartsAt', (select min(first_seen_at) from items),
-    'activeCount', (select count(*) from items where removed_at is null),
+    'activeCount', (select count(*) from public.marketplace_account_entries e
+      join public.marketplace_connections c on c.workspace_id=e.workspace_id and c.id=e.connection_id
+      where e.workspace_id=p_workspace_id and c.marketplace='vinted' and e.kind='publication'
+        and (p_connection_id is null or e.connection_id=p_connection_id)
+        and e.body->>'publicationState' in ('active','reserved')),
     'totals', jsonb_build_object(
       'views', coalesce((select sum(gain) from counted where metric = 'views' and observed_at >= v_start), 0),
       'favorites', coalesce((select sum(gain) from counted where metric = 'favorites' and observed_at >= v_start), 0)),

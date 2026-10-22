@@ -7,7 +7,8 @@ export interface MarketplaceListingReference {
   readonly externalId: string;
 }
 export type MarketplaceListingAction = 'view' | 'edit' | 'publish_elsewhere' | 'delete' | 'relist';
-export type MarketplaceListingState = 'active' | 'reserved' | 'ended' | 'processing' | 'unknown';
+export type MarketplaceListingState =
+  'active' | 'reserved' | 'draft' | 'hidden' | 'ended' | 'processing' | 'unknown';
 export interface MarketplaceOverviewAccount {
   readonly platform: MarketplaceId;
   readonly workspaceId: string;
@@ -34,6 +35,7 @@ export interface MarketplaceOverviewListing {
   readonly currency: string | null;
   readonly imageUrl: string | null;
   readonly publishedAt: string | null;
+  readonly createdAt?: string | null;
   readonly publishedOn?: string | null;
   readonly publicationAge?: VintedPublicationAge | null;
   readonly state: MarketplaceListingState;
@@ -43,7 +45,7 @@ export interface MarketplaceOverviewListing {
   readonly editLink: readonly string[] | null;
 }
 export interface MarketplaceListingQuery {
-  readonly state: 'all' | 'active' | 'reserved' | 'ended';
+  readonly state: 'all' | 'active' | 'reserved' | 'draft' | 'hidden' | 'ended' | 'unknown';
   readonly search: string;
   readonly cursor?: string;
   readonly limit: number;

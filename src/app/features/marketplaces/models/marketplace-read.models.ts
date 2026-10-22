@@ -5,6 +5,7 @@ import type {
 } from '../../../../../supabase/functions/_shared/marketplace-negotiation-contracts';
 
 import type { VintedPublicationAge } from './vinted-listing-age';
+import type { VintedPublicationState } from './vinted-publication-state';
 
 export type MarketplaceEntryKind = 'publication' | 'conversation' | 'message' | 'sale' | 'activity';
 export interface MarketplacePage<T> {
@@ -19,8 +20,11 @@ export interface MarketplaceEntry extends AccountScope {
   readonly text: string | null;
   readonly textState?: 'loaded' | 'not_loaded';
   readonly occurredAt: string | null;
-  /** Bei Inseraten nur die explizite Anbieterzeit, ohne Änderungszeit-Fallback. */
+  /** Bei Inseraten nur die belegte Veröffentlichung, ohne Erstellungs-/Änderungszeit-Fallback. */
   readonly publishedAt?: string | null;
+  /** Tatsächliche Erstellung des Anbieterartikels; kann bereits beim Entwurf erfolgt sein. */
+  readonly createdAt?: string | null;
+  readonly publicationState?: VintedPublicationState;
   readonly publicationAge?: VintedPublicationAge | null;
   readonly price: number | null;
   readonly currency: string;

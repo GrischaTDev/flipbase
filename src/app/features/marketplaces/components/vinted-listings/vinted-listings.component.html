@@ -86,6 +86,9 @@
                 <h2 class="truncate text-sm font-semibold text-fb-text-primary">
                   {{ entry.title }}
                 </h2>
+                @if (publicationBadge(entry.publicationState); as badge) {
+                  <app-badge class="mt-2" [tone]="badge.tone">{{ badge.label }}</app-badge>
+                }
                 <div class="mt-2 flex min-w-0 items-center justify-between gap-2">
                   @if (entry.brand || entry.size) {
                     <p
@@ -99,6 +102,8 @@
                     class="ml-auto shrink-0"
                     [publishedAt]="entry.publishedAt"
                     [publicationAge]="entry.publicationAge"
+                    [createdAt]="entry.createdAt"
+                    [publicationState]="entry.publicationState ?? 'unknown'"
                     [compact]="true"
                   />
                 </div>
@@ -167,10 +172,15 @@
                       class="ml-auto shrink-0"
                       [publishedAt]="entry.publishedAt"
                       [publicationAge]="entry.publicationAge"
+                      [createdAt]="entry.createdAt"
+                      [publicationState]="entry.publicationState ?? 'unknown'"
                       [compact]="true"
                     />
                   </div>
                   <div class="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    @if (publicationBadge(entry.publicationState); as badge) {
+                      <app-badge [tone]="badge.tone">{{ badge.label }}</app-badge>
+                    }
                     @if (entry.status) {
                       <p
                         class="min-w-0 truncate text-xs text-fb-text-secondary"

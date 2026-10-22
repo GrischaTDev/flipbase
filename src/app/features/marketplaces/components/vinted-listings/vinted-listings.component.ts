@@ -23,6 +23,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { VintedListingMetricsComponent } from './vinted-listing-metrics.component';
 import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
 import { createVintedListingMetricDisplay } from './vinted-listing-metric-display';
+import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 
 @Component({
   selector: 'app-vinted-listings',
@@ -57,6 +58,7 @@ export class VintedListingsComponent {
   });
   private handledConnectionId: string | null = null;
   readonly page = computed(() => this.store.snapshot()?.publications ?? null);
+  readonly publicationBadge = vintedPublicationBadge;
   readonly metricDisplay = createVintedListingMetricDisplay(
     this.store,
     () => this.page()?.items ?? [],

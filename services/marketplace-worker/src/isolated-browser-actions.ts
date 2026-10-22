@@ -45,6 +45,7 @@ import { parseVintedListingPhotoArrangement } from './vinted-browser-listing-pho
 
 import {
   parseVintedPublicationAge,
+  parseVintedPublicationState,
   type VintedPublicationVersion,
 } from './vinted-publication-age.ts';
 
@@ -514,7 +515,15 @@ export async function executeBrowserAction(
         const version = commandRecord(raw);
         if (
           Object.keys(version).some(
-            (key) => !['externalId', 'occurredAt', 'publicationAge', 'checkedAt'].includes(key),
+            (key) =>
+              ![
+                'externalId',
+                'publicationState',
+                'createdAt',
+                'occurredAt',
+                'publicationAge',
+                'checkedAt',
+              ].includes(key),
           )
         )
           throw new Error('Ungültiger Inseratcache');
@@ -527,8 +536,13 @@ export async function executeBrowserAction(
         const publicationAge = parseVintedPublicationAge(version.publicationAge);
         if (version.publicationAge !== null && !publicationAge)
           throw new Error('Ungültiger Inseratcache');
+        const publicationState = parseVintedPublicationState(version.publicationState);
+        if (version.publicationState !== undefined && publicationState !== version.publicationState)
+          throw new Error('Ungültiger Inseratcache');
         return {
           externalId: identifier(version.externalId),
+          ...(version.publicationState !== undefined ? { publicationState } : {}),
+          ...(version.createdAt !== undefined ? { createdAt: timestamp(version.createdAt) } : {}),
           occurredAt: timestamp(version.occurredAt),
           publicationAge,
           checkedAt: timestamp(version.checkedAt),

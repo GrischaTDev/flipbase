@@ -213,8 +213,8 @@
     }
   }
 
-  // Ausschließlich das Erstellungsdatum des Angebots übernehmen.
-  function publicationTime(item, observedAt) {
+  // Artikel-Erstellung ist getrennt von einer bestätigten Veröffentlichung.
+  function itemCreationTime(item, observedAt) {
     for (const value of [item.created_at_ts, item.created_at]) {
       let milliseconds;
       if (typeof value === 'number' || (typeof value === 'string' && /^\d{10,13}$/.test(value))) {
@@ -239,6 +239,20 @@
         return new Date(milliseconds).toISOString();
     }
     return null;
+  }
+
+  function publicationState(item) {
+    if (item.is_draft === true) return 'draft';
+    if (item.is_hidden === true) return 'hidden';
+    if (item.is_closed === true) return 'ended';
+    if (
+      ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_visible'].some(
+        (field) => item[field] != null && typeof item[field] !== 'boolean',
+      )
+    )
+      return 'unknown';
+    if (item.is_reserved === true) return 'reserved';
+    return item.is_visible === true ? 'active' : 'unknown';
   }
 
   function parseSnapshot(identity, profile, items, observedAt, publicationsComplete) {
@@ -277,15 +291,19 @@
         );
       }
       ids.add(id);
-      if (item.is_closed === true) continue;
+      const state = publicationState(item);
+      if (state === 'ended') continue;
+      const createdAt = itemCreationTime(item, observedAt);
       const photos = Array.isArray(item.photos) ? item.photos.slice(0, 20) : [];
       entries.push({
         kind: 'publication',
         externalId: id,
-        sortAt: observedAt,
+        sortAt: createdAt ?? '1970-01-01T00:00:00.000Z',
         body: {
           title: text(item.title) ?? 'Inserat',
-          occurredAt: publicationTime(item, observedAt),
+          publicationState: state,
+          createdAt,
+          occurredAt: null,
           text: typeof item.description === 'string' ? item.description : null,
           textState: typeof item.description === 'string' ? 'loaded' : 'not_loaded',
           price: decimal(item.price?.amount),

@@ -10,7 +10,7 @@ import {
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
 
-test('publication age uses only the provider creation time and never the import or edit time', () => {
+test('provider creation dates stay separate from publication time and never sort by import or edit time', () => {
   const values = [
     { created_at_ts: 1790850600 },
     { created_at: '2026-10-01T12:30:00+02:00' },
@@ -32,7 +32,7 @@ test('publication age uses only the provider creation time and never the import 
     assert.deepEqual(
       snapshot.entries
         .filter((entry) => entry.kind === 'publication')
-        .map((entry) => entry.body['occurredAt']),
+        .map((entry) => entry.body['createdAt']),
       [
         '2026-10-01T10:30:00.000Z',
         '2026-10-01T10:30:00.000Z',
@@ -43,6 +43,166 @@ test('publication age uses only the provider creation time and never the import 
         null,
       ],
     );
+    const publications = snapshot.entries.filter((entry) => entry.kind === 'publication');
+    assert.ok(publications.every((entry) => entry.body['occurredAt'] === null));
+    assert.deepEqual(
+      publications.map((entry) => entry.sortAt),
+      publications.map((entry) => entry.body['createdAt'] ?? '1970-01-01T00:00:00.000Z'),
+    );
+  }
+});
+
+test('known drafts remain cached without publication time, age enrichment or inherited active evidence', async () => {
+  const paths: string[] = [];
+  const createdAt = '2026-10-01T08:00:00.000Z';
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [
+            { id: 41, user_id: 123, is_draft: true, is_visible: true, created_at: createdAt },
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/items/41') return { publicationAgeLabel: '2 Tagen' };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        {
+          externalId: '41',
+          publicationState: 'active',
+          createdAt,
+          occurredAt: '2026-10-02T10:00:00.000Z',
+          publicationAge: { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' },
+          checkedAt: '2026-10-15T10:00:00Z',
+        },
+      ],
+    },
+  );
+  const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+  assert.ok(entry);
+  assert.equal(entry.body['publicationState'], 'draft');
+  assert.equal(entry.body['createdAt'], createdAt);
+  assert.equal(entry.body['occurredAt'], null);
+  assert.equal(entry.body['publicationAge'], null);
+  assert.equal(entry.sortAt, createdAt);
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    [],
+  );
+});
+
+test('a draft becoming visible gets fresh age evidence without inheriting a publication timestamp', async () => {
+  const paths: string[] = [];
+  const createdAt = '2026-10-01T08:00:00.000Z';
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [{ id: 41, user_id: 123, is_visible: true }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/items/41') return { publicationAgeLabel: 'vor 3 Stunden' };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        {
+          externalId: '41',
+          publicationState: 'draft',
+          createdAt,
+          occurredAt: createdAt,
+          publicationAge: { value: 20, unit: 'day', observedAt: '2026-10-15T10:00:00Z' },
+          checkedAt: '2099-10-15T10:00:00Z',
+        },
+      ],
+    },
+  );
+  const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+  assert.equal(entry.body['publicationState'], 'active');
+  assert.equal(entry.body['occurredAt'], null);
+  assert.equal(entry.body['createdAt'], createdAt);
+  assert.deepEqual(entry.body['publicationAge'], {
+    value: 3,
+    unit: 'hour',
+    observedAt: snapshot.observedAt,
+  });
+  assert.equal(entry.sortAt, createdAt);
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    ['/items/41'],
+  );
+});
+
+test('hidden and unknown states do not inherit a confirmed publication timestamp', async () => {
+  for (const flags of [{ is_hidden: true }, { is_visible: false }, {}]) {
+    const snapshot = await readVintedAccountImport(
+      importPage((path) =>
+        path.startsWith('/api/v2/wardrobe/')
+          ? { items: [{ id: 41, user_id: 123, ...flags }], pagination: { total_pages: 1 } }
+          : undefined,
+      ),
+      async () => undefined,
+      undefined,
+      [],
+      undefined,
+      {
+        previousPublications: [
+          {
+            externalId: '41',
+            publicationState: 'active',
+            occurredAt: '2026-10-01T10:00:00.000Z',
+            publicationAge: null,
+            checkedAt: null,
+          },
+        ],
+      },
+    );
+    const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+    assert.equal(entry.body['occurredAt'], null);
+    assert.equal(entry.sortAt, '1970-01-01T00:00:00.000Z');
+  }
+});
+
+test('cached relative ages keep their original sort anchor across repeated wardrobe imports', async () => {
+  const cached = { value: 2, unit: 'day' as const, observedAt: '2026-10-01T10:00:00Z' };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const snapshot = await readVintedAccountImport(
+      importPage((path) =>
+        path.startsWith('/api/v2/wardrobe/')
+          ? { items: [{ id: 41, user_id: 123, is_visible: true }], pagination: { total_pages: 1 } }
+          : undefined,
+      ),
+      async () => undefined,
+      undefined,
+      [],
+      undefined,
+      {
+        previousPublications: [
+          {
+            externalId: '41',
+            publicationState: 'active',
+            occurredAt: null,
+            publicationAge: cached,
+            checkedAt: cached.observedAt,
+          },
+        ],
+      },
+    );
+    const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+    assert.equal(entry.sortAt, '2026-09-29T10:00:00.000Z');
+    assert.deepEqual(entry.body['publicationAge'], cached);
   }
 });
 
@@ -1996,7 +2156,7 @@ test('confirmed Flipbase publication time takes priority over provider dates wit
       paths.push(path);
       if (path.startsWith('/api/v2/wardrobe/'))
         return {
-          items: [{ id: 41, user_id: 123, created_at: '2026-10-02T10:00:00Z' }],
+          items: [{ id: 41, user_id: 123, is_visible: true, created_at: '2026-10-02T10:00:00Z' }],
           pagination: { total_pages: 1 },
         };
       return undefined;
@@ -2015,6 +2175,7 @@ test('confirmed Flipbase publication time takes priority over provider dates wit
     snapshot.entries.find((entry) => entry.externalId === '41')?.body['occurredAt'],
     publishedAt,
   );
+  assert.equal(snapshot.entries.find((entry) => entry.externalId === '41')?.sortAt, publishedAt);
   assert.deepEqual(
     paths.filter((path) => path.startsWith('/items/')),
     [],
@@ -2029,6 +2190,7 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
   for (const [label, unit, value] of [
     ['2 Tagen', 'day', 2],
     ['vor einer Stunde', 'hour', 1],
+    ['1 h', 'hour', 1],
     ['3 weeks ago', 'week', 3],
     ['1 Monat', 'month', 1],
   ]) {
@@ -2048,7 +2210,7 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
   const originalFetch = globalThis.fetch;
   try {
     globalThis.DOMParser = dom.window.DOMParser;
-    for (const scenario of ['valid', 'foreign', 'rate_limited']) {
+    for (const scenario of ['valid', 'hour', 'foreign', 'rate_limited']) {
       const paths: string[] = [];
       globalThis.fetch = async (input, init = {}) => {
         const path = String(input);
@@ -2060,7 +2222,7 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
             scenario === 'rate_limited'
               ? new Response('', { status: 429, headers: { 'Retry-After': '60' } })
               : new Response(
-                  `<link rel="canonical" href="https://www.vinted.de/items/${scenario === 'foreign' ? '42' : '41'}-artikel"><div data-testid="item-attributes-upload_date"><div>Hochgeladen</div><div itemprop="upload_date"><span>2 Tagen</span></div></div>`,
+                  `<link rel="canonical" href="https://www.vinted.de/items/${scenario === 'foreign' ? '42' : '41'}-artikel"><script type="application/json">{"user":{"id":123,"created_at":"2020-01-01T00:00:00Z"}}</script><div data-testid="item-attributes-upload_date"><div>Hochgeladen</div><div itemprop="upload_date"><span>${scenario === 'hour' ? '1 h' : '2 Tagen'}</span></div></div>`,
                   { headers: { 'Content-Type': 'text/html' } },
                 );
         } else {
@@ -2069,7 +2231,7 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
               ? { user: { id: 123, login: 'testkonto' } }
               : path.startsWith('/api/v2/wardrobe/')
                 ? {
-                    items: [{ id: 41, user_id: 123, title: 'Artikel' }],
+                    items: [{ id: 41, user_id: 123, title: 'Artikel', is_visible: true }],
                     pagination: { total_pages: 1 },
                   }
                 : {
@@ -2092,13 +2254,23 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
       );
       const publication = snapshot.entries.find((entry) => entry.kind === 'publication')!;
       assert.equal(publication.body.occurredAt, null);
+      assert.equal(publication.body.createdAt, null);
       assert.equal(
         parseVintedPublicationAge(publication.body.publicationAge)?.unit ?? null,
-        scenario === 'valid' ? 'day' : null,
+        scenario === 'valid' ? 'day' : scenario === 'hour' ? 'hour' : null,
       );
       assert.equal(
         parseVintedPublicationAge(publication.body.publicationAge)?.value ?? null,
-        scenario === 'valid' ? 2 : null,
+        scenario === 'valid' ? 2 : scenario === 'hour' ? 1 : null,
+      );
+      assert.equal(
+        publication.sortAt,
+        scenario === 'valid' || scenario === 'hour'
+          ? new Date(
+              Date.parse(snapshot.observedAt) -
+                (scenario === 'valid' ? 2 * 24 : 1) * 60 * 60 * 1000,
+            ).toISOString()
+          : '1970-01-01T00:00:00.000Z',
       );
       if (scenario === 'rate_limited') assert.equal(paths.at(-1), '/items/41');
     }
