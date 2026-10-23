@@ -25,6 +25,7 @@ for (const name of [
   'ebay-order-source',
   'ebay-order-amounts',
   'ebay-order-import-contracts',
+  'ebay-sale-draft-contracts',
   'marketplace-contracts',
 ])
   sources[`_shared/${name}.ts`] = `supabase/functions/_shared/${name}.ts`;

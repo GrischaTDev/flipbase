@@ -1,3 +1,9 @@
+import type {
+  EbaySaleDraft,
+  EbaySaleDraftSaveRequest,
+  EbayExistingSaleLinkRequest,
+  EbayExistingSale,
+} from '../_shared/ebay-sale-draft-contracts.ts';
 import { EbayError, readOrder, readRecord } from '../_shared/ebay-api.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import type { AccountScope } from '../_shared/marketplace-contracts.ts';
@@ -31,6 +37,13 @@ export interface StoredEbayOrderSnapshot {
 }
 export interface EbayOrderImportStore extends EbayAccountStore {
   importAvailable(): Promise<boolean>;
+  saveDraft(bearer: string, input: EbaySaleDraftSaveRequest): Promise<EbaySaleDraft>;
+  linkExisting(bearer: string, input: EbayExistingSaleLinkRequest): Promise<EbayOrderBooking>;
+  existingSales(
+    bearer: string,
+    scope: AccountScope,
+    page: number,
+  ): Promise<readonly EbayExistingSale[]>;
   snapshot(
     userId: string,
     scope: AccountScope,
@@ -153,6 +166,9 @@ export function createEbayOrderImportHandler(
         !identifier(body.orderId) ||
         ![
           'order_review',
+          'order_save_draft',
+          'order_link_existing',
+          'order_existing_sales',
           'order_book',
           'order_status',
           'order_recorded_elsewhere',
@@ -178,6 +194,12 @@ export function createEbayOrderImportHandler(
       )
         return respond({ error: 'connection_changed' }, 409);
       if (!(await store.importAvailable())) return respond({ error: 'import_unavailable' }, 503);
+      if (body.action === 'order_existing_sales') {
+        const page = body.page ?? 1;
+        if (!Number.isInteger(page) || (page as number) < 1 || (page as number) > 100000)
+          return respond({ error: 'invalid_request' }, 400);
+        return respond(await store.existingSales(bearer, scope, page as number));
+      }
       const sourceKey = await ebayOrderSourceKey(
         config.encryptionKey,
         scope.workspaceId,
@@ -256,6 +278,49 @@ export function createEbayOrderImportHandler(
         Date.parse(snapshot.expires_at) <= Date.now()
       )
         return respond({ error: 'review_expired_or_changed' }, 409);
+      if (body.action === 'order_save_draft') {
+        const draftCosts = readRecord(body.costs);
+        if (
+          !Array.isArray(body.assignments) ||
+          (body.assignments.length > 0 && !assignments(body.assignments)) ||
+          !costs({
+            ...draftCosts,
+            platformFeeCents:
+              draftCosts.platformFeeCents === null ? 0 : draftCosts.platformFeeCents,
+            shippingCostCents:
+              draftCosts.shippingCostCents === null ? 0 : draftCosts.shippingCostCents,
+          })
+        )
+          return respond({ error: 'invalid_request' }, 400);
+        return respond(
+          await store.saveDraft(bearer, {
+            ...scope,
+            snapshotId: body.snapshotId,
+            assignments: body.assignments as readonly EbayOrderAssignment[],
+            costs: body.costs as EbaySaleDraftSaveRequest['costs'],
+          }),
+        );
+      }
+      if (body.action === 'order_link_existing') {
+        if (
+          body.confirmed !== true ||
+          !uuid(body.saleId) ||
+          !assignments(body.assignments) ||
+          typeof body.reason !== 'string' ||
+          !body.reason.trim() ||
+          body.reason.length > 500
+        )
+          return respond({ error: 'invalid_request' }, 400);
+        return respond(
+          await store.linkExisting(bearer, {
+            ...scope,
+            snapshotId: body.snapshotId,
+            saleId: body.saleId,
+            assignments: body.assignments,
+            reason: body.reason.trim(),
+          }),
+        );
+      }
       if (body.action === 'order_recorded_elsewhere') {
         if (
           body.confirmed !== true ||

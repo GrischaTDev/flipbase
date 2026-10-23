@@ -203,6 +203,7 @@ begin
       v_created:=(v_source->>'createdAt')::timestamptz;
       if v_created is null or not isfinite(v_created) or v_created>v_scan.window_to
         then raise exception 'Ungültiges Bestelldatum' using errcode='22023'; end if;
+      perform pg_advisory_xact_lock(hashtextextended(v_scan.workspace_id::text||':'||v_scan.environment||':'||(v_row->>'sourceKey'),0));
       select * into v_old from public.ebay_cached_orders where workspace_id=v_scan.workspace_id and environment=v_scan.environment and external_account_id=v_scan.external_account_id and order_id=v_source->>'orderId' for update;
       v_paid:=(v_source->>'paidAt')::timestamptz;
       v_new_sale:=v_scan.baseline_to is not null and v_source->>'paymentStatus'='PAID'

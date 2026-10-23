@@ -1441,6 +1441,214 @@ export type Database = {
           },
         ]
       }
+      ebay_sale_drafts: {
+        Row: {
+          assignments: Json
+          costs: Json
+          created_at: string
+          environment: string
+          external_account_id: string
+          id: string
+          order_id: string
+          resolution_reason: string | null
+          sale_id: string | null
+          source: Json
+          source_key: string
+          state: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          assignments?: Json
+          costs?: Json
+          created_at?: string
+          environment: string
+          external_account_id: string
+          id?: string
+          order_id: string
+          resolution_reason?: string | null
+          sale_id?: string | null
+          source: Json
+          source_key: string
+          state: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          assignments?: Json
+          costs?: Json
+          created_at?: string
+          environment?: string
+          external_account_id?: string
+          id?: string
+          order_id?: string
+          resolution_reason?: string | null
+          sale_id?: string | null
+          source?: Json
+          source_key?: string
+          state?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_sale_drafts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ebay_sale_drafts_workspace_id_sale_id_fkey"
+            columns: ["workspace_id", "sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      ebay_sale_notification_receipts: {
+        Row: {
+          dismissed_at: string | null
+          event_id: number
+          id: number
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string | null
+          event_id: number
+          id?: never
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string | null
+          event_id?: number
+          id?: never
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_sale_notification_receipts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ebay_sale_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_sale_notifications: {
+        Row: {
+          created_at: string
+          environment: string
+          external_account_id: string
+          id: number
+          order_id: string
+          source_key: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          external_account_id: string
+          id?: never
+          order_id: string
+          source_key: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          external_account_id?: string
+          id?: never
+          order_id?: string
+          source_key?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_sale_notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_sale_reservations: {
+        Row: {
+          created_at: string
+          draft_id: string
+          id: number
+          inventory_item_id: string | null
+          previous_status: string | null
+          quantity: number
+          released_at: string | null
+          stock_lot_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          draft_id: string
+          id?: never
+          inventory_item_id?: string | null
+          previous_status?: string | null
+          quantity: number
+          released_at?: string | null
+          stock_lot_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          draft_id?: string
+          id?: never
+          inventory_item_id?: string | null
+          previous_status?: string | null
+          quantity?: number
+          released_at?: string | null
+          stock_lot_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_sale_reservations_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "ebay_sale_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "ebay_sale_reservations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ebay_sale_reservations_workspace_id_inventory_item_id_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["workspace_id", "inventory_item_id"]
+          },
+          {
+            foreignKeyName: "ebay_sale_reservations_workspace_id_inventory_item_id_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "ebay_sale_reservations_workspace_id_stock_lot_id_fkey"
+            columns: ["workspace_id", "stock_lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       email_confirmations: {
         Row: {
           id: string
@@ -7726,6 +7934,7 @@ export type Database = {
         Row: {
           created_at: string
           direction: string
+          ebay_sale_draft_id: string | null
           id: string
           quantity: number
           reason: string
@@ -7738,6 +7947,7 @@ export type Database = {
         Insert: {
           created_at?: string
           direction: string
+          ebay_sale_draft_id?: string | null
           id?: string
           quantity: number
           reason: string
@@ -7750,6 +7960,7 @@ export type Database = {
         Update: {
           created_at?: string
           direction?: string
+          ebay_sale_draft_id?: string | null
           id?: string
           quantity?: number
           reason?: string
@@ -7760,6 +7971,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_ebay_draft_fk"
+            columns: ["workspace_id", "ebay_sale_draft_id"]
+            isOneToOne: false
+            referencedRelation: "ebay_sale_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
           {
             foreignKeyName: "stock_movements_removal_workspace_fkey"
             columns: ["workspace_id", "stock_removal_id"]
@@ -9364,6 +9582,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      ebay_close_sale_draft: {
+        Args: {
+          p_environment: string
+          p_reason: string
+          p_sale_id: string
+          p_source_key: string
+          p_state: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
       ebay_complete_authorization: {
         Args: {
           p_connection_id: string
@@ -9385,6 +9614,14 @@ export type Database = {
       ebay_disconnect: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
+      }
+      ebay_existing_sales_read: {
+        Args: {
+          p_connection_id: string
+          p_page?: number
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       ebay_finish_read: {
         Args: {
@@ -9408,6 +9645,21 @@ export type Database = {
       ebay_import_target: {
         Args: { p_target: Json; p_workspace_id: string }
         Returns: Json
+      }
+      ebay_link_existing_sale: {
+        Args: {
+          p_assignments: Json
+          p_connection_id: string
+          p_reason: string
+          p_sale_id: string
+          p_snapshot_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      ebay_lock_draft_stock: {
+        Args: { p_assignments: Json; p_workspace_id: string }
+        Returns: undefined
       }
       ebay_lock_import_connection: {
         Args: {
@@ -9478,6 +9730,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      ebay_prepare_sale_draft: {
+        Args: {
+          p_assignments?: Json
+          p_cache_id: number
+          p_costs?: Json
+          p_explicit?: boolean
+        }
+        Returns: string
+      }
       ebay_record_order_sale: {
         Args: {
           p_assignments: Json
@@ -9488,6 +9749,10 @@ export type Database = {
         }
         Returns: Json
       }
+      ebay_release_sale_reservations: {
+        Args: { p_draft_id: string }
+        Returns: undefined
+      }
       ebay_remove_article_mapping: {
         Args: {
           p_connection_id: string
@@ -9495,6 +9760,51 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: boolean
+      }
+      ebay_reservation_resolve: {
+        Args: { p_draft_id: string; p_reason: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      ebay_reservations_read: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      ebay_sale_draft_json: {
+        Args: {
+          p_draft: Database["public"]["Tables"]["ebay_sale_drafts"]["Row"]
+        }
+        Returns: Json
+      }
+      ebay_sale_drafts_read: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      ebay_sale_notification_update: {
+        Args: {
+          p_action: string
+          p_connection_id: string
+          p_event_id: number
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      ebay_sale_notifications_read: {
+        Args: {
+          p_connection_id: string
+          p_page?: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      ebay_save_sale_draft: {
+        Args: {
+          p_assignments: Json
+          p_connection_id: string
+          p_costs: Json
+          p_snapshot_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       ebay_set_article_mapping: {
         Args: {
@@ -12635,6 +12945,10 @@ export type Database = {
           p_watchlist: Database["public"]["Tables"]["sniper_watchlists"]["Row"]
         }
         Returns: boolean
+      }
+      stock_lot_reserved_quantity: {
+        Args: { p_lot_id: string }
+        Returns: number
       }
       submit_label_draft: {
         Args: {

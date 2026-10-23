@@ -28,6 +28,38 @@ async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 const store: EbayOrderImportStore = {
+  async saveDraft(bearer, input) {
+    const { data, error } = await userClient(bearer).rpc('ebay_save_sale_draft', {
+      p_workspace_id: input.workspaceId,
+      p_connection_id: input.connectionId,
+      p_snapshot_id: input.snapshotId,
+      p_assignments: input.assignments,
+      p_costs: input.costs,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
+  async linkExisting(bearer, input) {
+    const { data, error } = await userClient(bearer).rpc('ebay_link_existing_sale', {
+      p_workspace_id: input.workspaceId,
+      p_connection_id: input.connectionId,
+      p_snapshot_id: input.snapshotId,
+      p_sale_id: input.saleId,
+      p_assignments: input.assignments,
+      p_reason: input.reason,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
+  async existingSales(bearer, scope, page) {
+    const { data, error } = await userClient(bearer).rpc('ebay_existing_sales_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_page: page,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
   async cacheRefresh(bearer, scope, kind) {
     const { error } = await userClient(bearer).rpc('ebay_cache_refresh', {
       p_workspace_id: scope.workspaceId,

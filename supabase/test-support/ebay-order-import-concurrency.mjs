@@ -38,9 +38,9 @@ export async function runEbayImportConcurrency() {
   const workspace = randomUUID();
   const connections = [randomUUID(), randomUUID()];
   const operations = [randomUUID(), randomUUID()];
-  const products = [randomUUID(), randomUUID()];
+  const products = Array.from({ length: 5 }, () => randomUUID());
   const purchase = randomUUID();
-  const lines = [randomUUID(), randomUUID()];
+  const lines = Array.from({ length: 5 }, () => randomUUID());
   const clients = [];
   const claims = (user) =>
     `set local role authenticated; select set_config('request.jwt.claims', '${JSON.stringify({ sub: user, role: 'authenticated' })}', true);`;
@@ -198,6 +198,89 @@ export async function runEbayImportConcurrency() {
     );
     console.log('Zwei Quellen für ein Stück: eine Buchung, kein Teilverkauf der zweiten.');
 
+    const reserve = (index, key, orderId) => {
+      const order = source(orderId);
+      order.lines[0].listingId = `reserve-${index}`;
+      return `insert into public.ebay_cached_orders(workspace_id,environment,external_account_id,order_id,source_key,source,created_at,auto_prepare)
+        values('${workspace}','production','test-${workspace}','${orderId}','${key}',${json(order)},now(),true);`;
+    };
+    const manual = (index) => `${claims(users[1])} select public.record_sale('${workspace}',
+      '{"platform":"ebay","sale_date":"2026-10-23"}',${json([{ catalog_product_id: products[index], quantity: 1, unit_sale_price: 10 }])});`;
+    query(`insert into public.ebay_article_mappings(workspace_id,environment,external_account_id,listing_id,catalog_product_id) values
+      ${[2, 3, 4].map((index) => `('${workspace}','production','test-${workspace}','reserve-${index}','${products[index]}')`).join(',')};`);
+    results = await concurrent(reserve(2, '1'.repeat(64), 'reserve-vs-manual'), manual(2));
+    assert.equal(results[0].code, 0, results[0].errors);
+    assert.notEqual(
+      results[1].code,
+      0,
+      'Manueller Verkauf darf die zuvor reservierte Menge nicht verbrauchen',
+    );
+    assert.match(results[1].errors, /Bestand|bestand|stock|quantity|Menge/i);
+    assert.equal(
+      query(
+        `select sum(remaining_quantity) from public.stock_lots where catalog_product_id='${products[2]}';`,
+      ),
+      '1',
+    );
+    console.log(
+      'Eigene Reservierung gegen manuellen Verkauf: echte Sperre, reservierte Menge bleibt vollständig.',
+    );
+
+    results = await concurrent(
+      reserve(3, '2'.repeat(64), 'reserve-source-a'),
+      reserve(3, '3'.repeat(64), 'reserve-source-b'),
+    );
+    for (const result of results) assert.equal(result.code, 0, result.errors);
+    assert.equal(
+      query(
+        `select state from public.ebay_sale_drafts where workspace_id='${workspace}' and order_id='reserve-source-a';`,
+      ),
+      'needs_costs',
+    );
+    assert.equal(
+      query(
+        `select state from public.ebay_sale_drafts where workspace_id='${workspace}' and order_id='reserve-source-b';`,
+      ),
+      'needs_stock',
+    );
+    assert.equal(
+      query(
+        `select sum(r.quantity) from public.ebay_sale_reservations r join public.stock_lots l on l.id=r.stock_lot_id where l.catalog_product_id='${products[3]}' and r.released_at is null;`,
+      ),
+      '1',
+    );
+    console.log(
+      'Zwei Quellen für ein Stück: getrennte Sitzungen reservieren insgesamt nur eine Menge.',
+    );
+
+    query(reserve(4, '4'.repeat(64), 'reserved-finalization'));
+    const finalSnapshot = snapshot(0, '4'.repeat(64), 'reserved-finalization');
+    results = await concurrent(book(0, finalSnapshot, products[4]), manual(4));
+    assert.equal(results[0].code, 0, results[0].errors);
+    assert.notEqual(results[1].code, 0);
+    assert.match(results[1].errors, /Bestand|bestand|stock|quantity|Menge/i);
+    assert.equal(
+      query(
+        `select state from public.ebay_sale_drafts where workspace_id='${workspace}' and order_id='reserved-finalization';`,
+      ),
+      'booked',
+    );
+    assert.equal(
+      query(
+        `select count(*) from public.ebay_sale_reservations r join public.stock_lots l on l.id=r.stock_lot_id where l.catalog_product_id='${products[4]}' and r.released_at is null;`,
+      ),
+      '0',
+    );
+    assert.equal(
+      query(
+        `select sum(remaining_quantity) from public.stock_lots where catalog_product_id='${products[4]}';`,
+      ),
+      '0',
+    );
+    console.log(
+      'Eigene endgültige Buchung gegen manuellen Verkauf: atomare Umwandlung ohne freie Zwischenmenge.',
+    );
+
     const revoked = snapshot(1, 'e'.repeat(64), 'revoked-member');
     results = await concurrent(
       `delete from public.workspace_members where workspace_id='${workspace}' and user_id='${users[1]}';`,
@@ -219,7 +302,7 @@ export async function runEbayImportConcurrency() {
     assert.match(results[1].errors, /42501/);
     assert.equal(
       query(`select count(*) from public.sales where workspace_id='${workspace}';`),
-      '2',
+      '3',
     );
     assert.equal(
       query(
