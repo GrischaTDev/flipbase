@@ -2,6 +2,8 @@ import imageCompression from 'browser-image-compression';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prepareProductImage } from './product-image-preparation';
 
+// Frühere Dialogtests können den Bilddienst bereits ohne diesen Mock geladen haben.
+vi.hoisted(() => vi.resetModules());
 vi.mock('browser-image-compression', () => ({ default: vi.fn() }));
 
 describe('prepareProductImage', () => {
