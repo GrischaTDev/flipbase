@@ -101,7 +101,15 @@ for (const theme of ['light', 'dark'] as const)
           await expect(
             listingRow(stateCase.title).getByText(stateCase.label, { exact: true }),
           ).toBeVisible();
-          if (stateCase.state !== 'active' && stateCase.state !== 'reserved')
+          if (stateCase.state === 'unknown') {
+            const age = listingRow(stateCase.title).locator('app-vinted-listing-age');
+            await expect(age).toHaveText('2 T');
+            await expect(age.locator('[aria-label]')).toHaveAttribute(
+              'aria-label',
+              '2 Tage · Vinted-Angabe',
+            );
+            await expect(age.locator('app-badge')).not.toHaveAttribute('title', /Veröffentlicht:/);
+          } else if (stateCase.state !== 'active' && stateCase.state !== 'reserved')
             await expect(listingRow(stateCase.title).locator('app-vinted-listing-age')).toHaveText(
               '5 T · erstellt',
             );

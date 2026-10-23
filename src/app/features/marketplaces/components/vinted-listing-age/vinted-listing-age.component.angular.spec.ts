@@ -17,6 +17,24 @@ beforeAll(async () => {
 });
 afterAll(() => restore?.());
 afterEach(() => TestBed.resetTestingModule());
+it('behält belegte Vinted-Tage auch bei unbekanntem Status ohne Onlinebehauptung sichtbar', () => {
+  const fixture = TestBed.createComponent(VintedListingAgeComponent);
+  TestBed.inject(VintedListingClockService).now.set(Date.parse('2026-10-23T10:00:00Z'));
+  fixture.componentRef.setInput('publicationState', 'unknown');
+  fixture.componentRef.setInput('publicationAge', {
+    value: 2,
+    unit: 'day',
+    observedAt: '2026-10-21T10:00:00Z',
+  });
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('4 Tage');
+  expect(fixture.nativeElement.textContent).not.toContain('unbekannt');
+  expect(fixture.nativeElement.textContent).not.toContain('online');
+  expect(fixture.nativeElement.querySelector('[title]').getAttribute('title')).toContain('Vinted');
+  fixture.componentRef.setInput('compact', true);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('4 T');
+});
 it('zeigt das Erstellalter eines Entwurfs ohne Online-Alter und ohne Veröffentlichungsdatum', () => {
   const fixture = TestBed.createComponent(VintedListingAgeComponent);
   const clock = TestBed.inject(VintedListingClockService);

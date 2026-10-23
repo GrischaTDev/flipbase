@@ -85,7 +85,7 @@ export async function mockMarketplaceOverview(
       },
     });
   });
-  await page.route('**/rest/v1/marketplace_account_entries?**', (route) => {
+  await page.route('**/rest/v1/marketplace_*account_entries?**', (route) => {
     const url = new URL(route.request().url()),
       params = url.searchParams;
     const connectionId = params.get('connection_id')?.replace('eq.', '') ?? null;

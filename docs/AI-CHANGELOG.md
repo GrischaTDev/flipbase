@@ -70,11 +70,39 @@ Alle Befunde mit Regressionen korrigiert; 426 gezielte SQL-Assertions, sechs ech
 Konkurrenzszenarien und vorhandene Docker-Kontextprüfungen erfolgreich. Beschädigte
 Umlaute der vorherigen generierten Migration werden durch eine neue additive
 Migration korrigiert; 31 tatsächliche Funktionskörper stimmen jetzt direkt mit
-den deklarativen UTF-8-Dateien überein. Frischer Nachreview steht noch aus.
+den deklarativen UTF-8-Dateien überein. Frischer unabhängiger Nachreview bestätigt alle vier Korrekturen ohne neuen Befund.
 Der echte Docker-Paketbau bestätigt die Dateifreigaben; vollständiger Appbau,
 neue Oberfläche und integrierte Browserprüfung folgen. Betriebsanleitung für
 gemeinsame Migrationen, Hintergrunddienste und Anwendung ergänzt. Keine
 Produktionsänderung oder PR-Veröffentlichung.
+
+**Aktueller Hauptstand und regulärer Replay:** `origin/master` bei `8281c9d1`
+mit den Vinted-Verkaufsabläufen in den eigenen Zweig übernommen. 46 eingehende
+Dateien unverändert bestätigt; Änderungsprotokoll vollständig erhalten,
+Schemaliste ausdrücklich vereinigt und gemeinsame Typen aus der frischen eigenen
+lokalen Supabase-Instanz neu erzeugt. Alle Migrationen regulär chronologisch
+angewendet und registriert; keine Migrationshistorie manuell nachgetragen.
+Vollständige SQL-Suite: 130 Dateien/4.882 Assertions erfolgreich, sechs echte
+Konkurrenzszenarien ebenfalls. 31 endgültige Funktionskörper und neuer
+Schema-/Rechtekatalog stimmen mit den deklarativen Quellen überein. 60 Prüfungen
+der Registrierung und Testauswahl, Typprüfung und Produktionsbau erfolgreich.
+Bestehende Warnungen zu optionalem Zugriff im Einkauf, ungenutztem Vinted-Link,
+Startpaketgröße und pako unverändert. Die neue eBay-Oberfläche folgt weiterhin
+als eigener Umsetzungsschritt; keine produktive Veröffentlichung.
+
+## 2026-10-23 - Juna - Vinted-Altersangaben und Verkaufsablauf korrigieren
+
+**Auftrag und Ausgangslage:** Eigener Zweig `juna/vinted-sales-lifecycle` auf `3477b3e5f8304e792853f8042573058ad25ab16b`, fremde Arbeitskopie unverändert. Rein lesend festgestellt: Korrektur #461 bereits produktiv, dennoch alle 29 regulären Inserate mit unbekanntem Status und vorhandenem Alter. Aktuelle eigene Vinted-Liste liefert fünf eindeutige Zustandsflags, aber kein `is_visible`. Der bisherige Verkaufsimport erfasste ausschließlich versendete Transaktionen. Nutzer bestätigt ausdrücklich nur die Erkennung der nativen Vinted-Wiederaufnahme nach Storno; allgemeines zeitgesteuertes Relisting und Warenbestandsverknüpfung bleiben dokumentierte Folgeaufträge.
+
+**Umsetzung:** Cloud- und Erweiterungsimport erkennen den belegten aktiven Flagzustand, unbekannte Zustände erhalten ihr neutrales Vinted-Alter. Gerundeter Veröffentlichungsanker kommt bei der Sortierung vor Erstellung und Abrufzeit. Verkäufe beginnen bei einem echten Verkäufer-Kaufbeleg; Käuferseite und angenommene Angebote bleiben ausgeschlossen. Strukturierte Systemereignisse erfassen Stornierung und native Wiederaufnahme. Paketkennungen, echter Gesamtpreis und erster Kaufzeitpunkt bleiben über Teilantworten erhalten. Die Kontolesesicht entfernt zugeordnete verkaufte beziehungsweise noch nicht wieder eingestellte Artikel aus Seite, Zähler und Übersicht, erhält aber die Historie. Wiederaufnahme benötigt ein datiertes Ereignis und eine anschließend tatsächlich gelesene aktive Anzeige. Neuere Käufe und zeitlich ungeklärte weitere Verkäufe sperren erneut. Verkäufe stehen nach dem Postfach und zeigen aktuelle Vorgänge getrennt vom Wiederaufnahmeverlauf mit intern gebundenem Chatlink.
+
+**Review und Prüfung:** Unabhängiger Review deckte zusätzlich Cacheverlust bei manuellem Vollimport, verkürzte Stornoverläufe, singulären Paketzähler, isolierte Übergabefelder, Mehrfachverkäufe und veraltete Anzeigen auf; gezielte Regressionen zuerst rot, anschließend grün. Ein direkter angemeldeter Sichtzugriff schützt gegen versehentliche private Helperaufrufe. Vollständige Worker-Suite 709 bestanden/acht vorhandene Auslassungen; fachliche Anwendungsauswahl 18 Node-Dateien/162 Fälle und 70 Angular-Dateien/940 Fälle grün. Vollständige SQL-Suite 128 Dateien/4.719 Assertions und frischer Migration-Replay mit 36 Marketplace-Dateien/1.731 Assertions erfolgreich. 553 öffentliche Funktionen samt Rechten, Owner und Definer sowie Sichtoptionen identisch zum Zielkatalog nach Zeilenendennormalisierung. Anwendung-/Worker-Typen, Produktionsbau, gezieltes Lint, Shared-UI-Prüfung (244 Dateien/keine Befunde) und Suite-Audit erfolgreich. Vier neue Browserfälle separat registriert, einschließlich gezielter Auswahl und PR-Sollliste; keine Verkaufsfälle durch reine Galerieänderungen.
+
+**Migration und Grenzen:** Neue Migration aus isoliertem Basis-/Zielkatalog generiert; deklarative Rechte, `security_invoker` und Altersbestandsabgleich vollständig enthalten. Die neue CLI-URL-Schnittstelle lieferte trotz Änderungen einen leeren Diff, der historische CLI-Weg scheiterte an einer alten unveränderten `lock table`-Migration; deshalb geprüfter `migra`-Kataloggenerator ohne Produktabhängigkeitsänderung. Vollständige SQL-Kopie enthält Schema und technische Referenzdaten, keine privaten Geschäftsdaten. Breiter CI-Lauf unter Linux bleibt vor dem Merge erforderlich; die echte Anbieterabnahme folgt gemeinsam nach Bereitstellung. Konto- und Anbieteraktionen wurden ausschließlich gelesen; kein Push, PR, Merge oder Deployment. Einzelheiten und spätere Warenbestandsverknüpfung: `docs/implementation/vinted-sales-lifecycle.md`.
+
+**Browserabschluss:** Alle 58 Fälle der fünf betroffenen Kernansichten erfolgreich, darunter vier neue Verkaufsvarianten mit 390/1440px, echtem Hell-/Dunkelzustand und Touch. Vorhandene Fälle decken zusätzlich 320/834/1024px, Tastatur, Kontotrennung, Raster/Liste, Detail und AXE ab. Mobil-/Desktopansicht visuell gelesen. AXE fand die neue übersprungene Überschriftenebene; Gruppenüberschrift korrigiert und erneut geprüft. Erster Vorschauversuch blockierte lokale Testantworten durch Produktions-CSP; reguläre ruhende Entwicklungsvorschau ohne Produktänderung verwendet. Bestehender 503-Wiederholungstest besteht mit den unveränderten 15 Sekunden der CI. 197 Vertrags-/Auswahlprüfungen grün, Typen abschließend erneut geprüft. Tatsächliche CI-Auswahl ist umfassend (231 Node-, 48 DOM-, 262 Angular-Dateien; weitere Browser- und PWA-Prüfungen); lokal geprüfter fachlicher Plan enthält 18 Node-/70 Angular-Dateien. Acht weitere fachlich angewählte Browserdateien bleiben wie die fachfremde Gesamtregression dem verpflichtenden PR-Lauf vorbehalten. Keine vollständige CI-Freigabe behauptet.
+
+**Abschlussfreigabe:** Nutzer autorisiert PR, Merge nach erfolgreichen Pflichtprüfungen und Bereinigung. Aktuellen Hauptstand `7eb63bd5ee864714b2b670473a4062df712fab25` einschließlich PR #462 übernommen; einziger Konflikt im Änderungsprotokoll durch Erhalt beider vollständiger Einträge gelöst. Keine Änderungen an fremden Zweigen. Integrierten Stand erneut geprüft: 102 Angular-Fälle aus acht gemeinsamen Navigations-/Vinted-Dateien und 27 Navigationsmodellfälle erfolgreich; Typprüfung und Produktionsbau ebenfalls grün. Die fachfremden Oberflächen aus PR #462 bleiben unverändert und werden nicht erneut manuell durchgespielt.
 
 ## 2026-10-23 - Juna - Tabellen und Kennzahlen vereinfachen
 

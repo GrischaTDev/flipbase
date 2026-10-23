@@ -1,6 +1,6 @@
 # eBay-Verkaufsprüfung Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** eBay-Daten dauerhaft anzeigen und verknüpfte Verkäufe mit sofortiger Reservierung zur persönlichen Buchungsprüfung vorbereiten.
 
@@ -47,13 +47,13 @@
 - Produces: serverseitige, nur für berechtigte persönliche Konten lesbare Cache-RPCs und schreibende Worker-RPCs; ihre genauen getypten Parameter stehen in `ebay-cache-contracts.ts` und werden von Task 2/3 übernommen.
 - Consumes: bestehende Kontolease, `parseEbayOrderSource`, `ebayOrderSourceKey`, `EbayOrderObserver` und dessen Hintergrundschleife.
 
-- [ ] Zuerst Regressionen für persönliche Cache-Rechte, stillen Erstimport, Teilseiten/Abbruch, Änderung einer älteren Bestellung und Abgleich ohne Push schreiben und rot ausführen.
-- [ ] Kontogebundene normalisierte Daten und Abgleichfortschritt speichern. Cache-Lesen verwendet keine eBay-Anfrage. Kaltstart kann einen klar benannten Erstabgleich anstoßen, ohne vorhandene Zeilen zu leeren.
-- [ ] Orders nach Änderungszeit, Inserate in begrenzten vollständigen Durchläufen synchronisieren. Erst nach vollständigem Durchlauf fortschreiben; keine Vollständigkeit aus einer Teilantwort ableiten.
-- [ ] Gebühren aus `totalMarketplaceFee` normalisieren; `totalFeeBasisAmount` niemals als Gebühr verwenden. Bildquellen nach Quellkennung zusammenführen, ohne Renderanfragen je Zeile.
-- [ ] Persistente und neue Anbieterbestellungen unterscheidbar halten, damit Task 2 nur neue vollständig zugeordnete Bestellungen automatisch vorbereitet. Vorhandene Push-Präferenzen beim Versand beibehalten.
-- [ ] Schema auf isolierter lokaler Testbasis anwenden, Migration erzeugen/prüfen und Typen generieren. Fremde Container nicht stoppen.
-- [ ] Deno-Tests für eBay-Parser, Konto und Observer, Node-Observertests und passende SQL-Tests ausführen. Ergebnis und konkrete RPC-Verträge im Taskbericht festhalten, dann lokal committen.
+- [x] Zuerst Regressionen für persönliche Cache-Rechte, stillen Erstimport, Teilseiten/Abbruch, Änderung einer älteren Bestellung und Abgleich ohne Push schreiben und rot ausführen.
+- [x] Kontogebundene normalisierte Daten und Abgleichfortschritt speichern. Cache-Lesen verwendet keine eBay-Anfrage. Kaltstart kann einen klar benannten Erstabgleich anstoßen, ohne vorhandene Zeilen zu leeren.
+- [x] Orders nach Änderungszeit, Inserate in begrenzten vollständigen Durchläufen synchronisieren. Erst nach vollständigem Durchlauf fortschreiben; keine Vollständigkeit aus einer Teilantwort ableiten.
+- [x] Gebühren aus `totalMarketplaceFee` normalisieren; `totalFeeBasisAmount` niemals als Gebühr verwenden. Bildquellen nach Quellkennung zusammenführen, ohne Renderanfragen je Zeile.
+- [x] Persistente und neue Anbieterbestellungen unterscheidbar halten, damit Task 2 nur neue vollständig zugeordnete Bestellungen automatisch vorbereitet. Vorhandene Push-Präferenzen beim Versand beibehalten.
+- [x] Schema auf isolierter lokaler Testbasis anwenden, Migration erzeugen/prüfen und Typen generieren. Fremde Container nicht stoppen.
+- [x] Deno-Tests für eBay-Parser, Konto und Observer, Node-Observertests und passende SQL-Tests ausführen. Ergebnis und konkrete RPC-Verträge im Taskbericht festhalten, dann lokal committen.
 
 ## Task 2: Verkaufsentwürfe, eigene Reservierungen und Quellenabgleich
 
@@ -72,14 +72,14 @@
 - Produces: berechtigte Lese-/Speicheraktionen für offene Entwürfe; `order_review` berücksichtigt gespeicherte Zuordnung und bestätigte Kosteneingaben, `order_book` bleibt die einzige endgültige Quellenbuchung.
 - Produces: separater kontogebundener Glockenstrom mit stabiler Ereigniskennung und persönlichen Zugriffsgrenzen; konkrete TS-/RPC-Verträge in der neuen Vertragsdatei.
 
-- [ ] SQL- und Edge-Regressionen zuerst schreiben: eigener gegenüber fremdem Bestand, Pakete atomar, Doppelabruf, verkaufter Altartikel, Kosten unbekannt/Null, Buchung nach Reservierung, Antwortverlust, Storno und Refund.
-- [ ] Dauerhaften Entwurf aus neuem bezahltem vollständig zugeordnetem Cache-Vorgang erzeugen. Historische/unverknüpfte Vorgänge erst bei ausdrücklicher Bearbeitung vorbereiten.
-- [ ] Eigene Reservierungsbesitzer speichern. Konkrete Einzelstücke reservieren; Katalogmengen auf vorhandene Lose beziehen und verfügbare Mengen in allen bestehenden Buchungswegen schützen. Paketmengen aggregieren und gemeinsam sperren.
-- [ ] Nach erneutem Anbieterabgleich eigene Reservierung in derselben Transaktion wie `record_sale` und Quellenbeleg umwandeln. Fremde Reservierungen bleiben unberührt. Fehler rollt Freigabe und Buchung gemeinsam zurück.
-- [ ] Vorhandenen vollständigen eBay-Verkauf anhand seiner Positionen auswählen und zuordnen; fremde, zurückgenommene oder schon zugeordnete Verkäufe ablehnen. Eigene Entwurfsreservierung genau einmal freigeben.
-- [ ] Eindeutiges Storno vor Buchung löst die eigene Reservierung; Erstattung/Unklarheit verlangt Klärung. Gebuchte Belege werden nicht automatisch zurückgebucht. Kontotrennung erhält die interne Reservierungsklärung.
-- [ ] Eine dauerhafte Glockenmeldung pro neuem Verkauf erzeugen, persönlichen Zugriff prüfen, Erstbasis still halten und doppelten Push bei späterer Bestätigung verhindern.
-- [ ] Migration und Typen erzeugen, SQL-/Edge-Tests einschließlich alter eBay-Importfälle ausführen und lokal committen.
+- [x] SQL- und Edge-Regressionen zuerst schreiben: eigener gegenüber fremdem Bestand, Pakete atomar, Doppelabruf, verkaufter Altartikel, Kosten unbekannt/Null, Buchung nach Reservierung, Antwortverlust, Storno und Refund.
+- [x] Dauerhaften Entwurf aus neuem bezahltem vollständig zugeordnetem Cache-Vorgang erzeugen. Historische/unverknüpfte Vorgänge erst bei ausdrücklicher Bearbeitung vorbereiten.
+- [x] Eigene Reservierungsbesitzer speichern. Konkrete Einzelstücke reservieren; Katalogmengen auf vorhandene Lose beziehen und verfügbare Mengen in allen bestehenden Buchungswegen schützen. Paketmengen aggregieren und gemeinsam sperren.
+- [x] Nach erneutem Anbieterabgleich eigene Reservierung in derselben Transaktion wie `record_sale` und Quellenbeleg umwandeln. Fremde Reservierungen bleiben unberührt. Fehler rollt Freigabe und Buchung gemeinsam zurück.
+- [x] Vorhandenen vollständigen eBay-Verkauf anhand seiner Positionen auswählen und zuordnen; fremde, zurückgenommene oder schon zugeordnete Verkäufe ablehnen. Eigene Entwurfsreservierung genau einmal freigeben.
+- [x] Eindeutiges Storno vor Buchung löst die eigene Reservierung; Erstattung/Unklarheit verlangt Klärung. Gebuchte Belege werden nicht automatisch zurückgebucht. Kontotrennung erhält die interne Reservierungsklärung.
+- [x] Eine dauerhafte Glockenmeldung pro neuem Verkauf erzeugen, persönlichen Zugriff prüfen, Erstbasis still halten und doppelten Push bei späterer Bestätigung verhindern.
+- [x] Migration und Typen erzeugen, SQL-/Edge-Tests einschließlich alter eBay-Importfälle ausführen und lokal committen.
 
 ## Task 3: Gespeicherte Tabellen, Zuordnung und Verkaufsprüfung bedienen
 

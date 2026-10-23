@@ -237,11 +237,13 @@ select is((select body->>'publicationState' from public.marketplace_account_entr
 select is((select body->'transferSource' from public.marketplace_account_entries where external_id='46820'),'{"unrelated":"source"}'::jsonb,'Bestandsabgleich erhält vollständige unabhängige Quellfelder');
 select is((select body->>'text' from public.marketplace_account_entries where external_id='46820'),'vollständig','Bestandsabgleich erhält die Beschreibung');
 select is((select body->'publicationAge' from public.marketplace_account_entries where external_id='46821'),'{"value":8,"unit":"day","observedAt":"2026-10-01T00:00:00Z"}'::jsonb,'Bestandsabgleich erhält vorhandenen Quellenanker ohne neue Altersschätzung');
-select is((select sort_at from public.marketplace_account_entries where external_id='46821'),'1970-01-01T00:00:00Z'::timestamptz,'Unbekannter Altstatus erhält durch ein Alterslabel keine Publikationschronologie');
+select is((select sort_at from public.marketplace_account_entries where external_id='46821'),'2026-09-23T00:00:00Z'::timestamptz,'Belegtes Anbieter-Alter ordnet auch einen Artikel mit unbekanntem Status, ohne eine exakte Veröffentlichung zu behaupten');
 select is((select body->>'occurredAt' from public.marketplace_account_entries where external_id='46822'),null::text,'Bestandsabgleich repariert falsch datierte Entwürfe');
 select is((select sort_at from public.marketplace_account_entries where external_id='46823'),'2026-07-01T00:00:00Z'::timestamptz,'Bestandsabgleich verändert keine Aktivitätszeit');
 select is((select body from public.marketplace_account_entries where external_id='46823'),'{"occurredAt":"2026-07-01T00:00:00Z"}'::jsonb,'Bestandsabgleich verändert keine andere Eintragsart');
 select ok(not has_function_privilege('authenticated','public.marketplace_publication_age_sort_at(jsonb,timestamptz)','execute'),'Interne Alterssortierung erhält keine Browserfreigabe');
+select pg_temp.cache('46828','{"publicationState":"active","createdAt":"2026-09-01T00:00:00Z","publicationAge":{"value":1,"unit":"day","observedAt":"2026-10-22T00:00:00Z"}}');
+select is((select sort_at from public.marketplace_account_entries where external_id='46828'),'2026-10-21T00:00:00Z'::timestamptz,'Vinteds Veröffentlichungsalter gewinnt vor einer früheren Entwurfserstellung');
 
 -- Mehr als eine echte API-Seite: gleiche Zeiten nutzen id als stabilen zweiten Schlüssel.
 insert into public.marketplace_connections(id,workspace_id,display_name,status,external_account_id) values

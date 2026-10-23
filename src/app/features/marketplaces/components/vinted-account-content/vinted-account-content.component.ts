@@ -1,11 +1,11 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { VintedSalesComponent } from '../vinted-sales/vinted-sales.component';
 import { VintedOverviewComponent } from '../vinted-overview/vinted-overview.component';
 import { VintedProfileComponent } from '../vinted-profile/vinted-profile.component';
 import { VintedMessagesComponent } from '../vinted-messages/vinted-messages.component';
@@ -16,12 +16,11 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 @Component({
   selector: 'app-vinted-account-content',
   imports: [
-    CurrencyPipe,
     DatePipe,
     ButtonComponent,
     CardComponent,
     DataTableComponent,
-    ProductThumbnailComponent,
+    VintedSalesComponent,
     VintedOverviewComponent,
     VintedProfileComponent,
     VintedMessagesComponent,

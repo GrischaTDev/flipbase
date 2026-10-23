@@ -3509,6 +3509,13 @@ export type Database = {
             referencedRelation: "marketplace_account_entries"
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
+          {
+            foreignKeyName: "marketplace_account_entries_workspace_id_connection_id_par_fkey"
+            columns: ["workspace_id", "connection_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
         ]
       }
       marketplace_account_sync_sources: {
@@ -4709,6 +4716,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "marketplace_listing_metric_observations_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "marketplace_listing_metric_observations_statistic_item_id_fkey"
             columns: ["statistic_item_id"]
             isOneToOne: false
@@ -5027,6 +5041,13 @@ export type Database = {
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
+            foreignKeyName: "marketplace_local_message_out_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
             foreignKeyName: "marketplace_local_message_outbo_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
@@ -5126,6 +5147,13 @@ export type Database = {
             columns: ["workspace_id", "connection_id", "conversation_id"]
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_message_notificat_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
@@ -5268,6 +5296,13 @@ export type Database = {
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
+            foreignKeyName: "marketplace_negotiation_jobs_workspace_id_connection_id_co_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
             foreignKeyName: "marketplace_negotiation_jobs_workspace_id_connection_id_th_fkey"
             columns: ["workspace_id", "connection_id", "thread_id"]
             isOneToOne: false
@@ -5378,6 +5413,13 @@ export type Database = {
             columns: ["workspace_id", "connection_id", "conversation_id"]
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_negotiation_threa_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
         ]
@@ -9045,6 +9087,70 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_visible_account_entries: {
+        Row: {
+          body: Json | null
+          connection_id: string | null
+          conversation_read_version: string | null
+          external_id: string | null
+          favorite_notification_version: number | null
+          id: string | null
+          kind: string | null
+          observed_at: string | null
+          parent_id: string | null
+          sort_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          body?: Json | null
+          connection_id?: string | null
+          conversation_read_version?: string | null
+          external_id?: string | null
+          favorite_notification_version?: number | null
+          id?: string | null
+          kind?: string | null
+          observed_at?: string | null
+          parent_id?: string | null
+          sort_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          body?: Json | null
+          connection_id?: string | null
+          conversation_read_version?: string | null
+          external_id?: string | null
+          favorite_notification_version?: number | null
+          id?: string | null
+          kind?: string | null
+          observed_at?: string | null
+          parent_id?: string | null
+          sort_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_account_entries_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_account_entries_workspace_id_connection_id_par_fkey"
+            columns: ["workspace_id", "connection_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_account_entries_workspace_id_connection_id_par_fkey"
+            columns: ["workspace_id", "connection_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
           },
         ]
       }

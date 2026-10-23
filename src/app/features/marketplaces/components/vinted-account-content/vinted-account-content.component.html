@@ -13,64 +13,7 @@
       <app-vinted-listings />
     }
     @case ('sales') {
-      @if (store.localSalesUnavailable()) {
-        <app-card class="mb-4" title="Verkäufe noch nicht lokal angebunden">
-          <p class="text-sm text-fb-text-secondary">
-            Die lokale Pilotversion übernimmt bisher Profil und Inserate. Deine Vinted-Verkäufe
-            werden noch nicht synchronisiert. Vorhandene gespeicherte Verkäufe bleiben unten
-            sichtbar.
-          </p>
-        </app-card>
-      }
-      @if (page(); as entries) {
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-          @for (entry of entries.items; track entry.id) {
-            <app-card class="min-w-0 overflow-hidden">
-              <app-product-thumbnail
-                class="mb-3 block w-full"
-                [src]="entry.imageUrl"
-                [alt]="entry.title"
-                size="listing"
-              />
-              <p class="truncate text-[13px] font-semibold text-fb-text-primary">
-                {{ entry.title }}
-              </p>
-              @if (entry.brand || entry.size) {
-                <p class="mt-1 truncate text-xs text-fb-text-secondary">
-                  {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
-                </p>
-              }
-              <p class="mt-3 text-base font-semibold text-fb-text-primary">
-                {{
-                  entry.price === null
-                    ? 'Preis unbekannt'
-                    : (entry.price | currency: entry.currency)
-                }}
-              </p>
-              @if (entry.status) {
-                <p class="mt-1 text-xs text-fb-text-secondary">Status: {{ entry.status }}</p>
-              }
-              @if (entry.shipmentStatus) {
-                <p class="mt-1 text-xs text-fb-text-secondary">
-                  Versand: {{ entry.shipmentStatus }}
-                </p>
-              }
-            </app-card>
-          } @empty {
-            @if (!store.localSalesUnavailable()) {
-              <app-card title="Noch keine gespeicherten Verkäufe" />
-            }
-          }
-        </div>
-        @if (entries.nextCursor) {
-          <app-button
-            class="mt-4"
-            [loading]="store.loadingPage() === 'sale'"
-            (clicked)="store.loadMore('sale')"
-            >Weitere Verkäufe laden</app-button
-          >
-        }
-      }
+      <app-vinted-sales />
     }
     @case ('activity') {
       @if (page(); as entries) {

@@ -22,6 +22,7 @@ import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted
 import { parseVintedInboxEvents } from './vinted-inbox-events.ts';
 import type { MarketplaceInboxEventBatch } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
 import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
+import { readVintedSale } from './vinted-sales.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
 
@@ -91,6 +92,9 @@ export interface VintedConversationVersion {
   itemPrice?: number | null;
   itemCurrency?: string | null;
   transactionStatus?: string | null;
+  saleTrackingVersion?: 1;
+  saleTransactionId?: string;
+  saleSellerId?: string;
 }
 
 export interface VintedConversationReadTarget {
@@ -256,12 +260,20 @@ function publicationState(item: Record<string, unknown>): VintedPublicationState
   if (item['is_hidden'] === true) return 'hidden';
   if (item['is_closed'] === true) return 'ended';
   if (
-    ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_visible'].some(
+    ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_visible', 'is_processing'].some(
       (field) => item[field] != null && typeof item[field] !== 'boolean',
     )
   )
     return 'unknown';
   if (item['is_reserved'] === true) return 'reserved';
+  // Die aktuelle eigene Kleiderschrankliste liefert diese fünf Flags, aber kein is_visible.
+  if (
+    item['is_visible'] !== false &&
+    ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_processing'].every(
+      (field) => item[field] === false,
+    )
+  )
+    return 'active';
   return item['is_visible'] === true ? 'active' : 'unknown';
 }
 
@@ -269,8 +281,11 @@ function publicationSortTime(body: Record<string, unknown>, observedAt: string):
   const published = ['active', 'reserved', 'ended'].includes(String(body['publicationState']));
   const occurredAt = published ? itemTimestamp(body['occurredAt'], observedAt) : null;
   const createdAt = itemTimestamp(body['createdAt'], observedAt);
-  if (occurredAt || createdAt) return (occurredAt ?? createdAt)!;
-  const age = published ? parseVintedPublicationAge(body['publicationAge']) : null;
+  if (occurredAt) return occurredAt;
+  const age =
+    published || body['publicationState'] === 'unknown'
+      ? parseVintedPublicationAge(body['publicationAge'])
+      : null;
   const anchor = age ? itemTimestamp(age.observedAt, observedAt) : null;
   if (age && anchor) {
     const seconds = {
@@ -285,7 +300,7 @@ function publicationSortTime(body: Record<string, unknown>, observedAt: string):
       Math.max(0, Date.parse(anchor) - age.value * seconds[age.unit] * 1000),
     ).toISOString();
   }
-  return '1970-01-01T00:00:00.000Z';
+  return createdAt ?? '1970-01-01T00:00:00.000Z';
 }
 
 function price(value: unknown): { amount: number | null; currency: string } {
@@ -562,6 +577,10 @@ export function parseVintedAccountImport(
             : null),
         transactionStatus:
           item.transactionStatus ?? (reusable ? string(previous.transactionStatus) : null),
+        ...(reusable && previous?.saleTrackingVersion === 1 ? { saleTrackingVersion: 1 } : {}),
+        ...(previous?.saleTransactionId && previous.saleSellerId
+          ? { saleTransactionId: previous.saleTransactionId, saleSellerId: previous.saleSellerId }
+          : {}),
       },
     });
   }
@@ -581,6 +600,8 @@ export function parseVintedAccountImport(
         identifier(record(conversation?.['opposite_user'])?.['id']) ??
         conversationEntry.body['partnerId'];
       conversationEntry.body['detailCheckedAt'] = observedAt;
+      if (detail?.['saleTrackingChecked'] === true)
+        conversationEntry.body['saleTrackingVersion'] = 1;
       for (const [field, value] of Object.entries(parseConversationItem(conversation))) {
         if (value !== null) conversationEntry.body[field] = value;
       }
@@ -745,31 +766,23 @@ export function parseVintedAccountImport(
       string(transaction?.['status_title']) === 'Angebot'
     )
       rejectedSaleIds.add(saleId);
-    if (
-      !saleId ||
-      sales.has(saleId) ||
-      identifier(relation?.['id']) !== saleId ||
-      identifier(transaction?.['seller_id']) !== identity.id ||
-      !identifier(record(transaction?.['order'])?.['id']) ||
-      string(transaction?.['status_title']) !== 'Versendet'
-    )
-      continue;
-    sales.add(saleId);
-    const money = price(record(transaction?.['offer'])?.['price']);
-    entries.push({
-      kind: 'sale',
-      externalId: saleId,
-      sortAt: date(transaction?.['status_updated_at'], observedAt),
-      body: {
-        title: string(transaction?.['item_title']) ?? string(transaction?.['title']) ?? 'Verkauf',
-        price: money.amount,
-        currency: money.currency,
-        status: string(transaction?.['status_title']),
-        occurredAt: date(transaction?.['status_updated_at'], observedAt),
-        shipmentStatus: string(record(transaction?.['shipment'])?.['status_title']),
-        imageUrl: image(record(relation?.['item_photo'])?.['url']),
-      },
-    });
+    const sale = readVintedSale(
+      conversation,
+      transaction,
+      identity.id,
+      observedAt,
+      previous?.saleTransactionId && previous.saleSellerId
+        ? { transactionId: previous.saleTransactionId, sellerId: previous.saleSellerId }
+        : undefined,
+    );
+    if (sale && !sales.has(sale.externalId)) {
+      sales.add(sale.externalId);
+      entries.push({ kind: 'sale', ...sale });
+      if (conversationEntry) {
+        conversationEntry.body['saleTransactionId'] = sale.externalId;
+        conversationEntry.body['saleSellerId'] = identity.id;
+      }
+    }
   }
   if (areas.feedback.status === 'failed') delete entries[0]?.body['feedbacks'];
   const publicationFieldNames = vintedFieldNames(itemValues.map(record).find(Boolean) ?? null);
@@ -1249,6 +1262,7 @@ export async function readVintedAccountImport(
       !requestedConversation &&
       !wasUnread &&
       previous &&
+      previous.saleTrackingVersion === 1 &&
       sourceUpdatedAt &&
       previous.sourceUpdatedAt === sourceUpdatedAt &&
       !isUnavailableItemText(previous.text) &&
@@ -1299,12 +1313,13 @@ export async function readVintedAccountImport(
     eventBatches.push(parseVintedInboxEvents(conversation, identity.id, observedAt));
     const transactionId = identifier(record(relation?.['transaction'])?.['id']);
     let transaction: unknown = null;
-    if (
-      !requestedConversation &&
+    const needsTransaction =
       transactionId &&
       (identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id ||
-        record(relation?.['transaction'])?.['current_user_side'] === 'seller')
-    ) {
+        record(relation?.['transaction'])?.['current_user_side'] === 'seller' ||
+        record(relation?.['transaction'])?.['user_side'] === 'seller' ||
+        readVintedSale(relation, null, identity.id, observedAt) !== null);
+    if (!requestedConversation && needsTransaction) {
       await atImportStage('transaction', authorize);
       try {
         transaction = await vintedJson(page, `/api/v2/transactions/${transactionId}`, reads);
@@ -1314,7 +1329,11 @@ export async function readVintedAccountImport(
         areas.sales = sourceFailure('transaction', error, true);
       }
     }
-    details.push({ ...record(conversation), transaction });
+    details.push({
+      ...record(conversation),
+      transaction,
+      saleTrackingChecked: !requestedConversation && (!needsTransaction || transaction !== null),
+    });
   }
   const feedbacks = requestedConversation
     ? { values: [], result: { status: 'partial' as const } }

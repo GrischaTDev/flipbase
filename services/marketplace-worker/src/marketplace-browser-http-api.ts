@@ -994,9 +994,8 @@ export class MarketplaceBrowserHttpApi {
         try {
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
-          const previousConversations = requestedConversation
-            ? ((await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [])
-            : [];
+          const previousConversations =
+            (await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [];
           const previousPublications = requestedConversation
             ? []
             : ((await this.imports.publicationVersions?.(scope, currentSessionId)) ?? []);
