@@ -132,6 +132,16 @@ export class EbayAccountStore {
       ? error.message
       : 'Die eBay-Anfrage konnte nicht bestätigt werden.';
   }
+  private discardRevokedAccess(error: unknown): boolean {
+    if (
+      !(error instanceof EbayAccountRequestError) ||
+      !['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].includes(error.code ?? '')
+    )
+      return false;
+    this.clearData();
+    this.connectionData.set(null);
+    return true;
+  }
   async initialize(
     workspaceId: string | null,
     read: boolean,
@@ -181,15 +191,7 @@ export class EbayAccountStore {
         await this.read(false);
     } catch (error) {
       if (this.isCurrent(revision)) {
-        if (
-          error instanceof EbayAccountRequestError &&
-          ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].includes(
-            error.code ?? '',
-          )
-        ) {
-          this.clearData();
-          this.connectionData.set(null);
-        }
+        this.discardRevokedAccess(error);
         this.error.set(this.message(error));
       }
     } finally {
@@ -308,6 +310,10 @@ export class EbayAccountStore {
     } catch (error) {
       if (!this.isCurrent(revision)) return;
       const errorMessage = this.message(error);
+      if (this.discardRevokedAccess(error)) {
+        this.dataError.set(errorMessage);
+        return;
+      }
       this.dataError.set(errorMessage);
       this.rememberPage();
       try {
@@ -324,8 +330,11 @@ export class EbayAccountStore {
             this.dataError.set(errorMessage);
           }
         }
-      } catch {
-        /* Der ursprüngliche Abruffehler bleibt sichtbar. */
+      } catch (statusError) {
+        if (this.isCurrent(revision)) {
+          this.discardRevokedAccess(statusError);
+          this.dataError.set(errorMessage);
+        }
       }
     } finally {
       if (this.isCurrent(revision)) this.isReading.set(false);

@@ -63,6 +63,7 @@ export class EbaySaleActivityStore {
   readonly resolving = signal(false);
   private loadRevision = 0;
   private mutationRevision = 0;
+  private resolutionRevision = 0;
   private feedRevision = 0;
   private inFlight: Promise<void> | null = null;
   readonly drafts = computed(() =>
@@ -91,6 +92,7 @@ export class EbaySaleActivityStore {
       untracked(() => {
         this.loadRevision++;
         this.mutationRevision++;
+        this.resolutionRevision++;
         this.inFlight = null;
         this.rows.set([]);
         this.events.set([]);
@@ -110,6 +112,7 @@ export class EbaySaleActivityStore {
       clearInterval(timer);
       this.loadRevision++;
       this.mutationRevision++;
+      this.resolutionRevision++;
       this.rows.set([]);
       this.events.set([]);
       this.held.set([]);
@@ -302,7 +305,6 @@ export class EbaySaleActivityStore {
   async resolveReservation(draftId: string, reason: string): Promise<boolean> {
     const key = this.context();
     const workspaceId = this.workspace.currentWorkspace()?.id;
-    const revision = this.mutationRevision;
     if (
       !key ||
       !workspaceId ||
@@ -312,14 +314,21 @@ export class EbaySaleActivityStore {
       !this.reservations().some((row) => row.draftId === draftId)
     )
       return false;
+    const revision = ++this.resolutionRevision;
     this.resolving.set(true);
     this.error.set(null);
     const current = () =>
-      !this.destroyRef.destroyed && key === this.context() && revision === this.mutationRevision;
+      !this.destroyRef.destroyed && key === this.context() && revision === this.resolutionRevision;
+    let saved = false;
     try {
       if (!current()) return false;
       await this.api.resolveReservation(workspaceId, draftId, reason.trim());
       if (!current()) return false;
+      saved = true;
+      // Einen älteren Poll erst abschließen, bevor der bestätigte interne Stand neu gelesen wird.
+      if (this.inFlight) await this.inFlight;
+      if (!current()) return false;
+      this.held.update((rows) => rows.filter((row) => row.draftId !== draftId));
       await this.refreshLoadedStock(workspaceId, current);
       if (!current()) return false;
       await this.reload();
@@ -331,7 +340,7 @@ export class EbaySaleActivityStore {
             ? error.message
             : 'Die Reservierung konnte nicht freigegeben werden.',
         );
-      return false;
+      return saved && current();
     } finally {
       if (current()) this.resolving.set(false);
     }

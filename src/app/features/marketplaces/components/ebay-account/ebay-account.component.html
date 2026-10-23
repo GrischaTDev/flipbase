@@ -242,6 +242,11 @@
           Die Suche durchsucht die bisher geladenen Einträge.
         </p>
       }
+      @let hasSavedRows =
+        store.section() === 'listings' ? store.listings().length > 0 : store.orders().length > 0;
+      @if (hasSavedRows && store.dataError(); as error) {
+        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      }
       <app-data-table
         [ariaLabel]="
           store.section() === 'listings' ? 'Deine eBay-Inserate' : 'Deine eBay-Bestellungen'
@@ -257,7 +262,7 @@
             : 'eBay-Inserate durchsuchen'
         "
         [loading]="(store.isReading() && !store.hasRead()) || store.initialSyncPending()"
-        [errorMessage]="store.dataError()"
+        [errorMessage]="hasSavedRows ? null : store.dataError()"
         [hasRows]="
           store.section() === 'listings'
             ? filteredListings().length > 0

@@ -8,6 +8,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { InventoryService } from '../../../core/services/inventory.service';
 import { StockService } from '../../../core/services/stock.service';
+import { EbaySaleDraftsComponent } from '../components/ebay-sale-drafts/ebay-sale-drafts.component';
 const scope = { workspaceId: 'workspace-a', connectionId: 'connection-a' };
 const connection = {
   ...scope,
@@ -26,6 +27,7 @@ describe('Persönliche eBay-Aktivität', () => {
     loadNotifications: ReturnType<typeof vi.fn>;
     loadReservations: ReturnType<typeof vi.fn>;
     updateNotification: ReturnType<typeof vi.fn>;
+    resolveReservation: ReturnType<typeof vi.fn>;
   };
   let status: ReturnType<typeof vi.fn>;
   let stockReload: ReturnType<typeof vi.fn>;
@@ -50,6 +52,7 @@ describe('Persönliche eBay-Aktivität', () => {
       ]),
       loadReservations: vi.fn(async () => []),
       updateNotification: vi.fn(async () => undefined),
+      resolveReservation: vi.fn(async () => undefined),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -74,6 +77,101 @@ describe('Persönliche eBay-Aktivität', () => {
     vi.clearAllMocks();
   });
   afterEach(() => TestBed.resetTestingModule());
+  const held = ['first', 'second'].map((draftId, index) => ({
+    id: index + 1,
+    draftId,
+    inventoryItemId: 'item',
+    stockLotId: null,
+    quantity: 1,
+    createdAt: '2026-10-23T12:00:00Z',
+  }));
+  it('schließt interne Freigaben trotz dauerhaft verweigertem Privatstatus ab und erlaubt die nächste Klärung', async () => {
+    status.mockRejectedValue(new Error('Privater Zugriff verweigert'));
+    api.loadReservations.mockResolvedValue(held);
+    await store.reload();
+    api.loadReservations.mockResolvedValue([held[1]]);
+    const component = TestBed.runInInjectionContext(() => new EbaySaleDraftsComponent());
+    component.openResolution('first');
+    component.resolution.setValue({ reason: 'Bestand geprüft', confirmed: true });
+    await component.resolve();
+    expect(component.selectedReservation()).toBeNull();
+    expect(store.resolving()).toBe(false);
+    expect(store.reservations().map((row) => row.draftId)).toEqual(['second']);
+    expect(store.error()).toContain('Interne Reservierungen bleiben klärbar');
+    api.loadReservations.mockResolvedValue([]);
+    expect(await store.resolveReservation('second', 'Zweiten Bestand geprüft')).toBe(true);
+    expect(store.resolving()).toBe(false);
+    expect(store.reservations()).toEqual([]);
+  });
+  it('beendet die interne Freigabe nach einem konkurrierenden Poll mit geänderter Kontofassung', async () => {
+    api.loadReservations.mockResolvedValue(held);
+    await store.reload();
+    let finish!: () => void;
+    api.resolveReservation.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const resolution = store.resolveReservation('first', 'Bestand geprüft');
+    expect(store.resolving()).toBe(true);
+    status.mockResolvedValue({
+      configured: true,
+      importAvailable: true,
+      connection: { ...connection, connectionId: 'connection-b', authorizationVersion: 2 },
+    });
+    await store.reload();
+    api.loadReservations.mockResolvedValue([held[1]]);
+    finish();
+    expect(await resolution).toBe(true);
+    expect(store.resolving()).toBe(false);
+    expect(await store.resolveReservation('second', 'Zweiten Bestand geprüft')).toBe(true);
+    expect(store.resolving()).toBe(false);
+  });
+  it('meldet die bestätigte Freigabe auch bei fehlgeschlagenem anschließendem Bestandsabruf als gespeichert', async () => {
+    api.loadReservations.mockResolvedValue(held);
+    await store.reload();
+    stockReload.mockRejectedValueOnce(new Error('Bestandsabruf fehlgeschlagen'));
+    expect(await store.resolveReservation('first', 'Bestand geprüft')).toBe(true);
+    expect(store.resolving()).toBe(false);
+    expect(store.error()).toBe('Bestandsabruf fehlgeschlagen');
+    expect(store.reservations().map((row) => row.draftId)).toEqual(['second']);
+  });
+  it.each(['workspace', 'user'] as const)(
+    'lässt beim %s-Wechsel nur die neue interne Freigabe ihre Ladeflagge beenden',
+    async (changed) => {
+      api.loadReservations.mockResolvedValue(held);
+      await store.reload();
+      let finishOld!: () => void;
+      let finishNew!: () => void;
+      api.resolveReservation
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishOld = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishNew = resolve;
+            }),
+        );
+      const old = store.resolveReservation('first', 'Alter Kontext');
+      if (changed === 'workspace') workspace.set({ id: 'workspace-b' });
+      else user.set({ id: 'user-b' });
+      TestBed.tick();
+      await store.reload();
+      const next = store.resolveReservation('second', 'Neuer Kontext');
+      finishOld();
+      expect(await old).toBe(false);
+      expect(store.resolving()).toBe(true);
+      api.loadReservations.mockResolvedValue([]);
+      finishNew();
+      expect(await next).toBe(true);
+      expect(store.resolving()).toBe(false);
+    },
+  );
   it('zeigt persönliche stabile Meldungen mit richtigem Prüfziel und aktualisiert geänderte Reservierungen', async () => {
     api.loadReservations.mockResolvedValue([
       {

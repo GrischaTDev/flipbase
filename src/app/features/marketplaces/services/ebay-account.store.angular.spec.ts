@@ -83,6 +83,60 @@ describe('Persönlicher eBay-Zustand', () => {
     store = TestBed.inject(EbayAccountStore);
   });
   afterEach(() => TestBed.resetTestingModule());
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].flatMap((code) =>
+        (['list', 'status'] as const).map((stage) => ({ section, code, stage })),
+      ),
+    ),
+  )(
+    'verwirft private Daten bei $code aus $stage für $section auch vor erneutem Statusabruf',
+    async ({ section, code, stage }) => {
+      api.loadOrders.mockResolvedValue({
+        ...connection,
+        items: [{ id: 'order-a' }],
+        total: 1,
+        nextPage: null,
+      });
+      await store.initialize('workspace-a', true);
+      await store.selectSection('orders');
+      if (section === 'listings') await store.selectSection('listings');
+      expect(store.listings()).toHaveLength(1);
+      expect(store.orders()).toHaveLength(1);
+      store.traffic.set({
+        '123': { listingId: '123', views: 1, transactions: 0, conversionRate: 0 },
+      });
+      store.orderBookings.set({ 'order-a': { status: 'unrecorded', saleId: null } });
+      const original =
+        stage === 'list'
+          ? new EbayAccountRequestError(code, 'Ursprünglicher Zugriff verweigert')
+          : new Error('Ursprünglicher Transportfehler');
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      read.mockRejectedValueOnce(original);
+      api.loadStatus.mockRejectedValueOnce(
+        new EbayAccountRequestError(code, 'Statuszugriff verweigert'),
+      );
+      await store.read(false);
+      expect(api.loadStatus).toHaveBeenCalledTimes(stage === 'list' ? 1 : 2);
+      expect(store.connection()).toBeNull();
+      expect(store.listings()).toEqual([]);
+      expect(store.orders()).toEqual([]);
+      expect(store.traffic()).toEqual({});
+      expect(store.orderBookings()).toEqual({});
+      expect(store.dataError()).toBe(original.message);
+      expect(store.isReading()).toBe(false);
+      const pending = deferred<EbayConnectionStatus>();
+      api.loadStatus.mockReset().mockReturnValueOnce(pending.promise);
+      const retry = store.initialize('workspace-a', false);
+      expect(store.connection()).toBeNull();
+      expect(store.listings()).toEqual([]);
+      expect(store.orders()).toEqual([]);
+      pending.resolve({ configured: true, connection });
+      await retry;
+      expect(store.listings()).toEqual([]);
+      expect(store.orders()).toEqual([]);
+    },
+  );
   it('erhält Zeilen bei Rückkehr, Aktualisierung und Fehlern im selben bestätigten Kontext', async () => {
     await store.initialize('workspace-a', true);
     const pending = deferred<EbayConnectionStatus>();

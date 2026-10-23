@@ -326,6 +326,40 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it.each(['listings', 'orders'] as const)(
+    'erhält sichtbare %s-Zeilen und letzten Abgleich neben einem Aktualisierungsfehler',
+    async (section) => {
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const fixture = await render(true, section);
+      read.mockResolvedValueOnce({
+        ...connection,
+        items:
+          section === 'listings'
+            ? fixture.componentInstance.store.listings()
+            : fixture.componentInstance.store.orders(),
+        total: 1,
+        nextPage: null,
+        sync: { status: 'ready', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: null },
+      });
+      await fixture.componentInstance.store.read(false);
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+      const title = section === 'listings' ? 'Eigene Auktion' : 'Stornierter Artikel';
+      expect(element.querySelector('tbody')?.textContent).toContain(title);
+      const lastSync = Array.from(element.querySelectorAll('p')).find((row) =>
+        row.textContent?.includes('Letzter vollständiger Abgleich'),
+      )?.textContent;
+      expect(lastSync).toContain('23.10.2026');
+      read.mockRejectedValueOnce(new Error('Aktualisierung vorübergehend fehlgeschlagen'));
+      await fixture.componentInstance.store.read(false);
+      fixture.detectChanges();
+      expect(element.querySelector('tbody')?.textContent).toContain(title);
+      expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+        'Aktualisierung vorübergehend fehlgeschlagen',
+      );
+      expect(element.textContent).toContain(lastSync);
+    },
+  );
   it('zeigt Bestellbilder und unterscheidet die ausstehende Erstbasis von einer leeren Liste', async () => {
     api.loadOrders.mockResolvedValueOnce({
       ...connection,
