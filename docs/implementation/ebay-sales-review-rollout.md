@@ -20,6 +20,11 @@ keine produktiv aktualisierten Hintergrunddienste.
   Gewinn noch Rechnung. Belegte eBay-Gebühren und Käuferporto werden getrennt
   vorbereitet. Fehlende tatsächliche Versandkosten ergänzt Du selbst. Ein
   unbekannter Kostenwert ist keine bestätigte Null.
+- Automatisch vorbereitete Gebühren folgen neuen belegten Anbieterwerten bis zur
+  persönlichen Kostenspeicherung. Persönlich gespeicherte Werte bleiben erhalten;
+  der aktuelle Anbieterbetrag und eine Abweichung bleiben in der Prüfung sichtbar.
+  Bei älteren Entwürfen ohne belegte Kostenherkunft bleiben die gespeicherten
+  Beträge vorsichtshalber bestehen und müssen anhand des Quellenbetrags geprüft werden.
 - Erst die Bestätigung liest die konkrete Bestellung erneut und bucht Verkauf,
   eigenen Bestandsabgang und Quellenbeleg gemeinsam. Eine unklare Antwort zuerst
   über den gespeicherten Buchungsstatus klären; die Wiederholung darf keinen
@@ -39,7 +44,11 @@ außerhalb des Anbieterzeitfensters liegen. Ein schrumpfender Trefferstand begin
 den Durchlauf sicher erneut, ohne vorhandene Daten zu leeren.
 
 Die Oberfläche liest die Datenbank. „Aktualisieren“ fordert den Hintergrunddienst
-an; es ersetzt die Tabelle nicht durch einen leeren Anbieterabruf. Bei der
+für den ausgewählten Bereich an. Der angeforderte oder laufende Abgleich bleibt
+sichtbar; die Oberfläche liest dessen gespeicherten Fortschritt begrenzt nach.
+Dieses Nachlesen fordert keine Anbieterstatistik an und erhält nachgeladene
+Tabellenzeilen sowie deren Seitenfortschritt.
+Öffnen und Seitenwechsel lesen weiterhin nur die gespeicherten Daten. Bei der
 Fehlersuche letzten vollständigen Abgleich, Fehlerstatus und gespeicherten
 Seitenfortschritt prüfen. Keine Tokens, Käuferanschriften oder vollständigen
 Anbieterantworten in Logs, Chat oder Tickets kopieren.
@@ -60,7 +69,11 @@ und Bestandsabgänge dürfen die reservierten Mengen nicht verbrauchen.
 Ein eindeutig abgeschlossener Storno vor Buchung gibt ausschließlich die eigene
 Reservierung frei. Eine Erstattung oder ein unklarer Status bestätigt keine
 Warenrückkehr und gibt sie nicht automatisch frei. Nach Buchung bleiben die
-vorhandenen Retouren-/Korrekturwege maßgeblich. Das Trennen eines eBay-Kontos löscht
+vorhandenen Retouren-/Korrekturwege maßgeblich. Eine später gemeldete Erstattung
+oder Stornierung erscheint als konkreter Klärbedarf mit dem bereits vorhandenen
+Verkauf; Beleg, Beträge und Bestandsbewegungen werden dadurch nicht umgebucht.
+Das gilt auch für Bestellungen, die einem früher manuell erfassten Verkauf
+zugeordnet wurden. Das Trennen eines eBay-Kontos löscht
 weder Belege noch Reservierungen; offene interne Bestandsklärungen bleiben
 für die berechtigten Warenwirtschaftsnutzer zugänglich, ohne private eBay-Quelle
 freizugeben.

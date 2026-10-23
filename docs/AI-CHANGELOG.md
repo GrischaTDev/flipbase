@@ -24,6 +24,29 @@ Bildtest-Mock nach reproduzierbar rotem Minimalpaar; sämtliche 48 DOM-Dateien
 bestehen danach ohne Produkt-, Pool-, Assertion- oder Timeoutänderung.
 Unabhängiger Teilreview bestätigt diese Korrektur und die echte Testregistrierung.
 
+**Abschlusskorrekturen:** Der unabhängige Gesamtbranchreview findet drei konkrete
+Lücken: Der Aktualisierungsknopf fordert noch keinen Abgleich an, spätere
+Erstattungen gebuchter oder zugeordneter Verkäufe fehlen als sichtbarer Klärfall,
+und neue Anbietergebühren bleiben hinter automatisch vorbereiteten Kosten
+verborgen. Eine gemeinsame Korrektur ergänzt den berechtigten Aktualisierungsweg,
+getrennte Quellenhinweise bei unverändertem Buchungsbeleg und die Unterscheidung
+automatischer von persönlich gespeicherten Kosten. Alte Eingaben ohne belegte
+Herkunft bleiben erhalten und werden neben dem aktuellen Quellenbetrag gezeigt.
+Ein zusätzlicher vorhandener SVG-Schriftfehler ist am unveränderten Hauptzweig
+reproduziert; das gemeinsame Diagramm erbt nun die Schrift seines Umfelds.
+Der gezielte Nachreview entdeckt außerdem den Statistikabruf im neuen
+Nachlesetimer sowie Grenzfälle nachgeladener Seiten. Der Hintergrundweg wird
+deshalb vom interaktiven Abruf getrennt und liest die bereits geöffneten Seiten
+vollständig aus dem Cache, bevor er die Anzeige ersetzt. Regressionen decken
+leeren Erstimport, neue Seitengrenzen, hinzugekommene und entfernte Zeilen sowie
+den weiterhin erreichbaren nächsten Seitenabruf ab. Der Altverkaufstest wählt
+seinen Artikel nach dem belegten Titel statt einer unbelegten Datenbankreihenfolge.
+Ein zusätzlicher AXE-Befund der neuen Erstattungsliste ist durch einen getrennten
+Statusrahmen und eine gezielte Assertion im vorhandenen Browserfall behoben.
+Das abschließende eine Nachreview bestätigt F1–F6 als korrigiert, ohne offene
+Codebefunde. Alle drei aktuellen eBay-Browserfälle und vier zusätzliche
+Desktop-/Touch-/Hell-/Dunkel-/AXE-Abläufe bestehen am endgültigen Produktstand.
+
 **Nachweise und Grenzen:** Linux-Anwendungsprüfungen, regulärer SQL-Replay mit
 Rechte-/Schemaabgleich, echte Bestandskonkurrenz, Edge-Funktionen,
 Produktions-PWA, Docker-/Funktionspakete und die betroffene Browserauswahl sind

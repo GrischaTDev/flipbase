@@ -97,13 +97,13 @@
 - Produces: gespeicherte Listen mit Aktualisierungshinweis, Bestellbilder, sichtbare Zuordnung und Auswahl „Noch nicht erfasst“ gegenüber „Bereits als Verkauf erfasst“.
 - Produces: dauerhafte prüfbare eBay-Entwürfe unter Verkäufe, vorgefüllte belegte Gebühren, erforderliche Kostenlücken und klare Reservierungsanzeige.
 
-- [ ] Angular-Regressionen für Rücknavigation, Workspacewechsel, Bilder, bestehende verkaufte Ziele, unbekannte Gebühren/Porto und fehlgeschlagene Speicherung zuerst rot ausführen.
-- [ ] Erst Cache zeigen, beim Aktualisieren vorhandene Zeilen erhalten. Fehler und letzter Abgleich bleiben sichtbar; unabhängige Konto-/Workspacewerte nicht vermischen.
-- [ ] Bestehende Bilder-/Tabellenbausteine nutzen. Zuordnungsaktion verständlich beschriften und ausgewählten Bestandsartikel darstellen.
-- [ ] Entwurfsbereich unter Verkäufe ergänzen; derselbe Prüfweg führt zur endgültigen Buchung. Kosten/Zuordnung speichern und bei Rückkehr wiederherstellen, ohne bestätigte Änderungen im Hintergrund zu überschreiben.
-- [ ] Bestehende Verkaufspositionen separat auswählen, inklusive ausverkaufter Artikel. Nach Verknüpfung Erfolg und Zielverkauf zeigen.
-- [ ] eBay-Meldungen in Glocke einbinden, Logo/Link und Lesen/Löschen prüfen; aktueller Nutzerkontext muss vor jeder Mutation passen.
-- [ ] Gezielte Anwendungstests, Angular-Bau und Browserfälle gegen ruhende Vorschau ausführen; Touch, relevante Breiten, Hell/Dunkel und AXE einbeziehen. Lokal committen.
+- [x] Angular-Regressionen für Rücknavigation, Workspacewechsel, Bilder, bestehende verkaufte Ziele, unbekannte Gebühren/Porto und fehlgeschlagene Speicherung zuerst rot ausführen.
+- [x] Erst Cache zeigen, beim Aktualisieren vorhandene Zeilen erhalten. Fehler und letzter Abgleich bleiben sichtbar; unabhängige Konto-/Workspacewerte nicht vermischen.
+- [x] Bestehende Bilder-/Tabellenbausteine nutzen. Zuordnungsaktion verständlich beschriften und ausgewählten Bestandsartikel darstellen.
+- [x] Entwurfsbereich unter Verkäufe ergänzen; derselbe Prüfweg führt zur endgültigen Buchung. Kosten/Zuordnung speichern und bei Rückkehr wiederherstellen, ohne bestätigte Änderungen im Hintergrund zu überschreiben.
+- [x] Bestehende Verkaufspositionen separat auswählen, inklusive ausverkaufter Artikel. Nach Verknüpfung Erfolg und Zielverkauf zeigen.
+- [x] eBay-Meldungen in Glocke einbinden, Logo/Link und Lesen/Löschen prüfen; aktueller Nutzerkontext muss vor jeder Mutation passen.
+- [x] Gezielte Anwendungstests, Angular-Bau und Browserfälle gegen ruhende Vorschau ausführen; Touch, relevante Breiten, Hell/Dunkel und AXE einbeziehen. Lokal committen.
 
 ## Task 4: Integration, Testauswahl und Abschlussreview
 
@@ -112,8 +112,8 @@
 - Modify: `scripts/affected-tests.mjs`, verbindliche Test-Solllisten und zugehörige Tests nur soweit die neuen Dateien es erfordern.
 - Modify: Betriebsdokumentation, dieses Fortschrittsprotokoll, `docs/AI-CHANGELOG.md`.
 
-- [ ] Den echten Auswahlplan aus dem Gesamtunterschied erzeugen und Registrierung/Suite-Audit prüfen. Schemaänderungen behalten den breiten Pflichtlauf; keine leere Auswahl als bestanden ausgeben.
-- [ ] Gemeinsam betroffene Edge-, SQL-, Worker-, Modell-/Angular- und Browserfälle einschließlich bestehender eBay-Übernahme ausführen. CI-relevante Linux-Unterschiede gezielt nachstellen.
-- [ ] Migrationen vollständig transaktional prüfen, Typen und deklaratives Schema abgleichen. Produktionsbetrieb und fremde lokale Umgebungen bleiben unberührt.
-- [ ] Frischen Gesamtbranchreview mit Spezifikation, Plan und Prüfnachweisen durchführen; relevante Fehler korrigieren und gezielt erneut prüfen.
-- [ ] Nur bei tatsächlich abgeschlossener Umsetzung die vorgeschriebene Frage stellen: „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“ Vorher kein Push, PR, Merge oder Deployment.
+- [x] Den echten Auswahlplan aus dem Gesamtunterschied erzeugen und Registrierung/Suite-Audit prüfen. Schemaänderungen behalten den breiten Pflichtlauf; keine leere Auswahl als bestanden ausgeben.
+- [x] Gemeinsam betroffene Edge-, SQL-, Worker-, Modell-/Angular- und Browserfälle einschließlich bestehender eBay-Übernahme ausführen. CI-relevante Linux-Unterschiede gezielt nachstellen.
+- [x] Migrationen vollständig transaktional prüfen, Typen und deklaratives Schema abgleichen. Produktionsbetrieb und fremde lokale Umgebungen bleiben unberührt.
+- [x] Frischen Gesamtbranchreview mit Spezifikation, Plan und Prüfnachweisen durchführen; relevante Fehler korrigieren und gezielt erneut prüfen.
+- [x] Nur bei tatsächlich abgeschlossener Umsetzung die vorgeschriebene Frage stellen: „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“ Vorher kein Push, PR, Merge oder Deployment.
