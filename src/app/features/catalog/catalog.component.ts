@@ -26,7 +26,7 @@ import { buildCatalogOverview, CatalogOverviewRow } from './utils/catalog-overvi
 import { CatalogViewStateService } from './services/catalog-view-state.service';
 import {
   LucidePlus as Plus,
-  LucideBookOpen as BookOpen,
+  LucidePackage as Package,
   LucideTrash2 as Trash2,
   LucidePencil as Pencil,
   LucideArchive as Archive,
@@ -40,7 +40,9 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
+import { TableActionMenuComponent } from '../../shared/components/table-action-menu/table-action-menu.component';
+import { TableRowLinkDirective } from '../../shared/directives/table-row-link.directive';
+import { NgTemplateOutlet } from '@angular/common';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -75,7 +77,9 @@ interface CatalogImportRow {
     ReactiveFormsModule,
     ProductThumbnailComponent,
     ButtonComponent,
-    TableActionButtonComponent,
+    TableActionMenuComponent,
+    TableRowLinkDirective,
+    NgTemplateOutlet,
     PageHeaderComponent,
     CustomSelectComponent,
     ArticleStockRemovalComponent,
@@ -145,7 +149,7 @@ export class CatalogComponent {
   );
 
   readonly plusIcon = Plus;
-  readonly bookOpenIcon = BookOpen;
+  readonly packageIcon = Package;
   readonly trashIcon = Trash2;
   readonly removeStockIcon = PackageMinus;
   readonly editIcon = Pencil;
@@ -326,7 +330,13 @@ export class CatalogComponent {
     try {
       await this.lifecycle.deleteUnused(workspaceId, row.kind, row.id);
       if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
-      await this.reload();
+      const keepArticle = (article: { id: string; workspace_id: string }) =>
+        article.workspace_id !== workspaceId || article.id !== row.id;
+      if (row.kind === 'catalog') {
+        this.catalogService.products.update((products) => products.filter(keepArticle));
+      } else {
+        this.inventoryService.items.update((items) => items.filter(keepArticle));
+      }
       this.actionMessage.set('Artikel gelöscht.');
       try {
         await this.cleanup.retry(workspaceId);

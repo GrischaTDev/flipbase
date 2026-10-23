@@ -1,3 +1,6 @@
+import { TableActionMenuComponent } from '../../shared/components/table-action-menu/table-action-menu.component';
+import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
+import { CardComponent } from '../../shared/components/card/card.component';
 import { SALE_PLATFORM_OPTIONS } from '../../core/config/sale-platform-options';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
@@ -70,6 +73,9 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  registerSignalInputs(TableActionMenuComponent, ['label']);
+  registerSignalInputs(SummaryMetricComponent, ['label', 'value', 'icon', 'negative']);
+  registerSignalInputs(CardComponent, ['variant', 'padding']);
   registerSignalInputs(PageHeaderComponent, ['icon']);
   registerSignalInputs(BadgeComponent, ['tone', 'mono']);
   registerSignalInputs(DataTableComponent, [
@@ -140,7 +146,11 @@ beforeAll(async () => {
     'currentSort',
     'description',
   ]);
-  registerSignalInputs(MarketplacePlatformIdentityComponent, ['platform', 'displayName']);
+  registerSignalInputs(MarketplacePlatformIdentityComponent, [
+    'platform',
+    'displayName',
+    'iconOnly',
+  ]);
 });
 
 function saleMetricCell(host: HTMLElement, rowSelector: string, label: string): Element | null {
@@ -293,9 +303,11 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     );
 
     expect(headers).toEqual([
+      'Verkaufsnummer',
       'Datum',
       'Artikel',
       'Menge',
+      'Plattform',
       'Verkaufsbetrag',
       'Gewinn',
       'Marge',
@@ -305,9 +317,9 @@ describe('SalesComponent – verlinkter Verkauf', () => {
       'Verkaufsbetrag abzüglich Einkaufskosten und sämtlicher Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen.',
     );
     const row = host.querySelector('#sale-desktop-sale-1');
-    expect(row?.querySelectorAll('td')[0]?.textContent).toContain('25.08.2026');
-    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('Tasse');
-    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('VK-TEST-001');
+    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('25.08.2026');
+    expect(row?.querySelectorAll('td')[2]?.textContent).toContain('Tasse');
+    expect(row?.querySelectorAll('td')[0]?.textContent).toContain('VK-TEST-001');
     expect(host.textContent).not.toContain('Durchschnittliche Marge');
     expect(
       host.querySelector('[data-testid="sales-result-kpi"]')?.parentElement?.textContent,
@@ -322,24 +334,28 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     loadedWorkspaceId.set(workspace.id);
 
     const harness = await RouterTestingHarness.create('/sales');
-    const links = Array.from(
-      harness.routeNativeElement?.querySelectorAll<HTMLAnchorElement>(
-        '[data-sale-audit-print-link] a, a[data-sale-audit-print-link]',
-      ) ?? [],
-    );
-
-    expect(links).toHaveLength(2);
-    expect(
-      links.every(
-        (link) =>
-          link.getAttribute('href') === '/settings/data/print?entityType=sale&entityId=sale-1',
-      ),
-    ).toBe(true);
-    expect(links.every((link) => link.getAttribute('aria-label')?.includes('Tasse'))).toBe(true);
+    const triggers =
+      harness.routeNativeElement?.querySelectorAll<HTMLButtonElement>(
+        'app-table-action-menu > app-button > button',
+      ) ?? [];
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) {
+      trigger.click();
+      harness.detectChanges();
+      const link = trigger
+        .closest('app-table-action-menu')
+        ?.querySelector<HTMLAnchorElement>('[data-sale-audit-print-link] a');
+      expect(link?.getAttribute('href')).toBe(
+        '/settings/data/print?entityType=sale&entityId=sale-1',
+      );
+      expect(link?.getAttribute('aria-label')).toContain('Tasse');
+      trigger.click();
+      harness.detectChanges();
+    }
   });
 
   it.each([
-    { revenue: 33, amount: '5,00', tone: 'text-fb-finance-positive' },
+    { revenue: 33, amount: '5,00', tone: 'text-fb-success' },
     { revenue: 10, amount: '-18,00', tone: 'text-fb-finance-negative' },
     { revenue: 28, amount: '0,00', tone: 'text-fb-text-primary' },
   ])(
@@ -518,7 +534,27 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(identities).toHaveLength(2);
     for (const identity of identities) {
       expect(identity.textContent).toContain('eBay');
+      expect(identity.querySelector('span.sr-only')?.textContent).toBe('eBay');
       expect(identity.querySelector('img')?.getAttribute('src')).toBe('/images/platforms/ebay.svg');
     }
+  });
+  it('zeigt eigene Plattformen ohne Logo als Text und verschiebt ausgeblendete Spalten nicht zum Artikeltitel', async () => {
+    sales.set([{ ...linkedSale, platform: 'Flohmarkt' }]);
+    loadedWorkspaceId.set(workspace.id);
+    const harness = await RouterTestingHarness.create();
+    const component = await harness.navigateByUrl('/sales', SalesComponent);
+    const host = harness.routeNativeElement as HTMLElement;
+    for (const identity of host.querySelectorAll('[data-sales-platform-identity]')) {
+      expect(identity.textContent).toContain('Flohmarkt');
+      expect(identity.querySelector('img')).toBeNull();
+      expect(identity.querySelector('.sr-only')).toBeNull();
+    }
+    component.toggleColumnVisibility('record_number');
+    component.toggleColumnVisibility('platform');
+    harness.detectChanges();
+    const title = host.querySelector('#sale-desktop-sale-1 td:nth-child(2)');
+    expect(title?.textContent).toContain('Tasse');
+    expect(title?.textContent).not.toContain('VK-TEST-001');
+    expect(title?.textContent).not.toContain('Flohmarkt');
   });
 });

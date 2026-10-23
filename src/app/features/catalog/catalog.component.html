@@ -1,8 +1,7 @@
 <div class="space-y-6 animate-fade-in">
   <app-page-header
-    appearance="content"
-    title="Artikel"
-    [icon]="bookOpenIcon"
+    title="Bestand"
+    [icon]="packageIcon"
     subtitle="Deine Artikel, Varianten und Bestände."
   >
     <div header-actions class="flex flex-wrap gap-2">
@@ -215,7 +214,10 @@
         </thead>
         <tbody class="divide-y divide-fb-line">
           @for (product of filteredProducts(); track product.key; let index = $index) {
-            <tr class="transition hover:bg-fb-surface-alt">
+            <tr
+              class="transition hover:bg-fb-surface-alt"
+              [appTableRowLink]="product.detailLink + '?returnTo=%2Fcatalog'"
+            >
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
@@ -270,55 +272,10 @@
                   }
                   @case ('actions') {
                     <td class="px-3 py-3 text-right">
-                      <div class="flex flex-wrap items-center justify-end gap-1">
-                        @if (product.onHand !== null && product.onHand > 0) {
-                          <app-table-action-button
-                            [icon]="removeStockIcon"
-                            tone="critical"
-                            [label]="'Aus Bestand entfernen: ' + product.title"
-                            [disabled]="lifecycle.pendingIds().has(product.key)"
-                            (clicked)="openStockRemoval(product)"
-                          />
-                        }
-                        @if (canSell(product)) {
-                          <app-table-action-button
-                            [label]="product.title + ' verkaufen'"
-                            [icon]="sellIcon"
-                            tone="positive"
-                            (clicked)="openSale(product)"
-                          />
-                        }
-                        <app-table-action-button
-                          [link]="product.detailLink"
-                          [icon]="editIcon"
-                          [label]="'Bearbeiten: ' + product.title"
-                          [queryParams]="{
-                            returnTo: '/catalog',
-                            edit: product.kind === 'item' ? 'true' : null,
-                          }"
-                        />
-                        <app-table-action-button
-                          [attr.data-article-archive]="product.key"
-                          [disabled]="lifecycle.pendingIds().has(product.key)"
-                          (clicked)="setArchived(product)"
-                          [icon]="product.archivedAt ? restoreIcon : archiveIcon"
-                          [tone]="product.archivedAt ? 'positive' : 'warning'"
-                          [label]="
-                            (product.archivedAt ? 'Wiederherstellen: ' : 'Archivieren: ') +
-                            product.title
-                          "
-                        />
-                        @if (product.canOfferDelete) {
-                          <app-table-action-button
-                            [attr.data-article-delete]="product.key"
-                            [disabled]="lifecycle.pendingIds().has(product.key)"
-                            (clicked)="deleteUnused(product)"
-                            [icon]="trashIcon"
-                            tone="critical"
-                            [label]="'Löschen: ' + product.title"
-                          />
-                        }
-                      </div>
+                      <ng-container
+                        [ngTemplateOutlet]="articleActions"
+                        [ngTemplateOutletContext]="{ $implicit: product }"
+                      />
                     </td>
                   }
                 }
@@ -330,7 +287,7 @@
     </div>
     <div table-mobile class="divide-y divide-fb-line md:hidden">
       @for (product of filteredProducts(); track product.key; let index = $index) {
-        <article class="p-4">
+        <article class="p-4" [appTableRowLink]="product.detailLink + '?returnTo=%2Fcatalog'">
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="flex items-center gap-2">
@@ -380,61 +337,11 @@
             }
             <span>{{ statusLabel(product) }}</span>
           </div>
-          <div class="mt-2 flex flex-wrap gap-1">
-            @if (product.onHand !== null && product.onHand > 0) {
-              <app-button
-                size="slim"
-                variant="destructive"
-                [icon]="removeStockIcon"
-                [ariaLabel]="'Aus Bestand entfernen: ' + product.title"
-                [disabled]="lifecycle.pendingIds().has(product.key)"
-                (clicked)="openStockRemoval(product)"
-                >Aus Bestand entfernen</app-button
-              >
-            }
-            @if (canSell(product)) {
-              <app-button
-                size="slim"
-                variant="secondary"
-                [ariaLabel]="product.title + ' verkaufen'"
-                (clicked)="openSale(product)"
-                >Verkaufen</app-button
-              >
-            }
-            <app-button
-              size="slim"
-              variant="ghost"
-              [link]="product.detailLink"
-              [ariaLabel]="'Bearbeiten: ' + product.title"
-              [queryParams]="{
-                returnTo: '/catalog',
-                edit: product.kind === 'item' ? 'true' : null,
-              }"
-              >Bearbeiten</app-button
-            >
-            <app-button
-              size="slim"
-              variant="ghost"
-              [attr.data-article-archive-mobile]="product.key"
-              [disabled]="lifecycle.pendingIds().has(product.key)"
-              [ariaLabel]="
-                (product.archivedAt ? 'Wiederherstellen: ' : 'Archivieren: ') + product.title
-              "
-              (clicked)="setArchived(product)"
-              >{{ product.archivedAt ? 'Wiederherstellen' : 'Archivieren' }}</app-button
-            >
-            @if (product.canOfferDelete) {
-              <app-button
-                size="slim"
-                variant="ghost"
-                [icon]="trashIcon"
-                [attr.data-article-delete-mobile]="product.key"
-                [disabled]="lifecycle.pendingIds().has(product.key)"
-                [ariaLabel]="'Löschen: ' + product.title"
-                (clicked)="deleteUnused(product)"
-                >Löschen</app-button
-              >
-            }
+          <div class="mt-2 flex justify-end">
+            <ng-container
+              [ngTemplateOutlet]="articleActions"
+              [ngTemplateOutletContext]="{ $implicit: product }"
+            />
           </div>
         </article>
       }
@@ -448,3 +355,71 @@
     (removed)="reload()"
   />
 }
+
+<ng-template #articleActions let-product>
+  <app-table-action-menu [label]="'Aktionen für ' + product.title">
+    <app-button
+      variant="list-row"
+      density="compact"
+      [fullWidth]="true"
+      contentAlign="start"
+      [link]="product.detailLink"
+      [icon]="editIcon"
+      [ariaLabel]="'Bearbeiten: ' + product.title"
+      [queryParams]="{ returnTo: '/catalog', edit: product.kind === 'item' ? 'true' : null }"
+      >Bearbeiten</app-button
+    >
+    @if (canSell(product)) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [ariaLabel]="product.title + ' verkaufen'"
+        [icon]="sellIcon"
+        (clicked)="openSale(product)"
+        >Verkaufen</app-button
+      >
+    }
+    @if (product.onHand !== null && product.onHand > 0) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [icon]="removeStockIcon"
+        [ariaLabel]="'Aus Bestand entfernen: ' + product.title"
+        [disabled]="lifecycle.pendingIds().has(product.key)"
+        (clicked)="openStockRemoval(product)"
+        >Aus Bestand entfernen</app-button
+      >
+    }
+    <app-button
+      variant="list-row"
+      density="compact"
+      [fullWidth]="true"
+      contentAlign="start"
+      [attr.data-article-archive]="product.key"
+      [disabled]="lifecycle.pendingIds().has(product.key)"
+      (clicked)="setArchived(product)"
+      [icon]="product.archivedAt ? restoreIcon : archiveIcon"
+      [ariaLabel]="(product.archivedAt ? 'Wiederherstellen: ' : 'Archivieren: ') + product.title"
+    >
+      {{ product.archivedAt ? 'Wiederherstellen' : 'Archivieren' }}
+    </app-button>
+    @if (product.canOfferDelete) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [attr.data-article-delete]="product.key"
+        [disabled]="lifecycle.pendingIds().has(product.key)"
+        (clicked)="deleteUnused(product)"
+        [icon]="trashIcon"
+        [ariaLabel]="'Löschen: ' + product.title"
+        >Löschen</app-button
+      >
+    }
+  </app-table-action-menu>
+</ng-template>

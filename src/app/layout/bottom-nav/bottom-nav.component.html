@@ -32,17 +32,7 @@
       class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="PurchasesIcon" class="w-4 h-4"></svg>
-      <span class="max-w-full truncate">Einkauf</span>
-    </a>
-
-    <a
-      routerLink="/catalog"
-      [class.font-semibold]="isArticlesActive()"
-      [attr.aria-current]="isArticlesActive() ? 'page' : null"
-      class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
-    >
-      <svg [lucideIcon]="InventoryIcon" class="w-4 h-4"></svg>
-      <span class="max-w-full truncate">Artikel</span>
+      <span class="max-w-full truncate">Einkäufe</span>
     </a>
 
     <a
@@ -52,7 +42,16 @@
       class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="SalesIcon" class="w-4 h-4"></svg>
-      <span class="max-w-full truncate">Verkauf</span>
+      <span class="max-w-full truncate">Verkäufe</span>
+    </a>
+    <a
+      routerLink="/catalog"
+      [class.font-semibold]="isArticlesActive()"
+      [attr.aria-current]="isArticlesActive() ? 'page' : null"
+      class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
+    >
+      <svg [lucideIcon]="StockIcon" class="w-4 h-4"></svg>
+      <span class="max-w-full truncate">Bestand</span>
     </a>
   }
 

@@ -10,6 +10,7 @@ export type WorkspaceNavigationIcon =
   | 'users'
   | 'bot'
   | 'bookOpen'
+  | 'package'
   | 'image'
   | 'tag'
   | 'trendingUp'
@@ -54,13 +55,13 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     label: 'Warenwirtschaft',
     items: [
       { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: 'shoppingBag' },
+      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
       {
         path: '/catalog',
         labelKey: 'NAV.ARTICLE_OVERVIEW',
-        label: 'Artikel & Bestand',
-        icon: 'bookOpen',
+        label: 'Bestand',
+        icon: 'package',
       },
-      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
     ],
   },
   {

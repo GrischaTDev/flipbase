@@ -9,6 +9,7 @@ import {
   LucideDynamicIcon,
   LucideHouse as House,
   LucideShoppingBag as ShoppingBag,
+  LucidePackage as Package,
   LucideBoxes as Boxes,
   LucideTrendingUp as TrendingUp,
   LucideMenu as Menu,
@@ -53,7 +54,7 @@ export class BottomNavComponent {
 
   readonly DashboardIcon = House;
   readonly PurchasesIcon = ShoppingBag;
-  readonly InventoryIcon = Boxes;
+  readonly StockIcon = Package;
   readonly SalesIcon = TrendingUp;
   readonly MenuIcon = Menu;
 }

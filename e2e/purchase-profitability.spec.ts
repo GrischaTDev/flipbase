@@ -204,7 +204,7 @@ for (const theme of ['light', 'dark']) {
           .click();
         await page.keyboard.press('Escape');
       }
-      await page.getByRole('button', { name: 'Übersicht', exact: true }).click();
+      await page.getByRole('button', { name: 'Rentabilität', exact: true }).click();
       await expect(
         table.getByRole('columnheader', { name: 'Verkäufer', exact: true }),
       ).toBeVisible();
@@ -214,10 +214,9 @@ for (const theme of ['light', 'dark']) {
       await expect(search).toHaveValue('Schuhe');
       if (width === 1440) {
         await page.reload();
-        await expect(page.getByRole('button', { name: 'Übersicht', exact: true })).toHaveAttribute(
-          'aria-pressed',
-          'true',
-        );
+        await expect(
+          page.getByRole('button', { name: 'Rentabilität', exact: true }),
+        ).toHaveAttribute('aria-pressed', 'false');
         await page.getByRole('button', { name: 'Rentabilität', exact: true }).click();
         await expect(table.locator('th').filter({ hasText: 'Ergebnis' })).toHaveAttribute(
           'aria-sort',

@@ -434,11 +434,13 @@ describe('SaleCreateModalComponent', () => {
           expect(shippingMode?.value).toBe('platform_prepaid');
           expect(shippingRevenue?.value).toBe(0);
           expect(component.form.controls.shippingCost.value).toBe(0);
+          expect(component.form.controls.platformFee.value).toBe(0);
 
           shippingMode?.setValue('seller_arranged');
           shippingRevenue?.setValue(2.99);
           component.form.controls.shippingCost.setValue(5.19);
           component.form.controls.platform.setValue('ebay');
+          component.form.controls.platformFee.setValue(7.7);
           expect(shippingMode?.value).toBe('seller_arranged');
           expect(shippingRevenue?.value).toBe(2.99);
 
@@ -787,7 +789,7 @@ describe('SaleCreateModalComponent', () => {
       );
       bridgeInputMetadata(
         (SaleCreateModalComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
-        ['saleTarget', 'legacyReconciliation'],
+        ['saleTarget', 'legacyReconciliation', 'sale'],
       );
       bridgeInputMetadata((CardComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
         'title',
@@ -799,7 +801,16 @@ describe('SaleCreateModalComponent', () => {
       ]);
       bridgeInputMetadata(
         (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
-        ['options', 'placeholder', 'size', 'ariaLabel', 'triggerId', 'searchable'],
+        [
+          'options',
+          'placeholder',
+          'size',
+          'ariaLabel',
+          'triggerId',
+          'searchable',
+          'error',
+          'required',
+        ],
       );
       bridgeInputMetadata((DatePickerComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
         'feldId',
@@ -918,7 +929,7 @@ describe('SaleCreateModalComponent', () => {
       }
     });
 
-    async function erstelleGerendertenDialog() {
+    async function erstelleGerendertenDialog(platform = 'ebay') {
       const items = signal<InventoryItem[]>([]);
       const positions = signal<StockPosition[]>([]);
       const salesService = {
@@ -964,10 +975,103 @@ describe('SaleCreateModalComponent', () => {
       });
       await TestBed.compileComponents();
       const fixture = TestBed.createComponent(SaleCreateModalComponent);
+      if (platform) fixture.componentInstance.form.controls.platform.setValue(platform);
       fixture.componentInstance.form.controls.shippingMode.setValue('seller_arranged');
       fixture.detectChanges();
       return { fixture, salesService, items, positions };
     }
+
+    it('startet ohne Plattform und blendet unpassende Versand- und Gebührenfelder aus', async () => {
+      const { fixture } = await erstelleGerendertenDialog('');
+      const component = fixture.componentInstance;
+      const host = fixture.nativeElement as HTMLElement;
+      expect(component.form.controls.platform.value).toBe('');
+      expect(host.querySelector('#sale-platform')?.textContent).toContain('Plattform auswählen');
+      expect(host.querySelector('#platform-fee')).toBeNull();
+      expect(host.querySelector('#shipping-cost')).toBeNull();
+
+      component.form.controls.platform.setValue('ebay');
+      component.form.patchValue({ platformFee: 6, shippingRevenue: 4, shippingCost: 5 });
+      fixture.detectChanges();
+      expect(host.querySelector('#platform-fee')).not.toBeNull();
+      expect(host.querySelector('#shipping-cost')).not.toBeNull();
+
+      component.form.controls.platform.setValue('direct');
+      fixture.detectChanges();
+      expect(host.querySelector('#platform-fee')).toBeNull();
+      expect(component.form.getRawValue()).toMatchObject({
+        platformFee: 0,
+        shippingRevenue: 4,
+        shippingCost: 5,
+      });
+      expect(component.liveMetrics().sellingCosts).toBe(5);
+
+      component.form.controls.platform.setValue('vinted');
+      fixture.detectChanges();
+      expect(host.textContent).toContain('Der Versand wird über Vinted abgewickelt.');
+      expect(host.querySelector('#sale-shipping-mode')).toBeNull();
+      expect(host.querySelector('#platform-fee')).toBeNull();
+      expect(host.querySelector('#shipping-revenue')).toBeNull();
+      expect(host.querySelector('#shipping-cost')).toBeNull();
+      expect(component.form.getRawValue()).toMatchObject({
+        platformFee: 0,
+        shippingRevenue: 0,
+        shippingCost: 0,
+        shippingMode: 'platform_prepaid',
+      });
+      expect(component.liveMetrics().sellingCosts).toBe(0);
+
+      for (const platform of ['direct', 'custom_store', 'other', 'custom-platform']) {
+        component.form.controls.platform.setValue(platform);
+        component.form.controls.shippingMode.setValue('seller_arranged');
+        fixture.detectChanges();
+        expect(host.querySelector('#platform-fee')).toBeNull();
+        expect(host.querySelector('#shipping-revenue')).not.toBeNull();
+        expect(host.querySelector('#shipping-cost')).not.toBeNull();
+        expect(host.querySelector('label[for="shipping-revenue"]')?.textContent?.trim()).toBe(
+          'Versand vom Käufer erhalten',
+        );
+        expect(host.querySelector('label[for="shipping-cost"]')?.textContent?.trim()).toBe(
+          'Tatsächliche Versandkosten',
+        );
+      }
+      component.form.controls.shippingMode.setValue('pickup');
+      fixture.detectChanges();
+      expect(host.querySelector('#shipping-revenue')).toBeNull();
+      expect(host.querySelector('#shipping-cost')).toBeNull();
+    });
+
+    it('erhält gespeicherte Vinted-Kosten beim Bearbeiten sichtbar und editierbar', async () => {
+      const { fixture } = await erstelleGerendertenDialog('');
+      fixture.componentRef.setInput('sale', {
+        id: 'historical-sale',
+        workspace_id: 'workspace-1',
+        platform: 'vinted',
+        sale_date: '2026-10-01',
+        sale_price: 35,
+        platform_fee: 2,
+        shipping_revenue: 4,
+        shipping_cost: 5,
+        shipping_mode: null,
+        packaging_cost: 0,
+        other_costs: 0,
+      } satisfies Sale);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+      const host = fixture.nativeElement as HTMLElement;
+      expect(component.form.getRawValue()).toMatchObject({
+        platform: 'vinted',
+        platformFee: 2,
+        shippingRevenue: 4,
+        shippingCost: 5,
+        shippingMode: 'unknown',
+      });
+      for (const selector of ['#platform-fee', '#shipping-cost', '#shipping-revenue']) {
+        const input = host.querySelector(selector) as HTMLInputElement;
+        expect(input).not.toBeNull();
+        expect(input.disabled).toBe(false);
+      }
+    });
 
     it('blendet archivierte Mengenartikel aus der neuen Verkaufsauswahl aus', async () => {
       const { fixture, positions } = await erstelleGerendertenDialog();
@@ -1199,6 +1303,7 @@ describe('SaleCreateModalComponent', () => {
         });
         await TestBed.compileComponents();
         const fixture = TestBed.createComponent(SaleCreateModalComponent);
+        fixture.componentInstance.form.controls.platform.setValue('ebay');
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
@@ -1227,8 +1332,8 @@ describe('SaleCreateModalComponent', () => {
         expect((host.querySelector('#shipping-cost') as HTMLInputElement).disabled).toBe(false);
         fixture.componentInstance.form.controls.shippingMode.setValue('pickup');
         fixture.detectChanges();
-        expect((host.querySelector('#shipping-revenue') as HTMLInputElement).disabled).toBe(true);
-        expect((host.querySelector('#shipping-cost') as HTMLInputElement).disabled).toBe(true);
+        expect(host.querySelector('#shipping-revenue')).toBeNull();
+        expect(host.querySelector('#shipping-cost')).toBeNull();
       });
 
       it('kennzeichnet die fehlende Beschreibung für sonstige Kosten nach Berührung zugänglich', async () => {
