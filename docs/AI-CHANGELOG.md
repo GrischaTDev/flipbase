@@ -57,6 +57,25 @@ Aktuelles `origin/master` bei `7eb63bd5` in den eigenen Zweig integriert;
 Änderungsprotokoll mit sämtlichen Einträgen erhalten, übrige Dateien unverändert
 übernommen. Keine fremden Zweige oder Produktivdaten verändert.
 
+**Verkaufsentwürfe und Bestandsprüfung:** Dauerhafte Entwürfe, eigene
+Reservierungsbesitzer, atomare endgültige Buchung und vollständige Zuordnung zu
+vorhandenen Verkäufen ergänzt. Persönliche Glockenbelege bleiben von Push und
+allgemeiner Workspace-Mitgliedschaft getrennt. Kontotrennung und bestehende
+Kontolöschung erhalten interne Reservierungsklärungen ohne private Bestellquelle.
+Vollständige SQL-Suite vor dem letzten Randfall: 129 Dateien/4.840 Assertions;
+danach betroffene Fälle und sechs echte Konkurrenzszenarien erfolgreich geprüft.
+Der unabhängige Aufgabenreview fand verlorene Zahlungsübergänge nach persönlichem
+Öffnen, unvollständig aufgehobene Erfasst-Markierungen und fehlende Dockerdateien.
+Alle Befunde mit Regressionen korrigiert; 426 gezielte SQL-Assertions, sechs echte
+Konkurrenzszenarien und vorhandene Docker-Kontextprüfungen erfolgreich. Beschädigte
+Umlaute der vorherigen generierten Migration werden durch eine neue additive
+Migration korrigiert; 31 tatsächliche Funktionskörper stimmen jetzt direkt mit
+den deklarativen UTF-8-Dateien überein. Frischer Nachreview steht noch aus.
+Der echte Docker-Paketbau bestätigt die Dateifreigaben; vollständiger Appbau,
+neue Oberfläche und integrierte Browserprüfung folgen. Betriebsanleitung für
+gemeinsame Migrationen, Hintergrunddienste und Anwendung ergänzt. Keine
+Produktionsänderung oder PR-Veröffentlichung.
+
 ## 2026-10-23 - Juna - Tabellen und Kennzahlen vereinfachen
 
 **Auftrag:** Mehrere kleine Verbesserungen an Einkäufen, Artikeln und Verkäufen in einem gemeinsamen Zweig umsetzen; PR erst nach Abschluss aller gemeinsam gesammelten Punkte.
