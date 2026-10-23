@@ -108,6 +108,10 @@ export async function readObserverPage(
       throw new EbayError('invalid_response');
     return parseEbayOrderSource(item, new Date().toISOString());
   });
+  // Ein leer gewordener Rest kann nach zwischenzeitlichen Änderungen hinter dem alten Cursor liegen.
+  // SQL muss die neue Gesamtzahl erhalten, um den Durchlauf ohne Abschluss neu zu beginnen.
+  if (orders.length === 0 && offset > body.total)
+    return { orders, complete: false, total: body.total };
   if (
     offset + orders.length > body.total ||
     new Set(orders.map((order) => order.orderId)).size !== orders.length
@@ -192,13 +196,16 @@ export function createEbayOrderObserverHandler(
           );
           total = result.total;
           complete = result.nextPage === null;
+          const invalidatedCursor = result.items.length === 0 && offset > total;
           if (
             total >= 25000 ||
-            offset + result.items.length > total ||
-            complete !== (offset + result.items.length === total) ||
-            (!complete && result.items.length !== 200)
+            (!invalidatedCursor &&
+              (offset + result.items.length > total ||
+                complete !== (offset + result.items.length === total) ||
+                (!complete && result.items.length !== 200)))
           )
             throw new EbayError('invalid_response');
+          if (invalidatedCursor) complete = false;
           rows = result.items;
         } else {
           const result = await readObserverPage(

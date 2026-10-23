@@ -38,6 +38,47 @@ function order(overrides: Record<string, unknown> = {}): Record<string, unknown>
 }
 const observedAt = '2026-10-01T12:00:00Z';
 
+test('Belegter Zahlungseingang verwendet die letzte gültige Empfangszeit und keine Änderungszeit', () => {
+  const source = parseEbayOrderSource(
+    order({
+      paymentSummary: {
+        payments: [
+          { paymentDate: '2026-10-01T00:00:00Z' },
+          { paymentDate: '2026-10-01T01:00:00Z' },
+        ],
+      },
+    }),
+    observedAt,
+  );
+  assert.equal(source.paidAt, '2026-10-01T01:00:00Z');
+});
+
+test('Fehlender oder unsicherer Zahlungszeitpunkt bleibt unbekannt', () => {
+  for (const payments of [
+    undefined,
+    [],
+    [{ paymentDate: 'invalid' }],
+    [{ paymentDate: '2026-09-01T12:00:00Z' }],
+    [{ paymentDate: '2027-10-01T12:00:00Z' }],
+    [{ paymentDate: '2026-10-01T01:00:00Z' }, {}],
+  ]) {
+    assert.equal(
+      parseEbayOrderSource(order({ paymentSummary: { payments } }), observedAt).paidAt,
+      null,
+    );
+  }
+  assert.equal(
+    parseEbayOrderSource(
+      order({
+        orderPaymentStatus: 'PENDING',
+        paymentSummary: { payments: [{ paymentDate: '2026-10-01T01:00:00Z' }] },
+      }),
+      observedAt,
+    ).paidAt,
+    null,
+  );
+});
+
 test('Gebühren verwenden nur die belegte Marktplatzsumme einschließlich echter Null', () => {
   for (const [fee, expected] of [
     [money('1.23'), 123],

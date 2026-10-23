@@ -79,5 +79,78 @@ select ok(pg_temp.page((select jsonb_agg(pg_temp.source('batch-'||n::text)) from
 select throws_ok($test$select pg_temp.page(jsonb_build_array(pg_temp.source('batch-1')),true,51,50)$test$,'22023',null,'Überlappende Bestellseiten bestätigen keine fehlende Bestellung');
 select ok(pg_temp.page(jsonb_build_array(pg_temp.source('batch-51')),true,51,50),'Erst vollständige eindeutige Bestellmenge bestätigt Fenster');
 select public.ebay_cache_finish(pg_temp.ident(4),(select (payload#>>'{connection,connection,operation_id}')::uuid from cache_claim),1,(select (payload#>>'{scan,id}')::bigint from cache_claim),null,false,true);
+
+-- Review: Ein schrumpfender Trefferstand muss einen unbrauchbaren Cursor sofort zurücksetzen.
+create function pg_temp.assert_cursor_restart(p_kind text) returns setof text language plpgsql as $$
+declare v_size integer:=case when p_kind='listings' then 200 else 50 end; v_watermark timestamptz; v_to timestamptz; v_rows jsonb;
+begin
+  update public.ebay_cache_scans set next_due_at=clock_timestamp()+interval '1 hour';
+  update public.ebay_cache_scans set next_due_at=clock_timestamp()-interval '1 second' where kind=p_kind;
+  update cache_claim set payload=public.ebay_cache_claim('production');
+  select case when p_kind='listings' then jsonb_agg(jsonb_build_object('id','restart-'||n,'title','Cursor')) else jsonb_agg(pg_temp.source('restart-'||n)) end into v_rows from generate_series(1,v_size)n;
+  return next ok(pg_temp.page(v_rows,false,v_size+1),p_kind||': erste Teilseite gespeichert');
+  select watermark,window_to into v_watermark,v_to from public.ebay_cache_scans where kind=p_kind;
+  return next lives_ok(format('select pg_temp.page(''[]'',false,%s,%s)',v_size-1,v_size),p_kind||': kleinerer Gesamtstand wird verarbeitet');
+  return next is((select next_offset from public.ebay_cache_scans where kind=p_kind),0,p_kind||': Cursor sofort auf Anfang');
+  return next ok((select watermark is not distinct from v_watermark and window_to=v_to from public.ebay_cache_scans where kind=p_kind),p_kind||': kein vorgezogener Abschluss');
+  return next ok((select count(*)>0 from public.ebay_cached_listings where active),p_kind||': bisherige Inserate bleiben sichtbar');
+  perform public.ebay_cache_finish(pg_temp.ident(4),(select (payload#>>'{connection,connection,operation_id}')::uuid from cache_claim),1,(select (payload#>>'{scan,id}')::bigint from cache_claim),null,false,true);
+  update public.ebay_cache_scans set next_due_at=clock_timestamp()-interval '1 second' where kind=p_kind;
+  update cache_claim set payload=public.ebay_cache_claim('production');
+  return next is((select payload#>>'{scan,offset}' from cache_claim),'0',p_kind||': nächster Aufruf beginnt sofort bei null');
+  select case when p_kind='listings' then jsonb_agg(jsonb_build_object('id','restart-'||n,'title','Cursor')) else jsonb_agg(pg_temp.source('restart-'||n)) end into v_rows from generate_series(1,v_size-1)n;
+  return next ok(pg_temp.page(v_rows,true,v_size-1),p_kind||': verkleinerter Durchlauf schließt regulär ab');
+  perform public.ebay_cache_finish(pg_temp.ident(4),(select (payload#>>'{connection,connection,operation_id}')::uuid from cache_claim),1,(select (payload#>>'{scan,id}')::bigint from cache_claim),null,false,true);
+  update public.ebay_cache_scans set next_due_at=clock_timestamp()+interval '1 hour',last_error=null where kind=p_kind;
+end;
+$$;
+select * from pg_temp.assert_cursor_restart('listings');
+select * from pg_temp.assert_cursor_restart('orders');
+
+create function pg_temp.sync(p_rows jsonb) returns boolean language plpgsql as $$
+begin
+  update public.ebay_cache_scans set next_due_at=clock_timestamp()+interval '1 hour';
+  update public.ebay_cache_scans set next_due_at=clock_timestamp()-interval '1 second' where kind='orders';
+  update cache_claim set payload=public.ebay_cache_claim('production');
+  return pg_temp.page(p_rows,true,jsonb_array_length(p_rows));
+end;
+$$;
+create function pg_temp.finish_scan() returns boolean language sql as $$select public.ebay_cache_finish(pg_temp.ident(4),(select (payload#>>'{connection,connection,operation_id}')::uuid from cache_claim),1,(select (payload#>>'{scan,id}')::bigint from cache_claim),null,false,true);$$;
+-- A wird für den Abruf gewählt; ausschließlich B hat persönlich Push freigegeben.
+insert into public.ebay_connections(id,workspace_id,user_id,environment,status,external_account_id,authorization_version) values(pg_temp.ident(5),pg_temp.ident(3),pg_temp.ident(2),'production','connected','cache-seller',1);
+insert into auth.sessions(id,user_id,created_at,updated_at) values(pg_temp.ident(6),pg_temp.ident(2),now(),now());
+insert into public.web_push_generations(id,user_id,token_hash) values(pg_temp.ident(7),pg_temp.ident(2),repeat('7',64));
+insert into public.web_push_devices(id,user_id,session_id,installation_id,endpoint_fingerprint,endpoint,p256dh,auth,vapid_key_id) values(pg_temp.ident(7),pg_temp.ident(2),pg_temp.ident(6),pg_temp.ident(8),'cache-fanout','https://fcm.googleapis.com/cache-fanout',repeat('x',87),repeat('x',22),'v1');
+insert into public.web_push_preferences(device_id,workspace_id,categories) values(pg_temp.ident(7),pg_temp.ident(3),array['order']);
+update public.ebay_cache_scans set baseline_to=now()-interval '10 minutes',watermark=now()-interval '10 minutes' where kind='orders';
+select ok(pg_temp.sync(jsonb_build_array(pg_temp.source('fanout',true,now()-interval '2 minutes'))),'Neuer Verkauf wird einmal pro Konto gelesen');
+select is((select payload#>>'{connection,connection,id}' from cache_claim),pg_temp.ident(4)::text,'Abruf bleibt bei A ohne Pushgerät');
+select is((select count(*) from public.web_push_deliveries d join public.web_push_events e on e.id=d.event_id where e.connection_id=pg_temp.ident(5) and d.device_id=pg_temp.ident(7)),1::bigint,'B erhält Push über seine eigene Kontofreigabe');
+select is((select count(*) from public.web_push_claim('v1',false,'{}','{}')),0::bigint,'Fanout umgeht keine Pilotfreigabe');
+select is((select count(*) from public.web_push_claim('v1',false,array[pg_temp.ident(2)],'{}')),1::bigint,'B bleibt innerhalb des bestehenden Pilotversands zustellbar');
+select pg_temp.finish_scan();
+select ok(pg_temp.sync(jsonb_build_array(pg_temp.source('fanout',true,now()-interval '2 minutes'))),'Wiederholung desselben Verkaufs gespeichert');
+select is((select count(*) from public.web_push_deliveries where device_id=pg_temp.ident(7)),1::bigint,'Ein Verkauf erzeugt für B keine zweite Zustellung');
+select pg_temp.finish_scan();
+update public.ebay_connections set status='disconnected' where id=pg_temp.ident(5);
+select ok(pg_temp.sync(jsonb_build_array(pg_temp.source('after-disconnect',true,now()-interval '2 minutes'))),'Spätere Kontoquelle wird gelesen');
+select is((select count(*) from public.web_push_deliveries where device_id=pg_temp.ident(7)),1::bigint,'Getrennte persönliche Freigabe erhält keine weiteren Pushes');
+select pg_temp.finish_scan();
+-- Erst nach Zahlung sichtbare Altbestellungen benötigen den belegten Zahlungseingang.
+select ok(pg_temp.sync(jsonb_build_array(
+  jsonb_set(pg_temp.source('late-first-seen',true,now()-interval '100 days'),'{source,paidAt}',to_jsonb(now()-interval '1 minute')),
+  jsonb_set(pg_temp.source('historical-shipping-update',true,now()-interval '100 days'),'{source,paidAt}',to_jsonb(now()-interval '1 day')),
+  pg_temp.source('historical-without-payment-time',true,now()-interval '100 days'),
+  jsonb_set(pg_temp.source('invalid-future-payment',true,now()-interval '100 days'),'{source,paidAt}',to_jsonb(now()+interval '1 day'))
+)), 'Erstmals sichtbare ältere Aufträge mit getrenntem Zahlungsnachweis gespeichert');
+select ok((select auto_prepare from public.ebay_cached_orders where order_id='late-first-seen'),'Erst nach Basis sichtbar gewordene Zahlung ist neu');
+select ok(not (select auto_prepare from public.ebay_cached_orders where order_id='historical-shipping-update'),'Historischer Versandwechsel bleibt still');
+select ok(not (select auto_prepare from public.ebay_cached_orders where order_id='historical-without-payment-time'),'Änderungszeit ersetzt keinen fehlenden Zahlungsnachweis');
+select ok(not (select auto_prepare from public.ebay_cached_orders where order_id='invalid-future-payment'),'Zahlung außerhalb des beobachteten Fensters ist kein Beleg');
+select pg_temp.finish_scan();
+select ok(pg_temp.sync(jsonb_build_array(jsonb_set(pg_temp.source('late-first-seen',true,now()-interval '100 days'),'{source,paidAt}',to_jsonb(now()-interval '1 minute')))), 'Spätere Zahlung darf erneut beobachtet werden');
+select is((select count(*) from public.web_push_events where source_key like 'ebay-cache-order:'||(select id::text from public.ebay_cached_orders where order_id='late-first-seen')||':%'),1::bigint,'Späte erste Zahlung erzeugt genau ein Ereignis je berechtigtem Empfänger');
+select pg_temp.finish_scan();
+
 select * from finish();
 rollback;

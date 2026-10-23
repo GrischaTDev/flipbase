@@ -110,6 +110,46 @@ async function fixture() {
     });
   return { claim, pages, delays, finishes, store, request };
 }
+
+Deno.test(
+  'Geschrumpfte Trefferzahl erreicht bei altem Cursor den sicheren SQL-Neustart',
+  async () => {
+    for (const kind of ['listings', 'orders'] as const) {
+      const { claim, store, request, delays } = await fixture();
+      const offset = kind === 'listings' ? 200 : 50;
+      const total = offset - 1;
+      claim.scan = { ...claim.scan, kind, initial: false, offset };
+      let restarts = 0;
+      store.page = async (_claim, pageOffset, rows, complete, pageTotal) => {
+        assert.equal(pageOffset, offset);
+        assert.equal(pageTotal, total);
+        assert.deepEqual(rows, []);
+        assert.equal(complete, false);
+        restarts++;
+        return false;
+      };
+      const handler = createEbayOrderObserverHandler(
+        store,
+        config,
+        'service-secret',
+        () => true,
+        async () =>
+          kind === 'orders'
+            ? Response.json({ total, orders: [] })
+            : new Response(
+                `<GetMyeBaySellingResponse><Ack>Success</Ack><ActiveList><PaginationResult><TotalNumberOfEntries>${total}</TotalNumberOfEntries><TotalNumberOfPages>1</TotalNumberOfPages></PaginationResult><ItemArray></ItemArray></ActiveList></GetMyeBaySellingResponse>`,
+              ),
+      );
+      assert.equal((await handler(request())).status, 503);
+      assert.equal(
+        restarts,
+        1,
+        `${kind}: neuer Gesamtstand muss den gespeicherten Cursor zurücksetzen können`,
+      );
+      assert.deepEqual(delays, [300]);
+    }
+  },
+);
 Deno.test('Productionkonfiguration liest niemals ein altes Sandboxkonto', async () => {
   const { claim, pages, finishes, store, request } = await fixture();
   claim.connection.connection.environment = 'sandbox';

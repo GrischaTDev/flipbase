@@ -17,6 +17,7 @@ export interface EbayOrderSourceLine {
   readonly variationAspects: readonly { readonly name: string; readonly value: string }[];
 }
 export interface EbayOrderSource {
+  readonly paidAt?: string | null;
   readonly platformFeeCents?: number | null;
   readonly orderId: string;
   readonly createdAt: string;

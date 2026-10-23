@@ -45,6 +45,30 @@ export function ebaySaleDate(createdAt: string): string {
   const part = (name: string) => parts.find((value) => value.type === name)?.value;
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
+function receivedPaymentAt(row: Record<string, unknown>, observedAt: string): string | null {
+  const payments = record(row.paymentSummary).payments;
+  const createdAt = row.creationDate;
+  if (
+    row.orderPaymentStatus !== 'PAID' ||
+    !timestamp(createdAt) ||
+    !timestamp(observedAt) ||
+    !Array.isArray(payments) ||
+    payments.length === 0
+  )
+    return null;
+  const dates = payments.map((payment) => record(payment).paymentDate);
+  if (
+    !dates.every(
+      (date): date is string =>
+        timestamp(date) &&
+        Date.parse(date) >= Date.parse(createdAt) &&
+        Date.parse(date) <= Date.parse(observedAt),
+    )
+  )
+    return null;
+  // Bei mehreren Zahlungen belegt erst der letzte Empfang die vollständige bezahlte Bestellung.
+  return dates.reduce((latest, date) => (Date.parse(date) > Date.parse(latest) ? date : latest));
+}
 export function parseEbayOrderSource(
   row: Record<string, unknown>,
   observedAt: string,
@@ -155,6 +179,7 @@ export function parseEbayOrderSource(
   if (!isEbayCents(goods) || shipping === null || !total || goods + shipping !== total.cents)
     blockers.add('amount_mismatch');
   return {
+    paidAt: receivedPaymentAt(row, observedAt),
     platformFeeCents: fee && fee.currency === currency && currency === 'EUR' ? fee.cents : null,
     orderId: text(row.orderId) ?? '',
     createdAt: typeof row.creationDate === 'string' ? row.creationDate : '',
