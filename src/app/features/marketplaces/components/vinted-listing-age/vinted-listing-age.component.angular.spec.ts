@@ -35,28 +35,14 @@ it('behält belegte Vinted-Tage auch bei unbekanntem Status ohne Onlinebehauptun
   fixture.detectChanges();
   expect(fixture.nativeElement.textContent).toContain('4 T');
 });
-it('zeigt das Erstellalter eines Entwurfs ohne Online-Alter und ohne Veröffentlichungsdatum', () => {
+it('zeigt bei einem unveroeffentlichten Vinted-Entwurf keine Altersangabe', () => {
   const fixture = TestBed.createComponent(VintedListingAgeComponent);
-  const clock = TestBed.inject(VintedListingClockService);
-  clock.now.set(Date.parse('2026-10-22T10:00:00Z'));
   fixture.componentRef.setInput('publicationState', 'draft');
   fixture.componentRef.setInput('createdAt', '2026-10-20T10:00:00Z');
   fixture.componentRef.setInput('publishedAt', '2026-10-01T10:00:00Z');
-  fixture.componentRef.setInput('publicationAge', {
-    value: 21,
-    unit: 'day',
-    observedAt: '2026-10-22T10:00:00Z',
-  });
   fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('Vor 2 Tagen erstellt');
-  expect(fixture.nativeElement.textContent).not.toContain('online');
-  const title = fixture.nativeElement.querySelector('[title]').getAttribute('title');
-  expect(title).toContain('Erstellt:');
-  expect(title).not.toContain('Veröffentlicht');
-  expect(fixture.componentInstance.age().tone).toBe('neutral');
-  fixture.componentRef.setInput('compact', true);
-  fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('2 T · erstellt');
+  expect(fixture.nativeElement.querySelector('app-badge')).toBeNull();
+  expect(fixture.nativeElement.textContent.trim()).toBe('');
 });
 
 it('unterscheidet bei einem aktiven Artikel Erstellung und spätere Veröffentlichung', () => {

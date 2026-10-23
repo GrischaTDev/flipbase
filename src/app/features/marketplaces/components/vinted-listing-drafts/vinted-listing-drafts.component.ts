@@ -1,3 +1,4 @@
+import { VintedProviderDraftsComponent } from '../vinted-provider-drafts/vinted-provider-drafts.component';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -38,6 +39,7 @@ import { VintedListingImageService } from '../../services/vinted-listing-image.s
   selector: 'app-vinted-listing-drafts',
   templateUrl: './vinted-listing-drafts.component.html',
   imports: [
+    VintedProviderDraftsComponent,
     CurrencyPipe,
     DatePipe,
     RouterLink,
@@ -69,7 +71,7 @@ export class VintedListingDraftsComponent {
   readonly actionError = signal<string | null>(null);
   readonly announcement = signal('');
   readonly search = signal('');
-  private readonly query = signal('');
+  readonly query = signal('');
   private readonly scope = computed(() => {
     const workspace = this.workspace.currentWorkspace(),
       user = this.auth.currentUser();

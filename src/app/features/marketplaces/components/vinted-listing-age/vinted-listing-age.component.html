@@ -1,3 +1,5 @@
-<app-badge [tone]="age().tone" [attr.title]="dateTitle()">
-  <span [attr.aria-label]="label()">{{ compact() ? age().compact : age().text }}</span>
-</app-badge>
+@if (publicationState() !== 'draft') {
+  <app-badge [tone]="age().tone" [attr.title]="dateTitle()">
+    <span [attr.aria-label]="label()">{{ compact() ? age().compact : age().text }}</span>
+  </app-badge>
+}

@@ -92,7 +92,7 @@ export interface VintedConversationVersion {
   itemPrice?: number | null;
   itemCurrency?: string | null;
   transactionStatus?: string | null;
-  saleTrackingVersion?: 1;
+  saleTrackingVersion?: 1 | 2;
   saleTransactionId?: string;
   saleSellerId?: string;
 }
@@ -577,7 +577,9 @@ export function parseVintedAccountImport(
             : null),
         transactionStatus:
           item.transactionStatus ?? (reusable ? string(previous.transactionStatus) : null),
-        ...(reusable && previous?.saleTrackingVersion === 1 ? { saleTrackingVersion: 1 } : {}),
+        ...(reusable && previous?.saleTrackingVersion
+          ? { saleTrackingVersion: previous.saleTrackingVersion }
+          : {}),
         ...(previous?.saleTransactionId && previous.saleSellerId
           ? { saleTransactionId: previous.saleTransactionId, saleSellerId: previous.saleSellerId }
           : {}),
@@ -601,7 +603,7 @@ export function parseVintedAccountImport(
         conversationEntry.body['partnerId'];
       conversationEntry.body['detailCheckedAt'] = observedAt;
       if (detail?.['saleTrackingChecked'] === true)
-        conversationEntry.body['saleTrackingVersion'] = 1;
+        conversationEntry.body['saleTrackingVersion'] = 2;
       for (const [field, value] of Object.entries(parseConversationItem(conversation))) {
         if (value !== null) conversationEntry.body[field] = value;
       }
@@ -767,7 +769,11 @@ export function parseVintedAccountImport(
     )
       rejectedSaleIds.add(saleId);
     const sale = readVintedSale(
-      conversation,
+      {
+        ...conversation,
+        item_title: conversation?.['item_title'] ?? conversationEntry?.body['itemTitle'],
+        item_id: conversation?.['item_id'] ?? conversationEntry?.body['itemId'],
+      },
       transaction,
       identity.id,
       observedAt,
@@ -777,7 +783,21 @@ export function parseVintedAccountImport(
     );
     if (sale && !sales.has(sale.externalId)) {
       sales.add(sale.externalId);
-      entries.push({ kind: 'sale', ...sale });
+      const publication =
+        !sale.body.isBundle && sale.body.itemCount === 1 && sale.body.itemIds.length === 1
+          ? entries.find(
+              (entry) => entry.kind === 'publication' && entry.externalId === sale.body.itemIds[0],
+            )
+          : undefined;
+      entries.push({
+        kind: 'sale',
+        ...sale,
+        body: {
+          ...sale.body,
+          brand: publication?.body['brand'] ?? null,
+          size: publication?.body['size'] ?? null,
+        },
+      });
       if (conversationEntry) {
         conversationEntry.body['saleTransactionId'] = sale.externalId;
         conversationEntry.body['saleSellerId'] = identity.id;
@@ -1262,7 +1282,7 @@ export async function readVintedAccountImport(
       !requestedConversation &&
       !wasUnread &&
       previous &&
-      previous.saleTrackingVersion === 1 &&
+      previous.saleTrackingVersion === 2 &&
       sourceUpdatedAt &&
       previous.sourceUpdatedAt === sourceUpdatedAt &&
       !isUnavailableItemText(previous.text) &&

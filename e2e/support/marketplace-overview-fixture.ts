@@ -126,6 +126,7 @@ export async function mockMarketplaceOverview(
     })).filter((row) => {
       const search = params.get('body->>title')?.replace(/^ilike\.%|%$/g, '');
       return (
+        row.body.publicationState !== 'draft' &&
         (!search || row.body.title.toLowerCase().includes(search.toLowerCase())) &&
         (!params.get('body->>publicationState') ||
           row.body.publicationState === params.get('body->>publicationState')?.replace('eq.', ''))

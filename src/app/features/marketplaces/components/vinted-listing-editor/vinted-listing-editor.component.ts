@@ -1,4 +1,8 @@
 import {
+  VintedListingCopyDialogComponent,
+  type VintedListingCopySelection,
+} from '../vinted-listing-copy-dialog/vinted-listing-copy-dialog.component';
+import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -83,6 +87,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   selector: 'app-vinted-listing-editor',
   templateUrl: './vinted-listing-editor.component.html',
   imports: [
+    VintedListingCopyDialogComponent,
     ReactiveFormsModule,
     ButtonComponent,
     CardComponent,
@@ -134,6 +139,7 @@ export class VintedListingEditorComponent {
   readonly saving = signal(false);
   readonly imageEditing = signal(false);
   readonly dirty = signal(false);
+  readonly copying = signal(false);
   readonly error = signal<string | null>(null);
   readonly loadError = signal<string | null>(null);
   readonly conflict = signal(false);
@@ -598,6 +604,37 @@ export class VintedListingEditorComponent {
       );
     this.images.set(images);
     if (changed) this.markChanged();
+  }
+  applyCopiedFields(selection: VintedListingCopySelection): void {
+    if (this.saving() || this.loading() || !this.context()) return;
+    const content = selection.content;
+    const fields = selection.fields;
+    const categoryChanged =
+      fields.includes('category') && this.content().categoryId !== content.categoryId;
+    const values: Partial<ReturnType<typeof this.form.getRawValue>> = {};
+    if (fields.includes('title')) values.title = content.title;
+    if (fields.includes('description')) values.description = content.description;
+    if (fields.includes('price'))
+      values.price =
+        content.priceCents === null ? '' : (content.priceCents / 100).toFixed(2).replace('.', ',');
+    if (fields.includes('category'))
+      values.categoryId = content.categoryId === null ? null : String(content.categoryId);
+    for (const [field, control, value] of [
+      ['brand', 'brand', content.brandLabel],
+      ['size', 'size', content.sizeLabel],
+      ['condition', 'condition', content.conditionLabel],
+      ['colors', 'colors', content.colorLabels.join(', ')],
+      ['materials', 'materials', content.materialLabels.join(', ')],
+    ] as const)
+      if (categoryChanged || fields.includes(field)) values[control] = value;
+    // Nicht gewählte Eingaben bleiben auch dann erhalten, wenn sie noch unvollständig sind.
+    this.referenceContent.set(content);
+    this.selectedBrand.set(null);
+    this.selectedFields.set(null);
+    this.brandEdited = false;
+    this.form.patchValue(values, { emitEvent: false });
+    this.markChanged();
+    this.copying.set(false);
   }
   applyTemplate(content: VintedListingContent): void {
     this.referenceContent.set(content);

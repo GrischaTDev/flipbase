@@ -244,15 +244,86 @@ test('ergänzt ältere unveränderte Chats einmalig um den Verkaufsablauf und ve
   assert.equal(result.entries.find((entry) => entry.kind === 'sale')?.body['saleState'], 'sold');
   assert.equal(
     result.entries.find((entry) => entry.kind === 'conversation')?.body['saleTrackingVersion'],
-    1,
+    2,
   );
   assert.ok(calls.includes('/api/v2/transactions/71'));
   calls.length = 0;
   await readVintedAccountImport(page, async () => undefined, undefined, [
-    { ...previous, saleTrackingVersion: 1 },
+    { ...previous, saleTrackingVersion: 2 },
   ]);
   assert.equal(
     calls.some((path) => path.includes('/conversations/') || path.includes('/transactions/')),
     false,
   );
+});
+
+test('liest den gebundenen Kaufbetrag aus der Gesprächstransaktion auch ohne spätere Detailantwort', () => {
+  const sale = snapshot(
+    [system('sale', 'success', 'Verkauft')],
+    {},
+    {
+      offer_price: { amount: '18.00', currency_code: 'EUR' },
+    },
+  ).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body['price'], 18);
+});
+
+test('verwendet einen Gesprächspreis ohne Kaufbeleg niemals als Verkauf', () => {
+  assert.equal(
+    snapshot(
+      [],
+      { order: {} },
+      { offer_price: { amount: '18.00', currency_code: 'EUR' } },
+    ).entries.some((entry) => entry.kind === 'sale'),
+    false,
+  );
+});
+
+test('erhaelt die Artikelzuordnung der gebundenen Inbox bei verkuerztem Detail', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'konto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51, item_id: 41, item_title: 'Bekannter Inbox-Titel' }],
+    [
+      {
+        conversation: {
+          id: 51,
+          transaction: { id: 71, user_side: 'seller' },
+          messages: [system('sale', 'success', 'Verkauft')],
+        },
+        transaction: { transaction: { id: 71, seller_id: 123, order: { id: 81 } } },
+      },
+    ],
+    observedAt,
+  );
+  const sale = result.entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body['title'], 'Bekannter Inbox-Titel');
+  assert.deepEqual(sale?.body['itemIds'], ['41']);
+});
+
+test('ordnet die Marke eines einzelnen Paketteils keinem unvollstaendigen Gesamtpaket zu', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'konto' },
+    { user: { id: 123 } },
+    [{ id: 41, title: 'Teil', brand_title: 'Nike', size_title: 'M' }],
+    [{ id: 51 }],
+    [
+      {
+        conversation: {
+          id: 51,
+          item_title: '6 Artikel',
+          transaction: { id: 71, user_side: 'seller', is_bundle: true },
+          messages: [system('sale', 'success', 'Verkauft')],
+        },
+        transaction: {
+          transaction: { id: 71, seller_id: 123, item_count: 6, order: { id: 81, item_ids: [41] } },
+        },
+      },
+    ],
+    observedAt,
+  );
+  const sale = result.entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body['brand'], null);
+  assert.equal(sale?.body['size'], null);
 });

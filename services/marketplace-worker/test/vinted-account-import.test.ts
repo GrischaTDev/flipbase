@@ -1275,7 +1275,7 @@ test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (
       externalId: '51',
       sourceUpdatedAt: '2026-09-28T09:00:00.000Z',
       detailCheckedAt: '2026-09-28T09:30:00Z',
-      saleTrackingVersion: 1,
+      saleTrackingVersion: 2,
       text: 'Vollständige letzte Nachricht',
       occurredAt: '2026-09-28T09:20:00Z',
     },

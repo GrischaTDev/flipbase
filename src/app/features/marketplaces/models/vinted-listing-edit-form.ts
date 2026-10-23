@@ -93,6 +93,20 @@ export function vintedListingPriceText(cents: number): string {
   return Math.floor(cents / 100) + ',' + String(cents % 100).padStart(2, '0');
 }
 
+/** Preis aus Vinteds bestehendem Formular, einschließlich Eurozeichen und Tausenderpunkten. */
+export function parseVintedListingReadPriceCents(value: string): number | null {
+  if (!value.trim()) return null;
+  let normalized = value.replace(/[€\s]/gu, '');
+  const invalid = () => new Error('Der vorhandene Vinted-Preis konnte nicht gelesen werden.');
+  if (normalized.includes('.') && normalized.includes(',')) {
+    if (!/^\d{1,3}(?:\.\d{3})+,\d{1,2}$/.test(normalized)) throw invalid();
+    normalized = normalized.replaceAll('.', '');
+  }
+  const cents = vintedListingPriceCents(normalized);
+  if (cents === null) throw invalid();
+  return cents;
+}
+
 /**
  * Baut die gewünschten Inseratangaben aus Formular und aktueller Vinted-Auswahl. Kennung und
  * Name stammen immer aus derselben Auswahl; unbekannte oder gesperrte Werte werden abgewiesen.

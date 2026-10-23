@@ -709,3 +709,34 @@ describe('Vinted-Inserateditor', () => {
     );
   });
 });
+
+it('befüllt den geöffneten Entwurf ohne neuen Entwurf oder unmittelbares Speichern', async () => {
+  const f = setup();
+  await settle();
+  f.component.form.controls.connectionId.setValue('account-a');
+  f.component.copying.set(true);
+  const content = {
+    ...emptyVintedListingContent(),
+    title: 'Übernommener Titel',
+    description: 'Quelle',
+  };
+  f.component.applyCopiedFields({ content, fields: ['title', 'description'] });
+  expect(f.component.form.controls.title.value).toBe(content.title);
+  expect(f.component.form.controls.connectionId.value).toBe('account-a');
+  expect(f.component.dirty()).toBe(true);
+  expect(f.component.copying()).toBe(false);
+  expect(f.create).not.toHaveBeenCalled();
+  expect(f.save).not.toHaveBeenCalled();
+});
+
+it('erhaelt einen halb eingegebenen Preis bei ausschliesslicher Titeluebernahme', async () => {
+  const f = setup();
+  await settle();
+  f.component.form.controls.price.setValue('12,');
+  f.component.applyCopiedFields({
+    content: { ...f.component.content(), title: 'Neuer Titel' },
+    fields: ['title'],
+  });
+  expect(f.component.form.controls.price.value).toBe('12,');
+  expect(f.component.form.controls.title.value).toBe('Neuer Titel');
+});

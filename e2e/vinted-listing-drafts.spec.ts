@@ -12,6 +12,142 @@ async function saveDraft(page: Page) {
 }
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+
+for (const width of [390, 1440]) {
+  test.describe(`Datenübernahme ${width}px`, () => {
+    test.use({ hasTouch: width === 390 });
+    for (const theme of ['light', 'dark'] as const) {
+      test(`trennt Vinted-Entwürfe und übernimmt gewählte Daten bei ${width}px ${theme} @marketplace-preview`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const browserErrors: string[] = [];
+        page.on('pageerror', (error) => browserErrors.push(error.message));
+        page.on('console', (message) => {
+          if (message.type() === 'error' && /NG[0-9]{4}/.test(message.text()))
+            browserErrors.push(message.text());
+        });
+        const state = await mockDrafts(page, true);
+        await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        const source = {
+          ...state.draft(),
+          id: '2',
+          content: {
+            ...emptyVintedListingContent(),
+            title: 'Quelljacke',
+            description: 'Nur Text der Quelle',
+            priceCents: 9900,
+          },
+        };
+        state.setOverviewDrafts([state.draft(), source]);
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
+          route.request().postDataJSON().p_id === '2'
+            ? route.fulfill({ json: source })
+            : route.fallback(),
+        );
+        await page.route('**/rest/v1/marketplace_account_entries?**', (route) => {
+          const query = new URL(route.request().url()).searchParams;
+          if (query.get('body->>publicationState') !== 'eq.draft') return route.fallback();
+          expect(query.get('workspace_id')).toBe(`eq.${workspaceId}`);
+          expect(query.get('connection_id')).toBe(`eq.${accountIds[0]}`);
+          return route.fulfill({
+            headers: { 'content-range': '0-0/1', 'access-control-expose-headers': 'content-range' },
+            ...(route.request().method() === 'HEAD'
+              ? { body: '' }
+              : {
+                  json: [
+                    {
+                      id: '25000000-0000-4000-8000-000000000099',
+                      external_id: '99',
+                      sort_at: '2026-10-22T10:00:00Z',
+                      body: {
+                        title: 'Nativer Vinted-Schal',
+                        publicationState: 'draft',
+                        price: 20,
+                        currency: 'EUR',
+                      },
+                    },
+                  ],
+                }),
+          });
+        });
+        await page.goto('/marketplaces/vinted/listing-drafts');
+        await expect(page.locator('html')).toHaveClass(
+          theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+        );
+        const native = page.getByRole('region', { name: 'Bei Vinted gespeicherte Entwürfe' });
+        await expect(native.getByRole('heading', { name: 'Nativer Vinted-Schal' })).toBeVisible();
+        await expect(native.locator('app-badge')).toHaveText('Vinted-Entwurf');
+        await expect(native).not.toContainText('Alter unbekannt');
+        await expect(native.getByRole('link')).toHaveAttribute(
+          'href',
+          `/marketplaces/vinted/listings/${accountIds[0]}/25000000-0000-4000-8000-000000000099`,
+        );
+        await page.goto(`/marketplaces/vinted/listing-drafts/${state.draft().id}`);
+        const editor = page.locator('app-vinted-listing-editor');
+        await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Mein Titel');
+        await editor
+          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .fill('Meine Beschreibung');
+        await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('12,');
+        const opener = editor.getByRole('button', { name: 'Daten übernehmen', exact: true });
+        await opener.click();
+        const dialog = page.getByRole('dialog', { name: 'Daten übernehmen', exact: true });
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('combobox', { name: 'Quelle auswählen' }).click();
+        await dialog.getByRole('option', { name: 'Quelljacke', exact: true }).click();
+        await expect(dialog.getByText('Nur Text der Quelle', { exact: true })).toBeVisible();
+        await expect(
+          dialog.getByRole('button', { name: 'Übertragen', exact: true }),
+        ).toBeDisabled();
+        await dialog.getByRole('checkbox', { name: 'Titel', exact: true }).click();
+        await expect(dialog.getByRole('checkbox', { name: 'Titel', exact: true })).toBeChecked();
+        await checkListingSurface(page, 'app-vinted-listing-copy-dialog');
+        await page.screenshot({ path: test.info().outputPath('listing-copy-dialog.png') });
+        await dialog.getByRole('button', { name: 'Übertragen', exact: true }).click();
+        await expect(dialog).not.toBeVisible();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          'Quelljacke',
+        );
+        await expect(
+          editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
+        ).toHaveValue('Meine Beschreibung');
+        await expect(
+          editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }),
+        ).toHaveValue('12,');
+        expect(state.creates).toEqual([]);
+        expect(state.draft().content.title).toBe('');
+        await opener.click();
+        await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+        await expect(opener).toBeFocused();
+        await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('12,50');
+        await saveDraft(page);
+        expect(state.draft().content).toMatchObject({
+          title: 'Quelljacke',
+          description: 'Meine Beschreibung',
+          priceCents: 1250,
+        });
+        expect(state.creates).toEqual([]);
+        await checkListingSurface(page, 'app-vinted-listing-editor');
+        expect(browserErrors).toEqual([]);
+      });
+    }
+  });
+}
+
+async function checkListingSurface(page: Page, selector: string) {
+  await page.evaluate(axe.source);
+  const violations = await page.evaluate(
+    async (selector) =>
+      (await (window as unknown as { axe: typeof axe }).axe.run(document.querySelector(selector)!))
+        .violations,
+    selector,
+  );
+  expect(violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+}
+
 async function mockDrafts(page: Page, planned = false, accountName?: string) {
   const pixel = Buffer.from(
     await page.evaluate(() => {

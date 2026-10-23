@@ -11,7 +11,7 @@ const scope = {
 describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
   afterEach(() => TestBed.resetTestingModule());
   function service(size: number) {
-    const filters: { head: boolean; values: [string, string][] }[] = [];
+    const filters: { relation: string; head: boolean; values: [string, string][] }[] = [];
     const rows = Array.from({ length: size }, (_, index) => ({
       id: '48000000-0000-4000-8000-' + String(index + 100).padStart(12, '0'),
       external_id: String(index + 1),
@@ -27,8 +27,8 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
         publicationAge: { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' },
       },
     }));
-    const from = () => {
-      const log = { head: false, values: [] as [string, string][] };
+    const from = (relation: string) => {
+      const log = { relation, head: false, values: [] as [string, string][] };
       filters.push(log);
       const query = {
         select: (_columns: string, options?: { head?: boolean }) => {
@@ -104,6 +104,15 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
       const { api, filters } = service(0);
       await api.readOverviewPublications(scope, { state, search: '', limit: 25 });
       expect(filters).toHaveLength(2);
+      expect(
+        filters.every(
+          (filter) =>
+            filter.relation ===
+            (state === 'draft'
+              ? 'marketplace_account_entries'
+              : 'marketplace_visible_account_entries'),
+        ),
+      ).toBe(true);
       for (const query of filters) {
         expect(query.values).toContainEqual(['body->>publicationState', state]);
         expect(
