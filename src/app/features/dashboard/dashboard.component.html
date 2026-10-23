@@ -57,25 +57,16 @@
     <app-card variant="overview" padding="none">
       <div class="kpi-grid grid grid-cols-2 divide-x divide-fb-line lg:grid-cols-4">
         @for (metric of metrics(); track metric.key) {
-          <div
-            class="metric min-w-0 px-4 py-5 sm:px-6 sm:py-6"
+          <app-summary-metric
+            class="metric"
             [attr.data-kpi]="metric.key"
             [title]="metric.help"
             [attr.data-tone]="metric.tone"
+            [label]="metric.label"
+            [value]="metric.value"
+            [icon]="metric.icon"
+            [negative]="metric.tone === 'negative'"
           >
-            <div class="flex items-center gap-2 text-fb-text-secondary">
-              <svg [lucideIcon]="metric.icon" class="size-4 shrink-0" aria-hidden="true"></svg>
-              <h2 [id]="'metric-' + metric.key" class="text-[13px] font-medium">
-                {{ metric.label }}
-              </h2>
-            </div>
-            <p
-              class="metric-value mt-2 break-words text-[clamp(1.25rem,2.5cqi,2rem)] leading-tight font-semibold tracking-tight tabular-nums"
-              [class.text-fb-critical]="metric.tone === 'negative'"
-              [attr.aria-labelledby]="'metric-' + metric.key"
-            >
-              {{ metric.value }}
-            </p>
             @if (metric.change; as change) {
               <p
                 data-kpi-change
@@ -94,7 +85,7 @@
               <p class="mt-2 text-xs text-fb-text-muted">{{ metric.hint }}</p>
             }
             <span class="sr-only">{{ metric.help }}</span>
-          </div>
+          </app-summary-metric>
         }
       </div>
     </app-card>

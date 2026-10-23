@@ -1,0 +1,26 @@
+<app-button
+  variant="table-action"
+  size="slim"
+  [icon]="icon"
+  [iconOnly]="true"
+  [ariaLabel]="label()"
+  [title]="label()"
+  [ariaExpanded]="isOpen()"
+  [ariaControls]="panelId"
+  ariaHaspopup="dialog"
+  (clicked)="toggle()"
+/>
+<div
+  #panel
+  [id]="panelId"
+  role="dialog"
+  [attr.aria-label]="label()"
+  [attr.popover]="'showPopover' in panel ? 'manual' : null"
+  [style.top.px]="position().top"
+  [style.left.px]="position().left"
+  [class.hidden]="!isOpen()"
+  [class.grid]="isOpen()"
+  class="fixed inset-auto z-[80] m-0 w-60 max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] gap-0.5 overflow-y-auto rounded-xl border border-fb-border bg-fb-surface p-1.5 text-left text-fb-text-primary shadow-xl"
+>
+  <ng-content />
+</div>

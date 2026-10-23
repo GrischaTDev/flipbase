@@ -337,12 +337,11 @@ export class TablePreferencesService {
         return { columns: migrated, sort: validSort };
       }
 
-      if (tableId === 'sales') {
-        const columns = migrateLegacySalesColumns(parsed.columns, config.defaultColumns);
-        if (columns) {
-          this.savePreferences(tableId, workspaceId, columns, validSort);
-          return { columns, sort: validSort };
-        }
+      if (tableId === 'sales' && parsed.defaultsVersion !== 2) {
+        const columns =
+          migrateLegacySalesColumns(parsed.columns, config.defaultColumns) ?? mergedColumns;
+        this.savePreferences(tableId, workspaceId, columns, validSort);
+        return { columns, sort: validSort };
       }
 
       const legacyCatalogOrder = [
@@ -481,7 +480,7 @@ export class TablePreferencesService {
     try {
       const payload: StoredTablePreferences = {
         version: CURRENT_PREFERENCES_VERSION,
-        defaultsVersion: tableId === 'purchases' ? 2 : 1,
+        defaultsVersion: tableId === 'purchases' || tableId === 'sales' ? 2 : 1,
         columns: columns.map((c) => ({ id: c.id, visible: c.visible, order: c.order })),
         sort,
       };

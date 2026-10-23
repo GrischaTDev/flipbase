@@ -1,3 +1,4 @@
+import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -59,6 +60,7 @@ interface OverviewMetric {
 @Component({
   selector: 'app-dashboard',
   imports: [
+    SummaryMetricComponent,
     CurrencyPipe,
     DatePipe,
     LucideDynamicIcon,

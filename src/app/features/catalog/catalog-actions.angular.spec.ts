@@ -269,6 +269,95 @@ describe('Artikelaktionen', () => {
     expect(cleanup).toHaveBeenCalledWith('own');
   });
 
+  it.each(['catalog', 'item'] as const)(
+    'entfernt einen bestätigten %s-Artikel aus der Liste ohne erneuten Ladezustand',
+    async (kind) => {
+      const { component, products, items, remove, reload } = setup();
+      const product: CatalogProduct = {
+        id: row.id,
+        workspace_id: 'own',
+        title: row.title,
+        tracking_mode: 'quantity',
+        is_public_store: false,
+      };
+      const item: InventoryItem = {
+        id: row.id,
+        workspace_id: 'own',
+        title: row.title,
+        condition: 'used',
+        status: 'ready',
+        allocated_purchase_cost: 0,
+      };
+      const sibling = { ...product, id: 'sibling', title: 'Weitere Kamera' };
+      const otherItem = { ...item, id: 'other-item', title: 'Anderes Einzelstück' };
+      products.set([product, sibling]);
+      items.set([item, otherItem]);
+      component.searchControl.setValue('Kamera');
+      let finish!: () => void;
+      remove.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+
+      const deleting = component.deleteUnused({ ...row, kind, canOfferDelete: true });
+      await Promise.resolve();
+      expect(products()).toContain(product);
+      expect(items()).toContain(item);
+      finish();
+      await deleting;
+
+      expect(products()).toEqual(kind === 'catalog' ? [sibling] : [product, sibling]);
+      expect(items()).toEqual(kind === 'item' ? [otherItem] : [item, otherItem]);
+      expect(component.filteredProducts().some((entry) => entry.key === `${kind}:${row.id}`)).toBe(
+        false,
+      );
+      expect(component.searchControl.value).toBe('Kamera');
+      expect(component.actionMessage()).toBe('Artikel gelöscht.');
+      expect(reload).not.toHaveBeenCalled();
+    },
+  );
+
+  it('behält einen Artikel bei abgelehntem Löschen und lädt die Liste nicht neu', async () => {
+    const { component, products, remove, reload } = setup();
+    const product: CatalogProduct = {
+      id: row.id,
+      workspace_id: 'own',
+      title: row.title,
+      tracking_mode: 'quantity',
+      is_public_store: false,
+    };
+    products.set([product]);
+    remove.mockRejectedValueOnce(new Error('Artikel wird noch verwendet.'));
+
+    await component.deleteUnused({ ...row, canOfferDelete: true });
+
+    expect(products()).toEqual([product]);
+    expect(component.actionError()).toBe('Artikel wird noch verwendet.');
+    expect(component.actionMessage()).toBeNull();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('ändert nach einem Workspacewechsel keine Liste durch eine verspätete Löschantwort', async () => {
+    const { component, products, remove, workspace, reload, cleanup } = setup();
+    const product: CatalogProduct = {
+      id: row.id,
+      workspace_id: 'other',
+      title: 'Artikel des anderen Workspace',
+      tracking_mode: 'quantity',
+      is_public_store: false,
+    };
+    let finish!: () => void;
+    remove.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+    const deleting = component.deleteUnused({ ...row, canOfferDelete: true });
+    await Promise.resolve();
+    workspace.set({ id: 'other' });
+    products.set([product]);
+    finish();
+    await deleting;
+
+    expect(products()).toEqual([product]);
+    expect(component.actionMessage()).toBeNull();
+    expect(cleanup).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it('führt verkaufbare Einzelstücke zum vorbelegten Verkaufsformular', () => {
     const { component, items, navigate } = setup();
     items.set([

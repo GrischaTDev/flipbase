@@ -126,6 +126,65 @@ test.describe('Artikelgestaltung auf vorhandenen Seiten', () => {
     for (const theme of ['light', 'dark'] as const) {
       test.describe(width + 'px ' + theme, () => {
         test.use({ viewport: { width, height: 1000 }, hasTouch: width !== 1440 });
+        test('löscht Artikel ohne ausgeblendete Tabelle und erhält Suche und übrige Zeilen', async ({
+          page,
+        }) => {
+          const fixture = await mockArticleArea(page);
+          await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+          await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+          await page.route('**/rest/v1/rpc/delete_unused_article', (route) => {
+            const body = route.request().postDataJSON() as { p_article_id: string };
+            const index = fixture.products.findIndex(
+              (product) => product['id'] === body.p_article_id,
+            );
+            if (index >= 0) fixture.products.splice(index, 1);
+            return route.fulfill({ json: { deleted: true } });
+          });
+          await page.goto('/catalog');
+          const surface = page.locator(
+            width >= 768 ? '[data-data-table-content]' : '[data-data-table-mobile]',
+          );
+          await expect(surface).toBeVisible();
+          const search = page.getByRole('searchbox', { name: 'Artikel durchsuchen' });
+          await search.fill('e');
+          const survivor = surface.getByRole('link', {
+            name: 'Leinenhemd · Salbeigrün',
+            exact: true,
+          });
+          await expect(survivor).toBeVisible();
+          const originalSurface = await surface.elementHandle();
+          const originalSurvivor = await survivor.elementHandle();
+          let listRequests = 0;
+          page.on('request', (request) => {
+            if (
+              request.method() === 'GET' &&
+              /\/rest\/v1\/(catalog_products|inventory_items|stock_positions|stock_lots|purchases)\?/.test(
+                request.url(),
+              )
+            )
+              listRequests++;
+          });
+
+          for (const title of ['Sneaker · New Balance', 'Lederjacke · Cognac']) {
+            await surface
+              .getByRole('button', { name: `Aktionen für ${title}`, exact: true })
+              .click();
+            await surface.getByRole('button', { name: `Löschen: ${title}`, exact: true }).click();
+            await page
+              .getByRole('dialog', { name: 'Unbenutzten Artikel löschen?', exact: true })
+              .getByRole('button', { name: 'Endgültig löschen', exact: true })
+              .click();
+
+            await expect(surface.getByRole('link', { name: title, exact: true })).toHaveCount(0);
+            await expect(search).toHaveValue('e');
+            await expect(survivor).toBeVisible();
+            expect(await originalSurface!.evaluate((element) => element.isConnected)).toBe(true);
+            expect(await originalSurvivor!.evaluate((element) => element.isConnected)).toBe(true);
+            await expect(page.locator('[data-data-table-loading]')).toHaveCount(0);
+          }
+          expect(listRequests).toBe(0);
+          await auditArticle(page, 'app-catalog');
+        });
         test('Artikelgestaltung erhält Auswahl, Bearbeitung, Bestand und Dialogfokus', async ({
           page,
         }) => {
@@ -145,7 +204,51 @@ test.describe('Artikelgestaltung auf vorhandenen Seiten', () => {
           const fixture = await mockArticleArea(page);
           await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
           await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+          await page.goto('/purchases');
+          await expect(page.getByRole('heading', { name: 'Einkäufe', exact: true })).toBeVisible();
+          const headerTypography = await page
+            .locator('app-purchases app-page-header')
+            .evaluate((header) => {
+              const title = getComputedStyle(header.querySelector('h1')!);
+              const subtitle = getComputedStyle(header.querySelector('p')!);
+              return [
+                title.fontFamily,
+                title.fontSize,
+                title.fontWeight,
+                title.lineHeight,
+                subtitle.fontSize,
+                subtitle.fontWeight,
+              ];
+            });
           await page.goto('/catalog');
+          await expect(page.getByRole('heading', { name: 'Bestand', exact: true })).toBeVisible();
+          expect(
+            await page.locator('app-catalog app-page-header').evaluate((header) => {
+              const title = getComputedStyle(header.querySelector('h1')!);
+              const subtitle = getComputedStyle(header.querySelector('p')!);
+              return [
+                title.fontFamily,
+                title.fontSize,
+                title.fontWeight,
+                title.lineHeight,
+                subtitle.fontSize,
+                subtitle.fontWeight,
+              ];
+            }),
+          ).toEqual(headerTypography);
+          await expect(page.locator('[data-navigation-group="merchandise"] a')).toHaveText([
+            'Einkäufe',
+            'Verkäufe',
+            'Bestand',
+          ]);
+          if (width < 768) {
+            await expect(page.locator('app-bottom-nav a')).toHaveText([
+              'Übersicht',
+              'Einkäufe',
+              'Verkäufe',
+              'Bestand',
+            ]);
+          }
           const search = page.getByRole('searchbox', { name: 'Artikel durchsuchen', exact: true });
           await search.fill('Sneaker');
           await expect(
@@ -157,7 +260,56 @@ test.describe('Artikelgestaltung auf vorhandenen Seiten', () => {
           await search.fill('');
           await auditArticle(page, 'app-catalog');
 
-          await page.goto('/catalog/' + productId);
+          const articleRow =
+            width >= 768
+              ? page.getByRole('row').filter({ hasText: 'Leinenhemd · Salbeigrün' })
+              : page.locator('app-catalog article').filter({ hasText: 'Leinenhemd · Salbeigrün' });
+          const trigger = articleRow.getByRole('button', {
+            name: 'Aktionen für Leinenhemd · Salbeigrün',
+            exact: true,
+          });
+          await expect(trigger).toBeVisible();
+          await expect(
+            articleRow.getByRole('button', {
+              name: 'Archivieren: Leinenhemd · Salbeigrün',
+              exact: true,
+            }),
+          ).toBeHidden();
+          await trigger.click();
+          const actions = articleRow.getByRole('dialog', {
+            name: 'Aktionen für Leinenhemd · Salbeigrün',
+            exact: true,
+          });
+          await expect(actions).toBeVisible();
+          const box = await actions.boundingBox();
+          expect(box).not.toBeNull();
+          expect(box!.x).toBeGreaterThanOrEqual(0);
+          expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+          expect(box!.y + box!.height).toBeLessThanOrEqual(1000);
+          await auditArticle(page, 'app-catalog');
+          await page.keyboard.press('End');
+          await expect(actions.getByRole('button').last()).toBeFocused();
+          await page.keyboard.press('Escape');
+          await expect(actions).toBeHidden();
+          await expect(trigger).toBeFocused();
+          await trigger.click();
+          await expect(actions).toBeVisible();
+          await page.getByRole('heading', { name: 'Bestand', exact: true }).click();
+          await expect(actions).toBeHidden();
+          if (process.env['RESPONSIVE_SCREENSHOT_DIR']) {
+            const { join } = await import('node:path');
+            await trigger.click();
+            await page.screenshot({
+              path: join(
+                process.env['RESPONSIVE_SCREENSHOT_DIR'],
+                `article-actions-${width}-${theme}.png`,
+              ),
+            });
+            await page.keyboard.press('Escape');
+          }
+          await articleRow.click({ position: { x: 2, y: 2 } });
+          await expect(page).toHaveURL(new RegExp('/catalog/' + productId + '\\?returnTo='));
+
           const editor = page.locator('app-product-detail');
           await expect(editor.getByRole('textbox', { name: 'Name', exact: true })).toBeEnabled();
           const fieldGeometry = await editor.evaluate((root) => {

@@ -1,7 +1,9 @@
+import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
+import { TableRowLinkDirective } from '../../../../shared/directives/table-row-link.directive';
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import localeDe from '@angular/common/locales/de';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -57,6 +59,8 @@ function registerSignalInputs(component: unknown, inputNames: readonly string[])
 beforeAll(async () => {
   registerLocaleData(localeDe);
   const resources: Record<string, string> = {
+    './table-action-menu.component.html':
+      'src/app/shared/components/table-action-menu/table-action-menu.component.html',
     './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
     './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
     './button.component.html': 'src/app/shared/components/button/button.component.html',
@@ -84,6 +88,13 @@ beforeAll(async () => {
     if (!resource) throw new Error(`Unbekannte Test-Ressource: ${url}`);
     return readFile(resolve(resource), 'utf8');
   });
+  registerSignalInputs(TableActionMenuComponent, ['label']);
+  const rowMetadata = (TableRowLinkDirective as unknown as { ɵdir: AngularInputMetadata }).ɵdir;
+  rowMetadata.inputs = { ...rowMetadata.inputs, appTableRowLink: ['appTableRowLink', 1, null] };
+  rowMetadata.declaredInputs = {
+    ...rowMetadata.declaredInputs,
+    appTableRowLink: 'appTableRowLink',
+  };
   registerSignalInputs(BadgeComponent, ['tone', 'size', 'mono']);
   registerSignalInputs(ButtonComponent, [
     'variant',
@@ -412,6 +423,10 @@ describe('StockPositionListComponent', () => {
     );
     expect(rows[0].querySelector('[data-item-details]')).not.toBeNull();
     expect(rows[0].querySelector('[data-item-select]')).not.toBeNull();
+    rows[0]
+      .querySelector<HTMLButtonElement>('app-table-action-menu > app-button > button')
+      ?.click();
+    fixture.detectChanges();
     expect(rows[0].querySelector('[data-item-label]')).not.toBeNull();
     expect(rows[0].querySelector('[data-item-store-toggle]')).not.toBeNull();
     expect(rows[0].querySelector('[data-item-status]')).not.toBeNull();
@@ -694,7 +709,12 @@ describe('StockPositionListComponent', () => {
     (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLElement>('[data-item-select] [role="checkbox"]')
       ?.click();
+    fixture.nativeElement.querySelector('app-table-action-menu > app-button > button')?.click();
+    fixture.detectChanges();
     fixture.nativeElement.querySelector('[data-item-store-toggle] button')?.click();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('app-table-action-menu > app-button > button')?.click();
+    fixture.detectChanges();
     fixture.nativeElement.querySelector('[data-item-sell] button')?.click();
     fixture.detectChanges();
 
@@ -702,6 +722,31 @@ describe('StockPositionListComponent', () => {
     expect(storeToggle).toHaveBeenCalledWith(einzelstueck);
     expect(sellIndividual).toHaveBeenCalledWith(einzelstueck);
     expect(statusChange).not.toHaveBeenCalled();
+  });
+
+  it('öffnet freie Zeilenflächen, aber weder Auswahl noch Aktionsmenü als Artikel', async () => {
+    const fixture = createList([], [einzelstueck]);
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+    row.querySelector<HTMLElement>('td')?.click();
+    expect(navigate).toHaveBeenCalledWith('/inventory/' + einzelstueck.id);
+    navigate.mockClear();
+    row.querySelector<HTMLElement>('[data-item-select] [role="checkbox"]')?.click();
+    const trigger = row.querySelector<HTMLButtonElement>(
+      'app-table-action-menu > app-button > button',
+    )!;
+    trigger.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    const dialog = row.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.textContent).toContain('Etikett drucken');
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(dialog.classList.contains('hidden')).toBe(true);
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('besteht den strukturellen AXE-Check; Farbkontrast bleibt im DOM-Test ungeprüft', async () => {

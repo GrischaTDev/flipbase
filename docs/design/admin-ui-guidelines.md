@@ -94,3 +94,15 @@ Vor Abschluss die geänderten Shared Components **und ihre tatsächlichen Verbra
 ## Messnachweis der gemeinsamen Grundlagen
 
 [Gerenderte Werte nach der Umsetzung](apple-form-implementation-measurements.json) dokumentieren die Feld-, Label- und gedrückten Buttonzustände für1440px Maus/834px Touch, jeweils Hell/Dunkel. Der vorherige Zustand bleibt im Formularaudit erhalten. Gemessen unter Windows/Chromium; keine native Gerätemessung.
+
+## Tabellen und Kennzahlen: Nutzerentscheidung vom 23.10.2026
+
+Einkäufe schalten die Rentabilität mit einem einzelnen beschrifteten Ein-/Aus-Button. Der dauerhafte erklärende Hilfstext entfällt; Ladefehler und Wiederholen bleiben sichtbar, wenn erforderlich.
+
+Artikelzeilen öffnen über freie Flächen dasselbe Detailziel wie der Artikellink. Eingebettete Bedienelemente behalten ihre eigene Aktion. Artikel und Verkäufe bündeln die Zeilenaktionen in `app-table-action-menu`: ein Drei-Punkte-Button, kompakte beschriftete Einträge, Schließen außerhalb und mit Escape sowie Rückfokus. Desktop und mobile Darstellung verwenden dieselben Aktionen.
+
+Verkaufstitel werden mit Auslassungspunkten gekürzt. Verkaufsnummer und Plattform haben eigene Spalten und werden beim Ausblenden nicht in die Artikelzelle verschoben. Bekannte Plattformen erscheinen als Logo mit zugänglichem Namen; eigene Plattformen ohne Logo als Text. Gewinn und Verkäufe übernehmen die Kennzahlendarstellung der Übersicht über `app-summary-metric` und dieselbe gemeinsame Kartenvariante. Dies sind Flipbase-Webentscheidungen, keine neuen Apple-Originalmaße.
+
+Ergänzung vom 23.10.2026: Die Warenwirtschaft heißt und folgt auf Desktop und Mobil **Einkäufe → Verkäufe → Bestand**. Bestand verwendet das Paket-Icon. Der Seitenkopf des Bestands nutzt dieselbe Standardvariante wie Einkäufe und Verkäufe; die größere und fettere Inhaltsvariante entfällt dort. Artikel bleiben die verwalteten Objekte, daher bleiben fachliche Aktionen wie „Artikel erstellen“ bestehen.
+
+Verkaufserfassung: Neue Verkäufe starten ohne ausgewählte Plattform; vor dem Speichern ist eine Auswahl erforderlich. Erst die Auswahl zeigt den passenden Versandbereich. Vinted zeigt einen kurzen Hinweis zur Abwicklung über Vinted, ohne Eingaben zu Versand und Plattformgebühr. Direktverkauf, Shop und „Andere“ bieten bei eigenem Versand ausschließlich erhaltenes Käuferporto und tatsächliche Versandkosten; bei Abholung entfallen diese Felder. Euro-Einheiten stehen im Betragsfeld, nicht zusätzlich im sichtbaren Label. Bereits gespeicherte Beträge bleiben beim Bearbeiten sichtbar; importierte eBay-Bestellungen behalten ihre ausdrückliche Kostenbestätigung.

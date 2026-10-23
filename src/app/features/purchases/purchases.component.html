@@ -83,42 +83,22 @@
       (valueChange)="sellerId.set($event ?? '')"
     />
 
-    <div
+    <app-button
       table-filters
-      role="group"
-      aria-label="Einkaufsansicht"
-      class="flex shrink-0 items-center gap-1"
+      data-purchase-view="profitability"
+      size="slim"
+      [variant]="activeView() === 'profitability' ? 'primary' : 'secondary'"
+      [ariaPressed]="activeView() === 'profitability'"
+      (clicked)="setView(activeView() === 'profitability' ? 'overview' : 'profitability')"
+      >Rentabilität</app-button
     >
-      <app-button
-        data-purchase-view="overview"
-        size="slim"
-        [variant]="activeView() === 'overview' ? 'primary' : 'ghost'"
-        [ariaPressed]="activeView() === 'overview'"
-        (clicked)="setView('overview')"
-        >Übersicht</app-button
-      >
-      <app-button
-        data-purchase-view="profitability"
-        size="slim"
-        [variant]="activeView() === 'profitability' ? 'primary' : 'ghost'"
-        [ariaPressed]="activeView() === 'profitability'"
-        (clicked)="setView('profitability')"
-        >Rentabilität</app-button
-      >
-    </div>
 
-    @if (activeView() === 'profitability') {
+    @if (activeView() === 'profitability' && profitabilityLoadError()) {
       <div table-filter-panel class="border-b border-fb-line px-3 py-2 text-xs text-fb-text-muted">
-        <p>
-          Ergebnis = Verkaufserlös − direkte Verkaufskosten − gesamte Einkaufskosten. Solange noch
-          Artikel übrig sind, ist das ein Zwischenstand.
-        </p>
-        @if (profitabilityLoadError()) {
-          <p role="alert" class="mt-2">Die Rentabilität konnte nicht vollständig geladen werden.</p>
-          <app-button class="mt-2" size="slim" variant="secondary" (clicked)="retryProfitability()"
-            >Erneut versuchen</app-button
-          >
-        }
+        <p role="alert">Die Rentabilität konnte nicht vollständig geladen werden.</p>
+        <app-button class="mt-2" size="slim" variant="secondary" (clicked)="retryProfitability()"
+          >Erneut versuchen</app-button
+        >
       </div>
     }
 

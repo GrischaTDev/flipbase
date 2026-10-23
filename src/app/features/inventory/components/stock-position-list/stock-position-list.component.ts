@@ -42,7 +42,8 @@ import { editableItemStatusOptions } from '../../models/item-status-options';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
+import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
+import { TableRowLinkDirective } from '../../../../shared/directives/table-row-link.directive';
 import {
   buildInventoryPresentation,
   InventorySourceState,
@@ -55,7 +56,8 @@ import {
     NgTemplateOutlet,
     BadgeComponent,
     ButtonComponent,
-    TableActionButtonComponent,
+    TableActionMenuComponent,
+    TableRowLinkDirective,
     ProductThumbnailComponent,
     CurrencyPipe,
     DatePipe,
