@@ -373,6 +373,17 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     page.getByRole('heading', { name: 'Storno oder Erstattung klären', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('eBay meldet eine Erstattung', { exact: false })).toBeVisible();
+  await page.addScriptTag({ content: axe.source });
+  const refundViolations = await page.evaluate(
+    async () =>
+      (
+        await (window as unknown as { axe: typeof axe }).axe.run(
+          document.querySelector('app-ebay-sale-review')!,
+          { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } },
+        )
+      ).violations,
+  );
+  expect(refundViolations).toEqual([]);
   await expect(
     page.getByRole('link', { name: 'Bestehenden Verkauf klären', exact: true }),
   ).toHaveAttribute('href', `/sales?saleId=${sales![0].id}`);

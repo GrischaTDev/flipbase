@@ -196,7 +196,11 @@ describe('Persönlicher eBay-Zustand', () => {
       expect(store.nextPage()).toBe(3);
       const traffic = store.traffic();
       const trafficReads = api.loadTraffic.mock.calls.length;
-      read.mockResolvedValue({ ...page, items: [replacement], nextPage: 2 });
+      read.mockImplementation(async (_scope, pageNumber: number) => ({
+        ...page,
+        items: pageNumber === 1 ? [replacement] : [second],
+        nextPage: pageNumber === 1 ? 2 : 3,
+      }));
       await store.requestRefresh();
       await vi.advanceTimersByTimeAsync(15000);
       expect(rows()).toEqual([replacement, second]);
@@ -213,6 +217,161 @@ describe('Persönlicher eBay-Zustand', () => {
       await store.read(false);
       expect(rows()).toEqual([replacement]);
       expect(store.nextPage()).toBe(2);
+    },
+  );
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      [true, false].map((initiallyEmpty) => ({ section, initiallyEmpty })),
+    ),
+  )(
+    'erschließt neue $section-Folgeseiten nach Wachstum, leerer Anfang: $initiallyEmpty',
+    async ({ section, initiallyEmpty }) => {
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const page = {
+        ...connection,
+        sync: { status: 'pending', lastCompletedAt: null, lastError: null },
+      };
+      read.mockResolvedValueOnce({
+        ...page,
+        items: initiallyEmpty ? [] : [listing],
+        total: initiallyEmpty ? 0 : 1,
+        nextPage: null,
+      });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValue({
+        ...page,
+        items: [listing, { ...listing, id: 'second' }],
+        total: 3,
+        nextPage: 2,
+        sync: { ...page.sync, status: 'ready', lastCompletedAt: '2026-10-23T13:00:00Z' },
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rows()).toHaveLength(2);
+      expect(store.total()).toBe(3);
+      expect(store.nextPage()).toBe(2);
+      read.mockResolvedValueOnce({
+        ...page,
+        items: [{ ...listing, id: 'third' }],
+        total: 3,
+        nextPage: null,
+      });
+      await store.read(true);
+      expect(read).toHaveBeenLastCalledWith(connection, 2);
+      expect(rows().map((row) => row.id)).toEqual(['123', 'second', 'third']);
+    },
+  );
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      [3, null].map((previousNextPage) => ({ section, previousNextPage })),
+    ),
+  )(
+    'liest verschobene $section-Seiten vollständig neu, bisheriger Zeiger: $previousNextPage',
+    async ({ section, previousNextPage }) => {
+      api.loadStatus.mockResolvedValueOnce({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const item = (id: string) => ({ ...listing, id });
+      const page = {
+        ...connection,
+        total: 5,
+        sync: { status: 'pending' as const, lastCompletedAt: null, lastError: null },
+      };
+      read.mockResolvedValueOnce({ ...page, items: [item('A'), item('B')], nextPage: 2 });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValueOnce({
+        ...page,
+        items: [item('C'), item('D')],
+        nextPage: previousNextPage,
+      });
+      await store.read(true);
+      const previousRows = rows();
+      const traffic = store.traffic();
+      const trafficReads = api.loadTraffic.mock.calls.length;
+      const pendingSecondPage = deferred<EbayPage<EbayListing>>();
+      read.mockImplementation(async (_scope, pageNumber: number) =>
+        pageNumber === 1
+          ? { ...page, items: [item('X'), item('A')], nextPage: 2 }
+          : pendingSecondPage.promise,
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rows()).toBe(previousRows);
+      expect(store.nextPage()).toBe(previousNextPage);
+      expect(store.isReading()).toBe(true);
+      pendingSecondPage.resolve({ ...page, items: [item('B'), item('C')], nextPage: 3 });
+      await vi.waitFor(() => expect(store.isReading()).toBe(false));
+      expect(rows().map((row) => row.id)).toEqual(['X', 'A', 'B', 'C']);
+      expect(store.nextPage()).toBe(3);
+      expect(store.traffic()).toBe(traffic);
+      expect(api.loadTraffic).toHaveBeenCalledTimes(trafficReads);
+      read.mockResolvedValueOnce({ ...page, items: [item('D'), item('E')], nextPage: null });
+      await store.read(true);
+      expect(rows().map((row) => row.id)).toEqual(['X', 'A', 'B', 'C', 'D', 'E']);
+      // Eine spätere echte Löschung muss aus allen geladenen Seiten verschwinden.
+      read.mockImplementation(async (_scope, pageNumber: number) => ({
+        ...page,
+        total: 3,
+        items: pageNumber === 1 ? [item('X'), item('A')] : [item('E')],
+        nextPage: pageNumber === 1 ? 2 : null,
+      }));
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rows().map((row) => row.id)).toEqual(['X', 'A', 'E']);
+      expect(store.nextPage()).toBeNull();
+    },
+  );
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      [false, true].map((revoked) => ({ section, revoked })),
+    ),
+  )(
+    'behandelt einen Fehler auf der zweiten $section-Pollseite atomar, Rechteentzug: $revoked',
+    async ({ section, revoked }) => {
+      api.loadStatus.mockResolvedValue({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const page = {
+        ...connection,
+        total: 3,
+        sync: { status: 'pending', lastCompletedAt: null, lastError: null },
+      };
+      read.mockResolvedValueOnce({ ...page, items: [listing], nextPage: 2 });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValueOnce({ ...page, items: [{ ...listing, id: 'second' }], nextPage: 3 });
+      await store.read(true);
+      const previousRows = rows();
+      const traffic = store.traffic();
+      read.mockResolvedValueOnce({
+        ...page,
+        items: [{ ...listing, id: 'new-first' }],
+        nextPage: 2,
+      });
+      read.mockRejectedValueOnce(
+        revoked
+          ? new EbayAccountRequestError('forbidden', 'Freigabe entzogen')
+          : new Error('Zweite Seite nicht verfügbar'),
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(read).toHaveBeenLastCalledWith(connection, 2);
+      expect(store.isReading()).toBe(false);
+      if (revoked) {
+        expect(rows()).toEqual([]);
+        expect(store.nextPage()).toBeNull();
+        expect(store.connection()).toBeNull();
+        expect(store.traffic()).toEqual({});
+      } else {
+        expect(rows()).toBe(previousRows);
+        expect(store.nextPage()).toBe(3);
+        expect(store.traffic()).toBe(traffic);
+        expect(store.dataError()).toBe('Zweite Seite nicht verfügbar');
+      }
     },
   );
   it('erhält Fehlerwartezeit und Zeilen, verwirft sie aber bei entzogener Freigabe', async () => {

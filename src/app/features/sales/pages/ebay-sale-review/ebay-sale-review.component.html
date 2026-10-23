@@ -129,11 +129,13 @@
     }
     @if (store.sourceIssues().length) {
       <app-card title="Storno oder Erstattung klären">
-        <ul class="space-y-2 text-sm" role="status">
-          @for (issue of store.sourceIssues(); track issue) {
-            <li>{{ sourceIssueLabel(issue) }}</li>
-          }
-        </ul>
+        <div role="status">
+          <ul class="space-y-2 text-sm">
+            @for (issue of store.sourceIssues(); track issue) {
+              <li>{{ sourceIssueLabel(issue) }}</li>
+            }
+          </ul>
+        </div>
         <p class="mt-3 text-sm">Der gebuchte Verkauf und die Bestandsmengen bleiben unverändert.</p>
         @if (store.booking().saleId) {
           <app-button link="/sales" [queryParams]="{ saleId: store.booking().saleId }"

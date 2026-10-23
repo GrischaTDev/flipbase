@@ -7,6 +7,7 @@ import type {
   EbayListing,
   EbayOrder,
   EbayListingTraffic,
+  EbayPage,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayAccountApiService, EbayAccountRequestError } from './ebay-account-api.service';
 import type { EbayOrderBooking } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
@@ -17,7 +18,7 @@ export class EbayAccountStore {
   private readonly refreshRequests = signal<
     Partial<Record<'orders' | 'listings', { completedAt: string | null; sending: boolean }>>
   >({});
-  private readonly firstPageIds = new Map<'orders' | 'listings', ReadonlySet<string>>();
+  private readonly loadedPageCounts = new Map<'orders' | 'listings', number>();
   readonly refreshStatus = computed(() => {
     const request = this.refreshRequests()[this.section()];
     if (request?.sending) return 'requesting';
@@ -131,7 +132,7 @@ export class EbayAccountStore {
   }
   private clearData(): void {
     this.pages.clear();
-    this.firstPageIds.clear();
+    this.loadedPageCounts.clear();
     this.refreshRequests.set({});
     this.sync.set(null);
     this.trafficRevision++;
@@ -327,33 +328,38 @@ export class EbayAccountStore {
     const section = this.section();
     const page = append ? this.nextPage() : 1;
     if (page === null) return;
-    const retainedFirstPageIds =
-      !append && !refreshTraffic ? this.firstPageIds.get(section) : undefined;
-    const retainedNextPage = this.nextPage();
+    const previousPageCount = this.loadedPageCounts.get(section) ?? 0;
+    const pagesToRead = !append && !refreshTraffic ? Math.max(1, previousPageCount) : 1;
     this.isReading.set(true);
     this.dataError.set(null);
 
     let shouldReadTraffic = false;
     try {
       if (section === 'listings') {
-        const result = await this.api.loadListings(connection, page);
-        if (!this.isCurrent(revision)) return;
-        this.listingRows.update((items) =>
-          this.mergePageRows(items, result.items, append, retainedFirstPageIds),
+        const result = await this.loadCachedPages(
+          (pageNumber) => this.api.loadListings(connection, pageNumber),
+          page,
+          pagesToRead,
+          revision,
         );
-        if (!append) this.firstPageIds.set(section, new Set(result.items.map((item) => item.id)));
+        if (!result) return;
+        this.listingRows.update((items) => this.mergePageRows(items, result.items, append));
+        this.loadedPageCounts.set(section, (append ? previousPageCount : 0) + result.pagesRead);
         this.total.set(result.total);
-        this.nextPage.set(retainedFirstPageIds ? retainedNextPage : result.nextPage);
+        this.nextPage.set(result.nextPage);
         this.sync.set(result.sync ?? null);
       } else {
-        const result = await this.api.loadOrders(connection, page);
-        if (!this.isCurrent(revision)) return;
-        this.orderRows.update((items) =>
-          this.mergePageRows(items, result.items, append, retainedFirstPageIds),
+        const result = await this.loadCachedPages(
+          (pageNumber) => this.api.loadOrders(connection, pageNumber),
+          page,
+          pagesToRead,
+          revision,
         );
-        if (!append) this.firstPageIds.set(section, new Set(result.items.map((item) => item.id)));
+        if (!result) return;
+        this.orderRows.update((items) => this.mergePageRows(items, result.items, append));
+        this.loadedPageCounts.set(section, (append ? previousPageCount : 0) + result.pagesRead);
         this.total.set(result.total);
-        this.nextPage.set(retainedFirstPageIds ? retainedNextPage : result.nextPage);
+        this.nextPage.set(result.nextPage);
         this.sync.set(result.sync ?? null);
       }
       const requested = this.refreshRequests()[section];
@@ -402,18 +408,32 @@ export class EbayAccountStore {
     }
     if (shouldReadTraffic && this.isCurrent(revision)) await this.readTraffic();
   }
+  private async loadCachedPages<T>(
+    loadPage: (page: number) => Promise<EbayPage<T>>,
+    firstPage: number,
+    pageCount: number,
+    revision: number,
+  ): Promise<(EbayPage<T> & { pagesRead: number }) | null> {
+    let result = await loadPage(firstPage);
+    if (!this.isCurrent(revision)) return null;
+    const items = [...result.items];
+    let pagesRead = 1;
+    // Erst nach vollständigem Nachlesen übernehmen: Verschiebungen zwischen Seiten
+    // dürfen weder Zeilen verlieren noch gelöschte alte Zeilen weiter anzeigen.
+    while (pagesRead < pageCount && result.nextPage !== null) {
+      result = await loadPage(result.nextPage);
+      if (!this.isCurrent(revision)) return null;
+      items.push(...result.items);
+      pagesRead++;
+    }
+    return { ...result, items, pagesRead };
+  }
   private mergePageRows<T extends { id: string }>(
     current: readonly T[],
     incoming: readonly T[],
     append: boolean,
-    retainedFirstPageIds: ReadonlySet<string> | undefined,
   ): readonly T[] {
-    // Polls ersetzen nur die erste Seite; bereits geladene Folgeseiten bleiben sichtbar.
-    const rows = append
-      ? [...current, ...incoming]
-      : retainedFirstPageIds
-        ? [...incoming, ...current.filter((row) => !retainedFirstPageIds.has(row.id))]
-        : incoming;
+    const rows = append ? [...current, ...incoming] : incoming;
     return rows.filter(
       (row, index) => rows.findIndex((candidate) => candidate.id === row.id) === index,
     );
