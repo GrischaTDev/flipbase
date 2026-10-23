@@ -1,6 +1,9 @@
 import type { SaleTarget } from '../../../core/models/sale-target.models';
 import type { RecordSaleInput } from '../../../core/services/sales.service';
-import type { ExternalSaleEntryDraft } from '../models/external-sale-entry.models';
+import type {
+  ExternalSaleEntryDraft,
+  ExternalSaleEntryEditorSnapshot,
+} from '../models/external-sale-entry.models';
 import type {
   EbayOrderBookRequest,
   EbayOrderReview,
@@ -52,7 +55,25 @@ export function buildEbaySaleEntryDraft(
       }));
     });
     return {
-      revision: `${review.reviewHash}:${review.snapshotId}`,
+      revision: `${review.reviewHash}:${review.snapshotId}:${review.draft?.updatedAt ?? ''}`,
+      platformFee: review.draft
+        ? review.draft.costs.platformFeeCents === null
+          ? null
+          : review.draft.costs.platformFeeCents / 100
+        : source.platformFeeCents == null
+          ? null
+          : source.platformFeeCents / 100,
+      shippingCost:
+        review.draft?.costs.shippingCostCents == null
+          ? null
+          : review.draft.costs.shippingCostCents / 100,
+      shippingMode: review.draft?.costs.shippingMode ?? null,
+      additionalCosts:
+        review.draft?.costs.additionalCosts.map((cost) => ({
+          category: cost.category,
+          description: cost.description,
+          amount: cost.amountCents / 100,
+        })) ?? [],
       platform: 'ebay',
       saleDate: berlinSaleDate(source.createdAt),
       externalOrderId: source.orderId,
@@ -143,6 +164,48 @@ export function buildEbayOrderBookRequest(
       shippingCostCents: confirmedCents(input.shippingCost),
       shippingMode: input.shippingMode ?? null,
       additionalCosts: extra.map((cost) => ({
+        category: cost.category,
+        description: cost.description?.trim() || null,
+        amountCents: confirmedCents(cost.amount),
+      })),
+    },
+  };
+}
+
+export function buildEbayOrderDraftRequest(
+  review: EbayOrderReview,
+  editor: ExternalSaleEntryEditorSnapshot,
+) {
+  const assignments = new Map<string, EbaySaleTarget | null>();
+  for (const line of editor.lines) {
+    if (!review.source.lines.some((source) => source.lineItemId === line.sourceLineId))
+      throw new Error('Die Bestellzuordnung ist veraltet. Prüfe die Bestellung erneut.');
+    const target = line.target
+      ? line.target.kind === 'inventory_item'
+        ? { inventoryItemId: line.target.inventoryItemId }
+        : { catalogProductId: line.target.catalogProductId }
+      : null;
+    if (
+      assignments.has(line.sourceLineId) &&
+      JSON.stringify(assignments.get(line.sourceLineId)) !== JSON.stringify(target)
+    )
+      throw new Error('Die Preisgruppen einer Bestellposition müssen denselben Artikel verwenden.');
+    assignments.set(line.sourceLineId, target);
+  }
+  return {
+    workspaceId: review.workspaceId,
+    connectionId: review.connectionId,
+    orderId: review.source.orderId,
+    snapshotId: review.snapshotId,
+    reviewHash: review.reviewHash,
+    assignments: [...assignments].flatMap(([lineItemId, target]) =>
+      target ? [{ lineItemId, target }] : [],
+    ),
+    costs: {
+      platformFeeCents: editor.platformFee === null ? null : confirmedCents(editor.platformFee),
+      shippingCostCents: editor.shippingCost === null ? null : confirmedCents(editor.shippingCost),
+      shippingMode: editor.shippingMode,
+      additionalCosts: editor.additionalCosts.map((cost) => ({
         category: cost.category,
         description: cost.description?.trim() || null,
         amountCents: confirmedCents(cost.amount),

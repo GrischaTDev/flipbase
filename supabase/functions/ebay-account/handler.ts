@@ -81,6 +81,7 @@ export interface EbayAccountStore {
 }
 export function mapPublicConnection(connection: StoredEbayConnection): EbayConnection {
   return {
+    authorizationVersion: connection.authorization_version,
     connectionId: connection.id,
     workspaceId: connection.workspace_id,
     environment: connection.environment,

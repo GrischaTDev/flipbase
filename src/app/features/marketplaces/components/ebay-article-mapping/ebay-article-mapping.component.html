@@ -25,7 +25,7 @@
               [icon]="linkIcon"
               [disabled]="store.loading()"
               (clicked)="openPicker(row)"
-              >{{ row.mapping ? 'Zuordnung ändern' : 'Artikel zuordnen' }}</app-button
+              >{{ row.mapping ? 'Zuordnung ändern' : 'Mit Bestand verknüpfen' }}</app-button
             >
             @if (row.mapping) {
               <app-button

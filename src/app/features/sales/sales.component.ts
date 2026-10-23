@@ -1,3 +1,4 @@
+import { EbaySaleDraftsComponent } from './components/ebay-sale-drafts/ebay-sale-drafts.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { SalePlatformsService } from '../../core/services/sale-platforms.service';
@@ -79,6 +80,7 @@ function validatedSaleTargetId(value: string | null): string | null {
 @Component({
   selector: 'app-sales',
   imports: [
+    EbaySaleDraftsComponent,
     CardComponent,
     SummaryMetricComponent,
     RouterLink,

@@ -1,3 +1,9 @@
+import type {
+  EbaySaleDraft,
+  EbaySaleDraftCosts,
+  EbaySaleNotificationAction,
+} from '../../../../../supabase/functions/_shared/ebay-sale-draft-contracts';
+import type { EbayOrderAssignment } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { Database } from '../../../core/models/supabase.types';
@@ -14,6 +20,10 @@ import {
   parseEbayOrderBooking,
   parseEbayOrderBookResponse,
   parseEbayOrderReview,
+  parseEbaySaleDraft,
+  parseEbayExistingSale,
+  parseEbaySaleNotification,
+  parseEbayStockReservation,
 } from '../models/ebay-order-import-response';
 import { EbayAccountApiService } from './ebay-account-api.service';
 
@@ -32,7 +42,7 @@ const messages: Readonly<Record<string, string>> = {
   invalid_response: 'Die eBay-Bestellung konnte nicht vollständig geprüft werden.',
   invalid_request: 'Prüfe die Artikelzuordnung und bestätige alle Kosten.',
   legacy_sale_conflict:
-    'Für diese Bestellung gibt es bereits einen eBay-Verkauf. Prüfe ihn und verwende „Bereits manuell gebucht“.',
+    'Für diese Bestellung gibt es bereits einen eBay-Verkauf. Prüfe ihn und wähle „Bereits als Verkauf erfasst“.',
   stock_unavailable: 'Der zugeordnete Bestand reicht nicht mehr aus. Prüfe Deine Artikelzuordnung.',
   target_archived: 'Ein zugeordneter Artikel ist archiviert. Wähle einen verfügbaren Artikel.',
   target_unavailable:
@@ -44,6 +54,7 @@ export class EbayOrderImportRequestError extends Error {
   constructor(
     message: string,
     readonly outcomeUnknown = false,
+    readonly code: string | null = null,
   ) {
     super(message);
   }
@@ -87,6 +98,7 @@ export class EbayOrderImportApiService {
       (code && messages[code]) ||
         'Die eBay-Anfrage konnte nicht bestätigt werden. Prüfe den Buchungsstatus.',
       body['action'] === 'order_book' && (!status || !code || code === 'request_failed'),
+      code,
     );
   }
   async loadMappings(scope: AccountScope): Promise<readonly EbayArticleMapping[]> {
@@ -158,6 +170,111 @@ export class EbayOrderImportApiService {
     });
     if (error || typeof data !== 'boolean')
       throw new Error('Die Artikelzuordnung konnte nicht entfernt werden. Lade sie erneut.');
+  }
+  async loadDrafts(scope: AccountScope): Promise<readonly EbaySaleDraft[]> {
+    const { data, error } = await this.client.rpc('ebay_sale_drafts_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+    });
+    if (
+      error ||
+      !data ||
+      typeof data !== 'object' ||
+      Array.isArray(data) ||
+      data['workspaceId'] !== scope.workspaceId ||
+      data['connectionId'] !== scope.connectionId ||
+      !Array.isArray(data['drafts'])
+    )
+      throw new Error('Die eBay-Entwürfe konnten nicht geladen werden.');
+    return data['drafts'].map((value) => parseEbaySaleDraft(value, scope.workspaceId));
+  }
+  async saveDraft(
+    input: AccountScope & {
+      orderId: string;
+      snapshotId: string;
+      reviewHash: string;
+      assignments: readonly EbayOrderAssignment[];
+      costs: EbaySaleDraftCosts;
+    },
+  ) {
+    const response = await this.request({ action: 'order_save_draft', ...input });
+    return response && typeof response === 'object' && 'status' in response
+      ? parseEbayOrderBooking(response)
+      : parseEbaySaleDraft(response, input.workspaceId, input.orderId);
+  }
+  async loadExistingSales(scope: AccountScope, page = 1) {
+    const { data, error } = await this.client.rpc('ebay_existing_sales_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_page: page,
+    });
+    if (error || !Array.isArray(data))
+      throw new Error('Vorhandene eBay-Verkäufe konnten nicht geladen werden.');
+    return data.map(parseEbayExistingSale);
+  }
+  async linkExistingSale(
+    review: EbayOrderReview,
+    saleId: string,
+    assignments: readonly EbayOrderAssignment[],
+    reason: string,
+  ) {
+    return parseEbayOrderBooking(
+      await this.request({
+        action: 'order_link_existing',
+        workspaceId: review.workspaceId,
+        connectionId: review.connectionId,
+        orderId: review.source.orderId,
+        snapshotId: review.snapshotId,
+        reviewHash: review.reviewHash,
+        saleId,
+        assignments,
+        reason,
+        confirmed: true,
+      }),
+    );
+  }
+  async loadReservations(workspaceId: string) {
+    const { data, error } = await this.client.rpc('ebay_reservations_read', {
+      p_workspace_id: workspaceId,
+    });
+    if (error || !Array.isArray(data))
+      throw new Error('Die eBay-Reservierungen konnten nicht geladen werden.');
+    return data.map(parseEbayStockReservation);
+  }
+  async resolveReservation(workspaceId: string, draftId: string, reason: string): Promise<void> {
+    const { data, error } = await this.client.rpc('ebay_reservation_resolve', {
+      p_workspace_id: workspaceId,
+      p_draft_id: draftId,
+      p_reason: reason,
+    });
+    if (error || data !== true)
+      throw new Error(
+        'Die Reservierung konnte nicht freigegeben werden. Prüfe den aktuellen Bestand.',
+      );
+  }
+  async loadNotifications(scope: AccountScope, page = 1) {
+    const { data, error } = await this.client.rpc('ebay_sale_notifications_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_page: page,
+    });
+    if (error || !Array.isArray(data))
+      throw new Error('Die eBay-Meldungen konnten nicht geladen werden.');
+    return data.map((value) => parseEbaySaleNotification(value, scope));
+  }
+  async updateNotification(
+    scope: AccountScope,
+    eventId: number,
+    action: EbaySaleNotificationAction,
+  ): Promise<void> {
+    const { data, error } = await this.client.rpc('ebay_sale_notification_update', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_event_id: eventId,
+      p_action: action,
+    });
+    if (error || data !== true)
+      throw new Error('Die eBay-Meldung konnte nicht aktualisiert werden.');
   }
   async prepareOrder(scope: AccountScope, orderId: string): Promise<EbayOrderReview> {
     return parseEbayOrderReview(

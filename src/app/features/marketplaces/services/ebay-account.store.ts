@@ -1,16 +1,51 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { AuthService } from '../../../core/services/auth.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
+import type { EbayCacheSync } from '../../../../../supabase/functions/_shared/ebay-cache-contracts';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import type {
   EbayConnection,
   EbayListing,
   EbayOrder,
   EbayListingTraffic,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
-import { EbayAccountApiService } from './ebay-account-api.service';
+import { EbayAccountApiService, EbayAccountRequestError } from './ebay-account-api.service';
 import type { EbayOrderBooking } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class EbayAccountStore {
   private readonly api = inject(EbayAccountApiService);
+  private readonly auth = inject(AuthService);
+  private readonly workspace = inject(WorkspaceService);
+  private userId: string | null = null;
+  private readonly scopeContext = signal<{ userId: string | null; workspaceId: string | null }>({
+    userId: null,
+    workspaceId: null,
+  });
+  private readonly pages = new Map<
+    string,
+    {
+      total: number | null;
+      nextPage: number | null;
+      hasRead: boolean;
+      sync: EbayCacheSync | null;
+      error: string | null;
+    }
+  >();
+  readonly sync = signal<EbayCacheSync | null>(null);
+  readonly initialSyncPending = computed(
+    () =>
+      !this.sync()?.lastCompletedAt &&
+      (this.sync()?.status === 'pending' || this.sync()?.status === 'syncing'),
+  );
+  constructor() {
+    effect(() => {
+      const userId = this.auth.currentUser()?.id ?? null;
+      const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
+      untracked(() => {
+        if (userId !== this.userId || workspaceId !== this.workspaceId) this.reset(null);
+      });
+    });
+  }
   private revision = 0;
   private bookingRevision = 0;
   readonly orderBookings = signal<Readonly<Record<string, EbayOrderBooking>>>({});
@@ -29,25 +64,44 @@ export class EbayAccountStore {
     lastUpdatedDate: string | null;
   } | null>(null);
   private trafficRevision = 0;
-  readonly connection = signal<EbayConnection | null>(null);
+  private readonly connectionData = signal<EbayConnection | null>(null);
+  readonly connection = computed(() => (this.contextMatches() ? this.connectionData() : null));
   readonly isLoading = signal(false);
   readonly isReading = signal(false);
   readonly error = signal<string | null>(null);
   readonly dataError = signal<string | null>(null);
-  readonly listings = signal<readonly EbayListing[]>([]);
-  readonly orders = signal<readonly EbayOrder[]>([]);
+  private readonly listingRows = signal<readonly EbayListing[]>([]);
+  readonly listings = computed(() => (this.contextMatches() ? this.listingRows() : []));
+  private readonly orderRows = signal<readonly EbayOrder[]>([]);
+  readonly orders = computed(() => (this.contextMatches() ? this.orderRows() : []));
   readonly section = signal<'listings' | 'orders'>('listings');
   readonly total = signal<number | null>(null);
   readonly nextPage = signal<number | null>(null);
   readonly hasRead = signal(false);
 
+  private contextMatches(): boolean {
+    const workspace = this.workspace.currentWorkspace();
+    const context = this.scopeContext();
+    return (
+      !!context.userId &&
+      context.userId === this.auth.currentUser()?.id &&
+      !!workspace &&
+      !workspace.archived_at &&
+      workspace.id === context.workspaceId
+    );
+  }
+  private isCurrent(revision: number): boolean {
+    return revision === this.revision && this.contextMatches();
+  }
   reset(workspaceId: string | null): number {
     this.workspaceId = workspaceId;
+    this.userId = this.auth.currentUser()?.id ?? null;
+    this.scopeContext.set({ userId: this.userId, workspaceId });
     this.revision += 1;
     this.isConfigured.set(false);
     this.importAvailable.set(false);
     this.listingManagementAvailable.set(false);
-    this.connection.set(null);
+    this.connectionData.set(null);
     this.isLoading.set(false);
     this.isReading.set(false);
     this.error.set(null);
@@ -55,6 +109,8 @@ export class EbayAccountStore {
     return this.revision;
   }
   private clearData(): void {
+    this.pages.clear();
+    this.sync.set(null);
     this.trafficRevision++;
     this.traffic.set({});
     this.trafficLoading.set(false);
@@ -64,8 +120,8 @@ export class EbayAccountStore {
     this.orderBookings.set({});
     this.bookingStatusesLoading.set(false);
     this.bookingError.set(null);
-    this.listings.set([]);
-    this.orders.set([]);
+    this.listingRows.set([]);
+    this.orderRows.set([]);
     this.total.set(null);
     this.nextPage.set(null);
     this.hasRead.set(false);
@@ -81,24 +137,63 @@ export class EbayAccountStore {
     read: boolean,
     section: 'listings' | 'orders' = this.section(),
   ): Promise<void> {
-    const revision = this.reset(workspaceId);
+    const userId = this.auth.currentUser()?.id ?? null;
+    const previous = this.connection();
+    const retained =
+      userId !== null &&
+      this.userId === userId &&
+      this.workspaceId === workspaceId &&
+      previous?.status === 'connected' &&
+      Number.isSafeInteger(previous.authorizationVersion);
+    this.rememberPage();
+    const revision = retained ? ++this.revision : this.reset(workspaceId);
     this.section.set(section);
+    if (retained) {
+      this.restorePage();
+      this.isReading.set(false);
+      this.trafficRevision++;
+      this.trafficLoading.set(false);
+      this.bookingRevision++;
+      this.bookingStatusesLoading.set(false);
+    }
     if (!workspaceId) return;
     this.isLoading.set(true);
     try {
       const status = await this.api.loadStatus(workspaceId);
-      if (revision !== this.revision) return;
+      if (!this.isCurrent(revision)) return;
+      const current = status.connection;
+      if (
+        !retained ||
+        !current ||
+        current.status !== 'connected' ||
+        current.connectionId !== previous?.connectionId ||
+        current.environment !== previous.environment ||
+        current.authorizationVersion === undefined ||
+        current.authorizationVersion !== previous.authorizationVersion
+      )
+        this.clearData();
       this.isConfigured.set(status.configured);
       this.importAvailable.set(status.importAvailable === true);
       this.listingManagementAvailable.set(status.listingManagementAvailable === true);
-      this.connection.set(status.connection);
+      this.connectionData.set(status.connection);
       this.isLoading.set(false);
       if (read && status.configured && status.connection?.status === 'connected')
         await this.read(false);
     } catch (error) {
-      if (revision === this.revision) this.error.set(this.message(error));
+      if (this.isCurrent(revision)) {
+        if (
+          error instanceof EbayAccountRequestError &&
+          ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].includes(
+            error.code ?? '',
+          )
+        ) {
+          this.clearData();
+          this.connectionData.set(null);
+        }
+        this.error.set(this.message(error));
+      }
     } finally {
-      if (revision === this.revision) this.isLoading.set(false);
+      if (this.isCurrent(revision)) this.isLoading.set(false);
     }
   }
   async connect(): Promise<string | null> {
@@ -117,17 +212,17 @@ export class EbayAccountStore {
     this.clearData();
     try {
       const url = await this.api.connect(workspaceId);
-      return revision === this.revision ? url : null;
+      return this.isCurrent(revision) ? url : null;
     } catch (error) {
-      if (revision === this.revision) this.error.set(this.message(error));
+      if (this.isCurrent(revision)) this.error.set(this.message(error));
       return null;
     } finally {
-      if (revision === this.revision) this.isLoading.set(false);
+      if (this.isCurrent(revision)) this.isLoading.set(false);
     }
   }
   async disconnect(): Promise<void> {
     const connection = this.connection();
-    if (!connection || this.isLoading()) return;
+    if (!connection || !this.contextMatches() || this.isLoading()) return;
     // Laufende Antworten werden bereits vor dem Trennen aus der Ansicht ausgeschlossen.
     const revision = ++this.revision;
     this.isLoading.set(true);
@@ -136,24 +231,25 @@ export class EbayAccountStore {
     this.clearData();
     try {
       await this.api.disconnect(connection);
-      if (revision === this.revision)
-        this.connection.set({
+      if (this.isCurrent(revision))
+        this.connectionData.set({
           ...connection,
           status: 'disconnected',
           username: null,
           lastReadAt: null,
         });
     } catch (error) {
-      if (revision === this.revision) this.error.set(this.message(error));
+      if (this.isCurrent(revision)) this.error.set(this.message(error));
     } finally {
-      if (revision === this.revision) this.isLoading.set(false);
+      if (this.isCurrent(revision)) this.isLoading.set(false);
     }
   }
   async selectSection(section: 'listings' | 'orders'): Promise<void> {
     if (this.isLoading() || this.isReading() || this.trafficLoading() || this.section() === section)
       return;
+    this.rememberPage();
     this.section.set(section);
-    this.clearData();
+    this.restorePage();
     await this.read(false);
   }
   async read(append: boolean): Promise<void> {
@@ -173,13 +269,13 @@ export class EbayAccountStore {
     if (page === null) return;
     this.isReading.set(true);
     this.dataError.set(null);
-    if (!append) this.clearData();
+
     let shouldReadTraffic = false;
     try {
       if (section === 'listings') {
         const result = await this.api.loadListings(connection, page);
-        if (revision !== this.revision) return;
-        this.listings.update((items) =>
+        if (!this.isCurrent(revision)) return;
+        this.listingRows.update((items) =>
           append
             ? [...items, ...result.items].filter(
                 (item, index, all) =>
@@ -189,10 +285,11 @@ export class EbayAccountStore {
         );
         this.total.set(result.total);
         this.nextPage.set(result.nextPage);
+        this.sync.set(result.sync ?? null);
       } else {
         const result = await this.api.loadOrders(connection, page);
-        if (revision !== this.revision) return;
-        this.orders.update((items) =>
+        if (!this.isCurrent(revision)) return;
+        this.orderRows.update((items) =>
           append
             ? [...items, ...result.items].filter(
                 (item, index, all) =>
@@ -202,20 +299,27 @@ export class EbayAccountStore {
         );
         this.total.set(result.total);
         this.nextPage.set(result.nextPage);
+        this.sync.set(result.sync ?? null);
       }
       if (section === 'orders' && this.importAvailable()) void this.readBookingStatuses(connection);
       this.hasRead.set(true);
+      this.rememberPage();
       shouldReadTraffic = section === 'listings' && this.listingManagementAvailable();
     } catch (error) {
-      if (revision !== this.revision) return;
+      if (!this.isCurrent(revision)) return;
       const errorMessage = this.message(error);
       this.dataError.set(errorMessage);
+      this.rememberPage();
       try {
         const status = await this.api.loadStatus(connection.workspaceId);
-        if (revision === this.revision) {
-          this.connection.set(status.connection);
+        if (this.isCurrent(revision)) {
+          this.connectionData.set(status.connection);
           this.importAvailable.set(status.importAvailable === true);
-          if (status.connection?.status !== 'connected') {
+          if (
+            status.connection?.status !== 'connected' ||
+            status.connection.connectionId !== connection.connectionId ||
+            status.connection.authorizationVersion !== connection.authorizationVersion
+          ) {
             this.clearData();
             this.dataError.set(errorMessage);
           }
@@ -224,9 +328,26 @@ export class EbayAccountStore {
         /* Der ursprüngliche Abruffehler bleibt sichtbar. */
       }
     } finally {
-      if (revision === this.revision) this.isReading.set(false);
+      if (this.isCurrent(revision)) this.isReading.set(false);
     }
-    if (shouldReadTraffic && revision === this.revision) await this.readTraffic();
+    if (shouldReadTraffic && this.isCurrent(revision)) await this.readTraffic();
+  }
+  private rememberPage(): void {
+    this.pages.set(this.section(), {
+      total: this.total(),
+      nextPage: this.nextPage(),
+      hasRead: this.hasRead(),
+      sync: this.sync(),
+      error: this.dataError(),
+    });
+  }
+  private restorePage(): void {
+    const page = this.pages.get(this.section());
+    this.total.set(page?.total ?? null);
+    this.nextPage.set(page?.nextPage ?? null);
+    this.hasRead.set(page?.hasRead ?? false);
+    this.sync.set(page?.sync ?? null);
+    this.dataError.set(page?.error ?? null);
   }
   async readTraffic(): Promise<void> {
     const connection = this.connection();

@@ -199,13 +199,38 @@
       }
       <p class="text-sm text-fb-text-muted">
         @if (store.section() === 'orders') {
-          eBay-Verkäuferbestellungen der letzten 90 Tage. Prüfe Artikel und Kosten, bevor Du einen
-          Verkauf buchst.
+          Gespeicherte eBay-Verkäuferbestellungen. Prüfe Artikel und Kosten, bevor Du einen Verkauf
+          buchst.
         } @else {
           Deine aktiven eBay-Inserate. Bearbeite ein Angebot oder ordne es einem Flipbase-Artikel
           zu.
         }
       </p>
+      @if (store.isReading() && store.hasRead()) {
+        <p role="status" class="text-sm text-fb-text-secondary">
+          Gespeicherte Daten werden aktualisiert …
+        </p>
+      }
+      @if (store.initialSyncPending()) {
+        <p role="status" class="text-sm text-fb-text-secondary">
+          Erster eBay-Abgleich läuft. Die Bestellungen und Inserate erscheinen nach dem
+          vollständigen Import.
+        </p>
+      }
+      @if (store.sync()?.lastCompletedAt) {
+        <p class="text-xs text-fb-text-secondary">
+          Letzter vollständiger Abgleich:
+          {{ store.sync()?.lastCompletedAt | date: 'dd.MM.yyyy HH:mm' }}
+        </p>
+      }
+      @if (store.sync()?.lastError) {
+        <p role="status" class="text-sm">
+          Der Hintergrundabgleich ist fehlgeschlagen. Der letzte gespeicherte Stand bleibt sichtbar.
+        </p>
+      }
+      @if (mappingStore.error(); as error) {
+        <p role="status" class="text-sm">{{ error }}</p>
+      }
       @if (store.bookingError(); as error) {
         <p role="status" class="text-sm text-fb-critical">{{ error }}</p>
       }
@@ -231,7 +256,7 @@
             ? 'eBay-Bestellungen durchsuchen'
             : 'eBay-Inserate durchsuchen'
         "
-        [loading]="store.isReading() && !store.hasRead()"
+        [loading]="(store.isReading() && !store.hasRead()) || store.initialSyncPending()"
         [errorMessage]="store.dataError()"
         [hasRows]="
           store.section() === 'listings'
@@ -241,9 +266,11 @@
         [emptyTitle]="
           searchText().trim()
             ? 'Keine Treffer für Deine Suche'
-            : store.hasRead()
-              ? 'Keine Einträge bei eBay gefunden'
-              : 'Noch keine Daten abgerufen'
+            : store.initialSyncPending()
+              ? 'Erster eBay-Abgleich läuft'
+              : store.hasRead()
+                ? 'Keine Einträge bei eBay gefunden'
+                : 'Noch keine Daten abgerufen'
         "
         emptyText="Du kannst die Ansicht mit „Aktualisieren“ erneut laden."
       >
@@ -293,6 +320,11 @@
                                 ? 'Festpreis'
                                 : 'eBay-Inserat'
                           }}</span>
+                          @if (listingMappingTitle(listing); as title) {
+                            <span class="block text-xs text-fb-text-secondary"
+                              >Bestand: {{ title }}</span
+                            >
+                          }
                         </div>
                       </div>
                     </td>
@@ -337,8 +369,8 @@
                           variant="table-action"
                           [icon]="connectIcon"
                           [iconOnly]="true"
-                          [ariaLabel]="'Artikel zuordnen: ' + listing.title"
-                          title="Artikel zuordnen"
+                          [ariaLabel]="'Mit Bestand verknüpfen: ' + listing.title"
+                          title="Mit Bestand verknüpfen"
                           (clicked)="openMapping(listing, $event)"
                         />
                       }
@@ -380,9 +412,22 @@
                     <td class="px-4 py-3">
                       <span class="block text-xs text-fb-text-muted">{{ order.id }}</span>
                       @for (item of order.items; track $index) {
-                        <span class="block max-w-sm break-words"
-                          >{{ item.quantity ?? '–' }} × {{ item.title }}</span
-                        >
+                        <div class="mt-2 flex items-center gap-3">
+                          <app-product-thumbnail
+                            [src]="orderImage(order, $index)"
+                            [alt]="item.title"
+                          />
+                          <div>
+                            <span class="block max-w-sm break-words"
+                              >{{ item.quantity ?? '–' }} × {{ item.title }}</span
+                            >
+                            @if (orderMappingTitle(order, $index); as title) {
+                              <span class="block text-xs text-fb-text-secondary"
+                                >Bestand: {{ title }}</span
+                              >
+                            }
+                          </div>
+                        </div>
                       }
                     </td>
                     <td class="px-4 py-3">{{ order.createdAt | date: 'dd.MM.yyyy' }}</td>
@@ -435,6 +480,7 @@
               [scope]="connection"
               [listing]="listing"
               (closed)="closeMapping()"
+              (changed)="reloadMappings()"
             />
           </section>
         }

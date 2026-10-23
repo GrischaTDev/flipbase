@@ -1,11 +1,11 @@
-import { randomUUID, createCipheriv, randomBytes } from 'node:crypto';
+import { randomUUID, createCipheriv, randomBytes, hkdfSync, createHmac } from 'node:crypto';
 import axe from 'axe-core';
 import { test, expect, openDashboard, type TestWorkspace } from './support/fixtures';
 import { createFinalizedPurchase } from './support/sample-data';
 import { createLocalAdminClient } from './support/local-supabase';
 import { readAccessToken } from './support/test-account';
 
-async function createOrder(workspace: TestWorkspace) {
+async function createOrder(workspace: TestWorkspace, autoPrepare = false) {
   const admin = createLocalAdminClient();
   const { data: identity, error: identityError } = await admin.auth.getUser(readAccessToken());
   if (identityError || !identity.user) throw new Error('Die bestätigte Testidentität fehlt.');
@@ -40,6 +40,86 @@ async function createOrder(workspace: TestWorkspace) {
     encrypted_tokens: `v1.${iv.toString('base64')}.${encrypted.toString('base64')}`,
   });
   if (credentialsError) throw credentialsError;
+  const accountId = `test-${connectionId}`;
+  const orderId = `fixture-${connectionId}`;
+  const scope = {
+    workspace_id: workspace.id,
+    environment: 'production',
+    external_account_id: accountId,
+  };
+  const sourceKey = createHmac(
+    'sha256',
+    Buffer.from(
+      hkdfSync('sha256', Buffer.alloc(32, 7), 'flipbase:ebay:source:v1', 'order-booking', 32),
+    ),
+  )
+    .update(JSON.stringify([workspace.id, 'production', accountId, orderId]))
+    .digest('hex');
+  const source = {
+    orderId,
+    createdAt: '2026-09-30T22:30:00Z',
+    lastModifiedAt: '2026-10-01T12:00:00Z',
+    observedAt: new Date().toISOString(),
+    paymentStatus: 'PAID',
+    cancelStatus: 'NONE_REQUESTED',
+    fulfillmentStatus: 'NOT_STARTED',
+    currency: 'EUR',
+    totalCents: 1400,
+    shippingRevenueCents: 400,
+    platformFeeCents: 0,
+    blockers: [],
+    lines: [
+      {
+        lineItemId: 'line-1',
+        listingId: '123',
+        variationId: null,
+        sku: null,
+        title: 'eBay-Testartikel',
+        quantity: 1,
+        goodsCents: 1000,
+        hasRefund: false,
+        variationAspects: [],
+        imageUrl: 'https://i.ebayimg.com/flipbase-test.webp',
+      },
+    ],
+  };
+  const operations = await Promise.all([
+    admin.from('ebay_cache_scans').insert(
+      ['orders', 'listings'].map((kind) => ({
+        ...scope,
+        kind,
+        completed_at: new Date().toISOString(),
+        baseline_to: new Date().toISOString(),
+        next_due_at: '2099-01-01T00:00:00Z',
+      })),
+    ),
+    admin.from('ebay_cached_listings').insert({
+      ...scope,
+      listing_id: '123',
+      seen_generation: randomUUID(),
+      listing: {
+        id: '123',
+        title: 'eBay-Testartikel',
+        price: 10,
+        currency: 'EUR',
+        quantity: 1,
+        listingType: 'FixedPriceItem',
+        url: 'https://www.ebay.de/itm/123',
+        imageUrl: 'https://i.ebayimg.com/flipbase-test.webp',
+      },
+    }),
+    admin.from('ebay_cached_orders').insert({
+      ...scope,
+      order_id: orderId,
+      source_key: sourceKey,
+      source,
+      created_at: source.createdAt,
+      modified_at: source.lastModifiedAt,
+      auto_prepare: autoPrepare,
+      last_scanned_payment_status: 'PAID',
+    }),
+  ]);
+  for (const operation of operations) if (operation.error) throw operation.error;
   return {
     connectionId,
     orderId: `fixture-${connectionId}`,
@@ -54,14 +134,28 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     items: [{ title: 'eBay-Testartikel', price: 2 }],
   });
   const order = await createOrder(workspace);
+  const admin = createLocalAdminClient();
+  expect(
+    (await admin.from('ebay_sale_drafts').select('id').eq('workspace_id', workspace.id)).data,
+  ).toEqual([]);
+  expect(
+    (await admin.from('ebay_sale_notifications').select('id').eq('workspace_id', workspace.id))
+      .data,
+  ).toEqual([]);
+  await page.route('https://i.ebayimg.com/**', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#fcc601"/></svg>',
+    }),
+  );
   await openDashboard(page);
   await page.goto('/marketplaces/ebay');
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/listings$/);
   await page
-    .getByRole('button', { name: 'Artikel zuordnen: eBay-Testartikel', exact: true })
+    .getByRole('button', { name: 'Mit Bestand verknüpfen: eBay-Testartikel', exact: true })
     .click();
   const mapping = page.locator('app-ebay-article-mapping');
-  await mapping.getByRole('button', { name: 'Artikel zuordnen', exact: true }).click();
+  await mapping.getByRole('button', { name: 'Mit Bestand verknüpfen', exact: true }).click();
   await page
     .locator('app-article-picker [data-product-group]')
     .filter({ hasText: 'eBay-Testartikel' })
@@ -84,6 +178,25 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     page.getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Noch nicht gebucht', { exact: true })).toBeVisible();
+  await expect(page.locator('app-ebay-account img[alt="eBay-Testartikel"]').first()).toBeVisible();
+  let releaseOrders!: () => void;
+  const pendingOrders = new Promise<void>((resolve) => {
+    releaseOrders = resolve;
+  });
+  await page.route('**/functions/v1/ebay-account', async (route) => {
+    if (route.request().postDataJSON()?.action === 'orders') await pendingOrders;
+    await route.continue();
+  });
+  await page.locator('a[href="/dashboard"]').first().click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/marketplaces\/ebay\/orders$/);
+  await expect(
+    page.getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true }),
+  ).toBeVisible();
+  releaseOrders();
+  await page.unroute('**/functions/v1/ebay-account');
+
   await page.goto(order.route);
   await expect(
     page.getByRole('heading', { name: 'eBay-Bestellung prüfen', exact: true }),
@@ -98,6 +211,29 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
   await page
     .getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' })
     .fill('3');
+  await expect(book).toBeEnabled();
+  await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await expect(page.getByText('Entwurf gespeichert.', { exact: false })).toBeVisible();
+  const savedDraft = await admin
+    .from('ebay_sale_drafts')
+    .select('id,costs,state')
+    .eq('workspace_id', workspace.id)
+    .single();
+  expect(savedDraft.data).toMatchObject({
+    costs: { platformFeeCents: 0, shippingCostCents: 300 },
+    state: 'ready_for_review',
+  });
+  expect((await admin.from('sales').select('id').eq('workspace_id', workspace.id)).data).toEqual(
+    [],
+  );
+  expect(
+    (await admin.from('inventory_items').select('status').eq('id', items[0].id).single()).data
+      ?.status,
+  ).toBe('reserved');
+  await page.reload();
+  await expect(
+    page.getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' }),
+  ).toHaveValue('3');
   await expect(book).toBeEnabled();
   const { error: expiryError } = await createLocalAdminClient()
     .from('ebay_order_snapshots')
@@ -219,51 +355,28 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   });
   if (legacyError) throw legacyError;
   const legacySaleId = (legacy as { sale: { id: string } }).sale.id;
-  const { error: mappingError } = await workspace.client.rpc('ebay_set_article_mapping', {
-    p_workspace_id: workspace.id,
-    p_connection_id: order.connectionId,
-    p_listing_id: '123',
-    p_variation_id: null as unknown as string,
-    p_target: { inventoryItemId: items[0].id },
-  });
-  if (mappingError) throw mappingError;
   await openDashboard(page);
   await page.goto(order.route);
-  await page.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' }).fill('0');
+  await page.getByRole('combobox', { name: 'Erfassung der Bestellung', exact: true }).click();
+  await page.getByRole('option', { name: 'Bereits als Verkauf erfasst', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Vorhandener eBay-Verkauf', exact: true }).click();
+  await page.getByRole('option', { name: /Zuvor manuell verkauft/ }).click();
   await page
-    .getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' })
-    .fill('0');
-  await page.getByRole('button', { name: 'Verkauf buchen', exact: true }).click();
-  await expect(page.getByRole('alert').first()).toContainText('gibt es bereits einen eBay-Verkauf');
-  await expect(page.getByRole('button', { name: 'Status prüfen', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Bereits manuell gebucht', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Manuelle Buchung vermerken' });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.keyboard.press('Tab');
-  await expect(dialog.locator(':focus')).toHaveCount(1);
-  await page.addScriptTag({ content: axe.source });
-  const violations = await page.evaluate(
-    async () =>
-      (
-        await (window as unknown as { axe: typeof axe }).axe.run('app-modal-shell', {
-          runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] },
-        })
-      ).violations,
-  );
-  expect(violations).toEqual([]);
-  await expect(dialog.getByRole('button', { name: 'Markierung speichern' })).toBeDisabled();
-  await dialog.getByRole('textbox', { name: 'Grund' }).fill('Bereits in meinen Verkäufen erfasst');
-  await dialog
-    .getByRole('checkbox', { name: 'Ich habe diese Bestellung bereits manuell erfasst.' })
+    .getByRole('combobox', { name: 'Verkaufsposition für eBay-Testartikel', exact: true })
     .click();
-  await dialog.getByRole('button', { name: 'Markierung speichern' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Bereits manuell gebucht', exact: true }),
-  ).toBeVisible();
+  await page.getByRole('option', { name: /Zuvor manuell verkauft/ }).click();
+  await page
+    .getByRole('textbox', { name: 'Grund der nachträglichen Zuordnung', exact: true })
+    .fill('Bereits in meinen Verkäufen erfasst');
+  await page
+    .getByRole('checkbox', {
+      name: 'Ich habe alle Positionen, Mengen und den vollständigen Verkauf geprüft.',
+    })
+    .click();
+  await page.getByRole('button', { name: 'Bestehenden Verkauf verknüpfen', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByRole('heading', { name: 'Bereits manuell gebucht', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toBeVisible();
   const { data: sales } = await workspace.client
     .from('sales')
     .select('id')
@@ -279,7 +392,148 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   const undo = page.getByRole('dialog', { name: 'Markierung zurücknehmen' });
   await undo.getByRole('checkbox', { name: 'Ich möchte die Markierung zurücknehmen.' }).click();
   await undo.getByRole('button', { name: 'Markierung zurücknehmen' }).click();
+  await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toHaveCount(0);
+});
+
+test('prepares a new linked eBay sale with owned reservation and personal bell @core-smoke', async ({
+  page,
+  workspace,
+}) => {
+  const { items } = await createFinalizedPurchase(workspace, {
+    title: 'Automatische eBay-Vorbereitung',
+    purchaseDate: '2026-09-01',
+    items: [{ title: 'eBay-Testartikel', price: 2 }],
+  });
+  const order = await createOrder(workspace, true);
+  const { error } = await workspace.client.rpc('ebay_set_article_mapping', {
+    p_workspace_id: workspace.id,
+    p_connection_id: order.connectionId,
+    p_listing_id: '123',
+    p_variation_id: null as unknown as string,
+    p_target: { inventoryItemId: items[0].id },
+  });
+  if (error) throw error;
+  const admin = createLocalAdminClient();
+  expect(
+    (
+      await admin
+        .from('ebay_sale_drafts')
+        .select('state,costs')
+        .eq('workspace_id', workspace.id)
+        .single()
+    ).data,
+  ).toMatchObject({
+    state: 'needs_costs',
+    costs: { platformFeeCents: 0, shippingCostCents: null },
+  });
+  expect(
+    (await admin.from('inventory_items').select('status').eq('id', items[0].id).single()).data
+      ?.status,
+  ).toBe('reserved');
+  expect((await admin.from('sales').select('id').eq('workspace_id', workspace.id)).data).toEqual(
+    [],
+  );
+  await openDashboard(page);
+  await page.goto('/sales');
+  const drafts = page.getByRole('region', { name: 'eBay-Entwürfe', exact: true });
+  await expect(drafts.getByText('Kosten ergänzen', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('sales-result-kpi')).toContainText('0,00');
+  await page.getByRole('button', { name: /Benachrichtigungen/ }).click();
+  await expect(page.locator('#header-notification-menu img[alt="eBay"]')).toBeVisible();
+  const notification = page
+    .locator('#header-notification-menu')
+    .getByRole('link', { name: /eBay-Verkauf prüfen/ });
+  await expect(notification).toHaveAttribute('href', order.route);
+  await notification.click();
   await expect(
-    page.getByRole('heading', { name: 'Bereits manuell gebucht', exact: true }),
+    page.getByText('Der Bestand ist für diesen Entwurf reserviert', { exact: false }),
+  ).toBeVisible();
+  await expect(page.locator('[data-sale-article-label]')).toContainText('eBay-Testartikel');
+  await expect(page.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' })).toHaveValue(
+    '0',
+  );
+  await expect(
+    page.getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' }),
+  ).toHaveValue('');
+  await expect(page.getByRole('button', { name: 'Verkauf buchen', exact: true })).toBeDisabled();
+  await page
+    .getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' })
+    .fill('0');
+  await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await expect(page.getByText('Entwurf gespeichert.', { exact: false })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Verkauf buchen', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: /Benachrichtigungen/ }).click();
+  await page.getByRole('button', { name: 'Als ungelesen markieren', exact: true }).click();
+  const event = await admin
+    .from('ebay_sale_notifications')
+    .select('id')
+    .eq('workspace_id', workspace.id)
+    .single();
+  await expect
+    .poll(
+      async () =>
+        (
+          await admin
+            .from('ebay_sale_notification_receipts')
+            .select('read_at')
+            .eq('event_id', event.data!.id)
+            .single()
+        ).data?.read_at,
+    )
+    .toBeNull();
+  await page.getByRole('button', { name: 'Gelesen', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await admin
+            .from('ebay_sale_notification_receipts')
+            .select('read_at')
+            .eq('event_id', event.data!.id)
+            .single()
+        ).data?.read_at,
+    )
+    .not.toBeNull();
+  await page.getByRole('button', { name: 'Benachrichtigungsverlauf leeren', exact: true }).click();
+  await expect(
+    page.locator('#header-notification-menu').getByRole('link', { name: /eBay-Verkauf prüfen/ }),
   ).toHaveCount(0);
+  expect(
+    (await admin.from('ebay_sale_drafts').select('id').eq('workspace_id', workspace.id)).data,
+  ).toHaveLength(1);
+  expect(
+    (await admin.from('inventory_items').select('status').eq('id', items[0].id).single()).data
+      ?.status,
+  ).toBe('reserved');
+  await page.goto('/marketplaces/ebay/connection');
+  await page.getByRole('button', { name: 'Testkonto einstellen', exact: true }).click();
+  await page.getByRole('button', { name: 'Verbindung trennen', exact: true }).click();
+  await expect(
+    page
+      .getByRole('region', { name: 'eBay-Verbindung verwalten' })
+      .getByText('Getrennt', { exact: true }),
+  ).toBeVisible();
+  await page.goto('/sales');
+  await expect(
+    page.getByRole('heading', { name: 'Reservierter eBay-Bestand', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(order.orderId, { exact: false })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'eBay-Entwürfe', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reservierung klären', exact: true }).click();
+  const clarification = page.getByRole('dialog', { name: 'Reservierung bewusst freigeben' });
+  await clarification
+    .getByRole('textbox', { name: /Grund der Klärung/ })
+    .fill('Ware liegt wieder geprüft im Bestand');
+  await clarification
+    .getByRole('checkbox', {
+      name: 'Ich habe den tatsächlichen Bestand geprüft und möchte diese Reservierung freigeben.',
+    })
+    .click();
+  await clarification.getByRole('button', { name: 'Reservierung freigeben', exact: true }).click();
+  await expect(clarification).toHaveCount(0);
+  expect(
+    (await admin.from('inventory_items').select('status').eq('id', items[0].id).single()).data
+      ?.status,
+  ).toBe('ready');
 });

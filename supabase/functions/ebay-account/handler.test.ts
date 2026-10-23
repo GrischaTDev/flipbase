@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createEbayAccountHandler } from './handler.ts';
+import { createEbayAccountHandler, mapPublicConnection } from './handler.ts';
 import type { EbayAccountStore, StoredEbayConnection } from './handler.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
@@ -50,6 +50,14 @@ function request(action: string, extras: Record<string, unknown> = {}, bearer = 
     body: JSON.stringify({ action, workspaceId, ...extras }),
   });
 }
+
+test('öffentlicher Status bindet den Lesespeicher an die Autorisierungsfassung', () => {
+  assert.equal(mapPublicConnection(connection).authorizationVersion, 1);
+  assert.equal(
+    mapPublicConnection({ ...connection, authorization_version: 2 }).authorizationVersion,
+    2,
+  );
+});
 
 test('Listen lesen gespeicherte Daten ohne Anbieterabruf oder Kontolease', async () => {
   const cached = {

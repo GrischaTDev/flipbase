@@ -11,6 +11,16 @@ import {
 
 describe('eBay-Antwortverträge', () => {
   const scope = { workspaceId: 'workspace-a', connectionId: 'connection-a' };
+  it('erhält Abgleichmetadaten einschließlich erster noch ausstehender Basis', () => {
+    const sync = { status: 'pending', lastCompletedAt: null, lastError: null };
+    expect(
+      parseEbayPage(
+        { ...scope, items: [], total: 0, nextPage: null, sync },
+        scope,
+        parseEbayListing,
+      ).sync,
+    ).toEqual(sync);
+  });
   it('bindet Statistiken an den Workspace, das Konto und die angeforderten Inserate', () => {
     const report = {
       ...scope,

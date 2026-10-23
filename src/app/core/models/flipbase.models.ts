@@ -555,6 +555,7 @@ export interface StockLot {
 }
 
 export interface StockMovement {
+  ebay_sale_draft_id?: string | null;
   id: string;
   workspace_id: string;
   stock_lot_id: string;

@@ -1,3 +1,4 @@
+import { EbaySaleActivityStore } from '../../services/ebay-sale-activity.store';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
@@ -39,6 +40,7 @@ describe('eBay-Verkaufsprüfseite', () => {
     params = new BehaviorSubject(convertToParamMap({ connectionId, orderId: 'order-1' }));
     TestBed.configureTestingModule({
       providers: [
+        { provide: EbaySaleActivityStore, useValue: { reload: vi.fn() } },
         { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
         { provide: WorkspaceContextLockService, useValue: { acquire: () => release } },
@@ -60,6 +62,7 @@ describe('eBay-Verkaufsprüfseite', () => {
           provide: EbaySaleReviewStore,
           useValue: {
             load,
+            existingSales: signal([]),
             clear: vi.fn(),
             loading,
             booking,
@@ -113,6 +116,37 @@ describe('eBay-Verkaufsprüfseite', () => {
     component.onBeforeUnload(event);
     expect(event.preventDefault).toHaveBeenCalledOnce();
   });
+  it('lässt neue Eingaben während einer laufenden Entwurfsspeicherung ungespeichert markiert', async () => {
+    const store = TestBed.inject(EbaySaleReviewStore);
+    let finish!: (value: boolean) => void;
+    Object.assign(store, {
+      saveDraft: () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    });
+    let fee = 1;
+    const markSaved = vi.fn();
+    vi.spyOn(component, 'entryForm').mockImplementation(
+      () =>
+        ({
+          isSaving: () => false,
+          externalEditorSnapshot: () => ({
+            platformFee: fee,
+            shippingCost: null,
+            shippingMode: null,
+            additionalCosts: [],
+            lines: [],
+          }),
+          markExternalDraftSaved: markSaved,
+        }) as unknown as ReturnType<EbaySaleReviewComponent['entryForm']>,
+    );
+    const saving = component.saveDraft();
+    fee = 2;
+    finish(true);
+    await saving;
+    expect(markSaved).not.toHaveBeenCalled();
+  });
   it('requires reason and confirmation for a manual marker and keeps the known return route', async () => {
     component.openManualDialog('mark');
     await component.markManually();
@@ -122,7 +156,7 @@ describe('eBay-Verkaufsprüfseite', () => {
     expect(mark).not.toHaveBeenCalled();
     component.manualForm.controls.confirmed.setValue(true);
     await component.markManually();
-    expect(mark).toHaveBeenCalledWith('Schon manuell gebucht', null);
+    expect(mark).toHaveBeenCalledWith('Schon manuell gebucht');
     expect(component.manualDialog()).toBeNull();
     component.returnToEbay();
     expect(navigateByUrl).toHaveBeenCalledWith('/marketplaces/ebay');

@@ -4,6 +4,7 @@ import type { EbayCacheSync } from './ebay-cache-contracts.ts';
 
 export type EbayEnvironment = 'production' | 'sandbox';
 export interface EbayConnection extends AccountScope {
+  readonly authorizationVersion?: number;
   readonly status: 'connected' | 'needs_login' | 'disconnected';
   readonly environment: EbayEnvironment;
   readonly username: string | null;

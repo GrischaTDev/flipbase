@@ -45,6 +45,46 @@ const review = {
   booking: { status: 'unrecorded', saleId: null },
 };
 describe('eBay-Übernahmeantworten', () => {
+  it('erhält belegte Nullgebühr, Bilder und gespeicherte unbekannte Entwurfskosten', () => {
+    const richSource = {
+      ...source,
+      platformFeeCents: 0,
+      lines: [{ ...source.lines[0], imageUrl: 'https://i.ebayimg.com/item.jpg' }],
+    };
+    const draft = {
+      id,
+      workspaceId: scope.workspaceId,
+      environment: 'production',
+      orderId: source.orderId,
+      source: richSource,
+      assignments: review.assignments,
+      costs: {
+        platformFeeCents: 0,
+        shippingCostCents: null,
+        shippingMode: null,
+        additionalCosts: [],
+      },
+      state: 'needs_costs',
+      saleId: null,
+      createdAt: source.createdAt,
+      updatedAt: source.observedAt,
+    };
+    const parsed = parseEbayOrderReview(
+      { ...review, source: richSource, draft },
+      scope,
+      source.orderId,
+    );
+    expect(parsed.source.platformFeeCents).toBe(0);
+    expect(parsed.source.lines[0].imageUrl).toBe('https://i.ebayimg.com/item.jpg');
+    expect(parsed.draft).toEqual(draft);
+    expect(() =>
+      parseEbayOrderReview(
+        { ...review, draft: { ...draft, workspaceId: 'foreign' } },
+        scope,
+        source.orderId,
+      ),
+    ).toThrow();
+  });
   it('bindet Prüfstände an erwarteten Workspace, Verbindung und Bestellung', () => {
     expect(parseEbayOrderReview(review, scope, 'order-1')).toEqual(review);
     for (const change of [

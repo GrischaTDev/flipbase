@@ -24,6 +24,7 @@ export function installEbayOrderProviderFixture(): void {
       lastModifiedDate: '2026-10-01T12:00:00Z',
       orderPaymentStatus: 'PAID',
       orderFulfillmentStatus: 'NOT_STARTED',
+      totalMarketplaceFee: { value: '0.00', currency: 'EUR' },
       cancelStatus: { cancelState: 'NONE_REQUESTED' },
       pricingSummary: {
         priceSubtotal: { value: '10.00', currency: 'EUR' },
@@ -35,6 +36,7 @@ export function installEbayOrderProviderFixture(): void {
           lineItemId: 'line-1',
           legacyItemId: '123',
           title: 'eBay-Testartikel',
+          image: { imageUrl: 'https://i.ebayimg.com/flipbase-test.webp' },
           quantity: 1,
           lineItemCost: { value: '10.00', currency: 'EUR' },
           refunds: [],

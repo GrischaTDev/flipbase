@@ -1,3 +1,9 @@
+import type {
+  EbayStockReservation,
+  EbayExistingSale,
+} from '../../../../../supabase/functions/_shared/ebay-sale-draft-contracts';
+import type { EbayOrderAssignment } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
+import type { ExternalSaleEntryEditorSnapshot } from '../models/external-sale-entry.models';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { AccountScope } from '../../marketplaces/models/marketplace.models';
 import {
@@ -15,7 +21,11 @@ import { SalesService } from '../../../core/services/sales.service';
 import type { RecordSaleInput } from '../../../core/services/sales.service';
 import type { SaleTarget } from '../../../core/models/sale-target.models';
 import type { ExternalSaleEntrySaveResult } from '../models/external-sale-entry.models';
-import { buildEbayOrderBookRequest, buildEbaySaleEntryDraft } from '../utils/ebay-sale-entry';
+import {
+  buildEbayOrderBookRequest,
+  buildEbaySaleEntryDraft,
+  buildEbayOrderDraftRequest,
+} from '../utils/ebay-sale-entry';
 
 @Injectable()
 export class EbaySaleReviewStore {
@@ -26,6 +36,12 @@ export class EbaySaleReviewStore {
   private scope: AccountScope | null = null;
   private orderId: string | null = null;
   private revision = 0;
+  readonly reservations = signal<readonly EbayStockReservation[]>([]);
+  readonly existingSales = signal<readonly EbayExistingSale[]>([]);
+  readonly existingSalesLoading = signal(false);
+  readonly existingSalesError = signal<string | null>(null);
+  readonly existingSalesNextPage = signal<number | null>(1);
+  readonly draftSaved = signal(false);
   readonly review = signal<EbayOrderReview | null>(null);
   readonly loading = signal(false);
   readonly booking = signal<EbayOrderBooking>({ status: 'unrecorded', saleId: null });
@@ -34,15 +50,38 @@ export class EbaySaleReviewStore {
   readonly reviewChanged = signal(false);
   readonly draft = computed(() => {
     const review = this.review();
-    return review
-      ? buildEbaySaleEntryDraft(review, (target, title) => this.resolveTarget(target, title))
-      : null;
+    if (!review) return null;
+    const draft = buildEbaySaleEntryDraft(review, (target, title) =>
+      this.resolveTarget(target, title),
+    );
+    if (!draft) return null;
+    return {
+      ...draft,
+      reservations: this.reservations()
+        .filter((row) => row.draftId === review.draft?.id)
+        .flatMap<{ target: EbaySaleTarget; quantity: number }>((row) => {
+          const productId = row.stockLotId
+            ? this.stock.lots?.().find((lot) => lot.id === row.stockLotId)?.catalog_product_id
+            : null;
+          return row.inventoryItemId
+            ? [{ target: { inventoryItemId: row.inventoryItemId }, quantity: row.quantity }]
+            : productId
+              ? [{ target: { catalogProductId: productId }, quantity: row.quantity }]
+              : [];
+        }),
+    };
   });
   clear(): void {
     this.revision++;
     this.scope = null;
     this.orderId = null;
     this.review.set(null);
+    this.reservations.set([]);
+    this.existingSales.set([]);
+    this.existingSalesLoading.set(false);
+    this.existingSalesError.set(null);
+    this.existingSalesNextPage.set(1);
+    this.draftSaved.set(false);
     this.loading.set(false);
     this.error.set(null);
     this.outcomeUnknown.set(false);
@@ -93,6 +132,7 @@ export class EbaySaleReviewStore {
       this.orderId === orderId;
     if (!compatible) this.clear();
     const revision = ++this.revision;
+    this.existingSalesLoading.set(false);
     this.scope = { ...scope };
     this.orderId = orderId;
     this.loading.set(true);
@@ -108,6 +148,8 @@ export class EbaySaleReviewStore {
       const previousHash = this.review()?.reviewHash;
       const review = await this.api.prepareOrder(scope, orderId);
       if (revision === this.revision) {
+        await this.readReservations(review, revision);
+        if (revision !== this.revision) return;
         this.applyReview(review);
         this.reviewChanged.set(
           this.reviewChanged() ||
@@ -125,6 +167,14 @@ export class EbaySaleReviewStore {
     await this.load(this.scope, this.orderId);
   }
   private message(error: unknown): string {
+    if (
+      error instanceof EbayOrderImportRequestError &&
+      ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].includes(error.code ?? '')
+    ) {
+      this.review.set(null);
+      this.reservations.set([]);
+      this.existingSales.set([]);
+    }
     return error instanceof Error
       ? error.message
       : 'Die Bestellprüfung konnte nicht bestätigt werden.';
@@ -137,6 +187,103 @@ export class EbaySaleReviewStore {
         this.error.set(
           'Der Verkauf ist gebucht. Die Ansicht konnte nicht vollständig aktualisiert werden. Lade sie erneut.',
         );
+    }
+  }
+  private async readReservations(review: EbayOrderReview, revision: number): Promise<void> {
+    const reservations = review.draft ? await this.api.loadReservations(review.workspaceId) : [];
+    if (revision === this.revision)
+      this.reservations.set(reservations.filter((row) => row.draftId === review.draft?.id));
+  }
+  private async refreshStock(workspaceId: string): Promise<void> {
+    await Promise.all([
+      this.stock.loadPositions?.(workspaceId),
+      this.inventory.loadInventory?.(workspaceId, true),
+    ]);
+  }
+  async saveDraft(editor: ExternalSaleEntryEditorSnapshot): Promise<boolean> {
+    const review = this.review();
+    if (
+      !review ||
+      this.loading() ||
+      this.outcomeUnknown() ||
+      this.booking().status !== 'unrecorded'
+    )
+      return false;
+    const revision = this.revision;
+    this.loading.set(true);
+    this.error.set(null);
+    this.draftSaved.set(false);
+    try {
+      const result = await this.api.saveDraft(buildEbayOrderDraftRequest(review, editor));
+      if (revision !== this.revision) return false;
+      if ('status' in result) {
+        this.booking.set(result);
+        return false;
+      }
+      this.applyReview({ ...review, assignments: result.assignments, draft: result });
+      await this.readReservations(this.review()!, revision);
+      if (revision !== this.revision) return false;
+      await this.refreshStock(review.workspaceId);
+      if (revision !== this.revision) return false;
+      this.draftSaved.set(true);
+      return true;
+    } catch (error) {
+      if (revision === this.revision) this.error.set(this.message(error));
+      return false;
+    } finally {
+      if (revision === this.revision) this.loading.set(false);
+    }
+  }
+  async loadExistingSales(append = false): Promise<void> {
+    const scope = this.scope;
+    const page = append ? this.existingSalesNextPage() : 1;
+    if (!scope || page === null || this.existingSalesLoading()) return;
+    const revision = this.revision;
+    this.existingSalesLoading.set(true);
+    this.existingSalesError.set(null);
+    try {
+      const rows = await this.api.loadExistingSales(scope, page);
+      if (revision !== this.revision) return;
+      this.existingSales.set(
+        append
+          ? [...this.existingSales(), ...rows].filter(
+              (row, index, all) => all.findIndex((candidate) => candidate.id === row.id) === index,
+            )
+          : rows,
+      );
+      this.existingSalesNextPage.set(rows.length === 50 ? page + 1 : null);
+    } catch (error) {
+      if (revision === this.revision) this.existingSalesError.set(this.message(error));
+    } finally {
+      if (revision === this.revision) this.existingSalesLoading.set(false);
+    }
+  }
+  async linkExistingSale(
+    saleId: string,
+    assignments: readonly EbayOrderAssignment[],
+    reason: string,
+  ): Promise<void> {
+    const review = this.review();
+    if (
+      !review ||
+      this.loading() ||
+      this.outcomeUnknown() ||
+      this.booking().status !== 'unrecorded'
+    )
+      return;
+    const revision = this.revision;
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      const result = await this.api.linkExistingSale(review, saleId, assignments, reason);
+      if (revision !== this.revision) return;
+      this.booking.set(result);
+      this.reservations.set([]);
+      await this.refreshStock(review.workspaceId);
+    } catch (error) {
+      if (revision === this.revision) this.error.set(this.message(error));
+    } finally {
+      if (revision === this.revision) this.loading.set(false);
     }
   }
   async submit(input: RecordSaleInput): Promise<ExternalSaleEntrySaveResult> {
@@ -164,11 +311,14 @@ export class EbaySaleReviewStore {
       const result = await this.api.bookOrder(request);
       if (revision !== this.revision) return { status: 'outcome_unknown' };
       if (result.status === 'review_changed') {
+        await this.readReservations(result.review, revision);
+        if (revision !== this.revision) return { status: 'outcome_unknown' };
         this.applyReview(result.review);
         this.reviewChanged.set(true);
         return { status: 'review_changed' };
       }
       this.booking.set(result);
+      this.reservations.set([]);
       this.outcomeUnknown.set(false);
       await this.refreshSaved(review.workspaceId, revision);
       return { status: 'saved' };
@@ -197,6 +347,8 @@ export class EbaySaleReviewStore {
       this.booking.set(booking);
       if (booking.status === 'unrecorded') {
         const review = await this.api.prepareOrder(scope, orderId);
+        if (revision !== this.revision) return;
+        await this.readReservations(review, revision);
         if (revision !== this.revision) return;
         this.applyReview(review);
         this.reviewChanged.set(false);
@@ -227,7 +379,10 @@ export class EbaySaleReviewStore {
     this.error.set(null);
     try {
       const result = await this.api.markRecordedElsewhere(review, reason.trim(), saleId);
-      if (revision === this.revision) this.booking.set(result);
+      if (revision === this.revision) {
+        this.booking.set(result);
+        this.reservations.set([]);
+      }
     } catch (error) {
       if (revision === this.revision) this.error.set(this.message(error));
     } finally {
@@ -247,6 +402,7 @@ export class EbaySaleReviewStore {
       if (revision !== this.revision) return;
       this.booking.set({ status: 'unrecorded', saleId: null });
       const review = await this.api.prepareOrder(scope, orderId);
+      await this.readReservations(review, revision);
       if (revision === this.revision) this.applyReview(review);
     } catch (error) {
       if (revision === this.revision) this.error.set(this.message(error));

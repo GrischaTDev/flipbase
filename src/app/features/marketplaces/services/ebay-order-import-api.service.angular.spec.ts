@@ -33,7 +33,7 @@ describe('eBay-Übernahmeadapter', () => {
   afterEach(() => TestBed.resetTestingModule());
   it('explains known SQL rejections and keeps them distinct from an unknown commit', async () => {
     for (const [code, text] of [
-      ['legacy_sale_conflict', 'Bereits manuell gebucht'],
+      ['legacy_sale_conflict', 'Bereits als Verkauf erfasst'],
       ['stock_unavailable', 'Bestand reicht'],
       ['target_archived', 'archiviert'],
     ]) {

@@ -1,6 +1,9 @@
+import { signal } from '@angular/core';
+import { AuthService } from '../../../core/services/auth.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EbayAccountApiService } from './ebay-account-api.service';
+import { EbayAccountApiService, EbayAccountRequestError } from './ebay-account-api.service';
 import { EbayAccountStore } from './ebay-account.store';
 import type {
   EbayConnection,
@@ -23,6 +26,7 @@ const connection: EbayConnection = {
   status: 'connected',
   username: 'seller-a',
   lastReadAt: null,
+  authorizationVersion: 1,
 };
 const listing: EbayListing = {
   id: '123',
@@ -66,11 +70,54 @@ describe('Persönlicher eBay-Zustand', () => {
       })),
     };
     TestBed.configureTestingModule({
-      providers: [EbayAccountStore, { provide: EbayAccountApiService, useValue: api }],
+      providers: [
+        EbayAccountStore,
+        { provide: EbayAccountApiService, useValue: api },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal({ id: 'workspace-a' }) },
+        },
+      ],
     });
     store = TestBed.inject(EbayAccountStore);
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('erhält Zeilen bei Rückkehr, Aktualisierung und Fehlern im selben bestätigten Kontext', async () => {
+    await store.initialize('workspace-a', true);
+    const pending = deferred<EbayConnectionStatus>();
+    api.loadStatus.mockReturnValueOnce(pending.promise);
+    const returning = store.initialize('workspace-a', true);
+    expect(store.listings()).toEqual([listing]);
+    pending.resolve({ configured: true, connection });
+    api.loadListings.mockRejectedValueOnce(new Error('Abgleich fehlgeschlagen'));
+    await returning;
+    expect(store.listings()).toEqual([listing]);
+    expect(store.dataError()).toBe('Abgleich fehlgeschlagen');
+  });
+  it('verwirft alte Zeilen bei neuer oder unbekannter Autorisierungsfassung', async () => {
+    await store.initialize('workspace-a', true);
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      connection: { ...connection, authorizationVersion: 2 },
+    });
+    await store.initialize('workspace-a', false);
+    expect(store.listings()).toEqual([]);
+    await store.read(false);
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      connection: { ...connection, authorizationVersion: undefined },
+    });
+    await store.initialize('workspace-a', false);
+    expect(store.listings()).toEqual([]);
+  });
+  it('entfernt private Zeilen bei nachweislich entzogener Kontofreigabe', async () => {
+    await store.initialize('workspace-a', true);
+    api.loadStatus.mockRejectedValueOnce(new EbayAccountRequestError('forbidden', 'Kein Zugriff'));
+    await store.initialize('workspace-a', true);
+    expect(store.listings()).toEqual([]);
+    expect(store.connection()).toBeNull();
+  });
   it('lädt Statistiken nur nach bestätigter Serverfähigkeit und erhält echte Nullwerte', async () => {
     await store.initialize('workspace-a', true);
     await store.readTraffic();

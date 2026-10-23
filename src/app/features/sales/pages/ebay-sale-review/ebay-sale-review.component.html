@@ -6,7 +6,10 @@
 >
   <div entry-header-actions class="flex flex-wrap justify-end gap-2">
     <app-button [disabled]="isSaving()" (clicked)="returnToEbay()">Zurück zu eBay</app-button>
-    @if (store.booking().status === 'unrecorded' && store.draft()) {
+    @if (store.booking().status === 'unrecorded' && store.draft() && reviewMode() === 'new') {
+      <app-button [disabled]="isSaving() || store.outcomeUnknown()" (clicked)="saveDraft()"
+        >Entwurf speichern</app-button
+      >
       <app-button
         variant="primary"
         [loading]="isSaving()"
@@ -71,6 +74,20 @@
             </dd>
           </div>
         </dl>
+        <ul class="mt-4 space-y-3">
+          @for (line of review.source.lines; track $index) {
+            <li class="flex items-center gap-3">
+              <app-product-thumbnail [src]="line.imageUrl ?? null" [alt]="line.title" /><span
+                >{{ line.quantity ?? '–' }} × {{ line.title }}</span
+              >
+            </li>
+          }
+        </ul>
+        @if (store.reservations().length) {
+          <p role="status" class="mt-3 text-sm">
+            Der Bestand ist für diesen Entwurf reserviert und bleibt bei der Prüfung auswählbar.
+          </p>
+        }
         @if (review.source.blockers.length) {
           <div class="mt-4" role="status">
             <p class="font-semibold">Übernahme derzeit gesperrt</p>
@@ -89,15 +106,18 @@
       <app-card title="Verkauf gebucht"
         ><p role="status" class="mb-3 text-sm">
           Diese Bestellung ist bereits übernommen. Der Bestand wurde bei der Buchung angepasst.
+          Prüfe spätere Stornierungen oder Erstattungen im bestehenden Verkauf über Retouren oder
+          Korrektur; sie buchen die Ware nicht automatisch zurück.
         </p>
         <app-button link="/sales" [queryParams]="{ saleId: store.booking().saleId }"
           >Verkauf öffnen</app-button
         ></app-card
       >
     } @else if (store.booking().status === 'recorded_elsewhere') {
-      <app-card title="Bereits manuell gebucht"
+      <app-card title="Bereits erfasst"
         ><p role="status" class="mb-3 text-sm">
-          Für diese Bestellung ist eine manuelle Erfassung vermerkt.
+          Diese Bestellung ist einem bestehenden Verkauf zugeordnet oder ausdrücklich außerhalb von
+          Flipbase erfasst. Es wurde kein zweiter Verkauf gebucht.
         </p>
         <div class="flex flex-wrap gap-2">
           @if (store.booking().saleId) {
@@ -121,23 +141,116 @@
             label="Ich habe die geänderte Bestellung erneut geprüft."
         /></app-card>
       }
-      @if (store.draft(); as draft) {
-        <app-sale-create-modal
-          [showActions]="false"
-          [externalDraft]="draft"
-          [externalSubmit]="submitExternal"
+      @if (store.review()) {
+        <app-custom-select
+          label="Erfassung der Bestellung"
+          ariaLabel="Erfassung der Bestellung"
+          [options]="reviewModeOptions"
+          [value]="reviewMode()"
+          (valueChange)="setReviewMode($event)"
         />
       }
+      <div [hidden]="reviewMode() !== 'new'">
+        @if (store.draft(); as draft) {
+          <app-sale-create-modal
+            [showActions]="false"
+            [externalDraft]="draft"
+            [externalSubmit]="submitExternal"
+          />
+          @if (store.draftSaved() && !entryForm()?.hasUnsavedChanges()) {
+            <p role="status" class="text-sm">
+              Entwurf gespeichert. Umsatz und Gewinn bleiben bis zur Buchung unverändert.
+            </p>
+          }
+        }
+      </div>
+      @if (reviewMode() === 'existing') {
+        <app-card title="Vorhandenen Verkauf verknüpfen" variant="section">
+          <div class="space-y-4">
+            <p class="text-sm text-fb-text-secondary">
+              Wähle einen vollständigen eBay-Verkauf und ordne jede Bestellposition seiner
+              Verkaufsposition zu. Bereits verkaufte Artikel sind hier enthalten. Bestätigte Kosten
+              und Bestandsabgänge bleiben erhalten.
+            </p>
+            @if (store.existingSalesError(); as error) {
+              <p role="alert">{{ error }}</p>
+              <app-button (clicked)="store.loadExistingSales()">Erneut laden</app-button>
+            }
+            @if (store.existingSalesLoading()) {
+              <p role="status">Vorhandene Verkäufe werden geladen …</p>
+            }
+            <app-custom-select
+              label="Vorhandener eBay-Verkauf"
+              ariaLabel="Vorhandener eBay-Verkauf"
+              [options]="saleOptions()"
+              [value]="selectedExistingSaleId()"
+              [searchable]="true"
+              placeholder="Verkauf auswählen"
+              (valueChange)="selectExistingSale($event)"
+            />
+            @if (store.existingSalesNextPage() !== null) {
+              <app-button
+                [loading]="store.existingSalesLoading()"
+                (clicked)="store.loadExistingSales(true)"
+                >Weitere Verkäufe laden</app-button
+              >
+            }
+            @if (selectedExistingSale(); as sale) {
+              <ul class="space-y-1 text-sm">
+                @for (line of sale.lines; track line.id) {
+                  <li>
+                    {{ line.quantity }} × {{ line.title }} · {{ line.total | number: '1.2-2' }} €
+                  </li>
+                }
+              </ul>
+              @if (sale.externalOrderId) {
+                <p class="text-sm">Gespeicherte Bestellnummer: {{ sale.externalOrderId }}</p>
+              }
+              @if (store.review(); as review) {
+                @for (line of review.source.lines; track $index) {
+                  <app-custom-select
+                    [ariaLabel]="'Verkaufsposition für ' + line.title"
+                    [label]="line.title + ' · ' + line.quantity + ' ×'"
+                    [options]="existingTargetOptions()"
+                    [value]="
+                      line.lineItemId ? (existingAssignments()[line.lineItemId] ?? null) : null
+                    "
+                    placeholder="Verkaufsposition zuordnen"
+                    (valueChange)="assignExistingLine(line.lineItemId, $event)"
+                  />
+                }
+              }
+              <app-text-field
+                label="Grund der nachträglichen Zuordnung"
+                [formControl]="existingReason"
+                [required]="true"
+                [maxLength]="500"
+              />
+              <app-custom-checkbox
+                [formControl]="existingConfirmed"
+                label="Ich habe alle Positionen, Mengen und den vollständigen Verkauf geprüft."
+              />
+              <app-button
+                variant="primary"
+                [loading]="isSaving()"
+                [disabled]="!canLinkExisting()"
+                (clicked)="linkExisting()"
+                >Bestehenden Verkauf verknüpfen</app-button
+              >
+            }
+          </div>
+        </app-card>
+      }
       @if (store.review()) {
-        <app-card title="Schon außerhalb dieser Übernahme erfasst?"
+        <app-card title="Außerhalb von Flipbase erfasst?"
           ><p class="mb-3 text-sm text-fb-text-secondary">
-            Markiere die Bestellung, wenn Du sie bereits manuell gebucht hast. Dadurch wird kein
-            weiterer Verkauf angelegt.
+            Nutze diese Ausnahme nur, wenn Du die Bestellung außerhalb von Flipbase erfasst hast.
+            Für einen vorhandenen Flipbase-Verkauf nutze „Bereits als Verkauf erfasst“.
           </p>
           <app-button
             [disabled]="isSaving() || store.outcomeUnknown()"
             (clicked)="openManualDialog('mark')"
-            >Bereits manuell gebucht</app-button
+            >Außerhalb von Flipbase erfasst</app-button
           ></app-card
         >
       }
@@ -164,16 +277,9 @@
               : null
           "
         />
-        <app-custom-select
-          formControlName="saleId"
-          [options]="saleOptions()"
-          ariaLabel="Bereits erfasster Verkauf (optional)"
-          placeholder="Verkauf zuordnen (optional)"
-          [searchable]="true"
-        />
         <app-custom-checkbox
           formControlName="confirmed"
-          label="Ich habe diese Bestellung bereits manuell erfasst."
+          label="Ich habe diese Bestellung außerhalb von Flipbase erfasst."
         />
       } @else {
         <p class="text-sm">
