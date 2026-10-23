@@ -362,6 +362,14 @@ export async function mockMarketplace(
     if (name === 'ebay-account' && body['action'] === 'status')
       json = { configured: false, connection: null };
     if (name === 'ebay_reservations_read') json = [];
+    if (
+      name === 'marketplace_account_entries' &&
+      new URL(route.request().url()).searchParams.get('body->>publicationState') === 'eq.draft'
+    )
+      return route.fulfill({
+        headers: { 'content-range': '*/0', 'access-control-expose-headers': 'content-range' },
+        ...(route.request().method() === 'HEAD' ? { body: '' } : { json: [] }),
+      });
     if (name === 'marketplace_read_message_permission')
       json = { executionMode: 'cloud', allowed: false, authorizationVersion: 0 };
     if (name === 'marketplace_read_local_extension') json = { binding: null };

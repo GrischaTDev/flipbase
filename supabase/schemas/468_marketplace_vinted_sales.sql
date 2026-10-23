@@ -4,7 +4,7 @@ using gin ((body->'itemIds')) where kind='sale';
 
 create or replace function public.marketplace_preserve_vinted_sale()
 returns trigger language plpgsql volatile security invoker set search_path='' as $$
-declare v_previous jsonb; v_account text; v_ids jsonb; v_state_at timestamptz; v_previous_at timestamptz;
+declare v_previous jsonb; v_account text; v_ids jsonb; v_state_at timestamptz; v_previous_at timestamptz; v_item jsonb;
 begin
   if new.kind<>'sale' or not (new.body ? 'saleState') then return new; end if;
   select external_account_id into v_account from public.marketplace_connections
@@ -50,6 +50,16 @@ begin
   if new.body->>'price' is null and jsonb_typeof(v_previous->'price')='number' then
     new.body:=new.body||jsonb_build_object('price',v_previous->'price','currency',v_previous->'currency');
   end if;
+  -- Verkaufte Artikel fehlen später in der Anbieterliste. Ihre gesicherten Merkmale bleiben erhalten.
+  if jsonb_array_length(new.body->'itemIds')=1 and (new.body->>'itemCount')::integer=1 then
+    select e.body into v_item from public.marketplace_account_entries e
+    where e.workspace_id=new.workspace_id and e.connection_id=new.connection_id and e.kind='publication'
+      and e.external_id=new.body->'itemIds'->>0;
+    new.body:=new.body||jsonb_build_object(
+      'brand',coalesce(nullif(new.body->>'brand',''),nullif(v_previous->>'brand',''),nullif(v_item->>'brand','')),
+      'size',coalesce(nullif(new.body->>'size',''),nullif(v_previous->>'size',''),nullif(v_item->>'size',''))
+    );
+  end if;
   return new;
 end;
 $$;
@@ -62,7 +72,12 @@ for each row execute function public.marketplace_preserve_vinted_sale();
 -- Ausgeschlossene Artikel beeinflussen weder Seitenzahl noch Cursor oder die Marktplatzübersicht.
 create view public.marketplace_visible_account_entries with (security_invoker=true) as
 select e.* from public.marketplace_account_entries e
-where e.kind<>'publication' or coalesce((
+where e.kind<>'publication' or (
+  not (coalesce(e.body->>'publicationState','unknown')='draft' and exists (
+    select 1 from public.marketplace_connections draft_account
+    where draft_account.workspace_id=e.workspace_id and draft_account.id=e.connection_id
+      and draft_account.marketplace='vinted'
+  )) and coalesce((
   select sale.body->>'saleState'='relisted'
     and sale.body->>'saleStateAt' is not null and sale.sort_at>'1970-01-01T00:00:00Z'::timestamptz
     and e.observed_at>=sale.sort_at
@@ -77,7 +92,7 @@ where e.kind<>'publication' or coalesce((
   order by (sale.body->>'saleState'<>'relisted'
     and sale.sort_at<='1970-01-01T00:00:00Z'::timestamptz) desc,
     sale.sort_at desc,sale.id desc limit 1
-),true);
+),true));
 comment on view public.marketplace_visible_account_entries is 'RLS-geschützte Kontolesekopie ohne verkaufte oder noch nicht wieder eingestellte stornierte Artikel im Kleiderschrank; Verkaufshistorie bleibt erhalten.';
 revoke all on public.marketplace_visible_account_entries from public,anon,authenticated;
 grant select on public.marketplace_visible_account_entries to authenticated,service_role;

@@ -103,6 +103,8 @@ function browserSpecs(file, files) {
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (/vinted-provider-drafts|vinted-listing-copy/u.test(file))
+      return ['vinted-listing-drafts', 'vinted-listing-edge-cases', 'vinted-workspace-ui'];
     if (/vinted-sales/u.test(file)) return ['vinted-sales'];
     if (/kleinanzeigen-(?:listing|publication|form|transfer)|listing-transfer/u.test(file))
       return ['kleinanzeigen-accounts', 'vinted-kleinanzeigen-transfer'];

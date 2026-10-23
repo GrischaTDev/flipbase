@@ -1,0 +1,102 @@
+<app-modal-shell
+  title="Daten übernehmen"
+  subtitle="Wähle eine Quelle und die Angaben für Deinen geöffneten Entwurf."
+  size="lg"
+  (closed)="closed.emit()"
+>
+  <div class="space-y-4">
+    @if (applyError()) {
+      <app-notice-banner announcement="alert">{{ applyError() }}</app-notice-banner>
+    }
+    <app-custom-select
+      label="Daten aus"
+      ariaLabel="Art der Quelle"
+      [options]="kindOptions"
+      [value]="kind()"
+      (valueChange)="setKind($event)"
+    />
+    @if (kind() !== 'local') {
+      <app-custom-select
+        label="Vinted-Konto"
+        ariaLabel="Konto der Quelle"
+        [options]="accountOptions()"
+        [value]="connectionId()"
+        (valueChange)="requestedAccount.set($event)"
+      />
+    }
+    <app-text-field
+      label="Quelle suchen"
+      [value]="search()"
+      (valueChange)="setSearch($event)"
+      placeholder="Nach Titel suchen"
+    />
+    @if (error()) {
+      <app-notice-banner announcement="alert"
+        >{{ error() }}
+        <app-button variant="secondary" size="slim" (clicked)="load()"
+          >Erneut versuchen</app-button
+        ></app-notice-banner
+      >
+    }
+    <app-custom-select
+      label="Artikel oder Entwurf"
+      ariaLabel="Quelle auswählen"
+      [options]="options()"
+      [value]="selectedKey()"
+      [disabled]="loading() || disabled()"
+      [searchable]="true"
+      (valueChange)="select($event)"
+    />
+    @if (cursor()) {
+      <app-button variant="secondary" size="slim" [loading]="loading()" (clicked)="load(true)"
+        >Weitere Quellen laden</app-button
+      >
+    }
+    @if (loading()) {
+      <p role="status" class="text-sm text-fb-text-secondary">Quellen werden geladen …</p>
+    } @else if (!options().length && !error()) {
+      <p class="text-sm text-fb-text-secondary">
+        Keine passenden Quellen gefunden. Ändere die Suche oder die Art der Quelle.
+      </p>
+    }
+    @if (reading()) {
+      <p role="status" class="text-sm text-fb-text-secondary">
+        Vollständige Angaben werden gelesen …
+      </p>
+    }
+    @if (sourceContent()) {
+      <fieldset class="space-y-3">
+        <legend class="mb-3 text-sm font-semibold text-fb-text-primary">
+          Diese Angaben übertragen
+        </legend>
+        @for (row of rows(); track row.key) {
+          <div class="min-w-0 rounded-lg border border-fb-line p-3">
+            <app-custom-checkbox
+              [id]="'vinted-copy-' + row.key"
+              [label]="row.label"
+              [checked]="selectedFields().includes(row.key)"
+              [disabled]="disabled() || row.blocked"
+              (checkedChange)="toggle(row.key, $event)"
+            />
+            <p class="mt-1 whitespace-pre-wrap break-words text-xs text-fb-text-secondary">
+              {{ row.value }}
+            </p>
+            @if (row.blocked) {
+              <p class="mt-1 text-xs text-fb-text-secondary">
+                Für diese Angabe muss die Kategorie übereinstimmen.
+              </p>
+            }
+          </div>
+        }
+      </fieldset>
+      <p class="text-xs text-fb-text-secondary">
+        Du übernimmst die ausgewählten Angaben ins Formular und speicherst anschließend wie gewohnt.
+        Deine Fotos und die Kontozuordnung bleiben erhalten.
+      </p>
+    }
+  </div>
+  <div modal-footer class="flex justify-end gap-2">
+    <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+    <app-button [disabled]="!canApply()" (clicked)="apply()">Übertragen</app-button>
+  </div>
+</app-modal-shell>

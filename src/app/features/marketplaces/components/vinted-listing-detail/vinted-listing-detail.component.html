@@ -1,6 +1,15 @@
 @if (!editing()) {
   <div class="mb-4 flex items-center justify-between gap-3">
-    <app-button link="/marketplaces/vinted/listings">Zurück zu Inseraten</app-button>
+    <app-button
+      [link]="
+        entry()?.publicationState === 'draft'
+          ? '/marketplaces/vinted/listing-drafts'
+          : '/marketplaces/vinted/listings'
+      "
+      >{{
+        entry()?.publicationState === 'draft' ? 'Zurück zu Entwürfen' : 'Zurück zu Inseraten'
+      }}</app-button
+    >
   </div>
 }
 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -16,12 +25,20 @@
   <p role="status" class="text-sm text-fb-text-secondary">Inserat wird geladen …</p>
 } @else if (editing() && entry(); as item) {
   <app-entry-page-layout
-    title="Inserat bearbeiten"
+    [title]="item.publicationState === 'draft' ? 'Vinted-Entwurf bearbeiten' : 'Inserat bearbeiten'"
     subtitle="Du änderst ein bestehendes Vinted-Inserat. Gespeichert ist erst, was Vinted bestätigt."
     backLabel="Bearbeitung abbrechen"
     (cancelled)="cancelEdit()"
   >
     <div entry-header-actions class="flex flex-wrap items-center gap-2">
+      @if (item.publicationState === 'draft') {
+        <app-button
+          variant="secondary"
+          [disabled]="busy() || !canSave()"
+          (clicked)="copyError.set(null); copying.set(true)"
+          >Daten übernehmen</app-button
+        >
+      }
       <span role="status" aria-live="polite" class="text-xs text-fb-text-secondary">{{
         editStatus()
       }}</span>
@@ -183,7 +200,9 @@
     <app-card class="min-w-0">
       <h2 class="break-words text-xl font-semibold text-fb-text-primary">{{ item.title }}</h2>
       @if (publicationBadge(item.publicationState); as badge) {
-        <app-badge class="mt-2" [tone]="badge.tone">{{ badge.label }}</app-badge>
+        <app-badge class="mt-2" [tone]="badge.tone">{{
+          item.publicationState === 'draft' ? 'Vinted-Entwurf' : badge.label
+        }}</app-badge>
       }
       <app-listing-transfer-action
         [source]="{
@@ -197,13 +216,15 @@
       <p class="mt-3 text-2xl font-semibold text-fb-text-primary">
         {{ item.price === null ? 'Preis unbekannt' : (item.price | currency: item.currency) }}
       </p>
-      <app-vinted-listing-age
-        class="mt-3"
-        [publishedAt]="item.publishedAt"
-        [publicationAge]="item.publicationAge"
-        [createdAt]="item.createdAt"
-        [publicationState]="item.publicationState ?? 'unknown'"
-      />
+      @if (item.publicationState !== 'draft') {
+        <app-vinted-listing-age
+          class="mt-3"
+          [publishedAt]="item.publishedAt"
+          [publicationAge]="item.publicationAge"
+          [createdAt]="item.createdAt"
+          [publicationState]="item.publicationState ?? 'unknown'"
+        />
+      }
       <app-vinted-listing-metrics
         class="mt-3"
         [metrics]="item.metrics"
@@ -281,4 +302,19 @@
       Dieses Inserat ist für das ausgewählte Konto nicht verfügbar.
     </p></app-card
   >
+}
+
+@if (copying() && editing() && canSave() && entry(); as copyEntry) {
+  <app-vinted-listing-copy-dialog
+    [workspaceId]="copyEntry.workspaceId"
+    [content]="copyContent()"
+    [targetEntryId]="entryId()"
+    [targetConnectionId]="connectionId()"
+    [allowCategory]="false"
+    [allowedFields]="copyFields()"
+    [disabled]="busy()"
+    [applyError]="copyError()"
+    (closed)="copying.set(false)"
+    (applied)="applyCopiedFields($event)"
+  />
 }

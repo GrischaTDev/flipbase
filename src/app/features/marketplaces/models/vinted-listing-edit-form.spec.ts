@@ -3,6 +3,7 @@ import { listingCurrentContentFixture } from '../../../../../services/marketplac
 import {
   applyVintedListingEdit,
   packageSizeLabel,
+  parseVintedListingReadPriceCents,
   vintedListingEditOptions,
   vintedListingEditSelection,
   vintedListingPriceCents,
@@ -11,6 +12,22 @@ import {
 
 const current = listingCurrentContentFixture();
 const text = { title: ' Neue Schuhe ', description: 'Kaum getragen.', price: '18' };
+
+it.each([
+  ['', null],
+  ['  ', null],
+  ['20,50 €', 2050],
+  ['1.234,56\u00a0€', 123456],
+  ['19.99', 1999],
+])('liest den Anbieterpreis %s ohne erfundene Beträge', (value, expected) => {
+  expect(parseVintedListingReadPriceCents(value)).toBe(expected);
+});
+it.each(['€', 'Preis unbekannt', '1.23,45 €', '12,345 €', '-2 €', '0'])(
+  'weist den unlesbaren Anbieterpreis %s ab',
+  (value) => {
+    expect(() => parseVintedListingReadPriceCents(value)).toThrow();
+  },
+);
 
 it('zeigt die aktuelle Vinted-Auswahl und lässt gesperrte Werte weg', () => {
   expect(vintedListingEditSelection(current)).toEqual({

@@ -153,3 +153,27 @@ it('erhält gespeicherte Verkäufe bei nicht angebundener lokaler Quelle', () =>
   expect(fixture.nativeElement.textContent).toContain('noch nicht synchronisiert');
   expect(fixture.nativeElement.textContent).toContain('Gespeicherter Verkauf');
 });
+
+it('verwendet die Kleiderschrankstruktur mit gekürztem Titel und kompakter Fußzeile', () => {
+  current.set(
+    makeSnapshot([
+      {
+        title: 'Sehr langer verkaufter Artikel '.repeat(8),
+        brand: 'Jako',
+        size: '34',
+        saleState: 'completed',
+        shipmentStatus: 'Zugestellt',
+        conversationId: 'chat',
+      },
+    ]),
+  );
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  const element = fixture.nativeElement as HTMLElement;
+  expect(element.querySelector('h3')?.classList.contains('truncate')).toBe(true);
+  expect(element.querySelector('app-card')?.getAttribute('padding')).toBe('none');
+  expect(element.querySelector('[data-sale-details]')?.textContent).toContain('Jako');
+  expect(element.querySelector('[data-sale-details]')?.textContent).toContain('Abgeschlossen');
+  expect(element.querySelector('[data-sale-footer]')?.textContent).toContain('Zugestellt');
+  expect(element.querySelector('[data-sale-footer]')?.textContent).toContain('Chat öffnen');
+});

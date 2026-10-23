@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-23 - Juna - eBay-PR nach Freigabe mit aktuellem Hauptzweig integrieren
+
+Nutzer autorisiert PR, erfolgreiche Pflichtprüfungen, Merge-Commit und anschließende Bereinigung des eigenen Zweigs samt Arbeitskopie. Vor dem ersten Push den inzwischen aktuellen Hauptzweig `962e4e14` mit Vinted-Entwurfsübernahme integriert. Beide Änderungsprotokolle erhalten; die gemeinsame Browserfixture enthält sowohl die eBay-Status-/Reservierungsantworten als auch den Vinted-Entwurfszähler. Die übrigen eingehenden Dateien bleiben unverändert. Integration wird vor dem Push gezielt an Auswahl, gemeinsamem Mock, eBay-Oberfläche, Datenbank und Angular-Bau geprüft; der PR wartet anschließend auf alle erfolgreichen Pflichtprüfungen. Kein direkter Hauptzweig-Push und keine fremde Arbeitskopie verändert.
+
 ## 2026-10-23 - Juna - eBay-Listen, Verkaufsentwürfe und persönliche Glocke integrieren
 
 **Freigabe und Umsetzung:** Den ausdrücklich bestätigten Gesamtentwurf umgesetzt:
@@ -148,6 +152,20 @@ der Registrierung und Testauswahl, Typprüfung und Produktionsbau erfolgreich.
 Bestehende Warnungen zu optionalem Zugriff im Einkauf, ungenutztem Vinted-Link,
 Startpaketgröße und pako unverändert. Die neue eBay-Oberfläche folgt weiterhin
 als eigener Umsetzungsschritt; keine produktive Veröffentlichung.
+
+## 2026-10-23 - Juna - Vinted-Verkaufskarten und Entwurfsübernahme
+
+**Auftrag und Ausgangslage:** Neuer eigener Zweig `juna/vinted-sales-drafts-and-transfer` auf dem gemergten Hauptstand `8281c9d1`. Fremde Arbeitskopie und deren Änderungen bleiben unberührt. Nutzer stellt den echten Kauf-/Stornotest zurück und beauftragt einheitliche Verkaufskarten, Diagnose des fehlenden Kaufpreises, getrennte native Vinted-Entwürfe und eine feldweise Datenübernahme in geöffnete Entwürfe. Untersuchung bisher ausschließlich lesend, keine Anbieteränderung. Plan und spätere Prüfungen: `docs/implementation/vinted-sales-drafts-and-transfer.md`.
+
+**Umsetzung:** Verkaufskarten übernehmen Bildaufteilung, Abstände und einzeilige Titel des Kleiderschranks; Status steht neben Marke/Größe, Versand und kompakter Chatlink in der Fußzeile. Weitere Verkaufsangaben bleiben ausklappbar zugänglich. Der Preisimport liest zusätzlich den belegten Transaktionspreis `offer_price`; ein Versionswechsel erneuert alte Verkaufscaches einmalig. Chatzuordnung und eindeutige Einzelartikelmerkmale bleiben bei verkürzten Folgeantworten erhalten. Pakete übernehmen keine vermeintliche Einzelartikelmarke. Native Vinted-Entwürfe erscheinen unter Entwürfe, getrennt von Flipbase-Entwürfen, ohne Alter und außerhalb der Kleiderschrankzähler.
+
+**Datenübernahme:** Beide Entwurfseditoren bieten Quellart, Konto, Suche, Nachladen, Vorschau und einzelne Feldhaken. Nur ausgewählte Felder ändern das offene Formular; ungewählte Eingaben, Fotos, Konto und Kennung bleiben erhalten. Es erfolgt keine automatische Speicherung oder Veröffentlichung. Kategorieabhängige Angaben benötigen passende Kategorien und gültige Zielauswahlen. Bei unvollständigen nativen Entwürfen bleiben Titel, Beschreibung und Preis nutzbar; formatierte Anbieterpreise werden normalisiert. Konto-/Arbeitsbereichswechsel sperren verspätete Antworten und fertige fremde Vorschauen.
+
+**Review und Prüfung:** Unabhängiger Review führte zu Regressionen für unvollständige Preiseingaben, verkürzte Chatmetadaten, Wiederholungsimporte, Paketgrenzen, Kontowechsel und native Grundfeldmasken. Fehlerfälle vor der jeweiligen Korrektur nachgewiesen. Vollständige Anwendungssuite mit 545 Dateien/5.792 Fällen erfolgreich; spätere Ergänzungen zusätzlich gezielt geprüft. Vollständiger Worker mit 713 bestandenen Fällen und acht bestehenden Auslassungen, Worker-/Anwendungstypen, vollständige SQL-Suite mit 128 Dateien/4.724 Assertions, 75 Auswahl-/Registrierungs-/Migrationsprüfungen sowie Suite-Audit und Shared-UI-Prüfung erfolgreich. Abschließender Browser- und Produktionsbaunachweis wird im Implementierungsbericht ergänzt.
+
+**Datenbank und Grenzen:** Neue Migration `20261023161900_vinted_provider_drafts.sql` mit offiziellem Supabase-pg-delta aus isoliertem Basis-/Zielkatalog erzeugt und frisch transaktional abgespielt; Funktion und Sicht entsprechen dem Ziel. Typen offiziell neu erzeugt, ohne fachliche Typänderung; bestehende bewusste Nicht-null-Einschränkung bleibt erhalten. Keine Produktivdaten oder echten Vinted-Anzeigen verändert. Der konkrete frische Verkauf ist durch den Parserfall abgesichert, sein tatsächlicher Anbieterabgleich nach Bereitstellung bleibt offen. Echte Käufe/Stornierungen sind weiterhin zurückgestellt; allgemeines Relisting und Warenbestandsverknüpfung bleiben Folgeaufträge.
+
+**Lokaler Abschluss:** Alle 87 bestehenden und neuen Fälle der fünf betroffenen Browserdateien in Teilgruppen erfolgreich; die vier lokalen Übernahmevarianten nach ergänzter Prüfung des tatsächlich aktiven Farbschemas nochmals grün. Enthalten sind 320/390/834/1440px, Hell/Dunkel, Touch, Tastatur, AXE, Konto-/Arbeitsbereichsgrenzen und die vorhandene Inseratbearbeitung. Ruhende Entwicklungsvorschau während der Browserläufe; danach separater Produktionsbau samt PWA-Dateiprüfung erfolgreich. Verkaufskarten, native Entwürfe und Übernahmedialog mobil/Desktop visuell gelesen. Formatprüfung, gezieltes ESLint, Typen und Diffprüfung erfolgreich. Aktueller Hauptstand erneut abgerufen, unverändert `8281c9d1`. Nutzerfreigabe für PR und Merge nach erfolgreichen Pflichtprüfungen liegt bereits vor; der echte Kontotest bleibt zurückgestellt.
 
 ## 2026-10-23 - Juna - Vinted-Altersangaben und Verkaufsablauf korrigieren
 
