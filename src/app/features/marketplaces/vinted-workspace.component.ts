@@ -16,6 +16,7 @@ import { presentVintedLocalReadiness } from './models/vinted-local-readiness';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
+import { VintedListingCopySourceService } from './services/vinted-listing-copy-source.service';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
 import { VintedAccountControlsComponent } from './components/vinted-account-controls/vinted-account-controls.component';
@@ -40,6 +41,7 @@ import { VintedLocalRuntimeStore } from './services/vinted-local-runtime.store';
   templateUrl: './vinted-workspace.component.html',
   providers: [
     MarketplaceAccountStore,
+    VintedListingCopySourceService,
     VintedLocalExtensionBridge,
     VintedLocalExtensionStore,
     VintedMessagingStore,

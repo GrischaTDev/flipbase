@@ -17,8 +17,10 @@
     @if (actionError(); as message) {
       <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
     }
+    <app-vinted-provider-drafts [query]="query()" [viewMode]="viewMode()" />
+    <h2 class="text-sm font-semibold text-fb-text-primary">Flipbase-Entwürfe</h2>
     <app-data-table
-      ariaLabel="Vinted-Entwürfe"
+      ariaLabel="Flipbase-Entwürfe"
       searchAriaLabel="Entwürfe nach Titel durchsuchen"
       searchPlaceholder="Entwürfe nach Titel suchen …"
       [searchValue]="search()"

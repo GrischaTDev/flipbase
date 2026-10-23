@@ -1,0 +1,84 @@
+<section aria-label="Bei Vinted gespeicherte Entwürfe" class="space-y-3">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-sm font-semibold text-fb-text-primary">Vinted-Entwürfe</h2>
+      <p class="mt-1 text-xs text-fb-text-secondary">
+        Direkt bei Vinted gespeichert und noch nicht veröffentlicht.
+      </p>
+    </div>
+    @if (accounts().length) {
+      <div class="w-full sm:w-64">
+        <app-custom-select
+          label="Vinted-Konto"
+          ariaLabel="Konto für Vinted-Entwürfe"
+          [options]="accounts()"
+          [value]="connectionId()"
+          (valueChange)="requestedAccount.set($event)"
+        />
+      </div>
+    }
+  </div>
+  @if (error()) {
+    <app-notice-banner announcement="alert"
+      >{{ error() }}
+      <app-button variant="secondary" size="slim" (clicked)="load()"
+        >Erneut versuchen</app-button
+      ></app-notice-banner
+    >
+  }
+  @if (loading() && !items().length) {
+    <p role="status" class="text-sm text-fb-text-secondary">Vinted-Entwürfe werden geladen …</p>
+  } @else if (!items().length && !error()) {
+    <p class="text-sm text-fb-text-secondary">
+      Für dieses Konto sind keine passenden Vinted-Entwürfe gespeichert.
+    </p>
+  }
+  <div
+    [class]="
+      viewMode() === 'grid'
+        ? 'grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
+        : 'min-w-0 space-y-2'
+    "
+  >
+    @for (draft of items(); track draft.reference.externalId) {
+      <a
+        [routerLink]="draft.detailLink"
+        class="block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-[color:var(--fb-control-focus)]"
+        [attr.aria-label]="draft.title + ' bearbeiten · Vinted-Entwurf'"
+      >
+        <app-card padding="none" class="h-full min-w-0 overflow-hidden">
+          <div [class]="viewMode() === 'grid' ? 'min-w-0' : 'flex min-w-0 items-center gap-3 p-3'">
+            <app-product-thumbnail
+              [class]="viewMode() === 'grid' ? 'block w-full' : 'block shrink-0'"
+              [src]="draft.imageUrl"
+              [alt]="draft.title"
+              [size]="viewMode() === 'grid' ? 'listing' : 'md'"
+              [flush]="viewMode() === 'grid'"
+            />
+            <div [class]="viewMode() === 'grid' ? 'min-w-0 p-3' : 'min-w-0 flex-1'">
+              <h3
+                class="truncate text-sm font-semibold text-fb-text-primary"
+                [attr.title]="draft.title"
+              >
+                {{ draft.title }}
+              </h3>
+              <app-badge class="mt-2" tone="neutral">Vinted-Entwurf</app-badge>
+              <p class="mt-3 text-base font-semibold text-fb-text-primary">
+                {{
+                  draft.priceCents === null
+                    ? 'Preis noch offen'
+                    : (draft.priceCents / 100 | currency: draft.currency || 'EUR')
+                }}
+              </p>
+            </div>
+          </div>
+        </app-card>
+      </a>
+    }
+  </div>
+  @if (cursor()) {
+    <app-button variant="secondary" [loading]="loading()" (clicked)="load(true)"
+      >Weitere Vinted-Entwürfe laden</app-button
+    >
+  }
+</section>

@@ -57,12 +57,27 @@ select workspace_id,connection_id,kind,'73',body||'{"saleState":"shipped","saleS
 select is((select count(*) from public.marketplace_visible_account_entries where kind='publication' and connection_id='46800000-0000-4000-8000-000000000021'),0::bigint,'Zeitlich ungeklärter weiterer Verkauf verhindert eine unbewiesene Freigabe');
 update public.marketplace_account_entries set body=body||'{"saleState":"relisted","saleStateAt":"2026-10-22T14:30:00Z"}',sort_at='2026-10-22T14:30:00Z' where kind='sale' and external_id='73';
 select is((select count(*) from public.marketplace_visible_account_entries where kind='publication' and connection_id='46800000-0000-4000-8000-000000000021'),6::bigint,'Belegte Wiederaufnahme löst auch einen zuvor zeitlich ungeklärten Verkauf auf');
+-- Anbieterentwürfe bleiben bearbeitbar, gehören aber nicht zum veröffentlichten Kleiderschrank.
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body)
+values ('46800000-0000-4000-8000-000000000011','46800000-0000-4000-8000-000000000021','publication','99','{"title":"Vinted-Entwurf","publicationState":"draft"}'),
+('46800000-0000-4000-8000-000000000012','46800000-0000-4000-8000-000000000023','publication','99','{"title":"Fremder Entwurf","publicationState":"draft"}');
+select is((select count(*) from public.marketplace_visible_account_entries where kind='publication' and connection_id='46800000-0000-4000-8000-000000000021'),6::bigint,'Anbieterentwürfe verändern weder Kleiderschrank noch dessen Seitengrenzen');
+-- Ein Einzelverkauf behaelt gesicherte Merkmale auch ohne erneute Anbieterliste.
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body)
+values ('46800000-0000-4000-8000-000000000011','46800000-0000-4000-8000-000000000022','publication','100','{"title":"Jacke","publicationState":"active","brand":"Jako","size":"M"}');
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body)
+values ('46800000-0000-4000-8000-000000000011','46800000-0000-4000-8000-000000000022','sale','101','{"title":"Jacke","saleState":"sold","saleStateAt":null,"sellerId":"456","externalConversationId":"102","itemIds":["100"],"itemCount":1}');
+select is((select body->>'brand' from public.marketplace_account_entries where kind='sale' and external_id='101'),'Jako','Verkauf liest Marke aus derselben gesicherten Kontopublikation');
+update public.marketplace_account_entries set body=body||'{"brand":null,"size":null}' where kind='sale' and external_id='101';
+select is((select body->>'size' from public.marketplace_account_entries where kind='sale' and external_id='101'),'M','Verkuerzter Folgeimport behaelt die Groesse des verkauften Artikels');
 select set_config('request.jwt.claim.sub','46800000-0000-4000-8000-000000000001',true);
 select set_config('request.jwt.claims','{"sub":"46800000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 set local role authenticated;
 select is((select count(*) from public.marketplace_visible_account_entries where workspace_id='46800000-0000-4000-8000-000000000012'),0::bigint,'Sicht übernimmt die Workspace-Rechte der Ursprungstabelle');
 select is((select count(*) from public.marketplace_visible_account_entries where kind='publication' and connection_id='46800000-0000-4000-8000-000000000021'),6::bigint,'Angemeldete lesen die eigene aktive Liste direkt durch die Sicht');
 select is((public.marketplace_read_page('46800000-0000-4000-8000-000000000011','46800000-0000-4000-8000-000000000021','publication')->>'total')::integer,6,'Seitenzähler verwendet dieselbe sichtbare Liste');
+select is((select count(*) from public.marketplace_account_entries where kind='publication' and body->>'publicationState'='draft'),1::bigint,'Die separate Entwurfsquelle bleibt auf den eigenen Workspace begrenzt');
+select is((select count(*) from public.marketplace_account_entries where kind='publication' and body->>'publicationState'='draft' and connection_id='46800000-0000-4000-8000-000000000022'),0::bigint,'Die Kontowahl vermischt Anbieterentwürfe nicht');
 reset role;
 select * from finish();
 rollback;

@@ -533,7 +533,7 @@ test('Galerieänderung wählt echte Artikel-Browserfälle ohne Verkauf, Einkauf 
   });
   assert.equal(plan.full, false);
   assert.equal(plan.pwa, false);
-  assert.equal(selected.length, 21);
+  assert.equal(selected.length, 25);
   assert.deepEqual([...new Set(selected.map(([file]) => file))].sort(), [
     'vinted-listing-edge-cases.spec.ts',
     'vinted-workspace-ui.spec.ts',
@@ -548,7 +548,7 @@ test('direkt geänderter Browserfall läuft vollständig und ohne fachfremde Fä
   const { selected } = await listTests('playwright.affected.config.ts', [], {
     AFFECTED_TEST_PLAN: JSON.stringify(plan),
   });
-  assert.equal(selected.length, 15);
+  assert.equal(selected.length, 19);
   assert.ok(selected.every(([file]) => file === 'vinted-listing-edge-cases.spec.ts'));
 });
 

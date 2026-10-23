@@ -81,7 +81,6 @@ for (const theme of ['light', 'dark'] as const)
         const stateCases = [
           { state: 'active', title: 'A Jacke 01', label: 'Online', filter: 'Online' },
           { state: 'reserved', title: 'A Jacke 02', label: 'Reserviert', filter: 'Reserviert' },
-          { state: 'draft', title: 'A Jacke 03', label: 'Entwurf', filter: 'Entwürfe' },
           { state: 'hidden', title: 'A Jacke 04', label: 'Versteckt', filter: 'Versteckt' },
           {
             state: 'unknown',
@@ -114,17 +113,7 @@ for (const theme of ['light', 'dark'] as const)
               '5 T · erstellt',
             );
         }
-        const draftAge = listingRow('A Jacke 03').locator('app-vinted-listing-age');
-        await expect(draftAge).toHaveText('5 T · erstellt');
-        await expect(draftAge.locator('[aria-label]')).toHaveAttribute(
-          'aria-label',
-          'Vor 5 Tagen erstellt',
-        );
-        await expect(draftAge.locator('app-badge')).toHaveAttribute('title', /Erstellt:/);
-        await expect(draftAge.locator('app-badge')).not.toHaveAttribute(
-          'title',
-          /online|Veröffentlicht/,
-        );
+        await expect(listingRow('A Jacke 03')).toHaveCount(0);
         await expect(
           listingRow('A Jacke 01').locator('app-vinted-listing-age app-badge'),
         ).toHaveAttribute('title', /Erstellt:/);
@@ -156,7 +145,7 @@ for (const theme of ['light', 'dark'] as const)
         await expect(vinted.getByText('1 ausgewählt', { exact: true })).toBeVisible();
         await vinted.getByRole('button', { name: 'Weiter', exact: true }).click();
         await expect(
-          vinted.getByRole('checkbox', { name: 'A Jacke 26 auswählen', exact: true }),
+          vinted.getByRole('checkbox', { name: 'A Jacke 27 auswählen', exact: true }),
         ).toBeVisible();
         await expect(vinted.getByText('0 ausgewählt', { exact: true })).toBeVisible();
         await vinted.getByRole('button', { name: 'Zurück', exact: true }).click();
@@ -167,6 +156,9 @@ for (const theme of ['light', 'dark'] as const)
           name: 'Inseratstatus für Testkonto A',
           exact: true,
         });
+        await statusFilter.click();
+        await expect(page.getByRole('option', { name: 'Entwürfe', exact: true })).toHaveCount(0);
+        await page.keyboard.press('Escape');
         for (const stateCase of stateCases) {
           await statusFilter.click();
           await page.getByRole('option', { name: stateCase.filter, exact: true }).click();

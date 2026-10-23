@@ -21,6 +21,105 @@ const images = [
 ];
 const detailPath = `/marketplaces/vinted/listings/${accountIds[0]}/${entryId}`;
 
+for (const width of [390, 1440])
+  for (const theme of ['light', 'dark'] as const) {
+    test(`Unvollständigen Vinted-Entwurf durch Datenübernahme ergänzen bei ${width}px ${theme} @marketplace-preview`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      await prepareListing(page, {
+        title: 'Unvollständiger Entwurf',
+        text: '',
+        textState: 'loaded',
+        publicationState: 'draft',
+      });
+      await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+      await page.route('**/marketplace-browser/listings/content/read', (route) =>
+        route.fulfill({ json: { listing: null } }),
+      );
+      await page.route('**/marketplace-browser/listings/edit/read', (route) =>
+        route.fulfill({
+          json: { fields: { title: 'Unvollständiger Entwurf', description: '', price: '' } },
+        }),
+      );
+      const source = {
+        id: '2',
+        workspaceId,
+        connectionId: null,
+        revision: 1,
+        content: { ...emptyVintedListingContent(), title: 'Preisquelle', priceCents: 1800 },
+        images: [],
+        inventoryItemId: null,
+        createdAt: '2026-10-20T10:00:00Z',
+        updatedAt: '2026-10-20T10:00:00Z',
+      };
+      await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', (route) =>
+        route.fulfill({ json: { items: [source], nextCursor: null } }),
+      );
+      await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
+        route.fulfill({ json: source }),
+      );
+      const saves: Record<string, unknown>[] = [];
+      await page.route('**/marketplace-browser/listings/edit/save', (route) => {
+        saves.push(route.request().postDataJSON() as Record<string, unknown>);
+        return route.fulfill({ json: { status: 'confirmed' } });
+      });
+      await page.goto(detailPath);
+      await expect(page.locator('html')).toHaveClass(
+        theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+      );
+      const detail = page.locator('app-vinted-listing-detail');
+      await expect(detail.locator('app-vinted-listing-age')).toHaveCount(0);
+      await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+      await expect(
+        detail.getByRole('heading', { name: 'Vinted-Entwurf bearbeiten', exact: true }),
+      ).toBeVisible();
+      const opener = detail.getByRole('button', { name: 'Daten übernehmen', exact: true });
+      await expect(opener).toBeEnabled();
+      await expect(detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
+        '',
+      );
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: 'Daten übernehmen', exact: true });
+      await dialog.getByRole('combobox', { name: 'Quelle auswählen' }).click();
+      await dialog.getByRole('option', { name: 'Preisquelle', exact: true }).click();
+      await expect(dialog.getByRole('checkbox')).toHaveCount(3);
+      await dialog.getByRole('checkbox', { name: 'Verkaufspreis', exact: true }).click();
+      await expect(
+        dialog.getByRole('checkbox', { name: 'Verkaufspreis', exact: true }),
+      ).toBeChecked();
+      await page.evaluate(axe.source);
+      expect(
+        (
+          await page.evaluate(() =>
+            (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listing-copy-dialog'),
+          )
+        ).violations,
+      ).toEqual([]);
+      await dialog.getByRole('button', { name: 'Übertragen', exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      await expect(detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
+        '18,00',
+      );
+      expect(saves).toEqual([]);
+      await detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
+      await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
+      expect(saves).toEqual([
+        {
+          workspaceId,
+          connectionId: accountIds[0],
+          entryId,
+          fields: { title: 'Unvollständiger Entwurf', description: '', price: '18,00' },
+        },
+      ]);
+      await expect(
+        detail.locator('app-badge').getByText('Vinted-Entwurf', { exact: true }),
+      ).toBeVisible();
+      await screenshot(page, `vinted-native-draft-${width}-${theme}`);
+    });
+  }
+
 interface ListingFixture {
   title: string;
   text: string | null;
@@ -79,6 +178,13 @@ async function prepareListing(page: Page, listing: ListingFixture) {
     expect(query.get('workspace_id')).toBe(`eq.${workspaceId}`);
     expect(query.get('connection_id')).toBe(`eq.${accountIds[0]}`);
     expect(query.get('kind')).toBe('eq.publication');
+    if (!query.has('id')) {
+      expect(query.get('body->>publicationState')).toBe('eq.draft');
+      return route.fulfill({
+        headers: { 'content-range': '0-0/0', 'access-control-expose-headers': 'content-range' },
+        ...(route.request().method() === 'HEAD' ? { body: '' } : { json: [] }),
+      });
+    }
     expect(query.get('id')).toBe(`eq.${entryId}`);
     return route.fulfill({ json: { id: entryId, body: entry } });
   });
@@ -228,6 +334,7 @@ for (const width of [320, 390, 834, 1440]) {
           occurredAt: '2026-10-12T12:00:00Z',
         })),
       );
+      const wardrobeEntries = entries.filter((entry) => entry.publicationState !== 'draft');
       await page.route('**/rest/v1/marketplace_*account_entries**', (route) => {
         const query = new URL(route.request().url()).searchParams;
         const id = query.get('id')?.replace('eq.', '');
@@ -245,7 +352,11 @@ for (const width of [320, 390, 834, 1440]) {
             workspaceId,
             connectionId: accountIds[0],
             profile: null,
-            publications: { items: entries, total: entries.length, nextCursor: null },
+            publications: {
+              items: wardrobeEntries,
+              total: wardrobeEntries.length,
+              nextCursor: null,
+            },
             conversations: emptyPage(),
             sales: emptyPage(),
             activity: emptyPage(),
@@ -308,9 +419,9 @@ for (const width of [320, 390, 834, 1440]) {
       await listView.click();
       await expect(listView).toHaveAttribute('aria-pressed', 'true');
       await expect(gridView).toHaveAttribute('aria-pressed', 'false');
-      await expect(cards).toHaveCount(entries.length);
+      await expect(cards).toHaveCount(wardrobeEntries.length);
       const checkPublicationStates = async () => {
-        for (const stateCase of stateCases) {
+        for (const stateCase of stateCases.filter((stateCase) => stateCase.state !== 'draft')) {
           const card = page.getByRole('link', {
             name: `Inserat ${stateCase.title} öffnen`,
             exact: true,
@@ -334,21 +445,9 @@ for (const width of [320, 390, 834, 1440]) {
         const publicationTooltip = original.locator('app-vinted-listing-age app-badge');
         await expect(publicationTooltip).toHaveAttribute('title', /Veröffentlicht:/);
         await expect(publicationTooltip).toHaveAttribute('title', /Erstellt:/);
-        const draft = page.getByRole('link', {
-          name: 'Inserat Vinted-Entwurf öffnen',
-          exact: true,
-        });
-        const age = draft.locator('app-vinted-listing-age');
-        await expect(age).toHaveText('5 T · erstellt');
-        await expect(age.locator('[aria-label]')).toHaveAttribute(
-          'aria-label',
-          'Vor 5 Tagen erstellt',
-        );
-        await expect(age.locator('app-badge')).toHaveAttribute('title', /Erstellt:/);
-        await expect(age.locator('app-badge')).not.toHaveAttribute(
-          'title',
-          /online|Veröffentlicht/,
-        );
+        await expect(
+          page.getByRole('link', { name: 'Inserat Vinted-Entwurf öffnen', exact: true }),
+        ).toHaveCount(0);
       };
       await checkPublicationStates();
       await expect(cards.first()).toContainText(
@@ -394,7 +493,7 @@ for (const width of [320, 390, 834, 1440]) {
       await page.keyboard.press('Enter');
       await expect(gridView).toHaveAttribute('aria-pressed', 'true');
       expect((await firstThumbnail.boundingBox())!.width).toBeCloseTo(gridWidth, 0);
-      await expect(page.locator('app-vinted-listing-age')).toHaveCount(entries.length);
+      await expect(page.locator('app-vinted-listing-age')).toHaveCount(wardrobeEntries.length);
       await checkPublicationStates();
       await expect(
         page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
@@ -409,15 +508,14 @@ for (const width of [320, 390, 834, 1440]) {
           )
         ).violations,
       ).toEqual([]);
-      await page.getByRole('link', { name: 'Inserat Vinted-Entwurf öffnen', exact: true }).click();
+      await page.goto(`/marketplaces/vinted/listings/${accountIds[0]}/publication-state-2`);
       const draftDetail = page.locator('app-vinted-listing-detail');
-      await expect(draftDetail.getByText('Entwurf', { exact: true })).toBeVisible();
-      await expect(draftDetail.locator('app-vinted-listing-age')).toHaveText(
-        'Vor 5 Tagen erstellt',
-      );
-      await expect(draftDetail.locator('app-vinted-listing-age')).not.toContainText('online');
+      await expect(
+        draftDetail.locator('app-badge').getByText('Vinted-Entwurf', { exact: true }),
+      ).toBeVisible();
+      await expect(draftDetail.locator('app-vinted-listing-age')).toHaveCount(0);
       await page.goBack();
-      await expect(cards).toHaveCount(entries.length);
+      await expect(cards).toHaveCount(wardrobeEntries.length);
       await listView.focus();
       await page.keyboard.press('Space');
       await expect(listView).toHaveAttribute('aria-pressed', 'true');
@@ -448,6 +546,7 @@ for (const width of [320, 390, 834, 1440]) {
       for (let index = 6; index < 20; index++) await page.keyboard.press('ArrowRight');
       await expect(dialog.getByRole('img')).toHaveAttribute('src', photos[19]);
       await expect(dialog.getByRole('button', { name: 'Nächstes Foto' })).toBeDisabled();
+      await page.evaluate(axe.source);
       expect(
         (
           await page.evaluate(() =>

@@ -108,7 +108,6 @@ export class MarketplaceListingSectionComponent {
       : [{ value: 'reserved', label: 'Reserviert' }]),
     ...(this.section().account.platform === 'vinted'
       ? [
-          { value: 'draft', label: 'Entwürfe' },
           { value: 'hidden', label: 'Versteckt' },
           { value: 'unknown', label: 'Status unbekannt' },
         ]

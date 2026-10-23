@@ -61,7 +61,10 @@ for (const width of [390, 1440]) {
                 items: ['sold', 'cancelled', 'relisted'].map((saleState, index) => ({
                   ...scope,
                   id: `sale-${index}`,
-                  title: `Paket ${index + 1}`,
+                  title:
+                    index === 0
+                      ? 'Besonders langer verkaufter Artikel mit vielen Angaben und ohne umbrechenden Titel'
+                      : `Paket ${index + 1}`,
                   saleState,
                   occurredAt: '2026-10-21T10:00:00Z',
                   itemCount: 6,
@@ -85,7 +88,10 @@ for (const width of [390, 1440]) {
             exact: false,
           }),
         ).toHaveCount(0);
-        await expect(active.getByRole('heading', { level: 3 })).toHaveText(['Paket 1', 'Paket 2']);
+        await expect(active.getByRole('heading', { level: 3 })).toHaveText([
+          'Besonders langer verkaufter Artikel mit vielen Angaben und ohne umbrechenden Titel',
+          'Paket 2',
+        ]);
         await expect(active).toContainText('Noch nicht wieder eingestellt');
         await expect(active).toContainText('Ursprünglicher Verkaufspreis');
         await expect(history).toContainText('Paket 3');
@@ -94,6 +100,13 @@ for (const width of [390, 1440]) {
           'href',
           new RegExp(`connectionId=${accountIds[0]}.*conversationId=${conversationId}`),
         );
+        const title = active.getByRole('heading', { level: 3 }).first();
+        expect(
+          await title.evaluate((element) => ({
+            truncated: element.scrollWidth > element.clientWidth,
+            oneLine: getComputedStyle(element).whiteSpace === 'nowrap',
+          })),
+        ).toEqual({ truncated: true, oneLine: true });
         await checkSurface(page, 'app-vinted-sales');
         await expect(page.locator('app-vinted-workspace [role=alert]')).toHaveCount(0);
         await screenshot(page, `vinted-sales-${width}-${theme}`);

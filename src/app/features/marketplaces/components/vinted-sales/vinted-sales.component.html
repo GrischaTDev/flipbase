@@ -25,71 +25,111 @@
       }
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
         @for (entry of group.items; track entry.id) {
-          <app-card class="min-w-0 overflow-hidden">
-            <app-product-thumbnail
-              class="mb-3 block w-full"
-              [src]="entry.imageUrl"
-              [alt]="entry.title"
-              size="listing"
-            />
-            <h3 class="break-words text-sm font-semibold text-fb-text-primary">
-              {{ entry.title }}
-            </h3>
-            <app-badge class="mt-2" [tone]="badge(entry).tone">{{ badge(entry).label }}</app-badge>
-            @if (entry.saleState === 'cancelled') {
-              <p class="mt-2 text-xs text-fb-text-secondary">
-                Noch nicht wieder eingestellt. Der Vorgang bleibt hier, bis Vinted die
-                Wiederaufnahme bestätigt.
-              </p>
-            }
-            @if (entry.itemCount && entry.itemCount > 1) {
-              <p class="mt-2 text-xs text-fb-text-secondary">
-                Paket mit {{ entry.itemCount }} Artikeln
-              </p>
-            }
-            @if (entry.itemCount && (entry.itemIds?.length ?? 0) < entry.itemCount) {
-              <p class="mt-2 text-xs text-fb-text-secondary">Artikelzuordnung noch unvollständig</p>
-            } @else if (entry.isBundle && !entry.itemCount) {
-              <p class="mt-2 text-xs text-fb-text-secondary">
-                Paketgröße und Artikelzuordnung noch unvollständig
-              </p>
-            }
-            <p class="mt-3 text-xs text-fb-text-secondary">
-              {{
-                entry.saleState === 'cancelled' || entry.saleState === 'relisted'
-                  ? 'Ursprünglicher Verkaufspreis'
-                  : 'Verkaufspreis'
-              }}
-            </p>
-            <p class="text-base font-semibold text-fb-text-primary">
-              {{
-                entry.price === null ? 'Preis unbekannt' : (entry.price | currency: entry.currency)
-              }}
-            </p>
-            <p class="mt-2 text-xs text-fb-text-secondary">
-              {{
-                entry.occurredAt
-                  ? (entry.occurredAt | date: 'dd.MM.yyyy, HH:mm')
-                  : 'Verkaufsdatum unbekannt'
-              }}
-            </p>
-            @if (entry.shipmentStatus) {
-              <p class="mt-1 text-xs text-fb-text-secondary">Versand: {{ entry.shipmentStatus }}</p>
-            }
-            @if (entry.conversationId) {
-              <app-button
-                class="mt-3"
-                variant="secondary"
-                size="slim"
-                link="/marketplaces/vinted/messages"
-                [queryParams]="{
-                  connectionId: entry.connectionId,
-                  conversationId: entry.conversationId,
-                }"
-                >Chat öffnen</app-button
+          <article class="min-w-0 space-y-2">
+            <app-card padding="none" class="min-w-0 overflow-hidden">
+              <div class="relative overflow-hidden">
+                <app-product-thumbnail
+                  class="block w-full"
+                  [src]="entry.imageUrl"
+                  [alt]="entry.title"
+                  size="listing"
+                  [flush]="true"
+                />
+              </div>
+              <div class="min-w-0 p-3">
+                <h3
+                  class="truncate text-sm font-semibold text-fb-text-primary"
+                  [attr.title]="entry.title"
+                >
+                  {{ entry.title }}
+                </h3>
+                <div data-sale-details class="mt-2 flex min-w-0 items-center justify-between gap-2">
+                  <p
+                    class="min-w-0 truncate text-xs text-fb-text-secondary"
+                    [attr.title]="details(entry)"
+                  >
+                    {{ details(entry) }}
+                  </p>
+                  <app-badge class="ml-auto shrink-0" [tone]="badge(entry).tone">{{
+                    badge(entry).label
+                  }}</app-badge>
+                </div>
+                <p
+                  class="mt-3 text-base font-semibold text-fb-text-primary"
+                  [attr.aria-label]="
+                    entry.saleState === 'cancelled' || entry.saleState === 'relisted'
+                      ? 'Ursprünglicher Verkaufspreis'
+                      : 'Verkaufspreis'
+                  "
+                >
+                  {{
+                    entry.price === null
+                      ? 'Preis unbekannt'
+                      : (entry.price | currency: entry.currency)
+                  }}
+                </p>
+                <div
+                  data-sale-footer
+                  class="mt-2 flex min-h-7 min-w-0 items-center justify-between gap-2"
+                >
+                  <p
+                    class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary"
+                    [attr.title]="
+                      entry.shipmentStatus
+                        ? 'Versand: ' + entry.shipmentStatus
+                        : 'Keine Versandangabe'
+                    "
+                  >
+                    {{ entry.shipmentStatus || '—' }}
+                  </p>
+                  @if (entry.conversationId) {
+                    <app-button
+                      class="shrink-0"
+                      variant="secondary"
+                      size="slim"
+                      link="/marketplaces/vinted/messages"
+                      [queryParams]="{
+                        connectionId: entry.connectionId,
+                        conversationId: entry.conversationId,
+                      }"
+                      >Chat öffnen</app-button
+                    >
+                  }
+                </div>
+              </div>
+            </app-card>
+            <details class="text-xs text-fb-text-secondary">
+              <summary
+                class="cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-[color:var(--fb-control-focus)]"
               >
-            }
-          </app-card>
+                Verkaufsdetails
+              </summary>
+              <p class="mt-2">
+                {{
+                  entry.occurredAt
+                    ? (entry.occurredAt | date: 'dd.MM.yyyy, HH:mm')
+                    : 'Verkaufsdatum unbekannt'
+                }}
+              </p>
+              @if (entry.saleState === 'cancelled') {
+                <p class="mt-1">
+                  Noch nicht wieder eingestellt. Der Vorgang bleibt hier, bis Vinted die
+                  Wiederaufnahme bestätigt.
+                </p>
+              }
+              @if (entry.saleState === 'cancelled' || entry.saleState === 'relisted') {
+                <p class="mt-1">Ursprünglicher Verkaufspreis</p>
+              }
+              @if (entry.itemCount && entry.itemCount > 1) {
+                <p class="mt-1">Paket mit {{ entry.itemCount }} Artikeln</p>
+              }
+              @if (entry.itemCount && (entry.itemIds?.length ?? 0) < entry.itemCount) {
+                <p class="mt-1">Artikelzuordnung noch unvollständig</p>
+              } @else if (entry.isBundle && !entry.itemCount) {
+                <p class="mt-1">Paketgröße und Artikelzuordnung noch unvollständig</p>
+              }
+            </details>
+          </article>
         }
       </div>
     </section>

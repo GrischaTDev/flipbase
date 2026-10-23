@@ -138,7 +138,9 @@ export class SupabaseVintedImportWriter {
           itemCurrency: typeof body['itemCurrency'] === 'string' ? body['itemCurrency'] : null,
           transactionStatus:
             typeof body['transactionStatus'] === 'string' ? body['transactionStatus'] : null,
-          ...(body['saleTrackingVersion'] === 1 ? { saleTrackingVersion: 1 as const } : {}),
+          ...(body['saleTrackingVersion'] === 1 || body['saleTrackingVersion'] === 2
+            ? { saleTrackingVersion: body['saleTrackingVersion'] as 1 | 2 }
+            : {}),
           ...(typeof body['saleTransactionId'] === 'string' &&
           /^[1-9][0-9]{0,31}$/u.test(body['saleTransactionId']) &&
           typeof body['saleSellerId'] === 'string' &&

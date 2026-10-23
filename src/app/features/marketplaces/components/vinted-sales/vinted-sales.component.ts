@@ -42,6 +42,11 @@ export class VintedSalesComponent {
       },
     ];
   });
+  details(entry: MarketplaceEntry): string {
+    if (entry.isBundle || (entry.itemCount ?? 0) > 1)
+      return entry.itemCount ? `Paket mit ${entry.itemCount} Artikeln` : 'Artikelpaket';
+    return [entry.brand, entry.size].filter(Boolean).join(' \u00b7 ') || 'Einzelartikel';
+  }
   badge(entry: MarketplaceEntry): { label: string; tone: BadgeTone } {
     switch (entry.saleState) {
       case 'sold':

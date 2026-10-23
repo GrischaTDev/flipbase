@@ -180,7 +180,8 @@ export function readVintedSale(
       relation['item_id'],
   );
   const itemIds = ids.length ? ids : !isBundle && itemCount === 1 && singleId ? [singleId] : [];
-  const price = record(record(transaction['offer'])['price']);
+  // offer_price gehört zur gebundenen Transaktion; freie Angebote bleiben ausgeschlossen.
+  const price = record(record(transaction['offer'])['price'] ?? relation['offer_price']);
   const amount =
     typeof price['amount'] === 'number' || typeof price['amount'] === 'string'
       ? Number(price['amount'])

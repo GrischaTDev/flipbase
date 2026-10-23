@@ -571,3 +571,24 @@ test('Vinted-Verkaufsansicht wählt nur die zugehörigen Browserfälle', () => {
   assert.equal(plan.full, false);
   assert.deepEqual(plan.browserFiles, ['e2e/vinted-sales.spec.ts']);
 });
+
+test('Vinted-Anbieterentwuerfe und Datenuebernahme waehlen ihre bestehenden Browserdateien', () => {
+  for (const path of [
+    'src/app/features/marketplaces/components/vinted-provider-drafts/vinted-provider-drafts.component.ts',
+    'src/app/features/marketplaces/components/vinted-listing-copy-dialog/vinted-listing-copy-dialog.component.ts',
+  ]) {
+    const plan = selectAffectedTests([path], {
+      [path]: 'export class Component {}',
+      'e2e/vinted-listing-drafts.spec.ts': 'test()',
+      'e2e/vinted-listing-edge-cases.spec.ts': 'test()',
+      'e2e/vinted-workspace-ui.spec.ts': 'test()',
+      'e2e/vinted-sales.spec.ts': 'test()',
+    });
+    assert.equal(plan.full, false);
+    assert.deepEqual(plan.browserFiles, [
+      'e2e/vinted-listing-drafts.spec.ts',
+      'e2e/vinted-listing-edge-cases.spec.ts',
+      'e2e/vinted-workspace-ui.spec.ts',
+    ]);
+  }
+});

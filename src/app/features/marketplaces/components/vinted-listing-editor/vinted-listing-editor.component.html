@@ -11,6 +11,12 @@
 >
   <div entry-header-actions class="flex flex-wrap items-center gap-2">
     @if (!publication()) {
+      <app-button
+        variant="secondary"
+        [disabled]="loading() || saving() || !!loadError() || !store.canManage()"
+        (clicked)="copying.set(true)"
+        >Daten übernehmen</app-button
+      >
       <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
       <app-button
         variant="secondary"
@@ -271,3 +277,15 @@
     />
   }
 </app-entry-page-layout>
+
+@if (copying() && !publication() && workspaceId(); as copyWorkspaceId) {
+  <app-vinted-listing-copy-dialog
+    [workspaceId]="copyWorkspaceId"
+    [content]="content()"
+    [targetDraftId]="draft()?.id ?? null"
+    [targetConnectionId]="form.controls.connectionId.value"
+    [disabled]="saving() || loading()"
+    (closed)="copying.set(false)"
+    (applied)="applyCopiedFields($event)"
+  />
+}
