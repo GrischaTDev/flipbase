@@ -209,7 +209,7 @@ export class EbayOrderImportApiService {
       p_page: page,
     });
     if (error || !Array.isArray(data))
-      throw new Error('Vorhandene eBay-Verkäufe konnten nicht geladen werden.');
+      throw new Error('Vorhandene Verkäufe konnten nicht geladen werden.');
     return data.map(parseEbayExistingSale);
   }
   async linkExistingSale(

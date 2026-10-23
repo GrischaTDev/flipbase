@@ -10,7 +10,11 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { SalesService } from '../../../../core/services/sales.service';
-import type { EbayOrderBooking } from '../../../../../../supabase/functions/_shared/ebay-order-import-contracts';
+import type {
+  EbayOrderBooking,
+  EbayOrderReview,
+} from '../../../../../../supabase/functions/_shared/ebay-order-import-contracts';
+import type { EbayExistingSale } from '../../../../../../supabase/functions/_shared/ebay-sale-draft-contracts';
 
 const connectionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 describe('eBay-Verkaufsprüfseite', () => {
@@ -25,12 +29,16 @@ describe('eBay-Verkaufsprüfseite', () => {
   let reviewChanged: ReturnType<typeof signal<boolean>>;
   let booking: ReturnType<typeof signal<EbayOrderBooking>>;
   let params: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  let existingSales: ReturnType<typeof signal<readonly EbayExistingSale[]>>;
+  let review: ReturnType<typeof signal<EbayOrderReview | null>>;
   beforeEach(() => {
     workspace = signal({ id: 'workspace-a', archived_at: null });
     loading = signal(false);
     outcomeUnknown = signal(false);
     reviewChanged = signal(false);
     booking = signal({ status: 'unrecorded', saleId: null });
+    existingSales = signal([]);
+    review = signal(null);
     load = vi.fn();
     mark = vi.fn(async () => {
       booking.set({ status: 'recorded_elsewhere', saleId: null });
@@ -62,13 +70,13 @@ describe('eBay-Verkaufsprüfseite', () => {
           provide: EbaySaleReviewStore,
           useValue: {
             load,
-            existingSales: signal([]),
+            existingSales,
             clear: vi.fn(),
             loading,
             booking,
             outcomeUnknown,
             reviewChanged,
-            review: signal(null),
+            review,
             draft: signal(null),
             error: signal(null),
             submit: vi.fn(),
@@ -82,6 +90,74 @@ describe('eBay-Verkaufsprüfseite', () => {
   afterEach(() => {
     TestBed.resetTestingModule();
     params.complete();
+  });
+  it('zeigt die gespeicherte Plattform beim Altverkauf und verlangt auch bei Vinted eine bewusste Zuordnung', () => {
+    review.set({
+      workspaceId: 'workspace-a',
+      connectionId,
+      snapshotId: connectionId,
+      reviewHash: 'a'.repeat(64),
+      expiresAt: '2099-10-23T12:00:00Z',
+      assignments: [],
+      booking: { status: 'unrecorded', saleId: null },
+      source: {
+        orderId: 'order-1',
+        createdAt: '2026-10-19T13:12:00Z',
+        lastModifiedAt: null,
+        observedAt: '2026-10-23T12:00:00Z',
+        paymentStatus: 'PAID',
+        cancelStatus: 'NONE_REQUESTED',
+        fulfillmentStatus: 'FULFILLED',
+        currency: 'EUR',
+        totalCents: 2900,
+        shippingRevenueCents: 0,
+        blockers: [],
+        lines: [
+          {
+            lineItemId: 'line-1',
+            listingId: '123',
+            variationId: null,
+            sku: null,
+            variationAspects: [],
+            title: 'Burberry Schal',
+            quantity: 1,
+            goodsCents: 2900,
+            hasRefund: false,
+          },
+        ],
+      },
+    });
+    existingSales.set([
+      {
+        id: connectionId,
+        platform: 'vinted',
+        saleDate: '2026-10-16',
+        total: 26,
+        externalOrderId: null,
+        lines: [
+          {
+            id: connectionId,
+            inventoryItemId: null,
+            catalogProductId: connectionId,
+            title: 'Burberry Schal',
+            quantity: 1,
+            total: 26,
+          },
+        ],
+      },
+    ]);
+    expect(component.saleOptions()[0].label).toContain('Vinted');
+    component.selectExistingSale(connectionId);
+    expect(component.selectedExistingSale()?.platform).toBe('vinted');
+    component.assignExistingLine('line-1', `catalog:${connectionId}`);
+    expect(component.canLinkExisting()).toBe(false);
+    component.existingReason.setValue('Plattform bei der damaligen Erfassung falsch ausgewählt');
+    expect(component.canLinkExisting()).toBe(false);
+    component.existingConfirmed.setValue(true);
+    expect(component.canLinkExisting()).toBe(true);
+    component.selectExistingSale(connectionId);
+    expect(component.existingConfirmed.value).toBe(false);
+    expect(component.canLinkExisting()).toBe(false);
   });
   it('loads full source from route parameters without navigation state and keeps the workspace locked', () => {
     TestBed.tick();

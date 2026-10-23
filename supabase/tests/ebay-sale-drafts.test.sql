@@ -189,6 +189,24 @@ select public.finalize_purchase_costing('47500000-0000-4000-8000-000000000011','
 set local role authenticated;
 update import_test set result=public.record_sale('47500000-0000-4000-8000-000000000011','{"platform":"ebay","sale_date":"2026-10-23","platform_fee":7,"shipping_cost":9}','[{"catalog_product_id":"47500000-0000-4000-8000-000000000041","quantity":3,"unit_sale_price":10}]');
 reset role;
+-- Eine frühere falsche Plattformwahl darf den belegten Altverkauf nicht verstecken.
+savepoint existing_sale_other_platform;
+update public.sales set platform='vinted' where id=(select (result#>>'{sale,id}')::uuid from import_test);
+select pg_temp.add_order('other-platform-linked','{}',false);
+update import_test set ready_id=pg_temp.stage('other-platform-linked');
+create temporary table other_platform_evidence as select
+ (select to_jsonb(s) from public.sales s where id=(select (result#>>'{sale,id}')::uuid from import_test)) sale,
+ (select jsonb_agg(to_jsonb(l) order by l.id) from public.sale_lines l) lines,
+ (select jsonb_agg(to_jsonb(l) order by l.id) from public.stock_lots l) lots;
+set local role authenticated;
+select is((select entry->>'platform' from jsonb_array_elements(public.ebay_existing_sales_read('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021')) entry where entry->>'id'=(select result#>>'{sale,id}' from import_test)),'vinted','Vorhandener Vinted-Verkauf wird mit seiner gespeicherten Plattform angeboten');
+select lives_ok($$select public.ebay_link_existing_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,(result#>>'{sale,id}')::uuid,assignments,'Frühere Plattformwahl und vollständigen Verkauf geprüft') from import_test$$,'Vollständiger Verkauf anderer Plattform lässt sich bewusst zuordnen');
+select ok(not exists(select 1 from jsonb_array_elements(public.ebay_existing_sales_read('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021')) entry where entry->>'id'=(select result#>>'{sale,id}' from import_test)),'Zugeordneter Vinted-Verkauf wird nicht erneut angeboten');
+reset role;
+select is((select to_jsonb(s) from public.sales s where id=(select (result#>>'{sale,id}')::uuid from import_test)),(select sale from other_platform_evidence),'Zuordnung erhält Plattform und sämtliche bisherigen Verkaufsdaten');
+select is((select jsonb_agg(to_jsonb(l) order by l.id) from public.sale_lines l),(select lines from other_platform_evidence),'Zuordnung verändert keine vorhandene Verkaufsposition');
+select is((select jsonb_agg(to_jsonb(l) order by l.id) from public.stock_lots l),(select lots from other_platform_evidence),'Zuordnung eines Vinted-Verkaufs erzeugt keinen weiteren Bestandsabgang');
+rollback to savepoint existing_sale_other_platform;
 savepoint historical_link_without_draft;
 select pg_temp.add_order('historical-linked','{}',false);
 update import_test set ready_id=pg_temp.stage('historical-linked');

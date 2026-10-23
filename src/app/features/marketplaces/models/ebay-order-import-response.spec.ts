@@ -4,6 +4,7 @@ import {
   parseEbayOrderBooking,
   parseEbayOrderReview,
   parseEbayOrderBookResponse,
+  parseEbayExistingSale,
 } from './ebay-order-import-response';
 import { parseEbayListing, parseEbayOrder, parseEbayStatus } from './ebay-response';
 
@@ -45,6 +46,31 @@ const review = {
   booking: { status: 'unrecorded', saleId: null },
 };
 describe('eBay-Übernahmeantworten', () => {
+  it('erhält die gespeicherte Plattform eines vorhandenen Verkaufs und versteht alte eBay-Antworten', () => {
+    const sale = {
+      id,
+      saleDate: '2026-10-16',
+      platform: 'vinted',
+      total: 26,
+      externalOrderId: null,
+      lines: [
+        {
+          id,
+          inventoryItemId: null,
+          catalogProductId: id,
+          title: 'Burberry Schal',
+          quantity: 1,
+          total: 26,
+        },
+      ],
+    };
+    expect(parseEbayExistingSale(sale)).toEqual(sale);
+    const { platform: _platform, ...legacy } = sale;
+    expect(parseEbayExistingSale(legacy)).toEqual({ ...legacy, platform: 'ebay' });
+    for (const platform of [null, 12, '', '   ']) {
+      expect(() => parseEbayExistingSale({ ...sale, platform })).toThrow();
+    }
+  });
   it('erhält belegte Nullgebühr, Bilder und gespeicherte unbekannte Entwurfskosten', () => {
     const richSource = {
       ...source,

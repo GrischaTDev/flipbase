@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-23 - Juna - Bestellung 7587 und fehlende Burberry-Zuordnung prüfen
+
+Die echte eBay-Antwort für Bestellung 7587 bestätigt Zahlung, Versand und eine
+leere Erstattungsliste. Die öffentliche Bestellprüfung verwendete noch einen
+älteren Funktionsstand, obwohl Hintergrunddienst und Anwendung bereits auf dem
+geprüften Merge `d5268ee3` liefen. Die 20 benötigten Funktionsquellen aus genau
+diesem Merge abgeglichen, vor Änderung gesichert und neun abweichende Quellen
+aktualisiert. Nur den öffentlichen Funktionsdienst neu erzeugt. Echte erneute
+Prüfung: keine Sperrgründe, `hasRefund=false`, belegte Gebühr 4,68 Euro; keine
+Verkaufsbuchung oder Zuordnung ausgeführt. Fremde Funktionsquellen unverändert.
+
+Die drei vorhandenen Burberry-Verkäufe sind als Vinted gespeichert und wurden
+durch den bisherigen eBay-Plattformfilter ausgeblendet. Die gesonderte Korrektur
+bietet vorhandene Verkäufe mit sichtbarer gespeicherter Plattform an. Eine
+bewusste vollständige Zuordnung erhält bestehende Verkaufsdaten und Bestandsabgänge.
+Keinen der drei realen Verkäufe automatisch ausgewählt oder umgeschrieben.
+Regressionen zuerst rot nachgewiesen: Auswahlbeschriftung, Antwortparser sowie
+SQL-Auswahl und Zuordnung. Danach 34 betroffene Angularfälle, zehn Modellfälle,
+56 Backendfälle, Typprüfung, Lint und Produktionsbau erfolgreich. Die Migration
+wurde aus den zwei deklarierten Funktionen gegen den Migrationsstand erzeugt;
+vorhandene fachfremde Schemaabweichungen nicht übernommen. Frischer Aufbau mit
+allen Migrationen und Seed: 130 SQL-Dateien und 4.912 Assertions erfolgreich.
+Typen aus der eigenen Datenbank neu erzeugt und unverändert. Unabhängiger Review
+ohne kritischen oder wichtigen Befund; seinen kleinen Testhinweis übernommen und
+die Bestätigungsgrenze mit vollständiger Bestellung positiv und negativ geprüft.
+Linux-Browsermatrix mit Node 22.23.4 und Playwright 1.62.1 erfolgreich: zwölf
+bestehende eBay-Fälle auf Desktop und Touch, jeweils hell/dunkel, einschließlich
+AXE/WCAG-Prüfung des Plattformhinweises. Zwei vorher ausschließlich auf die
+Desktop-Navigation gerichtete Testselektoren verwenden jetzt den jeweils
+sichtbaren Link; keine Produktlogik oder Prüfbedingungen abgeschwächt. Die
+erteilte PR-/Merge-Freigabe für den eBay-Gesamtauftrag wird weiter verwendet;
+Merge erst nach sämtlichen erfolgreichen Pflichtprüfungen.
+
 ## 2026-10-23 - Juna - eBay-PR nach Freigabe mit aktuellem Hauptzweig integrieren
 
 Nutzer autorisiert PR, erfolgreiche Pflichtprüfungen, Merge-Commit und anschließende Bereinigung des eigenen Zweigs samt Arbeitskopie. Vor dem ersten Push den inzwischen aktuellen Hauptzweig `962e4e14` mit Vinted-Entwurfsübernahme integriert. Beide Änderungsprotokolle erhalten; die gemeinsame Browserfixture enthält sowohl die eBay-Status-/Reservierungsantworten als auch den Vinted-Entwurfszähler. Die übrigen eingehenden Dateien bleiben unverändert. Integration vor dem Push geprüft: 74 Auswahl-/Registrierungsfälle, 174 betroffene Angularfälle, 25 Browserfälle mit gemeinsamer Marktplatzübersicht, Typografie und vollständigen eBay-Abläufen sowie Typen, Lint, Format und Produktionsbau erfolgreich. Eigene Testinstanz regulär frisch aus allen Migrationen und Seed aufgebaut: 130 SQL-Dateien/4.906 Assertions erfolgreich; Typen tatsächlich neu erzeugt und unverändert. Der PR wartet anschließend auf alle erfolgreichen Pflichtprüfungen. Kein direkter Hauptzweig-Push und keine fremde Arbeitskopie verändert.

@@ -2,6 +2,40 @@
 
 Stand: 1. Oktober 2026. Geprüfte Grundlage: `a987e304`, Release `v0.276.1`.
 
+## Nachtrag vom 23. Oktober 2026: öffentliche Bestellprüfung abgleichen
+
+Bei Bestellung 7587 lag keine Erstattung vor: eBay lieferte `PAID`, `FULFILLED`
+und `paymentSummary.refunds: []`, ließ aber `lineItems[].refunds` weg. Die bereits
+geprüfte Normalisierung behandelt diese Kombination korrekt. Der öffentliche
+Funktionsdienst verwendete noch die alte Normalisierung und erzeugte deshalb
+`refund_or_unknown`.
+
+Der Anwendungsrollout und das Paket für `flipbase-push-functions` aktualisieren
+nicht automatisch die öffentlichen Quellen unter
+`/opt/supabase/volumes/functions`. Ein aktueller Hintergrunddienst oder eine
+aktuelle App-Version belegt daher keinen aktuellen Stand von `ebay-account`.
+Bei Änderungen an dieser Funktion ist Schritt 4–5 weiterhin erforderlich.
+
+Für die Reparatur wurden ausschließlich der Einstieg `ebay-account/index.ts`
+und seine relativen Quellen aus dem erfolgreichen Merge `d5268ee3` verwendet:
+20 Dateien anhand ihrer SHA-256-Werte geprüft, neun abweichende oder fehlende
+Dateien aktualisiert. Die ursprünglichen Quellen und die Konfiguration wurden
+vorher ausschließlich für root lesbar gesichert. Vor dem Kopieren wurden die
+bekannten Ausgangswerte erneut geprüft, um zwischenzeitliche Änderungen nicht
+zu überschreiben. Alle übrigen Funktionsdateien blieben nachweislich gleich;
+nur der öffentliche Dienst `functions` wurde neu erzeugt.
+
+Nachweise: anonymer eBay-POST 401, Löschbestätigung 200, unsignierte Löschmeldung
+412 und der bewusst deaktivierte Marktvergleich 410. Die echte erneute
+Bestellprüfung lieferte `blockers: []`, `hasRefund: false` und 468 Cent belegte
+Gebühren. Es wurde kein realer Verkauf gebucht oder zugeordnet.
+
+Für künftige Rollouts die geprüften öffentlichen Funktionsdateien zusammen mit
+ihren benötigten gemeinsamen Quellen aus demselben Merge abgleichen. Erst die
+Dateiwerte im tatsächlich angesprochenen Dienst und eine echte Bestellprüfung
+bestätigen die Aktualisierung. Bei einem Fehler die Sicherung gemäß Rückweg
+wiederherstellen; vorhandene Zugangswerte und Verschlüsselungsschlüssel erhalten.
+
 ## Nachgewiesener Ausgangsstand
 
 - Produktionsserver: `168.119.246.33`, Supabase unter `/opt/supabase`.

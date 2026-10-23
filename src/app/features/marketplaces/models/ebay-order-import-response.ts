@@ -335,6 +335,8 @@ export function parseEbayExistingSale(value: unknown): EbayExistingSale {
   return {
     id: uuid(row['id']),
     saleDate: identifier(row['saleDate']),
+    // Vor dem Plattformfeld lieferte dieser Endpunkt ausschließlich eBay-Verkäufe.
+    platform: row['platform'] === undefined ? 'ebay' : identifier(row['platform']),
     total: amount(row['total']),
     externalOrderId: nullableText(row['externalOrderId']),
     lines: row['lines'].map((value) => {

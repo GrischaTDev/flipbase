@@ -109,10 +109,10 @@ begin
   v_connection:=public.ebay_lock_import_connection((select auth.uid()),p_workspace_id,p_connection_id);
   if not public.can_access_workspace(p_workspace_id) then raise exception 'Zugriff verweigert' using errcode='42501'; end if;
   if p_page is null or p_page<1 or p_page>100000 then raise exception 'Ungültige Seite' using errcode='22023'; end if;
-  return (select coalesce(jsonb_agg(jsonb_build_object('id',s.id,'saleDate',s.sale_date,'total',s.sale_price_total,'externalOrderId',s.external_order_id,
+  return (select coalesce(jsonb_agg(jsonb_build_object('id',s.id,'platform',s.platform,'saleDate',s.sale_date,'total',s.sale_price_total,'externalOrderId',s.external_order_id,
     'lines',(select coalesce(jsonb_agg(jsonb_build_object('id',l.id,'inventoryItemId',l.inventory_item_id,'catalogProductId',l.catalog_product_id,'title',l.title_snapshot,'quantity',l.quantity,'total',l.line_total) order by l.id),'[]'::jsonb)
       from public.sale_lines l where l.sale_id=s.id and l.workspace_id=p_workspace_id)) order by s.sale_date desc,s.id),'[]'::jsonb)
-    from (select * from public.sales s where s.workspace_id=p_workspace_id and lower(s.platform)='ebay' and s.returned_at is null and s.voided_at is null
+    from (select * from public.sales s where s.workspace_id=p_workspace_id and s.returned_at is null and s.voided_at is null
       and not exists(select 1 from public.ebay_order_bookings b where b.sale_id=s.id)
       order by s.sale_date desc,s.id limit 50 offset (p_page-1)*50) s);
 end;
@@ -136,10 +136,10 @@ begin
   if v_snapshot.expires_at<=clock_timestamp() or p_reason is null or char_length(trim(p_reason)) not between 1 and 500
     then raise exception 'Aktuelle Prüfung und Erklärung erforderlich' using errcode='22023'; end if;
   select * into v_sale from public.sales where id=p_sale_id and workspace_id=p_workspace_id for update;
-  if not found or lower(v_sale.platform)<>'ebay' or v_sale.returned_at is not null or v_sale.voided_at is not null
+  if not found or v_sale.returned_at is not null or v_sale.voided_at is not null
     or exists(select 1 from public.ebay_order_bookings where sale_id=p_sale_id)
     or (v_sale.external_order_id is not null and v_sale.external_order_id<>v_snapshot.source->>'orderId')
-  then raise exception 'Ungültiger vorhandener eBay-Verkauf' using errcode='22023'; end if;
+  then raise exception 'Ungültiger vorhandener Verkauf' using errcode='22023'; end if;
   perform 1 from public.sale_lines where workspace_id=p_workspace_id and sale_id=p_sale_id order by id for update;
   if jsonb_typeof(p_assignments) is distinct from 'array' or jsonb_array_length(p_assignments)<>jsonb_array_length(v_snapshot.source->'lines')
     or jsonb_array_length(p_assignments)=0 or (select count(distinct a->>'lineItemId') from jsonb_array_elements(p_assignments) a)<>jsonb_array_length(p_assignments)
