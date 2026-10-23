@@ -16,7 +16,10 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
-import { EbaySaleActivityStore } from '../../services/ebay-sale-activity.store';
+import {
+  EbaySaleActivityStore,
+  ebaySourceIssueLabel,
+} from '../../services/ebay-sale-activity.store';
 import type { EbayOrderAssignment } from '../../../../../../supabase/functions/_shared/ebay-order-import-contracts';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
@@ -52,6 +55,7 @@ import type { ExternalSaleEntrySubmit } from '../../models/external-sale-entry.m
   host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class EbaySaleReviewComponent {
+  readonly sourceIssueLabel = ebaySourceIssueLabel;
   readonly store = inject(EbaySaleReviewStore);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
@@ -63,6 +67,14 @@ export class EbaySaleReviewComponent {
     initialValue: this.route.snapshot.paramMap,
   });
   readonly entryForm = viewChild(SaleCreateModalComponent);
+  readonly platformFeeDiffers = computed(() => {
+    const review = this.store.review();
+    return (
+      !!review?.draft &&
+      review.draft.costsOrigin !== 'automatic' &&
+      (review.source.platformFeeCents ?? null) !== review.draft.costs.platformFeeCents
+    );
+  });
   readonly routeError = signal<string | null>(null);
   readonly reviewMode = signal<'new' | 'existing'>('new');
   readonly selectedExistingSaleId = signal<string | null>(null);

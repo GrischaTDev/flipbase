@@ -1,3 +1,7 @@
+import {
+  ebaySaleSourceIssues,
+  type EbaySaleDraft,
+} from '../../../../../supabase/functions/_shared/ebay-sale-draft-contracts';
 import type {
   EbayStockReservation,
   EbayExistingSale,
@@ -36,6 +40,12 @@ export class EbaySaleReviewStore {
   private scope: AccountScope | null = null;
   private orderId: string | null = null;
   private revision = 0;
+  private readonly completedDraft = signal<EbaySaleDraft | null>(null);
+  readonly sourceIssues = computed(() => {
+    if (this.booking().status === 'unrecorded') return [];
+    const source = this.review()?.source ?? this.completedDraft()?.source;
+    return source ? ebaySaleSourceIssues(source) : [];
+  });
   readonly reservations = signal<readonly EbayStockReservation[]>([]);
   readonly existingSales = signal<readonly EbayExistingSale[]>([]);
   readonly existingSalesLoading = signal(false);
@@ -76,6 +86,7 @@ export class EbaySaleReviewStore {
     this.scope = null;
     this.orderId = null;
     this.review.set(null);
+    this.completedDraft.set(null);
     this.reservations.set([]);
     this.existingSales.set([]);
     this.existingSalesLoading.set(false);
@@ -142,7 +153,17 @@ export class EbaySaleReviewStore {
       if (revision !== this.revision) return;
       this.booking.set(booking);
       if (booking.status !== 'unrecorded') {
+        this.review.set(null);
+        this.reservations.set([]);
+        if (!booking.saleId) return;
+        // Der Beleg und bereits bekannte Quellenhinweise bleiben auch bei Anbieterfehlern sichtbar.
+        const drafts = await this.api.loadDrafts(scope);
+        if (revision !== this.revision) return;
+        this.completedDraft.set(drafts.find((draft) => draft.orderId === orderId) ?? null);
         if (booking.status === 'imported') await this.refreshSaved(scope.workspaceId, revision);
+        if (revision !== this.revision) return;
+        const current = await this.api.prepareOrder(scope, orderId);
+        if (revision === this.revision) this.applyReview(current);
         return;
       }
       const previousHash = this.review()?.reviewHash;
@@ -172,6 +193,8 @@ export class EbaySaleReviewStore {
       ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].includes(error.code ?? '')
     ) {
       this.review.set(null);
+      this.completedDraft.set(null);
+      this.booking.set({ status: 'unrecorded', saleId: null });
       this.reservations.set([]);
       this.existingSales.set([]);
     }

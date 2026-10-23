@@ -14,6 +14,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import {
   EbaySaleActivityStore,
   ebayDraftStateLabel,
+  ebaySourceIssueLabel,
 } from '../../services/ebay-sale-activity.store';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { StockService } from '../../../../core/services/stock.service';
@@ -44,6 +45,7 @@ export class EbaySaleDraftsComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly inventory = inject(InventoryService);
   private readonly stock = inject(StockService);
+  readonly sourceIssueLabel = ebaySourceIssueLabel;
   readonly stateLabel = ebayDraftStateLabel;
   readonly selectedReservation = signal<string | null>(null);
   readonly resolution = new FormGroup({

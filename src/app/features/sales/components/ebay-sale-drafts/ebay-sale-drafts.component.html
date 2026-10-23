@@ -10,8 +10,8 @@
   @if (activity.drafts().length) {
     <app-card title="Zu prüfen" variant="section">
       <p class="mb-3 text-sm text-fb-text-secondary">
-        Diese eBay-Entwürfe zählen erst nach Deiner Buchung als Verkauf, Umsatz und Gewinn.
-        Zugeordneter Bestand kann bereits reserviert sein.
+        Offene eBay-Entwürfe zählen erst nach Deiner Buchung als Verkauf. Bei bereits erfassten
+        Verkäufen zeigen wir hier neue Storno- oder Erstattungshinweise zur Klärung.
       </p>
       <app-data-table ariaLabel="eBay-Entwürfe" [hasRows]="activity.drafts().length > 0"
         ><div
@@ -49,7 +49,12 @@
                       </div>
                     </div>
                   </td>
-                  <td>{{ stateLabel(draft.state) }}</td>
+                  <td>
+                    <span>{{ stateLabel(draft.state) }}</span>
+                    @for (issue of draft.sourceIssues ?? []; track issue) {
+                      <p class="mt-1 text-sm">{{ sourceIssueLabel(issue) }}</p>
+                    }
+                  </td>
                   <td>
                     <app-button [link]="activity.reviewLink(draft.orderId)"
                       >Bestellung prüfen</app-button

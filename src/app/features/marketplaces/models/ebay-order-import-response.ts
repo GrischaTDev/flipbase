@@ -219,6 +219,20 @@ function imageUrl(value: unknown): string | null {
     return invalid();
   }
 }
+function sourceIssues(
+  value: unknown,
+): readonly import('../../../../../supabase/functions/_shared/ebay-sale-draft-contracts').EbaySaleSourceIssue[] {
+  if (value === undefined) return [];
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (issue) => !['canceled', 'cancellation_pending', 'refund_or_unknown'].includes(issue),
+    ) ||
+    new Set(value).size !== value.length
+  )
+    return invalid();
+  return value;
+}
 export function parseEbaySaleDraft(
   value: unknown,
   workspaceId: string,
@@ -294,6 +308,19 @@ export function parseEbaySaleDraft(
       shippingMode: mode,
       additionalCosts,
     },
+    ...(row['costsOrigin'] === undefined
+      ? {}
+      : {
+          costsOrigin:
+            row['costsOrigin'] === 'personal'
+              ? ('personal' as const)
+              : row['costsOrigin'] === 'automatic'
+                ? ('automatic' as const)
+                : invalid(),
+        }),
+    ...(row['sourceIssues'] === undefined
+      ? {}
+      : { sourceIssues: sourceIssues(row['sourceIssues']) }),
     state: row['state'] as EbaySaleDraft['state'],
     saleId: row['saleId'] === null ? null : uuid(row['saleId']),
     createdAt: identifier(row['createdAt']),
@@ -356,6 +383,9 @@ export function parseEbaySaleNotification(
     eventKey: row['eventKey'] as string,
     orderId: identifier(row['orderId']),
     draftId: row['draftId'] === null ? null : uuid(row['draftId']),
+    ...(row['sourceIssues'] === undefined
+      ? {}
+      : { sourceIssues: sourceIssues(row['sourceIssues']) }),
     state: row['state'] as EbaySaleNotification['state'],
     createdAt: identifier(row['createdAt']),
     readAt: nullableText(row['readAt']),

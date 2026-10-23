@@ -56,13 +56,14 @@ export function buildEbaySaleEntryDraft(
     });
     return {
       revision: `${review.reviewHash}:${review.snapshotId}:${review.draft?.updatedAt ?? ''}`,
-      platformFee: review.draft
-        ? review.draft.costs.platformFeeCents === null
-          ? null
-          : review.draft.costs.platformFeeCents / 100
-        : source.platformFeeCents == null
-          ? null
-          : source.platformFeeCents / 100,
+      platformFee:
+        review.draft && review.draft.costsOrigin !== 'automatic'
+          ? review.draft.costs.platformFeeCents === null
+            ? null
+            : review.draft.costs.platformFeeCents / 100
+          : source.platformFeeCents == null
+            ? null
+            : source.platformFeeCents / 100,
       shippingCost:
         review.draft?.costs.shippingCostCents == null
           ? null

@@ -1448,6 +1448,7 @@ export type Database = {
         Row: {
           assignments: Json
           costs: Json
+          costs_origin: string
           created_at: string
           environment: string
           external_account_id: string
@@ -1465,6 +1466,7 @@ export type Database = {
         Insert: {
           assignments?: Json
           costs?: Json
+          costs_origin?: string
           created_at?: string
           environment: string
           external_account_id: string
@@ -1482,6 +1484,7 @@ export type Database = {
         Update: {
           assignments?: Json
           costs?: Json
+          costs_origin?: string
           created_at?: string
           environment?: string
           external_account_id?: string
@@ -9908,6 +9911,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ebay_sale_source_issues: { Args: { p_source: Json }; Returns: Json }
       ebay_save_sale_draft: {
         Args: {
           p_assignments: Json

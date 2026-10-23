@@ -27,6 +27,17 @@ export function ebayDraftStateLabel(state: string): string {
   };
   return labels[state] ?? 'Prüfen';
 }
+export function ebaySourceIssueLabel(issue: string): string {
+  const labels: Readonly<Record<string, string>> = {
+    canceled:
+      'eBay meldet eine Stornierung. Prüfe den bestehenden Verkauf über Retoure oder Korrektur.',
+    cancellation_pending:
+      'eBay meldet einen geänderten Stornostatus. Kläre die Bestellung im bestehenden Verkauf.',
+    refund_or_unknown:
+      'eBay meldet eine Erstattung oder einen unklaren Erstattungsstatus. Prüfe den bestehenden Verkauf über Retoure oder Korrektur.',
+  };
+  return labels[issue] ?? 'Aktuelle eBay-Quelle klären';
+}
 function connectionKey(connection: EbayConnection | null): string | null {
   return connection?.status === 'connected' && Number.isSafeInteger(connection.authorizationVersion)
     ? JSON.stringify([
@@ -78,7 +89,7 @@ export class EbaySaleActivityStore {
           id: event.eventKey,
           type: 'sale',
           title: 'eBay-Verkauf prüfen',
-          message: `${event.orderId} · ${ebayDraftStateLabel(event.state)}`,
+          message: `${event.orderId} · ${event.sourceIssues?.length ? event.sourceIssues.map(ebaySourceIssueLabel).join(' ') : ebayDraftStateLabel(event.state)}`,
           timestamp: event.createdAt,
           read: event.readAt !== null,
           link: this.reviewLink(event.orderId),

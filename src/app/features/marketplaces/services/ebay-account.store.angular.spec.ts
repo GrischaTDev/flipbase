@@ -40,6 +40,7 @@ const listing: EbayListing = {
 describe('Persönlicher eBay-Zustand', () => {
   let store: EbayAccountStore;
   let api: {
+    requestRefresh: ReturnType<typeof vi.fn>;
     loadStatus: ReturnType<typeof vi.fn>;
     connect: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
@@ -49,7 +50,9 @@ describe('Persönlicher eBay-Zustand', () => {
     loadTraffic: ReturnType<typeof vi.fn>;
   };
   beforeEach(() => {
+    vi.useFakeTimers();
     api = {
+      requestRefresh: vi.fn(async () => undefined),
       loadStatus: vi.fn(async () => ({ configured: true, connection })),
       connect: vi.fn(async () => 'https://auth.ebay.com/oauth2/authorize'),
       disconnect: vi.fn(async () => undefined),
@@ -82,7 +85,76 @@ describe('Persönlicher eBay-Zustand', () => {
     });
     store = TestBed.inject(EbayAccountStore);
   });
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.useRealTimers();
+  });
+  it.each(['listings', 'orders'] as const)(
+    'verfolgt angeforderten %s-Abgleich bis zum neuen Abschluss ausschließlich lesend',
+    async (section) => {
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const old = {
+        ...connection,
+        items: section === 'listings' ? [listing] : [{ id: 'order-a' }],
+        total: 1,
+        nextPage: null,
+        sync: { status: 'ready', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: null },
+      };
+      read.mockResolvedValue(old);
+      await store.initialize('workspace-a', true, section);
+      expect(api.requestRefresh).not.toHaveBeenCalled();
+      await store.requestRefresh();
+      expect(api.requestRefresh).toHaveBeenCalledWith(connection, section);
+      expect(store.refreshStatus()).toBe('pending');
+      expect(section === 'listings' ? store.listings() : store.orders()).toHaveLength(1);
+      read.mockResolvedValue({ ...old, sync: { ...old.sync, status: 'syncing' } });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(store.refreshStatus()).toBe('syncing');
+      read.mockResolvedValue({
+        ...old,
+        sync: { ...old.sync, lastCompletedAt: '2026-10-23T12:05:00Z' },
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(store.refreshStatus()).toBeNull();
+      const reads = read.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(read).toHaveBeenCalledTimes(reads);
+      expect(api.requestRefresh).toHaveBeenCalledOnce();
+    },
+  );
+  it('beendet die Anfrageanzeige nach Navigation während einer laufenden Aktualisierungsanforderung', async () => {
+    await store.initialize('workspace-a', true);
+    const pending = deferred<void>();
+    api.requestRefresh.mockReturnValueOnce(pending.promise);
+    const refresh = store.requestRefresh();
+    expect(store.refreshStatus()).toBe('requesting');
+    await store.initialize('workspace-a', true, 'orders');
+    pending.resolve();
+    await refresh;
+    await store.selectSection('listings');
+    expect(store.refreshStatus()).toBe('pending');
+  });
+  it('erhält Fehlerwartezeit und Zeilen, verwirft sie aber bei entzogener Freigabe', async () => {
+    await store.initialize('workspace-a', true);
+    api.loadListings.mockResolvedValue({
+      ...connection,
+      items: [listing],
+      total: 1,
+      nextPage: null,
+      sync: { status: 'error', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: 'unavailable' },
+    });
+    await store.requestRefresh();
+    expect(store.refreshStatus()).toBeNull();
+    expect(store.sync()?.lastError).toBe('unavailable');
+    expect(store.listings()).toEqual([listing]);
+    api.requestRefresh.mockRejectedValueOnce(
+      new EbayAccountRequestError('needs_login', 'Freigabe entzogen'),
+    );
+    await store.requestRefresh();
+    expect(store.connection()).toBeNull();
+    expect(store.listings()).toEqual([]);
+    expect(store.refreshStatus()).toBeNull();
+  });
   it.each(
     (['listings', 'orders'] as const).flatMap((section) =>
       ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].flatMap((code) =>

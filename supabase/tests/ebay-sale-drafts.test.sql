@@ -43,6 +43,19 @@ select throws_ok($$select public.record_sale('47500000-0000-4000-8000-0000000000
 reset role;
 select is((select state from public.ebay_sale_drafts where source_key=repeat('a',64)),'needs_costs','Unbekannte Kosten bleiben offen trotz Reservierung');
 select is((select costs->'shippingCostCents' from public.ebay_sale_drafts where source_key=repeat('a',64)),'null'::jsonb,'Käuferporto ist keine eigene Ausgabe');
+savepoint automatic_fee_review;
+select is((select public.ebay_sale_draft_json(d)->>'costsOrigin' from public.ebay_sale_drafts d where order_id='order-1'),'automatic','Automatische Anfangswerte sind keine persönliche Kostenentscheidung');
+update public.ebay_cached_orders set source=source||'{"platformFeeCents":100}' where order_id='order-1';
+select is((select costs->>'platformFeeCents' from public.ebay_sale_drafts where order_id='order-1'),'100','Unbekannte automatische Gebühr übernimmt erstmals belegten Betrag');
+update public.ebay_cached_orders set source=source||'{"platformFeeCents":200}' where order_id='order-1';
+select is((select costs->>'platformFeeCents' from public.ebay_sale_drafts where order_id='order-1'),'200','Automatischer Anfangswert folgt neuer Gebühr vor erster Prüfung');
+select public.ebay_prepare_sale_draft(id,null,'{"platformFeeCents":0,"shippingCostCents":0,"shippingMode":null,"additionalCosts":[]}',true) from public.ebay_cached_orders where order_id='order-1';
+update public.ebay_cached_orders set source=source||'{"platformFeeCents":300}' where order_id='order-1';
+select is((select costs->>'platformFeeCents' from public.ebay_sale_drafts where order_id='order-1'),'0','Persönlich gespeicherte Nullgebühr bleibt bei neuer Quelle erhalten');
+select is((select public.ebay_sale_draft_json(d)->>'costsOrigin' from public.ebay_sale_drafts d where order_id='order-1'),'personal','Bewusst gespeicherte Kosten sind als persönliche Entscheidung erkennbar');
+select is((select public.ebay_sale_draft_json(d)#>>'{source,platformFeeCents}' from public.ebay_sale_drafts d where order_id='order-1'),'300','Neue belegte Gebühr bleibt neben eigener Entscheidung sichtbar');
+rollback to automatic_fee_review;
+
 update public.ebay_cached_orders set observed_at=clock_timestamp() where source_key=repeat('a',64);
 select is((select count(*)::int from public.ebay_sale_drafts),1,'Doppelabruf erzeugt keinen zweiten Entwurf');
 select is((select sum(quantity)::int from public.ebay_sale_reservations where released_at is null),3,'Doppelabruf reserviert nicht doppelt');
@@ -86,6 +99,12 @@ update public.ebay_cached_orders set observed_at=clock_timestamp() where order_i
 select is((select sum(quantity)::int from public.stock_movements where reason='reservation_release'),6,'Wiederholtes Storno gibt nicht erneut frei');
 update public.ebay_cached_orders set source=source||'{"blockers":["refund_or_unknown"]}' where order_id='order-1';
 select is((select state from public.ebay_sale_drafts where order_id='order-1'),'booked','Gebuchter Beleg bleibt bei Erstattung gebucht');
+select is((select public.ebay_sale_draft_json(d)->'sourceIssues' from public.ebay_sale_drafts d where order_id='order-1'),'["refund_or_unknown"]'::jsonb,'Gebuchter Verkauf meldet konkreten späteren Erstattungsbedarf');
+set local role authenticated;
+select ok(exists(select 1 from jsonb_array_elements(public.ebay_sale_drafts_read('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021')->'drafts') d where d->>'orderId'='order-1' and d->>'state'='booked' and d->>'saleId' is not null),'Gebuchte Erstattung bleibt mit Verkaufsverweis in Zu prüfen sichtbar');
+select is((select n->'sourceIssues' from jsonb_array_elements(public.ebay_sale_notifications_read('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021')) n where n->>'orderId'='order-1'),'["refund_or_unknown"]'::jsonb,'Glocke zeigt bekannte Erstattung neben unverändertem Abschlusszustand');
+reset role;
+
 select is((select sum(remaining_quantity)::int from public.stock_lots where workspace_id='47500000-0000-4000-8000-000000000011'),5,'Keine automatische Wiedereinlagerung gebuchter Ware');
 update public.ebay_cached_orders set observed_at=clock_timestamp() where order_id='competitor';
 select is((select state from public.ebay_sale_drafts where order_id='competitor'),'needs_costs','Freier Bestand lässt erneuten Reservierungsversuch zu');
@@ -170,6 +189,18 @@ select public.finalize_purchase_costing('47500000-0000-4000-8000-000000000011','
 set local role authenticated;
 update import_test set result=public.record_sale('47500000-0000-4000-8000-000000000011','{"platform":"ebay","sale_date":"2026-10-23","platform_fee":7,"shipping_cost":9}','[{"catalog_product_id":"47500000-0000-4000-8000-000000000041","quantity":3,"unit_sale_price":10}]');
 reset role;
+savepoint historical_link_without_draft;
+select pg_temp.add_order('historical-linked','{}',false);
+update import_test set ready_id=pg_temp.stage('historical-linked');
+set local role authenticated;
+select lives_ok($$select public.ebay_link_existing_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,(result#>>'{sale,id}')::uuid,assignments,'Historische Erfassung geprüft') from import_test$$,'Historische Altzuordnung benötigt keinen offenen Entwurf');
+reset role;
+select is((select state from public.ebay_sale_drafts where order_id='historical-linked'),'linked_existing','Historische Zuordnung besitzt dauerhaften Klärbezug');
+update public.ebay_cached_orders set source=source||'{"blockers":["refund_or_unknown"]}' where order_id='historical-linked';
+select is((select public.ebay_sale_draft_json(d)->'sourceIssues' from public.ebay_sale_drafts d where order_id='historical-linked'),'["refund_or_unknown"]'::jsonb,'Historisch zugeordnete spätere Erstattung wird konkret sichtbar');
+select is((select count(*)::int from public.ebay_sale_notifications where order_id='historical-linked'),1,'Spätere Erstattung historischer Zuordnung erzeugt genau einen Klärhinweis');
+select is((select sum(remaining_quantity)::int from public.stock_lots where workspace_id='47500000-0000-4000-8000-000000000011'),8,'Historischer Erstattungshinweis verändert keine Bestandsmenge');
+rollback to historical_link_without_draft;
 select pg_temp.add_order('existing');
 select is((select sum(quantity)::int from public.ebay_sale_reservations where released_at is null),3,'Neue Quelle zu Altverkauf reserviert zunächst ihre eigene Menge');
 update import_test set ready_id=pg_temp.stage('existing');
@@ -193,6 +224,18 @@ select is((select shipping_cost from public.sales where id=(select (result#>>'{s
 select is((select sum(remaining_quantity)::int from public.stock_lots where workspace_id='47500000-0000-4000-8000-000000000011'),8,'Altverkaufszuordnung erzeugt keinen weiteren Abgang');
 select is((select count(*)::int from public.ebay_sale_reservations where released_at is null),0,'Altverkaufszuordnung gibt ausschließlich eigene offene Reservierung frei');
 select is((select state from public.ebay_sale_drafts where order_id='existing'),'linked_existing','Altverkaufszuordnung schließt dauerhaften Entwurf');
+savepoint linked_source_issue;
+create temporary table completed_evidence as select (select jsonb_agg(to_jsonb(s)) from public.sales s) sales,(select jsonb_agg(to_jsonb(b)) from public.ebay_order_bookings b) bookings,(select jsonb_agg(to_jsonb(l)) from public.stock_lots l) lots;
+update public.ebay_cached_orders set source=source||'{"cancelStatus":"CANCELED","blockers":["cancelled"],"lines":[]}' where order_id='existing';
+select is((select public.ebay_sale_draft_json(d)->'sourceIssues' from public.ebay_sale_drafts d where order_id='existing'),'["canceled"]'::jsonb,'Zugeordneter Verkauf meldet späteres Storno auch ohne Quellpositionen');
+set local role authenticated;
+select ok(exists(select 1 from jsonb_array_elements(public.ebay_sale_drafts_read('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021')->'drafts') d where d->>'orderId'='existing' and d->>'state'='linked_existing' and d->>'saleId' is not null),'Altverkaufsstorno erscheint mit bestehendem Verkaufsverweis');
+reset role;
+select is((select jsonb_agg(to_jsonb(s)) from public.sales s),(select sales from completed_evidence),'Späteres Storno verändert keinen gebuchten Verkauf');
+select is((select jsonb_agg(to_jsonb(b)) from public.ebay_order_bookings b),(select bookings from completed_evidence),'Späteres Storno verändert keinen Quellenbeleg');
+select is((select jsonb_agg(to_jsonb(l)) from public.stock_lots l),(select lots from completed_evidence),'Späteres Storno verändert keine Bestandsmenge');
+rollback to linked_source_issue;
+
 select pg_temp.add_order('existing-again','{}',false);
 update import_test set ready_id=pg_temp.stage('existing-again');
 set local role authenticated;

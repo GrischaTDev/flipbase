@@ -77,6 +77,45 @@ describe('eBay-Übernahmeantworten', () => {
     expect(parsed.source.platformFeeCents).toBe(0);
     expect(parsed.source.lines[0].imageUrl).toBe('https://i.ebayimg.com/item.jpg');
     expect(parsed.draft).toEqual(draft);
+    const current = parseEbayOrderReview(
+      {
+        ...review,
+        source: richSource,
+        draft: { ...draft, costsOrigin: 'automatic', sourceIssues: [] },
+      },
+      scope,
+      source.orderId,
+    );
+    expect(current.draft?.costsOrigin).toBe('automatic');
+    for (const change of [{ costsOrigin: 'guessed' }, { sourceIssues: ['invented'] }]) {
+      expect(() =>
+        parseEbayOrderReview(
+          { ...review, source: richSource, draft: { ...draft, ...change } },
+          scope,
+          source.orderId,
+        ),
+      ).toThrow();
+    }
+    const completed = parseEbayOrderReview(
+      {
+        ...review,
+        source: { ...source, lines: [], cancelStatus: 'CANCELED' },
+        assignments: [],
+        booking: { status: 'recorded_elsewhere', saleId: id },
+        draft: {
+          ...draft,
+          source: { ...source, lines: [], cancelStatus: 'CANCELED' },
+          assignments: [],
+          state: 'linked_existing',
+          saleId: id,
+          sourceIssues: ['canceled'],
+        },
+      },
+      scope,
+      source.orderId,
+    );
+    expect(completed.booking.saleId).toBe(id);
+    expect(completed.draft?.sourceIssues).toEqual(['canceled']);
     expect(() =>
       parseEbayOrderReview(
         { ...review, draft: { ...draft, workspaceId: 'foreign' } },

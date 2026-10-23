@@ -2,7 +2,9 @@
 create function public.ebay_sale_draft_json(p_draft public.ebay_sale_drafts)
 returns jsonb language sql immutable security invoker set search_path='' as $$
   select jsonb_build_object('id',p_draft.id,'workspaceId',p_draft.workspace_id,'environment',p_draft.environment,
-    'orderId',p_draft.order_id,'source',p_draft.source,'assignments',p_draft.assignments,'costs',p_draft.costs,
+    'orderId',p_draft.order_id,'source',p_draft.source,'assignments',case when p_draft.state in ('booked','linked_existing') then
+      (select coalesce(jsonb_agg(a),'[]'::jsonb) from jsonb_array_elements(p_draft.assignments) a where exists(select 1 from jsonb_array_elements(p_draft.source->'lines') l where l->>'lineItemId'=a->>'lineItemId')) else p_draft.assignments end,'costs',p_draft.costs,
+    'costsOrigin',p_draft.costs_origin,'sourceIssues',case when p_draft.state in ('booked','linked_existing') then public.ebay_sale_source_issues(p_draft.source) else '[]'::jsonb end,
     'state',p_draft.state,'saleId',p_draft.sale_id,'createdAt',p_draft.created_at,'updatedAt',p_draft.updated_at);
 $$;
 revoke all on function public.ebay_sale_draft_json(public.ebay_sale_drafts) from public,anon,authenticated;
@@ -16,7 +18,7 @@ begin
   if not public.can_access_workspace(p_workspace_id) then raise exception 'Zugriff verweigert' using errcode='42501'; end if;
   select coalesce(jsonb_agg(public.ebay_sale_draft_json(d) order by d.created_at desc),'[]'::jsonb) into v_result
     from public.ebay_sale_drafts d where workspace_id=p_workspace_id and environment=v_connection.environment and external_account_id=v_connection.external_account_id
-      and state not in ('booked','linked_existing','dismissed');
+      and (state not in ('booked','linked_existing','dismissed') or (state in ('booked','linked_existing') and public.ebay_sale_source_issues(source)<>'[]'::jsonb));
   return jsonb_build_object('workspaceId',p_workspace_id,'connectionId',p_connection_id,'drafts',v_result);
 end;
 $$;
@@ -54,7 +56,14 @@ returns void language plpgsql security invoker set search_path='' as $$
 declare v_draft public.ebay_sale_drafts;
 begin
   select * into v_draft from public.ebay_sale_drafts where workspace_id=p_workspace_id and environment=p_environment and source_key=p_source_key for update;
-  if not found then return; end if;
+  if not found then
+    insert into public.ebay_sale_drafts(workspace_id,environment,external_account_id,source_key,order_id,source,assignments,state,sale_id,resolution_reason)
+      select p_workspace_id,p_environment,s.external_account_id,p_source_key,s.source->>'orderId',s.source,b.source_lines,p_state,p_sale_id,p_reason
+      from public.ebay_order_snapshots s join public.ebay_order_bookings b on b.workspace_id=s.workspace_id and b.environment=s.environment and b.source_key=s.source_key
+      where s.workspace_id=p_workspace_id and s.environment=p_environment and s.source_key=p_source_key
+      order by s.created_at desc limit 1;
+    return;
+  end if;
   perform public.ebay_release_sale_reservations(v_draft.id);
   update public.ebay_sale_drafts set state=p_state,sale_id=p_sale_id,resolution_reason=p_reason,updated_at=clock_timestamp() where id=v_draft.id;
 end;

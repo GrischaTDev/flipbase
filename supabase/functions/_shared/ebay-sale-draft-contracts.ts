@@ -21,6 +21,20 @@ export interface EbaySaleDraftCosts extends Omit<
   readonly platformFeeCents: number | null;
   readonly shippingCostCents: number | null;
 }
+export type EbaySaleSourceIssue = 'canceled' | 'cancellation_pending' | 'refund_or_unknown';
+export function ebaySaleSourceIssues(source: EbayOrderSource): readonly EbaySaleSourceIssue[] {
+  const issues: EbaySaleSourceIssue[] = [];
+  if (source.cancelStatus === 'CANCELED') issues.push('canceled');
+  else if (source.cancelStatus && source.cancelStatus !== 'NONE_REQUESTED')
+    issues.push('cancellation_pending');
+  if (
+    source.blockers.includes('refund_or_unknown') ||
+    ['FULLY_REFUNDED', 'PARTIALLY_REFUNDED'].includes(source.paymentStatus) ||
+    source.lines.some((line) => line.hasRefund)
+  )
+    issues.push('refund_or_unknown');
+  return issues;
+}
 export interface EbaySaleDraft {
   readonly id: string;
   readonly workspaceId: string;
@@ -29,6 +43,8 @@ export interface EbaySaleDraft {
   readonly source: EbayOrderSource;
   readonly assignments: readonly EbayOrderAssignment[];
   readonly costs: EbaySaleDraftCosts;
+  readonly costsOrigin?: 'automatic' | 'personal';
+  readonly sourceIssues?: readonly EbaySaleSourceIssue[];
   readonly state: EbaySaleDraftState;
   readonly saleId: string | null;
   readonly createdAt: string;
@@ -60,6 +76,7 @@ export interface EbayExistingSale {
   }[];
 }
 export interface EbaySaleNotification extends AccountScope {
+  readonly sourceIssues?: readonly EbaySaleSourceIssue[];
   readonly eventId: number;
   readonly eventKey: string;
   readonly orderId: string;

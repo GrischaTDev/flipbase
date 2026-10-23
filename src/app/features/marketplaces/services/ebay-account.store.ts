@@ -1,7 +1,7 @@
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { EbayCacheSync } from '../../../../../supabase/functions/_shared/ebay-cache-contracts';
-import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import type {
   EbayConnection,
   EbayListing,
@@ -13,6 +13,17 @@ import type { EbayOrderBooking } from '../../../../../supabase/functions/_shared
 
 @Injectable({ providedIn: 'root' })
 export class EbayAccountStore {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly refreshRequests = signal<
+    Partial<Record<'orders' | 'listings', { completedAt: string | null; sending: boolean }>>
+  >({});
+  readonly refreshStatus = computed(() => {
+    const request = this.refreshRequests()[this.section()];
+    if (request?.sending) return 'requesting';
+    if (this.sync()?.status === 'syncing') return 'syncing';
+    if (request && this.sync()?.status !== 'error') return 'pending';
+    return null;
+  });
   private readonly api = inject(EbayAccountApiService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
@@ -38,6 +49,15 @@ export class EbayAccountStore {
       (this.sync()?.status === 'pending' || this.sync()?.status === 'syncing'),
   );
   constructor() {
+    const timer = setInterval(() => {
+      if (
+        this.contextMatches() &&
+        (this.refreshRequests()[this.section()] ||
+          ['pending', 'syncing'].includes(this.sync()?.status ?? ''))
+      )
+        void this.read(false);
+    }, 5000);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
     effect(() => {
       const userId = this.auth.currentUser()?.id ?? null;
       const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
@@ -110,6 +130,7 @@ export class EbayAccountStore {
   }
   private clearData(): void {
     this.pages.clear();
+    this.refreshRequests.set({});
     this.sync.set(null);
     this.trafficRevision++;
     this.traffic.set({});
@@ -254,6 +275,38 @@ export class EbayAccountStore {
     this.restorePage();
     await this.read(false);
   }
+  async requestRefresh(): Promise<void> {
+    const connection = this.connection();
+    if (
+      !connection ||
+      connection.status !== 'connected' ||
+      this.isLoading() ||
+      this.isReading() ||
+      this.trafficLoading() ||
+      this.refreshStatus()
+    )
+      return;
+    const revision = this.revision;
+    const section = this.section();
+    const completedAt = this.sync()?.lastCompletedAt ?? null;
+    const requested = { completedAt, sending: true };
+    this.refreshRequests.update((requests) => ({ ...requests, [section]: requested }));
+    this.dataError.set(null);
+    try {
+      await this.api.requestRefresh(connection, section);
+      if (!this.contextMatches() || this.refreshRequests()[section] !== requested) return;
+      this.refreshRequests.update((requests) => ({
+        ...requests,
+        [section]: { completedAt, sending: false },
+      }));
+      if (this.isCurrent(revision) && this.section() === section) await this.read(false);
+    } catch (error) {
+      if (!this.contextMatches() || this.refreshRequests()[section] !== requested) return;
+      this.refreshRequests.update((requests) => ({ ...requests, [section]: undefined }));
+      this.discardRevokedAccess(error);
+      if (this.section() === section) this.dataError.set(this.message(error));
+    }
+  }
   async read(append: boolean): Promise<void> {
     const connection = this.connection();
     if (
@@ -303,6 +356,13 @@ export class EbayAccountStore {
         this.nextPage.set(result.nextPage);
         this.sync.set(result.sync ?? null);
       }
+      const requested = this.refreshRequests()[section];
+      if (
+        requested &&
+        (this.sync()?.status === 'error' ||
+          (this.sync()?.lastCompletedAt && this.sync()?.lastCompletedAt !== requested.completedAt))
+      )
+        this.refreshRequests.update((requests) => ({ ...requests, [section]: undefined }));
       if (section === 'orders' && this.importAvailable()) void this.readBookingStatuses(connection);
       this.hasRead.set(true);
       this.rememberPage();

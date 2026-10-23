@@ -31,8 +31,8 @@
           <app-button
             [icon]="refreshIcon"
             [loading]="store.isReading() || store.trafficLoading()"
-            [disabled]="store.isLoading()"
-            (clicked)="store.read(false)"
+            [disabled]="store.isLoading() || !!store.refreshStatus()"
+            (clicked)="store.requestRefresh()"
             >Aktualisieren</app-button
           >
         </div>
@@ -209,6 +209,21 @@
       @if (store.isReading() && store.hasRead()) {
         <p role="status" class="text-sm text-fb-text-secondary">
           Gespeicherte Daten werden aktualisiert …
+        </p>
+      }
+      @if (store.refreshStatus(); as status) {
+        <p role="status" class="text-sm text-fb-text-secondary">
+          @switch (status) {
+            @case ('requesting') {
+              Aktualisierung wird angefordert …
+            }
+            @case ('pending') {
+              Aktualisierung angefordert. Der eBay-Abgleich startet in Kürze.
+            }
+            @case ('syncing') {
+              eBay-Abgleich läuft. Der bisherige Stand bleibt sichtbar.
+            }
+          }
         </p>
       }
       @if (store.initialSyncPending()) {

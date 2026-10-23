@@ -1,3 +1,4 @@
+import { SupabaseService } from '../../../../core/services/supabase.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
@@ -326,6 +327,41 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it.each(['listings', 'orders'] as const)(
+    'fordert per Aktualisieren den Anbieterabgleich für %s an und zeigt den Wartestand',
+    async (section) => {
+      const invoke = vi.fn(async () => ({ data: { requested: true, ...connection }, error: null }));
+      TestBed.overrideProvider(SupabaseService, {
+        useValue: { client: { functions: { invoke } } },
+      });
+      TestBed.configureTestingModule({
+        providers: [{ provide: SupabaseService, useValue: { client: { functions: { invoke } } } }],
+      });
+      const realApi = TestBed.runInInjectionContext(() => new EbayAccountApiService());
+      Object.assign(api, {
+        requestRefresh: (...args: Parameters<EbayAccountApiService['requestRefresh']>) =>
+          realApi.requestRefresh(...args),
+      });
+      const fixture = await render(true, section);
+      expect(invoke).not.toHaveBeenCalled();
+      const element = fixture.nativeElement as HTMLElement;
+      const button = Array.from(element.querySelectorAll('button')).find(
+        (row) => row.textContent?.trim() === 'Aktualisieren',
+      );
+      expect(button).toBeDefined();
+      button!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(invoke).toHaveBeenCalledWith('ebay-account', {
+        body: { action: 'refresh', ...connection, kind: section },
+      });
+      expect(element.textContent).toContain('Aktualisierung angefordert');
+      expect(element.querySelector('tbody')?.textContent).toContain(
+        section === 'listings' ? 'Eigene Auktion' : 'Stornierter Artikel',
+      );
+      fixture.destroy();
+    },
+  );
   it.each(['listings', 'orders'] as const)(
     'erhält sichtbare %s-Zeilen und letzten Abgleich neben einem Aktualisierungsfehler',
     async (section) => {

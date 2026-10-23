@@ -44,7 +44,8 @@ create policy "Dienst löscht Glockenstatus" on public.ebay_sale_notification_re
 create function public.ebay_cache_record_sale_notification()
 returns trigger language plpgsql security definer set search_path='' as $$
 begin
-  if new.auto_prepare then
+  if new.auto_prepare or (public.ebay_sale_source_issues(new.source)<>'[]'::jsonb and exists(
+    select 1 from public.ebay_order_bookings b where b.workspace_id=new.workspace_id and b.environment=new.environment and b.source_key=new.source_key and b.sale_id is not null)) then
     insert into public.ebay_sale_notifications(workspace_id,environment,external_account_id,source_key,order_id)
       values(new.workspace_id,new.environment,new.external_account_id,new.source_key,new.order_id) on conflict do nothing;
   end if;
@@ -62,7 +63,7 @@ begin
   if not public.can_access_workspace(p_workspace_id) then raise exception 'Zugriff verweigert' using errcode='42501'; end if;
   if p_page is null or p_page<1 or p_page>100000 then raise exception 'Ungültige Seite' using errcode='22023'; end if;
   return (select coalesce(jsonb_agg(jsonb_build_object('eventId',n.id,'eventKey','ebay-sale:'||n.id::text,'workspaceId',n.workspace_id,
-    'connectionId',p_connection_id,'orderId',n.order_id,'draftId',d.id,'state',coalesce(d.state,'needs_mapping'),'createdAt',n.created_at,'readAt',r.read_at)
+    'connectionId',p_connection_id,'orderId',n.order_id,'draftId',d.id,'state',coalesce(d.state,'needs_mapping'),'sourceIssues',case when d.state in ('booked','linked_existing') then public.ebay_sale_source_issues(d.source) else '[]'::jsonb end,'createdAt',n.created_at,'readAt',r.read_at)
     order by n.created_at desc,n.id desc),'[]'::jsonb) from (select * from public.ebay_sale_notifications n
       where workspace_id=p_workspace_id and environment=v_connection.environment and external_account_id=v_connection.external_account_id
         and not exists(select 1 from public.ebay_sale_notification_receipts r where r.event_id=n.id and r.user_id=(select auth.uid()) and r.dismissed_at is not null)

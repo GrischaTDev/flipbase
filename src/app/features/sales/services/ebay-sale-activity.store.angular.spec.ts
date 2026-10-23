@@ -85,6 +85,28 @@ describe('Persönliche eBay-Aktivität', () => {
     quantity: 1,
     createdAt: '2026-10-23T12:00:00Z',
   }));
+  it.each(['booked', 'linked_existing'])(
+    'zeigt konkrete spätere Erstattung für %s in der Glocke',
+    async (state) => {
+      api.loadNotifications.mockResolvedValue([
+        {
+          ...scope,
+          eventId: 1,
+          eventKey: 'ebay-sale:1',
+          orderId: 'order-1',
+          draftId: null,
+          state,
+          sourceIssues: ['refund_or_unknown'],
+          createdAt: '2026-10-23T12:00:00Z',
+          readAt: null,
+        },
+      ]);
+      await store.reload();
+      expect(store.notifications()[0].message).toContain('Erstattung');
+      expect(store.notifications()[0].link).toContain('/sales/ebay/connection-a/order-1');
+      expect(store.notifications()).toHaveLength(1);
+    },
+  );
   it('schließt interne Freigaben trotz dauerhaft verweigertem Privatstatus ab und erlaubt die nächste Klärung', async () => {
     status.mockRejectedValue(new Error('Privater Zugriff verweigert'));
     api.loadReservations.mockResolvedValue(held);

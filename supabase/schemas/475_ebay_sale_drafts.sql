@@ -15,6 +15,7 @@ create table public.ebay_sale_drafts (
   updated_at timestamptz not null default clock_timestamp(),
   resolution_reason text,
   requires_explicit_preparation boolean not null default false,
+  costs_origin text not null default 'personal' check(costs_origin in ('automatic','personal')),
   unique(workspace_id,environment,source_key),
   unique(workspace_id,id),
   foreign key(workspace_id,sale_id) references public.sales(workspace_id,id) on delete restrict
@@ -156,6 +157,21 @@ end;
 $$;
 revoke all on function public.ebay_release_sale_reservations(uuid) from public,anon,authenticated;
 
+-- Der Abschlussbeleg bleibt unverändert; Hinweise werden aus der aktuellen Quelle abgeleitet.
+create function public.ebay_sale_source_issues(p_source jsonb)
+returns jsonb language sql immutable security invoker set search_path='' as $$
+  select to_jsonb(array_remove(array[
+    case when p_source->>'cancelStatus'='CANCELED' then 'canceled'
+      when p_source->>'cancelStatus' is not null and p_source->>'cancelStatus'<>'NONE_REQUESTED' then 'cancellation_pending' end,
+    case when coalesce(p_source->'blockers','[]'::jsonb)?'refund_or_unknown'
+      or p_source->>'paymentStatus' in ('FULLY_REFUNDED','PARTIALLY_REFUNDED')
+      or exists(select 1 from jsonb_array_elements(coalesce(p_source->'lines','[]'::jsonb)) l where l->'hasRefund'='true'::jsonb)
+      then 'refund_or_unknown' end
+  ],null));
+$$;
+revoke all on function public.ebay_sale_source_issues(jsonb) from public,anon,authenticated;
+grant execute on function public.ebay_sale_source_issues(jsonb) to service_role;
+
 create function public.ebay_prepare_sale_draft(p_cache_id bigint,p_assignments jsonb default null,p_costs jsonb default null,p_explicit boolean default false)
 returns uuid language plpgsql security invoker set search_path='' as $$
 declare v_order public.ebay_cached_orders; v_draft public.ebay_sale_drafts; v_assignments jsonb; v_costs jsonb;
@@ -165,6 +181,13 @@ begin
   select * into strict v_order from public.ebay_cached_orders where id=p_cache_id;
   perform pg_advisory_xact_lock(hashtextextended(v_order.workspace_id::text||':'||v_order.environment||':'||v_order.source_key,0));
   select * into v_draft from public.ebay_sale_drafts where workspace_id=v_order.workspace_id and environment=v_order.environment and source_key=v_order.source_key for update;
+  select * into v_booking from public.ebay_order_bookings where workspace_id=v_order.workspace_id and environment=v_order.environment and source_key=v_order.source_key;
+  -- Ältere Übernahmen können ohne Entwurf entstanden sein. Nur den Klärbezug anlegen, nie reservieren.
+  if v_draft.id is null and v_booking.sale_id is not null then
+    insert into public.ebay_sale_drafts(workspace_id,environment,external_account_id,source_key,order_id,source,assignments,state,sale_id)
+      values(v_order.workspace_id,v_order.environment,v_order.external_account_id,v_order.source_key,v_order.order_id,v_order.source,v_booking.source_lines,
+        case when v_booking.status='imported' then 'booked' else 'linked_existing' end,v_booking.sale_id) returning * into v_draft;
+  end if;
   -- Nach bewusster Aufhebung bleibt Lesen still; nur Speichern darf neu reservieren.
   if v_draft.requires_explicit_preparation and not p_explicit then
     update public.ebay_sale_drafts set source=v_order.source,updated_at=clock_timestamp() where id=v_draft.id;
@@ -218,7 +241,7 @@ begin
   end loop;
   v_complete:=jsonb_array_length(v_assignments)=jsonb_array_length(v_order.source->'lines') and jsonb_array_length(v_assignments)>0;
   -- Neu eingelesene Gebühren werden angezeigt; persönlich bestätigte Kosten bleiben erhalten.
-  v_costs:=coalesce(p_costs,v_draft.costs,jsonb_build_object('platformFeeCents',v_order.source->'platformFeeCents','shippingCostCents',null,'shippingMode',null,'additionalCosts','[]'::jsonb));
+  v_costs:=coalesce(p_costs,case when v_draft.costs_origin='personal' then v_draft.costs end,jsonb_build_object('platformFeeCents',v_order.source->'platformFeeCents','shippingCostCents',null,'shippingMode',null,'additionalCosts','[]'::jsonb));
   if jsonb_typeof(v_costs) is distinct from 'object' or (select count(*) from jsonb_object_keys(v_costs))<>4
     or not (v_costs ?& array['platformFeeCents','shippingCostCents','shippingMode','additionalCosts'])
     or (v_costs->'platformFeeCents'<>'null'::jsonb and not public.ebay_valid_cents(v_costs->'platformFeeCents'))
@@ -235,8 +258,8 @@ begin
   -- Unzugeordnete neue Aufträge bleiben zunächst nur in der Bestellübersicht.
   if v_draft.id is null and not p_explicit and not v_complete then return null; end if;
   if v_draft.id is null then
-    insert into public.ebay_sale_drafts(workspace_id,environment,external_account_id,source_key,order_id,source,assignments,costs,state)
-      values(v_order.workspace_id,v_order.environment,v_order.external_account_id,v_order.source_key,v_order.order_id,v_order.source,'[]',v_costs,'needs_mapping') returning * into v_draft;
+    insert into public.ebay_sale_drafts(workspace_id,environment,external_account_id,source_key,order_id,source,assignments,costs,state,costs_origin)
+      values(v_order.workspace_id,v_order.environment,v_order.external_account_id,v_order.source_key,v_order.order_id,v_order.source,'[]',v_costs,'needs_mapping',case when p_costs is null then 'automatic' else 'personal' end) returning * into v_draft;
   end if;
   if v_order.source->>'cancelStatus'='CANCELED' then
     perform public.ebay_release_sale_reservations(v_draft.id);
@@ -246,7 +269,7 @@ begin
     or exists(select 1 from jsonb_array_elements(v_order.source->'lines') l where l->'hasRefund' is distinct from 'false'::jsonb)
   then
     -- Unklare Quelle hält die bisherige Reservierung einschließlich ihrer Zuordnung fest.
-    update public.ebay_sale_drafts set source=v_order.source,costs=v_costs,state='blocked',updated_at=clock_timestamp() where id=v_draft.id;
+    update public.ebay_sale_drafts set source=v_order.source,costs=v_costs,costs_origin=case when p_costs is null then costs_origin else 'personal' end,state='blocked',updated_at=clock_timestamp() where id=v_draft.id;
     return v_draft.id;
   else
     perform public.ebay_lock_draft_stock(v_order.workspace_id,v_draft.assignments||v_assignments);
@@ -288,7 +311,7 @@ begin
     end if;
     if v_state='needs_costs' and public.ebay_valid_cents(v_costs->'platformFeeCents') and public.ebay_valid_cents(v_costs->'shippingCostCents') then v_state:='ready_for_review'; end if;
   end if;
-  update public.ebay_sale_drafts set source=v_order.source,assignments=v_assignments,costs=v_costs,state=v_state,requires_explicit_preparation=false,updated_at=clock_timestamp() where id=v_draft.id;
+  update public.ebay_sale_drafts set source=v_order.source,assignments=v_assignments,costs=v_costs,costs_origin=case when p_costs is null then costs_origin else 'personal' end,state=v_state,requires_explicit_preparation=false,updated_at=clock_timestamp() where id=v_draft.id;
   return v_draft.id;
 end;
 $$;
