@@ -1,3 +1,5 @@
+import { CardComponent } from '../../shared/components/card/card.component';
+import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { SalePlatformsService } from '../../core/services/sale-platforms.service';
 import { SALES_LABELS, SALES_HELP } from '../../core/config/sales-table.config';
 import {
@@ -11,17 +13,14 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideDynamicIcon,
   LucideTrendingUp as TrendingUp,
-  LucideCoins as Coins,
   LucideDollarSign as DollarSign,
   LucideCalendar as Calendar,
   LucidePlus as Plus,
-  LucideTag as Tag,
   LucideClock as Clock,
   LucideArrowUpRight as ArrowUpRight,
   LucideSparkles as Sparkles,
@@ -31,6 +30,8 @@ import {
   LucideX as X,
   LucideCheckCircle2 as CheckCircle2,
   LucideHistory as History,
+  LucideChartNoAxesCombined,
+  LucideShoppingCart,
 } from '@lucide/angular';
 import { SalesService } from '../../core/services/sales.service';
 import { InvoiceService } from '../../core/services/invoice.service';
@@ -55,7 +56,8 @@ import { TextFieldComponent } from '../../shared/components/text-field/text-fiel
 import { RecordHistoryContainer } from '../audit/components/record-history/record-history.container';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
+import { TableActionMenuComponent } from '../../shared/components/table-action-menu/table-action-menu.component';
+import { marketplacePlatformAppearance } from '../../shared/models/marketplace-platform';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
@@ -77,13 +79,14 @@ function validatedSaleTargetId(value: string | null): string | null {
 @Component({
   selector: 'app-sales',
   imports: [
+    CardComponent,
+    SummaryMetricComponent,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
     DecimalPipe,
     DatePipe,
     TranslatePipe,
-    LucideDynamicIcon,
     InvoiceModalComponent,
     CustomSelectComponent,
     ModalShellComponent,
@@ -92,7 +95,8 @@ function validatedSaleTargetId(value: string | null): string | null {
     RecordHistoryContainer,
     PageHeaderComponent,
     ButtonComponent,
-    TableActionButtonComponent,
+    TableActionMenuComponent,
+    NgTemplateOutlet,
     BadgeComponent,
     TableSortHeaderComponent,
     DataTableComponent,
@@ -103,6 +107,7 @@ function validatedSaleTargetId(value: string | null): string | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  readonly salePlatformAppearance = marketplacePlatformAppearance;
   readonly salesLabels = SALES_LABELS;
   readonly salesHelp = SALES_HELP;
   readonly tablePreferences = inject(TablePreferencesService);
@@ -132,12 +137,12 @@ export class SalesComponent {
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
 
+  readonly profitIcon = LucideChartNoAxesCombined;
+  readonly salesIcon = LucideShoppingCart;
   readonly trendingIcon = TrendingUp;
-  readonly coinsIcon = Coins;
   readonly dollarIcon = DollarSign;
   readonly calendarIcon = Calendar;
   readonly plusIcon = Plus;
-  readonly tagIcon = Tag;
   readonly clockIcon = Clock;
   readonly arrowIcon = ArrowUpRight;
   readonly sparklesIcon = Sparkles;

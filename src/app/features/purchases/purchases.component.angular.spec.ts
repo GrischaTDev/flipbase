@@ -471,7 +471,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(component.sellerId()).toBe('supplier-1');
     component.onSortChanged({ field: 'result', direction: 'desc' });
     component.toggleColumnVisibility('revenue');
-    host.querySelector<HTMLButtonElement>('[data-purchase-view="overview"] button')!.click();
+    profitability!.click();
     fixture.detectChanges();
     expect(component.tablePrefs().sort).toEqual({ field: 'total_cost', direction: 'asc' });
     expect(host.querySelector('thead')?.textContent).not.toContain('Beschreibung');

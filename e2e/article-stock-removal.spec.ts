@@ -2,6 +2,8 @@ import axe from 'axe-core';
 import { expect, openDashboard, test } from './support/fixtures';
 import { createFinalizedPurchase, recordSale } from './support/sample-data';
 
+test.use({ hasTouch: true });
+
 test('entfernt beschädigte Ware und behält den ursprünglichen Einkauf @core-smoke', async ({
   page,
   workspace,
@@ -14,6 +16,7 @@ test('entfernt beschädigte Ware und behält den ursprünglichen Einkauf @core-s
   });
   await openDashboard(page);
   await page.goto('/catalog');
+  await page.getByRole('button', { name: `Aktionen für ${title}`, exact: true }).click();
   await page
     .getByRole('button', { name: `Aus Bestand entfernen: ${title}`, exact: true })
     .filter({ visible: true })
@@ -109,10 +112,12 @@ test('zeigt wenige Verkaufsspalten und konkrete fehlende Rechnungsfelder @core-s
   page,
   workspace,
 }) => {
+  const title =
+    'Verkaufter Schuh mit einem sehr langen Artikelnamen, Modellbezeichnung und weiteren Eigenschaften für die Tabellenprüfung';
   const purchase = await createFinalizedPurchase(workspace, {
     title: 'Verkaufstest',
     purchaseDate: '2026-10-01',
-    items: [{ title: 'Verkaufter Schuh', price: 20 }],
+    items: [{ title, price: 20 }],
   });
   await recordSale(workspace, {
     saleDate: '2026-10-13',
@@ -122,23 +127,89 @@ test('zeigt wenige Verkaufsspalten und konkrete fehlende Rechnungsfelder @core-s
   await page.goto('/sales');
   const table = page.getByRole('table', { name: 'Verkäufe' });
   await expect(table.getByRole('columnheader')).toHaveText([
+    'Verkaufsnummer',
     'Datum',
     'Artikel',
     'Menge',
+    'Plattform',
     'Verkaufsbetrag',
     'Gewinn',
     'Marge',
     'Aktionen',
   ]);
-  const row = table.getByRole('row').filter({ hasText: 'Verkaufter Schuh' });
+  const row = table.getByRole('row').filter({ hasText: title });
   await expect(row).toContainText('15,00');
+  const article = row.getByRole('cell').nth(2);
+  const fullTitle = article.locator('[title]').first();
+  await expect(fullTitle).toHaveAttribute('title', title);
+  const titleGeometry = await fullTitle.evaluate((element) => ({
+    overflow: getComputedStyle(element).textOverflow,
+    clipped: element.scrollWidth > element.clientWidth,
+  }));
+  expect(titleGeometry).toEqual({ overflow: 'ellipsis', clipped: true });
+  expect(await article.textContent()).not.toMatch(/#V|VK-/);
+
   await expect(row.getByRole('link', { name: /Prüfbeleg/ })).toBeHidden();
-  await row.getByText('Weitere Aktionen', { exact: true }).click();
+  await row.getByRole('button', { name: /^Aktionen für / }).click();
   await expect(row.getByRole('link', { name: /Prüfbeleg/ })).toBeVisible();
+  if (process.env['RESPONSIVE_SCREENSHOT_DIR']) {
+    const { join } = await import('node:path');
+    await page.screenshot({
+      path: join(process.env['RESPONSIVE_SCREENSHOT_DIR'], 'sales-actions-desktop.png'),
+    });
+  }
   await row.getByRole('button', { name: 'Rechnung erstellen' }).click();
   const alert = page.locator('app-sales').getByRole('alert');
   await expect(alert).toContainText('Für den Beleg fehlen:');
   await expect(
     alert.getByRole('link', { name: 'Unternehmensdaten vervollständigen' }),
   ).toHaveAttribute('href', '/settings/company');
+  for (const dismiss of await page
+    .locator('app-toast-container')
+    .getByRole('button', { name: /^Meldung schließen:/ })
+    .all())
+    await dismiss.click();
+  for (const theme of ['light', 'dark']) {
+    if (theme === 'dark')
+      await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
+    for (const width of [1440, 834, 390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const surface =
+        width >= 768 ? row : page.locator('[id^="sale-mobile-"]').filter({ hasText: title });
+      const trigger = surface.getByRole('button', { name: /^Aktionen für / });
+      await trigger.click();
+      const menu = surface.getByRole('dialog', { name: /^Aktionen für / });
+      await expect(menu).toBeVisible();
+      const box = await menu.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(1000);
+      expect(
+        await trigger.evaluate((button) => button.getBoundingClientRect().height),
+      ).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+      await page.addScriptTag({ content: axe.source });
+      const violations = await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-sales')!,
+              { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa'] },
+            )
+          ).violations,
+      );
+      expect(violations).toEqual([]);
+      if (process.env['RESPONSIVE_SCREENSHOT_DIR']) {
+        const { join } = await import('node:path');
+        await page.screenshot({
+          path: join(
+            process.env['RESPONSIVE_SCREENSHOT_DIR'],
+            `sales-actions-${theme}-${width}.png`,
+          ),
+        });
+      }
+      await page.keyboard.press('Escape');
+      await expect(trigger).toBeFocused();
+    }
+  }
 });

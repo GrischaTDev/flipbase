@@ -23,7 +23,7 @@ describe('Arbeitsnavigation', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
       [
-        ['/purchases', '/catalog', '/sales'],
+        ['/purchases', '/sales', '/catalog'],
         [
           '/marketplaces/overview',
           '/marketplaces/vinted',
@@ -83,7 +83,8 @@ describe('Arbeitsnavigation', () => {
 
   it('benennt die arbeitsbezogenen Eintraege verstaendlich', () => {
     const items = WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items);
-    assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikel & Bestand');
+    assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Bestand');
+    assert.equal(items.find((item) => item.path === '/catalog')?.icon, 'package');
     assert.equal(items.find((item) => item.path === '/catalog')?.children, undefined);
     assert.equal(items.find((item) => item.path === '/purchases')?.label, 'Einkäufe');
     assert.equal(items.find((item) => item.path === '/sales')?.label, 'Verkäufe');

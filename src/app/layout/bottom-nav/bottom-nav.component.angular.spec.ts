@@ -44,6 +44,16 @@ describe('Mobile Vinted-Navigation', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(element.querySelector('a[href="/purchases"]')).not.toBeNull();
+    expect([...element.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual([
+      'Übersicht',
+      'Einkäufe',
+      'Verkäufe',
+      'Bestand',
+    ]);
+    await router.navigateByUrl('/inventory/item');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(element.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/catalog');
   });
   it('wechselt zwischen Vinted und Flipbase und markiert auch Inseratdetails', async () => {
     TestBed.configureTestingModule({

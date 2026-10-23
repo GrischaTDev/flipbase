@@ -114,6 +114,14 @@ async function expectLoadedImage(image: Locator) {
     .toBe(true);
 }
 async function checkAccessibility(page: Page, selector: string) {
+  await page.evaluate(() =>
+    Promise.allSettled(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished),
+    ),
+  );
   await page.addScriptTag({ content: axe.source });
   const violations = await page.evaluate(async (selector) => {
     const runtime = window as Window & { axe: typeof axe };

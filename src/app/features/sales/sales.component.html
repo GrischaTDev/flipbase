@@ -27,38 +27,29 @@
       ><app-button (clicked)="salePlatforms.reload()">Erneut laden</app-button>
     </div>
   }
-  <!-- KPI Cards Grid -->
-  <div class="grid grid-cols-2 gap-3">
-    <div
-      class="linear-kpi p-4 rounded-xl"
-      data-testid="sales-result-kpi"
-      [title]="salesHelp.profit"
-    >
-      <span class="text-[13px] font-semibold text-fb-text-muted block">{{
-        salesLabels.profit
-      }}</span>
-      <span
-        class="text-xl font-semibold font-mono tracking-tight mt-2 block"
-        [class.text-emerald-400]="(totalRealizedProfit() ?? 0) >= 0"
-        [class.text-rose-400]="(totalRealizedProfit() ?? 0) < 0"
-      >
-        @if (totalRealizedProfit() === null) {
-          <span class="font-sans text-base text-amber-300">Kosten noch offen</span>
-        } @else {
-          {{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-        }
-      </span>
-      <span class="text-xs text-fb-text-muted mt-0.5 block">Nach Einkaufs- und Verkaufskosten</span>
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[13px] font-semibold text-fb-text-muted block">Verkäufe</span>
-      <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
-        {{ filteredSales().length }}
-      </span>
-      <span class="text-xs text-fb-text-muted mt-0.5 block">In der aktuellen Ansicht</span>
-    </div>
-  </div>
+  <section aria-label="Kennzahlen">
+    <app-card variant="overview" padding="none">
+      <div class="grid grid-cols-2 divide-x divide-fb-line">
+        <app-summary-metric
+          data-testid="sales-result-kpi"
+          [label]="salesLabels.profit"
+          [icon]="profitIcon"
+          [title]="salesHelp.profit"
+          [value]="
+            totalRealizedProfit() === null
+              ? 'Kosten noch offen'
+              : ((totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de') ?? '')
+          "
+          [negative]="(totalRealizedProfit() ?? 0) < 0"
+        />
+        <app-summary-metric
+          label="Verkäufe"
+          [icon]="salesIcon"
+          [value]="filteredSales().length.toString()"
+        />
+      </div>
+    </app-card>
+  </section>
 
   <app-data-table
     ariaLabel="Verkäufe"
@@ -100,7 +91,7 @@
                   </th>
                 }
                 @case ('title') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('title')" class="min-w-60">
+                  <th scope="col" [attr.aria-sort]="ariaSort('title')" class="w-60 max-w-60">
                     <app-table-sort-header
                       [label]="column.label"
                       sortField="title"
@@ -220,34 +211,24 @@
                     </td>
                   }
                   @case ('title') {
-                    <td class="px-4 py-3 font-semibold text-fb-text-primary">
+                    <td class="w-60 max-w-60 px-4 py-3 font-semibold text-fb-text-primary">
                       <div class="flex items-start gap-2">
-                        <div class="space-y-0.5">
-                          @if (!isColumnVisible('record_number')) {
-                            <span class="block text-[11px] font-normal text-fb-text-muted">{{
-                              sale.record_number || '–'
-                            }}</span>
-                          }
+                        <div class="min-w-0 flex-1 space-y-0.5">
                           @if (sale.lines?.length) {
                             @for (line of sale.lines; track line.id) {
-                              <span class="block text-xs text-fb-text-primary">{{
-                                line.title_snapshot
-                              }}</span>
+                              <span
+                                class="block truncate text-xs text-fb-text-primary"
+                                [title]="line.title_snapshot"
+                                >{{ line.title_snapshot }}</span
+                              >
                             }
                           } @else {
                             <a
                               [routerLink]="['/inventory', sale.inventory_item_id]"
-                              class="transition hover:text-emerald-400"
+                              class="block truncate transition hover:underline"
+                              [title]="sale.inventory_item?.title || 'Artikel'"
                               >{{ sale.inventory_item?.title || 'Artikel' }}</a
                             >
-                          }
-                          @if (!isColumnVisible('platform')) {
-                            <app-marketplace-platform-identity
-                              data-sales-platform-identity
-                              class="block max-w-40 text-xs font-normal text-fb-text-muted"
-                              [platform]="sale.platform"
-                              [displayName]="salePlatforms.label(sale.platform)"
-                            />
                           }
                         </div>
                         @if (sale.returned_at || ret) {
@@ -267,6 +248,7 @@
                         data-sales-platform-identity
                         class="max-w-40 text-xs text-fb-text-secondary"
                         [platform]="sale.platform"
+                        [iconOnly]="!!salePlatformAppearance(sale.platform).logo"
                         [displayName]="salePlatforms.label(sale.platform)"
                       />
                     </td>
@@ -298,7 +280,7 @@
                   @case ('profit') {
                     <td
                       class="px-3 py-3 text-right font-mono font-bold"
-                      [class.text-fb-finance-positive]="
+                      [class.text-fb-success]="
                         metrics.resultAfterDirectCosts !== null &&
                         metrics.resultAfterDirectCosts > 0
                       "
@@ -337,61 +319,10 @@
                   }
                   @case ('actions') {
                     <td class="px-4 py-3 text-right">
-                      <div class="flex items-center justify-end gap-1">
-                        <details class="text-left text-xs text-fb-text-secondary">
-                          <summary
-                            class="cursor-pointer rounded px-2 py-2 focus-visible:outline-2 focus-visible:outline-fb-primary"
-                            [attr.aria-label]="'Weitere Aktionen für ' + saleTitle(sale)"
-                          >
-                            Weitere Aktionen
-                          </summary>
-                          <div class="mt-1 flex flex-wrap gap-1">
-                            <app-button
-                              size="slim"
-                              variant="ghost"
-                              data-sale-audit-print-link
-                              link="/settings/data/print"
-                              [queryParams]="{ entityType: 'sale', entityId: sale.id }"
-                              [icon]="receiptIcon"
-                              [ariaLabel]="
-                                'Prüfbeleg für ' +
-                                saleTitle(sale) +
-                                ' drucken oder als PDF speichern'
-                              "
-                              >Prüfbeleg</app-button
-                            >
-                            <app-button
-                              size="slim"
-                              variant="ghost"
-                              (clicked)="openRecordHistory(sale)"
-                              [icon]="historyIcon"
-                              >Chronik ansehen</app-button
-                            >
-                          </div>
-                        </details>
-                        <app-table-action-button
-                          (clicked)="openInvoiceForSale(sale)"
-                          [disabled]="isCreatingInvoice()"
-                          [loading]="isCreatingInvoice()"
-                          [loading]="isCreatingInvoice()"
-                          [label]="invoiceActionLabel(sale)"
-                          [icon]="fileIcon"
-                        />
-                        @if (ret) {
-                          <app-table-action-button
-                            (clicked)="openCreditNoteForSale(sale)"
-                            [label]="'Gutschriftsbeleg anzeigen (' + ret.credit_note_number + ')'"
-                            [icon]="receiptIcon"
-                          />
-                        } @else if (!sale.returned_at) {
-                          <app-table-action-button
-                            (clicked)="openReturnModal(sale)"
-                            label="Retoure / Gutschrift erfassen"
-                            tone="critical"
-                            [icon]="returnIcon"
-                          />
-                        }
-                      </div>
+                      <ng-container
+                        [ngTemplateOutlet]="saleActions"
+                        [ngTemplateOutletContext]="{ $implicit: sale, ret: ret }"
+                      />
                     </td>
                   }
                 }
@@ -416,8 +347,8 @@
           [class.ring-2]="highlightedSaleId() === sale.id"
           [class.ring-indigo-400]="highlightedSaleId() === sale.id"
         >
-          <div class="flex items-start justify-between gap-2">
-            <div>
+          <div class="flex min-w-0 items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
               <div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <p aria-label="Verkaufsnummer" class="text-xs font-semibold text-fb-text-primary">
                   {{ sale.record_number || '–' }}
@@ -427,7 +358,10 @@
                 </span>
               </div>
               <div class="flex items-center gap-1.5">
-                <h3 class="text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans">
+                <h3
+                  class="min-w-0 text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans"
+                  [title]="saleTitle(sale)"
+                >
                   {{ saleTitle(sale) }}
                 </h3>
                 @if (sale.returned_at || ret) {
@@ -439,11 +373,12 @@
                   data-sales-platform-identity
                   class="min-w-0 max-w-36 font-sans"
                   [platform]="sale.platform"
+                  [iconOnly]="!!salePlatformAppearance(sale.platform).logo"
                   [displayName]="salePlatforms.label(sale.platform)"
                 />
               </div>
             </div>
-            <strong class="text-xs font-bold text-fb-text-primary">
+            <strong class="shrink-0 whitespace-nowrap text-xs font-bold text-fb-text-primary">
               {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </strong>
           </div>
@@ -457,7 +392,7 @@
                 <strong class="font-sans text-amber-300">Kosten noch offen</strong>
               } @else {
                 <strong
-                  [class.text-fb-finance-positive]="metrics.resultAfterDirectCosts > 0"
+                  [class.text-fb-success]="metrics.resultAfterDirectCosts > 0"
                   [class.text-fb-finance-negative]="metrics.resultAfterDirectCosts < 0"
                   [class.text-fb-text-primary]="metrics.resultAfterDirectCosts === 0"
                 >
@@ -488,67 +423,11 @@
             </div>
           </div>
 
-          <div class="pt-2 border-t border-fb-line flex justify-end gap-2">
-            <details class="text-xs font-sans text-fb-text-secondary">
-              <summary
-                class="cursor-pointer rounded px-2 py-2 focus-visible:outline-2 focus-visible:outline-fb-primary"
-                [attr.aria-label]="'Weitere Aktionen für ' + saleTitle(sale)"
-              >
-                Weitere Aktionen
-              </summary>
-              <div class="mt-1 flex flex-wrap gap-1">
-                <app-button
-                  data-sale-audit-print-link
-                  link="/settings/data/print"
-                  [queryParams]="{ entityType: 'sale', entityId: sale.id }"
-                  [ariaLabel]="
-                    'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
-                  "
-                  variant="secondary"
-                  [icon]="receiptIcon"
-                >
-                  <span>Prüfbeleg</span>
-                </app-button>
-                <app-button
-                  type="button"
-                  (clicked)="openRecordHistory(sale)"
-                  variant="secondary"
-                  [icon]="historyIcon"
-                >
-                  <span>Chronik ansehen</span>
-                </app-button>
-              </div>
-            </details>
-
-            <app-button
-              type="button"
-              (clicked)="openInvoiceForSale(sale)"
-              [disabled]="isCreatingInvoice()"
-              variant="secondary"
-              [icon]="fileIcon"
-            >
-              <span>{{ invoiceActionLabel(sale) }}</span>
-            </app-button>
-
-            @if (ret) {
-              <app-button
-                type="button"
-                (clicked)="openCreditNoteForSale(sale)"
-                variant="secondary"
-                [icon]="receiptIcon"
-              >
-                <span>Gutschrift</span>
-              </app-button>
-            } @else if (!sale.returned_at) {
-              <app-button
-                type="button"
-                (clicked)="openReturnModal(sale)"
-                variant="secondary"
-                [icon]="returnIcon"
-              >
-                <span>Retoure</span>
-              </app-button>
-            }
+          <div class="flex justify-end border-t border-fb-line pt-2">
+            <ng-container
+              [ngTemplateOutlet]="saleActions"
+              [ngTemplateOutletContext]="{ $implicit: sale, ret: ret }"
+            />
           </div>
         </div>
       }
@@ -806,3 +685,62 @@
     <app-invoice-modal [invoice]="inv" (closed)="closeInvoice()"></app-invoice-modal>
   }
 </div>
+
+<ng-template #saleActions let-sale let-ret="ret">
+  <app-table-action-menu [label]="'Aktionen für ' + saleTitle(sale)">
+    <app-button
+      variant="list-row"
+      density="compact"
+      [fullWidth]="true"
+      contentAlign="start"
+      [icon]="fileIcon"
+      (clicked)="openInvoiceForSale(sale)"
+      [disabled]="isCreatingInvoice()"
+      [loading]="isCreatingInvoice()"
+    >
+      {{ invoiceActionLabel(sale) }}
+    </app-button>
+    @if (ret) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [icon]="receiptIcon"
+        (clicked)="openCreditNoteForSale(sale)"
+        >Gutschrift anzeigen</app-button
+      >
+    } @else if (!sale.returned_at) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [icon]="returnIcon"
+        (clicked)="openReturnModal(sale)"
+        >Retoure erfassen</app-button
+      >
+    }
+    <app-button
+      variant="list-row"
+      density="compact"
+      [fullWidth]="true"
+      contentAlign="start"
+      [icon]="receiptIcon"
+      data-sale-audit-print-link
+      link="/settings/data/print"
+      [queryParams]="{ entityType: 'sale', entityId: sale.id }"
+      [ariaLabel]="'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'"
+      >Prüfbeleg</app-button
+    >
+    <app-button
+      variant="list-row"
+      density="compact"
+      [fullWidth]="true"
+      contentAlign="start"
+      [icon]="historyIcon"
+      (clicked)="openRecordHistory(sale)"
+      >Chronik ansehen</app-button
+    >
+  </app-table-action-menu>
+</ng-template>

@@ -148,6 +148,8 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt kompakte Verka
   const firstQuantity = firstVariant.getByRole('spinbutton', { name: 'Menge', exact: true });
   const secondQuantity = secondVariant.getByRole('spinbutton', { name: 'Menge', exact: true });
   await firstQuantity.fill('2');
+  await page.getByRole('combobox', { name: 'Verkaufsplattform', exact: true }).click();
+  await page.getByRole('option', { name: 'eBay', exact: true }).click();
   await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
   await expect(page).toHaveURL(/\/sales\/new$/);
   await expect(firstQuantity).toHaveAttribute('aria-invalid', 'true');
@@ -187,17 +189,26 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt kompakte Verka
     text.trim(),
   );
   expect(headers).toEqual([
+    'Verkaufsnummer',
     'Datum',
     'Artikel',
     'Menge',
+    'Plattform',
     'Verkaufsbetrag',
     'Gewinn',
     'Marge',
     'Aktionen',
   ]);
   const row = page.locator(`#sale-desktop-${sold!.id}`);
-  await expect(row.getByRole('cell').nth(0)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
-  await expect(row.getByRole('cell').nth(1)).toContainText(sold!.record_number);
+  await expect(row.getByRole('cell').nth(headers.indexOf('Datum'))).toHaveText(
+    /\d{2}\.\d{2}\.\d{4}/,
+  );
+  await expect(row.getByRole('cell').nth(headers.indexOf('Verkaufsnummer'))).toContainText(
+    sold!.record_number,
+  );
+  await expect(row.getByRole('cell').nth(headers.indexOf('Artikel'))).not.toContainText(
+    sold!.record_number,
+  );
   await expect(row.getByRole('cell').nth(headers.indexOf('Marge'))).toHaveText(/\d+,\d+\s*%/);
   await page.reload();
   await expect(page.locator(`#sale-desktop-${sold!.id}`)).toBeVisible();
