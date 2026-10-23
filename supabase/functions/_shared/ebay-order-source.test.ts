@@ -38,6 +38,39 @@ function order(overrides: Record<string, unknown> = {}): Record<string, unknown>
 }
 const observedAt = '2026-10-01T12:00:00Z';
 
+test('Gebühren verwenden nur die belegte Marktplatzsumme einschließlich echter Null', () => {
+  for (const [fee, expected] of [
+    [money('1.23'), 123],
+    [money('0'), 0],
+    [undefined, null],
+    [{ value: '1', currency: 'USD' }, null],
+    [money('-1'), null],
+  ] as const) {
+    const source = parseEbayOrderSource(
+      order({ totalMarketplaceFee: fee, totalFeeBasisAmount: money('14') }),
+      observedAt,
+    );
+    assert.equal(source.platformFeeCents, expected);
+  }
+});
+
+test('Positionsbilder akzeptieren nur sichere eBay-Bildquellen', () => {
+  for (const [imageUrl, expected] of [
+    [
+      'https://i.ebayimg.com/images/g/abc/s-l500.jpg',
+      'https://i.ebayimg.com/images/g/abc/s-l500.jpg',
+    ],
+    ['https://evil.test/x', null],
+    ['javascript:alert(1)', null],
+  ] as const) {
+    const source = parseEbayOrderSource(
+      order({ lineItems: [{ legacyItemId: '123', image: { imageUrl } }] }),
+      observedAt,
+    );
+    assert.equal(source.lines[0].imageUrl, expected);
+  }
+});
+
 test('normalizes discounted goods and shipping without exposing buyer data', () => {
   const source = parseEbayOrderSource(order({ buyer: { username: 'private-buyer' } }), observedAt);
   assert.equal(source.totalCents, 1400);

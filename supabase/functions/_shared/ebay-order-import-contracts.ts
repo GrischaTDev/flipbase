@@ -5,6 +5,7 @@ export interface EbayMoney {
   readonly cents: number;
 }
 export interface EbayOrderSourceLine {
+  readonly imageUrl?: string | null;
   readonly lineItemId: string | null;
   readonly listingId: string | null;
   readonly variationId: string | null;
@@ -16,6 +17,7 @@ export interface EbayOrderSourceLine {
   readonly variationAspects: readonly { readonly name: string; readonly value: string }[];
 }
 export interface EbayOrderSource {
+  readonly platformFeeCents?: number | null;
   readonly orderId: string;
   readonly createdAt: string;
   readonly lastModifiedAt: string | null;

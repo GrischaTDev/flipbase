@@ -76,7 +76,14 @@ async function fixture() {
         connection.id,
       ),
     },
-    scan: { from: '2026-10-01T00:00:00Z', to: '2026-10-13T12:00:00Z', offset: 0 },
+    scan: {
+      id: 1,
+      kind: 'orders',
+      initial: true,
+      from: '2026-10-01T00:00:00Z',
+      to: '2026-10-13T12:00:00Z',
+      offset: 0,
+    },
   };
   const pages: { offset: number; complete: boolean }[] = [],
     delays: number[] = [],
@@ -155,7 +162,8 @@ Deno.test(
     // Der Fetchzaehler wird fuer jedes gespeicherte Fenster weitergeschaltet.
     const original = store.page;
     store.page = async (...args) => {
-      assert.deepEqual(Object.keys(args[2][0]).sort(), ['createdAt', 'id']);
+      assert.deepEqual(Object.keys(args[2][0]).sort(), ['source', 'sourceKey']);
+      assert.equal(JSON.stringify(args[2][0]).includes('never persisted'), false);
       requests++;
       return original(...args);
     };
@@ -281,3 +289,79 @@ Deno.test('Anbieterwartezeiten sind begrenzt und HTTP-Datum ist erlaubt', () => 
   assert.equal(observerRetrySeconds('9999999'), 86400);
   assert.equal(observerRetrySeconds('Thu, 01 Jan 1970 00:10:00 GMT', 0), 600);
 });
+
+Deno.test('Ältere Bestellung bleibt bei neuer Änderungszeit im Folgefenster', async () => {
+  const { claim } = await fixture();
+  claim.scan = { ...claim.scan, initial: false };
+  const result = await readObserverPage(config, 'token', claim.scan, 0, async (input) => {
+    assert.equal(
+      new URL(String(input)).searchParams.get('filter'),
+      'lastmodifieddate:[2026-10-01T00:00:00.000Z..2026-10-13T12:00:00.000Z]',
+    );
+    return Response.json({
+      total: 1,
+      orders: [
+        {
+          orderId: 'old-paid-now',
+          creationDate: '2026-07-01T12:00:00Z',
+          lastModifiedDate: '2026-10-12T12:00:00Z',
+          totalMarketplaceFee: { value: '2.50', currency: 'EUR' },
+          pricingSummary: { total: { value: '10', currency: 'EUR' } },
+        },
+      ],
+    });
+  });
+  assert.equal(result.orders[0].platformFeeCents, 250);
+  assert.equal(result.complete, true);
+});
+
+Deno.test('Inseratgrenze bestätigt niemals einen vollständigen Durchlauf', async () => {
+  const { claim, pages, finishes, store, request } = await fixture();
+  claim.scan = { ...claim.scan, kind: 'listings', offset: 24800 };
+  const handler = createEbayOrderObserverHandler(
+    store,
+    config,
+    'service-secret',
+    () => true,
+    async () =>
+      new Response(
+        '<GetMyeBaySellingResponse><Ack>Success</Ack><ActiveList><PaginationResult><TotalNumberOfEntries>25000</TotalNumberOfEntries><TotalNumberOfPages>125</TotalNumberOfPages></PaginationResult><ItemArray></ItemArray></ActiveList></GetMyeBaySellingResponse>',
+      ),
+  );
+  assert.equal((await handler(request())).status, 503);
+  assert.equal(pages.length, 0);
+  assert.equal(finishes[0].observed, false);
+});
+
+Deno.test(
+  'Vollständiger Inseratdurchlauf speichert normalisierte Bilder ohne Einzelabrufe',
+  async () => {
+    const { claim, pages, store, request } = await fixture();
+    claim.scan = { ...claim.scan, kind: 'listings' };
+    let calls = 0;
+    const save = store.page;
+    store.page = async (...args) => {
+      const listing = args[2][0];
+      assert.ok('imageUrl' in listing);
+      assert.equal(listing.imageUrl, 'https://i.ebayimg.com/a.jpg');
+      assert.equal(args[4], 1);
+      return save(...args);
+    };
+    const handler = createEbayOrderObserverHandler(
+      store,
+      config,
+      'service-secret',
+      () => true,
+      async (_input, init) => {
+        calls++;
+        assert.equal(new Headers(init?.headers).get('X-EBAY-API-CALL-NAME'), 'GetMyeBaySelling');
+        return new Response(
+          '<GetMyeBaySellingResponse><Ack>Success</Ack><ActiveList><PaginationResult><TotalNumberOfEntries>1</TotalNumberOfEntries><TotalNumberOfPages>1</TotalNumberOfPages></PaginationResult><ItemArray><Item><ItemID>123</ItemID><Title>Artikel</Title><PictureDetails><GalleryURL>https://i.ebayimg.com/a.jpg</GalleryURL></PictureDetails></Item></ItemArray></ActiveList></GetMyeBaySellingResponse>',
+        );
+      },
+    );
+    assert.equal((await handler(request())).status, 200);
+    assert.equal(calls, 1);
+    assert.equal(pages[0].complete, true);
+  },
+);

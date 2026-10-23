@@ -4,9 +4,13 @@ import {
   readRecord,
   readNonEmptyString,
   refreshTokens,
+  readListings,
 } from '../_shared/ebay-api.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import { decryptTokens, encryptTokens } from '../_shared/ebay-token-encryption.ts';
+import { ebayOrderSourceKey, parseEbayOrderSource } from '../_shared/ebay-order-source.ts';
+import type { EbayCacheScan, EbayCachedOrderWrite } from '../_shared/ebay-cache-contracts.ts';
+import type { EbayListing } from '../_shared/ebay-contracts.ts';
 
 export interface ObserverConnection {
   id: string;
@@ -19,15 +23,16 @@ export interface ObserverConnection {
 }
 export interface ObserverClaim {
   connection: { connection: ObserverConnection; encryptedTokens: string };
-  scan: { from: string; to: string; offset: number };
+  scan: EbayCacheScan;
 }
 export interface ObserverStore {
   claim(): Promise<ObserverClaim | null>;
   page(
     claim: ObserverClaim,
     offset: number,
-    orders: { id: string; createdAt: string }[],
+    rows: readonly (EbayCachedOrderWrite | EbayListing)[],
     complete: boolean,
+    total: number,
   ): Promise<boolean>;
   delay(claim: ObserverClaim, seconds: number): Promise<void>;
   finish(
@@ -63,7 +68,7 @@ export async function readObserverPage(
   url.searchParams.set('offset', String(offset));
   url.searchParams.set(
     'filter',
-    `creationdate:[${new Date(scan.from).toISOString()}..${new Date(scan.to).toISOString()}]`,
+    `${scan.initial ? 'creationdate' : 'lastmodifieddate'}:[${new Date(scan.from).toISOString()}..${new Date(scan.to).toISOString()}]`,
   );
   const response = await fetcher(url, {
     headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_DE' },
@@ -88,21 +93,29 @@ export async function readObserverPage(
   const orders = rows.map((row) => {
     const item = readRecord(row),
       id = readNonEmptyString(item.orderId),
-      createdAt = readNonEmptyString(item.creationDate);
+      createdAt = readNonEmptyString(item.creationDate),
+      filteredAt = scan.initial ? createdAt : readNonEmptyString(item.lastModifiedDate);
     if (
       !id ||
       id.length > 256 ||
       !createdAt ||
       !Number.isFinite(Date.parse(createdAt)) ||
-      Date.parse(createdAt) < Date.parse(scan.from) ||
-      Date.parse(createdAt) > Date.parse(scan.to)
+      !filteredAt ||
+      !Number.isFinite(Date.parse(filteredAt)) ||
+      Date.parse(filteredAt) < Date.parse(scan.from) ||
+      Date.parse(filteredAt) > Date.parse(scan.to)
     )
       throw new EbayError('invalid_response');
-    return { id, createdAt };
+    return parseEbayOrderSource(item, new Date().toISOString());
   });
-  const complete = offset + orders.length >= body.total;
+  if (
+    offset + orders.length > body.total ||
+    new Set(orders.map((order) => order.orderId)).size !== orders.length
+  )
+    throw new EbayError('invalid_response');
+  const complete = offset + orders.length === body.total;
   if (!complete && orders.length !== 50) throw new EbayError('invalid_response');
-  return { orders, complete };
+  return { orders, complete, total: body.total };
 }
 async function sameSecret(received: string, expected: string) {
   if (!expected || received.length !== expected.length) return false;
@@ -166,19 +179,54 @@ export function createEbayOrderObserverHandler(
         budgetedFetch,
       );
       encrypted = await encryptTokens(tokens, config.encryptionKey, connection.id);
-      for (let page = 0, offset = claim.scan.offset; page < 5; page++, offset += 50) {
+      const pageSize = claim.scan.kind === 'orders' ? 50 : 200;
+      for (let page = 0, offset = claim.scan.offset; page < 5; page++, offset += pageSize) {
         if (Date.now() - started >= 60000) break;
-        const result = await readObserverPage(
-          config,
-          tokens.accessToken,
-          claim.scan,
-          offset,
-          fetcher,
-        );
-        if (!(await store.page(claim, offset, result.orders, result.complete)))
+        let rows: readonly (EbayCachedOrderWrite | EbayListing)[], complete: boolean, total: number;
+        if (claim.scan.kind === 'listings') {
+          const result = await readListings(
+            config,
+            tokens.accessToken,
+            offset / 200 + 1,
+            budgetedFetch,
+          );
+          total = result.total;
+          complete = result.nextPage === null;
+          if (
+            total >= 25000 ||
+            offset + result.items.length > total ||
+            complete !== (offset + result.items.length === total) ||
+            (!complete && result.items.length !== 200)
+          )
+            throw new EbayError('invalid_response');
+          rows = result.items;
+        } else {
+          const result = await readObserverPage(
+            config,
+            tokens.accessToken,
+            claim.scan,
+            offset,
+            budgetedFetch,
+          );
+          total = result.total;
+          complete = result.complete;
+          rows = await Promise.all(
+            result.orders.map(async (source) => ({
+              source,
+              sourceKey: await ebayOrderSourceKey(
+                config.encryptionKey,
+                connection.workspace_id,
+                connection.environment,
+                connection.external_account_id,
+                source.orderId,
+              ),
+            })),
+          );
+        }
+        if (!(await store.page(claim, offset, rows, complete, total)))
           throw new Error('Stale observer lease');
         observed = true;
-        if (result.complete) break;
+        if (complete) break;
       }
       if (!(await store.finish(claim, encrypted, false, observed)))
         return Response.json({ error: 'stale' }, { status: 409 });

@@ -970,6 +970,190 @@ export type Database = {
           },
         ]
       }
+      ebay_cache_scans: {
+        Row: {
+          baseline_to: string | null
+          completed_at: string | null
+          environment: string
+          expected_total: number | null
+          external_account_id: string
+          generation: string
+          id: number
+          kind: string
+          last_error: string | null
+          lease_connection_id: string | null
+          lease_expires_at: string | null
+          lease_operation_id: string | null
+          lease_version: number | null
+          next_due_at: string
+          next_offset: number
+          seen_count: number
+          watermark: string | null
+          window_from: string | null
+          window_to: string | null
+          workspace_id: string
+        }
+        Insert: {
+          baseline_to?: string | null
+          completed_at?: string | null
+          environment: string
+          expected_total?: number | null
+          external_account_id: string
+          generation?: string
+          id?: never
+          kind: string
+          last_error?: string | null
+          lease_connection_id?: string | null
+          lease_expires_at?: string | null
+          lease_operation_id?: string | null
+          lease_version?: number | null
+          next_due_at?: string
+          next_offset?: number
+          seen_count?: number
+          watermark?: string | null
+          window_from?: string | null
+          window_to?: string | null
+          workspace_id: string
+        }
+        Update: {
+          baseline_to?: string | null
+          completed_at?: string | null
+          environment?: string
+          expected_total?: number | null
+          external_account_id?: string
+          generation?: string
+          id?: never
+          kind?: string
+          last_error?: string | null
+          lease_connection_id?: string | null
+          lease_expires_at?: string | null
+          lease_operation_id?: string | null
+          lease_version?: number | null
+          next_due_at?: string
+          next_offset?: number
+          seen_count?: number
+          watermark?: string | null
+          window_from?: string | null
+          window_to?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_cache_scans_lease_connection_id_fkey"
+            columns: ["lease_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ebay_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ebay_cache_scans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_cached_listings: {
+        Row: {
+          active: boolean
+          environment: string
+          external_account_id: string
+          id: number
+          listing: Json
+          listing_id: string
+          observed_at: string
+          seen_generation: string
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          environment: string
+          external_account_id: string
+          id?: never
+          listing: Json
+          listing_id: string
+          observed_at?: string
+          seen_generation: string
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          environment?: string
+          external_account_id?: string
+          id?: never
+          listing?: Json
+          listing_id?: string
+          observed_at?: string
+          seen_generation?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_cached_listings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_cached_orders: {
+        Row: {
+          auto_prepare: boolean
+          created_at: string
+          environment: string
+          external_account_id: string
+          first_seen_at: string
+          id: number
+          modified_at: string | null
+          observed_at: string
+          order_id: string
+          seen_generation: string | null
+          source: Json
+          source_key: string
+          workspace_id: string
+        }
+        Insert: {
+          auto_prepare?: boolean
+          created_at: string
+          environment: string
+          external_account_id: string
+          first_seen_at?: string
+          id?: never
+          modified_at?: string | null
+          observed_at?: string
+          order_id: string
+          seen_generation?: string | null
+          source: Json
+          source_key: string
+          workspace_id: string
+        }
+        Update: {
+          auto_prepare?: boolean
+          created_at?: string
+          environment?: string
+          external_account_id?: string
+          first_seen_at?: string
+          id?: never
+          modified_at?: string | null
+          observed_at?: string
+          order_id?: string
+          seen_generation?: string | null
+          source?: Json
+          source_key?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_cached_orders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ebay_connections: {
         Row: {
           authorization_version: number
@@ -9099,6 +9283,69 @@ export type Database = {
         }
         Returns: Json
       }
+      ebay_cache_can_read: {
+        Args: {
+          p_account_id: string
+          p_environment: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      ebay_cache_claim: { Args: { p_environment: string }; Returns: Json }
+      ebay_cache_delay: {
+        Args: {
+          p_connection_id: string
+          p_delay_seconds: number
+          p_operation_id: string
+          p_scan_id: number
+          p_version: number
+        }
+        Returns: undefined
+      }
+      ebay_cache_finish: {
+        Args: {
+          p_connection_id: string
+          p_encrypted_tokens?: string
+          p_needs_login?: boolean
+          p_observed?: boolean
+          p_operation_id: string
+          p_scan_id: number
+          p_version: number
+        }
+        Returns: boolean
+      }
+      ebay_cache_page: {
+        Args: {
+          p_complete: boolean
+          p_connection_id: string
+          p_offset: number
+          p_operation_id: string
+          p_rows: Json
+          p_scan_id: number
+          p_total: number
+          p_version: number
+        }
+        Returns: boolean
+      }
+      ebay_cache_read: {
+        Args: {
+          p_connection_id: string
+          p_environment: string
+          p_kind: string
+          p_page?: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      ebay_cache_refresh: {
+        Args: {
+          p_connection_id: string
+          p_environment: string
+          p_kind: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
       ebay_can_connect: { Args: { p_workspace_id: string }; Returns: boolean }
       ebay_claim_connection: {
         Args: {
@@ -11001,7 +11248,7 @@ export type Database = {
         Args: { p_id: string }
         Returns: {
           connection_id: string | null
-          content: NonNullable<Json>
+          content: Json
           created_at: string
           created_by: string
           deleted_at: string | null

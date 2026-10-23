@@ -10,6 +10,21 @@ function record(value: unknown): Record<string, unknown> {
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 && value.length <= 256 ? value : null;
 }
+export function ebayImageUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' &&
+      (url.hostname === 'ebayimg.com' || url.hostname.endsWith('.ebayimg.com')) &&
+      !url.username &&
+      !url.password &&
+      !url.port
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
 function timestamp(value: unknown): value is string {
   if (
     typeof value !== 'string' ||
@@ -36,6 +51,7 @@ export function parseEbayOrderSource(
 ): EbayOrderSource {
   const summary = record(row.pricingSummary);
   const total = parseEbayMoney(summary.total);
+  const fee = parseEbayMoney(row.totalMarketplaceFee);
   const currency = total?.currency ?? text(record(summary.total).currency);
   const delivery = parseEbayMoney(summary.deliveryCost);
   const discount =
@@ -121,6 +137,7 @@ export function parseEbayOrderSource(
         if (variationAspects.some((aspect) => !aspect.name || !aspect.value))
           blockers.add('invalid_lines');
         return {
+          imageUrl: ebayImageUrl(record(line.image).imageUrl),
           lineItemId,
           listingId,
           variationId: text(line.legacyVariationId),
@@ -138,6 +155,7 @@ export function parseEbayOrderSource(
   if (!isEbayCents(goods) || shipping === null || !total || goods + shipping !== total.cents)
     blockers.add('amount_mismatch');
   return {
+    platformFeeCents: fee && fee.currency === currency && currency === 'EUR' ? fee.cents : null,
     orderId: text(row.orderId) ?? '',
     createdAt: typeof row.creationDate === 'string' ? row.creationDate : '',
     lastModifiedAt: timestamp(row.lastModifiedDate) ? row.lastModifiedDate : null,

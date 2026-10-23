@@ -50,6 +50,76 @@ function request(action: string, extras: Record<string, unknown> = {}, bearer = 
     body: JSON.stringify({ action, workspaceId, ...extras }),
   });
 }
+
+test('Listen lesen gespeicherte Daten ohne Anbieterabruf oder Kontolease', async () => {
+  const cached = {
+    items: [
+      {
+        id: 'cached',
+        title: 'Gespeichert',
+        price: 10,
+        currency: 'EUR',
+        quantity: 1,
+        listingType: null,
+        url: null,
+      },
+    ],
+    total: 1,
+    nextPage: null,
+    sync: { status: 'syncing' as const, lastCompletedAt: null, lastError: null },
+  };
+  const cacheStore = store({
+    cacheRead: async (_bearer, scope, kind, page) => {
+      assert.equal(scope.connectionId, connectionId);
+      assert.equal(kind, 'orders');
+      assert.equal(page, 1);
+      return cached;
+    },
+    claim: async () => {
+      throw new Error('Keine Lease beim Cachelesen');
+    },
+  });
+  const handler = createEbayAccountHandler(cacheStore, config, config.allowedOrigins, async () => {
+    throw new Error('Kein Anbieter beim Cachelesen');
+  });
+  const response = await handler(request('orders', { connectionId }));
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).items, cached.items);
+});
+
+test('Aktualisieren fordert nur einen gespeicherten Hintergrundabgleich an', async () => {
+  let requested = false;
+  const handler = createEbayAccountHandler(
+    store({
+      cacheRefresh: async (_bearer, scope, kind) => {
+        requested = scope.connectionId === connectionId && kind === 'orders';
+      },
+    }),
+    config,
+    config.allowedOrigins,
+    async () => {
+      throw new Error('Keine direkte Anbieteranfrage');
+    },
+  );
+  const response = await handler(request('refresh', { connectionId, kind: 'orders' }));
+  assert.equal(response.status, 200);
+  assert.equal(requested, true);
+  assert.deepEqual(await response.json(), { requested: true, workspaceId, connectionId });
+});
+
+test('Dauerhafte Bestellungen bleiben auch jenseits des früheren Anbieter-Seitenlimits lesbar', async () => {
+  const handler = createEbayAccountHandler(
+    store({
+      cacheRead: async (_bearer, _scope, _kind, page) => {
+        assert.equal(page, 201);
+        return { items: [], total: 10001, nextPage: null };
+      },
+    }),
+    config,
+    config.allowedOrigins,
+  );
+  assert.equal((await handler(request('orders', { connectionId, page: 201 }))).status, 200);
+});
 test('Neue eBay-Aktionen prüfen Berechtigung und Eingaben vor dem Anbieteraufruf', async () => {
   let calls = 0;
   const handler = createEbayAccountHandler(store(), config, config.allowedOrigins, async () => {
@@ -437,7 +507,7 @@ test('Einmaliger Callback funktioniert ohne Flipbase-Bearer und lehnt Wiederholu
   );
   assert.equal(completed, 1);
 });
-test('Trennen während eines Abrufs verwirft auch eine erfolgreiche eBay-Antwort', async () => {
+test('Trennen während eines Detailabrufs verwirft auch eine erfolgreiche eBay-Antwort', async () => {
   const encryptedTokens = await encryptTokens(
     {
       accessToken: 'access',
@@ -461,14 +531,13 @@ test('Trennen während eines Abrufs verwirft auch eine erfolgreiche eBay-Antwort
     config,
     config.allowedOrigins,
     async () =>
-      Response.json({
-        total: 1,
-        orders: [{ orderId: 'private-order', creationDate: '2026-10-01' }],
-      }),
+      new Response(
+        '<GetItemResponse><Ack>Success</Ack><Item><ItemID>123</ItemID><Seller><UserID>seller</UserID></Seller><Title>Privater Artikel</Title><ListingType>FixedPriceItem</ListingType><SellingStatus><ListingStatus>Active</ListingStatus><CurrentPrice currencyID="EUR">10</CurrentPrice></SellingStatus></Item></GetItemResponse>',
+      ),
   );
-  const response = await handler(request('orders', { connectionId }));
+  const response = await handler(request('listing_detail', { connectionId, listingId: '123' }));
   assert.equal(response.status, 409);
-  assert.equal((await response.text()).includes('private-order'), false);
+  assert.equal((await response.text()).includes('Privater Artikel'), false);
 });
 test('Widerruf löscht Tokenzugriff und liefert einen erneuten Anmeldestatus', async () => {
   const encryptedTokens = await encryptTokens(
@@ -495,7 +564,7 @@ test('Widerruf löscht Tokenzugriff und liefert einen erneuten Anmeldestatus', a
     config.allowedOrigins,
     async () => Response.json({ error: 'invalid_grant' }, { status: 400 }),
   );
-  const response = await handler(request('orders', { connectionId }));
+  const response = await handler(request('listing_detail', { connectionId, listingId: '123' }));
   assert.equal(lockedOut, true);
   assert.equal(response.status, 409);
   assert.deepEqual(await response.json(), { error: 'needs_login' });
@@ -505,6 +574,6 @@ test('Unkonfigurierte App bleibt sichtbar ausgeschaltet und Seitenparameter sind
   assert.equal((await (await handler(request('status'))).json()).configured, false);
   assert.equal((await handler(request('connect'))).status, 503);
   const enabled = createEbayAccountHandler(store(), config, config.allowedOrigins);
-  assert.equal((await enabled(request('orders', { connectionId, page: 201 }))).status, 400);
+  assert.equal((await enabled(request('orders', { connectionId, page: 100001 }))).status, 400);
   assert.equal((await enabled(request('listings', { connectionId, page: 0 }))).status, 400);
 });

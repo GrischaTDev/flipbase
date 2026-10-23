@@ -3,8 +3,6 @@ import {
   authorizationUrl,
   exchangeCode,
   readIdentity,
-  readListings,
-  readOrders,
   readRecord,
   EbayError,
 } from '../_shared/ebay-api.ts';
@@ -28,6 +26,8 @@ import { readEbayAdvertisingReport } from '../_shared/ebay-advertising-report.ts
 import { withEbayConnection, EbayConnectionError } from './connection-read.ts';
 import { createEbayOrderImportHandler } from './order-import.ts';
 import type { EbayOrderImportStore } from './order-import.ts';
+import type { EbayCacheKind, EbayCacheRead } from '../_shared/ebay-cache-contracts.ts';
+import type { AccountScope } from '../_shared/marketplace-contracts.ts';
 
 export interface StoredEbayConnection {
   id: string;
@@ -41,6 +41,8 @@ export interface StoredEbayConnection {
   authorization_version: number;
 }
 export interface EbayAccountStore {
+  cacheRead?: EbayCacheRead;
+  cacheRefresh?(bearer: string, scope: AccountScope, kind: EbayCacheKind): Promise<void>;
   importAvailable?(): Promise<boolean>;
   authenticate(bearer: string): Promise<string | null>;
   canConnect(bearer: string, workspaceId: string): Promise<boolean>;
@@ -237,6 +239,17 @@ export function createEbayAccountHandler(
         await store.begin(userId, workspaceId, config.environment, await hashState(state));
         return respond({ authorizationUrl: authorizationUrl(config, state) });
       }
+      if (body.action === 'refresh') {
+        if (!isUuid(body.connectionId) || (body.kind !== 'orders' && body.kind !== 'listings'))
+          return respond({ error: 'invalid_request' }, 400);
+        if (!store.cacheRefresh) return respond({ error: 'cache_unavailable' }, 503);
+        await store.cacheRefresh(
+          bearer,
+          { workspaceId, connectionId: body.connectionId },
+          body.kind,
+        );
+        return respond({ requested: true, workspaceId, connectionId: body.connectionId });
+      }
       if (
         [
           'listing_detail',
@@ -318,30 +331,29 @@ export function createEbayAccountHandler(
           },
           fetcher,
         );
+        if (body.action === 'listing_update') {
+          // Eine bestätigte Anbieteränderung bleibt erfolgreich, selbst wenn die spätere Aktualisierung warten muss.
+          await store.cacheRefresh?.(bearer, scope, 'listings').catch(() => {});
+        }
         return respond({ ...result, ...scope });
       }
       if (body.action !== 'listings' && body.action !== 'orders')
         return respond({ error: 'invalid_request' }, 400);
       const page = body.page ?? 1;
-      const maximum = body.action === 'listings' ? 125 : 200;
       if (
         !isUuid(body.connectionId) ||
         typeof page !== 'number' ||
         !Number.isInteger(page) ||
         page < 1 ||
-        page > maximum
+        page > 100000
       )
         return respond({ error: 'invalid_request' }, 400);
-      const result = await withEbayConnection<unknown>(
-        { workspaceId, connectionId: body.connectionId },
+      if (!store.cacheRead) return respond({ error: 'cache_unavailable' }, 503);
+      const result = await store.cacheRead(
         bearer,
-        store,
-        config,
-        ({ accessToken }) =>
-          body.action === 'listings'
-            ? readListings(config, accessToken, page, fetcher)
-            : readOrders(config, accessToken, page, fetcher),
-        fetcher,
+        { workspaceId, connectionId: body.connectionId },
+        body.action,
+        page,
       );
       return respond({ ...readRecord(result), workspaceId, connectionId: body.connectionId });
     } catch (error) {

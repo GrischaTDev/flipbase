@@ -20,6 +20,7 @@ for (const name of [
   'ebay-config',
   'ebay-token-encryption',
   'ebay-contracts',
+  'ebay-cache-contracts',
   'ebay-xml',
   'ebay-order-source',
   'ebay-order-amounts',

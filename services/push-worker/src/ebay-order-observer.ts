@@ -10,7 +10,7 @@ export class EbayOrderObserver {
     this.now = now;
   }
   async observe(): Promise<void> {
-    if (!this.config.enabled || !this.config.observerUrl || this.now() < this.nextRun) return;
+    if (!this.config.serviceKey || !this.config.observerUrl || this.now() < this.nextRun) return;
     // SQL besitzt Kontolease, gefrorenes Fenster und den Fuenf-Minuten-Zeitplan.
     this.nextRun = this.now() + 5000;
     const response = await this.fetcher(this.config.observerUrl, {
