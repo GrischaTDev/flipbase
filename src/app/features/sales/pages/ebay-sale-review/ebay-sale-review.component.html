@@ -210,7 +210,7 @@
         <app-card title="Vorhandenen Verkauf verknüpfen" variant="section">
           <div class="space-y-4">
             <p class="text-sm text-fb-text-secondary">
-              Wähle einen vollständigen eBay-Verkauf und ordne jede Bestellposition seiner
+              Wähle einen vollständigen vorhandenen Verkauf und ordne jede Bestellposition seiner
               Verkaufsposition zu. Bereits verkaufte Artikel sind hier enthalten. Bestätigte Kosten
               und Bestandsabgänge bleiben erhalten.
             </p>
@@ -222,8 +222,8 @@
               <p role="status">Vorhandene Verkäufe werden geladen …</p>
             }
             <app-custom-select
-              label="Vorhandener eBay-Verkauf"
-              ariaLabel="Vorhandener eBay-Verkauf"
+              label="Vorhandener Verkauf"
+              ariaLabel="Vorhandener Verkauf"
               [options]="saleOptions()"
               [value]="selectedExistingSaleId()"
               [searchable]="true"
@@ -238,6 +238,13 @@
               >
             }
             @if (selectedExistingSale(); as sale) {
+              @if (sale.platform.toLowerCase() !== 'ebay') {
+                <p role="status" class="text-sm text-fb-text-secondary">
+                  Dieser Verkauf ist als {{ platformLabel(sale.platform) }} gespeichert. Prüfe, ob
+                  es tatsächlich dieselbe Bestellung ist. Die Zuordnung ändert weder die
+                  gespeicherte Plattform noch Preise und Kosten.
+                </p>
+              }
               <ul class="space-y-1 text-sm">
                 @for (line of sale.lines; track line.id) {
                   <li>

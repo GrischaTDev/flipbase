@@ -63,6 +63,7 @@ export interface EbayExistingSaleLinkRequest extends AccountScope {
 }
 export interface EbayExistingSale {
   readonly id: string;
+  readonly platform: string;
   readonly saleDate: string;
   readonly total: number;
   readonly externalOrderId: string | null;

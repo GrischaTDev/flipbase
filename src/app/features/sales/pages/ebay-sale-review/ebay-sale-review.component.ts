@@ -32,6 +32,7 @@ import { CustomSelectComponent } from '../../../../shared/components/custom-sele
 import { SaleCreateModalComponent } from '../../components/sale-create-modal/sale-create-modal.component';
 import { EbaySaleReviewStore } from '../../services/ebay-sale-review.store';
 import type { ExternalSaleEntrySubmit } from '../../models/external-sale-entry.models';
+import { marketplacePlatformLabel } from '../../../../shared/models/marketplace-platform';
 
 @Component({
   selector: 'app-ebay-sale-review',
@@ -55,6 +56,7 @@ import type { ExternalSaleEntrySubmit } from '../../models/external-sale-entry.m
   host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class EbaySaleReviewComponent {
+  readonly platformLabel = marketplacePlatformLabel;
   readonly sourceIssueLabel = ebaySourceIssueLabel;
   readonly store = inject(EbaySaleReviewStore);
   private readonly auth = inject(AuthService);
@@ -103,7 +105,7 @@ export class EbaySaleReviewComponent {
   readonly saleOptions = computed(() =>
     this.store.existingSales().map((sale) => ({
       value: sale.id,
-      label: `${sale.saleDate} · ${sale.lines.map((line) => line.title).join(', ')} · ${sale.total.toFixed(2)} €`,
+      label: `${sale.saleDate} · ${this.platformLabel(sale.platform)} · ${sale.lines.map((line) => line.title).join(', ')} · ${sale.total.toFixed(2)} €`,
     })),
   );
   readonly selectedExistingSale = computed(

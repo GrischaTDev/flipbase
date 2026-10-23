@@ -192,8 +192,8 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
   expect(Date.parse(listingsScan.data.next_due_at)).toBeLessThanOrEqual(Date.now());
 
   await page
-    .locator('[data-ebay-navigation]')
     .getByRole('link', { name: 'Bestellungen', exact: true })
+    .filter({ visible: true })
     .click();
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/orders$/);
   await expect(
@@ -230,7 +230,7 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     if (route.request().postDataJSON()?.action === 'orders') await pendingOrders;
     await route.continue();
   });
-  await page.locator('a[href="/dashboard"]').first().click();
+  await page.locator('a[href="/dashboard"]').filter({ visible: true }).first().click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/orders$/);
@@ -420,7 +420,7 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   const { data: legacy, error: legacyError } = await workspace.client.rpc('record_sale', {
     p_workspace_id: workspace.id,
     p_sale: {
-      platform: 'ebay',
+      platform: 'vinted',
       sale_date: '2026-10-01',
       external_order_id: order.orderId,
       platform_fee: 0,
@@ -438,12 +438,32 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   });
   if (legacyError) throw legacyError;
   const legacySaleId = (legacy as { sale: { id: string } }).sale.id;
+  const beforeLink = await workspace.client
+    .from('sales')
+    .select('*')
+    .eq('id', legacySaleId)
+    .single();
+  if (beforeLink.error) throw beforeLink.error;
   await openDashboard(page);
   await page.goto(order.route);
   await page.getByRole('combobox', { name: 'Erfassung der Bestellung', exact: true }).click();
   await page.getByRole('option', { name: 'Bereits als Verkauf erfasst', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Vorhandener eBay-Verkauf', exact: true }).click();
-  await page.getByRole('option', { name: /Zuvor manuell verkauft/ }).click();
+  await page.getByRole('combobox', { name: 'Vorhandener Verkauf', exact: true }).click();
+  await page.getByRole('option', { name: /Vinted.*Zuvor manuell verkauft/ }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Dieser Verkauf ist als Vinted gespeichert.' }),
+  ).toBeVisible();
+  await page.addScriptTag({ content: axe.source });
+  const existingSaleViolations = await page.evaluate(
+    async () =>
+      (
+        await (window as unknown as { axe: typeof axe }).axe.run(
+          document.querySelector('app-ebay-sale-review')!,
+          { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } },
+        )
+      ).violations,
+  );
+  expect(existingSaleViolations).toEqual([]);
   await page
     .getByRole('combobox', { name: 'Verkaufsposition für eBay-Testartikel', exact: true })
     .click();
@@ -458,6 +478,13 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
     .click();
   await page.getByRole('button', { name: 'Bestehenden Verkauf verknüpfen', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toBeVisible();
+  const afterLink = await workspace.client
+    .from('sales')
+    .select('*')
+    .eq('id', legacySaleId)
+    .single();
+  expect(afterLink.error).toBeNull();
+  expect(afterLink.data).toEqual(beforeLink.data);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toBeVisible();
   const { data: sales } = await workspace.client
