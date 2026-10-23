@@ -176,6 +176,7 @@ describe('Verkaufsmaske und Tabellenregistrierung', () => {
     const { component, recordSale } = createSaleForm();
     component.onTargetChange(0, 'catalog:p36');
     component.lines.at(0).controls.unitSalePrice.setValue(40);
+    component.form.controls.platform.setValue('ebay');
     await component.onSubmit();
     expect(recordSale).toHaveBeenCalledWith(
       expect.objectContaining({

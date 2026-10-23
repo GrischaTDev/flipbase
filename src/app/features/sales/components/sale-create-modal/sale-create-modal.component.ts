@@ -329,7 +329,7 @@ export class SaleCreateModalComponent {
 
   readonly form = new FormGroup({
     lines: new FormArray<SaleLineForm>([this.createLineForm()]),
-    platform: new FormControl('kleinanzeigen', {
+    platform: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required],
     }),
@@ -369,6 +369,35 @@ export class SaleCreateModalComponent {
   });
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
+  });
+  readonly showShippingSection = computed(() => {
+    this.formValue();
+    return !!this.form.controls.platform.value || this.istBearbeitung() || !!this.externalDraft();
+  });
+  readonly isVintedShipping = computed(() => {
+    this.formValue();
+    return (
+      this.form.controls.platform.value === 'vinted' &&
+      !this.istBearbeitung() &&
+      !this.externalDraft()
+    );
+  });
+  readonly showPlatformFee = computed(() => {
+    this.formValue();
+    return (
+      this.istBearbeitung() ||
+      !!this.externalDraft() ||
+      ['ebay', 'stockx'].includes(this.form.controls.platform.value)
+    );
+  });
+  readonly showShippingAmounts = computed(() => {
+    this.formValue();
+    return (
+      this.istBearbeitung() ||
+      !!this.externalDraft() ||
+      (!this.isVintedShipping() &&
+        ['seller_arranged', 'unknown'].includes(this.form.controls.shippingMode.value))
+    );
   });
   readonly hasSelectedSaleLines = computed(() => {
     this.formValue();
@@ -455,7 +484,7 @@ export class SaleCreateModalComponent {
       if (!this.isApplyingShippingDefault) this.hasExplicitShippingMode = true;
       this.enforceShippingMode(mode);
     });
-    this.enforceShippingMode(this.form.controls.shippingMode.value);
+    this.applyShippingDefault(this.form.controls.platform.value);
     effect(() => {
       this.formValue();
       this.stockService.positions();
@@ -1113,6 +1142,7 @@ export class SaleCreateModalComponent {
     ])
       control.disable({ emitEvent: false });
     this.form.controls.platformFee.setValidators([Validators.required, Validators.min(0)]);
+    this.form.controls.platformFee.enable({ emitEvent: false });
     this.form.controls.shippingCost.setValidators([Validators.required, Validators.min(0)]);
     this.form.controls.shippingCost.enable({ emitEvent: false });
     if (!compatible) {
@@ -1147,16 +1177,16 @@ export class SaleCreateModalComponent {
     this.lines.push(this.createLineForm(), { emitEvent: false });
     this.additionalCosts.clear({ emitEvent: false });
     this.form.reset({
-      platform: 'kleinanzeigen',
+      platform: '',
       saleDate: this.localToday(),
       platformFee: 0,
       shippingCost: 0,
       shippingRevenue: 0,
-      shippingMode: 'pickup',
+      shippingMode: 'seller_arranged',
       externalOrderId: '',
       buyerNotes: '',
     });
-    this.enforceShippingMode('pickup');
+    this.enforceShippingMode('seller_arranged');
   }
   private setLineTarget(index: number, target: SaleTarget): void {
     if (this.externalDraft()) {
@@ -1235,7 +1265,20 @@ export class SaleCreateModalComponent {
     };
   }
   private applyShippingDefault(platform: string): void {
-    if (this.hasExplicitShippingMode) return;
+    const isNewManualSale = !this.istBearbeitung() && !this.externalDraft();
+    if (isNewManualSale) {
+      if (['ebay', 'stockx'].includes(platform)) {
+        this.form.controls.platformFee.enable({ emitEvent: false });
+      } else {
+        this.form.controls.platformFee.setValue(0, { emitEvent: false });
+        this.form.controls.platformFee.disable({ emitEvent: false });
+      }
+    } else {
+      this.form.controls.platformFee.enable({ emitEvent: false });
+    }
+    const useVintedShipping = isNewManualSale && platform === 'vinted';
+    if (this.hasExplicitShippingMode && !useVintedShipping) return;
+    if (useVintedShipping) this.hasExplicitShippingMode = false;
     this.isApplyingShippingDefault = true;
     try {
       this.form.controls.shippingMode.setValue(this.shippingDefaultFor(platform));

@@ -242,7 +242,9 @@ describe('SalesComponent – Aktionsmeldungen', () => {
 
     expect('onDeleteSale' in SalesComponent.prototype).toBe(false);
     expect(
-      root.querySelector('app-table-action-button[label="Retoure / Gutschrift erfassen"]'),
+      [...root.querySelectorAll('app-button')].find(
+        (button) => button.getAttribute('(clicked)') === 'openReturnModal(sale)',
+      ) ?? null,
     ).not.toBeNull();
     expect(root.querySelector('app-table-action-button[label="Verkauf bearbeiten"]')).toBeNull();
     expect(root.querySelector('app-table-action-button[label="Verkauf stornieren"]')).toBeNull();

@@ -522,6 +522,42 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     expect(storedQty?.visible).toBe(false);
   });
 
+  it('migriert die Verkaufsspalten einmalig und behält später bewusst ausgeblendete Spalten', () => {
+    const key = `flipbase:table_prefs:${testWorkspaceId}:sales`;
+    const previousVisible = new Set([
+      'sale_date',
+      'title',
+      'quantity',
+      'revenue',
+      'profit',
+      'margin',
+      'actions',
+    ]);
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 1,
+        defaultsVersion: 1,
+        columns: SALES_TABLE_CONFIG.defaultColumns.map((column) => ({
+          id: column.id,
+          order: column.order,
+          visible: previousVisible.has(column.id),
+        })),
+        sort: { field: 'sale_date', direction: 'desc' },
+      }),
+    );
+    const migrated = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(migrated.columns.find((column) => column.id === 'record_number')?.visible).toBe(true);
+    expect(migrated.columns.find((column) => column.id === 'platform')?.visible).toBe(true);
+    service.toggleColumnVisibility('sales', 'record_number', testWorkspaceId);
+    service.toggleColumnVisibility('sales', 'platform', testWorkspaceId);
+
+    const reloadedService = TestBed.runInInjectionContext(() => new TablePreferencesService());
+    const restored = reloadedService.getTablePreferences('sales', testWorkspaceId)();
+    expect(restored.columns.find((column) => column.id === 'record_number')?.visible).toBe(false);
+    expect(restored.columns.find((column) => column.id === 'platform')?.visible).toBe(false);
+  });
+
   it('should not hide locked columns', () => {
     // Title is locked
     service.toggleColumnVisibility('sales', 'title', testWorkspaceId);

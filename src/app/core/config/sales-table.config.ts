@@ -36,11 +36,11 @@ export type SalesSortField =
 
 export const SALES_TABLE_CONFIG: TableConfig<SalesColumnId, SalesSortField> = {
   defaultColumns: [
-    { id: 'record_number', label: 'Verkaufsnummer', visible: false, order: 0 },
+    { id: 'record_number', label: 'Verkaufsnummer', visible: true, order: 0 },
     { id: 'sale_date', label: 'Datum', visible: true, order: 1 },
     { id: 'title', label: 'Artikel', visible: true, order: 2, locked: true },
     { id: 'quantity', label: 'Menge', visible: true, order: 3 },
-    { id: 'platform', label: 'Plattform', visible: false, order: 4 },
+    { id: 'platform', label: 'Plattform', visible: true, order: 4 },
     { id: 'revenue', label: SALES_LABELS.revenue, visible: true, order: 5 },
     { id: 'cost_of_goods_sold', label: SALES_LABELS.purchaseCosts, visible: false, order: 6 },
     { id: 'selling_costs', label: SALES_LABELS.sellingCosts, visible: false, order: 7 },

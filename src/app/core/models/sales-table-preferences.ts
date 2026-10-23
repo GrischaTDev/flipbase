@@ -40,6 +40,21 @@ export function migrateLegacySalesColumns<T extends string>(
   const isPreviousOrder =
     orderedIds.length === defaults.length &&
     orderedIds.every((id, index) => id === defaults[index].id);
+  const previousVisible = new Set([
+    'sale_date',
+    'title',
+    'quantity',
+    'revenue',
+    'profit',
+    'margin',
+    'actions',
+  ]);
+  if (
+    isPreviousOrder &&
+    stored.every((column) => column.visible === previousVisible.has(column.id))
+  ) {
+    return defaults.map((column) => ({ ...column }));
+  }
   if ((isFormerOrder || isPreviousOrder) && stored.every((column) => column.visible)) {
     return defaults.map((column) => ({ ...column }));
   }

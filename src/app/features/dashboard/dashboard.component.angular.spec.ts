@@ -1,3 +1,4 @@
+import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -43,6 +44,8 @@ interface AngularInputMetadata {
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './summary-metric.component.html':
+    'src/app/shared/components/summary-metric/summary-metric.component.html',
   './modal-shell.component.scss':
     'src/app/shared/components/modal-shell/modal-shell.component.scss',
   './modal-shell.component.html':
@@ -149,6 +152,7 @@ beforeAll(async () => {
         'ariaLabel',
       ],
     ],
+    [SummaryMetricComponent, ['label', 'value', 'icon', 'negative']],
     [CardComponent, ['padding', 'rounded', 'variant', 'contentLayout']],
     [PageHeaderComponent, ['title', 'subtitle', 'icon', 'appearance']],
     [MarketplacePlatformIdentityComponent, ['platform', 'displayName', 'iconOnly']],

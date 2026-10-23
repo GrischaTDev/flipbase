@@ -93,7 +93,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
 
     expect(names).toEqual(['Warenwirtschaft', 'Marktplätze', 'Finanzen', 'Tools']);
     expect(links).toEqual([
-      ['/purchases', '/catalog', '/sales'],
+      ['/purchases', '/sales', '/catalog'],
       ['/marketplaces/overview', '/marketplaces/ebay', '/marketplaces/kleinanzeigen'],
       ['/expenses', '/accounting', '/analytics'],
       [
@@ -206,7 +206,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     const article = element.querySelector('a[href="/catalog"]');
     const inventory = element.querySelector('a[href="/inventory"]');
 
-    expect(article?.textContent?.trim()).toBe('Artikel');
+    expect(article?.textContent?.trim()).toBe('Bestand');
     expect(article?.getAttribute('aria-current')).toBe('page');
     expect(inventory).toBeNull();
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
@@ -226,7 +226,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
 
     expect(names).toEqual(['Merchandise Management', 'Marketplaces', 'Finances', 'Tools']);
     expect(toggle.textContent?.trim()).toBe('Ideas');
-    expect(article?.textContent?.trim()).toBe('Articles');
+    expect(article?.textContent?.trim()).toBe('Inventory');
     expect(sales?.textContent?.trim()).toBe('Sales');
     expect(research?.textContent?.trim()).toBe('Price research');
     expect(ebayFees?.textContent?.trim()).toBe('eBay Fee Calculator');

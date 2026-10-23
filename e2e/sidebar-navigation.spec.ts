@@ -94,7 +94,7 @@ test.describe('Mobile Navigation mit Touch', () => {
     await page.goto('/sales');
 
     const activeLink = page.locator('app-bottom-nav a[aria-current="page"]');
-    await expect(activeLink).toHaveText('Verkauf');
+    await expect(activeLink).toHaveText('Verkäufe');
     await expect(activeLink).toHaveCSS('background-color', 'rgb(252, 198, 1)');
     await expect(activeLink).toHaveCSS('color', 'rgb(26, 26, 26)');
 

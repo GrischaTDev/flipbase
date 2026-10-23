@@ -1,0 +1,11 @@
+<div class="flex items-center gap-2 text-fb-text-secondary">
+  <svg [lucideIcon]="icon()" class="size-4 shrink-0" aria-hidden="true"></svg>
+  <h2 class="text-[13px] font-medium">{{ label() }}</h2>
+</div>
+<p
+  class="metric-value mt-2 break-words text-[clamp(1.25rem,2.5cqi,2rem)] leading-tight font-semibold tracking-tight tabular-nums"
+  [class.text-fb-critical]="negative()"
+>
+  {{ value() }}
+</p>
+<ng-content />
