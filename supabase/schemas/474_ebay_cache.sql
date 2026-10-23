@@ -53,6 +53,7 @@ create table public.ebay_cached_orders (
   observed_at timestamptz not null default clock_timestamp(),
   auto_prepare boolean not null default false,
   seen_generation uuid,
+  last_scanned_payment_status text,
   unique(workspace_id,environment,external_account_id,order_id),
   unique(workspace_id,environment,source_key)
 );
@@ -208,10 +209,10 @@ begin
       v_paid:=(v_source->>'paidAt')::timestamptz;
       v_new_sale:=v_scan.baseline_to is not null and v_source->>'paymentStatus'='PAID'
         and ((v_old.id is null and (v_created>v_scan.baseline_to or coalesce(isfinite(v_paid) and v_paid>=v_created and v_paid>v_scan.baseline_to and v_paid<=v_scan.window_to,false)))
-          or (v_old.id is not null and v_old.source->>'paymentStatus'<>'PAID')) and not coalesce(v_old.auto_prepare,false);
-      insert into public.ebay_cached_orders(workspace_id,environment,external_account_id,order_id,source_key,source,created_at,modified_at,auto_prepare,seen_generation)
-        values(v_scan.workspace_id,v_scan.environment,v_scan.external_account_id,v_source->>'orderId',v_row->>'sourceKey',v_source,v_created,(v_source->>'lastModifiedAt')::timestamptz,coalesce(v_new_sale,false),v_scan.generation)
-        on conflict(workspace_id,environment,external_account_id,order_id) do update set source=excluded.source,modified_at=excluded.modified_at,observed_at=clock_timestamp(),auto_prepare=public.ebay_cached_orders.auto_prepare or excluded.auto_prepare,seen_generation=excluded.seen_generation returning id into v_id;
+          or (v_old.id is not null and coalesce(v_old.last_scanned_payment_status,v_old.source->>'paymentStatus')<>'PAID')) and not coalesce(v_old.auto_prepare,false);
+      insert into public.ebay_cached_orders(workspace_id,environment,external_account_id,order_id,source_key,source,created_at,modified_at,auto_prepare,seen_generation,last_scanned_payment_status)
+        values(v_scan.workspace_id,v_scan.environment,v_scan.external_account_id,v_source->>'orderId',v_row->>'sourceKey',v_source,v_created,(v_source->>'lastModifiedAt')::timestamptz,coalesce(v_new_sale,false),v_scan.generation,v_source->>'paymentStatus')
+        on conflict(workspace_id,environment,external_account_id,order_id) do update set source=excluded.source,modified_at=excluded.modified_at,observed_at=clock_timestamp(),auto_prepare=public.ebay_cached_orders.auto_prepare or excluded.auto_prepare,seen_generation=excluded.seen_generation,last_scanned_payment_status=excluded.last_scanned_payment_status returning id into v_id;
       if v_new_sale then
         -- Ein Kontoabruf kann mehrere persönliche Freigaben bedienen; keine Abrufverbindung als Empfänger voraussetzen.
         for v_recipient in select c.* from public.ebay_connections c where c.workspace_id=v_scan.workspace_id and c.environment=v_scan.environment

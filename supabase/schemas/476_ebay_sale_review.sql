@@ -40,7 +40,7 @@ begin
   then raise exception 'Quellstand wurde geändert; bitte erneut prüfen' using errcode='22023'; end if;
   insert into public.ebay_cached_orders(workspace_id,environment,external_account_id,order_id,source_key,source,created_at)
     values(p_workspace_id,v_connection.environment,v_connection.external_account_id,v_snapshot.source->>'orderId',v_snapshot.source_key,v_snapshot.source,(v_snapshot.source->>'createdAt')::timestamptz)
-    on conflict(workspace_id,environment,source_key) do update set source=excluded.source,observed_at=clock_timestamp() returning id into v_id;
+    on conflict(workspace_id,environment,source_key) do update set last_scanned_payment_status=coalesce(public.ebay_cached_orders.last_scanned_payment_status,public.ebay_cached_orders.source->>'paymentStatus'),source=excluded.source,observed_at=clock_timestamp() returning id into v_id;
   v_draft_id:=public.ebay_prepare_sale_draft(v_id,p_assignments,p_costs,true);
   select * into v_draft from public.ebay_sale_drafts where id=v_draft_id;
   return public.ebay_sale_draft_json(v_draft);
@@ -200,7 +200,8 @@ begin
   -- Vor der Cachezeile dieselbe Quellensperre wie Hintergrundabgleich und Buchung.
   perform pg_advisory_xact_lock(hashtextextended(v_connection.workspace_id::text||':'||v_connection.environment||':'||p_source_key,0));
   -- Der neue Anbieterstand aktualisiert nur bereits bekannte Quellen; historisches Öffnen reserviert nichts.
-  update public.ebay_cached_orders set source=p_source,observed_at=v_now where workspace_id=v_connection.workspace_id
+  -- Sichtbarer Prüfstand und zuletzt vom Hintergrund erkannter Zahlungsstand bleiben getrennt.
+  update public.ebay_cached_orders set last_scanned_payment_status=coalesce(last_scanned_payment_status,source->>'paymentStatus'),source=p_source,observed_at=v_now where workspace_id=v_connection.workspace_id
     and environment=v_connection.environment and external_account_id=v_connection.external_account_id and source_key=p_source_key;
   select public.ebay_sale_draft_json(d) into v_draft from public.ebay_sale_drafts d
     where workspace_id=v_connection.workspace_id and environment=v_connection.environment and source_key=p_source_key;
@@ -295,7 +296,7 @@ begin
   select * into v_draft from public.ebay_sale_drafts where workspace_id=p_workspace_id
     and environment=v_connection.environment and source_key=v_snapshot.source_key for update;
   if v_draft.id is not null then
-    if v_draft.state in ('blocked','dismissed','linked_existing','booked')
+    if v_draft.requires_explicit_preparation or v_draft.state in ('blocked','dismissed','linked_existing','booked')
       or (select jsonb_agg(a order by a->>'lineItemId') from jsonb_array_elements(v_draft.assignments) a)
         is distinct from (select jsonb_agg(a order by a->>'lineItemId') from jsonb_array_elements(p_assignments) a)
     then raise exception 'Gespeicherten Entwurf bitte erneut prüfen' using errcode='22023'; end if;
@@ -341,5 +342,28 @@ begin
     values (v_connection.workspace_id,v_connection.environment,v_snapshot.source_key,'recorded_elsewhere',p_sale_id,trim(p_reason),p_user_id);
   perform public.ebay_close_sale_draft(v_connection.workspace_id,v_connection.environment,v_snapshot.source_key,'dismissed',null,p_reason);
   return jsonb_build_object('status','recorded_elsewhere','saleId',p_sale_id);
+end;
+$$;
+
+
+create or replace function public.ebay_clear_order_recorded_elsewhere(p_user_id uuid, p_connection_id uuid, p_source_key text)
+returns boolean language plpgsql security invoker set search_path = '' as $$
+declare v_connection public.ebay_connections; v_cleared boolean;
+begin
+  select * into v_connection from public.ebay_connections where id = p_connection_id;
+  v_connection := public.ebay_lock_import_connection(p_user_id,v_connection.workspace_id,p_connection_id);
+  if p_source_key is null or p_source_key !~ '^[0-9a-f]{64}$' then raise exception 'Ungültige Quelle' using errcode = '22023'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(v_connection.workspace_id::text || ':' || v_connection.environment || ':' || p_source_key,0));
+  delete from public.ebay_order_bookings where workspace_id = v_connection.workspace_id and environment = v_connection.environment
+    and source_key = p_source_key and status = 'recorded_elsewhere';
+  v_cleared:=found;
+  if v_cleared then
+    -- Der alte Beleg ist aufgehoben. Keine stillschweigende Wiederreservierung durch Cache/Review.
+    update public.ebay_sale_drafts set state='needs_mapping',sale_id=null,resolution_reason=null,
+      requires_explicit_preparation=true,updated_at=clock_timestamp()
+      where workspace_id=v_connection.workspace_id and environment=v_connection.environment and source_key=p_source_key
+        and state in ('dismissed','linked_existing');
+  end if;
+  return v_cleared;
 end;
 $$;

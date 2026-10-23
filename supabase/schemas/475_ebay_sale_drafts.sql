@@ -14,6 +14,7 @@ create table public.ebay_sale_drafts (
   created_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
   resolution_reason text,
+  requires_explicit_preparation boolean not null default false,
   unique(workspace_id,environment,source_key),
   unique(workspace_id,id),
   foreign key(workspace_id,sale_id) references public.sales(workspace_id,id) on delete restrict
@@ -164,6 +165,11 @@ begin
   select * into strict v_order from public.ebay_cached_orders where id=p_cache_id;
   perform pg_advisory_xact_lock(hashtextextended(v_order.workspace_id::text||':'||v_order.environment||':'||v_order.source_key,0));
   select * into v_draft from public.ebay_sale_drafts where workspace_id=v_order.workspace_id and environment=v_order.environment and source_key=v_order.source_key for update;
+  -- Nach bewusster Aufhebung bleibt Lesen still; nur Speichern darf neu reservieren.
+  if v_draft.requires_explicit_preparation and not p_explicit then
+    update public.ebay_sale_drafts set source=v_order.source,updated_at=clock_timestamp() where id=v_draft.id;
+    return v_draft.id;
+  end if;
   if v_draft.state in ('booked','linked_existing','dismissed') then
     update public.ebay_sale_drafts set source=v_order.source,updated_at=clock_timestamp() where id=v_draft.id;
     return v_draft.id;
@@ -282,7 +288,7 @@ begin
     end if;
     if v_state='needs_costs' and public.ebay_valid_cents(v_costs->'platformFeeCents') and public.ebay_valid_cents(v_costs->'shippingCostCents') then v_state:='ready_for_review'; end if;
   end if;
-  update public.ebay_sale_drafts set source=v_order.source,assignments=v_assignments,costs=v_costs,state=v_state,updated_at=clock_timestamp() where id=v_draft.id;
+  update public.ebay_sale_drafts set source=v_order.source,assignments=v_assignments,costs=v_costs,state=v_state,requires_explicit_preparation=false,updated_at=clock_timestamp() where id=v_draft.id;
   return v_draft.id;
 end;
 $$;

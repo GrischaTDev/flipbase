@@ -223,6 +223,58 @@ insert into public.catalog_products(id,workspace_id,title,tracking_mode,archived
 insert into public.ebay_article_mappings(workspace_id,environment,external_account_id,listing_id,catalog_product_id) values ('47500000-0000-4000-8000-000000000011','production','seller-a','archived','47500000-0000-4000-8000-000000000081');
 select lives_ok($$select pg_temp.add_order('archived-target',jsonb_build_object('lines',(select jsonb_build_array((source->'lines'->0)||'{"listingId":"archived","quantity":1}') from import_test)))$$,'Archiviertes Zuordnungsziel unterbricht den Hintergrundabgleich nicht');
 select is((select state from public.ebay_sale_drafts where order_id='archived-target'),'needs_stock','Archiviertes Ziel erscheint als Bestandsklärfall ohne Reservierung');
+-- Reviewkorrektur: persönlicher Prüfstand darf die spätere automatische Zahlung nicht verbrauchen.
+savepoint payment_review;
+select pg_temp.add_order('paid-after-review','{"paymentStatus":"PENDING","lines":[{"lineItemId":"line-1","listingId":"123","variationId":null,"variationAspects":[],"title":"Importartikel","quantity":1,"goodsCents":1000,"hasRefund":false}]}',false);
+create temporary table review_scan(id bigint);
+with inserted as (
+ insert into public.ebay_cache_scans(workspace_id,environment,external_account_id,kind,baseline_to,window_from,window_to,lease_connection_id,lease_operation_id,lease_version,lease_expires_at)
+ values('47500000-0000-4000-8000-000000000011','production','seller-a','orders',now()-interval '1 hour',now()-interval '1 hour',clock_timestamp(),'47500000-0000-4000-8000-000000000021','47500000-0000-4000-8000-000000000031',1,clock_timestamp()+interval '90 seconds') returning id
+) insert into review_scan select id from inserted;
+select public.ebay_store_order_snapshot('47500000-0000-4000-8000-000000000001','47500000-0000-4000-8000-000000000021',1,'47500000-0000-4000-8000-000000000031',source_key,repeat('b',64),source||'{"paymentStatus":"PAID"}',false) from public.ebay_cached_orders where order_id='paid-after-review';
+select ok(public.ebay_cache_page('47500000-0000-4000-8000-000000000021','47500000-0000-4000-8000-000000000031',1,(select id from review_scan),0,
+ (select jsonb_build_array(jsonb_build_object('sourceKey',source_key,'source',source)) from public.ebay_cached_orders where order_id='paid-after-review'),true,1),'Hintergrundseite nach persönlicher Zahlungsprüfung abgeschlossen');
+select ok((select auto_prepare from public.ebay_cached_orders where order_id='paid-after-review'),'Persönlicher Prüfstand verbraucht spätere automatische Zahlung nicht');
+select is((select count(*)::int from public.ebay_sale_drafts where order_id='paid-after-review'),1,'Nach persönlicher Zahlungsprüfung entsteht genau ein Entwurf');
+select is((select sum(r.quantity)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='paid-after-review' and r.released_at is null),1,'Zahlungsübergang reserviert tatsächlich eigene Ware');
+select is((select count(*)::int from public.ebay_sale_notifications where order_id='paid-after-review'),1,'Zahlungsübergang erzeugt genau eine private Glocke');
+select is((select count(*)::int from public.web_push_events where connection_id='47500000-0000-4000-8000-000000000021' and source_key like 'ebay-cache-order:'||(select id::text from public.ebay_cached_orders where order_id='paid-after-review')||':%'),1,'Zahlungsübergang erzeugt genau ein persönliches Pushereignis');
+select pg_temp.stage('paid-after-review');
+select is((select count(*)::int from public.ebay_sale_notifications where order_id='paid-after-review'),1,'Erneute persönliche Prüfung verdoppelt die Glocke nicht');
+rollback to savepoint payment_review;
+
+-- Beide Arten von bereits erfasst lassen sich bewusst wieder aufnehmen, ohne Reservierung durch Lesen.
+savepoint reopen_review;
+select pg_temp.add_order('reopen-outside',jsonb_build_object('lines',(select jsonb_build_array((source->'lines'->0)||'{"quantity":1}') from import_test)));
+update import_test set ready_id=pg_temp.stage('reopen-outside');
+select public.ebay_mark_order_recorded_elsewhere('47500000-0000-4000-8000-000000000001','47500000-0000-4000-8000-000000000021',ready_id,'Außerhalb erfasst',null) from import_test;
+select ok(public.ebay_clear_order_recorded_elsewhere('47500000-0000-4000-8000-000000000001','47500000-0000-4000-8000-000000000021',encode(extensions.digest('reopen-outside','sha256'),'hex')),'Außerhalb-Markierung bewusst aufgehoben');
+select ok((select state not in ('dismissed','linked_existing','booked') and sale_id is null and resolution_reason is null from public.ebay_sale_drafts where order_id='reopen-outside'),'Aufheben entfernt Abschluss und alten Verkaufsverweis');
+update import_test set ready_id=pg_temp.stage('reopen-outside');
+update public.ebay_cached_orders set observed_at=clock_timestamp() where order_id='reopen-outside';
+select is((select count(*)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='reopen-outside' and r.released_at is null),0,'Öffnen und Hintergrundlesen reservieren nach Aufheben noch nichts');
+set local role authenticated;
+select throws_ok($test$select public.ebay_record_order_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs) from import_test$test$,'22023',null,'Aufgehobene Zuordnung verlangt vor Buchung bewusste Vorbereitung');
+select public.ebay_save_sale_draft('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs) from import_test;
+reset role;
+select is((select sum(r.quantity)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='reopen-outside' and r.released_at is null),1,'Ausdrückliches Speichern reserviert aufgehobene Quelle erneut');
+update import_test set ready_id=pg_temp.stage('reopen-outside');
+set local role authenticated;
+select lives_ok($test$select public.ebay_record_order_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs) from import_test$test$,'Wieder geöffneter Entwurf lässt sich regulär buchen');
+reset role;
+rollback to savepoint reopen_review;
+savepoint unlink_review;
+select ok(public.ebay_clear_order_recorded_elsewhere('47500000-0000-4000-8000-000000000001','47500000-0000-4000-8000-000000000021',encode(extensions.digest('existing','sha256'),'hex')),'Altverkaufszuordnung bewusst aufgehoben');
+select ok((select state not in ('dismissed','linked_existing','booked') and sale_id is null and resolution_reason is null from public.ebay_sale_drafts where order_id='existing'),'Altzuordnung hinterlässt nach Aufheben keinen abgeschlossenen Entwurf');
+update import_test set ready_id=pg_temp.stage('existing');
+update public.ebay_cached_orders set observed_at=clock_timestamp() where order_id='existing';
+select is((select count(*)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='existing' and r.released_at is null),0,'Auch aufgehobene Altzuordnung bleibt bei reinem Lesen unreserviert');
+set local role authenticated;
+select public.ebay_save_sale_draft('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs) from import_test;
+reset role;
+select ok((select state not in ('dismissed','linked_existing','booked') from public.ebay_sale_drafts where order_id='existing'),'Altzuordnung ist nach ausdrücklichem Speichern wieder bearbeitbar');
+select is((select sum(r.quantity)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='existing' and r.released_at is null),3,'Aufgehobene Altzuordnung reserviert erst nach ausdrücklichem Speichern');
+rollback to savepoint unlink_review;
 select pg_temp.add_order('account-delete'  ,jsonb_build_object('lines',(select jsonb_build_array((source->'lines'->0)||'{"quantity":1}') from import_test)));
 select is((select sum(quantity)::int from public.ebay_sale_reservations where released_at is null),1,'Löschfall hat eine eigene offene Reservierung');
 set local role service_role;

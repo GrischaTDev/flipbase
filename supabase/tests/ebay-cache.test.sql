@@ -46,6 +46,11 @@ select public.ebay_cache_finish(pg_temp.ident(4),(select (payload#>>'{connection
 update public.ebay_cache_scans set next_due_at=now()-interval '1 second' where kind='orders';
 update cache_claim set payload=public.ebay_cache_claim('production');
 select ok(not (select (payload#>>'{scan,initial}')::boolean from cache_claim),'Folgefenster verwendet Änderungszeit');
+-- Persönliche Prüfung zwischen Zahlung und Hintergrundseite darf den Übergang nicht verschlucken.
+select public.ebay_store_order_snapshot(pg_temp.ident(1),pg_temp.ident(4),1,
+ (select (payload#>>'{connection,connection,operation_id}')::uuid from cache_claim),
+ pg_temp.source('historical-unpaid')->>'sourceKey',repeat('a',64),pg_temp.source('historical-unpaid')->'source',false);
+select is((select source->>'paymentStatus' from public.ebay_cached_orders where order_id='historical-unpaid'),'PAID','Persönlicher Prüfstand zeigt die neue Zahlung vor dem Hintergrundscan');
 select ok(pg_temp.page(jsonb_build_array(pg_temp.source('historical-unpaid',true),pg_temp.source('new-order',true,now())),true,2),'Alte Bestellung mit neuer Zahlung und neue Bestellung gespeichert');
 select ok((select auto_prepare from public.ebay_cached_orders where order_id='historical-unpaid'),'Späterer Zahlungseingang bleibt für Vorbereitung erkennbar');
 select ok(not (select auto_prepare from public.ebay_cached_orders where order_id='historical-paid'),'Alter bezahlter Verkauf bleibt ohne automatische Vorbereitung');

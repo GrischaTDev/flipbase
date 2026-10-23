@@ -1106,6 +1106,7 @@ export type Database = {
           external_account_id: string
           first_seen_at: string
           id: number
+          last_scanned_payment_status: string | null
           modified_at: string | null
           observed_at: string
           order_id: string
@@ -1121,6 +1122,7 @@ export type Database = {
           external_account_id: string
           first_seen_at?: string
           id?: never
+          last_scanned_payment_status?: string | null
           modified_at?: string | null
           observed_at?: string
           order_id: string
@@ -1136,6 +1138,7 @@ export type Database = {
           external_account_id?: string
           first_seen_at?: string
           id?: never
+          last_scanned_payment_status?: string | null
           modified_at?: string | null
           observed_at?: string
           order_id?: string
@@ -1450,6 +1453,7 @@ export type Database = {
           external_account_id: string
           id: string
           order_id: string
+          requires_explicit_preparation: boolean
           resolution_reason: string | null
           sale_id: string | null
           source: Json
@@ -1466,6 +1470,7 @@ export type Database = {
           external_account_id: string
           id?: string
           order_id: string
+          requires_explicit_preparation?: boolean
           resolution_reason?: string | null
           sale_id?: string | null
           source: Json
@@ -1482,6 +1487,7 @@ export type Database = {
           external_account_id?: string
           id?: string
           order_id?: string
+          requires_explicit_preparation?: boolean
           resolution_reason?: string | null
           sale_id?: string | null
           source?: Json
