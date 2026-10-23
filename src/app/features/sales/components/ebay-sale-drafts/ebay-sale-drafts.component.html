@@ -1,0 +1,136 @@
+<section aria-label="eBay-Verkäufe zu prüfen" class="space-y-4">
+  @if (activity.error(); as error) {
+    <div role="status" class="flex flex-wrap items-center gap-2 text-sm">
+      <span>{{ error }}</span
+      ><app-button [loading]="activity.loading()" (clicked)="activity.reload()"
+        >Erneut laden</app-button
+      >
+    </div>
+  }
+  @if (activity.drafts().length) {
+    <app-card title="Zu prüfen" variant="section">
+      <p class="mb-3 text-sm text-fb-text-secondary">
+        Offene eBay-Entwürfe zählen erst nach Deiner Buchung als Verkauf. Bei bereits erfassten
+        Verkäufen zeigen wir hier neue Storno- oder Erstattungshinweise zur Klärung.
+      </p>
+      <app-data-table ariaLabel="eBay-Entwürfe" [hasRows]="activity.drafts().length > 0"
+        ><div
+          table-content
+          class="overflow-x-auto"
+          tabindex="0"
+          role="region"
+          aria-label="eBay-Entwürfe"
+        >
+          <table class="linear-table w-full min-w-[520px] text-left text-sm">
+            <thead>
+              <tr>
+                <th scope="col">Bestellung</th>
+                <th scope="col">Status</th>
+                <th scope="col">Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (draft of activity.drafts(); track draft.id) {
+                <tr>
+                  <td>
+                    <div class="flex items-center gap-3">
+                      <app-product-thumbnail
+                        [src]="draft.source.lines[0]?.imageUrl ?? null"
+                        [alt]="draft.source.lines[0]?.title ?? 'Bestellung'"
+                      />
+                      <div>
+                        <span class="block">{{
+                          draft.source.lines[0]?.title ?? 'eBay-Bestellung'
+                        }}</span
+                        ><span class="block text-xs text-fb-text-secondary"
+                          >{{ draft.orderId }} ·
+                          {{ draft.source.createdAt | date: 'dd.MM.yyyy' }}</span
+                        >
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span>{{ stateLabel(draft.state) }}</span>
+                    @for (issue of draft.sourceIssues ?? []; track issue) {
+                      <p class="mt-1 text-sm">{{ sourceIssueLabel(issue) }}</p>
+                    }
+                  </td>
+                  <td>
+                    <app-button [link]="activity.reviewLink(draft.orderId)"
+                      >Bestellung prüfen</app-button
+                    >
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div></app-data-table
+      >
+    </app-card>
+  }
+  @if (reservationGroups().length) {
+    <app-card title="Reservierter eBay-Bestand" variant="section">
+      <p class="mb-3 text-sm text-fb-text-secondary">
+        Eine Erstattung oder getrennte Kontoverbindung belegt keine Rückkehr der Ware. Prüfe den
+        tatsächlichen Bestand, bevor Du eine Reservierung bewusst freigibst.
+      </p>
+      <ul class="space-y-3">
+        @for (group of reservationGroups(); track group.draftId) {
+          <li
+            class="flex flex-wrap items-center justify-between gap-3 border-b border-fb-line pb-3"
+          >
+            <div>
+              <p class="text-sm font-medium">{{ group.titles }}</p>
+              <p class="text-xs text-fb-text-secondary">
+                {{ group.quantity }} reserviert ·
+                {{
+                  group.draft
+                    ? stateLabel(group.draft.state)
+                    : 'Interne Bestandsklärung ohne private Bestelldaten'
+                }}
+              </p>
+            </div>
+            <app-button [disabled]="activity.resolving()" (clicked)="openResolution(group.draftId)"
+              >Reservierung klären</app-button
+            >
+          </li>
+        }
+      </ul>
+    </app-card>
+  }
+</section>
+@if (selectedReservation()) {
+  <app-modal-shell title="Reservierung bewusst freigeben" size="md" (closed)="closeResolution()">
+    <div class="space-y-4" [formGroup]="resolution">
+      <p class="text-sm">
+        Dadurch wird nur die eigene offene Reservierung dieses Entwurfs gelöst. Prüfe zuerst, ob die
+        Ware tatsächlich wieder verfügbar ist. Ein bestehender Verkauf wird dadurch nicht
+        zurückgebucht.
+      </p>
+      <app-text-field
+        label="Grund der Klärung"
+        formControlName="reason"
+        [required]="true"
+        [maxLength]="500"
+        [multiline]="3"
+      /><app-custom-checkbox
+        formControlName="confirmed"
+        label="Ich habe den tatsächlichen Bestand geprüft und möchte diese Reservierung freigeben."
+      />
+      @if (activity.error(); as error) {
+        <p role="alert">{{ error }}</p>
+      }
+    </div>
+    <div modal-footer class="flex justify-end gap-2">
+      <app-button [disabled]="activity.resolving()" (clicked)="closeResolution()"
+        >Abbrechen</app-button
+      ><app-button
+        variant="primary"
+        [loading]="activity.resolving()"
+        [disabled]="resolution.invalid"
+        (clicked)="resolve()"
+        >Reservierung freigeben</app-button
+      >
+    </div>
+  </app-modal-shell>
+}

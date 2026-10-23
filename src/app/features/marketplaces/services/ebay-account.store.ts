@@ -1,16 +1,73 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { AuthService } from '../../../core/services/auth.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
+import type { EbayCacheSync } from '../../../../../supabase/functions/_shared/ebay-cache-contracts';
+import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import type {
   EbayConnection,
   EbayListing,
   EbayOrder,
   EbayListingTraffic,
+  EbayPage,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
-import { EbayAccountApiService } from './ebay-account-api.service';
+import { EbayAccountApiService, EbayAccountRequestError } from './ebay-account-api.service';
 import type { EbayOrderBooking } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class EbayAccountStore {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly refreshRequests = signal<
+    Partial<Record<'orders' | 'listings', { completedAt: string | null; sending: boolean }>>
+  >({});
+  private readonly loadedPageCounts = new Map<'orders' | 'listings', number>();
+  readonly refreshStatus = computed(() => {
+    const request = this.refreshRequests()[this.section()];
+    if (request?.sending) return 'requesting';
+    if (this.sync()?.status === 'syncing') return 'syncing';
+    if (request && this.sync()?.status !== 'error') return 'pending';
+    return null;
+  });
   private readonly api = inject(EbayAccountApiService);
+  private readonly auth = inject(AuthService);
+  private readonly workspace = inject(WorkspaceService);
+  private userId: string | null = null;
+  private readonly scopeContext = signal<{ userId: string | null; workspaceId: string | null }>({
+    userId: null,
+    workspaceId: null,
+  });
+  private readonly pages = new Map<
+    string,
+    {
+      total: number | null;
+      nextPage: number | null;
+      hasRead: boolean;
+      sync: EbayCacheSync | null;
+      error: string | null;
+    }
+  >();
+  readonly sync = signal<EbayCacheSync | null>(null);
+  readonly initialSyncPending = computed(
+    () =>
+      !this.sync()?.lastCompletedAt &&
+      (this.sync()?.status === 'pending' || this.sync()?.status === 'syncing'),
+  );
+  constructor() {
+    const timer = setInterval(() => {
+      if (
+        this.contextMatches() &&
+        (this.refreshRequests()[this.section()] ||
+          ['pending', 'syncing'].includes(this.sync()?.status ?? ''))
+      )
+        void this.readCache(false);
+    }, 5000);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
+    effect(() => {
+      const userId = this.auth.currentUser()?.id ?? null;
+      const workspaceId = this.workspace.currentWorkspace()?.id ?? null;
+      untracked(() => {
+        if (userId !== this.userId || workspaceId !== this.workspaceId) this.reset(null);
+      });
+    });
+  }
   private revision = 0;
   private bookingRevision = 0;
   readonly orderBookings = signal<Readonly<Record<string, EbayOrderBooking>>>({});
@@ -29,25 +86,44 @@ export class EbayAccountStore {
     lastUpdatedDate: string | null;
   } | null>(null);
   private trafficRevision = 0;
-  readonly connection = signal<EbayConnection | null>(null);
+  private readonly connectionData = signal<EbayConnection | null>(null);
+  readonly connection = computed(() => (this.contextMatches() ? this.connectionData() : null));
   readonly isLoading = signal(false);
   readonly isReading = signal(false);
   readonly error = signal<string | null>(null);
   readonly dataError = signal<string | null>(null);
-  readonly listings = signal<readonly EbayListing[]>([]);
-  readonly orders = signal<readonly EbayOrder[]>([]);
+  private readonly listingRows = signal<readonly EbayListing[]>([]);
+  readonly listings = computed(() => (this.contextMatches() ? this.listingRows() : []));
+  private readonly orderRows = signal<readonly EbayOrder[]>([]);
+  readonly orders = computed(() => (this.contextMatches() ? this.orderRows() : []));
   readonly section = signal<'listings' | 'orders'>('listings');
   readonly total = signal<number | null>(null);
   readonly nextPage = signal<number | null>(null);
   readonly hasRead = signal(false);
 
+  private contextMatches(): boolean {
+    const workspace = this.workspace.currentWorkspace();
+    const context = this.scopeContext();
+    return (
+      !!context.userId &&
+      context.userId === this.auth.currentUser()?.id &&
+      !!workspace &&
+      !workspace.archived_at &&
+      workspace.id === context.workspaceId
+    );
+  }
+  private isCurrent(revision: number): boolean {
+    return revision === this.revision && this.contextMatches();
+  }
   reset(workspaceId: string | null): number {
     this.workspaceId = workspaceId;
+    this.userId = this.auth.currentUser()?.id ?? null;
+    this.scopeContext.set({ userId: this.userId, workspaceId });
     this.revision += 1;
     this.isConfigured.set(false);
     this.importAvailable.set(false);
     this.listingManagementAvailable.set(false);
-    this.connection.set(null);
+    this.connectionData.set(null);
     this.isLoading.set(false);
     this.isReading.set(false);
     this.error.set(null);
@@ -55,6 +131,10 @@ export class EbayAccountStore {
     return this.revision;
   }
   private clearData(): void {
+    this.pages.clear();
+    this.loadedPageCounts.clear();
+    this.refreshRequests.set({});
+    this.sync.set(null);
     this.trafficRevision++;
     this.traffic.set({});
     this.trafficLoading.set(false);
@@ -64,8 +144,8 @@ export class EbayAccountStore {
     this.orderBookings.set({});
     this.bookingStatusesLoading.set(false);
     this.bookingError.set(null);
-    this.listings.set([]);
-    this.orders.set([]);
+    this.listingRows.set([]);
+    this.orderRows.set([]);
     this.total.set(null);
     this.nextPage.set(null);
     this.hasRead.set(false);
@@ -76,29 +156,70 @@ export class EbayAccountStore {
       ? error.message
       : 'Die eBay-Anfrage konnte nicht bestätigt werden.';
   }
+  private discardRevokedAccess(error: unknown): boolean {
+    if (
+      !(error instanceof EbayAccountRequestError) ||
+      !['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].includes(error.code ?? '')
+    )
+      return false;
+    this.clearData();
+    this.connectionData.set(null);
+    return true;
+  }
   async initialize(
     workspaceId: string | null,
     read: boolean,
     section: 'listings' | 'orders' = this.section(),
   ): Promise<void> {
-    const revision = this.reset(workspaceId);
+    const userId = this.auth.currentUser()?.id ?? null;
+    const previous = this.connection();
+    const retained =
+      userId !== null &&
+      this.userId === userId &&
+      this.workspaceId === workspaceId &&
+      previous?.status === 'connected' &&
+      Number.isSafeInteger(previous.authorizationVersion);
+    this.rememberPage();
+    const revision = retained ? ++this.revision : this.reset(workspaceId);
     this.section.set(section);
+    if (retained) {
+      this.restorePage();
+      this.isReading.set(false);
+      this.trafficRevision++;
+      this.trafficLoading.set(false);
+      this.bookingRevision++;
+      this.bookingStatusesLoading.set(false);
+    }
     if (!workspaceId) return;
     this.isLoading.set(true);
     try {
       const status = await this.api.loadStatus(workspaceId);
-      if (revision !== this.revision) return;
+      if (!this.isCurrent(revision)) return;
+      const current = status.connection;
+      if (
+        !retained ||
+        !current ||
+        current.status !== 'connected' ||
+        current.connectionId !== previous?.connectionId ||
+        current.environment !== previous.environment ||
+        current.authorizationVersion === undefined ||
+        current.authorizationVersion !== previous.authorizationVersion
+      )
+        this.clearData();
       this.isConfigured.set(status.configured);
       this.importAvailable.set(status.importAvailable === true);
       this.listingManagementAvailable.set(status.listingManagementAvailable === true);
-      this.connection.set(status.connection);
+      this.connectionData.set(status.connection);
       this.isLoading.set(false);
       if (read && status.configured && status.connection?.status === 'connected')
         await this.read(false);
     } catch (error) {
-      if (revision === this.revision) this.error.set(this.message(error));
+      if (this.isCurrent(revision)) {
+        this.discardRevokedAccess(error);
+        this.error.set(this.message(error));
+      }
     } finally {
-      if (revision === this.revision) this.isLoading.set(false);
+      if (this.isCurrent(revision)) this.isLoading.set(false);
     }
   }
   async connect(): Promise<string | null> {
@@ -117,17 +238,17 @@ export class EbayAccountStore {
     this.clearData();
     try {
       const url = await this.api.connect(workspaceId);
-      return revision === this.revision ? url : null;
+      return this.isCurrent(revision) ? url : null;
     } catch (error) {
-      if (revision === this.revision) this.error.set(this.message(error));
+      if (this.isCurrent(revision)) this.error.set(this.message(error));
       return null;
     } finally {
-      if (revision === this.revision) this.isLoading.set(false);
+      if (this.isCurrent(revision)) this.isLoading.set(false);
     }
   }
   async disconnect(): Promise<void> {
     const connection = this.connection();
-    if (!connection || this.isLoading()) return;
+    if (!connection || !this.contextMatches() || this.isLoading()) return;
     // Laufende Antworten werden bereits vor dem Trennen aus der Ansicht ausgeschlossen.
     const revision = ++this.revision;
     this.isLoading.set(true);
@@ -136,27 +257,63 @@ export class EbayAccountStore {
     this.clearData();
     try {
       await this.api.disconnect(connection);
-      if (revision === this.revision)
-        this.connection.set({
+      if (this.isCurrent(revision))
+        this.connectionData.set({
           ...connection,
           status: 'disconnected',
           username: null,
           lastReadAt: null,
         });
     } catch (error) {
-      if (revision === this.revision) this.error.set(this.message(error));
+      if (this.isCurrent(revision)) this.error.set(this.message(error));
     } finally {
-      if (revision === this.revision) this.isLoading.set(false);
+      if (this.isCurrent(revision)) this.isLoading.set(false);
     }
   }
   async selectSection(section: 'listings' | 'orders'): Promise<void> {
     if (this.isLoading() || this.isReading() || this.trafficLoading() || this.section() === section)
       return;
+    this.rememberPage();
     this.section.set(section);
-    this.clearData();
+    this.restorePage();
     await this.read(false);
   }
+  async requestRefresh(): Promise<void> {
+    const connection = this.connection();
+    if (
+      !connection ||
+      connection.status !== 'connected' ||
+      this.isLoading() ||
+      this.isReading() ||
+      this.trafficLoading() ||
+      this.refreshStatus()
+    )
+      return;
+    const revision = this.revision;
+    const section = this.section();
+    const completedAt = this.sync()?.lastCompletedAt ?? null;
+    const requested = { completedAt, sending: true };
+    this.refreshRequests.update((requests) => ({ ...requests, [section]: requested }));
+    this.dataError.set(null);
+    try {
+      await this.api.requestRefresh(connection, section);
+      if (!this.contextMatches() || this.refreshRequests()[section] !== requested) return;
+      this.refreshRequests.update((requests) => ({
+        ...requests,
+        [section]: { completedAt, sending: false },
+      }));
+      if (this.isCurrent(revision) && this.section() === section) await this.readCache(false);
+    } catch (error) {
+      if (!this.contextMatches() || this.refreshRequests()[section] !== requested) return;
+      this.refreshRequests.update((requests) => ({ ...requests, [section]: undefined }));
+      this.discardRevokedAccess(error);
+      if (this.section() === section) this.dataError.set(this.message(error));
+    }
+  }
   async read(append: boolean): Promise<void> {
+    await this.readCache(append, true);
+  }
+  private async readCache(append: boolean, refreshTraffic = false): Promise<void> {
     const connection = this.connection();
     if (
       !connection ||
@@ -171,62 +328,132 @@ export class EbayAccountStore {
     const section = this.section();
     const page = append ? this.nextPage() : 1;
     if (page === null) return;
+    const previousPageCount = this.loadedPageCounts.get(section) ?? 0;
+    const pagesToRead = !append && !refreshTraffic ? Math.max(1, previousPageCount) : 1;
     this.isReading.set(true);
     this.dataError.set(null);
-    if (!append) this.clearData();
+
     let shouldReadTraffic = false;
     try {
       if (section === 'listings') {
-        const result = await this.api.loadListings(connection, page);
-        if (revision !== this.revision) return;
-        this.listings.update((items) =>
-          append
-            ? [...items, ...result.items].filter(
-                (item, index, all) =>
-                  all.findIndex((candidate) => candidate.id === item.id) === index,
-              )
-            : result.items,
+        const result = await this.loadCachedPages(
+          (pageNumber) => this.api.loadListings(connection, pageNumber),
+          page,
+          pagesToRead,
+          revision,
         );
+        if (!result) return;
+        this.listingRows.update((items) => this.mergePageRows(items, result.items, append));
+        this.loadedPageCounts.set(section, (append ? previousPageCount : 0) + result.pagesRead);
         this.total.set(result.total);
         this.nextPage.set(result.nextPage);
+        this.sync.set(result.sync ?? null);
       } else {
-        const result = await this.api.loadOrders(connection, page);
-        if (revision !== this.revision) return;
-        this.orders.update((items) =>
-          append
-            ? [...items, ...result.items].filter(
-                (item, index, all) =>
-                  all.findIndex((candidate) => candidate.id === item.id) === index,
-              )
-            : result.items,
+        const result = await this.loadCachedPages(
+          (pageNumber) => this.api.loadOrders(connection, pageNumber),
+          page,
+          pagesToRead,
+          revision,
         );
+        if (!result) return;
+        this.orderRows.update((items) => this.mergePageRows(items, result.items, append));
+        this.loadedPageCounts.set(section, (append ? previousPageCount : 0) + result.pagesRead);
         this.total.set(result.total);
         this.nextPage.set(result.nextPage);
+        this.sync.set(result.sync ?? null);
       }
+      const requested = this.refreshRequests()[section];
+      if (
+        requested &&
+        (this.sync()?.status === 'error' ||
+          (this.sync()?.lastCompletedAt && this.sync()?.lastCompletedAt !== requested.completedAt))
+      )
+        this.refreshRequests.update((requests) => ({ ...requests, [section]: undefined }));
       if (section === 'orders' && this.importAvailable()) void this.readBookingStatuses(connection);
       this.hasRead.set(true);
-      shouldReadTraffic = section === 'listings' && this.listingManagementAvailable();
+      this.rememberPage();
+      shouldReadTraffic =
+        refreshTraffic && section === 'listings' && this.listingManagementAvailable();
     } catch (error) {
-      if (revision !== this.revision) return;
+      if (!this.isCurrent(revision)) return;
       const errorMessage = this.message(error);
+      if (this.discardRevokedAccess(error)) {
+        this.dataError.set(errorMessage);
+        return;
+      }
       this.dataError.set(errorMessage);
+      this.rememberPage();
       try {
         const status = await this.api.loadStatus(connection.workspaceId);
-        if (revision === this.revision) {
-          this.connection.set(status.connection);
+        if (this.isCurrent(revision)) {
+          this.connectionData.set(status.connection);
           this.importAvailable.set(status.importAvailable === true);
-          if (status.connection?.status !== 'connected') {
+          if (
+            status.connection?.status !== 'connected' ||
+            status.connection.connectionId !== connection.connectionId ||
+            status.connection.authorizationVersion !== connection.authorizationVersion
+          ) {
             this.clearData();
             this.dataError.set(errorMessage);
           }
         }
-      } catch {
-        /* Der ursprüngliche Abruffehler bleibt sichtbar. */
+      } catch (statusError) {
+        if (this.isCurrent(revision)) {
+          this.discardRevokedAccess(statusError);
+          this.dataError.set(errorMessage);
+        }
       }
     } finally {
-      if (revision === this.revision) this.isReading.set(false);
+      if (this.isCurrent(revision)) this.isReading.set(false);
     }
-    if (shouldReadTraffic && revision === this.revision) await this.readTraffic();
+    if (shouldReadTraffic && this.isCurrent(revision)) await this.readTraffic();
+  }
+  private async loadCachedPages<T>(
+    loadPage: (page: number) => Promise<EbayPage<T>>,
+    firstPage: number,
+    pageCount: number,
+    revision: number,
+  ): Promise<(EbayPage<T> & { pagesRead: number }) | null> {
+    let result = await loadPage(firstPage);
+    if (!this.isCurrent(revision)) return null;
+    const items = [...result.items];
+    let pagesRead = 1;
+    // Erst nach vollständigem Nachlesen übernehmen: Verschiebungen zwischen Seiten
+    // dürfen weder Zeilen verlieren noch gelöschte alte Zeilen weiter anzeigen.
+    while (pagesRead < pageCount && result.nextPage !== null) {
+      result = await loadPage(result.nextPage);
+      if (!this.isCurrent(revision)) return null;
+      items.push(...result.items);
+      pagesRead++;
+    }
+    return { ...result, items, pagesRead };
+  }
+  private mergePageRows<T extends { id: string }>(
+    current: readonly T[],
+    incoming: readonly T[],
+    append: boolean,
+  ): readonly T[] {
+    const rows = append ? [...current, ...incoming] : incoming;
+    return rows.filter(
+      (row, index) => rows.findIndex((candidate) => candidate.id === row.id) === index,
+    );
+  }
+  private rememberPage(): void {
+    this.pages.set(this.section(), {
+      total: this.total(),
+      nextPage: this.nextPage(),
+      hasRead: this.hasRead(),
+      sync: this.sync(),
+      error: this.dataError(),
+    });
+  }
+  private restorePage(): void {
+    const page = this.pages.get(this.section());
+    this.total.set(page?.total ?? null);
+    this.nextPage.set(page?.nextPage ?? null);
+    this.hasRead.set(page?.hasRead ?? false);
+    this.sync.set(page?.sync ?? null);
+    this.dataError.set(page?.error ?? null);
   }
   async readTraffic(): Promise<void> {
     const connection = this.connection();

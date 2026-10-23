@@ -101,6 +101,20 @@ export class EbayAccountApiService {
     if (!result || typeof result !== 'object' || !('ok' in result) || result.ok !== true)
       throw new Error('Die Trennung wurde nicht bestätigt. Lade den Status erneut.');
   }
+  async requestRefresh(scope: AccountScope, kind: 'listings' | 'orders'): Promise<void> {
+    const result = await this.request({ action: 'refresh', ...scope, kind });
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('requested' in result) ||
+      result.requested !== true ||
+      !('workspaceId' in result) ||
+      result.workspaceId !== scope.workspaceId ||
+      !('connectionId' in result) ||
+      result.connectionId !== scope.connectionId
+    )
+      throw new EbayAccountRequestError('invalid_response', ERROR_MESSAGES['invalid_response']);
+  }
   async loadListings(scope: AccountScope, page = 1) {
     return parseEbayPage(
       await this.request({ action: 'listings', ...scope, page }),

@@ -359,6 +359,9 @@ export async function mockMarketplace(
         ? (route.request().postDataJSON() as Record<string, unknown>)
         : {};
     let json: unknown = [];
+    if (name === 'ebay-account' && body['action'] === 'status')
+      json = { configured: false, connection: null };
+    if (name === 'ebay_reservations_read') json = [];
     if (
       name === 'marketplace_account_entries' &&
       new URL(route.request().url()).searchParams.get('body->>publicationState') === 'eq.draft'

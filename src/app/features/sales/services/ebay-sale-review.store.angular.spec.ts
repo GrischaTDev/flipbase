@@ -48,6 +48,24 @@ const review: EbayOrderReview = {
   assignments: [{ lineItemId: 'line-1', target: { catalogProductId: id } }],
   booking: { status: 'unrecorded', saleId: null },
 };
+const savedDraft = {
+  id,
+  workspaceId: scope.workspaceId,
+  environment: 'production',
+  orderId: 'order-1',
+  source: review.source,
+  assignments: review.assignments,
+  costs: {
+    platformFeeCents: null,
+    shippingCostCents: null,
+    shippingMode: null,
+    additionalCosts: [],
+  },
+  state: 'needs_costs',
+  saleId: null,
+  createdAt: review.source.createdAt,
+  updatedAt: review.source.observedAt,
+};
 const input: RecordSaleInput = {
   platform: 'ebay',
   saleDate: '2026-10-01',
@@ -65,6 +83,11 @@ const input: RecordSaleInput = {
 describe('eBay-Bestellprüfung', () => {
   let store: EbaySaleReviewStore;
   let api: {
+    loadDrafts: ReturnType<typeof vi.fn>;
+    saveDraft: ReturnType<typeof vi.fn>;
+    loadReservations: ReturnType<typeof vi.fn>;
+    loadExistingSales: ReturnType<typeof vi.fn>;
+    linkExistingSale: ReturnType<typeof vi.fn>;
     prepareOrder: ReturnType<typeof vi.fn>;
     bookOrder: ReturnType<typeof vi.fn>;
     loadOrderStatus: ReturnType<typeof vi.fn>;
@@ -74,6 +97,11 @@ describe('eBay-Bestellprüfung', () => {
   let refresh: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     api = {
+      loadDrafts: vi.fn(async () => []),
+      saveDraft: vi.fn(async () => savedDraft),
+      loadReservations: vi.fn(async () => []),
+      loadExistingSales: vi.fn(async () => []),
+      linkExistingSale: vi.fn(async () => ({ status: 'recorded_elsewhere', saleId: id })),
       prepareOrder: vi.fn(async () => review),
       bookOrder: vi.fn(async () => ({ status: 'imported', saleId: id, alreadyRecorded: false })),
       loadOrderStatus: vi.fn(async () => ({ status: 'unrecorded', saleId: null })),
@@ -100,6 +128,121 @@ describe('eBay-Bestellprüfung', () => {
     store = TestBed.inject(EbaySaleReviewStore);
   });
   afterEach(() => TestBed.resetTestingModule());
+  it.each(['imported', 'recorded_elsewhere'] as const)(
+    'öffnet %s mit bekannter Erstattung und Verkaufsverweis auch bei Anbieterfehler',
+    async (status) => {
+      const booking = { status, saleId: id };
+      const saved = savedDraft;
+      api.loadOrderStatus.mockResolvedValue(booking);
+      api.loadDrafts.mockResolvedValue([
+        {
+          ...saved,
+          state: status === 'imported' ? 'booked' : 'linked_existing',
+          saleId: id,
+          source: { ...review.source, blockers: ['refund_or_unknown'] },
+          sourceIssues: ['refund_or_unknown'],
+        },
+      ]);
+      api.prepareOrder.mockRejectedValue(new Error('Anbieter vorübergehend nicht erreichbar'));
+      await store.load(scope, 'order-1');
+      expect(store.booking()).toEqual(booking);
+      expect(store.sourceIssues()).toEqual(['refund_or_unknown']);
+      expect(store.error()).toContain('Anbieter vorübergehend');
+      expect(store.reservations()).toEqual([]);
+      expect(api.bookOrder).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
+    { old: null, origin: 'automatic', expected: 2 },
+    { old: 100, origin: 'automatic', expected: 2 },
+    { old: 0, origin: 'personal', expected: 0 },
+    { old: 100, origin: undefined, expected: 1 },
+  ])(
+    'trennt aktuelle Gebühr von $origin Entwurfskosten $old',
+    async ({ old, origin, expected }) => {
+      const saved = savedDraft;
+      api.prepareOrder.mockResolvedValue({
+        ...review,
+        source: { ...review.source, platformFeeCents: 200 },
+        draft: { ...saved, costsOrigin: origin, costs: { ...saved.costs, platformFeeCents: old } },
+      });
+      await store.load(scope, 'order-1');
+      expect(store.draft()?.platformFee).toBe(expected);
+    },
+  );
+  it('speichert fehlende Kosten als null, erhält die Prüfung nach Fehler und bestätigt keinen Umsatz', async () => {
+    await store.load(scope, 'order-1');
+    const snapshot = {
+      platformFee: 0,
+      shippingCost: null,
+      shippingMode: null,
+      additionalCosts: [],
+      lines: [
+        {
+          sourceLineId: 'line-1',
+          target: {
+            kind: 'catalog_product' as const,
+            catalogProductId: id,
+            title: 'Artikel',
+            availableQuantity: 5,
+          },
+        },
+      ],
+    };
+    api.saveDraft.mockRejectedValueOnce(new Error('Speichern fehlgeschlagen'));
+    expect(await store.saveDraft(snapshot)).toBe(false);
+    expect(store.review()).toEqual(review);
+    expect(store.error()).toBe('Speichern fehlgeschlagen');
+    expect(await store.saveDraft(snapshot)).toBe(true);
+    expect(api.saveDraft.mock.calls[1][0].costs).toEqual({
+      platformFeeCents: 0,
+      shippingCostCents: null,
+      shippingMode: null,
+      additionalCosts: [],
+    });
+    expect(store.booking().status).toBe('unrecorded');
+    expect(api.bookOrder).not.toHaveBeenCalled();
+    expect(store.review()?.draft?.state).toBe('needs_costs');
+  });
+  it('verwendet nach einer aufgehobenen Erfasst-Markierung keine alten Reservierungsnachweise', async () => {
+    const saved = {
+      id,
+      workspaceId: scope.workspaceId,
+      environment: 'production' as const,
+      orderId: 'order-1',
+      source: review.source,
+      assignments: review.assignments,
+      costs: {
+        platformFeeCents: null,
+        shippingCostCents: null,
+        shippingMode: null,
+        additionalCosts: [],
+      },
+      state: 'needs_costs' as const,
+      saleId: null,
+      createdAt: review.source.createdAt,
+      updatedAt: review.source.observedAt,
+    };
+    api.prepareOrder.mockResolvedValue({ ...review, draft: saved });
+    api.loadReservations
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          draftId: id,
+          inventoryItemId: id,
+          stockLotId: null,
+          quantity: 1,
+          createdAt: review.source.createdAt,
+        },
+      ])
+      .mockResolvedValue([]);
+    await store.load(scope, 'order-1');
+    expect(store.reservations()).toHaveLength(1);
+    await store.markRecordedElsewhere('Außerhalb erfasst');
+    await store.clearRecordedElsewhere();
+    expect(store.reservations()).toEqual([]);
+    expect(store.booking().status).toBe('unrecorded');
+  });
   it('loads full source after route reload and splits cents deterministically', async () => {
     await store.load(scope, 'order-1');
     expect(api.prepareOrder).toHaveBeenCalledWith(scope, 'order-1');
@@ -120,7 +263,7 @@ describe('eBay-Bestellprüfung', () => {
     api.prepareOrder.mockRejectedValueOnce(new Error('eBay nicht erreichbar'));
     await store.load(scope, 'order-1');
     expect(store.booking().status).toBe('imported');
-    expect(api.prepareOrder).not.toHaveBeenCalled();
+    expect(api.prepareOrder).toHaveBeenCalledWith(scope, 'order-1');
     expect(api.bookOrder).not.toHaveBeenCalled();
     expect(refresh).toHaveBeenCalledWith(scope.workspaceId);
   });

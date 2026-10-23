@@ -38,6 +38,8 @@ export function resolveNotificationVisual(
 
   // 2. eBay-Erkennung
   if (
+    notification.id.startsWith('ebay-sale:') ||
+    notification.link?.includes('/sales/ebay/') ||
     notification.link?.includes('/marketplaces/ebay/') ||
     /\bebay\b/i.test(notification.title) ||
     /\bebay\b/i.test(notification.message)

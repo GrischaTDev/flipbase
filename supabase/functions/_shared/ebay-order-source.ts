@@ -10,6 +10,21 @@ function record(value: unknown): Record<string, unknown> {
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 && value.length <= 256 ? value : null;
 }
+export function ebayImageUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' &&
+      (url.hostname === 'ebayimg.com' || url.hostname.endsWith('.ebayimg.com')) &&
+      !url.username &&
+      !url.password &&
+      !url.port
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
 function timestamp(value: unknown): value is string {
   if (
     typeof value !== 'string' ||
@@ -30,12 +45,37 @@ export function ebaySaleDate(createdAt: string): string {
   const part = (name: string) => parts.find((value) => value.type === name)?.value;
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
+function receivedPaymentAt(row: Record<string, unknown>, observedAt: string): string | null {
+  const payments = record(row.paymentSummary).payments;
+  const createdAt = row.creationDate;
+  if (
+    row.orderPaymentStatus !== 'PAID' ||
+    !timestamp(createdAt) ||
+    !timestamp(observedAt) ||
+    !Array.isArray(payments) ||
+    payments.length === 0
+  )
+    return null;
+  const dates = payments.map((payment) => record(payment).paymentDate);
+  if (
+    !dates.every(
+      (date): date is string =>
+        timestamp(date) &&
+        Date.parse(date) >= Date.parse(createdAt) &&
+        Date.parse(date) <= Date.parse(observedAt),
+    )
+  )
+    return null;
+  // Bei mehreren Zahlungen belegt erst der letzte Empfang die vollständige bezahlte Bestellung.
+  return dates.reduce((latest, date) => (Date.parse(date) > Date.parse(latest) ? date : latest));
+}
 export function parseEbayOrderSource(
   row: Record<string, unknown>,
   observedAt: string,
 ): EbayOrderSource {
   const summary = record(row.pricingSummary);
   const total = parseEbayMoney(summary.total);
+  const fee = parseEbayMoney(row.totalMarketplaceFee);
   const currency = total?.currency ?? text(record(summary.total).currency);
   const delivery = parseEbayMoney(summary.deliveryCost);
   const discount =
@@ -51,6 +91,11 @@ export function parseEbayOrderSource(
       ? delivery.cents - discount.cents
       : null;
   const blockers = new Set<string>();
+  const orderRefunds = record(row.paymentSummary).refunds;
+  const orderRefundsBlocked =
+    orderRefunds !== undefined && (!Array.isArray(orderRefunds) || orderRefunds.length > 0);
+  const noOrderRefunds = Array.isArray(orderRefunds) && orderRefunds.length === 0;
+  if (orderRefundsBlocked) blockers.add('refund_or_unknown');
   if (currency !== 'EUR') blockers.add('currency_unsupported');
   if (!text(row.orderId) || !timestamp(row.creationDate)) blockers.add('invalid_order');
   if (!total || shipping === null) blockers.add('invalid_amounts');
@@ -82,7 +127,12 @@ export function parseEbayOrderSource(
           line.quantity <= 2_147_483_647
             ? line.quantity
             : null;
-        const hasRefund = !Array.isArray(line.refunds) || line.refunds.length > 0;
+        // eBay lässt Positionsfelder weg; eine ausdrücklich leere Bestellliste reicht als Nachweis.
+        const hasRefund =
+          orderRefundsBlocked ||
+          (line.refunds === undefined
+            ? !noOrderRefunds
+            : !Array.isArray(line.refunds) || line.refunds.length > 0);
         if (hasRefund) blockers.add('refund_or_unknown');
         if (
           !lineItemId ||
@@ -111,6 +161,7 @@ export function parseEbayOrderSource(
         if (variationAspects.some((aspect) => !aspect.name || !aspect.value))
           blockers.add('invalid_lines');
         return {
+          imageUrl: ebayImageUrl(record(line.image).imageUrl),
           lineItemId,
           listingId,
           variationId: text(line.legacyVariationId),
@@ -128,6 +179,8 @@ export function parseEbayOrderSource(
   if (!isEbayCents(goods) || shipping === null || !total || goods + shipping !== total.cents)
     blockers.add('amount_mismatch');
   return {
+    paidAt: receivedPaymentAt(row, observedAt),
+    platformFeeCents: fee && fee.currency === currency && currency === 'EUR' ? fee.cents : null,
     orderId: text(row.orderId) ?? '',
     createdAt: typeof row.creationDate === 'string' ? row.creationDate : '',
     lastModifiedAt: timestamp(row.lastModifiedDate) ? row.lastModifiedDate : null,

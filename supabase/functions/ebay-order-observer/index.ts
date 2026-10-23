@@ -18,33 +18,25 @@ const identity = (claim: ObserverClaim) => ({
   p_connection_id: claim.connection.connection.id,
   p_operation_id: claim.connection.connection.operation_id,
   p_version: claim.connection.connection.authorization_version,
+  p_scan_id: claim.scan.id,
 });
-const identifiers = (name: string) =>
-  (Deno.env.get(name) ?? '')
-    .split(',')
-    .map((identifier) => identifier.trim())
-    .filter(Boolean);
 const store: ObserverStore = {
   claim: () =>
-    rpc('ebay_order_observer_claim', {
-      p_allow_all: Deno.env.get('WEB_PUSH_ALLOW_ALL') === 'true',
-      p_pilot_users: identifiers('WEB_PUSH_PILOT_USER_IDS'),
-      p_pilot_devices: identifiers('WEB_PUSH_PILOT_DEVICE_IDS'),
+    rpc('ebay_cache_claim', {
       p_environment: config?.environment ?? 'production',
     }),
-  page: (claim, offset, orders, complete) =>
-    rpc('ebay_order_observer_page', {
+  page: (claim, offset, rows, complete, total) =>
+    rpc('ebay_cache_page', {
       ...identity(claim),
-      p_from: claim.scan.from,
-      p_to: claim.scan.to,
       p_offset: offset,
-      p_orders: orders,
+      p_rows: rows,
       p_complete: complete,
+      p_total: total,
     }),
   delay: (claim, seconds) =>
-    rpc('ebay_order_observer_delay', { ...identity(claim), p_delay_seconds: seconds }),
+    rpc('ebay_cache_delay', { ...identity(claim), p_delay_seconds: seconds }),
   finish: (claim, encryptedTokens, needsLogin, observed) =>
-    rpc('ebay_finish_read', {
+    rpc('ebay_cache_finish', {
       ...identity(claim),
       p_encrypted_tokens: encryptedTokens,
       p_needs_login: needsLogin,
@@ -56,6 +48,6 @@ Deno.serve(
     store,
     config,
     secret,
-    () => Deno.env.get('WEB_PUSH_ENABLED') === 'true',
+    () => Deno.env.get('EBAY_CACHE_ENABLED') !== 'false',
   ),
 );

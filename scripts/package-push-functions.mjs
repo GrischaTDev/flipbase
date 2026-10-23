@@ -20,10 +20,12 @@ for (const name of [
   'ebay-config',
   'ebay-token-encryption',
   'ebay-contracts',
+  'ebay-cache-contracts',
   'ebay-xml',
   'ebay-order-source',
   'ebay-order-amounts',
   'ebay-order-import-contracts',
+  'ebay-sale-draft-contracts',
   'marketplace-contracts',
 ])
   sources[`_shared/${name}.ts`] = `supabase/functions/_shared/${name}.ts`;

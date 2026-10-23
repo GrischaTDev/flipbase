@@ -1,8 +1,13 @@
+import { EbayArticleMappingStore } from '../../services/ebay-article-mapping.store';
+import { InventoryService } from '../../../../core/services/inventory.service';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { MediaService } from '../../../../core/services/media.service';
+import type { EbayOrder } from '../../../../../../supabase/functions/_shared/ebay-contracts';
+import type { EbaySaleTarget } from '../../../../../../supabase/functions/_shared/ebay-order-import-contracts';
 import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -58,7 +63,7 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
     EbayArticleMappingComponent,
     EbayTrafficOverviewComponent,
   ],
-  providers: [EbayAccountStore],
+  providers: [EbayArticleMappingStore],
   templateUrl: './ebay-account.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -89,6 +94,10 @@ export class EbayAccountComponent {
   readonly selectedListing = signal<EbayListing | null>(null);
   readonly searchText = signal('');
   readonly store = inject(EbayAccountStore);
+  readonly mappingStore = inject(EbayArticleMappingStore);
+  private readonly inventory = inject(InventoryService);
+  private readonly catalog = inject(CatalogService);
+  private readonly media = inject(MediaService);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
@@ -127,6 +136,7 @@ export class EbayAccountComponent {
   }
 
   constructor() {
+    if (this.route.snapshot.queryParamMap.get('ebay_result')) this.store.reset(null);
     effect(() => {
       const userId = this.auth.currentUser()?.id;
       const workspaceId = this.workspace.currentWorkspace()?.id;
@@ -176,10 +186,20 @@ export class EbayAccountComponent {
       );
     });
     effect(() => {
-      this.store.connection();
+      const connection = this.store.connection();
+      const available = this.store.importAvailable();
       this.selectedListing.set(null);
+      untracked(() => {
+        this.mappingStore.clear();
+        if (connection?.status === 'connected' && available) {
+          void this.mappingStore.load(connection);
+          if (this.inventory.loadedWorkspaceId() !== connection.workspaceId)
+            void this.inventory.loadInventory(connection.workspaceId);
+          if (this.catalog.loadedWorkspaceId() !== connection.workspaceId)
+            void this.catalog.loadProducts(connection.workspaceId);
+        }
+      });
     });
-    inject(DestroyRef).onDestroy(() => this.store.reset(null));
   }
   callbackMessage(): string | null {
     const params = this.route.snapshot.queryParamMap;
@@ -241,6 +261,57 @@ export class EbayAccountComponent {
     this.selectedListing.set(null);
     if (this.mappingTrigger?.isConnected) this.mappingTrigger.focus();
     this.mappingTrigger = null;
+  }
+  reloadMappings(): void {
+    const connection = this.store.connection();
+    if (connection?.status === 'connected') void this.mappingStore.load(connection);
+  }
+  private mappingTarget(
+    listingId: string | null | undefined,
+    variationId: string | null = null,
+  ): EbaySaleTarget | null {
+    return (
+      this.mappingStore
+        .mappings()
+        .find((mapping) => mapping.listingId === listingId && mapping.variationId === variationId)
+        ?.target ?? null
+    );
+  }
+  private targetTitle(target: EbaySaleTarget | null): string | null {
+    if (!target) return null;
+    return 'inventoryItemId' in target
+      ? (this.inventory.items().find((item) => item.id === target.inventoryItemId)?.title ??
+          'Verknüpftes Einzelstück')
+      : (this.catalog.products().find((product) => product.id === target.catalogProductId)?.title ??
+          'Verknüpfter Mengenartikel');
+  }
+  listingMappingTitle(listing: EbayListing): string | null {
+    const labels = this.mappingStore
+      .mappings()
+      .filter((mapping) => mapping.listingId === listing.id)
+      .map((mapping) => this.targetTitle(mapping.target));
+    return labels.length ? [...new Set(labels)].join(', ') : null;
+  }
+  orderMappingTitle(order: EbayOrder, index: number): string | null {
+    const line = order.importSource?.lines[index];
+    return this.targetTitle(this.mappingTarget(line?.listingId, line?.variationId));
+  }
+  orderImage(order: EbayOrder, index: number): string | null {
+    const line = order.importSource?.lines[index];
+    const sourceImage =
+      order.items[index]?.imageUrl ??
+      line?.imageUrl ??
+      this.store.listings().find((listing) => listing.id === line?.listingId)?.imageUrl;
+    if (sourceImage) return sourceImage;
+    const target = this.mappingTarget(line?.listingId, line?.variationId);
+    if (!target) return null;
+    if ('catalogProductId' in target)
+      return this.catalog.imageUrls()[target.catalogProductId] ?? null;
+    const item = this.inventory.items().find((item) => item.id === target.inventoryItemId);
+    const path =
+      item?.media?.find((media) => media.is_primary)?.storage_path ??
+      item?.media?.[0]?.storage_path;
+    return path ? this.media.getMediaUrl(path) : null;
   }
   paymentLabel(status: string): string {
     const labels: Record<string, string> = {

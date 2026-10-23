@@ -1,3 +1,5 @@
+import { SupabaseService } from '../../../../core/services/supabase.service';
+import { MediaService } from '../../../../core/services/media.service';
 import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { ArticlePickerComponent } from '../../../../shared/components/article-picker/article-picker.component';
@@ -264,12 +266,14 @@ describe('Persönliche eBay-Oberfläche', () => {
     TestBed.configureTestingModule({
       imports: [EbayAccountComponent],
       providers: [
+        { provide: MediaService, useValue: { getMediaUrl: (path: string) => path } },
         { provide: EbayOrderImportApiService, useValue: { loadMappings: vi.fn(async () => []) } },
         {
           provide: CatalogService,
           useValue: {
             ...sourceState,
             products: signal([]),
+            imageUrls: signal({}),
             loadProducts: vi.fn(async () => undefined),
           },
         },
@@ -323,6 +327,117 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it.each(['listings', 'orders'] as const)(
+    'fordert per Aktualisieren den Anbieterabgleich für %s an und zeigt den Wartestand',
+    async (section) => {
+      const invoke = vi.fn(async () => ({ data: { requested: true, ...connection }, error: null }));
+      TestBed.overrideProvider(SupabaseService, {
+        useValue: { client: { functions: { invoke } } },
+      });
+      TestBed.configureTestingModule({
+        providers: [{ provide: SupabaseService, useValue: { client: { functions: { invoke } } } }],
+      });
+      const realApi = TestBed.runInInjectionContext(() => new EbayAccountApiService());
+      Object.assign(api, {
+        requestRefresh: (...args: Parameters<EbayAccountApiService['requestRefresh']>) =>
+          realApi.requestRefresh(...args),
+      });
+      const fixture = await render(true, section);
+      expect(invoke).not.toHaveBeenCalled();
+      const element = fixture.nativeElement as HTMLElement;
+      const button = Array.from(element.querySelectorAll('button')).find(
+        (row) => row.textContent?.trim() === 'Aktualisieren',
+      );
+      expect(button).toBeDefined();
+      button!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(invoke).toHaveBeenCalledWith('ebay-account', {
+        body: { action: 'refresh', ...connection, kind: section },
+      });
+      expect(element.textContent).toContain('Aktualisierung angefordert');
+      expect(element.querySelector('tbody')?.textContent).toContain(
+        section === 'listings' ? 'Eigene Auktion' : 'Stornierter Artikel',
+      );
+      fixture.destroy();
+    },
+  );
+  it.each(['listings', 'orders'] as const)(
+    'erhält sichtbare %s-Zeilen und letzten Abgleich neben einem Aktualisierungsfehler',
+    async (section) => {
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const fixture = await render(true, section);
+      read.mockResolvedValueOnce({
+        ...connection,
+        items:
+          section === 'listings'
+            ? fixture.componentInstance.store.listings()
+            : fixture.componentInstance.store.orders(),
+        total: 1,
+        nextPage: null,
+        sync: { status: 'ready', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: null },
+      });
+      await fixture.componentInstance.store.read(false);
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+      const title = section === 'listings' ? 'Eigene Auktion' : 'Stornierter Artikel';
+      expect(element.querySelector('tbody')?.textContent).toContain(title);
+      const lastSync = Array.from(element.querySelectorAll('p')).find((row) =>
+        row.textContent?.includes('Letzter vollständiger Abgleich'),
+      )?.textContent;
+      expect(lastSync).toContain('23.10.2026');
+      read.mockRejectedValueOnce(new Error('Aktualisierung vorübergehend fehlgeschlagen'));
+      await fixture.componentInstance.store.read(false);
+      fixture.detectChanges();
+      expect(element.querySelector('tbody')?.textContent).toContain(title);
+      expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+        'Aktualisierung vorübergehend fehlgeschlagen',
+      );
+      expect(element.textContent).toContain(lastSync);
+    },
+  );
+  it('zeigt Bestellbilder und unterscheidet die ausstehende Erstbasis von einer leeren Liste', async () => {
+    api.loadOrders.mockResolvedValueOnce({
+      ...connection,
+      items: [
+        {
+          id: 'order-image',
+          createdAt: '2026-10-23T10:00:00Z',
+          paymentStatus: 'PAID',
+          fulfillmentStatus: 'FULFILLED',
+          cancelStatus: null,
+          total: 12,
+          currency: 'EUR',
+          items: [
+            { title: 'Artikel mit Bild', quantity: 1, imageUrl: 'https://i.ebayimg.com/item.jpg' },
+          ],
+        },
+      ],
+      total: 1,
+      nextPage: null,
+    });
+    const fixture = await render(true, 'orders');
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('img[alt="Artikel mit Bild"]')
+        ?.getAttribute('src'),
+    ).toBe('https://i.ebayimg.com/item.jpg');
+    api.loadOrders.mockResolvedValueOnce({
+      ...connection,
+      items: [],
+      total: 0,
+      nextPage: null,
+      sync: { status: 'pending', lastCompletedAt: null, lastError: null },
+    });
+    await fixture.componentInstance.store.read(false);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Erster eBay-Abgleich läuft',
+    );
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain(
+      'Keine Einträge bei eBay gefunden',
+    );
+  });
   it('zeigt das einzelne eBay-Konto kompakt und öffnet die Verwaltung am Zahnrad', async () => {
     const fixture = await render(true, 'connection');
     const element = fixture.nativeElement as HTMLElement;
@@ -662,13 +777,15 @@ describe('Persönliche eBay-Oberfläche', () => {
       connection,
     });
     const fixture = await render();
-    fixture.componentInstance.store.listings.update((items) =>
-      items.map((item) => ({
-        ...item,
-        imageUrl: 'https://i.ebayimg.com/photo.jpg',
-        watchCount: 0,
-      })),
-    );
+    api.loadListings.mockResolvedValueOnce({
+      ...connection,
+      items: fixture.componentInstance.store
+        .listings()
+        .map((item) => ({ ...item, imageUrl: 'https://i.ebayimg.com/photo.jpg', watchCount: 0 })),
+      total: 1,
+      nextPage: null,
+    });
+    await fixture.componentInstance.store.read(false);
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('img')?.getAttribute('src')).toBe(
@@ -745,7 +862,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     const disabled = await render();
     expect(
       (disabled.nativeElement as HTMLElement).querySelector(
-        '[aria-label="Artikel zuordnen: Eigene Auktion"]',
+        '[aria-label="Mit Bestand verknüpfen: Eigene Auktion"]',
       ),
     ).toBeNull();
     disabled.destroy();
@@ -753,7 +870,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     const enabled = await render();
     expect(
       (enabled.nativeElement as HTMLElement).querySelector(
-        '[aria-label="Artikel zuordnen: Eigene Auktion"]',
+        '[aria-label="Mit Bestand verknüpfen: Eigene Auktion"]',
       ),
     ).not.toBeNull();
   });
@@ -775,7 +892,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     const fixture = await render();
     const element = fixture.nativeElement as HTMLElement;
     const trigger = element.querySelector<HTMLButtonElement>(
-      '[aria-label="Artikel zuordnen: Eigene Auktion"]',
+      '[aria-label="Mit Bestand verknüpfen: Eigene Auktion"]',
     )!;
     trigger.focus();
     trigger.click();

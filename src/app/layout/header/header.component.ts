@@ -1,3 +1,5 @@
+import { EbaySaleActivityStore } from '../../features/sales/services/ebay-sale-activity.store';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,7 +11,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet, NgOptimizedImage } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -55,7 +57,15 @@ export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, NgTemplateOutlet, BadgeComponent],
+  imports: [
+    ButtonComponent,
+    NgOptimizedImage,
+    RouterLink,
+    TranslatePipe,
+    LucideDynamicIcon,
+    NgTemplateOutlet,
+    BadgeComponent,
+  ],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -72,6 +82,7 @@ export class HeaderComponent {
   readonly webhookService = inject(WebhookService);
   readonly favoriteNotifications = inject(MarketplaceFavoriteNotificationStore);
   readonly feedbackNotifications = inject(MarketplaceFeedbackNotificationStore);
+  readonly ebayNotifications = inject(EbaySaleActivityStore);
   readonly messageNotifications = inject(MarketplaceMessageNotificationStore);
   private readonly dialog = inject(ConfirmDialogService);
   readonly pageLayout = inject(PageLayoutService);
@@ -96,6 +107,7 @@ export class HeaderComponent {
       ...this.favoriteNotifications.notifications(),
       ...this.feedbackNotifications.notifications(),
       ...this.messageNotifications.notifications(),
+      ...this.ebayNotifications.notifications(),
     ]
       .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp))
       .slice(0, 50),
@@ -115,7 +127,8 @@ export class HeaderComponent {
       this.webhookService.unreadCount() +
       this.favoriteNotifications.unreadCount() +
       this.feedbackNotifications.unreadCount() +
-      this.messageNotifications.unreadCount(),
+      this.messageNotifications.unreadCount() +
+      this.ebayNotifications.unreadCount(),
   );
 
   readonly workspaceContainer = viewChild<ElementRef<HTMLElement>>('workspaceContainer');
@@ -172,6 +185,7 @@ export class HeaderComponent {
       void this.favoriteNotifications.reload();
       void this.feedbackNotifications.reload();
       void this.messageNotifications.reload();
+      void this.ebayNotifications.reload();
     }
     this.isWorkspaceDropdownOpen.set(false);
     this.isUserDropdownOpen.set(false);
@@ -204,7 +218,9 @@ export class HeaderComponent {
   async oeffneBenachrichtigung(notif: AppNotification): Promise<void> {
     this.isUpdatingNotifications.set(true);
     try {
-      if (notif.id.startsWith('marketplace-message:')) {
+      if (notif.id.startsWith('ebay-sale:')) {
+        await this.ebayNotifications.markAsRead(notif.id);
+      } else if (notif.id.startsWith('marketplace-message:')) {
         await this.messageNotifications.markAsRead(notif.id);
       } else if (notif.id.startsWith('marketplace-feedback:')) {
         await this.feedbackNotifications.markAsRead(notif.id);
@@ -284,12 +300,14 @@ export class HeaderComponent {
 
   private async updateNotificationStreams(operation: 'markAllAsRead' | 'clearNotifications') {
     // Alle Speicherungen abschließen; ein Teilerfolg ist keine gemeinsame Bestätigung.
-    const [general, favorites, feedback, messages] = await Promise.allSettled([
+    const [general, favorites, feedback, messages, ebay] = await Promise.allSettled([
       this.webhookService[operation](),
       this.favoriteNotifications[operation](),
       this.feedbackNotifications[operation](),
       this.messageNotifications[operation](),
+      this.ebayNotifications[operation](),
     ]);
+    if (ebay.status === 'rejected') throw ebay.reason;
     if (messages.status === 'rejected') throw messages.reason;
     if (feedback.status === 'rejected') throw feedback.reason;
     if (favorites.status === 'rejected') throw favorites.reason;
@@ -297,6 +315,19 @@ export class HeaderComponent {
     return general.value;
   }
 
+  async markEbayUnread(id: string): Promise<void> {
+    this.isUpdatingNotifications.set(true);
+    try {
+      await this.ebayNotifications.markAsUnread(id);
+    } catch (error) {
+      this.toast.error(
+        'Benachrichtigung konnte nicht aktualisiert werden.',
+        error instanceof Error ? error.message : 'Versuche es erneut.',
+      );
+    } finally {
+      this.isUpdatingNotifications.set(false);
+    }
+  }
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as Node | null;
     if (!target) return;

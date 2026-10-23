@@ -97,7 +97,7 @@ export function createRevenueChartConfiguration(
       type: 'bar',
       height: 280,
       width: '100%',
-      fontFamily: 'Inter, system-ui, sans-serif',
+      fontFamily: 'inherit',
       foreColor: palette.ticks,
       background: 'transparent',
       parentHeightOffset: 0,

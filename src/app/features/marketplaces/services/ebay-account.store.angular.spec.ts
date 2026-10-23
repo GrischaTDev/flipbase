@@ -1,6 +1,9 @@
+import { signal } from '@angular/core';
+import { AuthService } from '../../../core/services/auth.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EbayAccountApiService } from './ebay-account-api.service';
+import { EbayAccountApiService, EbayAccountRequestError } from './ebay-account-api.service';
 import { EbayAccountStore } from './ebay-account.store';
 import type {
   EbayConnection,
@@ -23,6 +26,7 @@ const connection: EbayConnection = {
   status: 'connected',
   username: 'seller-a',
   lastReadAt: null,
+  authorizationVersion: 1,
 };
 const listing: EbayListing = {
   id: '123',
@@ -36,6 +40,7 @@ const listing: EbayListing = {
 describe('Persönlicher eBay-Zustand', () => {
   let store: EbayAccountStore;
   let api: {
+    requestRefresh: ReturnType<typeof vi.fn>;
     loadStatus: ReturnType<typeof vi.fn>;
     connect: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
@@ -45,7 +50,9 @@ describe('Persönlicher eBay-Zustand', () => {
     loadTraffic: ReturnType<typeof vi.fn>;
   };
   beforeEach(() => {
+    vi.useFakeTimers();
     api = {
+      requestRefresh: vi.fn(async () => undefined),
       loadStatus: vi.fn(async () => ({ configured: true, connection })),
       connect: vi.fn(async () => 'https://auth.ebay.com/oauth2/authorize'),
       disconnect: vi.fn(async () => undefined),
@@ -66,11 +73,417 @@ describe('Persönlicher eBay-Zustand', () => {
       })),
     };
     TestBed.configureTestingModule({
-      providers: [EbayAccountStore, { provide: EbayAccountApiService, useValue: api }],
+      providers: [
+        EbayAccountStore,
+        { provide: EbayAccountApiService, useValue: api },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal({ id: 'workspace-a' }) },
+        },
+      ],
     });
     store = TestBed.inject(EbayAccountStore);
   });
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.useRealTimers();
+  });
+  it.each(['listings', 'orders'] as const)(
+    'verfolgt angeforderten %s-Abgleich bis zum neuen Abschluss ausschließlich lesend',
+    async (section) => {
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const old = {
+        ...connection,
+        items: section === 'listings' ? [listing] : [{ id: 'order-a' }],
+        total: 1,
+        nextPage: null,
+        sync: { status: 'ready', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: null },
+      };
+      read.mockResolvedValue(old);
+      await store.initialize('workspace-a', true, section);
+      expect(api.requestRefresh).not.toHaveBeenCalled();
+      await store.requestRefresh();
+      expect(api.requestRefresh).toHaveBeenCalledWith(connection, section);
+      expect(store.refreshStatus()).toBe('pending');
+      expect(section === 'listings' ? store.listings() : store.orders()).toHaveLength(1);
+      read.mockResolvedValue({ ...old, sync: { ...old.sync, status: 'syncing' } });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(store.refreshStatus()).toBe('syncing');
+      read.mockResolvedValue({
+        ...old,
+        sync: { ...old.sync, lastCompletedAt: '2026-10-23T12:05:00Z' },
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(store.refreshStatus()).toBeNull();
+      const reads = read.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(read).toHaveBeenCalledTimes(reads);
+      expect(api.requestRefresh).toHaveBeenCalledOnce();
+    },
+  );
+  it('beendet die Anfrageanzeige nach Navigation während einer laufenden Aktualisierungsanforderung', async () => {
+    await store.initialize('workspace-a', true);
+    const pending = deferred<void>();
+    api.requestRefresh.mockReturnValueOnce(pending.promise);
+    const refresh = store.requestRefresh();
+    expect(store.refreshStatus()).toBe('requesting');
+    await store.initialize('workspace-a', true, 'orders');
+    pending.resolve();
+    await refresh;
+    await store.selectSection('listings');
+    expect(store.refreshStatus()).toBe('pending');
+  });
+  it.each(['timer', 'refresh'] as const)(
+    'erhält Statistiken bei %s-Cachelesungen ohne zusätzliche Anbieterabrufe',
+    async (trigger) => {
+      api.loadStatus.mockResolvedValueOnce({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      api.loadListings.mockResolvedValue({
+        ...connection,
+        items: [listing],
+        total: 1,
+        nextPage: null,
+        sync: {
+          status: trigger === 'timer' ? 'pending' : 'ready',
+          lastCompletedAt: '2026-10-23T12:00:00Z',
+          lastError: null,
+        },
+      });
+      await store.initialize('workspace-a', true);
+      const traffic = store.traffic();
+      const period = store.trafficPeriod();
+      expect(api.loadTraffic).toHaveBeenCalledOnce();
+      if (trigger === 'refresh') await store.requestRefresh();
+      expect(api.loadTraffic).toHaveBeenCalledOnce();
+      const reads = api.loadListings.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(api.loadListings).toHaveBeenCalledTimes(reads + 3);
+      expect(api.loadTraffic).toHaveBeenCalledOnce();
+      expect(store.traffic()).toBe(traffic);
+      expect(store.trafficPeriod()).toBe(period);
+      await store.readTraffic();
+      expect(api.loadTraffic).toHaveBeenCalledTimes(2);
+      expect(store.traffic()['123'].views).toBe(0);
+    },
+  );
+  it.each(['listings', 'orders'] as const)(
+    'erhält nachgeladene %s-Seiten und ihren Zeiger während mehrerer Cachepolls',
+    async (section) => {
+      api.loadStatus.mockResolvedValueOnce({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const first = { ...listing, id: 'first' };
+      const second = { ...listing, id: 'second' };
+      const replacement = { ...listing, id: 'replacement' };
+      const page = {
+        ...connection,
+        total: 3,
+        sync: { status: 'ready', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: null },
+      };
+      read.mockResolvedValueOnce({ ...page, items: [first], nextPage: 2 });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValueOnce({ ...page, items: [second], nextPage: 3 });
+      await store.read(true);
+      expect(rows()).toEqual([first, second]);
+      expect(store.nextPage()).toBe(3);
+      const traffic = store.traffic();
+      const trafficReads = api.loadTraffic.mock.calls.length;
+      read.mockImplementation(async (_scope, pageNumber: number) => ({
+        ...page,
+        items: pageNumber === 1 ? [replacement] : [second],
+        nextPage: pageNumber === 1 ? 2 : 3,
+      }));
+      await store.requestRefresh();
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(rows()).toEqual([replacement, second]);
+      expect(store.nextPage()).toBe(3);
+      expect(store.traffic()).toBe(traffic);
+      expect(api.loadTraffic).toHaveBeenCalledTimes(trafficReads);
+      // Der bewusste nächste Seitenabruf bleibt möglich und benutzt den bisherigen Zeiger.
+      read.mockResolvedValueOnce({ ...page, items: [{ ...listing, id: 'third' }], nextPage: null });
+      await store.read(true);
+      expect(read).toHaveBeenLastCalledWith(connection, 3);
+      expect(rows().map((row) => row.id)).toEqual(['replacement', 'second', 'third']);
+      expect(store.nextPage()).toBeNull();
+      // Ein normaler erneuter Listenabruf ersetzt weiterhin die ganze geladene Liste.
+      await store.read(false);
+      expect(rows()).toEqual([replacement]);
+      expect(store.nextPage()).toBe(2);
+    },
+  );
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      [true, false].map((initiallyEmpty) => ({ section, initiallyEmpty })),
+    ),
+  )(
+    'erschließt neue $section-Folgeseiten nach Wachstum, leerer Anfang: $initiallyEmpty',
+    async ({ section, initiallyEmpty }) => {
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const page = {
+        ...connection,
+        sync: { status: 'pending', lastCompletedAt: null, lastError: null },
+      };
+      read.mockResolvedValueOnce({
+        ...page,
+        items: initiallyEmpty ? [] : [listing],
+        total: initiallyEmpty ? 0 : 1,
+        nextPage: null,
+      });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValue({
+        ...page,
+        items: [listing, { ...listing, id: 'second' }],
+        total: 3,
+        nextPage: 2,
+        sync: { ...page.sync, status: 'ready', lastCompletedAt: '2026-10-23T13:00:00Z' },
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rows()).toHaveLength(2);
+      expect(store.total()).toBe(3);
+      expect(store.nextPage()).toBe(2);
+      read.mockResolvedValueOnce({
+        ...page,
+        items: [{ ...listing, id: 'third' }],
+        total: 3,
+        nextPage: null,
+      });
+      await store.read(true);
+      expect(read).toHaveBeenLastCalledWith(connection, 2);
+      expect(rows().map((row) => row.id)).toEqual(['123', 'second', 'third']);
+    },
+  );
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      [3, null].map((previousNextPage) => ({ section, previousNextPage })),
+    ),
+  )(
+    'liest verschobene $section-Seiten vollständig neu, bisheriger Zeiger: $previousNextPage',
+    async ({ section, previousNextPage }) => {
+      api.loadStatus.mockResolvedValueOnce({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const item = (id: string) => ({ ...listing, id });
+      const page = {
+        ...connection,
+        total: 5,
+        sync: { status: 'pending' as const, lastCompletedAt: null, lastError: null },
+      };
+      read.mockResolvedValueOnce({ ...page, items: [item('A'), item('B')], nextPage: 2 });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValueOnce({
+        ...page,
+        items: [item('C'), item('D')],
+        nextPage: previousNextPage,
+      });
+      await store.read(true);
+      const previousRows = rows();
+      const traffic = store.traffic();
+      const trafficReads = api.loadTraffic.mock.calls.length;
+      const pendingSecondPage = deferred<EbayPage<EbayListing>>();
+      read.mockImplementation(async (_scope, pageNumber: number) =>
+        pageNumber === 1
+          ? { ...page, items: [item('X'), item('A')], nextPage: 2 }
+          : pendingSecondPage.promise,
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rows()).toBe(previousRows);
+      expect(store.nextPage()).toBe(previousNextPage);
+      expect(store.isReading()).toBe(true);
+      pendingSecondPage.resolve({ ...page, items: [item('B'), item('C')], nextPage: 3 });
+      await vi.waitFor(() => expect(store.isReading()).toBe(false));
+      expect(rows().map((row) => row.id)).toEqual(['X', 'A', 'B', 'C']);
+      expect(store.nextPage()).toBe(3);
+      expect(store.traffic()).toBe(traffic);
+      expect(api.loadTraffic).toHaveBeenCalledTimes(trafficReads);
+      read.mockResolvedValueOnce({ ...page, items: [item('D'), item('E')], nextPage: null });
+      await store.read(true);
+      expect(rows().map((row) => row.id)).toEqual(['X', 'A', 'B', 'C', 'D', 'E']);
+      // Eine spätere echte Löschung muss aus allen geladenen Seiten verschwinden.
+      read.mockImplementation(async (_scope, pageNumber: number) => ({
+        ...page,
+        total: 3,
+        items: pageNumber === 1 ? [item('X'), item('A')] : [item('E')],
+        nextPage: pageNumber === 1 ? 2 : null,
+      }));
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rows().map((row) => row.id)).toEqual(['X', 'A', 'E']);
+      expect(store.nextPage()).toBeNull();
+    },
+  );
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      [false, true].map((revoked) => ({ section, revoked })),
+    ),
+  )(
+    'behandelt einen Fehler auf der zweiten $section-Pollseite atomar, Rechteentzug: $revoked',
+    async ({ section, revoked }) => {
+      api.loadStatus.mockResolvedValue({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const page = {
+        ...connection,
+        total: 3,
+        sync: { status: 'pending', lastCompletedAt: null, lastError: null },
+      };
+      read.mockResolvedValueOnce({ ...page, items: [listing], nextPage: 2 });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValueOnce({ ...page, items: [{ ...listing, id: 'second' }], nextPage: 3 });
+      await store.read(true);
+      const previousRows = rows();
+      const traffic = store.traffic();
+      read.mockResolvedValueOnce({
+        ...page,
+        items: [{ ...listing, id: 'new-first' }],
+        nextPage: 2,
+      });
+      read.mockRejectedValueOnce(
+        revoked
+          ? new EbayAccountRequestError('forbidden', 'Freigabe entzogen')
+          : new Error('Zweite Seite nicht verfügbar'),
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(read).toHaveBeenLastCalledWith(connection, 2);
+      expect(store.isReading()).toBe(false);
+      if (revoked) {
+        expect(rows()).toEqual([]);
+        expect(store.nextPage()).toBeNull();
+        expect(store.connection()).toBeNull();
+        expect(store.traffic()).toEqual({});
+      } else {
+        expect(rows()).toBe(previousRows);
+        expect(store.nextPage()).toBe(3);
+        expect(store.traffic()).toBe(traffic);
+        expect(store.dataError()).toBe('Zweite Seite nicht verfügbar');
+      }
+    },
+  );
+  it('erhält Fehlerwartezeit und Zeilen, verwirft sie aber bei entzogener Freigabe', async () => {
+    await store.initialize('workspace-a', true);
+    api.loadListings.mockResolvedValue({
+      ...connection,
+      items: [listing],
+      total: 1,
+      nextPage: null,
+      sync: { status: 'error', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: 'unavailable' },
+    });
+    await store.requestRefresh();
+    expect(store.refreshStatus()).toBeNull();
+    expect(store.sync()?.lastError).toBe('unavailable');
+    expect(store.listings()).toEqual([listing]);
+    api.requestRefresh.mockRejectedValueOnce(
+      new EbayAccountRequestError('needs_login', 'Freigabe entzogen'),
+    );
+    await store.requestRefresh();
+    expect(store.connection()).toBeNull();
+    expect(store.listings()).toEqual([]);
+    expect(store.refreshStatus()).toBeNull();
+  });
+  it.each(
+    (['listings', 'orders'] as const).flatMap((section) =>
+      ['unauthorized', 'forbidden', 'needs_login', 'connection_changed'].flatMap((code) =>
+        (['list', 'status'] as const).map((stage) => ({ section, code, stage })),
+      ),
+    ),
+  )(
+    'verwirft private Daten bei $code aus $stage für $section auch vor erneutem Statusabruf',
+    async ({ section, code, stage }) => {
+      api.loadOrders.mockResolvedValue({
+        ...connection,
+        items: [{ id: 'order-a' }],
+        total: 1,
+        nextPage: null,
+      });
+      await store.initialize('workspace-a', true);
+      await store.selectSection('orders');
+      if (section === 'listings') await store.selectSection('listings');
+      expect(store.listings()).toHaveLength(1);
+      expect(store.orders()).toHaveLength(1);
+      store.traffic.set({
+        '123': { listingId: '123', views: 1, transactions: 0, conversionRate: 0 },
+      });
+      store.orderBookings.set({ 'order-a': { status: 'unrecorded', saleId: null } });
+      const original =
+        stage === 'list'
+          ? new EbayAccountRequestError(code, 'Ursprünglicher Zugriff verweigert')
+          : new Error('Ursprünglicher Transportfehler');
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      read.mockRejectedValueOnce(original);
+      api.loadStatus.mockRejectedValueOnce(
+        new EbayAccountRequestError(code, 'Statuszugriff verweigert'),
+      );
+      await store.read(false);
+      expect(api.loadStatus).toHaveBeenCalledTimes(stage === 'list' ? 1 : 2);
+      expect(store.connection()).toBeNull();
+      expect(store.listings()).toEqual([]);
+      expect(store.orders()).toEqual([]);
+      expect(store.traffic()).toEqual({});
+      expect(store.orderBookings()).toEqual({});
+      expect(store.dataError()).toBe(original.message);
+      expect(store.isReading()).toBe(false);
+      const pending = deferred<EbayConnectionStatus>();
+      api.loadStatus.mockReset().mockReturnValueOnce(pending.promise);
+      const retry = store.initialize('workspace-a', false);
+      expect(store.connection()).toBeNull();
+      expect(store.listings()).toEqual([]);
+      expect(store.orders()).toEqual([]);
+      pending.resolve({ configured: true, connection });
+      await retry;
+      expect(store.listings()).toEqual([]);
+      expect(store.orders()).toEqual([]);
+    },
+  );
+  it('erhält Zeilen bei Rückkehr, Aktualisierung und Fehlern im selben bestätigten Kontext', async () => {
+    await store.initialize('workspace-a', true);
+    const pending = deferred<EbayConnectionStatus>();
+    api.loadStatus.mockReturnValueOnce(pending.promise);
+    const returning = store.initialize('workspace-a', true);
+    expect(store.listings()).toEqual([listing]);
+    pending.resolve({ configured: true, connection });
+    api.loadListings.mockRejectedValueOnce(new Error('Abgleich fehlgeschlagen'));
+    await returning;
+    expect(store.listings()).toEqual([listing]);
+    expect(store.dataError()).toBe('Abgleich fehlgeschlagen');
+  });
+  it('verwirft alte Zeilen bei neuer oder unbekannter Autorisierungsfassung', async () => {
+    await store.initialize('workspace-a', true);
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      connection: { ...connection, authorizationVersion: 2 },
+    });
+    await store.initialize('workspace-a', false);
+    expect(store.listings()).toEqual([]);
+    await store.read(false);
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      connection: { ...connection, authorizationVersion: undefined },
+    });
+    await store.initialize('workspace-a', false);
+    expect(store.listings()).toEqual([]);
+  });
+  it('entfernt private Zeilen bei nachweislich entzogener Kontofreigabe', async () => {
+    await store.initialize('workspace-a', true);
+    api.loadStatus.mockRejectedValueOnce(new EbayAccountRequestError('forbidden', 'Kein Zugriff'));
+    await store.initialize('workspace-a', true);
+    expect(store.listings()).toEqual([]);
+    expect(store.connection()).toBeNull();
+  });
   it('lädt Statistiken nur nach bestätigter Serverfähigkeit und erhält echte Nullwerte', async () => {
     await store.initialize('workspace-a', true);
     await store.readTraffic();

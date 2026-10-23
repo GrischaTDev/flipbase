@@ -49,6 +49,8 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-local-extension-bridge-contracts.ts
 !supabase/functions/_shared/ebay-contracts.ts
 !supabase/functions/_shared/ebay-order-import-contracts.ts
+!supabase/functions/_shared/ebay-cache-contracts.ts
+!supabase/functions/_shared/ebay-sale-draft-contracts.ts
 !supabase/functions/_shared/ebay-order-amounts.ts
 !supabase/functions/_shared/ebay-api.ts
 !supabase/functions/_shared/ebay-config.ts

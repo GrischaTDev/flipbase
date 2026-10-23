@@ -1,5 +1,158 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-23 - Juna - eBay-PR nach Freigabe mit aktuellem Hauptzweig integrieren
+
+Nutzer autorisiert PR, erfolgreiche Pflichtprüfungen, Merge-Commit und anschließende Bereinigung des eigenen Zweigs samt Arbeitskopie. Vor dem ersten Push den inzwischen aktuellen Hauptzweig `962e4e14` mit Vinted-Entwurfsübernahme integriert. Beide Änderungsprotokolle erhalten; die gemeinsame Browserfixture enthält sowohl die eBay-Status-/Reservierungsantworten als auch den Vinted-Entwurfszähler. Die übrigen eingehenden Dateien bleiben unverändert. Integration vor dem Push geprüft: 74 Auswahl-/Registrierungsfälle, 174 betroffene Angularfälle, 25 Browserfälle mit gemeinsamer Marktplatzübersicht, Typografie und vollständigen eBay-Abläufen sowie Typen, Lint, Format und Produktionsbau erfolgreich. Eigene Testinstanz regulär frisch aus allen Migrationen und Seed aufgebaut: 130 SQL-Dateien/4.906 Assertions erfolgreich; Typen tatsächlich neu erzeugt und unverändert. Der PR wartet anschließend auf alle erfolgreichen Pflichtprüfungen. Kein direkter Hauptzweig-Push und keine fremde Arbeitskopie verändert.
+
+## 2026-10-23 - Juna - eBay-Listen, Verkaufsentwürfe und persönliche Glocke integrieren
+
+**Freigabe und Umsetzung:** Den ausdrücklich bestätigten Gesamtentwurf umgesetzt:
+gespeicherte Bestell-/Inseratlisten mit Bildern und Hintergrundabgleich,
+Bestandszuordnung, nachträglicher Abgleich vollständiger vorhandener Verkäufe,
+dauerhafte Entwürfe unter „Zu prüfen“, sofortige eigene Reservierungen und
+persönliche eBay-Meldungen in der Glocke. Käuferporto, belegte Gebühren und
+tatsächliche Versandkosten bleiben getrennt; unbekannte Werte werden nicht zu
+bestätigten Nullen. Erst die bewusste endgültige Buchung zählt als Verkauf.
+Kontotrennung schließt private Bestelldaten, erhält aber die interne bewusste
+Reservierungsklärung. Bestehende Vinted- und gemeinsame Formularänderungen aus dem
+aktuellen Hauptzweig sind enthalten.
+
+**Unabhängige Prüfungen und Korrekturen:** Aufgabenreview der Oberfläche fand
+ausgeblendete gespeicherte Tabellenzeilen bei Abruffehlern, unvollständig
+verworfene private Daten nach eindeutigem Rechteentzug und einen hängenbleibenden
+internen Freigabevorgang bei persönlichem Kontofehler. Alle drei mit zunächst
+roten Regressionen korrigiert; 64 betroffene Angularfälle einschließlich 23 neuer
+Fälle erfolgreich, frischer Nachreview ohne offenen wichtigen Befund. Die
+anschließende Integrationsprüfung isoliert einen bereits vorhandenen
+Bildtest-Mock nach reproduzierbar rotem Minimalpaar; sämtliche 48 DOM-Dateien
+bestehen danach ohne Produkt-, Pool-, Assertion- oder Timeoutänderung.
+Unabhängiger Teilreview bestätigt diese Korrektur und die echte Testregistrierung.
+
+**Abschlusskorrekturen:** Der unabhängige Gesamtbranchreview findet drei konkrete
+Lücken: Der Aktualisierungsknopf fordert noch keinen Abgleich an, spätere
+Erstattungen gebuchter oder zugeordneter Verkäufe fehlen als sichtbarer Klärfall,
+und neue Anbietergebühren bleiben hinter automatisch vorbereiteten Kosten
+verborgen. Eine gemeinsame Korrektur ergänzt den berechtigten Aktualisierungsweg,
+getrennte Quellenhinweise bei unverändertem Buchungsbeleg und die Unterscheidung
+automatischer von persönlich gespeicherten Kosten. Alte Eingaben ohne belegte
+Herkunft bleiben erhalten und werden neben dem aktuellen Quellenbetrag gezeigt.
+Ein zusätzlicher vorhandener SVG-Schriftfehler ist am unveränderten Hauptzweig
+reproduziert; das gemeinsame Diagramm erbt nun die Schrift seines Umfelds.
+Der gezielte Nachreview entdeckt außerdem den Statistikabruf im neuen
+Nachlesetimer sowie Grenzfälle nachgeladener Seiten. Der Hintergrundweg wird
+deshalb vom interaktiven Abruf getrennt und liest die bereits geöffneten Seiten
+vollständig aus dem Cache, bevor er die Anzeige ersetzt. Regressionen decken
+leeren Erstimport, neue Seitengrenzen, hinzugekommene und entfernte Zeilen sowie
+den weiterhin erreichbaren nächsten Seitenabruf ab. Der Altverkaufstest wählt
+seinen Artikel nach dem belegten Titel statt einer unbelegten Datenbankreihenfolge.
+Ein zusätzlicher AXE-Befund der neuen Erstattungsliste ist durch einen getrennten
+Statusrahmen und eine gezielte Assertion im vorhandenen Browserfall behoben.
+Das abschließende eine Nachreview bestätigt F1–F6 als korrigiert, ohne offene
+Codebefunde. Alle drei aktuellen eBay-Browserfälle und vier zusätzliche
+Desktop-/Touch-/Hell-/Dunkel-/AXE-Abläufe bestehen am endgültigen Produktstand.
+
+**Nachweise und Grenzen:** Linux-Anwendungsprüfungen, regulärer SQL-Replay mit
+Rechte-/Schemaabgleich, echte Bestandskonkurrenz, Edge-Funktionen,
+Produktions-PWA, Docker-/Funktionspakete und die betroffene Browserauswahl sind
+im [integrierten Abnahmeprotokoll](testing/ebay-sales-review-validation.md)
+mit tatsächlichem Umfang und Grenzen festgehalten. Die zusätzliche eBay-Abnahme
+prüft Hell/Dunkel, Desktop und Touch, Tastatur und AXE; Aufnahmen liegen außerhalb
+des Repositorys und wurden tatsächlich angesehen. Vorhandene Warnungen und
+erwartete Fehlerausgaben bleiben benannt. Keine echte Anbieterzahlung,
+Handy-Pushzustellung oder Produktionsveröffentlichung behauptet. Fremde
+Arbeitskopien und laufende Projekte bleiben erhalten. Push, PR und gemeinsamer
+Rollout folgen erst nach abgeschlossener Prüfung und vorgeschriebener Freigabe.
+
+## 2026-10-23 - Juna - eBay-Verkaufsprüfung untersuchen und Erstattungssperre korrigieren
+
+**Auftrag:** eBay-Listen mit gespeicherten Daten und Artikelbildern verbessern,
+Inserate und Bestellungen mit Bestand oder bereits erfassten Verkäufen verbinden,
+neue Verkäufe automatisch zur Prüfung vorbereiten und in der Glocke melden.
+Nutzer bestätigt sofortige Mengenreservierung; endgültige Buchung erst nach Prüfung.
+
+**Befund:** Aktuellen `origin/master` bei `3477b3e5` gelesen; ältere Hauptarbeitskopie
+und fremde Zweige unverändert erhalten. Tabellenabrufe gehen direkt an eBay,
+Formularentwürfe sind nicht dauerhaft gespeichert. Hintergrundbeobachter hängt
+an Push-Geräten und schreibt keinen Glockeneintrag. Vorhandene Inseratzuordnung
+und Altverkaufsauswahl sind die Grundlage für den Ausbau. Produktion ausschließlich
+lesend geprüft: Bestellung mit Endnummer 7587 ist bezahlt, versendet und nicht
+storniert; die Bestell-Erstattungsliste ist leer, das Positionsfeld fehlt.
+Die bisherige Normalisierung erzeugt deshalb fälschlich die Erstattungssperre.
+Gebührenbetrag vorhanden, eigene Versandkosten nicht als Bestellfeld geliefert.
+Keine rohe Antwort, Käuferdaten oder Zugangsdaten als Artefakt gespeichert.
+
+**Lokale Korrektur:** Im eigenen Zweig `juna/ebay-sales-review` erlaubt eine
+ausdrücklich leere Erstattungsliste der Bestellung das fehlende Positionsfeld.
+Echte, widersprüchliche, ungültige oder insgesamt fehlende Erstattungsnachweise
+bleiben gesperrt. Erstattungen auf Bestellebene werden zusätzlich berücksichtigt.
+Vier fachliche Regressionen ergänzt; vor Korrektur zwei passende Fehler,
+anschließend 52 betroffene Edge-Prüfungen erfolgreich. Deno-Lint, Typprüfung
+des echten eBay-Funktionseinstiegs, Prettier und Unterschiedskontrolle erfolgreich.
+Der alte globale Deno-2.7.5-Lauf scheiterte an zwei Typfehlern in unveränderten
+Handler-Tests; mit isoliert geladener, anhand offizieller SHA-256 geprüfter stabiler
+Version 2.9.8 laufen dieselben Tests erfolgreich. Keine globalen Werkzeuge oder
+Anwendungsabhängigkeiten aktualisiert.
+
+**Gesamtentwurf und Grenzen:**
+`docs/superpowers/specs/2026-10-23-ebay-sales-review-design.md` beschreibt dauerhafte
+Lesekopien, unabhängigen Änderungsabgleich, Bestellbilder, Altverkaufszuordnung,
+Entwürfe, eigene Reservierungen, Kostenlücken, historische Erstbasis und Glocke.
+Unabhängiger lesender Entwurfs-/Parserreview ohne wichtigen offenen Befund.
+Der Nutzer hat den Gesamtentwurf ausdrücklich zur Umsetzung freigegeben.
+Keine Buchung, Reservierung, Migration, Anbieteränderung, Push-, PR-, Merge- oder
+Produktionsveröffentlichung ausgeführt. Kein Angular- oder Browserumbau in dieser
+Korrektur. Kein Linux-/Gesamt-CI-Lauf behauptet; die bestehende Testauswahl stuft
+geteilte Edge-Quellen breit ein, dieser Pflichtlauf bleibt vor Veröffentlichung
+erforderlich. Fremde lokale Dateien und der parallele Vinted-Zweig bleiben erhalten.
+**Fortsetzung nach Freigabe:** Gespeicherte kontogebundene Bestell-/Inseratlisten mit
+unabhängigem Hintergrundabgleich, Gebühren- und Bildnormalisierung umgesetzt.
+Unabhängiger Aufgabenreview findet drei Randfälle bei schrumpfenden Seiten,
+persönlichen Push-Empfängern und später erstmals sichtbaren Zahlungen; alle drei
+mit zunächst roten Regressionen korrigiert. Frischer Nachreview ohne offene
+wichtige Befunde. Zusätzliche generierte Migration erhält die vorherige Datei;
+transaktionaler Replay und vollständiger Schema-/Rechtevergleich stimmen überein.
+71 betroffene Edge-Fälle, davon 28 geänderte Fälle unter CI-Deno 2.9.7 auf Linux,
+und der vollständige lokale Supabase-Lauf mit 128 Dateien/4.765 Assertions erfolgreich.
+Bestehende echte Parallelfälle für Doppelbuchung und entzogene Rechte ebenfalls
+erfolgreich. Linux-Browserbasis für den bisherigen Übernahmeweg bestätigt;
+die neue Entwurfs-/Reservierungsoberfläche folgt erst im nächsten Schritt.
+Aktuelles `origin/master` bei `7eb63bd5` in den eigenen Zweig integriert;
+Änderungsprotokoll mit sämtlichen Einträgen erhalten, übrige Dateien unverändert
+übernommen. Keine fremden Zweige oder Produktivdaten verändert.
+
+**Verkaufsentwürfe und Bestandsprüfung:** Dauerhafte Entwürfe, eigene
+Reservierungsbesitzer, atomare endgültige Buchung und vollständige Zuordnung zu
+vorhandenen Verkäufen ergänzt. Persönliche Glockenbelege bleiben von Push und
+allgemeiner Workspace-Mitgliedschaft getrennt. Kontotrennung und bestehende
+Kontolöschung erhalten interne Reservierungsklärungen ohne private Bestellquelle.
+Vollständige SQL-Suite vor dem letzten Randfall: 129 Dateien/4.840 Assertions;
+danach betroffene Fälle und sechs echte Konkurrenzszenarien erfolgreich geprüft.
+Der unabhängige Aufgabenreview fand verlorene Zahlungsübergänge nach persönlichem
+Öffnen, unvollständig aufgehobene Erfasst-Markierungen und fehlende Dockerdateien.
+Alle Befunde mit Regressionen korrigiert; 426 gezielte SQL-Assertions, sechs echte
+Konkurrenzszenarien und vorhandene Docker-Kontextprüfungen erfolgreich. Beschädigte
+Umlaute der vorherigen generierten Migration werden durch eine neue additive
+Migration korrigiert; 31 tatsächliche Funktionskörper stimmen jetzt direkt mit
+den deklarativen UTF-8-Dateien überein. Frischer unabhängiger Nachreview bestätigt alle vier Korrekturen ohne neuen Befund.
+Der echte Docker-Paketbau bestätigt die Dateifreigaben; vollständiger Appbau,
+neue Oberfläche und integrierte Browserprüfung folgen. Betriebsanleitung für
+gemeinsame Migrationen, Hintergrunddienste und Anwendung ergänzt. Keine
+Produktionsänderung oder PR-Veröffentlichung.
+
+**Aktueller Hauptstand und regulärer Replay:** `origin/master` bei `8281c9d1`
+mit den Vinted-Verkaufsabläufen in den eigenen Zweig übernommen. 46 eingehende
+Dateien unverändert bestätigt; Änderungsprotokoll vollständig erhalten,
+Schemaliste ausdrücklich vereinigt und gemeinsame Typen aus der frischen eigenen
+lokalen Supabase-Instanz neu erzeugt. Alle Migrationen regulär chronologisch
+angewendet und registriert; keine Migrationshistorie manuell nachgetragen.
+Vollständige SQL-Suite: 130 Dateien/4.882 Assertions erfolgreich, sechs echte
+Konkurrenzszenarien ebenfalls. 31 endgültige Funktionskörper und neuer
+Schema-/Rechtekatalog stimmen mit den deklarativen Quellen überein. 60 Prüfungen
+der Registrierung und Testauswahl, Typprüfung und Produktionsbau erfolgreich.
+Bestehende Warnungen zu optionalem Zugriff im Einkauf, ungenutztem Vinted-Link,
+Startpaketgröße und pako unverändert. Die neue eBay-Oberfläche folgt weiterhin
+als eigener Umsetzungsschritt; keine produktive Veröffentlichung.
+
 ## 2026-10-23 - Juna - Vinted-Verkaufskarten und Entwurfsübernahme
 
 **Auftrag und Ausgangslage:** Neuer eigener Zweig `juna/vinted-sales-drafts-and-transfer` auf dem gemergten Hauptstand `8281c9d1`. Fremde Arbeitskopie und deren Änderungen bleiben unberührt. Nutzer stellt den echten Kauf-/Stornotest zurück und beauftragt einheitliche Verkaufskarten, Diagnose des fehlenden Kaufpreises, getrennte native Vinted-Entwürfe und eine feldweise Datenübernahme in geöffnete Entwürfe. Untersuchung bisher ausschließlich lesend, keine Anbieteränderung. Plan und spätere Prüfungen: `docs/implementation/vinted-sales-drafts-and-transfer.md`.

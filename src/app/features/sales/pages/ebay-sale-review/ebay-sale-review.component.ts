@@ -16,7 +16,12 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
-import { SalesService } from '../../../../core/services/sales.service';
+import {
+  EbaySaleActivityStore,
+  ebaySourceIssueLabel,
+} from '../../services/ebay-sale-activity.store';
+import type { EbayOrderAssignment } from '../../../../../../supabase/functions/_shared/ebay-order-import-contracts';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -32,6 +37,7 @@ import type { ExternalSaleEntrySubmit } from '../../models/external-sale-entry.m
   selector: 'app-ebay-sale-review',
   imports: [
     DatePipe,
+    ProductThumbnailComponent,
     DecimalPipe,
     ReactiveFormsModule,
     EntryPageLayoutComponent,
@@ -49,17 +55,39 @@ import type { ExternalSaleEntrySubmit } from '../../models/external-sale-entry.m
   host: { class: 'block', '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class EbaySaleReviewComponent {
+  readonly sourceIssueLabel = ebaySourceIssueLabel;
   readonly store = inject(EbaySaleReviewStore);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly sales = inject(SalesService);
+  private readonly activity = inject(EbaySaleActivityStore);
+  private lastUserId: string | null = null;
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
   readonly entryForm = viewChild(SaleCreateModalComponent);
+  readonly platformFeeDiffers = computed(() => {
+    const review = this.store.review();
+    return (
+      !!review?.draft &&
+      review.draft.costsOrigin !== 'automatic' &&
+      (review.source.platformFeeCents ?? null) !== review.draft.costs.platformFeeCents
+    );
+  });
   readonly routeError = signal<string | null>(null);
+  readonly reviewMode = signal<'new' | 'existing'>('new');
+  readonly selectedExistingSaleId = signal<string | null>(null);
+  readonly existingAssignments = signal<Readonly<Record<string, string>>>({});
+  readonly existingConfirmed = new FormControl(false, { nonNullable: true });
+  readonly existingReason = new FormControl('', {
+    nonNullable: true,
+    validators: [Validators.required, Validators.maxLength(500)],
+  });
+  readonly reviewModeOptions = [
+    { value: 'new', label: 'Noch nicht erfasst' },
+    { value: 'existing', label: 'Bereits als Verkauf erfasst' },
+  ];
   readonly manualDialog = signal<'mark' | 'clear' | null>(null);
   readonly reviewConfirmation = new FormControl(false, { nonNullable: true });
   private readonly confirmedReview = toSignal(this.reviewConfirmation.valueChanges, {
@@ -71,13 +99,36 @@ export class EbaySaleReviewComponent {
       validators: [Validators.required, Validators.maxLength(500)],
     }),
     confirmed: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] }),
-    saleId: new FormControl<string | null>(null),
   });
   readonly saleOptions = computed(() =>
-    this.sales.sales().map((sale) => ({
+    this.store.existingSales().map((sale) => ({
       value: sale.id,
-      label: `${sale.sale_date} · ${sale.inventory_item?.title ?? sale.lines?.[0]?.title_snapshot ?? 'Verkauf'} · ${sale.sale_price.toFixed(2)} €`,
+      label: `${sale.saleDate} · ${sale.lines.map((line) => line.title).join(', ')} · ${sale.total.toFixed(2)} €`,
     })),
+  );
+  readonly selectedExistingSale = computed(
+    () =>
+      this.store.existingSales().find((sale) => sale.id === this.selectedExistingSaleId()) ?? null,
+  );
+  readonly existingTargetOptions = computed(
+    () =>
+      this.selectedExistingSale()?.lines.flatMap((line) =>
+        line.inventoryItemId
+          ? [
+              {
+                value: `inventory:${line.inventoryItemId}`,
+                label: `${line.title} · ${line.quantity} ×`,
+              },
+            ]
+          : line.catalogProductId
+            ? [
+                {
+                  value: `catalog:${line.catalogProductId}`,
+                  label: `${line.title} · ${line.quantity} ×`,
+                },
+              ]
+            : [],
+      ) ?? [],
   );
   readonly submitExternal: ExternalSaleEntrySubmit = (input) => this.store.submit(input);
 
@@ -91,8 +142,13 @@ export class EbaySaleReviewComponent {
       const workspace = this.workspace.currentWorkspace();
       const connectionId = this.params().get('connectionId');
       const orderId = this.params().get('orderId');
+      const userId = this.auth.currentUser()?.id ?? null;
+      if (userId !== this.lastUserId) {
+        this.lastUserId = userId;
+        this.store.clear();
+      }
       if (
-        !this.auth.currentUser() ||
+        !userId ||
         !workspace ||
         workspace.archived_at ||
         !connectionId ||
@@ -112,6 +168,9 @@ export class EbaySaleReviewComponent {
       this.routeError.set(null);
       this.reviewConfirmation.reset(false);
       this.manualDialog.set(null);
+      this.reviewMode.set('new');
+      this.selectedExistingSaleId.set(null);
+      this.existingAssignments.set({});
       untracked(() => void this.store.load({ workspaceId: workspace.id, connectionId }, orderId));
     });
     effect(() => {
@@ -127,7 +186,11 @@ export class EbaySaleReviewComponent {
       this.store.outcomeUnknown() ||
       (this.store.booking().status === 'unrecorded' &&
         ((this.entryForm()?.hasUnsavedChanges() ?? false) ||
-          (this.manualDialog() !== null && this.manualForm.dirty)))
+          (this.manualDialog() !== null && this.manualForm.dirty) ||
+          (this.reviewMode() === 'existing' &&
+            (this.existingReason.dirty ||
+              this.existingConfirmed.dirty ||
+              Object.keys(this.existingAssignments()).length > 0))))
     );
   }
   canSave(): boolean {
@@ -135,12 +198,68 @@ export class EbaySaleReviewComponent {
       !this.isSaving() &&
       !this.store.outcomeUnknown() &&
       this.store.booking().status === 'unrecorded' &&
+      this.reviewMode() === 'new' &&
       (!this.store.reviewChanged() || this.confirmedReview()) &&
       (this.entryForm()?.canSave() ?? false)
     );
   }
   save(): void {
     if (this.canSave()) void this.entryForm()?.onSubmit();
+  }
+  async saveDraft(): Promise<void> {
+    const editor = this.entryForm()?.externalEditorSnapshot();
+    if (!editor || this.isSaving() || this.store.outcomeUnknown()) return;
+    if (await this.store.saveDraft(editor)) {
+      if (JSON.stringify(this.entryForm()?.externalEditorSnapshot()) === JSON.stringify(editor))
+        this.entryForm()?.markExternalDraftSaved();
+      void this.activity.reload();
+    }
+  }
+  setReviewMode(value: string | null): void {
+    if (value !== 'new' && value !== 'existing') return;
+    this.reviewMode.set(value);
+    if (value === 'existing') void this.store.loadExistingSales();
+  }
+  selectExistingSale(value: string | null): void {
+    this.selectedExistingSaleId.set(value);
+    this.existingAssignments.set({});
+    this.existingConfirmed.reset(false);
+  }
+  assignExistingLine(lineItemId: string | null, target: string | null): void {
+    if (lineItemId)
+      this.existingAssignments.update((rows) => ({ ...rows, [lineItemId]: target ?? '' }));
+  }
+  canLinkExisting(): boolean {
+    return (
+      !this.isSaving() &&
+      !this.store.outcomeUnknown() &&
+      !!this.selectedExistingSale() &&
+      this.existingConfirmed.value &&
+      this.existingReason.valid &&
+      !!this.store.review()?.source.lines.length &&
+      this.store
+        .review()!
+        .source.lines.every(
+          (line) => !!line.lineItemId && !!this.existingAssignments()[line.lineItemId],
+        )
+    );
+  }
+  async linkExisting(): Promise<void> {
+    if (!this.canLinkExisting()) return;
+    const assignments: EbayOrderAssignment[] = Object.entries(this.existingAssignments()).map(
+      ([lineItemId, target]) => ({
+        lineItemId,
+        target: target.startsWith('inventory:')
+          ? { inventoryItemId: target.slice(10) }
+          : { catalogProductId: target.slice(8) },
+      }),
+    );
+    await this.store.linkExistingSale(
+      this.selectedExistingSaleId()!,
+      assignments,
+      this.existingReason.value.trim(),
+    );
+    if (this.store.booking().status !== 'unrecorded') void this.activity.reload();
   }
   onBeforeUnload(event: BeforeUnloadEvent): void {
     if (this.hasUnsavedChanges() || this.isSaving()) event.preventDefault();
@@ -150,11 +269,8 @@ export class EbaySaleReviewComponent {
   }
   openManualDialog(mode: 'mark' | 'clear'): void {
     if (this.isSaving() || this.store.outcomeUnknown()) return;
-    this.manualForm.reset({ reason: '', confirmed: false, saleId: null });
+    this.manualForm.reset({ reason: '', confirmed: false });
     this.manualDialog.set(mode);
-    const workspaceId = this.workspace.currentWorkspace()?.id;
-    if (mode === 'mark' && workspaceId && this.sales.loadedWorkspaceId() !== workspaceId)
-      void this.sales.loadSales(workspaceId);
   }
   closeManualDialog(): void {
     if (!this.isSaving()) this.manualDialog.set(null);
@@ -163,7 +279,8 @@ export class EbaySaleReviewComponent {
     this.manualForm.markAllAsTouched();
     if (this.manualDialog() !== 'mark' || this.manualForm.invalid) return;
     const value = this.manualForm.getRawValue();
-    await this.store.markRecordedElsewhere(value.reason, value.saleId);
+    await this.store.markRecordedElsewhere(value.reason);
+    void this.activity.reload();
     if (this.store.booking().status !== 'unrecorded') this.manualDialog.set(null);
   }
   async clearManualMarker(): Promise<void> {
@@ -177,10 +294,14 @@ export class EbaySaleReviewComponent {
       invalid_order: 'Erforderliche Bestellangaben fehlen.',
       invalid_amounts: 'Die Beträge sind nicht eindeutig prüfbar.',
       payment_unconfirmed: 'Die vollständige Zahlung ist nicht bestätigt.',
-      cancellation: 'Für diese Bestellung liegt eine Stornierung vor.',
+      cancellation:
+        this.store.review()?.source.cancelStatus === 'CANCELED'
+          ? 'Die Bestellung ist eindeutig storniert. Eine eigene offene Reservierung wird freigegeben; ein gebuchter Verkauf bleibt für die Retourenprüfung erhalten.'
+          : 'Eine Stornierung ist angefragt oder ihr Status unklar. Prüfe den tatsächlichen Bestand vor einer bewussten Freigabe.',
       unsupported_adjustment:
         'Steuern oder weitere Anpassungen können nicht sicher übernommen werden.',
-      refund_or_unknown: 'Eine Erstattung liegt vor oder ihr Status ist unklar.',
+      refund_or_unknown:
+        'Eine Erstattung liegt vor oder ihr Status ist unklar. Das bestätigt keine Rückkehr der Ware; die eigene Reservierung bleibt bis zur bewussten Bestandsklärung erhalten.',
       invalid_lines: 'Die Bestellpositionen sind nicht vollständig prüfbar.',
       amount_mismatch: 'Positionsbeträge und Bestellsumme stimmen nicht überein.',
     };

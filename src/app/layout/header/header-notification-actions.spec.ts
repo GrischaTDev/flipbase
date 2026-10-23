@@ -43,7 +43,13 @@ function erstelleKomponente() {
     markAllAsRead: vi.fn(async () => undefined),
     clearNotifications: vi.fn(async () => undefined),
   };
+  const ebayNotifications = {
+    markAsRead: vi.fn(async (_id: string) => undefined),
+    markAllAsRead: vi.fn(async () => undefined),
+    clearNotifications: vi.fn(async () => undefined),
+  };
   Object.assign(component, {
+    ebayNotifications,
     webhookService,
     favoriteNotifications,
     feedbackNotifications,
@@ -56,6 +62,7 @@ function erstelleKomponente() {
   });
   return {
     component,
+    ebayNotifications,
     toast,
     webhookService,
     favoriteNotifications,
@@ -65,6 +72,16 @@ function erstelleKomponente() {
 }
 
 describe('HeaderComponent – Inbox-Aktionen', () => {
+  it('markiert eBay nur im persönlichen eBay-Strom und bezieht ihn in Sammelaktionen ein', async () => {
+    const { component, ebayNotifications, webhookService } = erstelleKomponente();
+    await component.oeffneBenachrichtigung({ ...notification, id: 'ebay-sale:7' });
+    expect(ebayNotifications.markAsRead).toHaveBeenCalledWith('ebay-sale:7');
+    expect(webhookService.markAsRead).not.toHaveBeenCalled();
+    await component.onMarkAllNotificationsRead();
+    await component.onClearNotifications();
+    expect(ebayNotifications.markAllAsRead).toHaveBeenCalledOnce();
+    expect(ebayNotifications.clearNotifications).toHaveBeenCalledOnce();
+  });
   it('markiert neue Nachrichteneingänge nur im Nachrichtenstrom', async () => {
     const {
       component,

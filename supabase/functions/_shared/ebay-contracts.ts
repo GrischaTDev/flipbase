@@ -1,8 +1,10 @@
 import type { AccountScope } from './marketplace-contracts.ts';
 import type { EbayOrderSource } from './ebay-order-import-contracts.ts';
+import type { EbayCacheSync } from './ebay-cache-contracts.ts';
 
 export type EbayEnvironment = 'production' | 'sandbox';
 export interface EbayConnection extends AccountScope {
+  readonly authorizationVersion?: number;
   readonly status: 'connected' | 'needs_login' | 'disconnected';
   readonly environment: EbayEnvironment;
   readonly username: string | null;
@@ -113,10 +115,15 @@ export interface EbayOrder {
   readonly cancelStatus: string | null;
   readonly total: number | null;
   readonly currency: string | null;
-  readonly items: readonly { readonly title: string; readonly quantity: number | null }[];
+  readonly items: readonly {
+    readonly title: string;
+    readonly quantity: number | null;
+    readonly imageUrl?: string | null;
+  }[];
   readonly importSource?: EbayOrderSource | null;
 }
 export interface EbayPage<T> extends AccountScope {
+  readonly sync?: EbayCacheSync;
   readonly items: readonly T[];
   readonly total: number;
   readonly nextPage: number | null;

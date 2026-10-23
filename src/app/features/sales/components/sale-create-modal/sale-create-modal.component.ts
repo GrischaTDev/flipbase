@@ -71,6 +71,7 @@ import { SyncStatusService } from '../../../../core/services/sync-status.service
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import type {
   ExternalSaleEntryDraft,
+  ExternalSaleEntryEditorSnapshot,
   ExternalSaleEntrySubmit,
 } from '../../models/external-sale-entry.models';
 
@@ -185,6 +186,28 @@ export class SaleCreateModalComponent {
     { value: 'promotion', label: 'Verkaufsförderung' },
     { value: 'other', label: 'Sonstige Kosten' },
   ];
+  private ownedQuantity(kind: 'catalogProductId' | 'inventoryItemId', id: string): number {
+    return (this.externalDraft()?.reservations ?? []).reduce(
+      (sum, row) =>
+        sum +
+        ((
+          kind === 'catalogProductId'
+            ? 'catalogProductId' in row.target && row.target.catalogProductId === id
+            : 'inventoryItemId' in row.target && row.target.inventoryItemId === id
+        )
+          ? row.quantity
+          : 0),
+      0,
+    );
+  }
+  readonly selectablePositions = computed(() =>
+    this.stockService.positions().map((position) => ({
+      ...position,
+      available_quantity:
+        position.available_quantity +
+        this.ownedQuantity('catalogProductId', position.catalog_product_id),
+    })),
+  );
   readonly targetOptions = computed<SelectOption<string>[]>(() => {
     const reconciliationTarget = this.legacyReconciliation() ? this.saleTarget() : null;
     if (reconciliationTarget) {
@@ -197,8 +220,7 @@ export class SaleCreateModalComponent {
     }
     return [
       { value: '', label: '-- Artikel auswählen --' },
-      ...this.stockService
-        .positions()
+      ...this.selectablePositions()
         .filter((position) => position.available_quantity > 0 && !position.archived_at)
         .map((position) => ({
           value: this.targetValue({
@@ -254,7 +276,7 @@ export class SaleCreateModalComponent {
       products,
       items,
       this.purchaseService?.purchases?.() ?? [],
-      this.stockService.loadedWorkspaceId?.() === workspaceId ? this.stockService.positions() : [],
+      this.stockService.loadedWorkspaceId?.() === workspaceId ? this.selectablePositions() : [],
       new Set(),
     );
     return entries.map((entry) => {
@@ -359,7 +381,15 @@ export class SaleCreateModalComponent {
     const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
     return selectLinkedSaleItems(
       workspaceId,
-      this.inventoryService.items().filter(isSellableInventoryItem),
+      this.inventoryService
+        .items()
+        .filter(
+          (item) =>
+            isSellableInventoryItem(item) ||
+            (item.status === 'reserved' &&
+              this.ownedQuantity('inventoryItemId', item.id) === 1 &&
+              isSellableInventoryItem({ ...item, status: 'ready' })),
+        ),
       this.purchaseService?.purchases() ?? [],
       this.catalogService?.products() ?? [],
       !!workspaceId &&
@@ -878,6 +908,28 @@ export class SaleCreateModalComponent {
       { validators: this.otherCostDescriptionRequired() },
     );
   }
+  externalEditorSnapshot(): ExternalSaleEntryEditorSnapshot | null {
+    const draft = this.externalDraft();
+    if (!draft || this.isSubmitting() || this.externalOutcomeBlocked()) return null;
+    const raw = this.form.getRawValue();
+    return {
+      platformFee: raw.platformFee,
+      shippingCost: raw.shippingCost,
+      shippingMode: raw.shippingMode === 'unknown' ? null : raw.shippingMode,
+      additionalCosts: raw.additionalCosts.map((cost) => ({
+        category: cost.category,
+        description: cost.description.trim() || null,
+        amount: cost.amount,
+      })),
+      lines: this.lines.controls.map((line, index) => ({
+        sourceLineId: draft.lines[index].sourceLineId,
+        target: this.targetForLine(line),
+      })),
+    };
+  }
+  markExternalDraftSaved(): void {
+    this.form.markAsPristine();
+  }
   private recordSalePayload(): RecordSaleInput {
     const raw = this.form.getRawValue();
     const additionalCosts = raw.additionalCosts.map((cost) => ({
@@ -1147,10 +1199,20 @@ export class SaleCreateModalComponent {
     this.form.controls.shippingCost.enable({ emitEvent: false });
     if (!compatible) {
       this.form.patchValue(
-        { platformFee: null, shippingCost: null, shippingMode: 'unknown', buyerNotes: '' },
+        {
+          platformFee: draft.platformFee ?? null,
+          shippingCost: draft.shippingCost ?? null,
+          shippingMode: draft.shippingMode ?? 'unknown',
+          buyerNotes: '',
+        },
         { emitEvent: false },
       );
       this.additionalCosts.clear({ emitEvent: false });
+      for (const cost of draft.additionalCosts ?? [])
+        this.additionalCosts.push(
+          this.createAdditionalCostForm({ ...cost, description: cost.description ?? '' }),
+          { emitEvent: false },
+        );
       this.form.markAsPristine();
     }
     this.previousExternalDraft = draft;
@@ -1328,7 +1390,8 @@ export class SaleCreateModalComponent {
             kind: 'catalog_product',
             catalogProductId: id,
             title: position.title,
-            availableQuantity: position.available_quantity,
+            availableQuantity:
+              position.available_quantity + this.ownedQuantity('catalogProductId', id),
           }
         : null;
     }

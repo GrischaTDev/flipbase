@@ -42,6 +42,7 @@ test('jede einzelne Observer- und paketierte Shared-Datei waehlt den Push-Releas
       'ebay-order-source',
       'ebay-order-amounts',
       'ebay-order-import-contracts',
+      'ebay-sale-draft-contracts',
       'marketplace-contracts',
     ].map((name) => `supabase/functions/_shared/${name}.ts`),
   ]) {

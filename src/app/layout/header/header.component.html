@@ -213,6 +213,16 @@
                   ></ng-container>
                 </button>
               }
+              @if (notif.id.startsWith('ebay-sale:') && notif.read) {
+                <div class="flex justify-end px-4 pb-2">
+                  <app-button
+                    size="slim"
+                    [disabled]="isUpdatingNotifications()"
+                    (clicked)="markEbayUnread(notif.id)"
+                    >Als ungelesen markieren</app-button
+                  >
+                </div>
+              }
             } @empty {
               <div class="py-8 px-4 text-center">
                 <div
@@ -236,7 +246,7 @@
               <!-- Plattform-Logo oder Typ-Icon -->
               @if (visual.platform === 'vinted') {
                 <img
-                  src="/images/platforms/vinted.svg"
+                  ngSrc="/images/platforms/vinted.svg"
                   width="32"
                   height="32"
                   alt="Vinted"
@@ -247,7 +257,7 @@
                   class="size-8 rounded-lg bg-white border border-fb-border flex items-center justify-center p-1 shrink-0 shadow-xs"
                 >
                   <img
-                    src="/images/platforms/ebay.svg"
+                    ngSrc="/images/platforms/ebay.svg"
                     width="26"
                     height="26"
                     alt="eBay"
@@ -256,7 +266,7 @@
                 </div>
               } @else if (visual.platform === 'kleinanzeigen') {
                 <img
-                  src="/images/platforms/kleinanzeigen.svg"
+                  ngSrc="/images/platforms/kleinanzeigen.svg"
                   width="32"
                   height="32"
                   alt="Kleinanzeigen"

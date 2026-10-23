@@ -38,6 +38,80 @@ function order(overrides: Record<string, unknown> = {}): Record<string, unknown>
 }
 const observedAt = '2026-10-01T12:00:00Z';
 
+test('Belegter Zahlungseingang verwendet die letzte gültige Empfangszeit und keine Änderungszeit', () => {
+  const source = parseEbayOrderSource(
+    order({
+      paymentSummary: {
+        payments: [
+          { paymentDate: '2026-10-01T00:00:00Z' },
+          { paymentDate: '2026-10-01T01:00:00Z' },
+        ],
+      },
+    }),
+    observedAt,
+  );
+  assert.equal(source.paidAt, '2026-10-01T01:00:00Z');
+});
+
+test('Fehlender oder unsicherer Zahlungszeitpunkt bleibt unbekannt', () => {
+  for (const payments of [
+    undefined,
+    [],
+    [{ paymentDate: 'invalid' }],
+    [{ paymentDate: '2026-09-01T12:00:00Z' }],
+    [{ paymentDate: '2027-10-01T12:00:00Z' }],
+    [{ paymentDate: '2026-10-01T01:00:00Z' }, {}],
+  ]) {
+    assert.equal(
+      parseEbayOrderSource(order({ paymentSummary: { payments } }), observedAt).paidAt,
+      null,
+    );
+  }
+  assert.equal(
+    parseEbayOrderSource(
+      order({
+        orderPaymentStatus: 'PENDING',
+        paymentSummary: { payments: [{ paymentDate: '2026-10-01T01:00:00Z' }] },
+      }),
+      observedAt,
+    ).paidAt,
+    null,
+  );
+});
+
+test('Gebühren verwenden nur die belegte Marktplatzsumme einschließlich echter Null', () => {
+  for (const [fee, expected] of [
+    [money('1.23'), 123],
+    [money('0'), 0],
+    [undefined, null],
+    [{ value: '1', currency: 'USD' }, null],
+    [money('-1'), null],
+  ] as const) {
+    const source = parseEbayOrderSource(
+      order({ totalMarketplaceFee: fee, totalFeeBasisAmount: money('14') }),
+      observedAt,
+    );
+    assert.equal(source.platformFeeCents, expected);
+  }
+});
+
+test('Positionsbilder akzeptieren nur sichere eBay-Bildquellen', () => {
+  for (const [imageUrl, expected] of [
+    [
+      'https://i.ebayimg.com/images/g/abc/s-l500.jpg',
+      'https://i.ebayimg.com/images/g/abc/s-l500.jpg',
+    ],
+    ['https://evil.test/x', null],
+    ['javascript:alert(1)', null],
+  ] as const) {
+    const source = parseEbayOrderSource(
+      order({ lineItems: [{ legacyItemId: '123', image: { imageUrl } }] }),
+      observedAt,
+    );
+    assert.equal(source.lines[0].imageUrl, expected);
+  }
+});
+
 test('normalizes discounted goods and shipping without exposing buyer data', () => {
   const source = parseEbayOrderSource(order({ buyer: { username: 'private-buyer' } }), observedAt);
   assert.equal(source.totalCents, 1400);
@@ -45,6 +119,70 @@ test('normalizes discounted goods and shipping without exposing buyer data', () 
   assert.equal(source.lines[0].goodsCents, 1000);
   assert.deepEqual(source.blockers, []);
   assert.equal(JSON.stringify(source).includes('private-buyer'), false);
+});
+
+test('accepts omitted line refunds when the order explicitly reports no refunds', () => {
+  const source = parseEbayOrderSource(
+    order({
+      orderFulfillmentStatus: 'FULFILLED',
+      paymentSummary: { refunds: [] },
+      lineItems: [
+        { lineItemId: 'line-1', legacyItemId: '123', quantity: 1, lineItemCost: money('10') },
+      ],
+    }),
+    observedAt,
+  );
+  assert.deepEqual(source.blockers, []);
+  assert.equal(source.lines[0].hasRefund, false);
+});
+
+test('blocks order refunds even when all line refund arrays are empty', () => {
+  for (const refunds of [
+    [{ refundStatus: 'SUCCEEDED' }],
+    [{ refundStatus: 'PENDING' }],
+    null,
+    {},
+  ]) {
+    const source = parseEbayOrderSource(order({ paymentSummary: { refunds } }), observedAt);
+    assert.ok(source.blockers.includes('refund_or_unknown'));
+    assert.equal(source.lines[0].hasRefund, true);
+  }
+});
+
+test('an empty order refund array never overrides refunded or malformed line data', () => {
+  for (const refunds of [[{ refundStatus: 'SUCCEEDED' }], null, {}]) {
+    const source = parseEbayOrderSource(
+      order({
+        paymentSummary: { refunds: [] },
+        lineItems: [
+          {
+            lineItemId: 'line-1',
+            legacyItemId: '123',
+            quantity: 1,
+            lineItemCost: money('10'),
+            refunds,
+          },
+        ],
+      }),
+      observedAt,
+    );
+    assert.ok(source.blockers.includes('refund_or_unknown'));
+  }
+});
+
+test('keeps missing refund evidence blocked instead of assuming zero refunds', () => {
+  for (const paymentSummary of [undefined, {}, { refunds: null }]) {
+    const source = parseEbayOrderSource(
+      order({
+        paymentSummary,
+        lineItems: [
+          { lineItemId: 'line-1', legacyItemId: '123', quantity: 1, lineItemCost: money('10') },
+        ],
+      }),
+      observedAt,
+    );
+    assert.ok(source.blockers.includes('refund_or_unknown'));
+  }
 });
 
 test('preserves missing values and blocks partial or ambiguous source data', () => {

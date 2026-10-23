@@ -1,3 +1,4 @@
+import type { EbaySaleDraft } from './ebay-sale-draft-contracts.ts';
 import type { AccountScope } from './marketplace-contracts.ts';
 
 export interface EbayMoney {
@@ -5,6 +6,7 @@ export interface EbayMoney {
   readonly cents: number;
 }
 export interface EbayOrderSourceLine {
+  readonly imageUrl?: string | null;
   readonly lineItemId: string | null;
   readonly listingId: string | null;
   readonly variationId: string | null;
@@ -16,6 +18,8 @@ export interface EbayOrderSourceLine {
   readonly variationAspects: readonly { readonly name: string; readonly value: string }[];
 }
 export interface EbayOrderSource {
+  readonly paidAt?: string | null;
+  readonly platformFeeCents?: number | null;
   readonly orderId: string;
   readonly createdAt: string;
   readonly lastModifiedAt: string | null;
@@ -46,6 +50,7 @@ export type EbayOrderBooking =
   | { readonly status: 'imported'; readonly saleId: string; readonly alreadyRecorded: boolean }
   | { readonly status: 'recorded_elsewhere'; readonly saleId: string | null };
 export interface EbayOrderReview extends AccountScope {
+  readonly draft?: EbaySaleDraft | null;
   readonly snapshotId: string;
   readonly reviewHash: string;
   readonly expiresAt: string;

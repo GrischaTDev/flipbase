@@ -1576,6 +1576,106 @@ describe('Geprüfte externe Verkaufserfassung', () => {
     component.form.controls.platformFee.setValue(0);
     component.form.controls.shippingCost.setValue(0);
   }
+  it('lädt gespeicherte nullable Kosten ohne Käuferporto als Kosten zu kopieren', () => {
+    draft.set({
+      ...initialDraft,
+      revision: 'saved',
+      platformFee: 0,
+      shippingCost: null,
+      shippingMode: 'platform_prepaid',
+      additionalCosts: [{ category: 'packaging', description: null, amount: 1.2 }],
+    });
+    // Eine neue Formularinstanz erhält den gespeicherten Entwurf als Erstwert.
+    Object.assign(component, { previousExternalDraft: null });
+    TestBed.tick();
+    expect(component.form.controls.platformFee.value).toBe(0);
+    expect(component.form.controls.shippingCost.value).toBeNull();
+    expect(component.form.controls.shippingRevenue.value).toBe(4);
+    expect(component.form.controls.shippingMode.value).toBe('platform_prepaid');
+    expect(component.additionalCosts.at(0).controls.amount.value).toBe(1.2);
+  });
+  it('speichert einen getypten Zwischenstand mit fehlenden Kosten und unvollständiger Zuordnung', () => {
+    component.onTargetChange(0, '');
+    const snapshot = component.externalEditorSnapshot();
+    expect(snapshot?.platformFee).toBeNull();
+    expect(snapshot?.shippingCost).toBeNull();
+    expect(snapshot?.lines.map((line) => line.target)).toEqual([null, null]);
+    expect(component.canSave()).toBe(false);
+  });
+  it('lässt ausschließlich die vom Server nachgewiesene eigene reservierte Menge auswählen', () => {
+    const stock = TestBed.inject(StockService);
+    stock.positions.set([
+      {
+        catalog_product_id: 'product-1',
+        title: 'Artikel',
+        available_quantity: 0,
+        reserved_quantity: 3,
+        on_hand_quantity: 3,
+        oldest_available_unit_cost: 1,
+        is_public_store: false,
+      },
+    ]);
+    draft.set({
+      ...initialDraft,
+      revision: 'reserved',
+      reservations: [{ target: { catalogProductId: 'product-1' }, quantity: 3 }],
+    });
+    TestBed.tick();
+    confirmCosts();
+    expect(component.canSave()).toBe(true);
+    expect(component.availableQuantity(component.lines.at(0))).toBe(2);
+    draft.set({ ...initialDraft, revision: 'not-owned', reservations: [] });
+    TestBed.tick();
+    expect(component.canSave()).toBe(false);
+  });
+  it('lässt das eigene reservierte Einzelstück zu und sperrt fremde Reservierungen', () => {
+    const inventory = TestBed.inject(InventoryService);
+    inventory.items.set([
+      {
+        id: 'own-item',
+        workspace_id: 'workspace-1',
+        title: 'Eigenes Stück',
+        status: 'reserved',
+        sale_state: 'no_active_sale',
+        condition: 'used',
+        allocated_purchase_cost: 2,
+      },
+      {
+        id: 'foreign-item',
+        workspace_id: 'workspace-1',
+        title: 'Fremdes Stück',
+        status: 'reserved',
+        sale_state: 'no_active_sale',
+        condition: 'used',
+        allocated_purchase_cost: 2,
+      },
+    ]);
+    Object.assign(component, { previousExternalDraft: null });
+    draft.set({
+      ...initialDraft,
+      revision: 'own-item',
+      lines: [
+        {
+          sourceLineId: 'line-1',
+          title: 'Eigenes Stück',
+          quantity: 1,
+          unitSalePrice: 10,
+          target: { kind: 'inventory_item', inventoryItemId: 'own-item', title: 'Eigenes Stück' },
+        },
+      ],
+      reservations: [{ target: { inventoryItemId: 'own-item' }, quantity: 1 }],
+    });
+    TestBed.tick();
+    confirmCosts();
+    expect(component.availableItems().map((item) => item.id)).toEqual(['own-item']);
+    expect(component.canSave()).toBe(true);
+    inventory.items.update((items) =>
+      items.map((item) => ({ ...item, sale_state: 'sold' as const })),
+    );
+    TestBed.tick();
+    expect(component.availableItems()).toEqual([]);
+    expect(component.canSave()).toBe(false);
+  });
   it('requires explicit external fee and shipping costs', () => {
     expect(component.form.controls.platformFee.value).toBeNull();
     expect(component.form.controls.shippingCost.value).toBeNull();

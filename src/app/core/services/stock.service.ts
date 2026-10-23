@@ -139,6 +139,18 @@ export class StockService {
       archived_at?: string | null;
     }[] = [],
   ): StockPosition[] {
+    const reservations = new Map<string, Map<string | null, number>>();
+    for (const movement of this.movements()) {
+      if (movement.reason !== 'reservation' && movement.reason !== 'reservation_release') continue;
+      const owners = reservations.get(movement.stock_lot_id) ?? new Map<string | null, number>();
+      const owner = movement.ebay_sale_draft_id ?? null;
+      owners.set(
+        owner,
+        (owners.get(owner) ?? 0) +
+          (movement.reason === 'reservation' ? movement.quantity : -movement.quantity),
+      );
+      reservations.set(movement.stock_lot_id, owners);
+    }
     const positions = new Map<string, StockPosition>();
     for (const rawLot of lots) {
       const lot = rawLot as StockLot & {
@@ -153,16 +165,24 @@ export class StockService {
       const product =
         lot.catalog_product ?? products.find((entry) => entry.id === lot.catalog_product_id);
       const existing = positions.get(lot.catalog_product_id);
+      const reserved = Math.min(
+        lot.remaining_quantity,
+        [...(reservations.get(lot.id)?.values() ?? [])].reduce(
+          (sum, quantity) => sum + Math.max(0, quantity),
+          0,
+        ),
+      );
+      const available = lot.remaining_quantity - reserved;
       const sellable = hasSellableLotCost(lot);
       positions.set(lot.catalog_product_id, {
         catalog_product_id: lot.catalog_product_id,
         title: product?.title ?? existing?.title ?? 'Unbekannter Artikel',
-        available_quantity:
-          (existing?.available_quantity ?? 0) + (sellable ? lot.remaining_quantity : 0),
-        reserved_quantity: existing?.reserved_quantity ?? 0,
+        available_quantity: (existing?.available_quantity ?? 0) + (sellable ? available : 0),
+        reserved_quantity: (existing?.reserved_quantity ?? 0) + reserved,
         on_hand_quantity: (existing?.on_hand_quantity ?? 0) + lot.remaining_quantity,
         oldest_available_unit_cost:
-          existing?.oldest_available_unit_cost ?? (sellable ? lot.unit_cost : null),
+          existing?.oldest_available_unit_cost ??
+          (sellable && available > 0 ? lot.unit_cost : null),
         is_public_store: product?.is_public_store ?? existing?.is_public_store ?? false,
         archived_at: product?.archived_at ?? existing?.archived_at ?? null,
       });

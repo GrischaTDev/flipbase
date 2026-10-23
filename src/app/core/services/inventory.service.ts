@@ -213,7 +213,7 @@ export class InventoryService {
     }
   }
 
-  async loadInventory(workspaceId: string): Promise<void> {
+  async loadInventory(workspaceId: string, retainExisting = false): Promise<void> {
     // Ein verspäteter Mutations-Refresh für Workspace A darf den bereits
     // geladenen Bestand des inzwischen aktiven Workspace B nicht einmal kurz
     // leeren. Die nachgelagerten Request-IDs schützen Antworten; diese Prüfung
@@ -222,8 +222,10 @@ export class InventoryService {
     const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
     this.loadError.set(null);
-    this.loadedWorkspaceId.set(null);
-    this.items.set([]);
+    if (!retainExisting || this.loadedWorkspaceId() !== workspaceId) {
+      this.loadedWorkspaceId.set(null);
+      this.items.set([]);
+    }
     try {
       const { data, error } = await this.supabase.client
         .from('inventory_items')

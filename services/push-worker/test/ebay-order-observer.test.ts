@@ -8,6 +8,20 @@ test('Observer bleibt standardmaessig aus und akzeptiert nur die interne Diensta
   }).observe();
   assert.throws(() => readConfig({ WEB_PUSH_OBSERVER_URL: 'https://evil.test' }));
 });
+
+test('Cacheabgleich läuft mit Dienstkonfiguration auch ohne Pushfreigabe', async () => {
+  let calls = 0;
+  const config = readConfig({
+    WEB_PUSH_ENABLED: 'false',
+    SUPABASE_SERVICE_ROLE_KEY: 'server',
+    WEB_PUSH_OBSERVER_URL: 'http://push-functions:9000/ebay-order-observer',
+  });
+  await new EbayOrderObserver(config, async () => {
+    calls++;
+    return Response.json({ status: 'idle' });
+  }).observe();
+  assert.equal(calls, 1);
+});
 test('Observer uebernimmt keine Kontotokens oder Clientidentitaeten und begrenzt Fehler', async () => {
   let now = 0,
     calls = 0;

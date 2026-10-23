@@ -1702,7 +1702,10 @@ begin
       loop
         exit when v_remaining_quantity = 0;
 
-        v_allocated_quantity := least(v_remaining_quantity, v_stock_lot.remaining_quantity);
+        -- Fremde und manuelle Reservierungen bleiben auch beim allgemeinen FIFO geschützt.
+        v_allocated_quantity := least(v_remaining_quantity, greatest(0,
+          v_stock_lot.remaining_quantity - public.stock_lot_reserved_quantity(v_stock_lot.id)));
+        continue when v_allocated_quantity = 0;
 
         select
           coalesce(pg_catalog.sum(coalesce(

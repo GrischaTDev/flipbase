@@ -6,6 +6,29 @@ import { StockLot, StockMovement, StockPosition } from '../models/flipbase.model
 import { SyncStatusService } from './sync-status.service';
 
 describe('StockService', () => {
+  it('zieht Reservierungen je Besitzer ab und verrechnet fremde Freigaben nicht', () => {
+    const service = Object.create(StockService.prototype) as StockService;
+    const movements = [
+      { stock_lot_id: 'lot', ebay_sale_draft_id: 'a', reason: 'reservation', quantity: 3 },
+      { stock_lot_id: 'lot', ebay_sale_draft_id: 'a', reason: 'reservation_release', quantity: 1 },
+      { stock_lot_id: 'lot', ebay_sale_draft_id: 'b', reason: 'reservation_release', quantity: 7 },
+      { stock_lot_id: 'lot', ebay_sale_draft_id: null, reason: 'reservation_release', quantity: 4 },
+    ];
+    Object.assign(service, { movements: signal(movements) });
+    const aggregate = service as unknown as { aggregateLots(lots: unknown[]): StockPosition[] };
+    const positions = aggregate.aggregateLots([
+      {
+        id: 'lot',
+        catalog_product_id: 'product',
+        remaining_quantity: 5,
+        unit_cost: 2,
+        purchase: { entry_status: 'finalized' },
+      },
+    ]);
+    expect(positions[0].available_quantity).toBe(3);
+    expect(positions[0].reserved_quantity).toBe(2);
+    expect(positions[0].on_hand_quantity).toBe(5);
+  });
   it('verwendet bei einem unklaren Netzwerkfehler denselben Request samt Empfangszeitpunkt', async () => {
     const rpc = vi
       .fn()

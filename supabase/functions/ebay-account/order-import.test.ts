@@ -96,6 +96,24 @@ async function fixture() {
   let books = 0;
   let finishes = 0;
   const store: EbayOrderImportStore = {
+    saveDraft: async (_bearer, input) => ({
+      id: snapshotId,
+      workspaceId,
+      environment: 'production',
+      orderId: 'order-1',
+      source,
+      assignments: input.assignments,
+      costs: input.costs,
+      state: input.assignments.length ? 'needs_costs' : 'needs_mapping',
+      saleId: null,
+      createdAt: source.createdAt,
+      updatedAt: source.observedAt,
+    }),
+    linkExisting: async (_bearer, input) => ({
+      status: 'recorded_elsewhere',
+      saleId: input.saleId,
+    }),
+    existingSales: async () => [],
     authenticate: async (bearer) => (bearer === 'Bearer valid' ? userId : null),
     canConnect: async (_bearer, id) => id === workspaceId,
     status: async () => connection,
@@ -399,4 +417,48 @@ test('rejects oversized UTF-8 bodies, unsafe identifiers and unconfirmed costs',
     400,
   );
   assert.deepEqual(f.methods, []);
+});
+
+test('saves incomplete draft and unknown costs without booking or provider calls', async () => {
+  const f = await fixture();
+  const handler = createEbayOrderImportHandler(f.store, config, f.fetcher);
+  const response = await handler(
+    f.request('order_save_draft', {
+      ...f.input,
+      assignments: [],
+      costs: { ...f.input.costs, shippingCostCents: null },
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).state, 'needs_mapping');
+  assert.equal(f.counts().books, 0);
+  assert.equal(f.methods.length, 0);
+});
+
+test('existing-sale association requires explicit confirmation and a current personal snapshot', async () => {
+  const f = await fixture();
+  const handler = createEbayOrderImportHandler(f.store, config, f.fetcher);
+  assert.equal(
+    (
+      await handler(
+        f.request('order_link_existing', {
+          ...f.input,
+          saleId: userId,
+          reason: 'Bereits erfasst',
+          confirmed: true,
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await handler(
+        f.request('order_link_existing', { ...f.input, saleId: userId, reason: 'Bereits erfasst' }),
+      )
+    ).status,
+    400,
+  );
+  f.snapshot.authorization_version = 0;
+  assert.equal((await handler(f.request('order_save_draft', f.input))).status, 409);
 });

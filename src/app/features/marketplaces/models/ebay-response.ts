@@ -67,6 +67,10 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
     listingManagementAvailable,
     connection: {
       workspaceId,
+      ...(Number.isSafeInteger(connection['authorizationVersion']) &&
+      Number(connection['authorizationVersion']) > 0
+        ? { authorizationVersion: Number(connection['authorizationVersion']) }
+        : {}),
       connectionId: readRequiredText(connection['connectionId']),
       status: status as 'connected' | 'needs_login' | 'disconnected',
       environment,
@@ -95,7 +99,27 @@ export function parseEbayPage<T>(
     (nextPage !== null && (!Number.isInteger(nextPage) || nextPage < 1))
   )
     throw new Error('Ungültige eBay-Antwort.');
-  return { ...scope, items: page['items'].map(parseItem), total, nextPage };
+  let sync;
+  if (page['sync'] !== undefined) {
+    const value = readResponseRecord(page['sync']);
+    const status = value['status'];
+    if (status !== 'pending' && status !== 'syncing' && status !== 'ready' && status !== 'error')
+      throw new Error('Ungültiger eBay-Abgleichstand.');
+    if (value['lastError'] !== null && value['lastError'] !== 'unavailable')
+      throw new Error('Ungültiger eBay-Abgleichstand.');
+    sync = {
+      status,
+      lastCompletedAt: readNullableText(value['lastCompletedAt']),
+      lastError: value['lastError'],
+    } as const;
+  }
+  return {
+    ...scope,
+    items: page['items'].map(parseItem),
+    total,
+    nextPage,
+    ...(sync ? { sync } : {}),
+  };
 }
 export function parseEbayListing(responseValue: unknown): EbayListing {
   const item = readResponseRecord(responseValue);
@@ -298,6 +322,9 @@ export function parseEbayOrder(responseValue: unknown): EbayOrder {
     items: item['items'].map((line) => ({
       title: readRequiredText(readResponseRecord(line)['title']),
       quantity: readOptionalAmount(readResponseRecord(line)['quantity']),
+      ...(readResponseRecord(line)['imageUrl'] !== undefined
+        ? { imageUrl: readEbayImageUrl(readResponseRecord(line)['imageUrl'], false) }
+        : {}),
     })),
   };
 }

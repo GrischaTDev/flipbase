@@ -242,6 +242,10 @@ const coreTests = [
   ['ebay-order-import.spec.ts', 'imports an eBay order exactly once @core-smoke'],
   [
     'ebay-order-import.spec.ts',
+    'prepares a new linked eBay sale with owned reservation and personal bell @core-smoke',
+  ],
+  [
+    'ebay-order-import.spec.ts',
     'marks a manually recorded eBay order without changing stock @core-smoke',
   ],
   [

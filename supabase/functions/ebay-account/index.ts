@@ -4,6 +4,7 @@ import { createEbayAccountHandler } from './handler.ts';
 import type { StoredEbayConnection } from './handler.ts';
 import type { EbayOrderImportStore } from './order-import.ts';
 import { classifyEbayBookingError } from './order-booking-error.ts';
+import { EbayConnectionError } from './connection-read.ts';
 
 const url = Deno.env.get('SUPABASE_URL') ?? '';
 const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -27,6 +28,60 @@ async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 const store: EbayOrderImportStore = {
+  async saveDraft(bearer, input) {
+    const { data, error } = await userClient(bearer).rpc('ebay_save_sale_draft', {
+      p_workspace_id: input.workspaceId,
+      p_connection_id: input.connectionId,
+      p_snapshot_id: input.snapshotId,
+      p_assignments: input.assignments,
+      p_costs: input.costs,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
+  async linkExisting(bearer, input) {
+    const { data, error } = await userClient(bearer).rpc('ebay_link_existing_sale', {
+      p_workspace_id: input.workspaceId,
+      p_connection_id: input.connectionId,
+      p_snapshot_id: input.snapshotId,
+      p_sale_id: input.saleId,
+      p_assignments: input.assignments,
+      p_reason: input.reason,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
+  async existingSales(bearer, scope, page) {
+    const { data, error } = await userClient(bearer).rpc('ebay_existing_sales_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_page: page,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
+  async cacheRefresh(bearer, scope, kind) {
+    const { error } = await userClient(bearer).rpc('ebay_cache_refresh', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_environment: config?.environment ?? 'production',
+      p_kind: kind,
+    });
+    if (error?.code === '42501') throw new EbayConnectionError('forbidden');
+    if (error) throw new Error('Cacheaktualisierung fehlgeschlagen');
+  },
+  async cacheRead(bearer, scope, kind, page) {
+    const { data, error } = await userClient(bearer).rpc('ebay_cache_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_environment: config?.environment ?? 'production',
+      p_kind: kind,
+      p_page: page,
+    });
+    if (error?.code === '42501') throw new EbayConnectionError('forbidden');
+    if (error) throw new Error('Cachezugriff fehlgeschlagen');
+    return data;
+  },
   async importAvailable() {
     const results = await Promise.all([
       service

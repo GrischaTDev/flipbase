@@ -66,6 +66,21 @@ function verzoegerteAntwort<T>() {
   return { promise, resolve };
 }
 
+describe('Bestandsaktualisierung nach Reservierung', () => {
+  it('erhält bereits geladene Zeilen während eines gezielten Hintergrundabrufs', async () => {
+    const pending = verzoegerteAntwort<{ data: null; error: { code: string; message: string } }>();
+    const query = { select: () => query, eq: () => query, order: () => pending.promise };
+    const { dienst } = injiziereDienst({ from: () => query });
+    dienst.items.set([gespeicherterArtikel]);
+    dienst.loadedWorkspaceId.set(workspace.id);
+    const refresh = dienst.loadInventory(workspace.id, true);
+    expect(dienst.items()).toEqual([gespeicherterArtikel]);
+    expect(dienst.loadedWorkspaceId()).toBe(workspace.id);
+    pending.resolve({ data: null, error: { code: 'offline', message: 'Nicht erreichbar' } });
+    await refresh;
+    expect(dienst.items()).toEqual([gespeicherterArtikel]);
+  });
+});
 describe('Archivmetadaten im geladenen Inventar', () => {
   it('aktualisiert Liste und Detail ohne Buchungsdaten anzutasten und ignoriert fremde Workspaces', () => {
     const { dienst } = injiziereDienst({});

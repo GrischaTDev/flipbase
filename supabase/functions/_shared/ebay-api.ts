@@ -1,6 +1,6 @@
 import type { EbayEnvironment, EbayListing, EbayOrder } from './ebay-contracts.ts';
 import { parseEbayXml, findXmlChild, readXmlText } from './ebay-xml.ts';
-import { parseEbayOrderSource } from './ebay-order-source.ts';
+import { ebayImageUrl, parseEbayOrderSource } from './ebay-order-source.ts';
 
 export const EBAY_SCOPES = [
   'https://api.ebay.com/oauth/api_scope',
@@ -199,6 +199,7 @@ export function parseOrders(body: Record<string, unknown>): EbayOrder[] {
         ? row.lineItems.map((item) => ({
             title: readNonEmptyString(readRecord(item).title) ?? 'eBay-Artikel',
             quantity: readNonNegativeNumber(readRecord(item).quantity),
+            imageUrl: ebayImageUrl(readRecord(readRecord(item).image).imageUrl),
           }))
         : [],
       importSource: parseEbayOrderSource(row, new Date().toISOString()),
@@ -306,7 +307,7 @@ export function parseListings(xml: string): { items: EbayListing[]; total: numbe
         });
       return {
         id,
-        imageUrl: readXmlText(findXmlChild(node, 'PictureDetails'), 'GalleryURL'),
+        imageUrl: ebayImageUrl(readXmlText(findXmlChild(node, 'PictureDetails'), 'GalleryURL')),
         watchCount: readNonNegativeNumber(readXmlText(node, 'WatchCount')),
         title: readXmlText(node, 'Title') ?? 'eBay-Artikel',
         price: readNonNegativeNumber(price?.text),

@@ -1,3 +1,4 @@
+import { EbaySaleActivityStore } from '../../features/sales/services/ebay-sale-activity.store';
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -46,6 +47,7 @@ const favoriteNotification: AppNotification = {
 describe('HeaderComponent', () => {
   beforeAll(async () => {
     const resources: Readonly<Record<string, string>> = {
+      './button.component.html': 'src/app/shared/components/button/button.component.html',
       './header.component.html': 'src/app/layout/header/header.component.html',
       './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
       './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
@@ -71,6 +73,19 @@ describe('HeaderComponent', () => {
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
+        {
+          provide: EbaySaleActivityStore,
+          useValue: {
+            notifications: signal([]),
+            unreadCount: signal(0),
+            error: signal(null),
+            reload: vi.fn(),
+            markAsRead: vi.fn(),
+            markAsUnread: vi.fn(),
+            markAllAsRead: vi.fn(),
+            clearNotifications: vi.fn(),
+          },
+        },
         provideRouter([]),
         provideTranslateService({ lang: 'de' }),
         {

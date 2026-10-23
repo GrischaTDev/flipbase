@@ -43,6 +43,7 @@ export class EbayArticleMappingComponent {
   readonly scope = input.required<AccountScope>();
   readonly listing = input.required<EbayListing>();
   readonly closed = output<void>();
+  readonly changed = output<void>();
   readonly store = inject(EbayArticleMappingStore);
   private readonly catalog = inject(CatalogService);
   private readonly inventory = inject(InventoryService);
@@ -212,10 +213,12 @@ export class EbayArticleMappingComponent {
     if (
       (await this.store.save(this.scope(), this.listing().id, row.variationId, target)) &&
       revision === this.revision
-    )
+    ) {
+      this.changed.emit();
       this.closePicker();
+    }
   }
   async remove(row: EbayMappingRow): Promise<void> {
-    if (row.mapping) await this.store.remove(this.scope(), row.mapping.id);
+    if (row.mapping && (await this.store.remove(this.scope(), row.mapping.id))) this.changed.emit();
   }
 }
