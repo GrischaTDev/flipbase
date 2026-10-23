@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-23 - Juna - eBay-Verkaufsprüfung untersuchen und Erstattungssperre korrigieren
+
+**Auftrag:** eBay-Listen mit gespeicherten Daten und Artikelbildern verbessern,
+Inserate und Bestellungen mit Bestand oder bereits erfassten Verkäufen verbinden,
+neue Verkäufe automatisch zur Prüfung vorbereiten und in der Glocke melden.
+Nutzer bestätigt sofortige Mengenreservierung; endgültige Buchung erst nach Prüfung.
+
+**Befund:** Aktuellen `origin/master` bei `3477b3e5` gelesen; ältere Hauptarbeitskopie
+und fremde Zweige unverändert erhalten. Tabellenabrufe gehen direkt an eBay,
+Formularentwürfe sind nicht dauerhaft gespeichert. Hintergrundbeobachter hängt
+an Push-Geräten und schreibt keinen Glockeneintrag. Vorhandene Inseratzuordnung
+und Altverkaufsauswahl sind die Grundlage für den Ausbau. Produktion ausschließlich
+lesend geprüft: Bestellung mit Endnummer 7587 ist bezahlt, versendet und nicht
+storniert; die Bestell-Erstattungsliste ist leer, das Positionsfeld fehlt.
+Die bisherige Normalisierung erzeugt deshalb fälschlich die Erstattungssperre.
+Gebührenbetrag vorhanden, eigene Versandkosten nicht als Bestellfeld geliefert.
+Keine rohe Antwort, Käuferdaten oder Zugangsdaten als Artefakt gespeichert.
+
+**Lokale Korrektur:** Im eigenen Zweig `juna/ebay-sales-review` erlaubt eine
+ausdrücklich leere Erstattungsliste der Bestellung das fehlende Positionsfeld.
+Echte, widersprüchliche, ungültige oder insgesamt fehlende Erstattungsnachweise
+bleiben gesperrt. Erstattungen auf Bestellebene werden zusätzlich berücksichtigt.
+Vier fachliche Regressionen ergänzt; vor Korrektur zwei passende Fehler,
+anschließend 52 betroffene Edge-Prüfungen erfolgreich. Deno-Lint, Typprüfung
+des echten eBay-Funktionseinstiegs, Prettier und Unterschiedskontrolle erfolgreich.
+Der alte globale Deno-2.7.5-Lauf scheiterte an zwei Typfehlern in unveränderten
+Handler-Tests; mit isoliert geladener, anhand offizieller SHA-256 geprüfter stabiler
+Version 2.9.8 laufen dieselben Tests erfolgreich. Keine globalen Werkzeuge oder
+Anwendungsabhängigkeiten aktualisiert.
+
+**Gesamtentwurf und Grenzen:**
+`docs/superpowers/specs/2026-10-23-ebay-sales-review-design.md` beschreibt dauerhafte
+Lesekopien, unabhängigen Änderungsabgleich, Bestellbilder, Altverkaufszuordnung,
+Entwürfe, eigene Reservierungen, Kostenlücken, historische Erstbasis und Glocke.
+Unabhängiger lesender Entwurfs-/Parserreview ohne wichtigen offenen Befund.
+Freigabe des Gesamtentwurfs ist angefragt; dessen Produktumbau noch nicht umgesetzt.
+Keine Buchung, Reservierung, Migration, Anbieteränderung, Push-, PR-, Merge- oder
+Produktionsveröffentlichung ausgeführt. Kein Angular- oder Browserumbau in dieser
+Korrektur. Kein Linux-/Gesamt-CI-Lauf behauptet; die bestehende Testauswahl stuft
+geteilte Edge-Quellen breit ein, dieser Pflichtlauf bleibt vor Veröffentlichung
+erforderlich. Fremde lokale Dateien und der parallele Vinted-Zweig bleiben erhalten.
+
 ## 2026-10-22 - Juna - Vinted-Kleiderschrankstatus, Datumsquellen und Reihenfolge korrigieren
 
 **Auftrag und Arbeitszweig:** Nutzer autorisiert ausdrücklich, sämtliche zuvor belegten Probleme zu beheben. Den eigenen Analysezweig in `juna/vinted-wardrobe-state-and-order` umbenannt und auf dem unveränderten Ausgangsstand `726b98351e7f3657367a2613773be5032113fa84` weitergearbeitet. Den parallel offenen fremden PR #460 nicht verändert. Die reale Kleiderschrankansicht und das zugehörige Vinted-Profil ausschließlich gelesen: Der beige Burberry-Schal ist dort ausdrücklich als Entwurf gekennzeichnet, in der bisherigen Flipbase-Ansicht jedoch ohne Status. Der beobachtete aktuelle Detailseitenwert `1 h` enthält keine genaue Artikelzeit; das einzige weitere `created_at` im geprüften Seiten-HTML gehört zum Nutzer und ist keine Artikelquelle.

@@ -47,6 +47,70 @@ test('normalizes discounted goods and shipping without exposing buyer data', () 
   assert.equal(JSON.stringify(source).includes('private-buyer'), false);
 });
 
+test('accepts omitted line refunds when the order explicitly reports no refunds', () => {
+  const source = parseEbayOrderSource(
+    order({
+      orderFulfillmentStatus: 'FULFILLED',
+      paymentSummary: { refunds: [] },
+      lineItems: [
+        { lineItemId: 'line-1', legacyItemId: '123', quantity: 1, lineItemCost: money('10') },
+      ],
+    }),
+    observedAt,
+  );
+  assert.deepEqual(source.blockers, []);
+  assert.equal(source.lines[0].hasRefund, false);
+});
+
+test('blocks order refunds even when all line refund arrays are empty', () => {
+  for (const refunds of [
+    [{ refundStatus: 'SUCCEEDED' }],
+    [{ refundStatus: 'PENDING' }],
+    null,
+    {},
+  ]) {
+    const source = parseEbayOrderSource(order({ paymentSummary: { refunds } }), observedAt);
+    assert.ok(source.blockers.includes('refund_or_unknown'));
+    assert.equal(source.lines[0].hasRefund, true);
+  }
+});
+
+test('an empty order refund array never overrides refunded or malformed line data', () => {
+  for (const refunds of [[{ refundStatus: 'SUCCEEDED' }], null, {}]) {
+    const source = parseEbayOrderSource(
+      order({
+        paymentSummary: { refunds: [] },
+        lineItems: [
+          {
+            lineItemId: 'line-1',
+            legacyItemId: '123',
+            quantity: 1,
+            lineItemCost: money('10'),
+            refunds,
+          },
+        ],
+      }),
+      observedAt,
+    );
+    assert.ok(source.blockers.includes('refund_or_unknown'));
+  }
+});
+
+test('keeps missing refund evidence blocked instead of assuming zero refunds', () => {
+  for (const paymentSummary of [undefined, {}, { refunds: null }]) {
+    const source = parseEbayOrderSource(
+      order({
+        paymentSummary,
+        lineItems: [
+          { lineItemId: 'line-1', legacyItemId: '123', quantity: 1, lineItemCost: money('10') },
+        ],
+      }),
+      observedAt,
+    );
+    assert.ok(source.blockers.includes('refund_or_unknown'));
+  }
+});
+
 test('preserves missing values and blocks partial or ambiguous source data', () => {
   const source = parseEbayOrderSource(order({ lineItems: [{ title: 'Unklar' }] }), observedAt);
   assert.equal(source.lines[0].quantity, null);

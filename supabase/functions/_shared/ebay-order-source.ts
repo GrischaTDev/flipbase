@@ -51,6 +51,11 @@ export function parseEbayOrderSource(
       ? delivery.cents - discount.cents
       : null;
   const blockers = new Set<string>();
+  const orderRefunds = record(row.paymentSummary).refunds;
+  const orderRefundsBlocked =
+    orderRefunds !== undefined && (!Array.isArray(orderRefunds) || orderRefunds.length > 0);
+  const noOrderRefunds = Array.isArray(orderRefunds) && orderRefunds.length === 0;
+  if (orderRefundsBlocked) blockers.add('refund_or_unknown');
   if (currency !== 'EUR') blockers.add('currency_unsupported');
   if (!text(row.orderId) || !timestamp(row.creationDate)) blockers.add('invalid_order');
   if (!total || shipping === null) blockers.add('invalid_amounts');
@@ -82,7 +87,12 @@ export function parseEbayOrderSource(
           line.quantity <= 2_147_483_647
             ? line.quantity
             : null;
-        const hasRefund = !Array.isArray(line.refunds) || line.refunds.length > 0;
+        // eBay lässt Positionsfelder weg; eine ausdrücklich leere Bestellliste reicht als Nachweis.
+        const hasRefund =
+          orderRefundsBlocked ||
+          (line.refunds === undefined
+            ? !noOrderRefunds
+            : !Array.isArray(line.refunds) || line.refunds.length > 0);
         if (hasRefund) blockers.add('refund_or_unknown');
         if (
           !lineItemId ||
