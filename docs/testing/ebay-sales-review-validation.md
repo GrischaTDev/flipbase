@@ -5,6 +5,34 @@ Stand: 23. Oktober 2026. Prüfung durch Juna im eigenen Zweig
 `8281c9d1`. Dieses Protokoll beschreibt lokale Nachweise. Ein produktiver
 Rollout und eine echte Handy-Pushzustellung sind damit nicht bestätigt.
 
+## Integration vor dem freigegebenen PR
+
+Nach der Nutzerfreigabe für PR und Merge den inzwischen aktuellen Hauptzweig
+`962e4e14` mit dessen Vinted-Entwurfsübernahme integriert, Integrationsstand
+`ddd89533`. Beide Protokolle und die getrennten eBay-/Vinted-Antworten der
+gemeinsamen Browserfixture bleiben erhalten. Eingehende Vinted-Funktionen und
+deren Migration wurden unverändert übernommen.
+
+Zusätzliche lokale Linux-Nachweise vor dem Push: 74 Auswahl-/Registrierungsfälle,
+sieben betroffene Angular-Dateien mit 174 Fällen, vollständige Typ-, Lint- und
+Formatprüfung sowie Produktionsbau erfolgreich. Die 25 Fälle aus gemeinsamer
+Marktplatzübersicht, Typografie und kompletter eBay-Verkaufsprüfung bestehen bei
+320/390/834/1440 Pixeln einschließlich Hell/Dunkel, Kontextwechseln und AXE.
+Regulärer frischer Datenbankreset aller Migrationen und Seed: 130 SQL-Dateien,
+4.906 Assertions, keine Fehler. Datenbanktypen tatsächlich neu erzeugt und
+inhaltlich unverändert. Der erste Lauf auf wiederhergestellten Browsertestdaten
+hatte zwei globale Zählannahmen verletzt; ausschließlich die eigene Testinstanz
+daraufhin frisch aufgebaut. Keine Assertion verändert. Ein abschließendes CRLF
+im lokalen Shellhelfer wurde korrigiert; der danach separat ausgeführte echte
+Produktionsbau besteht. Keine grüne Aussage über diese fehlgeschlagenen Versuche.
+
+Die aktuelle umfassende CI-Auswahl enthält 232 Node-, 48 DOM- und 266
+Angular-Dateien; Audit: 546 Dateien, 4.951 Definitionen, 13.556 Assertions.
+Auswahlhash nach Integration:
+`ed30b213d34ba7449ef6e9f3cfef992beed53fc41cc127b3421baf5c2a4f00df`.
+Die folgenden umfassenden Erstnachweise bleiben für unveränderten Code erhalten;
+die gezielte Integration ersetzt keine erfolgreiche Pflichtprüfung des PR.
+
 ## Geprüfter fachlicher Ablauf
 
 - Inserate und Bestellungen mit Bildern aus gespeicherten Daten anzeigen.
