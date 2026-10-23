@@ -127,7 +127,7 @@ for (const width of [1440, 1024, 768, 390, 320]) {
         body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#e5eeee"/><circle cx="40" cy="29" r="15" fill="#39696c"/><path d="M13 80v-10a27 27 0 0154 0v10" fill="#39696c"/></svg>',
       }),
     );
-    await page.route('**/rest/v1/marketplace_account_entries*', async (route) => {
+    await page.route('**/rest/v1/marketplace_*account_entries*', async (route) => {
       const url = new URL(route.request().url());
       const accountB = url.searchParams.get('connection_id') === `eq.${accountIds[1]}`;
       const kind = url.searchParams.get('kind');

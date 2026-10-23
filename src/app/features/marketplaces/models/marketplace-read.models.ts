@@ -41,6 +41,11 @@ export interface MarketplaceEntry extends AccountScope {
   readonly brand: string | null;
   readonly size: string | null;
   readonly shipmentStatus: string | null;
+  readonly saleState?: 'sold' | 'shipped' | 'completed' | 'cancelled' | 'relisted' | null;
+  readonly saleStateAt?: string | null;
+  readonly itemIds?: readonly string[];
+  readonly itemCount?: number | null;
+  readonly isBundle?: boolean;
   readonly messageType: string | null;
   readonly priceLabel: string | null;
   readonly itemId?: string | null;

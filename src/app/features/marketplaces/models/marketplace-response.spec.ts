@@ -74,7 +74,13 @@ describe('Marktplatz-Antworten', () => {
           : publicationState,
       );
       expect(result.publishedAt).toBeNull();
-      expect(result.publicationAge).toBeNull();
+      if (result.publicationState === 'unknown') {
+        expect(result.publicationAge).toEqual({
+          value: 7,
+          unit: 'day',
+          observedAt: '2026-10-22T10:00:00Z',
+        });
+      } else expect(result.publicationAge).toBeNull();
       expect(result.status).toBe('Sehr gut');
     },
   );

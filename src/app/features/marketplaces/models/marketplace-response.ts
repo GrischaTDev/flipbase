@@ -191,9 +191,10 @@ export function parseMarketplacePage(
         : null,
       createdAt: timestamp(item['createdAt']),
       publicationState,
-      publicationAge: vintedPublicationIsOnline(publicationState)
-        ? parseVintedPublicationAge(item['publicationAge'])
-        : null,
+      publicationAge:
+        vintedPublicationIsOnline(publicationState) || publicationState === 'unknown'
+          ? parseVintedPublicationAge(item['publicationAge'])
+          : null,
       price: nonnegative(item['price']),
       currency:
         typeof item['currency'] === 'string' && /^[A-Z]{3}$/.test(item['currency'])
@@ -229,6 +230,28 @@ export function parseMarketplacePage(
       brand: text(item['brand']),
       size: text(item['size']),
       shipmentStatus: text(item['shipmentStatus']),
+      saleState:
+        item['saleState'] === 'sold' ||
+        item['saleState'] === 'shipped' ||
+        item['saleState'] === 'completed' ||
+        item['saleState'] === 'cancelled' ||
+        item['saleState'] === 'relisted'
+          ? item['saleState']
+          : null,
+      saleStateAt: timestamp(item['saleStateAt']),
+      isBundle: item['isBundle'] === true,
+      itemIds: Array.isArray(item['itemIds'])
+        ? item['itemIds']
+            .slice(0, 100)
+            .filter((id): id is string => typeof id === 'string' && /^[1-9][0-9]{0,31}$/u.test(id))
+        : [],
+      itemCount:
+        typeof item['itemCount'] === 'number' &&
+        Number.isSafeInteger(item['itemCount']) &&
+        item['itemCount'] > 0 &&
+        item['itemCount'] <= 100
+          ? item['itemCount']
+          : null,
       messageType: text(item['messageType']),
       priceLabel: text(item['priceLabel']),
       itemId: text(item['itemId']),

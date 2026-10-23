@@ -560,3 +560,14 @@ test('wenige Browserdateien erzeugen keine leeren Teilgruppen', () => {
     );
   }
 });
+
+test('Vinted-Verkaufsansicht wählt nur die zugehörigen Browserfälle', () => {
+  const path = 'src/app/features/marketplaces/components/vinted-sales/vinted-sales.component.html';
+  const plan = selectAffectedTests([path], {
+    [path]: '<section>Verkäufe</section>',
+    'e2e/vinted-sales.spec.ts': 'test()',
+    'e2e/vinted-workspace-ui.spec.ts': 'test()',
+  });
+  assert.equal(plan.full, false);
+  assert.deepEqual(plan.browserFiles, ['e2e/vinted-sales.spec.ts']);
+});

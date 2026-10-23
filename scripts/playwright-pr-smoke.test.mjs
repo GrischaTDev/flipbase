@@ -387,6 +387,12 @@ const coreTests = [
     'vinted-account-grid.spec.ts',
     `langer lokaler Profilstatus bleibt im Kontenbadge bei ${width}px @marketplace-preview @core-smoke`,
   ]),
+  ...[390, 1440].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
+      'vinted-sales.spec.ts',
+      `${width}px > trennt Vinted-Paketverkauf, Stornierung und Wiederaufnahme bei ${width}px in ${theme} @core-smoke`,
+    ]),
+  ),
   ...[1440, 390, 320].flatMap((width) =>
     ['light', 'dark'].map((theme) => [
       'vinted-workspace-ui.spec.ts',

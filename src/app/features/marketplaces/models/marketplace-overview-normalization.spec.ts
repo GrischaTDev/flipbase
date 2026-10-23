@@ -81,7 +81,8 @@ describe('Gemeinsame Inseratdarstellung', () => {
       expect(item.createdAt).toBe('2026-10-01T09:00:00Z');
       if (publicationState !== 'active' && publicationState !== 'reserved') {
         expect(item.publishedAt).toBeNull();
-        expect(item.publicationAge).toBeNull();
+        if (publicationState === 'unknown') expect(item.publicationAge?.value).toBe(7);
+        else expect(item.publicationAge).toBeNull();
       }
     },
   );

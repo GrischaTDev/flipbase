@@ -470,11 +470,23 @@ export async function executeBrowserAction(
                 'itemPrice',
                 'itemCurrency',
                 'transactionStatus',
+                'saleTrackingVersion',
+                'saleTransactionId',
+                'saleSellerId',
               ].includes(key),
           )
         )
           throw new Error('Ungültiger Gesprächscache');
+        if (version.saleTrackingVersion !== undefined && version.saleTrackingVersion !== 1)
+          throw new Error('Ungültiger Verkaufsprüfstand');
         return {
+          ...(version.saleTrackingVersion === 1 ? { saleTrackingVersion: 1 as const } : {}),
+          ...(version.saleTransactionId !== undefined
+            ? { saleTransactionId: identifier(version.saleTransactionId) }
+            : {}),
+          ...(version.saleSellerId !== undefined
+            ? { saleSellerId: identifier(version.saleSellerId) }
+            : {}),
           externalId: identifier(version.externalId),
           sourceUpdatedAt: text(version.sourceUpdatedAt, 64),
           detailCheckedAt:

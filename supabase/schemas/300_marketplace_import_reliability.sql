@@ -184,7 +184,7 @@ begin
     raise exception 'Ungültige Verkaufsbereinigung' using errcode = '22023';
   end if;
   delete from public.marketplace_account_entries a where a.workspace_id = p_workspace_id and a.connection_id = p_connection_id
-    and a.kind = 'sale' and a.observed_at < v_observed_at and a.external_id in (select jsonb_array_elements_text(coalesce(p_snapshot->'rejectedSaleIds','[]')))
+    and a.kind = 'sale' and a.body->>'saleState' is null and a.observed_at < v_observed_at and a.external_id in (select jsonb_array_elements_text(coalesce(p_snapshot->'rejectedSaleIds','[]')))
     and not exists (select 1 from jsonb_array_elements(p_snapshot->'entries') e where e->>'kind' = 'sale' and e->>'externalId' = a.external_id);
 
   foreach v_area in array array['profile','publications','conversations','messages','sales','feedback'] loop

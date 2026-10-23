@@ -16,11 +16,11 @@ describe('Vinted-Bereichsgrenzen', () => {
     expect(VINTED_WORKSPACE_NAVIGATION_GROUPS[0].items.map((item) => item.label)).toEqual([
       'Übersicht',
       'Postfach',
+      'Verkäufe',
       'Kleiderschrank',
       'Statistik',
       'Inserat erstellen',
       'Entwürfe',
-      'Verkäufe',
       'Verlauf',
       'Profil',
     ]);

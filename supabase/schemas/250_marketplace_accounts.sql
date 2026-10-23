@@ -157,16 +157,16 @@ declare v_cursor public.marketplace_account_entries; v_items jsonb; v_total bigi
 begin
   if not public.marketplace_can_manage(p_workspace_id) or not exists (select 1 from public.marketplace_connections c where c.workspace_id = p_workspace_id and c.id = p_connection_id and c.marketplace = 'vinted') then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if p_kind is null or p_kind not in ('publication', 'conversation', 'message', 'sale', 'activity') or ((p_kind = 'message') <> (p_parent_id is not null)) then raise exception 'Ungültige Seitenart' using errcode = '22023'; end if;
-  if p_kind = 'message' and not exists (select 1 from public.marketplace_account_entries e where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.id = p_parent_id and e.kind = 'conversation') then raise exception 'Gespräch nicht verfügbar' using errcode = '42501'; end if;
+  if p_kind = 'message' and not exists (select 1 from public.marketplace_visible_account_entries e where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.id = p_parent_id and e.kind = 'conversation') then raise exception 'Gespräch nicht verfügbar' using errcode = '42501'; end if;
   if p_cursor is not null then
-    select * into v_cursor from public.marketplace_account_entries e where e.id::text = p_cursor and e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id;
+    select * into v_cursor from public.marketplace_visible_account_entries e where e.id::text = p_cursor and e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id;
     if not found then raise exception 'Ungültiger Seitencursor' using errcode = '22023'; end if;
   end if;
-  select count(*) into v_total from public.marketplace_account_entries e where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id;
+  select count(*) into v_total from public.marketplace_visible_account_entries e where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id;
   with candidates as (
     select e.*, row_number() over (order by e.sort_at desc, e.id desc) as position,
       case when p_kind='conversation' then public.marketplace_conversation_read_version(e.workspace_id,e.connection_id,e.id) end as current_read_version
-    from public.marketplace_account_entries e
+    from public.marketplace_visible_account_entries e
     where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id
       and (p_cursor is null or (e.sort_at, e.id) < (v_cursor.sort_at, v_cursor.id))
     order by e.sort_at desc, e.id desc limit 51
@@ -182,6 +182,7 @@ begin
           and e.body->>'isBundle' is distinct from 'true'
           and case when jsonb_typeof(publication.body->'price')='number' then (publication.body->>'price')::numeric>=0 else false end
           and publication.body->>'currency' ~ '^[A-Z]{3}$'),'{}'::jsonb) else '{}'::jsonb end
+    || case when p_kind='sale' then jsonb_build_object('conversationId',(select conversation.id from public.marketplace_account_entries conversation where conversation.workspace_id=e.workspace_id and conversation.connection_id=e.connection_id and conversation.kind='conversation' and conversation.external_id=e.body->>'externalConversationId')) else '{}'::jsonb end
     || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id, 'externalId', e.external_id,
       -- Nur bestätigte Versandbelege zu diesem Konto und Gespräch kennzeichnen; Anbietertexte sind keine Herkunftsbelege.
       'isAutomated', coalesce(e.body->>'direction' = 'outbound', false) and (exists (

@@ -246,12 +246,20 @@
     if (item.is_hidden === true) return 'hidden';
     if (item.is_closed === true) return 'ended';
     if (
-      ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_visible'].some(
+      ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_visible', 'is_processing'].some(
         (field) => item[field] != null && typeof item[field] !== 'boolean',
       )
     )
       return 'unknown';
     if (item.is_reserved === true) return 'reserved';
+    // Vinteds eigene Kleiderschrankliste liefert die fünf Zustandsflags ohne is_visible.
+    if (
+      item.is_visible !== false &&
+      ['is_draft', 'is_hidden', 'is_closed', 'is_reserved', 'is_processing'].every(
+        (field) => item[field] === false,
+      )
+    )
+      return 'active';
     return item.is_visible === true ? 'active' : 'unknown';
   }
 

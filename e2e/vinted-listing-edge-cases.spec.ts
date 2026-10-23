@@ -74,7 +74,7 @@ async function prepareListing(page: Page, listing: ListingFixture) {
       },
     });
   });
-  await page.route('**/rest/v1/marketplace_account_entries**', (route) => {
+  await page.route('**/rest/v1/marketplace_*account_entries**', (route) => {
     const query = new URL(route.request().url()).searchParams;
     expect(query.get('workspace_id')).toBe(`eq.${workspaceId}`);
     expect(query.get('connection_id')).toBe(`eq.${accountIds[0]}`);
@@ -228,7 +228,7 @@ for (const width of [320, 390, 834, 1440]) {
           occurredAt: '2026-10-12T12:00:00Z',
         })),
       );
-      await page.route('**/rest/v1/marketplace_account_entries**', (route) => {
+      await page.route('**/rest/v1/marketplace_*account_entries**', (route) => {
         const query = new URL(route.request().url()).searchParams;
         const id = query.get('id')?.replace('eq.', '');
         if (!id) return route.fallback();

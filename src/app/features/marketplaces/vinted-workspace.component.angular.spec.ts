@@ -28,6 +28,7 @@ import { VintedProfileComponent } from './components/vinted-profile/vinted-profi
 import { VintedMessagesComponent } from './components/vinted-messages/vinted-messages.component';
 import { VintedOfferActionsComponent } from './components/vinted-offer-actions/vinted-offer-actions.component';
 import { VintedListingsComponent } from './components/vinted-listings/vinted-listings.component';
+import { VintedSalesComponent } from './components/vinted-sales/vinted-sales.component';
 import { VintedListingAgeComponent } from './components/vinted-listing-age/vinted-listing-age.component';
 import { ProductGalleryComponent } from '../../shared/components/product-gallery/product-gallery.component';
 import { VintedListingMetricsComponent } from './components/vinted-listings/vinted-listing-metrics.component';
@@ -161,6 +162,10 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    {
+      type: VintedSalesComponent,
+      path: 'src/app/features/marketplaces/components/vinted-sales/vinted-sales.component.ts',
+    },
     ...listingTransferRendering,
     {
       type: ProductGalleryComponent,

@@ -121,6 +121,7 @@ describe('Marktplatz-API', () => {
       ],
     });
     const result = await TestBed.inject(MarketplaceApiService).readAccountPreview(scope);
+    expect(from).toHaveBeenNthCalledWith(2, 'marketplace_visible_account_entries');
     expect(result).toMatchObject({
       ...scope,
       profile: { username: 'testkonto', itemCount: 12 },

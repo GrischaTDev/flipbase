@@ -49,9 +49,10 @@ export function normalizeVintedPublication(
       ? (entry.publishedAt ?? null)
       : null,
     createdAt: entry.createdAt ?? null,
-    publicationAge: vintedPublicationIsOnline(entry.publicationState)
-      ? (entry.publicationAge ?? null)
-      : null,
+    publicationAge:
+      vintedPublicationIsOnline(entry.publicationState) || entry.publicationState === 'unknown'
+        ? (entry.publicationAge ?? null)
+        : null,
     state: entry.publicationState ?? 'unknown',
     actions: ['view'],
     detailLink: ['/marketplaces/vinted/listings', entry.connectionId, entry.id],

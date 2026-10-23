@@ -223,13 +223,13 @@ export class MarketplaceApiService {
     // Nur Profil und Anzahlen lesen, keine Nachrichten oder vollständigen Inseratlisten.
     const query = () =>
       this.client
-        .from('marketplace_account_entries')
+        .from('marketplace_visible_account_entries')
         .select('body', { count: 'exact', head: true })
         .eq('workspace_id', scope.workspaceId)
         .eq('connection_id', scope.connectionId);
     const [profile, publications, sales] = await Promise.all([
       this.client
-        .from('marketplace_account_entries')
+        .from('marketplace_visible_account_entries')
         .select('body')
         .eq('workspace_id', scope.workspaceId)
         .eq('connection_id', scope.connectionId)
@@ -339,7 +339,7 @@ export class MarketplaceApiService {
       throw new Error('Ungültige Inseratseite.');
     const filtered = (head: boolean) => {
       let request = this.client
-        .from('marketplace_account_entries')
+        .from('marketplace_visible_account_entries')
         .select('id,external_id,body,sort_at', { count: 'exact', head })
         .eq('workspace_id', scope.workspaceId)
         .eq('connection_id', scope.connectionId)

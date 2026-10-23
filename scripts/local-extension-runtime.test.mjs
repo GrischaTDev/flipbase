@@ -70,6 +70,37 @@ test('local and cloud wardrobe states require explicit provider evidence and pre
     [{ is_visible: true }, 'active'],
     [{ is_draft: false, is_hidden: false, is_visible: true, is_reserved: false }, 'active'],
     [{ is_visible: false }, 'unknown'],
+    [
+      {
+        is_draft: false,
+        is_hidden: false,
+        is_reserved: false,
+        is_closed: false,
+        is_processing: false,
+      },
+      'active',
+    ],
+    [
+      {
+        is_draft: false,
+        is_hidden: false,
+        is_reserved: false,
+        is_closed: false,
+        is_processing: true,
+      },
+      'unknown',
+    ],
+    [
+      {
+        is_draft: false,
+        is_hidden: false,
+        is_reserved: false,
+        is_closed: false,
+        is_processing: false,
+        is_visible: false,
+      },
+      'unknown',
+    ],
     [{ is_draft: false, is_hidden: false, is_reserved: false, is_closed: false }, 'unknown'],
     [{ is_draft: 'true', is_visible: true }, 'unknown'],
     [{ is_visible: 'true' }, 'unknown'],
