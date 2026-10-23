@@ -17,6 +17,7 @@ export class EbayAccountStore {
   private readonly refreshRequests = signal<
     Partial<Record<'orders' | 'listings', { completedAt: string | null; sending: boolean }>>
   >({});
+  private readonly firstPageIds = new Map<'orders' | 'listings', ReadonlySet<string>>();
   readonly refreshStatus = computed(() => {
     const request = this.refreshRequests()[this.section()];
     if (request?.sending) return 'requesting';
@@ -55,7 +56,7 @@ export class EbayAccountStore {
         (this.refreshRequests()[this.section()] ||
           ['pending', 'syncing'].includes(this.sync()?.status ?? ''))
       )
-        void this.read(false);
+        void this.readCache(false);
     }, 5000);
     this.destroyRef.onDestroy(() => clearInterval(timer));
     effect(() => {
@@ -130,6 +131,7 @@ export class EbayAccountStore {
   }
   private clearData(): void {
     this.pages.clear();
+    this.firstPageIds.clear();
     this.refreshRequests.set({});
     this.sync.set(null);
     this.trafficRevision++;
@@ -299,7 +301,7 @@ export class EbayAccountStore {
         ...requests,
         [section]: { completedAt, sending: false },
       }));
-      if (this.isCurrent(revision) && this.section() === section) await this.read(false);
+      if (this.isCurrent(revision) && this.section() === section) await this.readCache(false);
     } catch (error) {
       if (!this.contextMatches() || this.refreshRequests()[section] !== requested) return;
       this.refreshRequests.update((requests) => ({ ...requests, [section]: undefined }));
@@ -308,6 +310,9 @@ export class EbayAccountStore {
     }
   }
   async read(append: boolean): Promise<void> {
+    await this.readCache(append, true);
+  }
+  private async readCache(append: boolean, refreshTraffic = false): Promise<void> {
     const connection = this.connection();
     if (
       !connection ||
@@ -322,6 +327,9 @@ export class EbayAccountStore {
     const section = this.section();
     const page = append ? this.nextPage() : 1;
     if (page === null) return;
+    const retainedFirstPageIds =
+      !append && !refreshTraffic ? this.firstPageIds.get(section) : undefined;
+    const retainedNextPage = this.nextPage();
     this.isReading.set(true);
     this.dataError.set(null);
 
@@ -331,29 +339,21 @@ export class EbayAccountStore {
         const result = await this.api.loadListings(connection, page);
         if (!this.isCurrent(revision)) return;
         this.listingRows.update((items) =>
-          append
-            ? [...items, ...result.items].filter(
-                (item, index, all) =>
-                  all.findIndex((candidate) => candidate.id === item.id) === index,
-              )
-            : result.items,
+          this.mergePageRows(items, result.items, append, retainedFirstPageIds),
         );
+        if (!append) this.firstPageIds.set(section, new Set(result.items.map((item) => item.id)));
         this.total.set(result.total);
-        this.nextPage.set(result.nextPage);
+        this.nextPage.set(retainedFirstPageIds ? retainedNextPage : result.nextPage);
         this.sync.set(result.sync ?? null);
       } else {
         const result = await this.api.loadOrders(connection, page);
         if (!this.isCurrent(revision)) return;
         this.orderRows.update((items) =>
-          append
-            ? [...items, ...result.items].filter(
-                (item, index, all) =>
-                  all.findIndex((candidate) => candidate.id === item.id) === index,
-              )
-            : result.items,
+          this.mergePageRows(items, result.items, append, retainedFirstPageIds),
         );
+        if (!append) this.firstPageIds.set(section, new Set(result.items.map((item) => item.id)));
         this.total.set(result.total);
-        this.nextPage.set(result.nextPage);
+        this.nextPage.set(retainedFirstPageIds ? retainedNextPage : result.nextPage);
         this.sync.set(result.sync ?? null);
       }
       const requested = this.refreshRequests()[section];
@@ -366,7 +366,8 @@ export class EbayAccountStore {
       if (section === 'orders' && this.importAvailable()) void this.readBookingStatuses(connection);
       this.hasRead.set(true);
       this.rememberPage();
-      shouldReadTraffic = section === 'listings' && this.listingManagementAvailable();
+      shouldReadTraffic =
+        refreshTraffic && section === 'listings' && this.listingManagementAvailable();
     } catch (error) {
       if (!this.isCurrent(revision)) return;
       const errorMessage = this.message(error);
@@ -400,6 +401,22 @@ export class EbayAccountStore {
       if (this.isCurrent(revision)) this.isReading.set(false);
     }
     if (shouldReadTraffic && this.isCurrent(revision)) await this.readTraffic();
+  }
+  private mergePageRows<T extends { id: string }>(
+    current: readonly T[],
+    incoming: readonly T[],
+    append: boolean,
+    retainedFirstPageIds: ReadonlySet<string> | undefined,
+  ): readonly T[] {
+    // Polls ersetzen nur die erste Seite; bereits geladene Folgeseiten bleiben sichtbar.
+    const rows = append
+      ? [...current, ...incoming]
+      : retainedFirstPageIds
+        ? [...incoming, ...current.filter((row) => !retainedFirstPageIds.has(row.id))]
+        : incoming;
+    return rows.filter(
+      (row, index) => rows.findIndex((candidate) => candidate.id === row.id) === index,
+    );
   }
   private rememberPage(): void {
     this.pages.set(this.section(), {

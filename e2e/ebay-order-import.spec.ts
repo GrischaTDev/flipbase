@@ -402,6 +402,9 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
       { title: 'Zuvor manuell verkauft', price: 2 },
     ],
   });
+  const availableItem = items.find((item) => item.title === 'Manueller Testartikel');
+  const soldItem = items.find((item) => item.title === 'Zuvor manuell verkauft');
+  if (!availableItem || !soldItem) throw new Error('Die erwarteten Testartikel fehlen.');
   const order = await createOrder(workspace);
   const { data: legacy, error: legacyError } = await workspace.client.rpc('record_sale', {
     p_workspace_id: workspace.id,
@@ -415,8 +418,8 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
     },
     p_lines: [
       {
-        inventory_item_id: items[1].id,
-        title_snapshot: items[1].title,
+        inventory_item_id: soldItem.id,
+        title_snapshot: soldItem.title,
         quantity: 1,
         unit_sale_price: 10,
       },
@@ -454,7 +457,7 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   const { data: item } = await workspace.client
     .from('inventory_items')
     .select('status')
-    .eq('id', items[0].id)
+    .eq('id', availableItem.id)
     .single();
   expect(item?.status).toBe('ready');
   const admin = createLocalAdminClient();
@@ -479,7 +482,7 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
     beforeCancellation.data,
   );
   expect(
-    (await admin.from('inventory_items').select('status').eq('id', items[1].id).single()).data
+    (await admin.from('inventory_items').select('status').eq('id', soldItem.id).single()).data
       ?.status,
   ).toBe('sold');
   const restored = await admin

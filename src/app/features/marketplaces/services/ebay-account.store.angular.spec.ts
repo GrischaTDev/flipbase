@@ -134,6 +134,87 @@ describe('Persönlicher eBay-Zustand', () => {
     await store.selectSection('listings');
     expect(store.refreshStatus()).toBe('pending');
   });
+  it.each(['timer', 'refresh'] as const)(
+    'erhält Statistiken bei %s-Cachelesungen ohne zusätzliche Anbieterabrufe',
+    async (trigger) => {
+      api.loadStatus.mockResolvedValueOnce({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      api.loadListings.mockResolvedValue({
+        ...connection,
+        items: [listing],
+        total: 1,
+        nextPage: null,
+        sync: {
+          status: trigger === 'timer' ? 'pending' : 'ready',
+          lastCompletedAt: '2026-10-23T12:00:00Z',
+          lastError: null,
+        },
+      });
+      await store.initialize('workspace-a', true);
+      const traffic = store.traffic();
+      const period = store.trafficPeriod();
+      expect(api.loadTraffic).toHaveBeenCalledOnce();
+      if (trigger === 'refresh') await store.requestRefresh();
+      expect(api.loadTraffic).toHaveBeenCalledOnce();
+      const reads = api.loadListings.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(api.loadListings).toHaveBeenCalledTimes(reads + 3);
+      expect(api.loadTraffic).toHaveBeenCalledOnce();
+      expect(store.traffic()).toBe(traffic);
+      expect(store.trafficPeriod()).toBe(period);
+      await store.readTraffic();
+      expect(api.loadTraffic).toHaveBeenCalledTimes(2);
+      expect(store.traffic()['123'].views).toBe(0);
+    },
+  );
+  it.each(['listings', 'orders'] as const)(
+    'erhält nachgeladene %s-Seiten und ihren Zeiger während mehrerer Cachepolls',
+    async (section) => {
+      api.loadStatus.mockResolvedValueOnce({
+        configured: true,
+        listingManagementAvailable: true,
+        connection,
+      });
+      const read = section === 'listings' ? api.loadListings : api.loadOrders;
+      const rows = section === 'listings' ? store.listings : store.orders;
+      const first = { ...listing, id: 'first' };
+      const second = { ...listing, id: 'second' };
+      const replacement = { ...listing, id: 'replacement' };
+      const page = {
+        ...connection,
+        total: 3,
+        sync: { status: 'ready', lastCompletedAt: '2026-10-23T12:00:00Z', lastError: null },
+      };
+      read.mockResolvedValueOnce({ ...page, items: [first], nextPage: 2 });
+      await store.initialize('workspace-a', true, section);
+      read.mockResolvedValueOnce({ ...page, items: [second], nextPage: 3 });
+      await store.read(true);
+      expect(rows()).toEqual([first, second]);
+      expect(store.nextPage()).toBe(3);
+      const traffic = store.traffic();
+      const trafficReads = api.loadTraffic.mock.calls.length;
+      read.mockResolvedValue({ ...page, items: [replacement], nextPage: 2 });
+      await store.requestRefresh();
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(rows()).toEqual([replacement, second]);
+      expect(store.nextPage()).toBe(3);
+      expect(store.traffic()).toBe(traffic);
+      expect(api.loadTraffic).toHaveBeenCalledTimes(trafficReads);
+      // Der bewusste nächste Seitenabruf bleibt möglich und benutzt den bisherigen Zeiger.
+      read.mockResolvedValueOnce({ ...page, items: [{ ...listing, id: 'third' }], nextPage: null });
+      await store.read(true);
+      expect(read).toHaveBeenLastCalledWith(connection, 3);
+      expect(rows().map((row) => row.id)).toEqual(['replacement', 'second', 'third']);
+      expect(store.nextPage()).toBeNull();
+      // Ein normaler erneuter Listenabruf ersetzt weiterhin die ganze geladene Liste.
+      await store.read(false);
+      expect(rows()).toEqual([replacement]);
+      expect(store.nextPage()).toBe(2);
+    },
+  );
   it('erhält Fehlerwartezeit und Zeilen, verwirft sie aber bei entzogener Freigabe', async () => {
     await store.initialize('workspace-a', true);
     api.loadListings.mockResolvedValue({
