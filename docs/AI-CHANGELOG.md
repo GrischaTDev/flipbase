@@ -1,5 +1,41 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-23 - Juna - eBay-Listen, Verkaufsentwürfe und persönliche Glocke integrieren
+
+**Freigabe und Umsetzung:** Den ausdrücklich bestätigten Gesamtentwurf umgesetzt:
+gespeicherte Bestell-/Inseratlisten mit Bildern und Hintergrundabgleich,
+Bestandszuordnung, nachträglicher Abgleich vollständiger vorhandener Verkäufe,
+dauerhafte Entwürfe unter „Zu prüfen“, sofortige eigene Reservierungen und
+persönliche eBay-Meldungen in der Glocke. Käuferporto, belegte Gebühren und
+tatsächliche Versandkosten bleiben getrennt; unbekannte Werte werden nicht zu
+bestätigten Nullen. Erst die bewusste endgültige Buchung zählt als Verkauf.
+Kontotrennung schließt private Bestelldaten, erhält aber die interne bewusste
+Reservierungsklärung. Bestehende Vinted- und gemeinsame Formularänderungen aus dem
+aktuellen Hauptzweig sind enthalten.
+
+**Unabhängige Prüfungen und Korrekturen:** Aufgabenreview der Oberfläche fand
+ausgeblendete gespeicherte Tabellenzeilen bei Abruffehlern, unvollständig
+verworfene private Daten nach eindeutigem Rechteentzug und einen hängenbleibenden
+internen Freigabevorgang bei persönlichem Kontofehler. Alle drei mit zunächst
+roten Regressionen korrigiert; 64 betroffene Angularfälle einschließlich 23 neuer
+Fälle erfolgreich, frischer Nachreview ohne offenen wichtigen Befund. Die
+anschließende Integrationsprüfung isoliert einen bereits vorhandenen
+Bildtest-Mock nach reproduzierbar rotem Minimalpaar; sämtliche 48 DOM-Dateien
+bestehen danach ohne Produkt-, Pool-, Assertion- oder Timeoutänderung.
+Unabhängiger Teilreview bestätigt diese Korrektur und die echte Testregistrierung.
+
+**Nachweise und Grenzen:** Linux-Anwendungsprüfungen, regulärer SQL-Replay mit
+Rechte-/Schemaabgleich, echte Bestandskonkurrenz, Edge-Funktionen,
+Produktions-PWA, Docker-/Funktionspakete und die betroffene Browserauswahl sind
+im [integrierten Abnahmeprotokoll](testing/ebay-sales-review-validation.md)
+mit tatsächlichem Umfang und Grenzen festgehalten. Die zusätzliche eBay-Abnahme
+prüft Hell/Dunkel, Desktop und Touch, Tastatur und AXE; Aufnahmen liegen außerhalb
+des Repositorys und wurden tatsächlich angesehen. Vorhandene Warnungen und
+erwartete Fehlerausgaben bleiben benannt. Keine echte Anbieterzahlung,
+Handy-Pushzustellung oder Produktionsveröffentlichung behauptet. Fremde
+Arbeitskopien und laufende Projekte bleiben erhalten. Push, PR und gemeinsamer
+Rollout folgen erst nach abgeschlossener Prüfung und vorgeschriebener Freigabe.
+
 ## 2026-10-23 - Juna - eBay-Verkaufsprüfung untersuchen und Erstattungssperre korrigieren
 
 **Auftrag:** eBay-Listen mit gespeicherten Daten und Artikelbildern verbessern,
