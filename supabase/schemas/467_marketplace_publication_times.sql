@@ -202,8 +202,9 @@ begin
   end if;
   -- Die vorhandene globale Cursorabfrage verwendet sort_at und id. Abruf- oder Updatezeiten
   -- sind keine Artikelchronologie; die feste Epoche legt unbekannte Artikel stabil ans Ende.
-  new.sort_at:=coalesce(v_published_at,(v_created_at#>>'{}')::timestamptz,
-    case when v_state in ('active','reserved','ended') then public.marketplace_publication_age_sort_at(v_age,new.observed_at) end,
+  new.sort_at:=coalesce(v_published_at,
+    case when v_state in ('active','reserved','ended','unknown') then public.marketplace_publication_age_sort_at(v_age,new.observed_at) end,
+    (v_created_at#>>'{}')::timestamptz,
     '1970-01-01T00:00:00Z'::timestamptz);
   return new;
 end;

@@ -27,15 +27,26 @@ export class VintedListingAgeComponent {
     const state = this.publicationState();
     return state === undefined || state === 'active' || state === 'reserved';
   });
-  readonly age = computed(() =>
-    vintedListingAge(
+  readonly age = computed(() => {
+    const age = vintedListingAge(
       this.canShowPublication() ? this.publishedAt() : null,
       this.clock.now(),
-      this.canShowPublication() ? this.publicationAge() : null,
+      this.canShowPublication() || this.publicationState() === 'unknown'
+        ? this.publicationAge()
+        : null,
       this.canShowPublication() ? this.publishedOn() : null,
       this.createdAt(),
-    ),
-  );
+    );
+    // Eine gelesene Altersangabe bleibt verwertbar, bestätigt aber keinen aktuellen Onlinestatus.
+    return this.publicationState() === 'unknown' && age.approximate
+      ? {
+          ...age,
+          text: age.text.replace(' online', ' · Vinted-Angabe'),
+          tone: 'neutral' as const,
+          overdue: false,
+        }
+      : age;
+  });
   readonly label = computed(() => this.age().text);
   readonly dateTitle = computed(() => {
     const title = this.age().dateOnly

@@ -138,7 +138,10 @@ test('a draft becoming visible gets fresh age evidence without inheriting a publ
     unit: 'hour',
     observedAt: snapshot.observedAt,
   });
-  assert.equal(entry.sortAt, createdAt);
+  assert.equal(
+    entry.sortAt,
+    new Date(Date.parse(snapshot.observedAt) - 3 * 60 * 60 * 1000).toISOString(),
+  );
   assert.deepEqual(
     paths.filter((path) => path.startsWith('/items/')),
     ['/items/41'],
@@ -195,6 +198,7 @@ test('cached relative ages keep their original sort anchor across repeated wardr
             publicationState: 'active',
             occurredAt: null,
             publicationAge: cached,
+            createdAt: '2026-09-01T10:00:00Z',
             checkedAt: cached.observedAt,
           },
         ],
@@ -1271,6 +1275,7 @@ test('unveränderte gelesene Gespräche bleiben aus dem Cache erhalten', async (
       externalId: '51',
       sourceUpdatedAt: '2026-09-28T09:00:00.000Z',
       detailCheckedAt: '2026-09-28T09:30:00Z',
+      saleTrackingVersion: 1,
       text: 'Vollständige letzte Nachricht',
       occurredAt: '2026-09-28T09:20:00Z',
     },

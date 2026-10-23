@@ -138,6 +138,13 @@ export class SupabaseVintedImportWriter {
           itemCurrency: typeof body['itemCurrency'] === 'string' ? body['itemCurrency'] : null,
           transactionStatus:
             typeof body['transactionStatus'] === 'string' ? body['transactionStatus'] : null,
+          ...(body['saleTrackingVersion'] === 1 ? { saleTrackingVersion: 1 as const } : {}),
+          ...(typeof body['saleTransactionId'] === 'string' &&
+          /^[1-9][0-9]{0,31}$/u.test(body['saleTransactionId']) &&
+          typeof body['saleSellerId'] === 'string' &&
+          /^[1-9][0-9]{0,31}$/u.test(body['saleSellerId'])
+            ? { saleTransactionId: body['saleTransactionId'], saleSellerId: body['saleSellerId'] }
+            : {}),
         },
       ];
     });

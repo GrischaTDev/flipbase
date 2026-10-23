@@ -10,7 +10,12 @@ import type { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
 import type { SupabaseVintedListingCache } from '../src/supabase-vinted-listing-cache.ts';
 import type { SupabaseVintedProfileCache } from '../src/supabase-vinted-profile-cache.ts';
 import type { VintedEditAccess } from '../src/vinted-edit-access.ts';
-import { VintedImportReadError, type VintedAccountImport } from '../src/vinted-account-import.ts';
+import {
+  VintedImportReadError,
+  type VintedAccountImport,
+  type VintedConversationVersion,
+  parseVintedAccountImport,
+} from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
   VintedInteractionRequiredError,
@@ -58,6 +63,7 @@ async function setup(
     allowedIntervals: number[];
   },
   conversationAccess = edits,
+  conversationVersions?: () => Promise<VintedConversationVersion[]>,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -144,7 +150,7 @@ async function setup(
     profiles:
       prepare || remove ? { prepare: prepare ?? (async () => undefined), remove } : undefined,
     accounts: confirm ? { confirm: async (scope, id) => confirm(scope, id) } : undefined,
-    imports: writeImport ? { write: writeImport } : undefined,
+    imports: writeImport ? { write: writeImport, conversationVersions } : undefined,
     edits,
     conversationAccess,
     operations,
@@ -1768,5 +1774,74 @@ test('keeps the real broker lease alive after duplicate starts while awaiting lo
       await broker.shutdown();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  }
+});
+
+test('manueller Vollimport erhält Kaufbelege auch für den vierten nicht vertieft gelesenen Chat', async () => {
+  const at = '2026-10-23T10:00:00Z';
+  const previous = [
+    {
+      externalId: '54',
+      sourceUpdatedAt: at,
+      detailCheckedAt: at,
+      occurredAt: at,
+      text: null,
+      saleTrackingVersion: 1 as const,
+      saleTransactionId: '74',
+      saleSellerId: '123',
+    },
+  ];
+  let saved: VintedAccountImport | undefined;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async (_scope, _id, snapshot) => {
+      saved = snapshot;
+      return { profile: 1, publication: 0, conversation: 4, message: 0, sale: 0 };
+    },
+    undefined,
+    {
+      importAccount: async (authorize, _stage, versions) => {
+        await authorize();
+        return parseVintedAccountImport(
+          { id: '123', username: 'test' },
+          { user: { id: 123 } },
+          [],
+          [51, 52, 53, 54].map((id) => ({ id, updated_at: at })),
+          [],
+          at,
+          versions,
+        );
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async () => previous,
+  );
+  try {
+    const response = await api.request('/marketplace-browser/connections/sync', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 200);
+    const conversation = saved?.entries.find(
+      (entry) => entry.kind === 'conversation' && entry.externalId === '54',
+    );
+    assert.equal(conversation?.body['saleTransactionId'], '74');
+    assert.equal(conversation?.body['saleSellerId'], '123');
+  } finally {
+    await api.close();
   }
 });

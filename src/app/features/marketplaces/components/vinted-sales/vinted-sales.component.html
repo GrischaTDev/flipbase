@@ -1,0 +1,111 @@
+@if (store.localSalesUnavailable()) {
+  <app-card class="mb-4" title="Verkäufe noch nicht lokal angebunden">
+    <p class="text-sm text-fb-text-secondary">
+      Deine Vinted-Verkäufe werden über die lokale Verbindung noch nicht synchronisiert. Vorhandene
+      gespeicherte Verkäufe bleiben sichtbar.
+    </p>
+  </app-card>
+} @else {
+  <p class="mb-4 text-sm text-fb-text-secondary">
+    Hier findest Du bestätigte Verkäufe und Stornierungen aus Deinen abgerufenen Vinted-Chats. Die
+    Liste wird mit dem Kontoabgleich ergänzt.
+  </p>
+}
+@for (group of groups(); track group.label) {
+  @if (group.items.length) {
+    <section class="mb-6" [attr.aria-label]="group.label">
+      <h2 class="mb-2 text-sm font-semibold text-fb-text-primary">
+        {{ group.history ? 'Nach Stornierung wieder eingestellt' : 'Aktuelle Verkaufsvorgänge' }}
+      </h2>
+      @if (group.history) {
+        <p class="mb-3 text-sm text-fb-text-secondary">
+          Diese Vorgänge bleiben als Verlauf erhalten. Wieder veröffentlichte Artikel erscheinen im
+          Kleiderschrank.
+        </p>
+      }
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+        @for (entry of group.items; track entry.id) {
+          <app-card class="min-w-0 overflow-hidden">
+            <app-product-thumbnail
+              class="mb-3 block w-full"
+              [src]="entry.imageUrl"
+              [alt]="entry.title"
+              size="listing"
+            />
+            <h3 class="break-words text-sm font-semibold text-fb-text-primary">
+              {{ entry.title }}
+            </h3>
+            <app-badge class="mt-2" [tone]="badge(entry).tone">{{ badge(entry).label }}</app-badge>
+            @if (entry.saleState === 'cancelled') {
+              <p class="mt-2 text-xs text-fb-text-secondary">
+                Noch nicht wieder eingestellt. Der Vorgang bleibt hier, bis Vinted die
+                Wiederaufnahme bestätigt.
+              </p>
+            }
+            @if (entry.itemCount && entry.itemCount > 1) {
+              <p class="mt-2 text-xs text-fb-text-secondary">
+                Paket mit {{ entry.itemCount }} Artikeln
+              </p>
+            }
+            @if (entry.itemCount && (entry.itemIds?.length ?? 0) < entry.itemCount) {
+              <p class="mt-2 text-xs text-fb-text-secondary">Artikelzuordnung noch unvollständig</p>
+            } @else if (entry.isBundle && !entry.itemCount) {
+              <p class="mt-2 text-xs text-fb-text-secondary">
+                Paketgröße und Artikelzuordnung noch unvollständig
+              </p>
+            }
+            <p class="mt-3 text-xs text-fb-text-secondary">
+              {{
+                entry.saleState === 'cancelled' || entry.saleState === 'relisted'
+                  ? 'Ursprünglicher Verkaufspreis'
+                  : 'Verkaufspreis'
+              }}
+            </p>
+            <p class="text-base font-semibold text-fb-text-primary">
+              {{
+                entry.price === null ? 'Preis unbekannt' : (entry.price | currency: entry.currency)
+              }}
+            </p>
+            <p class="mt-2 text-xs text-fb-text-secondary">
+              {{
+                entry.occurredAt
+                  ? (entry.occurredAt | date: 'dd.MM.yyyy, HH:mm')
+                  : 'Verkaufsdatum unbekannt'
+              }}
+            </p>
+            @if (entry.shipmentStatus) {
+              <p class="mt-1 text-xs text-fb-text-secondary">Versand: {{ entry.shipmentStatus }}</p>
+            }
+            @if (entry.conversationId) {
+              <app-button
+                class="mt-3"
+                variant="secondary"
+                size="slim"
+                link="/marketplaces/vinted/messages"
+                [queryParams]="{
+                  connectionId: entry.connectionId,
+                  conversationId: entry.conversationId,
+                }"
+                >Chat öffnen</app-button
+              >
+            }
+          </app-card>
+        }
+      </div>
+    </section>
+  }
+}
+@if (!page()?.items?.length && !store.localSalesUnavailable()) {
+  <app-card
+    title="Noch keine bestätigten Verkäufe gespeichert"
+    subtitle="Einzelne als verkauft markierte Inserate reichen nicht als Kaufbeleg. Bestätigte Verkäufe und Stornierungen erscheinen nach dem Abruf des zugehörigen Chats."
+  />
+}
+@if (page()?.nextCursor) {
+  <app-button
+    class="mt-4"
+    [loading]="store.loadingPage() === 'sale'"
+    (clicked)="store.loadMore('sale')"
+    >Weitere Verkäufe laden</app-button
+  >
+}
