@@ -204,7 +204,8 @@ begin
         from public.stock_movements m where m.workspace_id = a.workspace_id
           and m.stock_lot_id = a.stock_lot_id and m.sale_line_id = a.sale_line_id
       ) state on true where a.stock_lot_id = v_lot.id;
-      select coalesce(sum(quantity), 0)::integer, coalesce(sum(removed_cost), 0)
+      select coalesce(sum(case when direction = 'out' then quantity else -quantity end), 0)::integer,
+        coalesce(sum(case when direction = 'out' then removed_cost else -removed_cost end), 0)
         into v_removed_quantity, v_removed_cost from public.stock_movements
         where stock_lot_id = v_lot.id and stock_removal_id is not null;
       if not v_active_cost_known
@@ -264,3 +265,161 @@ $$;
 alter function public.remove_article_stock(uuid,text,uuid,integer,text,text,text) owner to postgres;
 revoke execute on function public.remove_article_stock(uuid,text,uuid,integer,text,text,text) from public, anon, authenticated, service_role;
 grant execute on function public.remove_article_stock(uuid,text,uuid,integer,text,text,text) to authenticated;
+
+-- Eine Gegenbuchung je Originalabgang und Los; Originalbeleg und beide Bewegungen
+-- bleiben durch protect_stock_removal_history unveränderlich geschützt.
+create unique index stock_movements_removal_reversal_idx
+  on public.stock_movements(stock_removal_id, stock_lot_id)
+  where stock_removal_id is not null and direction = 'in';
+
+create function public.reverse_catalog_stock_removal(p_workspace_id uuid, p_stock_removal_id bigint, p_reason text)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  v_actor uuid := (select auth.uid());
+  v_removal public.stock_removals;
+  v_event public.business_events;
+  v_reversal public.business_events;
+  v_movement public.stock_movements;
+  v_lot public.stock_lots;
+  v_allocation jsonb;
+  v_costs numeric[];
+  v_tax_costs numeric[];
+  v_purchase_id uuid;
+  v_count integer := 0;
+  v_quantity integer := 0;
+  v_active_quantity integer;
+  v_active_cost numeric;
+  v_active_cost_known boolean;
+  v_removed_quantity integer;
+  v_removed_cost numeric;
+  v_reason text := nullif(btrim(p_reason), '');
+begin
+  if v_actor is null or p_workspace_id is null or not public.can_access_workspace(p_workspace_id)
+  then raise exception 'Kein Zugriff auf diesen Bestandsabgang.' using errcode = '42501'; end if;
+  perform 1 from public.workspace_members where workspace_id = p_workspace_id and user_id = v_actor for share;
+  if not found then raise exception 'Kein Zugriff auf diesen Bestandsabgang.' using errcode = '42501'; end if;
+  perform 1 from public.workspaces where id = p_workspace_id and archived_at is null for share;
+  if not found then raise exception 'Kein Zugriff auf diesen Bestandsabgang.' using errcode = '42501'; end if;
+  if v_reason is null or char_length(v_reason) > 1000 then
+    raise exception 'Begründung für die Gegenbuchung fehlt oder ist zu lang.' using errcode = '22023';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_workspace_id::text || ':stock-removal-reversal:' || p_stock_removal_id::text, 0));
+  select * into v_removal from public.stock_removals where workspace_id = p_workspace_id and id = p_stock_removal_id;
+  if not found or v_removal.article_kind <> 'catalog' then
+    raise exception 'Kein losbasierter Bestandsabgang vorhanden.' using errcode = '22023';
+  end if;
+  select * into v_reversal from public.business_events where workspace_id = p_workspace_id
+    and entity_type = 'catalog_product' and entity_id = v_removal.article_id
+    and event_type = 'stock_removal_reversed' and changes->>'stock_removal_id' = p_stock_removal_id::text;
+  if found then
+    if v_reversal.reason is distinct from v_reason or v_reversal.actor_id is distinct from v_actor then
+      raise exception 'Dieser Abgang wurde bereits mit anderer Begründung gegengebucht.' using errcode = '22023';
+    end if;
+    return v_reversal.id;
+  end if;
+  begin
+    select * into strict v_event from public.business_events where workspace_id = p_workspace_id
+      and entity_type = 'catalog_product' and entity_id = v_removal.article_id
+      and event_type = 'stock_removal_recorded' and changes->>'stock_removal_id' = p_stock_removal_id::text;
+  exception when no_data_found or too_many_rows then
+    raise exception 'Der ursprüngliche Ausbuchungsbeleg ist nicht eindeutig vorhanden.' using errcode = '22023';
+  end;
+  if jsonb_typeof(v_event.changes->'allocations') is distinct from 'array'
+    or jsonb_array_length(v_event.changes->'allocations') = 0
+    or exists(select 1 from jsonb_array_elements(v_event.changes->'allocations') a where not (a ? 'stock_lot_id'))
+  then raise exception 'Die ursprüngliche Loszuordnung ist unvollständig.' using errcode = '22023'; end if;
+
+  -- Dieselbe Sperrreihenfolge wie Verkauf, Ausbuchung und eBay-Reservierung.
+  for v_purchase_id in select distinct l.purchase_id from public.stock_lots l
+    join public.stock_movements m on m.stock_lot_id = l.id and m.workspace_id = l.workspace_id
+    where m.workspace_id = p_workspace_id and m.stock_removal_id = p_stock_removal_id order by l.purchase_id
+  loop
+    perform 1 from public.purchases where workspace_id = p_workspace_id and id = v_purchase_id and entry_status = 'finalized' for update;
+    if not found then raise exception 'Der Ursprungseinkauf muss zuerst geprüft werden.' using errcode = '22023'; end if;
+  end loop;
+  perform 1 from public.catalog_products where workspace_id = p_workspace_id and id = v_removal.article_id for update;
+  if not found then raise exception 'Der ursprüngliche Artikel fehlt.' using errcode = '22023'; end if;
+  perform l.id from public.stock_lots l where l.workspace_id = p_workspace_id and l.id in
+    (select stock_lot_id from public.stock_movements where workspace_id = p_workspace_id and stock_removal_id = p_stock_removal_id)
+    order by l.received_at, l.id for update;
+
+  for v_movement in select * from public.stock_movements where workspace_id = p_workspace_id
+    and stock_removal_id = p_stock_removal_id order by stock_lot_id, id
+  loop
+    if v_movement.direction <> 'out' or v_movement.reason <> v_removal.reason or v_movement.sale_line_id is not null then
+      raise exception 'Die ursprünglichen Abgangsbewegungen sind nicht eindeutig.' using errcode = '22023';
+    end if;
+    select * into strict v_lot from public.stock_lots where workspace_id = p_workspace_id
+      and id = v_movement.stock_lot_id and catalog_product_id = v_removal.article_id;
+    select a into strict v_allocation from jsonb_array_elements(v_event.changes->'allocations') a
+      where a->>'stock_lot_id' = v_lot.id::text;
+    if (v_allocation->>'quantity')::integer is distinct from v_movement.quantity
+      or (v_allocation->>'cost')::numeric is distinct from v_movement.removed_cost
+      or jsonb_typeof(v_allocation->'unit_costs') is distinct from 'array'
+      or jsonb_array_length(v_allocation->'unit_costs') <> v_movement.quantity
+      or v_lot.remaining_quantity + v_movement.quantity > v_lot.received_quantity
+      or coalesce(cardinality(v_lot.remaining_unit_costs), 0) <> v_lot.remaining_quantity
+    then raise exception 'Die belegten Stückkosten oder Mengen müssen zuerst geprüft werden.' using errcode = '22023'; end if;
+    select array_agg(value::numeric order by ordinality) into v_costs
+      from jsonb_array_elements_text(v_allocation->'unit_costs') with ordinality;
+    if (select sum(cost) from unnest(v_costs) cost) is distinct from v_movement.removed_cost
+      or exists(select 1 from unnest(v_costs) cost where cost is null or cost < 0 or cost <> round(cost, 2) or cost::text in ('NaN','Infinity','-Infinity'))
+    then raise exception 'Die belegten Stückkosten sind unvollständig.' using errcode = '22023'; end if;
+    -- Spätere Einkaufskorrekturen oder unklare Teilretouren dürfen einen alten
+    -- Kostenbeleg nicht stillschweigend in einen inzwischen anderen Pool einfügen.
+    select coalesce(sum(a.quantity - state.restocked), 0)::integer,
+      coalesce(sum(coalesce(a.active_allocated_cost, case when state.restocked = a.quantity then 0
+        when state.restocked = 0 then a.allocated_cost else null end)), 0),
+      coalesce(bool_and(state.restocked between 0 and a.quantity and
+        (a.active_allocated_cost is not null or state.restocked in (0, a.quantity))), true)
+      into v_active_quantity, v_active_cost, v_active_cost_known
+      from public.sale_line_lot_allocations a left join lateral (
+        select coalesce(sum(case when m.direction = 'in' and m.reason = 'return' then m.quantity
+          when m.direction = 'out' and m.reason = 'damage' then -m.quantity else 0 end), 0)::integer restocked
+        from public.stock_movements m where m.workspace_id = a.workspace_id
+          and m.stock_lot_id = a.stock_lot_id and m.sale_line_id = a.sale_line_id
+      ) state on true where a.stock_lot_id = v_lot.id;
+    select coalesce(sum(case when direction = 'out' then quantity else -quantity end), 0)::integer,
+      coalesce(sum(case when direction = 'out' then removed_cost else -removed_cost end), 0)
+      into v_removed_quantity, v_removed_cost from public.stock_movements
+      where stock_lot_id = v_lot.id and stock_removal_id is not null;
+    if not v_active_cost_known or v_lot.unit_cost is null or v_lot.unit_cost::text in ('NaN','Infinity','-Infinity')
+      or v_lot.remaining_quantity + v_active_quantity + v_removed_quantity <> v_lot.received_quantity
+      or round(v_lot.unit_cost * v_lot.received_quantity, 2) is distinct from
+        (select coalesce(sum(cost), 0) from unnest(v_lot.remaining_unit_costs) cost) + v_active_cost + v_removed_cost
+    then raise exception 'Der aktuelle Mengen- und Kostenpool muss zuerst geprüft werden.' using errcode = '22023'; end if;
+    v_tax_costs := null;
+    if v_allocation->'tax_unit_costs' is distinct from 'null'::jsonb then
+      if jsonb_typeof(v_allocation->'tax_unit_costs') is distinct from 'array'
+        or jsonb_array_length(v_allocation->'tax_unit_costs') <> v_movement.quantity
+      then raise exception 'Die belegten Steuerkosten sind unvollständig.' using errcode = '22023'; end if;
+      select array_agg(value::numeric order by ordinality) into v_tax_costs
+        from jsonb_array_elements_text(v_allocation->'tax_unit_costs') with ordinality;
+      if exists(select 1 from unnest(v_tax_costs) cost where cost is null or cost < 0 or cost <> round(cost, 2) or cost::text in ('NaN','Infinity','-Infinity')) then
+        raise exception 'Die belegten Steuerkosten sind unvollständig.' using errcode = '22023';
+      end if;
+    end if;
+    update public.stock_lots set remaining_quantity = remaining_quantity + v_movement.quantity,
+      remaining_unit_costs = v_costs || coalesce(remaining_unit_costs, array[]::numeric[]),
+      remaining_tax_unit_costs = case when v_tax_costs is null
+        or (v_lot.remaining_quantity > 0 and cardinality(v_lot.remaining_tax_unit_costs) is distinct from v_lot.remaining_quantity)
+        then null else v_tax_costs || coalesce(remaining_tax_unit_costs, array[]::numeric[]) end
+      where id = v_lot.id;
+    insert into public.stock_movements(workspace_id,stock_lot_id,direction,quantity,reason,stock_removal_id,removed_cost)
+      values(p_workspace_id,v_lot.id,'in',v_movement.quantity,'correction',p_stock_removal_id,v_movement.removed_cost);
+    v_count := v_count + 1;
+    v_quantity := v_quantity + v_movement.quantity;
+  end loop;
+  if v_quantity <> v_removal.quantity or v_count <> jsonb_array_length(v_event.changes->'allocations') then
+    raise exception 'Die ursprüngliche Loszuordnung ist unvollständig.' using errcode = '22023';
+  end if;
+  insert into public.business_events(workspace_id,entity_type,entity_id,event_type,actor_id,reason,changes)
+    values(p_workspace_id,'catalog_product',v_removal.article_id,'stock_removal_reversed',v_actor,v_reason,
+      jsonb_build_object('stock_removal_id',p_stock_removal_id,'original_event_id',v_event.id,
+        'quantity',v_quantity,'allocations',v_event.changes->'allocations')) returning * into v_reversal;
+  return v_reversal.id;
+end;
+$$;
+alter function public.reverse_catalog_stock_removal(uuid,bigint,text) owner to postgres;
+revoke all on function public.reverse_catalog_stock_removal(uuid,bigint,text) from public,anon,authenticated,service_role;
+grant execute on function public.reverse_catalog_stock_removal(uuid,bigint,text) to authenticated;
