@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-24 - Juna - Gegenbuchung und eBay-Reservierung vorbereiten
+
+Auf ausdrücklichen Auftrag einen begründeten Rücknahmeweg für losbasierte
+Bestandsabgänge ergänzt. Eine neue unveränderliche Eingangsbewegung verweist auf
+den ursprünglichen Abgang; ein eigenes Geschäftsereignis hält Akteur, Erklärung,
+Ursprungsereignis und genaue Kostenfolge fest. Die originale Verlustbuchung wird
+weder geändert noch gelöscht. Mengen- und Kostenabgleiche in Verkauf und erneutem
+Abgang rechnen Aus- und Gegenbewegung mit Vorzeichen. Rücknahme prüft Berechtigung,
+aktiven Workspace, vollständigen Ursprungsbeleg und aktuellen Mengen-/Kostenpool;
+Sperren und ein eindeutiger Index verhindern eine doppelte Rückführung.
+
+Regression zuerst rot: Rücknahmefunktion fehlt, elf von 16 fachlichen Prüfungen
+scheitern. Danach Gegenbuchung, genaue 13-Euro-Kosten, unveränderte Verkäufe,
+Folgeverkauf, Restcent, weitere Abgänge, fehlender Beleg und normale eBay-Reservierung
+abgesichert. Unabhängiger SQL-Review fand eine vom Generator ausgelassene
+rollenbezogene Rechteentziehung. Der neue Dienstrechte-Test scheitert zuerst am
+frischen Replay; die Migration übernimmt anschließend den ausdrücklichen Entzug
+aus der deklarativen Quelle und gewährt nur angemeldeten Benutzern den Aufruf.
+Neuer kompletter Aufbau aus allen Migrationen und Seed: 131 SQL-Dateien mit
+4.956 Assertions erfolgreich, einschließlich 44 neuer fachlicher Prüfungen.
+Realer Zweitsitzungstest: zweite Rücknahme wartet auf die erste und erhält danach
+denselben Beleg; eine Menge, eine Gegenbewegung und ein Geschäftsereignis.
+
+Migration mit CLI aus dem deklarativen Schema erzeugt, vorhandene fachfremde
+Schemaabweichungen ausgeschlossen und alle drei Funktionskörper gegen ihre
+Quellen geprüft. Generierte Typen enthalten zusätzlich ausschließlich den neuen
+RPC. Produktionsbau erfolgreich; bestehende Bauwarnungen bleiben bestehen.
+59 Auswahl-/Registrierungs-/Migrationsvertragsprüfungen erfolgreich, eine optionale
+Release-Integrationsprüfung erwartungsgemäß übersprungen; der vollständige echte
+SQL-Replay ist oben belegt. Die breitere Anwendungsauswahl einschließlich aller
+Browsergruppen bleibt vor dem Merge Aufgabe der unveränderten Pflichtprüfungen;
+keine neue oder geänderte Oberfläche. Die bestehende PR-/Merge-Freigabe für den
+eBay-Auftrag gilt fort. Gegenbuchung und Reservierung werden erst nach erfolgreicher
+Veröffentlichung gemeinsam in einer gesondert abgesicherten Transaktion ausgeführt.
+Keine endgültige Verkaufsbuchung vorgesehen; tatsächliche Versandkosten bleiben offen.
+
+## 2026-10-24 - Juna - Ursprung der bestrittenen Burberry-Verlustausbuchung untersuchen
+
+Die zuvor als Ursache vermutete Plattformzuordnung korrigiert: Drei tatsächliche
+Vinted-Verkäufe und die separate eBay-Bestellung 7587 sind unterschiedliche
+Vorgänge. Auf ausdrücklichen Auftrag wurde zuvor ein noch nicht gebuchter
+eBay-Entwurf mit dem Burberry-Katalogartikel gespeichert; die Menge null lässt
+keine Reservierung zu. Die nun beauftragte Herkunftsuntersuchung bleibt in
+Produktion vollständig lesend. Datenbankbeleg, Geschäftsereignis und erhaltenes
+Zugriffsprotokoll bestätigen einen erfolgreichen Chrome-Aufruf der Aktion
+„Aus Bestand entfernen“ am 23.10.2026 um 13:02:46 Uhr Berliner Zeit: ein Stück,
+Grund Verlust, keine Notiz, Stückkosten 13 Euro. Keine automatische
+eBay-/Vinted-Verkaufsbuchung und kein bloßer Anzeigefehler. Der gespeicherte
+Benutzer beweist nicht, wer den Browser bedient hat. In den verfügbaren lokalen
+Prüfprotokollen keinen zugehörigen Assistentenaufruf gefunden; die menschliche
+oder technische Ursache des auslösenden Klicks bleibt unbelegt. Dialogstandard,
+Tastaturbehandlung, getrennte Aufrufwege und Schutztrigger gelesen. Bericht
+`docs/audit/2026-10-24-burberry-stock-removal.md` trennt diese Nachweise von
+offenen Fragen und beschreibt die nötige Gegenbuchung mit unverändertem
+Originalbeleg. Kein Bestand, Verkauf, Entwurf, Schema oder Recht geändert;
+die Bestandsblockade ist noch offen. Nur Dokumentation in eigener Arbeitskopie;
+kein Anwendungsbau oder Testlauf für unveränderte Produktlogik behauptet.
+
 ## 2026-10-23 - Juna - Bestellung 7587 und fehlende Burberry-Zuordnung prüfen
 
 Die echte eBay-Antwort für Bestellung 7587 bestätigt Zahlung, Versand und eine

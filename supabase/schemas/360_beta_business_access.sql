@@ -1758,7 +1758,7 @@ begin
 
         if v_invalid_restocked_quantity_count <> 0
           or v_stock_lot.remaining_quantity + v_previously_active_quantity
-            + coalesce((select sum(m.quantity) from public.stock_movements m
+            + coalesce((select sum(case when m.direction = 'out' then m.quantity else -m.quantity end) from public.stock_movements m
               where m.stock_lot_id = v_stock_lot.id and m.stock_removal_id is not null), 0)
             <> v_stock_lot.received_quantity then
           raise exception using
@@ -1782,7 +1782,7 @@ begin
         );
         -- Gebuchte Abgänge tragen ihre Kosten selbst; sie gehören nicht zum nächsten Verkauf.
         v_remaining_lot_cost := v_lot_total_cost - v_previously_allocated_cost
-          - coalesce((select sum(m.removed_cost) from public.stock_movements m
+          - coalesce((select sum(case when m.direction = 'out' then m.removed_cost else -m.removed_cost end) from public.stock_movements m
             where m.stock_lot_id = v_stock_lot.id and m.stock_removal_id is not null), 0);
 
         if v_remaining_lot_cost < 0

@@ -12626,6 +12626,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reverse_catalog_stock_removal: {
+        Args: {
+          p_reason: string
+          p_stock_removal_id: number
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       sale_platform_list_valid: {
         Args: { p_platforms: Json }
         Returns: boolean
