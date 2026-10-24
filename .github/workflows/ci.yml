@@ -469,7 +469,7 @@ jobs:
 
       - name: Upload browser failure artifacts
         if: ${{ failure() || cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-smoke-failure-${{ matrix.project }}-${{ strategy.job-index }}
           path: |
@@ -506,7 +506,7 @@ jobs:
         run: npm run test:e2e:pwa
       - name: Retain PWA failure diagnostics
         if: ${{ failure() || cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: production-pwa-failure
           path: |
@@ -770,7 +770,7 @@ jobs:
       - name: Record successful PR checks
         # Ein reiner Formatcheck belegt keine technischen Qualitätsprüfungen.
         if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.documentation_only != 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.changes.outputs.receipt_name }}
           path: package.json
