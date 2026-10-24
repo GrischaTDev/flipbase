@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-24 - Juna - Bestandsverluste ausdrücklich bestätigen
+
+Auf ausdrücklichen Auftrag die unmittelbare Formularbuchung im Bestandsabgang
+entfernt: Enter im Mengenfeld übermittelt keine Ausbuchung mehr. Nur der sichtbare
+Aktionsbutton startet den Vorgang. Für Verlust öffnet er zunächst den vorhandenen
+Bestätigungsdialog mit Artikel, Menge, Grund und bekanntem Restbestand. Erst
+„Verlust buchen“ ruft den Bestandsdienst auf. Abbrechen und Escape erhalten die
+Eingaben; ein offener Dialog blockiert doppelte Anfragen. Ein Artikel-/Eingabewechsel
+oder das Verlassen der Ansicht verhindert eine veraltete Bestätigung. Beim Zerstören
+wird nur die eigene globale Rückfrage geschlossen. Schaden und Bestandskorrektur
+bleiben nach ausdrücklichem Buttonklick ohne zusätzlichen Prüfschritt möglich.
+
+Sechs neue Methodenfälle zuerst rot nachgewiesen, danach Dialog-/Dienstfälle grün.
+Unabhängiger Review fand die fehlenden vier Einträge in der verbindlichen
+Browser-Soll-Liste; ergänzt und 49 Auswahl-/Registrierungsprüfungen erfolgreich.
+Die ergänzte echte Browserprüfung wies zusätzlich verlorenen Rückfokus nach Abbruch
+nach. Während der Rückfrage bleibt der Auslöser deshalb fokussierbar; Deaktivierung
+beginnt erst nach Zustimmung, doppelte Aufrufe sperrt bereits die offene Rückfrage.
+Vier neue Browserfälle gegen eine eigene frische lokale Supabase erfolgreich:
+1440px hell/Maus, 834px dunkel/Touch, 390px hell/Touch und 320px dunkel/Touch,
+verteilt auf Bestandsübersicht und Variantendetail. Sie prüfen Enter ohne Aufruf,
+Abbruch/Escape samt Rückfokus, erhaltene Eingaben, AXE, die echte einzelne
+Verlustbuchung und keinen Verkauf. 60 betroffene Angularfälle erfolgreich.
+Die fünf betroffenen Browserdateien enthalten insgesamt 37 Fälle: zunächst 33
+erfolgreich; ein bestehender Bildfall zeigte fehlende Dienste der eigenen lokalen
+Testinstanz. Diese ergänzt, den Fehler gezielt erfolgreich geprüft und die beiden
+betroffenen Restdateien vollständig erfolgreich abgeschlossen (acht Fälle).
+Typprüfung, ESLint, Formatierung, Suite-Audit und abschließender Produktionsbau
+erfolgreich. Unabhängiger Nachreview des Fokusfixes ohne weitere wichtige Befunde.
+Die angepasste verbindliche Testregistrierung wählt in CI weiterhin umfassende
+Pflichtprüfungen. Nutzer hat PR und Merge nach deren Erfolg ausdrücklich freigegeben.
+Keine Produktivbuchung und keine Änderung der Burberry-Reservierung.
+
+## 2026-10-24 - Juna - Verlustherkunft vertiefen und Tastaturlücke nachweisen
+
+Auf erneuten Auftrag ausschließlich lesend die produktiven Belege, das enge
+Serverprotokollfenster und die damaligen lokalen Prüfverläufe abgeglichen.
+Zwölf Archivierungen umgeben den einzelnen Burberry-Verlustaufruf; der eigene
+Aniston-Verkauf liegt bereits rund vierzehn Minuten davor. Kein Beweis für die
+Person am Browser oder den damaligen konkreten Klick gefunden. In einer isolierten
+Angular-Vorschau den unveränderten echten Ausbuchungsdialog mit lokalem Ersatzdienst
+und gesperrten Serververbindungen geprüft: Nach Auswahl von Verlust löst Enter
+im Mengenfeld ohne sichtbaren Buchungsbutton einen Aufruf mit Menge eins und leerer
+Notiz aus. Enter in der Grundauswahl bucht dagegen nicht; Verlust ist kein Standard.
+Dieser reproduzierte Schwachpunkt wird ausdrücklich nicht als bewiesene historische
+Ursache ausgegeben. Vorschau gebaut; zehn bestehende Methoden-/Diensttests erfolgreich.
+Geschäftsdaten, Verkauf, Reservierung, Rechte und Anwendungscode unverändert.
+Die aktive Reservierungssperre und der ungebuchte eBay-Entwurf erneut lesend bestätigt.
+Bericht `docs/audit/2026-10-24-stock-removal-origin-followup.md` enthält Nachweise,
+Grenzen und einen noch nicht umgesetzten Vorschlag für bewusste Bestätigung,
+Pflichtbegründung und begrenzte Herkunftsprotokollierung.
+
+Nachtrag zur Nutzerrückmeldung: Der Nutzer bestätigt, damals selbst Artikel
+archiviert zu haben. Die Serie ist damit seiner Aufräumaktion zugeordnet;
+ein bewusster Verlustauftrag oder der konkrete auslösende Tastendruck sind
+dadurch weiterhin nicht belegt. Nur Untersuchungsbericht und dieser Nachtrag
+ergänzt, keine neue Produkt- oder Datenänderung.
+
 ## 2026-10-24 - Juna - Gegenbuchung und eBay-Reservierung vorbereiten
 
 Auf ausdrücklichen Auftrag einen begründeten Rücknahmeweg für losbasierte
