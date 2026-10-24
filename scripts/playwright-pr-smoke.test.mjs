@@ -171,6 +171,10 @@ const coreTests = [
     'article-stock-removal.spec.ts',
     'entfernt beschädigte Ware und behält den ursprünglichen Einkauf @core-smoke',
   ],
+  ...['1440px light', '834px dark', '390px light', '320px dark'].map((scenario) => [
+    'article-stock-removal.spec.ts',
+    `Verlustbestätigung ${scenario} > bucht erst nach Bestätigung und niemals durch Enter im Mengenfeld @core-smoke`,
+  ]),
   [
     'article-stock-removal.spec.ts',
     'archiviert Varianten einzeln und löscht einen unbenutzten Stammartikel ohne seine Geschwister @core-smoke',

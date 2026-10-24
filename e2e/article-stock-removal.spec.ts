@@ -4,6 +4,176 @@ import { createFinalizedPurchase, recordSale } from './support/sample-data';
 
 test.use({ hasTouch: true });
 
+for (const scenario of [
+  { width: 1440, theme: 'light', touch: false, entry: 'catalog' },
+  { width: 834, theme: 'dark', touch: true, entry: 'variant' },
+  { width: 390, theme: 'light', touch: true, entry: 'catalog' },
+  { width: 320, theme: 'dark', touch: true, entry: 'variant' },
+] as const) {
+  test.describe(`Verlustbestätigung ${scenario.width}px ${scenario.theme}`, () => {
+    test.use({ hasTouch: scenario.touch });
+    test('bucht erst nach Bestätigung und niemals durch Enter im Mengenfeld @core-smoke', async ({
+      page,
+      workspace,
+    }, testInfo) => {
+      await page.setViewportSize({ width: scenario.width, height: 1000 });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript(
+        (theme) => localStorage.setItem('flipbase_theme', theme),
+        scenario.theme,
+      );
+      const title = 'Verlustprüfung Schal';
+      const { data: product, error: productError } = await workspace.client
+        .from('catalog_products')
+        .insert({
+          workspace_id: workspace.id,
+          title,
+          tracking_mode: 'quantity',
+          size: 'OneSize',
+          color: 'Weinrot',
+        })
+        .select('id')
+        .single();
+      if (productError || !product) throw new Error(productError?.message ?? 'Artikel fehlt');
+      const { data: purchase, error: purchaseError } = await workspace.client.rpc(
+        'create_purchase',
+        {
+          p_workspace_id: workspace.id,
+          p_purchase: {
+            type: 'lot',
+            title: 'Schaleinkauf',
+            purchase_date: '2026-10-01',
+            purchase_price: 26,
+            discount_amount: 0,
+            content_status: 'known',
+            pricing_mode: 'individual',
+            shipment_status: 'arrived',
+            cost_allocation_mode: 'even',
+          },
+          p_expenses: [],
+          p_lines: [
+            {
+              client_ref: 'scarves',
+              catalog_product_id: product.id,
+              title_snapshot: title,
+              line_kind: 'quantity',
+              ordered_quantity: 2,
+              price_mode: 'priced',
+              unit_purchase_price: 13,
+              line_total: 26,
+            },
+          ],
+        },
+      );
+      if (purchaseError || !purchase) throw new Error(purchaseError?.message ?? 'Einkauf fehlt');
+      const { error: finalizeError } = await workspace.client.rpc('finalize_purchase_costing', {
+        p_workspace_id: workspace.id,
+        p_purchase_id: purchase.purchase.id,
+      });
+      expect(finalizeError).toBeNull();
+      const requests: string[] = [];
+      const errors: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().includes('/rest/v1/rpc/remove_article_stock'))
+          requests.push(request.url());
+      });
+      page.on('pageerror', (error) => errors.push(error.message));
+      await openDashboard(page);
+      if (scenario.entry === 'catalog') {
+        await page.goto('/catalog');
+        await page.getByRole('button', { name: `Aktionen für ${title}`, exact: true }).click();
+        await page
+          .getByRole('button', { name: `Aus Bestand entfernen: ${title}`, exact: true })
+          .filter({ visible: true })
+          .click();
+      } else {
+        await page.goto(`/catalog/${product.id}`);
+        await page
+          .getByRole('button', { name: `Aus Bestand entfernen: ${title} OneSize`, exact: true })
+          .click();
+      }
+      const dialog = page.getByRole('dialog', { name: 'Aus Bestand entfernen', exact: true });
+      const quantity = dialog.getByRole('spinbutton', { name: 'Stückzahl entfernen' });
+      await quantity.press('Enter');
+      await expect(quantity).toHaveValue('1');
+      await dialog.getByRole('combobox', { name: 'Grund für den Bestandsabgang' }).click();
+      await page.getByRole('option', { name: 'Verloren / fehlt im Lager', exact: true }).click();
+      await dialog
+        .getByRole('textbox', { name: 'Notiz (optional)' })
+        .fill('Fehlt nach Lagerprüfung');
+      await quantity.press('Enter');
+      await expect(quantity).toHaveValue('1');
+      const submit = dialog.getByRole('button', { name: 'Aus Bestand entfernen', exact: true });
+      await submit.click();
+      const confirmation = page.getByRole('dialog', {
+        name: 'Bestandsverlust bestätigen',
+        exact: true,
+      });
+      await expect(confirmation).toBeVisible();
+      await expect(confirmation).toContainText(title);
+      await expect(confirmation).toContainText('1 Stück');
+      await expect(confirmation).toContainText('Verloren / fehlt im Lager');
+      await expect(confirmation).toContainText('von 2 auf 1 Stück');
+      await expect(
+        confirmation.getByRole('button', { name: 'Abbrechen', exact: true }),
+      ).toBeFocused();
+      expect(requests).toHaveLength(0);
+      await page.addScriptTag({ content: axe.source });
+      expect(
+        await confirmation.evaluate(
+          async (element) =>
+            (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
+        ),
+      ).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`loss-confirmation-${scenario.width}-${scenario.theme}.png`),
+      });
+      await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).press('Enter');
+      await expect(confirmation).toBeHidden();
+      await expect(quantity).toBeEnabled();
+      await expect(submit).toBeFocused();
+      await expect(dialog.getByRole('textbox', { name: 'Notiz (optional)' })).toHaveValue(
+        'Fehlt nach Lagerprüfung',
+      );
+      expect(requests).toHaveLength(0);
+      await submit.click();
+      await expect(confirmation).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(confirmation).toBeHidden();
+      await expect(dialog).toBeVisible();
+      await expect(submit).toBeFocused();
+      expect(requests).toHaveLength(0);
+      await submit.click();
+      await confirmation
+        .getByRole('button', { name: 'Verlust buchen', exact: true })
+        .press('Enter');
+      await expect(dialog.getByRole('status')).toContainText('1 Stück aus dem Bestand entfernt');
+      expect(requests).toHaveLength(1);
+      const { data: removals, error: removalError } = await workspace.client
+        .from('stock_removals')
+        .select('quantity,reason,notes')
+        .eq('workspace_id', workspace.id)
+        .eq('article_id', product.id);
+      expect(removalError).toBeNull();
+      expect(removals).toEqual([{ quantity: 1, reason: 'loss', notes: 'Fehlt nach Lagerprüfung' }]);
+      const { data: lots, error: lotError } = await workspace.client
+        .from('stock_lots')
+        .select('remaining_quantity')
+        .eq('workspace_id', workspace.id)
+        .eq('catalog_product_id', product.id);
+      expect(lotError).toBeNull();
+      expect(lots).toEqual([{ remaining_quantity: 1 }]);
+      const { count: salesCount, error: salesError } = await workspace.client
+        .from('sales')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspace.id);
+      expect(salesError).toBeNull();
+      expect(salesCount).toBe(0);
+      expect(errors).toEqual([]);
+    });
+  });
+}
+
 test('entfernt beschädigte Ware und behält den ursprünglichen Einkauf @core-smoke', async ({
   page,
   workspace,

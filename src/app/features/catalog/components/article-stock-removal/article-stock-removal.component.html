@@ -29,7 +29,7 @@
         Die ausgewählte Menge wird aus dem Lager ausgebucht. Dein Einkauf bleibt nachvollziehbar; es
         entsteht kein Verkauf.
       </p>
-      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3">
+      <form [formGroup]="form" class="space-y-3">
         <div>
           <label
             for="stock-removal-quantity"
@@ -68,7 +68,6 @@
             [multiline]="2"
           />
         </div>
-        <button type="submit" class="sr-only" tabindex="-1">Bestandsabgang buchen</button>
       </form>
     }
   </div>
