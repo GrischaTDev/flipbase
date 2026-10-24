@@ -1,5 +1,75 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-24 - Juna - App-Aktualisierungen je Fenster unabhängig machen
+
+**Auftrag:** Wiederkehrende Updateblockaden und wechselnde Ladeansichten untersuchen,
+bewährte Verfahren recherchieren und den anschließend freigegebenen neuen Ablauf
+mit gründlichen Prüfungen umsetzen.
+
+**Umsetzung:** Eigene Zustimmung statt globaler Freigabe aller Fenster. Andere
+aktive oder eingefrorene Dokumente behalten Eingaben und ihren bisherigen Dateistand;
+geöffnete beziehungsweise geschlossene Fremdfenster brechen den Wechsel nicht mehr ab.
+Gemeinsame Startfreigabe verhindert die kurz freigegebene alte Seite; vorbereitete
+Updates werden beim frischen Start innerhalb derselben Ansicht übernommen und nach
+bestätigtem Zielbau höchstens einmal automatisch neu geladen. Rückkehrprüfungen
+öffnen keine weitere Ladefläche. Eigene Angular-/Routen-/native Eingaben, Kindentwürfe
+und laufendes Speichern bleiben geschützt; Workerabbrüche lösen alle Sperren wieder.
+Prüfsummengesicherte öffentliche Release-Dateien bleiben versionsbezogen reparierbar,
+einschließlich verlorenem Inventar des noch aktiven alten Workers. Serverarchiv,
+Aufbewahrung, lesender Mount und historischer Rückfall vorbereitet. Untersuchung,
+Umsetzungsplan und aktualisierte Geräte-/Releaseanleitung dokumentieren Vertrag und
+verbleibende Geräteabnahme.
+
+**Geprüft:** Vollständiger Anwendungslauf: 2.708 Node-, 354 DOM- und 2.837
+Angular-Tests erfolgreich; anschließend gezielte Update-Suite mit 46 Fällen
+erfolgreich. 44 PWA-Skriptfälle, Lint, Typprüfung, Suite-Audit und Prüfregistrierung
+erfolgreich. Unter Windows und unter Linux mit Node 22.23.4, Playwright 1.62.1 und
+begrenzten Ressourcen jeweils 40 Produktions-PWA-Fälle erfolgreich; jeweils ein
+vorgesehenes Desktop-Duplikat ausgelassen,
+echter eingefrorener Touch-Kontext erfolgreich. Drei echte Produktionsbauten prüfen
+unverändertes Vorgängerprotokoll, übersprungene Version, Rückwechsel und automatische
+Startübernahme ohne alte Seitenfreigabe. Helle/dunkle Updateansicht, Fokus, AXE,
+Touch, Offlinepuffer, Kontotrennung und unveränderte Wiederholung eingeschlossen.
+Linux-Digestfixture prüft Archiv-/historischen Rückfall und unverändert blockierende
+SQL-Fehler; echtes Nginx liefert alte Bytes und echte 404 mit Produktionsheadern.
+Unabhängiger abschließender Review ohne offene wesentliche Befunde, einschließlich
+28 nochmals eigenständig ausgeführter Worker-, Start- und Archivprüfungen.
+Aktuellen Hauptzweig `46a51a66` übernommen; nur die parallelen Changelog-Einträge
+mussten zusammengeführt werden. Danach 46 Update-, zwölf Bestands- und 102
+Auswahl-/Workflowprüfungen sowie vollständige Formatprüfung erneut erfolgreich.
+Auch Lint, Typprüfung, 44 PWA-Skripte und die komplette Linux-Produktions-PWA-Matrix
+mit drei frischen Bauten und 40 erfolgreichen Fällen auf diesem Stand erneut grün.
+
+**Stand und Grenzen:** Noch kein Push, PR, Merge oder Produktionswechsel. Vor dem
+ersten Release ist die dokumentierte einmalige Übernahme des Deploy-Skripts und
+Archivierers mit Betreiberzugang erforderlich. Echte iPhone-/iPad-Home-App-Abnahme
+bleibt offen; WebKit ist kein Gerätenachweis. Fremde Änderungen in der primären
+Arbeitskopie bleiben erhalten; Umsetzung im eigenen Zweig/Worktree.
+
+**Freigegebener Releaseabschluss:** Nutzer hat PR, Merge nach erfolgreichen
+Pflichtprüfungen und die nötige Servervorbereitung ausdrücklich beauftragt.
+Mit Betreiberzugang Serverstand gegen den aktuellen Hauptzweig abgeglichen:
+keine zusätzlichen Serveränderungen im Deploy-Skript. Bestehende Fassung unter
+`/opt/flipbase/update-bootstrap-20261024-c3362e2d/` gesichert; geprüfte Skripte
+aus `c3362e2d` nach Syntax-/Prüfsummenprüfung unter gemeinsamer Deploysperre
+mit `root:root` und `0700` übernommen. Python 3.14.4 vorhanden. Alle 278 Dateien
+des bisherigen Baus `b7600e1050b1` bereits geprüft archiviert; der laufende gesunde
+Container blieb dabei unverändert. Der Archiv-Mount und die öffentliche
+Dateiauslieferung werden nach dem regulären Release gesondert bestätigt.
+
+**CI-Nachprüfung:** Der erste PR-Lauf fand zwei Lücken der Testvorbereitung:
+Nginx konnte das mit `mkdtemp` angelegte Linux-Verzeichnis mit `0700` nicht lesen;
+die vorhandene gemeinsame App-/Push-Fixture stellte den neuen Archivierer noch
+nicht bereit. Öffentliches Fixtureverzeichnis wie im echten Archiv zugänglich
+gemacht, HTTP im echten Nginx-Container ohne Hostport geprüft und die gemeinsame
+Fixture um gültige App-Dateien sowie den echten Python-Archivierer ergänzt.
+Byte-, Header-, 404-, Reihenfolge- und Fehlerprüfungen bleiben erhalten. Danach
+106 Auslieferungs-/Auswahlfälle unter Linux ohne Auslassung erfolgreich, elf
+Auslieferungsfälle unter Windows erfolgreich (vier POSIX-Fälle dort vorgesehen
+ausgelassen); geänderte Datei formatiert und gelintet. Unabhängiger Nachreview
+ohne wesentliche Befunde. Die Anwendung und die installierten Serverskripte
+wurden durch diese Testkorrektur nicht verändert.
+
 ## 2026-10-24 - Juna - Bestandsverluste ausdrücklich bestätigen
 
 Auf ausdrücklichen Auftrag die unmittelbare Formularbuchung im Bestandsabgang

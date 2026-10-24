@@ -30,6 +30,7 @@ const CHANGE_PREVIEW_LIMIT = 12;
   imports: [ButtonComponent, TextFieldComponent],
   templateUrl: './record-timeline.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[attr.data-update-unsaved]': "draft().length > 0 || posting() ? 'true' : null" },
 })
 export class RecordTimelineComponent {
   readonly entityType = input.required<RecordTimelineEntityType>();

@@ -62,6 +62,44 @@ async function pinSleepingView(worker, view) {
   return cache;
 }
 
+test('an active dirty foreign view keeps its build without being asked to stop editing', async () => {
+  const requester = client('requester');
+  const other = client('other', 'blocked');
+  const worker = createWorker({ clients: [requester, other] });
+  requester.worker = other.worker = worker;
+  await worker.dispatch('install');
+  await pinSleepingView(worker, other);
+  await worker.dispatch('message', {
+    source: requester,
+    data: { type: 'ACTIVATE_UPDATE', attemptId: 'independent', buildId: worker.inventory.buildId },
+  });
+  assert.equal(worker.skipCount, 1);
+  assert.equal(
+    other.messages.some((message) => message.type === 'PWA_PREPARE_UPDATE'),
+    false,
+  );
+  assert.equal(
+    await (await worker.request('/chunk-PREVIOUS.js', other.id)).text(),
+    'previous-lazy-chunk',
+  );
+});
+
+test('opening and closing unrelated views does not cancel the requesting document update', async () => {
+  const requester = client('requester', 'new-client');
+  const worker = createWorker({ clients: [requester] });
+  requester.worker = worker;
+  await worker.dispatch('install');
+  await worker.dispatch('message', {
+    source: requester,
+    data: {
+      type: 'ACTIVATE_UPDATE',
+      attemptId: 'changing-windows',
+      buildId: worker.inventory.buildId,
+    },
+  });
+  assert.equal(worker.skipCount, 1);
+});
+
 test('a pinned sleeping view keeps its old chunks while the requesting view can update', async () => {
   const requester = client('requester');
   const sleeping = {
@@ -90,32 +128,24 @@ test('a pinned sleeping view keeps its old chunks while the requesting view can 
   );
 });
 
-for (const damage of ['unbound', 'missing-chunk', 'corrupt-chunk', 'changed-binding']) {
-  test(`a sleeping view blocks activation when its preserved build is ${damage}`, async () => {
+for (const damage of ['unbound', 'missing-chunk', 'corrupt-chunk']) {
+  test(`a foreign ${damage} cache never blocks another tab or serves mismatched bytes`, async () => {
     const requester = client('requester');
-    const sleeping = {
-      id: 'sleeping',
-      postMessage(message) {
-        if (damage === 'changed-binding' && message.type === 'PWA_COMMIT_UPDATE')
-          worker.storage
-            .get('flipbase-pwa-clients')
-            .set('https://app.flipbase.test/__pwa_clients/sleeping', new Response('c'.repeat(64)));
-      },
-    };
+    const sleeping = { id: 'sleeping', postMessage() {} };
     const worker = createWorker({ clients: [requester, sleeping] });
     requester.worker = worker;
     await worker.dispatch('install');
     if (damage !== 'unbound') {
       const cache = await pinSleepingView(worker, sleeping);
       if (damage === 'missing-chunk') await cache.delete('/chunk-PREVIOUS.js');
-      if (damage === 'corrupt-chunk')
-        await cache.put('/chunk-PREVIOUS.js', new Response('wrong-chunk'));
+      else await cache.put('/chunk-PREVIOUS.js', new Response('wrong bytes'));
     }
     await worker.dispatch('message', {
       source: requester,
       data: { type: 'ACTIVATE_UPDATE', attemptId: damage, buildId: worker.inventory.buildId },
     });
-    assert.equal(worker.skipCount, 0);
+    assert.equal(worker.skipCount, 1);
+    assert.equal((await worker.request('/chunk-PREVIOUS.js', sleeping.id)).status, 503);
   });
 }
 
@@ -131,21 +161,6 @@ test('a sleeping requester never gets implicit permission even with a preserved 
       attemptId: 'missing-requester-consent',
       buildId: worker.inventory.buildId,
     },
-  });
-  assert.equal(worker.skipCount, 0);
-});
-
-test('a responsive dirty view still blocks activation even when its old build is cached', async () => {
-  const requester = client('requester');
-  const dirty = client('dirty-view', 'blocked');
-  const worker = createWorker({ clients: [requester, dirty] });
-  requester.worker = worker;
-  dirty.worker = worker;
-  await worker.dispatch('install');
-  await pinSleepingView(worker, dirty);
-  await worker.dispatch('message', {
-    source: requester,
-    data: { type: 'ACTIVATE_UPDATE', attemptId: 'dirty-view', buildId: worker.inventory.buildId },
   });
   assert.equal(worker.skipCount, 0);
 });
@@ -168,46 +183,7 @@ test('the requesting view must confirm commit even when another view is preserve
   assert.equal(worker.skipCount, 0);
 });
 
-test('a revoke during sleeping-view cache verification still blocks activation', async () => {
-  const requester = client('requester');
-  const sleeping = { id: 'sleeping', postMessage() {} };
-  const worker = createWorker({ clients: [requester, sleeping] });
-  requester.worker = worker;
-  await worker.dispatch('install');
-  await pinSleepingView(worker, sleeping);
-  const open = worker.caches.open.bind(worker.caches);
-  worker.caches.open = async (name) => {
-    const cache = await open(name);
-    return name === `flipbase-app-${'b'.repeat(64)}`
-      ? {
-          ...cache,
-          async match(request) {
-            if (request === '/chunk-PREVIOUS.js')
-              await worker.dispatch('message', {
-                source: requester,
-                data: {
-                  type: 'PWA_UPDATE_REVOKE',
-                  attemptId: 'revoke-during-verification',
-                  buildId: worker.inventory.buildId,
-                },
-              });
-            return cache.match(request);
-          },
-        }
-      : cache;
-  };
-  await worker.dispatch('message', {
-    source: requester,
-    data: {
-      type: 'ACTIVATE_UPDATE',
-      attemptId: 'revoke-during-verification',
-      buildId: worker.inventory.buildId,
-    },
-  });
-  assert.equal(worker.skipCount, 0);
-});
-
-for (const behavior of ['blocked', 'revoke', 'stale', 'new-client']) {
+for (const behavior of ['blocked', 'revoke', 'stale']) {
   test(`update is blocked for ${behavior} client state`, async () => {
     const view = client('one', behavior);
     const worker = createWorker({ clients: [view] });
@@ -225,7 +201,7 @@ for (const behavior of ['blocked', 'revoke', 'stale', 'new-client']) {
     );
   });
 }
-test('all clients must confirm the same attempt twice before activation; old ACKs after restart are ignored', async () => {
+test('only the requester confirms twice; old ACKs after worker restart are ignored', async () => {
   const first = client('one');
   const second = client('two');
   const worker = createWorker({ clients: [first, second] });
@@ -237,7 +213,10 @@ test('all clients must confirm the same attempt twice before activation; old ACK
     data: { type: 'ACTIVATE_UPDATE', attemptId: 'try-one', buildId: worker.inventory.buildId },
   });
   assert.equal(worker.skipCount, 1);
-  assert.ok(second.messages.some((message) => message.type === 'PWA_COMMIT_UPDATE'));
+  assert.equal(
+    second.messages.some((message) => message.type === 'PWA_COMMIT_UPDATE'),
+    false,
+  );
   const restarted = createWorker({ clients: [first] });
   await restarted.dispatch('message', {
     source: first,
@@ -284,7 +263,7 @@ test('a revoked update keeps every existing view bound to its acknowledged build
     'b'.repeat(64),
   );
 });
-test('a new view arriving during durable bindings blocks activation', async () => {
+test('a view arriving during durable binding does not block activation or receive new assets without identity', async () => {
   const view = client('one');
   const worker = createWorker({ clients: [view] });
   view.worker = worker;
@@ -306,7 +285,8 @@ test('a new view arriving during durable bindings blocks activation', async () =
     source: view,
     data: { type: 'ACTIVATE_UPDATE', attemptId: 'try-new', buildId: worker.inventory.buildId },
   });
-  assert.equal(worker.skipCount, 0);
+  assert.equal(worker.skipCount, 1);
+  assert.equal((await worker.request('/chunk-A1.js', 'new-during-commit')).status, 503);
 });
 
 test('reports the baked release version with waiting and active build identity', async () => {

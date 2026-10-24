@@ -2,6 +2,109 @@ import { devices, expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { launchPwaLifecycleBrowser } from './support/pwa-lifecycle-browser';
 
+test('a real second build takes over at startup without exposing the old working page @worker', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/auth/login');
+  await expect(page.locator('#app-startup')).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
+  const oldBuild = await page.locator('html').getAttribute('data-flipbase-build');
+  await page.request.post('/api/__pwa_test__/build?name=b');
+  try {
+    await page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.update());
+    await expect(page.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
+    const reopened = await context.newPage();
+    await reopened.addInitScript((oldBuild) => {
+      sessionStorage.setItem(
+        'pwa_test_starts',
+        String(Number(sessionStorage.getItem('pwa_test_starts') ?? 0) + 1),
+      );
+      let sawStartup = false;
+      new MutationObserver(() => {
+        if (document.getElementById('app-startup')) sawStartup = true;
+        else if (sawStartup && document.documentElement.dataset['flipbaseBuild'] === oldBuild)
+          sessionStorage.setItem('pwa_test_old_page_exposed', 'true');
+      }).observe(document, { childList: true, subtree: true });
+    }, oldBuild);
+    await reopened.goto('/auth/login');
+    await expect(reopened.locator('html')).not.toHaveAttribute(
+      'data-flipbase-build',
+      oldBuild ?? '',
+    );
+    await expect(reopened.locator('#app-startup')).toHaveCount(0);
+    await expect(reopened.locator('app-login form')).toBeVisible();
+    expect(
+      await reopened.evaluate(() => sessionStorage.getItem('pwa_test_old_page_exposed')),
+    ).toBeNull();
+    expect(await reopened.evaluate(() => sessionStorage.getItem('pwa_test_starts'))).toBe('2');
+    await reopened.screenshot({ path: test.info().outputPath('prepared-update-start.png') });
+  } finally {
+    await page.request.post('/api/__pwa_test__/build?name=a');
+  }
+});
+
+test('a real second build replaces the previous production protocol and supports a skipped release and rollback @worker', async ({
+  page,
+  context,
+}) => {
+  const { mockMarketplace } = await import('./support/marketplace-account-fixture');
+  const configure = (target: typeof page) =>
+    mockMarketplace(
+      target,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
+    );
+  await page.request.post('/api/__pwa_test__/build?name=legacy');
+  try {
+    await configure(page);
+    await page.goto('/settings/notifications');
+    await expect
+      .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+      .toBe(true);
+    const initialBuild = await page.locator('html').getAttribute('data-flipbase-build');
+    const other = await context.newPage();
+    await configure(other);
+    await other.goto('/purchases/new');
+    await other.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
+    await other.getByLabel('Verkäuferangabe, falls bekannt').fill('Alter Entwurf bleibt erhalten');
+    let previousBuild = initialBuild;
+    for (const target of ['a', 'b', 'a']) {
+      await page.request.post(`/api/__pwa_test__/build?name=${target}`);
+      await page.bringToFront();
+      await page.evaluate(async () =>
+        (await navigator.serviceWorker.getRegistration('/'))?.update(),
+      );
+      await expect(page.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
+      await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
+      await expect(page.locator('html')).not.toHaveAttribute(
+        'data-flipbase-build',
+        previousBuild ?? '',
+      );
+      await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+      previousBuild = await page.locator('html').getAttribute('data-flipbase-build');
+      await expect(other.locator('html')).toHaveAttribute(
+        'data-flipbase-build',
+        initialBuild ?? '',
+      );
+      await expect(other.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue(
+        'Alter Entwurf bleibt erhalten',
+      );
+    }
+  } finally {
+    await page.request.post('/api/__pwa_test__/build?name=a');
+  }
+});
+
 test('startup works with production CSP, theme and reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
@@ -77,7 +180,7 @@ test('corrupted chunk fails visibly and is not replaced by a mismatched file @wo
   expect(await page.evaluate(async (url) => (await fetch(url)).status, target)).toBe(503);
 });
 
-test('a real second build waits for an unsaved second window before activation @worker', async ({
+test('a real second build updates independently while other windows keep unsaved input @worker', async ({
   page,
   context,
 }, testInfo) => {
@@ -118,6 +221,9 @@ test('a real second build waits for an unsaved second window before activation @
   await legacyForm
     .getByRole('textbox', { name: 'Angezeigter Name', exact: true })
     .fill('Offene Einstellung');
+  const unchanged = await context.newPage();
+  await configure(unchanged);
+  await unchanged.goto('/settings/notifications');
   await page.request.post('/api/__pwa_test__/build');
   try {
     // Rückkehr aus einer wiederhergestellten Ansicht muss ohne manuelles update() prüfen.
@@ -206,23 +312,16 @@ test('a real second build waits for an unsaved second window before activation @
       other.getByRole('status').filter({ hasText: 'Speichere oder verwerfe' }),
     ).toBeVisible();
     await pressUpdate(page);
-    await expect(page.getByRole('region', { name: 'App aktualisieren' })).toContainText(
-      /offen|gespeichert|blockiert|schließe andere Flipbase/,
-    );
-    expect(await page.evaluate(() => document.documentElement.dataset['flipbaseBuild'])).toBe(
-      oldBuild,
-    );
-    await expect(other.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Ungespeichert');
-    await other.close();
-    await legacyForm.close();
-    const unchanged = await context.newPage();
-    await configure(unchanged);
-    await unchanged.goto('/settings/notifications');
-    await expect(unchanged.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
-    await pressUpdate(page);
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    await expect(other.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Ungespeichert');
+    await expect(other.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+    await expect(
+      legacyForm.getByRole('textbox', { name: 'Angezeigter Name', exact: true }),
+    ).toHaveValue('Offene Einstellung');
+    await expect(legacyForm.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+    // Die fremden Fenster bleiben während beider unabhängigen Wechsel offen.
     // Andere sichere Ansichten behalten ihre alten Chunks bis zum eigenen Neustart.
     await expect(unchanged.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(unchanged.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
@@ -363,6 +462,16 @@ test('installed app updates while a frozen background view keeps unsaved entries
     // Derselbe Standalone-Zweig wie beim Start über das installierte App-Symbol.
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'standalone', { value: true });
+      ServiceWorker.prototype.postMessage = new Proxy(ServiceWorker.prototype.postMessage, {
+        apply(target, receiver, args: unknown[]) {
+          const message = args[0] as { type?: string };
+          if (message?.type === 'PWA_UPDATE_COMMIT_ACK') {
+            setTimeout(() => Reflect.apply(target, receiver, args), 1500);
+            return;
+          }
+          return Reflect.apply(target, receiver, args);
+        },
+      });
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'PWA_PREPARE_UPDATE')
           document.documentElement.dataset['pwaUpdatePrepared'] = 'true';
@@ -402,7 +511,7 @@ test('installed app updates while a frozen background view keeps unsaved entries
       touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }],
     });
     await appInput.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect(update).toBeDisabled();
+    await expect(page.getByRole('heading', { name: 'Flipbase wird aktualisiert …' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-pwa-update-prepared', 'true');
     // Erneutes Tippen auf die gesperrte Aktion darf die laufende Prüfung anderer
     // Ansichten nicht als neuen Bearbeitungsversuch abbrechen.
@@ -415,7 +524,7 @@ test('installed app updates while a frozen background view keeps unsaved entries
     }
     // Auch ein harmloses Tippen auf den Text der Updatefläche ist kein Edit.
     const heading = await page
-      .getByRole('heading', { name: 'Eine neue Version ist verfügbar' })
+      .getByRole('heading', { name: 'Flipbase wird aktualisiert …' })
       .boundingBox();
     if (!heading) throw new Error('Updateüberschrift fehlt.');
     await appInput.send('Input.dispatchTouchEvent', {
@@ -442,7 +551,7 @@ test('installed app updates while a frozen background view keeps unsaved entries
   }
 });
 
-test('legacy network-worker handover does not repeatedly offer the already loaded mobile build @worker', async ({
+test('legacy network-worker handover keeps the already loaded mobile build and leaves other windows open @worker', async ({
   page,
   context,
 }) => {
@@ -460,12 +569,6 @@ test('legacy network-worker handover does not repeatedly offer the already loade
     { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
   );
   await page.setViewportSize({ width: 393, height: 852 });
-  await page.addInitScript(() => {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data?.type === 'PWA_UPDATE_RESULT' && event.data.result === 'blocked')
-        document.documentElement.dataset['legacyHandoverBlocked'] = 'true';
-    });
-  });
   const legacy = await context.newPage();
   await legacy.goto('/api/__pwa_test__/legacy-page');
   await legacy.evaluate(async () => {
@@ -475,79 +578,24 @@ test('legacy network-worker handover does not repeatedly offer the already loade
   await expect
     .poll(() => legacy.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      'pwa_test_document_starts',
+      String(Number(sessionStorage.getItem('pwa_test_document_starts') ?? 0) + 1),
+    );
+  });
   await page.goto('/settings/notifications');
   await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
-  await expect
-    .poll(() =>
-      page.evaluate(
-        async () => (await navigator.serviceWorker.getRegistration('/'))?.waiting?.state,
-      ),
-    )
-    .toBe('installed');
-  await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
-  await expect(page.locator('html')).toHaveAttribute('data-legacy-handover-blocked', 'true');
-  const previousTimeOrigin = await page.evaluate(() => {
-    // Nach dem Anwendungslistener beobachten, ob dessen Reload schon begonnen hat.
-    navigator.serviceWorker.addEventListener(
-      'controllerchange',
-      () => (document.documentElement.dataset['legacyControllerChanged'] = 'true'),
-      { once: true },
-    );
-    window.addEventListener(
-      'beforeunload',
-      () => (document.documentElement.dataset['legacyDocumentUnloading'] = 'true'),
-      { once: true },
-    );
-    return performance.timeOrigin;
-  });
-  await legacy.close();
-  // Die Rückkehrprüfung kann schon beim Schließen des anderen Fensters
-  // übernehmen. Ein bereits begonnener Dokumentwechsel ist dabei erwartbar.
-  await page
-    .evaluate(() => window.dispatchEvent(new Event('focus')))
-    .catch((error: unknown) => {
-      if (error instanceof Error && error.message.includes('Execution context was destroyed'))
-        return;
-      throw error;
-    });
-  await expect
-    .poll(() =>
-      page
-        .evaluate(async (previousTimeOrigin) => {
-          const registration = await navigator.serviceWorker.getRegistration('/');
-          const controller = navigator.serviceWorker.controller;
-          const documentChanged = performance.timeOrigin !== previousTimeOrigin;
-          const controllerHandled =
-            document.documentElement.dataset['legacyControllerChanged'] === 'true';
-          const unloading = document.documentElement.dataset['legacyDocumentUnloading'] === 'true';
-          // Derselbe bereits geladene Bau darf auch ohne automatischen Reload
-          // übernehmen. Ein entladendes altes Dokument ist dagegen noch nicht bereit.
-          return {
-            documentSettled: (documentChanged || controllerHandled) && !unloading,
-            waiting: registration?.waiting?.state ?? null,
-            currentController: controller?.scriptURL.endsWith('/sw.js') ?? false,
-            controllerState: controller?.state ?? null,
-            documentChanged,
-            controllerHandled,
-            unloading,
-          };
-        }, previousTimeOrigin)
-        .catch((error: unknown) => {
-          if (error instanceof Error && error.message.includes('Execution context was destroyed'))
-            return { documentSettled: false };
-          throw error;
-        }),
-    )
-    .toMatchObject({
-      documentSettled: true,
-      waiting: null,
-      currentController: true,
-      controllerState: 'activated',
-    });
-  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
   await expect(page.locator('#app-startup')).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(async () => ({
+        waiting: Boolean((await navigator.serviceWorker.getRegistration('/'))?.waiting),
+        current: navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js'),
+      })),
+    )
+    .toEqual({ waiting: false, current: true });
+  expect(await page.evaluate(() => sessionStorage.getItem('pwa_test_document_starts'))).toBe('1');
+  await expect(legacy.locator('body')).toHaveText('Bisherige Ansicht');
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
 });

@@ -24,6 +24,7 @@ export default defineConfig({
     env: {
       PWA_TEST_ROOT: '.superpowers/pwa-test-builds/a/browser',
       PWA_TEST_BUILD_B: '.superpowers/pwa-test-builds/b/browser',
+      PWA_TEST_BUILD_LEGACY: '.superpowers/pwa-test-builds/legacy/browser',
     },
   },
   projects: [

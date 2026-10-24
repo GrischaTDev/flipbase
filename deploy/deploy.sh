@@ -163,6 +163,44 @@ echo "Rolle $TAG aus..."
 
 docker login "$REGISTRY" --username flipbase-deploy --password-stdin >/dev/null
 
+prepare_app_build_archive() {
+  local artifact_container="$1"
+  local archive_directory="$VERZEICHNIS/app-builds"
+  local source_directory="$temporary/app-build-source"
+  local archive_script="$temporary/archive-app-build.py"
+  # Die einmalige Aktualisierung dieses Deploy-Skripts ist vor dem ersten
+  # unabhängigen Browserupdate erforderlich (siehe RELEASE-PIPELINE.md).
+  command -v python3 >/dev/null || { echo 'Python 3 fuer App-Dateiarchiv fehlt.' >&2; return 1; }
+  if ! docker cp "$artifact_container":/opt/flipbase/archive-app-build.py "$archive_script"; then
+    # Historische Rückfallimages enthalten den neuen Archivierer noch nicht.
+    # Die beim Bootstrap geprüfte Serverkopie bleibt dafür verfügbar.
+    cp "$VERZEICHNIS/archive-app-build.py" "$archive_script"
+  fi
+  mkdir -p "$source_directory" "$archive_directory"
+  chmod 755 "$archive_directory"
+  # Vor dem Containerwechsel auch den bisherigen Stand sichern. Das Archiv
+  # selbst wird nicht nochmals kopiert; nur öffentliche Dateien kommen hinein.
+  if docker inspect flipbase-web >/dev/null 2>&1; then
+    docker exec flipbase-web tar --exclude='./app-builds' -C /usr/share/nginx/html -cf - . \
+      | tar -xf - -C "$source_directory"
+    python3 "$archive_script" "$source_directory" "$archive_directory"
+  fi
+  local next_directory="$temporary/app-build-next"
+  mkdir "$next_directory"
+  docker cp "$artifact_container":/usr/share/nginx/html/. "$next_directory/"
+  python3 "$archive_script" "$next_directory" "$archive_directory"
+  # Eine nur für diesen Lauf geltende Compose-Ergänzung erhält bestehende Netze,
+  # Umgebungswerte und Sicherheitsoptionen. Das Archiv wird nur lesend eingebunden.
+  export FLIPBASE_APP_BUILDS_DIRECTORY="$archive_directory"
+  cat > "$temporary/app-builds.compose.yml" <<'APP_BUILDS'
+services:
+  web:
+    volumes:
+      - ${FLIPBASE_APP_BUILDS_DIRECTORY}:/usr/share/nginx/html/app-builds:ro
+APP_BUILDS
+  export COMPOSE_FILE="${COMPOSE_FILE:-$VERZEICHNIS/docker-compose.yml}:$temporary/app-builds.compose.yml"
+}
+
 prepare_sniper_browser_runtime() {
   local artifact_container="$1"
   local runtime_directory
@@ -262,6 +300,7 @@ if [[ -n "$release_image" ]]; then
   }
   docker pull "$release_image"
   release_container="$(docker create "$release_image")"
+  prepare_app_build_archive "$release_container"
   mkdir "$temporary/migrations"
   docker cp "$release_container":/opt/flipbase/migrations/. "$temporary/migrations/"
   "$VERZEICHNIS/apply-release-migrations.sh" "$temporary/migrations"

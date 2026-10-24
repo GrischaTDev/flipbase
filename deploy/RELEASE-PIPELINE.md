@@ -159,6 +159,45 @@ zusätzliche Argumente akzeptiert der Deploy-Schlüssel nicht.
 
 ## Fehler, Sicherung und Rückfall
 
+### Öffentliche App-Dateien für unabhängige Fensterupdates
+
+Vor dem ersten Release dieses Ablaufs müssen mit Betreiberzugang die geprüften
+Dateien `deploy/deploy.sh` und `deploy/archive-app-build.py` nach
+`/opt/flipbase/deploy.sh` beziehungsweise `/opt/flipbase/archive-app-build.py`
+übernommen werden. Vorher bestehende Skripte sichern und Unterschiede prüfen;
+Forced Command und Berechtigungen des Deploy-Schlüssels bleiben unverändert.
+Python 3 ab 3.9 muss auf dem Host verfügbar sein. Der eingeschränkte CI-Schlüssel
+kann diese einmalige Vorbereitung nicht selbst durchführen.
+
+Am 24.10.2026 nach ausdrücklicher Releasefreigabe vorbereitet: Serverfassung des
+Deploy-Skripts entsprach dem aktuellen Hauptzweig. Geprüfte Dateien aus `c3362e2d`
+unter gemeinsamer Deploysperre mit `root:root` und `0700` installiert; Python 3.14.4
+vorhanden. Vorherige Fassung und Prüfnachweise liegen rootgeschützt unter
+`/opt/flipbase/update-bootstrap-20261024-c3362e2d/`. Der bisherige öffentliche Bau
+`b7600e1050b1` mit 278 geprüften Dateien ist bereits archiviert. Dabei blieb der
+laufende Container unverändert. Mount und öffentliche Dateiauslieferung sind
+erst nach dem regulären Release bestätigt.
+
+Der reguläre Digestlauf sichert vor dem Containerwechsel den bisherigen und den
+kommenden öffentlichen App-Bau nach `/opt/flipbase/app-builds/<baukennung>/`.
+Nur die explizite Dateiliste wird übernommen, jede Datei gegen ihre SHA-256 geprüft.
+Fehlende Dateien, falsche Bytes und veränderte bestehende Archive stoppen den Lauf.
+Anmeldung, Geschäftsdaten, SQL-Pakete und private Medien gehören nicht in dieses Archiv.
+
+Eine temporäre Compose-Ergänzung bindet das Archiv ausschließlich lesend unter
+`/usr/share/nginx/html/app-builds` ein. Die vorhandene Nginx-Dateiauslieferung
+liefert damit `/app-builds/<baukennung>/…`; bestehende Netzwerke und Sicherheitsoptionen
+bleiben erhalten. Die ältesten Verzeichnisse werden nach 30 Tagen entfernt,
+wobei mindestens drei Stände erhalten bleiben. Erneutes Bereitstellen eines Stands
+erneuert dessen Frist. Das ist ein Dateireparaturweg und keine Datenbanksicherung.
+
+Beim Rückfall ausschließlich den Digestweg verwenden. Historische Images enthalten
+den Archivierer noch nicht; dafür bleibt die beim Bootstrap geprüfte Serverkopie
+verfügbar. Auch ein altes Nginx-Abbild kann das lesend eingebundene Verzeichnis als
+statische Dateien ausliefern. Vor Freigabe einen alten Dateipfad aus einem zweiten
+offenen Fenster und den tatsächlichen Container-Mount prüfen. Die hier ergänzte
+Servervorbereitung ist nicht allein durch einen grünen Anwendungstest erledigt.
+
 ### Eigener Browser für den zentralen Vinted-Bot
 
 Vor dem ersten Browserrelease das geprüfte `deploy/deploy.sh` wie beim obigen

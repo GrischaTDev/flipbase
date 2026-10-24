@@ -43,6 +43,7 @@ beforeEach(async () => {
     value: new EventTarget(),
   });
   document.documentElement.dataset['flipbaseBuild'] = 'b'.repeat(64);
+  sessionStorage.clear();
   locked.set(false);
   dirty.mockReturnValue(false);
   waiting.postMessage.mockClear();
@@ -71,7 +72,74 @@ beforeEach(async () => {
 afterEach(() => {
   TestBed.resetTestingModule();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
+  document.getElementById('app-startup')?.remove();
+});
+
+function startWithPendingStartup() {
+  TestBed.resetTestingModule();
+  const startup = document.createElement('section');
+  startup.id = 'app-startup';
+  document.body.append(startup);
+  TestBed.configureTestingModule({
+    providers: [PwaUpdateService, { provide: WorkspaceContextLockService, useValue: { locked } }],
+  });
+  service = TestBed.inject(PwaUpdateService);
+  service.connect(registration as unknown as ServiceWorkerRegistration);
+}
+
+it('automatically starts a prepared update behind the original startup surface', async () => {
+  startWithPendingStartup();
+  receive('PWA_WAITING_STATUS');
+  expect(service.startupPending()).toBe(true);
+  expect(service.isApplying()).toBe(true);
+  expect(sessionStorage.getItem('flipbase_update_target')).toBe('a'.repeat(64));
+  expect(waiting.postMessage).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'ACTIVATE_UPDATE' }),
+  );
+});
+
+it('does not release the old page when its controller responds before the initial network check', async () => {
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
+  registration.update.mockImplementation(() => new Promise(() => undefined));
+  Object.assign(navigator.serviceWorker, { controller: waiting });
+  startWithPendingStartup();
+  receive('PWA_ACTIVE_STATUS', { buildId: 'b'.repeat(64) });
+  expect(service.startupPending()).toBe(true);
+});
+
+it('releases the startup after the current document times out without reopening a check screen', async () => {
+  vi.useFakeTimers();
+  startWithPendingStartup();
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(service.startupPending()).toBe(false);
+  registration.update.mockImplementation(() => new Promise(() => undefined));
+  const check = service.checkForUpdate({ force: true, showScreen: true });
+  await vi.advanceTimersByTimeAsync(8000);
+  await check;
+  expect(service.startupPending()).toBe(false);
+  expect(service.isApplying()).toBe(false);
+});
+
+it('does not automatically reload again when the previous target was not reached', () => {
+  sessionStorage.setItem('flipbase_update_target', 'a'.repeat(64));
+  startWithPendingStartup();
+  receive('PWA_WAITING_STATUS');
+  expect(service.startupPending()).toBe(false);
+  expect(service.updateAvailable()).toBe(true);
+  expect(service.isApplying()).toBe(false);
+  expect(waiting.postMessage).not.toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'ACTIVATE_UPDATE' }),
+  );
+});
+
+it('never locks this document in response to another window preparation', () => {
+  receive('PWA_PREPARE_UPDATE');
+  const input = new Event('beforeinput', { cancelable: true });
+  document.dispatchEvent(input);
+  expect(input.defaultPrevented).toBe(false);
+  expect(service.isApplying()).toBe(false);
 });
 it('releases a nonresponding worker and explains how to retry', async () => {
   vi.useFakeTimers();
@@ -207,7 +275,7 @@ it('explains a blocked suspended view even when that view never sent a preparati
   expect(attempt).toBeDefined();
   receive('PWA_UPDATE_RESULT', { attemptId: attempt.attemptId, result: 'blocked' });
   expect(await result).toBe('blocked');
-  expect(service.message()).toMatch(/Ansichten|Tabs/);
+  expect(service.message()).toMatch(/Versionswechsel|erneut/);
   expect(service.isApplying()).toBe(false);
 });
 it('blocks an update while workspace context is locked or an existing page reports dirty state', async () => {
@@ -218,16 +286,21 @@ it('blocks an update while workspace context is locked or an existing page repor
   expect(await service.applyUpdate()).toBe('blocked');
   expect(waiting.postMessage).not.toHaveBeenCalled();
 });
-it('acknowledges the target attempt, then revokes and prevents edits during the activation barrier', () => {
-  receive('PWA_PREPARE_UPDATE');
+it('acknowledges its own attempt, then revokes and prevents edits during activation', () => {
+  receive('PWA_WAITING_STATUS');
+  void service.applyUpdate();
+  const attemptId = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )![0].attemptId;
+  receive('PWA_PREPARE_UPDATE', { attemptId });
   expect(waiting.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: 'PWA_UPDATE_ACK', attemptId: 'attempt', safe: true }),
+    expect.objectContaining({ type: 'PWA_UPDATE_ACK', attemptId, safe: true }),
   );
   const input = new Event('beforeinput', { cancelable: true });
   document.dispatchEvent(input);
   expect(input.defaultPrevented).toBe(true);
   expect(waiting.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: 'PWA_UPDATE_REVOKE', attemptId: 'attempt' }),
+    expect.objectContaining({ type: 'PWA_UPDATE_REVOKE', attemptId }),
   );
 });
 it('keeps activation pending when the update screen is tapped again', async () => {
@@ -240,11 +313,11 @@ it('keeps activation pending when the update screen is tapped again', async () =
   )?.[0];
   receive('PWA_PREPARE_UPDATE', { attemptId: attempt.attemptId });
   fixture.detectChanges();
-  const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
-  expect(button.disabled).toBe(true);
+  expect(fixture.nativeElement.textContent).toContain('aktualisiert');
+  expect(fixture.nativeElement.querySelector('button')).toBeNull();
   waiting.postMessage.mockClear();
   const screen = fixture.nativeElement.querySelector('[data-pwa-update-screen]') as HTMLElement;
-  for (const target of [button, screen]) {
+  for (const target of [screen]) {
     for (const type of ['pointerdown', 'click', 'keydown']) {
       const event = new Event(type, { bubbles: true, cancelable: true });
       target.dispatchEvent(event);
@@ -266,10 +339,15 @@ it('keeps activation pending when the update screen is tapped again', async () =
   receive('PWA_UPDATE_RESULT', { attemptId: attempt.attemptId, result: 'blocked' });
   expect(await result).toBe('blocked');
 });
-it('rechecks dirty/saving state on commit and releases a blocked attempt', () => {
-  receive('PWA_PREPARE_UPDATE');
+it('rechecks dirty/saving state on its own commit and releases a blocked attempt', () => {
+  receive('PWA_WAITING_STATUS');
+  void service.applyUpdate();
+  const attemptId = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )![0].attemptId;
+  receive('PWA_PREPARE_UPDATE', { attemptId });
   dirty.mockReturnValue(true);
-  receive('PWA_COMMIT_UPDATE');
+  receive('PWA_COMMIT_UPDATE', { attemptId });
   expect(waiting.postMessage).toHaveBeenCalledWith(
     expect.objectContaining({ type: 'PWA_UPDATE_COMMIT_ACK', safe: false }),
   );
@@ -279,7 +357,7 @@ it('rechecks dirty/saving state on commit and releases a blocked attempt', () =>
       data: {
         type: 'PWA_UPDATE_RESULT',
         buildId: 'a'.repeat(64),
-        attemptId: 'attempt',
+        attemptId,
         result: 'blocked',
       },
     }),
@@ -294,7 +372,7 @@ it('keeps the initiating update closed while stale waiting reports arrive during
   expect(fixture.nativeElement.querySelector('section')).not.toBeNull();
   const result = service.applyUpdate();
   fixture.detectChanges();
-  expect(fixture.nativeElement.querySelector('button')?.disabled).toBe(true);
+  expect(fixture.nativeElement.textContent).toContain('aktualisiert');
   const attempt = waiting.postMessage.mock.calls.find(
     ([message]) => message.type === 'ACTIVATE_UPDATE',
   )?.[0];
@@ -305,6 +383,7 @@ it('keeps the initiating update closed while stale waiting reports arrive during
   vi.stubGlobal('window', { location: { reload } });
   try {
     navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+    receive('PWA_ACTIVE_STATUS');
     expect(await result).toBe('applied');
     expect(service.updateAvailable()).toBe(false);
     expect(service.isApplying()).toBe(true);
@@ -313,7 +392,7 @@ it('keeps the initiating update closed while stale waiting reports arrive during
     expect(service.updateAvailable()).toBe(false);
     expect(reload).toHaveBeenCalledOnce();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('section')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-pwa-update-screen]')).not.toBeNull();
   } finally {
     vi.unstubAllGlobals();
   }
@@ -379,7 +458,7 @@ it('checks again on return within a minute and also when a suspended page is res
   expect(registration.update).toHaveBeenCalledOnce();
 });
 
-it('shows a bounded check after a long background pause, then releases the screen on timeout', async () => {
+it('keeps the working page visible during a background check and offers retry on timeout', async () => {
   vi.useFakeTimers();
   await service.checkForUpdate();
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
@@ -390,11 +469,113 @@ it('shows a bounded check after a long background pause, then releases the scree
   document.dispatchEvent(new Event('visibilitychange'));
   const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
   fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('Suche nach Aktualisierungen');
+  expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
   await vi.advanceTimersByTimeAsync(8000);
   fixture.detectChanges();
   expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
   expect(fixture.nativeElement.textContent).toContain('Erneut prüfen');
+});
+
+it('ignores an ordinary open dialog when deciding whether the current document can update', () => {
+  const dialog = document.createElement('dialog');
+  dialog.setAttribute('open', '');
+  document.body.append(dialog);
+  try {
+    expect(service.hasOpenChanges()).toBe(false);
+  } finally {
+    dialog.remove();
+  }
+});
+
+it('keeps the updating surface visible after the offer closes for a reload', () => {
+  service.updateAvailable.set(false);
+  service.isApplying.set(true);
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('[data-pwa-update-screen]')).not.toBeNull();
+  expect(fixture.nativeElement.textContent).toContain('aktualisiert');
+});
+
+it('turns a stopped activation worker into a retryable failure without leaving the page locked', async () => {
+  receive('PWA_WAITING_STATUS');
+  waiting.postMessage.mockImplementationOnce(() => {
+    throw new DOMException('stopped', 'InvalidStateError');
+  });
+  expect(await service.applyUpdate()).toBe('failed');
+  expect(service.isApplying()).toBe(false);
+  const input = new Event('beforeinput', { cancelable: true });
+  document.dispatchEvent(input);
+  expect(input.defaultPrevented).toBe(false);
+});
+
+it('releases its activation barrier even when the worker stops before a timeout revoke', async () => {
+  vi.useFakeTimers();
+  receive('PWA_WAITING_STATUS');
+  const result = service.applyUpdate();
+  const attemptId = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )![0].attemptId;
+  receive('PWA_PREPARE_UPDATE', { attemptId });
+  waiting.postMessage.mockImplementation(() => {
+    throw new DOMException('stopped', 'InvalidStateError');
+  });
+  try {
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(await result).toBe('failed');
+    expect(service.isApplying()).toBe(false);
+    const input = new Event('beforeinput', { cancelable: true });
+    document.dispatchEvent(input);
+    expect(input.defaultPrevented).toBe(false);
+  } finally {
+    waiting.postMessage.mockReset();
+  }
+});
+
+it('protects a nested signal draft even when its saved route reports no changes', () => {
+  const draft = document.createElement('div');
+  draft.setAttribute('data-update-unsaved', 'true');
+  document.body.append(draft);
+  try {
+    expect(service.hasOpenChanges()).toBe(true);
+  } finally {
+    draft.remove();
+  }
+});
+
+it('protects native signal controls without Angular dirty classes until their original value returns', () => {
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.value = '12';
+  document.body.append(input);
+  try {
+    input.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    input.value = '15';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(service.hasOpenChanges()).toBe(true);
+    input.value = '12';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(service.hasOpenChanges()).toBe(false);
+  } finally {
+    input.remove();
+  }
+});
+
+it('uses the Angular control status after saving instead of retaining its previous edited value', () => {
+  const input = document.createElement('input');
+  input.className = 'ng-pristine';
+  input.value = 'Gespeichert';
+  document.body.append(input);
+  try {
+    input.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    input.value = 'Neuer gespeicherter Wert';
+    input.className = 'ng-dirty';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(service.hasOpenChanges()).toBe(true);
+    input.className = 'ng-pristine';
+    expect(service.hasOpenChanges()).toBe(false);
+  } finally {
+    input.remove();
+  }
 });
 
 it('finishes the check while a slow update keeps downloading and offers it when ready', async () => {

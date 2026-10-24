@@ -5,6 +5,7 @@ const INVENTORY_HASH = '__PWA_INVENTORY_SHA256__';
 const CACHE_PREFIX = 'flipbase-app-';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const CLIENT_CACHE = 'flipbase-pwa-clients';
+const VERSION_CACHE = 'flipbase-pwa-versions';
 const repairs = new Set();
 let inventoryPromise;
 let assetsReady = false;
@@ -47,8 +48,8 @@ function validateInventory(inventory, buildId = BUILD_ID) {
   if (!paths.has('/index.html')) throw new Error('App-Startdatei fehlt.');
   return inventory;
 }
-async function fetchInventory() {
-  const response = await fetch('/pwa-assets.json', { cache: 'no-store' });
+async function fetchInventory(path = '/pwa-assets.json') {
+  const response = await fetch(path, { cache: 'no-store' });
   if (!response.ok || (await digest(response)) !== INVENTORY_HASH)
     throw new Error('PWA-Inventar passt nicht zum Worker.');
   const inventory = validateInventory(await response.clone().json());
@@ -60,7 +61,9 @@ async function inventory() {
       const cached = await (await caches.open(CACHE_NAME)).match('/pwa-assets.json');
       if (cached && (await digest(cached)) === INVENTORY_HASH)
         return validateInventory(await cached.json());
-      const current = await fetchInventory();
+      const current = await fetchInventory().catch(() =>
+        fetchInventory(`/app-builds/${BUILD_ID}/pwa-assets.json`),
+      );
       await (await caches.open(CACHE_NAME)).put('/pwa-assets.json', current.response);
       return current.inventory;
     })().catch((error) => {
@@ -108,6 +111,17 @@ self.addEventListener('activate', (event) =>
         if (binding) referenced.add(`${CACHE_PREFIX}${await binding.text()}`);
       }
       const ownCaches = (await caches.keys()).filter((name) => name.startsWith(CACHE_PREFIX));
+      const versions = await caches.open(VERSION_CACHE);
+      const now = Date.now();
+      for (const name of ownCaches) {
+        const key = `/__pwa_versions/${name.slice(CACHE_PREFIX.length)}`;
+        const record = await versions.match(key);
+        const created = record ? Number(await record.text()) : now;
+        if (!record) await versions.put(key, new Response(String(now)));
+        // Ältere/unbekannte Dokumente können beim ersten Protokollwechsel noch
+        // ohne Zuordnung sein. Ihre eigenen Caches erhalten eine Übergangsfrist.
+        if (Number.isFinite(created) && now - created < 30 * 86400_000) referenced.add(name);
+      }
       const previous = ownCaches.filter((name) => name !== CACHE_NAME).at(-1);
       if (previous) referenced.add(previous);
       for (const name of ownCaches) if (!referenced.has(name)) await caches.delete(name);
@@ -116,7 +130,13 @@ self.addEventListener('activate', (event) =>
         if (!clients.some((client) => client.id === id)) await clientCache.delete(request);
       }
       await self.clients.claim();
-      for (const client of clients) await reportAssets(client);
+      for (const client of clients) {
+        try {
+          await reportAssets(client);
+        } catch {
+          /* Ein inzwischen geschlossenes Fenster ist kein Aktivierungsfehler. */
+        }
+      }
     })(),
   ),
 );
@@ -149,8 +169,14 @@ async function buildForClient(clientId) {
 }
 async function inventoryForBuild(build) {
   if (build === BUILD_ID) return inventory();
-  const previous = await (await caches.open(`${CACHE_PREFIX}${build}`)).match('/pwa-assets.json');
-  if (!previous) throw new Error('Vorheriger App-Dateistand fehlt.');
+  const cache = await caches.open(`${CACHE_PREFIX}${build}`);
+  let previous = await cache.match('/pwa-assets.json');
+  if (!previous) {
+    previous = await fetch(`/app-builds/${build}/pwa-assets.json`, { cache: 'no-store' });
+    if (!previous.ok) throw new Error('Vorheriger App-Dateistand fehlt.');
+    validateInventory(await previous.clone().json(), build);
+    await cache.put('/pwa-assets.json', previous.clone());
+  }
   return validateInventory(await previous.json(), build);
 }
 async function reportAssets(client) {
@@ -176,8 +202,12 @@ async function reportAssets(client) {
 async function reportBrokenBuild(build) {
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   for (const client of clients) {
-    if ((await buildForClient(client.id)) === build)
-      client.postMessage({ type: 'PWA_ASSETS_STATE', buildId: build, ready: false });
+    try {
+      if ((await buildForClient(client.id)) === build)
+        client.postMessage({ type: 'PWA_ASSETS_STATE', buildId: build, ready: false });
+    } catch {
+      // Eine fremde unbekannte Ansicht darf die Reparatur dieses Baus nicht verhindern.
+    }
   }
 }
 async function readAsset(path, clientId = '', repairClientId = clientId) {
@@ -209,14 +239,16 @@ async function readAsset(path, clientId = '', repairClientId = clientId) {
   const repairKey = `${repairClientId}:${build}:${path}`;
   if (!repairs.has(repairKey)) {
     repairs.add(repairKey);
-    try {
-      const response = await fetch(path, { cache: 'no-store' });
-      if (response.ok && (await digest(response)) === asset.sha256) {
-        await cache.put(path, response.clone());
-        return response;
+    for (const source of [`/app-builds/${build}${path}`, path]) {
+      try {
+        const response = await fetch(source, { cache: 'no-store' });
+        if (response.ok && (await digest(response)) === asset.sha256) {
+          await cache.put(path, response.clone());
+          return response;
+        }
+      } catch {
+        /* Ohne Verbindung wird kein fremder/neuer Dateistand eingesetzt. */
       }
-    } catch {
-      /* Ohne Verbindung wird kein fremder/neuer Dateistand eingesetzt. */
     }
   }
   return new Response(
@@ -252,173 +284,126 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-async function finishUpdate(result) {
+async function finishUpdate(result, reason = '') {
   const attempt = updateAttempt;
   if (!attempt) return;
   updateAttempt = undefined;
   clearTimeout(attempt.timer);
-  for (const client of attempt.clients)
-    client.postMessage({
-      type: 'PWA_UPDATE_RESULT',
-      buildId: BUILD_ID,
-      attemptId: attempt.id,
-      result,
-    });
+  attempt.client.postMessage({
+    type: 'PWA_UPDATE_RESULT',
+    buildId: BUILD_ID,
+    attemptId: attempt.id,
+    result,
+    reason,
+  });
   attempt.resolve();
-}
-
-async function preserveSleepingViews(attempt) {
-  if (updateAttempt !== attempt) return;
-  // Das angeklickte Fenster muss selbst zustimmen. Nur andere, bereits sicher
-  // zugeordnete Ansichten dürfen ohne Antwort auf ihrem alten Bau bleiben.
-  if (attempt.phase !== 'prepare' || !attempt.acks.has(attempt.requester))
-    return finishUpdate('blocked');
-  try {
-    const bindings = await caches.open(CLIENT_CACHE);
-    const verifiedBuilds = new Set();
-    for (const client of attempt.clients) {
-      if (attempt.acks.has(client.id)) continue;
-      const binding = await bindings.match(`/__pwa_clients/${encodeURIComponent(client.id)}`);
-      const build = binding ? await binding.text() : '';
-      if (!/^[a-f0-9]{64}$/.test(build)) throw new Error('Ansicht ist nicht zugeordnet.');
-      if (!verifiedBuilds.has(build)) {
-        const manifest = await inventoryForBuild(build);
-        const cache = await caches.open(`${CACHE_PREFIX}${build}`);
-        for (const asset of manifest.assets) {
-          const response = await cache.match(asset.url);
-          if (!response || (await digest(response)) !== asset.sha256)
-            throw new Error('Der bisherige Bau ist nicht vollständig gesichert.');
-        }
-        verifiedBuilds.add(build);
-      }
-      if (updateAttempt !== attempt || attempt.phase !== 'prepare') return;
-      if (!attempt.acks.has(client.id)) {
-        attempt.preserved.set(client.id, build);
-        attempt.acks.set(client.id, build);
-      }
-    }
-    await advanceUpdate(attempt);
-  } catch {
-    if (updateAttempt === attempt) await finishUpdate('blocked');
-  }
 }
 
 async function beginUpdate(event) {
   if (
-    updateAttempt ||
     event.data.buildId !== BUILD_ID ||
     typeof event.data.attemptId !== 'string' ||
+    event.data.attemptId.length > 100 ||
     !event.source?.id
   )
     return;
-  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (!clients.length || !clients.some((client) => client.id === event.source.id)) return;
+  if (updateAttempt) {
+    event.source.postMessage({
+      type: 'PWA_UPDATE_RESULT',
+      buildId: BUILD_ID,
+      attemptId: event.data.attemptId,
+      result: 'blocked',
+      reason: 'another_attempt',
+    });
+    return;
+  }
   return new Promise((resolve) => {
     const attempt = {
       id: event.data.attemptId,
-      requester: event.source.id,
-      clients,
-      acks: new Map(),
-      preserved: new Map(),
-      advancing: false,
+      client: event.source,
       phase: 'prepare',
+      advancing: false,
       resolve,
+      clientBuild: '',
     };
     updateAttempt = attempt;
     attempt.timer = setTimeout(() => {
-      if (updateAttempt === attempt) void preserveSleepingViews(attempt);
-    }, 2000);
-    for (const client of clients)
-      client.postMessage({ type: 'PWA_PREPARE_UPDATE', buildId: BUILD_ID, attemptId: attempt.id });
+      if (updateAttempt === attempt) void finishUpdate('blocked', 'requester_timeout');
+    }, 4000);
+    // Nur dieses Dokument wird gesperrt. Fremde Fenster behalten ihre Eingaben.
+    attempt.client.postMessage({
+      type: 'PWA_PREPARE_UPDATE',
+      buildId: BUILD_ID,
+      attemptId: attempt.id,
+    });
   });
 }
+
 async function updateReply(event) {
   const attempt = updateAttempt;
   if (
     !attempt ||
+    event.source?.id !== attempt.client.id ||
     event.data.buildId !== BUILD_ID ||
-    event.data.attemptId !== attempt.id ||
-    !attempt.clients.some((client) => client.id === event.source?.id)
+    event.data.attemptId !== attempt.id
   )
     return;
   if (event.data.type === 'PWA_UPDATE_REVOKE' || event.data.safe !== true)
-    return finishUpdate('blocked');
-  const expectedType = attempt.phase === 'prepare' ? 'PWA_UPDATE_ACK' : 'PWA_UPDATE_COMMIT_ACK';
-  if (event.data.type !== expectedType) return;
-  attempt.preserved.delete(event.source.id);
-  attempt.acks.set(event.source.id, event.data.clientBuildId);
-  await advanceUpdate(attempt);
-}
-
-async function advanceUpdate(attempt) {
-  if (
-    updateAttempt !== attempt ||
-    attempt.advancing ||
-    attempt.acks.size !== attempt.clients.length
-  )
+    return finishUpdate('blocked', 'requester_busy');
+  const expected = attempt.phase === 'prepare' ? 'PWA_UPDATE_ACK' : 'PWA_UPDATE_COMMIT_ACK';
+  if (event.data.type !== expected || attempt.advancing) return;
+  if (!/^[a-f0-9]{64}$/.test(event.data.clientBuildId ?? ''))
+    return finishUpdate('blocked', 'requester_build');
+  if (attempt.phase === 'prepare') {
+    attempt.clientBuild = event.data.clientBuildId;
+    attempt.phase = 'commit';
+    attempt.client.postMessage({
+      type: 'PWA_COMMIT_UPDATE',
+      buildId: BUILD_ID,
+      attemptId: attempt.id,
+    });
     return;
+  }
+  if (attempt.clientBuild !== event.data.clientBuildId)
+    return finishUpdate('blocked', 'requester_build');
   attempt.advancing = true;
   try {
-    const currentClients = await self.clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true,
-    });
-    if (updateAttempt !== attempt) return;
-    if (
-      currentClients.length !== attempt.clients.length ||
-      currentClients.some(
-        (client) => !attempt.clients.some((expected) => expected.id === client.id),
-      )
-    )
-      return finishUpdate('blocked');
-    if (attempt.phase === 'prepare') {
-      clearTimeout(attempt.timer);
-      attempt.phase = 'commit';
-      attempt.acks = new Map(attempt.preserved);
-      attempt.timer = setTimeout(() => {
-        if (updateAttempt === attempt) void finishUpdate('blocked');
-      }, 2000);
-      for (const client of currentClients)
-        client.postMessage({ type: 'PWA_COMMIT_UPDATE', buildId: BUILD_ID, attemptId: attempt.id });
-      return;
-    }
-    const clientCache = await caches.open(CLIENT_CACHE);
-    for (const client of currentClients) {
-      const clientBuild = attempt.acks.get(client.id);
-      if (!/^[a-f0-9]{64}$/.test(clientBuild)) return finishUpdate('blocked');
-      if (attempt.preserved.has(client.id)) {
-        const binding = await clientCache.match(`/__pwa_clients/${encodeURIComponent(client.id)}`);
-        if (!binding || (await binding.text()) !== clientBuild) return finishUpdate('blocked');
-      }
-      await clientCache.put(
-        `/__pwa_clients/${encodeURIComponent(client.id)}`,
-        new Response(clientBuild),
-      );
+    const bindings = await caches.open(CLIENT_CACHE);
+    await bindings.put(
+      `/__pwa_clients/${encodeURIComponent(attempt.client.id)}`,
+      new Response(attempt.clientBuild),
+    );
+    // Vorhandene Zuordnungen stammen aus der Navigation des bisherigen Workers.
+    // Unbekannte Alt-Dokumente nie stillschweigend mit neuen Dateien bedienen.
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      const key = `/__pwa_clients/${encodeURIComponent(client.id)}`;
+      if (!(await bindings.match(key))) await bindings.put(key, new Response('unassigned'));
     }
     if (updateAttempt !== attempt) return;
-    const finalClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    if (updateAttempt !== attempt) return;
-    if (
-      finalClients.length !== attempt.clients.length ||
-      finalClients.some((client) => !attempt.clients.some((expected) => expected.id === client.id))
-    )
-      return finishUpdate('blocked');
+    if (!(await self.clients.get(attempt.client.id)))
+      return finishUpdate('blocked', 'requester_closed');
     await self.skipWaiting();
-    await finishUpdate('applied');
+    if (updateAttempt === attempt) await finishUpdate('applied');
   } catch {
-    if (updateAttempt === attempt) await finishUpdate('blocked');
-  } finally {
-    attempt.advancing = false;
-    if (
-      updateAttempt === attempt &&
-      attempt.phase === 'commit' &&
-      attempt.acks.size === attempt.clients.length
-    )
-      void advanceUpdate(attempt);
+    if (updateAttempt === attempt) await finishUpdate('blocked', 'storage');
   }
 }
 
+async function bindDocument(event) {
+  const build = event.data.clientBuildId;
+  if (!event.source?.id || !/^[a-f0-9]{64}$/.test(build ?? '')) return;
+  // Der Dateistand muss bekannt sein. Die laufende Ansicht meldet ausschließlich
+  // ihre eigene Identität; sie kann kein fremdes Dokument umhängen.
+  await inventoryForBuild(build);
+  await (
+    await caches.open(CLIENT_CACHE)
+  ).put(`/__pwa_clients/${encodeURIComponent(event.source.id)}`, new Response(build));
+}
+
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'PWA_BIND_CLIENT')
+    event.waitUntil(bindDocument(event).catch(() => undefined));
   if (event.data?.type === 'PWA_ACTIVE_QUERY')
     event.source?.postMessage({ type: 'PWA_ACTIVE_STATUS', buildId: BUILD_ID, version: VERSION });
   if (event.data?.type === 'PWA_UPDATE_QUERY')

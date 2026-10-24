@@ -65,6 +65,50 @@ test('activation preserves unrelated browser caches', async () => {
   await worker.dispatch('activate');
   assert.ok((await worker.caches.keys()).includes('another-app-cache'));
 });
+
+test('an old document repairs a missing file from its exact archived release after deployment', async () => {
+  const worker = createWorker();
+  await worker.dispatch('install');
+  const build = 'b'.repeat(64);
+  const old = { ...worker.inventory, buildId: build };
+  worker.resources.set(`/app-builds/${build}/pwa-assets.json`, JSON.stringify(old));
+  worker.resources.set(`/app-builds/${build}/chunk-A1.js`, 'lazy-a');
+  worker.resources.set('/chunk-A1.js', 'incompatible-new-release');
+  await (
+    await worker.caches.open('flipbase-pwa-clients')
+  ).put('/__pwa_clients/old', new Response(build));
+  const response = await worker.request('/chunk-A1.js', 'old');
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), 'lazy-a');
+});
+
+test('an unknown foreign client does not prevent another document from repairing its own cache', async () => {
+  const other = { id: 'unknown', postMessage() {} };
+  const worker = createWorker({ clients: [other] });
+  await worker.dispatch('install');
+  await (
+    await worker.caches.open('flipbase-pwa-clients')
+  ).put('/__pwa_clients/unknown', new Response('unassigned'));
+  await (
+    await worker.caches.open(`flipbase-app-${worker.inventory.buildId}`)
+  ).delete('/app-startup.js');
+  assert.equal((await worker.request('/app-startup.js', 'current')).status, 200);
+});
+
+test('a restarted old active worker repairs its own manifest and navigation from its archived release', async () => {
+  const worker = createWorker();
+  const build = worker.inventory.buildId;
+  worker.resources.set(`/app-builds/${build}/pwa-assets.json`, JSON.stringify(worker.inventory));
+  worker.resources.set(`/app-builds/${build}/index.html`, '<html>build-a</html>');
+  worker.resources.set(
+    '/pwa-assets.json',
+    JSON.stringify({ ...worker.inventory, buildId: 'b'.repeat(64) }),
+  );
+  worker.resources.set('/index.html', '<html>incompatible build-b</html>');
+  const response = await worker.request('navigate:/settings', '', 'reopened');
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), '<html>build-a</html>');
+});
 test('old views report readiness for their own build and can retry on a new app start', async () => {
   const view = {
     id: 'old-view',
