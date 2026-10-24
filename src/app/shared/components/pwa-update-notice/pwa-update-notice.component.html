@@ -1,5 +1,5 @@
-@if (!pushNavigation.pending()) {
-  @if ((updates.updateAvailable() || updates.checkingForUpdate()) && !updates.hasOpenChanges()) {
+@if (!updates.startupPending() && (!pushNavigation.pending() || updates.isApplying())) {
+  @if (updates.isApplying() || (updates.updateAvailable() && !updates.hasOpenChanges())) {
     <section aria-label="App aktualisieren">
       <div
         appModalDialog
@@ -10,7 +10,12 @@
       >
         <div class="my-auto flex w-full max-w-md flex-col items-center gap-6 text-center">
           <img ngSrc="/images/logo-mark.png" width="80" height="80" alt="Flipbase" />
-          @if (updates.updateAvailable()) {
+          @if (updates.isApplying()) {
+            <h1 class="text-2xl font-semibold tracking-tight">Flipbase wird aktualisiert …</h1>
+            <p class="text-sm text-fb-text-secondary" role="status">
+              Deine neue Version wird geöffnet.
+            </p>
+          } @else {
             <h1 class="text-2xl font-semibold tracking-tight">Eine neue Version ist verfügbar</h1>
             @if (updates.availableVersion(); as version) {
               <p class="text-sm text-fb-text-secondary">Flipbase {{ version }} ist bereit.</p>
@@ -25,11 +30,6 @@
               (clicked)="updates.applyUpdate()"
               >Jetzt aktualisieren</app-button
             >
-          } @else {
-            <h1 class="text-2xl font-semibold tracking-tight">Flipbase</h1>
-            <p class="text-sm text-fb-text-secondary" role="status">
-              Suche nach Aktualisierungen …
-            </p>
           }
         </div>
       </div>

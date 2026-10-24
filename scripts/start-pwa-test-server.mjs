@@ -5,6 +5,9 @@ import { build } from 'esbuild';
 
 const root = resolve(process.env.PWA_TEST_ROOT ?? 'dist/flipbase/browser');
 const secondRoot = process.env.PWA_TEST_BUILD_B ? resolve(process.env.PWA_TEST_BUILD_B) : null;
+const legacyRoot = process.env.PWA_TEST_BUILD_LEGACY
+  ? resolve(process.env.PWA_TEST_BUILD_LEGACY)
+  : null;
 let activeRoot = root;
 let delayedAsset = '';
 const port = Number(process.env.PWA_TEST_PORT ?? 4218);
@@ -112,7 +115,17 @@ const server = createServer(async (request, response) => {
       response.writeHead(409).end();
       return;
     }
-    activeRoot = activeRoot === root ? secondRoot : root;
+    const target = requestUrl.searchParams.get('name');
+    activeRoot =
+      target === 'legacy' && legacyRoot
+        ? legacyRoot
+        : target === 'a'
+          ? root
+          : target === 'b'
+            ? secondRoot
+            : activeRoot === root
+              ? secondRoot
+              : root;
     response.setHeader('Cache-Control', 'no-store');
     response.end('ok');
     return;
@@ -122,8 +135,29 @@ const server = createServer(async (request, response) => {
     return;
   }
   try {
-    let file = resolve(activeRoot, `.${decodeURIComponent(path)}`);
-    if (!file.startsWith(`${activeRoot}${sep}`) && file !== activeRoot) {
+    let selectedRoot = activeRoot;
+    let selectedPath = path;
+    const archived = /^\/app-builds\/([a-f0-9]{64})(\/.*)$/.exec(path);
+    if (archived) {
+      const candidates = [root, secondRoot, legacyRoot].filter(Boolean);
+      selectedRoot = (
+        await Promise.all(
+          candidates.map(async (candidate) => {
+            const inventory = JSON.parse(
+              await readFile(resolve(candidate, 'pwa-assets.json'), 'utf8'),
+            );
+            return inventory.buildId === archived[1] ? candidate : null;
+          }),
+        )
+      ).find(Boolean);
+      if (!selectedRoot) {
+        response.writeHead(404).end();
+        return;
+      }
+      selectedPath = archived[2];
+    }
+    let file = resolve(selectedRoot, `.${decodeURIComponent(selectedPath)}`);
+    if (!file.startsWith(`${selectedRoot}${sep}`) && file !== selectedRoot) {
       response.writeHead(403).end();
       return;
     }

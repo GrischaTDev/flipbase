@@ -18,6 +18,8 @@
   const status = document.getElementById('app-startup-status');
   const retry = document.getElementById('app-startup-retry');
   if (!screen || !status || !retry) return;
+  let routeReady = false;
+  let updatesReady = false;
 
   const warnTimer = window.setTimeout(() => {
     if (!retry.hidden) return;
@@ -34,12 +36,27 @@
   }
 
   function ready() {
+    if (!routeReady || !updatesReady) return;
     window.clearTimeout(warnTimer);
     window.clearTimeout(failTimer);
-    window.removeEventListener('flipbase:startup-ready', ready);
+    window.removeEventListener('flipbase:startup-ready', routeFinished);
+    window.removeEventListener('flipbase:updates-ready', updatesFinished);
+    window.removeEventListener('flipbase:startup-updating', updating);
     window.removeEventListener('flipbase:startup-failed', fail);
     window.removeEventListener('error', assetFailed, true);
     screen.remove();
+  }
+
+  function routeFinished() {
+    routeReady = true;
+    ready();
+  }
+  function updatesFinished() {
+    updatesReady = true;
+    ready();
+  }
+  function updating() {
+    status.textContent = 'Flipbase wird aktualisiert …';
   }
 
   function assetFailed(event) {
@@ -47,7 +64,9 @@
   }
 
   retry.addEventListener('click', () => window.location.reload());
-  window.addEventListener('flipbase:startup-ready', ready);
+  window.addEventListener('flipbase:startup-ready', routeFinished);
+  window.addEventListener('flipbase:updates-ready', updatesFinished);
+  window.addEventListener('flipbase:startup-updating', updating);
   window.addEventListener('flipbase:startup-failed', fail);
   window.addEventListener('error', assetFailed, true);
 })();

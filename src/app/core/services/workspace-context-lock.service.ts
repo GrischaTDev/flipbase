@@ -28,6 +28,7 @@ export class WorkspaceContextLockService {
   private readonly routeLocked = signal(false);
 
   readonly locked = computed(() => this.routeLocked() || this.manualLockCount() > 0);
+  readonly operationLocked = computed(() => this.manualLockCount() > 0);
 
   constructor() {
     this.refreshRouteLock();

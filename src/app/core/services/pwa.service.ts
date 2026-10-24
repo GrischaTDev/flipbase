@@ -167,8 +167,10 @@ export class PwaService {
       !environment.production ||
       typeof navigator === 'undefined' ||
       !('serviceWorker' in navigator)
-    )
+    ) {
+      this.updates?.finishStartup();
       return Promise.resolve();
+    }
     this.registrationInFlight ??= this.performRegistration().finally(() => {
       this.registrationInFlight = null;
     });
@@ -200,6 +202,7 @@ export class PwaService {
       this.swRegistered.set(true);
     } catch (error) {
       this.updates?.reportRegistrationFailure();
+      this.updates?.finishStartup();
       this.logger.warn('Service-Worker-Registrierung fehlgeschlagen!', error);
     }
   }

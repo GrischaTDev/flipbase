@@ -56,9 +56,25 @@ test('startup respects stored theme and warns then offers retry without delaying
   tick(30_000);
   assert.equal(window.document.querySelector('#app-startup-retry')?.hidden, false);
   window.dispatchEvent(new window.Event('flipbase:startup-ready'));
+  assert.ok(
+    window.document.querySelector('#app-startup'),
+    'The route alone must not expose the old page',
+  );
+  window.dispatchEvent(new window.Event('flipbase:updates-ready'));
   assert.equal(window.document.querySelector('#app-startup'), null);
   assert.equal(timers.size, 0);
   window.dispatchEvent(new window.Event('flipbase:startup-failed'));
+  assert.equal(window.document.querySelector('#app-startup'), null);
+});
+
+test('a prepared update keeps the same startup surface until both decisions finish', () => {
+  const { window } = start();
+  const screen = window.document.querySelector('#app-startup');
+  window.dispatchEvent(new window.Event('flipbase:startup-updating'));
+  window.dispatchEvent(new window.Event('flipbase:startup-ready'));
+  assert.equal(window.document.querySelector('#app-startup'), screen);
+  assert.match(window.document.querySelector('#app-startup-status').textContent, /aktualisiert/);
+  window.dispatchEvent(new window.Event('flipbase:updates-ready'));
   assert.equal(window.document.querySelector('#app-startup'), null);
 });
 

@@ -7,6 +7,7 @@ import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
@@ -68,6 +69,46 @@ test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', asyn
     ],
     { stdio: 'pipe' },
   );
+  const archiveRoot = await mkdtemp(join(tmpdir(), 'flipbase-nginx-archive-'));
+  const container = `flipbase-archive-${process.pid}-${Date.now()}`;
+  try {
+    await mkdir(join(archiveRoot, 'a'.repeat(64)));
+    await writeFile(join(archiveRoot, 'a'.repeat(64), 'old.js'), 'previous bytes');
+    execFileSync(
+      'docker',
+      [
+        'run',
+        '-d',
+        '--name',
+        container,
+        '-p',
+        '127.0.0.1::80',
+        '--mount',
+        `type=bind,source=${join(root, 'docker/nginx.conf')},target=/etc/nginx/conf.d/default.conf,readonly`,
+        '--mount',
+        `type=bind,source=${join(root, 'docker/security-headers.conf')},target=/etc/nginx/security-headers.conf,readonly`,
+        '--mount',
+        `type=bind,source=${archiveRoot},target=/usr/share/nginx/html/app-builds,readonly`,
+        image,
+      ],
+      { stdio: 'pipe' },
+    );
+    const address = execFileSync('docker', ['port', container, '80/tcp'], {
+      encoding: 'utf8',
+    }).trim();
+    const response = await fetch(`http://${address}/app-builds/${'a'.repeat(64)}/old.js`);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'previous bytes');
+    assert.match(response.headers.get('cache-control'), /immutable/);
+    assert.equal(
+      (await fetch(`http://${address}/app-builds/${'a'.repeat(64)}/missing.js`)).status,
+      404,
+    );
+    assert.ok(response.headers.get('content-security-policy'));
+  } finally {
+    execFileSync('docker', ['rm', '-f', container], { stdio: 'pipe' });
+    await rm(archiveRoot, { recursive: true, force: true });
+  }
 });
 
 test('Push-Compose erbt Supabasezugang und trennt Router/JWT ohne neue Hostports', async () => {
@@ -666,7 +707,15 @@ case "$1" in
  login) cat >/dev/null ;;
  pull) [[ "$2" == "$EXPECTED_IMAGE" ]] || exit 90 ;;
  create) [[ "$2" == "$EXPECTED_IMAGE" ]] || exit 91; echo release-fixture ;;
- cp|rm|logout|image) ;;
+ cp)
+   case "$2" in
+     */archive-app-build.py)
+       [[ "\${MISSING_ARCHIVER:-0}" != 1 ]] || exit 1
+       cp "$ARCHIVE_SCRIPT" "$3" ;;
+     */usr/share/nginx/html/.) cp -R "$APP_SOURCE/." "$3" ;;
+   esac ;;
+ exec) tar -C "$APP_SOURCE" -cf - . ;;
+ rm|logout|image) ;;
  compose) [[ "$FLIPBASE_IMAGE" == "$EXPECTED_IMAGE" ]] || exit 92; if [[ "$2" == config ]]; then echo "\${CONFIGURED_IMAGE:-$EXPECTED_IMAGE}"; else echo start; fi ;;
  inspect) echo healthy ;;
  *) exit 93 ;;
@@ -680,6 +729,24 @@ esac
         { mode: 0o755 },
       );
       await writeFile(join(root, 'migration-backup.sh'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
+      const appSource = join(root, 'app-source');
+      await mkdir(appSource);
+      const html = '<html>versioned release</html>';
+      const buildId = 'b'.repeat(64);
+      await writeFile(join(appSource, 'index.html'), html);
+      await writeFile(
+        join(appSource, 'pwa-assets.json'),
+        JSON.stringify({
+          version: 1,
+          buildId,
+          assets: [{ url: '/index.html', sha256: createHash('sha256').update(html).digest('hex') }],
+        }),
+      );
+      const archiveScript = join(root, 'archive-app-build.py');
+      await writeFile(
+        archiveScript,
+        await readFile(new URL('../deploy/archive-app-build.py', import.meta.url)),
+      );
       const env = {
         ...process.env,
         PATH: `${bin}:${process.env.PATH}`,
@@ -687,10 +754,16 @@ esac
         FLIPBASE_LANDING_DIR: join(root, 'absent'),
         SSH_ORIGINAL_COMMAND: `release-v1 ${digest}`,
         EXPECTED_IMAGE: image,
+        ARCHIVE_SCRIPT: archiveScript,
+        APP_SOURCE: appSource,
       };
       const success = await runDeploy(env);
       assert.equal(success.code, 0, success.stderr);
       assert.match(success.stdout, /start/);
+      assert.equal(await readFile(join(root, 'app-builds', buildId, 'index.html'), 'utf8'), html);
+      const historical = await runDeploy({ ...env, MISSING_ARCHIVER: '1' });
+      assert.equal(historical.code, 0, historical.stderr);
+      assert.match(historical.stdout, /start/);
       const outdated = await runDeploy({
         ...env,
         CONFIGURED_IMAGE: 'ghcr.io/grischatdev/flipbase:latest',

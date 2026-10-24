@@ -38,7 +38,7 @@
     "test:affected:plan": "node scripts/affected-tests.mjs",
     "test:e2e:nightly": "playwright test --config=playwright.nightly.config.ts",
     "test:e2e:pwa": "node scripts/build-pwa-test-builds.mjs && playwright test --config=playwright.pwa.config.ts",
-    "test:pwa:scripts": "node --test scripts/app-startup.test.mjs scripts/write-pwa-assets.test.mjs scripts/service-worker-cache.test.mjs scripts/service-worker-update.test.mjs scripts/service-worker-push.test.mjs",
+    "test:pwa:scripts": "node --test scripts/app-startup.test.mjs scripts/pwa-build-archive.test.mjs scripts/write-pwa-assets.test.mjs scripts/service-worker-cache.test.mjs scripts/service-worker-update.test.mjs scripts/service-worker-push.test.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json",

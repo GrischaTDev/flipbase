@@ -4,7 +4,39 @@ Stand: 13.10.2026. Die Umsetzung bleibt bis zur Abnahme auf echten Geräten ein 
 
 ## Automatisch geprüft
 
-Chromium prüft den echten Produktionsbau mit Service Worker, vollständigem Dateicache, Offline-Lazy-Routen, beschädigten Dateien und zwei echten Bauversionen. Offene Eingaben in einem zweiten Fenster verhindern die Aktivierung einer neuen Version. WebKit prüft die Oberfläche und echte IndexedDB, ohne einen Safari-Service-Worker-Nachweis zu behaupten.
+Chromium prüft echte Produktionsbauten mit Service Worker, vollständigem Dateicache,
+Offline-Lazy-Routen und beschädigten Dateien. Seit dem Updateumbau vom 24.10.2026
+bleiben offene Eingaben in anderen Fenstern erhalten, während das aktuelle Fenster
+unabhängig wechselt. Zusätzlich wird der unveränderte Vorgänger `f6a5a2ab` gebaut,
+damit alter Updateablauf, übersprungene Version und Rückwechsel geprüft werden.
+WebKit prüft Oberfläche und echte IndexedDB; es ersetzt keinen Safari-Gerätenachweis.
+
+## Neuer Updateablauf vom 24.10.2026
+
+- Beim frischen Start bleibt die Logo-Ansicht bis zur begrenzten Startentscheidung
+  sichtbar. Ein bereits vollständig vorbereitetes Update wird automatisch übernommen.
+  Pro Startversuch erfolgt höchstens ein automatischer Neustart; das erreichte Ziel
+  wird geprüft. Eine langsame Installation gibt nach drei Sekunden die vorhandene
+  nutzbare Version frei und lädt im Hintergrund weiter.
+- Rückkehr und Fokuswechsel prüfen im Hintergrund. Eine reine Prüfung öffnet keinen
+  zweiten Ladebildschirm. Ist das Update fertig, bleibt die volle bewusste
+  Updateansicht für den eigenen sicheren Versionswechsel erhalten.
+- Nur das wechselnde Fenster bestätigt Eingabesicherheit und wird kurz gesperrt.
+  Fremde aktive und eingefrorene Fenster behalten Eingaben und ihre Versionsdateien.
+  Das Öffnen oder Schließen eines anderen Fensters bricht den Versuch nicht ab.
+- Eingaben werden niemals automatisch fachlich gespeichert oder verworfen.
+  Routenschutz, Angular-Formularzustand, laufendes Speichern, ausdrücklich gemeldete
+  Kindentwürfe und native Signal-Eingaben werden berücksichtigt. Ein gewöhnlicher
+  offener Dialog allein ist keine Sperre. Nicht eindeutig als gespeichert erkennbare
+  ältere Masken bleiben konservativ geschützt, bis die Eingabeansicht verlassen wird.
+- Alte öffentliche Dateien sind unter `/app-builds/<baukennung>/…` reparierbar.
+  Der Server hält mindestens drei Stände und darüber hinaus 30 Tage vor;
+  der Browser behält referenzierte Caches und eine Übergangsfrist für alte Zuordnungen.
+  Neue Bytes dürfen fehlende alte Dateien niemals ersetzen.
+
+Bei der Geräteabnahme insbesondere Start ohne Zwischenbild, Touch-Mehrfachberührung,
+unveränderte fremde Eingaben und Wiederaufnahme nach langer Pause prüfen. Ein
+Netzwerkfehler muss zu erreichbarer Wiederholung führen, niemals zu dauerhafter Sperre.
 
 Die Produktionstests prüfen lokale Speicherung, Neustart, konkurrierende Revisionen, Schreibfehler, unbekannte Datenformate, abgelaufenen Kontext, Kontotrennung und unveränderte Wiederholung einer Einkaufsübertragung. Backendantworten werden kontrolliert ersetzt; diese Tests weisen keine Zustellung eines Push-Anbieters nach.
 
@@ -38,9 +70,8 @@ Online-Tabs prüfen im sichtbaren Zustand regelmäßig im Minutenabstand auf neu
 Versionen. Start, Rückkehr in den Vordergrund, wiederhergestellte Seiten und eine
 erneute Netzwerkverbindung lösen zusätzlich eine Prüfung aus, auch innerhalb
 dieser Minute. Gleichzeitige Ereignisse teilen sich eine laufende Prüfung.
-Nach mindestens einer Minute im Hintergrund erscheint ohne offene Eingaben kurz
-die Logo-Prüfungsansicht. Nach spätestens acht Sekunden wird sie bei Problemen
-durch einen Hinweis mit „Erneut prüfen“ ersetzt; eine später fertig installierte
+Die Rückkehrprüfung bleibt im Hintergrund. Nach spätestens acht Sekunden wird
+bei Problemen ein Hinweis mit „Erneut prüfen“ angeboten; eine später fertig installierte
 Version wird weiterhin erkannt. Eine fehlgeschlagene Startregistrierung wird bei
 Rückkehr, erneuter Verbindung oder ausdrücklicher Wiederholung erneut versucht.
 Die abgeschlossene Netzwerkprüfung wartet nicht auf das Herunterladen aller
@@ -89,8 +120,9 @@ Eine Testmeldung bei geöffneter App oder ältere Einträge unter der Glocke ers
 diese Prüfung nicht. Meldungen vor der Geräteaktivierung werden nicht nachträglich
 verschickt.
 
-Bei einem blockierten iPad-Update zuerst Eingaben speichern und andere Flipbase-Tabs
-oder App-Fenster schließen. Die Aktualisierung erneut auslösen. Danach muss die
+Bei einem blockierten iPad-Update nur die eigenen offenen Eingaben und den
+konkreten Fehler prüfen. Fremde Tabs oder App-Fenster bleiben geöffnet. Die
+Aktualisierung nach abgeschlossener eigener Eingabe erneut auslösen. Danach muss die
 aktuelle Baukennung erscheinen und der Update-Hinweis verschwinden, auch nach
 erneutem Start. Browserdaten wegen lokaler Einkaufsentwürfe nicht pauschal löschen.
 
