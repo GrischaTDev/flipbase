@@ -57,6 +57,19 @@ des bisherigen Baus `b7600e1050b1` bereits geprüft archiviert; der laufende ges
 Container blieb dabei unverändert. Der Archiv-Mount und die öffentliche
 Dateiauslieferung werden nach dem regulären Release gesondert bestätigt.
 
+**CI-Nachprüfung:** Der erste PR-Lauf fand zwei Lücken der Testvorbereitung:
+Nginx konnte das mit `mkdtemp` angelegte Linux-Verzeichnis mit `0700` nicht lesen;
+die vorhandene gemeinsame App-/Push-Fixture stellte den neuen Archivierer noch
+nicht bereit. Öffentliches Fixtureverzeichnis wie im echten Archiv zugänglich
+gemacht, HTTP im echten Nginx-Container ohne Hostport geprüft und die gemeinsame
+Fixture um gültige App-Dateien sowie den echten Python-Archivierer ergänzt.
+Byte-, Header-, 404-, Reihenfolge- und Fehlerprüfungen bleiben erhalten. Danach
+106 Auslieferungs-/Auswahlfälle unter Linux ohne Auslassung erfolgreich, elf
+Auslieferungsfälle unter Windows erfolgreich (vier POSIX-Fälle dort vorgesehen
+ausgelassen); geänderte Datei formatiert und gelintet. Unabhängiger Nachreview
+ohne wesentliche Befunde. Die Anwendung und die installierten Serverskripte
+wurden durch diese Testkorrektur nicht verändert.
+
 ## 2026-10-24 - Juna - Bestandsverluste ausdrücklich bestätigen
 
 Auf ausdrücklichen Auftrag die unmittelbare Formularbuchung im Bestandsabgang

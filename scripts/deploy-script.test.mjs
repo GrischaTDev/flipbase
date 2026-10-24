@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { chmod, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -72,8 +72,11 @@ test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', asyn
   const archiveRoot = await mkdtemp(join(tmpdir(), 'flipbase-nginx-archive-'));
   const container = `flipbase-archive-${process.pid}-${Date.now()}`;
   try {
-    await mkdir(join(archiveRoot, 'a'.repeat(64)));
-    await writeFile(join(archiveRoot, 'a'.repeat(64), 'old.js'), 'previous bytes');
+    // mkdtemp setzt 0700; wie beim echten öffentlichen Archiv muss auch
+    // der unprivilegierte Nginx-Prozess dieses Verzeichnis betreten können.
+    await chmod(archiveRoot, 0o755);
+    await mkdir(join(archiveRoot, 'a'.repeat(64)), { mode: 0o755 });
+    await writeFile(join(archiveRoot, 'a'.repeat(64), 'old.js'), 'previous bytes', { mode: 0o644 });
     execFileSync(
       'docker',
       [
@@ -81,8 +84,6 @@ test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', asyn
         '-d',
         '--name',
         container,
-        '-p',
-        '127.0.0.1::80',
         '--mount',
         `type=bind,source=${join(root, 'docker/nginx.conf')},target=/etc/nginx/conf.d/default.conf,readonly`,
         '--mount',
@@ -93,18 +94,28 @@ test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', asyn
       ],
       { stdio: 'pipe' },
     );
-    const address = execFileSync('docker', ['port', container, '80/tcp'], {
-      encoding: 'utf8',
-    }).trim();
-    const response = await fetch(`http://${address}/app-builds/${'a'.repeat(64)}/old.js`);
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), 'previous bytes');
-    assert.match(response.headers.get('cache-control'), /immutable/);
-    assert.equal(
-      (await fetch(`http://${address}/app-builds/${'a'.repeat(64)}/missing.js`)).status,
-      404,
-    );
-    assert.ok(response.headers.get('content-security-policy'));
+    // HTTP im tatsächlichen Nginx-Container funktioniert auch bei einem
+    // getrennten Docker-Daemon, ohne Hostports oder fremde Netzwerke zu ändern.
+    const request = (path) =>
+      spawnSync('docker', ['exec', container, 'wget', '-S', '-O', '-', `http://127.0.0.1${path}`], {
+        encoding: 'utf8',
+      });
+    let ready;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      ready = request('/healthz');
+      if (ready.status === 0) break;
+      await new Promise((done) => setTimeout(done, 100));
+    }
+    assert.equal(ready?.status, 0, ready?.stderr);
+    const response = request(`/app-builds/${'a'.repeat(64)}/old.js`);
+    assert.equal(response.status, 0, response.stderr);
+    assert.match(response.stderr, /HTTP\/1\.1 200/);
+    assert.equal(response.stdout, 'previous bytes');
+    assert.match(response.stderr, /Cache-Control:.*immutable/i);
+    const missing = request(`/app-builds/${'a'.repeat(64)}/missing.js`);
+    assert.notEqual(missing.status, 0);
+    assert.match(missing.stderr, /HTTP\/1\.1 404/);
+    assert.match(response.stderr, /Content-Security-Policy:/i);
   } finally {
     execFileSync('docker', ['rm', '-f', container], { stdio: 'pipe' });
     await rm(archiveRoot, { recursive: true, force: true });
@@ -312,12 +323,28 @@ test(
     const runtime = join(root, 'push');
     const supabase = join(root, 'supabase');
     const artifact = join(root, 'artifact');
+    const appSource = join(root, 'app-source');
     const log = join(root, 'calls.log');
     const appDigest = `sha256:${'a'.repeat(64)}`;
     const pushDigest = `sha256:${'b'.repeat(64)}`;
     const commit = 'a'.repeat(40);
     try {
       for (const directory of [bin, runtime, supabase]) await mkdir(directory, { recursive: true });
+      await mkdir(appSource);
+      const html = '<html>combined app and push release</html>';
+      await writeFile(join(appSource, 'index.html'), html);
+      await writeFile(
+        join(appSource, 'pwa-assets.json'),
+        JSON.stringify({
+          version: 1,
+          buildId: 'c'.repeat(64),
+          assets: [{ url: '/index.html', sha256: createHash('sha256').update(html).digest('hex') }],
+        }),
+      );
+      await writeFile(
+        join(root, 'archive-app-build.py'),
+        await readFile(new URL('../deploy/archive-app-build.py', import.meta.url)),
+      );
       execFileSync(process.execPath, [
         fileURLToPath(new URL('./package-push-functions.mjs', import.meta.url)),
         artifact,
@@ -343,12 +370,15 @@ fi
 `,
         { mode: 0o755 },
       );
-      // Nur die JSON-Commitabfrage des Deployskripts braucht Python; Node kann sie im Fixture ersetzen.
+      // Die Commitabfrage bleibt simuliert; das App-Archiv wird mit dem echten
+      // Python-Programm geprüft, auch bei einer gemeinsamen Pushauslieferung.
       await writeFile(
         join(bin, 'python3'),
         `#!/bin/bash
-[[ "$1" = -c && "$2" = 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' ]] || exit 95
-exec node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).commit + "\\n")' "$3"
+if [[ "$1" = -c && "$2" = 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' ]]; then
+  exec node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).commit + "\\n")' "$3"
+fi
+exec /usr/bin/python3 "$@"
 `,
         { mode: 0o755 },
       );
@@ -367,6 +397,8 @@ case "$1" in
  create) echo artifact-container ;;
  cp)
   case "$2" in
+   *:*/archive-app-build.py) cp "$REPO_ROOT/deploy/archive-app-build.py" "$3" ;;
+   *:*/usr/share/nginx/html/.) cp -R "$APP_SOURCE/." "$3" ;;
    *:*/push-functions) cp -a "$FUNCTION_ARTIFACT" "$3" ;;
    *:*/docker-compose.push.yml) cp "$REPO_ROOT/deploy/docker-compose.push.yml" "$3" ;;
    *:*/docker-compose.push-functions.yml) cp "$REPO_ROOT/deploy/docker-compose.push-functions.yml" "$3" ;;
@@ -395,7 +427,9 @@ case "$1" in
    *State.Health.Status*) echo healthy ;;
    *) echo sha256:fixture ;;
   esac ;;
- pull|up|rm|logout|image|exec) ;;
+ exec)
+  if [[ "$2" = flipbase-web && "$3" = tar ]]; then tar -C "$APP_SOURCE" -cf - .; fi ;;
+ pull|up|rm|logout|image) ;;
  *) exit 91 ;;
 esac
 `,
@@ -412,6 +446,7 @@ esac
         SSH_ORIGINAL_COMMAND: `release-v1 ${appDigest} push ${pushDigest}`,
         DOCKER_LOG: log,
         FUNCTION_ARTIFACT: artifact,
+        APP_SOURCE: appSource,
         REPO_ROOT: fileURLToPath(new URL('../', import.meta.url)),
         EXPECTED_APP_IMAGE: `ghcr.io/grischatdev/flipbase@${appDigest}`,
         EXPECTED_PUSH_IMAGE: `ghcr.io/grischatdev/flipbase-push@${pushDigest}`,
@@ -420,6 +455,10 @@ esac
       };
       const result = await runDeploy(environment);
       assert.equal(result.code, 0, result.stderr);
+      assert.equal(
+        await readFile(join(root, 'app-builds', 'c'.repeat(64), 'index.html'), 'utf8'),
+        html,
+      );
       assert.equal(await readFile(join(runtime, 'push.env'), 'utf8'), configurationText);
       const nextRelease = await runDeploy(environment);
       assert.equal(nextRelease.code, 0, nextRelease.stderr);
