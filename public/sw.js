@@ -211,7 +211,37 @@ async function reportBrokenBuild(build) {
   }
 }
 async function readAsset(path, clientId = '', repairClientId = clientId) {
-  const build = await buildForClient(clientId);
+  let build;
+  try {
+    build = await buildForClient(clientId);
+  } catch {
+    // Erste vom alten Worker übernommene Dokumente haben noch keine Zuordnung.
+    // Nur eindeutig prüfsummengleiche, inhaltsversionierte alte Dateien sind
+    // ohne diese Zuordnung sicher. Unversionierte und neue Dateien bleiben zu.
+    if (!/^\/[\w-]+-[\w-]{8,}\.(?:js|css)$/.test(path)) throw new Error('App-Zuordnung fehlt.');
+    const candidates = [];
+    for (const name of await caches.keys()) {
+      if (name === CACHE_NAME || !/^flipbase-app-[a-f0-9]{64}$/.test(name)) continue;
+      const previousBuild = name.slice(CACHE_PREFIX.length);
+      try {
+        const previous = await inventoryForBuild(previousBuild);
+        const asset = previous.assets.find((asset) => asset.url === path);
+        if (asset) candidates.push({ build: previousBuild, hash: asset.sha256 });
+      } catch {
+        /* Eine beschädigte fremde Dateiliste belegt keine passenden Bytes. */
+      }
+    }
+    if (!candidates.length || new Set(candidates.map((candidate) => candidate.hash)).size !== 1)
+      throw new Error('Alte App-Datei ist nicht eindeutig belegt.');
+    for (const candidate of candidates) {
+      const response = await readBuildAsset(path, candidate.build, repairClientId);
+      if (response.ok) return response;
+    }
+    return new Response('Die alte App-Datei konnte nicht repariert werden.', { status: 503 });
+  }
+  return readBuildAsset(path, build, repairClientId);
+}
+async function readBuildAsset(path, build, repairClientId) {
   const current = await inventoryForBuild(build);
   const asset = current.assets.find((candidate) => candidate.url === path);
   if (!asset) {

@@ -33,6 +33,11 @@ WebKit prüft Oberfläche und echte IndexedDB; es ersetzt keinen Safari-Geräten
   Der Server hält mindestens drei Stände und darüber hinaus 30 Tage vor;
   der Browser behält referenzierte Caches und eine Übergangsfrist für alte Zuordnungen.
   Neue Bytes dürfen fehlende alte Dateien niemals ersetzen.
+- Erste Sitzungen des bisherigen Workers können noch ohne gespeicherte
+  Fensterzuordnung sein. Für sie werden ausschließlich eindeutig durch dieselbe
+  Prüfsumme belegte versionierte alte JavaScript-/CSS-Dateien nachgeladen.
+  Widersprüchliche Dateistände, neue Dateien und unversionierte Dateien bleiben
+  ohne Zuordnung gesperrt; eine Dokumentversion wird nicht geraten.
 
 Bei der Geräteabnahme insbesondere Start ohne Zwischenbild, Touch-Mehrfachberührung,
 unveränderte fremde Eingaben und Wiederaufnahme nach langer Pause prüfen. Ein
