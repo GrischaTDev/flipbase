@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-24 - Juna - Erste alte Fenster bei fehlender Cachedatei reparieren
+
+Nach ausdrücklicher Freigabe PR #469 mit vollständig grünen Pflichtprüfungen
+per Merge-Commit `143db013` veröffentlicht. Servervorbereitung abgeschlossen;
+gesunder Container ohne Neustarts, lesender Archiv-Mount sowie jeweils 278
+prüfsummengleiche Dateien des bisherigen und neuen öffentlichen Baus bestätigt.
+Der zusätzliche echte Browserwechsel erhielt die fremde Testeingabe. Eine danach
+absichtlich entfernte alte Cachedatei lieferte jedoch 503 trotz korrektem Archiv.
+
+Ursache: Eine beim allerersten Aufruf noch unkontrollierte alte Seite wird später
+per `clients.claim` übernommen, erhält im alten Protokoll aber noch keine
+Fensterzuordnung. Beim nächsten unabhängigen Update bleibt sie bewusst
+`unassigned`. Bisher scheiterte dadurch auch eine eindeutig versionierte alte
+Dateianforderung vor dem vorhandenen Reparaturweg. Neuer echter Browserfall
+reproduziert unveränderte Eingabe, fehlende Zuordnung und 503 statt 200.
+
+Folgekorrektur im eigenen Zweig auf dem veröffentlichten Hauptzweig: Ohne
+Zuordnung ausschließlich versionierte alte JS-/CSS-Dateien aus vorhandenen
+früheren Bauinventaren berücksichtigen. Alle passenden Inventare müssen dieselbe
+SHA-256 nennen; anschließend unveränderter prüfsummengesicherter Cache-/Archivweg.
+Keine Zuordnung raten, keine neue oder unversionierte Datei freigeben. Zwei neue
+Workerfälle prüfen Reparatur, unveränderte Zuordnung und Konfliktabweisung.
+Unabhängiger Nachreview ohne wesentliche Befunde; beide Worker-Suiten zusätzlich
+eigenständig mit 30 erfolgreichen Fällen geprüft. 46 PWA-Skriptfälle, gezieltes
+Lint, Typprüfung, Formatierung, Suite-Audit und 49 Auswahl-/Registrierungsfälle
+erfolgreich. Vollständige Produktions-PWA-Matrizen mit drei frischen Bauten unter
+Windows und Linux (Node 22, vier CPUs, acht GiB) jeweils 42 Fälle erfolgreich;
+jeweils das vorgesehene Desktop-Duplikat ausgelassen. Neue erste Legacy-Sitzung
+einschließlich erhaltener Eingabe und erzwungener Reparatur auf Desktop und
+mobilem Touch-Kontext erfolgreich. Echte Apple-Geräteabnahme bleibt offen.
+
 ## 2026-10-24 - Juna - App-Aktualisierungen je Fenster unabhängig machen
 
 **Auftrag:** Wiederkehrende Updateblockaden und wechselnde Ladeansichten untersuchen,

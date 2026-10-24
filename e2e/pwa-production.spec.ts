@@ -105,6 +105,91 @@ test('a real second build replaces the previous production protocol and supports
   }
 });
 
+test('a real second build repairs an unbound first legacy window without losing its input @worker', async ({
+  page,
+  context,
+}) => {
+  const { mockMarketplace } = await import('./support/marketplace-account-fixture');
+  const configure = (target: typeof page) =>
+    mockMarketplace(
+      target,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
+    );
+  await page.request.post('/api/__pwa_test__/build?name=legacy');
+  try {
+    await configure(page);
+    await page.goto('/purchases/new');
+    await expect
+      .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+      .toBe(true);
+    const oldBuild = await page.locator('html').getAttribute('data-flipbase-build');
+    const previous = (await (await page.request.get('/pwa-assets.json')).json()) as {
+      assets: { url: string; sha256: string }[];
+    };
+    await page.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
+    const entry = page.getByLabel('Verkäuferangabe, falls bekannt');
+    await entry.fill('Erste alte Sitzung bleibt offen');
+    const initiator = await context.newPage();
+    await configure(initiator);
+    await initiator.goto('/settings/notifications');
+    await page.request.post('/api/__pwa_test__/build?name=a');
+    const current = (await (await page.request.get('/pwa-assets.json')).json()) as typeof previous;
+    const asset = previous.assets.find(
+      (asset) =>
+        /^\/chunk-.*\.js$/.test(asset.url) &&
+        !current.assets.some((other) => other.url === asset.url),
+    );
+    expect(asset).toBeDefined();
+    await initiator.evaluate(async () =>
+      (await navigator.serviceWorker.getRegistration('/'))?.update(),
+    );
+    await initiator.getByRole('button', { name: 'Jetzt aktualisieren', exact: true }).click();
+    await expect(initiator.locator('html')).not.toHaveAttribute(
+      'data-flipbase-build',
+      oldBuild ?? '',
+    );
+    await expect(entry).toHaveValue('Erste alte Sitzung bleibt offen');
+    const result = await page.evaluate(
+      async ({ oldBuild, asset }) => {
+        const bindings = await caches.open('flipbase-pwa-clients');
+        const values = await Promise.all(
+          (await bindings.keys()).map(async (key) => (await bindings.match(key))?.text()),
+        );
+        const cache = await caches.open(`flipbase-app-${oldBuild}`);
+        const removed = await cache.delete(asset.url);
+        const response = await fetch(asset.url, { cache: 'no-store' });
+        const bytes = await response.arrayBuffer();
+        const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+          .map((byte) => byte.toString(16).padStart(2, '0'))
+          .join('');
+        return {
+          unassigned: values.includes('unassigned'),
+          removed,
+          status: response.status,
+          hash,
+        };
+      },
+      { oldBuild, asset: asset! },
+    );
+    expect(result.unassigned).toBe(true);
+    expect(result.removed).toBe(true);
+    expect(result.status).toBe(200);
+    expect(result.hash).toBe(asset!.sha256);
+    await expect(page.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+    await expect(entry).toHaveValue('Erste alte Sitzung bleibt offen');
+  } finally {
+    await page.request.post('/api/__pwa_test__/build?name=a');
+  }
+});
+
 test('startup works with production CSP, theme and reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));

@@ -95,6 +95,66 @@ test('an unknown foreign client does not prevent another document from repairing
   assert.equal((await worker.request('/app-startup.js', 'current')).status, 200);
 });
 
+test('an unbound first legacy window repairs only an unambiguous versioned old asset', async () => {
+  const worker = createWorker();
+  await worker.dispatch('install');
+  const build = 'b'.repeat(64);
+  const path = '/chunk-LEGACY123.js';
+  const bytes = 'previous exact bytes';
+  const { createHash } = await import('node:crypto');
+  const previous = await worker.caches.open(`flipbase-app-${build}`);
+  await previous.put(
+    '/pwa-assets.json',
+    Response.json({
+      ...worker.inventory,
+      buildId: build,
+      assets: [
+        ...worker.inventory.assets,
+        { url: path, sha256: createHash('sha256').update(bytes).digest('hex') },
+      ],
+    }),
+  );
+  worker.resources.set(`/app-builds/${build}${path}`, bytes);
+  worker.resources.set(path, 'incompatible current bytes');
+  const clients = await worker.caches.open('flipbase-pwa-clients');
+  await clients.put('/__pwa_clients/first-legacy', new Response('unassigned'));
+  const response = await worker.request(path, 'first-legacy');
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), bytes);
+  assert.equal(await (await clients.match('/__pwa_clients/first-legacy')).text(), 'unassigned');
+  assert.equal((await worker.request('/app-startup.js', 'first-legacy')).status, 503);
+  worker.resources.set('/chunk-NEWONLY1.js', 'new build only');
+  assert.equal((await worker.request('/chunk-NEWONLY1.js', 'first-legacy')).status, 503);
+});
+
+test('an unbound legacy window refuses conflicting hashes for the same versioned path', async () => {
+  const worker = createWorker();
+  await worker.dispatch('install');
+  const path = '/chunk-COLLISION.js';
+  const { createHash } = await import('node:crypto');
+  for (const build of ['b'.repeat(64), 'c'.repeat(64)]) {
+    const previous = await worker.caches.open(`flipbase-app-${build}`);
+    await previous.put(
+      '/pwa-assets.json',
+      Response.json({
+        ...worker.inventory,
+        buildId: build,
+        assets: [
+          ...worker.inventory.assets,
+          { url: path, sha256: createHash('sha256').update(build).digest('hex') },
+        ],
+      }),
+    );
+    worker.resources.set(`/app-builds/${build}${path}`, build);
+  }
+  await (
+    await worker.caches.open('flipbase-pwa-clients')
+  ).put('/__pwa_clients/unknown', new Response('unassigned'));
+  const callsBefore = worker.calls.length;
+  assert.equal((await worker.request(path, 'unknown')).status, 503);
+  assert.equal(worker.calls.length, callsBefore, 'ambiguous bytes never reach a repair request');
+});
+
 test('a restarted old active worker repairs its own manifest and navigation from its archived release', async () => {
   const worker = createWorker();
   const build = worker.inventory.buildId;
