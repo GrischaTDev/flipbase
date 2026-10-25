@@ -131,3 +131,48 @@ Worker-Heartbeat, öffentlichen Status und einen erfolgreichen regulären
 Abruf prüfen. Keine manuell ausgelöste Nachricht oder Veröffentlichung als
 Test verwenden. Der Neustart aus dem ersten Abschnitt war die bereits
 ausdrücklich freigegebene Wiederherstellung, kein Rollout dieser Korrektur.
+
+## Veröffentlichung und produktiver Nachweis
+
+Nach ausdrücklicher Nutzerfreigabe PR #452 erstellt und am 20.10.2026 um
+20:01:08 UTC mit `75b34b2d23d2b8998a239a39efb90085f8012f2b` gemergt.
+Alle gewählten Pflichtprüfungen im PR-Lauf `39486241503` einschließlich
+Browsergruppen und Produktions-PWA erfolgreich. Die getrennten Imageprüfungen
+`39486241546` und `39486241646` waren ebenfalls erfolgreich. Keine Prüfung
+abgeschwächt oder umgangen.
+
+Veröffentlichungslauf `39488387499` verwendet exakt diesen Merge-Commit.
+Imagebau, echter Broker-/Browser-Smoke und Veröffentlichung erfolgreich.
+Der automatische Produktionslauf `39488385570` ist erfolgreich; der
+unabhängige öffentliche Auslieferungscheck bestätigt denselben Commit.
+
+Das neue Broker-Abbild
+`sha256:20bde3c8d3cf17b61df0a25cad81df1d66010049f009e00a9601fb8161c1d0fe`
+wurde zusätzlich ohne Netzwerk, Volumes oder Serverzugänge geprüft. Die
+kompilierte Fassung enthält beide Fehlerhandler; ein künstlicher
+`EPIPE` wird bereinigt abgewiesen, ohne den Prozess zu beenden.
+
+Geschützte Sicherung und normalisierte Konfiguration liegen unter
+`/opt/flipbase-marketplace/broker-pipe-recovery-75b34b2d/`.
+Vor dem Austausch Worker geordnet beendet: Exitcode 0, kein OOM, keine
+verbliebenen Browsercontainer und keine ungelösten Datenbanksitzungen.
+Anschließend ausschließlich Broker-Abbild und dessen Neustartregel geändert.
+Der ursprüngliche Workercontainer wurde wieder gestartet; Worker- und
+Sitzungsabbild, alle Umgebungswerte, Mounts und Sandboxvorgaben wurden als
+unverändert bestätigt. Keine Kontopause aufgehoben und keine Nachricht,
+kein Angebot oder Inserat manuell ausgelöst.
+
+Produktive Abnahme um 20:06:38 UTC: Worker gesund, Broker läuft mit neuem
+Digest und `unless-stopped`, öffentlicher Status HTTP 200 mit aktiver
+Automatik, aktueller Heartbeat bei Worker-Epoch 229. Der erste reguläre
+Abruf nach dem Austausch wurde um 20:05:53 UTC, also 22:05:53 Uhr deutscher
+Zeit, erfolgreich gespeichert. Profil, Inserate, Gespräche, Verkäufe und
+Bereinigung vollständig abgeschlossen; null Folgefehler und keine offene
+Browsersitzung. Beide vorher pausierten Pläne bleiben pausiert.
+
+Rückweg bei Bedarf: Worker geordnet beenden und das vorherige Broker-Abbild
+mit `compose.previous.json` aus der geschützten Sicherung wiederherstellen;
+anschließend denselben Worker starten und Status/Berechtigung prüfen.
+Keine Profile oder IP-Zuordnungen zurücksetzen. Lokale Prüfnachweise und
+Rollout-Skripte vor Worktree-Bereinigung unter
+`tmp/vinted-broker-pipe-recovery-20261020/` gesichert.
