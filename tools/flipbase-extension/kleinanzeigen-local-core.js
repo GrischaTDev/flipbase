@@ -65,6 +65,25 @@
         'categoryPath',
       ],
       QUOTA: ['type', 'requestId', 'workspaceId', 'connectionId', 'generation'],
+      RELIST_LISTING: [
+        'type',
+        'requestId',
+        'workspaceId',
+        'connectionId',
+        'generation',
+        'externalId',
+        'categoryPaths',
+      ],
+      RELIST_ATTEMPTS: ['type', 'requestId', 'workspaceId', 'connectionId', 'generation'],
+      OPEN_LISTING: [
+        'type',
+        'requestId',
+        'workspaceId',
+        'connectionId',
+        'generation',
+        'handoffId',
+        'payload',
+      ],
       PUBLISH_JOB: [
         'type',
         'requestId',
@@ -124,7 +143,9 @@
     )
       return null;
     if (
-      ['QUOTA', 'PUBLISH_JOB'].includes(action) &&
+      ['QUOTA', 'PUBLISH_JOB', 'OPEN_LISTING', 'RELIST_LISTING', 'RELIST_ATTEMPTS'].includes(
+        action,
+      ) &&
       (!uuid.test(message.workspaceId ?? '') ||
         typeof message.connectionId !== 'string' ||
         !/^[1-9][0-9]{0,18}$/u.test(message.connectionId) ||
@@ -136,6 +157,54 @@
             !/^[1-9][0-9]{0,18}$/u.test(message.jobId) ||
             BigInt(message.jobId) > 9223372036854775807n ||
             !['publish', 'reconcile'].includes(message.mode))))
+    )
+      return null;
+    if (
+      action === 'RELIST_LISTING' &&
+      (!identifier(message.externalId) ||
+        !record(message.categoryPaths) ||
+        Object.keys(message.categoryPaths).length > 5000 ||
+        Object.entries(message.categoryPaths).some(
+          ([label, path]) =>
+            !label ||
+            label.length > 600 ||
+            typeof path !== 'string' ||
+            path.length > 160 ||
+            !/^[1-9][0-9]*(?:\/[a-z0-9_ -]+){0,5}$/u.test(path),
+        ))
+    )
+      return null;
+    if (
+      action === 'OPEN_LISTING' &&
+      (!uuid.test(message.handoffId ?? '') ||
+        !record(message.payload) ||
+        typeof message.payload.itemId !== 'string' ||
+        typeof message.payload.title !== 'string' ||
+        !message.payload.title.trim() ||
+        message.payload.title.length > 65 ||
+        typeof message.payload.description !== 'string' ||
+        !message.payload.description.trim() ||
+        message.payload.description.length > 4000 ||
+        !Number.isSafeInteger(message.payload.price) ||
+        message.payload.price < 0 ||
+        message.payload.price > 99999999 ||
+        !['FIXED', 'NEGOTIABLE'].includes(message.payload.priceType) ||
+        !['pickup', 'both'].includes(message.payload.shippingType) ||
+        (message.payload.postalCode !== undefined &&
+          !/^\d{5}$/u.test(message.payload.postalCode)) ||
+        (message.payload.categoryPath != null &&
+          (typeof message.payload.categoryPath !== 'string' ||
+            message.payload.categoryPath.length > 160 ||
+            !/^[1-9][0-9]*(?:\/[a-z0-9_ -]+){0,5}$/u.test(message.payload.categoryPath))) ||
+        !Array.isArray(message.payload.images) ||
+        message.payload.images.length > 20 ||
+        message.payload.images.some(
+          (image) =>
+            !record(image) ||
+            typeof image.name !== 'string' ||
+            typeof image.url !== 'string' ||
+            !image.url.startsWith('https://'),
+        ))
     )
       return null;
     return { action, ...message };

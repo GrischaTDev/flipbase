@@ -108,7 +108,7 @@ export class ListingTransferService {
     const preview: PreparedKleinanzeigenTransfer = {
       ...mapVintedToKleinanzeigen(
         { ...result.source, reference: source },
-        { postalCode: null, priceType: 'FIXED', shippingType: 'pickup' },
+        { postalCode: null, priceType: 'NEGOTIABLE', shippingType: 'both' },
       ),
       target: { workspaceId: source.workspaceId, connectionId: targetConnectionId },
       sourceReference: {

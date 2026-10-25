@@ -149,3 +149,75 @@
   }
   root.FlipbaseKleinanzeigenListing = Object.freeze({ run });
 })(globalThis);
+
+// Gesicherte Neufassung zuerst vorbereiten; unklare Klicks werden ausschließlich nachgelesen.
+(function defineKleinanzeigenRelisting(root) {
+  async function run(adapter) {
+    let record = await adapter.load();
+    if (!record?.snapshot) return { outcome: 'needs_user_action', errorCode: 'source_missing' };
+    const save = async (fields) => {
+      const next = { ...record, ...fields };
+      await adapter.save(next);
+      record = next;
+    };
+    const stop = (errorCode) => ({ outcome: 'needs_user_action', errorCode });
+    let preparedHere = false;
+    try {
+      await adapter.check();
+      if (record.phase === 'confirmed') return record.result;
+      if (['submitting', 'outcome_unknown'].includes(record.phase)) {
+        const result = await adapter.result(record);
+        if (result?.outcome === 'confirmed') await save({ phase: 'confirmed', result });
+        return result;
+      }
+      if (record.phase === 'deleting') {
+        // Erst nur nachlesen. Eine bestätigte Abwesenheit erlaubt einen späteren
+        // bewussten Fortsetzungsklick, aber keine zweite Löschung.
+        if (await adapter.sourceAbsent()) {
+          await save({ phase: 'deleted' });
+          return stop('deletion_confirmed');
+        }
+        return stop('deletion_not_confirmed');
+      }
+      if (record.phase === 'secured') {
+        if ((await adapter.prepare(record))?.complete !== true) return stop('preparation_failed');
+        preparedHere = true;
+        await adapter.check();
+        if ((await adapter.verify())?.complete !== true) return stop('images_incomplete');
+        if ((await adapter.costs())?.allowed !== true) return stop('fees_or_quota');
+        if ((await adapter.sourceUnchanged(record.snapshot)) !== true)
+          return stop('source_changed');
+        await adapter.check();
+        if ((await adapter.verify())?.complete !== true) return stop('images_incomplete');
+        if ((await adapter.costs())?.allowed !== true) return stop('fees_or_quota');
+        await save({ phase: 'deleting' });
+        if ((await adapter.remove())?.confirmed !== true) return stop('deletion_unconfirmed');
+        if (!(await adapter.sourceAbsent())) return stop('deletion_unconfirmed');
+        await save({ phase: 'deleted' });
+      }
+      if (record.phase !== 'deleted') return stop('invalid_phase');
+      if (!preparedHere && (await adapter.prepare(record))?.complete !== true)
+        return stop('preparation_failed');
+      await adapter.check();
+      if ((await adapter.verify())?.complete !== true) return stop('images_incomplete');
+      if ((await adapter.costs())?.allowed !== true) return stop('fees_or_quota');
+      await save({ phase: 'submitting' });
+      await adapter.submit();
+      const result = await adapter.result(record);
+      await save({
+        phase: result?.outcome === 'confirmed' ? 'confirmed' : 'outcome_unknown',
+        result,
+      });
+      return result;
+    } catch (error) {
+      return ['submitting', 'outcome_unknown'].includes(record.phase)
+        ? { outcome: 'outcome_unknown', errorCode: 'publication_unconfirmed' }
+        : stop(
+            ['deleting', 'deleted'].includes(record.phase)
+              ? 'deletion_unconfirmed'
+              : (error?.message ?? 'preparation_failed'),
+          );
+    }
+  }
+  root.FlipbaseKleinanzeigenRelisting = Object.freeze({ run });
+})(globalThis);

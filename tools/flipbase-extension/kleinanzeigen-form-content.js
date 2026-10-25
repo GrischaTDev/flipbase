@@ -177,7 +177,14 @@
           node.click();
           return await wait(() => {
             const result = reader.readCategories(document);
-            return result?.path === choice.path ? result : null;
+            // Der Hash wechselt vor dem nachgeladenen Baum. Erst mit der nächsten
+            // Ebene fortfahren, sonst wird eine vorhandene Kategorie abgewiesen.
+            return result?.path === choice.path &&
+              (choice.isParent
+                ? result.choices.length > 0
+                : result.selectedLeaf && result.canContinue)
+              ? result
+              : null;
           });
         }
         if (message.action === 'continue_category') {

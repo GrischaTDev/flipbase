@@ -1,6 +1,8 @@
+import { KleinanzeigenListingHandoffService } from '../../services/kleinanzeigen-listing-handoff.service';
+import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
+import { kleinanzeigenContentKey } from '../../models/kleinanzeigen-provider-schema';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { kleinanzeigenCategories } from '../../models/kleinanzeigen-categories';
-import { kleinanzeigenCategoryPath } from '../../../../../../supabase/functions/_shared/kleinanzeigen-form-contracts';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,6 +17,7 @@ import {
 } from '@angular/core';
 import { FormControl, FormRecord, ReactiveFormsModule } from '@angular/forms';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { Listing } from '../../../listings/models/listing.models';
@@ -46,7 +49,12 @@ export interface KleinanzeigenCategorySelection {
     KleinanzeigenListingFieldsComponent,
     KleinanzeigenPublicationPanelComponent,
   ],
-  providers: [KleinanzeigenExtensionBridge, KleinanzeigenFormSchemaService],
+  providers: [
+    KleinanzeigenExtensionBridge,
+    KleinanzeigenFormSchemaService,
+    KleinanzeigenListingHandoffService,
+    KleinanzeigenListingJobService,
+  ],
   templateUrl: './kleinanzeigen-transfer-target.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -59,8 +67,13 @@ export class KleinanzeigenTransferTargetComponent {
   readonly confirmed = output<void>();
   private readonly accounts = inject(KleinanzeigenAccountService);
   private readonly workspace = inject(WorkspaceService);
+  private readonly auth = inject(AuthService);
   private readonly schemas = inject(KleinanzeigenFormSchemaService);
   readonly extension = inject(KleinanzeigenExtensionBridge);
+  readonly jobs = inject(KleinanzeigenListingJobService);
+  private readonly handoff = inject(KleinanzeigenListingHandoffService);
+  readonly notice = signal<string | null>(null);
+  private handoffId = crypto.randomUUID();
   readonly publicationScope = signal<KleinanzeigenListingJobScope | null>(null);
   readonly publicationAllowed = signal(false);
   readonly scope = signal<KleinanzeigenListingJobScope | null>(null);
@@ -127,6 +140,8 @@ export class KleinanzeigenTransferTargetComponent {
         this.schemas.cancel();
         this.error.set(null);
         this.schemaLoadFailed.set(false);
+        this.handoffId = crypto.randomUUID();
+        this.notice.set(null);
         this.schema.set(null);
         this.schemaRevision.set(listing.schemaRevision ?? null);
         this.choices.set([]);
@@ -177,12 +192,6 @@ export class KleinanzeigenTransferTargetComponent {
           generation: account.localGrant.generation,
           accountType: account.accountType,
         });
-      if (
-        this.scope() &&
-        listing.categoryId &&
-        this.categorySource.getCategory(listing.categoryId)?.isLeaf
-      )
-        await this.browse(listing.categoryId);
     } catch {
       if (generation === this.generation)
         this.error.set('Das Zielkonto konnte nicht geprüft werden.');
@@ -190,29 +199,82 @@ export class KleinanzeigenTransferTargetComponent {
   }
   async selectCategory(path: string | null): Promise<void> {
     if (this.busy()) return;
-    const previousFields = this.content().categoryFields;
+    this.categorySelection.setValue(path, { emitEvent: false });
     this.schema.set(null);
-    this.schemaLoadFailed.set(false);
     this.schemaRevision.set(null);
+    this.schemaLoadFailed.set(false);
     this.error.set(null);
     for (const key of Object.keys(this.attributes.controls))
       this.attributes.removeControl(key, { emitEvent: false });
-    this.selectedGroup.set('');
-    this.methods.set([]);
-    this.shippingGroup.setValue('', { emitEvent: false });
     this.emitFields();
-    if (!path) return;
-    if (!this.categorySource.getCategory(path)?.isLeaf) {
-      this.error.set('Wähle eine vollständige Unterkategorie.');
+  }
+  async openListing(): Promise<void> {
+    const userId = this.auth.currentUser()?.id;
+    const scope = this.publicationScope();
+    const listing = this.listing();
+    const content = this.content();
+    if (
+      !userId ||
+      !scope ||
+      !this.publicationAllowed() ||
+      this.busy() ||
+      this.unsaved() ||
+      listing.status !== 'prepared' ||
+      content.priceCents === null ||
+      ['queued', 'claimed', 'writing', 'outcome_unknown', 'confirmed'].includes(
+        this.jobs.job()?.state ?? '',
+      )
+    )
       return;
-    }
-    if (!kleinanzeigenCategoryPath(path)) {
-      this.error.set(
-        'Diese Kategorie ist im Baum vorhanden. Ihre automatische Übergabe wird noch nicht unterstützt.',
+    const generation = this.generation;
+    const key = kleinanzeigenContentKey(content);
+    const current = () =>
+      this.auth.currentUser()?.id === userId &&
+      generation === this.generation &&
+      !this.unsaved() &&
+      this.workspace.currentWorkspace()?.id === listing.workspaceId &&
+      !this.workspace.currentWorkspace()?.archived_at &&
+      kleinanzeigenContentKey(this.content()) === key;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const existingJob = await this.jobs.latest(scope, listing.id);
+      if (!current()) return;
+      if (
+        existingJob &&
+        ['queued', 'claimed', 'writing', 'outcome_unknown', 'confirmed'].includes(existingJob.state)
+      ) {
+        this.notice.set(
+          'Für diese Fassung besteht bereits ein Veröffentlichungsauftrag. Prüfe zuerst dessen Status.',
+        );
+        return;
+      }
+      await this.handoff.open(
+        scope,
+        {
+          id: listing.id,
+          workspaceId: listing.workspaceId,
+          targetConnectionId: scope.connectionId,
+          content: { ...content, priceCents: content.priceCents },
+          imagesComplete: listing.transferImagesComplete === true,
+          status: 'prepared',
+        },
+        this.handoffId,
+        current,
+        this.photoCount(),
       );
-      return;
+      if (current())
+        this.notice.set(
+          'Das vorbefüllte Kleinanzeigen-Formular ist geöffnet. Ergänze dort fehlende Angaben und prüfe Dein Inserat.',
+        );
+    } catch (error) {
+      if (current())
+        this.error.set(
+          error instanceof Error ? error.message : 'Das Formular konnte nicht geöffnet werden.',
+        );
+    } finally {
+      if (generation === this.generation) this.busy.set(false);
     }
-    await this.browse(path, previousFields);
   }
   async browse(path: string, previousFields?: Readonly<Record<string, string>>): Promise<void> {
     const scope = this.scope();

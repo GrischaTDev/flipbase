@@ -6,6 +6,7 @@ import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marke
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect, vi, afterEach, beforeEach, beforeAll, afterAll } from 'vitest';
+import { KleinanzeigenListingHandoffService } from '../../services/kleinanzeigen-listing-handoff.service';
 import { ListingTransferDialogComponent } from './listing-transfer-dialog.component';
 import { ListingTransferService } from '../../services/listing-transfer.service';
 import { KleinanzeigenAccountService } from '../../services/kleinanzeigen-account.service';
@@ -63,6 +64,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
       id !== 'kleinanzeigen' || settings.isKleinanzeigenEnabled(),
   };
   const transfers = { prepare: vi.fn(), save: vi.fn(), cancel: vi.fn() };
+  const handoff = { open: vi.fn().mockResolvedValue(undefined) };
   const accounts = { readAccounts: vi.fn() };
   const schemas = { browse: vi.fn(), cancel: vi.fn(), bindingIssue: signal<string | null>(null) };
   const bridge = {
@@ -106,6 +108,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
         { provide: ConfirmDialogService, useValue: confirm },
       ],
     });
+    TestBed.overrideProvider(KleinanzeigenListingHandoffService, { useValue: handoff });
     TestBed.overrideProvider(KleinanzeigenListingJobService, { useValue: jobs });
     TestBed.overrideProvider(ListingTransferService, { useValue: transfers });
     TestBed.overrideProvider(KleinanzeigenFormSchemaService, { useValue: schemas });
@@ -210,7 +213,8 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     await f.whenStable();
     schemas.bindingIssue.set('missing');
     f.detectChanges();
-    expect(f.nativeElement.textContent).toContain('Konto verbinden');
+    expect(f.nativeElement.textContent).not.toContain('Eigenschaften erneut laden');
+    expect(schemas.browse).not.toHaveBeenCalled();
   });
   it('kehrt nach Bestätigung mit bearbeiteten Angaben zur bewussten Kontoauswahl zurück', async () => {
     const f = await create();
@@ -277,7 +281,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
       expect(c.target.value).toBe('');
     },
   );
-  it('lädt nach erneuter Freigabe dieselbe Kategorie mit neuer Generation und erhält den Beschreibungstext', async () => {
+  it('erhält nach erneuter Freigabe die lokale Kategorie und den Beschreibungstext ohne Anbieterabruf', async () => {
     const f = await create();
     const c = f.componentInstance;
     c.platform.setValue('kleinanzeigen');
@@ -297,11 +301,8 @@ describe('Gemeinsamer Übertragungsdialog', () => {
       schemaRevision: null,
     });
     await c.accountChanged();
-    expect(schemas.browse).toHaveBeenCalledWith(
-      expect.objectContaining({ generation: 3, connectionId: '9' }),
-      '153/160/hemden',
-      'provider',
-    );
+    expect(schemas.browse).not.toHaveBeenCalled();
+    expect(c.categoryPath()).toBe('153/160/hemden');
     expect(c.form.controls.description.value).toBe('Mein bearbeiteter Text');
     expect(transfers.prepare).toHaveBeenCalledTimes(1);
   });
@@ -351,6 +352,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     c.schemaRevision.set('a'.repeat(64));
     f.detectChanges();
     expect(f.nativeElement.textContent).not.toContain('fünfstellige Postleitzahl');
+    c.form.controls.postalCode.setValue('123');
     await c.publish();
     f.detectChanges();
     expect(
@@ -454,11 +456,12 @@ describe('Gemeinsamer Übertragungsdialog', () => {
         expect(c.form.controls.description.value).toBe('Spätere Änderung');
         expect(c.notice()).toContain('noch nicht gespeichert');
       } else
-        expect(jobs.enqueue).toHaveBeenCalledWith(
+        expect(handoff.open).toHaveBeenCalledWith(
           expect.objectContaining({ connectionId: '9' }),
-          'prepared-copy',
-          2,
+          expect.objectContaining({ id: 'prepared-copy', revision: 2 }),
           expect.any(String),
+          expect.any(Function),
+          1,
         );
     },
   );
@@ -495,20 +498,35 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     expect(published).toHaveBeenCalledTimes(1);
     expect(c.notice()).toContain('jetzt bei Kleinanzeigen online');
   });
-  it('fordert vor dem Inserieren eine ausgewählte Kategorie statt erst den Baum zu laden', async () => {
+  it('öffnet ohne Kategorie das gesicherte vorbefüllte Formular und startet keine automatische Veröffentlichung', async () => {
     const f = await create();
     const c = f.componentInstance;
     c.platform.setValue('kleinanzeigen');
     c.target.setValue('9');
     await expect.poll(() => c.preview()).toEqual(prepared);
-    schemas.browse.mockClear();
-    transfers.save.mockClear();
-    jobs.enqueue.mockClear();
+    c.form.patchValue({ title: 'Jacke', price: 12 });
+    transfers.save.mockImplementation(async (_preview, content) => ({
+      id: 'copy',
+      workspaceId: source.workspaceId,
+      targetConnectionId: '9',
+      revision: 2,
+      status: 'prepared',
+      imagesComplete: true,
+      content,
+    }));
     await c.publish();
     expect(schemas.browse).not.toHaveBeenCalled();
-    expect(transfers.save).not.toHaveBeenCalled();
+    expect(transfers.save).toHaveBeenCalledTimes(1);
+    expect(handoff.open).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: '9' }),
+      expect.objectContaining({ content: expect.objectContaining({ categoryId: null }) }),
+      expect.any(String),
+      expect.any(Function),
+      1,
+    );
     expect(jobs.enqueue).not.toHaveBeenCalled();
-    expect(c.error()).toContain('vollständige Kleinanzeigen-Kategorie');
+    expect(c.error()).toBeNull();
+    expect(c.notice()).toContain('vorbefüllte');
   });
   it('zeigt Auftragsfehler im festen Dialogbereich genau einmal', async () => {
     const f = await create();
@@ -580,7 +598,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     expect(f.nativeElement.querySelector('[aria-label="Unterkategorie auswählen"]')).toBeNull();
     expect(schemas.browse).not.toHaveBeenCalled();
   });
-  it('liest Eigenschaften erst nach ausdrücklicher Endkategoriewahl und verwirft Elternkategorien', async () => {
+  it('übernimmt den lokalen Kategoriepfad ohne Anbieterabruf oder Pflichtprüfung', async () => {
     const f = await create();
     const c = f.componentInstance;
     c.platform.setValue('kleinanzeigen');
@@ -591,7 +609,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     await f.whenStable();
     expect(schemas.browse).not.toHaveBeenCalled();
     expect(c.schema()).toBeNull();
-    expect(c.notice()).toContain('Unterkategorie');
+    expect(c.notice()).toBeNull();
     schemas.browse.mockResolvedValue({
       categoryPath: '153/160/hemden',
       categoryLabel: 'Hemden',
@@ -611,15 +629,11 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     });
     c.categorySelection.setValue('153/160/hemden');
     await f.whenStable();
-    expect(schemas.browse).toHaveBeenCalledWith(
-      expect.objectContaining({ connectionId: '9' }),
-      '153/160/hemden',
-      'provider',
-    );
+    expect(schemas.browse).not.toHaveBeenCalled();
     expect(c.content().categoryId).toBe('153/160/hemden');
-    expect(c.schema()?.categoryPath).toBe('153/160/hemden');
+    expect(c.schema()).toBeNull();
   });
-  it('erhält beim bewussten Kategorienwechsel weiterhin gültige eigene Eigenschaften', async () => {
+  it('entfernt alte Eigenschaften beim Kategorienwechsel ohne neue Liveabfrage', async () => {
     const f = await create();
     const c = f.componentInstance;
     c.platform.setValue('kleinanzeigen');
@@ -661,7 +675,8 @@ describe('Gemeinsamer Übertragungsdialog', () => {
       },
     });
     await c.selectCategory('153/160/hemden');
-    expect(c.attributes.getRawValue()).toEqual({ 'kleidung_herren.condition': 'like_new' });
+    expect(c.attributes.getRawValue()).toEqual({});
+    expect(schemas.browse).not.toHaveBeenCalled();
   });
   it('erhält lange Quelltexte und Centbeträge zur sichtbaren Korrektur', async () => {
     const f = await create();

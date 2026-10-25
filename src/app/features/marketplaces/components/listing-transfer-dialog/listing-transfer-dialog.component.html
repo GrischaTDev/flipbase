@@ -79,35 +79,10 @@
         @if (!busy() && fieldErrors()['categoryId']; as message) {
           <p class="text-sm text-[var(--fb-color-critical-text)]" role="alert">{{ message }}</p>
         }
-        @if (busy()) {
-          <p class="text-sm text-fb-text-secondary" role="status">Eigenschaften werden geladen …</p>
-        }
-        @if (bindingIssue()) {
-          <app-button
-            [disabled]="busy() || publishing()"
-            (clicked)="accountManagementOpen.set(true)"
-            >{{
-              bindingIssue() === 'missing' ? 'Konto verbinden' : 'Freigabe erneuern'
-            }}</app-button
-          >
-        }
-        @if (schemaLoadFailed() && categoryPath() && !busy()) {
-          <app-button [disabled]="publishing()" (clicked)="selectCategory(categoryPath())"
-            >Eigenschaften erneut laden</app-button
-          >
-        }
-        @if (schema(); as currentSchema) {
-          <app-kleinanzeigen-listing-fields
-            [schema]="currentSchema"
-            [attributes]="attributes"
-            [errors]="fieldErrors()"
-            [shippingEnabled]="false"
-            [shippingGroup]="shippingGroup"
-            [selectedGroup]="selectedShippingGroup()"
-            [selectedMethods]="selectedShippingMethods()"
-            (methodsChanged)="chooseMethods($event)"
-          />
-        }
+        <p class="text-sm text-fb-text-secondary">
+          Optional. Fehlende Kategorien und Eigenschaften kannst Du direkt bei Kleinanzeigen
+          ergänzen.
+        </p>
       </section>
       <div class="grid min-w-0 gap-4 sm:grid-cols-2">
         <div>
@@ -168,21 +143,6 @@
           formControlName="shippingType"
           [options]="shippingTypes"
         />
-        @if (schema(); as currentSchema) {
-          @if (form.controls.shippingType.value === 'both') {
-            <app-kleinanzeigen-listing-fields
-              [schema]="currentSchema"
-              [attributes]="attributes"
-              [errors]="fieldErrors()"
-              [showAttributes]="false"
-              [shippingEnabled]="true"
-              [shippingGroup]="shippingGroup"
-              [selectedGroup]="selectedShippingGroup()"
-              [selectedMethods]="selectedShippingMethods()"
-              (methodsChanged)="chooseMethods($event)"
-            />
-          }
-        }
         @if (fieldErrors()['shippingType']; as message) {
           <p class="text-sm text-[var(--fb-color-critical-text)]" role="alert">{{ message }}</p>
         }

@@ -2,13 +2,14 @@ import { NgTemplateOutlet } from '@angular/common';
 import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleinanzeigen-accounts.component';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { kleinanzeigenCategories } from '../../models/kleinanzeigen-categories';
-import { kleinanzeigenCategoryPath } from '../../../../../../supabase/functions/_shared/kleinanzeigen-form-contracts';
 import {
   kleinanzeigenJobStatus,
   kleinanzeigenJobIssue,
   type KleinanzeigenListingJob,
 } from '../../models/kleinanzeigen-listing-job';
 import { KleinanzeigenPublicationPanelComponent } from '../kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
+import { KleinanzeigenListingHandoffService } from '../../services/kleinanzeigen-listing-handoff.service';
+import { validateKleinanzeigenHandoff } from '../../models/kleinanzeigen-listing-handoff';
 import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
 import type { KleinanzeigenListingJobScope } from '../../services/kleinanzeigen-listing-job.service';
 import type { KleinanzeigenDraftInput } from '../../models/kleinanzeigen-transfer-mapping';
@@ -45,7 +46,6 @@ import { NumberInputComponent } from '../../../../shared/components/number-input
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { KleinanzeigenListingFieldsComponent } from '../kleinanzeigen-listing-fields/kleinanzeigen-listing-fields.component';
 import {
   ListingTransferService,
   type PreparedKleinanzeigenTransfer,
@@ -80,11 +80,11 @@ import {
     NumberInputComponent,
     CustomSelectComponent,
     ProductThumbnailComponent,
-    KleinanzeigenListingFieldsComponent,
     KleinanzeigenPublicationPanelComponent,
   ],
   providers: [
     ListingTransferService,
+    KleinanzeigenListingHandoffService,
     KleinanzeigenListingJobService,
     KleinanzeigenExtensionBridge,
     KleinanzeigenFormSchemaService,
@@ -123,6 +123,7 @@ export class ListingTransferDialogComponent {
   private publicationRequestId = crypto.randomUUID();
   private readonly accountsApi = inject(KleinanzeigenAccountService);
   private readonly schemas = inject(KleinanzeigenFormSchemaService);
+  private readonly handoff = inject(KleinanzeigenListingHandoffService);
   readonly bindingIssue = this.schemas.bindingIssue;
   readonly accountManagementOpen = signal(false);
   readonly extension = inject(KleinanzeigenExtensionBridge);
@@ -186,8 +187,8 @@ export class ListingTransferDialogComponent {
       Validators.max(99999999),
       Validators.pattern(/^\d+(?:\.\d{1,2})?$/u),
     ]),
-    priceType: new FormControl<'FIXED' | 'NEGOTIABLE'>('FIXED', { nonNullable: true }),
-    shippingType: new FormControl<'pickup' | 'both'>('pickup', { nonNullable: true }),
+    priceType: new FormControl<'FIXED' | 'NEGOTIABLE'>('NEGOTIABLE', { nonNullable: true }),
+    shippingType: new FormControl<'pickup' | 'both'>('both', { nonNullable: true }),
     postalCode: new FormControl('', {
       nonNullable: true,
       validators: [Validators.pattern(/^\d{5}$/u)],
@@ -231,14 +232,10 @@ export class ListingTransferDialogComponent {
   ];
   readonly publicationIssues = computed(() => {
     this.formTick();
-    const schema = this.schema();
-    return schema
-      ? validateKleinanzeigenPublication(
-          this.content(),
-          schema,
-          this.preview()?.originalPhotoReferences.length ?? 0,
-        )
-      : [{ field: 'categoryId', message: 'Wähle und prüfe die Kleinanzeigen-Kategorie.' }];
+    return validateKleinanzeigenHandoff(
+      this.content(),
+      this.preview()?.originalPhotoReferences.length ?? 0,
+    );
   });
   readonly fieldErrors = computed<Readonly<Record<string, string>>>(() => {
     this.formTick();
@@ -502,8 +499,8 @@ export class ListingTransferDialogComponent {
   }
   async selectCategory(path: string | null): Promise<void> {
     if (this.busy() || this.publishing()) return;
-    const previousFields = this.content().categoryFields;
     this.categoryPath.set(path ?? '');
+    this.categorySelection.setValue(path, { emitEvent: false });
     this.categoryLabel.set(path ? (this.categorySource.getCategory(path)?.fullName ?? '') : '');
     this.schema.set(null);
     this.schemaRevision.set(null);
@@ -511,23 +508,7 @@ export class ListingTransferDialogComponent {
     this.error.set(null);
     for (const key of Object.keys(this.attributes.controls))
       this.attributes.removeControl(key, { emitEvent: false });
-    this.shippingGroup.setValue('', { emitEvent: false });
-    this.selectedShippingGroup.set('');
-    this.selectedShippingMethods.set([]);
     this.formTick.update((value) => value + 1);
-    if (!path) return;
-    if (!this.categorySource.getCategory(path)?.isLeaf) {
-      this.notice.set('Wähle eine vollständige Unterkategorie.');
-      return;
-    }
-    if (!kleinanzeigenCategoryPath(path)) {
-      this.notice.set(
-        'Diese Kategorie ist im Baum vorhanden. Ihre automatische Übergabe wird noch nicht unterstützt.',
-      );
-      return;
-    }
-    this.publicationPreparation.set(true);
-    await this.browse(path, previousFields);
   }
   async browse(path: string, previousFields?: Readonly<Record<string, string>>): Promise<void> {
     const account = this.accounts().find(
@@ -695,19 +676,6 @@ export class ListingTransferDialogComponent {
       return;
     }
     const generation = this.generation;
-    if (!this.extension.formSchemaAvailable()) {
-      this.error.set(
-        'Für Eigenschaften und Veröffentlichung ist die Flipbase-Erweiterung erforderlich. Prüfe die Erweiterung in diesem Browserprofil.',
-      );
-      return;
-    }
-    if (!this.schema()) {
-      this.error.set(
-        'Wähle eine vollständige Kleinanzeigen-Kategorie und prüfe die Eigenschaften.',
-      );
-      return;
-    }
-    this.form.markAllAsTouched();
     if (this.form.invalid || this.publicationIssues().length) {
       this.error.set('Ergänze die fehlenden Angaben und prüfe die markierten Felder.');
       return;
@@ -715,45 +683,72 @@ export class ListingTransferDialogComponent {
     this.publishing.set(true);
     this.error.set(null);
     try {
-      const selectedPath = this.schema()!.categoryPath;
-      const oldRevision = this.schemaRevision();
-      this.publicationPreparation.set(true);
-      await this.browse(selectedPath);
-      if (!this.current(generation) || this.error()) return;
-      if (this.schemaRevision() !== oldRevision || this.publicationIssues().length) {
+      const formBeforePreparation = JSON.stringify(this.form.getRawValue());
+      if (this.categoryPath() && this.extension.formSchemaAvailable()) {
+        this.publicationPreparation.set(true);
+        await this.browse(this.categoryPath());
+        if (!this.current(generation)) return;
+        // Eine nicht unterstützte Kategorie ist kein Hindernis für den Formularassistenten.
+        this.error.set(null);
+        this.schemaLoadFailed.set(false);
+      }
+      if (JSON.stringify(this.form.getRawValue()) !== formBeforePreparation) {
         this.notice.set(
-          'Die aktuellen Kleinanzeigen-Felder wurden ergänzt. Prüfe sie und klicke anschließend erneut auf Inserieren.',
+          'Deine Angaben wurden während der Vorbereitung geändert. Prüfe sie und klicke erneut auf Inserieren.',
         );
         return;
       }
+      const automatic =
+        this.schema() &&
+        this.extension.capabilities().publish &&
+        this.extension.quotaAvailable() &&
+        validateKleinanzeigenPublication(
+          this.content(),
+          this.schema(),
+          this.preview()?.originalPhotoReferences.length ?? 0,
+        ).length === 0;
       await this.save();
       const draft = this.savedDraft();
-      if (
-        !this.current(generation) ||
-        this.error() ||
-        !draft ||
-        !draft.imagesComplete ||
-        this.unsavedChanges()
-      )
+      const current = () =>
+        this.current(generation) &&
+        this.publicationScope()?.connectionId === scope.connectionId &&
+        this.publicationScope()?.generation === scope.generation &&
+        !this.unsavedChanges();
+      if (this.error() || !draft || !draft.imagesComplete || !current()) return;
+      if (automatic) {
+        const job = await this.publicationJobs.enqueue(
+          scope,
+          draft.id,
+          draft.revision,
+          this.publicationRequestId,
+        );
+        if (this.current(generation) && job?.state === 'confirmed') this.onPublished(job);
         return;
+      }
+      const existingJob = await this.publicationJobs.latest(scope, draft.id);
+      if (!current()) return;
       if (
-        this.publicationScope()?.connectionId !== scope.connectionId ||
-        this.publicationScope()?.generation !== scope.generation
-      )
+        existingJob &&
+        ['queued', 'claimed', 'writing', 'outcome_unknown', 'confirmed'].includes(existingJob.state)
+      ) {
+        this.notice.set(
+          'Für diese Fassung besteht bereits ein Veröffentlichungsauftrag. Prüfe zuerst dessen Status.',
+        );
         return;
-      const job = await this.publicationJobs.enqueue(
+      }
+      await this.handoff.open(
         scope,
-        draft.id,
-        draft.revision,
+        draft,
         this.publicationRequestId,
+        current,
+        this.preview()?.originalPhotoReferences.length,
       );
-      if (!this.current(generation)) return;
-      if (job && !['queued', 'claimed', 'writing', 'outcome_unknown'].includes(job.state))
-        this.publicationRequestId = crypto.randomUUID();
-      if (job?.state === 'confirmed') this.onPublished(job);
+      if (current())
+        this.notice.set(
+          'Das vorbefüllte Kleinanzeigen-Formular ist geöffnet. Prüfe die Angaben und ergänze dort fehlende Eigenschaften oder die Kategorie.',
+        );
     } catch (error) {
-      if (this.current(generation) && !this.publicationJobs.error())
-        this.error.set(this.message(error));
+      if (this.current(generation)) this.error.set(this.message(error));
     } finally {
       this.publishing.set(false);
     }

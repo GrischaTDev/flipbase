@@ -150,6 +150,13 @@
           <p class="text-xs text-fb-text-secondary" role="status">
             {{ section().selection.length }} ausgewählt
           </p>
+          @if (section().account.platform === 'kleinanzeigen') {
+            <app-kleinanzeigen-relisting-action
+              class="w-full"
+              [section]="section()"
+              (changed)="retried.emit()"
+            />
+          }
         </div>
         <app-button
           table-error-action

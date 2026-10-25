@@ -20,6 +20,7 @@ export interface GeneratedListingText {
 }
 
 export interface ListingImageItem {
+  readonly key?: string;
   readonly url: string;
   readonly name: string;
 }
@@ -34,6 +35,8 @@ export interface KleinanzeigenListingPayload {
   readonly priceType: ListingPriceType;
   readonly postalCode?: string;
   readonly categoryHint?: string;
+  readonly categoryPath?: string | null;
+  readonly categoryFields?: Readonly<Record<string, string>>;
   readonly shippingType: ListingShippingType;
   readonly shippingPrice?: number;
   readonly images: readonly ListingImageItem[];
