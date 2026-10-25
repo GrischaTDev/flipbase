@@ -9,14 +9,14 @@ Stand: 25.10.2026. Juna. Ausdrücklicher Nutzerauftrag: offene lokale Arbeiten p
 - Vier alte Git-Zwischenablagen separat archiviert und aus der aktiven Liste entfernt. Die nur für die Übertragung der Dokumentation erzeugte zusätzliche Zwischenablage ebenfalls entfernt.
 - 32 bisher nur lokale Berichte und sieben einzelne Berichte aus alten Zweigen erhalten. Den Bericht zur Browserdienst-Wiederherstellung um den dokumentierten Abschluss ergänzt. Beim Updatebericht die bereits neuere veröffentlichte Fassung beibehalten.
 - Bisher nur lokal protokollierte Sitzungen im [Recherchearchiv](../AI-CHANGELOG-research-archive-2026-10-25.md) erhalten. Das aktuelle Hauptprotokoll bleibt bestehen.
-- Alle Dokumentationsänderungen auf einem lokalen Zweig `juna/workspace-cleanup` gesammelt. Die eigentliche Anwendung bleibt auf dem veröffentlichten Hauptzweigstand. Kein neuer PR, keine Veröffentlichung und kein Produktionszugriff im Rahmen der Bereinigung.
+- Alle Dokumentationsänderungen auf dem Zweig `juna/workspace-cleanup` gesammelt. Die eigentliche Anwendung bleibt auf dem veröffentlichten Hauptzweigstand. Der Nutzer hat den anschließenden Dokumentations-PR und den Merge nach erfolgreichen Pflichtprüfungen freigegeben; kein Produktionszugriff im Rahmen der Bereinigung.
 
 ## Was noch offen ist
 
 1. [PR #387](https://github.com/GrischaTDev/flipbase/pull/387) und [PR #386](https://github.com/GrischaTDev/flipbase/pull/386): offene Dependabot-Aktualisierungen der GitHub-Aktionen. Diese Zweige bleiben bestehen. Keine Freigabe oder fachliche Prüfung dieser Updates durch die Bereinigung.
 2. Ein unveröffentlichter DPD-Tracking-Entwurf vom alten Zweig `feature/dpd-integration` lag in der vierten Zwischenablage. Der aktuelle Hauptzweig enthält diese DPD-Service-/Webhookdateien nicht. Das ist ein tatsächlich nicht übernommener Altentwurf, keine nachgewiesen erledigte Funktion. Er ist vollständig im Sicherungsbundle unter `refs/juna-cleanup-20261025/stash-3` sowie als Patch erhalten. Ob die Funktion noch gewünscht ist, bleibt eine Produktentscheidung; kein automatischer Merge.
 3. Die ursprünglich angesprochene zusätzliche Karte um Flipbase-Entwürfe wurde nur untersucht. Ihre Korrektur und eine mögliche zusätzliche Kopierfunktion für Vinted-Entwürfe sind nicht umgesetzt.
-4. Die gesammelte Dokumentation benötigt noch den regulären PR-Abschluss. Die Rechercheberichte behalten ihren damaligen Aussage- und Prüfungsstand; daraus wird keine neue Funktionsfreigabe abgeleitet.
+4. Die Nutzerfreigabe für den regulären Dokumentations-PR liegt vor. Pflichtprüfungen und Merge werden über GitHub nachgewiesen. Die Rechercheberichte behalten ihren damaligen Aussage- und Prüfungsstand; daraus wird keine neue Funktionsfreigabe abgeleitet.
 
 Dieser Bericht bewertet die Git-Arbeitsstände. Er ersetzt keine vollständige neue Abnahme aller früheren Produktpläne oder der Produktion.
 
