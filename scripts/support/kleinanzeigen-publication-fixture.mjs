@@ -56,7 +56,7 @@ function form(paid) {
 <script>
 const byId=id=>document.getElementById(id);byId('condition-trigger').onclick=()=>byId('conditions').showModal();byId('condition-cancel').onclick=()=>byId('conditions').close();byId('condition-confirm').onclick=()=>{byId('condition-value').value=document.querySelector('input[name="condition"]:checked')?.value??'';byId('condition-trigger').textContent='Zustand auswählenGut';byId('conditions').close();};
 let group='SMALL';const shipping=byId('shipping-dialog');function methods(){byId('shipping-content').innerHTML='<div><span><input id="method-one" type="checkbox" value="HERMES_001" checked aria-describedby="method-description"></span><label for="method-one">Hermes Päckchen</label><p id="method-description">3,99 €</p></div><button type="button" id="shipping-other">Andere Versandmethoden</button><button type="button" id="shipping-back">Zurück</button><button type="button" id="shipping-close">Schließen</button>';byId('shipping-other').onclick=sizes;byId('shipping-back').onclick=sizes;byId('shipping-close').onclick=()=>shipping.close();}function sizes(){byId('shipping-content').innerHTML=['SMALL','MEDIUM','LARGE'].map(value=>'<div><input type="radio" name="package" id="size-'+value+'" value="'+value+'" '+(value===group?'checked':'')+'><label for="size-'+value+'">'+value+'</label></div>').join('')+'<button type="button" id="shipping-next">Weiter</button>';byId('shipping-next').onclick=()=>{group=document.querySelector('input[name="package"]:checked').value;methods();};}byId('ad-shipping-options').onclick=()=>{methods();shipping.showModal();};
-document.querySelector('input[type="file"]').onchange=async event=>{for(const file of event.target.files){const response=await fetch('/fixture-upload',{method:'POST',body:await file.arrayBuffer()});const result=await response.json();if(result.changedCategory){byId('kleidung_herren.art').textContent='Pullover';document.querySelector('input[name="attributeMap[kleidung_herren.art]"]').value='pullover';}const image=document.createElement('img');image.src=result.url;image.alt=file.name;byId('photos').append(image);}};
+document.querySelector('input[type="file"]').onchange=async event=>{for(const file of event.target.files){const response=await fetch('/fixture-upload',{method:'POST',body:await file.arrayBuffer()});const result=await response.json();if(result.changedCategory){byId('kleidung_herren.art').textContent='Pullover';document.querySelector('input[name="attributeMap[kleidung_herren.art]"]').value='pullover';}const image=document.createElement('img');image.src=result.url;image.alt=file.name;byId('photos').append(image);const hidden=document.createElement('input');hidden.type='hidden';hidden.name='adImages['+(byId('photos').querySelectorAll('img').length-1)+'].url';hidden.value=result.url;byId('photos').append(hidden);}};
 byId('publish').onclick=async()=>{const response=await fetch('/fixture-submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:byId('ad-title').value,description:byId('ad-description').value,price:byId('ad-price-amount').value,postalCode:byId('ad-zip-code').value,condition:byId('condition-value').value,images:byId('photos').querySelectorAll('img').length,buyNow:byId('ad-buy-now-true').checked,paid:[...document.querySelectorAll('input[name="articles"]')].some(node=>node.checked)})});if(response.ok)location.href='/p-anzeige-aufgeben-schritt3.html';};
 </script>`);
 }
@@ -69,6 +69,8 @@ export function createKleinanzeigenPublicationFixture() {
     uploads = 0,
     submits = 0,
     begins = 0,
+    removed = false,
+    deletes = 0,
     finishes = [];
   const calls = [];
   const binding = () => ({
@@ -149,6 +151,8 @@ export function createKleinanzeigenPublicationFixture() {
     uploads = 0;
     submits = 0;
     begins = 0;
+    removed = false;
+    deletes = 0;
     finishes = [];
     calls.length = 0;
     currentInstallation = installation();
@@ -157,11 +161,18 @@ export function createKleinanzeigenPublicationFixture() {
     const request = route.request();
     const url = new URL(request.url());
     if (
-      !['www.kleinanzeigen.de', 'api.flipbase.de', 'app.flipbase.de'].includes(url.hostname) ||
+      ![
+        'www.kleinanzeigen.de',
+        'api.flipbase.de',
+        'app.flipbase.de',
+        'img.kleinanzeigen.de',
+      ].includes(url.hostname) ||
       url.pathname === '/favicon.ico'
     )
       return route.fulfill({ status: 204, body: '' });
     calls.push({ url: url.href, method: request.method() });
+    if (url.hostname === 'img.kleinanzeigen.de')
+      return route.fulfill({ contentType: 'image/png', body: bytes });
     if (url.hostname === 'app.flipbase.de')
       return route.fulfill({
         contentType: 'text/html',
@@ -272,15 +283,54 @@ export function createKleinanzeigenPublicationFixture() {
       return route.fulfill({
         contentType: 'text/html',
         body: html(
-          '<main>Mein Profil und meine Anzeigen<ul id="my-manageitems-adlist"><li data-testid="ad-card" data-adid="999"><h3><a href="https://www.kleinanzeigen.de/s-anzeige/alt/999-1-2">Anzeige Jacke</a></h3><button>Reservieren</button></li>' +
+          '<main>Mein Profil und meine Anzeigen<ul id="my-manageitems-adlist">' +
+            (!removed
+              ? '<li data-testid="ad-card" data-adid="999"><h3><a href="https://www.kleinanzeigen.de/s-anzeige/alt/999-1-2">Anzeige Jacke</a></h3><a href="/p-anzeige-bearbeiten.html?adId=999">Bearbeiten</a><button>Reservieren</button><button id="delete-old">Löschen</button></li>'
+              : '') +
             (published
               ? '<li data-testid="ad-card" data-adid="1001"><h3><a href="' +
                 target +
                 '">Anzeige Jacke</a></h3><button>Reservieren</button></li>'
               : '') +
-            '</ul><nav aria-label="Seiten-Navigation"><span aria-current="page">Seite 1</span><button disabled>Nächste</button></nav></main>',
+            '</ul><nav aria-label="Seiten-Navigation"><span aria-current="page">Seite 1</span><button disabled>Nächste</button></nav>' +
+            '<dialog id="delete-dialog"><h2>Anzeige löschen?</h2><button id="confirm-delete">Anzeige löschen</button></dialog></main>' +
+            '<script>document.getElementById("delete-old")?.addEventListener("click",()=>document.getElementById("delete-dialog").showModal());document.getElementById("confirm-delete").onclick=async()=>{await fetch("/fixture-delete",{method:"POST"});document.querySelector("[data-adid]").remove();document.getElementById("delete-dialog").close();};</script>',
         ),
       });
+    if (url.pathname === '/p-anzeige-bearbeiten.html') {
+      return route.fulfill({
+        contentType: 'text/html',
+        body: form(false)
+          .replace(
+            '<input id="ad-title" maxlength="65">',
+            '<input id="ad-title" maxlength="65" value="Jacke"><input type="hidden" name="adId" value="999">',
+          )
+          .replace(
+            '<textarea id="ad-description" maxlength="4000"></textarea>',
+            '<textarea id="ad-description" maxlength="4000">Ganz</textarea>',
+          )
+          .replace(
+            '<input id="ad-price-amount" maxlength="8">',
+            '<input id="ad-price-amount" maxlength="8" value="12">',
+          )
+          .replace(
+            '<input id="ad-zip-code" maxlength="5">',
+            '<input id="ad-zip-code" maxlength="5" value="12345">',
+          )
+          .replace('id="condition-value">', 'id="condition-value" value="ok">')
+          .replace(
+            '<div id="photos"></div>',
+            '<div id="photos"><img alt="Bild zur Anzeige" src="https://img.kleinanzeigen.de/source-original.png"><input type="hidden" name="adImages[0].url" value="https://img.kleinanzeigen.de/source-original.png"></div>',
+          ),
+      });
+    }
+    if (url.pathname === '/fixture-delete') {
+      assert.equal(request.method(), 'POST');
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      deletes++;
+      removed = true;
+      return route.fulfill({ json: { ok: true } });
+    }
     if (url.pathname === '/p-kategorie-aendern.html')
       return route.fulfill({ contentType: 'text/html', body: category });
     if (url.pathname === '/p-anzeige-aufgeben-schritt2.html')
@@ -320,17 +370,17 @@ export function createKleinanzeigenPublicationFixture() {
       const body = request.postDataJSON();
       assert.deepEqual(body, {
         title: 'Jacke',
-        description: 'Vollständiger Testtext',
+        description: options.relisting ? 'Ganz' : 'Vollständiger Testtext',
         price: '12',
-        postalCode: '10115',
+        postalCode: options.relisting ? '12345' : '10115',
         condition: 'ok',
         images: 1,
         buyNow: false,
         paid: false,
       });
-      assert.equal(begins, 1);
+      assert.equal(begins, options.relisting ? 0 : 1);
       assert.equal(submits, 0);
-      assert.equal(used, 99);
+      assert.equal(used, options.relisting ? 8 : 99);
       submits++;
       published = true;
       return route.fulfill({ json: { ok: true } });
@@ -372,6 +422,9 @@ export function createKleinanzeigenPublicationFixture() {
     );
   }
   return {
+    get deletes() {
+      return deletes;
+    },
     route,
     reset,
     prepare,

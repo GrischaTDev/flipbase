@@ -6,10 +6,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
 import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import type { Listing } from '../../../listings/models/listing.models';
 import { KleinanzeigenAccountService } from '../../services/kleinanzeigen-account.service';
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenFormSchemaService } from '../../services/kleinanzeigen-form-schema.service';
+import { KleinanzeigenListingHandoffService } from '../../services/kleinanzeigen-listing-handoff.service';
 import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
 import { KleinanzeigenPublicationPanelComponent } from '../kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
 import { KleinanzeigenTransferTargetComponent } from './kleinanzeigen-transfer-target.component';
@@ -82,6 +84,7 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
     }),
   };
   const accounts = { readAccounts: vi.fn() };
+  const handoff = { open: vi.fn().mockResolvedValue(undefined) };
   const schemas = { browse: vi.fn(), cancel: vi.fn() };
   const jobs = {
     job: signal(null),
@@ -105,9 +108,11 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
       providers: [
         provideRouter([]),
         { provide: WorkspaceService, useValue: workspace },
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'owner' }) } },
         { provide: KleinanzeigenAccountService, useValue: accounts },
       ],
     });
+    TestBed.overrideProvider(KleinanzeigenListingHandoffService, { useValue: handoff });
     TestBed.overrideProvider(KleinanzeigenExtensionBridge, { useValue: bridge });
     TestBed.overrideProvider(KleinanzeigenFormSchemaService, { useValue: schemas });
     TestBed.overrideProvider(KleinanzeigenListingJobService, { useValue: jobs });
@@ -162,31 +167,26 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
     const f = await create();
     f.detectChanges();
     expect(f.nativeElement.querySelector('app-category-picker')).toBeTruthy();
-    expect(await f.componentInstance.categorySource.loadChildren(null)).toHaveLength(9);
+    expect(await f.componentInstance.categorySource.loadChildren(null)).toHaveLength(15);
     expect(schemas.browse).not.toHaveBeenCalled();
     f.componentInstance.categorySelection.setValue('153');
     await f.whenStable();
     expect(schemas.browse).not.toHaveBeenCalled();
     expect(f.componentInstance.schema()).toBeNull();
-    expect(f.componentInstance.error()).toContain('Unterkategorie');
+    expect(f.componentInstance.error()).toBeNull();
   });
-  it('lädt gespeicherte Endkategorie automatisch und bietet nach Fehler einen konkreten Wiederholweg', async () => {
-    schemas.browse.mockRejectedValue(new Error('Die Eigenschaften sind gerade nicht erreichbar.'));
+  it('zeigt eine gespeicherte Endkategorie ohne Anbieterabfrage und ohne Neuladen-Aktion', async () => {
+    schemas.browse.mockRejectedValue(new Error('Nicht erreichbar'));
     const f = TestBed.createComponent(KleinanzeigenTransferTargetComponent);
     f.componentRef.setInput('listing', { ...listing, categoryId: '153/160/hemden' });
     f.componentRef.setInput('content', content);
     f.detectChanges();
     await f.whenStable();
     f.detectChanges();
-    await expect
-      .poll(() => f.componentInstance.error())
-      .toBe('Die Eigenschaften sind gerade nicht erreichbar.');
-    f.detectChanges();
-    expect(schemas.browse).toHaveBeenCalledWith(
-      expect.objectContaining({ connectionId: '9' }),
-      '153/160/hemden',
-    );
-    expect(f.nativeElement.textContent).toContain('Eigenschaften erneut laden');
+    expect(schemas.browse).not.toHaveBeenCalled();
+    expect(f.componentInstance.error()).toBeNull();
+    expect(f.nativeElement.textContent).not.toContain('Eigenschaften erneut laden');
+    expect(f.componentInstance.categorySelection.value).toBe('153/160/hemden');
   });
   it('rendert Kategorieangaben und sperrt den Submit bei ungespeicherten Änderungen', async () => {
     const schema = {
@@ -220,7 +220,9 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
     f.componentInstance.fieldsChanged.subscribe(changed);
     await f.componentInstance.browse('153/160/shirts');
     f.detectChanges();
-    expect((f.nativeElement as HTMLElement).textContent).toContain('Zustand');
+    expect((f.nativeElement as HTMLElement).textContent).toContain(
+      'direkt bei Kleinanzeigen ergänzen',
+    );
     expect(changed).toHaveBeenCalledWith(
       expect.objectContaining({ categoryId: '153/160/shirts', schemaRevision: 'a'.repeat(64) }),
     );

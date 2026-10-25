@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flipbase Listing-Assistent",
-  "version": "1.10.2",
+  "version": "1.11.0",
   "description": "Verbindet Dein Vinted-Postfach mit Flipbase und unterstützt Kleinanzeigen-Inserate.",
   "icons": {
     "16": "images/flipbase-mark-16.png",
@@ -26,7 +26,10 @@
     "http://127.0.0.1:54351/*",
     "http://localhost:54351/*",
     "http://127.0.0.1:28351/*",
-    "http://localhost:28351/*"
+    "http://localhost:28351/*",
+    "https://img.kleinanzeigen.de/*",
+    "https://img.classistatic.de/*",
+    "https://i.ebayimg.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -93,6 +96,14 @@
     {
       "matches": ["https://www.kleinanzeigen.de/*"],
       "js": ["kleinanzeigen-publication-results.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.kleinanzeigen.de/p-anzeige-bearbeiten.html*",
+        "https://www.kleinanzeigen.de/m-meine-anzeigen.html*"
+      ],
+      "js": ["kleinanzeigen-provider-reader.js", "kleinanzeigen-relisting-content.js"],
       "run_at": "document_idle"
     }
   ],

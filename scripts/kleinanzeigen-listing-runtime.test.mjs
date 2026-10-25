@@ -222,3 +222,271 @@ test('a stored processing or unknown result is read again rather than replayed f
     assert.ok(!f.calls.includes('submit'));
   }
 });
+// Neu einstellen: Der Verlust eines Klickergebnisses darf weder Löschung noch Veröffentlichung wiederholen.
+function relistingFixture() {
+  const calls = [];
+  let saved = { externalId: '12', phase: 'secured', snapshot: { title: 'Jacke' } };
+  return {
+    calls,
+    get saved() {
+      return saved;
+    },
+    set saved(value) {
+      saved = value;
+    },
+    adapter: {
+      load: async () => saved,
+      save: async (value) => {
+        calls.push('save:' + value.phase);
+        saved = value;
+      },
+      check: async () => calls.push('check'),
+      prepare: async () => {
+        calls.push('prepare');
+        return { complete: true };
+      },
+      verify: async () => ({ complete: true }),
+      costs: async () => ({ allowed: true }),
+      sourceUnchanged: async () => true,
+      remove: async () => {
+        calls.push('remove');
+        return { confirmed: true };
+      },
+      sourceAbsent: async () => true,
+      submit: async () => calls.push('submit'),
+      result: async () => ({ outcome: 'confirmed', externalId: '99' }),
+    },
+  };
+}
+test('erneutes Inserieren sichert Lösch- und Schreibzustand jeweils vor dem Klick', async () => {
+  const runtime = context.FlipbaseKleinanzeigenRelisting;
+  assert.equal(typeof runtime?.run, 'function');
+  const f = relistingFixture();
+  assert.equal((await runtime.run(f.adapter)).outcome, 'confirmed');
+  assert.ok(f.calls.indexOf('prepare') < f.calls.indexOf('remove'));
+  assert.ok(f.calls.indexOf('save:deleting') < f.calls.indexOf('remove'));
+  assert.ok(f.calls.indexOf('save:submitting') < f.calls.indexOf('submit'));
+  assert.equal(f.saved.phase, 'confirmed');
+});
+for (const phase of ['deleting', 'submitting', 'outcome_unknown'])
+  test(
+    'setzt nach Abbruch in ' + phase + ' keinen zweiten Lösch- oder Schreibklick ab',
+    async () => {
+      const runtime = context.FlipbaseKleinanzeigenRelisting;
+      assert.equal(typeof runtime?.run, 'function');
+      const f = relistingFixture();
+      f.saved = { ...f.saved, phase };
+      await runtime.run(f.adapter);
+      assert.ok(!f.calls.includes('remove'));
+      assert.ok(!f.calls.includes('submit'));
+    },
+  );
+for (const check of ['prepare', 'verify', 'costs', 'sourceUnchanged'])
+  test('behält die alte Anzeige bei fehlgeschlagener Prüfung ' + check, async () => {
+    const runtime = context.FlipbaseKleinanzeigenRelisting;
+    assert.equal(typeof runtime?.run, 'function');
+    const f = relistingFixture();
+    f.adapter[check] = async () => false;
+    assert.equal((await runtime.run(f.adapter)).outcome, 'needs_user_action');
+    assert.ok(!f.calls.includes('remove'));
+    assert.ok(!f.calls.includes('submit'));
+  });
+test('verlorene Löschantwort erhält gesicherte Fassung und verhindert die neue Anzeige', async () => {
+  const runtime = context.FlipbaseKleinanzeigenRelisting;
+  assert.equal(typeof runtime?.run, 'function');
+  const f = relistingFixture();
+  f.adapter.remove = async () => {
+    f.calls.push('remove');
+    throw new Error('lost');
+  };
+  await runtime.run(f.adapter);
+  await runtime.run(f.adapter);
+  assert.equal(f.calls.filter((value) => value === 'remove').length, 1);
+  assert.ok(!f.calls.includes('submit'));
+});
+
+test('prüft die Neufassung unmittelbar vor der Löschgrenze erneut', async () => {
+  const f = relistingFixture();
+  let valid = true;
+  f.adapter.verify = async () => ({ complete: valid });
+  f.adapter.sourceUnchanged = async () => {
+    valid = false;
+    return true;
+  };
+  assert.equal(
+    (await context.FlipbaseKleinanzeigenRelisting.run(f.adapter)).errorCode,
+    'images_incomplete',
+  );
+  assert.ok(!f.calls.includes('remove'));
+});
+test('baut nach bestätigter Löschung einen verlorenen Zieltab aus der Sicherung neu auf', async () => {
+  const f = relistingFixture();
+  f.saved = { ...f.saved, phase: 'deleted' };
+  assert.equal((await context.FlipbaseKleinanzeigenRelisting.run(f.adapter)).outcome, 'confirmed');
+  assert.ok(f.calls.includes('prepare'));
+  assert.ok(f.calls.includes('submit'));
+  assert.ok(!f.calls.includes('remove'));
+});
+context.crypto = crypto;
+context.setTimeout = setTimeout;
+vm.runInContext(
+  readFileSync('tools/flipbase-extension/kleinanzeigen-relisting-jobs.js', 'utf8'),
+  context,
+);
+function relistingJobsFixture() {
+  const calls = [];
+  const records = new Map();
+  let removed = false;
+  let title = 'Jacke';
+  let costsAllowed = true;
+  const binding = {
+    workspaceId: '49000000-0000-4000-8000-000000000011',
+    connectionId: '9',
+    generation: 2,
+    externalAccountId: '88',
+    canPublish: true,
+    accountType: 'private',
+    expiresAt: new Date(Date.now() + 600000).toISOString(),
+  };
+  const request = {
+    workspaceId: binding.workspaceId,
+    connectionId: '9',
+    generation: 2,
+    externalId: '12',
+    categoryPaths: { 'Mode & Beauty > Herrenbekleidung > Shirts': '153/160/shirts' },
+  };
+  const snapshot = () => ({
+    externalId: '12',
+    categoryLabel: 'Mode & Beauty > Herrenbekleidung > Shirts',
+    shippingMethods: [],
+    imageUrls: [],
+    content: {
+      title,
+      description: 'Original',
+      priceCents: 1200,
+      priceType: 'NEGOTIABLE',
+      shippingType: 'pickup',
+      postalCode: '12345',
+      categoryFields: {},
+    },
+  });
+  const adapter = {
+    load: async (key) => records.get(key) ?? null,
+    all: async () => [...records.values()],
+    save: async (value) => {
+      calls.push('save:' + value.phase);
+      records.set(value.key, structuredClone(value));
+    },
+    installation: async () => ({
+      phase: 'connected',
+      appOrigin: 'https://app.flipbase.de',
+      binding,
+    }),
+    check: async () => ({ ...binding }),
+    identity: async () => ({ externalAccountId: '88' }),
+    source: async () => ({ snapshot: snapshot(), tabId: 1, minimumDocumentTime: Date.now() }),
+    photo: async () => {
+      calls.push('photo');
+      throw Error('images_incomplete');
+    },
+    baseline: async () => (removed ? [] : ['12']),
+    target: async () => ({
+      tabId: 2,
+      minimumDocumentTime: Date.now(),
+      result: {
+        schemaRevision: 'c'.repeat(64),
+        schema: {
+          categoryPath: '153/160/shirts',
+          categoryLabel: 'Mode & Beauty > Herrenbekleidung > Shirts',
+          fields: [],
+          shipping: { groups: [] },
+        },
+      },
+    }),
+    step: async (_progress, action) => {
+      calls.push(action);
+      if (action === 'prepare') return { valid: true };
+      if (action === 'verify') return { complete: true };
+      if (action === 'fee') return { state: 'free', observedAt: new Date().toISOString() };
+      return { clicked: true };
+    },
+    quota: async () => ({
+      quota: { used: 8, reserved: 0, allowed: costsAllowed, observedAt: new Date().toISOString() },
+    }),
+    remove: async () => {
+      calls.push('remove');
+      removed = true;
+      return { confirmed: true };
+    },
+    result: async () => ({
+      outcome: 'confirmed',
+      externalId: '99',
+      url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/99-1-2',
+    }),
+    show: async () => {},
+  };
+  return {
+    adapter,
+    calls,
+    records,
+    request,
+    binding,
+    changeTitle: (value) => (title = value),
+    costs: (value) => (costsAllowed = value),
+  };
+}
+test('erneutes Inserieren sichert die vollständige Fassung vor der ersten Löschung und bestätigt neue Kennung', async () => {
+  const f = relistingJobsFixture();
+  const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);
+  const result = await runtime.run(f.request, 'https://app.flipbase.de');
+  assert.equal(result.outcome, 'confirmed');
+  assert.equal(result.externalId, '12');
+  assert.equal(result.newExternalId, '99');
+  assert.ok(f.calls.indexOf('save:secured') < f.calls.indexOf('remove'));
+  assert.equal(f.calls.filter((value) => value === 'submit').length, 1);
+  await runtime.run(f.request, 'https://app.flipbase.de');
+  assert.equal(f.calls.filter((value) => value === 'submit').length, 1);
+});
+test('eine fehlgeschlagene Sicherung erhält die Altanzeige unverändert', async () => {
+  const f = relistingJobsFixture();
+  f.adapter.save = async () => {
+    throw Error('disk_full');
+  };
+  await assert.rejects(
+    context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter).run(
+      f.request,
+      'https://app.flipbase.de',
+    ),
+    /disk_full/u,
+  );
+  assert.ok(!f.calls.includes('remove'));
+});
+test('nach Gebührenstopp kann eine korrigierte Altanzeige mit erneuerter Freigabe neu gesichert werden', async () => {
+  const f = relistingJobsFixture();
+  const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);
+  f.costs(false);
+  assert.equal(
+    (await runtime.run(f.request, 'https://app.flipbase.de')).errorCode,
+    'fees_or_quota',
+  );
+  f.costs(true);
+  f.changeTitle('Korrigierte Jacke');
+  f.binding.generation = 3;
+  f.request.generation = 3;
+  assert.equal((await runtime.run(f.request, 'https://app.flipbase.de')).outcome, 'confirmed');
+  assert.equal([...f.records.values()][0].snapshot.content.title, 'Korrigierte Jacke');
+});
+test('offene Sicherungen sind kontogebunden lesbar und verschwinden nach bestätigtem Abschluss', async () => {
+  const f = relistingJobsFixture();
+  const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);
+  f.costs(false);
+  await runtime.run(f.request, 'https://app.flipbase.de');
+  assert.equal((await runtime.list(f.request, 'https://app.flipbase.de')).length, 1);
+  await assert.rejects(
+    runtime.list({ ...f.request, connectionId: '10' }, 'https://app.flipbase.de'),
+    /access_revoked/u,
+  );
+  f.costs(true);
+  await runtime.run(f.request, 'https://app.flipbase.de');
+  assert.equal((await runtime.list(f.request, 'https://app.flipbase.de')).length, 0);
+});

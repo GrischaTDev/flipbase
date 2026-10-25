@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 function fixture() {
   const dom = new JSDOM(
-    '<input id="ad-title"><textarea id="ad-description"></textarea><input id="ad-price-amount"><input id="ad-zip-code"><input id="ad-city" value="Berlin"><input id="ad-name" value="Privat"><input type="radio" id="ad-type-OFFER" checked><input type="radio" id="ad-buy-now-false" checked><input type="radio" id="ad-shipping-enabled-no" checked><button type="button" id="ad-price-type">Festpreis</button><button type="button" id="submit">Anzeige aufgeben</button>',
+    '<input type="file"><input id="ad-title"><textarea id="ad-description"></textarea><input id="ad-price-amount"><input id="ad-zip-code"><input id="ad-city" value="Berlin"><input id="ad-name" value="Privat"><input type="radio" id="ad-type-OFFER" checked><input type="radio" id="ad-buy-now-false" checked><input type="radio" id="ad-shipping-enabled-no" checked><button type="button" id="ad-price-type">Festpreis</button><button type="button" id="submit">Anzeige aufgeben</button>',
     {
       url: 'https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html',
       runScripts: 'outside-only',
@@ -26,7 +26,7 @@ function fixture() {
     '<div id="ad-category-path">Mode &amp; Beauty &gt; Herrenbekleidung</div><button role="combobox" id="kleidung_herren.art" aria-required="false">Shirts</button><input type="hidden" name="attributeMap[kleidung_herren.art]" value="shirts">',
   );
   let fee = 'free';
-  let photos = ['https://images.test/1.jpg'];
+  let photos = [];
   win.FlipbaseKleinanzeigenPublicationReader = {
     readFee: () => ({ state: fee, observedAt: new Date().toISOString() }),
     readPhotos: () => photos,
@@ -34,6 +34,16 @@ function fixture() {
   };
   for (const file of ['autofill-core', 'kleinanzeigen-publication-content'])
     win.eval(readFileSync('tools/flipbase-extension/' + file + '.js', 'utf8'));
+  Object.defineProperty(win.crypto, 'subtle', {
+    value: { digest: async () => new Uint8Array(32).buffer },
+  });
+  win.FlipbaseAutofill = {
+    ...win.FlipbaseAutofill,
+    attachImages: () => {
+      photos = [...photos, 'https://images.test/' + (photos.length + 1) + '.jpg'];
+      return true;
+    },
+  };
   const adapter = win.FlipbaseKleinanzeigenPublicationContent.create(win.document);
   const job = {
     id: '12',
@@ -48,7 +58,15 @@ function fixture() {
       categoryId: '153/160/shirts',
       categoryFields: {},
     },
-    images: [{ imageId: 'one' }],
+    images: [
+      {
+        imageId: 'one',
+        fileName: 'eins.png',
+        mimeType: 'image/png',
+        byteSize: 1,
+        sha256: '0'.repeat(64),
+      },
+    ],
   };
   const schema = {
     fields: [],
@@ -71,6 +89,11 @@ function fixture() {
     },
   };
 }
+async function fillAndUpload(f) {
+  await f.adapter.fill(f.job, f.schema);
+  for (const image of f.job.images) await f.adapter.upload(f.job, image, 'eA==');
+}
+
 test('fills whole euros through the existing native setter without turning 12.00 into 1200', async () => {
   const f = fixture();
   assert.equal((await f.adapter.fill(f.job, f.schema)).valid, true);
@@ -81,7 +104,7 @@ test('fills whole euros through the existing native setter without turning 12.00
 });
 test('checks the actual fields, complete images and fees before a single durable click', async () => {
   const f = fixture();
-  await f.adapter.fill(f.job, f.schema);
+  await fillAndUpload(f);
   await f.adapter.submitOnce(f.job);
   assert.equal(f.clicks, 1);
   await assert.rejects(() => f.adapter.submitOnce(f.job));
@@ -92,7 +115,7 @@ test('checks the actual fields, complete images and fees before a single durable
 for (const invalid of ['paid', 'unknown', 'photos', 'changed', 'required'])
   test('blocks final click for ' + invalid, async () => {
     const f = fixture();
-    await f.adapter.fill(f.job, f.schema);
+    await fillAndUpload(f);
     if (['paid', 'unknown'].includes(invalid)) f.fee = invalid;
     else if (invalid === 'photos') f.photos = [];
     else if (invalid === 'required')
@@ -115,7 +138,7 @@ for (const change of ['initial', 'visible', 'hidden', 'parent'])
       f.win.document.getElementById('kleidung_herren.art').textContent = 'Pullover';
       await assert.rejects(() => f.adapter.fill(f.job, f.schema));
     } else {
-      await f.adapter.fill(f.job, f.schema);
+      await fillAndUpload(f);
       if (change === 'visible')
         f.win.document.getElementById('kleidung_herren.art').textContent = 'Pullover';
       if (change === 'hidden')
@@ -128,3 +151,21 @@ for (const change of ['initial', 'visible', 'hidden', 'parent'])
     }
     assert.equal(f.clicks, 0);
   });
+test('verhindert Bildaustausch trotz unveränderter Bildanzahl vor Löschen und Veröffentlichen', async () => {
+  const f = fixture();
+  await fillAndUpload(f);
+  f.photos = ['https://images.test/anderes-bild.jpg'];
+  assert.equal(f.adapter.verify(f.job).complete, false);
+  await assert.rejects(() => f.adapter.submitOnce(f.job));
+  assert.equal(f.clicks, 0);
+});
+
+test('verhindert geänderte Bildreihenfolge trotz gleicher Anzahl', async () => {
+  const f = fixture();
+  f.job.images.push({ ...f.job.images[0], imageId: 'two', fileName: 'zwei.png' });
+  await fillAndUpload(f);
+  f.photos = ['https://images.test/2.jpg', 'https://images.test/1.jpg'];
+  assert.equal(f.adapter.verify(f.job).complete, false);
+  await assert.rejects(() => f.adapter.submitOnce(f.job));
+  assert.equal(f.clicks, 0);
+});

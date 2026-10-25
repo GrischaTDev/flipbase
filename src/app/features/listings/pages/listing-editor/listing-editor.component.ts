@@ -246,8 +246,8 @@ export class ListingEditorComponent {
       Validators.max(99_999_999),
       Validators.pattern(/^\d+(\.\d{1,2})?$/),
     ]),
-    priceType: new FormControl<ListingPriceType>('FIXED', { nonNullable: true }),
-    shippingType: new FormControl<ListingShippingType>('pickup', { nonNullable: true }),
+    priceType: new FormControl<ListingPriceType>('NEGOTIABLE', { nonNullable: true }),
+    shippingType: new FormControl<ListingShippingType>('both', { nonNullable: true }),
     shippingPrice: new FormControl<number | null>(null, [
       Validators.min(0),
       Validators.pattern(/^\d+(\.\d{1,2})?$/),

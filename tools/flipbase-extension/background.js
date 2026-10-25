@@ -9,6 +9,7 @@ importScripts(
   'kleinanzeigen-listing-runtime.js',
   'kleinanzeigen-publication-jobs.js',
   'kleinanzeigen-publication-results.js',
+  'kleinanzeigen-relisting-jobs.js',
   'kleinanzeigen-local-background.js',
 );
 importScripts(
@@ -79,19 +80,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'GET_PENDING_KLEINANZEIGEN_LISTING') {
-    if (sender.url?.includes('#flipbase-form-read')) {
-      sendResponse({ hasPending: false });
-      return false;
-    }
     if (!isKleinanzeigenSender(sender)) return false;
     chrome.storage.local.get(
       [
         'pending_kleinanzeigen_listing',
         'pending_kleinanzeigen_timestamp',
         'kleinanzeigen_work_tabs',
+        'kleinanzeigen_assisted_listings',
       ],
       (data) => {
+        const assisted = data.kleinanzeigen_assisted_listings?.[sender.tab?.id];
+        if (assisted && assisted.expiresAt > Date.now()) {
+          sendResponse({
+            hasPending: true,
+            listing: { ...assisted.payload, resuming: assisted.filled === true },
+          });
+          return;
+        }
         if (
+          sender.url?.includes('#flipbase-form-read') ||
+          sender.url?.includes('#flipbase-assisted') ||
           sender.tab?.id === data.kleinanzeigen_work_tabs?.formTabId ||
           data.kleinanzeigen_work_tabs?.publicationTabIds?.includes(sender.tab?.id)
         ) {
@@ -109,13 +117,71 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     );
     return true;
   }
+  if (message.type === 'UPDATE_PENDING_KLEINANZEIGEN_LISTING') {
+    if (!isKleinanzeigenSender(sender) || !sender.tab?.id) return false;
+    chrome.storage.local.get('kleinanzeigen_assisted_listings', (data) => {
+      const values = data.kleinanzeigen_assisted_listings ?? {};
+      const assisted = values[sender.tab.id];
+      const state = message.state;
+      if (
+        !assisted ||
+        assisted.expiresAt <= Date.now() ||
+        !state ||
+        typeof state.title !== 'string' ||
+        state.title.length > 65 ||
+        typeof state.description !== 'string' ||
+        state.description.length > 4000 ||
+        (state.price !== null &&
+          (!Number.isSafeInteger(state.price) || state.price < 0 || state.price > 99999999)) ||
+        !['FIXED', 'NEGOTIABLE'].includes(state.priceType) ||
+        !['pickup', 'both'].includes(state.shippingType) ||
+        (state.postalCode !== undefined && !/^\d{5}$/u.test(state.postalCode)) ||
+        !Array.isArray(state.images) ||
+        state.images.length > 20 ||
+        state.images.some(
+          (image) =>
+            typeof image.url !== 'string' ||
+            !image.url.startsWith('https://') ||
+            typeof image.name !== 'string',
+        )
+      ) {
+        sendResponse({ success: false });
+        return;
+      }
+      chrome.storage.local.set(
+        {
+          kleinanzeigen_assisted_listings: {
+            ...values,
+            [sender.tab.id]: { ...assisted, payload: { ...assisted.payload, ...state } },
+          },
+        },
+        () => sendResponse({ success: true }),
+      );
+    });
+    return true;
+  }
 
   if (message.type === 'CLEAR_PENDING_KLEINANZEIGEN_LISTING') {
     if (!isKleinanzeigenSender(sender)) return false;
-    chrome.storage.local.remove(
-      ['pending_kleinanzeigen_listing', 'pending_kleinanzeigen_timestamp'],
-      () => sendResponse({ success: true }),
-    );
+    chrome.storage.local.get('kleinanzeigen_assisted_listings', (data) => {
+      const values = data.kleinanzeigen_assisted_listings ?? {};
+      const assisted = values[sender.tab?.id];
+      if (assisted) {
+        chrome.storage.local.set(
+          {
+            kleinanzeigen_assisted_listings: {
+              ...values,
+              [sender.tab.id]: { ...assisted, filled: true },
+            },
+          },
+          () => sendResponse({ success: true }),
+        );
+      } else
+        chrome.storage.local.remove(
+          ['pending_kleinanzeigen_listing', 'pending_kleinanzeigen_timestamp'],
+          () => sendResponse({ success: true }),
+        );
+    });
     return true;
   }
 

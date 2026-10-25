@@ -205,3 +205,40 @@ test('an absent price, pure VB and untrusted images stay unknown', () => {
   page.querySelector('.text-title3').textContent = '0 \u20ac';
   assert.equal(reader.readPublicationPage(page).items[0].priceCents, 0);
 });
+vm.runInContext(
+  readFileSync('tools/flipbase-extension/kleinanzeigen-relisting-content.js', 'utf8'),
+  context,
+);
+function relistingDocument() {
+  return doc(
+    `<main><input type="hidden" name="adId" value="999"><input id="ad-title" value="Jacke"><textarea id="ad-description">Originaltext</textarea><input id="ad-price-amount" value="12"><button id="ad-price-type">VB Preistyp</button><input id="ad-zip-code" value="12345"><input type="radio" id="ad-type-OFFER" checked><input type="radio" id="ad-shipping-enabled-no" checked><span id="ad-category-path">Mode &amp; Beauty &gt; Herrenbekleidung</span><button id="kleidung_herren.art">Shirts</button><input type="hidden" name="attributeMap[kleidung_herren.art]" value="shirts"><input type="hidden" name="attributeMap[kleidung_herren.condition]" value="ok"><input type="hidden" name="adImages[0].url" value="https://img.kleinanzeigen.de/api/v1/prod-ads/images/original"><img alt="Bild zur Anzeige" src="https://img.kleinanzeigen.de/thumbnail"></main>`,
+    '/p-anzeige-bearbeiten.html?adId=999',
+  );
+}
+test('sichert bei erneutem Inserieren Texte, Originalquelle und Anbieterwerte aus der eigenen Bearbeitung', () => {
+  const source = context.FlipbaseKleinanzeigenRelistingContent.readSource(
+    relistingDocument(),
+    '123',
+    '999',
+  );
+  assert.equal(source.content.title, 'Jacke');
+  assert.equal(source.content.description, 'Originaltext');
+  assert.equal(source.content.priceType, 'NEGOTIABLE');
+  assert.equal(source.categoryLabel, 'Mode & Beauty > Herrenbekleidung > Shirts');
+  assert.equal(source.imageUrls[0], 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/original');
+  assert.equal(source.content.categoryFields['kleidung_herren.condition'], 'ok');
+});
+for (const change of [
+  (document) => (document.querySelector('input[name="adId"]').value = '998'),
+  (document) => document.querySelector('input[name="adImages[0].url"]').remove(),
+  (document) =>
+    (document.querySelector('input[name="adImages[0].url"]').value = 'https://evil.test/image'),
+  (document) => document.body.insertAdjacentHTML('beforeend', '<div role="progressbar"></div>'),
+])
+  test('löscht nicht bei widersprüchlicher Quellanzeige oder noch ladenden Bildern', () => {
+    const document = relistingDocument();
+    change(document);
+    assert.throws(() =>
+      context.FlipbaseKleinanzeigenRelistingContent.readSource(document, '123', '999'),
+    );
+  });

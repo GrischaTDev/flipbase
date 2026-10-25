@@ -25,7 +25,7 @@
     cache.set(node, value);
     return value;
   }
-  function readFee(doc, externalAccountId) {
+  function readFee(doc, externalAccountId, allowBuyNow = false) {
     const observedAt = new Date().toISOString();
     const answer = (state) => ({ state, observedAt });
     const extras = Array.from(doc.querySelectorAll('input[name="articles"]'));
@@ -70,7 +70,7 @@
       !postingButton(doc) ||
       doc.querySelector('dialog[open]') ||
       !doc.getElementById('ad-type-OFFER')?.checked ||
-      !buyNo?.checked ||
+      !(allowBuyNow ? doc.getElementById('ad-buy-now-true')?.checked : buyNo?.checked) ||
       doc.getElementById('ad-address-visibility')?.checked ||
       doc.getElementById('ad-marketing-consent')?.checked
     )

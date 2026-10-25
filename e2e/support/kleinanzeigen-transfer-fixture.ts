@@ -21,6 +21,9 @@ export async function mockKleinanzeigenTransfer(
     quotaUnknown?: boolean;
     secondTarget?: boolean;
     missingSourceValues?: boolean;
+    handoffError?: boolean;
+    categoryUnavailable?: boolean;
+    relisting?: boolean;
   } = {},
 ) {
   await mockMarketplaceOverview(page);
@@ -76,6 +79,30 @@ export async function mockKleinanzeigenTransfer(
     ],
     shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
   };
+  await page.route('**/rest/v1/listing_images?**', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: imageId,
+          listing_id: draftId,
+          workspace_id: workspaceId,
+          storage_path: 'listings/' + workspaceId + '/' + draftId + '/image.jpg',
+          file_name: 'Bild.jpg',
+          sort_order: 0,
+        },
+      ],
+    }),
+  );
+  await page.route('**/storage/v1/object/sign/item-media', (route) => {
+    const paths = route.request().postDataJSON().paths as string[];
+    return route.fulfill({
+      json: paths.map((path) => ({
+        path,
+        signedURL: '/object/sign/item-media/' + path + '?token=fixture',
+        error: null,
+      })),
+    });
+  });
   await page.route('**/rest/v1/kleinanzeigen_form_schemas?**', (route) => {
     const url = new URL(route.request().url());
     savedSchemaRequests.push(url);
@@ -137,7 +164,16 @@ export async function mockKleinanzeigenTransfer(
     return { workspaceId, connectionId, generation, jobId: job.id, handled: true };
   });
   await page.addInitScript(
-    ({ binding, schema, quotaUsed, available, wrongBindingOnPublish, quotaUnknown }) => {
+    ({
+      binding,
+      schema,
+      quotaUsed,
+      available,
+      wrongBindingOnPublish,
+      quotaUnknown,
+      handoffError,
+      categoryUnavailable,
+    }) => {
       let categoryReviewed = false;
       window.addEventListener('message', async (event) => {
         if (
@@ -169,6 +205,8 @@ export async function mockKleinanzeigenTransfer(
             type: 'FLIPBASE_EXTENSION_STATUS',
             installed: available,
             kleinanzeigenFormSchema: available,
+            kleinanzeigenAssistedListings: available,
+            kleinanzeigenRelisting: available,
             kleinanzeigenQuota: available,
             kleinanzeigenCapabilities: { accounts: available, sync: available, publish: available },
           });
@@ -187,6 +225,22 @@ export async function mockKleinanzeigenTransfer(
             wrongBindingOnPublish && categoryReviewed
               ? { ...binding, externalAccountId: '89' }
               : binding;
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_LISTING') {
+          send({
+            type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+            requestId: data['requestId'],
+            success: !handoffError,
+            result: { opened: true, handoffId: data['handoffId'] },
+            error: 'Das Browserkonto hat sich geändert.',
+          });
+          return;
+        } else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_LISTING')
+          result = {
+            externalId: data['externalId'],
+            outcome: 'outcome_unknown',
+            errorCode: 'publication_unconfirmed',
+          };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_QUOTA')
           result = {
             workspaceId: binding.workspaceId,
@@ -204,6 +258,15 @@ export async function mockKleinanzeigenTransfer(
             },
           };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA') {
+          if (categoryUnavailable) {
+            send({
+              type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+              requestId: data['requestId'],
+              success: false,
+              error: 'Diese Kategorie wird nicht angeboten.',
+            });
+            return;
+          }
           const path = String(data['categoryPath']);
           const choices =
             path === ''
@@ -253,6 +316,8 @@ export async function mockKleinanzeigenTransfer(
       available: options.extensionAvailable ?? true,
       wrongBindingOnPublish: options.wrongBindingOnPublish ?? false,
       quotaUnknown: options.quotaUnknown ?? false,
+      handoffError: options.handoffError ?? false,
+      categoryUnavailable: options.categoryUnavailable ?? false,
     },
   );
   await page.route('**/functions/v1/kleinanzeigen-account', async (route) => {
@@ -315,7 +380,18 @@ export async function mockKleinanzeigenTransfer(
                 observedAt: job.verifiedAt,
               },
             ]
-          : [];
+          : options.relisting
+            ? ['711', '712'].map((externalId, index) => ({
+                publicationId: String(index + 1),
+                externalId,
+                title: `Kleinanzeigen Artikel ${index + 1}`,
+                url: `https://www.kleinanzeigen.de/s-anzeige/artikel/${externalId}-1-2`,
+                state: 'active',
+                available: true,
+                publishedAt: null,
+                observedAt: new Date().toISOString(),
+              }))
+            : [];
       return route.fulfill({
         json: {
           workspaceId,

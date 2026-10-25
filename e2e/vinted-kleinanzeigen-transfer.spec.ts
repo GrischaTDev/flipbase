@@ -36,16 +36,19 @@ async function expectTransferForm(dialog: Locator) {
     }),
   ).toBe(true);
 }
-async function open(page: Page, waitForPreview = true) {
+async function open(page: Page, waitForPreview = true, useMouse = false) {
+  const activate = (element: Locator) => (useMouse ? element.click() : element.tap());
   await page.goto('/marketplaces/overview');
-  await page.getByRole('button', { name: 'Inserate von Testkonto A anzeigen', exact: true }).tap();
+  await activate(
+    page.getByRole('button', { name: 'Inserate von Testkonto A anzeigen', exact: true }),
+  );
   const action = page.getByRole('button', {
     name: 'A Jacke 01 inserieren',
     exact: true,
   });
-  await action.tap();
+  await activate(action);
   const dialog = page.getByRole('dialog', { name: 'Inserieren' });
-  await dialog.getByRole('button', { name: 'Kleinanzeigen', exact: true }).tap();
+  await activate(dialog.getByRole('button', { name: 'Kleinanzeigen', exact: true }));
   await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toContainText(
     'Konto auswählen',
   );
@@ -65,8 +68,8 @@ async function ready(page: Page) {
     .getByRole('combobox', { name: 'Kategorie suchen', exact: true })
     .fill('herren shirts');
   await category.getByRole('option').filter({ hasText: 'Shirts' }).tap();
-  await dialog.getByRole('combobox', { name: 'Zustand', exact: true }).click();
-  await page.getByRole('option', { name: 'Gut', exact: true }).click();
+  await dialog.getByRole('combobox', { name: 'Versand', exact: true }).click();
+  await page.getByRole('option', { name: 'Abholung', exact: true }).click();
   return result;
 }
 test('Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchbar @core-smoke', async ({
@@ -76,25 +79,14 @@ test('Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchb
   const { dialog } = await open(page);
   await dialog.getByRole('button', { name: /Kategorie Kategorie suchen oder auswählen/u }).tap();
   const picker = page.getByRole('dialog', { name: 'Kategorie', exact: true });
-  await expect(picker.getByRole('option')).toHaveCount(9);
+  await expect(picker.getByRole('option')).toHaveCount(15);
   for (const name of ['Jobs', 'Immobilien', 'Haustiere', 'Dienstleistungen'])
-    await expect(picker.getByRole('option', { name, exact: true })).toHaveCount(0);
-  await picker.getByRole('option').filter({ hasText: 'Auto, Rad & Boot' }).tap();
-  await expect(
-    picker.getByRole('button', { name: 'Auto, Rad & Boot auswählen', exact: true }),
-  ).toBeDisabled();
-  await expect(picker.getByRole('option')).toHaveCount(1);
-  await picker.getByRole('option').filter({ hasText: 'Motorradteile & Zubehör' }).tap();
-  await expect(picker.getByRole('option').filter({ hasText: 'Motorradbekleidung' })).toBeVisible();
+    await expect(picker.getByRole('option').filter({ hasText: name })).toBeVisible();
   await picker.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Häuser');
-  await expect(
-    picker.getByText('Keine passende Kategorie gefunden.', { exact: true }),
-  ).toBeVisible();
-  await picker.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('');
-  await picker.getByRole('button', { name: 'Zurück zu Auto, Rad & Boot', exact: true }).tap();
-  await picker.getByRole('button', { name: 'Zurück zu allen', exact: true }).tap();
-  await picker.getByRole('option').filter({ hasText: 'Mode & Beauty' }).tap();
-  await picker.getByRole('option').filter({ hasText: 'Herrenbekleidung' }).tap();
+  await expect(picker.getByRole('option').filter({ hasText: 'Häuser zum Kauf' })).toBeVisible();
+  await picker
+    .getByRole('combobox', { name: 'Kategorie suchen', exact: true })
+    .fill('herren hemden');
   await expect(picker.getByRole('option').filter({ hasText: 'Hemden' })).toBeVisible();
   expect(f.savedSchemaRequests).toHaveLength(0);
   expect(
@@ -178,7 +170,7 @@ for (const theme of ['light', 'dark'] as const)
           f.bridgeRequests.filter(
             (value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA',
           ),
-        ).toHaveLength(2);
+        ).toHaveLength(1);
         expect(
           f.bridgeRequests.filter(
             (value) =>
@@ -471,4 +463,147 @@ test('Ohne passende Erweiterung bleibt die automatische Veröffentlichung gesper
   await expectSingleVisibleError(dialog, /Erweiterung/);
   expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
   expect(f.providerCalls).toBe(0);
+});
+
+test('Ohne Kategorie öffnet Inserieren die gesicherte Fassung mit Verhandlungsbasis und Versand/Abholung @core-smoke', async ({
+  page,
+}) => {
+  const f = await mockKleinanzeigenTransfer(page);
+  const { dialog } = await open(page);
+  await expect(dialog.getByRole('combobox', { name: 'Preistyp', exact: true })).toContainText(
+    'Verhandlungsbasis',
+  );
+  await expect(dialog.getByRole('combobox', { name: 'Versand', exact: true })).toContainText(
+    'Versand und Abholung',
+  );
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).dblclick();
+  await expect(
+    dialog.getByText(/Das vorbefüllte Kleinanzeigen-Formular ist geöffnet/u),
+  ).toBeVisible();
+  const requests = f.bridgeRequests.filter(
+    (value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_LISTING',
+  );
+  expect(requests).toHaveLength(1);
+  expect(requests[0]['payload']).toMatchObject({
+    categoryPath: null,
+    priceType: 'NEGOTIABLE',
+    shippingType: 'both',
+    images: [expect.objectContaining({ name: 'Bild.jpg' })],
+  });
+  expect(f.calls.filter((value) => value['action'] === 'save_transfer')).toHaveLength(1);
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
+  expect(
+    f.bridgeRequests.some((value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA'),
+  ).toBe(false);
+  await expect(
+    dialog.getByText('Wähle und prüfe die Kleinanzeigen-Kategorie.', { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole('button', { name: 'Eigenschaften erneut laden', exact: true }),
+  ).toHaveCount(0);
+});
+
+test('Eine beim Anbieter fehlende Kategorie öffnet das Formular mit erhaltenem Kategoriepfad @core-smoke', async ({
+  page,
+}) => {
+  const f = await mockKleinanzeigenTransfer(page, { categoryUnavailable: true });
+  const { dialog } = await ready(page);
+  expect(
+    f.bridgeRequests.some((value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA'),
+  ).toBe(false);
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expect(
+    dialog.getByText(/Das vorbefüllte Kleinanzeigen-Formular ist geöffnet/u),
+  ).toBeVisible();
+  expect(
+    f.bridgeRequests.find((value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_LISTING')?.[
+      'payload'
+    ],
+  ).toMatchObject({ categoryPath: '153/160/shirts' });
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  expect(f.providerCalls).toBe(0);
+});
+
+test('Mehrfachauswahl hält beim ersten unklaren Ergebnis an und zeigt keine falsche Erfolgsmeldung @core-smoke', async ({
+  page,
+}) => {
+  const f = await mockKleinanzeigenTransfer(page, { relisting: true });
+  await page.goto('/marketplaces/kleinanzeigen');
+  const action = page.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true });
+  await expect(action).toBeDisabled();
+  await page
+    .getByRole('checkbox', {
+      name: 'Alle Inserate auf dieser Seite von Kleinanzeigen Privatkonto auswählen',
+      exact: true,
+    })
+    .click();
+  await expect(action).toBeEnabled();
+  await action.click();
+  const confirmation = page.getByRole('dialog', {
+    name: 'Ausgewählte neu inserieren?',
+    exact: true,
+  });
+  await expect(confirmation).toContainText('Kleinanzeigen Artikel 1');
+  await expect(confirmation).toContainText('Kleinanzeigen Artikel 2');
+  await confirmation.getByRole('button', { name: 'Neu inserieren', exact: true }).click();
+  await expect(
+    page.getByRole('list', { name: 'Ergebnis des erneuten Inserierens', exact: true }),
+  ).toContainText('Ergebnis noch unklar');
+  const requests = f.bridgeRequests.filter(
+    (value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_LISTING',
+  );
+  expect(requests).toHaveLength(1);
+  expect(requests[0]['externalId']).toBe('711');
+  expect(f.calls.some((value) => value['action'] === 'request_sync')).toBe(false);
+  await page.evaluate(axe.source);
+  expect(
+    await page.evaluate(
+      async () =>
+        (await (window as unknown as { axe: typeof axe }).axe.run(document.querySelector('main')!))
+          .violations,
+    ),
+  ).toEqual([]);
+});
+
+test.describe('Mausbedienung des vereinfachten Inserierens', () => {
+  test.use({ hasTouch: false });
+  for (const theme of ['light', 'dark'] as const) {
+    test(`bleibt mit Maus und Tastatur im ${theme}-Theme bedienbar @core-smoke`, async ({
+      page,
+    }, testInfo) => {
+      const f = await mockKleinanzeigenTransfer(page);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      const { dialog, action } = await open(page, true, true);
+      await page.evaluate(
+        (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
+        theme,
+      );
+      const publish = dialog.getByRole('button', { name: 'Inserieren', exact: true });
+      await publish.hover();
+      await publish.focus();
+      await page.keyboard.press('Enter');
+      await expect(
+        dialog.getByText(/Das vorbefüllte Kleinanzeigen-Formular ist geöffnet/u),
+      ).toBeVisible();
+      expect(
+        f.bridgeRequests.filter(
+          (request) => request['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_LISTING',
+        ),
+      ).toHaveLength(1);
+      await page.evaluate(axe.source);
+      expect(
+        await dialog.evaluate(
+          async (element) =>
+            (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
+        ),
+      ).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`kleinanzeigen-mouse-${theme}.png`),
+        animations: 'disabled',
+      });
+      await dialog.getByRole('button', { name: 'Schließen', exact: true }).last().click();
+      await expect(action).toBeFocused();
+    });
+  }
 });

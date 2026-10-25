@@ -433,15 +433,20 @@
           }
           await readyPage('/p-anzeige-aufgeben-schritt2.html');
         },
-        readSchema: (path, label) => step('schema', path, label),
+        readSchema: (path, label) =>
+          owner?.assisted
+            ? Promise.resolve({ categoryPath: path, categoryLabel: label })
+            : step('schema', path, label),
         seal: (schema, observedAt) =>
-          syncRpc(installation, {
-            action: 'form_schema',
-            ...body,
-            externalAccountId: binding.externalAccountId,
-            schema,
-            observedAt,
-          }),
+          owner?.assisted
+            ? Promise.resolve({ schema, observedAt })
+            : syncRpc(installation, {
+                action: 'form_schema',
+                ...body,
+                externalAccountId: binding.externalAccountId,
+                schema,
+                observedAt,
+              }),
       });
       if (owner) {
         owner.tabId = tab.id;
@@ -452,6 +457,144 @@
     } finally {
       formBusy = false;
       if (tab?.id && !owner?.tabId) await chrome.tabs.remove(tab.id).catch(() => {});
+    }
+  }
+  let handoffBusy = false;
+  const handoffContentKey = (payload) =>
+    JSON.stringify({
+      ...payload,
+      images: payload.images.map((image) => ({
+        name: image.name,
+        key: image.key ?? new URL(image.url).origin + new URL(image.url).pathname,
+      })),
+    });
+  async function openListing(request, origin) {
+    if (handoffBusy) throw new Error('Ein Kleinanzeigen-Formular wird bereits vorbereitet.');
+    handoffBusy = true;
+    let tab;
+    try {
+      const installation = await load();
+      const binding = installation?.binding;
+      if (
+        installation?.phase !== 'connected' ||
+        installation.appOrigin !== origin ||
+        !binding?.canPublish ||
+        binding.accountType !== 'private' ||
+        ['workspaceId', 'connectionId', 'generation'].some(
+          (key) => binding[key] !== request[key],
+        ) ||
+        Date.parse(binding.expiresAt) <= Date.now()
+      )
+        throw stopped('access_revoked');
+      const check = async () => {
+        const current = await syncRpc(installation, {
+          action: 'heartbeat',
+          workspaceId: binding.workspaceId,
+          connectionId: binding.connectionId,
+          generation: binding.generation,
+        });
+        if (
+          !current?.canPublish ||
+          current.externalAccountId !== binding.externalAccountId ||
+          current.generation !== binding.generation ||
+          (await readAccount()).identity.externalAccountId !== binding.externalAccountId
+        )
+          throw stopped('account_changed');
+      };
+      await check();
+      const key = 'kleinanzeigen_assisted_listings';
+      const previous = (await chrome.storage.local.get(key))[key] ?? {};
+      for (const value of Object.values(previous)) {
+        if (
+          value.handoffId !== request.handoffId ||
+          value.appOrigin !== origin ||
+          value.externalAccountId !== binding.externalAccountId ||
+          value.expiresAt <= Date.now() ||
+          value.contentKey !== handoffContentKey(request.payload)
+        )
+          continue;
+        try {
+          const existing = await chrome.tabs.get(value.tabId);
+          if (existing.incognito || !existing.url?.startsWith('https://www.kleinanzeigen.de/'))
+            continue;
+          await chrome.tabs.update(existing.id, { active: true });
+          return { opened: true, handoffId: request.handoffId };
+        } catch {
+          /* Geschlossenes Formular darf neu geöffnet werden. */
+        }
+      }
+      let categoryReady = false;
+      if (request.payload.categoryPath) {
+        const owner = { assisted: true };
+        try {
+          await loadFormSchema(
+            { ...request, categoryPath: request.payload.categoryPath },
+            origin,
+            owner,
+          );
+          tab = await chrome.tabs.get(owner.tabId);
+          if (
+            !owner.result?.schema ||
+            new URL(tab.url).pathname !== '/p-anzeige-aufgeben-schritt2.html'
+          ) {
+            await chrome.tabs.remove(tab.id).catch(() => {});
+            tab = undefined;
+            throw new Error('category_missing');
+          }
+          categoryReady = true;
+        } catch {
+          /* Der Formularassistent erklärt die fehlende Kategorie im geöffneten Formular. */
+        }
+      }
+      await check();
+      if (!tab) {
+        tab = await chrome.tabs.create({
+          url: 'https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html#flipbase-assisted',
+          active: false,
+        });
+      }
+      const values = (await chrome.storage.local.get(key))[key] ?? {};
+      await chrome.storage.local.set({
+        [key]: {
+          ...Object.fromEntries(
+            Object.entries(values).filter(([, value]) => value.expiresAt > Date.now()),
+          ),
+          [tab.id]: {
+            tabId: tab.id,
+            appOrigin: origin,
+            handoffId: request.handoffId,
+            externalAccountId: binding.externalAccountId,
+            expiresAt: Date.now() + 900000,
+            contentKey: handoffContentKey(request.payload),
+            payload: {
+              ...request.payload,
+              expectedExternalAccountId: binding.externalAccountId,
+              categoryReady,
+            },
+          },
+        },
+      });
+      const end = Date.now() + 20000;
+      let acknowledged = false;
+      while (!acknowledged && Date.now() < end) {
+        try {
+          const answer = await chrome.tabs.sendMessage(tab.id, {
+            type: 'KLEINANZEIGEN_ASSISTED_FILL',
+          });
+          acknowledged = answer?.started === true;
+        } catch {
+          /* Auf die geladene Formularseite warten. */
+        }
+        if (!acknowledged) await delay(200);
+      }
+      if (!acknowledged)
+        throw new Error(
+          'Das Formular ist noch nicht bereit. Deine Fassung ist in Flipbase gesichert.',
+        );
+      await chrome.tabs.update(tab.id, { active: true });
+      return { opened: true, handoffId: request.handoffId };
+    } finally {
+      handoffBusy = false;
     }
   }
   const publicationProgressKey = 'kleinanzeigen_publication_attempts';
@@ -555,7 +698,12 @@
       binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
     return btoa(binary);
   }
-  async function publicationResult(installation, job, progress) {
+  async function publicationResult(
+    installation,
+    job,
+    progress,
+    saveProgress = savePublicationProgress,
+  ) {
     if ((await readAccount()).identity.externalAccountId !== job.externalAccountId)
       throw stopped('account_changed');
     let receipt = progress.receipt ?? null;
@@ -593,7 +741,7 @@
             receipt = response.result.receipt;
             if (receipt) {
               progress.receipt = receipt;
-              await savePublicationProgress(progress);
+              await saveProgress(progress);
             }
             break;
           }
@@ -682,6 +830,123 @@
       ).join(''),
     session: sendSession,
   });
+  async function relistingSource(installation, externalId, previousTabId) {
+    const url = 'https://www.kleinanzeigen.de/p-anzeige-bearbeiten.html?adId=' + externalId;
+    let tab;
+    if (previousTabId) {
+      try {
+        tab = await chrome.tabs.get(previousTabId);
+      } catch {
+        /* Eigener Arbeitstab wurde geschlossen. */
+      }
+    }
+    const minimumDocumentTime = Date.now();
+    if (tab?.url === url && !tab.incognito) await chrome.tabs.reload(tab.id);
+    else tab = await chrome.tabs.create({ url, active: false });
+    const end = Date.now() + 20000;
+    while (Date.now() < end) {
+      try {
+        const current = await chrome.tabs.get(tab.id);
+        if (current.status === 'complete' && current.url === url) {
+          const response = await chrome.tabs.sendMessage(tab.id, {
+            type: 'KLEINANZEIGEN_RELISTING_STEP',
+            action: 'read',
+            externalId,
+            expectedExternalAccountId: installation.binding.externalAccountId,
+            minimumDocumentTime,
+          });
+          if (response?.success)
+            return { tabId: tab.id, minimumDocumentTime, snapshot: response.result };
+          if (response?.errorCode) throw new Error(response.errorCode);
+        }
+      } catch (error) {
+        if (error?.message === 'source_changed') throw error;
+      }
+      await delay(200);
+    }
+    throw new Error('Die alte Anzeige konnte nicht vollständig gesichert werden.');
+  }
+  const relistingRuntime = globalThis.FlipbaseKleinanzeigenRelistingJobs?.create({
+    installation: load,
+    check: (installation) =>
+      syncRpc(installation, {
+        action: 'heartbeat',
+        workspaceId: installation.binding.workspaceId,
+        connectionId: installation.binding.connectionId,
+        generation: installation.binding.generation,
+      }),
+    identity: async () => (await readAccount()).identity,
+    source: relistingSource,
+    photo: async (url, index) => {
+      const result = await globalThis.FlipbaseAutofill.fetchImageAsDataUrl(
+        (address) =>
+          fetch(address, {
+            credentials: 'omit',
+            redirect: 'error',
+            signal: AbortSignal.timeout(30000),
+          }),
+        url,
+      );
+      if (!result.ok) throw new Error('images_incomplete');
+      const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/u.exec(result.dataUrl);
+      if (!match) throw new Error('images_incomplete');
+      const bytes = Uint8Array.from(atob(match[2]), (value) => value.charCodeAt(0));
+      if (!bytes.length || bytes.length > 12582912) throw new Error('images_incomplete');
+      const sha256 = Array.from(
+        new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+        (value) => value.toString(16).padStart(2, '0'),
+      ).join('');
+      return {
+        imageId: crypto.randomUUID(),
+        fileName: `bild-${index + 1}.${match[1] === 'image/png' ? 'png' : match[1] === 'image/webp' ? 'webp' : 'jpg'}`,
+        mimeType: match[1],
+        byteSize: bytes.length,
+        sha256,
+        encoded: match[2],
+      };
+    },
+    baseline: async (installation) =>
+      (await readAllPublications(installation)).flatMap((page) =>
+        page.items.map((item) => item.externalId),
+      ),
+    target: async (installation, request, categoryPath) => {
+      const owner = {};
+      await loadFormSchema({ ...request, categoryPath }, installation.appOrigin, owner);
+      return owner;
+    },
+    step: publicationStep,
+    quota: (installation, request) => refreshQuota(request, installation.appOrigin),
+    remove: async (installation, externalId, title) => {
+      const pages = await readAllPublications(installation);
+      const page = pages.find((page) =>
+        page.items.some((item) => item.externalId === externalId && item.state === 'active'),
+      );
+      if (!page) throw new Error('source_changed');
+      await readListingPage(installation, page.pageCursor);
+      const answer = await chrome.tabs.sendMessage(listingTabId, {
+        type: 'KLEINANZEIGEN_RELISTING_STEP',
+        action: 'remove',
+        externalId,
+        title,
+        expectedExternalAccountId: installation.binding.externalAccountId,
+        minimumDocumentTime: listingDocumentTime,
+      });
+      if (!answer?.success) throw new Error(answer?.errorCode ?? 'deletion_unconfirmed');
+      return answer.result;
+    },
+    result: publicationResult,
+    show: (tabId) => chrome.tabs.update(tabId, { active: true }),
+  });
+  let listingWriteBusy = false;
+  async function listingWrite(operation) {
+    if (listingWriteBusy) throw new Error('Ein Kleinanzeigen-Auftrag wird bereits ausgeführt.');
+    listingWriteBusy = true;
+    try {
+      return await operation();
+    } finally {
+      listingWriteBusy = false;
+    }
+  }
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== chrome.runtime.id) return false;
     if (['KLEINANZEIGEN_PAIRING_READ', 'KLEINANZEIGEN_PAIRING_CONFIRM'].includes(message?.type)) {
@@ -713,23 +978,38 @@
     const operation =
       request.action === 'PREPARE_ACCOUNT'
         ? () => runtime.prepare(message, origin)
-        : request.action === 'QUOTA'
-          ? () => refreshQuota(request, origin)
-          : request.action === 'PUBLISH_JOB'
-            ? () => {
-                if (!publicationRuntime)
-                  throw new Error('Der Veröffentlichungsadapter ist noch nicht verfügbar.');
-                return publicationRuntime.run(request, origin);
-              }
-            : request.action === 'FORM_SCHEMA'
-              ? () => loadFormSchema(request, origin)
-              : request.action === 'SYNC'
-                ? () => synchronize(request, origin)
-                : request.action === 'CONNECT'
-                  ? () => runtime.connect(request, origin)
-                  : request.action === 'DISCONNECT'
-                    ? () => runtime.disconnect(request)
-                    : () => runtime.status();
+        : request.action === 'RELIST_ATTEMPTS'
+          ? () => {
+              if (!relistingRuntime)
+                throw new Error('Aktualisiere die Erweiterung für erneutes Inserieren.');
+              return relistingRuntime.list(request, origin);
+            }
+          : request.action === 'RELIST_LISTING'
+            ? () =>
+                listingWrite(() => {
+                  if (!relistingRuntime)
+                    throw new Error('Aktualisiere die Erweiterung für erneutes Inserieren.');
+                  return relistingRuntime.run(request, origin);
+                })
+            : request.action === 'OPEN_LISTING'
+              ? () => openListing(request, origin)
+              : request.action === 'QUOTA'
+                ? () => refreshQuota(request, origin)
+                : request.action === 'PUBLISH_JOB'
+                  ? () => {
+                      if (!publicationRuntime)
+                        throw new Error('Der Veröffentlichungsadapter ist noch nicht verfügbar.');
+                      return listingWrite(() => publicationRuntime.run(request, origin));
+                    }
+                  : request.action === 'FORM_SCHEMA'
+                    ? () => loadFormSchema(request, origin)
+                    : request.action === 'SYNC'
+                      ? () => synchronize(request, origin)
+                      : request.action === 'CONNECT'
+                        ? () => runtime.connect(request, origin)
+                        : request.action === 'DISCONNECT'
+                          ? () => runtime.disconnect(request)
+                          : () => runtime.status();
     Promise.resolve()
       .then(operation)
       .then(
@@ -739,6 +1019,8 @@
             result,
             formSchema: !!globalThis.FlipbaseKleinanzeigenForm,
             quota: true,
+            assistedListings: true,
+            relisting: !!relistingRuntime,
             capabilities: {
               accounts: true,
               sync: !!globalThis.FlipbaseKleinanzeigenSync,
