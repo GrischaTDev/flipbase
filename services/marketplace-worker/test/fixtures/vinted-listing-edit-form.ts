@@ -51,6 +51,9 @@ export async function createVintedListingEditFormFixture(
   options: {
     foreign?: boolean;
     ignoreSave?: boolean;
+    /** Bestehender Preis wird beim Fokussieren in Vinteds Eingabeformat gebracht. */
+    formatPriceOnFocus?: boolean;
+    saveResponseDelayMs?: number;
     state?: Partial<EditFormState>;
     /** So viele Ablagen eines gezogenen Fotos bleiben ohne Wirkung. */
     ignoredPhotoDrops?: number;
@@ -64,7 +67,9 @@ export async function createVintedListingEditFormFixture(
   let saves = 0,
     writes = 0,
     listOpens = 0,
-    itemReads = 0;
+    itemReads = 0,
+    pendingSave = false,
+    readsDuringSave = 0;
   let state: EditFormState = {
     title: 'Meine Schuhe',
     description: 'Sehr gut erhalten.',
@@ -97,7 +102,7 @@ export async function createVintedListingEditFormFixture(
       .filter(([id]) => selected.includes(id))
       .map(([, text]) => text)
       .join(', ');
-  await page.route('**/*', (route) => {
+  await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/v2/users/current')
       return route.fulfill({
@@ -166,11 +171,16 @@ export async function createVintedListingEditFormFixture(
     if (route.request().method() !== 'GET') writes++;
     if (url.pathname === '/fixture/save') {
       saves++;
+      pendingSave = true;
+      if (options.saveResponseDelayMs)
+        await new Promise((resolve) => setTimeout(resolve, options.saveResponseDelayMs));
+      pendingSave = false;
       if (!options.ignoreSave) state = JSON.parse(route.request().postData()!) as EditFormState;
       return route.fulfill({ json: { ok: true } });
     }
     if (url.pathname !== '/items/98765/edit')
       return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<h1>Inserat</h1>' });
+    if (pendingSave) readsDuringSave++;
     return route.fulfill({
       contentType: 'text/html; charset=utf-8',
       body: `<main id="content">
@@ -215,10 +225,15 @@ export async function createVintedListingEditFormFixture(
         const [photo]=photos.splice(from,1);photos.splice(to,0,photo);renderPhotos();
       };
       renderPhotos();
-      // Annahme, an der echten Maske nicht gemessen: Der Preis erhält sein Format erst beim
-      // Verlassen des Feldes. Ein Wert, der sich dadurch während des Lesens ändert, gilt dem Leser
-      // als veränderte Maske.
+      // Am 25.10.2026 an der echten Bearbeitungsmaske beobachtet: Beim Fokussieren erscheint der
+      // bisherige Preis mit Dezimalpunkt, beim Verlassen wieder mit Komma und Eurozeichen.
+      // Die nächste Frame-Darstellung bildet das beobachtete Zurücksetzen bei direktem fill nach.
       const priceInput=document.querySelector('[name=price]');
+      if (${Boolean(options.formatPriceOnFocus)}) priceInput.onfocus=()=>{
+        const previous=priceInput.value.split('€').join('').trim().replace(',','.');
+        // Der beobachtete Fokuswechsel rendert den bisherigen Preis nach Beginn der Eingabe erneut.
+        requestAnimationFrame(()=>{priceInput.value=previous;});
+      };
       priceInput.onblur=()=>{
         const match=/^([0-9]+)(?:[,.]([0-9]{1,2}))?$/.exec(priceInput.value.split('€').join('').trim());
         if(match) priceInput.value=match[1]+','+(match[2]||'').padEnd(2,'0')+' €';
@@ -256,6 +271,7 @@ export async function createVintedListingEditFormFixture(
   });
   return {
     saves: () => saves,
+    readsDuringSave: () => readsDuringSave,
     writes: () => writes,
     state: () => state,
     /** Wie oft eine Auswahlliste der Maske geöffnet wurde. */

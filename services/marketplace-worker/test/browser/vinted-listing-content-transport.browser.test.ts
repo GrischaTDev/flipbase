@@ -31,3 +31,41 @@ test('the real isolated transport returns the current listing content and preser
     await browser.close();
   }
 });
+
+test('beide Speicherwege übernehmen den Preis durch den echten isolierten Transport nach dem Fokuswechsel', async () => {
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext();
+    const original = await context.newPage();
+    const f = await createVintedListingEditFormFixture(
+      { route: context.route.bind(context) },
+      { formatPriceOnFocus: true },
+    );
+    await original.goto('https://www.vinted.de/items/98765');
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    const allow = async () => undefined;
+    const base = await actions.readListingContent!('123', '98765', allow);
+    assert.equal(
+      await actions.updateListingContent!(
+        '123',
+        '98765',
+        base.content,
+        { ...base.content, priceCents: 1675 },
+        allow,
+      ),
+      'confirmed',
+    );
+    assert.equal(
+      (await actions.updateListingPrice!('98765', '123', 1675, 1550, allow)).status,
+      'confirmed',
+    );
+    assert.equal(f.saves(), 2);
+    assert.equal(f.state().price, '15,50 €');
+    assert.equal(f.state().title, 'Meine Schuhe');
+    assert.equal(f.state().description, 'Sehr gut erhalten.');
+    assert.deepEqual(context.pages(), [original]);
+  } finally {
+    await browser.close();
+  }
+});

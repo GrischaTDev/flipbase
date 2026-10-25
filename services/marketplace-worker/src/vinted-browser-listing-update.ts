@@ -30,6 +30,7 @@ import {
   validateVintedListingSubmission,
 } from './vinted-listing-contracts.ts';
 import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
+import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
 
 function invalid(): Error {
   return new Error('Die Änderungen konnten nicht sicher in das Vinted-Inserat übernommen werden.');
@@ -210,10 +211,12 @@ export async function updateVintedListingContent(
       if (!changed.has(name)) continue;
       await check();
       const input = page.locator('#content ' + selector);
+      if (name === 'price') {
+        await fillVintedListingPrice(input, value);
+        continue;
+      }
       await input.fill(value);
-      // Das Feld verlassen, damit die Maske ihren Wert sofort in ihr eigenes Format bringt (etwa
-      // den Preis). Sonst ändert er sich erst während des Gegenlesens und gilt dort als fremde
-      // Änderung der Maske.
+      // Das Feld verlassen, damit die Maske die Eingabe vor dem Gegenlesen übernimmt.
       await input.blur();
     }
     if (changed.has('title') || changed.has('description') || changed.has('price')) await wait(200);

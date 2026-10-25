@@ -8,6 +8,11 @@ import {
 import { parseVintedListingPriceCents } from './vinted-browser-listing-content.ts';
 import { collectVintedListingFormValues } from './vinted-listing-contracts.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
+import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
+import {
+  vintedListingUpdateFailure,
+  type VintedListingUpdateStep,
+} from './vinted-browser-listing-update.ts';
 
 export interface VintedListingPriceResult {
   status: VintedEditResult;
@@ -26,6 +31,16 @@ export async function updateVintedListingPrice(
   timeoutMs = 20_000,
 ): Promise<VintedListingPriceResult> {
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
+  let step: VintedListingUpdateStep = 'authorize';
+  let authorizationFailed = false;
+  const checkAuthorization = async () => {
+    try {
+      await authorize();
+    } catch (error) {
+      authorizationFailed = true;
+      throw error;
+    }
+  };
   try {
     if (
       ![itemId, accountId].every((id) => /^[1-9][0-9]{0,31}$/.test(id)) ||
@@ -34,18 +49,20 @@ export async function updateVintedListingPrice(
       )
     )
       throw new Error('Ungültiger Verkaufspreis.');
-    await authorize();
+    await checkAuthorization();
+    step = 'open';
     const target = 'https://www.vinted.de/items/' + itemId + '/edit';
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
     await page
       .locator('#content input[name="price"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     const check = async () => {
-      await authorize();
+      await checkAuthorization();
       if (page.url() !== target || (await readVintedAccountIdentity(page))?.id !== accountId)
         throw new Error('Die Kontozuordnung hat sich geändert.');
     };
     await check();
+    step = 'read';
     const base = await page.evaluate(collectVintedListingFormValues);
     if (!base || base.bump)
       throw new Error('Das Vinted-Formular konnte nicht sicher gelesen werden.');
@@ -57,9 +74,10 @@ export async function updateVintedListingPrice(
     if (currentPriceCents !== expectedPriceCents)
       return { status: 'conflict', priceCents: currentPriceCents };
     const input = page.locator('#content input[name="price"]');
-    await input.fill(price);
-    await input.blur();
+    step = 'text';
+    await fillVintedListingPrice(input, price);
     await check();
+    step = 'verify';
     const prepared = await page.evaluate(collectVintedListingFormValues);
     if (
       !prepared ||
@@ -74,6 +92,7 @@ export async function updateVintedListingPrice(
     if ((await save.count()) !== 1 || !(await save.isEnabled()))
       throw new Error('Speichern nicht verfügbar.');
     await check();
+    step = 'save';
     try {
       await save.click({ timeout: 10_000 });
       // Erst nach Vinteds Seitenwechsel erneut öffnen, sonst könnte die Speicherung abgebrochen werden.
@@ -85,6 +104,7 @@ export async function updateVintedListingPrice(
     } catch {
       return { status: 'unconfirmed' };
     }
+    step = 'confirm';
     const status = await confirmVintedEdit(
       () => readVintedListingEdit(page, itemId, accountId),
       (saved) =>
@@ -94,6 +114,8 @@ export async function updateVintedListingPrice(
       timeoutMs,
     );
     return status === 'confirmed' ? { status, fields } : { status };
+  } catch {
+    throw vintedListingUpdateFailure(authorizationFailed ? 'authorize' : step);
   } finally {
     await page.close();
   }
