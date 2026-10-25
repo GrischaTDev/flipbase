@@ -1453,6 +1453,12 @@ for (const width of [1440, 390]) {
         const checkRows = async () => {
           await expect(cards).toHaveCount(3);
           await expect(links).toHaveCount(3);
+          const overviewBounds = (await overview.boundingBox())!;
+          const firstCardBounds = (await cards.first().boundingBox())!;
+          expect(Math.abs(firstCardBounds.x - overviewBounds.x)).toBeLessThanOrEqual(1);
+          if ((await listView.getAttribute('aria-pressed')) === 'true') {
+            expect(Math.abs(firstCardBounds.width - overviewBounds.width)).toBeLessThanOrEqual(1);
+          }
           for (const [index, draft] of drafts.entries()) {
             const title = draft.content.title || 'Unbenannter Entwurf';
             await expect(links.nth(index)).toHaveAttribute('aria-label', `${title} bearbeiten`);
@@ -1595,6 +1601,50 @@ for (const width of [1440, 390]) {
         await page.reload();
         await expect(links).toHaveCount(2);
         await expect(deleteNewest).toHaveCount(0);
+        const section = overview.getByRole('region', { name: 'Flipbase-Entwürfe', exact: true });
+        const search = section.getByRole('searchbox', { name: 'Entwürfe nach Titel durchsuchen' });
+        let finishFailure!: () => void;
+        const pendingFailure = new Promise<void>((resolve) => (finishFailure = resolve));
+        let failNextRead = true;
+        await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', async (route) => {
+          const query = (route.request().postDataJSON() as { p_query?: unknown }).p_query;
+          if (query === 'Fehlerprüfung' && failNextRead) {
+            await pendingFailure;
+            failNextRead = false;
+            return route.fulfill({ status: 400, json: { code: 'XX000' } });
+          }
+          if (query === 'Kein Treffer' || query === 'Fehlerprüfung') {
+            return route.fulfill({ json: { items: [], nextCursor: null } });
+          }
+          if (query === 'Pullover') {
+            return route.fulfill({ json: { items: [older], nextCursor: null } });
+          }
+          return route.fallback();
+        });
+        await search.fill('Kein Treffer');
+        await expect(
+          section.getByText('Noch keine passenden Entwürfe', { exact: true }),
+        ).toBeVisible();
+        await expect(
+          section.getByRole('link', { name: 'Inserat erstellen', exact: true }),
+        ).toBeVisible();
+        await expect(links).toHaveCount(0);
+        await search.fill('Pullover');
+        await expect(links).toHaveCount(1);
+        await expect(links.first()).toHaveAttribute('aria-label', 'Älterer Pullover bearbeiten');
+        await search.fill('Fehlerprüfung');
+        await expect(section.getByRole('status')).toHaveText('Entwürfe werden geladen …');
+        finishFailure();
+        await expect(section.getByRole('alert')).toBeVisible();
+        await activate(section.getByRole('button', { name: 'Erneut versuchen', exact: true }));
+        await expect(section.getByRole('alert')).toHaveCount(0);
+        await expect(
+          section.getByText('Noch keine passenden Entwürfe', { exact: true }),
+        ).toBeVisible();
+        await search.fill('');
+        await expect(links).toHaveCount(2);
+        await page.evaluate(axe.source);
+        await checkAccessibility();
         expect(errors).toEqual([]);
       });
     }

@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-25 - Juna - Flipbase-Entwürfe ohne zusätzlichen Kartenrahmen anzeigen
+
+**Auftrag:** Die besprochene Entwurfsübersicht wie den Kleiderschrank darstellen. Vinted-Entwürfe bleiben direkt bearbeitbar; keine automatische Übertragung oder Löschung bei Vinted.
+
+**Änderung:** Den zusätzlichen Tabellenrahmen samt 13 Pixel Einrückung um die Flipbase-Entwurfskarten entfernt. Raster und Liste stehen direkt auf der Seite; die gemeinsame Suchkomponente und der vorhandene Ansichtswechsel stehen im Abschnittskopf. Lade-, Fehler-, Leerzustand, Wiederholen, Nachladen, Bearbeiten und bestätigtes Löschen erhalten. Keine gemeinsame Komponente oder Speicher-/Veröffentlichungslogik geändert. Den bestehenden Browserfall um bündige Karten, volle Listenbreite sowie Suche, Laden, leere Treffer und Wiederholen nach Abruffehler ergänzt.
+
+**Prüfung:** Abstandsprüfung auf unverändertem Ausgangsbau zunächst mit 13 statt höchstens einem Pixel gescheitert. Danach 44 ausgewählte Angular- und vier Node-Fälle sowie 49 Auswahl-/Registrierungsprüfungen erfolgreich. Produktionsbau einschließlich Vorlagen, Typprüfung, gezieltes Lint und Shared-UI-Prüfung erfolgreich. Alle 62 Fälle der drei ausgewählten Vinted-Browserdateien gegen ruhenden Produktionsbau bestanden; vier Übersichtsvarianten nach ergänzten Zustandsprüfungen gezielt erneut erfolgreich. 1440 Pixel/Maus und 390 Pixel/Touch jeweils Hell/Dunkel, Tastatur-/Rückfokus, AXE und Überlauf geprüft. Zusätzlich vier Übersichtsvarianten im Entwicklungsbau für vollständige Sichtnachweise erfolgreich; eigener Testharness nach Seitenneuladen um erneutes Laden von AXE korrigiert. Screenshots und Prüfprotokolle liegen außerhalb des Repositories unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-vinted-draft-layout-20261025/`.
+
+**Grenzen:** Browser-Plugin mit zugehörigem `browser`-Skill nicht verfügbar; bestehende Playwright-Prüfungen unter Windows/Chromium verwendet. Die Produktionsvorschau mit absichtlich blockiertem Service Worker zeigt einen allgemeinen Updatehinweis; die zusätzlichen Sichtnachweise stammen deshalb aus dem Entwicklungsbau. Der ebenfalls automatisch ausgewählte alte Inseratstudio-Datenbankfall wurde lokal nicht ausgeführt: Der fest konfigurierte lokale Testanschluss `127.0.0.1:54351` ist nicht erreichbar. Andere laufende Datenbankprojekte unverändert erhalten. Keine native Safari-/Geräteprüfung und kein echter Vinted-Schreibzugriff; kein Datenbank- oder PWA-Umbau.
+
 ## 2026-10-25 - Juna - Aktuellen Arbeitsbeginn und vollständige Zweigbereinigung verbindlich machen
 
 **Auftrag:** Jede neue Aufgabe auf einem neuen Zweig vom aktuellen Hauptzweig beginnen und nach erfolgreichem Abschluss ohne weitere Rückfrage sowohl lokal als auch auf GitHub aufräumen.

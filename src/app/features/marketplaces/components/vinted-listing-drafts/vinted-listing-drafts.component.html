@@ -18,59 +18,68 @@
       <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
     }
     <app-vinted-provider-drafts [query]="query()" [viewMode]="viewMode()" />
-    <h2 class="text-sm font-semibold text-fb-text-primary">Flipbase-Entwürfe</h2>
-    <app-data-table
-      ariaLabel="Flipbase-Entwürfe"
-      searchAriaLabel="Entwürfe nach Titel durchsuchen"
-      searchPlaceholder="Entwürfe nach Titel suchen …"
-      [searchValue]="search()"
-      (searchValueChange)="setSearch($event)"
-      [loading]="loading()"
-      [errorMessage]="error()"
-      [hasRows]="drafts().length > 0"
-      emptyTitle="Noch keine passenden Entwürfe"
-      emptyText="Erstelle einen Entwurf oder ändere Deine Suche."
-    >
-      <div
-        #viewSwitcher
-        table-filters
-        class="inline-flex shrink-0 gap-1 rounded-lg bg-fb-subtle p-1"
-        role="group"
-        aria-label="Entwurfsansicht"
-        tabindex="-1"
-      >
-        <app-button
-          variant="segment"
-          size="slim"
-          [icon]="gridIcon"
-          [iconOnly]="true"
-          ariaLabel="Rasteransicht"
-          title="Rasteransicht"
-          [ariaPressed]="viewMode() === 'grid'"
-          (clicked)="viewMode.set('grid')"
-        />
-        <app-button
-          variant="segment"
-          size="slim"
-          [icon]="listIcon"
-          [iconOnly]="true"
-          ariaLabel="Listenansicht"
-          title="Listenansicht"
-          [ariaPressed]="viewMode() === 'list'"
-          (clicked)="viewMode.set('list')"
-        />
+    <section aria-label="Flipbase-Entwürfe" class="min-w-0 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-sm font-semibold text-fb-text-primary">Flipbase-Entwürfe</h2>
+        <div class="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+          <app-custom-search-input
+            class="min-w-44 flex-1 sm:w-72"
+            size="sm"
+            ariaLabel="Entwürfe nach Titel durchsuchen"
+            placeholder="Entwürfe nach Titel suchen …"
+            [value]="search()"
+            (valueChange)="setSearch($event)"
+          />
+          <div
+            #viewSwitcher
+            class="inline-flex shrink-0 gap-1 rounded-lg bg-fb-subtle p-1"
+            role="group"
+            aria-label="Entwurfsansicht"
+            tabindex="-1"
+          >
+            <app-button
+              variant="segment"
+              size="slim"
+              [icon]="gridIcon"
+              [iconOnly]="true"
+              ariaLabel="Rasteransicht"
+              title="Rasteransicht"
+              [ariaPressed]="viewMode() === 'grid'"
+              (clicked)="viewMode.set('grid')"
+            />
+            <app-button
+              variant="segment"
+              size="slim"
+              [icon]="listIcon"
+              [iconOnly]="true"
+              ariaLabel="Listenansicht"
+              title="Listenansicht"
+              [ariaPressed]="viewMode() === 'list'"
+              (clicked)="viewMode.set('list')"
+            />
+          </div>
+        </div>
       </div>
-      <app-button table-error-action class="mt-3" variant="secondary" (clicked)="reload()"
-        >Erneut versuchen</app-button
-      >
-      <app-button
-        table-empty-action
-        class="mt-3"
-        link="/marketplaces/vinted/listings/new"
-        [icon]="addIcon"
-        >Inserat erstellen</app-button
-      >
-      <div table-content class="p-3">
+      @if (loading()) {
+        <p class="text-sm text-fb-text-secondary" role="status">Entwürfe werden geladen …</p>
+      } @else if (error(); as message) {
+        <app-notice-banner announcement="alert">
+          {{ message }}
+          <app-button class="mt-3" variant="secondary" (clicked)="reload()"
+            >Erneut versuchen</app-button
+          >
+        </app-notice-banner>
+      } @else if (!drafts().length) {
+        <div class="py-10 text-center">
+          <p class="text-sm font-semibold text-fb-text-primary">Noch keine passenden Entwürfe</p>
+          <p class="mt-1 text-xs text-fb-text-secondary">
+            Erstelle einen Entwurf oder ändere Deine Suche.
+          </p>
+          <app-button class="mt-3" link="/marketplaces/vinted/listings/new" [icon]="addIcon"
+            >Inserat erstellen</app-button
+          >
+        </div>
+      } @else {
         <div
           [class]="
             viewMode() === 'grid'
@@ -253,21 +262,21 @@
             </article>
           }
         </div>
-      </div>
-    </app-data-table>
-    @if (moreError()) {
-      <app-notice-banner announcement="alert">{{ moreError() }}</app-notice-banner>
-    }
-    @if (nextCursor()) {
-      <div class="flex justify-center">
-        <app-button
-          variant="secondary"
-          [loading]="loadingMore()"
-          [disabled]="loadingMore()"
-          (clicked)="loadMore()"
-          >Weitere Entwürfe laden</app-button
-        >
-      </div>
-    }
+      }
+      @if (moreError()) {
+        <app-notice-banner announcement="alert">{{ moreError() }}</app-notice-banner>
+      }
+      @if (nextCursor()) {
+        <div class="flex justify-center">
+          <app-button
+            variant="secondary"
+            [loading]="loadingMore()"
+            [disabled]="loadingMore()"
+            (clicked)="loadMore()"
+            >Weitere Entwürfe laden</app-button
+          >
+        </div>
+      }
+    </section>
   }
 </div>
