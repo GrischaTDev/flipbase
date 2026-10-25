@@ -363,3 +363,31 @@ test('accepts only an arrangement of the known photos', () => {
   ])
     assert.throws(() => parseVintedListingPhotoArrangement(input), JSON.stringify(input));
 });
+
+test('speichert den neuen Preis im normalen Formular trotz erneuter Darstellung beim Fokussieren', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const itemApi of ['full', 'reference'] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingEditFormFixture(page, {
+        formatPriceOnFocus: true,
+        itemApi,
+      });
+      assert.equal(
+        await updateVintedListingContent(
+          page,
+          '123',
+          '98765',
+          base,
+          { ...base, priceCents: 1675 },
+          allow,
+        ),
+        'confirmed',
+      );
+      assert.equal(form.saves(), 1);
+      assert.equal(form.state().price, '16,75 €');
+    }
+  } finally {
+    await browser.close();
+  }
+});

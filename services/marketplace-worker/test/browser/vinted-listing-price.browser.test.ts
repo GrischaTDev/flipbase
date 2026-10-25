@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
+import { updateVintedListing } from '../../src/vinted-browser-listing-edit.ts';
 import { updateVintedListingPrice } from '../../src/vinted-browser-listing-price.ts';
 import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
 
@@ -122,6 +123,54 @@ test('fremdes Konto, widerrufene Freigabe und bestehende Benutzerseite werden ni
     );
     assert.equal(used.isClosed(), false);
     assert.equal(userForm.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('übernimmt den neuen Preis auch wenn Vinted beim Fokussieren den bisherigen Preis neu rendert', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingEditFormFixture(page, { formatPriceOnFocus: true });
+    const result = await updateVintedListingPrice(
+      page,
+      '98765',
+      '123',
+      2050,
+      1675,
+      async () => undefined,
+    );
+    assert.equal(result.status, 'confirmed');
+    assert.equal(form.saves(), 1);
+    assert.equal(form.state().price, '16,75 €');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('auch der einfache Bearbeitungs-Fallback fokussiert das Preisfeld vor der Eingabe', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const f = await createVintedListingEditFormFixture(page, {
+      formatPriceOnFocus: true,
+      saveResponseDelayMs: 200,
+    });
+    await page.goto('https://www.vinted.de/items/98765');
+    assert.equal(
+      await updateVintedListing(
+        page,
+        '98765',
+        '123',
+        { title: 'Meine Schuhe', description: 'Sehr gut erhalten.', price: '16,75' },
+        async () => undefined,
+      ),
+      'confirmed',
+    );
+    assert.equal(f.saves(), 1);
+    assert.equal(f.state().price, '16,75 €');
+    assert.equal(f.readsDuringSave(), 0);
   } finally {
     await browser.close();
   }

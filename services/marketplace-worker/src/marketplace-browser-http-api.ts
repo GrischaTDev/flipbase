@@ -339,7 +339,7 @@ export class MarketplaceBrowserHttpApi {
    * eigene Meldung ohne Ziffern oder Sonderzeichen.
    */
   private logListingReadDetail(
-    route: 'content/read' | 'edit/read' | 'content/save',
+    route: 'content/read' | 'edit/read' | 'content/save' | 'price/save',
     error: unknown,
   ): void {
     try {
@@ -905,25 +905,36 @@ export class MarketplaceBrowserHttpApi {
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
           let editReadFailure: VintedListingReadError | undefined;
+          let stoppedBeforeSaving = false;
           const result = await this.broker
             .run(scope, currentSessionId, async (browser) => {
               if (priceChange) {
                 if (!browser.updateListingPrice) throw new RequestError(503);
-                return browser.updateListingPrice(
-                  entry.externalId,
-                  entry.accountId,
-                  priceChange.expectedPriceCents,
-                  priceChange.priceCents,
-                  async () => {
-                    const current = await this.edits!.entry(scope, 'publication', entryId);
-                    if (
-                      current.accountId !== entry.accountId ||
-                      current.externalId !== entry.externalId
-                    )
-                      throw new Error('Kontozuordnung geändert');
-                    await this.broker.run(scope, currentSessionId, async () => undefined);
-                  },
-                );
+                return browser
+                  .updateListingPrice(
+                    entry.externalId,
+                    entry.accountId,
+                    priceChange.expectedPriceCents,
+                    priceChange.priceCents,
+                    async () => {
+                      const current = await this.edits!.entry(scope, 'publication', entryId);
+                      if (
+                        current.accountId !== entry.accountId ||
+                        current.externalId !== entry.externalId
+                      )
+                        throw new Error('Kontozuordnung geändert');
+                      await this.broker.run(scope, currentSessionId, async () => undefined);
+                    },
+                  )
+                  .catch((error: unknown) => {
+                    this.logListingReadDetail('price/save', error);
+                    stoppedBeforeSaving = vintedListingUpdateStoppedBeforeSaving(
+                      error instanceof BrowserActionFailedError
+                        ? error.detail
+                        : unexpectedFailureDetail(error),
+                    );
+                    throw error;
+                  });
               }
               if (fields) {
                 if (!browser.updateListing) throw new RequestError(503);
@@ -954,7 +965,9 @@ export class MarketplaceBrowserHttpApi {
               }
             })
             .catch((error: unknown) => {
-              throw editReadFailure ?? error;
+              throw (
+                editReadFailure ?? (stoppedBeforeSaving ? new VintedListingNotSavedError() : error)
+              );
             });
           let cachePending = false;
           const confirmedEdit = Boolean(

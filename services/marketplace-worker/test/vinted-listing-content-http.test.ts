@@ -89,6 +89,7 @@ async function fixture(
     failConfirm?: boolean;
     /** Das Speichern bricht im getrennten Browser beim Verschieben der Fotos ab. */
     failSave?: boolean;
+    failPriceStep?: 'verify' | 'confirm';
   } = {},
 ) {
   let terminated = false,
@@ -101,6 +102,10 @@ async function fixture(
     version: () => 'fixture',
     updateListingPrice: async (item, account, expected, price, authorize) => {
       targets.push(['price', item, account, expected, price]);
+      if (options.failPriceStep)
+        throw new BrowserActionFailedError(
+          unexpectedFailureDetail(vintedListingUpdateFailure(options.failPriceStep)),
+        );
       if (options.reassign) reassigned = true;
       await authorize();
       return options.foreignItem
@@ -570,5 +575,35 @@ test('fehlgeschlagene Quellablage meldet keine erfolgreiche gesicherte Übernahm
     assert.equal(f.closed(), 1);
   } finally {
     await f.close();
+  }
+});
+
+test('Preisdialog bewahrt den Abbruchschritt vor dem Sitzungsbroker und meldet nur belegte Abbrüche als nicht gespeichert', async () => {
+  for (const step of ['verify', 'confirm'] as const) {
+    const f = await fixture({ failPriceStep: step });
+    try {
+      const lines = await capturedListingFailures(async () => {
+        const response = await f.price({
+          workspaceId,
+          connectionId,
+          entryId,
+          expectedPriceCents: 2050,
+          priceCents: 1675,
+        });
+        assert.equal(response.ok, false);
+        const body = await response.json();
+        assert.equal(body.code === 'vinted_listing_not_saved', step === 'verify');
+      }, 'marketplace_listing_read_detail');
+      assert.deepEqual(lines, [
+        {
+          event: 'marketplace_listing_read_detail',
+          route: 'price/save',
+          origin: 'browser',
+          detail: unexpectedFailureDetail(vintedListingUpdateFailure(step)),
+        },
+      ]);
+    } finally {
+      await f.close();
+    }
   }
 });

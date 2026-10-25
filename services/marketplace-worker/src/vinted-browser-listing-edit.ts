@@ -2,6 +2,8 @@ import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
+import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
+import { parseVintedListingPriceCents } from './vinted-browser-listing-content.ts';
 
 export interface VintedListingEditFields {
   title: string;
@@ -68,13 +70,18 @@ export async function updateVintedListing(
   await openEdit(page, itemId, accountId);
   await page.locator('input[name="title"]').fill(desired.title);
   await page.locator('textarea[name="description"]').fill(desired.description);
-  await page.locator('input[name="price"]').fill(desired.price);
+  await fillVintedListingPrice(page.locator('input[name="price"]'), desired.price);
   const save = page.getByRole('button', { name: 'Speichern', exact: true });
   if (!(await save.isVisible()) || !(await save.isEnabled()))
     throw new Error('Speichern nicht verfügbar');
   await authorize();
   try {
     await save.click({ timeout: 10_000 });
+    // Die Bestätigungsabfrage darf Vinteds noch laufenden Speichervorgang nicht wegnavigieren.
+    await page.waitForURL(
+      (url) => url.origin === vintedOrigin && url.pathname !== `/items/${itemId}/edit`,
+      { timeout: 15_000 },
+    );
   } catch {
     // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
     return 'unconfirmed';
@@ -84,6 +91,6 @@ export async function updateVintedListing(
     (saved) =>
       saved.title === desired.title &&
       saved.description === desired.description &&
-      Number(saved.price.replace(',', '.')) === Number(desired.price.replace(',', '.')),
+      parseVintedListingPriceCents(saved.price) === parseVintedListingPriceCents(desired.price),
   );
 }
