@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-25 - Juna - Aktuellen Arbeitsbeginn und vollständige Zweigbereinigung verbindlich machen
+
+**Auftrag:** Jede neue Aufgabe auf einem neuen Zweig vom aktuellen Hauptzweig beginnen und nach erfolgreichem Abschluss ohne weitere Rückfrage sowohl lokal als auch auf GitHub aufräumen.
+
+**Änderung:** Zentral in `AGENTS.md` den Abruf vor jeder neuen Aufgabe, die sichere Aktualisierung des lokalen `master` und einen eigenen `juna/`-Zweig von `origin/master` vorgeschrieben. Fortsetzungen derselben Aufgabe und parallele Arbeitskopien abgegrenzt. Nach bestätigtem Merge die dauerhaft autorisierte Löschung von Remotezweig, lokalem Aufgabenbranch und zusätzlichem Aufgaben-Worktree verpflichtend gemacht; anschließend aktuellen, sauberen Hauptzweig und entfernte Aufgabenreste prüfen. Ungesicherte Dateien, fremde Arbeiten und gemeinsam genutzte Verzeichnisziele bleiben geschützt. Rückfrage vor PR und Merge unverändert erhalten; keine zusätzliche Rückfrage zum anschließenden Aufräumen.
+
+**Prüfung und Grenzen:** Ausschließlich Projektregeln und Sitzungseintrag geändert. Formatierung und Unterschiedskontrolle erfolgreich; tatsächliche Testauswahl bestätigt ausschließlich Dokumentation ohne Anwendungs-, Browser-, Dienst- oder PWA-Tests. Zentralen Verweis in `CLAUDE.md` geprüft, keine zweite Regelquelle angelegt. Kein Anwendungscode oder Produktionsstand geändert.
+
 ## 2026-10-25 - Juna - Alte Arbeitskopien und Zweige bereinigen
 
 **Auftrag:** Alle noch vorhandenen lokalen Arbeitsstände prüfen und nicht mehr benötigte Reste entfernen.
