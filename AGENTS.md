@@ -69,6 +69,30 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 - **Vor größeren Änderungen an geteilten Dateien** dort nachsehen, wer zuletzt
   daran war.
 
+## Arbeitsbeginn und neue Zweige
+
+- **Vor jeder neuen Aufgabe den lokalen Stand mit GitHub abgleichen.** Zuerst
+  aktuellen Zweig und ungesicherte Dateien prüfen, dann `git fetch origin --prune`
+  ausführen. Eine neue Aufgabe darf nicht auf einem veralteten lokalen Stand
+  beginnen. Scheitert der Abruf, den fehlenden Abgleich offen benennen.
+- **Den lokalen `master` vor Beginn aktualisieren.** Ist die primäre Arbeitskopie
+  frei und sauber, auf `master` wechseln und `git merge --ff-only origin/master`
+  ausführen. Keine lokalen Änderungen überschreiben und keinen abweichenden
+  Hauptzweig durch einen harten Reset oder Rebase passend machen. Abweichungen
+  zuerst klären.
+- **Für jede neue, eigenständige Arbeit einen neuen `juna/`-Zweig erstellen.**
+  Grundlage ist immer der frisch abgerufene `origin/master`, zum Beispiel
+  `git switch -c juna/<task-name> origin/master`. Das gilt auch für Fehlerkorrekturen,
+  Dokumentation und Regeländerungen. Änderungen nicht direkt auf `master` beginnen
+  und keinen bereits abgeschlossenen Zweig wiederverwenden. Die Fortsetzung
+  derselben eigenen Aufgabe bleibt auf ihrem bestehenden Zweig.
+- **Parallele Arbeit erhalten.** Belegt eine andere Aufgabe die primäre
+  Arbeitskopie, dort weder den Zweig wechseln noch Dateien verändern. Die neue
+  Aufgabe dann in einer getrennten Arbeitskopie vom aktuellen `origin/master`
+  beginnen; den gemeinsam genutzten lokalen `master` erst aktualisieren, wenn
+  seine Arbeitskopie frei ist. Ein neuer Zweig erfordert sonst nicht automatisch
+  einen zusätzlichen Worktree.
+
 ## Git & Commits (Conventional Commits v1.0.0)
 
 - **Niemals im Namen der KI committen.** Keine `Co-Authored-By`-Zeile, keine
@@ -122,6 +146,9 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
   und lokalen Feature-Zweigs und des zugehörigen Worktrees. Bei „Nein“ bleibt
   der geprüfte Zweig unverändert bestehen. Keine zusätzliche Auswahl mit
   mehreren Abschlussvarianten anbieten.
+- **Die Bereinigung nach erfolgreichem Merge ist dauerhaft beauftragt.** Dafür
+  keine weitere Freigabe einholen. Verbindlicher Ablauf und Grenzen stehen unter
+  „Abschluss und Bereinigung“; die Rückfrage vor PR und Merge bleibt bestehen.
 - **Vor einem Branch-Push gezielt prüfen:** betroffene Tests ausführen und
   geänderte Dateien formatieren/linten. Bei Angular-/Template-Änderungen auch
   den Bau prüfen, bei Datenbankänderungen die passenden Datenbanktests.
@@ -204,6 +231,39 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
   transaktional sein, ohne eigene Transaktionssteuerung, psql-Befehle oder externe
   Seiteneffekte. Riskante oder nichttransaktionale Schritte vor dem Merge gesondert
   planen und ausführen; sie dürfen nicht versehentlich in den automatischen Lauf geraten.
+
+## Abschluss und Bereinigung
+
+- **Eine Aufgabe erst nach dem Aufräumen als abgeschlossen melden.** Nach den
+  erfolgreichen Pflichtprüfungen und dem bestätigten PR-Merge den Remote-Stand
+  erneut abrufen. Prüfen, dass der tatsächlich freigegebene Aufgabenstand im
+  aktuellen `origin/master` enthalten ist.
+- **Den Aufgabenbranch auf beiden Seiten entfernen:** den zugehörigen Zweig auf
+  GitHub löschen, sofern er noch besteht, und den lokalen Zweig nach dem Wechsel
+  auf `master` löschen. Diese Schritte sind dauerhaft autorisiert und gehören
+  ohne zusätzliche Rückfrage zum Abschluss. Nur den eigenen, nachweislich
+  abgeschlossenen Zweig entfernen; zwischenzeitliche neue Änderungen erhalten.
+- **Zusätzliche Arbeitskopien derselben Aufgabe ebenfalls entfernen.** Bei von
+  der App verwalteten Worktrees das vorgesehene Archivierungswerkzeug verwenden.
+  Vorher ungesicherte und von Git ignorierte Dateien prüfen: noch benötigte
+  Berichte, eigene Hilfsdateien und lokale Konfiguration erhalten. Erneut
+  erzeugbare Abhängigkeiten und Bauausgaben benötigen keine Sicherung.
+  Verzeichnisverknüpfungen nicht rekursiv verfolgen oder deren gemeinsam genutzte
+  Ziele löschen. Andere Aufgaben und die primäre Arbeitskopie nicht entfernen.
+- **Lokal einen aktuellen, sauberen Hauptzweig hinterlassen.** Nach der
+  Worktree-Bereinigung in der freien primären Arbeitskopie auf `master` wechseln,
+  mit `git merge --ff-only origin/master` aktualisieren und mit
+  `git fetch origin --prune` veraltete Remote-Verweise entfernen. Eigene temporäre
+  Zwischenablagen nur nach vollständiger Übernahme oder Sicherung auflösen.
+- **Den Abschluss tatsächlich prüfen:** aktueller lokaler `master`, keine
+  ungesicherten eigenen Änderungen, kein lokaler oder entfernter Aufgabenbranch
+  und kein überflüssiger Aufgaben-Worktree. Vorhandene fremde Arbeiten bleiben
+  erhalten und werden bei Bedarf als Grund für eine verbleibende Abweichung genannt.
+- **Unfertige Arbeit niemals für einen sauberen Status löschen.** Solange der PR
+  offen ist, Prüfungen fehlschlagen, der Merge nicht bestätigt ist oder noch
+  ungesicherte Änderungen vorhanden sind, den betroffenen Stand erhalten und
+  den konkreten offenen Punkt nennen. Die dauerhafte Löschfreigabe gilt für
+  abgeschlossene, im Hauptzweig enthaltene Aufgabenstände.
 
 ## Ordnerstruktur (feature-basiert)
 
