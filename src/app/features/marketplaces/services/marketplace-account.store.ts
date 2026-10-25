@@ -30,6 +30,7 @@ import {
   MarketplaceConnectionRemovalError,
   MarketplaceWorkerOutdatedError,
   MarketplaceImportError,
+  VintedListingPriceChangedError,
   type MarketplaceSyncProgress,
   type VintedListingEditFields,
 } from './marketplace-browser-test-api.service';
@@ -103,6 +104,7 @@ export class MarketplaceAccountStore {
   private pageRevision = 0;
   private readonly descriptions = new Map<string, VintedListingDescription>();
   private readonly descriptionRequests = new Map<string, Promise<VintedListingDescription>>();
+  private readonly contentRequests = new Map<string, Promise<VintedListingCurrentContent>>();
   private metricConnectionId: string | null = null;
   private readonly metricBaselines = new Map<string, MarketplaceMetrics>();
   private readonly displayedMetricObservations = new Map<string, string>();
@@ -1011,7 +1013,13 @@ export class MarketplaceAccountStore {
     const selection = this.selectionRevision;
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
+    // Der Beschreibungsabruf nutzt denselben exklusiven Browser. Die Maske ist bereits offen;
+    // nur der Hintergrundabruf wartet, damit sich die beiden Anfragen nicht gegenseitig ablehnen.
+    await this.descriptionRequests.get(entryId)?.catch(() => undefined);
     if (
+      !key ||
+      !this.isCurrent(key) ||
+      selection !== this.selectionRevision ||
       !this.canManage() ||
       connection?.executionMode === 'local' ||
       connection?.connectionId !== connectionId ||
@@ -1020,15 +1028,21 @@ export class MarketplaceAccountStore {
       !token
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
-    const listing = await this.browserApi.readListingContent(
-      this.scope(connection),
-      entryId,
-      connection.externalAccountId,
-      token,
-    );
-    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
-      throw new Error('Die Kontoauswahl hat sich geändert.');
-    return listing;
+    const running = this.contentRequests.get(entryId);
+    if (running) return running;
+    const request = this.browserApi
+      .readListingContent(this.scope(connection), entryId, connection.externalAccountId, token)
+      .then((listing) => {
+        if (!this.isCurrent(key) || selection !== this.selectionRevision)
+          throw new Error('Die Kontoauswahl hat sich geändert.');
+        return listing;
+      });
+    this.contentRequests.set(entryId, request);
+    try {
+      return await request;
+    } finally {
+      if (this.contentRequests.get(entryId) === request) this.contentRequests.delete(entryId);
+    }
   }
 
   /** Speichert geänderte Angaben bei Vinted; die Lesekopie folgt erst nach der Bestätigung. */
@@ -1109,6 +1123,71 @@ export class MarketplaceAccountStore {
       throw new Error('Die Kontoauswahl hat sich geändert.');
     return fields;
   }
+  /** Ändert ausschließlich den bestätigten Preis; Titel und Beschreibung liest der Anbieter neu. */
+  async saveListingPrice(
+    connectionId: string,
+    entryId: string,
+    expectedPriceCents: number,
+    priceCents: number,
+  ): Promise<void> {
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    await this.descriptionRequests.get(entryId)?.catch(() => undefined);
+    await this.contentRequests.get(entryId)?.catch(() => undefined);
+    if (
+      !key ||
+      !this.isCurrent(key) ||
+      selection !== this.selectionRevision ||
+      !this.canManage() ||
+      connection?.executionMode === 'local' ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    try {
+      await this.browserApi.saveListingPrice(
+        this.scope(connection),
+        entryId,
+        expectedPriceCents,
+        priceCents,
+        token,
+      );
+    } catch (error) {
+      if (
+        error instanceof VintedListingPriceChangedError &&
+        this.isCurrent(key) &&
+        selection === this.selectionRevision
+      )
+        this.updateListingPriceSnapshot(connectionId, entryId, error.priceCents);
+      throw error;
+    }
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
+      throw new Error('Die Kontoauswahl hat sich geändert. Prüfe die Änderung bei Vinted.');
+    this.updateListingPriceSnapshot(connectionId, entryId, priceCents);
+  }
+  private updateListingPriceSnapshot(
+    connectionId: string,
+    entryId: string,
+    priceCents: number,
+  ): void {
+    this.accountSnapshot.update((snapshot) =>
+      snapshot?.connectionId === connectionId
+        ? {
+            ...snapshot,
+            publications: {
+              ...snapshot.publications,
+              items: snapshot.publications.items.map((entry) =>
+                entry.id === entryId ? { ...entry, price: priceCents / 100 } : entry,
+              ),
+            },
+          }
+        : snapshot,
+    );
+  }
+
   async saveListingEdit(
     connectionId: string,
     entryId: string,
@@ -1267,6 +1346,7 @@ export class MarketplaceAccountStore {
   private clearDescriptions(): void {
     this.descriptions.clear();
     this.descriptionRequests.clear();
+    this.contentRequests.clear();
   }
   private acceptConversationMessages(id: string, page: MarketplacePage<MarketplaceEntry>): void {
     this.conversationPages.delete(id);

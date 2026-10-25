@@ -35,6 +35,51 @@ const listingCategory = {
   aiPhoto: false,
   bump: false,
 };
+test('Preisaktion bleibt über den isolierten Transport typisiert und verwirft unbestätigte Felder', async () => {
+  const commands = new BrowserSessionCommands({
+    version: () => 'fixture',
+    updateListingPrice: async (_item, _account, _expected, _price, authorize) => {
+      await authorize();
+      return {
+        status: 'confirmed',
+        fields: { title: 'Titel', description: 'Text', price: '10,00' },
+      };
+    },
+  });
+  const browser = isolatedBrowserActions(commands);
+  assert.deepEqual(
+    await browser.updateListingPrice!('98765', '123', 2050, 1000, async () => undefined),
+    {
+      status: 'confirmed',
+      fields: { title: 'Titel', description: 'Text', price: '10,00' },
+    },
+  );
+  assert.throws(() => validateBrowserResult('updateListingPrice', { status: 'confirmed' }));
+  assert.deepEqual(
+    validateBrowserResult('updateListingPrice', { status: 'conflict', priceCents: 1800 }),
+    { status: 'conflict', priceCents: 1800 },
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', { status: 'conflict', priceCents: -1 }),
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', { status: 'unconfirmed', fields: {} }),
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', {
+      status: 'confirmed',
+      fields: { title: 'T', description: '', price: '10', token: 'secret' },
+    }),
+  );
+  await assert.rejects(
+    executeBrowserAction(
+      { version: () => 'fixture' },
+      { name: 'updateListingPrice', arguments: ['98765', '123', 2050, 0] },
+      async () => undefined,
+      async () => undefined,
+    ),
+  );
+});
 test('isolated category read uses a fixed action and rejects a response for another category', async () => {
   const calls: unknown[] = [];
   let category = listingCategory;

@@ -842,14 +842,40 @@ export class MarketplaceBrowserHttpApi {
       }
       if (
         path === '/marketplace-browser/listings/edit/read' ||
-        path === '/marketplace-browser/listings/edit/save'
+        path === '/marketplace-browser/listings/edit/save' ||
+        path === '/marketplace-browser/listings/price/save'
       ) {
         if (this.readOnly) throw new RequestError(403);
         if (!this.edits) throw new RequestError(503);
         const entryId = body['entryId'];
         if (typeof entryId !== 'string' || !uuidPattern.test(entryId)) throw new RequestError(400);
         let fields: VintedListingEditFields | undefined;
-        if (path.endsWith('/save')) {
+        const priceOnly = path === '/marketplace-browser/listings/price/save';
+        let priceChange: { expectedPriceCents: number; priceCents: number } | undefined;
+        if (priceOnly) {
+          const expected = body['expectedPriceCents'],
+            price = body['priceCents'];
+          if (
+            Object.keys(body).length !== 5 ||
+            Object.keys(body).some(
+              (key) =>
+                ![
+                  'workspaceId',
+                  'connectionId',
+                  'entryId',
+                  'expectedPriceCents',
+                  'priceCents',
+                ].includes(key),
+            ) ||
+            typeof expected !== 'number' ||
+            typeof price !== 'number' ||
+            ![expected, price].every(
+              (value) => Number.isSafeInteger(value) && value > 0 && value <= 99_999_999,
+            )
+          )
+            throw new RequestError(400);
+          priceChange = { expectedPriceCents: expected, priceCents: price };
+        } else if (path.endsWith('/save')) {
           const value = body['fields'];
           if (
             !isRecord(value) ||
@@ -881,6 +907,24 @@ export class MarketplaceBrowserHttpApi {
           let editReadFailure: VintedListingReadError | undefined;
           const result = await this.broker
             .run(scope, currentSessionId, async (browser) => {
+              if (priceChange) {
+                if (!browser.updateListingPrice) throw new RequestError(503);
+                return browser.updateListingPrice(
+                  entry.externalId,
+                  entry.accountId,
+                  priceChange.expectedPriceCents,
+                  priceChange.priceCents,
+                  async () => {
+                    const current = await this.edits!.entry(scope, 'publication', entryId);
+                    if (
+                      current.accountId !== entry.accountId ||
+                      current.externalId !== entry.externalId
+                    )
+                      throw new Error('Kontozuordnung geändert');
+                    await this.broker.run(scope, currentSessionId, async () => undefined);
+                  },
+                );
+              }
               if (fields) {
                 if (!browser.updateListing) throw new RequestError(503);
                 return {
@@ -913,8 +957,15 @@ export class MarketplaceBrowserHttpApi {
               throw editReadFailure ?? error;
             });
           let cachePending = false;
-          const confirmedEdit = fields && 'status' in result && result.status === 'confirmed';
-          const cachedFields = confirmedEdit ? fields : 'fields' in result ? result.fields : null;
+          const confirmedEdit = Boolean(
+            (fields || priceOnly) && 'status' in result && result.status === 'confirmed',
+          );
+          const cachedFields =
+            fields && confirmedEdit
+              ? fields
+              : 'fields' in result && (!priceOnly || confirmedEdit)
+                ? result.fields
+                : null;
           if (cachedFields && this.listingCache) {
             try {
               const current = await this.edits.entry(scope, 'publication', entryId);
@@ -932,7 +983,7 @@ export class MarketplaceBrowserHttpApi {
               cachePending = true;
             }
           }
-          if (fields) {
+          if (fields || priceOnly) {
             let cleanup: 'complete' | 'pending' = 'complete';
             try {
               await (this.broker.finishAction?.(scope, currentSessionId) ??
@@ -950,7 +1001,7 @@ export class MarketplaceBrowserHttpApi {
             await (this.broker.finishAction?.(scope, currentSessionId) ??
               this.broker.close(scope, currentSessionId));
             sessionId = undefined;
-            json(response, 200, cachePending ? { ...result, cache: 'pending' } : result);
+            json(response, 200, { ...result, ...(cachePending ? { cache: 'pending' } : {}) });
           }
         } finally {
           try {
@@ -1258,6 +1309,7 @@ export class MarketplaceBrowserHttpApi {
           'content/save',
           'edit/read',
           'edit/save',
+          'price/save',
         ].find((name) => failedPath === '/marketplace-browser/listings/' + name);
         try {
           process.stderr.write(

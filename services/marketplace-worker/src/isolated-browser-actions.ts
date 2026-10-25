@@ -218,6 +218,7 @@ export async function executeBrowserAction(
     readListingContent: [2],
     updateListingContent: [4, 5],
     updateListing: [3],
+    updateListingPrice: [4],
     readProfileAbout: [1],
     updateProfileAbout: [3],
     sendNegotiation: [4],
@@ -433,6 +434,25 @@ export async function executeBrowserAction(
         identifier(argumentsList[0]),
         identifier(argumentsList[1]),
       );
+    case 'updateListingPrice': {
+      const expected = argumentsList[2],
+        price = argumentsList[3];
+      if (
+        typeof expected !== 'number' ||
+        typeof price !== 'number' ||
+        ![expected, price].every(
+          (value) => Number.isSafeInteger(value) && value > 0 && value <= 99_999_999,
+        )
+      )
+        throw new Error('Ungültiger Verkaufspreis');
+      return required(browser.updateListingPrice)(
+        identifier(argumentsList[0]),
+        identifier(argumentsList[1]),
+        expected,
+        price,
+        authorize,
+      );
+    }
     case 'updateListing':
       return required(browser.updateListing)(
         identifier(argumentsList[0]),
@@ -921,6 +941,10 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
           : [accountId, externalId, base, desired],
         authorize,
       )) as Awaited<ReturnType<NonNullable<BrowserInfo['updateListingContent']>>>,
+    updateListingPrice: async (itemId, accountId, expected, price, authorize) =>
+      (await run('updateListingPrice', [itemId, accountId, expected, price], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['updateListingPrice']>>
+      >,
     updateListing: async (itemId, accountId, fields, authorize) =>
       (await run('updateListing', [itemId, accountId, fields], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['updateListing']>>
@@ -1009,6 +1033,32 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     return image;
   }
   if (name === 'readProfileAbout') return text(input, 10000);
+  if (name === 'updateListingPrice') {
+    const result = commandRecord(input);
+    if (
+      Object.keys(result).some((key) => !['status', 'fields', 'priceCents'].includes(key)) ||
+      !['confirmed', 'unconfirmed', 'conflict'].includes(String(result.status))
+    )
+      throw new Error('Ungültiges Speicherergebnis');
+    if (result.status === 'confirmed') {
+      if (Object.hasOwn(result, 'priceCents')) throw new Error('Ungültiger Verkaufspreis');
+      return { status: 'confirmed', fields: fields(result.fields) };
+    }
+    if (Object.hasOwn(result, 'fields')) throw new Error('Unbestätigte Inseratfelder');
+    if (result.status === 'conflict') {
+      const price = result.priceCents;
+      if (
+        typeof price !== 'number' ||
+        !Number.isSafeInteger(price) ||
+        price <= 0 ||
+        price > 99_999_999
+      )
+        throw new Error('Ungültiger Verkaufspreis');
+      return { status: 'conflict', priceCents: price };
+    }
+    if (Object.hasOwn(result, 'priceCents')) throw new Error('Unbestätigter Verkaufspreis');
+    return { status: result.status };
+  }
   if (name === 'readListingEdit') return fields(input);
   if (name === 'readListingCategory') {
     const value = commandRecord(input);

@@ -685,7 +685,7 @@ test('Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wied
   await page.goto(detailPath);
   const detail = page.locator('app-vinted-listing-detail');
   await expect(detail).toContainText('Beschreibung wird von Vinted geladen');
-  await expect(detail.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeDisabled();
+  await expect(detail.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeEnabled();
   expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
   release();
   await expect(detail).toContainText('Gezielt geladener Beschreibungstext.');
@@ -699,6 +699,99 @@ test('Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wied
   await checkPage(page, errors);
   await screenshot(page, 'vinted-listing-description-cache-mobile');
 });
+
+for (const width of [390, 1440])
+  for (const theme of ['light', 'dark'] as const) {
+    test.describe(`Preisdialog ${width} ${theme}`, () => {
+      test.use({ hasTouch: width < 1024 });
+      test(`Preis direkt ändern und nach einem Fehler erneut speichern bei ${width}px ${theme} @marketplace-preview @core-smoke`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const errors = await prepareListing(page, {
+          title: 'Jacke für Preisänderung',
+          text: 'Vorhandener Text',
+          textState: 'loaded',
+        });
+        await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+        let reads = 0;
+        for (const route of ['edit/read', 'content/read'])
+          await page.route('**/marketplace-browser/listings/' + route, (request) => {
+            reads++;
+            return request.fulfill({ status: 503 });
+          });
+        const saves: unknown[] = [];
+        let finishSave!: () => void;
+        await page.route('**/marketplace-browser/listings/price/save', async (route) => {
+          saves.push(route.request().postDataJSON());
+          if (saves.length === 1) return route.fulfill({ json: { status: 'unconfirmed' } });
+          await new Promise<void>((resolve) => {
+            finishSave = resolve;
+          });
+          return route.fulfill({ json: { status: 'confirmed' } });
+        });
+        await page.goto(detailPath);
+        const detail = page.locator('app-vinted-listing-detail');
+        const opener = detail.getByRole('button', { name: 'Preis ändern', exact: true });
+        await opener.click();
+        const dialog = page.getByRole('dialog', { name: 'Preis ändern', exact: true });
+        const input = dialog.getByRole('spinbutton', { name: 'Neuer Verkaufspreis', exact: true });
+        await expect(input).toHaveValue('29.9');
+        await expect(input).toBeEnabled();
+        expect(reads).toBe(0);
+        await page.keyboard.press('Escape');
+        await expect(dialog).not.toBeVisible();
+        await expect(opener).toBeFocused();
+        await opener.click();
+        await input.fill('24.5');
+        await screenshot(page, `vinted-price-dialog-${width}-${theme}`);
+        await input.press('Enter');
+        await expect(dialog.getByRole('alert')).toContainText('bestätigt');
+        await expect(input).toHaveValue('24.5');
+        await expect(detail).toContainText('29,90');
+        for (const key of ['Tab', 'Shift+Tab']) {
+          for (let step = 0; step < 5; step++) {
+            await page.keyboard.press(key);
+            await expect(dialog.locator(':focus')).toHaveCount(1);
+          }
+        }
+        await page.evaluate(axe.source);
+        expect(
+          (
+            await page.evaluate(() =>
+              (window as unknown as { axe: typeof axe }).axe.run('app-modal-shell'),
+            )
+          ).violations,
+        ).toEqual([]);
+        await screenshot(page, `vinted-price-${width}-${theme}`);
+        await dialog.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
+        await expect(input).toBeDisabled();
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeVisible();
+        expect(saves).toHaveLength(2);
+        finishSave();
+        await expect(dialog).not.toBeVisible();
+        await expect(opener).toBeFocused();
+        await expect(detail).toContainText('24,50');
+        expect(saves).toEqual(
+          [1, 2].map(() => ({
+            workspaceId,
+            connectionId: accountIds[0],
+            entryId,
+            expectedPriceCents: 2990,
+            priceCents: 2450,
+          })),
+        );
+        expect(reads).toBe(0);
+        await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
+        await expect(
+          page.getByRole('link', { name: 'Inserat Jacke für Preisänderung öffnen', exact: true }),
+        ).toContainText('24,50');
+        await checkPage(page, errors);
+      });
+    });
+  }
 
 for (const width of [1440, 390]) {
   test(`Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei ${width}px @marketplace-preview`, async ({

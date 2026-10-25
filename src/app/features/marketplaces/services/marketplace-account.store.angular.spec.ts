@@ -6,12 +6,14 @@ import { AuthService } from '../../../core/services/auth.service';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
+import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 import type { AccountScope } from '../models/marketplace.models';
 import type { MarketplaceSnapshot } from '../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../models/marketplace-response';
 import {
   MarketplaceBrowserTestApiService,
   MarketplaceConnectionRemovalError,
+  VintedListingPriceChangedError,
 } from './marketplace-browser-test-api.service';
 
 const fixtures = createMarketplaceFixtures();
@@ -58,7 +60,9 @@ let browserApi: {
   deleteConnection: ReturnType<typeof vi.fn>;
   readListingData: ReturnType<typeof vi.fn>;
   readListingEdit: ReturnType<typeof vi.fn>;
+  readListingContent: ReturnType<typeof vi.fn>;
   saveListingEdit: ReturnType<typeof vi.fn>;
+  saveListingPrice: ReturnType<typeof vi.fn>;
 };
 let api: {
   listenAccountImports: ReturnType<typeof vi.fn>;
@@ -87,7 +91,9 @@ beforeEach(() => {
     deleteConnection: vi.fn().mockResolvedValue(undefined),
     readListingData: vi.fn(),
     readListingEdit: vi.fn(),
+    readListingContent: vi.fn().mockResolvedValue(listingCurrentContentFixture()),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
+    saveListingPrice: vi.fn().mockResolvedValue(undefined),
   };
   api = {
     listenAccountImports: vi.fn().mockImplementation(() => vi.fn()),
@@ -504,6 +510,68 @@ describe('Inseratbeschreibungen und Kennzahlen', () => {
       cacheState: 'unconfirmed',
     });
     expect(browserApi.readListingData).not.toHaveBeenCalled();
+  });
+
+  it('teilt einen laufenden Inhaltsabruf beim Wiederöffnen und wartet ihn vor der Preisänderung ab', async () => {
+    await settle();
+    const pending = deferred<ReturnType<typeof listingCurrentContentFixture>>();
+    browserApi.readListingContent.mockReturnValueOnce(pending.promise);
+    const first = store.readListingContent(accountA.connectionId, 'listing-a');
+    const second = store.readListingContent(accountA.connectionId, 'listing-a');
+    await Promise.resolve();
+    expect(browserApi.readListingContent).toHaveBeenCalledOnce();
+    const saving = store.saveListingPrice(accountA.connectionId, 'listing-a', 2050, 1000);
+    await Promise.resolve();
+    expect(browserApi.saveListingPrice).not.toHaveBeenCalled();
+    pending.resolve(listingCurrentContentFixture());
+    await Promise.all([first, second, saving]);
+    expect(browserApi.saveListingPrice).toHaveBeenCalledOnce();
+  });
+  it('übernimmt ausschließlich bestätigte Preise in die Liste und erhält alle anderen Angaben', async () => {
+    api.readSnapshot.mockResolvedValue(
+      publication('Vorhandener Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z'),
+    );
+    await settle();
+    const before = store.snapshot()!.publications.items[0];
+    const pending = deferred<void>();
+    browserApi.saveListingPrice.mockReturnValueOnce(pending.promise);
+    const saving = store.saveListingPrice(accountA.connectionId, before.id, 2050, 1000);
+    await Promise.resolve();
+    expect(store.snapshot()!.publications.items[0]).toEqual(before);
+    pending.resolve(undefined);
+    await saving;
+    expect(store.snapshot()!.publications.items[0]).toEqual({ ...before, price: 10 });
+    browserApi.saveListingPrice.mockRejectedValueOnce(new Error('Unbestätigt'));
+    await expect(
+      store.saveListingPrice(accountA.connectionId, before.id, 1000, 900),
+    ).rejects.toThrow();
+    expect(store.snapshot()!.publications.items[0].price).toBe(10);
+    browserApi.saveListingPrice.mockRejectedValueOnce(new VintedListingPriceChangedError(1800));
+    await expect(
+      store.saveListingPrice(accountA.connectionId, before.id, 1000, 900),
+    ).rejects.toThrow();
+    expect(store.snapshot()!.publications.items[0]).toEqual({ ...before, price: 18 });
+  });
+
+  it('wartet den laufenden Beschreibungsabruf ab und verwirft einen Kontowechsel vor der Preisaktion', async () => {
+    await settle();
+    const pending = deferred<{
+      fields: { title: string; description: string; price: string };
+      cacheState: 'pending';
+    }>();
+    browserApi.readListingData.mockReturnValueOnce(pending.promise);
+    const reading = store.readListingDescription(accountA.connectionId, 'price-test');
+    const saving = store.saveListingPrice(accountA.connectionId, 'price-test', 2050, 1000);
+    const observed = Promise.allSettled([reading, saving]);
+    await Promise.resolve();
+    expect(browserApi.saveListingPrice).not.toHaveBeenCalled();
+    await store.selectConnection(accountB.connectionId);
+    pending.resolve({
+      fields: { title: 'Titel', description: 'Text', price: '20,50' },
+      cacheState: 'pending',
+    });
+    expect((await observed)[1].status).toBe('rejected');
+    expect(browserApi.saveListingPrice).not.toHaveBeenCalled();
   });
 
   it('pendingBrowserDescriptionSurvivesUnprovenDatabaseFallback', async () => {

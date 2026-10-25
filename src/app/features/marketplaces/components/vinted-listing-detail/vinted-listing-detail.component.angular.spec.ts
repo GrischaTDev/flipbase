@@ -1,6 +1,8 @@
 import { vintedListingCopyRendering } from '../../../../../../e2e/support/vinted-listing-copy-rendering';
 import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { signal } from '@angular/core';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { VintedListingPriceChangedError } from '../../services/marketplace-browser-test-api.service';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
@@ -89,6 +91,7 @@ function setup(items: MarketplaceEntry[] = []) {
       .fn()
       .mockResolvedValue({ title: 'Fresh', description: 'Fresh', price: '12' }),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
+    saveListingPrice: vi.fn().mockResolvedValue(undefined),
     readListingContent: vi.fn().mockImplementation(async () => listingCurrentContentFixture()),
     saveListingContent: vi.fn().mockResolvedValue(undefined),
   };
@@ -109,6 +112,7 @@ let restoreRendering: (() => void) | undefined;
 beforeAll(async () => {
   const shared = 'src/app/shared/components/';
   restoreRendering = await prepareMarketplaceRendering([
+    { type: NumberInputComponent, path: shared + 'number-input/number-input.component.ts' },
     ...vintedListingCopyRendering,
     ...listingTransferRendering,
     {
@@ -168,6 +172,114 @@ afterAll(() => restoreRendering?.());
 afterEach(() => TestBed.resetTestingModule());
 
 describe('Reaktive Inseratdetails', () => {
+  it('öffnet Preisänderung ohne Abruf und erhält Eingaben nach einem Speicherfehler', async () => {
+    const { component, store } = setup([
+      { ...entry('a'), price: 20.5, currency: 'EUR', publicationState: 'active' },
+    ]);
+    await settle();
+    component.loadingDescription.set(true);
+    component.openPriceChange();
+    expect(component.changingPrice()).toBe(true);
+    expect(component.priceControl.value).toBe(20.5);
+    expect(store.readListingContent).not.toHaveBeenCalled();
+    component.priceControl.setValue(10);
+    store.saveListingPrice.mockRejectedValueOnce(new Error('Nicht bestätigt'));
+    await component.savePrice();
+    expect(component.changingPrice()).toBe(true);
+    expect(component.priceControl.value).toBe(10);
+    expect(component.priceError()).toBe('Nicht bestätigt');
+    expect(component.entry()?.price).toBe(20.5);
+    await component.savePrice();
+    expect(store.saveListingPrice).toHaveBeenLastCalledWith(account.connectionId, 'a', 2050, 1000);
+    expect(component.changingPrice()).toBe(false);
+    expect(component.entry()?.price).toBe(10);
+  });
+  it('öffnet die Bearbeitung auch während des Beschreibungsabrufs', async () => {
+    const { component } = setup([entry('a')]);
+    await settle();
+    component.loadingDescription.set(true);
+    await component.edit();
+    expect(component.editing()).toBe(true);
+  });
+  it('zeigt nach einem Konflikt den aktuellen Preis und nutzt ihn erst beim erneuten Speichern als Basis', async () => {
+    const { component, store } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);
+    await settle();
+    component.openPriceChange();
+    component.priceControl.setValue(10);
+    store.saveListingPrice.mockRejectedValueOnce(new VintedListingPriceChangedError(1800));
+    await component.savePrice();
+    expect(component.priceError()).toContain('18,00');
+    expect(component.priceControl.value).toBe(10);
+    expect(component.changingPrice()).toBe(true);
+    expect(store.saveListingPrice).toHaveBeenCalledOnce();
+    await component.savePrice();
+    expect(store.saveListingPrice).toHaveBeenLastCalledWith(account.connectionId, 'a', 1800, 1000);
+    expect(component.entry()?.price).toBe(10);
+  });
+  it('beendet nach sofortigem Abbrechen auch den noch laufenden Beschreibungsabruf', async () => {
+    const { component, store } = setup([entry('a')]);
+    await settle();
+    component.description.set(null);
+    let resolve!: (value: { description: string; cacheState: string }) => void;
+    store.readListingDescription.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const reading = component.loadDescription();
+    store.readListingContent.mockReturnValueOnce(new Promise(() => undefined));
+    void component.edit();
+    component.cancelEdit();
+    resolve({ description: 'Nachgeladener Text', cacheState: 'unconfirmed' });
+    await reading;
+    await settle();
+    expect(component.loadingDescription()).toBe(false);
+    expect(component.description()?.description).toBe('Nachgeladener Text');
+  });
+  it('startet nach Abbrechen keinen Fallbackabruf, der mit der Preisaktion kollidiert', async () => {
+    const { component, store } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);
+    await settle();
+    let reject!: (error: Error) => void;
+    store.readListingContent.mockReturnValueOnce(
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+    );
+    const editing = component.edit();
+    component.cancelEdit();
+    component.openPriceChange();
+    component.priceControl.setValue(10);
+    const saving = component.savePrice();
+    reject(new Error('Nicht vollständig lesbar'));
+    await Promise.all([editing, saving]);
+    expect(store.readListingEdit).not.toHaveBeenCalled();
+    expect(store.saveListingPrice).toHaveBeenCalledOnce();
+  });
+  it('sperrt doppeltes Speichern und Schließen und ignoriert eine Antwort nach Routenwechsel', async () => {
+    const { component, store, params } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);
+    await settle();
+    component.openPriceChange();
+    component.priceControl.setValue(10);
+    let resolve!: () => void;
+    store.saveListingPrice.mockReturnValueOnce(
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+    );
+    const saving = component.savePrice();
+    component.closePriceChange();
+    await component.savePrice();
+    expect(store.saveListingPrice).toHaveBeenCalledOnce();
+    expect(component.changingPrice()).toBe(true);
+    expect(component.priceControl.disabled).toBe(true);
+    params.next(convertToParamMap({ connectionId: account.connectionId, entryId: 'b' }));
+    await settle();
+    resolve();
+    await saving;
+    expect(component.entry()?.id).toBe('b');
+    expect(component.notice()).toBe(null);
+    expect(component.changingPrice()).toBe(false);
+  });
   it('öffnet die Maske sofort mit gespeicherten Angaben und lädt den Vinted-Stand im Hintergrund', async () => {
     const { component, store } = setup([entry('a', 'Gespeicherter Text')]);
     await settle();
