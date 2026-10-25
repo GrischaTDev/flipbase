@@ -10,15 +10,21 @@ import {
 import type { VintedListingContent } from '../../models/vinted-listing-content';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { CurrencyPipe } from '@angular/common';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -51,6 +57,7 @@ import {
   type VintedListingEditField,
 } from '../../models/vinted-listing-edit-form';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedListingPriceChangedError } from '../../services/marketplace-browser-test-api.service';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
 import { vintedPublicationBadge } from '../../models/vinted-publication-state';
@@ -58,6 +65,8 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 @Component({
   selector: 'app-vinted-listing-detail',
   imports: [
+    ModalShellComponent,
+    NumberInputComponent,
     VintedListingCopyDialogComponent,
     ListingTransferActionComponent,
     CurrencyPipe,
@@ -87,6 +96,10 @@ export class VintedListingDetailComponent {
   private readonly router = inject(Router);
   private readonly destroy = inject(DestroyRef);
   private readonly builder = inject(FormBuilder);
+  private readonly injector = inject(Injector);
+  private readonly priceChangeTrigger = viewChild('priceChangeTrigger', {
+    read: ElementRef<HTMLElement>,
+  });
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
@@ -132,6 +145,17 @@ export class VintedListingDetailComponent {
   readonly loadingDescription = signal(false);
   readonly descriptionError = signal(false);
   readonly editing = signal(false);
+  readonly changingPrice = signal(false);
+  readonly priceError = signal<string | null>(null);
+  readonly priceForm = this.builder.group({
+    price: this.builder.control<number | null>(null, [
+      Validators.required,
+      Validators.min(0.01),
+      Validators.max(999999.99),
+    ]),
+  });
+  readonly priceControl = this.priceForm.controls.price;
+  private expectedPriceCents = 0;
   /** Der aktuelle Vinted-Stand wird nach dem Öffnen der Maske im Hintergrund gelesen. */
   readonly loadingCurrent = signal(false);
   /** Ohne vollständigen Stand: Titel, Beschreibung und Preis sind von Vinted bestätigt gelesen. */
@@ -207,6 +231,7 @@ export class VintedListingDetailComponent {
     }),
   );
   private requestVersion = 0;
+  private descriptionVersion = 0;
   private requestKey = '';
   private routeKey = '';
   private selected = false;
@@ -274,6 +299,7 @@ export class VintedListingDetailComponent {
 
   private reset(): void {
     this.requestVersion++;
+    this.descriptionVersion++;
     this.loadedEntry.set(null);
     this.selectedPhoto.set(null);
     this.description.set(null);
@@ -281,6 +307,9 @@ export class VintedListingDetailComponent {
     this.loadingDescription.set(false);
     this.descriptionError.set(false);
     this.editing.set(false);
+    this.changingPrice.set(false);
+    this.priceError.set(null);
+    this.priceControl.enable();
     this.copying.set(false);
     this.loadingCurrent.set(false);
     this.basicReady.set(false);
@@ -359,7 +388,9 @@ export class VintedListingDetailComponent {
   }
   async loadDescription(): Promise<void> {
     if (this.loadingDescription() || this.description() !== null || !this.entry()) return;
-    const version = this.requestVersion;
+    const version = this.descriptionVersion;
+    const isCurrent = () =>
+      version === this.descriptionVersion && this.isCurrent(this.requestVersion);
     this.loadingDescription.set(true);
     this.descriptionError.set(false);
     try {
@@ -367,11 +398,11 @@ export class VintedListingDetailComponent {
         this.connectionId(),
         this.entryId(),
       );
-      if (this.isCurrent(version)) this.description.set(description);
+      if (isCurrent()) this.description.set(description);
     } catch {
-      if (this.isCurrent(version)) this.descriptionError.set(true);
+      if (isCurrent()) this.descriptionError.set(true);
     } finally {
-      if (this.isCurrent(version)) this.loadingDescription.set(false);
+      if (isCurrent()) this.loadingDescription.set(false);
     }
   }
   /** Unberührte Felder übernehmen den gelesenen Stand; Eingaben des Nutzers bleiben erhalten. */
@@ -393,13 +424,100 @@ export class VintedListingDetailComponent {
     this.error.set(null);
     this.arrangedPhotos.set(null);
   }
+  openPriceChange(): void {
+    const entry = this.entry();
+    if (
+      !entry ||
+      entry.price === null ||
+      entry.currency !== 'EUR' ||
+      entry.publicationState === 'draft' ||
+      this.busy() ||
+      this.editing() ||
+      this.changingPrice() ||
+      this.store.selectedConnection()?.status !== 'connected' ||
+      this.store.selectedConnection()?.executionMode === 'local'
+    )
+      return;
+    this.expectedPriceCents = Math.round(entry.price * 100);
+    this.priceControl.reset(entry.price);
+    this.priceError.set(null);
+    this.notice.set(null);
+    this.changingPrice.set(true);
+  }
+  closePriceChange(): void {
+    if (!this.busy()) {
+      this.changingPrice.set(false);
+      this.restorePriceFocus();
+    }
+  }
+  private restorePriceFocus(): void {
+    afterNextRender(
+      () => this.priceChangeTrigger()?.nativeElement.querySelector('button')?.focus(),
+      { injector: this.injector },
+    );
+  }
+  async savePrice(): Promise<void> {
+    if (!this.changingPrice() || this.busy() || !this.entry()) return;
+    const price = this.priceControl.value;
+    if (
+      this.priceControl.invalid ||
+      price === null ||
+      !Number.isFinite(price) ||
+      Math.abs(price * 100 - Math.round(price * 100)) > 0.000001
+    ) {
+      this.priceControl.markAsTouched();
+      this.priceError.set(
+        'Gib einen Preis größer als 0 € mit höchstens zwei Nachkommastellen ein.',
+      );
+      return;
+    }
+    const priceCents = Math.round(price * 100);
+    if (priceCents === this.expectedPriceCents) {
+      this.closePriceChange();
+      return;
+    }
+    const version = this.requestVersion;
+    this.busy.set(true);
+    this.priceError.set(null);
+    this.priceControl.disable();
+    try {
+      await this.store.saveListingPrice(
+        this.connectionId(),
+        this.entryId(),
+        this.expectedPriceCents,
+        priceCents,
+      );
+      if (!this.isCurrent(version)) return;
+      this.loadedEntry.update((entry) => (entry ? { ...entry, price: priceCents / 100 } : entry));
+      this.changingPrice.set(false);
+      this.restorePriceFocus();
+      this.notice.set('Der neue Preis wurde bei Vinted bestätigt.');
+    } catch (error) {
+      if (this.isCurrent(version)) {
+        if (error instanceof VintedListingPriceChangedError) {
+          this.expectedPriceCents = error.priceCents;
+          this.loadedEntry.update((entry) =>
+            entry ? { ...entry, price: error.priceCents / 100 } : entry,
+          );
+        }
+        this.priceError.set(
+          error instanceof Error ? error.message : 'Der neue Preis konnte nicht bestätigt werden.',
+        );
+      }
+    } finally {
+      if (this.isCurrent(version)) {
+        this.busy.set(false);
+        this.priceControl.enable();
+      }
+    }
+  }
   /**
    * Öffnet die Maske sofort mit den gespeicherten Angaben. Der aktuelle Vinted-Stand mit allen
    * Auswahlfeldern wird im Hintergrund gelesen; gespeichert werden kann erst danach.
    */
   async edit(): Promise<void> {
     const entry = this.entry();
-    if (this.busy() || this.editing() || this.loadingDescription() || !entry) return;
+    if (this.busy() || this.editing() || this.changingPrice() || !entry) return;
     const version = this.requestVersion;
     this.error.set(null);
     this.notice.set(null);
@@ -423,6 +541,7 @@ export class VintedListingDetailComponent {
       try {
         current = await this.store.readListingContent(this.connectionId(), this.entryId());
       } catch {
+        if (!this.isCurrent(version) || !this.editing()) return;
         // Kann die vollständige Maske nicht sicher gelesen werden, bleibt die bisherige
         // Bearbeitung von Titel, Beschreibung und Preis erhalten.
         const fields = await this.store.readListingEdit(this.connectionId(), this.entryId());

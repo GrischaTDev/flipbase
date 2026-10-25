@@ -125,6 +125,13 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     authorize: () => Promise<void>,
     photos?: import('./vinted-browser-listing-photo-order.ts').VintedListingPhotoArrangement,
   ): Promise<VintedEditResult>;
+  updateListingPrice?(
+    itemId: string,
+    accountId: string,
+    expectedPriceCents: number,
+    priceCents: number,
+    authorize: () => Promise<void>,
+  ): Promise<import('./vinted-browser-listing-price.ts').VintedListingPriceResult>;
   updateListing?(
     itemId: string,
     accountId: string,

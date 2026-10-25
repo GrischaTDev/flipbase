@@ -106,6 +106,16 @@ export class VintedAccountBusyError extends Error {
   }
 }
 
+export class VintedListingPriceChangedError extends VintedListingChangedError {
+  constructor(readonly priceCents: number) {
+    super();
+    this.message =
+      'Bei Vinted beträgt der Preis inzwischen ' +
+      (priceCents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) +
+      '. Prüfe Deinen neuen Preis und speichere erneut.';
+  }
+}
+
 export class VintedProfileConflictError extends Error {
   constructor() {
     super(
@@ -763,6 +773,48 @@ export class MarketplaceBrowserTestApiService {
       },
       cacheState: 'cache' in body && body.cache === 'pending' ? 'pending' : 'unconfirmed',
     };
+  }
+
+  async saveListingPrice(
+    scope: AccountScope,
+    entryId: string,
+    expectedPriceCents: number,
+    priceCents: number,
+    accessToken: string,
+  ): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/listings/price/save',
+        {
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+          entryId,
+          expectedPriceCents,
+          priceCents,
+        },
+        accessToken,
+      );
+    } catch {
+      throw new VintedEditUnconfirmedError();
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (response.status === 429) throw new VintedAccountBusyError();
+    if (!response.ok) throw new VintedEditUnconfirmedError();
+    const body: unknown = await response.json().catch(() => null);
+    const status = body && typeof body === 'object' && 'status' in body ? body.status : null;
+    if (
+      status === 'conflict' &&
+      body &&
+      typeof body === 'object' &&
+      'priceCents' in body &&
+      typeof body.priceCents === 'number' &&
+      Number.isSafeInteger(body.priceCents) &&
+      body.priceCents > 0 &&
+      body.priceCents <= 99_999_999
+    )
+      throw new VintedListingPriceChangedError(body.priceCents);
+    if (status !== 'confirmed') throw new VintedEditUnconfirmedError();
   }
 
   async saveListingEdit(

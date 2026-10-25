@@ -26,6 +26,55 @@ const workspaceId = '46700000-0000-4000-8000-000000000001',
   connectionId = '46700000-0000-4000-8000-000000000002',
   entryId = '46700000-0000-4000-8000-000000000005';
 
+test('speichert einen einzelnen Preis mit serverseitig gebundenem Artikel und lehnt Zusatzfelder ab', async () => {
+  const f = await fixture();
+  try {
+    const input = {
+      workspaceId,
+      connectionId,
+      entryId,
+      expectedPriceCents: 2050,
+      priceCents: 1000,
+    };
+    const response = await f.price(input);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).status, 'confirmed');
+    assert.equal(f.opened(), 1);
+    assert.equal(f.closed(), 1);
+    for (const body of [
+      { ...input, priceCents: 0 },
+      { ...input, priceCents: 10.5 },
+      { ...input, externalId: 'foreign' },
+    ]) {
+      assert.equal((await f.price(body)).status, 400);
+    }
+    assert.equal(f.opened(), 1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('Preisänderung wahrt Schreibrechte, Kontozuordnung und Konfliktstatus', async () => {
+  for (const options of [{ readOnly: true }, { reassign: true }, { foreignItem: true }]) {
+    const f = await fixture(options);
+    try {
+      const response = await f.price({
+        workspaceId,
+        connectionId,
+        entryId,
+        expectedPriceCents: 2050,
+        priceCents: 1000,
+      });
+      if (options.foreignItem) {
+        assert.equal(response.status, 200);
+        assert.equal((await response.json()).status, 'conflict');
+      } else assert.equal(response.ok, false);
+    } finally {
+      await f.close();
+    }
+  }
+});
+
 async function fixture(
   options: {
     missing?: boolean;
@@ -50,6 +99,17 @@ async function fixture(
   const targets: unknown[] = [];
   const browser: BrowserInfo = {
     version: () => 'fixture',
+    updateListingPrice: async (item, account, expected, price, authorize) => {
+      targets.push(['price', item, account, expected, price]);
+      if (options.reassign) reassigned = true;
+      await authorize();
+      return options.foreignItem
+        ? { status: 'conflict', priceCents: 1800 }
+        : {
+            status: 'confirmed',
+            fields: { title: 'Aktueller Titel', description: 'Aktueller Text', price: '10,00' },
+          };
+    },
     updateListingContent: async (account, item, base, desired, authorize, photos) => {
       reads++;
       targets.push([account, item, base.priceCents, desired.priceCents]);
@@ -149,6 +209,12 @@ async function fixture(
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   return {
+    price: (body: unknown) =>
+      fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/price/save`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
     save: (body: unknown) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/content/save`, {
         method: 'POST',

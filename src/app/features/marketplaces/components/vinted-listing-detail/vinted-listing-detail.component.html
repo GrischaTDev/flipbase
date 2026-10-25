@@ -283,15 +283,27 @@
         store.selectedConnection()?.status === 'connected' &&
         store.selectedConnection()?.executionMode !== 'local'
       ) {
-        <div class="mt-5 border-t border-fb-line pt-4">
+        <div class="mt-5 flex flex-wrap gap-2 border-t border-fb-line pt-4">
           <app-button
             variant="primary"
             [fullWidth]="true"
             size="touch"
-            [disabled]="loadingDescription()"
+            [disabled]="busy()"
             (clicked)="edit()"
             >Bearbeiten</app-button
           >
+          @if (
+            item.price !== null && item.currency === 'EUR' && item.publicationState !== 'draft'
+          ) {
+            <app-button
+              [fullWidth]="true"
+              size="touch"
+              [disabled]="busy()"
+              (clicked)="openPriceChange()"
+              #priceChangeTrigger
+              >Preis ändern</app-button
+            >
+          }
         </div>
       }
     </app-card>
@@ -317,4 +329,30 @@
     (closed)="copying.set(false)"
     (applied)="applyCopiedFields($event)"
   />
+}
+
+@if (changingPrice()) {
+  <app-modal-shell title="Preis ändern" size="sm" (closed)="closePriceChange()">
+    <form id="vinted-price-form" [formGroup]="priceForm" (ngSubmit)="savePrice()" class="space-y-4">
+      <p class="text-sm text-fb-text-secondary">{{ entry()?.title }}</p>
+      <app-number-input
+        label="Neuer Verkaufspreis"
+        unit="€"
+        [min]="0.01"
+        [max]="999999.99"
+        [step]="0.01"
+        formControlName="price"
+        [error]="priceError()"
+      />
+      @if (busy()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Wird bei Vinted gespeichert …</p>
+      }
+    </form>
+    <div modal-footer class="flex justify-end gap-2">
+      <app-button [disabled]="busy()" (clicked)="closePriceChange()">Abbrechen</app-button>
+      <app-button variant="primary" type="submit" formId="vinted-price-form" [loading]="busy()"
+        >Bei Vinted speichern</app-button
+      >
+    </div>
+  </app-modal-shell>
 }

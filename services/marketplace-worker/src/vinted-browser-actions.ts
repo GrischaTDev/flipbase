@@ -16,6 +16,7 @@ import { submitVintedListing } from './vinted-browser-listing-submit.ts';
 import { readVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { readVintedListingCurrentContent } from './vinted-browser-listing-content.ts';
 import { updateVintedListingContent } from './vinted-browser-listing-update.ts';
+import { updateVintedListingPrice } from './vinted-browser-listing-price.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
 import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
 import { sendVintedNegotiation } from './vinted-browser-negotiation.ts';
@@ -234,6 +235,21 @@ export function vintedBrowserActions(
     verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
     readListingEdit: afterSessionRenewal((itemId, accountId) =>
       readVintedListingEdit(currentPage(), itemId, accountId),
+    ),
+    updateListingPrice: afterSessionRenewal(
+      async (itemId, accountId, expectedPriceCents, priceCents, authorize) => {
+        await authorize();
+        const contexts = connection.contexts?.();
+        if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
+        return updateVintedListingPrice(
+          await contexts[0]!.newPage(),
+          itemId,
+          accountId,
+          expectedPriceCents,
+          priceCents,
+          authorize,
+        );
+      },
     ),
     updateListing: afterSessionRenewal((itemId, accountId, fields, authorize) =>
       updateVintedListing(currentPage(), itemId, accountId, fields, authorize),

@@ -16,6 +16,24 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('sendet nur bisherigen und neuen Centpreis und wertet Konflikte sowie unbestätigte Antworten aus', async () => {
+  const request = vi.fn().mockResolvedValue(Response.json({ status: 'confirmed' }));
+  vi.stubGlobal('fetch', request);
+  await api.saveListingPrice(scope, id, 2050, 1000, 'token');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    ...scope,
+    entryId: id,
+    expectedPriceCents: 2050,
+    priceCents: 1000,
+  });
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/price/save');
+  request.mockResolvedValueOnce(Response.json({ status: 'conflict', priceCents: 1500 }));
+  await expect(api.saveListingPrice(scope, id, 2050, 1000, 'token')).rejects.toBeInstanceOf(
+    VintedListingChangedError,
+  );
+  request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
+  await expect(api.saveListingPrice(scope, id, 2050, 1000, 'token')).rejects.toThrow('bestätigt');
+});
 it('treats publication as unavailable on old, disabled or read-only runtimes', async () => {
   const request = vi.fn();
   vi.stubGlobal('fetch', request);

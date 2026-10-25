@@ -411,6 +411,12 @@ const coreTests = [
     'vinted-listing-edge-cases.spec.ts',
     `Inseratgalerie erhält Hoch-/Querformat, Bildfehlerrahmen und langen Titel bei ${width}px @marketplace-preview @core-smoke`,
   ]),
+  ...[390, 1440].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
+      'vinted-listing-edge-cases.spec.ts',
+      `Preisdialog ${width} ${theme} > Preis direkt ändern und nach einem Fehler erneut speichern bei ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
   [
     'vinted-listing-edge-cases.spec.ts',
     'Großansicht behält den Tastaturfokus an beiden Galeriegrenzen @marketplace-preview @core-smoke',
@@ -541,7 +547,7 @@ test('Galerieänderung wählt echte Artikel-Browserfälle ohne Verkauf, Einkauf 
   });
   assert.equal(plan.full, false);
   assert.equal(plan.pwa, false);
-  assert.equal(selected.length, 25);
+  assert.equal(selected.length, 29);
   assert.deepEqual([...new Set(selected.map(([file]) => file))].sort(), [
     'vinted-listing-edge-cases.spec.ts',
     'vinted-workspace-ui.spec.ts',
@@ -556,7 +562,7 @@ test('direkt geänderter Browserfall läuft vollständig und ohne fachfremde Fä
   const { selected } = await listTests('playwright.affected.config.ts', [], {
     AFFECTED_TEST_PLAN: JSON.stringify(plan),
   });
-  assert.equal(selected.length, 19);
+  assert.equal(selected.length, 23);
   assert.ok(selected.every(([file]) => file === 'vinted-listing-edge-cases.spec.ts'));
 });
 
