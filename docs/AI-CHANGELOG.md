@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-25 - Juna - Alte Arbeitskopien und Zweige bereinigen
+
+**Auftrag:** Alle noch vorhandenen lokalen Arbeitsstände prüfen und nicht mehr benötigte Reste entfernen.
+
+**Ergebnis:** Elf zusätzliche Arbeitskopien, 22 lokale Altzweige und 20 alte GitHub-Zweige ohne offenen PR nach geprüfter Sicherung entfernt; vier alte Zwischenablagen archiviert und aktive Liste geleert. Lokalen Hauptzweig auf `ec024160` vorgezogen. Bisher nur lokale Recherche-/Rolloutberichte und einzelne Berichte aus alten Zweigen im Dokumentationszweig `juna/workspace-cleanup` erhalten. Lokale Sitzungseinträge in ein [Recherchearchiv](AI-CHANGELOG-research-archive-2026-10-25.md) überführt; neuere veröffentlichte Updateanalyse erhalten. Alten DPD-Tracking-Entwurf als tatsächlich unveröffentlichten Altentwurf ausdrücklich dokumentiert; keine alte Codeänderung integriert. Zwei offene Dependabot-PRs erhalten. Untersuchung und Wiederherstellungsanleitung im [Bereinigungsbericht](audit/2026-10-25-workspace-cleanup.md).
+
+**Prüfung und Grenzen:** Alle Git-Stände einschließlich sämtlicher alter Zwischenablagen im verifizierten Bundle gesichert, lokale Dateikopien mit SHA-256 verglichen und ZIP-Archive vollständig geprüft. Vor Entfernung Pfadgrenzen, laufende Prozesse, eingebettete Projekte und Submodule abgeglichen; Windows-Dateipfadlänge bei der Bereinigung berücksichtigt. GitHub-Löschungen an die geprüften Commits gebunden. 43 Dokumentationsdateien erfolgreich formatiert, lokale Verweise geprüft und ausschließlich Dokumentation als betroffener Prüfumfang bestätigt. Lokale Hauptprojekt-Abhängigkeiten aus der unveränderten Sperrdatei wiederhergestellt. Nur Dokumentation verändert; kein neuer Produktcode, kein Deployment und keine Anwendungstests. Die Entwurfsdarstellung und DPD-Produktentscheidung bleiben offen. Der Nutzer hat den Dokumentations-PR, Merge nach erfolgreichen Pflichtprüfungen und anschließende Zweigbereinigung ausdrücklich freigegeben.
+
 ## 2026-10-24 - Juna - Erste alte Fenster bei fehlender Cachedatei reparieren
 
 Nach ausdrücklicher Freigabe PR #469 mit vollständig grünen Pflichtprüfungen
