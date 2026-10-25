@@ -23,7 +23,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -46,7 +46,7 @@ import { VintedListingImageService } from '../../services/vinted-listing-image.s
     ButtonComponent,
     BadgeComponent,
     CardComponent,
-    DataTableComponent,
+    CustomSearchInputComponent,
     ProductThumbnailComponent,
     PageHeaderComponent,
     NoticeBannerComponent,
