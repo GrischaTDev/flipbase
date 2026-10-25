@@ -24,6 +24,13 @@ const coreTests = [
 
   ...[
     'Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchbar @core-smoke',
+    'Ohne Kategorie öffnet Inserieren die gesicherte Fassung mit Verhandlungsbasis und Versand/Abholung @core-smoke',
+    'Eine beim Anbieter fehlende Kategorie öffnet das Formular mit erhaltenem Kategoriepfad @core-smoke',
+    'Mehrfachauswahl hält beim ersten unklaren Ergebnis an und zeigt keine falsche Erfolgsmeldung @core-smoke',
+    ...['light', 'dark'].map(
+      (theme) =>
+        `Mausbedienung des vereinfachten Inserierens > bleibt mit Maus und Tastatur im ${theme}-Theme bedienbar @core-smoke`,
+    ),
     'Eine verlorene Annahmeantwort wird ohne zweiten Auftrag fortgesetzt @core-smoke',
     'Ein gewechseltes Browserkonto stoppt vor der Auftragsannahme @core-smoke',
     'Ohne passende Erweiterung bleibt die automatische Veröffentlichung gesperrt @core-smoke',

@@ -63,33 +63,13 @@ describe('Gesicherter Kleinanzeigen-Kategoriebaum', () => {
   });
 });
 
-describe('Kleinanzeigen-Auswahl für den Wiederverkauf', () => {
+describe('Vollständige Kleinanzeigen-Auswahl', () => {
   const source = createKleinanzeigenCategorySource(KLEINANZEIGEN_CATEGORY_SNAPSHOT.categories);
-  it('entfernt Jobs, Immobilien, Dienstleistungen und Tierbedarf aus Suche und Ebenen', async () => {
-    const roots = (await source.loadChildren(null)).map((row) => row.id);
-    for (const id of ['102', '195', '297', '130', '235', '400']) expect(roots).not.toContain(id);
-    expect((await source.search('Häuser')).categories).toEqual([]);
-    expect((await source.search('Tierbetreuung')).categories).toEqual([]);
-    expect((await source.loadChildren('210')).map((row) => row.id)).toEqual(['210/306']);
-    expect(await source.getById('210/306')).toMatchObject({ isSelectable: false });
-    expect((await source.search('Motorradbekleidung')).categories.map((row) => row.id)).toEqual([
-      '210/306/kleidung',
-    ]);
-  });
-  it('erhält alle Originalkennungen und gespeicherte ausgeblendete Kategorien', async () => {
-    expect(await source.getById('195/208')).toMatchObject({
-      id: '195/208',
-      name: 'Häuser zum Kauf',
-      isDeprecated: false,
-    });
-    expect(source.getCategory('195/208')?.name).toBe('Häuser zum Kauf');
-  });
-  it('erhält Technik, Beauty, Kinderwagen, Einrichtung und Camping', async () => {
-    const roots = (await source.loadChildren(null)).map((row) => row.id);
-    for (const id of ['161', '153', '17', '80', '185', '73']) expect(roots).toContain(id);
-    expect((await source.search('Kinderwagen')).categories.length).toBeGreaterThan(0);
-    expect((await source.search('Sport Camping')).categories.length).toBeGreaterThan(0);
-    expect((await source.search('Gartenzubehör')).categories).toEqual([]);
-    expect((await source.search('Essen Trinken')).categories).toEqual([]);
+  it('bietet alle 15 Hauptkategorien und zuvor ausgeblendete Bereiche an', async () => {
+    expect(await source.loadChildren(null)).toHaveLength(15);
+    for (const term of ['Häuser', 'Tierbetreuung', 'Kinderwagen', 'Gartenzubehör', 'Essen Trinken'])
+      expect((await source.search(term)).categories.length).toBeGreaterThan(0);
+    expect((await source.loadChildren('210')).length).toBeGreaterThan(1);
+    expect(source.getCategory('195/208')?.isSelectable).not.toBe(false);
   });
 });

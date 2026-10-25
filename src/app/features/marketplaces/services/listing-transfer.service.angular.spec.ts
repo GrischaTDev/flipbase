@@ -83,6 +83,8 @@ describe('Gemeinsamer Vinted-Transferdienst', () => {
     expect(result.content.description).toBe(full.source.description);
     expect(result.sourceReference.fingerprint).toBe(full.fingerprint);
     expect(result.content.categoryId).toBeNull();
+    expect(result.content.priceType).toBe('NEGOTIABLE');
+    expect(result.content.shippingType).toBe('both');
     expect(browser.readListingContent).not.toHaveBeenCalled();
   });
   it.each(['cloud', 'local'])(

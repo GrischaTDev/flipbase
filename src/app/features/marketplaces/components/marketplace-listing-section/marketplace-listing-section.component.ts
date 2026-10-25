@@ -1,5 +1,6 @@
 import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
+import { KleinanzeigenRelistingActionComponent } from '../kleinanzeigen-relisting-action/kleinanzeigen-relisting-action.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -41,6 +42,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
   imports: [
     RouterLink,
     ListingTransferActionComponent,
+    KleinanzeigenRelistingActionComponent,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,

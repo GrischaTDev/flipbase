@@ -1,5 +1,46 @@
 # Flipbase Listing-Assistent
 
+## Version 1.11.0: Kleinanzeigen-Kategorie optional und Auswahl neu inserieren
+
+Neue Kleinanzeigen-Fassungen starten mit **Verhandlungsbasis** und **Versand und Abholung**.
+Alle 15 Hauptkategorien und 3.087 Endkategorien stehen lokal zur Verfügung. Beim Auswählen
+wird kein Kleinanzeigen-Fenster zur Prüfung geöffnet. „Nur Versand“ wird nicht angeboten,
+weil Kleinanzeigen eine Abholmöglichkeit verlangt.
+
+„Inserieren“ sichert die Angaben und Originalbilder. Sind Kategorie und sämtliche Angaben
+für den automatischen Weg geeignet, bleibt die bestehende geprüfte Veröffentlichung erhalten.
+Ohne Kategorie oder bei nicht übernehmbaren Angaben öffnet die Erweiterung das vorbefüllte
+Formular im gebundenen Konto. Dort die Kategorie/Eigenschaften ergänzen und selbst fertigstellen.
+Das Öffnen wird nicht als Veröffentlichung verbucht. Ein Kategorienwechsel im Anbieterformular
+sichert die aktuellen Eingaben und Bilder tabgebunden für 15 Minuten; vorhandene Bilder werden
+bei Rückkehr nicht doppelt angehängt. Eine in Flipbase geänderte Fassung öffnet mit ihren neuen Angaben.
+Auch nach Neuladen liest der Assistent die noch gültige, tabgebundene Sicherung erneut ein.
+
+Auf der Kleinanzeigen-Seite stehen die vorhandenen Checkboxen mit **Ausgewählte neu inserieren**
+zur Verfügung. Nach einer gemeinsamen Bestätigung werden die gewählten Anzeigen nacheinander
+bearbeitet. Die Erweiterung sichert zuerst die Anbietertexte, Merkmale und Originalbilddateien in
+IndexedDB ihres Browserprofils und bereitet die Neufassung einschließlich Uploads vor. Erst nach
+erneuter Konto-, Quellen-, Ziel- und Kostenprüfung wird die ausgewählte Altanzeige gelöscht.
+Vor der anschließenden Veröffentlichung werden Ziel und Kosten nochmals geprüft.
+
+Unterbrochene Vorgänge bleiben unter **Noch offene Vorgänge in diesem Browserprofil** sichtbar.
+„Fortsetzen / Status prüfen“ liest unklare Lösch-/Veröffentlichungsklicks nach, ohne sie zu
+wiederholen. Nach bestätigter Löschung kann eine verlorene Neufassung aus der lokalen Sicherung
+neu aufgebaut werden. Ein bereits bestätigtes Ergebnis löst bei Wiederholung keinen zweiten Klick aus.
+Merker und Aufrufe der alten Anzeige werden nicht übernommen. Auch erneute Anzeigen zählen zum
+30-Tage-Limit. Kostenpflichtige oder unbekannte Angebote stoppen vor der Löschung beziehungsweise
+vor dem nächsten verbindlichen Klick.
+
+Nach Bereitstellung die Erweiterung auf **1.11.0** aktualisieren und Flipbase neu laden.
+Für Originalbilder werden ausschließlich die zusätzlichen Anbieterhosts `img.kleinanzeigen.de`,
+`img.classistatic.de` und `i.ebayimg.com` freigegeben. Keine neuen allgemeinen Browserberechtigungen.
+Lokale Sicherungen gehören zum ursprünglichen Browserprofil; sie werden nicht als unbestätigte
+Online-Anzeigen nach Flipbase übernommen.
+
+**Prüfgrenze:** Anbieteroberflächen lesend untersucht; produktive Anzeigen wurden nicht gelöscht
+oder veröffentlicht. Die automatischen Schritte werden mit echten Content Scripts und einem
+isolierten Browserprofil gegen ausschließlich lokale Anbieter- und API-Antworten geprüft.
+
 ## Version 1.10.2: Chataktivität bei nicht mehr verfügbaren Artikeln
 
 Vinteds reine Systemmeldung „Artikel nicht mehr verfügbar“ bleibt im Gespräch sichtbar,

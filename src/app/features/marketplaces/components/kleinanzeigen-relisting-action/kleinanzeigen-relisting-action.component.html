@@ -1,0 +1,47 @@
+<div class="space-y-3">
+  <app-button
+    [icon]="icon"
+    [loading]="relisting.busy()"
+    [disabled]="relisting.busy() || !section().selection.length || section().loading"
+    (clicked)="run()"
+    >Ausgewählte neu inserieren</app-button
+  >
+  @if (relisting.busy()) {
+    <p class="text-sm text-fb-text-secondary" role="status">
+      Die ausgewählten Anzeigen werden nacheinander gesichert und neu eingestellt. Lass diesen Tab
+      geöffnet.
+    </p>
+  }
+  @if (relisting.error(); as message) {
+    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+  }
+  @if (relisting.results().length) {
+    <ul
+      class="space-y-2 text-sm text-fb-text-primary"
+      aria-live="polite"
+      aria-label="Ergebnis des erneuten Inserierens"
+    >
+      @for (result of relisting.results(); track result.externalId) {
+        <li>
+          <span class="font-medium">{{ result.title }}</span
+          >: {{ result.message }}
+        </li>
+      }
+    </ul>
+  }
+  @if (relisting.pending().length) {
+    <div class="space-y-2" aria-label="Gesicherte Vorgänge">
+      <p class="text-sm font-medium text-fb-text-primary">
+        Noch offene Vorgänge in diesem Browserprofil
+      </p>
+      @for (attempt of relisting.pending(); track attempt.externalId) {
+        <div class="flex flex-wrap items-center gap-2 text-sm text-fb-text-primary">
+          <span>{{ attempt.title }}</span>
+          <app-button [disabled]="relisting.busy()" (clicked)="run(attempt)"
+            >Fortsetzen / Status prüfen</app-button
+          >
+        </div>
+      }
+    </div>
+  }
+</div>

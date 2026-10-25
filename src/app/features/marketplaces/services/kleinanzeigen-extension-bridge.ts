@@ -13,6 +13,13 @@ import {
   type KleinanzeigenSyncResult,
 } from '../../../../../supabase/functions/_shared/kleinanzeigen-contracts';
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
+import type { KleinanzeigenListingPayload } from '../../listings/models/listing.models';
+import {
+  kleinanzeigenRelistingPaths,
+  parseKleinanzeigenRelistingResult,
+  type KleinanzeigenRelistingResult,
+  type KleinanzeigenRelistingAttempt,
+} from '../models/kleinanzeigen-relisting';
 import {
   parseKleinanzeigenBinding,
   parseKleinanzeigenProposal,
@@ -45,6 +52,8 @@ export class KleinanzeigenExtensionBridge {
   readonly quotaAvailable = this.quotaState.asReadonly();
   private readonly formSchemaState = signal(false);
   readonly formSchemaAvailable = this.formSchemaState.asReadonly();
+  readonly handoffAvailable = signal(false);
+  readonly relistingAvailable = signal(false);
   private destroyed = false;
   private checkTimer: ReturnType<typeof setTimeout> | undefined;
   readonly capabilities = this.capabilityState.asReadonly();
@@ -56,6 +65,8 @@ export class KleinanzeigenExtensionBridge {
       clearTimeout(this.checkTimer);
       window.removeEventListener('message', this.receive);
       this.cancel();
+      this.handoffAvailable.set(false);
+      this.relistingAvailable.set(false);
       this.capabilityState.set(unavailable);
       this.formSchemaState.set(false);
       this.quotaState.set(false);
@@ -73,6 +84,8 @@ export class KleinanzeigenExtensionBridge {
     clearTimeout(this.checkTimer);
     this.checkingState.set(true);
     this.checkTimer = setTimeout(() => {
+      this.handoffAvailable.set(false);
+      this.relistingAvailable.set(false);
       this.capabilityState.set(unavailable);
       this.formSchemaState.set(false);
       this.quotaState.set(false);
@@ -212,6 +225,98 @@ export class KleinanzeigenExtensionBridge {
     )
       throw new Error('Die Auftragsantwort passt nicht zur aktuellen Auswahl.');
   }
+  async openListing(
+    scope: {
+      readonly workspaceId: string;
+      readonly connectionId: string;
+      readonly generation: number;
+    },
+    requestId: string,
+    payload: KleinanzeigenListingPayload,
+  ): Promise<void> {
+    if (!this.handoffAvailable())
+      throw new Error(
+        'Aktualisiere die Flipbase-Erweiterung auf Version 1.11.0 und lade die Seite neu.',
+      );
+    const result = await this.request(
+      'OPEN_LISTING',
+      {
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        generation: scope.generation,
+        handoffId: requestId,
+        payload,
+      },
+      180000,
+    );
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      (result as Record<string, unknown>)['handoffId'] !== requestId ||
+      (result as Record<string, unknown>)['opened'] !== true
+    )
+      throw new Error('Das Kleinanzeigen-Formular konnte nicht geöffnet werden.');
+  }
+  async relist(
+    scope: {
+      readonly workspaceId: string;
+      readonly connectionId: string;
+      readonly generation: number;
+    },
+    externalId: string,
+  ): Promise<KleinanzeigenRelistingResult> {
+    if (!this.relistingAvailable())
+      throw new Error(
+        'Aktualisiere die Flipbase-Erweiterung auf Version 1.11.0 und lade die Seite neu.',
+      );
+    const result = parseKleinanzeigenRelistingResult(
+      await this.request(
+        'RELIST_LISTING',
+        {
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+          generation: scope.generation,
+          externalId,
+          categoryPaths: kleinanzeigenRelistingPaths,
+        },
+        600000,
+      ),
+      externalId,
+    );
+    if (!result)
+      throw new Error(
+        'Das Ergebnis konnte nicht eindeutig bestätigt werden. Bitte den Status im ursprünglichen Browserprofil prüfen.',
+      );
+    return result;
+  }
+  async relistingAttempts(scope: {
+    readonly workspaceId: string;
+    readonly connectionId: string;
+    readonly generation: number;
+  }): Promise<readonly KleinanzeigenRelistingAttempt[]> {
+    const result = await this.request('RELIST_ATTEMPTS', {
+      workspaceId: scope.workspaceId,
+      connectionId: scope.connectionId,
+      generation: scope.generation,
+    });
+    if (
+      !Array.isArray(result) ||
+      result.length > 20000 ||
+      result.some(
+        (value) =>
+          !value ||
+          typeof value !== 'object' ||
+          !/^[1-9][0-9]{0,31}$/u.test(value.externalId) ||
+          typeof value.title !== 'string' ||
+          value.title.length > 65 ||
+          !['secured', 'deleting', 'deleted', 'submitting', 'outcome_unknown'].includes(
+            value.phase,
+          ),
+      )
+    )
+      throw new Error('Die gesicherten Anzeigen konnten nicht gelesen werden.');
+    return result as KleinanzeigenRelistingAttempt[];
+  }
   async synchronize(run: KleinanzeigenSyncRun): Promise<KleinanzeigenSyncResult> {
     const result = parseKleinanzeigenSyncResult(
       await this.request(
@@ -253,7 +358,10 @@ export class KleinanzeigenExtensionBridge {
       | 'SYNC'
       | 'FORM_SCHEMA'
       | 'QUOTA'
-      | 'PUBLISH_JOB',
+      | 'PUBLISH_JOB'
+      | 'OPEN_LISTING'
+      | 'RELIST_LISTING'
+      | 'RELIST_ATTEMPTS',
     fields: Readonly<Record<string, unknown>>,
     timeout = 60000,
   ): Promise<unknown> {
@@ -306,6 +414,16 @@ export class KleinanzeigenExtensionBridge {
       )
         return;
       clearTimeout(this.checkTimer);
+      this.handoffAvailable.set(
+        response['installed'] === true &&
+          caps['accounts'] === true &&
+          response['kleinanzeigenAssistedListings'] === true,
+      );
+      this.relistingAvailable.set(
+        response['installed'] === true &&
+          caps['accounts'] === true &&
+          response['kleinanzeigenRelisting'] === true,
+      );
       this.checkingState.set(false);
       this.quotaState.set(
         response['installed'] === true &&

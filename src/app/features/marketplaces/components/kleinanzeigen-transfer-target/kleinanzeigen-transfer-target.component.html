@@ -14,29 +14,32 @@
     label="Kategorie"
     placeholder="Kategorie suchen oder auswählen"
   />
-  @if (busy()) {
-    <p class="text-sm text-fb-text-secondary" role="status">
-      Kleinanzeigen-Eigenschaften werden geladen …
-    </p>
+  <p class="text-sm text-fb-text-secondary">
+    Optional. Fehlende Kategorien und Eigenschaften kannst Du direkt bei Kleinanzeigen ergänzen.
+  </p>
+  @if (notice(); as message) {
+    <p class="text-sm text-fb-text-primary" role="status">{{ message }}</p>
   }
-  @if (schemaLoadFailed() && categorySelection.value && !busy()) {
-    <app-button
-      [disabled]="!scope() || !extension.formSchemaAvailable()"
-      (clicked)="selectCategory(categorySelection.value)"
-      >Eigenschaften erneut laden</app-button
-    >
+  @if (unsaved()) {
+    <p class="text-sm text-fb-text-secondary">Speichere zuerst Deine Änderungen.</p>
   }
-  @if (schema(); as currentSchema) {
-    <app-kleinanzeigen-listing-fields
-      [schema]="currentSchema"
-      [attributes]="attributes"
-      [shippingEnabled]="content().shippingType === 'both'"
-      [shippingGroup]="shippingGroup"
-      [selectedGroup]="selectedGroup()"
-      [selectedMethods]="methods()"
-      (methodsChanged)="chooseMethods($event)"
-    />
-  }
+  <app-button
+    variant="primary"
+    [loading]="busy()"
+    [disabled]="
+      busy() ||
+      unsaved() ||
+      !publicationAllowed() ||
+      listing().status !== 'prepared' ||
+      jobs.busy() ||
+      !!jobs.error() ||
+      ['queued', 'claimed', 'writing', 'outcome_unknown', 'confirmed'].includes(
+        jobs.job()?.state ?? ''
+      )
+    "
+    (clicked)="openListing()"
+    >Inserieren</app-button
+  >
   <app-kleinanzeigen-publication-panel
     [scope]="publicationScope()"
     [publicationAllowed]="publicationAllowed()"
@@ -44,7 +47,8 @@
     [revision]="listing().revision ?? 1"
     [published]="listing().status === 'online'"
     [unsaved]="unsaved()"
-    [issues]="publicationIssues()"
+    [issues]="[]"
+    [showPublishAction]="false"
     (confirmed)="confirmed.emit()"
   />
 </section>

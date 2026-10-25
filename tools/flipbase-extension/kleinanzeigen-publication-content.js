@@ -27,6 +27,7 @@
     let expectedJob = null;
     let expectedCategoryLabel = null;
     const uploaded = [];
+    let uploadedPaths = [];
     const identity = (job) => {
       const value = root.FlipbaseKleinanzeigenReader.pageIdentity(
         doc,
@@ -227,7 +228,7 @@
       for (const field of schema.fields)
         await chooseField(field, c.categoryFields[field.key] ?? '');
       await shipping(job, schema);
-      radio('ad-buy-now-false');
+      radio(c.buyNow === true ? 'ad-buy-now-true' : 'ad-buy-now-false');
       identity(job);
       if (
         doc.getElementById('ad-title').value !== c.title ||
@@ -249,7 +250,12 @@
       if (uploaded[index] === image.sha256) return { complete: true, count: uploaded.length };
       if (index !== uploaded.length) fail('invalid_image');
       const before = reader.readPhotos(doc);
-      if (!before || before.length !== index) fail('images_incomplete');
+      if (
+        !before ||
+        before.length !== index ||
+        before.some((path, at) => path !== uploadedPaths[at])
+      )
+        fail('images_incomplete');
       const binary = atob(encoded);
       const bytes = Uint8Array.from(binary, (value) => value.charCodeAt(0));
       if (bytes.length !== image.byteSize) fail('invalid_image');
@@ -268,6 +274,7 @@
           : null;
       }, 45000);
       uploaded.push(image.sha256);
+      uploadedPaths = [...after];
       identity(job);
       return { complete: true, count: after.length };
     }
@@ -297,7 +304,9 @@
           expectedJob === job.id &&
           fingerprint === state(job) &&
           nativeFieldsValid() &&
-          paths?.length === job.images.length,
+          paths?.length === job.images.length &&
+          uploaded.length === job.images.length &&
+          paths.every((path, index) => path === uploadedPaths[index]),
       };
     }
     async function submitOnce(job) {
@@ -306,7 +315,7 @@
         expectedJob !== job.id ||
         fingerprint !== state(job) ||
         !verify(job).complete ||
-        reader.readFee(doc, job.externalAccountId).state !== 'free'
+        reader.readFee(doc, job.externalAccountId, job.content.buyNow === true).state !== 'free'
       )
         fail('final_check_failed');
       const key = 'flipbase_kleinanzeigen_submit_' + job.id;
@@ -326,7 +335,7 @@
         identity(job);
         if (expectedJob !== job.id || fingerprint !== state(job))
           return { state: 'unknown', observedAt: new Date().toISOString() };
-        return reader.readFee(doc, job.externalAccountId);
+        return reader.readFee(doc, job.externalAccountId, job.content.buyNow === true);
       },
     };
   }

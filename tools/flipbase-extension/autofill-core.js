@@ -118,24 +118,29 @@
       location: step('manual', 'Standort bitte prüfen'),
       shipping: step('manual', SHIPPING_MANUAL_TEXT),
     };
+    const preserve = options.preserveExisting === true;
 
     const titleInput = await waitForElement(doc, SELECTORS.title, timeoutMs);
     if (!titleInput) return { formFound: false, steps };
 
     steps.title = listing.title
-      ? (setFieldValue(titleInput, listing.title), step('success', 'Titel übertragen'))
+      ? ((!preserve || !titleInput.value) && setFieldValue(titleInput, listing.title),
+        step('success', 'Titel übertragen'))
       : step('error', 'Kein Titel im Inserat');
 
     const descriptionInput = doc.querySelector(SELECTORS.description);
     if (descriptionInput) {
       steps.description = listing.description
-        ? (setFieldValue(descriptionInput, listing.description),
+        ? ((!preserve || !descriptionInput.value) &&
+            setFieldValue(descriptionInput, listing.description),
           step('success', 'Beschreibung übertragen'))
         : step('error', 'Keine Beschreibung im Inserat');
     }
 
     const priceInput = doc.querySelector(SELECTORS.priceAmount);
-    if (priceInput && Number.isFinite(listing.price)) {
+    if (preserve && priceInput?.value) {
+      steps.price = step('success', 'Vorhandenen Preis und Preistyp erhalten');
+    } else if (priceInput && Number.isFinite(listing.price)) {
       // Kleinanzeigen nimmt nur ganze Euro an.
       const roundedPrice = Math.round(listing.price);
       setFieldValue(priceInput, String(roundedPrice));
