@@ -41,6 +41,7 @@ export class VintedListingAgeComponent {
     return this.publicationState() === 'unknown' && age.approximate
       ? {
           ...age,
+          compact: age.compact === 'Neu' ? '< 1 Tag' : age.compact,
           text: age.text.replace(' online', ' · Vinted-Angabe'),
           tone: 'neutral' as const,
           overdue: false,

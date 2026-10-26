@@ -82,7 +82,7 @@ export function vintedListingAge(
         new Date(date).toISOString().slice(0, 10) === publishedOn &&
         date <= today
       ) {
-        return { ...listingAgeInDays(today - date), dateOnly: true };
+        return { ...listingAgeInDays(today - date, false, false), dateOnly: true };
       }
     }
     const age = parseVintedPublicationAge(approximate);
@@ -98,6 +98,8 @@ export function vintedListingAge(
       return listingAgeInDays(
         age.value * unitDuration[age.unit] + now - Date.parse(age.observedAt),
         true,
+        (age.unit === 'minute' || age.unit === 'hour') &&
+          (age.value + 1) * unitDuration[age.unit] + now - Date.parse(age.observedAt) <= 24 * hour,
       );
     }
     const created = validListingTimestamp(createdAt, now);
@@ -124,11 +126,11 @@ export function vintedListingAge(
   return listingAgeInDays(now - timestamp);
 }
 
-function listingAgeInDays(elapsed: number, approximate = false): VintedListingAge {
+function listingAgeInDays(elapsed: number, approximate = false, showNew = true): VintedListingAge {
   const days = Math.floor(elapsed / (24 * hour));
   return {
     tone: elapsed < 72 * hour ? 'success' : elapsed < 120 * hour ? 'caution' : 'critical',
-    compact: days === 0 ? '< 1 Tag' : `${days} T`,
+    compact: days === 0 ? (showNew ? 'Neu' : '< 1 Tag') : `${days} T`,
     text: days === 0 ? 'Unter 1 Tag online' : `${days} ${days === 1 ? 'Tag' : 'Tage'} online`,
     overdue: elapsed >= 168 * hour,
     ...(approximate ? { approximate: true } : {}),

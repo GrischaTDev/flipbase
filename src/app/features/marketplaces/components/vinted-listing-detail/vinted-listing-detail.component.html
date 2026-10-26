@@ -332,27 +332,12 @@
 }
 
 @if (changingPrice()) {
-  <app-modal-shell title="Preis ändern" size="sm" (closed)="closePriceChange()">
-    <form id="vinted-price-form" [formGroup]="priceForm" (ngSubmit)="savePrice()" class="space-y-4">
-      <p class="text-sm text-fb-text-secondary">{{ entry()?.title }}</p>
-      <app-number-input
-        label="Neuer Verkaufspreis"
-        unit="€"
-        [min]="0.01"
-        [max]="999999.99"
-        [step]="0.01"
-        formControlName="price"
-        [error]="priceError()"
-      />
-      @if (busy()) {
-        <p role="status" class="text-sm text-fb-text-secondary">Wird bei Vinted gespeichert …</p>
-      }
-    </form>
-    <div modal-footer class="flex justify-end gap-2">
-      <app-button [disabled]="busy()" (clicked)="closePriceChange()">Abbrechen</app-button>
-      <app-button variant="primary" type="submit" formId="vinted-price-form" [loading]="busy()"
-        >Bei Vinted speichern</app-button
-      >
-    </div>
-  </app-modal-shell>
+  <app-vinted-listing-price-dialog
+    [title]="entry()?.title ?? ''"
+    [form]="priceForm"
+    [busy]="busy()"
+    [error]="priceError()"
+    (closed)="closePriceChange()"
+    (saved)="savePrice()"
+  />
 }

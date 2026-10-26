@@ -9,6 +9,7 @@ import { MarketplaceListingStatisticsStore } from '../../services/marketplace-li
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { VintedListingsComponent } from './vinted-listings.component';
+import { parseMarketplacePage } from '../../models/marketplace-response';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
 afterEach(() => TestBed.resetTestingModule());
@@ -28,6 +29,7 @@ function setup(connectionId: string) {
     snapshot: signal(null),
     listingMetricChanges: signal({}),
     consumeListingMetricChanges: () => ({}),
+    saveListingPrice: vi.fn().mockResolvedValue(undefined),
     async selectConnection(id: string) {
       this.selectionVersion.update((value) => value + 1);
       const account = connections().find((item) => item.connectionId === id);
@@ -116,4 +118,105 @@ it('bindet keine Statistik mehr in den Kleiderschrank ein', async () => {
     'utf8',
   );
   expect(template).not.toContain('app-vinted-wardrobe-statistics');
+});
+
+it('öffnet den Preisdialog ohne Detailnavigation und erhält Eingaben nach einem Fehler', async () => {
+  const { component, store } = setup('');
+  TestBed.tick();
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: 'price-1',
+          title: 'Schal',
+          price: 29.9,
+          currency: 'EUR',
+          publicationState: 'active',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0];
+  component.changePrice(entry, new MouseEvent('click'));
+  expect(component.priceEditor.open()).toBe(true);
+  expect(component.priceEditor.control.value).toBe(29.9);
+  component.priceEditor.control.setValue(25);
+  store.saveListingPrice.mockRejectedValueOnce(new Error('Nicht bestätigt'));
+  await component.priceEditor.save();
+  expect(component.priceEditor.control.value).toBe(25);
+  expect(component.priceEditor.error()).toBe('Nicht bestätigt');
+  expect(component.priceEditor.open()).toBe(true);
+  expect(component.priceNotice()).toBe(null);
+  await component.priceEditor.save();
+  expect(store.saveListingPrice).toHaveBeenLastCalledWith(
+    accountA.connectionId,
+    'price-1',
+    2990,
+    2500,
+  );
+  expect(component.priceEditor.open()).toBe(false);
+  expect(component.priceNotice()).toContain('bestätigt');
+});
+
+it('erhält Preisdialog und laufende Speicherung bei einer Hintergrundaktualisierung desselben Kontos', async () => {
+  const { component, store } = setup('');
+  TestBed.tick();
+  const entry = parseMarketplacePage(
+    {
+      items: [{ ...accountA, id: 'price-1', price: 29.9, currency: 'EUR' }],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0];
+  component.changePrice(entry, new MouseEvent('click'));
+  component.priceEditor.control.setValue(25);
+  store.selectedConnection.set({ ...store.selectedConnection() });
+  TestBed.tick();
+  expect(component.priceEditor.open()).toBe(true);
+  expect(component.priceEditor.control.value).toBe(25);
+  let finish!: () => void;
+  store.saveListingPrice.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+  const saving = component.priceEditor.save();
+  store.selectedConnection.set({ ...store.selectedConnection() });
+  TestBed.tick();
+  expect(component.savingPrice()).toBe(true);
+  expect(component.priceEditor.open()).toBe(true);
+  await component.priceEditor.save();
+  expect(store.saveListingPrice).toHaveBeenCalledOnce();
+  finish();
+  await saving;
+  expect(component.priceNotice()).toContain('bestätigt');
+});
+
+it('schließt bei einem Kontowechsel den Preisdialog und verwirft verspätete Antworten', async () => {
+  const { component, store } = setup('');
+  TestBed.tick();
+  const entry = parseMarketplacePage(
+    {
+      items: [{ ...accountA, id: 'price-1', price: 29.9, currency: 'EUR' }],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0];
+  component.changePrice(entry, new MouseEvent('click'));
+  component.priceEditor.control.setValue(25);
+  let finish!: () => void;
+  store.saveListingPrice.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+  const saving = component.priceEditor.save();
+  await component.priceEditor.save();
+  component.priceEditor.close();
+  expect(component.priceEditor.open()).toBe(true);
+  expect(store.saveListingPrice).toHaveBeenCalledOnce();
+  store.selectionVersion.update((version) => version + 1);
+  TestBed.tick();
+  finish();
+  await saving;
+  expect(component.priceEditor.open()).toBe(false);
+  expect(component.priceEntry()).toBe(null);
+  expect(component.priceNotice()).toBe(null);
 });
