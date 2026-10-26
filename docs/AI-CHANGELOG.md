@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Rasteransicht mit Preis-Icon zeigen
+
+**Auftrag und Nachweis:** Auf Nachfrage die aktuelle Rasteransicht mit vier ausdrücklich künstlichen Artikeln und den vorhandenen Bildplatzhaltern gerendert. Ausschnitt unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-grid-preview/grid-cards-dark.png`, vollständige Ansicht im selben Ordner. Dunkles Farbschema, vier Karten, Preisaktion ohne sichtbaren Text mit genau einem Euro-Icon und Tooltip „Preis ändern“ geprüft. Keine Produktänderung; keine echten Kontodaten oder Vinted-Schreibzugriffe. Vorschau und Hilfsskript außerhalb des Repositories.
+
 ## 2026-10-26 - Juna - Preisaktion im Kleiderschrank als Icon anzeigen
 
 **Auftrag und Änderung:** Auf Nutzerwunsch den sichtbaren Text „Preis ändern“ in Raster und Liste durch ein einzelnes Euro-Icon ersetzt. Gemeinsame Tabellenaktionsvariante verwendet; Tooltip „Preis ändern“, artikelbezogener Screenreadername und Touch-Trefferfläche erhalten. Preisdialog und Speicherung unverändert.
