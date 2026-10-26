@@ -1989,6 +1989,32 @@ test('wardrobe import enriches missing creation dates from the matching item pag
   });
 });
 
+test('publication age is read even when the wardrobe already supplies a creation date', async () => {
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [{ id: 41, user_id: 123, created_at: '2026-10-01T10:00:00Z', is_visible: true }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/items/41') return { publicationAgeLabel: 'vor einer Minute' };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.ok(paths.includes('/items/41'));
+  const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+  assert.equal(entry.body['createdAt'], '2026-10-01T10:00:00.000Z');
+  assert.equal(entry.body['occurredAt'], null);
+  assert.deepEqual(entry.body['publicationAge'], {
+    value: 1,
+    unit: 'minute',
+    observedAt: snapshot.observedAt,
+  });
+});
+
 test('publication enrichment keeps old cached ages and enriches every missing item', async () => {
   const paths: string[] = [];
   const observedAt = '2026-01-01T10:00:00Z';

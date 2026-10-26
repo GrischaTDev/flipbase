@@ -17,6 +17,44 @@ beforeAll(async () => {
 });
 afterAll(() => restore?.());
 afterEach(() => TestBed.resetTestingModule());
+it('zeigt Neu grün bis zur 24-Stunden-Grenze und erhält den erklärenden Text', () => {
+  const fixture = TestBed.createComponent(VintedListingAgeComponent);
+  const clock = TestBed.inject(VintedListingClockService);
+  fixture.componentRef.setInput('publicationState', 'active');
+  fixture.componentRef.setInput('compact', true);
+  fixture.componentRef.setInput('publishedAt', '2026-10-22T10:00:00Z');
+  clock.now.set(Date.parse('2026-10-23T09:59:00Z'));
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent.trim()).toBe('Neu');
+  expect(fixture.componentInstance.age().tone).toBe('success');
+  expect(fixture.nativeElement.querySelector('[aria-label]').getAttribute('aria-label')).toBe(
+    'Unter 1 Tag online',
+  );
+  clock.now.set(Date.parse('2026-10-23T10:00:00Z'));
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent.trim()).toBe('1 T');
+});
+
+it('nennt unbekannten Status oder bloße Erstellung nicht Neu', () => {
+  const fixture = TestBed.createComponent(VintedListingAgeComponent);
+  const clock = TestBed.inject(VintedListingClockService);
+  clock.now.set(Date.parse('2026-10-22T10:00:00Z'));
+  fixture.componentRef.setInput('compact', true);
+  fixture.componentRef.setInput('publicationState', 'unknown');
+  fixture.componentRef.setInput('publicationAge', {
+    value: 1,
+    unit: 'minute',
+    observedAt: '2026-10-22T09:59:00Z',
+  });
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).not.toContain('Neu');
+  fixture.componentRef.setInput('publicationState', 'active');
+  fixture.componentRef.setInput('publicationAge', null);
+  fixture.componentRef.setInput('createdAt', '2026-10-22T09:00:00Z');
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).not.toContain('Neu');
+  expect(fixture.nativeElement.textContent).toContain('erstellt');
+});
 it('behält belegte Vinted-Tage auch bei unbekanntem Status ohne Onlinebehauptung sichtbar', () => {
   const fixture = TestBed.createComponent(VintedListingAgeComponent);
   TestBed.inject(VintedListingClockService).now.set(Date.parse('2026-10-23T10:00:00Z'));

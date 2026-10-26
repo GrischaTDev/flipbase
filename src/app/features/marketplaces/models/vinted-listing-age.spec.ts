@@ -6,6 +6,12 @@ const hour = 3_600_000;
 const start = Date.parse(publishedAt);
 
 describe('Alter eines Vinted-Inserats', () => {
+  it('kennzeichnet nur die ersten 24 Stunden als neu', () => {
+    expect(vintedListingAge(publishedAt, start + 23.999 * hour).compact).toBe('Neu');
+    expect(vintedListingAge(publishedAt, start + 24 * hour).compact).toBe('1 T');
+    expect(vintedListingAge(null, start, null, '2026-10-01').compact).not.toBe('Neu');
+    expect(vintedListingAge(null, start, null, null, publishedAt).compact).not.toBe('Neu');
+  });
   it.each([
     [0, 'success'],
     [71.999, 'success'],
@@ -55,6 +61,14 @@ describe('Alter eines Vinted-Inserats', () => {
 });
 
 describe('Gerundetes Vinted-Alter', () => {
+  it('begrenzt Neu bei gerundeten Angaben auf sicher weniger als 24 Stunden', () => {
+    const age = { value: 23, unit: 'hour', observedAt: publishedAt } as const;
+    expect(vintedListingAge(null, start, age).compact).toBe('Neu');
+    expect(vintedListingAge(null, start + hour / 2, age).compact).toBe('< 1 Tag');
+    expect(vintedListingAge(null, start, { ...age, value: 0, unit: 'day' }).compact).toBe(
+      '< 1 Tag',
+    );
+  });
   const approximate = { value: 2, unit: 'day', observedAt: publishedAt } as const;
   it('zeigt das Anbieter-Alter in Tagen und zählt ab der Beobachtung weiter', () => {
     expect(vintedListingAge(null, start, approximate)).toMatchObject({

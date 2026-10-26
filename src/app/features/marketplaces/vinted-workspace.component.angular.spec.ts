@@ -68,6 +68,7 @@ import { ModalShellComponent } from '../../shared/components/modal-shell/modal-s
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
+import { VintedListingPriceDialogComponent } from './components/vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -216,6 +217,10 @@ beforeAll(async () => {
     {
       type: VintedListingsComponent,
       path: 'src/app/features/marketplaces/components/vinted-listings/vinted-listings.component.ts',
+    },
+    {
+      type: VintedListingPriceDialogComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-price-dialog/vinted-listing-price-dialog.component.ts',
     },
     {
       type: VintedListingMetricsComponent,

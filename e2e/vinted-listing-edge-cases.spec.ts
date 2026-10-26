@@ -335,6 +335,13 @@ for (const width of [320, 390, 834, 1440]) {
         })),
       );
       const wardrobeEntries = entries.filter((entry) => entry.publicationState !== 'draft');
+      wardrobeEntries.push({
+        ...entries[0],
+        id: 'publication-new',
+        title: 'Neu eingestellter Schal',
+        publicationState: 'active',
+        occurredAt: '2026-10-15T11:59:00Z',
+      });
       await page.route('**/rest/v1/marketplace_*account_entries**', (route) => {
         const query = new URL(route.request().url()).searchParams;
         const id = query.get('id')?.replace('eq.', '');
@@ -421,6 +428,11 @@ for (const width of [320, 390, 834, 1440]) {
       await expect(gridView).toHaveAttribute('aria-pressed', 'false');
       await expect(cards).toHaveCount(wardrobeEntries.length);
       const checkPublicationStates = async () => {
+        await expect(
+          page
+            .getByRole('link', { name: 'Inserat Neu eingestellter Schal öffnen', exact: true })
+            .locator('app-vinted-listing-age'),
+        ).toHaveText('Neu');
         for (const stateCase of stateCases.filter((stateCase) => stateCase.state !== 'draft')) {
           const card = page.getByRole('link', {
             name: `Inserat ${stateCase.title} öffnen`,
@@ -492,7 +504,9 @@ for (const width of [320, 390, 834, 1440]) {
       await gridView.focus();
       await page.keyboard.press('Enter');
       await expect(gridView).toHaveAttribute('aria-pressed', 'true');
-      expect((await firstThumbnail.boundingBox())!.width).toBeCloseTo(gridWidth, 0);
+      await expect
+        .poll(async () => (await firstThumbnail.boundingBox())!.width)
+        .toBeCloseTo(gridWidth, 0);
       await expect(page.locator('app-vinted-listing-age')).toHaveCount(wardrobeEntries.length);
       await checkPublicationStates();
       await expect(
@@ -726,6 +740,7 @@ for (const width of [390, 1440])
         await page.route('**/marketplace-browser/listings/price/save', async (route) => {
           saves.push(route.request().postDataJSON());
           if (saves.length === 1) return route.fulfill({ json: { status: 'unconfirmed' } });
+          if (saves.length > 2) return route.fulfill({ json: { status: 'confirmed' } });
           await new Promise<void>((resolve) => {
             finishSave = resolve;
           });
@@ -788,6 +803,39 @@ for (const width of [390, 1440])
         await expect(
           page.getByRole('link', { name: 'Inserat Jacke für Preisänderung öffnen', exact: true }),
         ).toContainText('24,50');
+        const wardrobe = page.locator('app-vinted-listings');
+        const quickPrice = wardrobe.getByRole('button', {
+          name: 'Preis für Jacke für Preisänderung ändern',
+          exact: true,
+        });
+        await quickPrice.click();
+        await expect(input).toHaveValue('24.5');
+        await page.keyboard.press('Escape');
+        await expect(quickPrice).toBeFocused();
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        await quickPrice.click();
+        await input.fill('22');
+        await input.press('Enter');
+        await expect(dialog).not.toBeVisible();
+        await expect(quickPrice).toBeFocused();
+        await expect(wardrobe).toContainText('22,00');
+        await expect(page).toHaveURL(/\/vinted\/listings$/);
+        expect(saves[2]).toEqual({
+          workspaceId,
+          connectionId: accountIds[0],
+          entryId,
+          expectedPriceCents: 2450,
+          priceCents: 2200,
+        });
+        expect(reads).toBe(0);
+        await page.evaluate(axe.source);
+        expect(
+          (
+            await page.evaluate(() =>
+              (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listings'),
+            )
+          ).violations,
+        ).toEqual([]);
         await checkPage(page, errors);
       });
     });

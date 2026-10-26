@@ -1189,7 +1189,8 @@ export async function readVintedAccountImport(
         createdAt,
         occurredAt,
       });
-      return unpublished || occurredAt || publicationAge || (createdAt && !wasDraft)
+      // Die Erstellung eines Entwurfs belegt keine Veröffentlichung; das Anbieter-Alter ergänzen.
+      return unpublished || occurredAt || publicationAge
         ? []
         : [{ id, checkedAt: Date.parse(checkedAt ?? '') || 0 }];
     })

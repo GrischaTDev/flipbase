@@ -2,6 +2,7 @@ import { vintedListingCopyRendering } from '../../../../../../e2e/support/vinted
 import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { signal } from '@angular/core';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { VintedListingPriceChangedError } from '../../services/marketplace-browser-test-api.service';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -112,6 +113,10 @@ let restoreRendering: (() => void) | undefined;
 beforeAll(async () => {
   const shared = 'src/app/shared/components/';
   restoreRendering = await prepareMarketplaceRendering([
+    {
+      type: VintedListingPriceDialogComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-price-dialog/vinted-listing-price-dialog.component.ts',
+    },
     { type: NumberInputComponent, path: shared + 'number-input/number-input.component.ts' },
     ...vintedListingCopyRendering,
     ...listingTransferRendering,

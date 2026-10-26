@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Mobile Listenhöhe nach Linux-CI korrigieren
+
+**Befund:** In [PR 478](https://github.com/GrischaTDev/flipbase/pull/478) bestand der erste große Browserlauf, aber der Lauf der geänderten Datei scheiterte bei 320 Pixel/Hell: Listenlink 144 statt weniger als 130 Pixel hoch. Unter Linux erbt die Statusgruppe 16px/24px, wodurch die umgebrochenen Badges und Kennzahlen zusammen 52 Pixel benötigen. Mit Node 22.23.3, Playwright 1.62.1 und identischer Sperrdatei in einem isolierten Linux-Container bei zwei CPUs/vier GiB exakt nachgestellt. Die vollständige Quellkopie enthält auch versteckte Konfigurationen; die Windows-Vorschau wurde ausschließlich über einen lokalen Container-Portweiterleiter gelesen.
+
+**Korrektur:** Statusgruppe ausdrücklich auf die vorhandene kleine Textrolle gesetzt; vertikale mobile Innenabstände und Zeilenabstand verkleinert. Gleicher Linux-Fall misst jetzt 123 Pixel. Desktop-Abstände, Inhalte, Aktionsflächen, Fokus und die unveränderte 130-Pixel-Prüfung bleiben erhalten. Unabhängiger Nachreview ohne Befund.
+
+**Prüfung:** Alle 23 Fälle der betroffenen Inseratdatei unter Linux erfolgreich, einschließlich 320/390/834/1440 Pixel, Hell/Dunkel, Preisdialog, Fokus und AXE. Unter Windows beide direkt betroffenen Browserdateien mit 29 erfolgreichen Fällen; 59 bestehende Angularfälle erfolgreich. Gezieltes HTML-Lint und Formatierung bestanden; Produktionsbau vor dem Korrekturpush erneut geprüft. Keine zusätzliche Testdefinition, kein abgeschwächter Grenzwert und kein unveränderter CI-Wiederholungsversuch. Temporäre Nachweise unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-pr478-*`. Für den geänderten Aufgabenstand die ausgewählten CI-Prüfungen erneut abwarten.
+
+## 2026-10-26 - Juna - Kleiderschrankänderungen für PR und Merge freigeben
+
+**Freigabe:** Nutzer hat nach Ansicht der Rastervorschau ausdrücklich PR-Erstellung und Merge nach erfolgreichen Tests beauftragt. Eigenen sauberen Zweig nach erneutem GitHub-Abgleich zur Veröffentlichung vorbereitet. Der zuvor dokumentierte lokale Prüfumfang bleibt gültig; seitdem ausschließlich das geprüfte Preis-Icon und die Vorschau-Dokumentation ergänzt. PR gegen `master`, vollständige ausgewählte Pflichtprüfungen abwarten, nur bei Erfolg mit Merge-Commit integrieren und anschließend ausschließlich den eigenen Aufgabenbranch lokal und remote entfernen. Kein zusätzliches Worktree für diese Aufgabe erstellt; fremde Arbeitskopien bleiben erhalten.
+
+## 2026-10-26 - Juna - Rasteransicht mit Preis-Icon zeigen
+
+**Auftrag und Nachweis:** Auf Nachfrage die aktuelle Rasteransicht mit vier ausdrücklich künstlichen Artikeln und den vorhandenen Bildplatzhaltern gerendert. Ausschnitt unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-grid-preview/grid-cards-dark.png`, vollständige Ansicht im selben Ordner. Dunkles Farbschema, vier Karten, Preisaktion ohne sichtbaren Text mit genau einem Euro-Icon und Tooltip „Preis ändern“ geprüft. Keine Produktänderung; keine echten Kontodaten oder Vinted-Schreibzugriffe. Vorschau und Hilfsskript außerhalb des Repositories.
+
+## 2026-10-26 - Juna - Preisaktion im Kleiderschrank als Icon anzeigen
+
+**Auftrag und Änderung:** Auf Nutzerwunsch den sichtbaren Text „Preis ändern“ in Raster und Liste durch ein einzelnes Euro-Icon ersetzt. Gemeinsame Tabellenaktionsvariante verwendet; Tooltip „Preis ändern“, artikelbezogener Screenreadername und Touch-Trefferfläche erhalten. Preisdialog und Speicherung unverändert.
+
+**Prüfung:** Alle vier bestehenden Preisdialogfälle in Hell/Dunkel bei 390 Pixel/Touch und 1440 Pixel/Maus einschließlich Fokus und AXE erfolgreich; Angular-Produktionsbau, Formatierung und gezieltes Lint bestanden. Fortsetzung des eigenen, noch nicht veröffentlichten Zweigs `juna/vinted-listing-actions` nach frischem GitHub-Abgleich.
+
+## 2026-10-26 - Juna - Kleiderschrankliste und direkte Preisaktion ergänzen
+
+**Auftrag:** Kleiderschrank anhand der gezeigten Referenz übersichtlicher darstellen, Preise direkt aus Liste und Raster ändern und die Herkunft der Altersangaben prüfen. Kein Drawer. Nach ausdrücklicher Rückmeldung „Neu“ für belegte Veröffentlichungen unter 24 Stunden.
+
+**Änderung:** Zusammenhängende Desktopliste mit Artikel, Status/Aktivität, Preis und Aktionen; schmale Ansichten bleiben ohne horizontales Scrollen bedienbar. Preisbutton außerhalb des Artikellinks in beiden Ansichten. Bestehenden Preisdialog und Preisablauf aus der Detailansicht gemeinsam verwendet: kein vorheriger Formularabruf, keine automatische Wiederholung, Preis erst nach Anbieterbestätigung übernehmen, Eingabe bei Fehler und Konflikt erhalten, Doppelspeichern sperren. Konto-/Rechtewechsel und Zerstörung verwerfen verspätete Antworten. Unveränderte Konto-Hintergrundprüfungen erhalten Dialog und laufende Speicherung; unabhängigen Reviewbefund mit Regression behoben.
+
+**Zeitangaben:** Der Feed zeigt `first_seen_at` („Entdeckt“), keinen belegten Veröffentlichungszeitpunkt. Gerundete Minuten-/Stundenangaben stammen dagegen aus Vinteds Artikelseite. Im Cloudimport verhinderte ein vorhandenes Erstellungsdatum bisher deren Nachladen; diese Lücke korrigiert. Erstellung, Veröffentlichung und Import bleiben getrennt. „Neu“ nur bei bestätigtem Onlinestatus und unter 24 Stunden; bei gerundeter Angabe muss auch deren obere Altersgrenze passen. Taggenaue, unbekannte oder lediglich erstellte Artikel erhalten kein „Neu“. Vorhandene Tagesstufen bleiben bestehen.
+
+**Prüfung:** Altersgrenze und Importregression zuerst mit dem bisherigen Verhalten fehlgeschlagen. 228 betroffene Workerfälle einschließlich aller 74 Importfälle, 975 Angularfälle in 75 Dateien, 220 Modellfälle in 24 Dateien sowie 49 Auswahl-/Registrierungsprüfungen erfolgreich. Worker-Typprüfung/-Bau, Anwendungstypprüfung, gezieltes Lint, Formatierung, Suite-Audit und Shared-UI-Prüfung bestanden. 29 unterschiedliche bestehende Browserfälle der direkt betroffenen Kleiderschrank-/Arbeitsflächendateien erfolgreich; nach den letzten Anpassungen die zwölf Preis-/Darstellungsvarianten erneut erfolgreich. Preisdialog in Detail, Raster und Liste mit Fehler, erneutem Speichern, Enter, Fokusfalle, Rückfokus und AXE geprüft; Listenmatrix 320/390/834/1440 Pixel in Hell/Dunkel. Beim Ansichtswechsel wartet die unverändert strenge Breitenprüfung jetzt auf die fertige Darstellung. Keine Prüflimits gelockert. Neuer Badge-Browsernachweis anfangs mit dem falschen Testdatenfeld versehen; an die bestehende Snapshot-Schnittstelle (`occurredAt`) angepasst, keine Produktlogik dafür geändert. Produktionsbau einschließlich Angular-Vorlagen vor Übergabe erneut geprüft.
+
+**Grenzen:** Keine echte Vinted-Speicherung ausgeführt, kein Preis im produktiven Konto geändert. Fehlende Anbieterangaben werden nicht erfunden; ergänzte Altersangaben erscheinen nach dem nächsten erfolgreichen Kontoabruf mit dem aktualisierten Worker. Keine Schemaänderung und keine neue Abhängigkeit. Browser-Plugin nicht verfügbar; vorhandene Playwright-Vorschau unter Windows/Chromium genutzt, keine native Safari-/Geräteprüfung oder Linux-Wiederholung. Die echte CI-Auswahl umfasst durch das geteilte Altersmodell zusätzlich weitere Marktplatz-Browserbereiche; diese vollständige Matrix sowie die Linux-Ausführung bleiben der CI vorbehalten. Kein PWA-Lauf ausgewählt. Web-App und separaten Marketplace-Worker nach Freigabe gemeinsam veröffentlichen. Nachweise außerhalb des Repositories unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-listing-*`.
+
 ## 2026-10-25 - Juna - Vinted-Preis beim Fokussieren erhalten und Speicherung korrekt bestätigen
 
 **Auftrag:** Weiterhin fehlschlagende Speicherung im vollständigen Bearbeitungsformular und im neuen Preisdialog untersuchen und korrigieren. Betroffen laut Nutzer: Konto Flipbase, „Burberry Schal in Rot Lammwolle Vintage“.
