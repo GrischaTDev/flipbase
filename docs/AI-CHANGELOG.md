@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Badge des heute eingestellten Schals kontrollieren
+
+**Auftrag und Ergebnis:** Auf Nachfrage die tatsächliche Anzeige des beigen Burberry-Schals im Wiehen Store geprüft. Der bestehende angemeldete Chrome-Tab zeigt beim Artikel „Burberry Schal in Beige Lammwolle Vintage“ weiterhin „Alter unbekannt“, kein „Neu“. Die gezielte lesende Datenbankkontrolle bestätigt `publicationState=active`, aber weder `occurredAt` noch `createdAt` oder `publicationAge`. Damit fehlt der bestehenden Anzeige die Altersgrundlage. Der erfolgreiche Worker-Rollout und der frühere allgemeine Live-Abruf belegen keine erfolgreiche Altersübernahme dieses einzelnen Artikels. Keine Aussage über die Ursache des fehlenden Anbieterwerts getroffen.
+
+**Grenzen:** Ausschließlich geprüft und protokolliert. Kein Anbieterabruf, keine produktive Datenänderung, keine Konto-/Zeitplanänderung und kein Produktcode verändert. Im Browser nur den bereits geöffneten Kleiderschrank gelesen; weder neu geladen noch ein Formular geöffnet. Formatierung und Dokumentationsauswahl geprüft.
+
 ## 2026-10-26 - Juna - Vinted-Alterskorrektur im Worker veröffentlichen
 
 **Auftrag:** Nach Merge von PR 478 auch den Worker aktualisieren und den Erfolg der App-Veröffentlichung prüfen.
