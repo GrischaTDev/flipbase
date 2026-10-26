@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Kleiderschrankänderungen für PR und Merge freigeben
+
+**Freigabe:** Nutzer hat nach Ansicht der Rastervorschau ausdrücklich PR-Erstellung und Merge nach erfolgreichen Tests beauftragt. Eigenen sauberen Zweig nach erneutem GitHub-Abgleich zur Veröffentlichung vorbereitet. Der zuvor dokumentierte lokale Prüfumfang bleibt gültig; seitdem ausschließlich das geprüfte Preis-Icon und die Vorschau-Dokumentation ergänzt. PR gegen `master`, vollständige ausgewählte Pflichtprüfungen abwarten, nur bei Erfolg mit Merge-Commit integrieren und anschließend ausschließlich den eigenen Aufgabenbranch lokal und remote entfernen. Kein zusätzliches Worktree für diese Aufgabe erstellt; fremde Arbeitskopien bleiben erhalten.
+
 ## 2026-10-26 - Juna - Rasteransicht mit Preis-Icon zeigen
 
 **Auftrag und Nachweis:** Auf Nachfrage die aktuelle Rasteransicht mit vier ausdrücklich künstlichen Artikeln und den vorhandenen Bildplatzhaltern gerendert. Ausschnitt unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-grid-preview/grid-cards-dark.png`, vollständige Ansicht im selben Ordner. Dunkles Farbschema, vier Karten, Preisaktion ohne sichtbaren Text mit genau einem Euro-Icon und Tooltip „Preis ändern“ geprüft. Keine Produktänderung; keine echten Kontodaten oder Vinted-Schreibzugriffe. Vorschau und Hilfsskript außerhalb des Repositories.
