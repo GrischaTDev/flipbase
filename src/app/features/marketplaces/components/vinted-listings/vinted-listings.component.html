@@ -86,7 +86,7 @@
           [class]="
             viewMode() === 'grid'
               ? 'block min-w-0 flex-1 rounded-t-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary'
-              : 'grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary xl:grid-cols-[minmax(0,1fr)_12rem_7rem] xl:gap-4 xl:px-0 xl:py-4'
+              : 'grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary xl:grid-cols-[minmax(0,1fr)_12rem_7rem] xl:gap-4 xl:px-0 xl:py-4'
           "
           [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
         >
@@ -191,7 +191,7 @@
               </div>
             </div>
             <div
-              class="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 xl:col-span-1 xl:flex-col xl:items-start"
+              class="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs xl:col-span-1 xl:flex-col xl:items-start"
             >
               <div class="flex flex-wrap items-center gap-2">
                 @if (publicationBadge(entry.publicationState); as badge) {

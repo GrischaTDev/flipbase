@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Mobile Listenhöhe nach Linux-CI korrigieren
+
+**Befund:** In [PR 478](https://github.com/GrischaTDev/flipbase/pull/478) bestand der erste große Browserlauf, aber der Lauf der geänderten Datei scheiterte bei 320 Pixel/Hell: Listenlink 144 statt weniger als 130 Pixel hoch. Unter Linux erbt die Statusgruppe 16px/24px, wodurch die umgebrochenen Badges und Kennzahlen zusammen 52 Pixel benötigen. Mit Node 22.23.3, Playwright 1.62.1 und identischer Sperrdatei in einem isolierten Linux-Container bei zwei CPUs/vier GiB exakt nachgestellt. Die vollständige Quellkopie enthält auch versteckte Konfigurationen; die Windows-Vorschau wurde ausschließlich über einen lokalen Container-Portweiterleiter gelesen.
+
+**Korrektur:** Statusgruppe ausdrücklich auf die vorhandene kleine Textrolle gesetzt; vertikale mobile Innenabstände und Zeilenabstand verkleinert. Gleicher Linux-Fall misst jetzt 123 Pixel. Desktop-Abstände, Inhalte, Aktionsflächen, Fokus und die unveränderte 130-Pixel-Prüfung bleiben erhalten. Unabhängiger Nachreview ohne Befund.
+
+**Prüfung:** Alle 23 Fälle der betroffenen Inseratdatei unter Linux erfolgreich, einschließlich 320/390/834/1440 Pixel, Hell/Dunkel, Preisdialog, Fokus und AXE. Unter Windows beide direkt betroffenen Browserdateien mit 29 erfolgreichen Fällen; 59 bestehende Angularfälle erfolgreich. Gezieltes HTML-Lint und Formatierung bestanden; Produktionsbau vor dem Korrekturpush erneut geprüft. Keine zusätzliche Testdefinition, kein abgeschwächter Grenzwert und kein unveränderter CI-Wiederholungsversuch. Temporäre Nachweise unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-pr478-*`. Für den geänderten Aufgabenstand die ausgewählten CI-Prüfungen erneut abwarten.
+
 ## 2026-10-26 - Juna - Kleiderschrankänderungen für PR und Merge freigeben
 
 **Freigabe:** Nutzer hat nach Ansicht der Rastervorschau ausdrücklich PR-Erstellung und Merge nach erfolgreichen Tests beauftragt. Eigenen sauberen Zweig nach erneutem GitHub-Abgleich zur Veröffentlichung vorbereitet. Der zuvor dokumentierte lokale Prüfumfang bleibt gültig; seitdem ausschließlich das geprüfte Preis-Icon und die Vorschau-Dokumentation ergänzt. PR gegen `master`, vollständige ausgewählte Pflichtprüfungen abwarten, nur bei Erfolg mit Merge-Commit integrieren und anschließend ausschließlich den eigenen Aufgabenbranch lokal und remote entfernen. Kein zusätzliches Worktree für diese Aufgabe erstellt; fremde Arbeitskopien bleiben erhalten.
