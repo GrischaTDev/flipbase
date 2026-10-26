@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Vinted-Alterskorrektur im Worker veröffentlichen
+
+**Auftrag:** Nach Merge von PR 478 auch den Worker aktualisieren und den Erfolg der App-Veröffentlichung prüfen.
+
+**Ergebnis:** App v0.378.0 öffentlich auf Commit `61aa3b725f72bf5e977afde2bf05982584648a91` bestätigt. Worker, Broker und Browserabbild aus demselben geprüften Commit manuell gebaut, vollständig geprüft und anhand fester Digests umgestellt. Vorher-/Nachhervergleich ausschließlich vier Imagezuordnungen; private Konfiguration gesichert. Kontofreigaben, Zeitpläne, Profile und bestehende Pausen erhalten. Neuer Worker gesund, öffentlicher Healthcheck HTTP 200, anonymer Abrufstart weiterhin HTTP 401. Keine produktive Schreibaktion oder zusätzliche Datenbankänderung. Betriebs- und Rückwegnachweis im [Rolloutbericht](audit/2026-10-26-vinted-publication-age-rollout.md).
+
+**Liveprüfung:** Erster regulärer Flipbase-Abruf nach dem Wechsel um 21:35 Uhr Europe/Berlin erfolgreich, ohne Fehlercode: Profil, 15 Inserate, 84 Gespräche und Bewertungen vollständig, Nachrichten/Verkäufe weiterhin Teilstände. Anschließend keine offene Sitzung, kein wartender/laufender Abruf und kein verbliebener Browsercontainer; Worker und Broker ohne Neustart. Alle drei Veröffentlichungsworkflows erfolgreich. Bericht formatiert, Unterschiede kontrolliert und ausschließlich Dokumentation als Prüfumfang bestätigt. Keine Zugangsdaten oder privaten Konfigurationsinhalte im Repository.
+
 ## 2026-10-26 - Juna - Mobile Listenhöhe nach Linux-CI korrigieren
 
 **Befund:** In [PR 478](https://github.com/GrischaTDev/flipbase/pull/478) bestand der erste große Browserlauf, aber der Lauf der geänderten Datei scheiterte bei 320 Pixel/Hell: Listenlink 144 statt weniger als 130 Pixel hoch. Unter Linux erbt die Statusgruppe 16px/24px, wodurch die umgebrochenen Badges und Kennzahlen zusammen 52 Pixel benötigen. Mit Node 22.23.3, Playwright 1.62.1 und identischer Sperrdatei in einem isolierten Linux-Container bei zwei CPUs/vier GiB exakt nachgestellt. Die vollständige Quellkopie enthält auch versteckte Konfigurationen; die Windows-Vorschau wurde ausschließlich über einen lokalen Container-Portweiterleiter gelesen.
