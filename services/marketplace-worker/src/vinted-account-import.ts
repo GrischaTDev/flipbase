@@ -1196,9 +1196,11 @@ export async function readVintedAccountImport(
     })
     .sort((left, right) => left.checkedAt - right.checkedAt);
   // Alle fehlenden Angaben ergänzen; gespeicherte Alterswerte nicht erneut lesen.
-  // Nur erfolglose Versuche erhalten ihre bisherige tägliche Wiederholgrenze.
+  // Fehlende Angaben stündlich erneut prüfen, damit ein erster Fehlversuch das Neu-Badge
+  // nicht den gesamten ersten Tag verhindert. Erfolgreich gelesene Angaben bleiben im Cache.
+  const publicationAgeRetryInterval = 60 * 60 * 1000;
   for (const candidate of candidatesForAge.filter(
-    (entry) => Date.parse(observedAt) - entry.checkedAt >= 24 * 60 * 60 * 1000,
+    (entry) => Date.parse(observedAt) - entry.checkedAt >= publicationAgeRetryInterval,
   )) {
     await atImportStage('publications', authorize);
     const cached = publicationAges.get(candidate.id)!;

@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Fehlendes Vinted-Alter noch am selben Tag erneut lesen
+
+**Auftrag und Befund:** Fehlende Altersangabe des beigen Burberry-Schals im Wiehen Store untersuchen und das korrekte Neu-Badge ermöglichen. Der gespeicherte Artikel ist aktiv, hat aber keinen Alterswert; `publicationAgeCheckedAt` steht auf `2026-10-26T06:03:25.411Z`. Die echte Vinted-Artikelseite zeigt inzwischen „Hochgeladen: 16 h“. Die vorhandene 24-Stunden-Wartezeit nach einem erfolglosen Versuch verhindert bis zum nächsten Morgen jede erneute Auslesung. Damit ist das Fortbestehen der Lücke belegt; weshalb der erste Versuch leer blieb, ist rückwirkend nicht nachgewiesen. Weitergehende DOM-Diagnose der Vinted-Seite wurde durch eine offene Erweiterungsoberfläche in Chrome blockiert; diese Sperre nicht umgangen.
+
+**Korrektur:** Nur fehlende Altersangaben dürfen nach einer Stunde erneut gelesen werden. Bekannte Werte bleiben im Cache; keine Wiederholung bei jedem Kontosync. Entwürfe, versteckte/beendete Artikel, Kontofreigaben und Sperr-/Rate-Limit-Verhalten unverändert. Kein künstliches Veröffentlichungsdatum und keine manuelle Änderung des gespeicherten Artikelalters.
+
+**Prüfung:** Zwei Regressionen reproduzierten zunächst die ausbleibende Auslesung. Danach alle 76 Importfälle und 230 betroffene Workerfälle erfolgreich; zehn bestehende Worker-Browserfälle unter Windows und Linux erfolgreich. Linux mit Node 22.23.3, Playwright 1.63.0, identischen Sperrdateien, vollständiger Quellkopie einschließlich versteckter Konfigurationen und zwei CPUs/vier GiB. 49 Auswahl-/Registrierungsprüfungen, Suite-Audit, gezieltes Lint, Formatierung, Worker-Typprüfung und Worker-Bau bestanden. Unabhängiger Review ohne Finding, Importdatei zusätzlich eigenständig erfolgreich geprüft. Tatsächliche CI-Auswahl ausschließlich Marketplace-Prüfungen, keine Frontend-, PWA- oder Datenbankänderung. Nachweise unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-scarf-age-*`.
+
 ## 2026-10-26 - Juna - Badge des heute eingestellten Schals kontrollieren
 
 **Auftrag und Ergebnis:** Auf Nachfrage die tatsächliche Anzeige des beigen Burberry-Schals im Wiehen Store geprüft. Der bestehende angemeldete Chrome-Tab zeigt beim Artikel „Burberry Schal in Beige Lammwolle Vintage“ weiterhin „Alter unbekannt“, kein „Neu“. Die gezielte lesende Datenbankkontrolle bestätigt `publicationState=active`, aber weder `occurredAt` noch `createdAt` oder `publicationAge`. Damit fehlt der bestehenden Anzeige die Altersgrundlage. Der erfolgreiche Worker-Rollout und der frühere allgemeine Live-Abruf belegen keine erfolgreiche Altersübernahme dieses einzelnen Artikels. Keine Aussage über die Ursache des fehlenden Anbieterwerts getroffen.
