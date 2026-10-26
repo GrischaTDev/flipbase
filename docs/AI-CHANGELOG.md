@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Beiges Burberry-Inserat nach Worker-Korrektur live bestätigen
+
+**Ergebnis:** PR 481 nach erfolgreichen Pflichtprüfungen mit Merge-Commit integriert. Worker, Broker und Browserabbild aus genau diesem Stand veröffentlicht und anhand fester Digests sowie der Importmodul-Prüfsummen kontrolliert. Private Konfiguration gesichert; ausschließlich vier Imagezuordnungen geändert. Kontofreigaben, Zeitpläne und bestehende Pausen unverändert. Dienste gesund beziehungsweise laufend, ohne Neustart; öffentlicher Healthcheck erfolgreich und anonymer Abrufstart weiterhin HTTP 401.
+
+**Tatsächlicher Nachweis:** Erster regulärer Wiehen-Store-Abruf mit neuem Worker von 23:24:40 bis 23:24:54 Uhr Europe/Berlin erfolgreich. Beim beigen Burberry-Schal steht nun der belegte Anbieterwert `16 hour`, beobachtet um `2026-10-26T22:24:45.484Z`. Kein Veröffentlichungs-/Erstellungszeitpunkt erfunden oder manuell in der Datenbank geändert. Der bestehende angemeldete Kleiderschrank zeigt anschließend **Neu** in Grün; sichtbaren Text, berechnete Textfarbe und Screenshot geprüft. Nach Abschluss keine offene Sitzung, kein offener Abruf und kein Browsercontainer. Betriebsnachweis und Rückweg im [Rolloutbericht](audit/2026-10-26-vinted-scarf-age-rollout.md). Produktzweig lokal und remote entfernt, fremde Arbeitskopie erhalten. Für diesen Nachweis ausschließlich Dokumentationsauswahl und Formatierung prüfen.
+
 ## 2026-10-26 - Juna - Fehlendes Vinted-Alter noch am selben Tag erneut lesen
 
 **Auftrag und Befund:** Fehlende Altersangabe des beigen Burberry-Schals im Wiehen Store untersuchen und das korrekte Neu-Badge ermöglichen. Der gespeicherte Artikel ist aktiv, hat aber keinen Alterswert; `publicationAgeCheckedAt` steht auf `2026-10-26T06:03:25.411Z`. Die echte Vinted-Artikelseite zeigt inzwischen „Hochgeladen: 16 h“. Die vorhandene 24-Stunden-Wartezeit nach einem erfolglosen Versuch verhindert bis zum nächsten Morgen jede erneute Auslesung. Damit ist das Fortbestehen der Lücke belegt; weshalb der erste Versuch leer blieb, ist rückwirkend nicht nachgewiesen. Weitergehende DOM-Diagnose der Vinted-Seite wurde durch eine offene Erweiterungsoberfläche in Chrome blockiert; diese Sperre nicht umgangen.
