@@ -2015,6 +2015,94 @@ test('publication age is read even when the wardrobe already supplies a creation
   });
 });
 
+test('missing scarf age is retried on the same day after an unsuccessful morning read', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-26T22:00:00Z') });
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [{ id: 41, user_id: 123, is_visible: true }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/items/41') return { publicationAgeLabel: '16 h' };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        {
+          externalId: '41',
+          publicationState: 'active',
+          occurredAt: null,
+          publicationAge: null,
+          checkedAt: '2026-10-26T06:03:25.411Z',
+        },
+      ],
+    },
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    ['/items/41'],
+  );
+  const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+  assert.deepEqual(entry.body['publicationAge'], {
+    value: 16,
+    unit: 'hour',
+    observedAt: snapshot.observedAt,
+  });
+  assert.equal(entry.body['publicationAgeCheckedAt'], snapshot.observedAt);
+  assert.equal(entry.body['occurredAt'], null);
+});
+
+test('missing ages retry at the hourly boundary without reading on every sync', async (t) => {
+  const now = Date.parse('2026-10-26T22:00:00Z');
+  t.mock.timers.enable({ apis: ['Date'], now });
+  for (const elapsed of [10 * 60_000, 3_599_999, 3_600_000]) {
+    const paths: string[] = [];
+    const checkedAt = new Date(now - elapsed).toISOString();
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/wardrobe/'))
+          return {
+            items: [{ id: 41, user_id: 123, is_visible: true }],
+            pagination: { total_pages: 1 },
+          };
+        if (path === '/items/41') return { publicationAgeLabel: null };
+        return undefined;
+      }),
+      async () => undefined,
+      undefined,
+      [],
+      undefined,
+      {
+        previousPublications: [
+          {
+            externalId: '41',
+            publicationState: 'active',
+            occurredAt: null,
+            publicationAge: null,
+            checkedAt,
+          },
+        ],
+      },
+    );
+    const retried = elapsed >= 3_600_000;
+    assert.deepEqual(
+      paths.filter((path) => path.startsWith('/items/')),
+      retried ? ['/items/41'] : [],
+    );
+    const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+    assert.equal(entry.body['publicationAge'], null);
+    assert.equal(entry.body['publicationAgeCheckedAt'], retried ? snapshot.observedAt : checkedAt);
+  }
+});
+
 test('publication enrichment keeps old cached ages and enriches every missing item', async () => {
   const paths: string[] = [];
   const observedAt = '2026-01-01T10:00:00Z';
