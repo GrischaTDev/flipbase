@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-26 - Juna - Preisaktion im Kleiderschrank als Icon anzeigen
+
+**Auftrag und Änderung:** Auf Nutzerwunsch den sichtbaren Text „Preis ändern“ in Raster und Liste durch ein einzelnes Euro-Icon ersetzt. Gemeinsame Tabellenaktionsvariante verwendet; Tooltip „Preis ändern“, artikelbezogener Screenreadername und Touch-Trefferfläche erhalten. Preisdialog und Speicherung unverändert.
+
+**Prüfung:** Alle vier bestehenden Preisdialogfälle in Hell/Dunkel bei 390 Pixel/Touch und 1440 Pixel/Maus einschließlich Fokus und AXE erfolgreich; Angular-Produktionsbau, Formatierung und gezieltes Lint bestanden. Fortsetzung des eigenen, noch nicht veröffentlichten Zweigs `juna/vinted-listing-actions` nach frischem GitHub-Abgleich.
+
 ## 2026-10-26 - Juna - Kleiderschrankliste und direkte Preisaktion ergänzen
 
 **Auftrag:** Kleiderschrank anhand der gezeigten Referenz übersichtlicher darstellen, Preise direkt aus Liste und Raster ändern und die Herkunft der Altersangaben prüfen. Kein Drawer. Nach ausdrücklicher Rückmeldung „Neu“ für belegte Veröffentlichungen unter 24 Stunden.

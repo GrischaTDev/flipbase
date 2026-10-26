@@ -12,7 +12,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideLayoutGrid, LucideList, LucidePencil } from '@lucide/angular';
+import { LucideLayoutGrid, LucideList, LucideBadgeEuro } from '@lucide/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -55,7 +55,7 @@ export class VintedListingsComponent {
   readonly viewMode = signal<'grid' | 'list'>('grid');
   readonly gridIcon = LucideLayoutGrid;
   readonly listIcon = LucideList;
-  readonly priceIcon = LucidePencil;
+  readonly priceIcon = LucideBadgeEuro;
   readonly store = inject(MarketplaceAccountStore);
   readonly statistics = inject(MarketplaceListingStatisticsStore);
   private readonly workspace = inject(WorkspaceService);

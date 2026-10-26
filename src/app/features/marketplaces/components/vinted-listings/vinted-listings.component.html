@@ -236,14 +236,15 @@
         >
           @if (priceEditor.available(entry)) {
             <app-button
-              variant="secondary"
+              variant="table-action"
               size="slim"
               [icon]="priceIcon"
+              [iconOnly]="true"
+              title="Preis ändern"
               [ariaLabel]="'Preis für ' + entry.title + ' ändern'"
               ariaHaspopup="dialog"
               (clicked)="changePrice(entry, $event)"
-              >Preis ändern</app-button
-            >
+            />
           }
           <app-listing-transfer-action
             [compact]="true"
