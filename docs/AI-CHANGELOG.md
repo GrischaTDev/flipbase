@@ -14,6 +14,10 @@
 
 **Integration:** Nutzer hat Branch-Push, PR und Merge nach erfolgreichen Pflichtprüfungen einschließlich anschließender Bereinigung ausdrücklich freigegeben. Der Zweig `juna/message-action-queue` basiert weiterhin direkt auf aktuellem `origin/master`; lokale Prüfungen gelten unverändert für den Produktcode. Arbeitsplan und Fortsetzung im [Arbeitsplan](superpowers/plans/2026-10-27-message-action-queue.md). Die konkrete Ursache der ursprünglich gemeldeten produktiven Angebotsaktion ist durch diese Featurearbeit nicht nachgewiesen. Flipbase fehlt weiterhin im verbundenen Lissie-Projektverzeichnis; dort kein Projektbericht möglich.
 
+**CI-Testvorbereitung:** Der umfassende Angular-Lauf in PR 484 fand im bestehenden Vinted-Arbeitsflächentest eine noch nicht registrierte HTML-Ressource der neuen Aktionskomponente. Den Fehler lokal nachgestellt und ausschließlich die Testregistrierung sowie die zugehörigen API-/Darstellungs-Fixtures ergänzt. Danach alle 50 bestehenden Arbeitsflächenfälle lokal erfolgreich; Formatierung und gezieltes Lint bestanden. Keine Änderung am Produktverhalten oder Abschwächung einer Prüfung.
+
+**PWA-Nachprüfung:** Der erste CI-Lauf blieb im zweiten Android-PWA-Tab unerwartet auf dem Dashboard statt im Einkaufsformular. Der vollständige unveränderte betroffene Test besteht unter Linux mit Node 22.23.3, gesperrtem Playwright 1.62.1/Chromium 1234, zwei CPUs und vier GiB sowie echten getrennten Produktionsbauten. Auch die gezielte Navigation besteht unter Windows und Linux. Keine belegte Ursache für die einmalige Weiterleitung und deshalb keine künstliche Produkt- oder Testkorrektur; erneuter vollständiger CI-Nachweis auf dem ohnehin korrigierten Angular-Teststand erforderlich.
+
 ## 2026-10-27 - Juna - Vinted-Profil vollständig bearbeiten
 
 **Auftrag:** Das Profil nach dem abgestimmten Mockup modernisieren und nach ausdrücklicher Nutzerfreigabe auch die Backend-Anbindung um zusätzliche bearbeitbare Felder erweitern.

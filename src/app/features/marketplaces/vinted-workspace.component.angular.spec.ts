@@ -18,6 +18,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import axe from 'axe-core';
 import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { AuthService } from '../../core/services/auth.service';
+import { ActionOverviewPreferencesService } from '../../core/services/action-overview-preferences.service';
+import { VintedActionOverviewApiService } from './services/vinted-action-overview-api.service';
+import { VintedActionOverviewComponent } from './components/vinted-action-overview/vinted-action-overview.component';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { MarketplaceApiError, MarketplaceApiService } from './services/marketplace-api.service';
 import { MarketplaceCloudSetupApiService } from './services/marketplace-cloud-setup-api.service';
@@ -166,6 +169,10 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    {
+      type: VintedActionOverviewComponent,
+      path: 'src/app/features/marketplaces/components/vinted-action-overview/vinted-action-overview.component.ts',
+    },
     ...vintedProfileEditorRendering,
     {
       type: SummaryMetricComponent,
@@ -346,6 +353,15 @@ beforeEach(() => {
   };
   TestBed.configureTestingModule({
     providers: [
+      { provide: ActionOverviewPreferencesService, useValue: { enabled: signal(false) } },
+      {
+        provide: VintedActionOverviewApiService,
+        useValue: {
+          read: vi
+            .fn()
+            .mockImplementation(async (scope: AccountScope) => ({ ...scope, actions: [] })),
+        },
+      },
       {
         provide: VintedMessagingApiService,
         useValue: { read: vi.fn().mockResolvedValue([]), enqueue: vi.fn() },
