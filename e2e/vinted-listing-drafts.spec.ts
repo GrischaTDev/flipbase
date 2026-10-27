@@ -11,6 +11,33 @@ async function saveDraft(page: Page) {
   await expect(editor.getByText('Entwurf gespeichert', { exact: true })).toBeVisible();
 }
 
+async function mockShoeCategories(page: Page) {
+  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+    route.fulfill({
+      json: {
+        id: 1,
+        refreshed_at: '2026-10-09T12:00:00Z',
+        requested_at: null,
+        last_attempt_at: null,
+        category_count: 3,
+        last_error: null,
+      },
+    }),
+  );
+  await page.route('**/rest/v1/vinted_categories*', (route) =>
+    route.fulfill({
+      json:
+        Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
+          ? []
+          : [
+              { id: 1, parent_id: null, title: 'Damen', path: 'Damen' },
+              { id: 2, parent_id: 1, title: 'Schuhe', path: 'Damen > Schuhe' },
+              { id: 3, parent_id: 2, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker' },
+            ],
+    }),
+  );
+}
+
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
 for (const width of [390, 1440]) {
@@ -1665,24 +1692,14 @@ for (const width of [1440, 390]) {
         state.draft().content = {
           ...state.draft().content,
           title: 'Nike Sneaker',
-          categoryId: 2,
-          categoryLabel: 'Damen > Schuhe',
+          categoryId: 3,
+          categoryLabel: 'Damen > Schuhe > Sneaker',
           brandId: 53,
           brandLabel: 'Nike',
           sizeId: null,
           sizeLabel: '',
         };
-        await page.route('**/rest/v1/vinted_categories*', (route) =>
-          route.fulfill({
-            json:
-              Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
-                ? []
-                : [
-                    { id: 1, parent_id: null, title: 'Damen', path: 'Damen' },
-                    { id: 2, parent_id: 1, title: 'Schuhe', path: 'Damen > Schuhe' },
-                  ],
-          }),
-        );
+        await mockShoeCategories(page);
         await page.route('**/functions/v1/vinted-brand-search', (route) =>
           route.fulfill({ json: { brands: [{ id: 53, name: 'Nike' }] } }),
         );
@@ -1746,3 +1763,57 @@ for (const width of [1440, 390]) {
     }
   });
 }
+
+test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Schuhart @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page);
+  await mockShoeCategories(page);
+  let categoryUnavailable = true;
+  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+    categoryUnavailable
+      ? route.fulfill({ status: 503, json: { message: 'Kategorien nicht erreichbar' } })
+      : route.fallback(),
+  );
+  state.draft().content = {
+    ...state.draft().content,
+    categoryId: 2,
+    categoryLabel: 'Damen > Schuhe',
+    sizeId: null,
+    sizeLabel: '',
+  };
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  const retry = editor.getByRole('button', { name: 'Kategorien erneut laden', exact: true });
+  await expect(retry).toBeVisible();
+  await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await expect(
+    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
+  ).toHaveCount(0);
+  categoryUnavailable = false;
+  await retry.click();
+  await expect(retry).toHaveCount(0);
+  await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+    'Meine Jako-Jacke',
+  );
+  await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await expect(
+    editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
+  ).toHaveCount(0);
+  await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+  await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schuhe');
+  await expect(page.getByRole('option', { name: 'Schuhe', exact: true })).toHaveCount(0);
+  await page.getByRole('option', { name: /Sneaker/ }).click();
+  await expect(
+    editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
+  ).toHaveCount(0);
+  const size = editor.getByRole('combobox', { name: 'Größe', exact: true });
+  await size.click();
+  await page.getByRole('option', { name: '44,5', exact: true }).click();
+  await expect(size).toHaveValue('44,5');
+  expect(state.enqueues).toEqual([]);
+  expect(state.draft().content.categoryId).toBe(2);
+});

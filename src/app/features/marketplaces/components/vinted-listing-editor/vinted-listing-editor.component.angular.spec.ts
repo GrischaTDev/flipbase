@@ -189,6 +189,39 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it.each(['loading', 'failed'])(
+    'beauftragt ohne bestätigte Kategorie auch bei %s keinen vollständigen Entwurf',
+    async (state) => {
+      const f = setup();
+      await settle();
+      publicationInput(f);
+      await f.component.save();
+      expect(f.component.canPreparePublication()).toBe(true);
+      f.component.categories.set([]);
+      if (state === 'failed') f.component.categoryError.set('Kategorien nicht erreichbar');
+      expect(f.component.fieldErrors()['category']).toBeTruthy();
+      expect(f.component.canPreparePublication()).toBe(false);
+      await f.component.openPublication();
+      expect(f.component.publication()).toBeNull();
+      f.component.form.controls.title.setValue('Eingabe bleibt speicherbar');
+      await f.component.save();
+      expect(f.component.draft()?.content.title).toBe('Eingabe bleibt speicherbar');
+    },
+  );
+  it('zeigt bei einer gespeicherten Oberkategorie die erforderliche Unterkategorie bereits im Editor an', async () => {
+    const f = setup();
+    await settle();
+    f.component.categories.set([
+      { id: 5, parentId: null, title: 'Damen', path: 'Damen' },
+      { id: 16, parentId: 5, title: 'Schuhe', path: 'Damen > Schuhe' },
+      { id: 17, parentId: 16, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker' },
+    ]);
+    f.component.form.patchValue({ categoryId: '16', connectionId: 'account-a' });
+    expect(f.component.fieldErrors()['category']).toContain('Unterkategorie');
+    expect(f.component.canSelectFields()).toBe(true);
+    f.component.form.controls.categoryId.setValue('17');
+    expect(f.component.fieldErrors()['category']).toBeUndefined();
+  });
   it('sichert auch einen unveränderten alten Entwurf vor der Prüfung mit eigenen Auswahlkennungen', async () => {
     const f = setup();
     await settle();

@@ -168,6 +168,17 @@
                 }
                 @if (categoryError()) {
                   <p role="alert" class="text-sm text-fb-critical">{{ categoryError() }}</p>
+                  <app-button
+                    variant="secondary"
+                    [disabled]="categoryLoading()"
+                    (clicked)="reloadCategories()"
+                    >Kategorien erneut laden</app-button
+                  >
+                }
+                @if (categoryLoading()) {
+                  <p role="status" class="text-sm text-fb-text-secondary">
+                    Kategorien werden geladen …
+                  </p>
                 }
                 @if (visibleFieldErrors()['category']; as message) {
                   <p class="text-xs text-fb-critical">{{ message }}</p>
