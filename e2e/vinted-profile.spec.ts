@@ -72,6 +72,7 @@ for (const width of [1440, 390, 320]) {
         await page.goto('/marketplaces/vinted/profile');
         await expect(page.locator('app-vinted-profile app-vinted-rating')).toHaveCount(0);
         await expect(page.locator('app-vinted-profile app-summary-metric')).toHaveCount(3);
+        await checkSurface(page, 'app-vinted-profile');
         await page.getByRole('button', { name: 'Profil bearbeiten', exact: true }).click();
         const dialog = page.getByRole('dialog', { name: 'Profil bearbeiten', exact: true });
         await expect(dialog).toBeVisible();

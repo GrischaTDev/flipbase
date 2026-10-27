@@ -10,6 +10,8 @@
 
 **CI-Korrektur:** Der erste Imagebau in PR 483 fand die neue Profil-Typdatei nicht, weil sie in der Docker-Kopierliste und der Kontextfreigabe fehlte. Beide Listen ergänzt; der tatsächliche Linux-Bau der Worker-Buildstufe mit Node 22.23.2 sowie sechs Tests der Image-Berechtigungen bestanden. Keine Laufzeit- oder Anbieterlogik geändert.
 
+**Barrierefreiheit:** Die bestehende Browsermatrix erkannte einen Sprung von der Seitenüberschrift direkt zu „Über dieses Konto“ als Ebene 3. Auf Ebene 2 korrigiert. Die neue Profilmatrix prüft jetzt zusätzlich die ganze Profilansicht vor dem Öffnen des Editors, damit dieser Fehler auch im gezielten Lauf auffällt. Danach alle sechs Profilfälle, sechs bestehende Arbeitsflächenfälle und der bestehende Bewertungs-/Teilfehlertest erfolgreich; letzterer gegen dieselbe Entwicklungsvorschau wie in CI, weil sein AXE-Ladeskript unter der Produktions-CSP blockiert wird. Sieben Profil-Komponententests, Produktionsbau mit Testumgebung, Formatierung und gezieltes Lint bestanden.
+
 **Live-Nachweis und Grenzen:** Vinted-Formular lesend geprüft. Ausschließlich das bestehende öffentliche Profilbild mit ausdrücklicher Nutzerfreigabe unverändert erneut hochgeladen und gespeichert; neuer Bildstand nach erneutem Öffnen bestätigt. Beschreibung, Standort, Sichtbarkeit und Sprache produktiv nicht verändert. Lokaler Zweig `juna/vinted-profile-editor` basiert auf aktuellem `origin/master`; Anwendung und Worker noch nicht veröffentlicht. Flipbase fehlt weiterhin im verbundenen Lissie-Projektverzeichnis, daher dort kein Änderungsbericht möglich.
 
 ## 2026-10-26 - Juna - Beiges Burberry-Inserat nach Worker-Korrektur live bestätigen
