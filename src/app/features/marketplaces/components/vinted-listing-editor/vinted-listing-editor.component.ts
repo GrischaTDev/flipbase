@@ -473,10 +473,11 @@ export class VintedListingEditorComponent {
       images: [...this.images()],
     });
     setTimeout(() => {
-      this.host?.nativeElement
-        .querySelector<HTMLElement>('[data-publication-review]')
-        ?.focus({ preventScroll: true });
-      this.host?.nativeElement.scrollIntoView({ block: 'start' });
+      const feedback = this.host?.nativeElement.querySelector<HTMLElement>(
+        '[data-publication-review]',
+      );
+      feedback?.focus({ preventScroll: true });
+      feedback?.scrollIntoView({ block: 'nearest' });
     });
   }
   closePublication(): void {
