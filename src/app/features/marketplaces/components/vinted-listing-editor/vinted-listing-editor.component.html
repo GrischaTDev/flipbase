@@ -1,12 +1,6 @@
 <app-entry-page-layout
-  [title]="
-    publication()
-      ? 'Inserat prüfen'
-      : openedSavedDraft()
-        ? 'Entwurf bearbeiten'
-        : 'Inserat erstellen'
-  "
-  [backLabel]="publication() ? 'Zurück zum Bearbeiten' : 'Zur Entwurfsübersicht'"
+  [title]="openedSavedDraft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
+  backLabel="Zur Entwurfsübersicht"
   (cancelled)="publication() ? returnToEditor() : cancel()"
 >
   <div entry-header-actions class="flex flex-wrap items-center gap-2">
@@ -28,29 +22,17 @@
       <app-button
         data-review-opener
         [disabled]="!canStartPublication()"
-        (clicked)="openPublication()"
-        >Weiter zur Prüfung</app-button
+        (clicked)="publishNow()"
+        >Jetzt veröffentlichen</app-button
+      >
+      <app-button
+        variant="secondary"
+        [disabled]="!canStartPublication()"
+        (clicked)="openSchedule()"
+        >Veröffentlichung planen</app-button
       >
     }
   </div>
-  <nav aria-label="Schritte der Inseraterstellung" class="mb-5">
-    <ol class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-      <li
-        [attr.aria-current]="!publication() ? 'step' : null"
-        [class.font-semibold]="!publication()"
-        class="text-fb-text-primary"
-      >
-        1. Erstellen
-      </li>
-      <li
-        [attr.aria-current]="publication() ? 'step' : null"
-        [class.font-semibold]="!!publication()"
-        class="text-fb-text-primary"
-      >
-        2. Prüfen
-      </li>
-    </ol>
-  </nav>
   @if (publicationAnnouncement()) {
     <p
       data-publication-result
@@ -78,7 +60,7 @@
   } @else if (loading()) {
     <p role="status" class="text-sm text-fb-text-secondary">Entwurf wird geladen …</p>
   } @else if (!loadError()) {
-    <div [formGroup]="form" [hidden]="!!publication()">
+    <div [formGroup]="form" [attr.inert]="publication() ? '' : null">
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
           <app-card title="Fotos">
@@ -251,29 +233,13 @@
           @if ((publicationAttempted() || saveAttempted()) && contentError()) {
             <app-notice-banner announcement="alert">{{ contentError() }}</app-notice-banner>
           }
-          @if (draft(); as savedDraft) {
-            <app-vinted-listing-job-panel
-              [workspaceId]="savedDraft.workspaceId"
-              [draftId]="savedDraft.id"
-              [draftRevision]="savedDraft.revision"
-              [draft]="savedDraft"
-              [refreshToken]="jobRefresh()"
-              [draftReady]="
-                !dirty() &&
-                !saving() &&
-                !imageEditing() &&
-                !conflict() &&
-                !loading() &&
-                !loadError()
-              "
-            />
-          }
         </div>
       </app-two-column-layout>
     </div>
   }
   @if (publication(); as opened) {
     <app-vinted-listing-publication-preview
+      [direct]="true"
       [scopeKey]="opened.scopeKey"
       [userId]="opened.userId"
       [draft]="opened.draft"
@@ -288,6 +254,15 @@
     />
   }
 </app-entry-page-layout>
+
+@if (planningPublication()) {
+  <app-vinted-listing-schedule-dialog
+    [initial]="publicationSchedule()"
+    [busy]="publicationBusy()"
+    (selected)="schedulePublication($event)"
+    (closed)="planningPublication.set(false)"
+  />
+}
 
 @if (copying() && !publication() && workspaceId(); as copyWorkspaceId) {
   <app-vinted-listing-copy-dialog
