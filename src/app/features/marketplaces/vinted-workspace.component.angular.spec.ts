@@ -18,7 +18,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import axe from 'axe-core';
 import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { AuthService } from '../../core/services/auth.service';
-import { ActionOverviewPreferencesService } from '../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../core/services/app-display-preferences.service';
 import { VintedActionOverviewApiService } from './services/vinted-action-overview-api.service';
 import { VintedActionOverviewComponent } from './components/vinted-action-overview/vinted-action-overview.component';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -353,7 +353,7 @@ beforeEach(() => {
   };
   TestBed.configureTestingModule({
     providers: [
-      { provide: ActionOverviewPreferencesService, useValue: { enabled: signal(false) } },
+      { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: signal(false) } },
       {
         provide: VintedActionOverviewApiService,
         useValue: {

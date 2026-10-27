@@ -3,7 +3,6 @@ import axe from 'axe-core';
 import { actionOverviewMessagesUrl, mockActionOverview } from './support/action-overview-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-
 async function checkAccessibility(page: Page, selector: string) {
   await page.addScriptTag({ content: axe.source });
   const violations = await page.evaluate(
@@ -17,91 +16,106 @@ async function checkAccessibility(page: Page, selector: string) {
   );
   expect(violations).toEqual([]);
 }
-async function checkGroups(overview: Locator) {
-  for (const title of [
-    'Wird ausgeführt',
-    'In der Warteschlange',
-    'Bitte prüfen',
+async function checkRunningActions(overview: Locator) {
+  await expect(overview.locator('[data-action-state="running"]')).toHaveCount(1);
+  await expect(overview.getByText('Angebot wird angenommen', { exact: true })).toBeVisible();
+  await expect(overview.getByText('Testperson 1 · 20,00 €', { exact: true })).toBeVisible();
+  await expect(
+    overview.locator('[data-action-state="running"] app-loading-indicator'),
+  ).toBeVisible();
+  await expect(
+    overview.locator('[data-action-state]:not([data-action-state="running"])'),
+  ).toHaveCount(0);
+  for (const hidden of [
+    'Testperson 2',
+    'Testperson 3',
+    'Testperson 4',
     'Zuletzt erledigt',
-  ]) {
-    await expect(overview.getByText(title, { exact: true })).toBeVisible();
-  }
-  for (const partner of ['Testperson 1', 'Testperson 2', 'Testperson 3', 'Testperson 4']) {
-    await expect(overview.locator('li').filter({ hasText: partner })).toBeVisible();
-  }
+    'In der Warteschlange',
+  ])
+    await expect(overview.getByText(hidden, { exact: false })).toHaveCount(0);
 }
-
 for (const width of [1920, 1280, 390, 320]) {
   test.describe(`Aktionsübersicht ${width}px`, () => {
     test.use({ viewport: { width, height: 1000 }, hasTouch: width <= 1280 });
     for (const theme of ['light', 'dark'] as const) {
-      test(`zeigt Statusgruppen und bedienbare Darstellung in ${theme} @marketplace-preview`, async ({
+      test(`öffnet nur laufende Aktionen am Header-Icon in ${theme} @marketplace-preview`, async ({
         page,
       }, testInfo) => {
         await mockActionOverview(page);
         await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
         await page.goto(actionOverviewMessagesUrl);
-        const desktop = page.locator('[data-action-overview-desktop]');
-        const trigger = page.getByRole('button', { name: /^Aktionen \(/ });
-        if (width === 1920) {
-          await expect(desktop).toBeVisible();
-          await expect(trigger).toBeHidden();
-          await checkGroups(desktop);
-          const position = await desktop.boundingBox();
-          expect(position?.x).toBeGreaterThan(width / 2);
-          await checkAccessibility(page, '[data-action-overview-desktop]');
-          if (theme === 'light')
-            await page.screenshot({
-              path: testInfo.outputPath('actions-desktop.png'),
-              fullPage: true,
-              animations: 'disabled',
-            });
-        } else {
-          await expect(desktop).toBeHidden();
-          await expect(trigger).toHaveAccessibleName(/Aktionen \(\d+\)/);
-          if (width <= 1280) await trigger.tap();
-          else await trigger.click();
-          const dialog = page.getByRole('dialog', { name: 'Aktionen', exact: true });
-          await expect(dialog).toBeVisible();
-          await checkGroups(dialog);
-          if (theme === 'light' && width === 390)
-            await page.screenshot({
-              path: testInfo.outputPath('actions-mobile.png'),
-              fullPage: false,
-              animations: 'disabled',
-            });
+        const trigger = page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true });
+        await expect(trigger).toBeVisible();
+        await expect(page.locator('[data-action-overview-desktop]')).toHaveCount(0);
+        await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+        await expect(page.locator('[data-action-overview-panel]')).toHaveCount(0);
+        const bell = page.getByRole('button', { name: 'Benachrichtigungen', exact: true });
+        const actionPosition = await trigger.boundingBox();
+        const bellPosition = await bell.boundingBox();
+        expect(actionPosition?.y).toBe(bellPosition?.y);
+        expect(actionPosition?.x).toBeLessThan(bellPosition?.x ?? 0);
+        if (width <= 1280) await trigger.tap();
+        else await trigger.click();
+        const overview =
+          width < 640
+            ? page.getByRole('dialog', { name: 'Laufende Aktionen', exact: true })
+            : page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+        await expect(overview).toBeVisible();
+        await checkRunningActions(overview);
+        if (width < 640) {
           await expect
-            .poll(() => dialog.evaluate((element) => element.contains(document.activeElement)))
+            .poll(() =>
+              overview.locator('[data-action-state="running"]').evaluate((row) => {
+                const bounds = row.getBoundingClientRect();
+                const navigation = document.querySelector<HTMLElement>('[data-shell-bottom-nav]');
+                const wasInert = navigation?.inert;
+                // Inert blendet überlagernde Elemente nur aus dem Treffertest aus, nicht aus dem Bild.
+                try {
+                  if (navigation) navigation.inert = false;
+                  return row.contains(
+                    document.elementFromPoint(bounds.x + bounds.width / 2, bounds.bottom - 2),
+                  );
+                } finally {
+                  if (navigation) navigation.inert = wasInert ?? false;
+                }
+              }),
+            )
             .toBe(true);
+          const position = await overview.locator('[data-modal-surface]').boundingBox();
+          if (!position) throw new Error('Mobile Aktionsansicht fehlt');
+          expect(position.width).toBeLessThanOrEqual(width);
+          expect(position.height).toBeLessThanOrEqual(850);
+          expect(Math.abs(position.y + position.height - 1000)).toBeLessThanOrEqual(2);
           for (let step = 0; step < 6; step++) {
             await page.keyboard.press('Tab');
             await expect
-              .poll(() => dialog.evaluate((element) => element.contains(document.activeElement)))
+              .poll(() => overview.evaluate((element) => element.contains(document.activeElement)))
               .toBe(true);
           }
-          await page.keyboard.press('Shift+Tab');
-          await expect
-            .poll(() => dialog.evaluate((element) => element.contains(document.activeElement)))
-            .toBe(true);
-          const position = await dialog.locator('[data-modal-surface]').boundingBox();
-          if (position && width < 640) {
-            expect(position.width).toBeLessThanOrEqual(width);
-            expect(position.height).toBeLessThanOrEqual(850);
-            expect(Math.abs(position.y + position.height - 1000)).toBeLessThanOrEqual(2);
-          }
-          await checkAccessibility(page, '[role="dialog"]');
-          await page.keyboard.press('Escape');
-          await expect(dialog).toBeHidden();
+        }
+        await checkAccessibility(
+          page,
+          width < 640 ? '[role="dialog"]' : '[data-action-overview-panel]',
+        );
+        if (theme === 'light' && (width === 1920 || width === 390))
+          await page.screenshot({
+            path: testInfo.outputPath(`actions-${width}.png`),
+            fullPage: false,
+            animations: 'disabled',
+          });
+        await page.keyboard.press('Escape');
+        await expect(overview).toBeHidden();
+        await expect(trigger).toBeFocused();
+        if (width === 1280) {
+          await trigger.tap();
+          await page.setViewportSize({ width: 390, height: 1000 });
+          await expect(page.locator('[data-action-overview-panel]')).toBeHidden();
           await expect(trigger).toBeFocused();
-          if (width === 1280) {
-            await trigger.tap();
-            await page.setViewportSize({ width: 1920, height: 1000 });
-            await expect(dialog).toBeHidden();
-            await expect(desktop).toBeVisible();
-            await expect(
-              desktop.getByRole('heading', { name: 'Aktionen', exact: true }),
-            ).toBeFocused();
-          }
+          await trigger.tap();
+          await expect(
+            page.getByRole('dialog', { name: 'Laufende Aktionen', exact: true }),
+          ).toBeVisible();
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,
@@ -111,55 +125,87 @@ for (const width of [1920, 1280, 390, 320]) {
   });
 }
 
-test('standardmäßig aus, persönlich aktivieren und nach Neuladen erhalten @marketplace-preview', async ({
+test('standardmäßig aus und erst nach Speichern appweit aktiv, auch nach Neuladen @marketplace-preview', async ({
   page,
 }) => {
   const fixture = await mockActionOverview(page, false);
-  await page.setViewportSize({ width: 1920, height: 1000 });
-  await page.goto(actionOverviewMessagesUrl);
-  await expect(page.locator('app-vinted-messages')).toBeVisible();
-  await expect(page.locator('[data-action-overview-desktop]')).toBeHidden();
-  await expect(page.locator('[data-action-overview-trigger]')).toBeHidden();
   await page.goto('/settings/app');
   const checkbox = page.getByRole('checkbox', { name: 'Aktionsübersicht anzeigen' });
+  const save = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
+  const trigger = page.getByRole('button', { name: /^Laufende Aktionen \(/ });
   await expect(checkbox).not.toBeChecked();
-  await expect(
-    page.getByText('Zeigt Dir laufende, wartende und kürzlich erledigte Aktionen.'),
-  ).toBeVisible();
-  await checkAccessibility(page, 'app-app-settings');
+  await expect(save).toBeDisabled();
+  await expect(trigger).toBeHidden();
   await checkbox.click();
+  expect(fixture.saves).toEqual([]);
+  await expect(trigger).toBeHidden();
+  await expect(save).toBeEnabled();
+  await checkAccessibility(page, 'app-app-settings');
+  await save.click();
   await expect.poll(fixture.persistedEnabled).toBe(true);
+  await expect(save).toBeDisabled();
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await checkRunningActions(page.getByRole('region', { name: 'Laufende Aktionen', exact: true }));
+  await page.keyboard.press('Escape');
   await page.reload();
   await expect(checkbox).toBeChecked();
+  await expect(trigger).toBeVisible();
   await page.goto(actionOverviewMessagesUrl);
-  await expect(page.locator('[data-action-overview-desktop]')).toBeVisible();
+  await expect(trigger).toBeVisible();
+  await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   expect(fixture.saves).toEqual([true]);
+  await page.goto('/settings/app');
+  await checkbox.click();
+  await expect(trigger).toBeVisible();
+  await save.click();
+  await expect(trigger).toBeHidden();
+  expect(fixture.saves).toEqual([true, false]);
 });
 
-test('zeigt Speicherfehler und wiederholt die persönliche Einstellung @marketplace-preview', async ({
+test('behält den Entwurf bei Speicherfehler und speichert auf erneuten Klick @marketplace-preview', async ({
   page,
 }) => {
   const fixture = await mockActionOverview(page, false);
   fixture.rejectSave(true);
   await page.goto('/settings/app');
   const checkbox = page.getByRole('checkbox', { name: 'Aktionsübersicht anzeigen' });
+  const save = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
   await checkbox.click();
+  await save.click();
   await expect(page.getByRole('alert')).toContainText('konnte nicht gespeichert werden');
+  await expect(checkbox).toBeChecked();
   expect(fixture.persistedEnabled()).toBe(false);
   fixture.rejectSave(false);
-  await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await save.click();
   await expect.poll(fixture.persistedEnabled).toBe(true);
   await expect(page.getByRole('alert')).toBeHidden();
   await page.reload();
   await expect(checkbox).toBeChecked();
 });
 
-test('stellt beauftragte Annahme nach Neuladen wieder her und trennt Abruffehler vom Auftragsstatus @marketplace-preview', async ({
+test('entfernt abgeschlossene Aktionen aus dem Panel und behält das aktivierte Icon @marketplace-preview', async ({
+  page,
+}) => {
+  const fixture = await mockActionOverview(page);
+  await page.goto('/settings/app');
+  await page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true }).click();
+  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  await checkRunningActions(overview);
+  fixture.finishActions();
+  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
+  await expect(overview.locator('[data-action-state]')).toHaveCount(0);
+  await expect(overview.getByText('Gerade läuft keine Aktion.')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
+  ).toBeVisible();
+});
+
+test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatstatus @marketplace-preview', async ({
   page,
 }) => {
   const fixture = await mockActionOverview(page);
   fixture.queueOffer();
-  await page.setViewportSize({ width: 1920, height: 1000 });
   let writes = 0;
   page.on('request', (request) => {
     if (request.url().includes('marketplace_enqueue_negotiation')) writes++;
@@ -169,14 +215,17 @@ test('stellt beauftragte Annahme nach Neuladen wieder her und trennt Abruffehler
   await expect(offer).toContainText('Annahme beauftragt');
   await expect(offer).not.toContainText('siehe Aktionen rechts');
   await expect(offer.getByRole('button', { name: 'Annehmen', exact: true })).toBeHidden();
+  await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   await page.reload();
   await expect(offer).toContainText('Annahme beauftragt');
+  await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
+  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  await expect(overview.getByText('Gerade läuft keine Aktion.')).toBeVisible();
   fixture.rejectRead(true);
-  const overview = page.locator('[data-action-overview-desktop]');
   await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
-  await expect(overview.getByRole('alert')).toContainText('nicht geladen');
-  await expect(overview.locator('[data-action-state="queued"]')).toHaveCount(2);
+  await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert');
   await expect(offer).toContainText('Annahme beauftragt');
+  await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   expect(writes).toBe(0);
 });
 
@@ -199,3 +248,56 @@ test('bietet bei fehlgeschlagener erster Wiederherstellung nur erneutes Lesen an
   await expect(offer).toContainText('Annahme beauftragt');
   expect(writes).toBe(0);
 });
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`Workspace-Auswahl ${width}px`, () => {
+    test.use({ viewport: { width, height: 1000 }, hasTouch: width < 640 });
+    test('speichert das Ausblenden erst ausdrücklich und stellt die Auswahl wieder her @marketplace-preview', async ({
+      page,
+    }) => {
+      const fixture = await mockActionOverview(page, false);
+      await page.addInitScript(
+        (theme) => localStorage.setItem('flipbase_theme', theme),
+        width === 320 ? 'dark' : 'light',
+      );
+      await page.goto('/settings/app');
+      const checkbox = page.getByRole('checkbox', { name: 'Workspace-Auswahl im Header anzeigen' });
+      const selector = page.locator('app-header button[aria-controls="header-workspace-menu"]');
+      const save = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
+      await expect(checkbox).toBeChecked();
+      await expect(selector).toBeVisible();
+      await checkbox.click();
+      await expect(selector).toBeVisible();
+      expect(fixture.workspaceSaves).toEqual([]);
+      if (width === 1440) fixture.rejectSave(true);
+      await save.click();
+      if (width === 1440) {
+        await expect(page.getByRole('alert')).toContainText('konnte nicht gespeichert werden');
+        fixture.rejectSave(false);
+        await save.click();
+      }
+      await expect.poll(fixture.persistedWorkspaceSwitcherEnabled).toBe(false);
+      await expect(selector).toBeHidden();
+      await expect(
+        page.getByRole('button', { name: 'Benachrichtigungen', exact: true }),
+      ).toBeVisible();
+      expect(fixture.persistedEnabled()).toBe(false);
+      expect(fixture.saves).toEqual([]);
+      await page.reload();
+      await expect(checkbox).not.toBeChecked();
+      await expect(selector).toBeHidden();
+      await checkAccessibility(page, 'app-app-settings');
+      await checkAccessibility(page, 'app-header');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await checkbox.click();
+      await expect(selector).toBeHidden();
+      await save.click();
+      await expect.poll(fixture.persistedWorkspaceSwitcherEnabled).toBe(true);
+      await expect(selector).toBeVisible();
+      expect(fixture.workspaceSaves).toEqual([false, true]);
+      expect(fixture.saves).toEqual([]);
+    });
+  });
+}

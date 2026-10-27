@@ -14,6 +14,7 @@ export const actionOverviewMessagesUrl = `/marketplaces/vinted/messages?connecti
 export async function mockActionOverview(page: Page, enabled = true) {
   await mockMarketplace(page, false, false, false, false, []);
   let persistedEnabled = enabled;
+  let persistedWorkspaceSwitcherEnabled = true;
   let rejectSave = false;
   let rejectRead = false;
   const observedAt = new Date().toISOString();
@@ -38,13 +39,17 @@ export async function mockActionOverview(page: Page, enabled = true) {
     }),
   );
   const saves: boolean[] = [];
+  const workspaceSaves: boolean[] = [];
   const user = () => ({
     id: '25000000-0000-4000-8000-000000000001',
     email: 'marketplace@example.test',
     aud: 'authenticated',
     role: 'authenticated',
     app_metadata: {},
-    user_metadata: { flipbase_action_overview: persistedEnabled },
+    user_metadata: {
+      flipbase_action_overview: persistedEnabled,
+      flipbase_workspace_switcher: persistedWorkspaceSwitcherEnabled,
+    },
     created_at: '2026-09-26T00:00:00Z',
   });
   await page.route('**/auth/v1/user', async (route) => {
@@ -52,10 +57,16 @@ export async function mockActionOverview(page: Page, enabled = true) {
       if (rejectSave)
         return route.fulfill({ status: 503, json: { message: 'Testverbindung unterbrochen' } });
       const requested = route.request().postDataJSON() as {
-        data?: { flipbase_action_overview?: unknown };
+        data?: { flipbase_action_overview?: unknown; flipbase_workspace_switcher?: unknown };
       };
-      persistedEnabled = requested.data?.flipbase_action_overview === true;
-      saves.push(persistedEnabled);
+      if (typeof requested.data?.flipbase_action_overview === 'boolean') {
+        persistedEnabled = requested.data.flipbase_action_overview;
+        saves.push(persistedEnabled);
+      }
+      if (typeof requested.data?.flipbase_workspace_switcher === 'boolean') {
+        persistedWorkspaceSwitcherEnabled = requested.data.flipbase_workspace_switcher;
+        workspaceSaves.push(persistedWorkspaceSwitcherEnabled);
+      }
     }
     return route.fulfill({ json: user() });
   });
@@ -184,6 +195,8 @@ export async function mockActionOverview(page: Page, enabled = true) {
   );
   return {
     saves,
+    workspaceSaves,
+    persistedWorkspaceSwitcherEnabled: () => persistedWorkspaceSwitcherEnabled,
     persistedEnabled: () => persistedEnabled,
     rejectSave: (reject: boolean) => {
       rejectSave = reject;
@@ -193,6 +206,10 @@ export async function mockActionOverview(page: Page, enabled = true) {
     },
     queueOffer: () => {
       actions[0] = { ...actions[0], state: 'queued' };
+    },
+    finishActions: () => {
+      for (let index = 0; index < actions.length; index++)
+        actions[index] = { ...actions[index], state: 'succeeded' };
     },
   };
 }

@@ -24,7 +24,7 @@ import type {
 } from '../../models/marketplace-read.models';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { VintedMessagesComponent } from './vinted-messages.component';
-import { ActionOverviewPreferencesService } from '../../../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../../../core/services/app-display-preferences.service';
 import { VintedActionOverviewApiService } from '../../services/vinted-action-overview-api.service';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -117,6 +117,7 @@ let api: {
   markConversationRead: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
+let overviewEnabled = signal(false);
 let browserApi: { readConversation: ReturnType<typeof vi.fn> };
 let local: {
   error: ReturnType<typeof signal<string | null>>;
@@ -176,6 +177,7 @@ beforeAll(async () => {
 afterAll(() => restore?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
+  overviewEnabled = signal(false);
   vi.mocked(imageCompression).mockReset();
   vi.mocked(imageCompression.getDataUrlFromFile).mockReset();
   workspace = signal({ id: accounts[0].workspaceId, archived_at: null });
@@ -224,7 +226,10 @@ beforeEach(() => {
     providers: [
       provideRouter([]),
       MarketplaceAccountStore,
-      { provide: ActionOverviewPreferencesService, useValue: { enabled: signal(false) } },
+      {
+        provide: AppDisplayPreferencesService,
+        useValue: { actionOverviewEnabled: overviewEnabled },
+      },
       {
         provide: VintedActionOverviewApiService,
         useValue: { read: vi.fn().mockResolvedValue({ actions: [] }) },
@@ -437,20 +442,24 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     await settle(fixture);
     expect(local.openInboxConversation).toHaveBeenCalledTimes(1);
   });
-  it('kennzeichnet Cache und unbekannten Artikel neutral trotz neuer Kontosynchronisation', async () => {
-    const fixture = await render();
-    button(fixture, 'Anfrage zum Schal').click();
-    await settle(fixture);
-    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
-      'Gespeicherter Stand',
-    );
-    expect(
-      fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
-    ).not.toContain('Synchronisiert');
-    expect(fixture.nativeElement.querySelector('[data-conversation-item]')?.textContent).toContain(
-      'Artikel noch nicht geladen',
-    );
-  });
+  it.each([false, true])(
+    'kennzeichnet Cache auch mit Aktionsübersicht=%s neutral',
+    async (enabled) => {
+      overviewEnabled.set(enabled);
+      const fixture = await render();
+      button(fixture, 'Anfrage zum Schal').click();
+      await settle(fixture);
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+      ).toContain('Gespeicherter Stand');
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+      ).not.toContain('Synchronisiert');
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-item]')?.textContent,
+      ).toContain('Artikel noch nicht geladen');
+    },
+  );
   it('überträgt einen fremden lokalen Fehler nicht auf ein gespeichertes Gespräch', async () => {
     const fixture = await render();
     local.error.set('Ein anderer Abruf ist fehlgeschlagen');
@@ -460,36 +469,40 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       'Gespeicherter Stand',
     );
   });
-  it('zeigt nur den tatsächlichen Prüfzeitpunkt dieses Gesprächs als bestätigt', async () => {
-    useLocalAccount();
-    let checked = false;
-    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
-      const current = snapshot(scope);
-      return {
-        ...current,
-        conversations: {
-          ...current.conversations,
-          items: current.conversations.items.map((entry) => ({
-            ...entry,
-            detailCheckedAt: checked ? '2026-10-06T10:00:00Z' : null,
-          })),
-        },
-      };
-    });
-    const fixture = await render();
-    const entry = store.snapshot()?.conversations.items[0];
-    if (!entry) throw new Error('Testgespräch fehlt');
-    local.openInboxConversation.mockImplementation(async () => {
-      checked = true;
-      await store.refreshLocalConnection(entry, true);
-      return detailResult;
-    });
-    await fixture.componentInstance.openConversation(entry);
-    await settle(fixture);
-    const status = fixture.nativeElement.querySelector('[data-conversation-sync]');
-    expect(status?.textContent).toContain('Synchronisiert');
-    expect(status?.getAttribute('title')).toContain('06.10.2026');
-  });
+  it.each([false, true])(
+    'zeigt bestätigten Gesprächsabgleich auch mit Aktionsübersicht=%s',
+    async (enabled) => {
+      overviewEnabled.set(enabled);
+      useLocalAccount();
+      let checked = false;
+      api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+        const current = snapshot(scope);
+        return {
+          ...current,
+          conversations: {
+            ...current.conversations,
+            items: current.conversations.items.map((entry) => ({
+              ...entry,
+              detailCheckedAt: checked ? '2026-10-06T10:00:00Z' : null,
+            })),
+          },
+        };
+      });
+      const fixture = await render();
+      const entry = store.snapshot()?.conversations.items[0];
+      if (!entry) throw new Error('Testgespräch fehlt');
+      local.openInboxConversation.mockImplementation(async () => {
+        checked = true;
+        await store.refreshLocalConnection(entry, true);
+        return detailResult;
+      });
+      await fixture.componentInstance.openConversation(entry);
+      await settle(fixture);
+      const status = fixture.nativeElement.querySelector('[data-conversation-sync]');
+      expect(status?.textContent).toContain('Synchronisiert');
+      expect(status?.getAttribute('title')).toContain('06.10.2026');
+    },
+  );
   it('zeigt ein Cloud-Gespräch nach tatsächlicher Detailübernahme als synchronisiert', async () => {
     vi.mocked(store.refreshCloudConversation).mockRestore();
     let checked = false;
@@ -607,24 +620,28 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       ).not.toContain('Ungelesen');
     },
   );
-  it('behält nach abgelehntem Cloud-Abruf den gespeicherten Verlauf mit Fehlerhinweis', async () => {
-    vi.mocked(store.refreshCloudConversation).mockRestore();
-    browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));
-    const fixture = await render();
-    const entry = store.snapshot()?.conversations.items[0];
-    if (!entry) throw new Error('Testgespräch fehlt');
-    await fixture.componentInstance.openConversation(entry);
-    await settle(fixture);
-    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
-      'Aktualisierung fehlgeschlagen',
-    );
-    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
-      '<b>Hallo!</b>',
-    );
-    expect(
-      fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
-    ).not.toContain('Synchronisiert');
-  });
+  it.each([false, true])(
+    'behält fehlgeschlagenen Gesprächsabgleich auch mit Aktionsübersicht=%s',
+    async (enabled) => {
+      overviewEnabled.set(enabled);
+      vi.mocked(store.refreshCloudConversation).mockRestore();
+      browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));
+      const fixture = await render();
+      const entry = store.snapshot()?.conversations.items[0];
+      if (!entry) throw new Error('Testgespräch fehlt');
+      await fixture.componentInstance.openConversation(entry);
+      await settle(fixture);
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+      ).toContain('Aktualisierung fehlgeschlagen');
+      expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+        '<b>Hallo!</b>',
+      );
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+      ).not.toContain('Synchronisiert');
+    },
+  );
 
   it('bestätigt nach fehlgeschlagenem Snapshotlesen keinen alten Gesprächsstempel als neuen Abgleich', async () => {
     useLocalAccount();

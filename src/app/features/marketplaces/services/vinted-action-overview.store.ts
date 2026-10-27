@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
-import { ActionOverviewPreferencesService } from '../../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../../core/services/app-display-preferences.service';
 import type { VintedAction } from '../models/vinted-action-overview';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
@@ -9,7 +9,7 @@ import { VintedActionOverviewApiService } from './vinted-action-overview-api.ser
 export class VintedActionOverviewStore {
   private readonly accounts = inject(MarketplaceAccountStore);
   private readonly auth = inject(AuthService);
-  private readonly preferences = inject(ActionOverviewPreferencesService);
+  private readonly preferences = inject(AppDisplayPreferencesService);
   private readonly api = inject(VintedActionOverviewApiService);
   private readonly context = computed(() => {
     const account = this.accounts.selectedConnection();
@@ -32,7 +32,7 @@ export class VintedActionOverviewStore {
   private activeRead: { context: string; repeat: boolean } | null = null;
   private lastReadAt = 0;
   private destroyed = false;
-  readonly enabled = this.preferences.enabled;
+  readonly enabled = this.preferences.actionOverviewEnabled;
   readonly hasLoaded = computed(
     () => this.context() !== null && this.snapshot()?.context === this.context(),
   );
@@ -62,7 +62,7 @@ export class VintedActionOverviewStore {
       if (document.visibilityState === 'hidden') return;
       const interval = this.pendingCount() ? 10_000 : 60_000;
       if (
-        (this.preferences.enabled() || this.pendingCount()) &&
+        (this.preferences.actionOverviewEnabled() || this.pendingCount()) &&
         Date.now() - this.lastReadAt >= interval
       )
         void this.refresh();

@@ -5,6 +5,7 @@ import {
   Component,
   ElementRef,
   computed,
+  effect,
   inject,
   input,
   output,
@@ -35,6 +36,7 @@ import {
 } from '@lucide/angular';
 import { resolveNotificationVisual, formatNotificationTime } from './header-notification-visuals';
 import { AuthService } from '../../core/services/auth.service';
+import { AppDisplayPreferencesService } from '../../core/services/app-display-preferences.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebhookService } from '../../core/services/webhook.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -50,6 +52,7 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { MarketplaceFeedbackNotificationStore } from '../../features/marketplaces/services/marketplace-feedback-notification.store';
 import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
 import { MarketplaceMessageNotificationStore } from '../../features/marketplaces/services/marketplace-message-notification.store';
+import { VintedActionOverviewMenuComponent } from '../../features/marketplaces/components/vinted-action-overview-menu/vinted-action-overview-menu.component';
 
 export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
   return isPlatformOperator ? 'admin' : null;
@@ -65,11 +68,13 @@ export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
     LucideDynamicIcon,
     NgTemplateOutlet,
     BadgeComponent,
+    VintedActionOverviewMenuComponent,
   ],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'block',
+    '[style.z-index]': 'isMobileActionPanelOpen() ? 50 : null',
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeAllDropdowns()',
   },
@@ -78,6 +83,7 @@ export class HeaderComponent {
   readonly isSidebarOpen = input<boolean>(false);
   readonly workspaceActionsBlocked = input<boolean>(false);
   readonly auth = inject(AuthService);
+  readonly displayPreferences = inject(AppDisplayPreferencesService);
   readonly workspaceService = inject(WorkspaceService);
   readonly webhookService = inject(WebhookService);
   readonly favoriteNotifications = inject(MarketplaceFavoriteNotificationStore);
@@ -134,6 +140,10 @@ export class HeaderComponent {
   readonly workspaceContainer = viewChild<ElementRef<HTMLElement>>('workspaceContainer');
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
   readonly userContainer = viewChild<ElementRef<HTMLElement>>('userContainer');
+  private readonly actionOverviewMenu = viewChild(VintedActionOverviewMenuComponent);
+  readonly isMobileActionPanelOpen = computed(
+    () => this.actionOverviewMenu()?.mobile() && this.actionOverviewMenu()?.opened(),
+  );
 
   readonly headerAdminRole = computed(() => visibleHeaderRole(this.operatorService.operator()));
 
@@ -160,6 +170,10 @@ export class HeaderComponent {
   currentLanguage = signal<string>('de');
 
   constructor() {
+    effect(() => {
+      if (!this.displayPreferences.workspaceSwitcherEnabled())
+        this.isWorkspaceDropdownOpen.set(false);
+    });
     // Der Header verwendet dieselbe Datenbankprüfung wie der Admin-Wächter.
     // Workspace-Rollen allein verleihen keinen Zugriff auf /admin und zeigen
     // deshalb auch keinen Plattform-Admin-Badge.

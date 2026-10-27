@@ -1,0 +1,90 @@
+@if (store.enabled()) {
+  <span class="relative inline-flex">
+    <app-button
+      data-action-overview-trigger
+      size="search"
+      [icon]="queueIcon"
+      [iconOnly]="true"
+      [ariaLabel]="label()"
+      [title]="label()"
+      [ariaExpanded]="opened()"
+      ariaControls="header-action-overview"
+      [ariaHaspopup]="mobile() ? 'dialog' : null"
+      (clicked)="toggle()"
+    />
+    @if (store.count()) {
+      <span
+        aria-hidden="true"
+        class="pointer-events-none absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-fb-primary px-1 text-[10px] font-semibold text-fb-on-accent"
+        >{{ store.count() }}</span
+      >
+    }
+  </span>
+  @if (opened()) {
+    @if (mobile()) {
+      <app-modal-shell
+        id="header-action-overview"
+        title="Laufende Aktionen"
+        presentation="sheet"
+        [hasFooter]="false"
+        [closeOnBackdrop]="true"
+        (closed)="close()"
+      >
+        <ng-container [ngTemplateOutlet]="actions" />
+      </app-modal-shell>
+    } @else {
+      <section
+        id="header-action-overview"
+        data-action-overview-panel
+        aria-labelledby="header-action-overview-title"
+        class="absolute right-0 top-full z-50 mt-2 max-h-[min(70dvh,36rem)] w-[min(360px,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-xl border border-fb-border bg-fb-surface p-4 shadow-xl"
+      >
+        <header class="mb-3 flex items-center justify-between gap-2">
+          <h2
+            id="header-action-overview-title"
+            class="text-[13px] font-semibold text-fb-text-primary"
+          >
+            Laufende Aktionen
+          </h2>
+          <app-button
+            variant="ghost"
+            size="slim"
+            [icon]="closeIcon"
+            [iconOnly]="true"
+            ariaLabel="Aktionsübersicht schließen"
+            (clicked)="close()"
+          />
+        </header>
+        <ng-container [ngTemplateOutlet]="actions" />
+      </section>
+    }
+  }
+}
+<ng-template #actions>
+  <div class="space-y-3">
+    <div class="flex justify-end">
+      <app-button
+        size="slim"
+        [icon]="refreshIcon"
+        [iconOnly]="true"
+        ariaLabel="Aktionsübersicht aktualisieren"
+        [loading]="store.loading()"
+        (clicked)="store.refresh()"
+      />
+    </div>
+    @if (store.error(); as error) {
+      <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+    }
+    @for (group of store.groups(); track group.scope.connectionId) {
+      <app-vinted-action-overview [actions]="group.actions" [accountName]="group.accountName" />
+    } @empty {
+      @if (store.loading()) {
+        <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
+          <app-loading-indicator /> Aktionen werden geladen …
+        </p>
+      } @else if (!store.error()) {
+        <p role="status" class="text-[13px] text-fb-text-secondary">Gerade läuft keine Aktion.</p>
+      }
+    }
+  </div>
+</ng-template>

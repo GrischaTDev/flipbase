@@ -11,6 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TRANSLATIONS_DE, TRANSLATIONS_EN } from '../../core/i18n/translations';
 import { PageLayoutService } from '../../core/services/page-layout.service';
 import { AuthService } from '../../core/services/auth.service';
+import { AppDisplayPreferencesService } from '../../core/services/app-display-preferences.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
@@ -24,6 +25,7 @@ import type { AppNotification } from '../../core/models/webhook.models';
 import { MarketplaceFeedbackNotificationStore } from '../../features/marketplaces/services/marketplace-feedback-notification.store';
 import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
 import { MarketplaceMessageNotificationStore } from '../../features/marketplaces/services/marketplace-message-notification.store';
+import { VintedActionOverviewHeaderStore } from '../../features/marketplaces/services/vinted-action-overview-header.store';
 
 const generalNotification: AppNotification = {
   id: 'general-1',
@@ -47,6 +49,18 @@ const favoriteNotification: AppNotification = {
 describe('HeaderComponent', () => {
   beforeAll(async () => {
     const resources: Readonly<Record<string, string>> = {
+      './vinted-action-overview-menu.component.html':
+        'src/app/features/marketplaces/components/vinted-action-overview-menu/vinted-action-overview-menu.component.html',
+      './vinted-action-overview.component.html':
+        'src/app/features/marketplaces/components/vinted-action-overview/vinted-action-overview.component.html',
+      './loading-indicator.component.html':
+        'src/app/shared/components/loading-indicator/loading-indicator.component.html',
+      './notice-banner.component.html':
+        'src/app/shared/components/notice-banner/notice-banner.component.html',
+      './modal-shell.component.html':
+        'src/app/shared/components/modal-shell/modal-shell.component.html',
+      './modal-shell.component.scss':
+        'src/app/shared/components/modal-shell/modal-shell.component.scss',
       './button.component.html': 'src/app/shared/components/button/button.component.html',
       './header.component.html': 'src/app/layout/header/header.component.html',
       './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
@@ -73,6 +87,22 @@ describe('HeaderComponent', () => {
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
+        {
+          provide: AppDisplayPreferencesService,
+          useValue: { workspaceSwitcherEnabled: signal(true) },
+        },
+        {
+          provide: VintedActionOverviewHeaderStore,
+          useValue: {
+            enabled: signal(false),
+            context: signal(null),
+            count: signal(0),
+            groups: signal([]),
+            loading: signal(false),
+            error: signal(null),
+            refresh: vi.fn(),
+          },
+        },
         {
           provide: EbaySaleActivityStore,
           useValue: {
@@ -170,6 +200,24 @@ describe('HeaderComponent', () => {
     return fixture;
   }
 
+  it('blendet nur die Workspace-Auswahl aus und schließt ein zuvor geöffnetes Menü', async () => {
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const enabled = TestBed.inject(AppDisplayPreferencesService)
+      .workspaceSwitcherEnabled as ReturnType<typeof signal<boolean>>;
+    element.querySelector<HTMLButtonElement>('[aria-controls="header-workspace-menu"]')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('#header-workspace-menu')).not.toBeNull();
+    enabled.set(false);
+    fixture.detectChanges();
+    expect(element.querySelector('[aria-controls="header-workspace-menu"]')).toBeNull();
+    expect(element.querySelector('#header-workspace-menu')).toBeNull();
+    expect(element.querySelector('[aria-controls="header-notification-menu"]')).not.toBeNull();
+    enabled.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('[aria-controls="header-workspace-menu"]')).not.toBeNull();
+    expect(element.querySelector('#header-workspace-menu')).toBeNull();
+  });
   it('bietet drei Layoutbreiten mit sofortiger Auswahl und eindeutigem Zustand an', async () => {
     const fixture = await renderHeader();
     const element = fixture.nativeElement as HTMLElement;
