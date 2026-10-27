@@ -2,6 +2,8 @@
 
 ## 2026-10-27 - Juna - Inseratformular unabhängig vom Vinted-Formularabruf bereitstellen
 
+**Veröffentlichungsfreigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen, anschließende Bereinigung und ausdrücklich auch die Veröffentlichung des Vinted-Ausführers beauftragt. Web-App, Worker/Broker und getrenntes Browserabbild werden auf den zusammengehörigen freigegebenen Stand geprüft.
+
 **Auftrag und Ursache:** Beim Erstellen eines Nike-Inserats unter Damenschuhen fehlen Größe und weitere Angaben; „Weiter zur Prüfung“ scheitert mit „Vinted-Auswahl konnte nicht geladen werden“. Editor und Vorschau lesen bisher die native Vinted-Neuanlagemaske über das Zielkonto. Der Nutzer fordert ausdrücklich ein eigenes Flipbase-Formular.
 
 **Umsetzung:** Größe, Zustand, Farben, Materialien und Paketgröße entstehen aus einer eigenen lokalen Auswahl. Schuh-, Kleidungs-, Kinder-, Mützen-, Handschuh-, Gürtel- und BH-Größen sind getrennt. Das Ausfüllen benötigt kein verbundenes Vinted-Konto. Die Vorschau liest keine Anbieterformularfelder mehr; Rechte, Konto, Laufzeit und Auftragszustand bleiben geprüft. Eigene Auswahlkennungen sind durch `attributes.flipbaseListingForm = '1'` gekennzeichnet und ausdrücklich keine Anbieterkennungen. Ein alter Entwurf wird vor einem neuen Auftrag in der eigenen Formularversion gespeichert. Erst der Ausführer ordnet diese Angaben anhand eindeutiger aktueller Anbieterbeschriftungen zu und prüft vor Upload/Speichern sowie nach Speicherung den aufgelösten Inhalt. Unmarkierte alte Aufträge behalten ihre bisherige strenge Kennungsprüfung. Keine neue Datenbankmigration oder Abhängigkeit.
