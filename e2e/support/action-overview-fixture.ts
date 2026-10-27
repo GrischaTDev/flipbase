@@ -159,6 +159,19 @@ export async function mockActionOverview(page: Page, enabled = true) {
   await page.route('**/rest/v1/rpc/marketplace_read_messages', (route) =>
     route.fulfill({ json: { ok: true, ...actionOverviewScope, messages: [] } }),
   );
+  const listingJobs: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+    route.fulfill({ json: { items: listingJobs } }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_cancel_listing_job', (route) => {
+    const requested = route.request().postDataJSON() as Record<string, unknown>;
+    const job = listingJobs.find((entry) => entry['id'] === requested['p_job_id']);
+    if (!job || job['version'] !== requested['p_expected_version'])
+      return route.fulfill({ status: 409, json: { code: '40001' } });
+    job['state'] = 'cancelled';
+    job['version'] = Number(job['version']) + 1;
+    return route.fulfill({ json: job });
+  });
   const states = ['running', 'queued', 'outcome_unknown', 'succeeded'] as const;
   const actions = states.map((state, index) => {
     const sourceId = `25000000-0000-4000-8000-${String(61 + index).padStart(12, '0')}`;
@@ -196,6 +209,9 @@ export async function mockActionOverview(page: Page, enabled = true) {
   return {
     saves,
     workspaceSaves,
+    setListingJobs: (jobs: Record<string, unknown>[]) => {
+      listingJobs.splice(0, listingJobs.length, ...jobs);
+    },
     persistedWorkspaceSwitcherEnabled: () => persistedWorkspaceSwitcherEnabled,
     persistedEnabled: () => persistedEnabled,
     rejectSave: (reject: boolean) => {
