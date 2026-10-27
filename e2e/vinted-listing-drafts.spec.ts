@@ -1709,10 +1709,11 @@ for (const width of [1440, 390]) {
           title: 'Nike Sneaker',
           categoryId: 3,
           categoryLabel: 'Damen > Schuhe > Sneaker',
-          brandId: 53,
+          brandId: null,
           brandLabel: 'Nike',
           sizeId: null,
           sizeLabel: '',
+          packageSizeId: null,
         };
         await mockShoeCategories(page);
         await page.route('**/functions/v1/vinted-brand-search', (route) =>
@@ -1747,6 +1748,8 @@ for (const width of [1440, 390]) {
         ).toBeVisible();
         await saveDraft(page);
         expect(state.draft().content.sizeLabel).toBe('38');
+        expect(state.draft().content.brandId).toBeNull();
+        expect(state.draft().content.brandLabel).toBe('Nike');
         expect(state.draft().content.attributes['flipbaseListingForm']).toBe('1');
         await page.reload();
         await expect(size).toHaveValue('38');
@@ -1759,8 +1762,25 @@ for (const width of [1440, 390]) {
           .filter({ has: page.locator('#vinted-choice-size') })
           .screenshot({ path: testInfo.outputPath(`shoes-details-${width}-${theme}.png`) });
         await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+        const parcel = editor.getByRole('combobox', { name: 'Paketgröße', exact: true });
+        await expect(editor.getByText('Ergänze bitte: Paketgröße.', { exact: true })).toBeVisible();
+        await parcel.click();
+        await page.getByRole('option', { name: 'Mittel', exact: true }).click();
+        await expect(parcel).toContainText('Mittel');
+        await expect(editor.getByText('Ergänze bitte: Paketgröße.', { exact: true })).toHaveCount(
+          0,
+        );
+        await expect(
+          editor.getByText('Wähle erneut bei Vinted: Marke.', { exact: true }),
+        ).toBeVisible();
+        const brand = editor.getByRole('combobox', { name: 'Marke', exact: true });
+        await brand.fill('Nike');
+        await page.getByRole('option', { name: 'Nike', exact: true }).click();
+        await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
         const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
         await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
+        expect(state.draft().content.packageSizeId).toBe(2);
+        expect(state.draft().content.brandId).toBe(53);
         await expect(
           preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
         ).toBeEnabled();
