@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-27 - Juna - Chatstatus erhalten und laufende Aktionen im Header aufklappen
+
+**Auftrag:** Nach Nutzerkorrektur bleibt die Status-/Synchronisationsanzeige im Chat unabhängig von der optionalen Aktionsübersicht sichtbar. Das appweite Icon neben der Glocke wird mit der persönlichen Einstellung aktiviert; beim Aufklappen erscheinen ausschließlich gerade laufende Aktionen. Die Einstellungsseite erhält einen ausdrücklichen Speichern-Button.
+
+**Ursache und Umsetzung:** Die bisherige Darstellungsbedingung blendete den Chatstatus bei aktivierter Übersicht aus. Diese Kopplung und die dauerhafte dritte Spalte entfallen. Ein eigener lesender Headerzustand sammelt laufende Vorgänge aller Vinted-Konten im aktuellen Workspace; wartende, unklare und abgeschlossene Vorgänge werden dort nicht als laufend gezeigt. Desktop verwendet ein kompaktes aufklappbares Panel, Mobil eine Ansicht von unten. Ohne laufenden Vorgang bleibt das aktivierte Icon mit einem Leerzustand verfügbar. Chatbelege und deren autoritative Wiederherstellung bleiben unabhängig davon. Die Checkbox wird zunächst als Formularentwurf bearbeitet und erst mit „Änderungen speichern“ über den bestehenden persönlichen Speicherweg übernommen. Nutzerwechsel verwerfen fremde Entwürfe und Antworten.
+
+**Prüfung:** Drei zunächst fehlgeschlagene Chatregressionen nach Korrektur erfolgreich. 153 betroffene Angular- und 43 Modell-/Headerprüfungen, 73 Auswahl-/Shared-UI-Prüfungen sowie 45 betroffene Browserfälle bestanden. Browser mit 1920/1280/390/320 Pixeln, Hell/Dunkel, Touch, AXE, Fokus/Escape, Größenwechsel, tatsächlichem Speichern/Deaktivieren, Neuladen, Leerzustand und Abruffehlern. Die Bildkontrolle fand zusätzlich eine Überlagerung des mobilen Panels durch die untere Navigation; mit einer tatsächlichen Treffertest-Regression reproduziert und durch den nur während des mobilen Panels angehobenen Header-Stackingkontext korrigiert. Die gesamte neue Browsermatrix danach erneut erfolgreich. Unabhängiger Review einschließlich dieser Korrektur ohne offene Befunde. Typprüfung, Formatierung, gezieltes Lint und Produktionsbau erfolgreich; bekannte Bundle-/Compilerhinweise bleiben bestehen.
+
+**Prüfumfang und Stand:** Lokale Prüfung der unmittelbar betroffenen Header-, Nachrichten-, Angebots-, Workspace- und Einstellungsbausteine einschließlich ihrer bestehenden Browserfälle. Die tatsächliche CI-Auswahl bleibt wegen der globalen Headerabhängigkeit umfassend, einschließlich Produktions-PWA; ein neuer vollständiger CI-/Linux-Nachweis steht im PR aus. Keine neue Backend-/Schemaänderung. Korrektur auf eigenem Zweig `juna/action-overview-header`, noch nicht veröffentlicht.
+
 ## 2026-10-27 - Juna - Optionale Aktionsübersicht im Chat umsetzen
 
 **Auftrag:** Das freigegebene kompakte Mockup als optionale Aktionsübersicht mit rechter Desktopspalte, Tabletpanel und mobiler Ansicht von unten umsetzen.

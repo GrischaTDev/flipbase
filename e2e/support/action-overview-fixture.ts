@@ -194,5 +194,9 @@ export async function mockActionOverview(page: Page, enabled = true) {
     queueOffer: () => {
       actions[0] = { ...actions[0], state: 'queued' };
     },
+    finishActions: () => {
+      for (let index = 0; index < actions.length; index++)
+        actions[index] = { ...actions[index], state: 'succeeded' };
+    },
   };
 }

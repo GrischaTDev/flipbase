@@ -1,28 +1,34 @@
 <app-card variant="section">
-  <section class="space-y-4" aria-labelledby="app-display-heading">
+  <form
+    class="space-y-4"
+    aria-labelledby="app-display-heading"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+  >
     <h2 id="app-display-heading" class="text-lg font-semibold text-fb-text-primary">Darstellung</h2>
     <app-form-field
       controlId="action-overview-enabled"
-      helpText="Zeigt Dir laufende, wartende und kürzlich erledigte Aktionen."
+      helpText="Zeigt ein Icon neben der Glocke. Dort kannst Du laufende Aktionen aufklappen."
       [error]="preferences.error()"
     >
       <app-custom-checkbox
         id="action-overview-enabled"
         presentation="row"
         label="Aktionsübersicht anzeigen"
-        [checked]="preferences.enabled()"
-        (checkedChange)="preferences.setEnabled($event)"
+        formControlName="enabled"
+        [disabled]="preferences.saving()"
       />
     </app-form-field>
-    @if (preferences.saving()) {
-      <p role="status" class="text-sm text-fb-text-secondary">Wird gespeichert …</p>
-    }
-    @if (preferences.error()) {
-      <div class="space-y-2">
-        <app-button variant="secondary" (clicked)="preferences.setEnabled(preferences.enabled())">
-          Erneut versuchen
-        </app-button>
-      </div>
-    }
-  </section>
+    <div class="flex justify-end">
+      <app-button
+        type="submit"
+        variant="primary"
+        size="touch"
+        [loading]="preferences.saving()"
+        [disabled]="form.pristine && !preferences.error()"
+      >
+        Änderungen speichern
+      </app-button>
+    </div>
+  </form>
 </app-card>
