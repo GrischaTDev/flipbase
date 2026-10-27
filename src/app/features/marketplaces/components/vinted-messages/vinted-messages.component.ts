@@ -5,6 +5,7 @@ import {
   ElementRef,
   DestroyRef,
   afterEveryRender,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -24,6 +25,7 @@ import {
   LucideBot,
   LucideRefreshCw,
   LucideUser,
+  LucideListTodo,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
 import {
@@ -51,6 +53,10 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 import { formatConversationTime, formatMessageDay } from './vinted-message-time';
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
+import { ActionOverviewPreferencesService } from '../../../../core/services/action-overview-preferences.service';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
+import { VintedActionOverviewStore } from '../../services/vinted-action-overview.store';
 
 function preserveConversationMetadata(
   entry: MarketplaceEntry,
@@ -105,7 +111,10 @@ interface ReadingPosition {
     LucideTag,
     LucideBot,
     VintedOfferActionsComponent,
+    ModalShellComponent,
+    VintedActionOverviewComponent,
   ],
+  providers: [VintedActionOverviewStore],
   templateUrl: './vinted-messages.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -117,6 +126,29 @@ export class VintedMessagesComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
   readonly messaging = inject(VintedMessagingStore);
+  readonly actionPreferences = inject(ActionOverviewPreferencesService);
+  readonly actionOverview = inject(VintedActionOverviewStore);
+  readonly actionIcon = LucideListTodo;
+  readonly actionPanelOpen = signal(false);
+  private readonly availableWidth = signal(0);
+  private readonly viewportWidth = signal(typeof window === 'undefined' ? 0 : window.innerWidth);
+  readonly showActionSidebar = computed(
+    () => this.actionPreferences.enabled() && this.availableWidth() >= 1280,
+  );
+  readonly actionPanelPresentation = computed(() =>
+    this.viewportWidth() < 640 ? 'sheet' : 'drawer',
+  );
+  readonly inboxLayoutClasses = computed(
+    () =>
+      'grid min-h-[28rem] min-w-0 gap-4 ' +
+      (this.actionPreferences.enabled() && !this.showActionSidebar()
+        ? 'h-[calc(100dvh-16rem)] '
+        : 'h-[calc(100dvh-13rem)] ') +
+      (this.showActionSidebar()
+        ? 'grid-cols-[minmax(240px,0.8fr)_minmax(0,2fr)_320px]'
+        : 'lg:grid-cols-[minmax(280px,1fr)_minmax(0,2.5fr)]'),
+  );
+  private focusActionHeading = false;
   readonly search = signal('');
   readonly conversationFilter = signal<ConversationFilter | null>('all');
   readonly conversationSort = signal<'latest' | 'oldest' | null>('latest');
@@ -217,6 +249,7 @@ export class VintedMessagesComponent {
     () => this.isRefreshingConversation() && !this.conversation(),
   );
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly query = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -317,6 +350,35 @@ export class VintedMessagesComponent {
   private focusListRow: string | null = null;
 
   constructor() {
+    afterNextRender(() => {
+      const measure = () => {
+        this.availableWidth.set(this.host.nativeElement.getBoundingClientRect().width);
+        this.viewportWidth.set(window.innerWidth);
+      };
+      measure();
+      const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+      observer?.observe(this.host.nativeElement);
+      window.addEventListener('resize', measure);
+      this.destroyRef.onDestroy(() => {
+        observer?.disconnect();
+        window.removeEventListener('resize', measure);
+      });
+    });
+    effect(() => {
+      const wide = this.showActionSidebar();
+      const enabled = this.actionPreferences.enabled();
+      this.context();
+      untracked(() => {
+        if (this.actionPanelOpen() && (wide || !enabled)) {
+          this.actionPanelOpen.set(false);
+          this.focusActionHeading = wide;
+        }
+      });
+    });
+    effect(() => {
+      this.context();
+      untracked(() => this.actionPanelOpen.set(false));
+    });
     const clock = setInterval(() => this.now.set(Date.now()), 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(clock));
     effect(() => {
@@ -398,7 +460,15 @@ export class VintedMessagesComponent {
       if (entry) untracked(() => void this.openConversation(entry));
       else this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
     });
-    afterEveryRender(() => this.restoreReadingPosition());
+    afterEveryRender(() => {
+      this.restoreReadingPosition();
+      if (this.focusActionHeading) {
+        this.focusActionHeading = false;
+        this.host.nativeElement
+          .querySelector<HTMLElement>('[data-action-overview-desktop] h2')
+          ?.focus();
+      }
+    });
   }
 
   async openConversation(
@@ -655,6 +725,7 @@ export class VintedMessagesComponent {
     ) {
       this.composer.reset();
       this.clearAttachment();
+      void this.actionOverview.refresh();
     }
   }
   async approveInbox(): Promise<void> {
@@ -871,6 +942,20 @@ export class VintedMessagesComponent {
         ? this.messaging.cloudSendAllowed()
         : this.local.hasValidBinding() && this.local.binding()?.messagesSend === true)
     );
+  }
+
+  hasOfferReceipt(entry: MarketplaceEntry): boolean {
+    return this.actionOverview
+      .actions()
+      .some(
+        (action) =>
+          action.source === 'negotiation' &&
+          !action.isAutomated &&
+          action.messageId === entry.id &&
+          action.conversationId === entry.conversationId &&
+          action.offerId === entry.negotiationOffer?.offerId &&
+          action.kind !== 'message',
+      );
   }
 
   offerPrices(entry: MarketplaceEntry): { offered: string | null; original: string | null } {

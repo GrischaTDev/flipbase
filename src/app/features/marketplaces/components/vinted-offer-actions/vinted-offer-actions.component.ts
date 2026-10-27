@@ -19,6 +19,7 @@ import {
   negotiationStateLabels,
   validateCounterPrice,
   type NegotiationAction,
+  type NegotiationState,
 } from '../../models/vinted-negotiation';
 import {
   NegotiationApiError,
@@ -28,6 +29,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedNegotiationActionStore } from '../../services/vinted-negotiation-action.store';
+import { VintedActionOverviewStore } from '../../services/vinted-action-overview.store';
 
 @Component({
   selector: 'app-vinted-offer-actions',
@@ -43,12 +45,67 @@ export class VintedOfferActionsComponent {
   private readonly messaging = inject(VintedMessagingStore);
   private readonly local = inject(VintedLocalExtensionStore);
   private readonly actions = inject(VintedNegotiationActionStore);
+  private readonly overview = inject(VintedActionOverviewStore, { optional: true });
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly dialogOpen = signal(false);
+  private readonly restoredReceipt = computed(() => {
+    const entry = this.entry();
+    const restored = this.overview
+      ?.actions()
+      .filter(
+        (action) =>
+          action.source === 'negotiation' &&
+          !action.isAutomated &&
+          action.messageId === entry.id &&
+          action.conversationId === entry.conversationId &&
+          action.offerId === entry.negotiationOffer?.offerId &&
+          action.kind !== 'message' &&
+          action.kind !== 'sync',
+      )
+      .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))[0];
+    if (
+      restored &&
+      (restored.kind === 'accept' || restored.kind === 'decline' || restored.kind === 'counter')
+    ) {
+      const states: Record<typeof restored.state, NegotiationState> = {
+        queued: 'queued',
+        running: 'sending',
+        succeeded: 'sent',
+        failed: 'failed',
+        outcome_unknown: 'outcome_unknown',
+        cancelled: 'cancelled',
+        skipped: 'skipped',
+      };
+      return { id: restored.sourceId, action: restored.kind, state: states[restored.state] };
+    }
+    return null;
+  });
   readonly receipt = computed(
-    () => this.actions.receipts().get(this.actions.key(this.entry())) ?? null,
+    () =>
+      this.restoredReceipt() ?? this.actions.receipts().get(this.actions.key(this.entry())) ?? null,
   );
+  readonly receiptLabel = computed(() => {
+    const receipt = this.receipt();
+    if (!receipt) return '';
+    if (receipt.state === 'sent') return this.confirmedLabels[receipt.action];
+    if (receipt.state === 'queued')
+      return {
+        accept: 'Annahme beauftragt',
+        decline: 'Ablehnung beauftragt',
+        counter: 'Gegenangebot beauftragt',
+      }[receipt.action];
+    if (receipt.state === 'claimed' || receipt.state === 'sending')
+      return {
+        accept: 'Angebot wird angenommen',
+        decline: 'Angebot wird abgelehnt',
+        counter: 'Gegenangebot wird gesendet',
+      }[receipt.action];
+    return this.labels[receipt.state];
+  });
+  readonly statusReady = computed(() => this.overview?.hasLoaded() ?? true);
+  readonly statusReadError = computed(() => this.overview?.error() ?? null);
+  readonly showManualRefresh = computed(() => !this.overview?.enabled());
   readonly counterPrice = new FormControl<number | null>(null);
   private readonly enteredPrice = toSignal(this.counterPrice.valueChanges, { initialValue: null });
   readonly minimumCounterPrice = computed(() =>
@@ -99,6 +156,11 @@ export class VintedOfferActionsComponent {
   private destroyed = false;
   constructor() {
     effect(() => {
+      const receipt = this.restoredReceipt();
+      const key = this.actions.key(this.entry());
+      if (receipt) untracked(() => this.actions.record(key, receipt, receipt.action));
+    });
+    effect(() => {
       this.context();
       untracked(() => {
         this.busy.set(false);
@@ -121,6 +183,7 @@ export class VintedOfferActionsComponent {
     const entry = this.entry();
     return (
       this.available() &&
+      this.statusReady() &&
       this.accounts.canManage() &&
       account?.status === 'connected' &&
       account.workspaceId === entry.workspaceId &&
@@ -192,6 +255,7 @@ export class VintedOfferActionsComponent {
       );
       definitive = true;
       this.actions.record(key, receipt, action);
+      void this.overview?.refresh();
       if (!this.current(context)) return;
       this.dialogOpen.set(false);
     } catch (error) {
@@ -210,6 +274,12 @@ export class VintedOfferActionsComponent {
     }
   }
   async refresh() {
+    if (this.overview) {
+      const context = this.context();
+      await this.overview.refresh();
+      if (this.current(context)) this.error.set(this.overview.error());
+      return;
+    }
     const receipt = this.receipt();
     const context = this.context();
     const account = this.accounts.selectedConnection();

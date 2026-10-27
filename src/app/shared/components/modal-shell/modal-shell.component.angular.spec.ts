@@ -116,4 +116,14 @@ describe('ModalShellComponent', () => {
     expect(overlay.className).toContain('justify-end');
     expect(card.className).toContain('h-dvh');
   });
+
+  it('supports a bottom sheet with bounded scrolling on narrow screens', () => {
+    fixture.componentRef.setInput('presentation', 'sheet');
+    fixture.detectChanges();
+    const overlay = fixture.nativeElement.querySelector('[role="dialog"]');
+    const card = overlay.querySelector('[data-modal-surface]');
+    expect(overlay.className).toContain('items-end');
+    expect(card.className).toContain('max-h-[85dvh]');
+    expect(card.className).toContain('rounded-t-2xl');
+  });
 });

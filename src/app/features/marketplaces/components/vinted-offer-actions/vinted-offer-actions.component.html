@@ -1,9 +1,18 @@
 <div class="mt-3 space-y-2" data-offer-actions>
   @if (receipt(); as receipt) {
     <p role="status">
-      {{ receipt.state === 'sent' ? confirmedLabels[receipt.action] : labels[receipt.state] }}
+      {{ receiptLabel() }}
     </p>
-    <app-button [disabled]="busy()" (clicked)="refresh()">Aktionsstatus aktualisieren</app-button>
+    @if (showManualRefresh()) {
+      <app-button [disabled]="busy()" (clicked)="refresh()">Aktionsstatus aktualisieren</app-button>
+    }
+  } @else if (!statusReady()) {
+    @if (statusReadError(); as message) {
+      <p role="alert">{{ message }}</p>
+      <app-button (clicked)="refresh()">Aktionsstatus erneut laden</app-button>
+    } @else {
+      <p role="status">Aktionsstatus wird geladen …</p>
+    }
   } @else {
     <app-button
       class="block w-full"

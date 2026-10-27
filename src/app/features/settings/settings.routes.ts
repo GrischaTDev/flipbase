@@ -76,8 +76,8 @@ export const SETTINGS_ROUTES: Routes = [
       },
       {
         path: 'app',
-        redirectTo: 'marketplaces',
-        pathMatch: 'full',
+        loadComponent: () =>
+          import('./pages/app-settings/app-settings.component').then((m) => m.AppSettingsComponent),
       },
       {
         path: 'data',

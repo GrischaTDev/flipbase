@@ -24,6 +24,10 @@ import type {
 } from '../../models/marketplace-read.models';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { VintedMessagesComponent } from './vinted-messages.component';
+import { ActionOverviewPreferencesService } from '../../../../core/services/action-overview-preferences.service';
+import { VintedActionOverviewApiService } from '../../services/vinted-action-overview-api.service';
+import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -140,6 +144,10 @@ beforeAll(async () => {
   registerLocaleData(localeDe, 'de');
   restore = await prepareMarketplaceRendering([
     {
+      type: VintedActionOverviewComponent,
+      path: 'src/app/features/marketplaces/components/vinted-action-overview/vinted-action-overview.component.ts',
+    },
+    {
       type: VintedOfferActionsComponent,
       path: 'src/app/features/marketplaces/components/vinted-offer-actions/vinted-offer-actions.component.ts',
     },
@@ -158,6 +166,7 @@ beforeAll(async () => {
       [LoadingIndicatorComponent, 'loading-indicator'],
       [ModalShellComponent, 'modal-shell'],
       [NumberInputComponent, 'number-input'],
+      [NoticeBannerComponent, 'notice-banner'],
     ].map(([type, name]) => ({
       type,
       path: `src/app/shared/components/${name}/${name}.component.ts`,
@@ -215,6 +224,11 @@ beforeEach(() => {
     providers: [
       provideRouter([]),
       MarketplaceAccountStore,
+      { provide: ActionOverviewPreferencesService, useValue: { enabled: signal(false) } },
+      {
+        provide: VintedActionOverviewApiService,
+        useValue: { read: vi.fn().mockResolvedValue({ actions: [] }) },
+      },
       { provide: VintedLocalExtensionStore, useValue: local },
       { provide: VintedMessagingStore, useValue: messaging },
       { provide: VintedNegotiationApiService, useValue: { enqueue: vi.fn(), read: vi.fn() } },
