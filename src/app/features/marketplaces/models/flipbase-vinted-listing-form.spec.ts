@@ -3,11 +3,52 @@ import { describe, expect, it } from 'vitest';
 import { listingCategoryFixture } from '../../../../../e2e/support/vinted-listing-category-fixture';
 import { emptyVintedListingContent } from './vinted-listing-content';
 import {
+  applyVintedListingFieldSelection,
+  buildVintedListingFieldSelection,
+} from './vinted-listing-field-selection';
+import { validateVintedListingEditor } from './vinted-listing-editor-validation';
+import {
   flipbaseVintedListingFields,
   prepareFlipbaseVintedListingContent,
 } from './flipbase-vinted-listing-form';
 
 describe('Eigenes Inseratformular', () => {
+  it.each([
+    [1, 'Klein'],
+    [2, 'Mittel'],
+    [3, 'Groß'],
+  ] as const)(
+    'übernimmt Paketgröße %s trotz noch unbestätigtem Markentext',
+    (packageSizeId, label) => {
+      const content = prepareFlipbaseVintedListingContent({
+        ...emptyVintedListingContent(),
+        title: 'Nike Sneaker',
+        description: 'Gut erhalten.',
+        priceCents: 7990,
+        categoryId: 2632,
+        categoryLabel: 'Damen > Schuhe > Sneaker',
+        brandId: null,
+        brandLabel: 'Nike',
+        sizeLabel: '44,5',
+        conditionLabel: 'Sehr gut',
+      });
+      const schema = flipbaseVintedListingFields(2632, content.categoryLabel, content);
+      const selection = buildVintedListingFieldSelection(schema, { ...content, packageSizeId });
+      const selected = applyVintedListingFieldSelection(content, {
+        ...selection,
+        fields: ['package'],
+      });
+      expect(selection.packageLabel).toBe(label);
+      expect(selected).toMatchObject({ packageSizeId, brandId: null, brandLabel: 'Nike' });
+      const errors = validateVintedListingEditor(
+        selected,
+        [{ mimeType: 'image/jpeg', byteSize: 123 }],
+        schema,
+      );
+      expect(errors['package']).toBeUndefined();
+      expect(errors['brand']).toBeDefined();
+    },
+  );
   it('übernimmt kombinierte Altgrößen und EU-Schreibweisen eindeutig und erhält unbekannte Größen als Hinweis', () => {
     const base = {
       ...emptyVintedListingContent(),

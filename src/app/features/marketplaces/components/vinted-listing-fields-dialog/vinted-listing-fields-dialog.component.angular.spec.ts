@@ -78,6 +78,38 @@ async function settle(f: ReturnType<typeof setup>) {
   f.fixture.detectChanges();
 }
 describe('Vinted category field dialog', () => {
+  it('übernimmt die sichtbare Paketgröße auch bei unbestätigtem Markentext', async () => {
+    const f = setup();
+    const content = {
+      ...emptyVintedListingContent(),
+      categoryId: 2632,
+      categoryLabel: 'Damen > Schuhe > Sneaker',
+      brandId: null,
+      brandLabel: 'Nike',
+      sizeLabel: '44,5',
+      conditionLabel: 'Sehr gut',
+    };
+    f.fixture.componentRef.setInput('inline', true);
+    f.fixture.componentRef.setInput('section', 'shipping');
+    f.fixture.componentRef.setInput('categoryId', 2632);
+    f.fixture.componentRef.setInput('content', content);
+    f.fixture.componentRef.setInput(
+      'fieldSchema',
+      flipbaseVintedListingFields(2632, content.categoryLabel, content),
+    );
+    await settle(f);
+    f.component.form.controls.packageSizeId.setValue(2);
+    await settle(f);
+    expect(f.component.error()).toBeNull();
+    expect(f.selected).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: ['package'],
+        packageLabel: 'Mittel',
+        values: expect.objectContaining({ packageSizeId: 2 }),
+      }),
+    );
+    expect(f.read).not.toHaveBeenCalled();
+  });
   it('zeigt eigene Schuhgrößen unmittelbar und benötigt dafür weder Konto noch Anbieterabruf', async () => {
     const f = setup();
     f.read.mockRejectedValue(new Error('Vinted nicht erreichbar'));

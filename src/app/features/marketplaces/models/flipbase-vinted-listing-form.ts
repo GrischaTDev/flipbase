@@ -3,6 +3,7 @@ import type {
   VintedListingChoiceSnapshot,
   VintedListingContent,
 } from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
+import { validVintedListingBrand } from './vinted-listing-brand-selection';
 
 const marker = 'flipbaseListingForm';
 const packages = ['Klein', 'Mittel', 'Groß'];
@@ -65,6 +66,8 @@ export function flipbaseVintedListingFields(
   categoryPath: string,
   brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>,
 ): VintedListingCategoryFields {
+  // Ein unbestätigter Markenname bleibt im Entwurf, darf aber keine ungültige Auswahl erzeugen.
+  const selectedBrand = brand && validVintedListingBrand(brand) ? brand : null;
   const path = categoryPath.toLocaleLowerCase('de');
   const children = /kinder|baby|mädchen|jungen/.test(path);
   const shoes =
@@ -145,8 +148,8 @@ export function flipbaseVintedListingFields(
         sizeGroupId: null,
         choices: [
           {
-            id: brand?.brandId ?? null,
-            label: brand?.brandLabel || 'Keine Marke',
+            id: selectedBrand?.brandId ?? null,
+            label: selectedBrand?.brandLabel ?? 'Keine Marke',
             selected: false,
             disabled: false,
             sizeGroupId: null,
