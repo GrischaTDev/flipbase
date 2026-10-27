@@ -12,7 +12,6 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedFeedbackListComponent } from '../vinted-feedback-list/vinted-feedback-list.component';
 import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-profile-editor.component';
-import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 
 @Component({
   selector: 'app-vinted-profile',
@@ -21,7 +20,6 @@ import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component'
     ProductThumbnailComponent,
     VintedFeedbackListComponent,
     VintedProfileEditorComponent,
-    VintedRatingComponent,
   ],
   templateUrl: './vinted-profile.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

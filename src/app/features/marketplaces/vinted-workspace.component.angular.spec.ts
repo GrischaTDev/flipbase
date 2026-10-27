@@ -1,4 +1,6 @@
 import { vintedListingCopyRendering } from '../../../../e2e/support/vinted-listing-copy-rendering';
+import { vintedProfileEditorRendering } from '../../../../e2e/support/vinted-profile-editor-rendering';
+import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { listingTransferRendering } from '../../../../e2e/support/listing-transfer-rendering';
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
@@ -164,6 +166,11 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    ...vintedProfileEditorRendering,
+    {
+      type: SummaryMetricComponent,
+      path: 'src/app/shared/components/summary-metric/summary-metric.component.ts',
+    },
     ...vintedListingCopyRendering,
     {
       type: VintedSalesComponent,

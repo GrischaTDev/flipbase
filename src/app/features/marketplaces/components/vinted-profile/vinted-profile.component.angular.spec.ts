@@ -1,4 +1,6 @@
 import { signal } from '@angular/core';
+import { vintedProfileEditorRendering } from '../../../../../../e2e/support/vinted-profile-editor-rendering';
+import { SummaryMetricComponent } from '../../../../shared/components/summary-metric/summary-metric.component';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import axe from 'axe-core';
@@ -60,6 +62,11 @@ describe('VintedProfileComponent', () => {
 
   beforeAll(async () => {
     resetBindings = await prepareMarketplaceRendering([
+      ...vintedProfileEditorRendering,
+      {
+        type: SummaryMetricComponent,
+        path: 'src/app/shared/components/summary-metric/summary-metric.component.ts',
+      },
       { type: BadgeComponent, path: 'src/app/shared/components/badge/badge.component.ts' },
       { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
       { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },

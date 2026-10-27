@@ -2,66 +2,53 @@
   <!-- Übersicht & Statistiken -->
   <div class="grid gap-3 sm:grid-cols-3">
     <!-- Gesamtbewertung -->
-    <app-card variant="kpi" title="Gesamtbewertung">
-      <div class="flex items-baseline gap-2">
-        <span class="text-2xl font-semibold text-fb-text-primary">
+    <app-card padding="none" rounded="xl">
+      <app-summary-metric label="Gesamtbewertung" [value]="reputationLabel()" [icon]="starIcon">
+        <div class="flex items-baseline gap-2">
           @if (reputationScore() !== null) {
-            {{ reputationScore() | number: '1.1-1' }}
-          } @else {
-            —
+            <span
+              role="img"
+              [attr.aria-label]="reputationLabel() + ' von 5 Sternen'"
+              class="inline-flex gap-0.5 text-[#d49b00]"
+            >
+              @for (star of stars; track star) {
+                <svg
+                  [lucideIcon]="starIcon"
+                  class="size-4"
+                  [class.fill-current]="star <= filledStars()"
+                  aria-hidden="true"
+                ></svg>
+              }
+            </span>
           }
-        </span>
-        @if (reputationScore() !== null) {
-          <span
-            role="img"
-            aria-label="Durchschnittliche Sternebewertung"
-            class="inline-flex gap-0.5 text-[#d49b00]"
-          >
-            @for (star of stars; track star) {
-              <svg
-                [lucideIcon]="starIcon"
-                class="size-4"
-                [class.fill-current]="star <= filledStars()"
-                aria-hidden="true"
-              ></svg>
-            }
-          </span>
-        }
-      </div>
-      <p class="mt-1 text-xs text-fb-text-muted">
-        {{ totalFeedbacksCount() }}
-        {{ totalFeedbacksCount() === 1 ? 'Bewertung' : 'Bewertungen' }} insgesamt
-      </p>
+        </div>
+        <p class="mt-1 text-xs text-fb-text-muted">
+          {{ totalFeedbacksCount() }}
+          {{ totalFeedbacksCount() === 1 ? 'Bewertung' : 'Bewertungen' }} insgesamt
+        </p>
+      </app-summary-metric>
     </app-card>
 
     <!-- Von Mitgliedern geschrieben -->
-    <app-card variant="kpi" title="Von Mitgliedern">
-      <div class="flex items-center justify-between">
-        <span class="text-2xl font-semibold text-fb-text-primary">
-          {{ memberCount() }}
-        </span>
-        <div
-          class="flex size-8 items-center justify-center rounded-full bg-fb-well text-fb-text-secondary"
-        >
-          <svg [lucideIcon]="userIcon" class="size-4" aria-hidden="true"></svg>
-        </div>
-      </div>
-      <p class="mt-1 text-xs text-fb-text-muted">Persönlich verfasste Bewertungen</p>
+    <app-card padding="none" rounded="xl">
+      <app-summary-metric
+        label="Von Mitgliedern"
+        [value]="memberCount().toString()"
+        [icon]="userIcon"
+      >
+        <p class="mt-1 text-xs text-fb-text-muted">Persönlich verfasste Bewertungen</p>
+      </app-summary-metric>
     </app-card>
 
     <!-- Automatische Bewertungen -->
-    <app-card variant="kpi" title="Automatische Bewertungen">
-      <div class="flex items-center justify-between">
-        <span class="text-2xl font-semibold text-fb-text-primary">
-          {{ automaticCount() }}
-        </span>
-        <div
-          class="flex size-8 items-center justify-center rounded-full bg-[#e9f6f6] text-[#007782]"
-        >
-          <svg [lucideIcon]="botIcon" class="size-4" aria-hidden="true"></svg>
-        </div>
-      </div>
-      <p class="mt-1 text-xs text-fb-text-muted">Durch Vinted nach Transaktion generiert</p>
+    <app-card padding="none" rounded="xl">
+      <app-summary-metric
+        label="Automatische Bewertungen"
+        [value]="automaticCount().toString()"
+        [icon]="botIcon"
+      >
+        <p class="mt-1 text-xs text-fb-text-muted">Durch Vinted nach Transaktion generiert</p>
+      </app-summary-metric>
     </app-card>
   </div>
 

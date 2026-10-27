@@ -139,6 +139,25 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     authorize: () => Promise<void>,
   ): Promise<VintedEditResult>;
   readProfileAbout?(accountId: string): Promise<string>;
+  readProfileDetails?(
+    accountId: string,
+  ): Promise<
+    import('../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts').VintedProfileDetails
+  >;
+  searchProfileCities?(
+    accountId: string,
+    query: string,
+  ): Promise<
+    import('../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts').VintedProfileOption[]
+  >;
+  updateProfileDetails?(
+    accountId: string,
+    changes: import('../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts').VintedProfileChanges,
+    expected: import('../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts').VintedProfileDetails,
+    authorize: () => Promise<void>,
+  ): Promise<
+    import('../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts').VintedProfileSaveResult
+  >;
   updateProfileAbout?(
     accountId: string,
     about: string,

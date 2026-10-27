@@ -35,6 +35,60 @@ const listingCategory = {
   aiPhoto: false,
   bump: false,
 };
+test('Profilfelder und echte Städte bleiben beim isolierten Transport gebunden und validiert', async () => {
+  const profile = {
+    about: 'Shop',
+    city: 'Berlin',
+    showCity: true,
+    language: 'de-DE',
+    country: 'Deutschland',
+    imageUrl: null,
+    languages: [{ id: 'de-DE', label: 'Deutsch' }],
+    canUploadPhoto: true,
+  };
+  const changes = { about: 'Neu', city: 'Berlin', showCity: true, language: 'de-DE' };
+  const browser = isolatedBrowserActions(
+    new BrowserSessionCommands({
+      version: () => 'fixture',
+      readProfileDetails: async (accountId) => {
+        assert.equal(accountId, '123');
+        return profile;
+      },
+      searchProfileCities: async (accountId, query) => {
+        assert.equal(accountId, '123');
+        assert.equal(query, 'Hamburg');
+        return [{ id: '796', label: 'Hamburg' }];
+      },
+      updateProfileDetails: async (accountId, desired, expected, authorize) => {
+        assert.equal(accountId, '123');
+        assert.deepEqual(desired, changes);
+        assert.deepEqual(expected, profile);
+        await authorize();
+        return { status: 'confirmed', profile: { ...profile, about: 'Neu' } };
+      },
+    }),
+  );
+  assert.deepEqual(await browser.readProfileDetails?.('123'), profile);
+  assert.deepEqual(await browser.searchProfileCities?.('123', 'Hamburg'), [
+    { id: '796', label: 'Hamburg' },
+  ]);
+  assert.deepEqual(
+    await browser.updateProfileDetails?.('123', changes, profile, async () => undefined),
+    { status: 'confirmed', profile: { ...profile, about: 'Neu' } },
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateProfileDetails', { status: 'unconfirmed', profile }),
+  );
+  await assert.rejects(
+    executeBrowserAction(
+      { version: () => 'fixture' },
+      { name: 'readProfileDetails', arguments: ['https://other.invalid'] },
+      async () => undefined,
+      async () => undefined,
+    ),
+  );
+});
+
 test('Preisaktion bleibt über den isolierten Transport typisiert und verwirft unbestätigte Felder', async () => {
   const commands = new BrowserSessionCommands({
     version: () => 'fixture',

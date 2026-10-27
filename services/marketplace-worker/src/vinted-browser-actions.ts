@@ -19,6 +19,11 @@ import { updateVintedListingContent } from './vinted-browser-listing-update.ts';
 import { updateVintedListingPrice } from './vinted-browser-listing-price.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
 import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
+import {
+  readVintedProfileDetails,
+  readVintedProfileCities,
+  updateVintedProfileDetails,
+} from './vinted-browser-profile-details.ts';
 import { sendVintedNegotiation } from './vinted-browser-negotiation.ts';
 import { sendVintedMessage } from './vinted-browser-messages.ts';
 import {
@@ -256,6 +261,15 @@ export function vintedBrowserActions(
     ),
     readProfileAbout: afterSessionRenewal((accountId) =>
       readVintedProfileAbout(currentPage(), accountId),
+    ),
+    readProfileDetails: afterSessionRenewal((accountId) =>
+      readVintedProfileDetails(currentPage(), accountId),
+    ),
+    searchProfileCities: afterSessionRenewal((accountId, query) =>
+      readVintedProfileCities(currentPage(), accountId, query),
+    ),
+    updateProfileDetails: afterSessionRenewal((accountId, changes, expected, authorize) =>
+      updateVintedProfileDetails(currentPage(), accountId, changes, expected, authorize),
     ),
     updateProfileAbout: afterSessionRenewal((accountId, about, authorize, expectedAbout) =>
       updateVintedProfileAbout(currentPage(), accountId, about, authorize, expectedAbout),

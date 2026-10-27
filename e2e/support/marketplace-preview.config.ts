@@ -11,6 +11,7 @@ export default defineConfig({
     'vinted-kleinanzeigen-transfer.spec.ts',
     'settings-layout.spec.ts',
     'vinted-workspace-ui.spec.ts',
+    'vinted-profile.spec.ts',
     'vinted-account-grid.spec.ts',
     'vinted-inbox-experience.spec.ts',
     'vinted-favorite-messages.spec.ts',

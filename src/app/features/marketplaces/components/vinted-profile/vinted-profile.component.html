@@ -1,6 +1,6 @@
 @if (store.snapshot(); as snapshot) {
   <div class="mx-auto space-y-4">
-    <app-card title="Profil">
+    <app-card padding="lg" rounded="xl">
       @if (snapshot.profile; as profile) {
         <div class="flex min-w-0 flex-wrap items-center gap-3">
           <app-product-thumbnail
@@ -23,10 +23,12 @@
               </p>
             }
           </div>
-          <app-vinted-rating
-            [count]="profile.feedbackCount"
-            [reputation]="profile.feedbackReputation"
-          />
+          @if (
+            store.selectedConnection()?.status === 'connected' &&
+            store.selectedConnection()?.executionMode !== 'local'
+          ) {
+            <app-vinted-profile-editor [connectionId]="snapshot.connectionId" />
+          }
         </div>
         <div class="mt-4 border-t border-fb-line pt-4">
           <h3 class="text-[13px] font-semibold text-fb-text-primary">Über dieses Konto</h3>
@@ -39,12 +41,6 @@
             }}
           </p>
         </div>
-        @if (
-          store.selectedConnection()?.status === 'connected' &&
-          store.selectedConnection()?.executionMode !== 'local'
-        ) {
-          <app-vinted-profile-editor [connectionId]="snapshot.connectionId" />
-        }
       } @else {
         <p class="text-[13px] text-fb-text-secondary">Noch keine Profildaten gespeichert.</p>
       }

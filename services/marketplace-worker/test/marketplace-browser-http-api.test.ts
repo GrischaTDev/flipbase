@@ -35,6 +35,100 @@ const accountA = '25600000-0000-4000-8000-000000000021';
 const accountB = '25600000-0000-4000-8000-000000000022';
 const sessionId = '25600000-0000-4000-8000-000000000031';
 
+test('neue Profilrouten lesen und speichern nur validierte Felder des zugeordneten Kontos', async () => {
+  const profile = {
+    about: 'Shop',
+    city: 'Berlin',
+    showCity: true,
+    language: 'de-DE',
+    country: 'Deutschland',
+    imageUrl: null,
+    languages: [{ id: 'de-DE', label: 'Deutsch' }],
+    canUploadPhoto: true,
+  };
+  let writes = 0;
+  const edits = {
+    entry: async () => ({ externalId: '789', accountId: '789' }),
+  } as unknown as VintedEditAccess;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    edits,
+    {
+      readProfileDetails: async (accountId) => {
+        assert.equal(accountId, '789');
+        return profile;
+      },
+      searchProfileCities: async (accountId, query) => {
+        assert.equal(accountId, '789');
+        assert.equal(query, 'Hamburg');
+        return [{ id: '796', label: 'Hamburg' }];
+      },
+      updateProfileDetails: async (accountId, changes, expected, authorize) => {
+        assert.equal(accountId, '789');
+        assert.equal(changes.about, 'Neu');
+        assert.deepEqual(expected, profile);
+        await authorize();
+        writes++;
+        return { status: 'confirmed', profile: { ...profile, about: 'Neu' } };
+      },
+    },
+  );
+  const scope = { workspaceId: workspaceA, connectionId: accountA };
+  try {
+    const read = await api.request('/marketplace-browser/profile/details/read', scope);
+    assert.equal(read.status, 200);
+    assert.deepEqual((await read.json()).profile, profile);
+    const cities = await api.request('/marketplace-browser/profile/cities/read', {
+      ...scope,
+      query: 'Hamburg',
+    });
+    assert.equal(cities.status, 200);
+    assert.deepEqual((await cities.json()).cities, [{ id: '796', label: 'Hamburg' }]);
+    const changes = { about: 'Neu', city: 'Berlin', showCity: true, language: 'de-DE' };
+    for (const invalid of [
+      { ...changes, username: 'other' },
+      { ...changes, showCity: 'false' },
+    ]) {
+      assert.equal(
+        (
+          await api.request('/marketplace-browser/profile/details/save', {
+            ...scope,
+            changes: invalid,
+            expected: profile,
+          })
+        ).status,
+        400,
+      );
+    }
+    assert.equal(
+      (await api.request('/marketplace-browser/profile/details/read', { ...scope, changes }))
+        .status,
+      400,
+    );
+    const save = await api.request('/marketplace-browser/profile/details/save', {
+      ...scope,
+      changes,
+      expected: profile,
+    });
+    assert.equal(save.status, 200);
+    assert.equal((await save.json()).status, 'confirmed');
+    assert.equal(writes, 1);
+    assert.equal(api.closes(), 3);
+  } finally {
+    await api.close();
+  }
+});
+
 async function setup(
   frame = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]),
   captureGate?: Promise<void>,

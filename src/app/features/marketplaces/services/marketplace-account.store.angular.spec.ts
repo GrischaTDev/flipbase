@@ -63,6 +63,9 @@ let browserApi: {
   readListingContent: ReturnType<typeof vi.fn>;
   saveListingEdit: ReturnType<typeof vi.fn>;
   saveListingPrice: ReturnType<typeof vi.fn>;
+  readProfileDetails: ReturnType<typeof vi.fn>;
+  searchProfileCities: ReturnType<typeof vi.fn>;
+  saveProfileDetails: ReturnType<typeof vi.fn>;
 };
 let api: {
   listenAccountImports: ReturnType<typeof vi.fn>;
@@ -94,6 +97,9 @@ beforeEach(() => {
     readListingContent: vi.fn().mockResolvedValue(listingCurrentContentFixture()),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
     saveListingPrice: vi.fn().mockResolvedValue(undefined),
+    readProfileDetails: vi.fn(),
+    searchProfileCities: vi.fn(),
+    saveProfileDetails: vi.fn(),
   };
   api = {
     listenAccountImports: vi.fn().mockImplementation(() => vi.fn()),
@@ -121,6 +127,49 @@ beforeEach(() => {
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
+});
+
+describe('Profilbearbeitung', () => {
+  const profile = {
+    about: 'Neu',
+    city: 'Hamburg',
+    showCity: false,
+    language: 'de-DE',
+    country: 'Deutschland',
+    imageUrl: null,
+    languages: [{ id: 'de-DE', label: 'Deutsch' }],
+    canUploadPhoto: true,
+  };
+  const changes = { about: 'Neu', city: 'Hamburg', showCity: false, language: 'de-DE' };
+  it('übernimmt bestätigte Profildaten ohne eine ausgeblendete Stadt öffentlich anzuzeigen', async () => {
+    await settle();
+    await store.selectConnection(accountA.connectionId);
+    browserApi.saveProfileDetails.mockResolvedValue({ profile, cachePending: false });
+    await store.saveProfileDetails(accountA.connectionId, changes, profile);
+    expect(store.snapshot()?.profile?.bio).toBe('Neu');
+    expect(store.snapshot()?.profile?.location).toBeNull();
+    expect(browserApi.saveProfileDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: accountA.workspaceId,
+        connectionId: accountA.connectionId,
+      }),
+      changes,
+      profile,
+      'token-a',
+    );
+  });
+  it('verhindert Profilzugriffe bei fehlendem Token oder auf ein nicht gewähltes Konto', async () => {
+    await settle();
+    await store.selectConnection(accountA.connectionId);
+    await expect(store.readProfileDetails(accountB.connectionId)).rejects.toThrow();
+    accessSession.set(null);
+    await settle();
+    await expect(
+      store.saveProfileDetails(accountA.connectionId, changes, profile),
+    ).rejects.toThrow();
+    expect(browserApi.readProfileDetails).not.toHaveBeenCalled();
+    expect(browserApi.saveProfileDetails).not.toHaveBeenCalled();
+  });
 });
 
 describe('Cloud-Gesprächsabruf', () => {

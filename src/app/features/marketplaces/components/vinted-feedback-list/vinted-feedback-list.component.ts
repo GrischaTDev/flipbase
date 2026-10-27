@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import {
   LucideBot,
@@ -11,6 +11,7 @@ import {
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { SummaryMetricComponent } from '../../../../shared/components/summary-metric/summary-metric.component';
 import type { MarketplaceFeedback, MarketplaceProfile } from '../../models/marketplace-read.models';
 
 export type FeedbackFilter = 'all' | 'member' | 'automatic';
@@ -19,7 +20,7 @@ export type FeedbackFilter = 'all' | 'member' | 'automatic';
   selector: 'app-vinted-feedback-list',
   imports: [
     DatePipe,
-    DecimalPipe,
+    SummaryMetricComponent,
     BadgeComponent,
     CardComponent,
     ProductThumbnailComponent,
@@ -31,6 +32,13 @@ export type FeedbackFilter = 'all' | 'member' | 'automatic';
   host: { class: 'block min-w-0' },
 })
 export class VintedFeedbackListComponent {
+  readonly reputationLabel = computed(
+    () =>
+      this.reputationScore()?.toLocaleString('de-DE', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }) ?? '—',
+  );
   readonly profile = input<MarketplaceProfile | null>(null);
   readonly isConnected = input<boolean>(false);
 

@@ -7,6 +7,7 @@ import {
   VintedInteractionRequiredError,
   VintedListingChangedError,
   VintedListingNotSavedError,
+  VintedEditUnconfirmedError,
 } from './marketplace-browser-test-api.service';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
@@ -16,6 +17,55 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('liest vollständige Profildaten und verwirft unbestätigte oder abweichende Speicherantworten', async () => {
+  const profile = {
+    about: 'Shop',
+    city: 'Berlin',
+    showCity: true,
+    language: 'de-DE',
+    country: 'Deutschland',
+    imageUrl: null,
+    languages: [{ id: 'de-DE', label: 'Deutsch' }],
+    canUploadPhoto: true,
+  };
+  const changes = { about: 'Neu', city: 'Berlin', showCity: true, language: 'de-DE' };
+  const request = vi.fn().mockResolvedValueOnce(Response.json({ profile }));
+  vi.stubGlobal('fetch', request);
+  expect(await api.readProfileDetails(scope, 'token')).toEqual(profile);
+  request.mockResolvedValueOnce(
+    Response.json({ status: 'confirmed', profile: { ...profile, about: 'Neu' }, cache: 'pending' }),
+  );
+  expect(await api.saveProfileDetails(scope, changes, profile, 'token')).toEqual({
+    profile: { ...profile, about: 'Neu' },
+    cachePending: true,
+  });
+  expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({
+    ...scope,
+    changes,
+    expected: profile,
+  });
+  request.mockResolvedValueOnce(new Response('ungueltige Antwort', { status: 200 }));
+  await expect(api.saveProfileDetails(scope, changes, profile, 'token')).rejects.toBeInstanceOf(
+    VintedEditUnconfirmedError,
+  );
+  request.mockResolvedValueOnce(
+    Response.json({
+      status: 'confirmed',
+      profile: { ...profile, imageUrl: 'https://other.invalid/photo' },
+    }),
+  );
+  await expect(api.saveProfileDetails(scope, changes, profile, 'token')).rejects.toBeInstanceOf(
+    VintedEditUnconfirmedError,
+  );
+  request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
+  await expect(api.saveProfileDetails(scope, changes, profile, 'token')).rejects.toThrow();
+  request.mockResolvedValueOnce(Response.json({ status: 'confirmed', profile }));
+  await expect(api.saveProfileDetails(scope, changes, profile, 'token')).rejects.toThrow();
+  request.mockResolvedValueOnce(
+    Response.json({ profile: { ...profile, imageUrl: 'https://other.invalid/photo' } }),
+  );
+  await expect(api.readProfileDetails(scope, 'token')).rejects.toThrow();
+});
 it('sendet nur bisherigen und neuen Centpreis und wertet Konflikte sowie unbestätigte Antworten aus', async () => {
   const request = vi.fn().mockResolvedValue(Response.json({ status: 'confirmed' }));
   vi.stubGlobal('fetch', request);
