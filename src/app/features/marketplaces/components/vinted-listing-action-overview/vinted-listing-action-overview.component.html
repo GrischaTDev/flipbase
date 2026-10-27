@@ -1,0 +1,67 @@
+<section aria-label="Inserat-Veröffentlichungen" class="space-y-2">
+  <h3 class="text-xs font-semibold text-fb-text-primary">Inserat-Veröffentlichungen</h3>
+  @if (error(); as message) {
+    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+  }
+  <ul class="space-y-2">
+    @for (row of rows(); track row.job.id) {
+      <li class="min-w-0 space-y-1.5 rounded-lg border border-fb-border px-3 py-2">
+        <p class="text-[13px] font-semibold text-fb-text-primary">{{ row.label }}</p>
+        <p class="break-words text-xs text-fb-text-secondary">
+          {{ row.accountName }} · {{ row.planned ? 'Geplant für' : 'Stand vom' }} {{ row.time }}
+        </p>
+        @if (row.job.state === 'outcome_unknown') {
+          <p class="text-xs text-fb-text-secondary">
+            Der Ausgang ist unklar. Prüfe den Artikel bei Vinted, bevor Du erneut veröffentlichst.
+          </p>
+        } @else if (row.job.state === 'failed') {
+          <p class="text-xs text-fb-text-secondary">
+            Der Auftrag wurde ohne bestätigten Vinted-Erfolg beendet.
+          </p>
+        }
+        @if (row.planned || row.cancellable || row.url) {
+          <div class="flex flex-wrap items-center gap-2">
+            @if (row.planned) {
+              <app-button
+                variant="secondary"
+                size="slim"
+                [disabled]="!!busy() || !!loadingPlan()"
+                [loading]="loadingPlan() === row.job.id"
+                (clicked)="openPlan(row.job)"
+                >Termin ändern</app-button
+              >
+            }
+            @if (row.cancellable) {
+              <app-button
+                variant="secondary"
+                size="slim"
+                [disabled]="!!busy() || !!loadingPlan()"
+                [loading]="busy() === row.job.id"
+                (clicked)="cancel(row.job)"
+                >Abbrechen</app-button
+              >
+            }
+            @if (row.url) {
+              <a
+                [href]="row.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs font-medium text-fb-text-primary underline underline-offset-2"
+                >Bei Vinted ansehen<span class="sr-only"> (öffnet einen neuen Tab)</span></a
+              >
+            }
+          </div>
+        }
+      </li>
+    }
+  </ul>
+</section>
+@if (planning(); as plan) {
+  <app-vinted-listing-schedule-dialog
+    [initial]="planInitial()"
+    [busy]="busy() === plan.job.id"
+    [serverError]="planningError()"
+    (selected)="reschedule($event)"
+    (closed)="closePlan()"
+  />
+}
