@@ -156,14 +156,16 @@ export class VintedListingFieldsDialogComponent {
         this.loading.set(false);
         this.schema.set(null);
         this.initialContent.set(this.content());
-        if (!inherited) void this.load();
+        if (!inherited && !this.fieldSchema()) void this.load();
       });
     });
     effect(() => {
       const inherited = this.inline() && this.section() === 'shipping';
       const schema = this.fieldSchema();
       const categoryId = this.categoryId();
-      if (inherited) this.schema.set(schema?.categoryId === categoryId ? schema : null);
+      if (inherited || schema) {
+        this.schema.set(schema?.categoryId === categoryId ? schema : null);
+      }
     });
     this.destroyRef.onDestroy(() => this.generation++);
   }
@@ -352,7 +354,10 @@ export class VintedListingFieldsDialogComponent {
       label: string,
     ): number | null => {
       const matching = choices(field).filter(
-        (choice) => !choice.disabled && choice.label === label && (id === null || choice.id === id),
+        (choice) =>
+          !choice.disabled &&
+          choice.label === label &&
+          (this.fieldSchema() !== null || id === null || choice.id === id),
       );
       return matching.length === 1 ? matching[0].id : null;
     };

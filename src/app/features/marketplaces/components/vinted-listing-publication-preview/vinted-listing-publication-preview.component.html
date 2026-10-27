@@ -78,9 +78,9 @@
         ><div class="space-y-4">
           <p role="status" aria-live="polite" class="text-sm text-fb-text-secondary">
             @if (loading()) {
-              Vinted-Angaben werden geprüft …
+              Inserat und Kontoverbindung werden geprüft …
             } @else if (review()?.ready) {
-              Deine gespeicherten Angaben passen zur aktuellen Vinted-Auswahl.
+              Deine Angaben sind vollständig. Bei der Übertragung werden sie mit Vinted abgeglichen.
             }
           </p>
           @if (error()) {

@@ -78,20 +78,24 @@ function publicationInput(f: ReturnType<typeof setup>) {
     id: '2',
     storagePath: 'workspace-a/1/2.jpg',
     fileName: 'jacke.jpg',
-    mimeType: 'image/jpeg',
+    mimeType: 'image/jpeg' as const,
     byteSize: 123,
   };
   f.create.mockImplementation(async (_workspace, content, connectionId) => ({
     ...draft,
     content,
     connectionId,
+    images: [],
+  }));
+  vi.mocked(f.imageApi.upload).mockImplementation(async (current) => ({
+    ...current,
     images: [image],
   }));
   f.component.images.set([
     {
       key: image.id,
       storagePath: image.storagePath,
-      file: null,
+      file: new File([new Uint8Array(123)], 'jacke.jpg', { type: 'image/jpeg' }),
       fileName: image.fileName,
       previewUrl: 'https://images.example.test/jacke.jpg',
     },
@@ -102,7 +106,12 @@ function publicationInput(f: ReturnType<typeof setup>) {
     price: '18',
     categoryId: '1223',
     connectionId: 'account-a',
+    brand: 'Keine Marke',
+    size: 'M',
+    condition: 'Sehr gut',
   });
+  f.component.openFieldSelection();
+  f.component.selectFields(selection(), true);
 }
 function setup(query: Record<string, string> = {}) {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
@@ -141,7 +150,15 @@ function setup(query: Record<string, string> = {}) {
       { provide: ConfirmDialogService, useValue: { frage: vi.fn().mockResolvedValue(false) } },
       {
         provide: VintedCategoryService,
-        useValue: { readSnapshot: vi.fn().mockResolvedValue({ categories: [], status: {} }) },
+        useValue: {
+          readSnapshot: vi.fn().mockResolvedValue({
+            categories: [
+              { id: 1223, parentId: null, title: 'Jacken', path: 'Damen > Kleidung > Jacken' },
+              { id: 2738, parentId: null, title: 'Schuhe', path: 'Damen > Schuhe' },
+            ],
+            status: {},
+          }),
+        },
       },
       {
         provide: VintedListingDraftService,
@@ -150,6 +167,7 @@ function setup(query: Record<string, string> = {}) {
       {
         provide: VintedListingImageService,
         useValue: {
+          upload: vi.fn(),
           previews: vi.fn().mockResolvedValue([]),
           setOrder: vi.fn().mockImplementation(async (current) => current),
         },
@@ -171,6 +189,28 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('sichert auch einen unveränderten alten Entwurf vor der Prüfung mit eigenen Auswahlkennungen', async () => {
+    const f = setup();
+    await settle();
+    publicationInput(f);
+    await f.component.save();
+    f.component.draft.update((current) =>
+      current
+        ? {
+            ...current,
+            content: { ...current.content, sizeId: 208, conditionId: 2, attributes: {} },
+          }
+        : null,
+    );
+    expect(f.component.dirty()).toBe(false);
+    await f.component.openPublication();
+    expect(f.save).toHaveBeenCalledTimes(1);
+    expect(f.component.publication()?.draft.content).toMatchObject({
+      sizeId: 5,
+      conditionId: 3,
+      attributes: { flipbaseListingForm: '1' },
+    });
+  });
   it('öffnet ruhig, speichert unvollständig und zeigt fehlende Angaben erst nach angeforderter Prüfung', async () => {
     const { component } = setup();
     await settle();
@@ -261,51 +301,24 @@ describe('Vinted-Inserateditor', () => {
     await settle();
     expect(component.publication()).toBeNull();
   });
-  it('zeigt gelesene Textgrenzen früh, erhält überlange Entwürfe und verwirft Grenzen nach Kategorieänderung', async () => {
-    const { component } = setup();
-    await settle();
-    component.form.patchValue({
-      categoryId: '1223',
-      connectionId: 'account-a',
-      title: 'Mein Titel',
-    });
-    component.openFieldSelection();
-    component.categoryFieldsLoaded({ ...listingCategoryFixture(), titleMaxLength: 5 });
-    expect(component.fieldErrors()['title']).toContain('5 Zeichen');
-    expect(component.textLimitHelp('title')).toBe('10 von 5 Zeichen.');
-    await component.save();
-    expect(component.draft()?.content.title).toBe('Mein Titel');
-    component.form.controls.categoryId.setValue('2738');
-    expect(component.categorySchema()).toBeNull();
-    expect(component.fieldErrors()['title']).toBeUndefined();
-  });
-  it.each(['workspace', 'connection', 'external-account', 'category'])(
-    'übernimmt keine verspätete Kategorieantwort nach Änderung von %s',
-    async (change) => {
-      const { component, workspace, connections } = setup();
-      await settle();
-      component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
-      component.openFieldSelection();
-      if (change === 'workspace') workspace.set({ id: 'workspace-b', archived_at: null });
-      if (change === 'connection') component.form.controls.connectionId.setValue('account-b');
-      if (change === 'external-account')
-        connections.set([{ ...account, externalAccountId: '456' }]);
-      if (change === 'category') component.form.controls.categoryId.setValue('2738');
-      component.categoryFieldsLoaded(listingCategoryFixture());
-      expect(component.categorySchema()).toBeNull();
-    },
-  );
-  it('verwendet nach einem Kontowechsel und Rückwechsel keine frühere Kategorieantwort erneut', async () => {
+  it('verwendet eigene Textgrenzen, erhält überlange Entwürfe und bleibt bei Kontowechseln unabhängig', async () => {
     const { component, connections } = setup();
     await settle();
-    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
-    component.openFieldSelection();
-    component.categoryFieldsLoaded(listingCategoryFixture());
-    expect(component.categorySchema()).not.toBeNull();
-    connections.set([{ ...account, externalAccountId: '456' }]);
-    await settle();
-    connections.set([account]);
-    expect(component.categorySchema()).toBeNull();
+    component.form.patchValue({ categoryId: '1223', title: 'a'.repeat(101) });
+    expect(component.fieldErrors()['title']).toContain('100 Zeichen');
+    expect(component.textLimitHelp('title')).toBe('101 von 100 Zeichen.');
+    await component.save();
+    expect(component.draft()?.content.title).toHaveLength(101);
+    connections.set([{ ...account, status: 'paused' }]);
+    expect(component.categorySchema()?.titleMaxLength).toBe(100);
+    component.form.controls.categoryId.setValue('2738');
+    expect(component.categorySchema()?.categoryId).toBe(2738);
+    expect(
+      component
+        .categorySchema()
+        ?.fields.find((field) => field.field === 'size')
+        ?.choices.some((choice) => choice.label === '38'),
+    ).toBe(true);
   });
   it('bewahrt alle Fotos eines größeren alten Entwurfs, sperrt aber dessen Veröffentlichung', async () => {
     const f = setup();
@@ -342,12 +355,12 @@ describe('Vinted-Inserateditor', () => {
       description: 'Tragespuren',
       priceCents: 2050,
       brandLabel: 'Jako',
-      sizeId: 208,
+      sizeId: 5,
       sizeLabel: 'M',
-      conditionId: 2,
-      colorIds: [2, 1],
+      conditionId: 3,
+      colorIds: [9, 1],
       colorLabels: ['Blau', 'Schwarz'],
-      materialIds: [44],
+      materialIds: [1],
       packageSizeId: 2,
     });
     expect(component.fieldSelection()).toBeNull();
@@ -361,18 +374,18 @@ describe('Vinted-Inserateditor', () => {
     component.selectFields(selection());
     component.form.controls.size.setValue('XL');
     expect(component.content()).toMatchObject({
-      sizeId: null,
-      conditionId: 2,
-      colorIds: [2, 1],
+      sizeId: 7,
+      conditionId: 3,
+      colorIds: [9, 1],
       packageSizeId: 2,
     });
     component.form.controls.size.setValue('M');
-    expect(component.content().sizeId).toBeNull();
+    expect(component.content().sizeId).toBe(5);
     component.form.controls.categoryId.setValue('2738');
     expect(component.content()).toMatchObject({
-      conditionId: null,
-      colorIds: [],
-      materialIds: [],
+      conditionId: 3,
+      colorIds: [9, 1],
+      materialIds: [1],
       packageSizeId: null,
     });
     expect(component.packageLabel()).toBe('Noch nicht festgelegt');
@@ -393,17 +406,17 @@ describe('Vinted-Inserateditor', () => {
       expect(component.form.controls.size.value).toBe('');
       expect(component.content().sizeId).toBeNull();
       await settle();
-      if (change === 'external-account' || change === 'category')
+      if (change !== 'workspace')
         expect(component.fieldSelection()?.categoryId).toBe(change === 'category' ? 2738 : 1223);
       else expect(component.fieldSelection()).toBeNull();
     },
   );
-  it('requires an eligible target and keeps category selection usable with an invalid price', async () => {
+  it('bietet die eigenen Angaben auch ohne verbundenes Zielkonto und bei ungültiger Preiseingabe an', async () => {
     const { component, connections } = setup();
     await settle();
     component.form.controls.categoryId.setValue('1223');
     component.openFieldSelection();
-    expect(component.fieldSelection()).toBeNull();
+    expect(component.fieldSelection()?.categoryId).toBe(1223);
     component.form.controls.connectionId.setValue('account-a');
     for (const patch of [
       { executionMode: 'local' },
@@ -412,7 +425,8 @@ describe('Vinted-Inserateditor', () => {
     ]) {
       connections.set([{ ...account, ...patch }]);
       component.openFieldSelection();
-      expect(component.fieldSelection()).toBeNull();
+      expect(component.fieldSelection()?.categoryId).toBe(1223);
+      expect(component.canPreparePublication()).toBe(false);
     }
     connections.set([account]);
     component.form.controls.price.setValue('20,');
@@ -420,7 +434,7 @@ describe('Vinted-Inserateditor', () => {
     expect(component.fieldSelection()?.categoryId).toBe(1223);
     component.selectFields(selection(), true);
     expect(component.form.controls.size.value).toBe('M');
-    expect(component.content().sizeId).toBe(208);
+    expect(component.content().sizeId).toBe(5);
     expect(component.content().categoryId).toBe(1223);
     expect(component.form.controls.price.value).toBe('20,');
     expect(component.error()).toBeNull();
@@ -449,8 +463,8 @@ describe('Vinted-Inserateditor', () => {
       ),
     );
     expect(component.content()).toMatchObject({
-      sizeId: 208,
-      conditionId: 2,
+      sizeId: 5,
+      conditionId: 3,
       conditionLabel: 'Sehr gut',
       packageSizeId: 2,
     });
@@ -515,7 +529,7 @@ describe('Vinted-Inserateditor', () => {
     });
     component.form.controls.categoryId.setValue('2738');
     await component.save();
-    expect(create.mock.calls[0][1].attributes).toEqual({});
+    expect(create.mock.calls[0][1].attributes).toEqual({ flipbaseListingForm: '1' });
   });
   it('does not create an empty draft on opening', async () => {
     const { component, create } = setup();

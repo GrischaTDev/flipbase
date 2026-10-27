@@ -206,10 +206,14 @@ async function settle(_f: ReturnType<typeof setup>) {
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Vinted publication preview', () => {
-  it('ignores a category response after closing the preview', async () => {
+  it('ignoriert eine verspätete Kontoprüfung nach dem Schließen', async () => {
     const f = setup();
-    let resolve!: (value: ReturnType<typeof fields>) => void;
-    f.read.mockImplementationOnce(
+    let resolve!: (value: {
+      available: boolean;
+      readOnly: boolean;
+      listingPublishingEnabled: boolean;
+    }) => void;
+    f.available.mockImplementationOnce(
       () =>
         new Promise((complete) => {
           resolve = complete;
@@ -218,7 +222,7 @@ describe('Vinted publication preview', () => {
     await settle(f);
     expect(f.component.loading()).toBe(true);
     f.component.close();
-    resolve(fields());
+    resolve({ available: true, readOnly: false, listingPublishingEnabled: true });
     await settle(f);
     expect(f.component.schema()).toBeNull();
     expect(f.closed).toHaveBeenCalledTimes(1);
@@ -246,7 +250,7 @@ describe('Vinted publication preview', () => {
   it('loads current category, brand, permission, runtime and jobs without writing', async () => {
     const f = setup();
     await settle(f);
-    expect(f.read).toHaveBeenCalledWith(connectionId, 1223, { fresh: true });
+    expect(f.read).not.toHaveBeenCalled();
     expect(f.search).toHaveBeenCalledWith('Jako', workspaceId);
     expect(f.component.review()?.ready).toBe(true);
     expect(f.component.canSubmit()).toBe(true);
@@ -376,4 +380,18 @@ describe('Vinted publication preview', () => {
     expect(f.closed).toHaveBeenCalledTimes(1);
     f.fixture.destroy();
   });
+});
+
+it('prüft ein eigenes Formular ohne Abruf einer Vinted-Formularauswahl', async () => {
+  const f = setup();
+  f.read.mockRejectedValue(new Error('Vinted-Auswahl konnte nicht geladen werden'));
+  f.fixture.componentRef.setInput('draft', {
+    ...draft,
+    content: { ...draft.content, attributes: { flipbaseListingForm: '1' } },
+  });
+  await settle(f);
+  expect(f.read).not.toHaveBeenCalled();
+  expect(f.component.error()).toBeNull();
+  expect(f.component.review()?.ready).toBe(true);
+  f.fixture.destroy();
 });

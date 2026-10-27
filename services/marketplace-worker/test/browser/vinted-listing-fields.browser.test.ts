@@ -14,6 +14,35 @@ const content = {
   materialLabels: ['Acryl'],
 };
 
+test('bricht eine nicht zuordenbare eigene Größe vor jedem Upload und Speichern ab', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const f = await fixture(page);
+    await assert.rejects(
+      prepareVintedListingFields(
+        page,
+        '123',
+        {
+          ...snapshot.content,
+          sizeId: 5,
+          sizeLabel: 'Unbekannt',
+          attributes: { flipbaseListingForm: '1' },
+        },
+        snapshot.images,
+        [5],
+        f.authorize,
+      ),
+      /Größe/,
+    );
+    assert.equal(f.uploads(), 0);
+    assert.equal(f.saves(), 0);
+    assert.equal(f.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('prepares and rereads the observed native color grid without uploading or saving', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

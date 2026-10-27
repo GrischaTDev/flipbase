@@ -191,13 +191,13 @@
                 <app-vinted-listing-fields-dialog
                   [inline]="true"
                   section="details"
+                  [fieldSchema]="categorySchema()"
                   [scopeKey]="selection.scopeKey"
                   [connectionId]="selection.connectionId"
                   [categoryId]="selection.categoryId"
                   [content]="content()"
                   [fieldErrors]="visibleFieldErrors()"
                   [disabled]="saving() || imageEditing()"
-                  (schemaLoaded)="categoryFieldsLoaded($event)"
                   (selected)="selectFields($event, true)"
                 />
               }

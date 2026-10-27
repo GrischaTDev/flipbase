@@ -13,6 +13,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
   try {
     for (const options of [
       {},
+      { localForm: true },
       { brandSearch: 'matching' as const },
       { savedPrice: '11,00' },
       { active: false },
@@ -35,7 +36,17 @@ test('publishing writes once after Begin and confirms only the saved content, ph
                 brandLabel: 'Jako',
               },
             }
-          : listingClaimFixture.snapshot,
+          : options.localForm
+            ? {
+                ...listingClaimFixture.snapshot,
+                content: {
+                  ...listingClaimFixture.snapshot.content,
+                  sizeId: 5,
+                  conditionId: 3,
+                  attributes: { flipbaseListingForm: '1' },
+                },
+              }
+            : listingClaimFixture.snapshot,
         () => {
           begin++;
           assert.equal(f.writes(), 0);

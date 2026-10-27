@@ -12,6 +12,7 @@ import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { VintedListingFieldsDialogComponent } from './vinted-listing-fields-dialog.component';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
+import { flipbaseVintedListingFields } from '../../models/flipbase-vinted-listing-form';
 
 let restore: (() => void) | undefined;
 beforeAll(async () => {
@@ -77,6 +78,30 @@ async function settle(f: ReturnType<typeof setup>) {
   f.fixture.detectChanges();
 }
 describe('Vinted category field dialog', () => {
+  it('zeigt eigene Schuhgrößen unmittelbar und benötigt dafür weder Konto noch Anbieterabruf', async () => {
+    const f = setup();
+    f.read.mockRejectedValue(new Error('Vinted nicht erreichbar'));
+    f.fixture.componentRef.setInput('inline', true);
+    f.fixture.componentRef.setInput('connectionId', '');
+    f.fixture.componentRef.setInput('categoryId', 16);
+    f.fixture.componentRef.setInput(
+      'fieldSchema',
+      flipbaseVintedListingFields(16, 'Damen > Schuhe'),
+    );
+    f.fixture.componentRef.setInput('content', { ...emptyVintedListingContent(), categoryId: 16 });
+    await settle(f);
+    expect(f.read).not.toHaveBeenCalled();
+    expect(f.component.loading()).toBe(false);
+    expect(f.component.singleOptions('size')).toContainEqual(
+      expect.objectContaining({ label: '38' }),
+    );
+    expect(f.component.singleOptions('size')).not.toContainEqual(
+      expect.objectContaining({ label: 'M' }),
+    );
+    expect(f.fixture.nativeElement.textContent).toContain('Zustand');
+    expect(f.fixture.nativeElement.textContent).toContain('Paketgröße');
+    expect(f.component.error()).toBeNull();
+  });
   it('sperrt direkte Farben und Materialien beim Speichern und gibt sie danach wieder frei', async () => {
     const f = setup();
     f.fixture.componentRef.setInput('inline', true);
