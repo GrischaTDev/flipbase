@@ -4,8 +4,15 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { AppDisplayPreferencesService } from '../../../core/services/app-display-preferences.service';
 import type { AccountScope } from '../models/marketplace.models';
 import type { VintedAction } from '../models/vinted-action-overview';
+import type { VintedListingJob } from '../models/vinted-listing-job';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
+import { VintedListingJobService } from './vinted-listing-job.service';
+
+export interface VintedListingActionEntry {
+  readonly job: VintedListingJob;
+  readonly accountName: string;
+}
 
 export interface VintedRunningActionGroup {
   readonly scope: AccountScope;
@@ -21,6 +28,7 @@ export class VintedActionOverviewHeaderStore {
   private readonly preferences = inject(AppDisplayPreferencesService);
   private readonly accounts = inject(MarketplaceApiService);
   private readonly api = inject(VintedActionOverviewApiService);
+  private readonly listingApi = inject(VintedListingJobService);
   readonly enabled = this.preferences.actionOverviewEnabled;
   readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
@@ -32,6 +40,7 @@ export class VintedActionOverviewHeaderStore {
   private readonly snapshot = signal<{
     context: string;
     groups: readonly VintedRunningActionGroup[];
+    listings: readonly VintedListingActionEntry[];
     error: string | null;
   } | null>(null);
   private readonly reading = signal<string | null>(null);
@@ -42,8 +51,16 @@ export class VintedActionOverviewHeaderStore {
       ? (this.snapshot()?.groups ?? [])
       : [],
   );
-  readonly count = computed(() =>
-    this.groups().reduce((count, group) => count + group.actions.length, 0),
+  readonly listings = computed(() =>
+    this.context() && this.snapshot()?.context === this.context()
+      ? (this.snapshot()?.listings ?? [])
+      : [],
+  );
+  readonly count = computed(
+    () =>
+      this.groups().reduce((count, group) => count + group.actions.length, 0) +
+      this.listings().filter(({ job }) => ['queued', 'paused', 'claimed', 'writing'].includes(job.state))
+        .length,
   );
   readonly loading = computed(() => this.context() !== null && this.reading() === this.context());
   readonly error = computed(() =>
@@ -90,11 +107,19 @@ export class VintedActionOverviewHeaderStore {
       const accounts = connections.canManage
         ? connections.connections.filter((account) => account.marketplace === 'vinted')
         : [];
-      const results = await Promise.allSettled(
-        accounts.map((account) =>
-          this.api.read({ workspaceId, connectionId: account.connectionId }),
+      const [results, listingResult] = await Promise.all([
+        Promise.allSettled(
+          accounts.map((account) =>
+            this.api.read({ workspaceId, connectionId: account.connectionId }),
+          ),
         ),
-      );
+        connections.canManage
+          ? this.listingApi.list(workspaceId).then(
+              (jobs) => ({ jobs, failed: false }),
+              () => ({ jobs: [] as readonly VintedListingJob[], failed: true }),
+            )
+          : Promise.resolve({ jobs: [] as readonly VintedListingJob[], failed: false }),
+      ]);
       if (!isCurrent()) return;
       let hasError = false;
       const previous = this.groups();
@@ -117,13 +142,23 @@ export class VintedActionOverviewHeaderStore {
             ]
           : [];
       });
-      this.snapshot.set({ context, groups, error: hasError ? this.readError : null });
+      if (listingResult.failed) hasError = true;
+      const availableAccounts = new Map(accounts.map((account) => [account.connectionId, account.displayName]));
+      const listings = (listingResult.failed ? this.listings().map((entry) => entry.job) : listingResult.jobs)
+        .filter((job) => job.connectionId !== null && availableAccounts.has(job.connectionId))
+        .filter((job) => job.state !== 'cancelled')
+        .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+        .slice(0, 20)
+        .map((job) => ({ job, accountName: availableAccounts.get(job.connectionId!)! }));
+      this.snapshot.set({ context, groups, listings, error: hasError ? this.readError : null });
     } catch (error) {
       if (isCurrent())
         this.snapshot.set({
           context,
           groups:
             error instanceof MarketplaceApiError && error.code === 'forbidden' ? [] : this.groups(),
+          listings:
+            error instanceof MarketplaceApiError && error.code === 'forbidden' ? [] : this.listings(),
           error: this.readError,
         });
     } finally {
