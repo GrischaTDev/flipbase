@@ -21,7 +21,10 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
-import type { VintedListingScheduleSelection } from '../vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component';
+import {
+  VintedListingScheduleDialogComponent,
+  type VintedListingScheduleSelection,
+} from '../vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -53,7 +56,6 @@ import {
   type VintedListingDraft,
 } from '../../models/vinted-listing-draft';
 import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-panel/vinted-listing-template-panel.component';
-import { VintedListingJobPanelComponent } from '../vinted-listing-job-panel/vinted-listing-job-panel.component';
 import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
 import { VintedListingFieldsDialogComponent } from '../vinted-listing-fields-dialog/vinted-listing-fields-dialog.component';
 import { VintedListingPublicationPreviewComponent } from '../vinted-listing-publication-preview/vinted-listing-publication-preview.component';
@@ -100,10 +102,10 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     CategoryPickerComponent,
     VintedListingMediaComponent,
     VintedListingTemplatePanelComponent,
-    VintedListingJobPanelComponent,
     VintedListingBrandDialogComponent,
     VintedListingFieldsDialogComponent,
     VintedListingPublicationPreviewComponent,
+    VintedListingScheduleDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [VintedListingCategoryService],
@@ -160,6 +162,7 @@ export class VintedListingEditorComponent {
   } | null>(null);
   readonly publicationBusy = signal(false);
   readonly publicationSchedule = signal<VintedListingScheduleSelection | null>(null);
+  readonly planningPublication = signal(false);
   readonly publicationAnnouncement = signal('');
   readonly jobRefresh = signal(0);
   readonly fieldSelection = signal<{
@@ -358,7 +361,7 @@ export class VintedListingEditorComponent {
         ? 'Wähle eine Kategorie, um die passenden Artikelangaben auszufüllen.'
         : this.categorySchema() === null
           ? 'Ergänze die Artikelangaben. Server- und Kontofreigabe werden vor der Veröffentlichung geprüft.'
-          : 'Ergänze die markierten Angaben. Server- und Kontofreigabe werden in „Veröffentlichung vorbereiten“ geprüft.'),
+          : 'Ergänze die markierten Angaben. Server- und Kontofreigabe werden beim Veröffentlichen geprüft.'),
   );
   readonly canSelectFields = computed(() => {
     this.changed();
@@ -380,7 +383,9 @@ export class VintedListingEditorComponent {
       account?.marketplace === 'vinted'
     );
   });
-  readonly canStartPublication = computed(() => this.canSelectBrand() && !this.categoryLoading());
+  readonly canStartPublication = computed(
+    () => this.canSelectBrand() && !this.categoryLoading() && !this.publication(),
+  );
   private readonly publicationScope = computed(() =>
     JSON.stringify([
       this.fieldSelectionScope(),
@@ -422,9 +427,22 @@ export class VintedListingEditorComponent {
       this.generation++;
     });
   }
-  /** Ungespeicherte Eingaben werden zuerst als Entwurf gesichert; die Vorschau zeigt nur Gespeichertes. */
+  publishNow(): void {
+    this.publicationSchedule.set(null);
+    void this.openPublication();
+  }
+  openSchedule(): void {
+    if (this.canStartPublication()) this.planningPublication.set(true);
+  }
+  schedulePublication(schedule: VintedListingScheduleSelection): void {
+    this.planningPublication.set(false);
+    this.publicationSchedule.set(schedule);
+    void this.openPublication();
+  }
+  /** Ungespeicherte Eingaben sichern; der Auftrag startet ohne zusätzlichen Bestätigungsschritt. */
   async openPublication(): Promise<void> {
     if (!this.canStartPublication()) return;
+    this.planningPublication.set(false);
     this.publicationAttempted.set(true);
     if (
       !this.canSelectFields() ||
@@ -487,7 +505,7 @@ export class VintedListingEditorComponent {
       return;
     this.closePublication();
     this.publicationAnnouncement.set(
-      'Die Veröffentlichung wurde beauftragt. Den bestätigten Vinted-Stand siehst Du im Auftragsverlauf.',
+      'Die Veröffentlichung wurde beauftragt. Den aktuellen Stand findest Du unter „Laufende Aktionen“.',
     );
     this.publicationSchedule.set(null);
     this.jobRefresh.update((value) => value + 1);
@@ -764,6 +782,7 @@ export class VintedListingEditorComponent {
     this.closePublication();
     this.publicationAnnouncement.set('');
     this.publicationSchedule.set(null);
+    this.planningPublication.set(false);
     const generation = ++this.generation;
     this.activeSave = null;
     this.loading.set(true);
