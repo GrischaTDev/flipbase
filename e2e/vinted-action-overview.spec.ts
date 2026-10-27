@@ -130,7 +130,7 @@ test('zeigt Vinted-Veröffentlichungen zentral und bricht wartende Aufträge ab 
 }) => {
   const fixture = await mockActionOverview(page);
   const job = {
-    id: '46600000-0000-4000-8000-000000000099',
+    id: '99',
     workspaceId: '25000000-0000-4000-8000-000000000011',
     connectionId: '25000000-0000-4000-8000-000000000021',
     draftId: '9007199254740999',
