@@ -53,6 +53,22 @@ describe('HeaderComponent', () => {
         'src/app/features/marketplaces/components/vinted-action-overview-menu/vinted-action-overview-menu.component.html',
       './vinted-action-overview.component.html':
         'src/app/features/marketplaces/components/vinted-action-overview/vinted-action-overview.component.html',
+      './vinted-listing-action-overview.component.html':
+        'src/app/features/marketplaces/components/vinted-listing-action-overview/vinted-listing-action-overview.component.html',
+      './vinted-listing-schedule-dialog.component.html':
+        'src/app/features/marketplaces/components/vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component.html',
+      './date-picker.component.html':
+        'src/app/shared/components/date-picker/date-picker.component.html',
+      './date-picker.component.scss':
+        'src/app/shared/components/date-picker/date-picker.component.scss',
+      './text-field.component.html':
+        'src/app/shared/components/text-field/text-field.component.html',
+      './custom-select.component.html':
+        'src/app/shared/components/custom-select/custom-select.component.html',
+      './custom-select.component.scss':
+        'src/app/shared/components/custom-select/custom-select.component.scss',
+      './form-field.component.html':
+        'src/app/shared/components/form-field/form-field.component.html',
       './loading-indicator.component.html':
         'src/app/shared/components/loading-indicator/loading-indicator.component.html',
       './notice-banner.component.html':
@@ -98,6 +114,7 @@ describe('HeaderComponent', () => {
             context: signal(null),
             count: signal(0),
             groups: signal([]),
+            listings: signal([]),
             loading: signal(false),
             error: signal(null),
             refresh: vi.fn(),
