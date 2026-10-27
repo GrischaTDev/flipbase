@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
@@ -61,7 +68,12 @@ export class VintedListingActionOverviewComponent {
     );
   }
   async cancel(job: VintedListingJob): Promise<void> {
-    if (!this.current(job) || !['queued', 'paused'].includes(job.state) || this.busy() || this.planning())
+    if (
+      !this.current(job) ||
+      !['queued', 'paused'].includes(job.state) ||
+      this.busy() ||
+      this.planning()
+    )
       return;
     const context = this.overview.context();
     this.busy.set(job.id);
@@ -71,7 +83,9 @@ export class VintedListingActionOverviewComponent {
       if (context === this.overview.context()) await this.overview.refresh();
     } catch {
       if (context === this.overview.context())
-        this.error.set('Der Auftrag konnte nicht abgebrochen werden. Bitte aktualisiere den Status.');
+        this.error.set(
+          'Der Auftrag konnte nicht abgebrochen werden. Bitte aktualisiere den Status.',
+        );
     } finally {
       this.busy.set(null);
     }
@@ -99,7 +113,9 @@ export class VintedListingActionOverviewComponent {
       this.planning.set({ job, draft });
     } catch {
       if (context === this.overview.context())
-        this.error.set('Die Planung kann nicht geladen werden. Öffne den Entwurf und prüfe den Status.');
+        this.error.set(
+          'Die Planung kann nicht geladen werden. Öffne den Entwurf und prüfe den Status.',
+        );
     } finally {
       this.loadingPlan.set(null);
     }
@@ -112,8 +128,13 @@ export class VintedListingActionOverviewComponent {
     if (!plan || !this.current(plan.job) || this.busy()) return;
     const context = this.overview.context();
     const key = JSON.stringify([
-      context, plan.job.id, plan.job.version, plan.draft.revision,
-      schedule.scheduledAt, schedule.timeZone, schedule.latePolicy,
+      context,
+      plan.job.id,
+      plan.job.version,
+      plan.draft.revision,
+      schedule.scheduledAt,
+      schedule.timeZone,
+      schedule.latePolicy,
     ]);
     if (this.lastRequest?.key !== key)
       this.lastRequest = { key, id: crypto.randomUUID() };
