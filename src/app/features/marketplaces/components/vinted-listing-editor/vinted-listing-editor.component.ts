@@ -380,7 +380,7 @@ export class VintedListingEditorComponent {
       account?.marketplace === 'vinted'
     );
   });
-  readonly canStartPublication = computed(() => this.canSelectBrand());
+  readonly canStartPublication = computed(() => this.canSelectBrand() && !this.categoryLoading());
   private readonly publicationScope = computed(() =>
     JSON.stringify([
       this.fieldSelectionScope(),

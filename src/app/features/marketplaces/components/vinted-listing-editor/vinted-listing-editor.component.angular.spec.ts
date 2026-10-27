@@ -189,6 +189,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('sperrt die Prüfungsschaltfläche während eines langsamen Kategorienabrufs', async () => {
+    const f = setup();
+    await settle();
+    publicationInput(f);
+    expect(f.component.canStartPublication()).toBe(true);
+    f.component.categoryLoading.set(true);
+    expect(f.component.canStartPublication()).toBe(false);
+    f.component.categoryLoading.set(false);
+    expect(f.component.canStartPublication()).toBe(true);
+  });
   it.each(['loading', 'failed'])(
     'beauftragt ohne bestätigte Kategorie auch bei %s keinen vollständigen Entwurf',
     async (state) => {

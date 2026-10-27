@@ -905,8 +905,23 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
   page,
 }) => {
   const state = await mockPublication(page, true, true);
+  let releaseCategories!: () => void;
+  const categoryGate = new Promise<void>((resolve) => (releaseCategories = resolve));
+  await page.route('**/rest/v1/vinted_category_syncs*', async (route) => {
+    await categoryGate;
+    await route.fallback();
+  });
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  const opener = page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true });
+  await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+    'Meine Jako-Jacke',
+  );
+  try {
+    await expect(opener).toBeDisabled();
+  } finally {
+    releaseCategories();
+  }
+  await opener.click();
   const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
   await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
   await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
