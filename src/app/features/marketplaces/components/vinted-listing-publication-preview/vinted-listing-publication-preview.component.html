@@ -1,3 +1,51 @@
+@if (direct()) {
+  <section
+    data-publication-review
+    tabindex="-1"
+    [attr.aria-busy]="loading() || busy()"
+    class="rounded-lg border border-fb-border bg-fb-surface p-3 focus:outline-none"
+  >
+    @if (loading() || busy()) {
+      <p role="status" class="text-sm text-fb-text-secondary">
+        Die Veröffentlichung wird geprüft und an Vinted übergeben …
+      </p>
+    }
+    @if (error(); as message) {
+      <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+    }
+    @if (blockedJob(); as job) {
+      <app-notice-banner announcement="alert">
+        Für diesen Entwurf besteht bereits ein Auftrag: {{ listingJobLabel(job) }}.
+        Prüfe den Stand unter „Laufende Aktionen“.
+      </app-notice-banner>
+    }
+    @if (review(); as checked) {
+      @if (checked.messages.length) {
+        <app-notice-banner announcement="alert">
+          <p class="font-semibold">Ergänze diese Angaben im Editor:</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5">
+            @for (message of checked.messages; track $index) {
+              <li>{{ message }}</li>
+            }
+          </ul>
+        </app-notice-banner>
+      }
+    }
+    @if (!loading() && !runtimeEnabled() && !error()) {
+      <app-notice-banner announcement="alert">
+        Die Veröffentlichung ist derzeit nicht verfügbar. Der gespeicherte Entwurf bleibt erhalten.
+      </app-notice-banner>
+    }
+    @if (!loading() && !busy()) {
+      <div class="mt-3 flex flex-wrap gap-2">
+        <app-button variant="secondary" size="slim" (clicked)="close()">Zum Editor</app-button>
+        @if (error() && canSubmit()) {
+          <app-button size="slim" (clicked)="submit()">Denselben Auftrag erneut prüfen</app-button>
+        }
+      </div>
+    }
+  </section>
+} @else {
 <section
   data-publication-review
   tabindex="-1"
@@ -175,4 +223,6 @@
     (selected)="selectSchedule($event)"
     (closed)="closeSchedule()"
   />
+}
+
 }
