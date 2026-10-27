@@ -7,6 +7,7 @@ COPY services/marketplace-worker/src ./src
 COPY supabase/functions/_shared/marketplace-message-contracts.d.ts supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts supabase/functions/_shared/marketplace-negotiation-contracts.d.ts /app/supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-negotiation-runtime.js /app/tools/flipbase-extension/
 COPY supabase/functions/_shared/marketplace-listing-contracts.d.ts /app/supabase/functions/_shared/
+COPY supabase/functions/_shared/marketplace-profile-contracts.d.ts /app/supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-listing-runtime.js /app/tools/flipbase-extension/
 COPY supabase/functions/_shared/kleinanzeigen-listing-validation.mts supabase/functions/_shared/kleinanzeigen-listing-contracts.ts /app/supabase/functions/_shared/
 RUN npm run build
