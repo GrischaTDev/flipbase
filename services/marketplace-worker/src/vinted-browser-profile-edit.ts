@@ -5,7 +5,7 @@ import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
 
 const url = 'https://www.vinted.de/settings/profile';
 
-async function openProfile(page: Page, accountId: string): Promise<void> {
+export async function openVintedProfile(page: Page, accountId: string): Promise<void> {
   const identity = await readVintedAccountIdentity(page);
   if (!identity || identity.id !== accountId) throw new Error('Vinted-Konto stimmt nicht überein');
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20_000 });
@@ -18,7 +18,7 @@ async function openProfile(page: Page, accountId: string): Promise<void> {
 }
 
 export async function readVintedProfileAbout(page: Page, accountId: string): Promise<string> {
-  await openProfile(page, accountId);
+  await openVintedProfile(page, accountId);
   return page.locator('textarea[name="about"]').inputValue();
 }
 
@@ -29,7 +29,7 @@ export async function updateVintedProfileAbout(
   authorize: () => Promise<void>,
   expectedAbout?: string,
 ): Promise<VintedEditResult> {
-  await openProfile(page, accountId);
+  await openVintedProfile(page, accountId);
   if (
     expectedAbout !== undefined &&
     (await page.locator('textarea[name="about"]').inputValue()) !== expectedAbout

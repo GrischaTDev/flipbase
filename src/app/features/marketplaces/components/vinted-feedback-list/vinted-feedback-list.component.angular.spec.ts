@@ -5,6 +5,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { VintedFeedbackListComponent } from './vinted-feedback-list.component';
+import { SummaryMetricComponent } from '../../../../shared/components/summary-metric/summary-metric.component';
 import type { MarketplaceFeedback, MarketplaceProfile } from '../../models/marketplace-read.models';
 
 describe('VintedFeedbackListComponent', () => {
@@ -63,6 +64,10 @@ describe('VintedFeedbackListComponent', () => {
 
   beforeAll(async () => {
     resetBindings = await prepareMarketplaceRendering([
+      {
+        type: SummaryMetricComponent,
+        path: 'src/app/shared/components/summary-metric/summary-metric.component.ts',
+      },
       { type: BadgeComponent, path: 'src/app/shared/components/badge/badge.component.ts' },
       { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },
       {

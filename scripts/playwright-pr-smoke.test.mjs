@@ -410,6 +410,12 @@ const coreTests = [
   ),
   ...[1440, 390, 320].flatMap((width) =>
     ['light', 'dark'].map((theme) => [
+      'vinted-profile.spec.ts',
+      `bearbeitet Vinted-Profil mit echter Stadtauswahl ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
+  ...[1440, 390, 320].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
       'vinted-workspace-ui.spec.ts',
       `kompakte Vinted-Ansicht, Kennzahlen und Favoritenglocke ${width}px ${theme} @marketplace-preview @core-smoke`,
     ]),

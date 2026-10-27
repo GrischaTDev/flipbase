@@ -1,4 +1,8 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import type {
+  VintedProfileChanges,
+  VintedProfileDetails,
+} from '../models/vinted-profile-edit.models';
 import type { VintedListingPhotoArrangement } from '../models/vinted-listing-edit-form';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -1243,6 +1247,62 @@ export class MarketplaceAccountStore {
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
     return this.browserApi.readProfileAbout(this.scope(connection), token);
+  }
+
+  private profileAccess(connectionId: string) {
+    const connection = this.selectedConnection(),
+      token = this.auth.session()?.access_token;
+    if (
+      !this.canManage() ||
+      !connection ||
+      connection.executionMode === 'local' ||
+      connection.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    return { connection, token };
+  }
+
+  async readProfileDetails(connectionId: string) {
+    const { connection, token } = this.profileAccess(connectionId);
+    return this.browserApi.readProfileDetails(this.scope(connection), token);
+  }
+
+  async searchProfileCities(connectionId: string, query: string) {
+    const { connection, token } = this.profileAccess(connectionId);
+    return this.browserApi.searchProfileCities(this.scope(connection), query, token);
+  }
+
+  async saveProfileDetails(
+    connectionId: string,
+    changes: VintedProfileChanges,
+    expected: VintedProfileDetails,
+  ) {
+    const { connection, token } = this.profileAccess(connectionId);
+    const result = await this.browserApi.saveProfileDetails(
+      this.scope(connection),
+      changes,
+      expected,
+      token,
+    );
+    this.accountSnapshot.update((snapshot) =>
+      snapshot?.connectionId === connectionId &&
+      snapshot.workspaceId === connection.workspaceId &&
+      snapshot.profile
+        ? {
+            ...snapshot,
+            profile: {
+              ...snapshot.profile,
+              bio: result.profile.about,
+              bioState: 'loaded',
+              location: result.profile.showCity ? result.profile.city : null,
+              imageUrl: result.profile.imageUrl,
+            },
+          }
+        : snapshot,
+    );
+    return result;
   }
   async saveProfileAbout(
     connectionId: string,

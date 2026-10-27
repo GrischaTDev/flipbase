@@ -1,4 +1,11 @@
 import { Injectable } from '@angular/core';
+import {
+  parseVintedProfileDetails,
+  parseVintedProfileOptions,
+  type VintedProfileChanges,
+  type VintedProfileDetails,
+  type VintedProfileOption,
+} from '../models/vinted-profile-edit.models';
 import type { VintedListingPhotoArrangement } from '../models/vinted-listing-edit-form';
 import {
   parseVintedListingCategoryFields,
@@ -117,10 +124,10 @@ export class VintedListingPriceChangedError extends VintedListingChangedError {
 }
 
 export class VintedProfileConflictError extends Error {
-  constructor() {
-    super(
-      'Dein Profiltext hat sich bei Vinted geändert. Lade die Kontodaten neu, bevor Du speicherst.',
-    );
+  constructor(
+    message = 'Dein Profiltext hat sich bei Vinted geändert. Lade die Kontodaten neu, bevor Du speicherst.',
+  ) {
+    super(message);
   }
 }
 
@@ -913,6 +920,87 @@ export class MarketplaceBrowserTestApiService {
     )
       throw new Error('Das Vinted-Profilformular lieferte ungültige Daten.');
     return body.about;
+  }
+
+  async readProfileDetails(
+    scope: BrowserTestScope,
+    accessToken: string,
+  ): Promise<VintedProfileDetails> {
+    const response = await this.post(
+      '/marketplace-browser/profile/details/read',
+      scope,
+      accessToken,
+    );
+    if (response.status === 404 || response.status === 503)
+      throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new Error('Die Profildaten konnten nicht geladen werden.');
+    const body: unknown = await response.json();
+    if (!body || typeof body !== 'object' || !('profile' in body))
+      throw new Error('Ungültige Profildaten.');
+    return parseVintedProfileDetails(body.profile);
+  }
+
+  async searchProfileCities(
+    scope: BrowserTestScope,
+    query: string,
+    accessToken: string,
+  ): Promise<VintedProfileOption[]> {
+    const response = await this.post(
+      '/marketplace-browser/profile/cities/read',
+      { ...scope, query },
+      accessToken,
+    );
+    if (!response.ok) throw new Error('Die Städte konnten nicht geladen werden.');
+    const body: unknown = await response.json();
+    if (!body || typeof body !== 'object' || !('cities' in body))
+      throw new Error('Ungültige Stadtauswahl.');
+    return parseVintedProfileOptions(body.cities, true);
+  }
+
+  async saveProfileDetails(
+    scope: BrowserTestScope,
+    changes: VintedProfileChanges,
+    expected: VintedProfileDetails,
+    accessToken: string,
+  ): Promise<{ profile: VintedProfileDetails; cachePending: boolean }> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/profile/details/save',
+        { ...scope, changes, expected },
+        accessToken,
+      );
+    } catch {
+      throw new VintedEditUnconfirmedError('Profil');
+    }
+    if (response.status === 404 || response.status === 503)
+      throw new MarketplaceWorkerOutdatedError();
+    if (response.status === 429) throw new VintedAccountBusyError();
+    if (!response.ok) throw new VintedEditUnconfirmedError('Profil');
+    try {
+      const body: unknown = await response.json();
+      if (!body || typeof body !== 'object' || !('status' in body))
+        throw new VintedEditUnconfirmedError('Profil');
+      if (body.status === 'conflict')
+        throw new VintedProfileConflictError(
+          'Dein Profil hat sich bei Vinted geändert. Lade die Profildaten neu, bevor Du speicherst.',
+        );
+      if (body.status !== 'confirmed' || !('profile' in body))
+        throw new VintedEditUnconfirmedError('Profil');
+      const profile = parseVintedProfileDetails(body.profile);
+      if (
+        profile.about !== changes.about ||
+        profile.city !== changes.city ||
+        profile.showCity !== changes.showCity ||
+        profile.language !== changes.language ||
+        (changes.photo && (!profile.imageUrl || profile.imageUrl === expected.imageUrl))
+      )
+        throw new VintedEditUnconfirmedError('Profil');
+      return { profile, cachePending: 'cache' in body && body.cache === 'pending' };
+    } catch (error) {
+      if (error instanceof VintedProfileConflictError) throw error;
+      throw new VintedEditUnconfirmedError('Profil');
+    }
   }
 
   async saveProfileAbout(

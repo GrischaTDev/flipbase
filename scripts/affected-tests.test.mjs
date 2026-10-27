@@ -19,6 +19,18 @@ const files = {
   'e2e/purchase-profitability.spec.ts': '',
 };
 
+test('Profiländerung wählt die Profilbearbeitung ohne Artikel- oder Verkaufsabläufe', () => {
+  const profilePath =
+    'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts';
+  const plan = selectAffectedTests([profilePath], {
+    ...files,
+    [profilePath]: 'export class Editor {}',
+    'e2e/vinted-profile.spec.ts': 'test()',
+  });
+  assert.equal(plan.full, false);
+  assert.deepEqual(plan.browserFiles, ['e2e/vinted-profile.spec.ts']);
+});
+
 test('Galerievorlage wählt abhängige Artikeltests statt Einkauf und PWA', () => {
   const plan = selectAffectedTests(
     ['src/app/shared/components/product-gallery/product-gallery.component.html'],

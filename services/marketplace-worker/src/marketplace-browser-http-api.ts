@@ -26,6 +26,14 @@ import type { VintedListingEditFields } from './vinted-browser-listing-edit.ts';
 import type { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
 import type { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
 import type { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
+import {
+  parseVintedProfileChanges,
+  parseVintedProfileDetails,
+} from './vinted-profile-contracts.ts';
+import type {
+  VintedProfileChanges,
+  VintedProfileDetails,
+} from '../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts';
 import type { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import type { CloudSetupRequest } from './marketplace-cloud-setup-contracts.d.ts';
 import { CloudSetupBlockedError } from './supabase-marketplace-cloud-setup-store.ts';
@@ -101,7 +109,8 @@ interface BrowserApiOptions {
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'> &
     Partial<Pick<SupabaseVintedListingCache, 'saveTransferSource'>>;
-  profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
+  profileCache?: Pick<SupabaseVintedProfileCache, 'save'> &
+    Partial<Pick<SupabaseVintedProfileCache, 'saveDetails'>>;
   readOnly?: boolean;
   listingPublishingEnabled?: boolean;
   cloudSetups?: Pick<
@@ -155,15 +164,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-async function readBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function readBody(
+  request: IncomingMessage,
+  limit = bodyLimit,
+): Promise<Record<string, unknown>> {
   const declaredSize = Number(request.headers['content-length']);
-  if (Number.isFinite(declaredSize) && declaredSize > bodyLimit) throw new RequestError(413);
+  if (Number.isFinite(declaredSize) && declaredSize > limit) throw new RequestError(413);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += buffer.length;
-    if (size > bodyLimit) throw new RequestError(413);
+    if (size > limit) throw new RequestError(413);
     chunks.push(buffer);
   }
   try {
@@ -398,7 +410,10 @@ export class MarketplaceBrowserHttpApi {
         throw new RequestError(401);
       }
       if (!uuidPattern.test(userId)) throw new RequestError(401);
-      const body = await readBody(request);
+      const body = await readBody(
+        request,
+        path === '/marketplace-browser/profile/details/save' ? 384 * 1024 : bodyLimit,
+      );
       if (
         path === '/marketplace-browser/cloud-setups/availability' ||
         path === '/marketplace-browser/cloud-setups/begin'
@@ -492,6 +507,102 @@ export class MarketplaceBrowserHttpApi {
         const operation = await this.operations.read(scope, id);
         if (!operation) throw new RequestError(404);
         json(response, 200, { ...operation });
+        return;
+      }
+      if (
+        [
+          '/marketplace-browser/profile/details/read',
+          '/marketplace-browser/profile/details/save',
+          '/marketplace-browser/profile/cities/read',
+        ].includes(path)
+      ) {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.edits) throw new RequestError(503);
+        const saving = path.endsWith('/save'),
+          searching = path.includes('/cities/');
+        const allowed = [
+          'workspaceId',
+          'connectionId',
+          ...(saving ? ['changes', 'expected'] : searching ? ['query'] : []),
+        ];
+        if (Object.keys(body).some((key) => !allowed.includes(key))) throw new RequestError(400);
+        let changes: VintedProfileChanges | undefined, expected: VintedProfileDetails | undefined;
+        try {
+          if (saving) {
+            changes = parseVintedProfileChanges(body.changes);
+            expected = parseVintedProfileDetails(body.expected);
+          }
+          if (
+            searching &&
+            (typeof body.query !== 'string' ||
+              body.query.trim().length < 2 ||
+              body.query.length > 80)
+          )
+            throw new Error('Stadtsuche');
+        } catch {
+          throw new RequestError(400);
+        }
+        const key = `${scope.workspaceId}:${scope.connectionId}:edit`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          const edits = this.edits;
+          const entry = await edits.entry(scope, 'profile');
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
+          const currentSessionId = sessionId;
+          const authorize = async () => {
+            const current = await edits.entry(scope, 'profile');
+            if (current.accountId !== entry.accountId) throw new Error('Kontozuordnung geändert');
+            await this.broker.run(scope, currentSessionId, async () => undefined);
+          };
+          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (changes && expected) {
+              if (!browser.updateProfileDetails) throw new RequestError(503);
+              return browser.updateProfileDetails(entry.accountId, changes, expected, authorize);
+            }
+            if (searching && typeof body.query === 'string') {
+              if (!browser.searchProfileCities) throw new RequestError(503);
+              return { cities: await browser.searchProfileCities(entry.accountId, body.query) };
+            }
+            if (!browser.readProfileDetails) throw new RequestError(503);
+            return { profile: await browser.readProfileDetails(entry.accountId) };
+          });
+          let cachePending = false;
+          if ('status' in result && result.status === 'confirmed') {
+            cachePending = true;
+            try {
+              await authorize();
+              if (this.profileCache?.saveDetails)
+                cachePending = !(await this.profileCache.saveDetails(
+                  scope,
+                  entry.accountId,
+                  result.profile,
+                ));
+            } catch {
+              cachePending = true;
+            }
+          }
+          let cleanupPending = false;
+          try {
+            await (this.broker.finishAction?.(scope, currentSessionId) ??
+              this.broker.close(scope, currentSessionId));
+          } catch {
+            cleanupPending = true;
+          }
+          sessionId = undefined;
+          json(response, 200, {
+            ...result,
+            ...(cachePending ? { cache: 'pending' } : {}),
+            ...(cleanupPending ? { cleanup: 'pending' } : {}),
+          });
+        } finally {
+          try {
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
         return;
       }
       if (

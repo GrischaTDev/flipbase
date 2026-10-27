@@ -7,6 +7,12 @@ import {
 } from './vinted-negotiation-contracts.ts';
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
 import {
+  parseVintedProfileChanges,
+  parseVintedProfileDetails,
+  parseVintedProfileOptions,
+  parseVintedProfileSaveResult,
+} from './vinted-profile-contracts.ts';
+import {
   isVintedListingResult,
   parseVintedListingSnapshot,
   parseVintedListingCategoryFields,
@@ -220,6 +226,9 @@ export async function executeBrowserAction(
     updateListing: [3],
     updateListingPrice: [4],
     readProfileAbout: [1],
+    readProfileDetails: [1],
+    searchProfileCities: [2],
+    updateProfileDetails: [3],
     updateProfileAbout: [3],
     sendNegotiation: [4],
     sendMessage: [2],
@@ -462,6 +471,20 @@ export async function executeBrowserAction(
       );
     case 'readProfileAbout':
       return required(browser.readProfileAbout)(identifier(argumentsList[0]));
+    case 'readProfileDetails':
+      return required(browser.readProfileDetails)(identifier(argumentsList[0]));
+    case 'searchProfileCities':
+      return required(browser.searchProfileCities)(
+        identifier(argumentsList[0]),
+        text(argumentsList[1], 80),
+      );
+    case 'updateProfileDetails':
+      return required(browser.updateProfileDetails)(
+        identifier(argumentsList[0]),
+        parseVintedProfileChanges(argumentsList[1]),
+        parseVintedProfileDetails(argumentsList[2]),
+        authorize,
+      );
     case 'updateProfileAbout':
       return required(browser.updateProfileAbout)(
         identifier(argumentsList[0]),
@@ -950,6 +973,14 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         ReturnType<NonNullable<BrowserInfo['updateListing']>>
       >,
     readProfileAbout: async (accountId) => (await run('readProfileAbout', [accountId])) as string,
+    readProfileDetails: async (accountId) =>
+      parseVintedProfileDetails(await run('readProfileDetails', [accountId])),
+    searchProfileCities: async (accountId, query) =>
+      parseVintedProfileOptions(await run('searchProfileCities', [accountId, query]), true),
+    updateProfileDetails: async (accountId, changes, expected, authorize) =>
+      parseVintedProfileSaveResult(
+        await run('updateProfileDetails', [accountId, changes, expected], authorize),
+      ),
     updateProfileAbout: async (accountId, about, authorize, expected) =>
       (await run('updateProfileAbout', [accountId, about, expected ?? null], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['updateProfileAbout']>>
@@ -1033,6 +1064,9 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     return image;
   }
   if (name === 'readProfileAbout') return text(input, 10000);
+  if (name === 'readProfileDetails') return parseVintedProfileDetails(input);
+  if (name === 'searchProfileCities') return parseVintedProfileOptions(input, true);
+  if (name === 'updateProfileDetails') return parseVintedProfileSaveResult(input);
   if (name === 'updateListingPrice') {
     const result = commandRecord(input);
     if (
