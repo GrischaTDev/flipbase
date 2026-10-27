@@ -19,16 +19,10 @@
         (clicked)="save()"
         >Entwurf speichern</app-button
       >
-      <app-button
-        data-review-opener
-        [disabled]="!canStartPublication()"
-        (clicked)="publishNow()"
+      <app-button data-review-opener [disabled]="!canStartPublication()" (clicked)="publishNow()"
         >Jetzt veröffentlichen</app-button
       >
-      <app-button
-        variant="secondary"
-        [disabled]="!canStartPublication()"
-        (clicked)="openSchedule()"
+      <app-button variant="secondary" [disabled]="!canStartPublication()" (clicked)="openSchedule()"
         >Veröffentlichung planen</app-button
       >
     }

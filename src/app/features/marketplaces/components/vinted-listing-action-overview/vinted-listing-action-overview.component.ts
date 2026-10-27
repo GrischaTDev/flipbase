@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
@@ -140,8 +133,7 @@ export class VintedListingActionOverviewComponent {
       schedule.timeZone,
       schedule.latePolicy,
     ]);
-    if (this.lastRequest?.key !== key)
-      this.lastRequest = { key, id: crypto.randomUUID() };
+    if (this.lastRequest?.key !== key) this.lastRequest = { key, id: crypto.randomUUID() };
     this.busy.set(plan.job.id);
     this.planningError.set(null);
     try {

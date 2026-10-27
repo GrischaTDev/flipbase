@@ -743,7 +743,9 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
     'aria-invalid',
     'true',
   );
-  await expect(page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
+  ).toBeEnabled();
   await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toBeFocused();
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
@@ -754,7 +756,9 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
   const feedback = page.locator('app-vinted-listing-publication-preview');
   await expect(feedback.getByText(/Veröffentlichung ist derzeit nicht verfügbar/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Inserat prüfen' })).toHaveCount(0);
-  await expect(feedback.getByRole('button', { name: 'Denselben Auftrag erneut prüfen' })).toHaveCount(0);
+  await expect(
+    feedback.getByRole('button', { name: 'Denselben Auftrag erneut prüfen' }),
+  ).toHaveCount(0);
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
 });
@@ -1127,10 +1131,12 @@ for (const width of [1440, 390])
       await dialog.getByRole('combobox', { name: 'Vorkommen bei der Zeitumstellung' }).click();
       await page.getByRole('option', { name: /Früheres/ }).click();
       await dialog.getByRole('combobox', { name: 'Regel für einen verpassten Termin' }).click();
-      await page.getByRole('option', {
-        name: 'Veröffentlichen, sobald die Ausführung verfügbar ist',
-        exact: true,
-      }).click();
+      await page
+        .getByRole('option', {
+          name: 'Veröffentlichen, sobald die Ausführung verfügbar ist',
+          exact: true,
+        })
+        .click();
       await page.evaluate(axe.source);
       expect(
         await page.evaluate(
@@ -1158,7 +1164,9 @@ for (const width of [1440, 390])
         p_late_policy: 'publish_when_available',
       });
       expect(Object.keys(state.reschedules[0])).not.toContain('p_ai_photo');
-      await expect(listings.getByText('Veröffentlichung beauftragt', { exact: true }).first()).toBeVisible();
+      await expect(
+        listings.getByText('Veröffentlichung beauftragt', { exact: true }).first(),
+      ).toBeVisible();
       expect(state.jobCancels).toEqual([]);
     });
   }
@@ -1714,9 +1722,7 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   const retry = editor.getByRole('button', { name: 'Kategorien erneut laden', exact: true });
   await expect(retry).toBeVisible();
   await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-  await expect(
-    page.locator('app-vinted-listing-publication-preview'),
-  ).toHaveCount(0);
+  await expect(page.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
   categoryUnavailable = false;
   await retry.click();
   await expect(retry).toHaveCount(0);
@@ -1727,9 +1733,7 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   await expect(
     editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.locator('app-vinted-listing-publication-preview'),
-  ).toHaveCount(0);
+  await expect(page.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
   await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
   await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schuhe');
   await expect(page.getByRole('option', { name: 'Schuhe', exact: true })).toHaveCount(0);

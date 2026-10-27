@@ -163,7 +163,9 @@ export class VintedActionOverviewHeaderStore {
           groups:
             error instanceof MarketplaceApiError && error.code === 'forbidden' ? [] : this.groups(),
           listings:
-            error instanceof MarketplaceApiError && error.code === 'forbidden' ? [] : this.listings(),
+            error instanceof MarketplaceApiError && error.code === 'forbidden'
+              ? []
+              : this.listings(),
           error: this.readError,
         });
     } finally {

@@ -15,8 +15,8 @@
     }
     @if (blockedJob(); as job) {
       <app-notice-banner announcement="alert">
-        Für diesen Entwurf besteht bereits ein Auftrag: {{ listingJobLabel(job) }}.
-        Prüfe den Stand unter „Laufende Aktionen“.
+        Für diesen Entwurf besteht bereits ein Auftrag: {{ listingJobLabel(job) }}. Prüfe den Stand
+        unter „Laufende Aktionen“.
       </app-notice-banner>
     }
     @if (review(); as checked) {
@@ -33,23 +33,19 @@
     }
     @if (!loading() && !runtimeEnabled() && !error()) {
       <app-notice-banner announcement="alert">
-        Die Veröffentlichung ist derzeit nicht verfügbar. Der gespeicherte Entwurf bleibt
-        erhalten.
+        Die Veröffentlichung ist derzeit nicht verfügbar. Der gespeicherte Entwurf bleibt erhalten.
       </app-notice-banner>
     }
     @if (!loading() && !busy()) {
       <div class="mt-3 flex flex-wrap gap-2">
         <app-button variant="secondary" size="slim" (clicked)="close()">Zum Editor</app-button>
         @if (error() && canSubmit()) {
-          <app-button size="slim" (clicked)="submit()"
-            >Denselben Auftrag erneut prüfen</app-button
-          >
+          <app-button size="slim" (clicked)="submit()">Denselben Auftrag erneut prüfen</app-button>
         }
       </div>
     }
   </section>
 } @else {
-
   <section
     data-publication-review
     tabindex="-1"
@@ -132,7 +128,8 @@
               @if (loading()) {
                 Inserat und Kontoverbindung werden geprüft …
               } @else if (review()?.ready) {
-                Deine Angaben sind vollständig. Bei der Übertragung werden sie mit Vinted abgeglichen.
+                Deine Angaben sind vollständig. Bei der Übertragung werden sie mit Vinted
+                abgeglichen.
               }
             </p>
             @if (error()) {
