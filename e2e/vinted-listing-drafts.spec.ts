@@ -751,12 +751,10 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
     .getByRole('textbox', { name: 'Beschreibung', exact: true })
     .fill('Vollständige Beschreibung.');
   await page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-  await expect(preview.getByText('Vollständige Beschreibung.', { exact: true })).toBeVisible();
-  await expect(preview.getByText(/auf diesem Server noch nicht verfügbar/)).toBeVisible();
-  await expect(
-    preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
-  ).toBeDisabled();
+  const feedback = page.locator('app-vinted-listing-publication-preview');
+  await expect(feedback.getByText(/Veröffentlichung ist derzeit nicht verfügbar/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Inserat prüfen' })).toHaveCount(0);
+  await expect(feedback.getByRole('button', { name: 'Denselben Auftrag erneut prüfen' })).toHaveCount(0);
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
 });
@@ -872,26 +870,23 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
     releaseCategories();
   }
   await opener.click();
-  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-  await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
-  await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-  const retry = preview.getByRole('button', { name: 'Diesen Auftrag erneut prüfen', exact: true });
+  const feedback = page.locator('app-vinted-listing-publication-preview');
+  const retry = feedback.getByRole('button', {
+    name: 'Denselben Auftrag erneut prüfen',
+    exact: true,
+  });
   await expect(retry).toBeEnabled();
-  await expect(preview.getByRole('button', { name: 'Termin wählen', exact: true })).toBeDisabled();
   expect(state.enqueues).toHaveLength(1);
   await retry.click();
-  await expect(preview).not.toBeVisible();
+  await expect(feedback).not.toBeVisible();
   expect(state.enqueues).toHaveLength(2);
   expect(state.enqueues[1]).toEqual(state.enqueues[0]);
   expect(state.enqueues[0]).toMatchObject({ p_action: 'publish', p_ai_photo: false });
   expect(state.enqueues[0]['p_scheduled_at']).toBeUndefined();
   expect(state.approvals).toHaveLength(1);
   expect(state.jobs).toHaveLength(1);
-  await expect(
-    page
-      .locator('app-vinted-listing-job-panel')
-      .getByText('Veröffentlichung beauftragt', { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+  await expect(page.locator('app-vinted-listing-job-panel')).toHaveCount(0);
 });
 
 test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @marketplace-preview', async ({
@@ -1680,23 +1675,17 @@ for (const width of [1440, 390]) {
         await brand.fill('Nike');
         await page.getByRole('option', { name: 'Nike', exact: true }).click();
         await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-        const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-        await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
         expect(state.draft().content.packageSizeId).toBe(2);
         expect(state.draft().content.brandId).toBe(53);
-        await expect(
-          preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
-        ).toBeEnabled();
-        await checkListingSurface(page, 'app-vinted-listing-publication-preview');
+        await expect.poll(() => state.enqueues.length).toBe(1);
+        await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+        await checkListingSurface(page, 'app-vinted-listing-editor');
         await page.screenshot({
-          path: testInfo.outputPath(`shoes-review-${width}-${theme}.png`),
+          path: testInfo.outputPath(`shoes-direct-${width}-${theme}.png`),
           fullPage: true,
         });
         expect(categoryRequests).toEqual([]);
-        expect(state.enqueues).toEqual([]);
         expect(errors).toEqual([]);
-        await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-        await expect.poll(() => state.enqueues.length).toBe(1);
       });
     }
   });
@@ -1726,7 +1715,7 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   await expect(retry).toBeVisible();
   await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(
-    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
+    page.locator('app-vinted-listing-publication-preview'),
   ).toHaveCount(0);
   categoryUnavailable = false;
   await retry.click();
@@ -1739,7 +1728,7 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
     editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
+    page.locator('app-vinted-listing-publication-preview'),
   ).toHaveCount(0);
   await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
   await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schuhe');
