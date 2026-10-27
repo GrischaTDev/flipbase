@@ -59,8 +59,9 @@ export class VintedActionOverviewHeaderStore {
   readonly count = computed(
     () =>
       this.groups().reduce((count, group) => count + group.actions.length, 0) +
-      this.listings().filter(({ job }) => ['queued', 'paused', 'claimed', 'writing'].includes(job.state))
-        .length,
+      this.listings().filter(({ job }) =>
+        ['queued', 'paused', 'claimed', 'writing'].includes(job.state),
+      ).length,
   );
   readonly loading = computed(() => this.context() !== null && this.reading() === this.context());
   readonly error = computed(() =>
@@ -143,8 +144,12 @@ export class VintedActionOverviewHeaderStore {
           : [];
       });
       if (listingResult.failed) hasError = true;
-      const availableAccounts = new Map(accounts.map((account) => [account.connectionId, account.displayName]));
-      const listings = (listingResult.failed ? this.listings().map((entry) => entry.job) : listingResult.jobs)
+      const availableAccounts = new Map(
+        accounts.map((account) => [account.connectionId, account.displayName]),
+      );
+      const listings = (
+        listingResult.failed ? this.listings().map((entry) => entry.job) : listingResult.jobs
+      )
         .filter((job) => job.connectionId !== null && availableAccounts.has(job.connectionId))
         .filter((job) => job.state !== 'cancelled')
         .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
