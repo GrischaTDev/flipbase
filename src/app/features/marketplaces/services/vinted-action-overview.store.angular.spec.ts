@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
-import { ActionOverviewPreferencesService } from '../../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../../core/services/app-display-preferences.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
 import { VintedActionOverviewStore } from './vinted-action-overview.store';
@@ -49,7 +49,7 @@ beforeEach(() => {
       VintedActionOverviewStore,
       { provide: AuthService, useValue: { currentUser: user } },
       { provide: MarketplaceAccountStore, useValue: { selectedConnection: account, canManage } },
-      { provide: ActionOverviewPreferencesService, useValue: { enabled } },
+      { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: enabled } },
       { provide: VintedActionOverviewApiService, useValue: { read } },
     ],
   });

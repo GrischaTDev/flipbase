@@ -24,7 +24,7 @@ import type {
 } from '../../models/marketplace-read.models';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { VintedMessagesComponent } from './vinted-messages.component';
-import { ActionOverviewPreferencesService } from '../../../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../../../core/services/app-display-preferences.service';
 import { VintedActionOverviewApiService } from '../../services/vinted-action-overview-api.service';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -226,7 +226,10 @@ beforeEach(() => {
     providers: [
       provideRouter([]),
       MarketplaceAccountStore,
-      { provide: ActionOverviewPreferencesService, useValue: { enabled: overviewEnabled } },
+      {
+        provide: AppDisplayPreferencesService,
+        useValue: { actionOverviewEnabled: overviewEnabled },
+      },
       {
         provide: VintedActionOverviewApiService,
         useValue: { read: vi.fn().mockResolvedValue({ actions: [] }) },

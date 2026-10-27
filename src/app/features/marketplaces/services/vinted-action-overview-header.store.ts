@@ -1,7 +1,7 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { ActionOverviewPreferencesService } from '../../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../../core/services/app-display-preferences.service';
 import type { AccountScope } from '../models/marketplace.models';
 import type { VintedAction } from '../models/vinted-action-overview';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
@@ -18,10 +18,10 @@ export interface VintedRunningActionGroup {
 export class VintedActionOverviewHeaderStore {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly preferences = inject(ActionOverviewPreferencesService);
+  private readonly preferences = inject(AppDisplayPreferencesService);
   private readonly accounts = inject(MarketplaceApiService);
   private readonly api = inject(VintedActionOverviewApiService);
-  readonly enabled = this.preferences.enabled;
+  readonly enabled = this.preferences.actionOverviewEnabled;
   readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
     const workspace = this.workspace.currentWorkspace();

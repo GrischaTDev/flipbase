@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { ActionOverviewPreferencesService } from '../../../core/services/action-overview-preferences.service';
+import { AppDisplayPreferencesService } from '../../../core/services/app-display-preferences.service';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import type { VintedAction } from '../models/vinted-action-overview';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
@@ -56,7 +56,7 @@ beforeEach(() => {
     providers: [
       { provide: AuthService, useValue: { currentUser: user } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
-      { provide: ActionOverviewPreferencesService, useValue: { enabled } },
+      { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: enabled } },
       { provide: MarketplaceApiService, useValue: { listConnections: list } },
       { provide: VintedActionOverviewApiService, useValue: { read } },
     ],

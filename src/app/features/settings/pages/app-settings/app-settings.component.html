@@ -19,13 +19,25 @@
         [disabled]="preferences.saving()"
       />
     </app-form-field>
+    <app-form-field
+      controlId="workspace-switcher-enabled"
+      helpText="Blende die Workspace-Auswahl aus, wenn Du sie im Header nicht brauchst."
+    >
+      <app-custom-checkbox
+        id="workspace-switcher-enabled"
+        presentation="row"
+        label="Workspace-Auswahl im Header anzeigen"
+        formControlName="workspaceSwitcherEnabled"
+        [disabled]="preferences.saving()"
+      />
+    </app-form-field>
     <div class="flex justify-end">
       <app-button
         type="submit"
         variant="primary"
         size="touch"
         [loading]="preferences.saving()"
-        [disabled]="form.pristine && !preferences.error()"
+        [disabled]="form.pristine"
       >
         Änderungen speichern
       </app-button>

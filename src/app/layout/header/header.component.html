@@ -15,75 +15,79 @@
     </button>
 
     <!-- Workspace Selector Dropdown -->
-    <div class="relative min-w-0" #workspaceContainer>
-      <button
-        type="button"
-        (click)="toggleWorkspaceDropdown()"
-        [disabled]="workspaceActionsBlocked()"
-        [attr.aria-expanded]="isWorkspaceDropdownOpen()"
-        aria-controls="header-workspace-menu"
-        [title]="
-          workspaceActionsBlocked()
-            ? 'Workspacewechsel ist in einer Erfassungsmaske gesperrt.'
-            : null
-        "
-        [class.opacity-60]="workspaceActionsBlocked()"
-        [class.cursor-not-allowed]="workspaceActionsBlocked()"
-        [class.cursor-pointer]="!workspaceActionsBlocked()"
-        class="flex h-9 max-w-full items-center gap-2 px-2.5 rounded-lg border border-fb-border bg-fb-surface text-[13px] font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition-colors shadow-xs"
-      >
-        <svg [lucideIcon]="LayersIcon" class="shrink-0 w-3.5 h-3.5 text-fb-brand"></svg>
-        <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
-          {{ workspaceService.currentWorkspace()?.name || ('WORKSPACE.MY_WORKSPACE' | translate) }}
-        </span>
-        <span class="text-[10px] text-fb-text-muted">▾</span>
-      </button>
-
-      @if (isWorkspaceDropdownOpen()) {
-        <div
-          id="header-workspace-menu"
-          class="fb-popover-enter absolute left-0 z-50 mt-2 w-60 rounded-lg border border-fb-border bg-fb-surface py-1.5 shadow-lg"
+    @if (displayPreferences.workspaceSwitcherEnabled()) {
+      <div class="relative min-w-0" #workspaceContainer>
+        <button
+          type="button"
+          (click)="toggleWorkspaceDropdown()"
+          [disabled]="workspaceActionsBlocked()"
+          [attr.aria-expanded]="isWorkspaceDropdownOpen()"
+          aria-controls="header-workspace-menu"
+          [title]="
+            workspaceActionsBlocked()
+              ? 'Workspacewechsel ist in einer Erfassungsmaske gesperrt.'
+              : null
+          "
+          [class.opacity-60]="workspaceActionsBlocked()"
+          [class.cursor-not-allowed]="workspaceActionsBlocked()"
+          [class.cursor-pointer]="!workspaceActionsBlocked()"
+          class="flex h-9 max-w-full items-center gap-2 px-2.5 rounded-lg border border-fb-border bg-fb-surface text-[13px] font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition-colors shadow-xs"
         >
-          <div class="px-3 py-1 text-xs font-semibold text-fb-text-muted">
-            {{ 'WORKSPACE.CURRENT' | translate }}
-          </div>
+          <svg [lucideIcon]="LayersIcon" class="shrink-0 w-3.5 h-3.5 text-fb-brand"></svg>
+          <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
+            {{
+              workspaceService.currentWorkspace()?.name || ('WORKSPACE.MY_WORKSPACE' | translate)
+            }}
+          </span>
+          <span class="text-[10px] text-fb-text-muted">▾</span>
+        </button>
 
-          @for (ws of workspaceService.workspaces(); track ws.id) {
+        @if (isWorkspaceDropdownOpen()) {
+          <div
+            id="header-workspace-menu"
+            class="fb-popover-enter absolute left-0 z-50 mt-2 w-60 rounded-lg border border-fb-border bg-fb-surface py-1.5 shadow-lg"
+          >
+            <div class="px-3 py-1 text-xs font-semibold text-fb-text-muted">
+              {{ 'WORKSPACE.CURRENT' | translate }}
+            </div>
+
+            @for (ws of workspaceService.workspaces(); track ws.id) {
+              <button
+                type="button"
+                (click)="selectWorkspace(ws)"
+                [disabled]="workspaceActionsBlocked()"
+                class="w-full text-left px-3 py-2 text-[13px] flex items-center justify-between hover:bg-fb-surface-hover transition-colors text-fb-text-secondary hover:text-fb-text-primary"
+                [class.cursor-pointer]="!workspaceActionsBlocked()"
+                [class.cursor-not-allowed]="workspaceActionsBlocked()"
+                [class.opacity-60]="workspaceActionsBlocked()"
+                [class.font-semibold]="ws.id === workspaceService.currentWorkspace()?.id"
+                [class.text-fb-primary]="ws.id === workspaceService.currentWorkspace()?.id"
+              >
+                <span class="truncate">{{ ws.name }}</span>
+                @if (ws.id === workspaceService.currentWorkspace()?.id) {
+                  <span class="w-1.5 h-1.5 rounded-full bg-fb-brand-strong"></span>
+                }
+              </button>
+            }
+
+            <div class="border-t border-fb-border my-1"></div>
+
             <button
               type="button"
-              (click)="selectWorkspace(ws)"
+              (click)="openCreateWorkspace.emit(); isWorkspaceDropdownOpen.set(false)"
               [disabled]="workspaceActionsBlocked()"
-              class="w-full text-left px-3 py-2 text-[13px] flex items-center justify-between hover:bg-fb-surface-hover transition-colors text-fb-text-secondary hover:text-fb-text-primary"
+              class="w-full text-left px-3 py-2 text-[13px] text-fb-primary hover:bg-fb-primary-subtle flex items-center gap-2 font-medium"
               [class.cursor-pointer]="!workspaceActionsBlocked()"
               [class.cursor-not-allowed]="workspaceActionsBlocked()"
               [class.opacity-60]="workspaceActionsBlocked()"
-              [class.font-semibold]="ws.id === workspaceService.currentWorkspace()?.id"
-              [class.text-fb-primary]="ws.id === workspaceService.currentWorkspace()?.id"
             >
-              <span class="truncate">{{ ws.name }}</span>
-              @if (ws.id === workspaceService.currentWorkspace()?.id) {
-                <span class="w-1.5 h-1.5 rounded-full bg-fb-brand-strong"></span>
-              }
+              <svg [lucideIcon]="PlusIcon" class="w-3.5 h-3.5"></svg>
+              <span>Neuer Workspace</span>
             </button>
-          }
-
-          <div class="border-t border-fb-border my-1"></div>
-
-          <button
-            type="button"
-            (click)="openCreateWorkspace.emit(); isWorkspaceDropdownOpen.set(false)"
-            [disabled]="workspaceActionsBlocked()"
-            class="w-full text-left px-3 py-2 text-[13px] text-fb-primary hover:bg-fb-primary-subtle flex items-center gap-2 font-medium"
-            [class.cursor-pointer]="!workspaceActionsBlocked()"
-            [class.cursor-not-allowed]="workspaceActionsBlocked()"
-            [class.opacity-60]="workspaceActionsBlocked()"
-          >
-            <svg [lucideIcon]="PlusIcon" class="w-3.5 h-3.5"></svg>
-            <span>Neuer Workspace</span>
-          </button>
-        </div>
-      }
-    </div>
+          </div>
+        }
+      </div>
+    }
   </div>
 
   <!-- Rechts: Benachrichtigungen, Design und Profil -->

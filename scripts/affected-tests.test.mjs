@@ -608,14 +608,14 @@ test('Vinted-Anbieterentwuerfe und Datenuebernahme waehlen ihre bestehenden Brow
 test('Aktionsübersicht wählt ihre Browsermatrix für Anzeige und persönliche Einstellung', () => {
   const overview =
     'src/app/features/marketplaces/components/vinted-action-overview/vinted-action-overview.component.ts';
-  const preference = 'src/app/core/services/action-overview-preferences.service.ts';
+  const preference = 'src/app/core/services/app-display-preferences.service.ts';
   const settings = 'src/app/features/settings/pages/app-settings/app-settings.component.ts';
   const browser = 'e2e/vinted-action-overview.spec.ts';
   const sources = {
     ...files,
     [overview]: 'export class Overview {}',
     [preference]: 'export class Preferences {}',
-    [settings]: `import '../../../../core/services/action-overview-preferences.service';`,
+    [settings]: `import '../../../../core/services/app-display-preferences.service';`,
     [browser]: 'test()',
   };
   for (const changed of [overview, preference, settings]) {

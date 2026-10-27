@@ -5,6 +5,7 @@ import {
   Component,
   ElementRef,
   computed,
+  effect,
   inject,
   input,
   output,
@@ -35,6 +36,7 @@ import {
 } from '@lucide/angular';
 import { resolveNotificationVisual, formatNotificationTime } from './header-notification-visuals';
 import { AuthService } from '../../core/services/auth.service';
+import { AppDisplayPreferencesService } from '../../core/services/app-display-preferences.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebhookService } from '../../core/services/webhook.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -81,6 +83,7 @@ export class HeaderComponent {
   readonly isSidebarOpen = input<boolean>(false);
   readonly workspaceActionsBlocked = input<boolean>(false);
   readonly auth = inject(AuthService);
+  readonly displayPreferences = inject(AppDisplayPreferencesService);
   readonly workspaceService = inject(WorkspaceService);
   readonly webhookService = inject(WebhookService);
   readonly favoriteNotifications = inject(MarketplaceFavoriteNotificationStore);
@@ -167,6 +170,10 @@ export class HeaderComponent {
   currentLanguage = signal<string>('de');
 
   constructor() {
+    effect(() => {
+      if (!this.displayPreferences.workspaceSwitcherEnabled())
+        this.isWorkspaceDropdownOpen.set(false);
+    });
     // Der Header verwendet dieselbe Datenbankprüfung wie der Admin-Wächter.
     // Workspace-Rollen allein verleihen keinen Zugriff auf /admin und zeigen
     // deshalb auch keinen Plattform-Admin-Badge.

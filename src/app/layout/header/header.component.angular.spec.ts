@@ -11,6 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TRANSLATIONS_DE, TRANSLATIONS_EN } from '../../core/i18n/translations';
 import { PageLayoutService } from '../../core/services/page-layout.service';
 import { AuthService } from '../../core/services/auth.service';
+import { AppDisplayPreferencesService } from '../../core/services/app-display-preferences.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
@@ -86,6 +87,10 @@ describe('HeaderComponent', () => {
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
+        {
+          provide: AppDisplayPreferencesService,
+          useValue: { workspaceSwitcherEnabled: signal(true) },
+        },
         {
           provide: VintedActionOverviewHeaderStore,
           useValue: {
@@ -195,6 +200,24 @@ describe('HeaderComponent', () => {
     return fixture;
   }
 
+  it('blendet nur die Workspace-Auswahl aus und schließt ein zuvor geöffnetes Menü', async () => {
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const enabled = TestBed.inject(AppDisplayPreferencesService)
+      .workspaceSwitcherEnabled as ReturnType<typeof signal<boolean>>;
+    element.querySelector<HTMLButtonElement>('[aria-controls="header-workspace-menu"]')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('#header-workspace-menu')).not.toBeNull();
+    enabled.set(false);
+    fixture.detectChanges();
+    expect(element.querySelector('[aria-controls="header-workspace-menu"]')).toBeNull();
+    expect(element.querySelector('#header-workspace-menu')).toBeNull();
+    expect(element.querySelector('[aria-controls="header-notification-menu"]')).not.toBeNull();
+    enabled.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('[aria-controls="header-workspace-menu"]')).not.toBeNull();
+    expect(element.querySelector('#header-workspace-menu')).toBeNull();
+  });
   it('bietet drei Layoutbreiten mit sofortiger Auswahl und eindeutigem Zustand an', async () => {
     const fixture = await renderHeader();
     const element = fixture.nativeElement as HTMLElement;

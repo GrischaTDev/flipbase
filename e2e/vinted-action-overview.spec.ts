@@ -248,3 +248,56 @@ test('bietet bei fehlgeschlagener erster Wiederherstellung nur erneutes Lesen an
   await expect(offer).toContainText('Annahme beauftragt');
   expect(writes).toBe(0);
 });
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`Workspace-Auswahl ${width}px`, () => {
+    test.use({ viewport: { width, height: 1000 }, hasTouch: width < 640 });
+    test('speichert das Ausblenden erst ausdrücklich und stellt die Auswahl wieder her @marketplace-preview', async ({
+      page,
+    }) => {
+      const fixture = await mockActionOverview(page, false);
+      await page.addInitScript(
+        (theme) => localStorage.setItem('flipbase_theme', theme),
+        width === 320 ? 'dark' : 'light',
+      );
+      await page.goto('/settings/app');
+      const checkbox = page.getByRole('checkbox', { name: 'Workspace-Auswahl im Header anzeigen' });
+      const selector = page.locator('app-header button[aria-controls="header-workspace-menu"]');
+      const save = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
+      await expect(checkbox).toBeChecked();
+      await expect(selector).toBeVisible();
+      await checkbox.click();
+      await expect(selector).toBeVisible();
+      expect(fixture.workspaceSaves).toEqual([]);
+      if (width === 1440) fixture.rejectSave(true);
+      await save.click();
+      if (width === 1440) {
+        await expect(page.getByRole('alert')).toContainText('konnte nicht gespeichert werden');
+        fixture.rejectSave(false);
+        await save.click();
+      }
+      await expect.poll(fixture.persistedWorkspaceSwitcherEnabled).toBe(false);
+      await expect(selector).toBeHidden();
+      await expect(
+        page.getByRole('button', { name: 'Benachrichtigungen', exact: true }),
+      ).toBeVisible();
+      expect(fixture.persistedEnabled()).toBe(false);
+      expect(fixture.saves).toEqual([]);
+      await page.reload();
+      await expect(checkbox).not.toBeChecked();
+      await expect(selector).toBeHidden();
+      await checkAccessibility(page, 'app-app-settings');
+      await checkAccessibility(page, 'app-header');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await checkbox.click();
+      await expect(selector).toBeHidden();
+      await save.click();
+      await expect.poll(fixture.persistedWorkspaceSwitcherEnabled).toBe(true);
+      await expect(selector).toBeVisible();
+      expect(fixture.workspaceSaves).toEqual([false, true]);
+      expect(fixture.saves).toEqual([]);
+    });
+  });
+}
