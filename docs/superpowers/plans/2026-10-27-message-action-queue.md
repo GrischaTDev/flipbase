@@ -90,7 +90,8 @@ Wiederherstellungsabfrage sind neue manuelle Angebotsaufträge gesperrt.
 
 Browsernachweis unter Windows/Chromium mit emuliertem Touch gegen ruhenden
 Entwicklungsbau. Native Geräte und vollständige CI bleiben getrennte Nachweise.
-Keine Abhängigkeit aktualisiert. PR/Push/Merge noch nicht freigegeben.
+Keine Abhängigkeit aktualisiert. Nutzer hat PR/Push/Merge nach erfolgreichen
+Pflichtprüfungen sowie die anschließende Bereinigung am 27.10.2026 freigegeben.
 
 Flipbase ist nicht im verbundenen Lissie-Projektverzeichnis vorhanden; dort sind
 Regelabruf und Änderungsbericht für dieses Projekt nicht möglich.
