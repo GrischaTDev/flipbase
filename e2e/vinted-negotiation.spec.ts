@@ -10,6 +10,7 @@ import {
 } from './support/marketplace-account-fixture';
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 const scope = { workspaceId, connectionId: accountIds[0] };
+const negotiationJobId = '25000000-0000-4000-8000-000000000081';
 async function fixture(page: Page) {
   await mockMarketplace(page, false, false, false, false, []);
   await page.route('**/rest/v1/rpc/marketplace_read_sync_schedule', (route) =>
@@ -43,6 +44,33 @@ async function fixture(page: Page) {
   const saves: Record<string, unknown>[] = [];
   await page.route('**/rest/v1/rpc/marketplace_read_negotiation', (route) =>
     route.fulfill({ json: settings }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        ...scope,
+        actions: settings.events.map((event) => ({
+          id: `negotiation:${event['id']}`,
+          source: 'negotiation',
+          sourceId: event['id'],
+          isAutomated: false,
+          kind: event['action'],
+          state: event['state'] === 'sent' ? 'succeeded' : event['state'],
+          conversationId,
+          messageId: '25000000-0000-4000-8000-000000000041',
+          offerId: '123',
+          partnerName: 'Anna',
+          itemTitle: 'Testartikel',
+          priceCents: 3500,
+          currency: 'EUR',
+          textPreview: null,
+          createdAt: event['createdAt'],
+          updatedAt: event['createdAt'],
+          errorCode: event['errorCode'],
+        })),
+      },
+    }),
   );
   await page.route('**/rest/v1/rpc/marketplace_save_negotiation', (route) => {
     const body = route.request().postDataJSON();
@@ -155,7 +183,7 @@ async function fixture(page: Page) {
       unknown = false;
       return route.abort();
     }
-    return route.fulfill({ json: { ok: true, id: 'job', state: 'queued' } });
+    return route.fulfill({ json: { ok: true, id: negotiationJobId, state: 'queued' } });
   });
   return {
     saves,
@@ -176,7 +204,7 @@ async function fixture(page: Page) {
     confirm: () => {
       settings.events = [
         {
-          id: 'job',
+          id: negotiationJobId,
           action: 'counter',
           state: 'sent',
           errorCode: null,
@@ -347,7 +375,7 @@ for (const width of [1440, 390]) {
         fullPage: true,
       });
       await dialog.getByRole('button', { name: 'Gegenangebot vormerken' }).click();
-      await expect(actions).toContainText('Vorgemerkt');
+      await expect(actions).toContainText('Gegenangebot beauftragt');
       expect(mocked.enqueues).toHaveLength(1);
       expect(mocked.enqueues[0]).toMatchObject({
         p_action: 'counter',
@@ -380,7 +408,7 @@ test('Unklare Anfrage verwendet dieselbe Request-ID und darf keine alternative A
   await actions.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   expect(mocked.enqueues).toHaveLength(1);
   await actions.getByRole('button', { name: 'Annehmen', exact: true }).click();
-  await expect(actions).toContainText('Vorgemerkt');
+  await expect(actions).toContainText('Annahme beauftragt');
   expect(mocked.enqueues[0].p_request_id).toBe(mocked.enqueues[1].p_request_id);
   expect(mocked.writes()).toBe(0);
 });

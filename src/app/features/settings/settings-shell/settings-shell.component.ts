@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   LucideBell,
+  LucideMonitor,
   LucideHash,
   LucideBuilding2,
   LucideDatabase,
@@ -84,6 +85,12 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
     label: 'Versand',
     description: 'Versanddienste anbinden',
     icon: LucidePackage,
+  },
+  {
+    path: 'app',
+    label: 'App',
+    description: 'Persönliche Darstellung',
+    icon: LucideMonitor,
   },
   {
     path: 'data',

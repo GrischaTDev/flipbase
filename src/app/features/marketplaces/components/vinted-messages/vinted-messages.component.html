@@ -19,10 +19,24 @@
       }
     </div>
   }
-  <div
-    data-inbox-layout
-    class="grid h-[calc(100dvh-13rem)] min-h-[28rem] min-w-0 gap-4 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2.5fr)]"
-  >
+  @if (actionPreferences.enabled() && !showActionSidebar()) {
+    <div class="mb-3 flex justify-end">
+      <app-button
+        data-action-overview-trigger
+        [icon]="actionOverview.hasRunning() ? null : actionIcon"
+        [ariaExpanded]="actionPanelOpen()"
+        ariaControls="vinted-action-panel"
+        ariaHaspopup="dialog"
+        (clicked)="actionPanelOpen.set(true)"
+      >
+        @if (actionOverview.hasRunning()) {
+          <app-loading-indicator />
+        }
+        Aktionen ({{ actionOverview.pendingCount() }})
+      </app-button>
+    </div>
+  }
+  <div data-inbox-layout [class]="inboxLayoutClasses()">
     <section
       aria-labelledby="vinted-conversations-title"
       class="h-full min-h-0 min-w-0 lg:block"
@@ -362,7 +376,7 @@
                       @if (offerTitle(entry); as title) {
                         <span class="block break-words [overflow-wrap:anywhere]">{{ title }}</span>
                       }
-                      @if (hasOfferActions) {
+                      @if (hasOfferActions || hasOfferReceipt(entry)) {
                         <app-vinted-offer-actions
                           [entry]="entry"
                           [available]="canActOnOffer(entry)"
@@ -496,35 +510,37 @@
                 </p>
               </div>
             }
-            <div
-              data-conversation-sync
-              role="status"
-              class="py-2 text-center"
-              [attr.title]="
-                store.error() ||
-                conversationReadError() ||
-                (conversationCheckedAt() | date: 'dd.MM.yyyy, HH:mm')
-              "
-            >
-              @if (isRefreshingConversation() || store.loadingMessages()) {
-                <app-badge tone="caution">
-                  <app-loading-indicator size="sm" />
-                  Wird aktualisiert
-                </app-badge>
-              } @else if (store.error() || conversationReadError()) {
-                <app-badge tone="caution">Aktualisierung fehlgeschlagen</app-badge>
-              } @else if (conversationCheckedAt()) {
-                <app-badge tone="success">
-                  <span
-                    aria-hidden="true"
-                    class="mr-1 inline-block size-1.5 rounded-full bg-current"
-                  ></span>
-                  Synchronisiert
-                </app-badge>
-              } @else {
-                <app-badge tone="neutral">Gespeicherter Stand</app-badge>
-              }
-            </div>
+            @if (!actionPreferences.enabled()) {
+              <div
+                data-conversation-sync
+                role="status"
+                class="py-2 text-center"
+                [attr.title]="
+                  store.error() ||
+                  conversationReadError() ||
+                  (conversationCheckedAt() | date: 'dd.MM.yyyy, HH:mm')
+                "
+              >
+                @if (isRefreshingConversation() || store.loadingMessages()) {
+                  <app-badge tone="caution">
+                    <app-loading-indicator size="sm" />
+                    Wird aktualisiert
+                  </app-badge>
+                } @else if (store.error() || conversationReadError()) {
+                  <app-badge tone="caution">Aktualisierung fehlgeschlagen</app-badge>
+                } @else if (conversationCheckedAt()) {
+                  <app-badge tone="success">
+                    <span
+                      aria-hidden="true"
+                      class="mr-1 inline-block size-1.5 rounded-full bg-current"
+                    ></span>
+                    Synchronisiert
+                  </app-badge>
+                } @else {
+                  <app-badge tone="neutral">Gespeicherter Stand</app-badge>
+                }
+              </div>
+            }
           </div>
         } @else {
           <div class="flex flex-1 items-center justify-center p-4">
@@ -640,5 +656,43 @@
         </ng-container>
       </app-card>
     </section>
+    @if (showActionSidebar()) {
+      <aside
+        data-action-overview-desktop
+        aria-label="Aktionsübersicht"
+        class="min-h-0 min-w-0 self-start"
+      >
+        <app-card padding="sm">
+          <div class="max-h-[calc(100dvh-15rem)] overflow-y-auto overscroll-contain">
+            <app-vinted-action-overview
+              [actions]="actionOverview.actions()"
+              [accountName]="store.selectedConnection()?.displayName ?? ''"
+              [loading]="actionOverview.loading()"
+              [error]="actionOverview.error()"
+              (refreshed)="actionOverview.refresh()"
+            />
+          </div>
+        </app-card>
+      </aside>
+    }
   </div>
+}
+@if (actionPreferences.enabled() && actionPanelOpen() && !showActionSidebar()) {
+  <app-modal-shell
+    id="vinted-action-panel"
+    title="Aktionen"
+    [presentation]="actionPanelPresentation()"
+    [hasFooter]="false"
+    [closeOnBackdrop]="true"
+    (closed)="actionPanelOpen.set(false)"
+  >
+    <app-vinted-action-overview
+      [showHeading]="false"
+      [actions]="actionOverview.actions()"
+      [accountName]="store.selectedConnection()?.displayName ?? ''"
+      [loading]="actionOverview.loading()"
+      [error]="actionOverview.error()"
+      (refreshed)="actionOverview.refresh()"
+    />
+  </app-modal-shell>
 }

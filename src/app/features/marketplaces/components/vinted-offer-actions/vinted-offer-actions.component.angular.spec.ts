@@ -6,6 +6,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
+import { VintedActionOverviewStore } from '../../services/vinted-action-overview.store';
 import { VintedOfferActionsComponent } from './vinted-offer-actions.component';
 import { parseMarketplacePage } from '../../models/marketplace-response';
 const scope = { workspaceId: 'workspace', connectionId: 'account' };
@@ -82,6 +83,118 @@ function create() {
   return { fixture, component };
 }
 describe('Manuelle Angebotsaktionen', () => {
+  it('stellt den Angebotsbeleg nach Neuladen aus der serverseitigen Übersicht wieder her', async () => {
+    const overviewActions = signal([
+      {
+        source: 'negotiation',
+        sourceId: 'restored-job',
+        kind: 'accept',
+        state: 'queued',
+        messageId: entry.id,
+        conversationId: entry.conversationId,
+        offerId: offer.offerId,
+        createdAt: '2026-10-27T10:00:00Z',
+      },
+    ]);
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: VintedActionOverviewStore,
+          useValue: {
+            actions: overviewActions,
+            enabled: () => true,
+            hasLoaded: () => true,
+            refresh: vi.fn(),
+          },
+        },
+      ],
+    });
+    const { component } = create();
+    expect(component.receipt()).toEqual({ id: 'restored-job', action: 'accept', state: 'queued' });
+    expect(component.receiptLabel()).toBe('Annahme beauftragt');
+    await component.queue('accept');
+    expect(api.enqueue).not.toHaveBeenCalled();
+    overviewActions.set([{ ...overviewActions()[0], state: 'outcome_unknown' }]);
+    expect(component.receiptLabel()).not.toContain('angenommen');
+    overviewActions.set([{ ...overviewActions()[0], state: 'succeeded' }]);
+    TestBed.tick();
+    overviewActions.set([]);
+    expect(component.receipt()?.state).toBe('sent');
+  });
+  it('ordnet einen alten Beleg nicht einem anderen Angebot derselben Nachricht zu', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: VintedActionOverviewStore,
+          useValue: {
+            actions: () => [
+              {
+                source: 'negotiation',
+                sourceId: 'old',
+                kind: 'accept',
+                state: 'succeeded',
+                messageId: entry.id,
+                conversationId: entry.conversationId,
+                offerId: 'other',
+              },
+            ],
+            enabled: () => true,
+            hasLoaded: () => true,
+          },
+        },
+      ],
+    });
+    expect(create().component.receipt()).toBeNull();
+  });
+  it('erhält manuelle Übernahme bei einem wartenden automatischen Angebotsauftrag', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: VintedActionOverviewStore,
+          useValue: {
+            actions: () => [
+              {
+                source: 'negotiation',
+                sourceId: 'automatic',
+                kind: 'counter',
+                state: 'queued',
+                messageId: entry.id,
+                conversationId: entry.conversationId,
+                offerId: offer.offerId,
+                isAutomated: true,
+              },
+            ],
+            enabled: () => true,
+            hasLoaded: () => true,
+            refresh: vi.fn(),
+          },
+        },
+      ],
+    });
+    const { component } = create();
+    expect(component.receipt()).toBeNull();
+    await component.queue('accept');
+    expect(api.enqueue).toHaveBeenCalledOnce();
+  });
+  it('sperrt neue Schreibaufträge bis nach dem ersten bestätigten Statusabruf', async () => {
+    const hasLoaded = signal(false);
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: VintedActionOverviewStore,
+          useValue: { actions: () => [], enabled: () => false, hasLoaded, error: () => null },
+        },
+      ],
+    });
+    const { component } = create();
+    await component.queue('accept');
+    component.openCounter();
+    expect(api.enqueue).not.toHaveBeenCalled();
+    expect(component.dialogOpen()).toBe(false);
+    hasLoaded.set(true);
+    await component.queue('accept');
+    expect(api.enqueue).toHaveBeenCalledOnce();
+  });
   it('verhindert Doppelklick und zeigt queued erst nach bestätigtem Verlauf als sent', async () => {
     const { component } = create();
     await Promise.all([component.queue('accept'), component.queue('accept')]);

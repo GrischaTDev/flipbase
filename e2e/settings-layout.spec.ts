@@ -82,6 +82,7 @@ for (const width of [1280, 390, 1024]) {
       ['notifications', 'Benachrichtigungen', 'app-notification-settings'],
       ['store', 'Shop & Zahlungen', 'app-store-settings'],
       ['shipping', 'Versand', 'app-shipping-settings'],
+      ['app', 'App', 'app-app-settings'],
     ]) {
       await page.goto(`/settings/${path}`);
       await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
@@ -126,7 +127,10 @@ for (const width of [1280, 390, 1024]) {
         await page.screenshot({ path: testInfo.outputPath(`${path}.png`), animations: 'disabled' });
     }
     await page.goto('/settings/app');
-    await expect(page).toHaveURL(/\/settings\/marketplaces$/);
+    await expect(page).toHaveURL(/\/settings\/app$/);
+    await expect(
+      page.getByRole('checkbox', { name: 'Aktionsübersicht anzeigen' }),
+    ).not.toBeChecked();
     await expect(page.getByRole('link', { name: 'App & Geräte' })).toHaveCount(0);
     expect(pageErrors).toEqual([]);
   });

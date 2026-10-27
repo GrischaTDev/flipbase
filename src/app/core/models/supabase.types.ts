@@ -11821,6 +11821,10 @@ export type Database = {
           flipbase_published_at: string
         }[]
       }
+      marketplace_read_action_overview: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_favorite_messages: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json

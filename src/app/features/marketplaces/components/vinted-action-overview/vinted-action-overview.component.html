@@ -1,0 +1,118 @@
+<div class="space-y-4">
+  <header class="flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      @if (showHeading()) {
+        <div class="flex items-center gap-2">
+          <svg
+            [lucideIcon]="queueIcon"
+            class="size-4 text-fb-text-secondary"
+            aria-hidden="true"
+          ></svg>
+          <h2 tabindex="-1" class="text-[13px] font-semibold text-fb-text-primary">Aktionen</h2>
+          <app-badge tone="neutral">{{ pendingCount() }}</app-badge>
+        </div>
+      }
+      <p class="mt-1 truncate text-xs text-fb-text-secondary">{{ accountName() }} · Vinted</p>
+    </div>
+    <app-button
+      size="slim"
+      [icon]="refreshIcon"
+      [iconOnly]="true"
+      ariaLabel="Aktionsübersicht aktualisieren"
+      [loading]="loading()"
+      (clicked)="refreshed.emit()"
+    />
+  </header>
+  @if (error(); as message) {
+    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+  }
+  @if (loading() && !actions().length) {
+    <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
+      <app-loading-indicator /> Aktionen werden geladen …
+    </p>
+  }
+  @for (section of sections(); track section.label) {
+    <section class="space-y-2" [attr.aria-label]="section.label">
+      <h3 class="text-xs font-medium text-fb-text-secondary">{{ section.label }}</h3>
+      <ul class="space-y-1.5">
+        @for (row of section.rows; track row.action.id) {
+          <li
+            [attr.data-action-state]="row.action.state"
+            [attr.data-action-id]="row.action.id"
+            class="flex min-w-0 items-start gap-2.5 rounded-lg border border-transparent px-2 py-2"
+            [class.border-fb-brand-border]="row.action.state === 'running'"
+            [class.bg-fb-brand-surface]="row.action.state === 'running'"
+          >
+            <span
+              class="mt-0.5 shrink-0"
+              [class.text-fb-brand]="row.action.state === 'running'"
+              [class.text-fb-success]="row.action.state === 'succeeded'"
+              [class.text-fb-text-secondary]="
+                row.action.state !== 'succeeded' && row.action.state !== 'running'
+              "
+            >
+              @if (row.action.state === 'running') {
+                <app-loading-indicator size="md" />
+              } @else {
+                <svg [lucideIcon]="row.icon" class="size-4" aria-hidden="true"></svg>
+              }
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ row.title }}</p>
+              <p
+                class="truncate text-xs leading-5 text-fb-text-secondary"
+                [attr.title]="row.subtitle"
+              >
+                {{ row.subtitle }}
+              </p>
+              @if (row.action.state === 'running' && row.action.kind !== 'sync') {
+                <p class="text-xs leading-5 text-fb-text-secondary">
+                  Warten auf Bestätigung von Vinted …
+                </p>
+              } @else if (row.detail) {
+                <p
+                  class="truncate text-xs leading-5 text-fb-text-secondary"
+                  [attr.title]="row.detail"
+                >
+                  {{ row.detail }}
+                </p>
+              }
+              @if (row.action.state === 'outcome_unknown') {
+                <p class="mt-1 text-xs leading-5 text-fb-text-secondary">
+                  Prüfe das Ergebnis auf Vinted, bevor Du die Aktion wiederholst.
+                </p>
+              }
+              @if (row.action.state !== 'queued' && row.action.state !== 'running') {
+                <time class="text-xs text-fb-text-secondary" [attr.datetime]="row.action.updatedAt"
+                  >{{ row.action.updatedAt | date: 'dd.MM., HH:mm' }} Uhr</time
+                >
+              }
+              @if (
+                row.action.state !== 'queued' &&
+                row.action.state !== 'running' &&
+                row.action.state !== 'succeeded'
+              ) {
+                <div class="mt-1">
+                  <app-badge [tone]="row.tone">{{ row.status }}</app-badge>
+                </div>
+              }
+            </div>
+            @if (row.action.state === 'queued') {
+              <app-badge tone="neutral">Wartet</app-badge>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  } @empty {
+    @if (!loading() && !error()) {
+      <p class="text-[13px] text-fb-text-secondary">Keine aktuellen Aktionen.</p>
+    }
+  }
+  <p
+    class="flex items-start gap-2 border-t border-fb-line pt-3 text-xs leading-5 text-fb-text-secondary"
+  >
+    <svg [lucideIcon]="infoIcon" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></svg>
+    Du kannst währenddessen weiterarbeiten.
+  </p>
+</div>

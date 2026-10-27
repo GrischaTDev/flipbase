@@ -6,11 +6,10 @@ import { marketplaceAccessGuard } from '../marketplaces/guards/marketplace-acces
 import { SETTINGS_NAVIGATION } from './settings-shell/settings-shell.component';
 
 describe('SETTINGS_ROUTES', () => {
-  it('führt alte App-Links zu Marktplätzen und bietet keinen technischen App-Tab mehr an', () => {
-    expect(SETTINGS_NAVIGATION.some((item) => item.path === 'app')).toBe(false);
+  it('bietet persönliche Darstellungsoptionen im eigenen App-Bereich an', () => {
+    expect(SETTINGS_NAVIGATION.some((item) => item.path === 'app')).toBe(true);
     expect(SETTINGS_ROUTES[0].children?.find((route) => route.path === 'app')).toMatchObject({
-      redirectTo: 'marketplaces',
-      pathMatch: 'full',
+      loadComponent: expect.any(Function),
     });
   });
   it('hält alle Einstellungsbereiche unter einer gemeinsamen Shell und leitet sicher um', () => {
@@ -43,7 +42,7 @@ describe('SETTINGS_ROUTES', () => {
     const children = SETTINGS_ROUTES[0].children ?? [];
     const contentRoutes = children.filter((route) => route.loadComponent);
 
-    expect(contentRoutes).toHaveLength(11);
+    expect(contentRoutes).toHaveLength(12);
     expect(contentRoutes.every((route) => typeof route.loadComponent === 'function')).toBe(true);
     const companyRoute = contentRoutes.find((route) => route.path === 'company');
     expect(companyRoute?.canDeactivate).toHaveLength(1);

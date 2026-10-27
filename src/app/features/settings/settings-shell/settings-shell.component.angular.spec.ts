@@ -102,6 +102,10 @@ describe('SettingsShellComponent', () => {
     expect(accountLink?.getAttribute('aria-current')).toBe('page');
     expect(accountLink?.textContent).toContain('Persönliche Daten & Sicherheit');
     expect(mobileSelect).not.toBeNull();
+    expect(links.some((link) => link.getAttribute('href') === '/settings/app')).toBe(true);
+    expect(fixture.componentInstance.mobileOptions().some((option) => option.value === 'app')).toBe(
+      true,
+    );
     expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
     const version = fixture.nativeElement.querySelector('footer span') as HTMLSpanElement;
     expect(version.textContent).toContain(`Flipbase v${fixture.componentInstance.version.nummer}`);

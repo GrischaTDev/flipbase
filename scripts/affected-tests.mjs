@@ -61,6 +61,7 @@ const featureSpecs = {
     'company-shop-shipping',
     'settings-layout',
     'account-settings',
+    'vinted-action-overview',
     'pwa-install-device',
   ],
   store: ['company-shop-shipping', 'product-editor-storefront'],
@@ -103,6 +104,7 @@ function browserSpecs(file, files) {
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (/vinted-action-overview/u.test(file)) return ['vinted-action-overview'];
     if (/vinted-profile|vinted-feedback-list/u.test(file)) return ['vinted-profile'];
     if (/vinted-provider-drafts|vinted-listing-copy/u.test(file))
       return ['vinted-listing-drafts', 'vinted-listing-edge-cases', 'vinted-workspace-ui'];
@@ -122,7 +124,12 @@ function browserSpecs(file, files) {
         'vinted-workspace-ui',
       ];
     if (/message|inbox|negotiation|offer|favorite/u.test(file))
-      return ['vinted-inbox-experience', 'vinted-favorite-messages', 'vinted-negotiation'];
+      return [
+        'vinted-inbox-experience',
+        'vinted-favorite-messages',
+        'vinted-negotiation',
+        'vinted-action-overview',
+      ];
     if (/ebay/u.test(file)) return ['ebay-order-import', 'marketplace-accounts', 'settings-layout'];
     return Object.keys(files)
       .filter((path) => /^e2e\/(?:vinted|marketplace)[^/]*\.spec\.ts$/u.test(path))
