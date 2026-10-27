@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-28 - Juna - Vinted-Veröffentlichung direkt starten und Aufträge zentral anzeigen
+
+**Auftrag:** Die zweite Seite „Weiter zur Prüfung“ und den Auftragsverlauf im Vinted-Inserateditor entfernen. „Jetzt veröffentlichen“ soll den gespeicherten Entwurf ohne weiteren Bestätigungsschritt beauftragen; Status, Fehler, Abbruch und Terminänderung gehören zur vorhandenen Header-Ansicht „Laufende Aktionen“.
+
+**Umsetzung:** Der Editor führt die vorhandenen lokalen Formularprüfungen und das Speichern weiterhin vor dem Auftrag aus. Die bisherige Veröffentlichungskomponente prüft Anbieterfreigabe, Cloud-Verfügbarkeit, Entwurf, Revision und vorhandene blockierende Aufträge unverändert, startet danach aber automatisch. Für diese direkte Variante zeigt sie nur Fortschritt und konkret erforderliche Korrekturen, nicht noch einmal alle Artikeldetails mit zusätzlichem Veröffentlichungsbutton. Die Terminplanung bleibt als eigener Auswahl-Dialog erreichbar. Auftragsstatus und geplante Aufträge werden workspace- und kontobezogen in die globale Vinted-Aktionsübersicht aufgenommen, einschließlich Abbruch und Terminänderung über die vorhandenen versionierten RPCs. Der Statusblock im Editor entfällt.
+
+**Grenzen und Prüfschritte:** Die Änderung betrifft den Editor und die zentrale Auftragsanzeige, nicht den eigentlichen Headless-Browser-Ausführer. Der Screenshot mit „ohne bestätigten Anbietererfolg“ beweist noch keine konkrete Worker-Ursache. Der neue GitHub-PR muss vor einem Merge die betroffenen Angular-, Browser- und CI-Prüfungen bestehen; eine echte Vinted-Veröffentlichung wird mit diesen Änderungen nicht vorweg behauptet. Als Sicherheit bleibt die bisherige auftragsbezogene Wiederholungskennung bei unklarer Antwort erhalten; ein bestehender bestätigter oder ungeklärter Auftrag blockiert einen neuen.
+
 ## 2026-10-27 - Juna - Paketgröße trotz unbestätigtem Markentext übernehmen
 
 **Veröffentlichungsfreigabe:** Der Nutzer hat die PR-Erstellung, den Merge nach erfolgreichen Pflichtprüfungen und die direkte Veröffentlichung dieser Folgekorrektur ausdrücklich beauftragt. Die anschließende Bereinigung gehört zur bestehenden Freigabe.
