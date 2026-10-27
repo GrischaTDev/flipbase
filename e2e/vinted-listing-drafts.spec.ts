@@ -11,6 +11,33 @@ async function saveDraft(page: Page) {
   await expect(editor.getByText('Entwurf gespeichert', { exact: true })).toBeVisible();
 }
 
+async function mockShoeCategories(page: Page) {
+  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+    route.fulfill({
+      json: {
+        id: 1,
+        refreshed_at: '2026-10-09T12:00:00Z',
+        requested_at: null,
+        last_attempt_at: null,
+        category_count: 3,
+        last_error: null,
+      },
+    }),
+  );
+  await page.route('**/rest/v1/vinted_categories*', (route) =>
+    route.fulfill({
+      json:
+        Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
+          ? []
+          : [
+              { id: 1, parent_id: null, title: 'Damen', path: 'Damen' },
+              { id: 2, parent_id: 1, title: 'Schuhe', path: 'Damen > Schuhe' },
+              { id: 3, parent_id: 2, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker' },
+            ],
+    }),
+  );
+}
+
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
 for (const width of [390, 1440]) {
@@ -649,7 +676,9 @@ for (const width of [1440, 390])
       await opener.click();
       const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
       await expect(
-        preview.getByText('Deine gespeicherten Angaben passen zur aktuellen Vinted-Auswahl.'),
+        preview.getByText(
+          'Deine Angaben sind vollständig. Bei der Übertragung werden sie mit Vinted abgeglichen.',
+        ),
       ).toBeVisible();
       const submit = preview.getByRole('button', {
         name: 'Jetzt veröffentlichen',
@@ -876,10 +905,25 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
   page,
 }) => {
   const state = await mockPublication(page, true, true);
+  let releaseCategories!: () => void;
+  const categoryGate = new Promise<void>((resolve) => (releaseCategories = resolve));
+  await page.route('**/rest/v1/vinted_category_syncs*', async (route) => {
+    await categoryGate;
+    await route.fallback();
+  });
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  const opener = page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true });
+  await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+    'Meine Jako-Jacke',
+  );
+  try {
+    await expect(opener).toBeDisabled();
+  } finally {
+    releaseCategories();
+  }
+  await opener.click();
   const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-  await expect(preview.getByText(/passen zur aktuellen Vinted-Auswahl/)).toBeVisible();
+  await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
   await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   const retry = preview.getByRole('button', { name: 'Diesen Auftrag erneut prüfen', exact: true });
   await expect(retry).toBeEnabled();
@@ -1008,7 +1052,7 @@ for (const width of [1440, 390])
       const size = editor.getByRole('combobox', { name: 'Größe', exact: true });
       await expect(size).toBeVisible();
       await size.click();
-      await expect(page.getByRole('option', { name: 'L', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('option', { name: 'L', exact: true })).toBeVisible();
       await page.getByRole('option', { name: 'M', exact: true }).click();
       await editor.getByRole('combobox', { name: 'Zustand', exact: true }).click();
       await page.getByRole('option', { name: 'Sehr gut', exact: true }).click();
@@ -1027,17 +1071,17 @@ for (const width of [1440, 390])
       await page.getByRole('option', { name: 'Baumwolle', exact: true }).click();
       await page.keyboard.press('Escape');
       await saveDraft(page);
-      await expect.poll(() => state.draft().content.sizeId).toBe(208);
+      await expect.poll(() => state.draft().content.sizeId).toBe(5);
       expect(state.draft().content).toMatchObject({
         title: 'Meine Jacke',
         priceCents: 2050,
-        conditionId: 2,
-        colorIds: [2, 1],
+        conditionId: 3,
+        colorIds: [9, 1],
         colorLabels: ['Blau', 'Schwarz'],
-        materialIds: [44],
+        materialIds: [1],
         packageSizeId: 2,
       });
-      expect(requests).toEqual([{ workspaceId, connectionId: accountIds[0], categoryId: 2 }]);
+      expect(requests).toEqual([]);
       await page.evaluate(axe.source);
       expect(
         await page.evaluate(
@@ -1056,19 +1100,17 @@ for (const width of [1440, 390])
       await expect(editor.getByRole('combobox', { name: 'Paketgröße', exact: true })).toContainText(
         'Mittel',
       );
-      // Ein fehlgeschlagener Abruf nach neuem Laden erhält die gespeicherten Angaben.
-      await page.route('**/marketplace-browser/listings/category/read', (route) =>
-        route.fulfill({ status: 503, json: { error: 'Vinted gerade nicht erreichbar' } }),
-      );
+      // Ein Ausfall von Vinted darf das eigene Formular nach Neuladen nicht beeinflussen.
+      await page.route('**/marketplace-browser/listings/category/read', (route) => {
+        requests.push(route.request().postDataJSON());
+        return route.fulfill({ status: 503, json: { error: 'Vinted nicht erreichbar' } });
+      });
       await page.reload();
-      await expect(editor.getByRole('button', { name: 'Erneut laden', exact: true })).toBeVisible();
-      expect(state.draft().content.sizeId).toBe(208);
-      await page.unroute('**/marketplace-browser/listings/category/read');
-      await page.route('**/marketplace-browser/listings/category/read', (route) =>
-        route.fulfill({ json: { fields: listingCategoryFixture(2) } }),
-      );
-      await editor.getByRole('button', { name: 'Erneut laden', exact: true }).click();
       await expect(size).toHaveValue('M');
+      await expect(editor.getByRole('button', { name: 'Erneut laden', exact: true })).toHaveCount(
+        0,
+      );
+      expect(requests).toEqual([]);
       await expect(editor.getByRole('combobox', { name: 'Paketgröße', exact: true })).toContainText(
         'Mittel',
       );
@@ -1650,3 +1692,143 @@ for (const width of [1440, 390]) {
     }
   });
 }
+
+for (const width of [1440, 390]) {
+  test.describe(`Eigenes Schuhformular ${width}px`, () => {
+    test.use({ hasTouch: width === 390 });
+    for (const theme of ['light', 'dark'] as const) {
+      test(`erstellt Damenschuhe trotz ausgefallenem Vinted-Formularabruf ${width}px ${theme} @marketplace-preview`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const state = await mockPublication(page);
+        await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        state.draft().content = {
+          ...state.draft().content,
+          title: 'Nike Sneaker',
+          categoryId: 3,
+          categoryLabel: 'Damen > Schuhe > Sneaker',
+          brandId: 53,
+          brandLabel: 'Nike',
+          sizeId: null,
+          sizeLabel: '',
+        };
+        await mockShoeCategories(page);
+        await page.route('**/functions/v1/vinted-brand-search', (route) =>
+          route.fulfill({ json: { brands: [{ id: 53, name: 'Nike' }] } }),
+        );
+        const categoryRequests: unknown[] = [];
+        await page.route('**/marketplace-browser/listings/category/read', (route) => {
+          categoryRequests.push(route.request().postDataJSON());
+          return route.fulfill({
+            status: 503,
+            json: { error: 'Vinted-Auswahl konnte nicht geladen werden' },
+          });
+        });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+        await expect(page.locator('html')).toHaveClass(
+          theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+        );
+        const editor = page.locator('app-vinted-listing-editor');
+        const size = editor.getByRole('combobox', { name: 'Größe', exact: true });
+        await size.click();
+        await expect(page.getByRole('option', { name: 'M', exact: true })).toHaveCount(0);
+        await page.getByRole('option', { name: '38', exact: true }).click();
+        await expect(editor.getByRole('combobox', { name: 'Zustand', exact: true })).toBeVisible();
+        await expect(editor.getByRole('combobox', { name: 'Farben', exact: true })).toBeVisible();
+        await expect(
+          editor.getByRole('combobox', { name: 'Materialien', exact: true }),
+        ).toBeVisible();
+        await expect(
+          editor.getByRole('combobox', { name: 'Paketgröße', exact: true }),
+        ).toBeVisible();
+        await saveDraft(page);
+        expect(state.draft().content.sizeLabel).toBe('38');
+        expect(state.draft().content.attributes['flipbaseListingForm']).toBe('1');
+        await page.reload();
+        await expect(size).toHaveValue('38');
+        await page.screenshot({
+          path: testInfo.outputPath(`shoes-editor-${width}-${theme}.png`),
+          fullPage: true,
+        });
+        await editor
+          .locator('app-card')
+          .filter({ has: page.locator('#vinted-choice-size') })
+          .screenshot({ path: testInfo.outputPath(`shoes-details-${width}-${theme}.png`) });
+        await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+        const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
+        await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
+        await expect(
+          preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
+        ).toBeEnabled();
+        await checkListingSurface(page, 'app-vinted-listing-publication-preview');
+        await page.screenshot({
+          path: testInfo.outputPath(`shoes-review-${width}-${theme}.png`),
+          fullPage: true,
+        });
+        expect(categoryRequests).toEqual([]);
+        expect(state.enqueues).toEqual([]);
+        expect(errors).toEqual([]);
+        await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+        await expect.poll(() => state.enqueues.length).toBe(1);
+      });
+    }
+  });
+}
+
+test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Schuhart @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page);
+  await mockShoeCategories(page);
+  let categoryUnavailable = true;
+  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+    categoryUnavailable
+      ? route.fulfill({ status: 503, json: { message: 'Kategorien nicht erreichbar' } })
+      : route.fallback(),
+  );
+  state.draft().content = {
+    ...state.draft().content,
+    categoryId: 2,
+    categoryLabel: 'Damen > Schuhe',
+    sizeId: null,
+    sizeLabel: '',
+  };
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  const retry = editor.getByRole('button', { name: 'Kategorien erneut laden', exact: true });
+  await expect(retry).toBeVisible();
+  await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await expect(
+    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
+  ).toHaveCount(0);
+  categoryUnavailable = false;
+  await retry.click();
+  await expect(retry).toHaveCount(0);
+  await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+    'Meine Jako-Jacke',
+  );
+  await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await expect(
+    editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
+  ).toHaveCount(0);
+  await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+  await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schuhe');
+  await expect(page.getByRole('option', { name: 'Schuhe', exact: true })).toHaveCount(0);
+  await page.getByRole('option', { name: /Sneaker/ }).click();
+  await expect(
+    editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
+  ).toHaveCount(0);
+  const size = editor.getByRole('combobox', { name: 'Größe', exact: true });
+  await size.click();
+  await page.getByRole('option', { name: '44,5', exact: true }).click();
+  await expect(size).toHaveValue('44,5');
+  expect(state.enqueues).toEqual([]);
+  expect(state.draft().content.categoryId).toBe(2);
+});

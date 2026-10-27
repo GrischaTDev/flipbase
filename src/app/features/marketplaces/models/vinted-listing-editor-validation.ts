@@ -15,7 +15,16 @@ export function validateVintedListingEditor(
 ): Readonly<Record<string, string>> {
   if (schema) {
     return Object.fromEntries(
-      validateVintedListingSubmission(content, photos, schema)
+      validateVintedListingSubmission(
+        {
+          ...content,
+          attributes: Object.fromEntries(
+            Object.entries(content.attributes).filter(([key]) => key !== 'flipbaseListingForm'),
+          ),
+        },
+        photos,
+        schema,
+      )
         .filter(
           (issue) =>
             // Die Kategorieauswahl enthält nur eine kurze Markenliste. Die Vorschau sucht

@@ -30,7 +30,10 @@ import {
 import { reviewVintedListingPublication } from '../../models/vinted-listing-publication-review';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
-import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
+import {
+  flipbaseVintedListingFields,
+  flipbaseVintedListingReviewContent,
+} from '../../models/flipbase-vinted-listing-form';
 import {
   VintedListingJobService,
   type VintedListingJobIntent,
@@ -80,7 +83,6 @@ export class VintedListingPublicationPreviewComponent {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
-  private readonly categoryApi = inject(VintedListingCategoryService);
   private readonly brandApi = inject(VintedBrandSearchService);
   private readonly browserApi = inject(MarketplaceBrowserTestApiService);
   private readonly api = inject(VintedListingJobService);
@@ -136,7 +138,10 @@ export class VintedListingPublicationPreviewComponent {
     const schema = this.schema();
     return schema
       ? reviewVintedListingPublication(
-          this.draft(),
+          {
+            ...this.draft(),
+            content: flipbaseVintedListingReviewContent(this.draft().content),
+          },
           schema,
           this.brands(),
           this.intent()?.aiPhoto ?? this.aiPhoto(),
@@ -240,7 +245,13 @@ export class VintedListingPublicationPreviewComponent {
     try {
       if (draft.content.categoryId === null) throw new Error('Wähle zuerst eine Vinted-Kategorie.');
       const [schema, brands, permission, availability, jobs] = await Promise.all([
-        this.categoryApi.read(account.connectionId, draft.content.categoryId, { fresh: true }),
+        Promise.resolve(
+          flipbaseVintedListingFields(
+            draft.content.categoryId,
+            draft.content.categoryLabel,
+            draft.content,
+          ),
+        ),
         draft.content.brandId !== null
           ? this.brandApi.search(draft.content.brandLabel.slice(0, 100), draft.workspaceId)
           : Promise.resolve([] as VintedBrand[]),
@@ -250,7 +261,15 @@ export class VintedListingPublicationPreviewComponent {
       ]);
       if (!this.current(generation, binding)) return;
       // Fehlerhafte Kategorien werden abgefangen, bevor der abgeleitete Zustand entsteht.
-      reviewVintedListingPublication(draft, schema, brands, this.aiPhoto());
+      reviewVintedListingPublication(
+        {
+          ...draft,
+          content: flipbaseVintedListingReviewContent(draft.content),
+        },
+        schema,
+        brands,
+        this.aiPhoto(),
+      );
       this.brands.set(brands);
       this.schema.set(schema);
       this.permission.set(permission);

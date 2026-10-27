@@ -13,6 +13,7 @@ import {
 } from './vinted-browser-listing-form.ts';
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
+import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -172,7 +173,7 @@ export async function prepareVintedListingFields(
   const categoryText = await selectVintedListingNewCategory(
     page,
     accountId,
-    content.categoryId,
+    content.categoryId!,
     categoryPath,
     authorize,
     options,
@@ -188,10 +189,11 @@ export async function prepareVintedListingFields(
   const schema = await readVintedListingCategoryFields(
     page,
     accountId,
-    content.categoryId,
+    content.categoryId!,
     categoryPath,
     { brand: content },
   );
+  content = resolveFlipbaseVintedListingContent(content, schema);
   if (validateVintedListingSubmission(content, photos, schema).length > 0) throw invalid();
   await check();
   await page.locator('#content input[name="title"]').fill(content.title);
@@ -208,7 +210,7 @@ export async function prepareVintedListingFields(
   const final = await readVintedListingCategoryFields(
     page,
     accountId,
-    content.categoryId,
+    content.categoryId!,
     categoryPath,
     { brand: content },
   );

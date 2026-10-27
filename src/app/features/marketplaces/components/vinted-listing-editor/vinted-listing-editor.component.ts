@@ -33,7 +33,7 @@ import { VintedListingMediaComponent } from './vinted-listing-media.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
 import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import type { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
-import { vintedCategorySource } from '../../../platform-admin/models/vinted-category-source';
+import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -68,13 +68,13 @@ import {
   type VintedListingBrandSelection,
 } from '../../models/vinted-listing-brand-selection';
 import {
-  parseVintedListingCategoryFields,
-  type VintedListingCategoryFields,
-} from '../../models/vinted-listing-category-fields';
-import {
   validateVintedListingEditor,
   vintedListingAccountIssue,
 } from '../../models/vinted-listing-editor-validation';
+import {
+  flipbaseVintedListingFields,
+  prepareFlipbaseVintedListingContent,
+} from '../../models/flipbase-vinted-listing-form';
 
 const textOptions = { nonNullable: true as const, validators: [Validators.maxLength(20000)] };
 const labels = (text: string) =>
@@ -149,6 +149,7 @@ export class VintedListingEditorComponent {
   readonly images = signal<readonly ListingImageDraft[]>([]);
   readonly categories = signal<readonly VintedCategory[]>([]);
   readonly categoryError = signal<string | null>(null);
+  readonly categoryLoading = signal(false);
   readonly brandSelectionContext = signal<string | null>(null);
   readonly publication = signal<{
     readonly scopeKey: string;
@@ -168,10 +169,6 @@ export class VintedListingEditorComponent {
     readonly content: VintedListingContent;
   } | null>(null);
   private readonly selectedFields = signal<VintedListingFieldSelection | null>(null);
-  private readonly categorySnapshot = signal<{
-    readonly scopeKey: string;
-    readonly schema: VintedListingCategoryFields;
-  } | null>(null);
   private readonly selectedBrand = signal<
     (VintedListingBrandSelection & { categoryId: number | null }) | null
   >(null);
@@ -216,7 +213,7 @@ export class VintedListingEditorComponent {
   );
   readonly categorySource = computed(() => {
     try {
-      return this.categories().length ? vintedCategorySource(this.categories()) : null;
+      return this.categories().length ? vintedListingCategorySource(this.categories()) : null;
     } catch {
       return null;
     }
@@ -300,8 +297,11 @@ export class VintedListingEditorComponent {
     ]);
   });
   readonly categorySchema = computed(() => {
-    const snapshot = this.categorySnapshot();
-    return snapshot?.scopeKey === this.fieldSelectionScope() ? snapshot.schema : null;
+    const content = this.content();
+    if (this.context() !== this.loadedContext) return null;
+    return content.categoryId === null
+      ? null
+      : flipbaseVintedListingFields(content.categoryId, content.categoryLabel, content);
   });
   readonly fieldErrors = computed(() => {
     const stored = this.draft()?.images ?? [];
@@ -312,7 +312,21 @@ export class VintedListingEditorComponent {
         byteSize: image.file?.size ?? saved?.byteSize ?? 0,
       };
     });
-    return validateVintedListingEditor(this.content(), photos, this.categorySchema());
+    const errors = validateVintedListingEditor(this.content(), photos, this.categorySchema());
+    const categoryId = this.currentCategoryId();
+    const category = this.categories().find((value) => value.id === categoryId);
+    if (categoryId !== null && !category)
+      return {
+        ...errors,
+        category:
+          this.categoryError() ??
+          (this.categoryLoading()
+            ? 'Die Kategorien werden geladen. Warte bitte kurz.'
+            : 'Diese Kategorie ist nicht verfügbar. Wähle eine passende Kategorie aus.'),
+      };
+    return category && this.categories().some((value) => value.parentId === categoryId)
+      ? { ...errors, category: `Wähle unter „${category.title}“ eine passende Unterkategorie aus.` }
+      : errors;
   });
   readonly additionalFieldErrors = computed(() =>
     Object.entries(this.visibleFieldErrors())
@@ -341,26 +355,14 @@ export class VintedListingEditorComponent {
     () =>
       this.accountIssue() ??
       (this.currentCategoryId() === null
-        ? 'Wähle eine Kategorie und rufe danach über „Vinted-Angaben auswählen“ die aktuellen Pflichtangaben und Textgrenzen ab.'
+        ? 'Wähle eine Kategorie, um die passenden Artikelangaben auszufüllen.'
         : this.categorySchema() === null
-          ? 'Über „Vinted-Angaben auswählen“ kannst Du die aktuellen Pflichtangaben und Textgrenzen prüfen. Server- und Kontofreigabe werden vor der Veröffentlichung geprüft.'
+          ? 'Ergänze die Artikelangaben. Server- und Kontofreigabe werden vor der Veröffentlichung geprüft.'
           : 'Ergänze die markierten Angaben. Server- und Kontofreigabe werden in „Veröffentlichung vorbereiten“ geprüft.'),
   );
   readonly canSelectFields = computed(() => {
     this.changed();
-    const account = this.store
-      .connections()
-      .find((value) => value.connectionId === this.form.controls.connectionId.value);
-    return (
-      this.canSelectBrand() &&
-      this.currentCategoryId() !== null &&
-      !!account &&
-      this.accountIssue() === null &&
-      account.workspaceId === this.workspaceId() &&
-      account.status === 'connected' &&
-      account.executionMode === 'cloud' &&
-      /^[1-9][0-9]{0,31}$/.test(account.externalAccountId ?? '')
-    );
+    return this.canSelectBrand() && this.currentCategoryId() !== null;
   });
   readonly canPreparePublication = computed(() => {
     const draft = this.draft();
@@ -369,6 +371,7 @@ export class VintedListingEditorComponent {
       .find((value) => value.connectionId === draft?.connectionId);
     return (
       this.canSelectFields() &&
+      this.accountIssue() === null &&
       Object.keys(this.fieldErrors()).length === 0 &&
       !this.dirty() &&
       !!draft &&
@@ -377,7 +380,7 @@ export class VintedListingEditorComponent {
       account?.marketplace === 'vinted'
     );
   });
-  readonly canStartPublication = computed(() => this.canSelectBrand());
+  readonly canStartPublication = computed(() => this.canSelectBrand() && !this.categoryLoading());
   private readonly publicationScope = computed(() =>
     JSON.stringify([
       this.fieldSelectionScope(),
@@ -405,8 +408,6 @@ export class VintedListingEditorComponent {
     effect(() => {
       const scope = this.fieldSelectionScope();
       const selection = this.fieldSelection();
-      const snapshot = this.categorySnapshot();
-      if (snapshot && snapshot.scopeKey !== scope) untracked(() => this.categorySnapshot.set(null));
       if (selection && selection.scopeKey !== scope) untracked(() => this.closeFieldSelection());
       if (this.canSelectFields() && (!selection || selection.scopeKey !== scope))
         untracked(() => this.openFieldSelection());
@@ -425,10 +426,17 @@ export class VintedListingEditorComponent {
   async openPublication(): Promise<void> {
     if (!this.canStartPublication()) return;
     this.publicationAttempted.set(true);
-    if (!this.canSelectFields() || this.contentError() || Object.keys(this.fieldErrors()).length) {
+    if (
+      !this.canSelectFields() ||
+      this.accountIssue() ||
+      this.contentError() ||
+      Object.keys(this.fieldErrors()).length
+    ) {
       this.focusFirstIssue();
       return;
     }
+    // Auch unveränderte ältere Entwürfe müssen vor dem Auftrag die eigene Formularversion sichern.
+    if (this.draft() && !same(this.content(), this.draft()!.content)) this.dirty.set(true);
     if (this.dirty()) {
       if (!this.canStartPublication()) return;
       await this.save();
@@ -494,22 +502,13 @@ export class VintedListingEditorComponent {
     if (!this.canSelectFields()) return;
     this.fieldSelection.set({
       scopeKey: this.fieldSelectionScope(),
-      connectionId: this.form.controls.connectionId.value!,
+      connectionId: this.form.controls.connectionId.value ?? '',
       categoryId: this.currentCategoryId()!,
       content: this.content(),
     });
   }
   closeFieldSelection(): void {
     this.fieldSelection.set(null);
-  }
-  categoryFieldsLoaded(schema: VintedListingCategoryFields): void {
-    const opened = this.fieldSelection();
-    if (!opened || !this.store.canManage() || opened.scopeKey !== this.fieldSelectionScope())
-      return;
-    this.categorySnapshot.set({
-      scopeKey: opened.scopeKey,
-      schema: parseVintedListingCategoryFields(schema, opened.categoryId),
-    });
   }
   textLimitHelp(field: 'title' | 'description'): string {
     this.changed();
@@ -774,10 +773,10 @@ export class VintedListingEditorComponent {
     this.draft.set(null);
     this.images.set([]);
     this.categories.set([]);
-    this.categorySnapshot.set(null);
     this.error.set(null);
     this.loadError.set(null);
     this.categoryError.set(null);
+    this.categoryLoading.set(false);
     this.conflict.set(false);
     this.dirty.set(false);
     this.saving.set(false);
@@ -831,6 +830,15 @@ export class VintedListingEditorComponent {
     }
     if (!this.current(generation, context)) return;
     this.loading.set(false);
+    await this.reloadCategories();
+  }
+  async reloadCategories(): Promise<void> {
+    if (!this.canSelectBrand() || this.categoryLoading()) return;
+    const generation = this.generation,
+      context = this.loadedContext;
+    this.categoryLoading.set(true);
+    this.categoryError.set(null);
+    this.categories.set([]);
     try {
       const snapshot = await this.categoryApi.readSnapshot();
       if (this.current(generation, context)) this.categories.set(snapshot.categories);
@@ -839,6 +847,8 @@ export class VintedListingEditorComponent {
         this.categoryError.set(
           'Die Vinted-Kategorien konnten nicht geladen werden. Deine Eingaben bleiben erhalten.',
         );
+    } finally {
+      if (this.current(generation, context)) this.categoryLoading.set(false);
     }
   }
   private async persist(generation: number, change: number): Promise<void> {
@@ -969,9 +979,11 @@ export class VintedListingEditorComponent {
       attributes: categorySame ? previous.attributes : {},
     });
     const fields = this.selectedFields();
-    return fields?.categoryId === categoryId
-      ? applyVintedListingFieldSelection(content, fields)
-      : content;
+    return prepareFlipbaseVintedListingContent(
+      fields?.categoryId === categoryId
+        ? applyVintedListingFieldSelection(content, fields)
+        : content,
+    );
   }
   private focusFirstIssue(): void {
     setTimeout(() =>

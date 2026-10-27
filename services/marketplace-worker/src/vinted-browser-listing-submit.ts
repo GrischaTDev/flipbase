@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
 import type {
   MarketplaceListingAction,
   MarketplaceListingResult,
@@ -48,7 +49,7 @@ export async function submitVintedListing(
     )
       throw new Error('Inseratversuch ungültig.');
     const workspaceId = input.images[0]?.storagePath.split('/')[0] ?? '';
-    const snapshot = parseVintedListingSnapshot(input, workspaceId, input.connectionId);
+    let snapshot = parseVintedListingSnapshot(input, workspaceId, input.connectionId);
     await authorize();
     await page.goto('https://www.vinted.de/items/new', {
       waitUntil: 'domcontentloaded',
@@ -67,7 +68,7 @@ export async function submitVintedListing(
       await authorize();
     };
     await check();
-    await prepareVintedListingFields(
+    const prepared = await prepareVintedListingFields(
       page,
       accountId,
       snapshot.content,
@@ -76,6 +77,10 @@ export async function submitVintedListing(
       check,
       { allowRememberedChoices: true },
     );
+    snapshot = {
+      ...snapshot,
+      content: resolveFlipbaseVintedListingContent(snapshot.content, prepared),
+    };
     // Zusatzoptionen müssen bereits vor dem ersten Upload eindeutig vorhanden sein.
     const initial = await page.evaluate(collectVintedListingFormValues);
     if (!initial || initial.bump !== false)
