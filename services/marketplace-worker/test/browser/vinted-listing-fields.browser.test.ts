@@ -11,6 +11,88 @@ import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listin
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
 
+test('retains the value phase after successful guards when a text field cannot be filled', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const form = await fixture(page);
+    page.setDefaultTimeout(300);
+    let lastStep = '';
+    let hasReadValues = false;
+    await assert.rejects(
+      prepareVintedListingFields(
+        page,
+        '123',
+        content,
+        snapshot.images,
+        [5],
+        async () => {
+          if (hasReadValues)
+            await page.locator('#title').evaluate((element) => {
+              if (element instanceof HTMLInputElement) element.readOnly = true;
+            });
+        },
+        {
+          onPrepareStep: (step) => {
+            lastStep = step;
+            if (step === 'values') hasReadValues = true;
+          },
+        },
+      ),
+    );
+    assert.equal(lastStep, 'values');
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('distinguishes matching, clicking and closing for every ordinary choice', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const field of ['size', 'condition', 'color', 'material'] as const) {
+      for (const phase of ['match', 'choice', 'close'] as const) {
+        const page = await browser.newPage();
+        const role = field === 'condition' ? 'radio' : 'checkbox';
+        const id =
+          field === 'size' ? 'data-testid="size-group-14-grid-option-208"' : `id="${field}-208"`;
+        await page.setContent(
+          `<input id="${field}"><div role="${role}" ${id} aria-checked="false"${phase === 'choice' ? ' style="pointer-events:none"' : ''}>${phase === 'match' ? 'Andere Auswahl' : 'Auswahl'}</div>`,
+        );
+        let checks = 0;
+        await assert.rejects(
+          selectVintedListingField(
+            page,
+            {
+              field,
+              sizeGroupId: field === 'size' ? 14 : null,
+              choices: [
+                {
+                  id: 208,
+                  label: 'Auswahl',
+                  selected: false,
+                  disabled: false,
+                  sizeGroupId: field === 'size' ? 14 : null,
+                },
+              ],
+            },
+            [208],
+            async () => {
+              if (++checks === 2 && phase === 'close') await page.close();
+            },
+          ),
+          (error: unknown) =>
+            error instanceof VintedListingReadError && error.step === `${field}_${phase}`,
+        );
+        if (!page.isClosed()) await page.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('distinguishes package matching and clicking failures', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

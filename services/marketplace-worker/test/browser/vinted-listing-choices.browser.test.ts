@@ -12,6 +12,30 @@ import {
 } from '../../src/vinted-browser-listing-form.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
+test('identifies opening, missing options and invalid values for every ordinary choice', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const field of ['size', 'condition', 'color', 'material'] as const) {
+      for (const phase of ['open', 'options', 'parse'] as const) {
+        const role = field === 'condition' ? 'radio' : 'checkbox';
+        const id =
+          field === 'size' ? 'data-testid="size-group-14-grid-option-208"' : `id="${field}-2"`;
+        await page.setContent(
+          `<input id="${field}"${phase === 'open' ? ' disabled' : ''}>${phase === 'parse' ? `<div role="${role}" ${id}>Auswahl</div>` : ''}`,
+        );
+        await assert.rejects(
+          openVintedListingChoices(page, field),
+          (error: unknown) =>
+            error instanceof VintedListingReadError && error.step === `${field}_${phase}`,
+        );
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('distinguishes missing package choices, empty labels and invalid options', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

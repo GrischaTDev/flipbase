@@ -17,6 +17,7 @@ import {
   BrowserActionFailedError,
   unexpectedFailureDetail,
   VintedListingReadError,
+  vintedListingReadSteps,
 } from '../src/vinted-listing-read-error.ts';
 
 const listingCategory = {
@@ -315,6 +316,9 @@ test('a failed listing read keeps only its fixed step across the isolated transp
     ['package_parse', 'package_parse'],
     ['package_match', 'package_match'],
     ['package_choice', 'package_choice'],
+    ...vintedListingReadSteps
+      .filter((stage) => /^(?:size|condition|color|material)_|_close$/.test(stage))
+      .map((stage) => [stage, stage] as const),
     ['private page text', null],
   ] as const) {
     const browser = isolatedBrowserActions({
