@@ -77,6 +77,16 @@ export class VintedActionOverviewHeaderStore {
         ['queued', 'paused', 'claimed', 'writing'].includes(job.state),
       ).length,
   );
+  readonly hasRunning = computed(
+    () =>
+      this.groups().some((group) => group.actions.some((action) => action.state === 'running')) ||
+      this.listings().some(
+        ({ job }) =>
+          job.state === 'claimed' ||
+          job.state === 'writing' ||
+          (job.state === 'queued' && !job.scheduledAt),
+      ),
+  );
   readonly loading = computed(() => this.context() !== null && this.reading() === this.context());
   readonly error = computed(() =>
     this.context() && this.snapshot()?.context === this.context()

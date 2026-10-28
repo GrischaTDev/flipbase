@@ -47,6 +47,12 @@ for (const width of [1920, 1280, 390, 320]) {
         await page.goto(actionOverviewMessagesUrl);
         const trigger = page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true });
         await expect(trigger).toBeVisible();
+        await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+        await expect(page.locator('[data-action-overview-spinner] svg path').first()).toHaveCSS(
+          'animation-name',
+          'spin',
+        );
+        await expect(trigger).toBeEnabled();
         await expect(page.locator('[data-action-overview-desktop]')).toHaveCount(0);
         await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
         await expect(page.locator('[data-action-overview-panel]')).toHaveCount(0);
@@ -243,6 +249,7 @@ test('zeigt Abschlüsse automatisch mit grünem Haken und behält das aktivierte
     overview.locator('[data-action-state="succeeded"] app-action-status-indicator svg'),
   ).toBeVisible();
   await expect(overview.locator('[data-action-state="running"]')).toHaveCount(0);
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
   await checkAccessibility(page, '#header-action-overview');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const completedCheck = overview.locator(

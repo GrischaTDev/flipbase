@@ -947,7 +947,16 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
   await expect(
     overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }),
   ).toHaveCount(0);
-  await expect(listings.locator('a[href="https://www.vinted.de/items/46609"]')).toBeVisible();
+  await expect(listings.getByRole('link', { name: 'Bei Vinted ansehen' })).toHaveCount(0);
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      listings
+        .getByRole('listitem')
+        .filter({ has: page.getByText('Veröffentlicht', { exact: true }) })
+        .evaluate((row) => row.getBoundingClientRect().height),
+    )
+    .toBeLessThan(80);
   await page.evaluate(axe.source);
   expect(
     await page.evaluate(

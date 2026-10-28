@@ -11,6 +11,23 @@ import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
 import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
+test('waits for the requested category instead of accepting visible choices from the previous level', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const form = await fixture(page, { categoryLoadingDelayMs: 200 });
+    assert.equal(
+      await selectVintedListingNewCategory(page, '123', 1223, [5], form.authorize),
+      'Bomberjacken',
+    );
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
+    assert.equal(form.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('category read preserves the failing field through the isolated transport without saving', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

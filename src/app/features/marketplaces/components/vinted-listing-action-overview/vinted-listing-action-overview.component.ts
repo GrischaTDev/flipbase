@@ -64,10 +64,6 @@ export class VintedListingActionOverviewComponent {
       }).format(new Date(job.scheduledAt ?? job.updatedAt)),
       planned: !!job.scheduledAt && ['queued', 'paused'].includes(job.state),
       cancellable: ['queued', 'paused'].includes(job.state),
-      url:
-        job.externalId && job.providerState !== 'draft'
-          ? 'https://www.vinted.de/items/' + job.externalId
-          : null,
     })),
   );
   readonly planInitial = computed<VintedListingScheduleSelection | null>(() => {

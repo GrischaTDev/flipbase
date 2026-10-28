@@ -2,8 +2,9 @@
   <span class="relative inline-flex">
     <app-button
       data-action-overview-trigger
+      [attr.data-action-overview-spinner]="store.hasRunning() ? '' : null"
       size="search"
-      [icon]="queueIcon"
+      [icon]="store.hasRunning() ? runningIcon : queueIcon"
       [iconOnly]="true"
       [ariaLabel]="label()"
       [title]="label()"

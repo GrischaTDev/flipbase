@@ -152,6 +152,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     await settle();
     expect(store.listings().map(({ job }) => job.id)).toEqual([pending.id]);
     expect(store.count()).toBe(3);
+    expect(store.hasRunning()).toBe(true);
     const onChange = listen.mock.calls[0]?.[2] as (() => void) | undefined;
     expect(onChange).toBeTypeOf('function');
     readListingJobs.mockResolvedValue([
@@ -161,6 +162,25 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     await settle();
     expect(store.listings()[0].job.state).toBe('confirmed');
     expect(store.count()).toBe(2);
+    read.mockResolvedValue({ actions: [] });
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'queued', scheduledAt: '2026-11-01T10:00:00Z' },
+    ]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(false);
+    readListingJobs.mockResolvedValue([{ ...pending, state: 'claimed' }]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(true);
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'confirmed', providerState: 'active' },
+    ]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(false);
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'confirmed', providerState: 'processing' },
+    ]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(false);
     enabled.set(false);
     expect(store.listings()).toEqual([]);
   });

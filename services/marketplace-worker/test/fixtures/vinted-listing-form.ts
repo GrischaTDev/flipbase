@@ -12,6 +12,7 @@ export async function createVintedListingFormFixture(
     noSaveNavigation?: boolean;
     brandSearch?: 'matching' | 'wrong_label' | 'custom_only';
     colorGrid?: boolean;
+    categoryLoadingDelayMs?: number;
   } = {},
 ) {
   let writes = 0,
@@ -67,7 +68,7 @@ export async function createVintedListingFormFixture(
       <input name="title" id="title" value="${options.cached ? 'Eigene Arbeit' : ''}"><textarea name="description" id="description"></textarea><input name="price" id="price">
       <input readonly id="category" name="category"><input readonly id="brand" name="brand"><input readonly id="size" name="size"><input readonly id="condition" name="condition"><input readonly id="color" name="color"><input readonly id="material" name="material">
       ${options.unknown ? '<input id="isbn" name="isbn">' : ''}
-      <div hidden id="category-options"><button type="button" id="catalog-5">Herren</button><div hidden id="category-leaves"><div role="radio" id="catalog-1223" aria-checked="false"><div class="web_ui__Cell__title">Bomberjacken</div></div></div></div>
+      <div hidden id="category-options"><button type="button" id="catalog-5">Herren</button>${options.categoryLoadingDelayMs ? '<div id="category-previous-leaves"><div role="radio" id="catalog-999" aria-checked="false">Vorherige Kategorie</div></div>' : ''}<div hidden id="category-leaves"><div role="radio" id="catalog-1223" aria-checked="false"><div class="web_ui__Cell__title">Bomberjacken</div></div></div></div>
       <div hidden id="brand-options"><div id="brand-popular"><div role="radio" id="empty-brand" aria-label="Keine Marke" aria-checked="false">Keine Marke</div></div>
       ${options.brandSearch ? `<input id="brand-search-input" data-testid="brand-search--input" placeholder="Marke suchen"><div id="brand-results" hidden><div role="radio" id="brand-317425" aria-label="Jako-o" aria-checked="false">Jako-o</div>${options.brandSearch === 'custom_only' ? '' : `<div role="radio" id="brand-254956" aria-label="${options.brandSearch === 'wrong_label' ? 'Falsche Marke' : 'Jako'}" aria-checked="false">Jako</div>`}<div role="radio" id="custom-select-brand-radio" aria-checked="false">Jako als Markenname nutzen</div></div>` : ''}</div>
       <div hidden id="size-options"><div role="checkbox" data-testid="size-group-14-grid-option-208" aria-label="M" aria-checked="false" aria-disabled="${options.disabledSize ? 'true' : 'false'}">M</div><div role="checkbox" data-testid="size-group-14-grid-option-209" aria-label="L" aria-checked="false">L</div></div>
@@ -85,7 +86,7 @@ export async function createVintedListingFormFixture(
         document.querySelectorAll('#'+field+'-options [role=radio],#'+field+'-options [role=checkbox]').forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
           const apply=()=>{node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;if(!['color','material'].includes(field)) hide();};
-          if(field==='brand'&&${!!options.brandSearch}) setTimeout(apply,60);else apply();
+          if(field==='category'&&${!!options.categoryLoadingDelayMs}) setTimeout(apply,${options.categoryLoadingDelayMs ?? 0});else if(field==='brand'&&${!!options.brandSearch}) setTimeout(apply,60);else apply();
         });
       });
       if(${!!options.brandSearch}) document.querySelector('#brand-search-input').oninput=async event=>{
@@ -93,7 +94,7 @@ export async function createVintedListingFormFixture(
         await fetch('/fixture/brand-search?query='+encodeURIComponent(event.target.value));
         setTimeout(()=>document.querySelector('#brand-results').hidden=false,60);
       };
-      document.querySelector('#catalog-5').onclick=()=>{document.querySelector('#catalog-5').hidden=true;document.querySelector('#category-leaves').hidden=false;};
+      document.querySelector('#catalog-5').onclick=()=>{const showCategory=()=>{document.querySelector('#catalog-5').hidden=true;document.querySelector('#category-leaves').hidden=false;const previous=document.querySelector('#category-previous-leaves');if(previous)previous.hidden=true;};if(${!!options.categoryLoadingDelayMs}){const previous=document.querySelector('#category-previous-leaves');previous.hidden=false;setTimeout(showCategory,${options.categoryLoadingDelayMs ?? 0});}else showCategory();};
       document.onkeydown=event=>{if(event.key==='Escape') hide();};
       [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
       document.querySelector('[data-testid="upload-form-save-button"]').onclick=async()=>{
