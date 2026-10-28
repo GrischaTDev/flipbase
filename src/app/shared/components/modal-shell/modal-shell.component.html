@@ -6,7 +6,10 @@
   (dialogClose)="closed.emit()"
 >
   <div [class]="cardClasses()" data-modal-surface>
-    <header role="presentation" class="flex shrink-0 items-start justify-between gap-4 px-5 pt-5 sm:px-6">
+    <header
+      role="presentation"
+      class="flex shrink-0 items-start justify-between gap-4 px-5 pt-5 sm:px-6"
+    >
       <div class="flex min-w-0 items-center gap-3">
         @if (icon(); as ic) {
           <div
