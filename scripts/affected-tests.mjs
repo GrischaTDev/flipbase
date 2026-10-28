@@ -362,9 +362,15 @@ export function buildBrowserMatrix(plan) {
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // Die breiten Layoutseiten teilen sich zwei Zeitfenster; der kleine Kern
-      // bleibt zusammen. Vollständige Fach- und Änderungsgruppen behalten drei.
-      const maxGroups = project === 'layout' ? 2 : 3;
+      // 118 Fachfälle je Job überschritten das bestehende 30-Minuten-Budget.
+      // Breite Fachgruppen wachsen deshalb ab 31 Dateien in Zehnerschritten;
+      // kleine Pläne, Layout und direkt geänderte Dateien behalten ihre Grenzen.
+      const maxGroups =
+        project === 'layout'
+          ? 2
+          : project === 'chromium'
+            ? Math.max(3, Math.ceil(files.length / 10))
+            : 3;
       const groups = plan.full && project !== 'core-smoke' ? Math.min(maxGroups, files.length) : 1;
       return Array.from({ length: groups }, (_, index) => ({
         project,

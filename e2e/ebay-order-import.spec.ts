@@ -3,11 +3,10 @@ import axe from 'axe-core';
 import { test, expect, openDashboard, type TestWorkspace } from './support/fixtures';
 import { createFinalizedPurchase } from './support/sample-data';
 import { createLocalAdminClient } from './support/local-supabase';
-import { readAccessToken } from './support/test-account';
 
 async function createOrder(workspace: TestWorkspace, autoPrepare = false) {
   const admin = createLocalAdminClient();
-  const { data: identity, error: identityError } = await admin.auth.getUser(readAccessToken());
+  const { data: identity, error: identityError } = await workspace.client.auth.getUser();
   if (identityError || !identity.user) throw new Error('Die bestätigte Testidentität fehlt.');
   const connectionId = randomUUID();
   const tokens = {

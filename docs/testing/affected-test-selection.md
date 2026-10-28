@@ -108,13 +108,28 @@ Bei direkt geänderten Testdateien gilt diese Einschränkung nicht. Die vollstä
 manuelle Regression behält sämtliche Varianten.
 
 Der Kern erhält eine Teilgruppe. Umfassende Layoutgruppen verwenden bis zu zwei,
-umfassende Fach- und Änderungsgruppen bis zu drei Teilgruppen, jeweils höchstens
-so viele wie Dateien; gezielte Fachgruppen verwenden eine. Die Aufteilung der
-Layoutseiten hält deren vollständigen Umfang im bestehenden Jobzeitbudget.
-Jeder tatsächliche Aufruf startet
-sein globales Setup mit frischer Anmeldung. Die CI gibt jedem Matrixjob außerdem
-eine eigene lokale Datenbank. Eine explizit übergebene Teilgruppe wird nicht
-nochmals aufgeteilt.
+direkt geänderte Browserdateien bis zu drei Teilgruppen. Umfassende Fachgruppen
+verwenden zunächst bis zu drei; bei mehr als 30 Dateien wächst ihre Zahl auf eine
+Teilgruppe je zehn Dateien, aufgerundet. Jede Gruppe erhält höchstens so viele
+Teilgruppen wie Dateien; gezielte Fachgruppen verwenden weiterhin eine. Im
+tatsächlichen breiten CI-Lauf überschritten 118 Fachfälle einschließlich
+Vorbereitung das bestehende 30-Minuten-Jobbudget. Die kleinere Aufteilung lässt
+Reserve, ohne Fälle oder Zeitgrenzen zu verändern. Die echte Playwright-Auflistung
+prüft nichtleere Gruppen, vollständige Abdeckung ohne Duplikate und die Größe des
+breiten Referenzplans. Eine explizit übergebene Teilgruppe wird nicht nochmals
+aufgeteilt.
+
+Jeder tatsächliche Aufruf legt im globalen Setup ein frisches lokales Testkonto
+an; jeder CI-Matrixjob hat eine eigene lokale Datenbank. Die Worker melden sich
+unabhängig mit den nur im Laufprozess übergebenen Zugangsdaten an. Vor jedem
+neuen Browserkontext prüft die Fixture die Sitzung: Bei weniger als 120 Sekunden
+Restgültigkeit meldet sie das Konto regulär neu an. Browserzustand und
+vorbereitender API-Client erhalten dieselbe Sitzung; auch zusätzliche manuelle
+Kontexte verwenden diesen aktuellen Zustand. Ausdrücklich anonyme oder eigene
+Testzustände bleiben erhalten. Die globale Authdatei wird von Workern nicht
+überschrieben und kein Refresh-Token zwischen Workern rotiert. Fehlgeschlagene
+oder unbrauchbar kurze Anmeldungen brechen vor der Workspace-Erstellung ab.
+Sitzungsdauer, Authlimits und Produktionsanmeldung bleiben unverändert.
 
 Leere Auswahl startet keinen Browserjob. Der Runner akzeptiert sie nicht als
 bestandenen Test und verwendet kein `--passWithNoTests`. Fehler stoppen den

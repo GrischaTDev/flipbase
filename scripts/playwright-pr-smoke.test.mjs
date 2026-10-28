@@ -200,6 +200,8 @@ test('gelöschte und umbenannte Browserdateien führen zu einer konservativen ec
 test('jede echte Browsermatrixgruppe enthält Fälle und zusammen jede Auswahl genau einmal', async () => {
   const paths = [
     'src/styles.scss',
+    'src/app/core/models/supabase.types.ts',
+    'e2e/global-setup.ts',
     'e2e/responsive-admin-layout.spec.ts',
     'e2e/vinted-kleinanzeigen-transfer.spec.ts',
   ];
@@ -208,6 +210,9 @@ test('jede echte Browsermatrixgruppe enthält Fälle und zusammen jede Auswahl g
   for (const { project, shard } of buildBrowserMatrix(plan)) {
     const { selected } = await listPlan(paths, ['--project=' + project, '--shard=' + shard]);
     assert.ok(selected.length > 0, project + ' ' + shard);
+    // 118 Fachfälle überschritten in CI das 30-Minuten-Budget. Der breite
+    // Referenzplan muss mit Reserve und ohne verlorene Fälle aufgeteilt sein.
+    if (project === 'chromium') assert.ok(selected.length <= 80, `${shard}: ${selected.length}`);
     grouped.push(...selected);
   }
   assert.equal(new Set(keys(grouped)).size, grouped.length);
