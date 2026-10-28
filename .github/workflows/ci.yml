@@ -35,7 +35,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       # application bleibt die Release-Auswahl; application_tests steuert nur Prüfungen.
@@ -113,7 +113,7 @@ jobs:
     name: Documentation
     needs: changes
     if: ${{ needs.changes.outputs.documentation_only == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check out repository
@@ -139,7 +139,7 @@ jobs:
     name: Quality
     needs: changes
     if: ${{ needs.changes.outputs.documentation_only != 'true' && needs.changes.outputs.tests_reused != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -263,7 +263,7 @@ jobs:
     name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
     if: ${{ needs.changes.outputs.unit_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -311,7 +311,7 @@ jobs:
     name: Database
     if: ${{ needs.changes.outputs.supabase == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -383,7 +383,7 @@ jobs:
     # mitzubauen kostete rund zwei Minuten je Lauf fuer nichts.
     if: ${{ needs.changes.outputs.sniper == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
       run:
@@ -426,7 +426,7 @@ jobs:
     name: Browser smoke ${{ matrix.project }} ${{ matrix.shard }}
     if: ${{ needs.changes.outputs.browser_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Eigene Runner verhindern, dass der vollständige Standardlauf das Zeitfenster
     # der zusätzlich geänderten Fälle verbraucht. Jede Gruppe bleibt verpflichtend.
     strategy:
@@ -486,7 +486,7 @@ jobs:
     name: Production PWA
     needs: changes
     if: ${{ needs.changes.outputs.pwa_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -519,7 +519,7 @@ jobs:
     name: Publish image
     needs: [changes, documentation, quality, unit, database, sniper, browser-smoke, pwa]
     if: ${{ always() && github.event_name == 'push' && needs.changes.result == 'success' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -639,7 +639,7 @@ jobs:
           # Versionsanzeige haette sonst nur einen Platzhalter.
           build-args: |
             FLIPBASE_COMMIT=${{ github.sha }}
-            FLIPBASE_COMMIT_DATE=${{ github.event.repository.updated_at }}
+            FLIPBASE_COMMIT_DATE=${{ github.event.head_commit.timestamp }}
             FLIPBASE_VERSION=${{ steps.gitversion.outputs.value }}
 
       # Gleicher Produktionsbau vor dem Push: nur HTTP und statische Dateien,
@@ -734,7 +734,7 @@ jobs:
     name: Required checks
     if: ${{ always() }}
     needs: [changes, documentation, quality, unit, database, sniper, browser-smoke, pwa, image]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check out repository
@@ -781,7 +781,7 @@ jobs:
     name: Deploy to production
     needs: [changes, required-checks, image]
     if: ${{ github.event_name == 'push' && always() && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') && needs.required-checks.result == 'success' && needs.image.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is
     # valid only while this job runs. Nothing long-lived is stored there.
@@ -914,7 +914,7 @@ jobs:
     name: Create GitHub Release
     needs: [deploy, image]
     if: ${{ github.event_name == 'push' && always() && needs.deploy.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write

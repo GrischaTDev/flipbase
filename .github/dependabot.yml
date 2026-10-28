@@ -10,3 +10,41 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: ci
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /services/sniper
+      - /services/push-worker
+      - /services/marketplace-worker
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    # Angular-Major-Upgrades samt zugehörigem Werkzeug erfolgen über ng update.
+    ignore:
+      - dependency-name: '@angular/*'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@angular-devkit/*'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@angular-eslint/*'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: angular-eslint
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@schematics/angular'
+        update-types:
+          - version-update:semver-major
