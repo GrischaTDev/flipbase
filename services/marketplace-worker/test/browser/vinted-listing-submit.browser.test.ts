@@ -106,6 +106,71 @@ test('publishing writes once after Begin and confirms only the saved content, ph
   }
 });
 
+test('publishes ten original photos in order with bounded account lookups between uploads', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingFormFixture(page, { publishing: true });
+    const original = listingClaimFixture.snapshot.images[0];
+    assert.ok(original);
+    const images = Array.from({ length: 10 }, (_, index) => ({
+      ...original,
+      id: (BigInt(original.id) + BigInt(index)).toString(),
+      storagePath: `20000000-0000-4000-8000-000000000001/12/20000000-0000-4000-8000-${String(index + 9).padStart(12, '0')}.jpg`,
+      fileName: `photo-${index + 1}.jpg`,
+    }));
+    let accountLookups = 0;
+    const lookupsAtUpload: number[] = [];
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname;
+      if (path === '/api/v2/users/current') accountLookups++;
+      if (path === '/fixture/photo') lookupsAtUpload.push(accountLookups);
+    });
+    await page.goto('about:blank');
+    let begins = 0;
+    const result = await submitVintedListing(
+      page,
+      '123',
+      'publish',
+      { ...listingClaimFixture.snapshot, images },
+      async () => {
+        begins++;
+        assert.equal(form.uploads(), 0);
+      },
+      async () => undefined,
+      async (id) => {
+        const image = images.find((image) => image.id === id);
+        assert.ok(image);
+        return {
+          id,
+          fileName: image.fileName,
+          mimeType: image.mimeType,
+          bytes: new Uint8Array(image.byteSize),
+        };
+      },
+      [5],
+      { saveTimeoutMs: 400 },
+    );
+    assert.equal(result.outcome, 'confirmed');
+    assert.equal(begins, 1);
+    assert.equal(form.uploads(), 10);
+    assert.equal(form.saves(), 1);
+    assert.deepEqual(
+      form.uploadedFileNames(),
+      images.map((image) => image.fileName),
+    );
+    assert.equal(lookupsAtUpload.length, 10);
+    for (let index = 1; index < lookupsAtUpload.length; index++) {
+      const current = lookupsAtUpload[index],
+        previous = lookupsAtUpload[index - 1];
+      assert.ok(current !== undefined && previous !== undefined);
+      assert.ok(current - previous <= 5, `Account lookups between uploads: ${current - previous}`);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('query or hash changes during preparation stop before article texts are entered', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
