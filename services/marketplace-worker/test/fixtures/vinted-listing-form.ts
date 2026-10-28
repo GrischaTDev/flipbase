@@ -11,6 +11,8 @@ export async function createVintedListingFormFixture(
     active?: boolean;
     noSaveNavigation?: boolean;
     brandSearch?: 'matching' | 'wrong_label' | 'custom_only';
+    brandSearchStartsEmpty?: boolean;
+    brandSearchPortal?: boolean;
     colorGrid?: boolean;
     categoryLoadingDelayMs?: number;
     brandLoadingDelayMs?: number;
@@ -87,11 +89,14 @@ export async function createVintedListingFormFixture(
         .join('')}
       <button type="button" data-testid="upload-form-save-button">Hochladen</button>
       </div><script>
+      // Beim erneuten Laden kann das gespeicherte Portal erst hinter diesem Script stehen.
+      document.addEventListener('DOMContentLoaded',()=>{
       const fields=['category','brand','size','condition','color','material'];
+      if(${!!options.brandSearchPortal}) document.body.append(document.querySelector('#brand-options'));
       let hasRequestedBrandChoices=false;
       const hide=()=>fields.forEach(field=>document.querySelector('#'+field+'-options').hidden=true);
       fields.forEach(field=>{
-        document.querySelector('#'+field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}if(field==='brand'&&${!!options.brandSearch}){document.querySelector('#brand-search-input').value='';document.querySelector('#brand-popular').hidden=document.querySelector('#brand').value==='Jako';document.querySelector('#brand-results').hidden=document.querySelector('#brand').value!=='Jako';}if(field==='brand'&&${!!options.brandChoicesDelayMs}&&!hasRequestedBrandChoices){hasRequestedBrandChoices=true;document.querySelector('#brand-options').hidden=true;setTimeout(()=>document.querySelector('#brand-options').hidden=false,${options.brandChoicesDelayMs ?? 0});}};
+        document.querySelector('#'+field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}if(field==='brand'&&${!!options.brandSearch}){document.querySelector('#brand-search-input').value='';document.querySelector('#brand-popular').hidden=${!!options.brandSearchStartsEmpty}||document.querySelector('#brand').value==='Jako';document.querySelector('#brand-results').hidden=document.querySelector('#brand').value!=='Jako';}if(field==='brand'&&${!!options.brandChoicesDelayMs}&&!hasRequestedBrandChoices){hasRequestedBrandChoices=true;document.querySelector('#brand-options').hidden=true;setTimeout(()=>document.querySelector('#brand-options').hidden=false,${options.brandChoicesDelayMs ?? 0});}};
         document.querySelectorAll('#'+field+'-options [role=radio],#'+field+'-options [role=checkbox]').forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
           const apply=()=>{node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;if(field==='category'&&${!!options.brandLoadingDelayMs}){document.querySelector('#brand').disabled=true;setTimeout(()=>document.querySelector('#brand').disabled=false,${options.brandLoadingDelayMs ?? 0});}if(!['color','material'].includes(field)) hide();};
@@ -122,6 +127,7 @@ export async function createVintedListingFormFixture(
         document.querySelector('[data-testid="media-upload-grid"]').append(wrapper);
         image.src=(await(await fetch('/fixture/photo',{method:'POST',body:event.target.files[0]})).json()).url;
       };
+      });
       </script>`,
     });
   });

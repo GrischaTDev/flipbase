@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-28 - Juna - Vinted-Markensuche ohne populäre Vorschläge bedienen
+
+**Produktionsbefund:** PR #494 mit `26302257490298e632da58f901f529ea2388993f` nach grünen Pflichtprüfungen gemergt und alle drei geprüften Images bei unveränderter Konfiguration ausgerollt. Worker gesund mit null Neustarts. Regulärer Auftrag 11 für denselben unveränderten Entwurf scheitert weiterhin vor Begin/Upload mit `brand_options`; kein Anbieterinserat, Sitzung geschlossen. Die längere Wartezeit allein behebt den Fehler nicht.
+
+**Korrektur:** Die bisherige Vorbereitung wartet vor einer unterstützten Markensuche zwingend auf populäre Radiooptionen und beschränkt Suche und Ergebnis auf `#content`. Bei einer bekannten Marke akzeptiert sie nun das eindeutige native Suchfeld auch bei zunächst leerer Vorschlagsliste und bedient ein ausgelagertes Popup. Nichtleere fehlerhafte Optionen, doppelte Suchfelder sowie falsche Kennungen oder Labels bleiben Fehler. Leere Vorschläge erlauben keine erfundene Marke. Ob genau diese Darstellung den Produktionsfehler verursacht, ist erst mit dem nächsten echten Versuch prüfbar.
+
+**Prüfung:** Leere Vorschläge und außerhalb von `#content` liegende Suche jeweils zunächst mit `brand_options` rot, danach bestehende Vorbereitung und vollständiger Submit grün. Die gespeicherte Testmaske bindet ihre Handler nach `DOMContentLoaded`, damit ein nach dem Script gespeichertes Popup ebenfalls eingelesen werden kann. Alle 71 nativen Formularfälle unter Windows und unter Linux mit Node 22.23.4/Playwright 1.63.0 bei zwei CPUs/vier GiB erfolgreich. Alle 735 Workerfälle ohne Fehler (727 erfolgreich, acht optionale Auslassungen); Typprüfung, Workerbau, gezieltes Lint, Formatierung und unabhängiger Review erfolgreich. Keine Angular-, Schema-, Migrations- oder Abhängigkeitsänderung. Flipbase weiterhin nicht im verbundenen Lissie-Projektverzeichnis vorhanden.
+
 ## 2026-10-28 - Juna - Auf nachgeladene Markenoptionen warten
 
 **Produktionsbefund:** PR #493 nach grünen Pflichtprüfungen mit `873a90f8a6ef182520e6989b29a48743c197e272` gemergt. Alle drei Images aus demselben Stand veröffentlicht, Quellen und kompilierte Module geprüft und die bestehende Konfiguration bis auf die Imageverweise unverändert ausgerollt. Worker gesund, null Neustarts. Auftrag 10 für denselben unveränderten Entwurf scheitert vor Begin/Upload nun eindeutig mit `brand_options`: Der Feldklick ist durch, aber der bisherige sichtbare Optionen-Wait von fünf Sekunden läuft ab. Sitzung regulär geschlossen, weiterhin kein Anbieterinserat. Freigaben, Zeitplanstand und alter unklarer Nachrichtenbeleg unverändert.

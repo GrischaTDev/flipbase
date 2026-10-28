@@ -22,13 +22,15 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         brandChoicesDelayMs: 6000,
         nativePackage: true,
       },
-      { brandSearch: 'matching' as const },
+      { brandSearch: 'matching' as const, brandSearchStartsEmpty: true, brandSearchPortal: true },
       { savedPrice: '11,00' },
       { active: false },
       { noSaveNavigation: true },
     ]) {
       const page = await browser.newPage(),
         f = await createVintedListingFormFixture(page, { publishing: true, ...options });
+      const pageErrors: string[] = [];
+      page.on('pageerror', (error) => pageErrors.push(error.message));
       await page.goto('about:blank');
       let begin = 0;
       const result = await submitVintedListing(
@@ -74,6 +76,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
       assert.equal(begin, 1);
       assert.equal(f.uploads(), 1);
       assert.equal(f.saves(), 1);
+      assert.deepEqual(pageErrors, [], JSON.stringify(options));
       assert.equal(
         result.outcome,
         options.savedPrice || options.active === false || options.noSaveNavigation
