@@ -266,6 +266,48 @@ test('reads a native package cell only when its identity agrees with the radio',
   }
 });
 
+test('reads the native package name without recommendation, description or information text', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const extras of [true, false]) {
+      await page.setContent(
+        `<div id="2-package-size" data-testid="2-package-size--cell"><div data-testid="2-package-size--cell-title" class="web_ui__Cell__title">${extras ? '<div>Empfohlen</div>' : ''}<span>Mittel</span></div><p>Für Artikel in einem Schuhkarton.</p>${extras ? '<a>Infos zu Größen und Entschädigungen</a>' : ''}<label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
+      );
+      const collected = await page.evaluate(collectVintedListingChoices, 'package' as const);
+      assert.deepEqual(parseVintedListingChoices('package', collected).choices, [
+        { id: 2, label: 'Mittel', selected: true, disabled: false, sizeGroupId: null },
+      ]);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('rejects missing, hidden or ambiguous names inside an identified native package title', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const title of [
+      '<div data-testid="2-package-size--cell-title"><span></span></div>',
+      '<div data-testid="2-package-size--cell-title"><span>Mittel</span><span>Groß</span></div>',
+      '<div data-testid="2-package-size--cell-title" hidden><span>Mittel</span></div>',
+      '<div data-testid="2-package-size--cell-title" style="opacity:0"><span>Mittel</span></div>',
+      '<div data-testid="2-package-size--cell-title"><span>Mittel</span></div><div data-testid="2-package-size--cell-title"><span>Groß</span></div>',
+    ]) {
+      await page.setContent(
+        `<div id="2-package-size" data-testid="2-package-size--cell">${title}<p>Für Artikel in einem Schuhkarton.</p><label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
+      );
+      await assert.rejects(
+        page.evaluate(collectVintedListingChoices, 'package' as const),
+        /Vinted-Paketname nicht eindeutig\./,
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('refuses a different domain or route before interacting with a form', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

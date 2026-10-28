@@ -243,9 +243,31 @@
         packageCell?.getAttribute('data-testid') === packageId[1] + '-package-size--cell'
           ? packageCell.textContent
           : '';
+      let packageName = '';
+      if (packageLabel) {
+        const titles = packageCell.querySelectorAll(
+          '[data-testid="' + packageId[1] + '-package-size--cell-title"]',
+        );
+        if (titles.length > 0) {
+          const names = titles[0].querySelectorAll(':scope > span');
+          if (titles.length !== 1 || names.length !== 1 || !names[0].textContent?.trim())
+            throw new Error('Vinted-Paketname nicht eindeutig.');
+          const name = names[0];
+          if (name.getClientRects().length === 0 || name.closest('[hidden],[aria-hidden="true"]'))
+            throw new Error('Vinted-Paketname nicht eindeutig.');
+          for (let ancestor = name; ancestor !== packageCell; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor);
+            if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0')
+              throw new Error('Vinted-Paketname nicht eindeutig.');
+          }
+          // Empfehlung, Beschreibung und Zusatzlink ändern sich unabhängig vom Paketnamen.
+          packageName = name.textContent;
+        }
+      }
       result.push({
         id,
         label: (
+          packageName ||
           element.getAttribute('aria-label') ||
           labelledBy ||
           title ||
