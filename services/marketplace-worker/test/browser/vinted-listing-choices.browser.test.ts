@@ -8,7 +8,27 @@ import {
 import {
   readVintedListingChoices,
   readVintedListingCategoryFields,
+  openVintedListingChoices,
 } from '../../src/vinted-browser-listing-form.ts';
+import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
+
+test('identifies the exact failing brand phase without exposing native errors', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const phase of ['open', 'options', 'parse', 'search'] as const) {
+      await page.setContent(`<input id="brand" ${phase === 'open' ? 'disabled' : ''}>
+        ${phase === 'parse' ? '<div role="radio" id="brand-14">adidas</div>' : phase === 'search' ? '<div role="radio" id="brand-14" aria-checked="false">adidas</div>' : ''}`);
+      await assert.rejects(
+        openVintedListingChoices(page, 'brand', [], { brand: { brandId: 53, brandLabel: 'Nike' } }),
+        (error: unknown) =>
+          error instanceof VintedListingReadError && error.step === `brand_${phase}`,
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+});
 
 test('color grids require agreeing color evidence and ignore unrelated or hidden grids', async () => {
   const browser = await chromium.launch({ headless: true });

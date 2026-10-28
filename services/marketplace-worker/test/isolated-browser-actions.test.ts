@@ -303,6 +303,13 @@ test('a failed listing read keeps only its fixed step across the isolated transp
   assert.deepEqual(event, { kind: 'error', code: 'listing_read', stage: 'photos' });
   for (const [stage, expected] of [
     ['photos', 'photos'],
+    ['brand_open', 'brand_open'],
+    ['brand_options', 'brand_options'],
+    ['brand_parse', 'brand_parse'],
+    ['brand_search', 'brand_search'],
+    ['brand_match', 'brand_match'],
+    ['brand_choice', 'brand_choice'],
+    ['brand_selected', 'brand_selected'],
     ['private page text', null],
   ] as const) {
     const browser = isolatedBrowserActions({
