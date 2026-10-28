@@ -1,6 +1,7 @@
 import { vintedListingCopyRendering } from '../../../../e2e/support/vinted-listing-copy-rendering';
 import { vintedProfileEditorRendering } from '../../../../e2e/support/vinted-profile-editor-rendering';
 import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
+import { ActionStatusIndicatorComponent } from '../../shared/components/action-status-indicator/action-status-indicator.component';
 import { listingTransferRendering } from '../../../../e2e/support/listing-transfer-rendering';
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
@@ -149,6 +150,7 @@ let localApi: {
 
 beforeAll(async () => {
   const shared: [unknown, string][] = [
+    [ActionStatusIndicatorComponent, 'action-status-indicator/action-status-indicator.component'],
     [ButtonComponent, 'button/button.component'],
     [LoadingIndicatorComponent, 'loading-indicator/loading-indicator.component'],
     [CardComponent, 'card/card.component'],

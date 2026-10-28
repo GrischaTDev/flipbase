@@ -8,6 +8,7 @@ import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marke
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -158,6 +159,7 @@ beforeAll(async () => {
     },
     ...[
       [ButtonComponent, 'button'],
+      [ActionStatusIndicatorComponent, 'action-status-indicator'],
       [BadgeComponent, 'badge'],
       [CardComponent, 'card'],
       [ProductThumbnailComponent, 'product-thumbnail'],
