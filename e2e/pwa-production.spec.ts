@@ -316,7 +316,7 @@ test('a real second build updates independently while other windows keep unsaved
   const legacyForm = await context.newPage();
   await configure(legacyForm);
   await legacyForm.goto('/settings/notifications');
-  await expect(legacyForm.getByRole('heading', { name: 'Benachrichtigungen' })).toBeVisible();
+  await expect(legacyForm.getByRole('heading', { name: 'Benachrichtigungen', exact: true })).toBeVisible();
   await legacyForm.goto('/settings/account');
   await legacyForm
     .getByRole('textbox', { name: 'Angezeigter Name', exact: true })
