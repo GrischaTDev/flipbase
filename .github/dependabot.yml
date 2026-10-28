@@ -10,3 +10,24 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: ci
+
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /services/sniper
+      - /services/push-worker
+      - /services/marketplace-worker
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '@angular/*'
+        update-types: ['version-update:semver-major']

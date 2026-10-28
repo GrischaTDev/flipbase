@@ -639,7 +639,7 @@ jobs:
           # Versionsanzeige haette sonst nur einen Platzhalter.
           build-args: |
             FLIPBASE_COMMIT=${{ github.sha }}
-            FLIPBASE_COMMIT_DATE=${{ github.event.repository.updated_at }}
+            FLIPBASE_COMMIT_DATE=${{ github.event.head_commit.timestamp }}
             FLIPBASE_VERSION=${{ steps.gitversion.outputs.value }}
 
       # Gleicher Produktionsbau vor dem Push: nur HTTP und statische Dateien,
