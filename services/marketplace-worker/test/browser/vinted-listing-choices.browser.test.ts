@@ -12,6 +12,30 @@ import {
 } from '../../src/vinted-browser-listing-form.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
+test('distinguishes missing package choices, empty labels and invalid options', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const [phase, markup] of [
+      ['options', '<label hidden><input id="package_type_selector_2" type="radio"></label>'],
+      ['label', '<label><input id="package_type_selector_2" type="radio"></label>'],
+      [
+        'parse',
+        '<label>Mittel<input id="package_type_selector_2" type="radio" checked></label><label>Groß<input id="package_type_selector_3" type="radio" checked></label>',
+      ],
+    ] as const) {
+      await page.setContent(markup);
+      await assert.rejects(
+        openVintedListingChoices(page, 'package'),
+        (error: unknown) =>
+          error instanceof VintedListingReadError && error.step === `package_${phase}`,
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('identifies the exact failing brand phase without exposing native errors', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

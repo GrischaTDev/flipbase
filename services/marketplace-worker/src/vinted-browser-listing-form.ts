@@ -29,6 +29,11 @@ async function readVisibleListingChoices(
 ): Promise<VintedListingChoiceSnapshot | null> {
   try {
     const collected = await page.evaluate(collectVintedListingChoices, field);
+    if (field === 'package' && Array.isArray(collected)) {
+      if (collected.length === 0) throw new VintedListingReadError('package_options');
+      if (collected.some((choice) => typeof choice.label === 'string' && !choice.label.trim()))
+        throw new VintedListingReadError('package_label');
+    }
     if (
       field === 'brand' &&
       allowEmptyBrandChoices &&
@@ -38,6 +43,10 @@ async function readVisibleListingChoices(
       return null;
     return parseVintedListingChoices(field, collected);
   } catch (error) {
+    if (field === 'package')
+      throw error instanceof VintedListingReadError
+        ? error
+        : new VintedListingReadError('package_parse');
     if (field === 'brand') throw new VintedListingReadError('brand_parse');
     throw error;
   }
@@ -58,11 +67,11 @@ export async function openVintedListingChoices(
     (!Number.isSafeInteger(options.targetCategoryId) || options.targetCategoryId <= 0)
   )
     throw new Error('Vinted-Kategorie ungültig.');
-  if (field === 'package')
-    return parseVintedListingChoices(
-      field,
-      await page.evaluate(collectVintedListingChoices, field),
-    );
+  if (field === 'package') {
+    const choices = await readVisibleListingChoices(page, field);
+    if (!choices) throw new VintedListingReadError('package_parse');
+    return choices;
+  }
   const input = page.locator(`#${field}`);
   try {
     // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.

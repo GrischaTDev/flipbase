@@ -317,6 +317,11 @@ test('preflight diagnostics contain only the fixed step and keep the failed writ
       'brand_match',
       'brand_choice',
       'brand_selected',
+      'package_options',
+      'package_label',
+      'package_parse',
+      'package_match',
+      'package_choice',
     ] as const) {
       const diagnostic = fixture({ preflightError: new VintedListingReadError(stage) });
       await diagnostic.runner.run(claim);
