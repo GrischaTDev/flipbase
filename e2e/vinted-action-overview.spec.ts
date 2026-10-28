@@ -125,6 +125,46 @@ for (const width of [1920, 1280, 390, 320]) {
   });
 }
 
+test('zeigt Vinted-Veröffentlichungen zentral und bricht wartende Aufträge ab @marketplace-preview', async ({
+  page,
+}) => {
+  const fixture = await mockActionOverview(page);
+  const job = {
+    id: '99',
+    workspaceId: '25000000-0000-4000-8000-000000000011',
+    connectionId: '25000000-0000-4000-8000-000000000021',
+    draftId: '9007199254740999',
+    draftRevision: 1,
+    executionMode: 'cloud',
+    externalAccountId: '123',
+    action: 'publish',
+    state: 'queued',
+    version: 1,
+    scheduledAt: null,
+    timeZone: null,
+    latePolicy: 'pause_after_30_minutes',
+    errorCode: null,
+    externalId: null,
+    providerState: null,
+    verifiedAt: null,
+    createdAt: '2026-10-27T20:00:00Z',
+    updatedAt: '2026-10-27T20:00:00Z',
+    replacesJobId: null,
+  };
+  fixture.setListingJobs([job]);
+  await page.goto(actionOverviewMessagesUrl);
+  const trigger = page.getByRole('button', { name: 'Laufende Aktionen (2)' });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  const publications = overview.locator('app-vinted-listing-action-overview');
+  await expect(publications.getByText('Veröffentlichung beauftragt')).toBeVisible();
+  await expect(publications.getByText('Testkonto A')).toBeVisible();
+  await publications.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(publications).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Laufende Aktionen (1)' })).toBeVisible();
+});
+
 test('standardmäßig aus und erst nach Speichern appweit aktiv, auch nach Neuladen @marketplace-preview', async ({
   page,
 }) => {

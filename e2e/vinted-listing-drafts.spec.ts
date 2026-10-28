@@ -11,6 +11,22 @@ async function saveDraft(page: Page) {
   await expect(editor.getByText('Entwurf gespeichert', { exact: true })).toBeVisible();
 }
 
+async function enableActionOverview(page: Page) {
+  await page.route('**/auth/v1/user', (route) =>
+    route.fulfill({
+      json: {
+        id: '25000000-0000-4000-8000-000000000001',
+        email: 'marketplace@example.test',
+        aud: 'authenticated',
+        role: 'authenticated',
+        app_metadata: {},
+        user_metadata: { flipbase_action_overview: true },
+        created_at: '2026-09-26T00:00:00Z',
+      },
+    }),
+  );
+}
+
 async function mockShoeCategories(page: Page) {
   await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
     route.fulfill({
@@ -622,7 +638,7 @@ for (const missing of ['account', 'photos'] as const) {
     else state.draft().images = [];
     await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
     const editor = page.locator('app-vinted-listing-editor');
-    await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+    await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
     await expect(
       missing === 'account'
         ? editor.getByRole('combobox', { name: 'Zielkonto für diesen Entwurf', exact: true })
@@ -648,7 +664,7 @@ for (const missing of ['account', 'photos'] as const) {
 
 for (const width of [1440, 390])
   for (const dark of [false, true]) {
-    test(`Inserat vor Veröffentlichung prüfen bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+    test(`Veröffentlichung ohne zweite Prüfseite planen bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -657,54 +673,23 @@ for (const width of [1440, 390])
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
-      page.on('console', (message) => {
-        if (message.type() === 'error' && /NG\d{4,5}/.test(message.text()))
-          errors.push(message.text());
-      });
       await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-      const opener = page.getByRole('button', {
-        name: 'Weiter zur Prüfung',
-        exact: true,
-      });
-      const aiPhoto = page.getByRole('checkbox', {
+      const editor = page.locator('app-vinted-listing-editor');
+      const aiPhoto = editor.getByRole('checkbox', {
         name: 'Meine Fotos wurden mit KI erstellt oder verändert',
       });
       await aiPhoto.click();
       await saveDraft(page);
       await page.reload();
       await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
-      await opener.click();
-      const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-      await expect(
-        preview.getByText(
-          'Deine Angaben sind vollständig. Bei der Übertragung werden sie mit Vinted abgeglichen.',
-        ),
-      ).toBeVisible();
-      const submit = preview.getByRole('button', {
-        name: 'Jetzt veröffentlichen',
-        exact: true,
-      });
-      await expect(submit).toBeEnabled();
-      await expect(preview).toBeFocused();
-      if (longAccountName) {
-        const accountValue = preview.locator('dd').first();
-        await expect(accountValue).toHaveText(longAccountName);
-        expect(
-          await accountValue.evaluate((element) => element.scrollWidth <= element.clientWidth),
-        ).toBe(true);
-      }
       await expect(
         page.getByRole('navigation', { name: 'Schritte der Inseraterstellung' }),
-      ).toBeInViewport();
-      await expect(
-        page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true }),
       ).toHaveCount(0);
-      await preview.getByRole('button', { name: 'Zurück zum Bearbeiten', exact: true }).click();
-      await expect(preview).not.toBeVisible();
-      await expect(opener).toBeFocused();
-      await opener.click();
-      const scheduleOpener = preview.getByRole('button', { name: 'Termin wählen', exact: true });
-      await scheduleOpener.click();
+      await expect(page.getByRole('heading', { name: 'Inserat prüfen' })).toHaveCount(0);
+      await expect(editor.locator('app-vinted-listing-job-panel')).toHaveCount(0);
+      await expect(editor.getByRole('button', { name: 'Jetzt veröffentlichen' })).toBeEnabled();
+
+      await editor.getByRole('button', { name: 'Veröffentlichung planen' }).click();
       const planner = page.getByRole('dialog', { name: 'Veröffentlichung planen', exact: true });
       await planner.getByRole('button', { name: 'In einer Stunde', exact: true }).click();
       await page.evaluate(axe.source);
@@ -715,48 +700,14 @@ for (const width of [1440, 390])
       ).toEqual([]);
       await planner.getByRole('button', { name: 'Termin übernehmen', exact: true }).click();
       await expect(planner).not.toBeVisible();
-      await expect(
-        preview.getByRole('button', { name: 'Termin ändern', exact: true }),
-      ).toBeFocused();
-      await preview.getByRole('button', { name: 'Zurück zum Bearbeiten', exact: true }).click();
-      await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
-      await opener.click();
-      await expect(
-        preview.getByRole('button', { name: 'Termin ändern', exact: true }),
-      ).toBeVisible();
-      await expect(preview.getByRole('checkbox')).toHaveCount(0);
-      const plannedSubmit = preview.getByRole('button', {
-        name: 'Veröffentlichung planen',
-        exact: true,
-      });
-      await expect(plannedSubmit).toBeEnabled();
-      expect(
-        await page.evaluate(
-          async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
-        ),
-      ).toEqual([]);
-      expect(await page.locator('form form').count()).toBe(0);
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-      ).toBe(true);
-      await page
-        .getByRole('heading', { name: 'Inserat prüfen', exact: true })
-        .scrollIntoViewIfNeeded();
+      await expect.poll(() => state.enqueues.length).toBe(1);
+      await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+      await expect(editor.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
+      await expect(editor.locator('app-vinted-listing-job-panel')).toHaveCount(0);
       await page.screenshot({
         path: testInfo.outputPath(`publication-${width}-${dark ? 'dark' : 'light'}.png`),
         fullPage: false,
       });
-      expect(state.approvals).toEqual([]);
-      expect(state.enqueues).toEqual([]);
-      await plannedSubmit.focus();
-      await page.keyboard.press('Enter');
-      await expect(preview).not.toBeVisible();
-      await expect(page.locator('[data-publication-result]')).toBeFocused();
-      await expect(
-        page
-          .locator('app-vinted-listing-job-panel')
-          .getByText('Veröffentlichung beauftragt', { exact: true }),
-      ).toBeVisible();
       expect(state.approvals).toEqual([
         {
           p_workspace_id: workspaceId,
@@ -764,7 +715,6 @@ for (const width of [1440, 390])
           p_expected_external_account_id: '100',
         },
       ]);
-      expect(state.enqueues).toHaveLength(1);
       expect(state.enqueues[0]).toMatchObject({
         p_draft_id: state.draft().id,
         p_expected_revision: state.draft().revision,
@@ -788,25 +738,27 @@ test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträg
   await expect(
     editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
   ).not.toHaveAttribute('aria-invalid', 'true');
-  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toHaveAttribute(
     'aria-invalid',
     'true',
   );
-  await expect(page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
+  ).toBeEnabled();
   await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toBeFocused();
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
   await editor
     .getByRole('textbox', { name: 'Beschreibung', exact: true })
     .fill('Vollständige Beschreibung.');
-  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
-  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-  await expect(preview.getByText('Vollständige Beschreibung.', { exact: true })).toBeVisible();
-  await expect(preview.getByText(/auf diesem Server noch nicht verfügbar/)).toBeVisible();
+  await page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+  const feedback = page.locator('app-vinted-listing-publication-preview');
+  await expect(feedback.getByText(/Veröffentlichung ist derzeit nicht verfügbar/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Inserat prüfen' })).toHaveCount(0);
   await expect(
-    preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
-  ).toBeDisabled();
+    feedback.getByRole('button', { name: 'Denselben Auftrag erneut prüfen' }),
+  ).toHaveCount(0);
   expect(state.approvals).toEqual([]);
   expect(state.enqueues).toEqual([]);
 });
@@ -859,12 +811,12 @@ test('Gelesene Textgrenzen erscheinen vor der Veröffentlichung und kürzen vorh
   const editor = page.locator('app-vinted-listing-editor');
   const title = editor.getByRole('textbox', { name: 'Titel', exact: true });
   await expect(title).not.toHaveAttribute('aria-invalid', 'true');
-  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(title).toHaveValue('T'.repeat(101));
   await expect(title).toHaveAttribute('maxlength', '100');
   await expect(title).toHaveAttribute('aria-invalid', 'true');
   await expect(
-    editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }),
+    editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
   ).toBeEnabled();
   await editor
     .getByRole('textbox', { name: 'Beschreibung', exact: true })
@@ -891,12 +843,12 @@ test('Größerer alter Entwurf behält alle Fotos und kann nicht versehentlich v
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
   await expect(editor.getByText(/21 von 20 Fotos/)).toBeVisible();
-  await page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(
     editor.getByText('Vinted erlaubt höchstens 20 Fotos pro Inserat.', { exact: true }),
   ).toBeVisible();
   await expect(
-    editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }),
+    editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
   ).toBeEnabled();
   expect(state.draft().images).toHaveLength(21);
   expect(state.enqueues).toEqual([]);
@@ -912,7 +864,7 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
     await route.fallback();
   });
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-  const opener = page.getByRole('button', { name: 'Weiter zur Prüfung', exact: true });
+  const opener = page.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true });
   await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
     'Meine Jako-Jacke',
   );
@@ -922,73 +874,43 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
     releaseCategories();
   }
   await opener.click();
-  const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-  await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
-  await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-  const retry = preview.getByRole('button', { name: 'Diesen Auftrag erneut prüfen', exact: true });
+  const feedback = page.locator('app-vinted-listing-publication-preview');
+  const retry = feedback.getByRole('button', {
+    name: 'Denselben Auftrag erneut prüfen',
+    exact: true,
+  });
   await expect(retry).toBeEnabled();
-  await expect(preview.getByRole('button', { name: 'Termin wählen', exact: true })).toBeDisabled();
   expect(state.enqueues).toHaveLength(1);
   await retry.click();
-  await expect(preview).not.toBeVisible();
+  await expect(feedback).not.toBeVisible();
   expect(state.enqueues).toHaveLength(2);
   expect(state.enqueues[1]).toEqual(state.enqueues[0]);
   expect(state.enqueues[0]).toMatchObject({ p_action: 'publish', p_ai_photo: false });
   expect(state.enqueues[0]['p_scheduled_at']).toBeUndefined();
   expect(state.approvals).toHaveLength(1);
   expect(state.jobs).toHaveLength(1);
-  await expect(
-    page
-      .locator('app-vinted-listing-job-panel')
-      .getByText('Veröffentlichung beauftragt', { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+  await expect(page.locator('app-vinted-listing-job-panel')).toHaveCount(0);
 });
 
-test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-preview', async ({
+test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @marketplace-preview', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const state = await mockDrafts(page, true);
-  let hint: ((payload: unknown) => void) | undefined;
-  let privateChannel = false;
-  await page.routeWebSocket(
-    `**://${new URL(process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351').host}/**`,
-    (socket) => {
-      socket.onMessage((message) => {
-        if (typeof message !== 'string') return;
-        const [joinRef, ref, topic, event, payload] = JSON.parse(message) as unknown[];
-        if (['phx_join', 'phx_leave', 'heartbeat'].includes(String(event)))
-          socket.send(
-            JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]),
-          );
-        if (
-          event === 'phx_join' &&
-          topic === `realtime:workspace:${workspaceId}:marketplace_listing:9007199254740999`
-        ) {
-          privateChannel = (payload as { config: { private: boolean } }).config.private;
-          hint = (value) =>
-            socket.send(
-              JSON.stringify([
-                joinRef,
-                null,
-                topic,
-                'broadcast',
-                { type: 'broadcast', event: 'listing_jobs_changed', payload: value },
-              ]),
-            );
-        }
-      });
-    },
-  );
+  await enableActionOverview(page);
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-  const history = page.locator('app-vinted-listing-job-panel');
-  await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
-  await expect.poll(() => !!hint).toBe(true);
-  await expect.poll(() => state.jobReads()).toBeGreaterThanOrEqual(2);
-  expect(privateChannel).toBe(true);
+  const editor = page.locator('app-vinted-listing-editor');
+  await expect(editor.locator('app-vinted-listing-job-panel')).toHaveCount(0);
+  const trigger = page.getByRole('button', { name: /^Laufende Aktionen \(/ });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  const listings = overview.locator('app-vinted-listing-action-overview');
+  await expect(listings.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
   Object.assign(state.jobs[0], { state: 'claimed', version: 2 });
-  hint!({ workspaceId, draftId: '9007199254740999', id: '46600000-0000-4000-8000-000000000099' });
-  await expect(history.getByText('Wird vorbereitet', { exact: true })).toBeVisible();
+  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
+  await expect(listings.getByText('Wird vorbereitet', { exact: true })).toBeVisible();
   Object.assign(state.jobs[0], {
     state: 'confirmed',
     version: 3,
@@ -996,19 +918,16 @@ test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-p
     providerState: 'active',
     verifiedAt: '2026-10-10T00:00:00Z',
   });
-  hint!({ workspaceId, draftId: '9007199254740999' });
-  await expect(history.getByText('Veröffentlicht', { exact: true })).toBeVisible();
-  await expect(history.getByRole('link', { name: /^Bei Vinted ansehen/ }).first()).toHaveAttribute(
-    'href',
-    'https://www.vinted.de/items/46609',
-  );
+  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
+  await expect(listings.getByText('Veröffentlicht', { exact: true })).toBeVisible();
+  await expect(listings.locator('a[href="https://www.vinted.de/items/46609"]')).toBeVisible();
   await page.evaluate(axe.source);
   expect(
     await page.evaluate(
       async () =>
         (
           await (window as unknown as { axe: typeof axe }).axe.run(
-            document.querySelector('app-vinted-listing-job-panel') as HTMLElement,
+            document.querySelector('app-vinted-listing-action-overview') as HTMLElement,
           )
         ).violations,
     ),
@@ -1016,7 +935,6 @@ test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-p
   expect(state.jobCancels).toEqual([]);
   expect(state.reschedules).toEqual([]);
   expect(state.uploads()).toBe(0);
-  await history.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('listing-live-status.png'), fullPage: false });
 });
 
@@ -1183,31 +1101,30 @@ for (const width of [1440, 390])
 
 for (const width of [1440, 390])
   for (const dark of [false, true]) {
-    test(`Planung ändern bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+    test(`Planung zentral ändern bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
       const state = await mockDrafts(page, true);
+      await enableActionOverview(page);
       await page.clock.setFixedTime(new Date('2026-10-09T12:00:00Z'));
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
       await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
-      const history = page.locator('app-vinted-listing-job-panel');
-      const opener = history.getByRole('button', { name: 'Planung aktualisieren', exact: true });
+      const trigger = page.getByRole('button', { name: /^Laufende Aktionen \(/ });
+      await trigger.click();
+      const overview =
+        width < 640
+          ? page.getByRole('dialog', { name: 'Laufende Aktionen', exact: true })
+          : page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+      const listings = overview.locator('app-vinted-listing-action-overview');
+      const opener = listings.getByRole('button', { name: 'Termin ändern', exact: true });
       await expect(opener).toBeEnabled();
       await opener.click();
       const dialog = page.getByRole('dialog', { name: 'Veröffentlichung planen', exact: true });
-      await expect(dialog).toBeVisible();
-      await expect(dialog.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toHaveValue(
-        '02:30',
-      );
+      await expect(dialog.getByRole('textbox', { name: 'Uhrzeit' })).toHaveValue('02:30');
       await expect(
         dialog.getByRole('combobox', { name: 'Vorkommen bei der Zeitumstellung' }),
       ).toContainText('Späteres');
-      await page.keyboard.press('Escape');
-      await expect(dialog).not.toBeVisible();
-      await expect(opener).toBeFocused();
-      expect(state.reschedules).toEqual([]);
-      await opener.click();
       await dialog.getByRole('combobox', { name: 'Vorkommen bei der Zeitumstellung' }).click();
       await page.getByRole('option', { name: /Früheres/ }).click();
       await dialog.getByRole('combobox', { name: 'Regel für einen verpassten Termin' }).click();
@@ -1228,18 +1145,13 @@ for (const width of [1440, 390])
             ).violations,
         ),
       ).toEqual([]);
-      expect(await page.locator('form form').count()).toBe(0);
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-      ).toBe(true);
       await page.screenshot({
         path: testInfo.outputPath(`schedule-${width}-${dark ? 'dark' : 'light'}.png`),
         fullPage: false,
       });
-      await dialog.getByRole('button', { name: 'Termin übernehmen', exact: true }).focus();
-      await page.keyboard.press('Enter');
+      await dialog.getByRole('button', { name: 'Termin übernehmen', exact: true }).click();
       await expect(dialog).not.toBeVisible();
-      expect(state.reschedules).toHaveLength(1);
+      await expect.poll(() => state.reschedules.length).toBe(1);
       expect(state.reschedules[0]).toMatchObject({
         p_job_id: '1',
         p_expected_version: 1,
@@ -1249,10 +1161,10 @@ for (const width of [1440, 390])
         p_late_policy: 'publish_when_available',
       });
       expect(Object.keys(state.reschedules[0])).not.toContain('p_ai_photo');
-      await expect(history.getByText('Abgebrochen', { exact: true })).toBeVisible();
-      await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
-      await page.reload();
-      await expect(history.getByText(/02:30 MESZ/)).toBeVisible();
+      await expect(
+        listings.getByText('Veröffentlichung beauftragt', { exact: true }).first(),
+      ).toBeVisible();
+      expect(state.jobCancels).toEqual([]);
     });
   }
 
@@ -1369,17 +1281,8 @@ for (const width of [1440, 390])
       await expect(
         editor.getByRole('button', { name: 'Hauptbild: second.png, Details öffnen', exact: true }),
       ).toBeVisible();
-      const history = editor.locator('app-vinted-listing-job-panel');
-      await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
-      await expect(history.getByText('Vinted prüft Dein Inserat', { exact: true })).toBeVisible();
-      await expect(history.getByText('Ergebnis unklar', { exact: true })).toBeVisible();
-      await expect(history.getByText(/neuere Änderungen/).first()).toBeVisible();
-      await history.getByRole('button', { name: 'Auftrag abbrechen', exact: true }).click();
-      await expect(history.getByText('Abgebrochen', { exact: true })).toBeVisible();
-      expect(state.jobCancels).toEqual([{ p_job_id: '1', p_expected_version: 1 }]);
-      await expect(
-        history.getByRole('button', { name: 'Auftrag abbrechen', exact: true }),
-      ).toHaveCount(0);
+      await expect(editor.locator('app-vinted-listing-job-panel')).toHaveCount(0);
+      expect(state.jobCancels).toEqual([]);
       await page.evaluate(axe.source);
       expect(
         await page.evaluate(
@@ -1761,7 +1664,7 @@ for (const width of [1440, 390]) {
           .locator('app-card')
           .filter({ has: page.locator('#vinted-choice-size') })
           .screenshot({ path: testInfo.outputPath(`shoes-details-${width}-${theme}.png`) });
-        await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+        await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
         const parcel = editor.getByRole('combobox', { name: 'Paketgröße', exact: true });
         await expect(editor.getByText('Ergänze bitte: Paketgröße.', { exact: true })).toBeVisible();
         await parcel.click();
@@ -1776,24 +1679,18 @@ for (const width of [1440, 390]) {
         const brand = editor.getByRole('combobox', { name: 'Marke', exact: true });
         await brand.fill('Nike');
         await page.getByRole('option', { name: 'Nike', exact: true }).click();
-        await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
-        const preview = page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true });
-        await expect(preview.getByText(/Deine Angaben sind vollständig/)).toBeVisible();
+        await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
         expect(state.draft().content.packageSizeId).toBe(2);
         expect(state.draft().content.brandId).toBe(53);
-        await expect(
-          preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
-        ).toBeEnabled();
-        await checkListingSurface(page, 'app-vinted-listing-publication-preview');
+        await expect.poll(() => state.enqueues.length).toBe(1);
+        await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+        await checkListingSurface(page, 'app-vinted-listing-editor');
         await page.screenshot({
-          path: testInfo.outputPath(`shoes-review-${width}-${theme}.png`),
+          path: testInfo.outputPath(`shoes-direct-${width}-${theme}.png`),
           fullPage: true,
         });
         expect(categoryRequests).toEqual([]);
-        expect(state.enqueues).toEqual([]);
         expect(errors).toEqual([]);
-        await preview.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-        await expect.poll(() => state.enqueues.length).toBe(1);
       });
     }
   });
@@ -1821,23 +1718,19 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   const editor = page.locator('app-vinted-listing-editor');
   const retry = editor.getByRole('button', { name: 'Kategorien erneut laden', exact: true });
   await expect(retry).toBeVisible();
-  await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
-  await expect(
-    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
-  ).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+  await expect(page.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
   categoryUnavailable = false;
   await retry.click();
   await expect(retry).toHaveCount(0);
   await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
     'Meine Jako-Jacke',
   );
-  await editor.getByRole('button', { name: 'Weiter zur Prüfung', exact: true }).click();
+  await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(
     editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('region', { name: 'Veröffentlichung prüfen', exact: true }),
-  ).toHaveCount(0);
+  await expect(page.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
   await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
   await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schuhe');
   await expect(page.getByRole('option', { name: 'Schuhe', exact: true })).toHaveCount(0);

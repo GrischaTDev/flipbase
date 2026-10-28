@@ -62,6 +62,9 @@ export class VintedListingPublicationPreviewComponent {
   readonly account = input.required<MarketplaceConnection>();
   readonly images = input<readonly ListingImageDraft[]>([]);
   readonly disabled = input(false);
+  /** Beauftragt die Veröffentlichung nach den bisherigen Sicherheitsprüfungen ohne zweite Prüfseite. */
+  readonly direct = input(false);
+  private readonly directAttempted = signal(false);
   readonly accepted = output<VintedListingJob>();
   readonly closed = output<void>();
   readonly loading = signal(false);
@@ -156,6 +159,7 @@ export class VintedListingPublicationPreviewComponent {
         ),
       ) ?? null,
   );
+  readonly listingJobLabel = vintedListingJobLabel;
   readonly blockedLabel = computed(() =>
     this.blockedJob() ? vintedListingJobLabel(this.blockedJob()!) : '',
   );
@@ -212,6 +216,7 @@ export class VintedListingPublicationPreviewComponent {
         this.generation++;
         this.closing = false;
         this.acceptedOnce = false;
+        this.directAttempted.set(false);
         this.loading.set(false);
         this.busy.set(false);
         this.intent.set(null);
@@ -219,6 +224,14 @@ export class VintedListingPublicationPreviewComponent {
         this.planning.set(false);
         void this.load();
       });
+    });
+    effect(() => {
+      if (this.direct() && this.canSubmit() && !this.directAttempted() && !this.acceptedOnce) {
+        untracked(() => {
+          this.directAttempted.set(true);
+          void this.submit();
+        });
+      }
     });
     this.destroyRef.onDestroy(() => this.generation++);
   }

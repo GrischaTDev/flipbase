@@ -206,6 +206,15 @@ async function settle(_f: ReturnType<typeof setup>) {
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Vinted publication preview', () => {
+  it('beauftragt den geprüften Entwurf im Direktmodus ohne zweiten Klick', async () => {
+    const f = setup(true);
+    f.fixture.componentRef.setInput('direct', true);
+    await settle(f);
+    expect(f.api.enqueue).toHaveBeenCalledTimes(1);
+    expect(f.accepted).toHaveBeenCalledTimes(1);
+    expect(f.api.approve).not.toHaveBeenCalled();
+    f.fixture.destroy();
+  });
   it('ignoriert eine verspätete Kontoprüfung nach dem Schließen', async () => {
     const f = setup();
     let resolve!: (value: {

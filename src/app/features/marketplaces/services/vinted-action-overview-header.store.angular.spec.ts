@@ -9,6 +9,8 @@ import type { VintedAction } from '../models/vinted-action-overview';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
 import { VintedActionOverviewHeaderStore } from './vinted-action-overview-header.store';
+import { VintedListingJobService } from './vinted-listing-job.service';
+import type { VintedListingJob } from '../models/vinted-listing-job';
 
 const accounts = createMarketplaceFixtures().connections;
 const action: VintedAction = {
@@ -35,6 +37,7 @@ let user = signal<{ id: string } | null>({ id: 'user-a' });
 let workspace = signal({ id: accounts[0].workspaceId, archived_at: null as string | null });
 let list: ReturnType<typeof vi.fn>;
 let read: ReturnType<typeof vi.fn>;
+let readListingJobs: ReturnType<typeof vi.fn>;
 async function settle() {
   TestBed.tick();
   for (let index = 0; index < 20; index++) await Promise.resolve();
@@ -45,6 +48,7 @@ beforeEach(() => {
   user = signal({ id: 'user-a' });
   workspace = signal({ id: accounts[0].workspaceId, archived_at: null });
   list = vi.fn().mockResolvedValue({ canManage: true, connections: accounts.slice(0, 2) });
+  readListingJobs = vi.fn().mockResolvedValue([]);
   read = vi.fn().mockResolvedValue({
     actions: [
       action,
@@ -59,6 +63,7 @@ beforeEach(() => {
       { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: enabled } },
       { provide: MarketplaceApiService, useValue: { listConnections: list } },
       { provide: VintedActionOverviewApiService, useValue: { read } },
+      { provide: VintedListingJobService, useValue: { list: readListingJobs } },
     ],
   });
 });
@@ -76,6 +81,47 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       accounts.slice(0, 2).map((account) => account.displayName),
     );
     expect(store.groups().flatMap((group) => group.actions)).toEqual([action, action]);
+  });
+  it('zeigt wartende Inserataufträge zentral an und zählt sie als laufende Aktion', async () => {
+    enabled.set(true);
+    const pending: VintedListingJob = {
+      id: 'aaaa1111-1111-4111-8111-111111111111',
+      workspaceId: accounts[0].workspaceId,
+      connectionId: accounts[0].connectionId,
+      draftId: 'bbbb2222-2222-4222-8222-222222222222',
+      draftRevision: 1,
+      executionMode: 'cloud',
+      externalAccountId: '123',
+      action: 'publish',
+      state: 'queued',
+      version: 1,
+      scheduledAt: null,
+      timeZone: null,
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: null,
+      externalId: null,
+      providerState: null,
+      verifiedAt: null,
+      createdAt: '2026-10-27T10:00:00Z',
+      updatedAt: '2026-10-27T10:00:00Z',
+      replacesJobId: null,
+    };
+    readListingJobs.mockResolvedValueOnce([pending]);
+    const store = TestBed.inject(VintedActionOverviewHeaderStore);
+    await settle();
+    expect(store.listings().map(({ job }) => job.id)).toEqual([pending.id]);
+    expect(store.count()).toBe(3);
+    enabled.set(false);
+    expect(store.listings()).toEqual([]);
+  });
+  it('behält Inserate bei einem vorübergehenden Auftragslesefehler im selben Workspace', async () => {
+    enabled.set(true);
+    const store = TestBed.inject(VintedActionOverviewHeaderStore);
+    await settle();
+    readListingJobs.mockRejectedValueOnce(new Error('offline'));
+    await store.refresh();
+    expect(store.listings()).toEqual([]);
+    expect(store.error()).toContain('nicht aktualisiert');
   });
   it('blendet fremde Daten sofort bei Workspace-, Nutzer- und Einstellungswechsel aus', async () => {
     enabled.set(true);

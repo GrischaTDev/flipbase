@@ -77,7 +77,11 @@
     }
     @for (group of store.groups(); track group.scope.connectionId) {
       <app-vinted-action-overview [actions]="group.actions" [accountName]="group.accountName" />
-    } @empty {
+    }
+    @if (store.listings().length) {
+      <app-vinted-listing-action-overview [entries]="store.listings()" />
+    }
+    @if (!store.groups().length && !store.listings().length) {
       @if (store.loading()) {
         <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
           <app-loading-indicator /> Aktionen werden geladen …

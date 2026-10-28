@@ -19,6 +19,7 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
+import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
 
 @Component({
   selector: 'app-vinted-action-overview-menu',
@@ -29,6 +30,7 @@ import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-
     NoticeBannerComponent,
     ModalShellComponent,
     VintedActionOverviewComponent,
+    VintedListingActionOverviewComponent,
   ],
   templateUrl: './vinted-action-overview-menu.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
