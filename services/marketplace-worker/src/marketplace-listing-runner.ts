@@ -3,7 +3,10 @@ import type {
   MarketplaceListingSnapshot,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
-import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import {
+  MarketplaceBrowserSessionEndedError,
+  type BrowserSessionScope,
+} from './marketplace-browser-session-broker.ts';
 import { isVintedListingResult } from './vinted-listing-contracts.ts';
 import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
@@ -59,6 +62,7 @@ export class MarketplaceListingRunner {
     let sessionId: string | undefined,
       beginAttempted = false,
       beginConfirmed = false,
+      isSessionClosed = false,
       recovery = false;
     let preflightStage:
       'browser' | 'authorization' | 'category_path' | 'photo_download' | 'provider' = 'browser';
@@ -147,12 +151,19 @@ export class MarketplaceListingRunner {
           });
         }
       } catch (error) {
+        if (error instanceof MarketplaceBrowserSessionEndedError && error.isSessionClosed)
+          isSessionClosed = true;
         if (!beginAttempted)
           process.stderr.write(
             JSON.stringify({
               event: 'marketplace_listing_preflight_failed',
               jobId: claim.jobId,
-              stage: error instanceof VintedListingReadError ? error.step : preflightStage,
+              stage:
+                error instanceof VintedListingReadError
+                  ? error.step
+                  : error instanceof MarketplaceBrowserSessionEndedError
+                    ? (error.listingReadStep ?? preflightStage)
+                    : preflightStage,
             }) + '\n',
           );
         result = {
@@ -175,7 +186,7 @@ export class MarketplaceListingRunner {
         recovery = true;
       }
     } finally {
-      if (sessionId)
+      if (sessionId && !isSessionClosed)
         try {
           await this.broker.close(scope, sessionId);
         } catch {

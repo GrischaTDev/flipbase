@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
+import { MarketplaceBrowserSessionBroker } from '../src/marketplace-browser-session-broker.ts';
 import {
   MarketplaceListingRunner,
   type CloudListingClaim,
@@ -126,12 +127,93 @@ function fixture(
     },
   };
   return {
+    browser,
+    store,
     calls,
     results,
     runner: new MarketplaceListingRunner(broker, store),
     latePhoto: () => latePhoto!(),
   };
 }
+
+test('the real session broker preserves a safe failure and confirms cleanup once for the listing runner', async () => {
+  const output: string[] = [];
+  const stderr = mock.method(process.stderr, 'write', (chunk: string | Uint8Array) => {
+    output.push(String(chunk));
+    return true;
+  });
+  try {
+    for (const mode of ['preflight', 'private', 'after_begin', 'uncertain_stop'] as const) {
+      output.length = 0;
+      const listing = fixture(
+        mode === 'after_begin'
+          ? { providerThrows: true }
+          : {
+              preflightError:
+                mode === 'private'
+                  ? new Error('Private provider response 123')
+                  : new VintedListingReadError('category'),
+            },
+      );
+      let stops = 0;
+      let released = false;
+      const broker = new MarketplaceBrowserSessionBroker({
+        leases: {
+          acquire: async (scope) => ({
+            id: claim.scope.listingWrite?.sessionId ?? '',
+            scope,
+            expiresAt: Date.now() + 60000,
+            active: true,
+          }),
+          assertActive: async () => !released,
+          release: async () => {
+            released = true;
+          },
+        },
+        profiles: { resolve: async () => 'listing-profile' },
+        recovery: { recover: async () => undefined },
+        browsers: {
+          open: async () => ({
+            run: async (operation) => operation(listing.browser),
+            close: async () => {
+              stops++;
+              if (mode === 'uncertain_stop') throw new Error('Private stop failure');
+            },
+          }),
+          stop: async () => undefined,
+        },
+      });
+      const runner = new MarketplaceListingRunner(broker, listing.store);
+      if (mode === 'uncertain_stop') {
+        await assert.rejects(runner.run(claim), /Wiederherstellung/);
+        assert.equal(released, false);
+      } else {
+        await runner.run(claim);
+        assert.equal(released, true);
+        assert.equal(stops, 1);
+        assert.equal(
+          listing.results[0]?.outcome,
+          mode === 'after_begin' ? 'outcome_unknown' : 'failed',
+        );
+        assert.deepEqual(
+          output.map((line) => JSON.parse(line)),
+          mode === 'after_begin'
+            ? []
+            : [
+                {
+                  event: 'marketplace_listing_preflight_failed',
+                  jobId: claim.jobId,
+                  stage: mode === 'preflight' ? 'category' : 'provider',
+                },
+              ],
+        );
+      }
+      assert.ok(output.every((line) => !line.includes('Private')));
+    }
+  } finally {
+    stderr.mock.restore();
+  }
+});
 
 test('private photo preparation precedes Begin and closed adapters cannot load more photos', async () => {
   const f = fixture({ readPhoto: true });

@@ -5,6 +5,11 @@ import {
   type CloudBrowserHandle,
   type BrowserInfo,
 } from './gologin-cloud-browser.ts';
+import {
+  VintedListingReadError,
+  vintedListingReadSteps,
+  type VintedListingReadStep,
+} from './vinted-listing-read-error.ts';
 
 export interface BrowserSessionScope {
   workspaceId: string;
@@ -78,10 +83,17 @@ export class MarketplaceBrowserSessionBusyError extends Error {
 
 export class MarketplaceBrowserSessionEndedError extends Error {
   readonly reason: 'expired' | 'interrupted';
+  readonly isSessionClosed: boolean;
+  readonly listingReadStep?: VintedListingReadStep;
 
-  constructor(reason: 'expired' | 'interrupted' = 'expired') {
+  constructor(
+    reason: 'expired' | 'interrupted' = 'expired',
+    options: { isSessionClosed?: boolean; listingReadStep?: VintedListingReadStep } = {},
+  ) {
     super(reason === 'expired' ? 'Sitzung abgelaufen' : 'Browsersitzung unterbrochen');
     this.reason = reason;
+    this.isSessionClosed = options.isSessionClosed === true;
+    this.listingReadStep = vintedListingReadSteps.find((step) => step === options.listingReadStep);
   }
 }
 
@@ -394,14 +406,24 @@ export class MarketplaceBrowserSessionBroker {
     if (session.lease.expiresAt <= Date.now()) active = false;
     if (!active) {
       await this.terminate(sessionId, session);
-      throw new MarketplaceBrowserSessionEndedError('expired');
+      throw new MarketplaceBrowserSessionEndedError('expired', { isSessionClosed: true });
     }
     try {
       if (!session.browser) throw new Error('Browser fehlt');
       return await session.browser.run(operation);
-    } catch {
+    } catch (error) {
       await this.terminate(sessionId, session);
-      throw new MarketplaceBrowserSessionEndedError('interrupted');
+      // Erst nach bestätigtem Browserstopp und Freigabe der Lease ist keine zweite Bereinigung nötig.
+      throw new MarketplaceBrowserSessionEndedError('interrupted', {
+        isSessionClosed: true,
+        listingReadStep: scope.listingWrite
+          ? error instanceof VintedListingReadError
+            ? error.step
+            : error instanceof MarketplaceBrowserSessionEndedError
+              ? error.listingReadStep
+              : undefined
+          : undefined,
+      });
     }
   }
 
