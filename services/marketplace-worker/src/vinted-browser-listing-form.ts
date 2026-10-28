@@ -6,7 +6,10 @@ import type {
   VintedListingContent,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
-import { VintedListingReadError } from './vinted-listing-read-error.ts';
+import {
+  VintedListingReadError,
+  vintedListingChoiceReadError,
+} from './vinted-listing-read-error.ts';
 import {
   collectVintedListingChoices,
   collectVintedListingFormMetadata,
@@ -47,8 +50,7 @@ async function readVisibleListingChoices(
       throw error instanceof VintedListingReadError
         ? error
         : new VintedListingReadError('package_parse');
-    if (field === 'brand') throw new VintedListingReadError('brand_parse');
-    throw error;
+    throw vintedListingChoiceReadError(field, 'parse');
   }
 }
 
@@ -76,9 +78,8 @@ export async function openVintedListingChoices(
   try {
     // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
     await input.click({ timeout: field === 'brand' ? 15_000 : 5000 });
-  } catch (error) {
-    if (field === 'brand') throw new VintedListingReadError('brand_open');
-    throw new Error('Dieses Vinted-Merkmal ist nicht verfügbar.', { cause: error });
+  } catch {
+    throw vintedListingChoiceReadError(field, 'open');
   }
   if (field === 'category') {
     for (const parentId of categoryPath) {
@@ -114,10 +115,9 @@ export async function openVintedListingChoices(
       // Auch nach dem bedienbaren Markenfeld lädt Vinted die Optionen erst nach.
       .waitFor({ state: 'visible', timeout: field === 'brand' ? 15_000 : 5000 });
   } catch (error) {
-    if (field === 'brand') throw new VintedListingReadError('brand_options');
     if (field === 'category')
       throw new Error('Die Vinted-Kategorie ist nicht verfügbar.', { cause: error });
-    throw error;
+    throw vintedListingChoiceReadError(field, 'options');
   }
   let choices = await readVisibleListingChoices(page, field, canSearchBrand);
   if (
@@ -157,6 +157,17 @@ export async function openVintedListingChoices(
   return choices;
 }
 
+export async function closeVintedListingChoices(
+  page: Page,
+  field: VintedListingChoiceField,
+): Promise<void> {
+  try {
+    await page.keyboard.press('Escape');
+  } catch {
+    throw vintedListingChoiceReadError(field, 'close');
+  }
+}
+
 async function readPopup(
   page: Page,
   field: VintedListingChoiceField,
@@ -173,7 +184,7 @@ async function readPopup(
     await options.authorize?.();
     return result;
   } finally {
-    await page.keyboard.press('Escape');
+    await closeVintedListingChoices(page, field);
   }
 }
 

@@ -69,13 +69,18 @@ export async function submitVintedListing(
       .locator('#content input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     const check = async () => {
+      const previousStep = step;
+      step = 'authorize';
       await authorize();
+      step = 'identity';
       if (
         page.url() !== 'https://www.vinted.de/items/new' ||
         (await readVintedAccountIdentity(page))?.id !== accountId
       )
         throw new Error('Die Vinted-Neuanlage oder das Konto wurde geändert.');
+      step = 'authorize';
       await authorize();
+      step = previousStep;
     };
     step = 'identity';
     await check();

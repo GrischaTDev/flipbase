@@ -10,11 +10,16 @@ import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   readVintedListingCategoryFields,
   openVintedListingChoices,
+  closeVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
-import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
+import {
+  VintedListingReadError,
+  vintedListingChoiceReadError,
+  type VintedListingReadStep,
+} from './vinted-listing-read-error.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -119,9 +124,7 @@ export async function selectVintedListingField(
           return !previous || !current || previous.label !== current.label;
         })
       )
-        throw expected.field === 'brand' || expected.field === 'package'
-          ? new VintedListingReadError(`${expected.field}_match`)
-          : invalid();
+        throw vintedListingChoiceReadError(expected.field, 'match');
       if (selectedMatches(actual, ids)) return;
       const multiple = expected.field === 'color' || expected.field === 'material';
       const change =
@@ -129,17 +132,12 @@ export async function selectVintedListingField(
           ? actual.choices.find((choice) => choice.selected && !ids.includes(choice.id))
           : undefined) ??
         actual.choices.find((choice) => ids.includes(choice.id) && !choice.selected);
-      if (!change || change.disabled)
-        throw expected.field === 'brand' || expected.field === 'package'
-          ? new VintedListingReadError(`${expected.field}_match`)
-          : invalid();
+      if (!change || change.disabled) throw vintedListingChoiceReadError(expected.field, 'match');
       await check();
       try {
         await clickEnabled(choiceLocator(page, expected.field, change.id, actual.sizeGroupId));
-      } catch (error) {
-        if (expected.field === 'brand') throw new VintedListingReadError('brand_choice');
-        if (expected.field === 'package') throw new VintedListingReadError('package_choice');
-        throw error;
+      } catch {
+        throw vintedListingChoiceReadError(expected.field, 'choice');
       }
       if (expected.field === 'brand') {
         try {
@@ -156,12 +154,10 @@ export async function selectVintedListingField(
         }
       }
     } finally {
-      if (expected.field !== 'package') await page.keyboard.press('Escape');
+      if (expected.field !== 'package') await closeVintedListingChoices(page, expected.field);
     }
   }
-  throw expected.field === 'brand' || expected.field === 'package'
-    ? new VintedListingReadError(`${expected.field}_match`)
-    : invalid();
+  throw vintedListingChoiceReadError(expected.field, 'match');
 }
 function priceMatches(text: string, cents: number): boolean {
   let value = text.replace(/[€\s]/gu, '');
@@ -200,7 +196,12 @@ export async function prepareVintedListingFields(
     new Set(categoryPath).size !== categoryPath.length
   )
     throw invalid();
-  options.onPrepareStep?.('category');
+  let preparationStep: VintedListingReadStep = 'category';
+  const reportPreparationStep = (nextStep: VintedListingReadStep) => {
+    preparationStep = nextStep;
+    options.onPrepareStep?.(nextStep);
+  };
+  reportPreparationStep('category');
   const categoryText = await selectVintedListingNewCategory(
     page,
     accountId,
@@ -210,11 +211,18 @@ export async function prepareVintedListingFields(
     options,
   );
   const check = async () => {
+    const previousStep = preparationStep;
+    reportPreparationStep('form');
     assertNewForm(page);
+    reportPreparationStep('authorize');
     await authorize();
+    reportPreparationStep('identity');
     if ((await readVintedAccountIdentity(page))?.id !== accountId) throw invalid();
+    reportPreparationStep('form');
     assertNewForm(page);
+    reportPreparationStep('category');
     if ((await page.locator('#content #category').inputValue()) !== categoryText) throw invalid();
+    reportPreparationStep(previousStep);
   };
   await check();
   const schema = await readVintedListingCategoryFields(
@@ -222,9 +230,9 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId!,
     categoryPath,
-    { brand: content, onReadField: options.onPrepareStep },
+    { brand: content, onReadField: reportPreparationStep },
   );
-  options.onPrepareStep?.('values');
+  reportPreparationStep('values');
   content = resolveFlipbaseVintedListingContent(content, schema);
   if (validateVintedListingSubmission(content, photos, schema).length > 0) throw invalid();
   await check();
@@ -237,7 +245,7 @@ export async function prepareVintedListingFields(
     .locator('#content input[name="price"]')
     .fill(Math.floor(price / 100) + ',' + String(price % 100).padStart(2, '0'));
   for (const field of schema.fields) {
-    options.onPrepareStep?.(field.field);
+    reportPreparationStep(field.field);
     await selectVintedListingField(page, field, wanted(content, field.field), check);
   }
   await check();
@@ -246,9 +254,9 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId!,
     categoryPath,
-    { brand: content, onReadField: options.onPrepareStep },
+    { brand: content, onReadField: reportPreparationStep },
   );
-  options.onPrepareStep?.('changed');
+  reportPreparationStep('changed');
   if (
     validateVintedListingSubmission(content, photos, final).length > 0 ||
     final.fields.some((field) => !selectedMatches(field, wanted(content, field.field))) ||

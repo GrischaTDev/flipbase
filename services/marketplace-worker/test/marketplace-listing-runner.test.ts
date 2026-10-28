@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
-import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
+import {
+  VintedListingReadError,
+  vintedListingReadSteps,
+} from '../src/vinted-listing-read-error.ts';
 import { MarketplaceBrowserSessionBroker } from '../src/marketplace-browser-session-broker.ts';
 import {
   MarketplaceListingRunner,
@@ -322,6 +325,9 @@ test('preflight diagnostics contain only the fixed step and keep the failed writ
       'package_parse',
       'package_match',
       'package_choice',
+      ...vintedListingReadSteps.filter((stage) =>
+        /^(?:size|condition|color|material)_|_close$/.test(stage),
+      ),
     ] as const) {
       const diagnostic = fixture({ preflightError: new VintedListingReadError(stage) });
       await diagnostic.runner.run(claim);

@@ -1,3 +1,8 @@
+import type { VintedListingChoiceField } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+
+const ordinaryChoiceFields = ['size', 'condition', 'color', 'material'] as const;
+const ordinaryChoicePhases = ['open', 'options', 'parse', 'match', 'choice', 'close'] as const;
+
 /** Feste Schritte beim Lesen der Vinted-Bearbeitungsmaske; keine Seiteninhalte oder Kennungen. */
 export const vintedListingReadSteps = [
   'reserve',
@@ -8,6 +13,7 @@ export const vintedListingReadSteps = [
   'values',
   'photos',
   'category',
+  'category_close',
   'fields',
   'metadata',
   'brand',
@@ -18,6 +24,10 @@ export const vintedListingReadSteps = [
   'brand_match',
   'brand_choice',
   'brand_selected',
+  'brand_close',
+  ...ordinaryChoiceFields.flatMap((field) =>
+    ordinaryChoicePhases.map((phase) => `${field}_${phase}` as const),
+  ),
   'size',
   'condition',
   'color',
@@ -28,6 +38,7 @@ export const vintedListingReadSteps = [
   'package_parse',
   'package_match',
   'package_choice',
+  'package_close',
   'changed',
   'parse',
   'result',
@@ -71,4 +82,13 @@ export class VintedListingReadError extends Error {
     super('Das Vinted-Inserat konnte nicht gelesen werden.');
     this.step = step;
   }
+}
+
+/** Überträgt ausschließlich eine vorhandene Feld-/Phasenkombination. */
+export function vintedListingChoiceReadError(
+  field: VintedListingChoiceField,
+  phase: (typeof ordinaryChoicePhases)[number],
+): VintedListingReadError {
+  const step = vintedListingReadSteps.find((candidate) => candidate === `${field}_${phase}`);
+  return new VintedListingReadError(step ?? field);
 }
