@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-28 - Juna - PR 488: CI-Nachprüfung für Vinted-Veröffentlichung
+
+**Auftrag und Stand:** Die zweite Prüfseite des Vinted-Inserats und dessen unterer Auftragsverlauf wurden durch direkte Veröffentlichung und die zentrale Statusübersicht ersetzt. PR 488 ist geöffnet; Freigabe zum Merge erst nach allen erfolgreichen Pflichtprüfungen. Der tatsächliche Anbietererfolg des ursprünglich fehlgeschlagenen Inserats ist damit noch nicht nachgewiesen.
+
+**Nachprüfung:** Ein neuer mobiler Veröffentlichungs-Test meldete doppelte Kopf- und Fuß-Landmarks, weil die Dialoghülle HTML-Header und -Footer als zusätzliche Dokumentbereiche ausgab. Die semantische Rolle der beiden internen Flächen wurde korrigiert; ihre Struktur und Bedienung bleiben bestehen. Die geänderten Browsergruppen, alle drei Angular-Gruppen, allgemeine Chromium-Gruppen sowie Formatierung, Lint, Typprüfung und Build bestanden auf diesem Stand.
+
+**Getrennter PWA-Testbefund:** Bei zwei PWA-CI-Läufen öffnete ein zusätzliches Testfenster das gewünschte Formular nicht zuverlässig; die Mitschnitte zeigen abgebrochene Script-Anfragen beziehungsweise die Übersicht statt des Einkaufsformulars. Die Mehrfenster-Updateprüfung startet weitere Fenster nun zuerst auf einer vollständig gerenderten Dashboardseite und navigiert erst dann mit der vorhandenen Schnellaktion zum Einkauf. Das separate Start-/Deep-Link-Testverhalten wird nicht verändert. Ein Einstellungsformular wird ebenfalls nach gerendertem Einstieg aufgerufen. Bestehende Prüfungen auf ungespeicherte Inhalte, Versionswechsel und Rückkehr der Fenster bleiben bestehen. Dieser PWA-Testnachlauf ist noch offen.
+
 ## 2026-10-28 - Juna - Vinted-Veröffentlichung direkt starten und Aufträge zentral anzeigen
 
 **Auftrag:** Die zweite Seite „Weiter zur Prüfung“ und den Auftragsverlauf im Vinted-Inserateditor entfernen. „Jetzt veröffentlichen“ soll den gespeicherten Entwurf ohne weiteren Bestätigungsschritt beauftragen; Status, Fehler, Abbruch und Terminänderung gehören zur vorhandenen Header-Ansicht „Laufende Aktionen“.
