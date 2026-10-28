@@ -62,16 +62,6 @@
 }
 <ng-template #actions>
   <div class="space-y-3">
-    <div class="flex justify-end">
-      <app-button
-        size="slim"
-        [icon]="refreshIcon"
-        [iconOnly]="true"
-        ariaLabel="Aktionsübersicht aktualisieren"
-        [loading]="store.loading()"
-        (clicked)="store.refresh()"
-      />
-    </div>
     @if (store.error(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }

@@ -6,7 +6,10 @@
   <ul class="space-y-2">
     @for (row of rows(); track row.job.id) {
       <li class="min-w-0 space-y-1.5 rounded-lg border border-fb-border px-3 py-2">
-        <p class="text-[13px] font-semibold text-fb-text-primary">{{ row.label }}</p>
+        <div class="flex items-center gap-2.5" [attr.data-listing-state]="row.job.state">
+          <app-action-status-indicator [state]="row.indicator" />
+          <p class="text-[13px] font-semibold text-fb-text-primary">{{ row.label }}</p>
+        </div>
         <p class="break-words text-xs text-fb-text-secondary">
           {{ row.accountName }} · {{ row.planned ? 'Geplant für' : 'Stand vom' }} {{ row.time }}
         </p>
@@ -16,7 +19,7 @@
           </p>
         } @else if (row.job.state === 'failed') {
           <p class="text-xs text-fb-text-secondary">
-            Der Auftrag wurde ohne bestätigten Vinted-Erfolg beendet.
+            {{ row.failureReason }}
           </p>
         }
         @if (row.planned || row.cancellable || row.url) {

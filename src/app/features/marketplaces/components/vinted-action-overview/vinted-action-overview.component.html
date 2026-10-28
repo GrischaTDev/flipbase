@@ -3,11 +3,13 @@
   <ul class="space-y-1.5">
     @for (row of rows(); track row.action.id) {
       <li
-        data-action-state="running"
+        [attr.data-action-state]="row.action.state"
         [attr.data-action-id]="row.action.id"
         class="flex min-w-0 items-start gap-2.5 rounded-lg bg-fb-brand-surface px-2 py-2"
       >
-        <span class="mt-0.5 shrink-0 text-fb-brand"><app-loading-indicator size="md" /></span>
+        <app-action-status-indicator
+          [state]="row.action.state === 'succeeded' ? 'success' : 'running'"
+        />
         <div class="min-w-0 flex-1">
           <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ row.title }}</p>
           @if (row.subtitle) {
