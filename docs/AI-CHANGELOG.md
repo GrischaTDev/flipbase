@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-28 - Juna - Veröffentlichung vor dem Upload gezielt diagnostizieren
+
+**Live-Ergebnis:** PR #489 nach allen erfolgreichen Pflichtprüfungen mit `f9afd136f7fbb27e2ca2316028fd1e1d8349e389` gemergt. Web-App, Worker, Broker und Browserimage aus genau diesem Stand veröffentlicht; öffentliche Version und Quell-/Modulprüfsummen bestätigt. Der Worker wurde geordnet beendet, nur vier Imagefelder geändert, Kontofreigaben und Zeitplaneinstellungen blieben gleich. Der ausdrücklich beauftragte echte Versuch für Entwurf 11, Revision 13, zehn Fotos und 79,90 € wurde über den regulären autorisierten RPC als Auftrag 5 angenommen. Er scheiterte am 28.10.2026 um 12:54:53 MEZ vor Begin/Upload mit `provider_unavailable`; Sitzung geschlossen, kein Anbieterbeleg. Damit ist die echte Veröffentlichung weiterhin nicht als behoben bestätigt. Nach dem Versuch meldete der Worker Recovery und startete zehnmal neu; seit 12:56:50 MEZ wieder stabil gesund. Keine manuellen Änderungen an Profilen, Sperren oder Auftragszuständen.
+
+**Diagnoseergänzung:** Der bisherige Sammelfehler verwirft den genauen Formularschritt. Unerwartete Fehler vor der Schreibgrenze übertragen jetzt ausschließlich feste vorhandene Schrittnamen über die bestehende Browserisolation. Der Worker protokolliert diese oder feste Controllerphasen für Kategoriepfad, Berechtigungsprüfung und Fotodownload. Fehler bei Ergebnisablage und Browserbereinigung werden getrennt benannt. Keine Anbieterantworten, Texte, URLs oder Zugangsdaten im neuen Protokoll; Fehler nach Begin und notwendige Recovery bleiben unverändert. Noch keine Behauptung einer behobenen Ursache.
+
+**Prüfung:** Neue Regressionen für verlorenen Schritt und fehlendes Protokoll zuerst rot, danach grün. 58 betroffene Worker-Einheitstests und jeweils 54 vorhandene/neue Browserfälle unter Windows und Linux (Node 22.23.4, Playwright 1.63.0, zwei CPUs/vier GiB) erfolgreich. 61 Auswahl-/Registrierungsfälle, Worker-Typprüfung, Bau, Formatierung und gezieltes Lint erfolgreich. Unabhängiger Review ohne konkrete Befunde. Der Folge-PR gehört zur bereits autorisierten Fehlerkorrektur und zum anschließenden Rollout; echter Erfolg steht weiter aus. Flipbase ist im verbundenen Lissie-Projektverzeichnis nicht vorhanden, daher dort kein fremdes Projekt verwendet.
+
 ## 2026-10-28 - Juna - Kompakte Aktionen, Header-Spinner und Vinted-Kategorieauswahl
 
 **Veröffentlichungsfreigabe:** Der Nutzer hat PR-Erstellung, Merge nach sämtlichen erfolgreichen Pflichtprüfungen, anschließenden Worker-/Broker-/Browser-Rollout und die Prüfung einer tatsächlichen Veröffentlichung des betroffenen Entwurfs ausdrücklich beauftragt. Die Bereinigung nach bestätigtem Merge gehört zum Auftrag.

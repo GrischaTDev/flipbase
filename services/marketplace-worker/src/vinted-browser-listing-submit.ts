@@ -15,6 +15,11 @@ import {
 } from './vinted-browser-listing-result.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
+  VintedInteractionRequiredError,
+  VintedVerificationRequiredError,
+} from './vinted-browser-reader.ts';
+import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
+import {
   collectVintedListingFormValues,
   collectVintedListingPhotoState,
   parseVintedListingSnapshot,
@@ -36,6 +41,8 @@ export async function submitVintedListing(
 ): Promise<MarketplaceListingResult> {
   // Eine bestehende Benutzerseite darf weder überschrieben noch geschlossen werden.
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
+  let step: VintedListingReadStep = 'parse';
+  let writeAttempted = false;
   try {
     // Ergebnisroute/Kennung nativer Entwürfe sind noch nicht anhand eines echten Falls geprüft.
     if (action !== 'publish') return { outcome: 'failed', errorCode: 'unsupported' };
@@ -50,11 +57,14 @@ export async function submitVintedListing(
       throw new Error('Inseratversuch ungültig.');
     const workspaceId = input.images[0]?.storagePath.split('/')[0] ?? '';
     let snapshot = parseVintedListingSnapshot(input, workspaceId, input.connectionId);
+    step = 'authorize';
     await authorize();
+    step = 'navigate';
     await page.goto('https://www.vinted.de/items/new', {
       waitUntil: 'domcontentloaded',
       timeout: 15_000,
     });
+    step = 'form';
     await page
       .locator('#content input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
@@ -67,6 +77,7 @@ export async function submitVintedListing(
         throw new Error('Die Vinted-Neuanlage oder das Konto wurde geändert.');
       await authorize();
     };
+    step = 'identity';
     await check();
     const prepared = await prepareVintedListingFields(
       page,
@@ -75,22 +86,32 @@ export async function submitVintedListing(
       snapshot.images,
       categoryPath,
       check,
-      { allowRememberedChoices: true },
+      {
+        allowRememberedChoices: true,
+        onPrepareStep: (currentStep) => {
+          step = currentStep;
+        },
+      },
     );
     snapshot = {
       ...snapshot,
       content: resolveFlipbaseVintedListingContent(snapshot.content, prepared),
     };
     // Zusatzoptionen müssen bereits vor dem ersten Upload eindeutig vorhanden sein.
+    step = 'metadata';
     const initial = await page.evaluate(collectVintedListingFormValues);
     if (!initial || initial.bump !== false)
       throw new Error('Vinted-Zusatzoptionen nicht verfügbar.');
+    step = 'photos';
     const uploaded = await uploadVintedListingPhotos(
       page,
       accountId,
       snapshot.images,
       loadPhoto,
-      beforeWrite,
+      async () => {
+        writeAttempted = true;
+        await beforeWrite();
+      },
       check,
     );
     await check();
@@ -174,6 +195,16 @@ export async function submitVintedListing(
     } catch {
       return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
     }
+  } catch (error) {
+    if (
+      writeAttempted ||
+      error instanceof VintedInteractionRequiredError ||
+      error instanceof VintedVerificationRequiredError ||
+      error instanceof VintedListingReadError
+    )
+      throw error;
+    // Nur feste Schrittnamen verlassen die Browsergrenze, keine Anbieterantworten.
+    throw new VintedListingReadError(step);
   } finally {
     await page.close();
   }

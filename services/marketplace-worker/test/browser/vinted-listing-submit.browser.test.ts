@@ -7,6 +7,7 @@ import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 import { vintedBrowserActions } from '../../src/vinted-browser-actions.ts';
 import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
 import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
+import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
 test('publishing writes once after Begin and confirms only the saved content, photos and active ID', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -200,6 +201,48 @@ test('the real isolated transport publishes in its own tab and preserves the exi
     assert.equal(f.uploads(), 1);
     assert.equal(f.saves(), 1);
     assert.equal(await original.locator('#title').inputValue(), 'Meine eigene Arbeit');
+    assert.deepEqual(context.pages(), [original]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('preflight failures preserve a fixed step through isolated transport without uploads', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    const original = await context.newPage();
+    const form = await createVintedListingFormFixture(
+      { route: context.route.bind(context), goto: original.goto.bind(original) },
+      { publishing: true },
+    );
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    const submit = actions.submitListing;
+    assert.ok(submit);
+    let begins = 0;
+    await assert.rejects(
+      submit(
+        '123',
+        'publish',
+        {
+          ...listingClaimFixture.snapshot,
+          content: { ...listingClaimFixture.snapshot.content, sizeId: 999 },
+        },
+        async () => {
+          begins++;
+        },
+        async () => undefined,
+        async () => {
+          throw new Error('Private storage response');
+        },
+        [5],
+      ),
+      (error: unknown) => error instanceof VintedListingReadError && error.step === 'values',
+    );
+    assert.equal(begins, 0);
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
     assert.deepEqual(context.pages(), [original]);
   } finally {
     await browser.close();
