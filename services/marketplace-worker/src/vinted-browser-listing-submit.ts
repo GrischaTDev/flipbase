@@ -90,7 +90,12 @@ export async function submitVintedListing(
       snapshot.content,
       snapshot.images,
       categoryPath,
-      check,
+      // Die Vorbereitung prüft das Konto selbst. Freigabe und exakte Neuanlage-URL erhalten.
+      async () => {
+        await authorize();
+        if (page.url() !== 'https://www.vinted.de/items/new')
+          throw new VintedListingReadError('form');
+      },
       {
         allowRememberedChoices: true,
         onPrepareStep: (currentStep) => {
