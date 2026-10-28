@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
+import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
 import {
   MarketplaceListingRunner,
   type CloudListingClaim,
@@ -22,7 +23,7 @@ function fixture(
     beginLost?: boolean;
     finishLost?: boolean;
     stopLost?: boolean;
-    providerThrows?: boolean;
+    providerThrows?: boolean | Error;
     authorized?: boolean;
     unsupported?: boolean;
     readPhoto?: boolean;
@@ -32,6 +33,7 @@ function fixture(
     concurrentBegin?: boolean;
     categoryThrows?: boolean;
     requireCategory?: boolean;
+    preflightError?: Error;
     result?: MarketplaceListingResult;
   } = {},
 ) {
@@ -56,6 +58,7 @@ function fixture(
             if (options.requireCategory) assert.deepEqual(categoryPath, [5, 6]);
             calls.push('preflight');
             await authorize();
+            if (options.preflightError) throw options.preflightError;
             latePhoto = () => loadPhoto(claim.snapshot.images[0]!.id);
             if (options.readPhoto && !options.photoAfterBegin) {
               await latePhoto();
@@ -68,7 +71,10 @@ function fixture(
             } else await beforeWrite();
             if (options.readPhoto && options.photoAfterBegin) await latePhoto();
             calls.push('provider');
-            if (options.providerThrows) throw new Error('secret-provider-detail');
+            if (options.providerThrows)
+              throw options.providerThrows instanceof Error
+                ? options.providerThrows
+                : new Error('secret-provider-detail');
             return options.result ?? confirmed;
           },
         } satisfies Pick<BrowserInfo, 'submitListing'>)),
@@ -211,6 +217,64 @@ test('provider exception after begin is unknown and hides provider details', asy
   const f = fixture({ providerThrows: true });
   await f.runner.run(claim);
   assert.deepEqual(f.results, [{ outcome: 'outcome_unknown', errorCode: 'provider_unavailable' }]);
+});
+
+test('preflight diagnostics contain only the fixed step and keep the failed write boundary', async () => {
+  const output: string[] = [];
+  const stderr = mock.method(process.stderr, 'write', (chunk: string | Uint8Array) => {
+    output.push(String(chunk));
+    return true;
+  });
+  try {
+    const diagnostic = fixture({ preflightError: new VintedListingReadError('size') });
+    await diagnostic.runner.run(claim);
+    assert.deepEqual(diagnostic.results, [
+      { outcome: 'failed', errorCode: 'provider_unavailable' },
+    ]);
+    assert.ok(!diagnostic.calls.includes('begin'));
+    assert.deepEqual(
+      output.map((line) => JSON.parse(line)),
+      [{ event: 'marketplace_listing_preflight_failed', jobId: claim.jobId, stage: 'size' }],
+    );
+    output.length = 0;
+    const privateFailure = fixture({ preflightError: new Error('Private provider response 123') });
+    await privateFailure.runner.run(claim);
+    assert.deepEqual(
+      output.map((line) => JSON.parse(line)),
+      [{ event: 'marketplace_listing_preflight_failed', jobId: claim.jobId, stage: 'provider' }],
+    );
+    output.length = 0;
+    const photoFailure = fixture({ readPhoto: true, photoThrows: true });
+    await photoFailure.runner.run(claim);
+    assert.deepEqual(
+      output.map((line) => JSON.parse(line)),
+      [
+        {
+          event: 'marketplace_listing_preflight_failed',
+          jobId: claim.jobId,
+          stage: 'photo_download',
+        },
+      ],
+    );
+    output.length = 0;
+    const afterBegin = fixture({ providerThrows: new VintedListingReadError('photos') });
+    await afterBegin.runner.run(claim);
+    assert.deepEqual(afterBegin.results, [
+      { outcome: 'outcome_unknown', errorCode: 'provider_unavailable' },
+    ]);
+    assert.deepEqual(output, []);
+    for (const stage of ['finish', 'cleanup'] as const) {
+      const recovery = fixture(stage === 'finish' ? { finishLost: true } : { stopLost: true });
+      await assert.rejects(recovery.runner.run(claim), /Wiederherstellung/);
+      assert.deepEqual(
+        output.map((line) => JSON.parse(line)),
+        [{ event: 'marketplace_listing_recovery_required', jobId: claim.jobId, stage }],
+      );
+      output.length = 0;
+    }
+  } finally {
+    stderr.mock.restore();
+  }
 });
 test('wrong-account provider success never becomes a confirmed receipt', async () => {
   const f = fixture({ result: { ...confirmed, externalAccountId: '124' } });

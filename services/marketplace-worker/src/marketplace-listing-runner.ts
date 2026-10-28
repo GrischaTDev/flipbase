@@ -6,6 +6,7 @@ import type { BrowserInfo } from './gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import { isVintedListingResult } from './vinted-listing-contracts.ts';
 import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
+import { VintedListingReadError } from './vinted-listing-read-error.ts';
 
 export interface CloudListingClaim {
   readonly kind: 'listing';
@@ -59,6 +60,8 @@ export class MarketplaceListingRunner {
       beginAttempted = false,
       beginConfirmed = false,
       recovery = false;
+    let preflightStage:
+      'browser' | 'authorization' | 'category_path' | 'photo_download' | 'provider' = 'browser';
     let result: MarketplaceListingResult = {
       outcome: 'failed',
       errorCode: 'authorization_expired',
@@ -67,6 +70,7 @@ export class MarketplaceListingRunner {
       try {
         sessionId = await this.broker.open(scope);
         if (sessionId !== binding.sessionId) throw new Error('Inseratversuch ungültig');
+        preflightStage = 'authorization';
         if (await this.store.check(claim)) {
           const currentSessionId = sessionId;
           result = await this.broker.run(scope, currentSessionId, async (browser) => {
@@ -75,9 +79,12 @@ export class MarketplaceListingRunner {
               loadingPhoto = false,
               beginReserved = false;
             const authorize = async () => {
+              const previousStage = preflightStage;
+              preflightStage = 'authorization';
               if (!adapterActive) throw new Error('Inseratadapter bereits geschlossen');
               if (!(await this.store.check(claim))) throw new Error('Inseratfreigabe ungültig');
               await this.broker.run(scope, currentSessionId, async () => undefined);
+              preflightStage = previousStage;
             };
             const loadPhoto = async (imageId: string) => {
               if (
@@ -89,8 +96,11 @@ export class MarketplaceListingRunner {
               loadingPhoto = true;
               try {
                 await authorize();
+                const previousStage = preflightStage;
+                preflightStage = 'photo_download';
                 const photo = await this.store.loadPhoto(claim, imageId);
                 await authorize();
+                preflightStage = previousStage;
                 return photo;
               } finally {
                 loadingPhoto = false;
@@ -109,8 +119,10 @@ export class MarketplaceListingRunner {
             let provided: MarketplaceListingResult;
             try {
               await authorize();
+              preflightStage = 'category_path';
               const categoryPath = await this.store.loadCategoryPath(claim);
               await authorize();
+              preflightStage = 'provider';
               provided = await browser.submitListing(
                 claim.accountId,
                 claim.action,
@@ -134,7 +146,15 @@ export class MarketplaceListingRunner {
             return provided;
           });
         }
-      } catch {
+      } catch (error) {
+        if (!beginAttempted)
+          process.stderr.write(
+            JSON.stringify({
+              event: 'marketplace_listing_preflight_failed',
+              jobId: claim.jobId,
+              stage: error instanceof VintedListingReadError ? error.step : preflightStage,
+            }) + '\n',
+          );
         result = {
           outcome: beginAttempted ? 'outcome_unknown' : 'failed',
           errorCode:
@@ -145,6 +165,13 @@ export class MarketplaceListingRunner {
       try {
         await this.store.finish(claim, result);
       } catch {
+        process.stderr.write(
+          JSON.stringify({
+            event: 'marketplace_listing_recovery_required',
+            jobId: claim.jobId,
+            stage: 'finish',
+          }) + '\n',
+        );
         recovery = true;
       }
     } finally {
@@ -152,6 +179,13 @@ export class MarketplaceListingRunner {
         try {
           await this.broker.close(scope, sessionId);
         } catch {
+          process.stderr.write(
+            JSON.stringify({
+              event: 'marketplace_listing_recovery_required',
+              jobId: claim.jobId,
+              stage: 'cleanup',
+            }) + '\n',
+          );
           recovery = true;
         }
     }

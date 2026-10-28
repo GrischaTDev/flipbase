@@ -14,6 +14,7 @@ import {
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
+import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -158,7 +159,10 @@ export async function prepareVintedListingFields(
   categoryPath: readonly number[],
   authorize: () => Promise<void>,
   /** Nur für eine vom Ausführer frisch geöffnete, exklusiv reservierte Maske. */
-  options: { allowRememberedChoices?: boolean } = {},
+  options: {
+    allowRememberedChoices?: boolean;
+    onPrepareStep?: (step: VintedListingReadStep) => void;
+  } = {},
 ): Promise<VintedListingCategoryFields> {
   if (
     !/^[1-9][0-9]{0,31}$/.test(accountId) ||
@@ -170,6 +174,7 @@ export async function prepareVintedListingFields(
     new Set(categoryPath).size !== categoryPath.length
   )
     throw invalid();
+  options.onPrepareStep?.('category');
   const categoryText = await selectVintedListingNewCategory(
     page,
     accountId,
@@ -191,8 +196,9 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId!,
     categoryPath,
-    { brand: content },
+    { brand: content, onReadField: options.onPrepareStep },
   );
+  options.onPrepareStep?.('values');
   content = resolveFlipbaseVintedListingContent(content, schema);
   if (validateVintedListingSubmission(content, photos, schema).length > 0) throw invalid();
   await check();
@@ -204,16 +210,19 @@ export async function prepareVintedListingFields(
   await page
     .locator('#content input[name="price"]')
     .fill(Math.floor(price / 100) + ',' + String(price % 100).padStart(2, '0'));
-  for (const field of schema.fields)
+  for (const field of schema.fields) {
+    options.onPrepareStep?.(field.field);
     await selectVintedListingField(page, field, wanted(content, field.field), check);
+  }
   await check();
   const final = await readVintedListingCategoryFields(
     page,
     accountId,
     content.categoryId!,
     categoryPath,
-    { brand: content },
+    { brand: content, onReadField: options.onPrepareStep },
   );
+  options.onPrepareStep?.('changed');
   if (
     validateVintedListingSubmission(content, photos, final).length > 0 ||
     final.fields.some((field) => !selectedMatches(field, wanted(content, field.field))) ||
