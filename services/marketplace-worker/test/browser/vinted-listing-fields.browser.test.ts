@@ -71,7 +71,7 @@ test('finds an exact native brand outside popular choices and waits for asynchro
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage(),
-      f = await fixture(page, { brandSearch: 'matching' });
+      f = await fixture(page, { brandSearch: 'matching', brandLoadingDelayMs: 400 });
     const result = await prepareVintedListingFields(
       page,
       '123',

@@ -42,9 +42,12 @@ export async function openVintedListingChoices(
       await page.evaluate(collectVintedListingChoices, field),
     );
   const input = page.locator(`#${field}`);
-  if (!(await input.isVisible()) || !(await input.isEnabled()))
-    throw new Error('Dieses Vinted-Merkmal ist nicht verfügbar.');
-  await input.click({ timeout: 5000 });
+  try {
+    // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
+    await input.click({ timeout: field === 'brand' ? 15_000 : 5000 });
+  } catch (error) {
+    throw new Error('Dieses Vinted-Merkmal ist nicht verfügbar.', { cause: error });
+  }
   if (field === 'category') {
     for (const parentId of categoryPath) {
       // Kategoriegruppen öffnen; Endkategorien niemals zur bloßen Prüfung auswählen.

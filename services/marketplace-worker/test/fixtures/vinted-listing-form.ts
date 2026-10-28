@@ -13,6 +13,7 @@ export async function createVintedListingFormFixture(
     brandSearch?: 'matching' | 'wrong_label' | 'custom_only';
     colorGrid?: boolean;
     categoryLoadingDelayMs?: number;
+    brandLoadingDelayMs?: number;
   } = {},
 ) {
   let writes = 0,
@@ -85,7 +86,7 @@ export async function createVintedListingFormFixture(
         document.querySelector('#'+field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}if(field==='brand'&&${!!options.brandSearch}){document.querySelector('#brand-search-input').value='';document.querySelector('#brand-popular').hidden=document.querySelector('#brand').value==='Jako';document.querySelector('#brand-results').hidden=document.querySelector('#brand').value!=='Jako';}};
         document.querySelectorAll('#'+field+'-options [role=radio],#'+field+'-options [role=checkbox]').forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
-          const apply=()=>{node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;if(!['color','material'].includes(field)) hide();};
+          const apply=()=>{node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;if(field==='category'&&${!!options.brandLoadingDelayMs}){document.querySelector('#brand').disabled=true;setTimeout(()=>document.querySelector('#brand').disabled=false,${options.brandLoadingDelayMs ?? 0});}if(!['color','material'].includes(field)) hide();};
           if(field==='category'&&${!!options.categoryLoadingDelayMs}) setTimeout(apply,${options.categoryLoadingDelayMs ?? 0});else if(field==='brand'&&${!!options.brandSearch}) setTimeout(apply,60);else apply();
         });
       });
