@@ -232,12 +232,24 @@
       const title = element.querySelector(
         '[data-testid$="--title"],[class*="__Cell__title"]',
       )?.textContent;
+      // Vinted benennt die sichtbare Paketkachel umgekehrt zur teils ins Leere zeigenden ARIA-ID.
+      const packageId =
+        field === 'package' ? /^package_type_selector_([1-9][0-9]*)$/.exec(element.id) : null;
+      const packageCell = packageId
+        ? element.closest('[id="' + packageId[1] + '-package-size"]')
+        : null;
+      const packageLabel =
+        packageId &&
+        packageCell?.getAttribute('data-testid') === packageId[1] + '-package-size--cell'
+          ? packageCell.textContent
+          : '';
       result.push({
         id,
         label: (
           element.getAttribute('aria-label') ||
           labelledBy ||
           title ||
+          packageLabel ||
           label.textContent ||
           ''
         )

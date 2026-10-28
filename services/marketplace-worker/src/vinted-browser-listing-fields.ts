@@ -50,7 +50,15 @@ function choiceLocator(
   id: number | null,
   group: number | null,
 ): Locator {
-  if (field === 'package') return page.getByRole('button').and(page.locator('#package-size-' + id));
+  if (field === 'package')
+    return page
+      .getByRole('button')
+      .and(page.locator('#package-size-' + id))
+      .or(
+        page.locator(
+          `[id="${id}-package-size"][data-testid="${id}-package-size--cell"]:has(input#package_type_selector_${id})`,
+        ),
+      );
   if (field === 'brand')
     return page.locator(
       id === null

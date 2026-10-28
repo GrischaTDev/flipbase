@@ -155,6 +155,34 @@ test('collects visible ARIA options and package labels without reading hidden na
   }
 });
 
+test('reads a native package cell only when its identity agrees with the radio', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const mode of ['matching', 'foreign', 'hidden'] as const) {
+      await page.setContent(
+        `<div id="${mode === 'foreign' ? 3 : 2}-package-size" data-testid="2-package-size--cell"${mode === 'hidden' ? ' hidden' : ''}><div>Mittel</div><p>Für Artikel in einem Schuhkarton.</p><label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
+      );
+      const collected = await page.evaluate(collectVintedListingChoices, 'package' as const);
+      if (mode === 'matching') {
+        assert.deepEqual(parseVintedListingChoices('package', collected).choices, [
+          {
+            id: 2,
+            label: 'MittelFür Artikel in einem Schuhkarton.',
+            selected: true,
+            disabled: false,
+            sizeGroupId: null,
+          },
+        ]);
+      } else {
+        assert.throws(() => parseVintedListingChoices('package', collected));
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('refuses a different domain or route before interacting with a form', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

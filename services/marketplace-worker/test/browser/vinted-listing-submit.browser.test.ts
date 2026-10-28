@@ -15,7 +15,12 @@ test('publishing writes once after Begin and confirms only the saved content, ph
     for (const options of [
       {},
       { localForm: true },
-      { localForm: true, categoryLoadingDelayMs: 200, brandLoadingDelayMs: 400 },
+      {
+        localForm: true,
+        categoryLoadingDelayMs: 200,
+        brandLoadingDelayMs: 400,
+        nativePackage: true,
+      },
       { brandSearch: 'matching' as const },
       { savedPrice: '11,00' },
       { active: false },

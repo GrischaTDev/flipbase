@@ -14,6 +14,7 @@ export async function createVintedListingFormFixture(
     colorGrid?: boolean;
     categoryLoadingDelayMs?: number;
     brandLoadingDelayMs?: number;
+    nativePackage?: boolean;
   } = {},
 ) {
   let writes = 0,
@@ -39,7 +40,7 @@ export async function createVintedListingFormFixture(
       return route.fulfill({ json: { ok: true } });
     }
     if (savedBody && path === '/items/456/edit')
-      return route.fulfill({ contentType: 'text/html', body: savedBody });
+      return route.fulfill({ contentType: 'text/html; charset=utf-8', body: savedBody });
     if (route.request().method() !== 'GET') writes++;
     if (path === '/fixture/photo') {
       uploads++;
@@ -62,7 +63,7 @@ export async function createVintedListingFormFixture(
     if (path === '/items/456-fixture')
       return route.fulfill({ contentType: 'text/html', body: '<h1>Jacke</h1>' });
     return route.fulfill({
-      contentType: 'text/html',
+      contentType: 'text/html; charset=utf-8',
       body: `<div id="content">
       <input name="photos" data-testid="add-photos-input" type="file" multiple accept="image/jpeg,image/gif,image/png,image/webp">
       ${options.publishing ? '<div data-testid="media-upload-grid"></div><input type="checkbox" id="ai_photo"><input type="checkbox" id="bump">' : ''}
@@ -76,8 +77,13 @@ export async function createVintedListingFormFixture(
       <div hidden id="condition-options"><div role="radio" id="condition-2" aria-checked="false"><div data-testid="condition-2--title">Sehr gut</div></div></div>
       <div hidden id="color-options">${options.colorGrid ? '<div role="checkbox" data-testid="filter-grid-option-3" aria-label="Grau" aria-checked="false"><div data-testid="color-3"><span>Grau</span></div></div>' : '<div role="checkbox" id="color-3" aria-checked="false"><div data-testid="color-3--title">Grau</div></div>'}</div>
       <div hidden id="material-options"><div role="checkbox" id="material-149" aria-checked="false"><div data-testid="material-149--title">Acryl</div></div></div>
-      <button type="button" id="package-size-2">Mittel</button><label><input style="opacity:${options.hiddenPackage ? '0' : '1'}" type="radio" id="package_type_selector_2" aria-labelledby="package-size-2"></label>
-      <button type="button" id="package-size-3">Groß</button><label><input style="opacity:${options.hiddenPackage ? '0' : '1'}" type="radio" id="package_type_selector_3" aria-labelledby="package-size-3" checked></label>
+      ${[2, 3]
+        .map((id) =>
+          options.nativePackage
+            ? `<div id="${id}-package-size" role="presentation" data-testid="${id}-package-size--cell"><div>${id === 2 ? 'Mittel' : 'Groß'} Für Artikel in einem Karton</div><label for="package_type_selector_${id}"><input type="radio" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${id === 3 ? ' checked' : ''}><span></span></label></div>`
+            : `<button type="button" id="package-size-${id}">${id === 2 ? 'Mittel' : 'Groß'}</button><label><input style="opacity:${options.hiddenPackage ? '0' : '1'}" type="radio" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${id === 3 ? ' checked' : ''}></label>`,
+        )
+        .join('')}
       <button type="button" data-testid="upload-form-save-button">Hochladen</button>
       </div><script>
       const fields=['category','brand','size','condition','color','material'];
@@ -97,7 +103,7 @@ export async function createVintedListingFormFixture(
       };
       document.querySelector('#catalog-5').onclick=()=>{const showCategory=()=>{document.querySelector('#catalog-5').hidden=true;document.querySelector('#category-leaves').hidden=false;const previous=document.querySelector('#category-previous-leaves');if(previous)previous.hidden=true;};if(${!!options.categoryLoadingDelayMs}){const previous=document.querySelector('#category-previous-leaves');previous.hidden=false;setTimeout(showCategory,${options.categoryLoadingDelayMs ?? 0});}else showCategory();};
       document.onkeydown=event=>{if(event.key==='Escape') hide();};
-      [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
+      [2,3].forEach(id=>document.querySelector(${!!options.nativePackage}?'[id="'+id+'-package-size"]':'#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
       document.querySelector('[data-testid="upload-form-save-button"]').onclick=async()=>{
         const clone=document.documentElement.cloneNode(true);
         document.querySelectorAll('input,textarea').forEach((source,index)=>{
