@@ -6,7 +6,6 @@ on:
       check_plan:
         type: string
         required: true
-  workflow_dispatch:
 
 # Überholte PR-Prüfungen abbrechen; Hauptzweigveröffentlichungen vollständig beenden.
 concurrency:
@@ -18,13 +17,12 @@ permissions:
 
 jobs:
   verify:
-    if: github.event_name != 'workflow_dispatch'
     permissions:
       contents: read
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # Veröffentlichung und PR verwenden genau dieselben Bauten und Prüfungen.
-    steps: &marketplace-image-steps
+    # Der manuelle Publisher verwendet denselben Imageprüfbefehl vor dem Push.
+    steps:
       - name: Check out reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,43 +36,7 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Check local extension and worker forms before manual publication
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          npm ci --ignore-scripts
-          npm ci --prefix services/marketplace-worker --ignore-scripts
-          npx playwright install --with-deps chromium
-          (cd services/marketplace-worker && npx playwright install --with-deps chromium)
-          MARKETPLACE_CHECK_PLAN="$(node --input-type=module -e 'import {selectMarketplaceChecks} from "./scripts/marketplace-check-selection.mjs"; console.log(JSON.stringify(await selectMarketplaceChecks(null)));')"
-          export MARKETPLACE_CHECK_PLAN
-          node scripts/run-marketplace-checks.mjs extension
-          node scripts/run-marketplace-checks.mjs worker-browser
-
       - name: Build and check selected marketplace images
         env:
-          MARKETPLACE_CHECK_PLAN: ${{ inputs.check_plan || '{"extensionRequired":true,"workerBrowserTests":[],"workerImageRequired":true,"sessionImageRequired":true}' }}
+          MARKETPLACE_CHECK_PLAN: ${{ inputs.check_plan }}
         run: node scripts/run-marketplace-checks.mjs images
-
-      - name: Log in to container registry
-        if: github.event_name == 'workflow_dispatch'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish verified marketplace images
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"
-          docker push "ghcr.io/grischatdev/flipbase-chromium-broker:sha-$GITHUB_SHA"
-          docker push "ghcr.io/grischatdev/flipbase-chromium-session:sha-$GITHUB_SHA"
-
-  publish:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
-    permissions:
-      contents: read
-      packages: write
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps: *marketplace-image-steps

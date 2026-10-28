@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-28 - Juna - CI-Audit im PR prüfen und Veröffentlichungsrechte trennen
+
+**Auftrag und Stand:** Der Nutzer hat Branch-Veröffentlichung, PR, erfolgreiche Pflichtprüfungen, Merge-Commit und anschließende Bereinigung freigegeben. PR #504 enthält die beiden geprüften Audit-Commits. Weil lokal keine Git-Schreibanmeldung vorlag, wurden sie über die verbundene GitHub-Schnittstelle unter der Nutzeridentität veröffentlicht. Beide Git-Dateibäume stimmen exakt mit den lokalen geprüften Commits überein; die ursprüngliche lokale Historie bleibt bis zum bestätigten Merge separat erhalten. Keine KI-Autorschaft oder zusätzliche Signatur.
+
+**Tatsächlicher CI-Befund:** Hauptworkflow 40773594958 endete vor jedem Testjob mit startup_failure. GitHub validiert sämtliche Jobs eines wiederverwendeten Workflows, auch den durch eine if-Bedingung für PRs ausgeschlossenen Publisher. Dessen packages:write widersprach dem nur lesenden Aufrufer. Die öffentliche GitHub-Annotation bestätigt genau diesen Fehler; ein unveränderter Wiederholungsstart wäre wirkungslos gewesen. Die beiden zusätzlichen Reference-library-Jobs des ersten PR-Stands bestanden.
+
+**Korrektur:** Der wiederverwendete Marketplace-Workflow enthält ausschließlich die lesende Imageprüfung. Ein separater, ausschließlich manuell auf master aufrufbarer Publisher erhält die nötigen Registry-Schreibrechte. Extension- und native Workerbrowserprüfungen, gemeinsamer Imagebau und sämtliche Image-/Hostprüfungen bleiben vor Anmeldung und Push derselben lokal gebauten Images im selben Job erhalten. Es gibt keinen zusätzlichen Imagebau innerhalb eines Laufs und keine erhöhten PR-Rechte. Die neue Workflowdatei löst sämtliche passenden Marketplaceprüfungen aus. Dokumentation und der bisher zu eng auf einen einzelnen Job begrenzte Permissiontest prüfen nun die vollständige Grenze.
+
+**Prüfung und Grenze:** Der gezielte Permissiongegenfall schlug vor dem Fix an packages:write fehl. Nach dem Fix bestanden alle 44 gezielten Auswahl-, Berechtigungs-, Gate- und Vorabcheckfälle ohne Fehler oder Auslassung; ESLint, Prettier, Actionlint und Diffprüfung jeweils Exit 0. Der unabhängige enge Review ist Approved und fand keine konkrete Rechte- oder Auswahllücke. Der vollständige GitHub-Nachweis bleibt vor Merge erforderlich; kein fehlgeschlagener Lauf wird als grün behandelt und keine Testbedingung gelockert.
+
 ## 2026-10-28 - Juna - CI-Prüfumfang und lokale Vorbereitung vereinheitlichen
 
 **Änderung:** Lokaler Vorabcheck mit Planansicht und derselben Auswahl wie GitHub Actions. Der Git-Vergleich berücksichtigt Commits, Index, Arbeitskopie, neue und gelöschte Dateien. Qualitäts-, Dienst-, Datenbank-, PWA- und Baubefehle liegen gemeinsam vor; fehlende Werkzeuge und Fehlercodes werden ausdrücklich weitergegeben. Vor Datenbank- oder Anwendungsbrowserprüfungen wird der lokale Migrationsstand einschließlich des angewandten Inhalts neuer Branchmigrationen lesend geprüft. Eine vorhandene Entwicklungsdatenbank wird weder zurückgesetzt noch angehalten.

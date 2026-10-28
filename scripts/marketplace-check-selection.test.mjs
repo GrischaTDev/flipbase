@@ -181,6 +181,8 @@ test('bestehende Session-Kontextignore wählt genau das tatsächlich betroffene 
 test('zentrale Auswahl und Befehle wählen sämtliche Marketplaceprüfbereiche', () => {
   const files = { [browserTest]: '' };
   for (const path of [
+    '.github/workflows/marketplace-worker-image.yml',
+    '.github/workflows/marketplace-image-publish.yml',
     'scripts/preflight.mjs',
     'scripts/preflight.test.mjs',
     'scripts/ci-checks.mjs',

@@ -6,48 +6,71 @@ const workflow = await readFile(
   new URL('../.github/workflows/marketplace-worker-image.yml', import.meta.url),
   'utf8',
 );
+const publisher = await readFile(
+  new URL('../.github/workflows/marketplace-image-publish.yml', import.meta.url),
+  'utf8',
+);
 const ci = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
-const jobBlocks = workflow
-  .split(/^jobs:\s*$/m)[1]
-  .split(/(?=^  [a-z][\w-]*:\s*$)/m)
-  .filter((block) => block.trim());
-const jobHeaders = jobBlocks.map((block) => block.split(/^    steps:/m)[0]);
+const jobHeaders = (source) =>
+  source
+    .split(/^jobs:\s*$/m)[1]
+    .split(/(?=^  [a-z][\w-]*:\s*$)/m)
+    .filter((block) => block.trim())
+    .map((block) => block.split(/^    steps:/m)[0]);
+const verificationHeaders = jobHeaders(workflow);
+const publicationHeaders = jobHeaders(publisher);
 
-test('wiederverwendete Imageprüfung erhält ausschließlich Leserechte', () => {
-  assert.match(workflow, /^permissions:\r?\n  contents: read/m);
-  assert.match(jobHeaders[0], /^    if: github.event_name != 'workflow_dispatch'$/m);
-  assert.match(jobHeaders[0], /^    permissions:\r?\n      contents: read\r?\n(?!      )/m);
-  assert.doesNotMatch(jobHeaders[0], /packages:|secrets:|environment:/);
+test('wiederverwendete Imageprüfung erhält in sämtlichen Jobs ausschließlich Leserechte', () => {
+  assert.match(workflow, /^permissions:\r?\n  contents: read\r?\n(?!  )/m);
+  // GitHub validiert alle Jobs des aufgerufenen Workflows vor ihren if-Bedingungen.
+  assert.doesNotMatch(workflow, /packages:\s*write/u);
+  assert.equal(verificationHeaders.length, 1);
+  for (const header of verificationHeaders) {
+    assert.match(header, /^    permissions:\r?\n      contents: read\r?\n(?!      )/m);
+    assert.doesNotMatch(header, /packages:|secrets:|environment:/);
+  }
   assert.match(workflow, /^  workflow_call:$/m);
-  assert.doesNotMatch(workflow, /^  pull_request:$/m);
+  assert.doesNotMatch(workflow, /^  (?:workflow_dispatch|pull_request|push):$/m);
+  assert.doesNotMatch(workflow, /docker\/login-action|docker push|secrets\.GITHUB_TOKEN/u);
+  assert.match(ci, /^permissions:\r?\n  contents: read\r?\n(?!  )/m);
+  const caller = ci.slice(ci.indexOf('  marketplace-images:'), ci.indexOf('  pwa:'));
+  assert.doesNotMatch(caller, /packages:|secrets:/);
+  assert.match(caller, /uses: \.\/\.github\/workflows\/marketplace-worker-image\.yml/u);
 });
 
-test('nur manuelles master erhält Registry-Schreibrechte und veröffentlicht geprüfte Images', () => {
-  const publishingJobs = jobHeaders.filter((header) => /packages: write/.test(header));
-  assert.equal(publishingJobs.length, 1);
+test('nur separater manueller master-Publisher erhält Schreibrechte nach vollständiger Prüfung', () => {
+  assert.match(publisher, /^on:\r?\n  workflow_dispatch:\s*$/m);
+  assert.doesNotMatch(publisher, /^  (?:workflow_call|pull_request|push):$/m);
+  assert.equal(publicationHeaders.length, 1);
   assert.match(
-    publishingJobs[0],
+    publicationHeaders[0],
     /^    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs\/heads\/master'$/m,
   );
-  assert.equal(jobHeaders.length, 2);
-  const sharedSteps = workflow.match(/^    steps: &([\w-]+)$/m)?.[1];
-  assert.ok(sharedSteps);
-  assert.ok(workflow.includes(`    steps: *${sharedSteps}`));
-  assert.doesNotMatch(workflow, /pull_request_target|workflow_run|continue-on-error|push: true/);
-  assert.match(workflow, /persist-credentials: false/);
-  assert.ok(
-    workflow.indexOf('run-marketplace-checks.mjs images') <
-      workflow.indexOf('Log in to container registry'),
+  assert.match(
+    publicationHeaders[0],
+    /^    permissions:\r?\n      contents: read\r?\n      packages: write$/m,
   );
-  const registrySteps = workflow
-    .split(/(?=^      - name:)/m)
-    .filter((step) =>
-      /^      - name: (?:Log in to container registry|Publish verified)/m.test(step),
-    );
-  assert.equal(registrySteps.length, 2);
-  for (const step of registrySteps)
-    assert.match(step, /^        if: github.event_name == 'workflow_dispatch'$/m);
+  assert.doesNotMatch(publisher, /pull_request_target|workflow_run|continue-on-error|push: true/);
+  assert.match(publisher, /selectMarketplaceChecks\(null\)/u);
+  const orderedSteps = [
+    'node scripts/run-marketplace-checks.mjs extension',
+    'node scripts/run-marketplace-checks.mjs worker-browser',
+    'run: node scripts/run-marketplace-checks.mjs images',
+    'uses: docker/login-action@',
+    'docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"',
+    'docker push "ghcr.io/grischatdev/flipbase-chromium-broker:sha-$GITHUB_SHA"',
+    'docker push "ghcr.io/grischatdev/flipbase-chromium-session:sha-$GITHUB_SHA"',
+  ].map((step) => publisher.indexOf(step));
+  assert.ok(orderedSteps.every((position) => position >= 0));
+  assert.deepEqual(
+    orderedSteps,
+    [...orderedSteps].sort((left, right) => left - right),
+  );
+  assert.equal(publisher.match(/^\s+docker push /gmu)?.length, 3);
+  assert.match(publisher, /"workerImageRequired":true,"sessionImageRequired":true/u);
+  assert.match(publisher, /^  cancel-in-progress: false$/m);
   assert.match(workflow, /cancel-in-progress: \$\{\{ github.event_name == 'pull_request' \}\}/);
+  for (const source of [workflow, publisher]) assert.match(source, /persist-credentials: false/);
 });
 
 test('Erweiterung läuft als eigener Job einmal und wird vor Veröffentlichung sowie im Aggregat geprüft', () => {
@@ -67,7 +90,9 @@ test('Erweiterung läuft als eigener Job einmal und wird vor Veröffentlichung s
 });
 
 test('beide Imagejobs behalten den wegwerfbaren gehosteten Ubuntu-Runner', () => {
-  assert.equal(jobHeaders.length, 2);
-  for (const header of jobHeaders) assert.match(header, /^    runs-on: ubuntu-24\.04$/m);
-  assert.doesNotMatch(workflow, /(?:RUNNER_ENVIRONMENT|RUNNER_OS|GITHUB_ACTIONS):/);
+  const headers = [...verificationHeaders, ...publicationHeaders];
+  assert.equal(headers.length, 2);
+  for (const header of headers) assert.match(header, /^    runs-on: ubuntu-24\.04$/m);
+  for (const source of [workflow, publisher])
+    assert.doesNotMatch(source, /(?:RUNNER_ENVIRONMENT|RUNNER_OS|GITHUB_ACTIONS):/);
 });

@@ -132,6 +132,14 @@ wirklichen Docker-COPY-Quellen und Ignoredateien. Worker-/Brokerintegration und
 Sandbox-/Profilprüfungen teilen sich einen Sessionbau und einen Import-Smoke.
 Alle bestehenden Prüfungen der Isolation und Veröffentlichungsgrenzen bleiben.
 
+Der wiederverwendbare Prüfworkflow `marketplace-worker-image.yml` enthält
+ausschließlich Jobs mit Leserechten. Der separate `marketplace-image-publish.yml`
+veröffentlicht nur nach manuellem Start auf `master`: zuerst Extension und native
+Workerbrowser, dann der gemeinsame Imagebau samt Prüfungen, danach Login und Push
+derselben Images im selben Job. Änderungen an beiden Workflowdateien wählen alle
+Marketplace-Prüfbereiche. Schreibrechte des Publishers erreichen den PR-Aufrufer
+nicht; GitHub validiert auch bedingt ausgeschlossene Jobs eines aufgerufenen Workflows.
+
 ## Nachweis und vollständige Regression
 
 Die Sammelprüfung verlangt Erfolg für jeden ausgewählten Job. Fehler, Abbrüche

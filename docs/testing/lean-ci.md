@@ -118,6 +118,12 @@ geprüft.
 Die [Auswahldokumentation](affected-test-selection.md) erläutert konservative
 Rückfälle, Dateiüberschneidungen und vollständige geänderte Browserdateien.
 
+Die manuelle Marketplace-Veröffentlichung liegt separat in
+`marketplace-image-publish.yml` und läuft ausschließlich auf `master`. Sie prüft
+Extension, native Workerbrowser und Images vor Registryanmeldung und Push im selben
+Job. Der von PRs aufgerufene Imageprüfworkflow enthält keine Jobs mit Schreibrechten;
+seine gesamte Deklaration bleibt mit den Leserechten des Aufrufers vereinbar.
+
 ## Umfang bewusst begrenzen
 
 Der feste Browserkern enthält 20 zentrale Fälle, unter anderem Anmeldung,

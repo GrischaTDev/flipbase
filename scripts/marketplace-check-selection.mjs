@@ -10,7 +10,7 @@ const exec = promisify(execFile);
 
 const workerRoot = 'services/marketplace-worker/';
 const selectionPaths =
-  /^(?:package(?:-lock)?\.json|\.github\/workflows\/(?:ci|marketplace-worker-image|marketplace-chromium-image)\.yml|scripts\/(?:marketplace-check-selection|run-marketplace-checks|marketplace-image-checks|marketplace-image-permissions|preflight|ci-checks)(?:\.test)?\.mjs)$/u;
+  /^(?:package(?:-lock)?\.json|\.github\/workflows\/(?:ci|marketplace-worker-image|marketplace-image-publish|marketplace-chromium-image)\.yml|scripts\/(?:marketplace-check-selection|run-marketplace-checks|marketplace-image-checks|marketplace-image-permissions|preflight|ci-checks)(?:\.test)?\.mjs)$/u;
 const extensionPaths =
   /^(?:tools\/flipbase-extension\/|scripts\/(?:kleinanzeigen-|support\/kleinanzeigen-)|supabase\/functions\/(?:kleinanzeigen-|_shared\/(?:kleinanzeigen-|marketplace-local-extension)))/u;
 const sharedWorkerInputs =
