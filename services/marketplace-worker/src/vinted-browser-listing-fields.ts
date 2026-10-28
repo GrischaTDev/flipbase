@@ -119,7 +119,9 @@ export async function selectVintedListingField(
           return !previous || !current || previous.label !== current.label;
         })
       )
-        throw expected.field === 'brand' ? new VintedListingReadError('brand_match') : invalid();
+        throw expected.field === 'brand' || expected.field === 'package'
+          ? new VintedListingReadError(`${expected.field}_match`)
+          : invalid();
       if (selectedMatches(actual, ids)) return;
       const multiple = expected.field === 'color' || expected.field === 'material';
       const change =
@@ -128,12 +130,15 @@ export async function selectVintedListingField(
           : undefined) ??
         actual.choices.find((choice) => ids.includes(choice.id) && !choice.selected);
       if (!change || change.disabled)
-        throw expected.field === 'brand' ? new VintedListingReadError('brand_match') : invalid();
+        throw expected.field === 'brand' || expected.field === 'package'
+          ? new VintedListingReadError(`${expected.field}_match`)
+          : invalid();
       await check();
       try {
         await clickEnabled(choiceLocator(page, expected.field, change.id, actual.sizeGroupId));
       } catch (error) {
         if (expected.field === 'brand') throw new VintedListingReadError('brand_choice');
+        if (expected.field === 'package') throw new VintedListingReadError('package_choice');
         throw error;
       }
       if (expected.field === 'brand') {
@@ -154,7 +159,9 @@ export async function selectVintedListingField(
       if (expected.field !== 'package') await page.keyboard.press('Escape');
     }
   }
-  throw expected.field === 'brand' ? new VintedListingReadError('brand_match') : invalid();
+  throw expected.field === 'brand' || expected.field === 'package'
+    ? new VintedListingReadError(`${expected.field}_match`)
+    : invalid();
 }
 function priceMatches(text: string, cents: number): boolean {
   let value = text.replace(/[€\s]/gu, '');
