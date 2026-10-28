@@ -28,6 +28,7 @@ const store = {
   saveProfileDetails: vi.fn(),
 };
 let restore: (() => void) | undefined;
+let restoreTestBindings: (() => void) | undefined;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
     ...vintedProfileEditorRendering,
@@ -61,14 +62,17 @@ beforeEach(async () => {
   })
     .overrideComponent(VintedProfileEditorComponent, { set: { template: '', imports: [] } })
     .compileComponents();
-  await prepareMarketplaceRendering([
+  restoreTestBindings = await prepareMarketplaceRendering([
     {
       type: VintedProfileEditorComponent,
       path: 'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts',
     },
   ]);
 });
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  restoreTestBindings?.();
+});
 
 function editor() {
   const fixture = TestBed.createComponent(VintedProfileEditorComponent);

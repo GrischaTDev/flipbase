@@ -1,132 +1,172 @@
 # Schlanke CI für Flipbase
 
-Stand: 16. September 2026. Diese Entscheidung ersetzt die frühere tägliche und
-wöchentliche Prüfplanung sowie die Cache-/Runner-Benchmarkplanung.
+Stand: 28. Oktober 2026. Diese Seite beschreibt den geltenden Ablauf. Historische
+Messberichte und frühere Zahlen sind keine aktuelle Testvorgabe.
 
-## Vor dem Merge
-
-Format, Lint, Typprüfung und Build bleiben. Bei Frontendänderungen bleiben auch
-alle vorhandenen Node-, DOM- und Angular-Tests erhalten. Datenbank- und Botchecks
-laufen weiterhin bei passenden Änderungen. Reine Bot-Paketänderungen starten
-keine fachfremden Frontend-Testjobs und keinen zusätzlichen Frontend-PR-Build.
-
-**Ergänzung vom 15. Oktober 2026:** Reine Dokumentationsänderungen unter `docs/` und Markdown-Dateien direkt im
-Projektstamm einschließlich `AGENTS.md` wählen ausschließlich den Job
-`Documentation` und die gemeinsame Pflichtprüfung. Der kurze Job installiert
-die gesperrten Abhängigkeiten ohne Anwendungshooks und prüft die versionierten
-Markdown-Dateien mit Prettier. Anwendungstests, der große Qualitätsjob,
-Produktionsabbilder, Deployment und Release werden dabei übersprungen – sowohl
-im PR als auch nach dem Merge. Ein fehlgeschlagener Dokumentationscheck blockiert
-weiterhin die Pflichtprüfung.
-
-Eine gleichzeitig geänderte technische Datei hebt diese Ausnahme auf. Unbekannte
-Pfade und technische Dateien, die nach `docs/` verschoben werden, bleiben im
-bisherigen Prüfumfang. Reine Worker-Änderungen behalten ihren Qualitätsjob. Ein
-Dokumentationslauf stellt keinen V2-Nachweis über technische Prüfungen aus.
-
-Der allgemeine Chromium-Pflichtlauf prüft sechs Arbeitsabläufe:
-
-1. Anmelden und die zentralen Arbeitsbereiche über die Navigation öffnen.
-2. Artikel mit einem Bild speichern und nach Neuladen wieder öffnen.
-3. Einkaufsentwurf bearbeiten, Änderungen verwerfen und speichern.
-4. Zusatzausgaben nach erneutem Öffnen erhalten.
-5. Steuerwerte anzeigen und ungeprüfte Exporte sperren.
-6. Ein Einzelstück verkaufen und einen erneuten Verkauf im Frontend verhindern.
-
-Die ersten beiden Fälle sind kleine neue Tests mit `@core-smoke`. Die übrigen
-vier werden aus den vorhandenen, unveränderten Testfällen explizit ausgewählt.
-Das historische Kennzeichen `@pr-smoke` bezeichnet den bestehenden erweiterten
-Regressionstestbestand und macht neue Fälle nicht automatisch zur PR-Pflicht.
-Die Auswahlliste steht direkt in `playwright.pr.config.ts`.
-
-Die Browser-Tests laufen gegen die lokale Supabase (`npx supabase start`). Ein globales
-Setup registriert je Lauf ein Testkonto, jeder Test bekommt einen frischen Workspace.
-Testdaten entstehen über die echten Datenbankfunktionen (`e2e/support/sample-data.ts`).
-Die bestehenden Datenbank-, Berechtigungs-, Migrations- und fachlichen Tests werden
-dadurch nicht ersetzt.
-
-## Gezielte Prüfung einer Änderung
-
-Es gibt bewusst keine neue automatische Abhängigkeits- oder Testauswahl-Engine.
-Vor dem Push führt die bearbeitende Person die betroffenen zusätzlichen
-Browsertests aus und hält das Ergebnis im PR fest. Insbesondere bei Änderungen
-an Routing, Anmeldung, gemeinsamem Layout, Formularbausteinen oder Abhängigkeiten
-gehört die erweiterte Browserregression vor dem Merge dazu.
-
-Beispiele:
+## Vor dem PR
 
 ```bash
-# Allgemeiner, kleiner Pflichtlauf
-npm run test:e2e:pr
-
-# Vollständige Testdateien der bearbeiteten Funktion, auch nicht markierte Fälle
-npm run test:e2e -- e2e/product-editor-storefront.spec.ts
-npm run test:e2e -- e2e/deal-monitor.spec.ts e2e/sniper-administration.spec.ts
-npm run test:e2e -- e2e/entry-pages.spec.ts e2e/purchase-dropdown-layer.spec.ts
-
-# Alle bisherigen 17 markierten Fälle plus zwei neue Fälle in einem Browser
-npm run test:e2e:nightly -- --project=chromium
+npm ci
+npm run preflight:plan
+npm run preflight
 ```
 
-Diese erweiterten Prüfungen sind außerhalb des kleinen Pflichtlaufs nicht
-technisch als Merge-Gate erzwungen. Das ist eine bewusste Vereinfachung für das
-kleine Team, kein Versprechen gleicher automatischer Abdeckung wie zuvor.
-Bei Problemen lässt sich vor einer Auslieferung der erweiterte Lauf starten.
+Der Plan verwendet standardmäßig den gemeinsamen Vorfahren mit `origin/master`.
+Vorher den Zielzweig mit `git fetch origin --prune` aktualisieren. Ein anderer
+Zielzweig lässt sich mit `-- --base <ref>` angeben. Commits, Index,
+Arbeitskopie, Löschungen und neue nicht ignorierte Dateien fließen in die Auswahl
+ein. Git-Konflikte oder eine nicht auflösbare Basis beenden den Vorabcheck.
 
-## Keine automatischen Zusatzläufe
+`preflight:plan` führt keine Tests aus. Der eigentliche Vorabcheck prüft zuerst
+die Ausführungsgrenze für ausgewählte Marketplace-Images, danach seine benötigten
+Werkzeuge. Fehlende Voraussetzungen sind Fehler.
+Ein ausgelassener Pflichtbereich wird nicht als erfolgreich gewertet.
+`scripts/preflight.mjs` liefert auch die GitHub-Jobauswahl;
+`scripts/ci-checks.mjs`, `run-affected-tests.mjs` und
+`run-marketplace-checks.mjs` enthalten die gemeinsamen Ausführungsbefehle.
 
-`Optional quality checks` ist ausschließlich manuell startbar. Ausgewählt wird
-genau ein Bereich: Browserregression, vollständige Testabdeckung oder lokale
-Datenbankprüfungen einschließlich parallelem Verkauf. Bei Browserprüfungen wird
-außerdem genau eine Engine gewählt; standardmäßig Chromium.
+### Lokale Voraussetzungen
 
-Die täglichen/wöchentlichen Wiederholungen, ihr zusätzlicher Steuerungsjob und
-der automatische 20-fache Node-Stresstest entfallen. Die npm-Befehle für gezielte
-Testabdeckung und Reihenfolge-Diagnose bleiben als manuelle Werkzeuge erhalten.
-`quality-nightly.yml` und `test:e2e:nightly` behalten ihre Namen aus Kompatibilität;
-sie führen nicht mehr zu einem nächtlichen Start.
+- Node 22 und die gesperrten Root-Abhängigkeiten aus `npm ci`.
+- Actionlint 1.7.12 für technische Änderungen. Ein abweichender Installationspfad
+  kann über `ACTIONLINT_BIN` angegeben werden. Die CI prüft den Download gegen
+  die im Workflow festgelegte SHA-256-Prüfsumme.
+- Eine erreichbare Docker-Engine für die vorhandenen Deploymenttests im
+  Qualitätsjob sowie für ausgewählte Datenbank-, Push- und Sniper-Imageprüfungen.
+- Deno 2.9.7, wenn Marketplace- oder Push-Funktionen ausgewählt sind.
+- PowerShell (`pwsh`) für die bestehende Inventory-Fixture im Qualitätsjob.
+- Für Anwendungsbrowser- und Datenbanktests eine bereits laufende lokale
+  Supabase (`npm run supabase:start`) mit nachgewiesenem Migrationsstand. Ein
+  Start allein wendet neue Dateien auf eine bereits laufende Datenbank nicht
+  zwingend an. Vor den Tests liest der Vorabcheck ausschließlich die Historie
+  im festen lokalen Container `supabase_db_flipbase-supabase`: Alle lokalen
+  Migrationsversionen müssen vorhanden sein, fremde Versionen sind unzulässig.
+  Für gegenüber dem Merge-Base neue Migrationen muss außerdem der gespeicherte
+  angewandte SQL-Inhalt mit der aktuellen Datei übereinstimmen. Fehlender,
+  unbekannter oder abweichender Inhalt bricht als **unvollständig** ab.
+  Die lokale Datenbank dann bewusst mit den geprüften Branchmigrationen
+  aktualisieren; ein bloßes Reparieren der Historienversionen ist kein
+  Ausführungsnachweis. Der Vorabcheck setzt eine vorhandene Entwicklungsdatenbank
+  nicht zurück und hält sie nicht an.
+- Die zu den Lockfiles passenden Browser für ausgewählte Browserprüfungen.
+  Für die Anwendung: `npx playwright install --with-deps chromium webkit`.
+  Native Workerfälle benötigen zusätzlich die eigene gesperrte Worker-Version:
+  `npm ci --prefix services/marketplace-worker --ignore-scripts` und anschließend
+  im Verzeichnis `services/marketplace-worker` den Befehl
+  `npx playwright install --with-deps chromium` ausführen.
 
-Der zusätzliche Benchmark-Workflow und seine beiden Messskripte werden entfernt.
-Historische Messberichte bleiben als Dokumentation erhalten, nicht als aktuelle
-Arbeitsanweisung. Es gibt keine neue Benchmark-Infrastruktur.
+Marketplace-Image- und Hostprüfungen laufen ausschließlich auf dem wegwerfbaren,
+von GitHub gehosteten Linux-Runner des Marketplace-Imageworkflows. Sie richten
+unter anderem Firewall und systemd auf dem Host ein und verwenden exklusive
+Container-Fixtures. Ein normaler Entwicklerhost oder selbst gehosteter Runner
+ist dafür nicht geeignet. Sobald dieser Pflichtbereich ausgewählt ist, bricht
+`npm run preflight` deshalb **vor den Ausführungsbefehlen als unvollständig** ab.
+Auch der direkte Image-Runner und das Shellskript prüfen diese Grenze vor
+Imagebau, Docker, sudo und Cleanup. Die Planansicht bleibt lokal nutzbar und
+zeigt die erforderlichen Images weiterhin an; die CI muss deren vollständigen
+Nachweis liefern. Extension- und native Worker-Browserbefehle bleiben lokal
+nutzbar. Es gibt keine lokale Opt-in-Variable zum Freischalten der Hostprüfungen.
 
-## Diagnose ohne dauerhafte Aufzeichnung
+Die Grenze prüft die von GitHub gesetzten Werte `GITHUB_ACTIONS=true`,
+`RUNNER_ENVIRONMENT=github-hosted`, `RUNNER_OS=Linux`, ein absolutes `RUNNER_TEMP`
+und das tatsächliche Linux-Betriebssystem. `CI=true` genügt ausdrücklich nicht.
+Das folgt den offiziellen [Runner-Variablen](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
+und der [GitHub-Runnerbeschreibung](https://docs.github.com/en/actions/concepts/runners/github-hosted-runners);
+beide Imagejobs bleiben auf `ubuntu-24.04` festgelegt. Diese Prüfung schützt vor
+versehentlichen Aufrufen im falschen Kontext; sie ist keine Attestierung gegen
+absichtlich gefälschte Prozessumgebungen.
 
-Im Pflichtlauf bleiben Fehler-Screenshots erhalten. Traces sind standardmäßig
-ausgeschaltet, bei Bedarf einschaltbar. Unter Bash beispielsweise:
+Die CI läuft auf `ubuntu-24.04`. Der lokale Vorabcheck setzt `CI=true`, damit
+Browserparallelität und Vorschauen den PR-Einstellungen entsprechen. Ein Lauf
+auf einem anderen Betriebssystem ersetzt bei plattformabhängigen Fehlern keinen
+Linux-Nachweis. Browserprüfungen verwenden die vorhandene lokale Supabase-Grenze;
+Marketplace-Prüfungen arbeiten mit lokalen Testmasken. Der Qualitätsjob entfernt
+geerbte `PG*`-Verbindungsvariablen, damit die Release-Datenbankfixture ausschließlich
+in ihrer isolierten PostgreSQL-Gruppe aktiv wird.
 
-```bash
-E2E_TRACE=1 npm run test:e2e:pr
-```
+Der lokale Inhaltsvergleich folgt der gespeicherten `statements text[]`-Form
+von Supabase CLI 2.114.0: Er erhält Kommentare, Reihenfolge und innere Leerzeichen;
+nur äußere Leerzeichen und echte Statement-Endsemikolons entfallen.
+Dollarstrings, Anführungszeichen und verschachtelte Kommentare werden berücksichtigt.
+Nicht sicher unterstützte Lexik (etwa Escape-Strings oder `BEGIN ATOMIC`) führt
+konservativ zu **unvollständig**. Das ist ein begrenzter Migrationsnachweis, kein
+allgemeiner Abgleich nachträglicher manueller DDL-Änderungen. Die vorhandenen
+Release-Werkzeuge speichern selbst keinen SQL-Inhalt und ersetzen diesen lokalen
+CLI-Nachweis daher nicht.
+Der Vertrag wurde anhand der offiziellen Quellen
+[SQL-Aufteilung](https://github.com/supabase/cli/blob/v2.114.0/apps/cli/src/legacy/shared/legacy-sql-split.ts),
+[Migrationsanwendung](https://github.com/supabase/cli/blob/v2.114.0/apps/cli/src/legacy/shared/legacy-migration-apply.ts)
+und [Historie](https://github.com/supabase/cli/blob/v2.114.0/apps/cli/src/legacy/shared/legacy-migration-history.ts)
+geprüft.
 
-Unter PowerShell:
+## Was automatisch läuft
 
-```powershell
-$env:E2E_TRACE = '1'
-npm run test:e2e:pr
-Remove-Item Env:E2E_TRACE
-```
+| Bereich              | Auswahl                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Dokumentation        | Ausschließlich Markdown-Formatierung bei reinen Dokumentationsänderungen                                            |
+| Qualität             | Format, Lint, Typprüfung, Workflowverträge, Suite-Audit und Actionlint bei technischen Änderungen                   |
+| Anwendung            | Betroffene Node-, DOM- und Angular-Dateien; bei globalen oder unsicher zuordenbaren Änderungen alle Anwendungstests |
+| Anwendungsbau        | Bei anwendungsrelevanten technischen Änderungen im PR, einschließlich Angular-Vorlagen                              |
+| Browser              | Betroffene Fachfälle; bei breiten Änderungen zusätzlich fester Kern und gemeinsame Layoutprüfung                    |
+| Produktions-PWA      | Eigener Job bei betroffenen Service-Worker-, Offline-, Update-, Installations- oder Push-Abhängigkeiten             |
+| Datenbank            | pgTAP, Rechte, Migrationen und Nebenläufigkeit bei passenden Schema-/Werkzeugänderungen                             |
+| Dienste              | Betroffene Marketplace-, Push- und Sniper-Prüfungen                                                                 |
+| Erweiterung          | Ein eigener Job mit beiden vorhandenen Kleinanzeigen-Browserprüfungen                                               |
+| Native Workerbrowser | Aus lokalen Imports abgeleitete bestehende Testdateien                                                              |
+| Marketplace-Images   | Ein wiederverwendbarer Workflow; Sessionbau und Import-Smoke werden gemeinsam genutzt                               |
 
-Für einen einzelnen Sonderfall kann alternativ Playwrights `--trace on` verwendet
-werden. Bestehende explizite Screenshots der ausführlichen Tests entstehen nur,
-wenn diese Tests gezielt beziehungsweise im erweiterten Lauf ausgeführt werden.
+Die [Auswahldokumentation](affected-test-selection.md) erläutert konservative
+Rückfälle, Dateiüberschneidungen und vollständige geänderte Browserdateien.
 
-## Auslieferung und Nachweise
+## Umfang bewusst begrenzen
 
-Produktionsbau, Images, Migrationen, Image-Smoke, öffentlicher Versionscheck und
-Release bleiben unverändert. `application_tests` trennt die Testauswahl vom
-bestehenden Release-Schalter. Ein V2-Prüfnachweis erlaubt Wiederverwendung nur
-für identischen Git-Inhalt und ausreichenden Umfang. Alte Nachweise ersetzen
-die neue Prüfung nicht.
+Der feste Browserkern enthält 20 zentrale Fälle, unter anderem Anmeldung,
+Zugriffsgrenzen, Einkauf, Einzelverkauf, Steuern, Dokumente, Import und sichere
+Veröffentlichung. Die breite gemeinsame Layoutauswahl ergänzt derzeit 46 Fälle.
+Eine reine globale Änderung ohne zusätzliche Fachzuordnung wählt damit 66 statt
+der bisherigen 250 allgemeinen Browserfälle. Fachänderungen können weitere
+Fälle erfordern; 66 ist keine Obergrenze.
 
-## Messgrenzen
+Für kleine Featureänderungen wird dieser Kern nicht pauschal hinzugefügt.
+Bekannte mehrfach parametrisierte Layoutfamilien verwenden im gezielten Lauf
+repräsentative Telefon-/Desktopgrößen und beide Farbschemata. Besondere Fehler-,
+Fokus-, Bedienungs- und Berechtigungsfälle bleiben erhalten. Direkt geänderte
+Browserdateien laufen mit sämtlichen Varianten. Die vollständigen Tests bleiben
+im Repository für gezielte Diagnose und manuelle Regression vorhanden.
 
-Die Konfiguration reduziert den allgemeinen Browserbestand von 17 auf sechs
-Fälle. Das ist keine Behauptung einer bestimmten prozentualen Laufzeitersparnis.
-Die vier Daten-/Geldfälle bleiben unverändert. Alle Angular-Tests laufen bei
-Frontendänderungen weiterhin; sie können deshalb auch nach der Verschlankung
-noch den längsten Pfad des PR-Prüflaufs bestimmen.
+Schnelle fachliche Unit-Tests werden nicht nach einer Zielanzahl gelöscht.
+Entfernt sind der doppelte Prettier-Test der Verkaufserfassung und der
+JavaScript-Nachbau einer SQL-UUID-Prüfung. Die Lieferantenfälle werden in der
+bestehenden echten Datenbankprüfung abgesichert, einschließlich unvollständiger
+und überlanger Kennungen. Formatierung bleibt Aufgabe des Qualitätsjobs.
 
-Die erste echte CI-Ausführung muss Laufzeit, ausgewählte Fälle und Erfolg
-bestätigen. Keine zusätzlichen vollständigen Benchmarkläufe nur zur Ermittlung
-einer schöneren Prozentzahl starten.
+## Diagnose und Freigabe
+
+Browserfehler behalten Screenshots und Fehler-Traces. Es gibt keine zusätzlichen
+allgemeinen Retries. Ein Fehler bleibt ein Fehler; erneute Läufe brauchen einen
+konkreten Grund. Die Auswahltests kontrollieren mit Playwrights echter Auflistung,
+dass erforderliche Gruppen nicht leer sind und Fälle eindeutig zugeordnet bleiben.
+Eine Auflistung bestätigt die Auswahl, nicht das Browserverhalten.
+
+GitHub Free im später privaten Repository wird nicht als technische Merge-Sperre
+behandelt. Branch Protection und Rulesets sind keine Voraussetzung dieses Ablaufs.
+Der Sammelcheck zeigt den Gesamtstatus; die bestehenden Jobabhängigkeiten und
+Ergebnisprüfungen blockieren die automatische Veröffentlichung bei Fehlern.
+Vor einem manuellen Merge müssen alle ausgewählten Prüfungen erfolgreich sein.
+
+Nach dem Merge dürfen erfolgreiche PR-Prüfungen nur für denselben Git-Dateibaum
+und denselben gebundenen Prüfumfang wiederverwendet werden. Der Nachweis umfasst
+jetzt zusätzlich Extension-, native Workerbrowser- und Imageauswahl.
+Fehlt ein passender Nachweis, führt CI die Prüfungen erneut aus.
+
+## Manuelle zusätzliche Prüfung
+
+`npm run verify` bleibt für breite Integrationen verfügbar, ersetzt aber nicht
+alle Docker-, Browser- und Dienstprüfungen des Vorabchecks. Die vollständige
+Browserregression läuft über `npm run test:e2e:nightly -- --project=chromium`
+oder „Optional quality checks“. Der historisch benannte Workflow
+`quality-nightly.yml` wird ausschließlich manuell gestartet.
+
+Es gibt keine neuen täglichen oder wöchentlichen Volltests. Die tatsächliche
+Laufzeitersparnis wird anhand regulärer PRs beurteilt. Fallzahlen und einzelne
+lokale Messungen sind kein Nachweis einer bestimmten CI-Laufzeit.

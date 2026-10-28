@@ -6,6 +6,10 @@ import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import {
+  coreBrowserFiles as coreFiles,
+  layoutBrowserFiles as layoutFiles,
+} from './browser-test-selection.mjs';
+import {
   classifyChanges,
   detectChangedPaths,
   pathsSelectPush,
@@ -68,7 +72,7 @@ const featureSpecs = {
 };
 
 const globalPath =
-  /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|playwright\.[^/]*|\.github\/workflows\/ci\.yml|scripts\/(?:affected-tests|run-affected-tests|detect-supabase-changes|reuse-pr-checks|required-checks|playwright-pr-smoke)[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/layout\/|src\/app\/core\/guards\/|supabase\/)/u;
+  /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|playwright\.[^/]*|\.github\/workflows\/ci\.yml|scripts\/(?:affected-tests|run-affected-tests|detect-supabase-changes|reuse-pr-checks|required-checks|playwright-pr-smoke|browser-test-selection)[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/layout\/|src\/app\/core\/guards\/|supabase\/)/u;
 const pwaPath =
   /^(?:public\/(?:sw\.js|manifest\.webmanifest|icons\/)|ngsw-config\.json|scripts\/(?:.*pwa.*|service-worker.*|app-startup.*)|e2e\/pwa-|src\/app\/(?:core\/services\/(?:pwa|push-navigation|web-push)|shared\/components\/(?:pwa-|push-navigation)|features\/purchases\/(?:components\/purchase-entry-form\/|guards\/purchase-entry|services\/(?:offline-purchase|purchase-buffer)|models\/offline-purchase|utils\/(?:offline-purchase|purchase-buffer))))/u;
 const implicitGlobalPath =
@@ -190,7 +194,7 @@ export function selectAffectedTests(paths, files) {
       !file.startsWith('services/push-worker/') &&
       classifyChanges([file]).application_tests,
   );
-  const full =
+  let full =
     paths === null ||
     [...globalConsumers].some((file) => globalRoots.has(file)) ||
     applicationPaths.some(
@@ -208,14 +212,6 @@ export function selectAffectedTests(paths, files) {
   const affected = new Set(changed);
   for (const file of affected)
     for (const consumer of reverse.get(file) ?? []) affected.add(consumer);
-  const units = { node: [], dom: [], angular: [] };
-  for (const file of Object.keys(files).sort()) {
-    if (!isSpec(file) || typeof files[file] !== 'string' || (!full && !affected.has(file)))
-      continue;
-    units[
-      file.endsWith('.angular.spec.ts') ? 'angular' : file.endsWith('.dom.spec.ts') ? 'dom' : 'node'
-    ].push(file);
-  }
   const candidates = new Set();
   for (const file of affected) {
     // Routensammlungen und Tests importieren mehrere Funktionen. Ihre indirekte
@@ -229,6 +225,36 @@ export function selectAffectedTests(paths, files) {
       continue;
     for (const name of browserSpecs(file, files)) candidates.add(`e2e/${name}.spec.ts`);
   }
+  const hasFeatureOrBrowserConsumer = (file) => {
+    // Jede unsichere Änderung braucht ihren eigenen nachweisbaren Verbraucher.
+    // Ein unabhängig geändertes Feature darf einen verwaisten Pfad nicht verdecken.
+    const consumers = new Set([file]);
+    for (const consumer of consumers)
+      for (const dependent of reverse.get(consumer) ?? []) consumers.add(dependent);
+    return [...consumers].some(
+      (consumer) =>
+        (/^src\/app\/features\//u.test(consumer) && !consumer.endsWith('.spec.ts')) ||
+        isBrowser(consumer),
+    );
+  };
+  // Verwaiste gemeinsame Dateien und entfernte Browserdateien lassen sich
+  // nicht zuverlässig einem vorhandenen Verbraucher zuordnen.
+  full ||= applicationPaths.some(
+    (file) =>
+      (isBrowser(file) && typeof files[file] !== 'string') ||
+      (/^(?:src\/app\/(?:core|shared)\/|e2e\/support\/)/u.test(file) &&
+        !file.endsWith('.spec.ts') &&
+        !pwaPath.test(file) &&
+        !hasFeatureOrBrowserConsumer(file)),
+  );
+  const units = { node: [], dom: [], angular: [] };
+  for (const file of Object.keys(files).sort()) {
+    if (!isSpec(file) || typeof files[file] !== 'string' || (!full && !affected.has(file)))
+      continue;
+    units[
+      file.endsWith('.angular.spec.ts') ? 'angular' : file.endsWith('.dom.spec.ts') ? 'dom' : 'node'
+    ].push(file);
+  }
   const changedBrowserFiles = sorted(
     changed.filter((file) => isBrowser(file) && typeof files[file] === 'string'),
   );
@@ -238,12 +264,22 @@ export function selectAffectedTests(paths, files) {
         typeof files[file] === 'string' &&
         isBrowser(file) &&
         !changedBrowserFiles.includes(file) &&
-        (full || candidates.has(file) || affected.has(file)),
+        (candidates.has(file) || affected.has(file)),
     ),
   );
+  const available = (file) =>
+    typeof files[file] === 'string' &&
+    !changedBrowserFiles.includes(file) &&
+    !browserFiles.includes(file);
+  const coreBrowserFiles = full ? sorted(coreFiles.filter(available)) : [];
+  const layoutBrowserFiles = full ? sorted(layoutFiles.filter(available)) : [];
   return {
     full,
     units,
+    coreBrowserFiles,
+    layoutBrowserFiles,
+    // Fachlich betroffene Dateien bleiben vollständig in ihrer eigenen Gruppe.
+    // Kern/Layout ziehen diese Dateien vorher ab, keine einzelnen Fachfälle.
     browserFiles,
     changedBrowserFiles,
     checks: {
@@ -319,17 +355,22 @@ export function buildUnitMatrix(plan) {
 
 export function buildBrowserMatrix(plan) {
   return [
+    { project: 'core-smoke', files: plan.coreBrowserFiles ?? [] },
+    { project: 'layout', files: plan.layoutBrowserFiles ?? [] },
     { project: 'chromium', files: plan.browserFiles },
     { project: 'changed-tests', files: plan.changedBrowserFiles },
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // Jede Teilgruppe erhält einen eigenen Runner und eine frische Anmeldung.
-      // Nicht mehr Teilgruppen als Dateien erzeugen, damit kleine Änderungen keine leeren Jobs erhalten.
-      const groups = plan.full ? Math.min(3, files.length) : 1;
+      // Vollständig geänderte Dateigruppen behalten ihre bisherigen frischen
+      // Sitzungen. Kern und Layout sind bereits kleine, getrennte Projekte.
+      const groups =
+        plan.full && ['chromium', 'changed-tests'].includes(project)
+          ? Math.min(3, files.length)
+          : 1;
       return Array.from({ length: groups }, (_, index) => ({
         project,
-        shard: String(index + 1) + '/' + String(groups),
+        shard: `${index + 1}/${groups}`,
       }));
     });
 }
@@ -368,7 +409,7 @@ async function main() {
         .map(([key, value]) => `${key}=${value}\n`)
         .join(''),
     );
-  const summary = `Betroffene Prüfungen: ${plan.full ? 'umfassend (gemeinsame/unklare Änderung)' : 'gezielt'}; Node ${plan.units.node.length}, DOM ${plan.units.dom.length}, Angular ${plan.units.angular.length}, Browserdateien ${plan.browserFiles.length + plan.changedBrowserFiles.length}, PWA ${plan.pwa ? 'ja' : 'nein'}.\n`;
+  const summary = `Betroffene Prüfungen: ${plan.full ? 'umfassend (gemeinsame/unklare Änderung)' : 'gezielt'}; Node ${plan.units.node.length}, DOM ${plan.units.dom.length}, Angular ${plan.units.angular.length}, Browserdateien ${new Set([...(plan.coreBrowserFiles ?? []), ...(plan.layoutBrowserFiles ?? []), ...plan.browserFiles, ...plan.changedBrowserFiles]).size}, PWA ${plan.pwa ? 'ja' : 'nein'}.\n`;
   console.log(JSON.stringify({ ...plan, selection_hash: output.selection_hash }));
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary);
 }

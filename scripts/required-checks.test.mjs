@@ -18,6 +18,13 @@ function runChecker(overrides = {}) {
       APPLICATION_TESTS_CHANGED: 'true',
       SUPABASE_CHANGED: 'true',
       SNIPER_CHANGED: 'true',
+      EXTENSION_REQUIRED: 'false',
+      WORKER_BROWSER_REQUIRED: 'false',
+      WORKER_IMAGE_REQUIRED: 'false',
+      SESSION_IMAGE_REQUIRED: 'false',
+      EXTENSION_RESULT: 'skipped',
+      WORKER_BROWSER_RESULT: 'skipped',
+      MARKETPLACE_IMAGES_RESULT: 'skipped',
       QUALITY_RESULT: 'success',
       DOCUMENTATION_RESULT: 'skipped',
       UNIT_RESULT: 'success',
@@ -228,4 +235,48 @@ test('lehnt fehlende oder unzulässige Testauswahl auch bei Wiederverwendung ab'
       );
     }
   }
+});
+
+for (const [required, result] of [
+  ['EXTENSION_REQUIRED', 'EXTENSION_RESULT'],
+  ['WORKER_BROWSER_REQUIRED', 'WORKER_BROWSER_RESULT'],
+  ['SESSION_IMAGE_REQUIRED', 'MARKETPLACE_IMAGES_RESULT'],
+]) {
+  test(`${required}: erforderlich, nicht ausgewählt und wiederverwendet bleiben verpflichtend`, () => {
+    assert.equal(runChecker({ [required]: 'true', [result]: 'success' }).status, 0);
+    for (const state of ['failure', 'cancelled', 'skipped', '']) {
+      assert.notEqual(runChecker({ [required]: 'true', [result]: state }).status, 0, state);
+    }
+    assert.notEqual(runChecker({ [required]: '', [result]: 'skipped' }).status, 0);
+    assert.notEqual(runChecker({ [required]: 'false', [result]: 'success' }).status, 0);
+    assert.notEqual(
+      runChecker({ ...documentationOnly, [required]: 'true', [result]: 'success' }).status,
+      0,
+    );
+    const reused = {
+      TESTS_REUSED: 'true',
+      QUALITY_RESULT: 'skipped',
+      UNIT_RESULT: 'skipped',
+      DATABASE_RESULT: 'skipped',
+      SNIPER_RESULT: 'skipped',
+      BROWSER_RESULT: 'skipped',
+      PWA_RESULT: 'skipped',
+      [required]: 'true',
+      [result]: 'skipped',
+    };
+    assert.equal(runChecker(reused).status, 0);
+    assert.notEqual(runChecker({ ...reused, [result]: 'failure' }).status, 0);
+  });
+}
+
+test('Worker-Image verlangt die gemeinsame Sessionprüfung', () => {
+  assert.notEqual(runChecker({ WORKER_IMAGE_REQUIRED: 'true' }).status, 0);
+  assert.equal(
+    runChecker({
+      WORKER_IMAGE_REQUIRED: 'true',
+      SESSION_IMAGE_REQUIRED: 'true',
+      MARKETPLACE_IMAGES_RESULT: 'success',
+    }).status,
+    0,
+  );
 });

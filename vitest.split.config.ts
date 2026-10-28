@@ -43,7 +43,6 @@ export default defineConfig({
           setupFiles: ['src/test-setup.ts', 'src/test-setup.angular-fallback.ts'],
           pool: 'forks',
           isolate: true,
-          vmMemoryLimit: '1GB',
         },
       },
     ],

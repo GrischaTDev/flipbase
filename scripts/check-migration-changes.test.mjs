@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { migrationChanges, validateMigrationChanges } from './check-migration-changes.mjs';
 
 const script = fileURLToPath(new URL('./check-migration-changes.mjs', import.meta.url));
 
@@ -53,4 +54,35 @@ test('erkennt vergessene Migrationen und Änderungen alter Dateien bereits im Gi
   result = run();
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Bestehende Migration/u);
+});
+
+test('prüft Schema und neue Migration vor dem Commit einschließlich Index und Arbeitskopie', async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), 'migration-worktree-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+  git('init', '--quiet');
+  git('config', 'user.name', 'Test');
+  git('config', 'user.email', 'test@example.invalid');
+  await mkdir(join(cwd, 'supabase/schemas'), { recursive: true });
+  await mkdir(join(cwd, 'supabase/migrations'));
+  const schema = join(cwd, 'supabase/schemas/10_core.sql');
+  const initial = 'supabase/migrations/20260905000001_initial.sql';
+  await writeFile(schema, 'select 1;');
+  await writeFile(join(cwd, initial), 'select 1;');
+  git('add', '.');
+  git('commit', '--quiet', '-m', 'base');
+  const base = git('rev-parse', 'HEAD');
+  const changes = () => migrationChanges(base, undefined, { repository: cwd, worktree: true });
+  await writeFile(schema, 'select 2;');
+  const schemaOnly = await changes();
+  assert.throws(() => validateMigrationChanges(schemaOnly), /keine neue Migrationsdatei/u);
+  const added = 'supabase/migrations/20261028000001_update.sql';
+  await writeFile(join(cwd, added), 'select 2;');
+  validateMigrationChanges(await changes());
+  git('add', added);
+  validateMigrationChanges(await changes());
+  // Auch eine Umbenennung darf eine bereits ausgelieferte Migration nicht ersetzen.
+  git('mv', initial, 'supabase/migrations/20260905000002_renamed.sql');
+  const renamed = await changes();
+  assert.throws(() => validateMigrationChanges(renamed), /Bestehende Migration/u);
 });

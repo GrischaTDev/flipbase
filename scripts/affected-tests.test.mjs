@@ -5,7 +5,12 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { selectAffectedTests, buildUnitMatrix, buildBrowserMatrix } from './affected-tests.mjs';
+import {
+  selectAffectedTests,
+  buildUnitMatrix,
+  buildBrowserMatrix,
+  readSelectionFiles,
+} from './affected-tests.mjs';
 
 const files = {
   'src/app/shared/components/product-gallery/product-gallery.component.ts': `@Component({templateUrl: './product-gallery.component.html'}) export class Gallery {}`,
@@ -133,7 +138,7 @@ test('globale Browservorbereitung und zentraler Appstart behalten einen umfassen
     const plan = selectAffectedTests([file], files);
     assert.equal(plan.full, true, file);
     assert.equal(plan.pwa, true, file);
-    assert.ok(plan.browserFiles.length > 0);
+    assert.ok(plan.coreBrowserFiles.length > 0);
   }
 });
 
@@ -358,27 +363,14 @@ test('auch die zweite Browsergruppe muss erfolgreich sein', () => {
   assert.equal(invocations.length, 2);
 });
 
-test('die umfassende Browserauswahl erhält drei getrennte frische Sitzungen', () => {
+test('auch umfassende Browserläufe führen jede kleinere Projektgruppe nur einmal aus', () => {
   const { result, invocations } = runBrowserGroups(twoBrowserGroups, '', []);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(
-    invocations.map(({ project, args }) => [
-      project,
-      args.find((arg) => arg.startsWith('--shard=')) ?? null,
-    ]),
-    [
-      ['chromium', '--shard=1/3'],
-      ['chromium', '--shard=2/3'],
-      ['chromium', '--shard=3/3'],
-      ['changed-tests', null],
-    ],
+    invocations.map(({ project }) => project),
+    ['chromium', 'changed-tests'],
   );
-});
-
-test('ein Fehler in der zweiten Teilgruppe stoppt vor weiteren Browserfällen', () => {
-  const { result, invocations } = runBrowserGroups(twoBrowserGroups, 'chromium', [], '2/3');
-  assert.equal(result.status, 7);
-  assert.equal(invocations.length, 2);
+  assert.ok(invocations.every(({ args }) => !args.some((arg) => arg.startsWith('--shard='))));
 });
 
 test('gezielte Browserläufe bleiben ohne zusätzliche Teilgruppen', () => {
@@ -626,4 +618,167 @@ test('Aktionsübersicht wählt ihre Browsermatrix für Anzeige und persönliche 
     assert.equal(plan.full, false);
     assert.ok(plan.browserFiles.includes(browser), changed);
   }
+});
+
+test('unbekannte gemeinsame Dateien und gelöschte Browserdateien bleiben konservativ', () => {
+  for (const path of [
+    'src/app/shared/new-control.ts',
+    'src/app/core/new-boundary.ts',
+    'e2e/removed.spec.ts',
+  ]) {
+    const plan = selectAffectedTests([path], files);
+    assert.equal(plan.full, true, path);
+    assert.ok(plan.coreBrowserFiles.length > 0, path);
+    assert.equal(plan.pwa, true, path);
+  }
+});
+
+test('Kern und Layout gehören nur zum umfassenden Plan und ersetzen keine direkt geänderte Datei', () => {
+  const sources = {
+    ...files,
+    'e2e/admin-layout.spec.ts': '',
+    'e2e/pwa-mobile-layout.spec.ts': '',
+  };
+  const targeted = selectAffectedTests(
+    ['src/app/features/purchases/purchases.component.html'],
+    sources,
+  );
+  assert.deepEqual(targeted.coreBrowserFiles, []);
+  assert.deepEqual(targeted.layoutBrowserFiles, []);
+  const global = selectAffectedTests(
+    ['package-lock.json', 'e2e/pwa-mobile-layout.spec.ts'],
+    sources,
+  );
+  assert.ok(global.coreBrowserFiles.includes('e2e/purchase-profitability.spec.ts'));
+  assert.deepEqual(global.layoutBrowserFiles, ['e2e/admin-layout.spec.ts']);
+  assert.deepEqual(global.changedBrowserFiles, ['e2e/pwa-mobile-layout.spec.ts']);
+  assert.deepEqual(
+    buildBrowserMatrix(global).map(({ project }) => project),
+    ['core-smoke', 'layout', 'changed-tests'],
+  );
+});
+
+test('Dateileser berücksichtigt unversionierte Quellen und Vorlagen, aber keine ignorierten Ausgaben', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'flipbase-selection-files-'));
+  try {
+    assert.equal(spawnSync('git', ['init', '--quiet', directory]).status, 0);
+    for (const folder of ['src/app/features/purchases', 'src/node_modules', 'e2e'])
+      mkdirSync(join(directory, folder), { recursive: true });
+    writeFileSync(join(directory, '.gitignore'), 'node_modules/\n');
+    writeFileSync(join(directory, 'src/tracked.ts'), 'export const tracked = true;');
+    assert.equal(spawnSync('git', ['add', 'src/tracked.ts'], { cwd: directory }).status, 0);
+    const component = 'src/app/features/purchases/new-form';
+    writeFileSync(
+      join(directory, component + '.ts'),
+      "@Component({templateUrl: './new-form.html'}) export class Form {}",
+    );
+    writeFileSync(join(directory, component + '.html'), '<button>Speichern</button>');
+    writeFileSync(join(directory, component + '.spec.ts'), "import './new-form';");
+    writeFileSync(join(directory, 'e2e/purchase-profitability.spec.ts'), '');
+    writeFileSync(join(directory, 'src/node_modules/ignored.ts'), 'export const ignored = true;');
+    const discovered = await readSelectionFiles(directory);
+    assert.deepEqual(
+      Object.keys(discovered).sort(),
+      [
+        'e2e/purchase-profitability.spec.ts',
+        component + '.html',
+        component + '.spec.ts',
+        component + '.ts',
+        'src/tracked.ts',
+      ].sort(),
+    );
+    const plan = selectAffectedTests([component + '.html'], discovered);
+    assert.equal(plan.full, false);
+    assert.deepEqual(plan.units.node, [component + '.spec.ts']);
+    assert.deepEqual(plan.browserFiles, ['e2e/purchase-profitability.spec.ts']);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('große umfassende Dateigruppen behalten getrennte Sitzungen ohne doppelte CI-Aufrufe', () => {
+  const plan = {
+    ...twoBrowserGroups,
+    coreBrowserFiles: ['e2e/login.spec.ts'],
+    layoutBrowserFiles: ['e2e/admin-layout.spec.ts'],
+    browserFiles: ['e2e/purchase-tax-costs.spec.ts', 'e2e/company-documents.spec.ts'],
+    changedBrowserFiles: [
+      'e2e/responsive-admin-layout.spec.ts',
+      'e2e/vinted-kleinanzeigen-transfer.spec.ts',
+    ],
+  };
+  const { result, invocations } = runBrowserGroups(plan, '', []);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    invocations.map(({ project, args }) => [
+      project,
+      args.find((arg) => arg.startsWith('--shard=')) ?? null,
+    ]),
+    [
+      ['core-smoke', null],
+      ['layout', null],
+      ['chromium', '--shard=1/2'],
+      ['chromium', '--shard=2/2'],
+      ['changed-tests', '--shard=1/2'],
+      ['changed-tests', '--shard=2/2'],
+    ],
+  );
+  const failed = runBrowserGroups(plan, 'changed-tests', [], '2/2');
+  assert.equal(failed.result.status, 7);
+  for (const { project, shard } of buildBrowserMatrix(plan)) {
+    const ci = runBrowserGroups(plan, '', ['--shard=' + shard], '', project);
+    assert.equal(ci.result.status, 0, ci.result.stderr);
+    assert.equal(ci.invocations.length, 1);
+    assert.equal(ci.invocations[0].project, project);
+  }
+});
+
+test('unabhängige Änderungen verdecken keinen unbekannten Shared- oder Core-Pfad', () => {
+  const sources = { ...files, 'e2e/admin-layout.spec.ts': '' };
+  const knownShared = 'src/app/shared/components/product-gallery/product-gallery.component.html';
+  for (const orphan of ['src/app/shared/new-control.ts', 'src/app/core/new-boundary.ts']) {
+    for (const unrelated of [
+      'src/app/features/purchases/purchases.ts',
+      'e2e/purchase-profitability.spec.ts',
+      knownShared,
+    ]) {
+      const plan = selectAffectedTests([orphan, unrelated], sources);
+      assert.equal(plan.full, true, orphan + ' + ' + unrelated);
+      assert.equal(plan.pwa, true);
+      assert.ok(plan.layoutBrowserFiles.includes('e2e/admin-layout.spec.ts'));
+      assert.ok(
+        plan.coreBrowserFiles.length > 0 ||
+          plan.browserFiles.length > 0 ||
+          plan.changedBrowserFiles.length > 0,
+      );
+    }
+  }
+});
+
+test('betroffene Fachdateien ersetzen ihre Kern-/Layoutüberschneidung vollständig', () => {
+  const accounting =
+    'src/app/features/accounting/components/bank-assignment-dialog/bank-assignment-dialog.component.html';
+  const audit = 'src/app/features/audit/new-boundary.ts';
+  const sources = {
+    ...files,
+    [accounting]: '<app-custom-select />',
+    [audit]: 'export const boundary = true;',
+    'e2e/responsive-admin-layout.spec.ts': "test('unmarked banking error', () => {});",
+    'e2e/company-documents.spec.ts': "test('invoice boundary', () => {});",
+  };
+  for (const feature of [accounting, audit]) {
+    const plan = selectAffectedTests(['package-lock.json', feature], sources);
+    assert.equal(plan.full, true);
+    assert.ok(plan.browserFiles.includes('e2e/company-documents.spec.ts'));
+    assert.ok(!plan.coreBrowserFiles.includes('e2e/company-documents.spec.ts'));
+    assert.ok(!plan.layoutBrowserFiles.some((file) => plan.browserFiles.includes(file)));
+    assert.ok(!plan.coreBrowserFiles.some((file) => plan.browserFiles.includes(file)));
+    assert.equal(
+      buildBrowserMatrix(plan).filter(({ project }) => project === 'chromium').length,
+      Math.min(3, plan.browserFiles.length),
+    );
+  }
+  const plan = selectAffectedTests([accounting], sources);
+  assert.deepEqual(plan.coreBrowserFiles, []);
+  assert.deepEqual(plan.layoutBrowserFiles, []);
 });
