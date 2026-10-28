@@ -1,6 +1,19 @@
-import { devices, expect, test } from '@playwright/test';
+import { devices, expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { launchPwaLifecycleBrowser } from './support/pwa-lifecycle-browser';
+
+/**
+ * Mehrfenster-Updatefälle beginnen erst nach der vollständigen App-Initialisierung.
+ * Der direkte PWA-Start wird separat geprüft; hier zählen bereits geöffnete
+ * Formulare und deren ungespeicherter Zustand bei Versionswechseln.
+ */
+async function openPurchaseEntryInReadyWindow(page: Page): Promise<void> {
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Übersicht', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Einkauf erfassen', exact: true }).click();
+  await expect(page).toHaveURL(/\/purchases\/new$/);
+  await expect(page.getByRole('button', { name: 'Eigenbeleg', exact: true })).toBeVisible();
+}
 
 test('a real second build takes over at startup without exposing the old working page @worker', async ({
   page,
@@ -74,7 +87,7 @@ test('a real second build replaces the previous production protocol and supports
     const initialBuild = await page.locator('html').getAttribute('data-flipbase-build');
     const other = await context.newPage();
     await configure(other);
-    await other.goto('/purchases/new');
+    await openPurchaseEntryInReadyWindow(other);
     await other.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
     await other.getByLabel('Verkäuferangabe, falls bekannt').fill('Alter Entwurf bleibt erhalten');
     let previousBuild = initialBuild;
@@ -297,11 +310,13 @@ test('a real second build updates independently while other windows keep unsaved
   const oldBuild = await page.evaluate(() => document.documentElement.dataset['flipbaseBuild']);
   const other = await context.newPage();
   await configure(other);
-  await other.goto('/purchases/new');
+  await openPurchaseEntryInReadyWindow(other);
   await other.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
   await other.getByLabel('Verkäuferangabe, falls bekannt').fill('Ungespeichert');
   const legacyForm = await context.newPage();
   await configure(legacyForm);
+  await legacyForm.goto('/settings/notifications');
+  await expect(legacyForm.getByRole('heading', { name: 'Benachrichtigungen' })).toBeVisible();
   await legacyForm.goto('/settings/account');
   await legacyForm
     .getByRole('textbox', { name: 'Angezeigter Name', exact: true })
