@@ -81,6 +81,26 @@ test('native Browserauswahl verfolgt transitive Imports und entfernte Dateien', 
   assert.deepEqual(select([browserTest], files).workerBrowserTests, [browserTest]);
 });
 
+test('Änderungen am Sandboxstart prüfen alle nativen Browser ohne zusätzliche Imagebauten', () => {
+  const loginTest = 'services/marketplace-worker/test/browser/vinted-login.browser.test.ts';
+  const files = {
+    [browserTest]: '',
+    [loginTest]: '',
+    'services/marketplace-worker/test/browser/chrome-session-stop.browser.test.ts': '',
+  };
+  for (const path of [
+    'scripts/configure-worker-browser-sandbox.mjs',
+    'scripts/configure-worker-browser-sandbox.test.mjs',
+  ]) {
+    assert.deepEqual(select([path], files), {
+      extensionRequired: false,
+      workerBrowserTests: [browserTest, loginTest],
+      workerImageRequired: false,
+      sessionImageRequired: false,
+    });
+  }
+});
+
 test('bestehende Veröffentlichungs-, Formular- und Uploadtests werden wirklich gefunden', async () => {
   for (const [source, expected] of [
     ['vinted-browser-listing-submit.ts', 'vinted-listing-submit.browser.test.ts'],

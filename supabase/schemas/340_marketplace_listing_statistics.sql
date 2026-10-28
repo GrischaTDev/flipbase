@@ -173,6 +173,12 @@ begin
   return jsonb_build_object('workspaceId',p_workspace_id,'connectionId',p_connection_id,'periodMinutes',p_period_minutes,'items',v_items);
 end;
 $$;
+-- Der Vorzeitraum endet zur entsprechenden lokalen Kalenderuhrzeit. Feste
+-- Stundenabstände würden ihn an einer Zeitumstellung verkürzen oder verlängern.
+create or replace function public.marketplace_listing_statistics_previous_end(p_at timestamptz, p_zone text, p_length interval)
+returns timestamptz language sql immutable strict security invoker set search_path = '' as $$
+  select ((p_at at time zone p_zone) - p_length) at time zone p_zone;
+$$;
 -- Security definer ist hier nötig: mit security invoker prüft die Lesepolicy das Verwaltungsrecht für
 -- jede einzelne Messzeile (gemessen: 46 s statt 0,7 s bei 1,7 Mio. Zeilen). Die Funktion prüft das Recht
 -- deshalb einmal selbst und liest danach ausschließlich Zeilen des geprüften Workspace.
@@ -200,9 +206,9 @@ begin
   v_first_bucket := v_last_bucket - (v_bucket_count - 1) * v_step;
   v_start := v_first_bucket at time zone v_zone;
   v_previous_start := (v_first_bucket - v_length) at time zone v_zone;
-  -- Der aktuelle Zeitraum ist erst bis jetzt gelaufen; der Vorzeitraum zählt genauso weit,
-  -- sonst sähe ein gleichbleibender Verlauf wie ein Rückgang aus.
-  v_previous_end := v_previous_start + (now() - v_start);
+  -- Der Vorzeitraum zählt nur bis zur entsprechenden Kalenderuhrzeit. Die absolute
+  -- Laufzeit wäre bei der Zeitumstellung unterschiedlich lang und könnte Zeiträume überlappen.
+  v_previous_end := public.marketplace_listing_statistics_previous_end(now(), v_zone, v_length);
 
   with items as (
     select i.*, c.display_name as account_name
@@ -293,6 +299,7 @@ begin
 end;
 $$;
 revoke all on function public.marketplace_known_metric_count(jsonb,text), public.marketplace_record_listing_metrics(), public.marketplace_mark_listing_statistics_removed(), public.marketplace_broadcast_account_import() from public, anon, authenticated;
+revoke all on function public.marketplace_listing_statistics_previous_end(timestamptz,text,interval) from public, anon, authenticated;
 grant execute on function public.marketplace_known_metric_count(jsonb,text) to service_role;
 grant execute on function public.marketplace_mark_listing_statistics_removed() to service_role;
 revoke all on function public.marketplace_read_listing_metric_changes(uuid,uuid,integer) from public, anon;

@@ -394,10 +394,17 @@ jobs:
       - run: npm ci --prefix services/marketplace-worker --ignore-scripts
       - name: Install matching worker Chromium
         working-directory: services/marketplace-worker
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/flipbase-worker-browsers
         run: npx playwright install --with-deps chromium
+      - name: Configure the installed worker browser sandbox
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/flipbase-worker-browsers
+        run: node scripts/configure-worker-browser-sandbox.mjs
       - name: Run selected local marketplace forms
         env:
           MARKETPLACE_CHECK_PLAN: ${{ needs.changes.outputs.marketplace_check_plan }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/flipbase-worker-browsers
         run: node scripts/run-marketplace-checks.mjs worker-browser
 
   marketplace-images:

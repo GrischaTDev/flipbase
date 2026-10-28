@@ -128,6 +128,17 @@ und Tests wählen ihre Verbraucher. Globale Paket-/Prüfänderungen wählen alle
 nativen lokalen Fälle. Die besondere Session-Stopp-Prüfung bleibt Bestandteil
 des echten Session-Imagechecks.
 
+Der native Workerbrowserjob installiert seine gesperrte Playwright-Version in
+`$RUNNER_TEMP/flipbase-worker-browsers`. Installation, Sandboxvorbereitung und
+Tests verwenden denselben Pfad. `configure-worker-browser-sandbox.mjs` prüft
+zunächst den GitHub-gehosteten Linux-Runner und die tatsächliche AppArmor-Sperre.
+Nur bei aktiver Usernamespace-Sperre erhält die eindeutig installierte
+Headless-Shell ein auf ihren exakten Pfad begrenztes AppArmor-Profil. Die
+Chromium-Sandbox bleibt aktiv. Lokale Aufrufe des Setups sind ausgeschlossen;
+fehlende Browser oder Fehler beim Laden des Profils brechen den Job ab.
+Änderungen am Setup wählen alle nativen Workerbrowserfälle aus. Der manuelle
+Imagepublisher verwendet vor seinen Prüfungen denselben Setup.
+
 Die Kleinanzeigen-Erweiterung läuft einmal im eigenen Job und wird nicht mehr
 in jedem Anwendungsbrowser-Shard wiederholt. Die Imageauswahl erfasst die
 wirklichen Docker-COPY-Quellen und Ignoredateien. Worker-/Brokerintegration und

@@ -34,15 +34,18 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Check local extension and worker forms before manual publication
+        env:
+          FLIPBASE_WORKER_BROWSERS_PATH: ${{ runner.temp }}/flipbase-worker-browsers
         run: |
           npm ci --ignore-scripts
           npm ci --prefix services/marketplace-worker --ignore-scripts
           npx playwright install --with-deps chromium
-          (cd services/marketplace-worker && npx playwright install --with-deps chromium)
+          (cd services/marketplace-worker && PLAYWRIGHT_BROWSERS_PATH="$FLIPBASE_WORKER_BROWSERS_PATH" npx playwright install --with-deps chromium)
           MARKETPLACE_CHECK_PLAN="$(node --input-type=module -e 'import {selectMarketplaceChecks} from "./scripts/marketplace-check-selection.mjs"; console.log(JSON.stringify(await selectMarketplaceChecks(null)));')"
           export MARKETPLACE_CHECK_PLAN
           node scripts/run-marketplace-checks.mjs extension
-          node scripts/run-marketplace-checks.mjs worker-browser
+          PLAYWRIGHT_BROWSERS_PATH="$FLIPBASE_WORKER_BROWSERS_PATH" node scripts/configure-worker-browser-sandbox.mjs
+          PLAYWRIGHT_BROWSERS_PATH="$FLIPBASE_WORKER_BROWSERS_PATH" node scripts/run-marketplace-checks.mjs worker-browser
 
       - name: Build and check selected marketplace images
         env:
