@@ -47,11 +47,11 @@ test('prepares and rereads the observed native color grid without uploading or s
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    const f = await fixture(page, { colorGrid: true });
+    const f = await fixture(page, { colorGrid: true, nativePackage: true });
     const result = await prepareVintedListingFields(
       page,
       '123',
-      content,
+      { ...content, sizeId: 5, conditionId: 3, attributes: { flipbaseListingForm: '1' } },
       snapshot.images,
       [5],
       f.authorize,
@@ -71,7 +71,7 @@ test('finds an exact native brand outside popular choices and waits for asynchro
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage(),
-      f = await fixture(page, { brandSearch: 'matching' });
+      f = await fixture(page, { brandSearch: 'matching', brandLoadingDelayMs: 400 });
     const result = await prepareVintedListingFields(
       page,
       '123',
