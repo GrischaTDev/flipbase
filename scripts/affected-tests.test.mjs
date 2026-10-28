@@ -455,9 +455,12 @@ test('Bankzuordnung wählt ihre Modelle, Dienste und den bestehenden Finanz-Brow
 test('vollständige Angular-Matrix verteilt alle Dateien auf ausreichend kleine Jobs', () => {
   for (const [count, groups] of [
     [1, 1],
-    [100, 1],
+    [60, 1],
+    [61, 2],
+    [100, 2],
     [101, 2],
-    [260, 3],
+    [260, 5],
+    [273, 5],
   ]) {
     const plan = {
       full: true,

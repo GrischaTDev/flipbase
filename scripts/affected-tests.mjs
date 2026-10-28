@@ -310,7 +310,7 @@ export function buildUnitMatrix(plan) {
     if (!files) continue;
     // Die vollständigen Angular-Gruppen müssen einschließlich Vorbereitung in
     // das bestehende Zehn-Minuten-Limit passen; alle Dateien bleiben enthalten.
-    const shards = plan.full && suite === 'angular' ? Math.ceil(files / 100) : 1;
+    const shards = plan.full && suite === 'angular' ? Math.ceil(files / 60) : 1;
     for (let shard = 1; shard <= shards; shard++)
       matrix.push({ suite, shard: String(shard) + '/' + String(shards) });
   }

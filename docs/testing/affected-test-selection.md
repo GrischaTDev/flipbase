@@ -14,7 +14,7 @@ Verbraucher berücksichtigt. Gelöschte Pfade bleiben dabei auflösbar.
 
 - **Anwendungstests:** Nur direkt geänderte oder davon abhängige Modell-, DOM-
   und Angular-Testdateien. Nur benötigte Testsuiten bekommen einen Job.
-  Die vollständige Angular-Auswahl wird mit höchstens etwa100 Dateien je Gruppe
+  Die vollständige Angular-Auswahl wird mit höchstens 60 Dateien je Gruppe
   aufgeteilt. Alle Dateien bleiben enthalten; das Zehn-Minuten-Limit je Job bleibt bestehen.
 - **Browserfälle:** Die berührten Funktionen werden über die ausdrücklich
   gepflegte Zuordnung `featureSpecs` und Marketplace-Unterbereiche bestehenden
