@@ -68,6 +68,12 @@ export async function submitVintedListing(
     await page
       .locator('#content input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
+    // Vorbereitung und Fotoupload prüfen das Konto selbst; Freigabe und exakte URL bleiben hier.
+    const authorizeNewForm = async () => {
+      await authorize();
+      if (page.url() !== 'https://www.vinted.de/items/new')
+        throw new VintedListingReadError('form');
+    };
     const check = async () => {
       const previousStep = step;
       step = 'authorize';
@@ -90,12 +96,7 @@ export async function submitVintedListing(
       snapshot.content,
       snapshot.images,
       categoryPath,
-      // Die Vorbereitung prüft das Konto selbst. Freigabe und exakte Neuanlage-URL erhalten.
-      async () => {
-        await authorize();
-        if (page.url() !== 'https://www.vinted.de/items/new')
-          throw new VintedListingReadError('form');
-      },
+      authorizeNewForm,
       {
         allowRememberedChoices: true,
         onPrepareStep: (currentStep) => {
@@ -122,7 +123,7 @@ export async function submitVintedListing(
         writeAttempted = true;
         await beforeWrite();
       },
-      check,
+      authorizeNewForm,
     );
     await check();
     await page

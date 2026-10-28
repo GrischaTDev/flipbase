@@ -26,6 +26,7 @@ export async function createVintedListingFormFixture(
     uploads = 0,
     saves = 0;
   const brandQueries: string[] = [];
+  const uploadedFileNames: string[] = [];
   await page.route('**/*', (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/v2/users/current')
@@ -47,8 +48,11 @@ export async function createVintedListingFormFixture(
     if (route.request().method() !== 'GET') writes++;
     if (path === '/fixture/photo') {
       uploads++;
+      uploadedFileNames.push(new URL(route.request().url()).searchParams.get('name') ?? '');
       return route.fulfill({
-        json: { url: 'https://images1.vinted.net/tc/fixtureAsset/f800/1788288106.webp' },
+        json: {
+          url: `https://images1.vinted.net/tc/fixtureAsset${uploads === 1 ? '' : uploads}/f800/1788288106.webp`,
+        },
       });
     }
     if (path === '/fixture/save') {
@@ -122,10 +126,11 @@ export async function createVintedListingFormFixture(
         if(${options.publishing === true && !options.noSaveNavigation}) location.href=(await response.json()).url;
       };
       if(${options.publishing === true}) document.querySelector('input[name="photos"]').onchange=async event=>{
-        const wrapper=document.createElement('div');wrapper.dataset.testid='image-wrapper-0';
+        const grid=document.querySelector('[data-testid="media-upload-grid"]');
+        const wrapper=document.createElement('div');wrapper.dataset.testid='image-wrapper-'+grid.querySelectorAll('[data-testid^="image-wrapper-"]').length;
         const image=document.createElement('img');image.src=URL.createObjectURL(event.target.files[0]);wrapper.append(image);
-        document.querySelector('[data-testid="media-upload-grid"]').append(wrapper);
-        image.src=(await(await fetch('/fixture/photo',{method:'POST',body:event.target.files[0]})).json()).url;
+        grid.append(wrapper);
+        image.src=(await(await fetch('/fixture/photo?name='+encodeURIComponent(event.target.files[0].name),{method:'POST',body:event.target.files[0]})).json()).url;
       };
       });
       </script>`,
@@ -137,6 +142,7 @@ export async function createVintedListingFormFixture(
     uploads: () => uploads,
     saves: () => saves,
     brandQueries: () => [...brandQueries],
+    uploadedFileNames: () => [...uploadedFileNames],
     setSavedBody: (body: string) => {
       savedBody = body;
     },
