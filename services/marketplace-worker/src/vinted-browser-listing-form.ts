@@ -92,7 +92,8 @@ export async function openVintedListingChoices(
       .locator(selector)
       .filter({ visible: true })
       .first()
-      .waitFor({ state: 'visible', timeout: 5000 });
+      // Auch nach dem bedienbaren Markenfeld lädt Vinted die Optionen erst nach.
+      .waitFor({ state: 'visible', timeout: field === 'brand' ? 15_000 : 5000 });
   } catch (error) {
     if (field === 'brand') throw new VintedListingReadError('brand_options');
     if (field === 'category')

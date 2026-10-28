@@ -19,6 +19,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         localForm: true,
         categoryLoadingDelayMs: 200,
         brandLoadingDelayMs: 400,
+        brandChoicesDelayMs: 6000,
         nativePackage: true,
       },
       { brandSearch: 'matching' as const },

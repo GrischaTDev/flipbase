@@ -81,7 +81,11 @@ test('prepares and rereads the observed native color grid without uploading or s
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    const f = await fixture(page, { colorGrid: true, nativePackage: true });
+    const f = await fixture(page, {
+      colorGrid: true,
+      nativePackage: true,
+      brandChoicesDelayMs: 6000,
+    });
     const result = await prepareVintedListingFields(
       page,
       '123',
