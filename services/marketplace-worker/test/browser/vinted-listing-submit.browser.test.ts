@@ -31,6 +31,11 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         f = await createVintedListingFormFixture(page, { publishing: true, ...options });
       const pageErrors: string[] = [];
       page.on('pageerror', (error) => pageErrors.push(error.message));
+      let identityReads = 0;
+      let identityReadsBeforeUpload = 0;
+      page.on('request', (request) => {
+        if (new URL(request.url()).pathname === '/api/v2/users/current') identityReads++;
+      });
       await page.goto('about:blank');
       let begin = 0;
       const result = await submitVintedListing(
@@ -59,6 +64,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
             : listingClaimFixture.snapshot,
         () => {
           begin++;
+          identityReadsBeforeUpload = identityReads;
           assert.equal(f.writes(), 0);
           return Promise.resolve();
         },
@@ -74,6 +80,10 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         { saveTimeoutMs: 400 },
       );
       assert.equal(begin, 1);
+      assert.ok(
+        identityReadsBeforeUpload <= 50,
+        `Account lookup budget before first upload: ${identityReadsBeforeUpload}`,
+      );
       assert.equal(f.uploads(), 1);
       assert.equal(f.saves(), 1);
       assert.deepEqual(pageErrors, [], JSON.stringify(options));
@@ -90,6 +100,53 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         assert.equal(result.providerState, 'active');
       }
       assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('query or hash changes during preparation stop before article texts are entered', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const suffix of ['?other-form=1', '#other-form']) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { publishing: true });
+      await page.goto('about:blank');
+      let hasChangedRoute = false;
+      let hasEnteredTitle = false;
+      let begins = 0;
+      await assert.rejects(
+        submitVintedListing(
+          page,
+          '123',
+          'publish',
+          listingClaimFixture.snapshot,
+          async () => {
+            begins++;
+          },
+          async () => {
+            if (!page.url().startsWith('https://www.vinted.de/items/new')) return;
+            hasEnteredTitle ||= !!(await page.locator('#title').inputValue());
+            if (!hasChangedRoute && (await page.locator('#category').inputValue())) {
+              hasChangedRoute = true;
+              await page.evaluate(
+                (suffix) => history.replaceState(null, '', location.pathname + suffix),
+                suffix,
+              );
+            }
+          },
+          async () => {
+            throw new Error('Unexpected photo request');
+          },
+          [5],
+        ),
+      );
+      assert.equal(hasChangedRoute, true);
+      assert.equal(hasEnteredTitle, false);
+      assert.equal(begins, 0);
+      assert.equal(form.uploads(), 0);
+      assert.equal(form.saves(), 0);
     }
   } finally {
     await browser.close();
