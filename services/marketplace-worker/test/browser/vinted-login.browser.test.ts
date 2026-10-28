@@ -180,17 +180,18 @@ test('does not dismiss cookies or send the password after permission expires dur
   }
 });
 
-test('reports a visible rejected login without polling identity or retrying credentials', async () => {
-  const { readVintedAccountIdentity } = await import('../../src/vinted-browser-reader.ts');
+test('reports a visible rejected login after one account check without retrying credentials', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext();
-    let identityRequests = 0;
+    const requests: { method: string; url: string }[] = [];
     await context.route('**/*', async (route) => {
-      if (new URL(route.request().url()).pathname === '/api/v2/users/current') {
-        identityRequests++;
+      const request = route.request();
+      requests.push({ method: request.method(), url: request.url() });
+      if (request.url() === 'https://www.vinted.de/api/v2/users/current') {
         return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
       }
+      if (request.url() !== 'https://www.vinted.de/member/login/email') return route.abort();
       return route.fulfill({
         contentType: 'text/html',
         body: '<meta charset="utf-8"><main><h1>Log-in</h1><p>Ungültiger Mitgliedsname oder Passwort</p><input name="username"><input name="password" type="password"></main>',
@@ -199,7 +200,10 @@ test('reports a visible rejected login without polling identity or retrying cred
     const page = await context.newPage();
     await page.goto('https://www.vinted.de/member/login/email');
     await assert.rejects(readVintedAccountIdentity(page), /Zugangsdaten/);
-    assert.equal(identityRequests, 0);
+    assert.deepEqual(requests, [
+      { method: 'GET', url: 'https://www.vinted.de/member/login/email' },
+      { method: 'GET', url: 'https://www.vinted.de/api/v2/users/current' },
+    ]);
   } finally {
     await browser.close();
   }
@@ -228,17 +232,18 @@ test('reports an anonymous homepage as pending and permits a subsequent login ch
   }
 });
 
-test('reports a remaining login form without using the private identity route', async () => {
-  const { readVintedAccountIdentity } = await import('../../src/vinted-browser-reader.ts');
+test('reports a remaining login form after one unauthorized account check', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext();
-    let identityRequests = 0;
+    const requests: { method: string; url: string }[] = [];
     await context.route('**/*', async (route) => {
-      if (new URL(route.request().url()).pathname === '/api/v2/users/current') {
-        identityRequests++;
-        return route.fulfill({ status: 403 });
+      const request = route.request();
+      requests.push({ method: request.method(), url: request.url() });
+      if (request.url() === 'https://www.vinted.de/api/v2/users/current') {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
       }
+      if (request.url() !== 'https://www.vinted.de/member/login/email') return route.abort();
       return route.fulfill({
         contentType: 'text/html',
         body: '<main><h1>Log-in</h1><input name="username"><input name="password" type="password"></main>',
@@ -246,8 +251,14 @@ test('reports a remaining login form without using the private identity route', 
     });
     const page = await context.newPage();
     await page.goto('https://www.vinted.de/member/login/email');
-    await assert.rejects(readVintedAccountIdentity(page), /Anmeldeformular/);
-    assert.equal(identityRequests, 0);
+    await assert.rejects(readVintedAccountIdentity(page), {
+      name: 'VintedLoginPendingError',
+      message: 'Vinted zeigt weiterhin das Anmeldeformular',
+    });
+    assert.deepEqual(requests, [
+      { method: 'GET', url: 'https://www.vinted.de/member/login/email' },
+      { method: 'GET', url: 'https://www.vinted.de/api/v2/users/current' },
+    ]);
   } finally {
     await browser.close();
   }

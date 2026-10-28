@@ -128,10 +128,19 @@ seine gesamte Deklaration bleibt mit den Leserechten des Aufrufers vereinbar.
 
 Der feste Browserkern enthält 20 zentrale Fälle, unter anderem Anmeldung,
 Zugriffsgrenzen, Einkauf, Einzelverkauf, Steuern, Dokumente, Import und sichere
-Veröffentlichung. Die breite gemeinsame Layoutauswahl ergänzt derzeit 46 Fälle.
-Eine reine globale Änderung ohne zusätzliche Fachzuordnung wählt damit 66 statt
-der bisherigen 250 allgemeinen Browserfälle. Fachänderungen können weitere
-Fälle erfordern; 66 ist keine Obergrenze.
+Veröffentlichung. Die breite gemeinsame Layoutauswahl ergänzt derzeit 186 Fälle.
+Eine reine globale Änderung ohne zusätzliche Fachzuordnung wählt damit 206 Fälle.
+Fachänderungen können weitere Fälle erfordern; 206 ist keine Obergrenze.
+
+Unabhängige Verwaltungs- und Einstellungsseiten werden einzeln geprüft. Die
+bisherigen zehn Sammeltests enthielten bereits dieselben 150 Seiten- und
+Breitenkombinationen, teilten aber jeweils ein einziges Zeitbudget. Jetzt benennt
+jeder Fehler seine konkrete Seite und Breite; Zeitlimits, Hell/Dunkel, AXE und
+zustandsabhängige Abläufe bleiben erhalten. Die frühere Angabe von 66 Fällen
+zählte diese Sammeltests und ist deshalb nicht direkt mit der neuen Fallzahl
+vergleichbar. Eine Testanzahl allein belegt keine Laufzeitersparnis.
+Umfassende Layoutauswahlen mit mehreren Dateien verteilen sich auf zwei Jobs;
+das Zeitlimit von 30 Minuten je Job bleibt unverändert.
 
 Für kleine Featureänderungen wird dieser Kern nicht pauschal hinzugefügt.
 Bekannte mehrfach parametrisierte Layoutfamilien verwenden im gezielten Lauf

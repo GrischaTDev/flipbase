@@ -700,7 +700,7 @@ test('große umfassende Dateigruppen behalten getrennte Sitzungen ohne doppelte 
   const plan = {
     ...twoBrowserGroups,
     coreBrowserFiles: ['e2e/login.spec.ts'],
-    layoutBrowserFiles: ['e2e/admin-layout.spec.ts'],
+    layoutBrowserFiles: ['e2e/admin-layout.spec.ts', 'e2e/settings-layout.spec.ts'],
     browserFiles: ['e2e/purchase-tax-costs.spec.ts', 'e2e/company-documents.spec.ts'],
     changedBrowserFiles: [
       'e2e/responsive-admin-layout.spec.ts',
@@ -716,7 +716,8 @@ test('große umfassende Dateigruppen behalten getrennte Sitzungen ohne doppelte 
     ]),
     [
       ['core-smoke', null],
-      ['layout', null],
+      ['layout', '--shard=1/2'],
+      ['layout', '--shard=2/2'],
       ['chromium', '--shard=1/2'],
       ['chromium', '--shard=2/2'],
       ['changed-tests', '--shard=1/2'],

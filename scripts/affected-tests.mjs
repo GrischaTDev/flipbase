@@ -362,12 +362,10 @@ export function buildBrowserMatrix(plan) {
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // Vollständig geänderte Dateigruppen behalten ihre bisherigen frischen
-      // Sitzungen. Kern und Layout sind bereits kleine, getrennte Projekte.
-      const groups =
-        plan.full && ['chromium', 'changed-tests'].includes(project)
-          ? Math.min(3, files.length)
-          : 1;
+      // Die breiten Layoutseiten teilen sich zwei Zeitfenster; der kleine Kern
+      // bleibt zusammen. Vollständige Fach- und Änderungsgruppen behalten drei.
+      const maxGroups = project === 'layout' ? 2 : 3;
+      const groups = plan.full && project !== 'core-smoke' ? Math.min(maxGroups, files.length) : 1;
       return Array.from({ length: groups }, (_, index) => ({
         project,
         shard: `${index + 1}/${groups}`,

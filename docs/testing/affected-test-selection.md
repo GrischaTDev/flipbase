@@ -107,9 +107,11 @@ beide Farbschemata sowie besondere Fehler-, Fokus- und Bedienungsfälle bleiben.
 Bei direkt geänderten Testdateien gilt diese Einschränkung nicht. Die vollständige
 manuelle Regression behält sämtliche Varianten.
 
-Kern und Layout erhalten jeweils eine Teilgruppe. Umfassende Fach- und
-Änderungsgruppen verwenden bis zu drei Teilgruppen, höchstens so viele wie
-Dateien; gezielte Fachgruppen verwenden eine. Jeder tatsächliche Aufruf startet
+Der Kern erhält eine Teilgruppe. Umfassende Layoutgruppen verwenden bis zu zwei,
+umfassende Fach- und Änderungsgruppen bis zu drei Teilgruppen, jeweils höchstens
+so viele wie Dateien; gezielte Fachgruppen verwenden eine. Die Aufteilung der
+Layoutseiten hält deren vollständigen Umfang im bestehenden Jobzeitbudget.
+Jeder tatsächliche Aufruf startet
 sein globales Setup mit frischer Anmeldung. Die CI gibt jedem Matrixjob außerdem
 eine eigene lokale Datenbank. Eine explizit übergebene Teilgruppe wird nicht
 nochmals aufgeteilt.
