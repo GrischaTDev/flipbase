@@ -2,10 +2,44 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
 import { createVintedListingFormFixture as fixture } from '../fixtures/vinted-listing-form.ts';
-import { prepareVintedListingFields } from '../../src/vinted-browser-listing-fields.ts';
+import {
+  prepareVintedListingFields,
+  selectVintedListingField,
+} from '../../src/vinted-browser-listing-fields.ts';
+import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listing-result.ts';
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
+
+test('reports native brand matching, clicking and confirmation as fixed phases', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const phase of ['match', 'choice', 'selected'] as const) {
+      await page.setContent(
+        `<div id="content"><input id="brand"><div role="radio" id="brand-53" aria-checked="false"${phase === 'choice' ? ' style="pointer-events:none"' : ''}>${phase === 'match' ? 'adidas' : 'Nike'}</div></div>`,
+      );
+      await assert.rejects(
+        selectVintedListingField(
+          page,
+          {
+            field: 'brand',
+            sizeGroupId: null,
+            choices: [
+              { id: 53, label: 'Nike', selected: false, disabled: false, sizeGroupId: null },
+            ],
+          },
+          [53],
+          async () => undefined,
+        ),
+        (error: unknown) =>
+          error instanceof VintedListingReadError && error.step === `brand_${phase}`,
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+});
 const content = {
   ...snapshot.content,
   colorIds: [3],

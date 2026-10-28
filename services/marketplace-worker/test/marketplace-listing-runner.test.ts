@@ -308,16 +308,28 @@ test('preflight diagnostics contain only the fixed step and keep the failed writ
     return true;
   });
   try {
-    const diagnostic = fixture({ preflightError: new VintedListingReadError('size') });
-    await diagnostic.runner.run(claim);
-    assert.deepEqual(diagnostic.results, [
-      { outcome: 'failed', errorCode: 'provider_unavailable' },
-    ]);
-    assert.ok(!diagnostic.calls.includes('begin'));
-    assert.deepEqual(
-      output.map((line) => JSON.parse(line)),
-      [{ event: 'marketplace_listing_preflight_failed', jobId: claim.jobId, stage: 'size' }],
-    );
+    for (const stage of [
+      'size',
+      'brand_open',
+      'brand_options',
+      'brand_parse',
+      'brand_search',
+      'brand_match',
+      'brand_choice',
+      'brand_selected',
+    ] as const) {
+      const diagnostic = fixture({ preflightError: new VintedListingReadError(stage) });
+      await diagnostic.runner.run(claim);
+      assert.deepEqual(diagnostic.results, [
+        { outcome: 'failed', errorCode: 'provider_unavailable' },
+      ]);
+      assert.ok(!diagnostic.calls.includes('begin'));
+      assert.deepEqual(
+        output.map((line) => JSON.parse(line)),
+        [{ event: 'marketplace_listing_preflight_failed', jobId: claim.jobId, stage }],
+      );
+      output.length = 0;
+    }
     output.length = 0;
     const privateFailure = fixture({ preflightError: new Error('Private provider response 123') });
     await privateFailure.runner.run(claim);

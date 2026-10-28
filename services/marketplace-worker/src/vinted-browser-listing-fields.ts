@@ -14,7 +14,7 @@ import {
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
-import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
+import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -119,7 +119,7 @@ export async function selectVintedListingField(
           return !previous || !current || previous.label !== current.label;
         })
       )
-        throw invalid();
+        throw expected.field === 'brand' ? new VintedListingReadError('brand_match') : invalid();
       if (selectedMatches(actual, ids)) return;
       const multiple = expected.field === 'color' || expected.field === 'material';
       const change =
@@ -127,23 +127,34 @@ export async function selectVintedListingField(
           ? actual.choices.find((choice) => choice.selected && !ids.includes(choice.id))
           : undefined) ??
         actual.choices.find((choice) => ids.includes(choice.id) && !choice.selected);
-      if (!change || change.disabled) throw invalid();
+      if (!change || change.disabled)
+        throw expected.field === 'brand' ? new VintedListingReadError('brand_match') : invalid();
       await check();
-      await clickEnabled(choiceLocator(page, expected.field, change.id, actual.sizeGroupId));
-      if (expected.field === 'brand')
-        await page.waitForFunction(
-          (label) => {
-            const input = document.querySelector('#content #brand');
-            return input instanceof HTMLInputElement && input.value === label;
-          },
-          change.label,
-          { timeout: 5000 },
-        );
+      try {
+        await clickEnabled(choiceLocator(page, expected.field, change.id, actual.sizeGroupId));
+      } catch (error) {
+        if (expected.field === 'brand') throw new VintedListingReadError('brand_choice');
+        throw error;
+      }
+      if (expected.field === 'brand') {
+        try {
+          await page.waitForFunction(
+            (label) => {
+              const input = document.querySelector('#content #brand');
+              return input instanceof HTMLInputElement && input.value === label;
+            },
+            change.label,
+            { timeout: 5000 },
+          );
+        } catch {
+          throw new VintedListingReadError('brand_selected');
+        }
+      }
     } finally {
       if (expected.field !== 'package') await page.keyboard.press('Escape');
     }
   }
-  throw invalid();
+  throw expected.field === 'brand' ? new VintedListingReadError('brand_match') : invalid();
 }
 function priceMatches(text: string, cents: number): boolean {
   let value = text.replace(/[€\s]/gu, '');

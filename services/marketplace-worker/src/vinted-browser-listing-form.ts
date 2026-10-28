@@ -6,6 +6,7 @@ import type {
   VintedListingContent,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+import { VintedListingReadError } from './vinted-listing-read-error.ts';
 import {
   collectVintedListingChoices,
   collectVintedListingFormMetadata,
@@ -19,6 +20,21 @@ function assertListingForm(page: Page): void {
     !/^\/items\/(?:new|[1-9][0-9]*\/edit)$/.test(url.pathname)
   )
     throw new Error('Vinted-Formular nicht verfügbar.');
+}
+
+async function readVisibleListingChoices(
+  page: Page,
+  field: VintedListingChoiceField,
+): Promise<VintedListingChoiceSnapshot> {
+  try {
+    return parseVintedListingChoices(
+      field,
+      await page.evaluate(collectVintedListingChoices, field),
+    );
+  } catch (error) {
+    if (field === 'brand') throw new VintedListingReadError('brand_parse');
+    throw error;
+  }
 }
 
 /** Öffnet eine aktuelle Auswahl; der Aufrufer schließt sie auch bei Fehlern mit Escape. */
@@ -46,6 +62,7 @@ export async function openVintedListingChoices(
     // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
     await input.click({ timeout: field === 'brand' ? 15_000 : 5000 });
   } catch (error) {
+    if (field === 'brand') throw new VintedListingReadError('brand_open');
     throw new Error('Dieses Vinted-Merkmal ist nicht verfügbar.', { cause: error });
   }
   if (field === 'category') {
@@ -77,14 +94,12 @@ export async function openVintedListingChoices(
       .first()
       .waitFor({ state: 'visible', timeout: 5000 });
   } catch (error) {
+    if (field === 'brand') throw new VintedListingReadError('brand_options');
     if (field === 'category')
       throw new Error('Die Vinted-Kategorie ist nicht verfügbar.', { cause: error });
     throw error;
   }
-  let choices = parseVintedListingChoices(
-    field,
-    await page.evaluate(collectVintedListingChoices, field),
-  );
+  let choices = await readVisibleListingChoices(page, field);
   const brand = options.brand;
   if (
     field === 'brand' &&
@@ -101,25 +116,26 @@ export async function openVintedListingChoices(
         (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
       )
     )
-      throw new Error('Vinted-Markenauswahl ungültig.');
+      throw new VintedListingReadError('brand_search');
     const search = page.locator(
       '#content input#brand-search-input[data-testid="brand-search--input"]',
     );
     if ((await search.count()) !== 1 || !(await search.isVisible()) || !(await search.isEnabled()))
-      throw new Error('Vinted-Markensuche nicht verfügbar.');
-    await search.fill(brand.brandLabel, { timeout: 5000 });
-    // Der gewünschte Treffer fehlte zuvor. Damit reicht kein alter Vorschlag als Suchbeleg.
-    await page
-      .locator(
-        `#content [role="radio"]#brand-${brand.brandId},#content [role="radio"]#suggested-brand-${brand.brandId}`,
-      )
-      .filter({ visible: true })
-      .first()
-      .waitFor({ state: 'visible', timeout: 5000 });
-    choices = parseVintedListingChoices(
-      field,
-      await page.evaluate(collectVintedListingChoices, field),
-    );
+      throw new VintedListingReadError('brand_search');
+    try {
+      await search.fill(brand.brandLabel, { timeout: 5000 });
+      // Der gewünschte Treffer fehlte zuvor. Damit reicht kein alter Vorschlag als Suchbeleg.
+      await page
+        .locator(
+          `#content [role="radio"]#brand-${brand.brandId},#content [role="radio"]#suggested-brand-${brand.brandId}`,
+        )
+        .filter({ visible: true })
+        .first()
+        .waitFor({ state: 'visible', timeout: 5000 });
+    } catch {
+      throw new VintedListingReadError('brand_search');
+    }
+    choices = await readVisibleListingChoices(page, field);
   }
   return choices;
 }
