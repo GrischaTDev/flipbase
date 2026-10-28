@@ -109,7 +109,12 @@ test('finds an exact native brand outside popular choices and waits for asynchro
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage(),
-      f = await fixture(page, { brandSearch: 'matching', brandLoadingDelayMs: 400 });
+      f = await fixture(page, {
+        brandSearch: 'matching',
+        brandLoadingDelayMs: 400,
+        brandSearchStartsEmpty: true,
+        brandSearchPortal: true,
+      });
     const result = await prepareVintedListingFields(
       page,
       '123',
@@ -137,7 +142,11 @@ test('does not replace an unknown native brand ID with a similar or free brand l
   try {
     for (const brandSearch of ['wrong_label', 'custom_only'] as const) {
       const page = await browser.newPage(),
-        f = await fixture(page, { brandSearch });
+        f = await fixture(page, {
+          brandSearch,
+          brandSearchStartsEmpty: true,
+          brandSearchPortal: true,
+        });
       await assert.rejects(
         prepareVintedListingFields(
           page,

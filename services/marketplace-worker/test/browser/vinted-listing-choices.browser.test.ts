@@ -16,14 +16,29 @@ test('identifies the exact failing brand phase without exposing native errors', 
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    for (const phase of ['open', 'options', 'parse', 'search'] as const) {
-      await page.setContent(`<input id="brand" ${phase === 'open' ? 'disabled' : ''}>
-        ${phase === 'parse' ? '<div role="radio" id="brand-14">adidas</div>' : phase === 'search' ? '<div role="radio" id="brand-14" aria-checked="false">adidas</div>' : ''}`);
+    for (const [phase, duplicateSearch] of [
+      ['open', false],
+      ['options', false],
+      ['parse', false],
+      ['search', false],
+      ['search', true],
+    ] as const) {
+      await page.setContent(`<div id="content"><input id="brand" ${phase === 'open' ? 'disabled' : ''}>
+        ${phase === 'options' || phase === 'parse' ? '<input id="brand-search-input" data-testid="brand-search--input">' : ''}
+        ${duplicateSearch ? '<input id="brand-search-input" data-testid="brand-search--input"><input id="brand-search-input" data-testid="brand-search--input">' : ''}
+        ${phase === 'parse' ? '<div role="radio" id="brand-14">adidas</div>' : phase === 'search' ? '<div role="radio" id="brand-14" aria-checked="false">adidas</div>' : ''}</div>`);
       await assert.rejects(
-        openVintedListingChoices(page, 'brand', [], { brand: { brandId: 53, brandLabel: 'Nike' } }),
+        openVintedListingChoices(
+          page,
+          'brand',
+          [],
+          phase === 'options' ? {} : { brand: { brandId: 53, brandLabel: 'Nike' } },
+        ),
         (error: unknown) =>
           error instanceof VintedListingReadError && error.step === `brand_${phase}`,
       );
+      for (const searchInput of await page.locator('#brand-search-input').all())
+        assert.equal(await searchInput.inputValue(), '');
     }
   } finally {
     await browser.close();

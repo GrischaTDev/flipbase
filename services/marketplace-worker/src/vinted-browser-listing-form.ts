@@ -25,12 +25,18 @@ function assertListingForm(page: Page): void {
 async function readVisibleListingChoices(
   page: Page,
   field: VintedListingChoiceField,
-): Promise<VintedListingChoiceSnapshot> {
+  allowEmptyBrandChoices = false,
+): Promise<VintedListingChoiceSnapshot | null> {
   try {
-    return parseVintedListingChoices(
-      field,
-      await page.evaluate(collectVintedListingChoices, field),
-    );
+    const collected = await page.evaluate(collectVintedListingChoices, field);
+    if (
+      field === 'brand' &&
+      allowEmptyBrandChoices &&
+      Array.isArray(collected) &&
+      collected.length === 0
+    )
+      return null;
+    return parseVintedListingChoices(field, collected);
   } catch (error) {
     if (field === 'brand') throw new VintedListingReadError('brand_parse');
     throw error;
@@ -74,7 +80,10 @@ export async function openVintedListingChoices(
         .click({ timeout: 5000 });
     }
   }
-  // Erst die sichtbare Auswahl abwarten; keine Kennungen aus einem früheren Popup benutzen.
+  const brand = options.brand;
+  const canSearchBrand = field === 'brand' && brand !== undefined && brand.brandId !== null;
+  const brandSearchSelector = 'input#brand-search-input[data-testid="brand-search--input"]';
+  // Eine leere Markensuche braucht keinen zufälligen populären Treffer als Startbedingung.
   const selector =
     field === 'size'
       ? '[role="checkbox"][data-testid^="size-group-"]'
@@ -83,7 +92,8 @@ export async function openVintedListingChoices(
           ? '[role="radio"][id^="catalog-"]'
           : `[role="radio"]#catalog-${options.targetCategoryId},[role="radio"]#catalog-suggestion-${options.targetCategoryId}`
         : field === 'brand'
-          ? '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand'
+          ? '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand' +
+            (canSearchBrand ? ',' + brandSearchSelector : '')
           : field === 'color'
             ? '[role="checkbox"][id^="color-"],[role="checkbox"][data-testid^="filter-grid-option-"]:has([data-testid^="color-"])'
             : `[role="${field === 'material' ? 'checkbox' : 'radio'}"][id^="${field}-"]`;
@@ -100,13 +110,12 @@ export async function openVintedListingChoices(
       throw new Error('Die Vinted-Kategorie ist nicht verfügbar.', { cause: error });
     throw error;
   }
-  let choices = await readVisibleListingChoices(page, field);
-  const brand = options.brand;
+  let choices = await readVisibleListingChoices(page, field, canSearchBrand);
   if (
     field === 'brand' &&
     brand &&
     brand.brandId !== null &&
-    !choices.choices.some((choice) => choice.id === brand.brandId)
+    !choices?.choices.some((choice) => choice.id === brand.brandId)
   ) {
     if (
       !Number.isSafeInteger(brand.brandId) ||
@@ -118,26 +127,24 @@ export async function openVintedListingChoices(
       )
     )
       throw new VintedListingReadError('brand_search');
-    const search = page.locator(
-      '#content input#brand-search-input[data-testid="brand-search--input"]',
-    );
-    if ((await search.count()) !== 1 || !(await search.isVisible()) || !(await search.isEnabled()))
-      throw new VintedListingReadError('brand_search');
+    const search = page.locator(brandSearchSelector);
+    if ((await search.count()) !== 1) throw new VintedListingReadError('brand_search');
     try {
-      await search.fill(brand.brandLabel, { timeout: 5000 });
+      await search.fill(brand.brandLabel, { timeout: 15_000 });
       // Der gewünschte Treffer fehlte zuvor. Damit reicht kein alter Vorschlag als Suchbeleg.
       await page
         .locator(
-          `#content [role="radio"]#brand-${brand.brandId},#content [role="radio"]#suggested-brand-${brand.brandId}`,
+          `[role="radio"]#brand-${brand.brandId},[role="radio"]#suggested-brand-${brand.brandId}`,
         )
         .filter({ visible: true })
         .first()
-        .waitFor({ state: 'visible', timeout: 5000 });
+        .waitFor({ state: 'visible', timeout: 15_000 });
     } catch {
       throw new VintedListingReadError('brand_search');
     }
     choices = await readVisibleListingChoices(page, field);
   }
+  if (!choices) throw new VintedListingReadError('brand_parse');
   return choices;
 }
 
