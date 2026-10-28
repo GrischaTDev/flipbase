@@ -511,7 +511,7 @@ export class VintedListingEditorComponent {
     this.publicationSchedule.set(null);
     this.jobRefresh.update((value) => value + 1);
     setTimeout(() =>
-      this.host?.nativeElement.querySelector<HTMLElement>('[data-publication-result]')?.focus(),
+      this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
     );
   }
   openBrandSelection(): void {

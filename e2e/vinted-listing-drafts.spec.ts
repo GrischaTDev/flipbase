@@ -12,6 +12,11 @@ async function saveDraft(page: Page) {
 }
 
 async function enableActionOverview(page: Page) {
+  await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
+    route.fulfill({
+      json: { ok: true, workspaceId, connectionId: accountIds[0], actions: [] },
+    }),
+  );
   await page.route('**/auth/v1/user', (route) =>
     route.fulfill({
       json: {
@@ -902,15 +907,27 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
   await expect(editor.locator('app-vinted-listing-job-panel')).toHaveCount(0);
+  const sidebar = editor.locator('[sidebar]');
+  await expect(sidebar.getByRole('heading').first()).toHaveText('Preis und Versand');
+  await expect(sidebar.getByRole('heading', { name: 'Vorlagen', exact: true })).toBeVisible();
+  await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toHaveAttribute(
+    'rows',
+    '12',
+  );
   const trigger = page.getByRole('button', { name: /^Laufende Aktionen \(/ });
   await expect(trigger).toBeVisible();
   await trigger.click();
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   const listings = overview.locator('app-vinted-listing-action-overview');
+  await expect(overview.getByRole('alert')).toHaveCount(0);
   await expect(listings.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
   Object.assign(state.jobs[0], { state: 'claimed', version: 2 });
-  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
-  await expect(listings.getByText('Wird vorbereitet', { exact: true })).toBeVisible();
+  await expect(listings.getByText('Wird vorbereitet', { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(
+    listings.locator('[data-listing-state="claimed"] app-loading-indicator'),
+  ).toBeVisible();
   Object.assign(state.jobs[0], {
     state: 'confirmed',
     version: 3,
@@ -918,9 +935,28 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
     providerState: 'active',
     verifiedAt: '2026-10-10T00:00:00Z',
   });
-  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
-  await expect(listings.getByText('Veröffentlicht', { exact: true })).toBeVisible();
-  await expect(listings.locator('a[href="https://www.vinted.de/items/46609"]')).toBeVisible();
+  await expect(listings.getByText('Veröffentlicht', { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(
+    listings
+      .getByRole('listitem')
+      .filter({ has: page.getByText('Veröffentlicht', { exact: true }) })
+      .locator('app-action-status-indicator svg'),
+  ).toBeVisible();
+  await expect(
+    overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }),
+  ).toHaveCount(0);
+  await expect(listings.getByRole('link', { name: 'Bei Vinted ansehen' })).toHaveCount(0);
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      listings
+        .getByRole('listitem')
+        .filter({ has: page.getByText('Veröffentlicht', { exact: true }) })
+        .evaluate((row) => row.getBoundingClientRect().height),
+    )
+    .toBeLessThan(80);
   await page.evaluate(axe.source);
   expect(
     await page.evaluate(

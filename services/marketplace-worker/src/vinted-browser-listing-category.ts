@@ -71,6 +71,7 @@ export async function selectVintedListingNewCategory(
   if ((await page.locator('#content [data-testid^="image-wrapper-"]').count()) > 0) throw invalid();
   const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath, {
     allowRememberedCategory: options.allowRememberedChoices === true,
+    targetCategoryId: categoryId,
   });
   const target = category.choices.find((choice) => choice.id === categoryId);
   if (!target || target.disabled) throw invalid();
@@ -86,6 +87,13 @@ export async function selectVintedListingNewCategory(
           .click({ timeout: 5000 });
       }
       await check();
+      await page
+        .locator(
+          `[role="radio"]#catalog-${categoryId},[role="radio"]#catalog-suggestion-${categoryId}`,
+        )
+        .filter({ visible: true })
+        .first()
+        .waitFor({ state: 'visible', timeout: 5000 });
       const candidates = await page
         .locator(
           `[role="radio"]#catalog-${categoryId},[role="radio"]#catalog-suggestion-${categoryId}`,
@@ -106,6 +114,14 @@ export async function selectVintedListingNewCategory(
           enabled.push(choice);
       if (enabled.length === 0) throw invalid();
       await enabled[0]!.click({ timeout: 5000 });
+      await page.waitForFunction(
+        (label) => {
+          const category = document.querySelector('#content #category');
+          return category instanceof HTMLInputElement && category.value.trim() === label;
+        },
+        target.label,
+        { timeout: 5000 },
+      );
     }
   } finally {
     await page.keyboard.press('Escape');

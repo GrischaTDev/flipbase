@@ -28,12 +28,7 @@
     }
   </div>
   @if (publicationAnnouncement()) {
-    <p
-      data-publication-result
-      tabindex="-1"
-      role="status"
-      class="text-sm text-fb-text-secondary focus:outline-none"
-    >
+    <p data-publication-result role="status" class="sr-only">
       {{ publicationAnnouncement() }}
     </p>
   }
@@ -96,7 +91,7 @@
               <app-text-field
                 label="Beschreibung"
                 placeholder="Beschreibe Deinen Artikel und seinen Zustand."
-                [multiline]="6"
+                [multiline]="12"
                 [error]="visibleFieldErrors()['description'] ?? null"
                 [helpText]="textLimitHelp('description')"
                 [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
@@ -109,16 +104,39 @@
               }
             </div>
           </app-card>
-          @if (workspaceId(); as workspaceId) {
-            <app-vinted-listing-template-panel
-              [workspaceId]="workspaceId"
-              [content]="content()"
-              [disabled]="saving() || !!contentError()"
-              (applied)="applyTemplate($event)"
-            />
-          }
         </div>
         <div sidebar class="space-y-4">
+          <app-card title="Preis und Versand">
+            <div class="space-y-4">
+              <app-text-field
+                label="Verkaufspreis"
+                suffix="€"
+                placeholder="Noch nicht festgelegt"
+                [error]="
+                  publicationAttempted()
+                    ? priceError()
+                    : saveAttempted() && contentError()
+                      ? priceError()
+                      : null
+                "
+                formControlName="price"
+              />
+              @if (fieldSelection(); as selection) {
+                <app-vinted-listing-fields-dialog
+                  [inline]="true"
+                  section="shipping"
+                  [fieldSchema]="categorySchema()"
+                  [scopeKey]="selection.scopeKey"
+                  [connectionId]="selection.connectionId"
+                  [categoryId]="selection.categoryId"
+                  [content]="content()"
+                  [fieldErrors]="visibleFieldErrors()"
+                  [disabled]="saving() || imageEditing()"
+                  (selected)="selectFields($event, true)"
+                />
+              }
+            </div>
+          </app-card>
           <app-card title="Artikeldetails">
             <div class="space-y-4">
               <app-custom-select
@@ -193,37 +211,14 @@
               }
             </div>
           </app-card>
-          <app-card title="Preis und Versand">
-            <div class="space-y-4">
-              <app-text-field
-                label="Verkaufspreis"
-                suffix="€"
-                placeholder="Noch nicht festgelegt"
-                [error]="
-                  publicationAttempted()
-                    ? priceError()
-                    : saveAttempted() && contentError()
-                      ? priceError()
-                      : null
-                "
-                formControlName="price"
-              />
-              @if (fieldSelection(); as selection) {
-                <app-vinted-listing-fields-dialog
-                  [inline]="true"
-                  section="shipping"
-                  [fieldSchema]="categorySchema()"
-                  [scopeKey]="selection.scopeKey"
-                  [connectionId]="selection.connectionId"
-                  [categoryId]="selection.categoryId"
-                  [content]="content()"
-                  [fieldErrors]="visibleFieldErrors()"
-                  [disabled]="saving() || imageEditing()"
-                  (selected)="selectFields($event, true)"
-                />
-              }
-            </div>
-          </app-card>
+          @if (workspaceId(); as workspaceId) {
+            <app-vinted-listing-template-panel
+              [workspaceId]="workspaceId"
+              [content]="content()"
+              [disabled]="saving() || !!contentError()"
+              (applied)="applyTemplate($event)"
+            />
+          }
           @if ((publicationAttempted() || saveAttempted()) && contentError()) {
             <app-notice-banner announcement="alert">{{ contentError() }}</app-notice-banner>
           }

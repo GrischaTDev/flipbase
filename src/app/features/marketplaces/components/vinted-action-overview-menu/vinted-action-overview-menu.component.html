@@ -2,8 +2,9 @@
   <span class="relative inline-flex">
     <app-button
       data-action-overview-trigger
+      [attr.data-action-overview-spinner]="store.hasRunning() ? '' : null"
       size="search"
-      [icon]="queueIcon"
+      [icon]="store.hasRunning() ? runningIcon : queueIcon"
       [iconOnly]="true"
       [ariaLabel]="label()"
       [title]="label()"
@@ -62,16 +63,6 @@
 }
 <ng-template #actions>
   <div class="space-y-3">
-    <div class="flex justify-end">
-      <app-button
-        size="slim"
-        [icon]="refreshIcon"
-        [iconOnly]="true"
-        ariaLabel="Aktionsübersicht aktualisieren"
-        [loading]="store.loading()"
-        (clicked)="store.refresh()"
-      />
-    </div>
     @if (store.error(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }

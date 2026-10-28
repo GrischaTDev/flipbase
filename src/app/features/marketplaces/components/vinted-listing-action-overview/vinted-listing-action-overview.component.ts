@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
 import { vintedListingJobLabel, type VintedListingJob } from '../../models/vinted-listing-job';
@@ -15,7 +16,12 @@ import {
 @Component({
   selector: 'app-vinted-listing-action-overview',
   templateUrl: './vinted-listing-action-overview.component.html',
-  imports: [ButtonComponent, NoticeBannerComponent, VintedListingScheduleDialogComponent],
+  imports: [
+    ButtonComponent,
+    NoticeBannerComponent,
+    VintedListingScheduleDialogComponent,
+    ActionStatusIndicatorComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VintedListingActionOverviewComponent {
@@ -35,6 +41,18 @@ export class VintedListingActionOverviewComponent {
       job,
       accountName,
       label: vintedListingJobLabel(job),
+      indicator:
+        job.state === 'confirmed' && job.providerState !== 'processing'
+          ? ('success' as const)
+          : job.state === 'failed' || job.state === 'outcome_unknown'
+            ? ('error' as const)
+            : job.state === 'paused' || (!!job.scheduledAt && job.state === 'queued')
+              ? ('paused' as const)
+              : ('running' as const),
+      failureReason:
+        job.errorCode === 'provider_unavailable'
+          ? 'Die Cloud-Ausführung konnte die Veröffentlichung bei Vinted nicht abschließen. Es wurde kein Erfolg bestätigt.'
+          : 'Der Auftrag wurde ohne bestätigten Vinted-Erfolg beendet.',
       time: new Intl.DateTimeFormat('de-DE', {
         year: 'numeric',
         month: '2-digit',
@@ -46,10 +64,6 @@ export class VintedListingActionOverviewComponent {
       }).format(new Date(job.scheduledAt ?? job.updatedAt)),
       planned: !!job.scheduledAt && ['queued', 'paused'].includes(job.state),
       cancellable: ['queued', 'paused'].includes(job.state),
-      url:
-        job.externalId && job.providerState !== 'draft'
-          ? 'https://www.vinted.de/items/' + job.externalId
-          : null,
     })),
   );
   readonly planInitial = computed<VintedListingScheduleSelection | null>(() => {

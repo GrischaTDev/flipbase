@@ -46,6 +46,16 @@ export class VintedActionOverviewHeaderStore {
   private readonly reading = signal<string | null>(null);
   private activeRead: { context: string; repeat: boolean } | null = null;
   private destroyed = false;
+  private readonly completionTimes = new Map<string, number>();
+  private readonly listingSubscriptions = computed(() => {
+    const context = this.context();
+    return context
+      ? JSON.stringify([
+          context,
+          [...new Set(this.listings().map(({ job }) => job.draftId))].sort(),
+        ])
+      : null;
+  });
   readonly groups = computed(() =>
     this.context() && this.snapshot()?.context === this.context()
       ? (this.snapshot()?.groups ?? [])
@@ -58,10 +68,24 @@ export class VintedActionOverviewHeaderStore {
   );
   readonly count = computed(
     () =>
-      this.groups().reduce((count, group) => count + group.actions.length, 0) +
+      this.groups().reduce(
+        (count, group) =>
+          count + group.actions.filter((action) => action.state === 'running').length,
+        0,
+      ) +
       this.listings().filter(({ job }) =>
         ['queued', 'paused', 'claimed', 'writing'].includes(job.state),
       ).length,
+  );
+  readonly hasRunning = computed(
+    () =>
+      this.groups().some((group) => group.actions.some((action) => action.state === 'running')) ||
+      this.listings().some(
+        ({ job }) =>
+          job.state === 'claimed' ||
+          job.state === 'writing' ||
+          (job.state === 'queued' && !job.scheduledAt),
+      ),
   );
   readonly loading = computed(() => this.context() !== null && this.reading() === this.context());
   readonly error = computed(() =>
@@ -77,15 +101,40 @@ export class VintedActionOverviewHeaderStore {
         this.activeRead = null;
         this.reading.set(null);
         this.snapshot.set(null);
+        this.completionTimes.clear();
         void this.refresh();
       });
     });
-    const timer = setInterval(() => {
+    effect(() => {
+      const token = this.auth.session()?.access_token;
+      if (this.context() && token) untracked(() => this.listingApi.authenticate(token));
+    });
+    effect((onCleanup) => {
+      const subscriptions = this.listingSubscriptions();
+      if (!subscriptions) return;
+      const context = this.context();
+      const refresh = () => {
+        if (context === this.context()) void this.refresh();
+      };
+      const workspaceId = this.workspace.currentWorkspace()?.id;
+      if (!workspaceId) return;
+      const draftIds = untracked(() => [...new Set(this.listings().map(({ job }) => job.draftId))]);
+      const cleanups = draftIds.map((draftId) =>
+        this.listingApi.listen(workspaceId, draftId, refresh, refresh),
+      );
+      onCleanup(() => cleanups.forEach((cleanup) => cleanup()));
+    });
+    const refreshVisible = () => {
       if (document.visibilityState !== 'hidden') void this.refresh();
-    }, 10_000);
+    };
+    const timer = setInterval(refreshVisible, 5_000);
+    window.addEventListener('focus', refreshVisible);
+    document.addEventListener('visibilitychange', refreshVisible);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       clearInterval(timer);
+      window.removeEventListener('focus', refreshVisible);
+      document.removeEventListener('visibilitychange', refreshVisible);
     });
   }
 
@@ -132,7 +181,24 @@ export class VintedActionOverviewHeaderStore {
           hasError = true;
           return previous.filter((group) => group.scope.connectionId === account.connectionId);
         }
-        const actions = result.value.actions.filter((action) => action.state === 'running');
+        const previousActions =
+          previous.find((group) => group.scope.connectionId === account.connectionId)?.actions ??
+          [];
+        const actions = result.value.actions.filter((action) => {
+          const completionKey = `${account.connectionId}:${action.id}`;
+          if (action.state === 'running') {
+            this.completionTimes.delete(completionKey);
+            return true;
+          }
+          if (
+            action.state !== 'succeeded' ||
+            !previousActions.some((previousAction) => previousAction.id === action.id)
+          )
+            return false;
+          const completedAt = this.completionTimes.get(completionKey) ?? Date.now();
+          this.completionTimes.set(completionKey, completedAt);
+          return Date.now() - completedAt < 60_000;
+        });
         return actions.length
           ? [
               {
@@ -154,7 +220,12 @@ export class VintedActionOverviewHeaderStore {
         .filter((job) => job.state !== 'cancelled')
         .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
         .slice(0, 20)
-        .map((job) => ({ job, accountName: availableAccounts.get(job.connectionId!)! }));
+        .flatMap((job) => {
+          const accountName = job.connectionId
+            ? availableAccounts.get(job.connectionId)
+            : undefined;
+          return accountName ? [{ job, accountName }] : [];
+        });
       this.snapshot.set({ context, groups, listings, error: hasError ? this.readError : null });
     } catch (error) {
       if (isCurrent())

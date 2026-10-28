@@ -12,7 +12,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideListTodo, LucideRefreshCw, LucideX } from '@lucide/angular';
+import { LucideListTodo, LucideLoader2, LucideX, type LucideIconData } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -49,7 +49,13 @@ export class VintedActionOverviewMenuComponent {
   readonly mobile = signal(window.innerWidth < 640);
   readonly label = computed(() => `Laufende Aktionen (${this.store.count()})`);
   readonly queueIcon = LucideListTodo;
-  readonly refreshIcon = LucideRefreshCw;
+  readonly runningIcon: LucideIconData = {
+    ...LucideLoader2.icon,
+    node: LucideLoader2.icon.node.map(([element, attributes]) => [
+      element,
+      { ...attributes, class: 'origin-center animate-spin motion-reduce:animate-none' },
+    ]),
+  };
   readonly closeIcon = LucideX;
 
   constructor() {

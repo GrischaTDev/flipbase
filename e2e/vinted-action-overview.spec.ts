@@ -47,6 +47,12 @@ for (const width of [1920, 1280, 390, 320]) {
         await page.goto(actionOverviewMessagesUrl);
         const trigger = page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true });
         await expect(trigger).toBeVisible();
+        await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+        await expect(page.locator('[data-action-overview-spinner] svg path').first()).toHaveCSS(
+          'animation-name',
+          'spin',
+        );
+        await expect(trigger).toBeEnabled();
         await expect(page.locator('[data-action-overview-desktop]')).toHaveCount(0);
         await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
         await expect(page.locator('[data-action-overview-panel]')).toHaveCount(0);
@@ -224,7 +230,7 @@ test('behält den Entwurf bei Speicherfehler und speichert auf erneuten Klick @m
   await expect(checkbox).toBeChecked();
 });
 
-test('entfernt abgeschlossene Aktionen aus dem Panel und behält das aktivierte Icon @marketplace-preview', async ({
+test('zeigt Abschlüsse automatisch mit grünem Haken und behält das aktivierte Icon @marketplace-preview', async ({
   page,
 }) => {
   const fixture = await mockActionOverview(page);
@@ -233,9 +239,24 @@ test('entfernt abgeschlossene Aktionen aus dem Panel und behält das aktivierte 
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   await checkRunningActions(overview);
   fixture.finishActions();
-  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
-  await expect(overview.locator('[data-action-state]')).toHaveCount(0);
-  await expect(overview.getByText('Gerade läuft keine Aktion.')).toBeVisible();
+  await expect(
+    overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }),
+  ).toHaveCount(0);
+  await expect(overview.locator('[data-action-state="succeeded"]')).toHaveCount(1, {
+    timeout: 15_000,
+  });
+  await expect(
+    overview.locator('[data-action-state="succeeded"] app-action-status-indicator svg'),
+  ).toBeVisible();
+  await expect(overview.locator('[data-action-state="running"]')).toHaveCount(0);
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
+  await checkAccessibility(page, '#header-action-overview');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const completedCheck = overview.locator(
+    '[data-action-state="succeeded"] app-action-status-indicator svg',
+  );
+  await expect(completedCheck).toHaveCSS('animation-name', 'none');
+  await expect(completedCheck).toHaveCSS('stroke-dashoffset', '0px');
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
   ).toBeVisible();
@@ -262,8 +283,9 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   await expect(overview.getByText('Gerade läuft keine Aktion.')).toBeVisible();
   fixture.rejectRead(true);
-  await overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }).click();
-  await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert');
+  await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert', {
+    timeout: 15_000,
+  });
   await expect(offer).toContainText('Annahme beauftragt');
   await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   expect(writes).toBe(0);

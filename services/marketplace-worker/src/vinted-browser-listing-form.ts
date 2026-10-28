@@ -26,8 +26,16 @@ export async function openVintedListingChoices(
   page: Page,
   field: VintedListingChoiceField,
   categoryPath: readonly number[] = [],
-  options: { brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'> } = {},
+  options: {
+    brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    targetCategoryId?: number;
+  } = {},
 ): Promise<VintedListingChoiceSnapshot> {
+  if (
+    options.targetCategoryId !== undefined &&
+    (!Number.isSafeInteger(options.targetCategoryId) || options.targetCategoryId <= 0)
+  )
+    throw new Error('Vinted-Kategorie ungültig.');
   if (field === 'package')
     return parseVintedListingChoices(
       field,
@@ -51,17 +59,25 @@ export async function openVintedListingChoices(
     field === 'size'
       ? '[role="checkbox"][data-testid^="size-group-"]'
       : field === 'category'
-        ? '[role="radio"][id^="catalog-"]'
+        ? options.targetCategoryId === undefined
+          ? '[role="radio"][id^="catalog-"]'
+          : `[role="radio"]#catalog-${options.targetCategoryId},[role="radio"]#catalog-suggestion-${options.targetCategoryId}`
         : field === 'brand'
           ? '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand'
           : field === 'color'
             ? '[role="checkbox"][id^="color-"],[role="checkbox"][data-testid^="filter-grid-option-"]:has([data-testid^="color-"])'
             : `[role="${field === 'material' ? 'checkbox' : 'radio'}"][id^="${field}-"]`;
-  await page
-    .locator(selector)
-    .filter({ visible: true })
-    .first()
-    .waitFor({ state: 'visible', timeout: 5000 });
+  try {
+    await page
+      .locator(selector)
+      .filter({ visible: true })
+      .first()
+      .waitFor({ state: 'visible', timeout: 5000 });
+  } catch (error) {
+    if (field === 'category')
+      throw new Error('Die Vinted-Kategorie ist nicht verfügbar.', { cause: error });
+    throw error;
+  }
   let choices = parseVintedListingChoices(
     field,
     await page.evaluate(collectVintedListingChoices, field),
@@ -111,6 +127,7 @@ async function readPopup(
   categoryPath: readonly number[] = [],
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    targetCategoryId?: number;
     authorize?: () => Promise<void>;
   } = {},
 ): Promise<VintedListingChoiceSnapshot> {
@@ -133,6 +150,7 @@ export async function readVintedListingChoices(
   categoryPath: readonly number[] = [],
   options: {
     allowRememberedCategory?: boolean;
+    targetCategoryId?: number;
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
     /**
      * Beim Bearbeiten öffnet Vinted die Kategorieauswahl ganz oben im Katalog und markiert die
@@ -156,7 +174,9 @@ export async function readVintedListingChoices(
     throw new Error('Vinted-Konto stimmt nicht überein.');
   const category = options.readCategoryId
     ? undefined
-    : await readPopup(page, 'category', categoryPath);
+    : await readPopup(page, 'category', categoryPath, {
+        targetCategoryId: options.targetCategoryId ?? expectedCategoryId ?? undefined,
+      });
   const categoryId = options.readCategoryId
     ? await options.readCategoryId()
     : (category?.choices.find((choice) => choice.selected)?.id ?? null);

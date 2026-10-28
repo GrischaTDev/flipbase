@@ -38,6 +38,7 @@ let workspace = signal({ id: accounts[0].workspaceId, archived_at: null as strin
 let list: ReturnType<typeof vi.fn>;
 let read: ReturnType<typeof vi.fn>;
 let readListingJobs: ReturnType<typeof vi.fn>;
+let listen: ReturnType<typeof vi.fn>;
 async function settle() {
   TestBed.tick();
   for (let index = 0; index < 20; index++) await Promise.resolve();
@@ -49,6 +50,7 @@ beforeEach(() => {
   workspace = signal({ id: accounts[0].workspaceId, archived_at: null });
   list = vi.fn().mockResolvedValue({ canManage: true, connections: accounts.slice(0, 2) });
   readListingJobs = vi.fn().mockResolvedValue([]);
+  listen = vi.fn(() => () => undefined);
   read = vi.fn().mockResolvedValue({
     actions: [
       action,
@@ -58,17 +60,56 @@ beforeEach(() => {
   });
   TestBed.configureTestingModule({
     providers: [
-      { provide: AuthService, useValue: { currentUser: user } },
+      { provide: AuthService, useValue: { currentUser: user, session: signal(null) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: enabled } },
       { provide: MarketplaceApiService, useValue: { listConnections: list } },
       { provide: VintedActionOverviewApiService, useValue: { read } },
-      { provide: VintedListingJobService, useValue: { list: readListingJobs } },
+      {
+        provide: VintedListingJobService,
+        useValue: {
+          list: readListingJobs,
+          listen,
+          authenticate: vi.fn(),
+        },
+      },
     ],
   });
 });
 afterEach(() => TestBed.resetTestingModule());
 describe('Appweite laufende Vinted-Aktionen', () => {
+  it('zeigt den beobachteten Abschluss automatisch und zählt ihn nicht weiter als laufend', async () => {
+    vi.useFakeTimers();
+    try {
+      enabled.set(true);
+      const store = TestBed.inject(VintedActionOverviewHeaderStore);
+      await settle();
+      read.mockResolvedValue({ actions: [{ ...action, state: 'succeeded' }] });
+      await vi.advanceTimersByTimeAsync(5_000);
+      await settle();
+      expect(store.count()).toBe(0);
+      expect(
+        store
+          .groups()
+          .flatMap((group) => group.actions)
+          .map((entry) => entry.state),
+      ).toEqual(['succeeded', 'succeeded']);
+      await vi.advanceTimersByTimeAsync(65_000);
+      await settle();
+      expect(store.groups()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('liest nach Rückkehr ins Fenster den aktuellen Stand ohne manuellen Button', async () => {
+    enabled.set(true);
+    const store = TestBed.inject(VintedActionOverviewHeaderStore);
+    await settle();
+    read.mockResolvedValue({ actions: [] });
+    window.dispatchEvent(new Event('focus'));
+    await settle();
+    expect(store.count()).toBe(0);
+  });
   it('liest nur nach Aktivierung und zeigt aus allen Konten ausschließlich laufende Vorgänge', async () => {
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();
@@ -111,6 +152,35 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     await settle();
     expect(store.listings().map(({ job }) => job.id)).toEqual([pending.id]);
     expect(store.count()).toBe(3);
+    expect(store.hasRunning()).toBe(true);
+    const onChange = listen.mock.calls[0]?.[2] as (() => void) | undefined;
+    expect(onChange).toBeTypeOf('function');
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'confirmed', providerState: 'active', version: 2 },
+    ]);
+    onChange?.();
+    await settle();
+    expect(store.listings()[0].job.state).toBe('confirmed');
+    expect(store.count()).toBe(2);
+    read.mockResolvedValue({ actions: [] });
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'queued', scheduledAt: '2026-11-01T10:00:00Z' },
+    ]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(false);
+    readListingJobs.mockResolvedValue([{ ...pending, state: 'claimed' }]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(true);
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'confirmed', providerState: 'active' },
+    ]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(false);
+    readListingJobs.mockResolvedValue([
+      { ...pending, state: 'confirmed', providerState: 'processing' },
+    ]);
+    await store.refresh();
+    expect(store.hasRunning()).toBe(false);
     enabled.set(false);
     expect(store.listings()).toEqual([]);
   });
@@ -166,7 +236,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     expect(store.groups()[0].actions[0].state).toBe('running');
     expect(store.error()).toContain('nicht aktualisiert');
   });
-  it('entfernt abgeschlossene Aktionen und ausgebaute Konten vollständig', async () => {
+  it('zeigt den Abschluss noch kurz an und entfernt ausgebaute Konten vollständig', async () => {
     enabled.set(true);
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();
@@ -174,7 +244,10 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     read.mockResolvedValueOnce({ actions: [{ ...action, state: 'succeeded' }] });
     await store.refresh();
     expect(store.count()).toBe(0);
-    expect(store.groups()).toEqual([]);
+    expect(store.groups().map((group) => group.scope.connectionId)).toEqual([
+      accounts[0].connectionId,
+    ]);
+    expect(store.groups()[0].actions[0].state).toBe('succeeded');
   });
   it('liest ohne Verwaltungsrecht keine Kontodetails', async () => {
     enabled.set(true);

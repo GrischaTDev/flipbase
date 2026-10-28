@@ -71,6 +71,8 @@ describe('HeaderComponent', () => {
         'src/app/shared/components/form-field/form-field.component.html',
       './loading-indicator.component.html':
         'src/app/shared/components/loading-indicator/loading-indicator.component.html',
+      './action-status-indicator.component.html':
+        'src/app/shared/components/action-status-indicator/action-status-indicator.component.html',
       './notice-banner.component.html':
         'src/app/shared/components/notice-banner/notice-banner.component.html',
       './modal-shell.component.html':
@@ -113,6 +115,7 @@ describe('HeaderComponent', () => {
             enabled: signal(false),
             context: signal(null),
             count: signal(0),
+            hasRunning: signal(false),
             groups: signal([]),
             listings: signal([]),
             loading: signal(false),
