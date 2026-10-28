@@ -310,6 +310,11 @@ test('a failed listing read keeps only its fixed step across the isolated transp
     ['brand_match', 'brand_match'],
     ['brand_choice', 'brand_choice'],
     ['brand_selected', 'brand_selected'],
+    ['package_options', 'package_options'],
+    ['package_label', 'package_label'],
+    ['package_parse', 'package_parse'],
+    ['package_match', 'package_match'],
+    ['package_choice', 'package_choice'],
     ['private page text', null],
   ] as const) {
     const browser = isolatedBrowserActions({

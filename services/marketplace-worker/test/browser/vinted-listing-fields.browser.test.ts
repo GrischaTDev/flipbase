@@ -11,6 +11,36 @@ import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listin
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
 
+test('distinguishes package matching and clicking failures', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const phase of ['match', 'choice'] as const) {
+      await page.setContent(
+        `<button id="package-size-2"${phase === 'choice' ? ' style="pointer-events:none"' : ''}>${phase === 'match' ? 'Groß' : 'Mittel'}</button><label><input id="package_type_selector_2" type="radio" aria-labelledby="package-size-2"></label>`,
+      );
+      await assert.rejects(
+        selectVintedListingField(
+          page,
+          {
+            field: 'package',
+            sizeGroupId: null,
+            choices: [
+              { id: 2, label: 'Mittel', selected: false, disabled: false, sizeGroupId: null },
+            ],
+          },
+          [2],
+          async () => undefined,
+        ),
+        (error: unknown) =>
+          error instanceof VintedListingReadError && error.step === `package_${phase}`,
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('reports native brand matching, clicking and confirmation as fixed phases', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
