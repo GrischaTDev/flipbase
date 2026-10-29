@@ -1,9 +1,19 @@
 # Schlanke CI für Flipbase
 
-Stand: 28. Oktober 2026. Diese Seite beschreibt den geltenden Ablauf. Historische
+Stand: 29. Oktober 2026. Diese Seite beschreibt den geltenden Ablauf. Historische
 Messberichte und frühere Zahlen sind keine aktuelle Testvorgabe.
 
 ## Vor dem PR
+
+Für alle KI-Assistenten gilt der
+[verbindliche Vorabcheck in AGENTS.md](../../AGENTS.md#verbindlicher-vorabcheck-für-alle-ki-assistenten).
+Die KI formatiert die eigenen geänderten Dateien zuerst gezielt mit Prettier
+`--write`, führt beide folgenden Preflight-Befehle selbst aus und weist außerdem
+`npm run format:check` und `npm run lint` nach. Bereits erfolgreich im Preflight
+ausgeführte identische Befehle müssen auf unverändertem Stand nicht wiederholt
+werden. Bei reinen Dokumentationsänderungen oder wenn einer dieser Befehle noch
+nicht erfolgreich ausgeführt wurde, die fehlenden Prüfungen gesondert ausführen.
+Nach Korrekturen zählt der endgültige Stand.
 
 ```bash
 npm ci

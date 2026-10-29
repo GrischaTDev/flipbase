@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-29 - Juna - Vorabprüfung vor jedem KI-PR verbindlich machen
+
+**Änderung:** Die zentrale AGENTS.md verpflichtet alle KI-Assistenten, vor jedem PR einschließlich Entwürfen und vor weiteren Pushes selbst die eigenen geänderten Dateien automatisch zu formatieren sowie preflight:plan und preflight auszuführen. Formatcheck und Lint bleiben auch bei Dokumentationsänderungen verpflichtend; bereits im Preflight erfolgreich ausgeführte identische Befehle werden auf unverändertem Stand nicht doppelt verlangt. Nach Korrekturen muss der endgültige Stand geprüft werden. Nur Befehle an den Nutzer weiterzugeben genügt nicht.
+
+**Grenzen:** Echte Format-, Lint- und Testfehler sind vor dem PR zu beheben. Die bestehende Beschränkung der Marketplace-Imageprüfungen auf den GitHub-gehosteten Wegwerfrunner bleibt erhalten; offene technische Prüflücken sind konkret zu benennen und vor dem Merge durch die ausgewählte CI abzudecken. Die beiden Ablaufdokumentationen verweisen auf dieselbe zentrale Regel. Reine Regeländerungen benötigen keine vollständige Anwendungstestsuite und keine neuen Tests für Dokumentationstext.
+
 ## 2026-10-29 - Juna - Navigationsziel bei einem abgebrochenen Modulimport erhalten
 
 **Abgeschlossener CI-Befund:** Der Hauptlauf 40844877261 zum exakten PR-Stand e5f8ebf besteht 24 von 26 ausgewählten Pflichtjobs; beide Reference-library-Jobs sind ebenfalls grün. Alle 592 regulären Browserfälle, 6012 Anwendungstests, 4993 SQL-Fälle mit zusätzlicher Parallelitätsprüfung und 118 native Workerbrowserfälle bestehen. Die Produktions-PWA hat nach 46 erfolgreichen Scriptprüfungen einen Fehler beim mobilen Rollback: 41 Browserfälle erfolgreich, ein Fehler und eine unveränderte plattformabhängige Auslassung. Das Sammelgate bleibt korrekt rot. Der Hauptlauf dauerte 27 Minuten 38 Sekunden; das ist eine Einzelmessung dieses umfangreichen Audit-PRs, kein Nachweis einer durchschnittlichen Beschleunigung.
