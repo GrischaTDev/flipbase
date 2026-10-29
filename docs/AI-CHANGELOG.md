@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-29 - Juna - Marketplace-Rollout über einen begrenzten Serverbefehl vorbereiten
+
+**Anlass:** PR #512 ist nach erfolgreichen Pflichtprüfungen integriert. Die drei Marketplace-Images für `8f9a81ac02556daf0f7db13b4169c76f703c0d15` sind veröffentlicht und unabhängig über ihre unveränderlichen Digests und den enthaltenen Runtime-Hash geprüft. Die frische Serverkonsole zeigt weiterhin den bisherigen Worker und Broker. Längere direkte Eingaben in der Browserkonsole brechen ab; deshalb erhält der bereits beauftragte Betreiberablauf einen kurzen, überprüfbaren Python-Aufruf.
+
+**Umfang:** Ein einzelnes Serverskript liest zunächst ausschließlich den tatsächlichen Container-, Konfigurations- und Auftragsstand. Die Vorbereitung übernimmt die aktive aufgelöste Compose-Konfiguration, sichert sie mit eingeschränkten Dateirechten und ersetzt genau vier Imagefelder. Der getrennte Rollout stoppt zuerst den Worker mit seiner vollständigen Ablaufzeit und anschließend den Broker. Offene oder unklare Aufträge, nicht bestätigte Browserbereinigung und unterbrochene Rolloutphasen verhindern die automatische Fortsetzung. Die drei Zielimages und ihr Runtime-Hash sind auf den bereits freigegebenen Stand festgelegt.
+
+**Grenzen:** Das Skript legt keine SSH-Schlüssel, Konten oder neuen Zugriffsrechte an und verändert weder Firewall noch Datenbankzustände, Freigaben oder Zeitpläne. Eine echte Veröffentlichung bleibt ein separater, bereits beauftragter regulärer Geschäftsvorgang nach erfolgreicher Prüfung. Ein vollständiger automatischer Deployment-Workflow wird damit noch nicht behauptet.
+
+**Gezielte Prüfung:** Alle 14 neuen Rolloutfälle bestehen unter Node 22.23.4 ohne Auslassung. Sie führen die echte Plan-, Journal- und Ablaufsteuerung mit simulierten Hostzugriffen aus und prüfen insbesondere unveränderte Konfiguration, Stoppfolge, unbekannte Aufträge, unterbrochene Mutationen, private Ausgaben sowie neue Runtime-Epoch und Neustartzähler. Die anfängliche lokale Prozesssperre wurde durch die freigegebene Ausführung behoben; keine Assertion wurde abgeschwächt. Python-Syntaxprüfung und unabhängiger Quellreview sind erfolgreich. Der Review korrigierte zuvor die erneute Dollarzeichen-Interpolation im ausführbaren Rückweg. Weitere Pflichtprüfungen und der tatsächliche Hostnachweis werden im zugehörigen PR festgehalten.
+
 ## 2026-10-29 - Juna - Paketnamenkorrektur aus der unterbrochenen Sitzung übernehmen
 
 **Übernahme:** Der bereits veröffentlichte Zweig juna/vinted-package-choice-label enthält den Paketnamenfix in b14ce7a788584f97483cdc40a52bd9ace2b8fa85; ein PR war noch nicht angelegt. Der aktuelle Hauptzweig mit den zwischenzeitlich abgeschlossenen CI-Anpassungen und der verbindlichen Vorabprüfung wird ohne Änderung des Formularverhaltens übernommen. Beide bisherigen Änderungsprotokolle bleiben vollständig erhalten.

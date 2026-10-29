@@ -13,6 +13,690 @@ import { createHash } from 'node:crypto';
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
 
+const marketplaceRolloutScript = fileURLToPath(
+  new URL('../deploy/marketplace-rollout.py', import.meta.url),
+);
+const marketplaceRolloutOptions = {
+  skip: process.platform !== 'linux' ? 'Das Serverskript benötigt Linux mit fcntl.' : false,
+};
+
+function runMarketplaceRolloutPython(source) {
+  const python = process.env.FLIPBASE_PYTHON ?? 'python3';
+  const harness = String.raw`
+import contextlib
+import copy
+import importlib.util
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+from unittest import mock
+
+unexpected_processes = []
+
+def reject_process(*args, **kwargs):
+    unexpected_processes.append(args)
+    raise AssertionError("Die Fixture darf keine externen Prozesse starten.")
+
+# Auch ein versehentlich neuer Aufruf umgeht den Docker-Mock nicht.
+mock.patch("subprocess.run", side_effect=reject_process).start()
+mock.patch("subprocess.Popen", side_effect=reject_process).start()
+mock.patch("os.system", side_effect=reject_process).start()
+mock.patch("os.popen", side_effect=reject_process).start()
+
+spec = importlib.util.spec_from_file_location("marketplace_rollout", sys.argv[1])
+rollout = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = rollout
+spec.loader.exec_module(rollout)
+
+SECRET = "fixture-private-service-key-must-never-be-printed"
+WORKER = "ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:08025a4e1155996cfb5295be312a749843adbe09f630944ee4bfef34c962be18"
+BROKER = "ghcr.io/grischatdev/flipbase-chromium-broker@sha256:c59169e0cc01c664bf02a05df140e3ceb94bed1db0e651968bcbf012a3d92dd0"
+SESSION = "ghcr.io/grischatdev/flipbase-chromium-session@sha256:6292dee02bc7c8d6e1e29c34c654cbc0c9b6d33d7b582f8e72b5314bf226960c"
+
+def compose_fixture():
+    return {
+        "name": "flipbase-chromium-pilot",
+        "services": {
+            "marketplace-worker": {
+                "image": "ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:" + "1" * 64,
+                "container_name": "flipbase-marketplace-worker",
+                "init": True,
+                "user": "1000:1000",
+                "restart": "unless-stopped",
+                "read_only": True,
+                "stop_grace_period": "13m",
+                "environment": {
+                    "MARKETPLACE_CHROMIUM_IMAGE": "ghcr.io/grischatdev/flipbase-chromium-session@sha256:" + "2" * 64,
+                    "MARKETPLACE_BROWSER_PROVIDER": "chromium",
+                    "MARKETPLACE_CHROMIUM_PILOT_ENABLED": "1",
+                    "MARKETPLACE_CHROMIUM_WRITES_ENABLED": "1",
+                    "MARKETPLACE_LISTING_PUBLISH_ENABLED": "1",
+                    "SUPABASE_SERVICE_ROLE_KEY": SECRET,
+                    "EXTRA_VALUE": "leading space # dollar $ and newline\nstay unchanged",
+                },
+                "volumes": [
+                    {"type": "bind", "source": "/opt/flipbase-marketplace/chromium-worker", "target": "/var/lib/flipbase-marketplace"},
+                    {"type": "bind", "source": "/opt/flipbase-marketplace/chromium-broker-token", "target": "/run/secrets/chromium-broker-token", "read_only": True},
+                ],
+                "networks": {"supabase_default": {}, "chromium-control": {}},
+                "cap_drop": ["ALL"],
+                "security_opt": ["no-new-privileges:true"],
+                "labels": {"fixture.retained": "yes"},
+            },
+            "chromium-host-broker": {
+                "image": "ghcr.io/grischatdev/flipbase-chromium-broker@sha256:" + "3" * 64,
+                "init": True,
+                "user": "1000:1000",
+                "restart": "unless-stopped",
+                "read_only": True,
+                "stop_grace_period": "3m",
+                "environment": {
+                    "MARKETPLACE_CHROMIUM_IMAGE": "ghcr.io/grischatdev/flipbase-chromium-session@sha256:" + "2" * 64,
+                    "MARKETPLACE_CHROMIUM_HOST_ID": "fixture-host",
+                },
+                "volumes": [
+                    {"type": "bind", "source": "/var/run/docker.sock", "target": "/var/run/docker.sock"},
+                    {"type": "bind", "source": "/opt/flipbase-marketplace/chromium", "target": "/var/lib/flipbase-chromium"},
+                ],
+                "networks": {
+                    "chromium-control": {"aliases": ["chromium-host-control"]},
+                    "flipbase-browser": {"ipv4_address": "172.30.88.3"},
+                },
+                "cap_drop": ["ALL"],
+                "security_opt": ["no-new-privileges:true"],
+            },
+        },
+        "networks": {
+            "chromium-control": {"internal": True},
+            "flipbase-browser": {"external": True},
+            "supabase_default": {"external": True},
+        },
+    }
+
+def changed_paths(before, after, path=()):
+    if isinstance(before, dict) and isinstance(after, dict) and before.keys() == after.keys():
+        return [change for key in before for change in changed_paths(before[key], after[key], path + (key,))]
+    return [] if before == after else [path]
+
+def assert_rejected(operation):
+    try:
+        operation()
+    except rollout.RolloutError as error:
+        assert SECRET not in str(error), "Eine Fehlermeldung enthält ein Geheimnis."
+        return error
+    raise AssertionError("Der unsichere Zustand wurde nicht abgelehnt.")
+
+def stopped_fixture(code=0, **overrides):
+    state = {"Status": "exited", "Running": False, "ExitCode": code, "OOMKilled": False, "Dead": False, "Error": ""}
+    state.update(overrides)
+    return {"Id": "fixture-container", "State": state}
+
+def idle_snapshot(live=True):
+    return {
+        "counts": {key: 0 for key in ("listingJobs", "operations", "sessions", "messages", "favorites", "negotiations", "setups")},
+        "runtime": {"live": live, "workerId": "11111111-1111-4111-8111-111111111111", "epoch": 1},
+        "listingPermissionHash": "a" * 32,
+        "scheduleAuthorizationHash": "b" * 32,
+        "draft": None,
+        "jobs": [],
+    }
+
+class RolloutFixture:
+    def __enter__(self):
+        self.stack = contextlib.ExitStack()
+        self.directory = Path(self.stack.enter_context(tempfile.TemporaryDirectory(prefix="flipbase-rollout-test-")))
+        self.state_dir = self.directory / "state"
+        self.state_dir.mkdir(mode=0o700)
+        self.source = self.directory / "active-compose.json"
+        self.baseline = compose_fixture()
+        self.source.write_text(json.dumps(self.baseline), encoding="utf-8")
+        self.source.chmod(0o600)
+        self.calls = []
+        self.unexpected_calls = []
+        self.operation_phases = []
+        self.output = io.StringIO()
+        self.counts = idle_snapshot()["counts"]
+        self.after_worker_counts = {}
+        self.after_broker_counts = {}
+        self.sessions = []
+        self.after_worker_sessions = []
+        self.worker_stopped = False
+        self.broker_stopped = False
+        self.started = False
+        self.worker_exit = 0
+        self.broker_exit = 143
+        self.worker_oom = False
+        self.runtime_after_worker = False
+        self.active_worker_id = "11111111-1111-4111-8111-111111111111"
+        self.active_epoch = 1
+        self.next_worker_id = "22222222-2222-4222-8222-222222222222"
+        self.next_epoch = 2
+        self.worker_restarts = 0
+        self.broker_restarts = 0
+        self.fail_stage = None
+        self.permission_hash = "a" * 32
+        self.image_ids = {image: "sha256:" + digit * 64 for image, digit in ((WORKER, "4"), (BROKER, "5"), (SESSION, "6"))}
+        self.context = {
+            "project": "flipbase-chromium-pilot",
+            "source": str(self.source),
+            "working_dir": str(self.directory),
+        }
+        for key, service, digit in (("worker", "marketplace-worker", "a"), ("broker", "chromium-host-broker", "b")):
+            self.context[key] = {
+                "Id": digit * 64,
+                "RestartCount": 0,
+                "Name": "/flipbase-marketplace-worker" if key == "worker" else "/fixture-broker",
+                "State": {"Status": "running", "Running": True, "OOMKilled": False, "Dead": False, "Health": {"Status": "healthy"}},
+                "Config": {
+                    "Image": self.baseline["services"][service]["image"],
+                    "Env": ["SUPABASE_SERVICE_ROLE_KEY=" + SECRET],
+                    "Labels": {"com.docker.compose.config-hash": digit * 64},
+                },
+            }
+        self.stack.enter_context(mock.patch.object(rollout, "BASE_DIR", self.directory))
+        self.stack.enter_context(mock.patch.object(rollout, "STATE_DIR", self.state_dir))
+        # Root-/Host-Dateirechte sind außerhalb dieser Prozess-Fixture; Journal-I/O bleibt echt.
+        self.stack.enter_context(mock.patch.object(rollout, "trusted_path", side_effect=self.trusted_path))
+        self.stack.enter_context(mock.patch.object(rollout, "rollout_lock", side_effect=contextlib.nullcontext))
+        self.stack.enter_context(mock.patch.object(rollout, "discover_active", side_effect=lambda: copy.deepcopy(self.context)))
+        self.stack.enter_context(mock.patch.object(rollout, "run_command", side_effect=self.run_command))
+        self.health = self.stack.enter_context(mock.patch.object(rollout, "public_health", return_value={"ok": True, "apiVersion": 2, "readOnly": False}))
+        self.stack.enter_context(contextlib.redirect_stdout(self.output))
+        self.stack.enter_context(contextlib.redirect_stderr(self.output))
+        return self
+
+    def __exit__(self, kind, value, traceback):
+        self.stack.close()
+        assert not self.unexpected_calls, "Ein nicht modellierter Docker-Aufruf wurde versucht."
+        assert SECRET not in self.output.getvalue(), "Eine Konsolenausgabe enthält ein Geheimnis."
+
+    def trusted_path(self, path, **kwargs):
+        result = Path(path)
+        assert result == self.directory or self.directory in result.parents
+        assert result.exists()
+        return result
+
+    def journal(self):
+        path = self.state_dir / "journal.json"
+        return json.loads(path.read_text()) if path.exists() else None
+
+    def snapshot(self):
+        snapshot = idle_snapshot(live=not self.worker_stopped or self.started)
+        snapshot["counts"].update(self.counts)
+        snapshot["listingPermissionHash"] = self.permission_hash
+        snapshot["runtime"]["workerId"] = self.next_worker_id if self.started else self.active_worker_id
+        snapshot["runtime"]["epoch"] = self.next_epoch if self.started else self.active_epoch
+        if self.worker_stopped and not self.started:
+            snapshot["runtime"]["live"] = self.runtime_after_worker
+            snapshot["counts"].update(self.after_worker_counts)
+        if self.broker_stopped and not self.started:
+            snapshot["counts"].update(self.after_broker_counts)
+        return snapshot
+
+    def run_command(self, args, *, input_text=None, timeout=60):
+        args = list(args)
+        self.calls.append((args, timeout))
+        if args[:2] == ["docker", "pull"]:
+            assert args[2] in self.image_ids
+            return ""
+        if args[:3] == ["docker", "image", "inspect"]:
+            image = args[3]
+            return json.dumps([{"Id": self.image_ids[image], "RepoDigests": [image], "Os": "linux", "Architecture": "amd64"}])
+        if args[:2] == ["docker", "compose"]:
+            if "config" in args and "--hash" in args:
+                key = "worker" if args[-1] == "marketplace-worker" else "broker"
+                return args[-1] + " " + self.context[key]["Config"]["Labels"]["com.docker.compose.config-hash"]
+            if args[-3:] == ["config", "--format", "json"]:
+                path = Path(args[args.index("--file") + 1])
+                value = json.loads(path.read_text())
+                if path.parent == self.state_dir and path.name in ("compose.release.json", "compose.previous.json"):
+                    def resolve_dollars(item):
+                        if isinstance(item, str):
+                            return item.replace("$$", "$")
+                        if isinstance(item, list):
+                            return [resolve_dollars(child) for child in item]
+                        if isinstance(item, dict):
+                            return {key: resolve_dollars(child) for key, child in item.items()}
+                        return item
+                    value = resolve_dollars(value)
+                return json.dumps(value)
+            if "up" in args:
+                self.operation_phases.append(("start", self.journal()["phase"]))
+                self.started = True
+                self.context["source"] = str(self.state_dir / "compose.release.json")
+                for key, image, digit in (("worker", WORKER, "c"), ("broker", BROKER, "d")):
+                    self.context[key]["Id"] = digit * 64
+                    self.context[key]["Config"]["Image"] = image
+                    self.context[key]["Image"] = self.image_ids[image]
+                    self.context[key]["RestartCount"] = self.worker_restarts if key == "worker" else self.broker_restarts
+                    self.context[key]["State"] = {"Status": "running", "Running": True, "OOMKilled": False, "Dead": False, "Health": {"Status": "healthy"}}
+                if self.fail_stage == "start":
+                    raise rollout.RolloutError("Fixture: Start angenommen, Antwort unterbrochen.")
+                return ""
+        if args[:2] == ["docker", "ps"] and "label=de.flipbase.chromium.role=session" in args:
+            return "\n".join(self.sessions + (self.after_worker_sessions if self.worker_stopped and not self.started else []))
+        if args[:4] == ["docker", "exec", "-i", "supabase-db"]:
+            return json.dumps(self.snapshot())
+        if args[:2] == ["docker", "stop"]:
+            key = next(key for key in ("worker", "broker") if self.context[key]["Id"] == args[-1])
+            self.operation_phases.append((key, self.journal()["phase"]))
+            state = stopped_fixture(self.worker_exit if key == "worker" else self.broker_exit)["State"]
+            if key == "worker":
+                self.worker_stopped = True
+                state["OOMKilled"] = self.worker_oom
+            else:
+                self.broker_stopped = True
+            self.context[key]["State"] = state
+            if self.fail_stage == key:
+                raise rollout.RolloutError("Fixture: Stopp angenommen, Antwort unterbrochen.")
+            return args[-1]
+        if args[:2] == ["docker", "inspect"]:
+            return json.dumps([next(item for key, item in self.context.items() if key in ("worker", "broker") and item["Id"] == args[2])])
+        if args[:2] == ["docker", "run"] and args[-2] in self.image_ids:
+            return rollout.RUNTIME_SHA256 + "  " + rollout.RUNTIME_PATH
+        if args[:2] == ["docker", "exec"] and args[-2:] == ["sha256sum", rollout.RUNTIME_PATH]:
+            return rollout.RUNTIME_SHA256 + "  " + rollout.RUNTIME_PATH
+        self.unexpected_calls.append(args)
+        raise AssertionError("Nicht modellierter Docker-Aufruf.")
+
+    def mutations(self):
+        return [args for args, _timeout in self.calls if args[:2] == ["docker", "stop"] or (args[:2] == ["docker", "compose"] and "up" in args)]
+`;
+  const result = spawnSync(
+    python,
+    [
+      '-B',
+      '-c',
+      `${harness}\n${source}\nassert not unexpected_processes, "Ein externer Prozess wurde angesprochen."\n`,
+      marketplaceRolloutScript,
+    ],
+    { encoding: 'utf8', timeout: 15_000, maxBuffer: 1024 * 1024 },
+  );
+  assert.equal(result.error, undefined, result.error?.message);
+  assert.equal(result.signal, null, result.stderr);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+test(
+  'Marketplace-Rollout ersetzt genau vier Imagefelder und erhält den restlichen Compose-Stand',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+before = compose_fixture()
+original = copy.deepcopy(before)
+after = rollout.build_release_config(before)
+expected = {
+    ("services", "marketplace-worker", "image"): WORKER,
+    ("services", "chromium-host-broker", "image"): BROKER,
+    ("services", "marketplace-worker", "environment", "MARKETPLACE_CHROMIUM_IMAGE"): SESSION,
+    ("services", "chromium-host-broker", "environment", "MARKETPLACE_CHROMIUM_IMAGE"): SESSION,
+}
+assert set(changed_paths(before, after)) == set(expected)
+for path, expected_value in expected.items():
+    value = after
+    for part in path:
+        value = value[part]
+    assert value == expected_value
+assert before == original, "Die aktive Ausgangskonfiguration darf nicht verändert werden."
+rollout.assert_image_only_change(before, after)
+after["services"]["marketplace-worker"]["environment"]["EXTRA_VALUE"] = "changed later"
+after["services"]["chromium-host-broker"]["volumes"][0]["source"] = "/different.sock"
+assert before == original, "Verschachtelte Werte benötigen eine unabhängige Kopie."
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout lehnt zusätzliche Konfigurationsänderungen und fremde Zielimages ab',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+before = compose_fixture()
+approved = rollout.build_release_config(before)
+changes = [
+    lambda c: c["services"]["marketplace-worker"]["environment"].pop("SUPABASE_SERVICE_ROLE_KEY"),
+    lambda c: c["services"]["marketplace-worker"].update({"privileged": True}),
+    lambda c: c["services"]["chromium-host-broker"]["volumes"][0].update({"source": "/wrong.sock"}),
+    lambda c: c["networks"]["chromium-control"].update({"internal": False}),
+    lambda c: c["services"].update({"foreign-worker": {"image": WORKER}}),
+    lambda c: c["services"]["marketplace-worker"].update({"image": WORKER[:-1] + "0"}),
+    lambda c: c["services"]["chromium-host-broker"]["environment"].update({"MARKETPLACE_CHROMIUM_IMAGE": "ghcr.io/grischatdev/flipbase-chromium-session:latest"}),
+]
+for change in changes:
+    candidate = copy.deepcopy(approved)
+    change(candidate)
+    assert_rejected(lambda: rollout.assert_image_only_change(before, candidate))
+assert before == compose_fixture()
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout bricht bei uneindeutiger oder konkurrierender Compose-Konfiguration ab',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+changes = [
+    lambda c: c["services"].pop("marketplace-worker"),
+    lambda c: c["services"].pop("chromium-host-broker"),
+    lambda c: c["services"].update({"foreign-worker": {"image": WORKER}}),
+    lambda c: c["services"]["marketplace-worker"].update({"environment": ["MARKETPLACE_CHROMIUM_IMAGE=" + SESSION]}),
+    lambda c: c["services"]["chromium-host-broker"]["environment"].pop("MARKETPLACE_CHROMIUM_IMAGE"),
+    lambda c: c["services"]["marketplace-worker"].update({"build": {"context": "."}}),
+    lambda c: c["services"]["chromium-host-broker"].update({"extends": {"service": "different-broker"}}),
+]
+for change in changes:
+    candidate = compose_fixture()
+    change(candidate)
+    original = copy.deepcopy(candidate)
+    assert_rejected(lambda: rollout.build_release_config(candidate))
+    assert candidate == original
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout akzeptiert SIGTERM-Code 143 ausschließlich beim sauber beendeten Broker',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+rollout.assert_stopped(stopped_fixture())
+rollout.assert_stopped(stopped_fixture(), broker=True)
+rollout.assert_stopped(stopped_fixture(143), broker=True)
+assert_rejected(lambda: rollout.assert_stopped(stopped_fixture(143)))
+for broker in (False, True):
+    for state in (
+        stopped_fixture(137),
+        stopped_fixture(1),
+        stopped_fixture(0, Running=True),
+        stopped_fixture(0, Status="running"),
+        stopped_fixture(0, Status="dead", Dead=True),
+        stopped_fixture(0, OOMKilled=True),
+        stopped_fixture(143, OOMKilled=True),
+        {"State": {"Status": "exited", "ExitCode": 0}},
+        {},
+    ):
+        assert_rejected(lambda: rollout.assert_stopped(state, broker=broker))
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout gibt bei Prozessfehlern und Zeitüberschreitungen keine Zugangsdaten aus',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+cases = [
+    {"return_value": subprocess.CompletedProcess(["fixture"], 1, SECRET, "stderr " + SECRET)},
+    {"side_effect": subprocess.TimeoutExpired(["fixture", SECRET], 60, output=SECRET, stderr=SECRET)},
+    {"side_effect": OSError("fixture executable " + SECRET)},
+]
+for behavior in cases:
+    captured = io.StringIO()
+    with mock.patch("subprocess.run", **behavior), contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+        error = assert_rejected(lambda: rollout.run_command(["fixture", SECRET], input_text=SECRET))
+    assert SECRET not in captured.getvalue() + str(error)
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout sperrt jede aktive oder unbekannte Auftragsklasse und eine unklare Runtime',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+rollout.assert_preflight(idle_snapshot())
+rollout.assert_preflight(idle_snapshot(False), drained=True)
+assert_rejected(lambda: rollout.assert_preflight(idle_snapshot(), drained=True))
+for key in idle_snapshot()["counts"]:
+    for value in (1, -1, True, None, "0", SECRET):
+        snapshot = idle_snapshot()
+        snapshot["counts"][key] = value
+        assert_rejected(lambda: rollout.assert_preflight(snapshot))
+    snapshot = idle_snapshot()
+    del snapshot["counts"][key]
+    assert_rejected(lambda: rollout.assert_preflight(snapshot))
+for counts in (None, [], {}, {**idle_snapshot()["counts"], "unknownQueue": 0}):
+    snapshot = idle_snapshot()
+    snapshot["counts"] = counts
+    assert_rejected(lambda: rollout.assert_preflight(snapshot))
+for runtime in (None, {}, {"live": 0}, {"live": "false"}, {"live": None}):
+    snapshot = idle_snapshot()
+    snapshot["runtime"] = runtime
+    assert_rejected(lambda: rollout.assert_preflight(snapshot))
+assert_rejected(lambda: rollout.assert_preflight(None))
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout bereitet private Snapshots vor, ohne Dienste oder Berechtigungen zu ändern',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    original_source = fixture.source.read_bytes()
+    rollout.prepare()
+    assert fixture.journal()["phase"] == "prepared"
+    assert fixture.source.read_bytes() == original_source
+    assert fixture.mutations() == []
+    pulls = [args[2] for args, _timeout in fixture.calls if args[:2] == ["docker", "pull"]]
+    assert pulls == [WORKER, BROKER, SESSION]
+    plan = rollout.load_plan()
+    assert plan["authorization"] == {"listingPermissionHash": "a" * 32, "scheduleAuthorizationHash": "b" * 32}
+    assert set(plan["images"]) == {WORKER, BROKER, SESSION}
+    for name in ("journal.json", "plan.json", "baseline.json", "compose.previous.json", "compose.release.json"):
+        assert (fixture.state_dir / name).stat().st_mode & 0o777 == 0o600
+    target = json.loads((fixture.state_dir / "compose.release.json").read_text())
+    previous = json.loads((fixture.state_dir / "compose.previous.json").read_text())
+    for config in (target, previous):
+        assert config["services"]["marketplace-worker"]["environment"]["EXTRA_VALUE"] == "leading space # dollar $$ and newline\nstay unchanged"
+    assert SECRET not in (fixture.state_dir / "journal.json").read_text()
+    assert_rejected(rollout.prepare)
+    assert fixture.mutations() == []
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout hält 780/180 Sekunden und Journal vor Worker, Broker und gemeinsamem Start ein',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    rollout.prepare()
+    rollout.deploy()
+    operations = fixture.mutations()
+    assert len(operations) == 3
+    assert operations[0] == ["docker", "stop", "--timeout", "780", "a" * 64]
+    assert operations[1] == ["docker", "stop", "--timeout", "180", "b" * 64]
+    start = operations[2]
+    assert start[:2] == ["docker", "compose"]
+    assert start[start.index("--file") + 1] == str(fixture.state_dir / "compose.release.json")
+    assert start[start.index("--project-name") + 1] == "flipbase-chromium-pilot"
+    assert start[start.index("up") + 1:] == ["--detach", "--no-deps", "--no-build", "--pull", "never", "chromium-host-broker", "marketplace-worker"]
+    assert [timeout for args, timeout in fixture.calls if args[:2] == ["docker", "stop"]] == [810, 210]
+    assert fixture.operation_phases == [
+        ("worker", "worker_stop_started"),
+        ("broker", "broker_stop_started"),
+        ("start", "start_started"),
+    ]
+    assert [entry["phase"] for entry in fixture.journal()["history"]] == [
+        "preparing", "prepared", "worker_stop_started", "worker_stopped",
+        "broker_stop_started", "broker_stopped", "start_started", "verifying", "verified",
+    ]
+    fixture.health.assert_called_once()
+    rollout.verify()
+    assert fixture.mutations() == operations
+    assert fixture.journal()["phase"] == "verified"
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout startet bei unsauberem Drain, neuen Jobs oder verbliebenen Browsern keinen Dienst',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+scenarios = [
+    ("offene Aufträge vor dem Stopp", lambda f: f.counts.update({"listingJobs": 1}), 0),
+    ("Browser vor dem Stopp", lambda f: f.sessions.append("e" * 64), 0),
+    ("Worker-SIGTERM statt sauberem Exit", lambda f: setattr(f, "worker_exit", 143), 1),
+    ("Worker-Kill", lambda f: setattr(f, "worker_exit", 137), 1),
+    ("Worker-OOM", lambda f: setattr(f, "worker_oom", True), 1),
+    ("Runtime-Lease bleibt aktiv", lambda f: setattr(f, "runtime_after_worker", True), 1),
+    ("neue Operation beim Drain", lambda f: f.after_worker_counts.update({"operations": 1}), 1),
+    ("neuer Browser beim Drain", lambda f: f.after_worker_sessions.append("e" * 64), 1),
+    ("Broker-Fehler", lambda f: setattr(f, "broker_exit", 1), 2),
+    ("neue Outbox nach Brokerstopp", lambda f: f.after_broker_counts.update({"messages": 1}), 2),
+]
+for label, change, expected_stops in scenarios:
+    with RolloutFixture() as fixture:
+        rollout.prepare()
+        change(fixture)
+        assert_rejected(rollout.deploy)
+        operations = fixture.mutations()
+        assert len(operations) == expected_stops, label
+        assert all(args[:2] == ["docker", "stop"] for args in operations), label
+        fixture.health.assert_not_called()
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout wiederholt nach unklarer Stopp- oder Startantwort keine Mutation',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for stage, phase, expected_operations in (
+    ("worker", "worker_stop_started", 1),
+    ("broker", "broker_stop_started", 2),
+    ("start", "start_started", 3),
+):
+    with RolloutFixture() as fixture:
+        rollout.prepare()
+        fixture.fail_stage = stage
+        assert_rejected(rollout.deploy)
+        assert fixture.journal()["phase"] == phase
+        operations = copy.deepcopy(fixture.mutations())
+        assert len(operations) == expected_operations
+        fixture.fail_stage = None
+        assert_rejected(rollout.deploy)
+        assert_rejected(rollout.prepare)
+        assert fixture.mutations() == operations
+        assert fixture.journal()["phase"] == phase
+        if stage == "start":
+            rollout.verify()
+            assert fixture.journal()["phase"] == "verified"
+            assert fixture.mutations() == operations
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout sperrt veränderte Pläne, Container, Images und Freigaben vor dem ersten Stopp',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+def alter_release_file(fixture):
+    path = fixture.state_dir / "compose.release.json"
+    path.write_text(path.read_text() + "\n", encoding="utf-8")
+
+def alter_source_file(fixture):
+    fixture.source.write_text(fixture.source.read_text() + "\n", encoding="utf-8")
+
+for change in (
+    alter_release_file,
+    alter_source_file,
+    lambda f: setattr(f, "permission_hash", "c" * 32),
+    lambda f: setattr(f, "active_worker_id", "33333333-3333-4333-8333-333333333333"),
+    lambda f: setattr(f, "active_epoch", 2),
+    lambda f: f.image_ids.update({WORKER: "sha256:" + "f" * 64}),
+    lambda f: f.context["worker"].update({"Id": "f" * 64}),
+):
+    with RolloutFixture() as fixture:
+        rollout.prepare()
+        change(fixture)
+        assert_rejected(rollout.deploy)
+        assert fixture.mutations() == []
+        assert fixture.journal()["phase"] == "prepared"
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout bestätigt keinen Abschluss mit alter Lease oder neu gestarteten Containern',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for change in (
+    lambda f: setattr(f, "next_worker_id", f.active_worker_id),
+    lambda f: setattr(f, "next_epoch", f.active_epoch),
+    lambda f: setattr(f, "next_epoch", 0),
+    lambda f: setattr(f, "next_worker_id", "unknown"),
+    lambda f: setattr(f, "worker_restarts", 1),
+    lambda f: setattr(f, "broker_restarts", 1),
+):
+    with RolloutFixture() as fixture:
+        rollout.prepare()
+        change(fixture)
+        assert_rejected(rollout.deploy)
+        operations = copy.deepcopy(fixture.mutations())
+        assert len(operations) == 3
+        assert fixture.journal()["phase"] == "verifying"
+        assert_rejected(rollout.deploy)
+        assert fixture.mutations() == operations
+        assert fixture.journal()["phase"] == "verifying"
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout zeigt Status und Jobs ohne Umgebungswerte, Nachrichten oder Providerantworten',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    snapshot = idle_snapshot()
+    snapshot["counts"]["messages"] = SECRET
+    snapshot["draft"] = {"revision": 7, "photos": 10, "priceCents": "7990", "packageSizeId": "2", "content": SECRET}
+    snapshot["jobs"] = [{"id": 71, "revision": 7, "state": "failed", "error": "package_match", "receipt": False, "providerResponse": SECRET}]
+    snapshot["outbox"] = [{"kind": "message", "id": 9, "state": "outcome_unknown", "error": None, "body": SECRET, "providerResponse": SECRET}]
+    snapshot["private"] = SECRET
+    with mock.patch.object(rollout, "read_jobs", return_value=snapshot):
+        rollout.status()
+        rollout.jobs()
+    assert "messages: unbekannt" in fixture.output.getvalue()
+    assert "GESPERRT" in fixture.output.getvalue()
+    assert fixture.mutations() == []
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout lehnt fremde Docker-Endpunkte ab und hält unerwartete CLI-Fehler geheim',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for key in ("DOCKER_HOST", "DOCKER_CONTEXT"):
+    output = io.StringIO()
+    with mock.patch.dict(os.environ, {key: SECRET}, clear=True), mock.patch.object(rollout.os, "geteuid", return_value=0), mock.patch.object(rollout, "run_command") as command, contextlib.redirect_stderr(output):
+        assert rollout.main(["status"]) == 1
+        command.assert_not_called()
+    assert SECRET not in output.getvalue()
+
+output = io.StringIO()
+with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(rollout.os, "geteuid", return_value=0), mock.patch.object(rollout, "run_command", return_value="default\n"), mock.patch.object(rollout, "status", side_effect=RuntimeError(SECRET)), contextlib.redirect_stderr(output):
+    assert rollout.main(["status"]) == 1
+assert SECRET not in output.getvalue()
+`);
+  },
+);
+
 test('Push-Smoke meldet den ursprünglichen Startfehler auch ohne erzeugte Container', async () => {
   const script = await readFile(
     new URL('../services/push-worker/scripts/smoke-functions.mjs', import.meta.url),
