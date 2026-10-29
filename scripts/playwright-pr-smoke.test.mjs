@@ -197,27 +197,43 @@ test('gelöschte und umbenannte Browserdateien führen zu einer konservativen ec
   }
 });
 
-test('jede echte Browsermatrixgruppe enthält Fälle und zusammen jede Auswahl genau einmal', async () => {
-  const paths = [
-    'src/styles.scss',
-    'src/app/core/models/supabase.types.ts',
-    'e2e/global-setup.ts',
-    'e2e/responsive-admin-layout.spec.ts',
-    'e2e/vinted-kleinanzeigen-transfer.spec.ts',
-  ];
-  const { plan, selected: complete } = await listPlan(paths);
-  const grouped = [];
-  for (const { project, shard } of buildBrowserMatrix(plan)) {
-    const { selected } = await listPlan(paths, ['--project=' + project, '--shard=' + shard]);
-    assert.ok(selected.length > 0, project + ' ' + shard);
-    // 118 Fachfälle überschritten in CI das 30-Minuten-Budget. Der breite
-    // Referenzplan muss mit Reserve und ohne verlorene Fälle aufgeteilt sein.
-    if (project === 'chromium') assert.ok(selected.length <= 80, `${shard}: ${selected.length}`);
-    grouped.push(...selected);
-  }
-  assert.equal(new Set(keys(grouped)).size, grouped.length);
-  assert.deepEqual(keys(grouped), keys(complete));
-});
+for (const { name, paths, full } of [
+  {
+    name: 'umfassende Änderungen',
+    paths: [
+      'src/styles.scss',
+      'src/app/core/models/supabase.types.ts',
+      'e2e/global-setup.ts',
+      'e2e/responsive-admin-layout.spec.ts',
+      'e2e/vinted-kleinanzeigen-transfer.spec.ts',
+    ],
+    full: true,
+  },
+  {
+    name: 'gezielte Vinted-Runtime',
+    paths: ['tools/flipbase-extension/vinted-listing-runtime.js'],
+    full: false,
+  },
+])
+  test(`jede echte Browsermatrixgruppe enthält Fälle und zusammen jede Auswahl genau einmal (${name})`, async () => {
+    const { plan, selected: complete } = await listPlan(paths);
+    assert.equal(plan.full, full);
+    if (!full) {
+      assert.equal(plan.browserFiles.length, 15);
+      assert.equal(complete.length, 219);
+    }
+    const grouped = [];
+    for (const { project, shard } of buildBrowserMatrix(plan)) {
+      const { selected } = await listPlan(paths, ['--project=' + project, '--shard=' + shard]);
+      assert.ok(selected.length > 0, project + ' ' + shard);
+      // Auch 219 gezielte Fachfälle überschritten in CI das 30-Minuten-Budget.
+      // Beide Referenzpläne brauchen Reserve und müssen alle Fälle erhalten.
+      if (project === 'chromium') assert.ok(selected.length <= 80, `${shard}: ${selected.length}`);
+      grouped.push(...selected);
+    }
+    assert.equal(new Set(keys(grouped)).size, grouped.length);
+    assert.deepEqual(keys(grouped), keys(complete));
+  });
 
 test('bestehende vollständige Browserregression bleibt mit allen bisherigen Markierungen verfügbar', async () => {
   const complete = await listTests('playwright.config.ts');

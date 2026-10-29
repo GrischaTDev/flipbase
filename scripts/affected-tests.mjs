@@ -362,16 +362,19 @@ export function buildBrowserMatrix(plan) {
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // 118 Fachfälle je Job überschritten das bestehende 30-Minuten-Budget.
-      // Breite Fachgruppen wachsen deshalb ab 31 Dateien in Zehnerschritten;
-      // kleine Pläne, Layout und direkt geänderte Dateien behalten ihre Grenzen.
+      // 118 umfassende und 219 gezielte Fachfälle überschritten das 30-Minuten-Budget.
+      // Auch gezielte Fachgruppen ab elf Dateien werden aufgeteilt; ab 31 Dateien
+      // wachsen sie in Zehnerschritten. Kleine Pläne und andere Gruppen bleiben gleich.
       const maxGroups =
         project === 'layout'
           ? 2
           : project === 'chromium'
             ? Math.max(3, Math.ceil(files.length / 10))
             : 3;
-      const groups = plan.full && project !== 'core-smoke' ? Math.min(maxGroups, files.length) : 1;
+      const groups =
+        (plan.full || (project === 'chromium' && files.length > 10)) && project !== 'core-smoke'
+          ? Math.min(maxGroups, files.length)
+          : 1;
       return Array.from({ length: groups }, (_, index) => ({
         project,
         shard: `${index + 1}/${groups}`,
