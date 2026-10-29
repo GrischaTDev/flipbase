@@ -506,6 +506,54 @@ test('die Browsermatrix enthält jeden gewählten Bereich und jede Teilgruppe ge
   }
 });
 
+test('gezielte Fachauswahlen behalten kleine Jobs und teilen große Gruppen ohne leere Jobs', () => {
+  for (const [count, shards] of [
+    [0, []],
+    [1, ['1/1']],
+    [10, ['1/1']],
+    [11, ['1/3', '2/3', '3/3']],
+    [15, ['1/3', '2/3', '3/3']],
+    [30, ['1/3', '2/3', '3/3']],
+    [31, ['1/4', '2/4', '3/4', '4/4']],
+  ]) {
+    const plan = {
+      ...twoBrowserGroups,
+      full: false,
+      browserFiles: Array.from({ length: count }, (_, index) => `e2e/feature-${index}.spec.ts`),
+      changedBrowserFiles: [],
+    };
+    assert.deepEqual(
+      buildBrowserMatrix(plan),
+      shards.map((shard) => ({ project: 'chromium', shard })),
+      `${count} Fachdateien`,
+    );
+  }
+});
+
+test('große Fachauswahlen erhalten die bestehenden Kern-, Layout- und Änderungsgruppen', () => {
+  const files = (prefix) =>
+    Array.from({ length: 15 }, (_, index) => `e2e/${prefix}-${index}.spec.ts`);
+  for (const [full, layout, changed] of [
+    [false, ['1/1'], ['1/1']],
+    [true, ['1/2', '2/2'], ['1/3', '2/3', '3/3']],
+  ]) {
+    const plan = {
+      ...twoBrowserGroups,
+      full,
+      coreBrowserFiles: files('core'),
+      layoutBrowserFiles: files('layout'),
+      browserFiles: files('feature'),
+      changedBrowserFiles: files('changed'),
+    };
+    assert.deepEqual(buildBrowserMatrix(plan), [
+      { project: 'core-smoke', shard: '1/1' },
+      ...layout.map((shard) => ({ project: 'layout', shard })),
+      ...['1/3', '2/3', '3/3'].map((shard) => ({ project: 'chromium', shard })),
+      ...changed.map((shard) => ({ project: 'changed-tests', shard })),
+    ]);
+  }
+});
+
 test('ein Browsermatrixjob führt ausschließlich seine gewählte Teilgruppe aus', () => {
   for (const { project, shard } of buildBrowserMatrix(twoBrowserGroups)) {
     const { result, invocations } = runBrowserGroups(
