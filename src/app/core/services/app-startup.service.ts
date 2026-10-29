@@ -1,17 +1,22 @@
 import { afterNextRender, inject, Injectable, Injector } from '@angular/core';
 import { NavigationError, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { StaleChunkRecoveryService } from './stale-chunk-recovery.service';
 
 @Injectable({ providedIn: 'root' })
 export class AppStartupService {
   private readonly injector = inject(Injector);
+  private readonly staleChunkRecovery = inject(StaleChunkRecoveryService);
   private hasRendered = false;
 
   constructor() {
     inject(Router)
       .events.pipe(takeUntilDestroyed())
       .subscribe((event) => {
-        if (event instanceof NavigationError) this.failStartup('navigation');
+        if (event instanceof NavigationError) {
+          this.staleChunkRecovery.rememberNavigationError(event.error, event.url);
+          this.failStartup('navigation');
+        }
       });
   }
 
