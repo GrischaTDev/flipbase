@@ -45,6 +45,7 @@ export interface DayItem {
   styleUrl: './date-picker.component.scss',
   host: {
     class: 'block relative',
+    '[attr.id]': 'null',
     '(document:click)': 'onClickOutside($event)',
     '(keydown.escape)': 'onEscape($event)',
   },
