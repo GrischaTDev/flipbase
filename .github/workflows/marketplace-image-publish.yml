@@ -2,6 +2,19 @@ name: Publish Marketplace Images
 
 on:
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Geprüften Release veröffentlichen, vorhandenen Release ausrollen oder Status lesen
+        type: choice
+        options: [release, deploy-existing, status]
+        default: release
+        required: true
+      release_commit:
+        description: Nur für deploy-existing – vollständige Commitkennung eines geprüften Hauptzweig-Releases
+        type: string
+        default: ''
+        required: false
+  workflow_call:
 
 # Veröffentlichung vollständig beenden und gegen gleichzeitige Imageprüfungen serialisieren.
 concurrency:
@@ -12,17 +25,54 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    name: Validate Marketplace release
+    if: github.repository == 'GrischaTDev/flipbase' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      operation: ${{ steps.plan.outputs.operation }}
+      commit: ${{ steps.plan.outputs.commit }}
+      receipts: ${{ steps.plan.outputs.receipts }}
+    steps:
+      - name: Check out the invoking master commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Verify source, CI and publication evidence
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_OPERATION: ${{ inputs.operation || 'release' }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+        run: node scripts/marketplace-release.mjs plan
+
   publish:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    name: Publish verified Marketplace images
+    needs: plan
+    if: needs.plan.outputs.operation == 'release'
     permissions:
       contents: read
       packages: write
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      manifest: ${{ steps.manifest.outputs.manifest }}
     steps:
       - name: Check out reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.plan.outputs.commit }}
           persist-credentials: false
 
       - name: Set up Node
@@ -64,3 +114,141 @@ jobs:
           docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"
           docker push "ghcr.io/grischatdev/flipbase-chromium-broker:sha-$GITHUB_SHA"
           docker push "ghcr.io/grischatdev/flipbase-chromium-session:sha-$GITHUB_SHA"
+
+      - name: Bind public digests to the tested images and runtime
+        id: manifest
+        env:
+          RELEASE_OPERATION: release
+          RELEASE_COMMIT: ${{ needs.plan.outputs.commit }}
+        run: node scripts/marketplace-release.mjs manifest
+
+  existing:
+    name: Resolve previously verified Marketplace images
+    needs: plan
+    if: needs.plan.outputs.operation == 'deploy-existing'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      manifest: ${{ steps.manifest.outputs.manifest }}
+    steps:
+      # Alte Releases liefern nur Runtimebytes; ausgeführt wird der aktuelle Workflowcode.
+      - name: Check out the invoking master commit and history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Resolve public immutable digests and reviewed runtime
+        id: manifest
+        env:
+          RELEASE_OPERATION: deploy-existing
+          RELEASE_COMMIT: ${{ needs.plan.outputs.commit }}
+          RELEASE_RECEIPTS: ${{ needs.plan.outputs.receipts }}
+        run: node scripts/marketplace-release.mjs manifest
+
+  deploy:
+    name: Deploy Marketplace to production
+    needs: [plan, publish, existing]
+    if: ${{ always() && needs.plan.result == 'success' && ((needs.plan.outputs.operation == 'release' && needs.publish.result == 'success') || (needs.plan.outputs.operation == 'deploy-existing' && needs.existing.result == 'success') || needs.plan.outputs.operation == 'status') }}
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    # Drei begrenzte Imagepulls plus vollständiger geordneter Stopp müssen hineinpassen.
+    timeout-minutes: 90
+    environment:
+      name: marketplace-production
+      url: https://app.flipbase.de
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: 168.119.246.33
+      DEPLOY_USER: root
+    steps:
+      # Environmentvariablen sind erst im gestarteten Environmentjob verfügbar.
+      - name: Require the completed server bootstrap
+        id: enabled
+        env:
+          DEPLOY_ENABLED: ${{ vars.MARKETPLACE_DEPLOY_ENABLED }}
+        run: |
+          if [ "$DEPLOY_ENABLED" = true ]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo 'Marketplace-Images sind veröffentlicht. Serverdeployment noch nicht eingerichtet: MARKETPLACE_DEPLOY_ENABLED fehlt.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '::error::Marketplace-Serverzugang ist noch nicht freigeschaltet.'
+            exit 1
+          fi
+
+      - name: Check out the invoking master commit
+        if: steps.enabled.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        if: steps.enabled.outputs.enabled == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Reject superseded or unverified releases immediately before SSH
+        if: steps.enabled.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_OPERATION: ${{ needs.plan.outputs.operation }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+        run: node scripts/marketplace-release.mjs check
+
+      - name: Set up the restricted Marketplace SSH identity
+        if: steps.enabled.outputs.enabled == 'true'
+        env:
+          SSH_KEY: ${{ secrets.MARKETPLACE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MARKETPLACE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          umask 077
+          ssh_dir="$(mktemp -d "$RUNNER_TEMP/marketplace-ssh.XXXXXX")"
+          echo "MARKETPLACE_SSH_DIR=$ssh_dir" >> "$GITHUB_ENV"
+          printf '%s\n' "$SSH_KEY" > "$ssh_dir/id_ed25519"
+          printf '%s\n' "$KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+
+      - name: Apply the exact Marketplace manifest
+        if: steps.enabled.outputs.enabled == 'true' && needs.plan.outputs.operation != 'status'
+        env:
+          RELEASE_MANIFEST: ${{ needs.publish.outputs.manifest || needs.existing.outputs.manifest }}
+        run: |
+          test -n "$RELEASE_MANIFEST"
+          printf '%s\n' "$RELEASE_MANIFEST" | ssh \
+            -i "$MARKETPLACE_SSH_DIR/id_ed25519" \
+            -o "UserKnownHostsFile=$MARKETPLACE_SSH_DIR/known_hosts" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ForwardAgent=no -o RequestTTY=no -o ConnectTimeout=15 \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            "$DEPLOY_USER@$DEPLOY_HOST" marketplace-deploy-v1
+
+      - name: Read the persistent Marketplace status
+        if: steps.enabled.outputs.enabled == 'true'
+        run: |
+          ssh -i "$MARKETPLACE_SSH_DIR/id_ed25519" \
+            -o "UserKnownHostsFile=$MARKETPLACE_SSH_DIR/known_hosts" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ForwardAgent=no -o RequestTTY=no -o ConnectTimeout=15 \
+            "$DEPLOY_USER@$DEPLOY_HOST" marketplace-status-v1 < /dev/null
+
+      - name: Remove the temporary SSH identity
+        if: ${{ always() && env.MARKETPLACE_SSH_DIR != '' }}
+        run: |
+          rm -f -- "$MARKETPLACE_SSH_DIR/id_ed25519" "$MARKETPLACE_SSH_DIR/known_hosts"
+          rmdir -- "$MARKETPLACE_SSH_DIR"

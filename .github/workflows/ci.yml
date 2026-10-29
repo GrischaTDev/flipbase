@@ -882,6 +882,17 @@ jobs:
       - name: Verify the public landing page
         run: node scripts/verify-landing-deployment.mjs --base-url https://flipbase.de
 
+  marketplace-release:
+    name: Marketplace release
+    needs: [changes, required-checks, deploy]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && always() && needs.required-checks.result == 'success' && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped') && (needs.changes.outputs.worker_image_required == 'true' || needs.changes.outputs.session_image_required == 'true') }}
+    # Nur dieser Hauptzweig-Aufrufer darf den getrennten Publisher verwenden.
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/marketplace-image-publish.yml
+
   release:
     name: Create GitHub Release
     needs: [deploy, image]

@@ -16,6 +16,9 @@ const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url
 const marketplaceRolloutScript = fileURLToPath(
   new URL('../deploy/marketplace-rollout.py', import.meta.url),
 );
+const marketplaceDeployScript = fileURLToPath(
+  new URL('../deploy/marketplace-deploy.py', import.meta.url),
+);
 const marketplaceRolloutOptions = {
   skip: process.platform !== 'linux' ? 'Das Serverskript benötigt Linux mit fcntl.' : false,
 };
@@ -51,6 +54,10 @@ spec = importlib.util.spec_from_file_location("marketplace_rollout", sys.argv[1]
 rollout = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = rollout
 spec.loader.exec_module(rollout)
+entry_spec = importlib.util.spec_from_file_location("marketplace_deploy", sys.argv[2])
+entry = importlib.util.module_from_spec(entry_spec)
+entry_spec.loader.exec_module(entry)
+real_rollout_lock = rollout.rollout_lock
 
 SECRET = "fixture-private-service-key-must-never-be-printed"
 WORKER = "ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:08025a4e1155996cfb5295be312a749843adbe09f630944ee4bfef34c962be18"
@@ -141,8 +148,37 @@ def idle_snapshot(live=True):
         "runtime": {"live": live, "workerId": "11111111-1111-4111-8111-111111111111", "epoch": 1},
         "listingPermissionHash": "a" * 32,
         "scheduleAuthorizationHash": "b" * 32,
+        "unknownMessageEvidence": [],
+        "historicalUnknownMessages": 0,
+        "historicalUnknownMessagesHash": rollout.fingerprint([]),
         "draft": None,
         "jobs": [],
+    }
+
+def manifest_fixture(commit="8f9a81ac02556daf0f7db13b4169c76f703c0d15"):
+    return {
+        "version": 1, "commit": commit,
+        "worker_digest": WORKER.split("@")[1], "broker_digest": BROKER.split("@")[1],
+        "session_digest": SESSION.split("@")[1],
+        "runtime_sha256": "35664496128a85590a98a13cf0b7aceaa0cc9ef1c6888caa32a2076ddf90df83",
+    }
+
+def unknown_message_fixture():
+    return {
+        "id": "10000000-1111-4111-8111-111111111111", "state": "outcome_unknown", "executionMode": "cloud",
+        "workspaceId": "20000000-1111-4111-8111-111111111111", "connectionId": "30000000-1111-4111-8111-111111111111",
+        "requestedBy": "40000000-1111-4111-8111-111111111111", "sessionId": "50000000-1111-4111-8111-111111111111",
+        "workerId": "60000000-1111-4111-8111-111111111111", "workerEpoch": 7,
+        "runnerId": "70000000-1111-4111-8111-111111111111", "claimTokenHash": "a" * 32, "payloadHash": "b" * 64,
+        "externalMessageId": None, "errorCode": "reply_unconfirmed", "createdAt": "2026-10-08T21:52:42+00:00",
+        "updatedAt": "2026-10-08T21:52:52+00:00", "startedAt": "2026-10-08T21:52:45+00:00",
+        "leaseExpiresAt": None, "leaseExpired": True,
+        "session": {
+            "id": "50000000-1111-4111-8111-111111111111", "workspaceId": "20000000-1111-4111-8111-111111111111",
+            "connectionId": "30000000-1111-4111-8111-111111111111", "startedBy": "40000000-1111-4111-8111-111111111111",
+            "workerId": "60000000-1111-4111-8111-111111111111", "workerEpoch": 7, "state": "closed",
+            "providerStoppedAt": "2026-10-08T21:52:53+00:00", "providerStopped": True,
+        },
     }
 
 class RolloutFixture:
@@ -156,12 +192,16 @@ class RolloutFixture:
         self.source.write_text(json.dumps(self.baseline), encoding="utf-8")
         self.source.chmod(0o600)
         self.calls = []
+        self.sql_calls = []
         self.unexpected_calls = []
         self.operation_phases = []
         self.output = io.StringIO()
         self.counts = idle_snapshot()["counts"]
         self.after_worker_counts = {}
         self.after_broker_counts = {}
+        self.unknown_messages = []
+        self.after_worker_unknown_messages = None
+        self.after_broker_unknown_messages = None
         self.sessions = []
         self.after_worker_sessions = []
         self.worker_stopped = False
@@ -224,17 +264,28 @@ class RolloutFixture:
         path = self.state_dir / "journal.json"
         return json.loads(path.read_text()) if path.exists() else None
 
+    def select_manifest(self, manifest):
+        self.state_dir = self.directory / ("deploy-" + manifest["commit"] + "-" + rollout.fingerprint(manifest))
+        self.state_dir.mkdir(mode=0o700, exist_ok=True)
+        for repository, field, digit in zip(rollout.IMAGE_REPOSITORIES, ("worker_digest", "broker_digest", "session_digest"), ("4", "5", "6")):
+            self.image_ids[repository + "@" + manifest[field]] = "sha256:" + digit * 64
+
     def snapshot(self):
         snapshot = idle_snapshot(live=not self.worker_stopped or self.started)
         snapshot["counts"].update(self.counts)
         snapshot["listingPermissionHash"] = self.permission_hash
         snapshot["runtime"]["workerId"] = self.next_worker_id if self.started else self.active_worker_id
         snapshot["runtime"]["epoch"] = self.next_epoch if self.started else self.active_epoch
+        snapshot["unknownMessageEvidence"] = copy.deepcopy(self.unknown_messages)
         if self.worker_stopped and not self.started:
             snapshot["runtime"]["live"] = self.runtime_after_worker
             snapshot["counts"].update(self.after_worker_counts)
+            if self.after_worker_unknown_messages is not None:
+                snapshot["unknownMessageEvidence"] = copy.deepcopy(self.after_worker_unknown_messages)
         if self.broker_stopped and not self.started:
             snapshot["counts"].update(self.after_broker_counts)
+            if self.after_broker_unknown_messages is not None:
+                snapshot["unknownMessageEvidence"] = copy.deepcopy(self.after_broker_unknown_messages)
         return snapshot
 
     def run_command(self, args, *, input_text=None, timeout=60):
@@ -253,7 +304,7 @@ class RolloutFixture:
             if args[-3:] == ["config", "--format", "json"]:
                 path = Path(args[args.index("--file") + 1])
                 value = json.loads(path.read_text())
-                if path.parent == self.state_dir and path.name in ("compose.release.json", "compose.previous.json"):
+                if path.name in ("compose.release.json", "compose.previous.json"):
                     def resolve_dollars(item):
                         if isinstance(item, str):
                             return item.replace("$$", "$")
@@ -268,7 +319,7 @@ class RolloutFixture:
                 self.operation_phases.append(("start", self.journal()["phase"]))
                 self.started = True
                 self.context["source"] = str(self.state_dir / "compose.release.json")
-                for key, image, digit in (("worker", WORKER, "c"), ("broker", BROKER, "d")):
+                for key, image, digit in (("worker", rollout.WORKER_IMAGE, "c"), ("broker", rollout.BROKER_IMAGE, "d")):
                     self.context[key]["Id"] = digit * 64
                     self.context[key]["Config"]["Image"] = image
                     self.context[key]["Image"] = self.image_ids[image]
@@ -280,6 +331,7 @@ class RolloutFixture:
         if args[:2] == ["docker", "ps"] and "label=de.flipbase.chromium.role=session" in args:
             return "\n".join(self.sessions + (self.after_worker_sessions if self.worker_stopped and not self.started else []))
         if args[:4] == ["docker", "exec", "-i", "supabase-db"]:
+            self.sql_calls.append(input_text)
             return json.dumps(self.snapshot())
         if args[:2] == ["docker", "stop"]:
             key = next(key for key in ("worker", "broker") if self.context[key]["Id"] == args[-1])
@@ -313,6 +365,7 @@ class RolloutFixture:
       '-c',
       `${harness}\n${source}\nassert not unexpected_processes, "Ein externer Prozess wurde angesprochen."\n`,
       marketplaceRolloutScript,
+      marketplaceDeployScript,
     ],
     { encoding: 'utf8', timeout: 15_000, maxBuffer: 1024 * 1024 },
   );
@@ -487,7 +540,7 @@ with RolloutFixture() as fixture:
     pulls = [args[2] for args, _timeout in fixture.calls if args[:2] == ["docker", "pull"]]
     assert pulls == [WORKER, BROKER, SESSION]
     plan = rollout.load_plan()
-    assert plan["authorization"] == {"listingPermissionHash": "a" * 32, "scheduleAuthorizationHash": "b" * 32}
+    assert plan["authorization"] == {"listingPermissionHash": "a" * 32, "scheduleAuthorizationHash": "b" * 32, "historicalUnknownMessagesHash": rollout.fingerprint([])}
     assert set(plan["images"]) == {WORKER, BROKER, SESSION}
     for name in ("journal.json", "plan.json", "baseline.json", "compose.previous.json", "compose.release.json"):
         assert (fixture.state_dir / name).stat().st_mode & 0o777 == 0o600
@@ -694,6 +747,388 @@ with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(rollout.os, 
     assert rollout.main(["status"]) == 1
 assert SECRET not in output.getvalue()
 `);
+  },
+);
+
+test(
+  'Marketplace-Rollout trennt unbekannten Versandausgang von vollständig beendetem Cloud-Versuch',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    fixture.unknown_messages = [unknown_message_fixture()]
+    original = copy.deepcopy(fixture.unknown_messages)
+    snapshot = rollout.read_jobs()
+    assert snapshot["counts"]["messages"] == 0
+    assert snapshot["historicalUnknownMessages"] == 1
+    assert snapshot["historicalUnknownMessagesHash"] == rollout.fingerprint(original)
+    rollout.assert_preflight(snapshot)
+    rollout.prepare()
+    rollout.deploy()
+    assert fixture.journal()["phase"] == "verified"
+    assert fixture.unknown_messages == original
+    assert rollout.load_plan()["authorization"]["historicalUnknownMessagesHash"] == rollout.fingerprint(original)
+    rollout.jobs()
+    assert "Historische Nachrichten mit unbekanntem Versandausgang: 1" in fixture.output.getvalue()
+    assert "kein Versandnachweis und keine Wiederholung" in fixture.output.getvalue()
+    assert all(sql.startswith("\nbegin isolation level repeatable read read only;") and sql.rstrip().endswith("rollback;") for sql in fixture.sql_calls)
+    assert not any("update public." in sql or "delete from" in sql or "marketplace_retry_message" in sql for sql in fixture.sql_calls)
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout blockiert unbekannte Nachrichten bei jeder fehlenden oder fremden Ausführungsbindung',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+changes = [
+    lambda row: row.update({"session": None}),
+    lambda row: row.update({"leaseExpired": False}),
+    lambda row: row.update({"leaseExpired": None}),
+    lambda row: row.update({"claimTokenHash": None}),
+    lambda row: row.update({"runnerId": None}),
+    lambda row: row.update({"workerEpoch": True}),
+    lambda row: row.update({"externalMessageId": "12345"}),
+    lambda row: row["session"].update({"state": "active"}),
+    lambda row: row["session"].update({"state": "stopping"}),
+    lambda row: row["session"].update({"providerStoppedAt": None}),
+    lambda row: row["session"].update({"providerStoppedAt": "not-a-timestamp"}),
+    lambda row: row["session"].update({"providerStopped": False}),
+]
+for field in ("id", "workspaceId", "connectionId", "startedBy", "workerId", "workerEpoch"):
+    changes.append(lambda row, field=field: row["session"].pop(field))
+    changes.append(lambda row, field=field: row["session"].update({field: 99 if field == "workerEpoch" else "ffffffff-1111-4111-8111-111111111111"}))
+for change in changes:
+    with RolloutFixture() as fixture:
+        row = unknown_message_fixture()
+        change(row)
+        fixture.unknown_messages = [row]
+        snapshot = rollout.read_jobs()
+        assert snapshot["counts"]["messages"] == 1
+        assert snapshot["historicalUnknownMessages"] == 0
+        assert_rejected(rollout.prepare)
+        assert fixture.mutations() == []
+with RolloutFixture() as fixture:
+    fixture.unknown_messages = [unknown_message_fixture(), unknown_message_fixture()]
+    assert_rejected(rollout.read_jobs)
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout behält globale Sitzungs- und Browserblockaden bei historischen Nachrichten bei',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for change in (
+    lambda fixture: fixture.counts.update({"sessions": 1}),
+    lambda fixture: fixture.sessions.append("e" * 64),
+    lambda fixture: fixture.counts.update({"listingJobs": 1}),
+    lambda fixture: fixture.counts.update({"operations": 1}),
+    lambda fixture: fixture.counts.update({"favorites": 1}),
+    lambda fixture: fixture.counts.update({"negotiations": 1}),
+):
+    with RolloutFixture() as fixture:
+        fixture.unknown_messages = [unknown_message_fixture()]
+        change(fixture)
+        assert_rejected(rollout.prepare)
+        assert fixture.mutations() == []
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout stoppt bei verändertem historischem Beleg vor, während und nach dem Drain',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for stage, mutations in (("pull", 0), ("before-stop", 0), ("worker", 1), ("broker", 2), ("verify", 3)):
+    for change in ("late-receipt", "different-claim"):
+        with RolloutFixture() as fixture:
+            row = unknown_message_fixture()
+            fixture.unknown_messages = [row]
+            changed = [] if change == "late-receipt" else [{**row, "claimTokenHash": "c" * 32}]
+            if stage == "pull":
+                normal_command = fixture.run_command
+                def command(args, **kwargs):
+                    result = normal_command(args, **kwargs)
+                    if args[:2] == ["docker", "pull"]:
+                        fixture.unknown_messages = copy.deepcopy(changed)
+                    return result
+                with mock.patch.object(rollout, "run_command", side_effect=command):
+                    assert_rejected(rollout.prepare)
+            else:
+                rollout.prepare()
+                if stage == "before-stop":
+                    fixture.unknown_messages = copy.deepcopy(changed)
+                elif stage == "worker":
+                    fixture.after_worker_unknown_messages = changed
+                elif stage == "broker":
+                    fixture.after_broker_unknown_messages = changed
+                elif stage == "verify":
+                    def health():
+                        fixture.unknown_messages = copy.deepcopy(changed)
+                        return {"ok": True, "apiVersion": 2, "readOnly": False}
+                    fixture.health.side_effect = health
+                assert_rejected(rollout.deploy)
+            assert len(fixture.mutations()) == mutations, (stage, change)
+            assert fixture.journal()["phase"] != "verified"
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH akzeptiert nur vollständige Manifeste und feste Image-Repositories',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+approved = manifest_fixture()
+assert rollout.validate_manifest(approved) == approved
+old_values = (rollout.RELEASE, rollout.IMAGES, rollout.STATE_DIR)
+with rollout.configured_release(approved):
+    assert rollout.RELEASE == approved["commit"]
+    assert rollout.IMAGES == (WORKER, BROKER, SESSION)
+    assert rollout.STATE_DIR.name == "deploy-" + approved["commit"] + "-" + rollout.fingerprint(approved)
+assert (rollout.RELEASE, rollout.IMAGES, rollout.STATE_DIR) == old_values
+for candidate in (None, [], {}, {**approved, "command": SECRET}, {**approved, "version": True}, {**approved, "version": 2}):
+    assert_rejected(lambda: rollout.validate_manifest(candidate))
+for key in approved:
+    candidate = {name: value for name, value in approved.items() if name != key}
+    assert_rejected(lambda: rollout.validate_manifest(candidate))
+for key in ("commit", "runtime_sha256", "worker_digest", "broker_digest", "session_digest"):
+    for value in (None, True, 12, "", SECRET, "../unsafe", approved[key] + "\n", approved[key].upper()):
+        assert_rejected(lambda: rollout.validate_manifest({**approved, key: value}))
+with RolloutFixture() as fixture:
+    manifest = {**approved, "commit": "a" * 40, "worker_digest": "sha256:" + "a" * 64}
+    with rollout.configured_release(manifest):
+        target = rollout.build_release_config(fixture.baseline)
+        assert target["services"]["marketplace-worker"]["image"] == "ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:" + "a" * 64
+        assert len(changed_paths(fixture.baseline, target)) == 4
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH lehnt doppelte Felder, Zusatzdaten und übergroße Eingaben ab',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+assert entry.parse_request(json.dumps(manifest_fixture()).encode()) == manifest_fixture()
+for payload in (b"", b"{" * 4097, b"\xff", b'{"commit":"a","commit":"b"}', b"{} {}", (SECRET * 500).encode()):
+    try:
+        entry.parse_request(payload)
+    except entry.DeploymentError as error:
+        assert SECRET not in str(error)
+    else:
+        raise AssertionError("Unsichere SSH-Eingabe wurde angenommen.")
+reader = mock.Mock()
+reader.read.return_value = json.dumps(manifest_fixture()).encode()
+with mock.patch.object(entry.signal, "signal", return_value=entry.signal.SIG_DFL) as handler, mock.patch.object(entry.signal, "setitimer", return_value=(0.0, 0.0)) as timer:
+    assert entry.read_request(reader) == manifest_fixture()
+    reader.read.assert_called_once_with(4097)
+    assert timer.call_args_list[0].args == (entry.signal.ITIMER_REAL, 10)
+    assert timer.call_args_list[-1].args == (entry.signal.ITIMER_REAL, 0.0, 0.0)
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH erlaubt keine Shellbefehle, Argumente oder geerbte Docker-Overrides',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for command in ("", "sh", "marketplace-deploy-v1;id", " marketplace-status-v1", "marketplace-status-v1\n", "marketplace-deploy-v1 --force", "scp -t /tmp/file"):
+    output = io.StringIO()
+    with mock.patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": command}, clear=True), mock.patch.object(entry, "load_engine") as loader, contextlib.redirect_stderr(output):
+        assert entry.main([]) == 1
+        loader.assert_not_called()
+for arguments in (["--help"], [SECRET]):
+    with mock.patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "marketplace-status-v1"}, clear=True), mock.patch.object(entry, "load_engine") as loader, contextlib.redirect_stderr(io.StringIO()):
+        assert entry.main(arguments) == 1
+        loader.assert_not_called()
+for key in ("DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG", "DOCKER_API_VERSION", "COMPOSE_FILE", "COMPOSE_PROJECT_NAME"):
+    with mock.patch.dict(os.environ, {key: SECRET}, clear=True), mock.patch.object(entry.tempfile, "TemporaryDirectory") as directory:
+        try:
+            with entry.clean_environment():
+                raise AssertionError("Override wurde akzeptiert.")
+        except entry.DeploymentError as error:
+            assert SECRET not in str(error)
+        directory.assert_not_called()
+with tempfile.TemporaryDirectory() as directory:
+    supplied = {"SSH_ORIGINAL_COMMAND": "marketplace-status-v1", "PATH": SECRET, "HOME": SECRET, "HTTPS_PROXY": SECRET, "BASH_ENV": SECRET, "PYTHONPATH": SECRET}
+    with mock.patch.dict(os.environ, supplied, clear=True), mock.patch.object(entry.tempfile, "TemporaryDirectory", return_value=contextlib.nullcontext(directory)) as temporary:
+        with entry.clean_environment():
+            assert dict(os.environ) == {"PATH": "/usr/bin:/bin", "HOME": "/root", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "DOCKER_CONFIG": directory}
+            assert list(Path(directory).iterdir()) == []
+            assert Path(directory).stat().st_mode & 0o777 == 0o700
+        assert dict(os.environ) == supplied
+        assert temporary.call_args.kwargs["dir"] == "/run"
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH hält den Hostlock auch bei verschachtelten Rolloutphasen durchgehend',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture, mock.patch.object(rollout, "GLOBAL_LOCK", fixture.directory / "deploy.lock"), mock.patch.object(rollout, "ensure_state_dir"), mock.patch.object(rollout.os, "fstat") as fstat:
+    real_fstat = os.stat
+    # Nur die Eigentümerprüfung des Dateideskriptors ist auf unprivilegierten CI-Runnern ersetzt.
+    fstat.return_value = type("Info", (), {"st_mode": 0o100600, "st_uid": 0})()
+    with mock.patch.object(rollout.Path, "stat", autospec=True, side_effect=lambda path, **kw: type("Info", (), {"st_mode": 0o40700, "st_uid": 0})() if path == fixture.directory else real_fstat(path, **kw)):
+        with real_rollout_lock():
+            assert rollout._LOCK_DEPTH == 1
+            with real_rollout_lock():
+                assert rollout._LOCK_DEPTH == 2
+                other = os.open(rollout.GLOBAL_LOCK, os.O_RDWR)
+                try:
+                    try:
+                        rollout.fcntl.flock(other, rollout.fcntl.LOCK_EX | rollout.fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        pass
+                    else:
+                        raise AssertionError("Der innere Ablauf hat den Hostlock freigegeben.")
+                finally:
+                    os.close(other)
+            assert rollout._LOCK_DEPTH == 1
+        assert rollout._LOCK_DEPTH == 0
+        with real_rollout_lock():
+            assert rollout._LOCK_DEPTH == 1
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH verifiziert Wiederholungen ohne neue Stopps und sperrt manipulierte Istzustände',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    manifest = manifest_fixture()
+    fixture.select_manifest(manifest)
+    result = rollout.apply_release(manifest)
+    assert result["commit"] == manifest["commit"] and result["phase"] == "verified"
+    operations = fixture.mutations()
+    assert len(operations) == 3
+    assert rollout.read_deployment_record() == {"version": 1, "phase": "verified", "manifest": manifest}
+    assert rollout.apply_release(manifest) == result
+    assert fixture.mutations() == operations
+    assert fixture.health.call_count == 2
+    fixture.context["worker"]["RestartCount"] = 1
+    assert_rejected(lambda: rollout.apply_release(manifest))
+    assert fixture.mutations() == operations
+    assert (fixture.directory / "deployment-state.json").stat().st_mode & 0o777 == 0o600
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH lässt nach unklarem Stopp keinen anderen Release zu und wiederholt keine Mutation',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for stage in ("worker", "broker", "start"):
+    with RolloutFixture() as fixture:
+        manifest = manifest_fixture()
+        fixture.select_manifest(manifest)
+        fixture.fail_stage = stage
+        assert_rejected(lambda: rollout.apply_release(manifest))
+        operations = fixture.mutations()
+        assert rollout.read_deployment_record()["phase"] == "pending"
+        assert_rejected(lambda: rollout.apply_release({**manifest, "commit": "a" * 40}))
+        assert fixture.mutations() == operations
+        if stage == "start":
+            fixture.fail_stage = None
+            assert rollout.apply_release(manifest)["phase"] == "verified"
+        else:
+            assert_rejected(lambda: rollout.apply_release(manifest))
+        assert fixture.mutations() == operations
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH rollt spätere Releases mit getrennten Belegen aus und verhindert alte Wiederholungen',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    first = manifest_fixture()
+    fixture.select_manifest(first)
+    rollout.apply_release(first)
+    old_directory = fixture.state_dir
+    second = {**first, "commit": "c" * 40, "worker_digest": "sha256:" + "a" * 64, "broker_digest": "sha256:" + "b" * 64, "session_digest": "sha256:" + "c" * 64, "runtime_sha256": "d" * 64}
+    fixture.active_worker_id = fixture.next_worker_id
+    fixture.active_epoch = fixture.next_epoch
+    fixture.next_worker_id = "33333333-3333-4333-8333-333333333333"
+    fixture.next_epoch = 3
+    fixture.worker_stopped = fixture.broker_stopped = fixture.started = False
+    fixture.select_manifest(second)
+    rollout.apply_release(second)
+    assert fixture.state_dir != old_directory
+    assert (old_directory / "journal.json").exists()
+    assert rollout.read_deployment_record()["manifest"] == second
+    assert len(fixture.mutations()) == 6
+    operations = fixture.mutations()
+    fixture.select_manifest(first)
+    assert_rejected(lambda: rollout.apply_release(first))
+    assert fixture.mutations() == operations
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH gibt beim Status nur betriebliche Daten aus und startet kein Deployment',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    snapshot = idle_snapshot()
+    snapshot.update({"draft": {"content": SECRET}, "jobs": [{"body": SECRET}], "outbox": [{"message": SECRET}]})
+    snapshot["counts"]["messages"] = 2
+    with mock.patch.object(rollout, "read_jobs", return_value=snapshot) as status_query:
+        result = rollout.deployment_status()
+    status_query.assert_called_once_with(sql=rollout.STATUS_SQL)
+    assert "draft" not in rollout.STATUS_SQL and "content" not in rollout.STATUS_SQL and "message_text" not in rollout.STATUS_SQL
+    assert result["blocking_jobs"]["messages"] == 2
+    assert result["deployment"] is None
+    assert set(result) == {"version", "project", "deployment", "services", "runtime_live", "blocking_jobs", "browser_containers", "historical_unknown_messages", "historical_unknown_evidence_sha256"}
+    assert SECRET not in json.dumps(result)
+    assert fixture.mutations() == [] and fixture.journal() is None
+    output = io.StringIO()
+    with mock.patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "marketplace-status-v1"}, clear=True), mock.patch.object(entry.os, "geteuid", return_value=0), mock.patch.object(entry, "load_engine", return_value=rollout), mock.patch.object(entry, "clean_environment", side_effect=contextlib.nullcontext), mock.patch.object(entry, "read_request") as request, mock.patch.object(rollout, "run_command", return_value="default\n"), mock.patch.object(rollout, "deployment_status", return_value=result), mock.patch.object(rollout, "apply_release") as apply, contextlib.redirect_stdout(output):
+        assert entry.main([]) == 0
+        request.assert_not_called()
+        apply.assert_not_called()
+    assert json.loads(output.getvalue()) == result
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH zeigt unerwartete Fehler ohne deren geheime Inhalte',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+output = io.StringIO()
+with mock.patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "marketplace-status-v1"}, clear=True), mock.patch.object(entry.os, "geteuid", return_value=0), mock.patch.object(entry, "load_engine", return_value=rollout), mock.patch.object(entry, "clean_environment", side_effect=contextlib.nullcontext), mock.patch.object(rollout, "run_command", return_value="default\n"), mock.patch.object(rollout, "deployment_status", side_effect=RuntimeError(SECRET)), contextlib.redirect_stderr(output):
+    assert entry.main([]) == 1
+assert SECRET not in output.getvalue()
+`);
+  },
+);
+
+test(
+  'Marketplace-Zugangsinstallation prüft Download, Dateirechte und eingeschränkte Schlüssel atomar',
+  marketplaceRolloutOptions,
+  () => {
+    execFileSync(
+      process.env.FLIPBASE_PYTHON ?? 'python3',
+      ['-I', '-B', fileURLToPath(new URL('./marketplace-access.test.py', import.meta.url))],
+      { encoding: 'utf8', timeout: 30_000, maxBuffer: 1024 * 1024, stdio: 'pipe' },
+    );
   },
 );
 
