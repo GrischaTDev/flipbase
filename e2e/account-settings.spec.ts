@@ -32,7 +32,10 @@ test('account settings stay usable on desktop and mobile @pr-smoke', async ({ pa
     const dialog = page.getByRole('dialog', { name: 'Passwort ändern' });
     await expect(dialog).toBeVisible();
     await expect(page.getByLabel('Aktuelles Passwort')).toBeVisible();
-    await expect(page.getByLabel('Neues Passwort', { exact: true })).toBeVisible();
+    // Der dekorative Pflichtstern gehört zum Labeltext, nicht zum zugänglichen Namen.
+    const newPassword = dialog.getByLabel(/^\s*Neues Passwort(?:\s*\*)?\s*$/);
+    await expect(newPassword).toBeVisible();
+    await expect(newPassword).toHaveAccessibleName('Neues Passwort');
     await expect(page.getByLabel('Neues Passwort wiederholen')).toBeVisible();
 
     const dialogBox = await dialog.boundingBox();
@@ -72,7 +75,17 @@ test('account settings have no automated WCAG AA violations @pr-smoke', async ({
   expect(accessibility.violations).toEqual([]);
 
   await page.getByRole('button', { name: 'Passwort ändern', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Passwort ändern' })).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: 'Passwort ändern' });
+  await expect(dialog).toBeVisible();
+  // AXE soll den vollständig eingeblendeten Dialog auf Farbkontraste prüfen.
+  await dialog.evaluate(async (element) => {
+    await Promise.allSettled(
+      element
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished),
+    );
+  });
 
   accessibility = await page.evaluate(async () =>
     (window as Window & { axe: typeof axe }).axe.run(document.body, {

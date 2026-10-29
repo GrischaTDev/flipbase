@@ -60,6 +60,42 @@ try {
   requireConditional('Datenbank', supabaseChanged && !reused, process.env.DATABASE_RESULT);
   requireConditional('Sniper-Dienst', sniperChanged && !reused, process.env.SNIPER_RESULT);
 
+  const extensionRequired = requireBoolean(
+    'Kleinanzeigen-Erweiterung',
+    process.env.EXTENSION_REQUIRED,
+  );
+  const workerBrowserRequired = requireBoolean(
+    'Native Worker-Browserfälle',
+    process.env.WORKER_BROWSER_REQUIRED,
+  );
+  const workerImageRequired = requireBoolean('Worker-Image', process.env.WORKER_IMAGE_REQUIRED);
+  const sessionImageRequired = requireBoolean(
+    'Chromium-Session-Image',
+    process.env.SESSION_IMAGE_REQUIRED,
+  );
+  if (workerImageRequired && !sessionImageRequired)
+    throw new Error('Workerintegration benötigt das Session-Image.');
+  if (
+    documentationOnly &&
+    (extensionRequired || workerBrowserRequired || workerImageRequired || sessionImageRequired)
+  )
+    throw new Error('Dokumentationsauswahl widerspricht Marketplace-Prüfungen.');
+  requireConditional(
+    'Kleinanzeigen-Erweiterung',
+    extensionRequired && !reused,
+    process.env.EXTENSION_RESULT,
+  );
+  requireConditional(
+    'Native Worker-Browserfälle',
+    workerBrowserRequired && !reused,
+    process.env.WORKER_BROWSER_RESULT,
+  );
+  requireConditional(
+    'Marketplace-Images',
+    (workerImageRequired || sessionImageRequired) && !reused,
+    process.env.MARKETPLACE_IMAGES_RESULT,
+  );
+
   const expectedImage =
     process.env.EVENT_NAME === 'push' && (applicationChanged || sniperChanged)
       ? 'success'

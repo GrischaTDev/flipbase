@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createLocalAdminClient } from './support/local-supabase';
-import { APP_ORIGIN, AUTH_STATE_PATH, AUTH_STORAGE_KEY } from './support/test-account';
+import { AUTH_STATE_PATH, sessionStorageState, TEST_ACCOUNT_ENV } from './support/test-account';
 
 /**
  * Legt je Testlauf über die lokale Admin-Grenze ein Konto an. Der öffentliche
@@ -48,18 +48,9 @@ export default async function globalSetup(): Promise<void> {
       `Testkonto konnte nicht angelegt werden: ${error?.message ?? 'keine Sitzung – ist die E-Mail-Bestätigung lokal aus?'}`,
     );
   }
+  // Playwright vererbt diese Laufprozess-Umgebung an Worker, auch nach deren Neustart.
+  // Das zufällige lokale Passwort wird weder protokolliert noch in eine Datei geschrieben.
+  process.env[TEST_ACCOUNT_ENV] = JSON.stringify({ email, password });
   await mkdir(dirname(AUTH_STATE_PATH), { recursive: true });
-  await writeFile(
-    AUTH_STATE_PATH,
-    JSON.stringify({
-      cookies: [],
-      origins: [
-        {
-          origin: APP_ORIGIN,
-          localStorage: [{ name: AUTH_STORAGE_KEY, value: JSON.stringify(data.session) }],
-        },
-      ],
-    }),
-    'utf8',
-  );
+  await writeFile(AUTH_STATE_PATH, JSON.stringify(sessionStorageState(data.session)), 'utf8');
 }

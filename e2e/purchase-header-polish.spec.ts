@@ -28,6 +28,9 @@ test('aligns purchase navigation and keeps compact actions with the primary acti
 
   const actions = header.locator('[entry-header-actions]');
   await expect(actions.getByRole('button', { name: 'Löschen', exact: true })).toBeVisible();
+  await expect(
+    actions.getByRole('button', { name: 'Als bestellt markieren', exact: true }),
+  ).toBeVisible();
   const geometry = await actions.locator('button, a').evaluateAll((elements) =>
     elements.map((element) => ({
       text: element.textContent?.trim(),
@@ -36,7 +39,7 @@ test('aligns purchase navigation and keeps compact actions with the primary acti
       background: getComputedStyle(element).backgroundColor,
     })),
   );
-  expect(geometry.length).toBeGreaterThan(2);
+  expect(geometry.map((action) => action.text)).toEqual(['Löschen', 'Als bestellt markieren']);
   expect(geometry.every((action) => action.height === 28)).toBe(true);
   expect(geometry.at(-1)?.primary).toBe(true);
   expect(

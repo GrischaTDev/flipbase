@@ -65,25 +65,26 @@ async function settingsBackend(page: Page) {
 }
 
 for (const width of [1280, 390, 1024]) {
-  test(`settings use clear sections and accessible controls at ${width}px @pwa-layout`, async ({
-    page,
-  }, testInfo) => {
-    await settingsBackend(page);
-    const pageErrors: string[] = [];
-    page.on('pageerror', (error) => pageErrors.push(error.message));
-    await page.setViewportSize({ width, height: 900 });
-    for (const [path, heading, selector] of [
-      ['account', 'Konto', 'app-account-settings'],
-      ['company', 'Unternehmen', 'app-company-settings'],
-      ['workspace', 'Workspace', 'app-workspace-settings'],
-      ['numbering', 'Nummernkreise', 'app-numbering-settings'],
-      ['team', 'Team & Rollen', 'app-team-settings'],
-      ['marketplaces', 'Marktplätze', 'app-marketplaces-settings'],
-      ['notifications', 'Benachrichtigungen', 'app-notification-settings'],
-      ['store', 'Shop & Zahlungen', 'app-store-settings'],
-      ['shipping', 'Versand', 'app-shipping-settings'],
-      ['app', 'App', 'app-app-settings'],
-    ]) {
+  // Seiten getrennt prüfen; Hell/Dunkel und alle Controls bleiben je Seite zusammen.
+  for (const [path, heading, selector] of [
+    ['account', 'Konto', 'app-account-settings'],
+    ['company', 'Unternehmen', 'app-company-settings'],
+    ['workspace', 'Workspace', 'app-workspace-settings'],
+    ['numbering', 'Nummernkreise', 'app-numbering-settings'],
+    ['team', 'Team & Rollen', 'app-team-settings'],
+    ['marketplaces', 'Marktplätze', 'app-marketplaces-settings'],
+    ['notifications', 'Benachrichtigungen', 'app-notification-settings'],
+    ['store', 'Shop & Zahlungen', 'app-store-settings'],
+    ['shipping', 'Versand', 'app-shipping-settings'],
+    ['app', 'App', 'app-app-settings'],
+  ]) {
+    test(`settings/${path} uses clear sections and accessible controls at ${width}px @pwa-layout`, async ({
+      page,
+    }, testInfo) => {
+      await settingsBackend(page);
+      const pageErrors: string[] = [];
+      page.on('pageerror', (error) => pageErrors.push(error.message));
+      await page.setViewportSize({ width, height: 900 });
       await page.goto(`/settings/${path}`);
       await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
       const feature = page.locator(selector);
@@ -125,15 +126,17 @@ for (const width of [1280, 390, 1024]) {
       }
       if (width === 1280 && ['marketplaces', 'numbering', 'team'].includes(path))
         await page.screenshot({ path: testInfo.outputPath(`${path}.png`), animations: 'disabled' });
-    }
-    await page.goto('/settings/app');
-    await expect(page).toHaveURL(/\/settings\/app$/);
-    await expect(
-      page.getByRole('checkbox', { name: 'Aktionsübersicht anzeigen' }),
-    ).not.toBeChecked();
-    await expect(page.getByRole('link', { name: 'App & Geräte' })).toHaveCount(0);
-    expect(pageErrors).toEqual([]);
-  });
+      if (path === 'app') {
+        await page.goto('/settings/app');
+        await expect(page).toHaveURL(/\/settings\/app$/);
+        await expect(
+          page.getByRole('checkbox', { name: 'Aktionsübersicht anzeigen' }),
+        ).not.toBeChecked();
+        await expect(page.getByRole('link', { name: 'App & Geräte' })).toHaveCount(0);
+      }
+      expect(pageErrors).toEqual([]);
+    });
+  }
 }
 
 test('eBay uses compact account cards and opens connection management in a dialog @pwa-layout', async ({

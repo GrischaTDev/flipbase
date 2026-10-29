@@ -18,12 +18,16 @@ test('renders shared desktop actions at the measured compact admin size', async 
   expect(await editCosts.evaluate((element) => element.getBoundingClientRect().width)).toBe(28);
 });
 
-test('retains generous shared-button targets on touch devices', async ({ browser, workspace }) => {
+test('retains generous shared-button targets on touch devices', async ({
+  browser,
+  workspace,
+  storageState,
+}) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
     isMobile: true,
-    storageState: 'e2e/.auth/session.json',
+    storageState,
   });
   const page = await context.newPage();
   await page.addInitScript((id) => {

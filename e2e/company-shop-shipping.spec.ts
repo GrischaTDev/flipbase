@@ -159,9 +159,19 @@ test('Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Abs
     await page.screenshot({
       path: join(process.env['E2E_SCREENSHOT_DIR'], 'company-shipping-mobile.png'),
     });
-  await page.goto('/settings/workspace');
+  const settingsSection = page.getByRole('combobox', {
+    name: 'Einstellungsbereich auswählen',
+    exact: true,
+  });
+  await settingsSection.click();
+  await page.getByRole('option', { name: 'Workspace', exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\/workspace$/);
+  await expect(page.getByRole('heading', { name: 'Workspace', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Steuer-Modus' })).toHaveCount(0);
-  await page.goto('/settings/company');
+  await settingsSection.click();
+  await page.getByRole('option', { name: 'Unternehmen', exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\/company$/);
+  await expect(page.getByRole('heading', { name: 'Unternehmen', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Vorschlag ins Formular übernehmen' })).toHaveCount(
     0,
   );

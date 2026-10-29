@@ -3,12 +3,26 @@ import { createServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 import { chromium, type BrowserContext } from 'playwright';
 import { ChromiumPersistentBrowser } from '../../src/chromium-persistent-browser.ts';
 import { ChromiumProfileStore } from '../../src/chromium-profile-store.ts';
 
-test('real persistent Chromium restores cookies and local storage while isolating two accounts', async () => {
+async function launchFixtureContext(
+  testContext: TestContext,
+  directory: string,
+  options: Parameters<typeof chromium.launchPersistentContext>[1],
+): Promise<BrowserContext> {
+  try {
+    return await chromium.launchPersistentContext(directory, options);
+  } catch (error) {
+    // Nur der direkte lokale Teststart zeigt Playwrights Diagnose, keine Produktionsverbindung.
+    testContext.diagnostic(`Lokaler Chromium-Teststart fehlgeschlagen: ${String(error)}`);
+    throw error;
+  }
+}
+
+test('real persistent Chromium restores cookies and local storage while isolating two accounts', async (testContext) => {
   const root = await mkdtemp(join(tmpdir(), 'flipbase-persistent-fixture-'));
   const server = createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/html' });
@@ -28,7 +42,7 @@ test('real persistent Chromium restores cookies and local storage while isolatin
       headless: true,
       trustedTestStartUrl: startUrl,
       launch: async (directory, options) => {
-        const context = await chromium.launchPersistentContext(directory, options);
+        const context = await launchFixtureContext(testContext, directory, options);
         contexts.set(directory, context);
         return context;
       },
@@ -89,7 +103,7 @@ test('real persistent Chromium restores cookies and local storage while isolatin
   }
 });
 
-test('real Chromium navigation abort closes before the profile can be opened again', async () => {
+test('real Chromium navigation abort closes before the profile can be opened again', async (testContext) => {
   const root = await mkdtemp(join(tmpdir(), 'flipbase-abort-fixture-'));
   let lastContext: BrowserContext | undefined;
   const store = new ChromiumProfileStore({ root, inspectProfileProcesses: async () => [] });
@@ -98,7 +112,7 @@ test('real Chromium navigation abort closes before the profile can be opened aga
     headless: true,
     trustedTestStartUrl: 'http://127.0.0.1:1/',
     launch: async (directory, options) => {
-      lastContext = await chromium.launchPersistentContext(directory, options);
+      lastContext = await launchFixtureContext(testContext, directory, options);
       return lastContext;
     },
   });

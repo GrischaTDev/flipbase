@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { ɵresolveComponentResources } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -9,6 +9,18 @@ interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
 }
+
+class DatePickerLabelHostComponent {}
+
+Component({
+  selector: 'app-date-picker-label-host',
+  imports: [DatePickerComponent],
+  template: `
+    <label for="sale-date">Verkaufsdatum</label>
+    <app-date-picker id="sale-date" />
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})(DatePickerLabelHostComponent);
 
 let inputMetadataSnapshot: AngularInputMetadata | null = null;
 
@@ -49,7 +61,7 @@ describe('DatePickerComponent', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      imports: [DatePickerComponent],
+      imports: [DatePickerComponent, DatePickerLabelHostComponent],
     });
 
     fixture = TestBed.createComponent(DatePickerComponent);
@@ -65,8 +77,18 @@ describe('DatePickerComponent', () => {
     metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
   });
 
-  it('should create successfully', () => {
-    expect(component).toBeTruthy();
+  it('ordnet ein externes Label dem eindeutigen Datumsfeld zu', () => {
+    const hostFixture = TestBed.createComponent(DatePickerLabelHostComponent);
+    hostFixture.detectChanges();
+    const host = hostFixture.nativeElement as HTMLElement;
+    const label = host.querySelector<HTMLLabelElement>('label[for="sale-date"]');
+    const input = host.querySelector<HTMLInputElement>('input');
+
+    expect(label).not.toBeNull();
+    expect(input).not.toBeNull();
+    expect(label?.control).toBe(input);
+    expect(host.querySelectorAll('#sale-date')).toHaveLength(1);
+    expect(input?.id).toBe('sale-date');
   });
 
   it('marks the input as required when configured', () => {

@@ -1,12 +1,10 @@
 import '@angular/compiler';
-import { Component, signal, ɵresolveComponentResources } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, Routes } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import axe from 'axe-core';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../core/services/supabase.service';
 import { MarketplaceSettingsService } from '../../core/services/marketplace-settings.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
@@ -54,20 +52,14 @@ const routes: Routes = [
 ];
 
 describe('SidebarComponent', () => {
+  let restoreBindings: (() => void) | undefined;
   beforeAll(async () => {
-    await ɵresolveComponentResources((url) =>
-      readFile(
-        url.includes('badge.component.')
-          ? resolve('src/app/shared/components/badge', url.split('/').at(-1) ?? '')
-          : new URL(url, import.meta.url),
-        'utf8',
-      ),
-    );
-    await prepareMarketplaceRendering([
+    restoreBindings = await prepareMarketplaceRendering([
       { type: SidebarComponent, path: 'src/app/layout/sidebar/sidebar.component.ts' },
     ]);
   });
 
+  afterAll(() => restoreBindings?.());
   afterEach(() => TestBed.resetTestingModule());
 
   async function renderAt(url: string, operator = true) {

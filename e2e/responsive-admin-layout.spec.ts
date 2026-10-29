@@ -168,32 +168,31 @@ test.describe('Touch-Dashboard', () => {
 });
 
 for (const width of [320, 390, 834, 1024, 1194, 1440]) {
-  test(`Verwaltungsseiten bleiben bei ${width}px innerhalb des Inhalts @core-smoke`, async ({
-    page,
-  }) => {
-    await mockResponsiveWorkspace(page);
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.setViewportSize({ width, height: 1000 });
-    for (const route of [
-      '/catalog',
-      '/purchases',
-      '/sales',
-      '/expenses',
-      '/listings',
-      '/vinted-bot',
-      '/deal-calculator',
-      '/deal-calculator/ebay',
-      '/image-optimizer',
-      '/purchases/new',
-      '/catalog/new',
-      '/sellers',
-      '/analytics',
-      '/marketplaces/ebay/connection',
-      '/marketplaces/kleinanzeigen',
-      '/settings/account',
-      '/settings/company',
-      '/settings/marketplaces',
-    ]) {
+  // Jede Seite bleibt bei jeder bisherigen Breite ein eigener vollständiger Fall.
+  for (const route of [
+    '/catalog',
+    '/purchases',
+    '/sales',
+    '/expenses',
+    '/listings',
+    '/vinted-bot',
+    '/deal-calculator',
+    '/deal-calculator/ebay',
+    '/image-optimizer',
+    '/purchases/new',
+    '/catalog/new',
+    '/sellers',
+    '/analytics',
+    '/marketplaces/ebay/connection',
+    '/marketplaces/kleinanzeigen',
+    '/settings/account',
+    '/settings/company',
+    '/settings/marketplaces',
+  ]) {
+    test(`${route} bleibt bei ${width}px innerhalb des Inhalts @core-smoke`, async ({ page }) => {
+      await mockResponsiveWorkspace(page);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.setViewportSize({ width, height: 1000 });
       await page.goto(route);
       await expect(page.locator('main h1')).toBeVisible();
       await expect
@@ -206,8 +205,8 @@ for (const width of [320, 390, 834, 1024, 1194, 1440]) {
         )
         .toBe(0);
       await screenshot(page, `${route.replaceAll('/', '-').slice(1)}-${width}`);
-    }
-  });
+    });
+  }
 }
 
 test.describe('Lokale Konten mit Touch', () => {

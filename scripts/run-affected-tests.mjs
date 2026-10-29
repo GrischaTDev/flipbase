@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { buildBrowserMatrix } from './affected-tests.mjs';
 
 const plan = JSON.parse(process.env.AFFECTED_TEST_PLAN ?? 'null');
 const [kind, suite, shard] = process.argv.slice(2);
@@ -31,36 +32,34 @@ if (kind === 'unit') {
     ],
   ];
 } else if (kind === 'browser') {
-  if (!plan.browserFiles.length && !plan.changedBrowserFiles.length)
-    throw new Error('Keine Browserfälle ausgewählt.');
-  // Jeder Aufruf erhält durch globalSetup eine frische Testsitzung.
-  // Eine lange Standardgruppe darf die Anmeldung der geänderten Fälle nicht verbrauchen.
-  const projects = [
-    ...(plan.browserFiles.length ? ['chromium'] : []),
-    ...(plan.changedBrowserFiles.length ? ['changed-tests'] : []),
-  ];
+  const matrix = buildBrowserMatrix(plan);
+  const projects = [...new Set(matrix.map(({ project }) => project))];
+  if (!projects.length) throw new Error('Keine Browserfälle ausgewählt.');
   const selectedProject = process.env.AFFECTED_BROWSER_PROJECT;
   if (selectedProject && !projects.includes(selectedProject))
     throw new Error('Nicht ausgewählte Browsergruppe angefordert.');
-  const selectedProjects = selectedProject ? [selectedProject] : projects;
   const browserArgs = process.argv.slice(3);
   const explicitShard = browserArgs.some((arg) => arg === '--shard' || arg.startsWith('--shard='));
-  commands = selectedProjects.flatMap((project) => {
-    // Die volle Auswahl überschreitet auf langsameren Runnern eine 15-Minuten-
-    // Sitzung. Drei getrennte Aufrufe behalten alle Fälle und erneuern nur die Anmeldung.
-    const groups =
-      plan.full && project === 'chromium' && !browserArgs.includes('--list') && !explicitShard
-        ? 3
-        : 1;
-    return Array.from({ length: groups }, (_, index) => [
-      'node_modules/@playwright/test/cli.js',
-      'test',
-      '--config=playwright.affected.config.ts',
-      `--project=${project}`,
-      ...(groups > 1 ? [`--shard=${index + 1}/${groups}`] : []),
-      ...browserArgs,
-    ]);
-  });
+  const selectedMatrix = matrix.filter(
+    ({ project }) => !selectedProject || project === selectedProject,
+  );
+  // Listen zeigen die gesamte Auswahl. Ein CI-Matrixjob übergibt seine eigene
+  // Teilgruppe; lokale Ausführung ohne Teilgruppe verwendet dieselbe Matrix.
+  const groups =
+    explicitShard || browserArgs.includes('--list')
+      ? [...new Set(selectedMatrix.map(({ project }) => project))].map((project) => ({
+          project,
+          shard: '1/1',
+        }))
+      : selectedMatrix;
+  commands = groups.map(({ project, shard }) => [
+    'node_modules/@playwright/test/cli.js',
+    'test',
+    '--config=playwright.affected.config.ts',
+    `--project=${project}`,
+    ...(!explicitShard && shard !== '1/1' ? [`--shard=${shard}`] : []),
+    ...browserArgs,
+  ]);
 } else throw new Error('Unbekannte Testart.');
 for (const args of commands) {
   const exitCode = await new Promise((resolve) => {
