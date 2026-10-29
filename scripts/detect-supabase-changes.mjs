@@ -84,6 +84,12 @@ const sharedValidationPaths = new Set([
   'scripts/required-checks.test.mjs',
   'scripts/reuse-pr-checks.mjs',
   'scripts/reuse-pr-checks.test.mjs',
+  'scripts/preflight.mjs',
+  'scripts/preflight.test.mjs',
+  'scripts/check-local-migrations.mjs',
+  'scripts/check-local-migrations.test.mjs',
+  'scripts/ci-checks.mjs',
+  'scripts/ci-checks.test.mjs',
 ]);
 
 const migrationDeploymentPaths = new Set([
@@ -94,6 +100,7 @@ const migrationDeploymentPaths = new Set([
   'scripts/package-migrations.test.mjs',
   'scripts/check-migration-changes.mjs',
   'scripts/check-migration-changes.test.mjs',
+  'scripts/check-migration-transactions.sh',
   'deploy/docker-compose.app.yml',
   'docker/Dockerfile',
   '.dockerignore',
@@ -108,7 +115,7 @@ function isDocumentationOnly(path) {
 
 /**
  * Der Marketplace-Worker ist ein eigenes Paket mit eigenem Abbild. Seine Typen, Tests und sein
- * Bau laufen in jedem Lauf im Qualitäts-Job, sein Abbild im eigenen Workflow. Nur diese Dateien
+ * Bau laufen bei passenden Änderungen im Qualitäts-Job, sein Abbild im wiederverwendbaren Workflow. Nur diese Dateien
  * werden auch von Anwendungstests, E2E-Tests oder der Erweiterung eingebunden und bleiben
  * deshalb anwendungsrelevant.
  */

@@ -1,8 +1,17 @@
 # Verbindliche Testregeln
 
-Aktueller CI-Umfang: [Schlanke CI für Flipbase](lean-ci.md). Die sechs allgemeinen
-Browser-Kernfälle laufen automatisch; zusätzliche Featureprüfungen werden vor
-einem betroffenen Merge gezielt ausgeführt. Es gibt keine geplanten Zusatzläufe.
+Aktueller Ablauf: [Schlanke CI für Flipbase](lean-ci.md).
+Vor dem PR zeigt `npm run preflight:plan` den betroffenen Prüfumfang;
+`npm run preflight` verwendet dieselben Befehle wie CI. Ausgewählte Marketplace-
+Image- und Hostprüfungen benötigen jedoch den wegwerfbaren gehosteten Linux-Runner;
+auf normalen Entwicklerhosts bricht der Vorabcheck dafür als **unvollständig** ab. Die Auswahl
+berücksichtigt auch noch nicht committete und neue Dateien. Details und Grenzen
+stehen in [Betroffene Funktionen prüfen](affected-test-selection.md).
+
+Kleine Änderungen wählen ihre betroffenen Tests. Breite Änderungen ergänzen einen
+festen Browserkern und die gemeinsame Layoutprüfung. Die vollständige manuelle
+Regression bleibt verfügbar. Es gibt keine geplanten Zusatzläufe und keine
+Vorgabe, eine bestimmte Testanzahl zu erreichen.
 
 Tests schützen beobachtbares Produktionsverhalten und die fachlichen Risiken von Flipbase. Jeder neue Test braucht deshalb drei klar erkennbare Bestandteile:
 

@@ -1,0 +1,66 @@
+name: Publish Marketplace Images
+
+on:
+  workflow_dispatch:
+
+# Veröffentlichung vollständig beenden und gegen gleichzeitige Imageprüfungen serialisieren.
+concurrency:
+  group: marketplace-images-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out reviewed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Check local extension and worker forms before manual publication
+        env:
+          FLIPBASE_WORKER_BROWSERS_PATH: ${{ runner.temp }}/flipbase-worker-browsers
+        run: |
+          npm ci --ignore-scripts
+          npm ci --prefix services/marketplace-worker --ignore-scripts
+          npx playwright install --with-deps chromium
+          (cd services/marketplace-worker && PLAYWRIGHT_BROWSERS_PATH="$FLIPBASE_WORKER_BROWSERS_PATH" npx playwright install --with-deps chromium)
+          MARKETPLACE_CHECK_PLAN="$(node --input-type=module -e 'import {selectMarketplaceChecks} from "./scripts/marketplace-check-selection.mjs"; console.log(JSON.stringify(await selectMarketplaceChecks(null)));')"
+          export MARKETPLACE_CHECK_PLAN
+          node scripts/run-marketplace-checks.mjs extension
+          PLAYWRIGHT_BROWSERS_PATH="$FLIPBASE_WORKER_BROWSERS_PATH" node scripts/configure-worker-browser-sandbox.mjs
+          PLAYWRIGHT_BROWSERS_PATH="$FLIPBASE_WORKER_BROWSERS_PATH" node scripts/run-marketplace-checks.mjs worker-browser
+
+      - name: Build and check selected marketplace images
+        env:
+          MARKETPLACE_CHECK_PLAN: '{"extensionRequired":true,"workerBrowserTests":[],"workerImageRequired":true,"sessionImageRequired":true}'
+        run: node scripts/run-marketplace-checks.mjs images
+
+      - name: Log in to container registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish verified marketplace images
+        run: |
+          docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"
+          docker push "ghcr.io/grischatdev/flipbase-chromium-broker:sha-$GITHUB_SHA"
+          docker push "ghcr.io/grischatdev/flipbase-chromium-session:sha-$GITHUB_SHA"

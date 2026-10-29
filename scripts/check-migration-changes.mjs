@@ -1,10 +1,19 @@
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { resolve } from 'node:path';
+import { promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
 
-try {
-  const [base, head] = process.argv.slice(2);
-  if (![base, head].every((sha) => /^[a-f0-9]{40}$/u.test(sha ?? '')))
+const exec = promisify(execFile);
+
+/** Derselbe Git-Vertrag gilt für PR-Commits und die noch ungespeicherte Arbeitskopie. */
+export async function migrationChanges(
+  base,
+  head,
+  { repository = process.cwd(), worktree = false } = {},
+) {
+  if (![base, ...(worktree ? [] : [head])].every((sha) => /^[a-f0-9]{40}$/u.test(sha ?? '')))
     throw new Error('Gültige Vergleichscommits erforderlich.');
-  const tokens = execFileSync(
+  const { stdout } = await exec(
     'git',
     [
       'diff',
@@ -12,17 +21,45 @@ try {
       '--no-renames',
       '-z',
       base,
-      head,
+      ...(worktree ? [] : [head]),
       '--',
       'supabase/schemas',
       'supabase/migrations',
     ],
-    { encoding: 'utf8' },
-  ).split('\0');
+    { cwd: repository, encoding: 'utf8' },
+  );
+  const tokens = stdout.split('\0');
+  const changes = [];
+  for (let index = 0; index < tokens.length - 1; index += 2)
+    changes.push({ status: tokens[index], path: tokens[index + 1] });
+  if (worktree) {
+    const { stdout: untracked } = await exec(
+      'git',
+      [
+        'ls-files',
+        '--others',
+        '--exclude-standard',
+        '-z',
+        '--',
+        'supabase/schemas',
+        'supabase/migrations',
+      ],
+      { cwd: repository, encoding: 'utf8' },
+    );
+    changes.push(
+      ...untracked
+        .split('\0')
+        .filter(Boolean)
+        .map((path) => ({ status: 'A', path })),
+    );
+  }
+  return changes;
+}
+
+export function validateMigrationChanges(changes) {
   let schemaChanged = false;
   let migrationAdded = false;
-  for (let index = 0; index < tokens.length - 1; index += 2) {
-    const [status, path] = tokens.slice(index, index + 2);
+  for (const { status, path } of changes) {
     if (!path.endsWith('.sql')) continue;
     if (path.startsWith('supabase/schemas/')) schemaChanged = true;
     if (path.startsWith('supabase/migrations/')) {
@@ -40,8 +77,18 @@ try {
     throw new Error(
       'Schema geändert, aber keine neue Migrationsdatei enthalten. Migration erzeugen, prüfen und mit dem Schema committen.',
     );
-  console.log('Migrationsdateien im Änderungsumfang geprüft.');
-} catch (error) {
-  console.error(error.message);
-  process.exitCode = 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    const args = process.argv.slice(2);
+    const worktree = args[0] === '--worktree';
+    if (args.length !== 2) throw new Error('Vergleichscommits oder --worktree BASIS erforderlich.');
+    const [base, head] = worktree ? [args[1]] : args;
+    validateMigrationChanges(await migrationChanges(base, head, { worktree }));
+    console.log('Migrationsdateien im Änderungsumfang geprüft.');
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }

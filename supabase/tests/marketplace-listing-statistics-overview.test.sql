@@ -102,18 +102,20 @@ select throws_ok($$select pg_temp.overview('7d','34100000-0000-4000-8000-0000000
 select throws_ok($$select public.marketplace_read_listing_statistics_overview('34100000-0000-4000-8000-000000000012','7d')$$,'42501',null,'Ein fremder Workspace liefert keine Statistik');
 select throws_ok($$select pg_temp.overview('7d','34100000-0000-4000-8000-000000000023')$$,'42501',null,'Ein Konto aus einem fremden Workspace liefert keine Statistik');
 select is(pg_temp.overview('7d')->'totals'->>'views','70','Fremde Messungen fließen nie in die eigene Summe ein');
--- Vorzeitraum zählt nur so weit, wie der aktuelle Zeitraum schon gelaufen ist.
+-- Vorzeitraum zählt nur bis zur entsprechenden lokalen Kalenderuhrzeit.
 reset role;
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('34100000-0000-4000-8000-000000000034','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000021','publication','item-c',
   '{"publicationState":"active","title":"Hose","metrics":{"views":0,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
+-- Die obere Grenze ist exklusiv. Die letzte Mikrosekunde vor dem aktuellen Beginn
+-- kann mit dem Vorende zusammenfallen, liegt aber selbst kurz vor Mitternacht nie davor.
 update public.marketplace_account_entries set body=jsonb_set(body,'{metrics}','{"views":500,"favorites":0}'),
-  observed_at=((date_trunc('day',now() at time zone 'Europe/Berlin')-interval '6 days') at time zone 'Europe/Berlin')-interval '1 second'
+  observed_at=((date_trunc('day',now() at time zone 'Europe/Berlin')-interval '6 days') at time zone 'Europe/Berlin')-interval '1 microsecond'
   where external_id='item-c';
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"34100000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select is(pg_temp.overview('7d')->'totals'->>'views','70','Zuwachs kurz vor Zeitraumbeginn zählt nicht zum aktuellen Zeitraum');
-select is(pg_temp.overview('7d')->'previousTotals'->>'views','10','Vorzeitraum endet nach derselben Laufzeit wie der aktuelle Zeitraum');
+select is(pg_temp.overview('7d')->'previousTotals'->>'views','10','Vorzeitraum endet zur entsprechenden lokalen Kalenderuhrzeit');
 select set_config('request.jwt.claims','{"sub":"34100000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select pg_temp.overview('7d')$$,'42501',null,'Mitglieder ohne Verwaltungsrecht haben keinen Zugriff');
 select is((select count(*)::int from public.marketplace_listing_statistic_items),0,'RLS verbirgt die Statistik-Datensätze vor Mitgliedern');

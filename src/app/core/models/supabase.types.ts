@@ -11369,6 +11369,10 @@ export type Database = {
         Args: { p_permission_id: number; p_user_id: string; p_version?: number }
         Returns: boolean
       }
+      marketplace_listing_statistics_previous_end: {
+        Args: { p_at: string; p_length: string; p_zone: string }
+        Returns: string
+      }
       marketplace_listing_template_document: {
         Args: {
           p_template: Database["public"]["Tables"]["marketplace_listing_templates"]["Row"]

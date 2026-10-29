@@ -1,11 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { test as base, expect, type Page } from '@playwright/test';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { createUserClient } from './local-supabase';
-import { readAccessToken, readSessionRemainingSeconds } from './test-account';
-
-/** Unter dieser verbleibenden Gültigkeit (Sekunden) wird kein neuer Workspace mehr angelegt. */
-const MIN_SESSION_SECONDS_REMAINING = 120;
+import { createTestAccountSessionProvider, sessionStorageState } from './test-account';
 
 export interface TestWorkspace {
   readonly id: string;
@@ -13,16 +10,28 @@ export interface TestWorkspace {
 }
 
 /** Jeder Test bekommt automatisch einen frischen, leeren Workspace im Testkonto. */
-export const test = base.extend<{ workspace: TestWorkspace }>({
+export const test = base.extend<
+  { workspace: TestWorkspace; accountSession: Session },
+  { workerSession: () => Promise<Session> }
+>({
+  workerSession: [
+    // Playwright verlangt ein Destrukturierungsmuster auch ohne Fixture-Abhängigkeiten.
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use) => {
+      await use(createTestAccountSessionProvider());
+    },
+    { scope: 'worker' },
+  ],
+  accountSession: async ({ workerSession }, use) => {
+    await use(await workerSession());
+  },
+  // Vor dem Context-Aufbau. Bewusst leere/eigene test.use-Zustände bleiben vorrangig.
+  storageState: async ({ accountSession }, use) => {
+    await use(sessionStorageState(accountSession));
+  },
   workspace: [
-    async ({ page }, use) => {
-      const remainingSeconds = readSessionRemainingSeconds();
-      if (remainingSeconds < MIN_SESSION_SECONDS_REMAINING) {
-        throw new Error(
-          'Die gemeinsame Testsitzung läuft ab. Testlauf neu starten oder kürzer halten (Sitzung gilt 15 Minuten).',
-        );
-      }
-      const client = createUserClient(readAccessToken());
+    async ({ page, accountSession }, use) => {
+      const client = createUserClient(accountSession.access_token);
       const { data, error } = await client.rpc('create_workspace', {
         p_name: `E2E ${randomUUID().slice(0, 8)}`,
       });

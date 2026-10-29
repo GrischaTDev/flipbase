@@ -41,7 +41,7 @@ for (const width of [390, 768, 1440]) {
     const date = page.getByRole('textbox', { name: 'Kaufdatum', exact: true });
     await date.fill('15.09.2026');
     await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-    await page.locator('[data-purchase-row]').first().click();
+    await expect(page).toHaveURL(/\/purchases\/(?!new$)[^/]+$/);
     await expect(date).toHaveValue('15.09.2026');
     await page.evaluate(
       (dark) => document.documentElement.classList.toggle('dark', dark),

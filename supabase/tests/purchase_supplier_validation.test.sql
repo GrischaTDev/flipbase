@@ -139,6 +139,28 @@ select throws_ok(
   'Der Lieferant gehört nicht zu diesem Workspace.',
   'create_purchase lehnt einen ungültigen Lieferantentext kontrolliert ab'
 );
+select throws_ok(
+  $$select public.create_purchase(
+    'a8200000-0000-4000-8000-000000000011',
+    '{"type":"single","title":"Ungültige Lieferanten-ID","purchase_date":"2026-09-08","request_id":"a8200000-0000-4000-8000-000000000037","supplier_id":"a8200000-0000-4000-8000-000000000021-extra"}'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb
+  )$$,
+  '22023',
+  'Der Lieferant gehört nicht zu diesem Workspace.',
+  'create_purchase lehnt eine überlange Lieferanten-ID ohne Seiteneffekte ab'
+);
+select throws_ok(
+  $$select public.create_purchase(
+    'a8200000-0000-4000-8000-000000000011',
+    '{"type":"single","title":"Ungültige Lieferanten-ID","purchase_date":"2026-09-08","request_id":"a8200000-0000-4000-8000-000000000038","supplier_id":"a8200000-0000-4000-000000000021"}'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb
+  )$$,
+  '22023',
+  'Der Lieferant gehört nicht zu diesem Workspace.',
+  'create_purchase lehnt eine unvollständige Lieferanten-ID ohne Seiteneffekte ab'
+);
 reset role;
 
 select is(

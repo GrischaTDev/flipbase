@@ -1,23 +1,11 @@
 import { defineConfig } from '@playwright/test';
 import baseConfig from './playwright.config';
+import { coreBrowserGrep } from './scripts/browser-test-selection.mjs';
 
 export default defineConfig({
   ...baseConfig,
-  // Kernpfade für Daten, Geld, Einkaufslayout, Navigation, Inserate und Beta.
-  // Das historische @pr-smoke allein macht einen Test nicht mehr zur Pflicht.
-  grep: [
-    /@core-smoke\b/,
-    /@pwa-layout\b/,
-    /keeps a saved draft editable through discard, save and reopening @pr-smoke\b/,
-    /keeps purchase details in the right card after completion @pr-smoke\b/,
-    /hält die Sidebar kompakt und hebt den aktiven Bereich neutral hervor @pr-smoke\b/,
-    /preserves additional purchase costs after reopening at 1440px @pr-smoke\b/,
-    /keeps per-item tax visible in the tax journal @pr-smoke\b/,
-    /verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-smoke\b/,
-    /creates, publishes and completes the listing lifecycle on mobile @pr-smoke\b/,
-    /sperrt freie Registrierung und erlaubt Betreiber-Einladungen @pr-smoke\b/,
-    /genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage @pr-smoke\b/,
-  ],
+  // Die kleine zentrale Kernliste wird auch von der betroffenen Auswahl verwendet.
+  grep: coreBrowserGrep,
   forbidOnly: true,
   retries: 0,
   maxFailures: 1,
@@ -28,8 +16,7 @@ export default defineConfig({
   },
   use: {
     ...baseConfig.use,
-    // Fehler-Screenshots bleiben aktiv. Traces nur bei gezielter Fehlersuche.
-    trace: process.env['E2E_TRACE'] === '1' ? 'retain-on-failure' : 'off',
+    trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
 });

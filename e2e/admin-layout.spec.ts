@@ -108,36 +108,33 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
     );
   }
 
-  previewTest('hält alle Verwaltungsseiten im gemeinsamen Rahmen @core-smoke', async ({ page }) => {
-    await page.setViewportSize({ width: 2560, height: 1080 });
-    await mockMarketplace(page);
-    for (const route of [
-      '/marketplaces/vinted/accounts',
-      '/vinted-bot',
-      '/vinted-bot/filters',
-      '/vinted-bot/favorites',
-      '/marketplaces/ebay/listings',
-      '/expenses',
-      '/accounting',
-      '/analytics',
-    ]) {
+  // Unabhängige Seiten teilen sich kein Zeitbudget für zwölf vollständige App-Starts.
+  for (const route of [
+    '/marketplaces/vinted/accounts',
+    '/vinted-bot',
+    '/vinted-bot/filters',
+    '/vinted-bot/favorites',
+    '/marketplaces/ebay/listings',
+    '/expenses',
+    '/accounting',
+    '/analytics',
+    '/dashboard',
+    '/purchases',
+    '/catalog?view=stock',
+    '/sales',
+  ]) {
+    previewTest(`hält ${route} im gemeinsamen Rahmen @core-smoke`, async ({ page }) => {
+      await page.setViewportSize({ width: 2560, height: 1080 });
+      await mockMarketplace(page);
       await page.goto(route);
-      await expect(page).toHaveURL(new RegExp(route.replaceAll('/', '\\/') + '$'));
+      await expect(page).toHaveURL(new URL(route, page.url()).href);
       await expect(page.locator('main h1').first()).toBeVisible();
       const content = page.locator('[data-page-content]');
       await expect(content).toHaveCSS('max-width', '1280px');
       expect((await content.boundingBox())!.width).toBe(1280);
       expect(await page.evaluate(horizontalOverflow)).toBe(0);
-    }
-    for (const route of ['/dashboard', '/purchases', '/catalog?view=stock', '/sales']) {
-      await page.goto(route);
-      await expect(page.locator('main h1').first()).toBeVisible();
-      const content = page.locator('[data-page-content]');
-      await expect(content).toHaveCSS('max-width', '1280px');
-      expect((await content.boundingBox())!.width).toBe(1280);
-      expect(await page.evaluate(horizontalOverflow)).toBe(0);
-    }
-  });
+    });
+  }
 
   for (const width of [320, 390, 768]) {
     previewTest(

@@ -2,8 +2,12 @@
 
 ## Normaler Ablauf
 
-1. Lokal die betroffene Funktion testen. Format/Lint für geänderte Dateien,
-   bei Angular-Änderungen auch den Bau, bei SQL die passenden Datenbanktests.
+1. Die KI führt den [verbindlichen Vorabcheck](../../AGENTS.md#verbindlicher-vorabcheck-für-alle-ki-assistenten)
+   selbst aus: geänderte Dateien mit Prettier automatisch formatieren,
+   `npm run preflight:plan` und `npm run preflight` ausführen sowie erfolgreiche
+   Format- und Lintprüfung nachweisen. Die Auswahl berücksichtigt die betroffenen
+   Tests, bei Angular auch den Bau und bei SQL die Datenbanktests. Nach Korrekturen
+   den endgültigen Stand prüfen; technische Ausführungsgrenzen ausdrücklich nennen.
 2. Branch pushen und PR öffnen. Dort laufen Qualität und die anhand der
    Änderungen ausgewählten Anwendungs-, Browser-, Datenbank- und Diensttests.
 3. Nach grünem `Required checks` den PR mit **Merge-Commit** zusammenführen.
