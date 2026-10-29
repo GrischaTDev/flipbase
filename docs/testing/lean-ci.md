@@ -128,11 +128,18 @@ geprüft.
 Die [Auswahldokumentation](affected-test-selection.md) erläutert konservative
 Rückfälle, Dateiüberschneidungen und vollständige geänderte Browserdateien.
 
-Die manuelle Marketplace-Veröffentlichung liegt separat in
-`marketplace-image-publish.yml` und läuft ausschließlich auf `master`. Sie prüft
+Die Marketplace-Veröffentlichung liegt separat in
+`marketplace-image-publish.yml` und läuft ausschließlich auf `master`. Nach
+erfolgreichen Pflichtprüfungen und dem gegebenenfalls nötigen Webdeployment ruft
+CI sie bei passenden Imageänderungen automatisch auf; der manuelle Einstieg
+bleibt verfügbar. Sie prüft
 Extension, native Workerbrowser und Images vor Registryanmeldung und Push im selben
 Job. Der von PRs aufgerufene Imageprüfworkflow enthält keine Jobs mit Schreibrechten;
 seine gesamte Deklaration bleibt mit den Leserechten des Aufrufers vereinbar.
+Nur der auf `push`/`master` begrenzte Release-Aufrufer erhält die eigenen
+Registry-Schreibrechte. Das Serverdeployment verwendet den gesonderten,
+auf `master` eingeschränkten Zugang aus
+[`MARKETPLACE-ACCESS.md`](../../deploy/MARKETPLACE-ACCESS.md).
 
 ## Umfang bewusst begrenzen
 

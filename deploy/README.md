@@ -9,13 +9,19 @@ ist – die nächtliche Sicherung erfasst Datenbank und Schlüssel, aber nicht d
 Konfiguration des Reverse Proxy.
 
 Sie werden **nicht automatisch ausgerollt**. Wer hier etwas ändert, muss es
-auch auf den Server bringen. Die Ausnahme sind die Anwendung und der
-Sniper-Dienst – beide rollen bei einem passenden Push auf `master` von allein
-aus.
+auch auf den Server bringen. Die Anwendung und der Sniper-Dienst rollen bei einem
+passenden Push auf `master` von allein aus. Nach dem einmaligen
+[Marketplace-Bootstrap](MARKETPLACE-ACCESS.md) übernimmt ein eigener begrenzter
+Zugang auch geprüfte Marketplace-Releases. Änderungen am installierten
+Zugangsbefehl selbst bleiben eine gesonderte administrative Einrichtung.
 
 ## Deployment der Anwendung
 
 ### Marktplatz-Browser für den Admin-Pilot
+
+Für den bereits eingerichteten Chromium-Worker gilt der dauerhafte Ablauf in
+[MARKETPLACE-ACCESS.md](MARKETPLACE-ACCESS.md). Der folgende Abschnitt beschreibt
+die ursprüngliche Ersteinrichtung des Pilotdienstes.
 
 Die Vinted-Seite ist nur für Plattformbetreiber mit Adminrechten im eigenen
 Workspace erreichbar. Die Datenbank prüft diese Rechte auch bei direkten
@@ -27,8 +33,8 @@ Web-Deployment aktiviert.
 
 Nach geprüftem PR und ausdrücklicher Freigabe für die Servereinrichtung:
 
-1. Das Worker-Abbild über den manuellen GitHub-Workflow
-   `Publish Marketplace Worker Image` vom gemergten `master`-Commit
+1. Die Marketplace-Abbilder über den GitHub-Workflow
+   `Publish Marketplace Images` mit der Operation `release` vom geprüften `master`-Commit
    veröffentlichen. Die Compose-Variable `FLIPBASE_MARKETPLACE_IMAGE` auf den
    vollständigen `sha-<40-stellige Commit-SHA>`-Tag setzen.
 2. Die Compose-Vorlage nach `/opt/flipbase-marketplace/` kopieren und dort eine

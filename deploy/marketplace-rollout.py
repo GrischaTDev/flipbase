@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Eng begrenzter, wiederholbar prüfbarer Marketplace-Rollout für 8f9a81a."""
+"""Geprüfter Marketplace-Rollout; ohne Manifest bleibt der freigegebene 8f9-Stand."""
 
 import argparse
 import contextlib
@@ -40,17 +40,24 @@ PHASES = (
     "preparing", "prepared", "worker_stop_started", "worker_stopped",
     "broker_stop_started", "broker_stopped", "start_started", "verifying", "verified",
 )
+RELEASE_MANIFEST = None
+_LOCK_DEPTH = 0
+MANIFEST_FIELDS = frozenset((
+    "version", "commit", "worker_digest", "broker_digest", "session_digest", "runtime_sha256",
+))
+IMAGE_REPOSITORIES = (
+    "ghcr.io/grischatdev/flipbase-marketplace-worker",
+    "ghcr.io/grischatdev/flipbase-chromium-broker",
+    "ghcr.io/grischatdev/flipbase-chromium-session",
+)
 
 # Keine RPCs: Ein konsistenter Nur-Lese-Schnappschuss, auch für alte unbekannte Jobs.
-JOBS_SQL = """
-begin isolation level repeatable read read only;
-set local statement_timeout = '15s';
-select json_build_object(
+OPERATIONAL_STATE_SQL = """
  'counts', json_build_object(
   'listingJobs',(select count(*) from public.marketplace_listing_jobs where state in ('queued','paused','claimed','writing','outcome_unknown')),
   'operations',(select count(*) from public.marketplace_operations where state in ('queued','running','outcome_unknown')),
   'sessions',(select count(*) from public.marketplace_browser_sessions where state in ('active','stopping')),
-  'messages',(select count(*) from public.marketplace_local_message_outbox where execution_mode='cloud' and state in ('queued','claimed','sending','outcome_unknown')),
+  'messages',(select count(*) from public.marketplace_local_message_outbox where execution_mode='cloud' and state in ('queued','claimed','sending')),
   'favorites',(select count(*) from public.marketplace_favorite_message_events where state in ('queued','claimed','sending','outcome_unknown') or offer_state in ('pending','claimed','sending','outcome_unknown')),
   'negotiations',(select count(*) from public.marketplace_negotiation_jobs where state in ('queued','claimed','sending','outcome_unknown')),
   'setups',(select count(*) from public.marketplace_cloud_setups where state not in ('completed','cancelled'))
@@ -58,6 +65,38 @@ select json_build_object(
  'runtime',coalesce((select json_build_object('live',expires_at>clock_timestamp(),
    'workerId',worker_id,'epoch',worker_epoch) from public.marketplace_worker_runtime where id=1),
    json_build_object('live',false)),
+ 'unknownMessageEvidence',coalesce((select json_agg(json_build_object(
+   'id',o.id,'state',o.state,'executionMode',o.execution_mode,
+   'workspaceId',o.workspace_id,'connectionId',o.connection_id,'requestedBy',o.requested_by,
+   'sessionId',o.cloud_browser_session_id,'workerId',o.cloud_worker_id,'workerEpoch',o.cloud_worker_epoch,
+   'runnerId',o.cloud_runner_id,'claimTokenHash',md5(o.claim_token::text),'payloadHash',o.payload_hash,
+   'externalMessageId',o.external_message_id,'errorCode',o.error_code,
+   'createdAt',o.created_at,'updatedAt',o.updated_at,'startedAt',o.started_at,
+   'leaseExpiresAt',o.lease_expires_at,
+   'leaseExpired',o.lease_expires_at is null or o.lease_expires_at<=transaction_timestamp(),
+   'session',json_build_object(
+     'id',s.public_id,'workspaceId',s.workspace_id,'connectionId',s.connection_id,'startedBy',s.started_by,
+     'workerId',s.worker_id,'workerEpoch',s.worker_epoch,'state',s.state,
+     'providerStoppedAt',s.provider_stopped_at,
+     'providerStopped',s.provider_stopped_at is not null and s.provider_stopped_at<=transaction_timestamp()
+   )
+ ) order by o.id) from public.marketplace_local_message_outbox o
+ left join public.marketplace_browser_sessions s on s.public_id=o.cloud_browser_session_id
+ where o.execution_mode='cloud' and o.state='outcome_unknown'),'[]'::json)
+"""
+STATUS_SQL = """
+begin isolation level repeatable read read only;
+set local statement_timeout = '15s';
+select json_build_object(
+""" + OPERATIONAL_STATE_SQL + """
+);
+rollback;
+"""
+JOBS_SQL = """
+begin isolation level repeatable read read only;
+set local statement_timeout = '15s';
+select json_build_object(
+""" + OPERATIONAL_STATE_SQL + """,
  'listingPermissionHash',(select md5(coalesce(string_agg(to_jsonb(p)::text,'' order by id),'')) from public.marketplace_listing_permissions p),
  'scheduleAuthorizationHash',(select md5(coalesce(string_agg(jsonb_build_array(
    workspace_id,connection_id,enabled,interval_minutes,authorization_version,activated_by,paused_reason)::text,
@@ -131,6 +170,40 @@ def fingerprint(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def validate_manifest(value):
+    require(isinstance(value, dict) and set(value) == MANIFEST_FIELDS, "Release-Manifest enthält fehlende oder unbekannte Felder.")
+    require(type(value["version"]) is int and value["version"] == 1, "Unbekannte Release-Manifestversion.")
+    for key, pattern in (
+        ("commit", r"[0-9a-f]{40}"), ("runtime_sha256", r"[0-9a-f]{64}"),
+        ("worker_digest", r"sha256:[0-9a-f]{64}"),
+        ("broker_digest", r"sha256:[0-9a-f]{64}"),
+        ("session_digest", r"sha256:[0-9a-f]{64}"),
+    ):
+        require(isinstance(value[key], str) and bool(re.fullmatch(pattern, value[key])), "Release-Manifest enthält eine ungültige Kennung.")
+    return dict(value)
+
+
+@contextlib.contextmanager
+def configured_release(value):
+    """Nur feste Repositories und aus geprüften Hexwerten abgeleitete Zustandspfade."""
+    manifest = validate_manifest(value)
+    names = ("RELEASE", "RUNTIME_SHA256", "WORKER_IMAGE", "BROKER_IMAGE", "SESSION_IMAGE", "IMAGES", "STATE_DIR", "RELEASE_MANIFEST")
+    previous = {name: globals()[name] for name in names}
+    images = tuple(repository + "@" + manifest[key] for repository, key in zip(
+        IMAGE_REPOSITORIES, ("worker_digest", "broker_digest", "session_digest"),
+    ))
+    globals().update({
+        "RELEASE": manifest["commit"], "RUNTIME_SHA256": manifest["runtime_sha256"],
+        "WORKER_IMAGE": images[0], "BROKER_IMAGE": images[1], "SESSION_IMAGE": images[2],
+        "IMAGES": images, "RELEASE_MANIFEST": manifest,
+        "STATE_DIR": BASE_DIR / ("deploy-" + manifest["commit"] + "-" + fingerprint(manifest)),
+    })
+    try:
+        yield manifest
+    finally:
+        globals().update(previous)
+
+
 def validate_config(config):
     require(isinstance(config, dict), "Compose-Konfiguration fehlt.")
     require(config.get("name") == PROJECT, "Unbekanntes Compose-Projekt.")
@@ -167,6 +240,7 @@ def assert_preflight(snapshot, drained=False):
     for key in COUNT_KEYS:
         require(type(counts[key]) is int and counts[key] >= 0, "Ungültiger Auftragszähler.")
         require(counts[key] == 0, "Offene oder unbekannte Aufträge/Sitzungen sperren den Rollout.")
+    historical_unknown_hash(snapshot)
     runtime = snapshot.get("runtime")
     require(isinstance(runtime, dict) and type(runtime.get("live")) is bool, "Runtime-Lease nicht nachgewiesen.")
     if drained:
@@ -254,13 +328,74 @@ def session_containers():
     return ids
 
 
-def read_jobs():
+def completed_unknown_message(row):
+    """Beendete Ausführung beweisen; der Versandausgang bleibt ausdrücklich unbekannt."""
+    if not isinstance(row, dict) or row.get("state") != "outcome_unknown" or row.get("executionMode") != "cloud":
+        return False
+    session = row.get("session")
+    if not isinstance(session, dict) or row.get("leaseExpired") is not True:
+        return False
+    if session.get("state") != "closed" or session.get("providerStopped") is not True or not isinstance(session.get("providerStoppedAt"), str):
+        return False
+    try:
+        stopped_at = datetime.datetime.fromisoformat(session["providerStoppedAt"].replace("Z", "+00:00"))
+        if stopped_at.tzinfo is None:
+            return False
+    except ValueError:
+        return False
+    if row.get("externalMessageId") is not None:
+        return False
+    for key in ("id", "workspaceId", "connectionId", "requestedBy", "sessionId", "workerId", "runnerId"):
+        if not isinstance(row.get(key), str) or not re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", row[key],
+        ):
+            return False
+    if type(row.get("workerEpoch")) is not int or row["workerEpoch"] <= 0:
+        return False
+    if not isinstance(row.get("claimTokenHash"), str) or not re.fullmatch(r"[0-9a-f]{32}", row["claimTokenHash"]):
+        return False
+    if not isinstance(row.get("payloadHash"), str) or not re.fullmatch(r"[0-9a-f]{64}", row["payloadHash"]):
+        return False
+    for outer, inner in (
+        ("sessionId", "id"), ("workspaceId", "workspaceId"), ("connectionId", "connectionId"),
+        ("requestedBy", "startedBy"), ("workerId", "workerId"), ("workerEpoch", "workerEpoch"),
+    ):
+        if type(session.get(inner)) is not type(row[outer]) or session[inner] != row[outer]:
+            return False
+    return True
+
+
+def classify_unknown_messages(snapshot):
+    rows = snapshot.pop("unknownMessageEvidence", None)
+    require(isinstance(rows, list) and all(isinstance(row, dict) for row in rows), "Nachweise unbekannter Cloud-Nachrichten fehlen.")
+    ids = [row.get("id") for row in rows]
+    require(all(isinstance(value, str) for value in ids) and len(set(ids)) == len(ids), "Unbekannte Nachrichten sind nicht eindeutig belegt.")
+    counts = snapshot.get("counts")
+    require(isinstance(counts, dict) and type(counts.get("messages")) is int and counts["messages"] >= 0,
+            "Cloud-Nachrichtenzähler ist nicht nachgewiesen.")
+    completed = sorted((row for row in rows if completed_unknown_message(row)), key=lambda row: row["id"])
+    counts["messages"] += len(rows) - len(completed)
+    snapshot["historicalUnknownMessages"] = len(completed)
+    snapshot["historicalUnknownMessagesHash"] = fingerprint(completed)
+    return snapshot
+
+
+def historical_unknown_hash(snapshot):
+    count = snapshot.get("historicalUnknownMessages")
+    value = snapshot.get("historicalUnknownMessagesHash")
+    require(type(count) is int and count >= 0 and isinstance(value, str)
+            and bool(re.fullmatch(r"[0-9a-f]{64}", value)), "Historische Nachrichtennachweise fehlen.")
+    require(count != 0 or value == fingerprint([]), "Leerer Nachrichtennachweis stimmt nicht überein.")
+    return value
+
+
+def read_jobs(*, sql=JOBS_SQL):
     result = parse_json(run_command([
         "docker", "exec", "-i", "supabase-db", "psql", "-X", "-q", "-A", "-t",
         "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres",
-    ], input_text=JOBS_SQL, timeout=30))
+    ], input_text=sql, timeout=30))
     require(isinstance(result, dict), "Datenbank-Prüfung nicht verfügbar.")
-    return result
+    return classify_unknown_messages(result)
 
 
 def authorization_hashes(snapshot):
@@ -269,6 +404,8 @@ def authorization_hashes(snapshot):
         value = snapshot.get(key)
         require(isinstance(value, str) and bool(re.fullmatch(r"[0-9a-f]{32}", value)), "Berechtigungsstand nicht nachgewiesen.")
         result[key] = value
+    # Ein verspäteter Beleg oder eine andere Bindung ist ein neuer Prüfbefund.
+    result["historicalUnknownMessagesHash"] = historical_unknown_hash(snapshot)
     return result
 
 
@@ -305,6 +442,16 @@ def ensure_state_dir():
 
 @contextlib.contextmanager
 def rollout_lock():
+    global _LOCK_DEPTH
+    # Der SSH-Einstieg hält den Lock über prepare/deploy/verify zusammenhängend.
+    # Die bestehenden Einzelbefehle behalten denselben Lock ohne erneutes flock.
+    if _LOCK_DEPTH:
+        _LOCK_DEPTH += 1
+        try:
+            yield
+        finally:
+            _LOCK_DEPTH -= 1
+        return
     ensure_state_dir()
     # Derselbe Lock wie das Webdeployment; keine parallele Migration beim Drain.
     require(GLOBAL_LOCK.parent.is_dir() and not GLOBAL_LOCK.parent.is_symlink(), "Vorhandenes Deploymentverzeichnis fehlt.")
@@ -318,16 +465,21 @@ def rollout_lock():
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RolloutError("Ein anderer Deploymentbefehl hält den Host-Lock.") from None
-        yield
+        _LOCK_DEPTH = 1
+        try:
+            yield
+        finally:
+            _LOCK_DEPTH = 0
     finally:
         os.close(fd)
 
 
-def write_json(name, value):
-    target = STATE_DIR / name
+def write_private_json(target, value):
+    target = Path(target)
+    trusted_path(target.parent, directory=True)
     if target.exists() or target.is_symlink():
         trusted_path(target, private=True)
-    fd, temporary = tempfile.mkstemp(prefix=".rollout-", dir=STATE_DIR)
+    fd, temporary = tempfile.mkstemp(prefix=".rollout-", dir=target.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(value, handle, indent=2, sort_keys=True)
@@ -335,7 +487,7 @@ def write_json(name, value):
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
-        directory = os.open(STATE_DIR, os.O_DIRECTORY)
+        directory = os.open(target.parent, os.O_DIRECTORY)
         try:
             os.fsync(directory)
         finally:
@@ -343,6 +495,10 @@ def write_json(name, value):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def write_json(name, value):
+    write_private_json(STATE_DIR / name, value)
 
 
 def read_json(name):
@@ -355,6 +511,8 @@ def read_journal():
         return None
     result = read_json("journal.json")
     require(isinstance(result, dict) and result.get("release") == RELEASE and result.get("phase") in PHASES, "Journal ungültig; manuellen Zustand prüfen.")
+    if RELEASE_MANIFEST is not None:
+        require(result.get("manifest_sha256") == fingerprint(RELEASE_MANIFEST), "Journal gehört zu einem anderen Release-Manifest.")
     return result
 
 
@@ -363,7 +521,10 @@ def write_journal(phase):
     previous = read_journal()
     history = previous.get("history", []) if previous else []
     event = {"phase": phase, "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    write_json("journal.json", {"release": RELEASE, **event, "history": history + [event]})
+    record = {"release": RELEASE, **event, "history": history + [event]}
+    if RELEASE_MANIFEST is not None:
+        record["manifest_sha256"] = fingerprint(RELEASE_MANIFEST)
+    write_json("journal.json", record)
 
 
 def escape_compose_dollars(value):
@@ -547,6 +708,7 @@ def verify_release(plan):
         require(type(final[key].get("RestartCount")) is int and final[key]["RestartCount"] == 0,
                 "Container wurde während der Abschlussprüfung neu gestartet.")
     require(final["worker"].get("State", {}).get("Health", {}).get("Status") == "healthy", "Worker-Health ist nicht mehr healthy.")
+    fresh_preflight(final, expected=plan["authorization"], expected_runtime=runtime)
     return final
 
 
@@ -587,7 +749,7 @@ def deploy():
         write_journal("verifying")
         verify_release(plan)
         write_journal("verified")
-        print("Rollout verifiziert: Worker, Broker und Sitzungs-Runtime entsprechen 8f9a81a.")
+        print("Rollout verifiziert: Worker, Broker und Sitzungs-Runtime entsprechen " + RELEASE[:12] + ".")
         print("Beide RestartCount=0; neuer Workerbesitzer mit höherer Epoch bestätigt.")
         print("Freigaben und Regeln unverändert; keine Publikation ausgelöst.")
 
@@ -602,6 +764,107 @@ def verify():
         print("Verifiziert: drei Runtime-Prüfsummen, aktive Images, Lease und öffentliche API.")
         print("Beide RestartCount=0; neuer Workerbesitzer mit höherer Epoch bestätigt.")
         print("Keine offenen Jobs oder Browsercontainer; Freigaben unverändert.")
+
+
+def read_deployment_record():
+    path = BASE_DIR / "deployment-state.json"
+    if not path.exists():
+        require(not path.is_symlink(), "Ungültiger Deploymentbeleg.")
+        return None
+    value = parse_json(trusted_path(path, private=True).read_text(encoding="utf-8"))
+    require(isinstance(value, dict) and set(value) == {"version", "manifest", "phase"}
+            and type(value["version"]) is int and value["version"] == 1
+            and value["phase"] in ("pending", "verified"), "Deploymentbeleg ungültig; Betreiberprüfung erforderlich.")
+    validate_manifest(value["manifest"])
+    return value
+
+
+def write_deployment_record(manifest, phase):
+    require(phase in ("pending", "verified"), "Unbekannte Deploymentphase.")
+    write_private_json(BASE_DIR / "deployment-state.json", {
+        "version": 1, "manifest": validate_manifest(manifest), "phase": phase,
+    })
+
+
+def apply_release(manifest):
+    """Ein begrenzter SSH-Aufruf; kein zweiter Release umgeht einen unklaren Stopp."""
+    with configured_release(manifest) as approved, rollout_lock():
+        previous = read_deployment_record()
+        same = previous is not None and previous["manifest"] == approved
+        require(previous is None or previous["phase"] == "verified" or same,
+                "Ein anderer Release ist noch nicht abgeschlossen; keine automatische Fortsetzung.")
+        journal = read_journal()
+        if journal is None:
+            require(not same, "Deploymentbeleg ohne zugehöriges Journal; Betreiberprüfung erforderlich.")
+            prepare()
+            journal = read_journal()
+        phase = journal["phase"]
+        if phase == "prepared":
+            require(not same or previous["phase"] == "pending", "Abgeschlossenes Deployment hat kein abgeschlossenes Journal.")
+            # Vor dem ersten Stopp verhindert dieser globale Beleg einen neuen SHA.
+            write_deployment_record(approved, "pending")
+            deploy()
+        elif phase in ("start_started", "verifying", "verified"):
+            require(same, "Bereits gestarteter Release gehört nicht zum letzten Deploymentbeleg.")
+            # Auch bei verlorener Startantwort ausschließlich prüfen, nie neu starten.
+            verify()
+        else:
+            raise RolloutError("Unvollständige Vorbereitung oder unklarer Stopp; Betreiberprüfung erforderlich.")
+        write_deployment_record(approved, "verified")
+        return {"version": 1, "commit": approved["commit"], "manifest_sha256": fingerprint(approved), "phase": "verified"}
+
+
+def deployment_status():
+    """Nur betriebliche Kennungen und Zähler; keine Inhalte, Freigaben oder Secrets."""
+    record = read_deployment_record()
+    context = discover_active()
+    assert_config_hashes(context)
+    services = {}
+    for key, repository in zip(("worker", "broker"), IMAGE_REPOSITORIES):
+        container = context[key]
+        state = container.get("State", {})
+        status_value = state.get("Status")
+        require(status_value in ("created", "running", "paused", "restarting", "removing", "exited", "dead"), "Unbekannter Containerzustand.")
+        restarts = container.get("RestartCount")
+        require(type(restarts) is int and restarts >= 0, "Container-Neustartzähler fehlt.")
+        image = container.get("Config", {}).get("Image", "")
+        allowed_image = isinstance(image, str) and bool(re.fullmatch(
+            re.escape(repository) + r"(?:@sha256:[0-9a-f]{64}|:sha-[0-9a-f]{40})", image,
+        ))
+        runtime = None
+        if state.get("Running") is True:
+            output = run_command(["docker", "exec", container["Id"], "sha256sum", RUNTIME_PATH]).split()
+            require(len(output) == 2 and bool(re.fullmatch(r"[0-9a-f]{64}", output[0]))
+                    and output[1] == RUNTIME_PATH, "Runtime-Prüfsumme nicht lesbar.")
+            runtime = output[0]
+        health = state.get("Health", {}).get("Status")
+        require(health in (None, "starting", "healthy", "unhealthy"), "Unbekannter Healthzustand.")
+        services[key] = {
+            "state": status_value, "health": health, "restart_count": restarts,
+            "image": image if allowed_image else "unrecognized", "runtime_sha256": runtime,
+        }
+    snapshot = read_jobs(sql=STATUS_SQL)
+    counts = snapshot.get("counts")
+    require(isinstance(counts, dict) and set(counts) == set(COUNT_KEYS)
+            and all(type(value) is int and value >= 0 for value in counts.values()), "Auftragszähler unvollständig.")
+    live = snapshot.get("runtime", {}).get("live")
+    require(type(live) is bool, "Runtime-Lease nicht lesbar.")
+    deployment = None
+    if record:
+        with configured_release(record["manifest"]):
+            journal = read_journal()
+        deployment = {
+            "commit": record["manifest"]["commit"], "phase": record["phase"],
+            "journal_phase": journal["phase"] if journal else None,
+            "manifest_sha256": fingerprint(record["manifest"]),
+        }
+    return {
+        "version": 1, "project": PROJECT, "deployment": deployment,
+        "services": services, "runtime_live": live, "blocking_jobs": counts,
+        "browser_containers": len(session_containers()),
+        "historical_unknown_messages": snapshot["historicalUnknownMessages"],
+        "historical_unknown_evidence_sha256": historical_unknown_hash(snapshot),
+    }
 
 
 def safe_token(value):
@@ -643,6 +906,9 @@ def jobs():
     for key in COUNT_KEYS:
         value = counts.get(key)
         print(key + ": " + (str(value) if type(value) is int and value >= 0 else "unbekannt"))
+    historical_unknown_hash(snapshot)
+    print("Historische Nachrichten mit unbekanntem Versandausgang: " + str(snapshot["historicalUnknownMessages"]))
+    print("Nur die gebundene Ausführung ist beendet; kein Versandnachweis und keine Wiederholung.")
     draft = snapshot.get("draft")
     if isinstance(draft, dict):
         print("Draft 11: Revision " + numeric_token(draft.get("revision")) + ", Fotos " + numeric_token(draft.get("photos")))

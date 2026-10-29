@@ -3,7 +3,10 @@
 `marketplace-rollout.py` führt den bereits freigegebenen Betreiberablauf für den
 Paketnamenfix aus PR #512 aus. Das Skript benötigt Python 3, Docker Compose und
 Root-Rechte auf dem bestehenden Marketplace-Host. Es richtet keinen zusätzlichen
-Zugang ein und veröffentlicht kein Inserat.
+Zugang ein und veröffentlicht kein Inserat. Derselbe geprüfte Ablauf wird vom
+separaten [dauerhaften Deployment-Einstieg](MARKETPLACE-ACCESS.md) mit einem
+streng validierten Release-Manifest verwendet; die direkten CLI-Befehle behalten
+den folgenden festgelegten Standardrelease.
 
 ## Festgelegter Release
 
@@ -65,6 +68,16 @@ für historische Nachrichten mit unbekanntem Ausgang: Ein alter Befund ist keine
 pauschale Ausnahme für einen aktuell gefundenen Auftrag. Datenbankzustände,
 Anbieterbelege und Sitzungsberechtigungen bleiben unverändert.
 
+Bei einer Cloudnachricht kann der Versandausgang unbekannt bleiben, obwohl ihre
+Ausführung nachweislich beendet ist. Nur vollständig passende Konto-, Workspace-,
+Auftraggeber- und Workerbindungen, eine geschlossen und beim Anbieter beendet
+bestätigte Sitzung sowie eine inaktive Nachrichten-Lease erlauben diese Trennung.
+Zusätzlich dürfen global keine aktiven oder stoppenden Sitzungen und keine
+physischen Browsercontainer vorhanden sein. Der Nachweis dieser historischen
+Versuche muss während Vorbereitung, Stopp und Abschluss identisch bleiben.
+Unvollständige Belege und unbekannte andere Auftragstypen sperren weiterhin.
+Die Nachricht wird dadurch weder erneut verschickt noch als zugestellt bewertet.
+
 Die gesicherte Compose-Datei kann aufgelöste Zugangsdaten enthalten. Sie bleibt auf
 dem Host mit eingeschränkten Rechten und gehört weder in Chat noch Git oder einen
 öffentlichen Prüfbericht.
@@ -78,10 +91,9 @@ starten. Die tatsächlich angenommene Auftrags-ID bis zum bestätigten Anbieterb
 verfolgen. Ein gesundes Worker-Image allein belegt keine erfolgreiche
 Veröffentlichung.
 
-## Spätere Automatisierung
+## Automatisierter Zugang
 
-Für einen GitHub-Deployment-Workflow fehlen weiterhin die einmalige Einrichtung
-eines begrenzten Hostbefehls, ein dafür eigener SSH-Schlüssel und die passende
-Workflow-Anbindung. Der vorhandene Web-Deployment-Schlüssel erhält durch dieses
-Skript keine zusätzlichen Rechte. Diese Zugangseinrichtung ist ein eigener,
-konkret zu prüfender Schritt.
+Der Installer, der eigene SSH-Schlüssel und der GitHub-Workflow sind in
+[MARKETPLACE-ACCESS.md](MARKETPLACE-ACCESS.md) beschrieben. Sie benötigen eine
+einmalige konkrete Hosteinrichtung und einen echten Verbindungsnachweis.
+Der vorhandene Web-Deployment-Schlüssel erhält dadurch keine zusätzlichen Rechte.
