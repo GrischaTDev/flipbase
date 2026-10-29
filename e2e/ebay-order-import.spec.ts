@@ -149,7 +149,7 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     }),
   );
   await openDashboard(page);
-  await page.goto('/marketplaces/ebay');
+  await page.getByRole('link', { name: 'eBay', exact: true }).click();
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/listings$/);
   await page
     .getByRole('button', { name: 'Mit Bestand verknüpfen: eBay-Testartikel', exact: true })
@@ -239,7 +239,9 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
   releaseOrders();
   await page.unroute('**/functions/v1/ebay-account');
 
-  await page.goto(order.route);
+  await page
+    .getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'eBay-Bestellung prüfen', exact: true }),
   ).toBeVisible();

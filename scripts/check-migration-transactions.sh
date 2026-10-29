@@ -12,11 +12,13 @@ trap cleanup EXIT
 docker network create "$network"
 docker run -d --name "$database" --network "$network" \
   -e POSTGRES_PASSWORD=test -e POSTGRES_DB=flipbase_release_test postgres:16-alpine
+# Der vorläufige Initialisierungsserver nimmt nur Unix-Sockets an. Erst der
+# reguläre PostgreSQL-Server nach abgeschlossener Initialisierung antwortet per TCP.
 for _ in $(seq 1 30); do
-  if docker exec "$database" pg_isready -U postgres -d flipbase_release_test; then break; fi
+  if docker exec "$database" pg_isready -h 127.0.0.1 -U postgres -d flipbase_release_test; then break; fi
   sleep 1
 done
-docker exec "$database" pg_isready -U postgres -d flipbase_release_test
+docker exec "$database" pg_isready -h 127.0.0.1 -U postgres -d flipbase_release_test
 docker run --rm --network "$network" -v "$PWD:/work:ro" -w /work \
   -e PGHOST="$database" -e PGUSER=postgres -e PGPASSWORD=test \
   -e PGDATABASE=flipbase_release_test \

@@ -32,7 +32,7 @@ test('keeps cost options above the modal footer and preserves keyboard dismissal
   const dialog = page.getByRole('dialog', { name: 'Zusatzausgaben verwalten' });
   const trigger = dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true });
   await trigger.click();
-  const option = dialog.getByRole('option', { name: 'Auslandstransaktionsgebühr', exact: true });
+  const option = dialog.getByRole('option', { name: 'Rabatt', exact: true });
   await expect(option).toBeVisible();
   // Sichtbarkeit allein erkennt Clipping nicht: Der Punkt muss tatsächlich die Option treffen.
   await expect
@@ -46,7 +46,7 @@ test('keeps cost options above the modal footer and preserves keyboard dismissal
     )
     .toBe(true);
   await option.click();
-  await expect(trigger).toContainText('Auslandstransaktionsgebühr');
+  await expect(trigger).toContainText('Rabatt');
   await trigger.click();
   await trigger.press('Escape');
   await expect(dialog.getByRole('listbox')).toHaveCount(0);
