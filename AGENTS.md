@@ -136,6 +136,54 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
   Verhaltensänderungen/Abwägungen und die tatsächlich ausgeführten Prüfungen.
   Keine bloße Dateiliste und keine automatisch aufgeblähte Zusammenfassung.
 
+## Verbindlicher Vorabcheck für alle KI-Assistenten
+
+Diese Schritte führt die arbeitende KI **vor jedem PR, auch einem Entwurfs-PR,
+und vor jedem weiteren Push auf einen offenen PR selbst aus**. Sie gelten im
+gesamten Repository, einschließlich Dokumentations- und Regeländerungen. Dem
+Nutzer nur die Befehle zu nennen oder auf die spätere CI zu verweisen genügt nicht.
+
+1. **Geänderte Dateien automatisch formatieren.** Mit den installierten
+   Projektabhängigkeiten gezielt die eigenen, von Prettier unterstützten Dateien
+   bearbeiten: `npm exec --no -- prettier --write -- <Dateien>`. Platzhalter durch
+   konkrete, bei Bedarf zitierte Pfade ersetzen; neue Dateien einschließen,
+   gelöschte auslassen und den Diff kontrollieren. `npm run format` enthält
+   `prettier --write .` und bearbeitet das ganze Repository; angehängte Dateinamen
+   begrenzen diesen Befehl nicht. Keine fachfremden Änderungen mitnehmen.
+2. **Den tatsächlichen Prüfumfang ansehen:** `npm run preflight:plan` gegen den
+   frisch abgerufenen Zielzweig ausführen. Standard ist `origin/master`; bei einem
+   anderen PR-Ziel beiden Preflight-Befehlen `-- --base <ref>` übergeben. Commits,
+   Index, Arbeitskopie sowie neue und gelöschte Dateien müssen berücksichtigt sein.
+   Auch die Einsatzstellen gemeinsamer Bausteine prüfen; nur neue Tests reichen nicht.
+3. **Den Plan ausführen:** `npm run preflight` mit der in CI verwendeten Node-22-
+   Laufzeit und den gesperrten Projektabhängigkeiten ausführen. Die Planansicht ist
+   kein Testnachweis. Der gemeinsame Ablauf wählt die betroffenen Qualitäts-,
+   Typ-, Test- und Bauprüfungen; Angular-Vorlagen benötigen weiterhin den Bau.
+4. **Format und Lint müssen bei jedem PR erfolgreich geprüft sein:**
+   `npm run format:check` und `npm run lint`. Hat der Preflight diese identischen
+   Befehle für den unveränderten Stand bereits erfolgreich ausgeführt, zählt das
+   Ergebnis; nicht doppelt ausführen. Bei reinen Dokumentationsänderungen oder
+   wenn der Preflight einen dieser Befehle noch nicht erfolgreich ausgeführt hat,
+   die fehlenden Prüfungen gesondert ausführen.
+5. **Fehler vor dem PR beheben.** Nach Autofixes, weiteren Änderungen oder einer
+   Konfliktauflösung erneut formatieren, den Plan aktualisieren und den Preflight
+   auf dem endgültigen Stand ausführen. Betroffene Prüfungen erneut nachweisen;
+   Ergebnisse eines älteren Stands nicht als Prüfung der Korrektur ausgeben.
+6. **Technische Grenzen offen behandeln.** Fehlende Voraussetzungen soweit
+   möglich herstellen und alle lokal ausführbaren Prüfungen durchführen. Die
+   dokumentierten Marketplace-Imageprüfungen bleiben dem GitHub-gehosteten
+   Wegwerfrunner vorbehalten. Ein deshalb unvollständiger Preflight zählt nicht
+   als bestanden: fehlenden Bereich, konkreten Grund und nötigen CI-Nachweis im
+   PR benennen. Echte Format-, Lint- oder Testfehler sind keine solche Ausnahme;
+   vor dem Merge müssen alle ausgewählten Pflichtprüfungen erfolgreich sein.
+7. **Nachweise festhalten:** ausgeführte Befehle, tatsächliche Ergebnisse und
+   verbleibende Prüflücken in PR-Beschreibung und Abschluss nennen. Exitcodes
+   korrekt auswerten. Keine pauschale Behauptung „alle Tests grün“ bei Teilprüfungen.
+
+Auswahl, Voraussetzungen und Ausführungsgrenzen stehen in
+[`docs/testing/lean-ci.md`](docs/testing/lean-ci.md). Eine reine Dokumentations-
+oder Regeländerung löst dadurch keine vollständige Anwendungstestsuite aus.
+
 ## Vor dem Pushen
 
 - **Jeden abgeschlossenen Feature- oder Umbau-Zweig über einen PR abschließen.**
@@ -149,16 +197,9 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 - **Die Bereinigung nach erfolgreichem Merge ist dauerhaft beauftragt.** Dafür
   keine weitere Freigabe einholen. Verbindlicher Ablauf und Grenzen stehen unter
   „Abschluss und Bereinigung“; die Rückfrage vor PR und Merge bleibt bestehen.
-- **Vor einem Branch-Push gezielt prüfen:** betroffene Tests ausführen und
-  geänderte Dateien formatieren/linten. Bei Angular-/Template-Änderungen auch
-  den Bau prüfen, bei Datenbankänderungen die passenden Datenbanktests.
-  Der PR bestätigt den für diese Änderung ausgewählten Prüfumfang. Nicht bei
-  jedem Push oder jeder kleinen Änderung die gesamte Suite wiederholen.
-- **Den betroffenen Prüfumfang vor dem ersten Push bestimmen:** aus den
-  geänderten Bausteinen und der tatsächlichen CI-Testauswahl ableiten, welche
-  bestehenden und neuen Fälle lokal laufen müssen. Bei gemeinsamen Komponenten
-  auch deren betroffene Einsatzstellen prüfen. Nur neu geschriebene Tests
-  auszuführen genügt nicht. Ausgeführte Prüfungen und verbleibende Lücken nennen.
+- **Den verbindlichen Vorabcheck oben vor jedem Branch-Push erfüllen.** Der PR
+  bestätigt den für diese Änderung ausgewählten Prüfumfang. Nicht bei jedem
+  Push oder jeder kleinen Änderung die gesamte Suite wiederholen.
 - **Nur betroffene Funktionen prüfen.** Die Auswahl wird aus geänderten Dateien,
   ihren lokalen Imports und Angular-Vorlagen abgeleitet. Gemeinsame Bausteine
   beziehen ihre tatsächlichen Einsatzstellen ein. Fertige fachfremde Funktionen
