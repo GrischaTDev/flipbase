@@ -4,6 +4,7 @@ import { appendFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import { setTimeout as waitForDelay } from 'node:timers/promises';
 
 const exec = promisify(execFile);
 const repository = 'GrischaTDev/flipbase';
@@ -20,10 +21,10 @@ function assertRelease(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function githubApi(path) {
+async function githubApi(path, { timeoutMs = 30000 } = {}) {
   const { stdout } = await exec('gh', ['api', `repos/${repository}/${path}`], {
     encoding: 'utf8',
-    timeout: 30000,
+    timeout: timeoutMs,
     maxBuffer: 4 * 1024 * 1024,
   });
   return JSON.parse(stdout);
@@ -172,7 +173,12 @@ async function successfulRuns(sha, workflow, event, api) {
 /** Keine PR-Artefakte, fremden Repositories oder nur ähnlich benannten Checks akzeptieren. */
 export async function planMarketplaceRelease(
   environment,
-  { api = githubApi, logs = jobLogs } = {},
+  {
+    api: readApi = githubApi,
+    logs = jobLogs,
+    now = () => performance.now(),
+    wait = waitForDelay,
+  } = {},
 ) {
   const sha = environment.GITHUB_SHA;
   const event = environment.GITHUB_EVENT_NAME;
@@ -194,18 +200,38 @@ export async function planMarketplaceRelease(
     operation === 'deploy-existing' ? shaPattern.test(requestedCommit) : requestedCommit === '',
     'Nur deploy-existing benötigt eine vollständige Commitkennung.',
   );
-  const master = await api('git/ref/heads/master');
-  assertRelease(
-    master.ref === 'refs/heads/master' &&
-      master.object?.type === 'commit' &&
-      shaPattern.test(master.object.sha),
-    'Der aktuelle Hauptzweig ist nicht eindeutig auflösbar.',
-  );
-  // Auch manuelle Aufträge laufen mit der aktuellen, geprüften Workflowfassung.
-  assertRelease(
-    master.object.sha === sha,
-    'Der Auftrag wurde durch einen neueren Hauptzweig überholt.',
-  );
+  const deadline = now() + 8 * 60 * 1000;
+  const timeoutMessage =
+    'Die ausgewählten CI-Prüfungen sind nicht erfolgreich: Zeitlimit für die GitHub-Freigabe überschritten.';
+  const remainingTime = () => {
+    const remaining = Math.floor(deadline - now());
+    assertRelease(remaining > 0, timeoutMessage);
+    return remaining;
+  };
+  // Auch API-Zeit zählt zum festen Budget; verspätete Antworten erteilen keine Freigabe.
+  const api =
+    event === 'push'
+      ? async (path) => {
+          const response = await readApi(path, { timeoutMs: Math.min(30000, remainingTime()) });
+          remainingTime();
+          return response;
+        }
+      : readApi;
+  const verifyCurrentMaster = async () => {
+    const master = await api('git/ref/heads/master');
+    assertRelease(
+      master.ref === 'refs/heads/master' &&
+        master.object?.type === 'commit' &&
+        shaPattern.test(master.object.sha),
+      'Der aktuelle Hauptzweig ist nicht eindeutig auflösbar.',
+    );
+    // Auch manuelle Aufträge laufen mit der aktuellen, geprüften Workflowfassung.
+    assertRelease(
+      master.object.sha === sha,
+      'Der Auftrag wurde durch einen neueren Hauptzweig überholt.',
+    );
+  };
+  await verifyCurrentMaster();
   if (operation === 'status') return { operation, commit: sha };
 
   const commit = operation === 'deploy-existing' ? requestedCommit : sha;
@@ -219,21 +245,93 @@ export async function planMarketplaceRelease(
     );
   }
   if (event === 'push') {
-    assertRelease(/^[1-9][0-9]*$/u.test(environment.GITHUB_RUN_ID ?? ''), 'CI-Laufkennung fehlt.');
-    const run = await api(`actions/runs/${environment.GITHUB_RUN_ID}`);
-    // Der gestartete Job kann noch einen wartenden Gesamtstatus nach einer Umgebungssperre lesen.
-    assertRelease(
-      validRun(run, sha, 'ci.yml', 'push') &&
-        ['in_progress', 'waiting', 'completed'].includes(run.status) &&
-        (run.status !== 'waiting' || run.conclusion === null) &&
-        (run.status !== 'completed' || run.conclusion === 'success'),
-      'Der aufrufende CI-Lauf gehört nicht zum freigegebenen Hauptzweigstand.',
-    );
-    assertRelease(
-      successfulChecks(await runJobs(run.id, api)),
-      'Die ausgewählten CI-Prüfungen sind nicht erfolgreich.',
-    );
-    return { operation, commit };
+    for (const [variable, message] of [
+      ['GITHUB_RUN_ID', 'CI-Laufkennung fehlt oder ist ungültig.'],
+      ['GITHUB_RUN_ATTEMPT', 'CI-Laufversuch fehlt oder ist ungültig.'],
+    ]) {
+      assertRelease(
+        typeof environment[variable] === 'string' &&
+          /^[1-9][0-9]*$/u.test(environment[variable]) &&
+          Number.isSafeInteger(Number(environment[variable])),
+        message,
+      );
+    }
+    for (;;) {
+      const run = await api(
+        `actions/runs/${environment.GITHUB_RUN_ID}/attempts/${environment.GITHUB_RUN_ATTEMPT}`,
+      );
+      const ownRunIdMatches =
+        Number.isSafeInteger(run?.id) && String(run.id) === environment.GITHUB_RUN_ID;
+      const ownAttemptMatches =
+        Number.isSafeInteger(run?.run_attempt) &&
+        run.run_attempt > 0 &&
+        String(run.run_attempt) === environment.GITHUB_RUN_ATTEMPT;
+      assertRelease(
+        validRun(run, sha, 'ci.yml', 'push') && ownRunIdMatches && ownAttemptMatches,
+        `Die CI-Laufidentität gehört nicht zum freigegebenen Hauptzweigstand: ${JSON.stringify({
+          expected_run_id: environment.GITHUB_RUN_ID.slice(0, 32),
+          actual_run_id: Number.isSafeInteger(run?.id) ? run.id : 'invalid',
+          run_id_matches: ownRunIdMatches,
+          expected_attempt: environment.GITHUB_RUN_ATTEMPT.slice(0, 32),
+          actual_attempt: Number.isSafeInteger(run?.run_attempt) ? run.run_attempt : 'invalid',
+          attempt_matches: ownAttemptMatches,
+          commit_matches: run?.head_sha === sha,
+          branch_matches: run?.head_branch === 'master',
+          repository_matches: run?.head_repository?.full_name === repository,
+          event_matches: run?.event === 'push',
+          workflow_matches: run?.path === '.github/workflows/ci.yml',
+        })}`,
+      );
+      // Der GitHub-Gesamtstatus kann dem bereits gestarteten Schritt noch nachlaufen.
+      const openRunStatuses = ['queued', 'in_progress', 'requested', 'waiting', 'pending'];
+      const knownConclusions = [
+        'success',
+        'failure',
+        'cancelled',
+        'timed_out',
+        'neutral',
+        'skipped',
+        'stale',
+        'action_required',
+      ];
+      const diagnosticStatus =
+        run.status === undefined
+          ? 'missing'
+          : [...openRunStatuses, 'completed'].includes(run.status)
+            ? run.status
+            : 'unknown';
+      const diagnosticConclusion =
+        run.conclusion === null
+          ? null
+          : run.conclusion === undefined
+            ? 'missing'
+            : knownConclusions.includes(run.conclusion)
+              ? run.conclusion
+              : 'unknown';
+      assertRelease(
+        (openRunStatuses.includes(run.status) && run.conclusion === null) ||
+          (run.status === 'completed' && run.conclusion === 'success'),
+        `Der CI-Laufzustand ist nicht freigegeben: ${JSON.stringify({ status: diagnosticStatus, conclusion: diagnosticConclusion })}`,
+      );
+      const jobs = await runJobs(run.id, api);
+      if (successfulChecks(jobs)) {
+        await verifyCurrentMaster();
+        return { operation, commit };
+      }
+      const requiredChecks = jobs.filter((job) => job.name === 'Required checks');
+      assertRelease(
+        jobs.every(
+          (job) => job.status !== 'completed' || ['success', 'skipped'].includes(job.conclusion),
+        ) &&
+          requiredChecks.every(
+            (job) => openRunStatuses.includes(job.status) && job.conclusion === null,
+          ),
+        'Die ausgewählten CI-Prüfungen sind nicht erfolgreich.',
+      );
+      // Nur die Anzeige fehlender/offener Pflichtprüfungen erneut lesen, nie eine Aktion wiederholen.
+      await wait(Math.min(10000, remainingTime()));
+      await verifyCurrentMaster();
+    }
   }
 
   const ciRuns = await successfulRuns(commit, 'ci.yml', 'push', api);

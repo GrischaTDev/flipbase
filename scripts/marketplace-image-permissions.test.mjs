@@ -7,10 +7,21 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   marketplaceReleaseManifest,
-  planMarketplaceRelease,
+  planMarketplaceRelease as planMarketplaceReleaseImplementation,
   publicMarketplaceImage,
   publicationReceipt,
 } from './marketplace-release.mjs';
+
+function planMarketplaceRelease(environment, options = {}) {
+  let elapsed = 0;
+  return planMarketplaceReleaseImplementation(environment, {
+    now: () => elapsed,
+    wait: async (milliseconds) => {
+      elapsed += milliseconds;
+    },
+    ...options,
+  });
+}
 
 const workflow = await readFile(
   new URL('../.github/workflows/marketplace-worker-image.yml', import.meta.url),
@@ -288,6 +299,7 @@ const releaseEnvironment = {
   GITHUB_SHA: currentSha,
   GITHUB_EVENT_NAME: 'push',
   GITHUB_RUN_ID: '123',
+  GITHUB_RUN_ATTEMPT: '1',
 };
 const checkedJob = { name: 'Required checks', status: 'completed', conclusion: 'success' };
 const publicationJob = {
@@ -329,6 +341,7 @@ const publicationLogs = async (id) => {
 function runFixture(sha = currentSha, overrides = {}) {
   return {
     id: 123,
+    run_attempt: 1,
     head_sha: sha,
     head_branch: 'master',
     head_repository: { full_name: 'GrischaTDev/flipbase' },
@@ -343,6 +356,7 @@ function runFixture(sha = currentSha, overrides = {}) {
 function releaseApi({
   master = currentSha,
   run = runFixture(),
+  expectedAttempt = '1',
   jobs = [checkedJob],
   publications = [publicationJob],
   overrides = {},
@@ -351,7 +365,7 @@ function releaseApi({
     if (Object.hasOwn(overrides, path)) return overrides[path];
     if (path === 'git/ref/heads/master')
       return { ref: 'refs/heads/master', object: { type: 'commit', sha: master } };
-    if (path === 'actions/runs/123') return run;
+    if (path === `actions/runs/123/attempts/${expectedAttempt}`) return run;
     if (path === 'actions/runs/123/jobs?filter=latest&per_page=100&page=1') return { jobs };
     if (path === `compare/${releaseSha}...${currentSha}`)
       return {
@@ -405,61 +419,379 @@ test('laufende Hauptzweig-CI darf erst nach ihrem eigenen grünen Sammelgate ver
   }
 });
 
-test('wartende eigene Hauptzweig-CI erlaubt den gestarteten Rollout erst nach grünen Pflichtprüfungen', async () => {
-  const run = runFixture(currentSha, { status: 'waiting', conclusion: null });
-  assert.deepEqual(await planMarketplaceRelease(releaseEnvironment, { api: releaseApi({ run }) }), {
-    operation: 'release',
-    commit: currentSha,
-  });
-  for (const jobs of [
+const openWorkflowRunStatuses = ['queued', 'in_progress', 'requested', 'waiting', 'pending'];
+
+test('verzögerte Pflichtprüfungen werden nur lesend bis zum eigenen aktuellen Erfolg neu abgefragt', async () => {
+  for (const initialJobs of [
     [],
-    [{ ...checkedJob, status: 'in_progress', conclusion: null }],
-    [{ ...checkedJob, conclusion: 'failure' }],
-    [{ ...checkedJob, conclusion: 'cancelled' }],
-    [checkedJob, { status: 'completed', conclusion: 'failure' }],
-    [checkedJob, { status: 'completed', conclusion: 'cancelled' }],
+    ...openWorkflowRunStatuses.map((status) => [{ ...checkedJob, status, conclusion: null }]),
   ]) {
-    await assert.rejects(
-      planMarketplaceRelease(releaseEnvironment, { api: releaseApi({ run, jobs }) }),
-      /CI-Prüfungen/u,
+    let reads = 0;
+    let waits = 0;
+    let elapsed = 0;
+    const fallback = releaseApi({
+      run: runFixture(currentSha, { status: 'queued', conclusion: null }),
+    });
+    const api = async (path, options) => {
+      assert.ok(options.timeoutMs > 0 && options.timeoutMs <= 30000);
+      if (path === 'actions/runs/123/jobs?filter=latest&per_page=100&page=1') {
+        reads += 1;
+        return { jobs: reads === 1 ? initialJobs : [checkedJob] };
+      }
+      return fallback(path);
+    };
+    assert.deepEqual(
+      await planMarketplaceRelease(releaseEnvironment, {
+        api,
+        now: () => elapsed,
+        wait: async (milliseconds) => {
+          waits += 1;
+          elapsed += milliseconds;
+        },
+      }),
+      { operation: 'release', commit: currentSha },
     );
+    assert.equal(reads, 2);
+    assert.equal(waits, 1);
+    assert.equal(elapsed, 10000);
   }
 });
 
-test('wartende CI behält Identitätsgrenzen und akzeptiert kein bereits gesetztes Ergebnis', async () => {
-  for (const changes of [
-    { head_sha: releaseSha },
-    { head_repository: { full_name: 'fork/flipbase' } },
-    { head_branch: 'feature' },
-    { path: '.github/workflows/fake.yml' },
-    { event: 'pull_request' },
-    { conclusion: 'success' },
-    { conclusion: 'failure' },
-    { conclusion: 'cancelled' },
-    { conclusion: undefined },
-    { status: 'queued' },
-    { status: 'unknown' },
-    { status: 'completed', conclusion: 'failure' },
-    { status: 'completed', conclusion: 'cancelled' },
+test('Wartebudget umfasst API-Zeit und endet ohne Freigabe bei dauerhaft offenen Prüfungen', async () => {
+  let elapsed = 0;
+  let reads = 0;
+  const fallback = releaseApi({ jobs: [{ ...checkedJob, status: 'queued', conclusion: null }] });
+  await assert.rejects(
+    planMarketplaceRelease(releaseEnvironment, {
+      now: () => elapsed,
+      wait: async (milliseconds) => {
+        elapsed += milliseconds;
+      },
+      api: async (path, options) => {
+        assert.ok(options.timeoutMs > 0 && options.timeoutMs <= Math.min(30000, 480000 - elapsed));
+        elapsed += Math.min(6000, options.timeoutMs);
+        reads += 1;
+        return fallback(path);
+      },
+    }),
+    /CI-Prüfungen.*Zeitlimit/u,
+  );
+  assert.equal(elapsed, 480000);
+  assert.ok(reads > 3 && reads < 100);
+  const planTimeout = /^    timeout-minutes: (\d+)$/m.exec(publicationHeaders[0]);
+  assert.ok(planTimeout);
+  assert.ok(Number(planTimeout[1]) * 60000 >= elapsed + 120000);
+  assert.ok(Number(planTimeout[1]) <= 15);
+});
+
+test('verspätete positive API-Antworten erteilen an keiner Freigabegrenze eine Zustimmung', async () => {
+  for (const delayedCall of [1, 2, 3, 4]) {
+    let elapsed = 0;
+    let calls = 0;
+    const fallback = releaseApi();
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        now: () => elapsed,
+        wait: async () => {
+          throw new Error('Positive Antworten benötigen kein Warten');
+        },
+        api: async (path) => {
+          calls += 1;
+          const response = await fallback(path);
+          if (calls === delayedCall) elapsed = 480000;
+          return response;
+        },
+      }),
+      /CI-Prüfungen.*Zeitlimit/u,
+    );
+    assert.equal(calls, delayedCall);
+  }
+});
+
+test('sichtbare abgeschlossene Fehler und ungültige Pflichtprüfungszustände erlauben kein Warten', async () => {
+  const pending = { ...checkedJob, status: 'queued', conclusion: null };
+  for (const jobs of [
+    [pending, { name: 'Quality', status: 'completed', conclusion: 'failure' }],
+    [pending, { name: 'Quality', status: 'completed', conclusion: 'cancelled' }],
+    ...['failure', 'cancelled', 'skipped', 'neutral', null].map((conclusion) => [
+      { ...checkedJob, conclusion },
+    ]),
+    ...[undefined, 'success', 'failure'].map((conclusion) => [{ ...pending, conclusion }]),
+    [{ ...pending, status: 'unrecognized' }],
   ]) {
+    let waits = 0;
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        api: releaseApi({ jobs }),
+        wait: async () => {
+          waits += 1;
+          throw new Error('Warten ist hier nicht erlaubt');
+        },
+      }),
+      /CI-Prüfungen/u,
+    );
+    assert.equal(waits, 0);
+  }
+});
+
+test('Warten übernimmt keine alten Ergebnisse und bricht bei Fehlern oder geändertem Hauptzweig sofort ab', async () => {
+  for (const changes of [
+    'failed_job',
+    'master',
+    'run_id',
+    'attempt',
+    'run_failure',
+    'unknown_check',
+  ]) {
+    let elapsed = 0;
+    let waits = 0;
+    let reads = 0;
+    const fallback = releaseApi();
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        now: () => elapsed,
+        wait: async (milliseconds) => {
+          waits += 1;
+          elapsed += milliseconds;
+        },
+        api: async (path) => {
+          if (waits > 0 && path === 'git/ref/heads/master' && changes === 'master') {
+            return { ref: 'refs/heads/master', object: { type: 'commit', sha: 'b'.repeat(40) } };
+          }
+          if (waits > 0 && path === 'actions/runs/123/attempts/1') {
+            const override =
+              changes === 'run_id'
+                ? { id: 124 }
+                : changes === 'attempt'
+                  ? { run_attempt: 2 }
+                  : changes === 'run_failure'
+                    ? { conclusion: 'failure' }
+                    : {};
+            return runFixture(currentSha, override);
+          }
+          if (path === 'actions/runs/123/jobs?filter=latest&per_page=100&page=1') {
+            reads += 1;
+            if (reads === 1)
+              return { jobs: [{ ...checkedJob, status: 'queued', conclusion: null }] };
+            return {
+              jobs:
+                changes === 'failed_job'
+                  ? [checkedJob, { name: 'Quality', status: 'completed', conclusion: 'failure' }]
+                  : [{ ...checkedJob, status: 'unrecognized', conclusion: null }],
+            };
+          }
+          return fallback(path);
+        },
+      }),
+      /CI-Prüfungen|CI-Lauf|überholt/u,
+    );
+    assert.equal(waits, 1);
+    assert.ok(reads <= 2);
+  }
+  let masterReads = 0;
+  const fallback = releaseApi();
+  await assert.rejects(
+    planMarketplaceRelease(releaseEnvironment, {
+      api: async (path) => {
+        if (path === 'git/ref/heads/master' && ++masterReads === 2)
+          return { ref: 'refs/heads/master', object: { type: 'commit', sha: 'b'.repeat(40) } };
+        return fallback(path);
+      },
+    }),
+    /überholt/u,
+  );
+  assert.equal(masterReads, 2);
+});
+
+test('eigener CI-Lauf liest genau seinen aktuellen Versuch ohne Rückfall auf die Gesamtübersicht', async () => {
+  for (const [expectedAttempt, returnedAttempt] of [
+    ['1', 1],
+    ['2', 2],
+  ]) {
+    const environment = { ...releaseEnvironment, GITHUB_RUN_ATTEMPT: expectedAttempt };
+    const run = runFixture(currentSha, {
+      run_attempt: returnedAttempt,
+      status: 'waiting',
+      conclusion: null,
+    });
+    assert.deepEqual(
+      await planMarketplaceRelease(environment, { api: releaseApi({ run, expectedAttempt }) }),
+      { operation: 'release', commit: currentSha },
+    );
+    for (const runAttempt of [
+      undefined,
+      '1',
+      0,
+      Number.MAX_SAFE_INTEGER + 1,
+      returnedAttempt + 1,
+    ]) {
+      await assert.rejects(
+        planMarketplaceRelease(environment, {
+          api: releaseApi({ run: { ...run, run_attempt: runAttempt }, expectedAttempt }),
+        }),
+        /CI-Laufidentität/u,
+      );
+    }
+    await assert.rejects(
+      planMarketplaceRelease(environment, {
+        api: releaseApi({
+          overrides: { [`actions/runs/123/attempts/${expectedAttempt}`]: null },
+          expectedAttempt,
+        }),
+      }),
+      /CI-Laufidentität/u,
+    );
+  }
+  for (const variable of ['GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT']) {
+    for (const invalid of [undefined, '', '0', '01', '-1', '1.5', '1/path', '9007199254740992']) {
+      await assert.rejects(
+        planMarketplaceRelease(
+          { ...releaseEnvironment, [variable]: invalid },
+          { api: releaseApi() },
+        ),
+        /CI-Lauf/u,
+      );
+    }
+  }
+});
+
+test('offene CI-Zustände erlauben den eigenen Rollout ausschließlich nach grünen Pflichtprüfungen', async () => {
+  for (const status of openWorkflowRunStatuses) {
+    const run = runFixture(currentSha, { status, conclusion: null });
+    assert.deepEqual(
+      await planMarketplaceRelease(releaseEnvironment, { api: releaseApi({ run }) }),
+      {
+        operation: 'release',
+        commit: currentSha,
+      },
+    );
+    for (const jobs of [
+      [],
+      [{ ...checkedJob, status: 'in_progress', conclusion: null }],
+      [{ ...checkedJob, conclusion: 'failure' }],
+      [{ ...checkedJob, conclusion: 'cancelled' }],
+      [checkedJob, { status: 'completed', conclusion: 'failure' }],
+      [checkedJob, { status: 'completed', conclusion: 'cancelled' }],
+    ]) {
+      await assert.rejects(
+        planMarketplaceRelease(releaseEnvironment, { api: releaseApi({ run, jobs }) }),
+        /CI-Prüfungen/u,
+      );
+    }
+  }
+});
+
+test('offene CI-Zustände behalten sämtliche Identitäts-, Ergebnis- und Hauptzweiggrenzen', async () => {
+  for (const status of openWorkflowRunStatuses) {
+    for (const changes of [
+      { id: 124 },
+      { id: '123' },
+      { id: 0 },
+      { id: Number.MAX_SAFE_INTEGER + 1 },
+      { head_sha: releaseSha },
+      { head_repository: { full_name: 'fork/flipbase' } },
+      { head_branch: 'feature' },
+      { path: '.github/workflows/fake.yml' },
+      { event: 'pull_request' },
+      { conclusion: 'success' },
+      { conclusion: 'failure' },
+      { conclusion: 'cancelled' },
+      { conclusion: undefined },
+      { conclusion: '' },
+    ]) {
+      await assert.rejects(
+        planMarketplaceRelease(releaseEnvironment, {
+          api: releaseApi({
+            run: runFixture(currentSha, { status, conclusion: null, ...changes }),
+          }),
+        }),
+        /CI-Lauf/u,
+      );
+    }
     await assert.rejects(
       planMarketplaceRelease(releaseEnvironment, {
         api: releaseApi({
-          run: runFixture(currentSha, { status: 'waiting', conclusion: null, ...changes }),
+          master: 'b'.repeat(40),
+          run: runFixture(currentSha, { status, conclusion: null }),
         }),
+      }),
+      /überholt/u,
+    );
+  }
+  for (const conclusion of [
+    null,
+    undefined,
+    'failure',
+    'cancelled',
+    'timed_out',
+    'neutral',
+    'skipped',
+    'stale',
+    'action_required',
+  ]) {
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        api: releaseApi({ run: runFixture(currentSha, { status: 'completed', conclusion }) }),
       }),
       /CI-Lauf/u,
     );
   }
-  await assert.rejects(
-    planMarketplaceRelease(releaseEnvironment, {
-      api: releaseApi({
-        master: 'b'.repeat(40),
-        run: runFixture(currentSha, { status: 'waiting', conclusion: null }),
+});
+
+test('CI-Laufdiagnose trennt Identität und Zustand und übernimmt keine beliebigen API-Felder', async () => {
+  for (const [changes, expectedMessage, expectedState] of [
+    [{ id: 124 }, /CI-Laufidentität/u],
+    [
+      { status: 'completed', conclusion: 'failure' },
+      /CI-Laufzustand/u,
+      { status: 'completed', conclusion: 'failure' },
+    ],
+    [
+      { status: 'unknown-status-must-not-be-logged', conclusion: null },
+      /CI-Laufzustand/u,
+      { status: 'unknown', conclusion: null },
+    ],
+    [
+      { status: undefined, conclusion: null },
+      /CI-Laufzustand/u,
+      { status: 'missing', conclusion: null },
+    ],
+    [
+      { status: 'pending', conclusion: undefined },
+      /CI-Laufzustand/u,
+      { status: 'pending', conclusion: 'missing' },
+    ],
+    [
+      { status: 'pending', conclusion: 'unknown-conclusion-must-not-be-logged' },
+      /CI-Laufzustand/u,
+      { status: 'pending', conclusion: 'unknown' },
+    ],
+  ]) {
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        api: releaseApi({
+          run: runFixture(currentSha, {
+            ...changes,
+            private_payload: 'private-must-not-be-logged'.repeat(1000),
+          }),
+        }),
       }),
-    }),
-    /überholt/u,
-  );
+      (error) => {
+        assert.match(error.message, expectedMessage);
+        assert.ok(Buffer.byteLength(error.message) < 2048);
+        assert.doesNotMatch(
+          error.message,
+          /private-must-not-be-logged|unknown-status-must-not-be-logged|unknown-conclusion-must-not-be-logged/u,
+        );
+        if (expectedState)
+          assert.deepEqual(
+            JSON.parse(error.message.slice(error.message.indexOf('{'))),
+            expectedState,
+          );
+        return true;
+      },
+    );
+  }
 });
 
 test('fremde Quellen, PR-Auslöser, Branches und verfälschte CI-Zuordnungen werden abgewiesen', async () => {
