@@ -104,6 +104,7 @@ function buildMany(
   const budget = overrides.budget ?? new RequestBudget(10, () => NOW.getTime());
 
   const scheduler = new QueryScheduler({
+    now: () => NOW,
     queries: queryStore,
     collector,
     listings,
@@ -140,6 +141,7 @@ function build(query: SniperQuery, overrides: Record<string, unknown> = {}) {
     (overrides.budget as RequestBudget | undefined) ?? new RequestBudget(10, () => NOW.getTime());
 
   const scheduler = new QueryScheduler({
+    now: () => NOW,
     queries,
     collector,
     listings,
@@ -456,6 +458,7 @@ describe('QueryScheduler', () => {
       const log = { info: vi.fn(), error: vi.fn() };
       const budget = new RequestBudget(10, () => NOW.getTime());
       const scheduler = new QueryScheduler({
+        now: () => NOW,
         queries: queryStore,
         collector,
         listings,
@@ -812,6 +815,7 @@ describe('QueryScheduler', () => {
       const log = { info: vi.fn(), error: vi.fn() };
       const budget = new RequestBudget(10, () => NOW.getTime());
       const scheduler = new QueryScheduler({
+        now: () => NOW,
         queries: queryStore,
         collector: { collect: vi.fn().mockResolvedValue([makeListing('a')]) },
         listings,
@@ -848,6 +852,7 @@ describe('QueryScheduler', () => {
         saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
       };
       const scheduler = new QueryScheduler({
+        now: () => NOW,
         queries: queryStore,
         collector: { collect: vi.fn().mockResolvedValue([makeListing('a')]) },
         listings,

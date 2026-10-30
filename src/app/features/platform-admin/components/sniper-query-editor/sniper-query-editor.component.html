@@ -1,201 +1,336 @@
 <form
   [formGroup]="form"
   (ngSubmit)="submit()"
-  class="flex flex-col gap-4"
+  class="flex flex-col gap-5"
   aria-label="Zentralen Vinted-Suchfilter bearbeiten"
 >
-  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
+  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-5">
     <app-text-field
       label="Filtername"
+      id="sniper-title"
+      [required]="true"
+      [error]="fieldError('title')"
       formControlName="title"
-      placeholder="Zum Beispiel Nike Herrenjacken – Vintage"
-      helpText="Interner Name. Er verändert die Suchbedingungen nicht."
+      placeholder="Zum Beispiel Pufferjacken · Nike & Patagonia"
+      helpText="Dein interner Name. Er verändert die Suche nicht."
     />
 
-    @if (categoryLoading()) {
-      <p role="status" class="text-sm text-fb-text-muted">Kategorien werden geladen …</p>
-    }
-    @if (categoryError(); as message) {
-      <div class="flex flex-wrap items-center gap-2">
-        <p role="alert" class="text-sm">{{ message }}</p>
+    <section
+      class="flex min-w-0 flex-col gap-4 border-t border-fb-line pt-5"
+      aria-labelledby="sniper-area-heading"
+    >
+      <div>
+        <h3 id="sniper-area-heading" class="text-sm font-semibold text-fb-text-primary">
+          Warenbereich
+        </h3>
+      </div>
+      @if (categoryLoading()) {
+        <p role="status" class="text-sm text-fb-text-muted">Kategorien werden geladen …</p>
+      }
+      @if (categoryError(); as message) {
+        <div class="flex flex-wrap items-center gap-2">
+          <p role="alert" class="text-sm">{{ message }}</p>
+          <app-button
+            size="slim"
+            [disabled]="saving() || categoryLoading()"
+            (clicked)="loadCategories()"
+            >Kategorien erneut laden</app-button
+          >
+        </div>
+      }
+      <app-vinted-category-picker
+        [categories]="categories()"
+        [value]="catalogId()"
+        [disabled]="saving() || categoryLoading()"
+        (valueChange)="categoryChanged($event)"
+      />
+      @if (categoryStatus()?.refreshedAt; as refreshedAt) {
+        <p class="text-xs text-fb-text-muted">
+          Kategoriestand: {{ refreshedAt | date: 'dd.MM.yyyy, HH:mm' }}.
+          @if (categoryStale()) {
+            Der gespeicherte Stand ist älter als 24 Stunden.
+          }
+        </p>
+      }
+    </section>
+
+    <section
+      class="flex min-w-0 flex-col gap-4 border-t border-fb-line pt-5"
+      aria-labelledby="sniper-brands-heading"
+    >
+      <h3 id="sniper-brands-heading" class="text-sm font-semibold text-fb-text-primary">
+        Marken kombinieren
+      </h3>
+      <app-search-multi-select
+        controlId="vinted-brand-picker"
+        label="Marken · optional"
+        placeholder="Alle Marken"
+        searchPlaceholder="Vinted-Marke suchen"
+        singularLabel="Marke"
+        pluralLabel="Marken"
+        helpText="Mehrere Marken gelten als Oder-Auswahl. Ohne Auswahl gelten alle Marken. Suche ab zwei Zeichen."
+        [emptyText]="
+          brandTerm().trim().length < 2
+            ? 'Gib mindestens zwei Zeichen ein, um Marken zu suchen.'
+            : 'Keine weiteren passenden Marken gefunden.'
+        "
+        [options]="brandOptions()"
+        [selectedCount]="brands().length"
+        [loading]="brandLoading()"
+        [error]="brandError()"
+        [disabled]="saving()"
+        (searchTermChange)="brandSearchChanged($event)"
+        (optionSelected)="addBrand($event)"
+        (retry)="searchBrands()"
+      />
+      @if (brands().length) {
+        <div class="flex flex-wrap gap-2" aria-label="Ausgewählte Marken">
+          @for (brand of brands(); track brand.id) {
+            <app-button
+              variant="secondary"
+              size="slim"
+              [icon]="removeIcon"
+              iconPosition="end"
+              [ariaLabel]="brand.name + ' aus Auswahl entfernen'"
+              [disabled]="saving()"
+              (clicked)="removeBrand(brand.id)"
+              >{{ brand.name }}</app-button
+            >
+          }
+        </div>
+      }
+      @if (hasUnresolvedBrandNames()) {
+        <p class="text-xs text-fb-text-muted">
+          Bei diesem älteren Filter fehlt der Markenname. Die gespeicherte Marke bleibt unverändert.
+          Zum Ändern entferne sie und wähle sie neu aus.
+        </p>
+      }
+    </section>
+
+    <section
+      class="flex min-w-0 flex-col gap-4 border-t border-fb-line pt-5"
+      aria-labelledby="sniper-words-heading"
+    >
+      <div>
+        <h3 id="sniper-words-heading" class="text-sm font-semibold text-fb-text-primary">
+          Titelvarianten & Ausschlüsse
+        </h3>
+        <p class="mt-1 text-xs text-fb-text-muted">
+          Ganze Wörter oder Wortgruppen im Artikeltitel: „Puffer“ trifft nicht „Pufferweste“.
+        </p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-wrap gap-2">
+          @for (suggestion of titleSuggestions; track suggestion.id) {
+            <app-button
+              size="slim"
+              [disabled]="saving()"
+              (clicked)="applyTitleSuggestion(suggestion.id)"
+              >{{ suggestion.title }} übernehmen</app-button
+            >
+          }
+        </div>
+        <details class="text-xs text-fb-text-muted">
+          <summary class="cursor-pointer">So funktionieren die Titelregeln</summary>
+          <div class="mt-2 flex flex-col gap-2">
+            <p>
+              „Alle“ verlangt jeden Begriff. „Mindestens eines“ erlaubt die sichtbaren Varianten.
+              Kein Ausschlussbegriff darf vorkommen. Groß-/Kleinschreibung spielt keine Rolle.
+            </p>
+            @for (suggestion of titleSuggestions; track suggestion.id) {
+              <p>{{ suggestion.title }}: {{ suggestion.terms.join(' · ') }}</p>
+            }
+            <p>
+              Vorschläge starten ohne vorhandene Titelbegriffe mit „Mindestens eines“. Eine
+              bestehende Alle-/Oder-Regel bleibt erhalten.
+            </p>
+          </div>
+        </details>
+      </div>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <app-text-field
+          class="min-w-0 flex-1"
+          label="Stichwörter im Titel · optional"
+          id="sniper-keyword-entry"
+          formControlName="keywordEntry"
+          placeholder="Ein Wort oder eine Wortgruppe"
+          helpText="Enter übernimmt den Begriff."
+          (keydown.enter)="keywordKeydown($event)"
+        />
         <app-button
+          class="self-end sm:self-auto"
           size="slim"
-          [disabled]="saving() || categoryLoading()"
-          (clicked)="loadCategories()"
-          >Kategorien erneut laden</app-button
+          [disabled]="saving()"
+          (clicked)="addKeyword()"
+          >Hinzufügen</app-button
         >
       </div>
-    }
-    <app-vinted-category-picker
-      [categories]="categories()"
-      [value]="catalogId()"
-      [disabled]="saving() || categoryLoading()"
-      (valueChange)="categoryChanged($event)"
-    />
-    @if (categoryStatus()?.refreshedAt; as refreshedAt) {
-      <p class="text-xs text-fb-text-muted">
-        Kategoriestand: {{ refreshedAt | date: 'dd.MM.yyyy, HH:mm' }}.
-        @if (categoryStale()) {
-          Der gespeicherte Stand ist älter als 24 Stunden.
-        }
-      </p>
-    }
-
-    <app-search-multi-select
-      controlId="vinted-brand-picker"
-      label="Marken · optional"
-      placeholder="Alle Marken"
-      searchPlaceholder="Vinted-Marke suchen"
-      singularLabel="Marke"
-      pluralLabel="Marken"
-      helpText="Ohne Auswahl gelten alle Marken. Suche mit mindestens zwei Zeichen. Die Ergebnisse sind Suchvorschläge, kein vollständiges Markenverzeichnis. Eine Marke darf in mehreren Suchfiltern vorkommen."
-      [emptyText]="
-        brandTerm().trim().length < 2
-          ? 'Gib mindestens zwei Zeichen ein, um Marken zu suchen.'
-          : 'Keine weiteren passenden Marken gefunden.'
-      "
-      [options]="brandOptions()"
-      [selectedCount]="brands().length"
-      [loading]="brandLoading()"
-      [error]="brandError()"
-      [disabled]="saving()"
-      (searchTermChange)="brandSearchChanged($event)"
-      (optionSelected)="addBrand($event)"
-      (retry)="searchBrands()"
-    />
-    @if (brands().length) {
-      <div class="flex flex-wrap gap-2" aria-label="Ausgewählte Marken">
-        @for (brand of brands(); track brand.id) {
-          <app-button
-            variant="secondary"
-            size="slim"
-            [icon]="removeIcon"
-            iconPosition="end"
-            [ariaLabel]="brand.name + ' aus Auswahl entfernen'"
-            [disabled]="saving()"
-            (clicked)="removeBrand(brand.id)"
-            >{{ brand.name }}</app-button
-          >
-        }
-      </div>
-    }
-
-    @if (hasUnresolvedBrandNames()) {
-      <p class="text-xs text-fb-text-muted">
-        Bei diesem älteren Filter fehlt der Markenname. Die gespeicherte Marke bleibt unverändert.
-        Zum Ändern entferne sie und wähle sie neu aus.
-      </p>
-    }
-    <div class="flex flex-wrap items-end gap-2">
-      <app-text-field
-        class="min-w-0 flex-1"
-        label="Stichwörter im Titel · optional"
-        formControlName="keywordEntry"
-        placeholder="Zum Beispiel Vintage oder Trackpants"
-        helpText="Ein Wort oder eine Wortgruppe je Eintrag. Enter fügt den Begriff hinzu. Nur der Artikeltitel zählt, nicht die Beschreibung."
-        (keydown.enter)="keywordKeydown($event)"
-      />
-      <app-button size="slim" [disabled]="saving()" (clicked)="addKeyword()">Hinzufügen</app-button>
-    </div>
-    @if (keywords().length) {
-      <div class="flex flex-wrap gap-2" aria-label="Titelbegriffe">
-        @for (keyword of keywords(); track keyword) {
-          <app-button
-            variant="secondary"
-            size="slim"
-            [icon]="removeIcon"
-            iconPosition="end"
-            [ariaLabel]="keyword + ' aus Titelbegriffen entfernen'"
-            [disabled]="saving()"
-            (clicked)="removeKeyword(keyword)"
-            >{{ keyword }}</app-button
-          >
-        }
-      </div>
-    }
-    @if (keywords().length > 1) {
-      <div class="flex flex-col gap-1">
-        <p class="text-sm text-fb-text-primary">Welche Stichwörter müssen vorkommen?</p>
-        <app-custom-select
-          [options]="modeOptions"
-          formControlName="keywordMode"
-          ariaLabel="Welche Stichwörter müssen vorkommen?"
-        />
-      </div>
-    }
-    <p role="status" class="text-sm text-fb-text-secondary">{{ summary() }}</p>
-
-    <app-button size="slim" [disabled]="saving()" (clicked)="advanced.set(!advanced())">
-      {{ advanced() ? 'Erweiterte Einstellungen schließen' : 'Erweiterte Einstellungen' }}
-    </app-button>
-    @if (advanced()) {
-      <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-1">
-          <label for="sniper-interval" class="text-sm text-fb-text-primary"
-            >Abstand zwischen Abfragen in Sekunden</label
-          >
-          <app-number-input
-            id="sniper-interval"
-            ariaLabel="Abstand zwischen Abfragen in Sekunden"
-            formControlName="intervalSeconds"
-            [min]="10"
-            [max]="86400"
-          />
-          <p class="text-xs text-fb-text-muted">
-            Erlaubt sind 10 Sekunden bis 24 Stunden. {{ subrequestCount() }} Teilabfragen werden
-            nacheinander ausgeführt. Ein kompletter Durchlauf braucht mindestens
-            {{ subrequestCount() * (formValue().intervalSeconds ?? 20) }} Sekunden. Das gemeinsame
-            Abruflimit und Wartezeiten gelten zusätzlich.
-          </p>
+      @if (keywords().length) {
+        <div class="flex flex-wrap gap-2" aria-label="Titelbegriffe">
+          @for (keyword of keywords(); track keyword) {
+            <div
+              class="flex items-center gap-1"
+              role="group"
+              [attr.aria-label]="'Titelbegriff: ' + keyword"
+            >
+              <app-button
+                size="slim"
+                [icon]="editIcon"
+                [iconOnly]="true"
+                [ariaLabel]="keyword + ' bearbeiten'"
+                [disabled]="saving()"
+                (clicked)="editKeyword(keyword)"
+              />
+              <app-button
+                variant="secondary"
+                size="slim"
+                [icon]="removeIcon"
+                iconPosition="end"
+                [ariaLabel]="keyword + ' aus Titelbegriffen entfernen'"
+                [disabled]="saving()"
+                (clicked)="removeKeyword(keyword)"
+                >{{ keyword }}</app-button
+              >
+            </div>
+          }
         </div>
-        @if (hasLegacyConditions()) {
-          <app-text-field
-            label="Bestehender Vinted-Suchtext"
-            formControlName="searchText"
-            helpText="Zusätzliche Bedingung dieses älteren Filters. Sie bleibt erhalten, solange Du sie nicht ausdrücklich entfernst."
+      }
+      @if (keywords().length > 1) {
+        <app-form-field
+          controlId="sniper-keyword-mode"
+          label="Welche Stichwörter müssen vorkommen?"
+        >
+          <app-custom-select
+            triggerId="sniper-keyword-mode"
+            [options]="modeOptions"
+            formControlName="keywordMode"
+            ariaLabel="Welche Stichwörter müssen vorkommen?"
           />
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div class="flex flex-col gap-1">
-              <label for="sniper-price-from" class="text-sm">Bestehender Mindestpreis</label>
-              <app-number-input
-                id="sniper-price-from"
-                ariaLabel="Bestehender Mindestpreis"
-                formControlName="priceFrom"
-                [min]="0"
-                [step]="0.01"
-              />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label for="sniper-price-to" class="text-sm">Bestehender Höchstpreis</label>
-              <app-number-input
-                id="sniper-price-to"
-                ariaLabel="Bestehender Höchstpreis"
-                formControlName="priceTo"
-                [min]="0"
-                [step]="0.01"
-              />
-            </div>
-          </div>
-        }
+        </app-form-field>
+      }
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
         <app-text-field
-          label="Notiz"
-          formControlName="notes"
-          [multiline]="3"
-          placeholder="Interne Notiz – verändert die Suchbedingungen nicht"
+          class="min-w-0 flex-1"
+          label="Ausschlussbegriffe im Titel · optional"
+          id="sniper-excluded-entry"
+          formControlName="excludedKeywordEntry"
+          placeholder="Zum Beispiel Weste oder Pufferweste"
+          helpText="Keiner dieser Begriffe darf im Titel vorkommen."
+          (keydown.enter)="excludedKeywordKeydown($event)"
+        />
+        <app-button
+          class="self-end sm:self-auto"
+          size="slim"
+          [disabled]="saving()"
+          (clicked)="addExcludedKeyword()"
+          >Ausschluss hinzufügen</app-button
+        >
+      </div>
+      @if (excludedKeywords().length) {
+        <div class="flex flex-wrap gap-2" aria-label="Ausgeschlossene Titelbegriffe">
+          @for (keyword of excludedKeywords(); track keyword) {
+            <div
+              class="flex items-center gap-1"
+              role="group"
+              [attr.aria-label]="'Ausschluss: ' + keyword"
+            >
+              <app-button
+                size="slim"
+                [icon]="editIcon"
+                [iconOnly]="true"
+                [ariaLabel]="keyword + ' als Ausschluss bearbeiten'"
+                [disabled]="saving()"
+                (clicked)="editExcludedKeyword(keyword)"
+              />
+              <app-button
+                variant="secondary"
+                size="slim"
+                [icon]="removeIcon"
+                iconPosition="end"
+                [ariaLabel]="keyword + ' aus Ausschlüssen entfernen'"
+                [disabled]="saving()"
+                (clicked)="removeExcludedKeyword(keyword)"
+                >{{ keyword }}</app-button
+              >
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <section
+      class="flex min-w-0 flex-col gap-4 border-t border-fb-line pt-5"
+      aria-labelledby="sniper-price-heading"
+    >
+      <h3 id="sniper-price-heading" class="text-sm font-semibold text-fb-text-primary">
+        Preis & gewünschtes Tempo
+      </h3>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <app-number-input
+          label="Mindestpreis · optional"
+          id="sniper-price-from"
+          [error]="fieldError('priceFrom')"
+          formControlName="priceFrom"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
+        />
+        <app-number-input
+          label="Höchstpreis · optional"
+          id="sniper-price-to"
+          [error]="fieldError('priceTo')"
+          formControlName="priceTo"
+          [min]="0"
+          [step]="0.01"
+          unit="€"
         />
       </div>
-    }
-    <p class="text-xs text-fb-text-muted">
-      Neue Filter und Änderungen an den Suchbedingungen bleiben zunächst pausiert. Bereits gefundene
-      Artikel und Favoriten bleiben erhalten.
-    </p>
+      <app-number-input
+        label="Gewünschter Abstand in Sekunden"
+        id="sniper-interval"
+        [error]="fieldError('intervalSeconds')"
+        formControlName="intervalSeconds"
+        [min]="1"
+        [max]="86400"
+        helpText="1 Sekunde bis 24 Stunden als Wunschwert. Vinted-Limits und andere Filter können den Abstand verlängern."
+      />
+      @if (query()?.search_text) {
+        <app-text-field
+          label="Bestehender Vinted-Suchtext"
+          formControlName="searchText"
+          helpText="Zusätzliche Bedingung dieses älteren Filters. Sie bleibt erhalten, solange Du sie nicht ausdrücklich entfernst."
+        />
+      }
+      <app-text-field
+        label="Notiz"
+        id="sniper-notes"
+        [error]="fieldError('notes')"
+        formControlName="notes"
+        [multiline]="2"
+        placeholder="Interne Notiz"
+      />
+    </section>
+
+    <section
+      class="flex flex-col gap-2 border-t border-fb-line pt-5"
+      aria-labelledby="sniper-summary-heading"
+    >
+      <h3 id="sniper-summary-heading" class="text-sm font-semibold text-fb-text-primary">
+        Dein Suchfilter
+      </h3>
+      <p role="status" class="break-words text-sm text-fb-text-secondary">{{ summary() }}</p>
+      <p class="text-xs text-fb-text-muted">
+        Mindestens eine Kategorie, Marke oder ein Titelbegriff ist nötig. Neue Filter und geänderte
+        Suchbedingungen bleiben zunächst pausiert. Vorhandene Funde und Favoriten bleiben erhalten.
+      </p>
+    </section>
     @if (error(); as message) {
       <p role="alert" class="text-sm">{{ message }}</p>
     }
     @if (saveError(); as message) {
       <p role="alert" class="text-sm">{{ message }}</p>
     }
-    <div class="flex flex-wrap justify-end gap-2">
+    <div class="flex flex-wrap justify-end gap-2 border-t border-fb-line pt-4">
       <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
       <app-button type="submit" variant="primary" [loading]="saving()">{{
         editing() ? 'Änderungen speichern' : 'Suchfilter speichern'

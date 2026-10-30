@@ -513,8 +513,10 @@ test('gezielte Fachauswahlen behalten kleine Jobs und teilen große Gruppen ohne
     [10, ['1/1']],
     [11, ['1/3', '2/3', '3/3']],
     [15, ['1/3', '2/3', '3/3']],
-    [30, ['1/3', '2/3', '3/3']],
-    [31, ['1/4', '2/4', '3/4', '4/4']],
+    [18, ['1/3', '2/3', '3/3']],
+    [19, ['1/4', '2/4', '3/4', '4/4']],
+    [30, ['1/5', '2/5', '3/5', '4/5', '5/5']],
+    [31, ['1/6', '2/6', '3/6', '4/6', '5/6', '6/6']],
   ]) {
     const plan = {
       ...twoBrowserGroups,
@@ -528,6 +530,31 @@ test('gezielte Fachauswahlen behalten kleine Jobs und teilen große Gruppen ohne
       `${count} Fachdateien`,
     );
   }
+});
+
+test('der vollständige Vinted-PR verteilt seine 50 Fachdateien auf neun Gruppen', () => {
+  const plan = {
+    ...twoBrowserGroups,
+    full: true,
+    browserFiles: Array.from({ length: 50 }, (_, index) => `e2e/feature-${index}.spec.ts`),
+    changedBrowserFiles: [],
+  };
+  assert.deepEqual(
+    buildBrowserMatrix(plan),
+    Array.from({ length: 9 }, (_, index) => ({
+      project: 'chromium',
+      shard: `${index + 1}/9`,
+    })),
+  );
+  const { result, invocations } = runBrowserGroups(plan, 'chromium', [], '9/9');
+  assert.equal(result.status, 7);
+  assert.deepEqual(
+    invocations.map(({ project, args }) => ({
+      project,
+      shard: args.find((arg) => arg.startsWith('--shard='))?.slice(8),
+    })),
+    buildBrowserMatrix(plan),
+  );
 });
 
 test('große Fachauswahlen erhalten die bestehenden Kern-, Layout- und Änderungsgruppen', () => {

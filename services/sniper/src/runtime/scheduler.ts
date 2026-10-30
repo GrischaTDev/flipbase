@@ -2,8 +2,12 @@ import type { MarketplaceListing } from '../domain/listing.js';
 import type { QueryStatus, SniperQuery } from '../domain/query.js';
 import type { Logger } from '../log.js';
 import type { OriginState } from '../store/origin-state.store.js';
-import type { SearchFilterRunResult } from '../store/listing.store.js';
-import type { RequestBudget } from './budget.js';
+import type { SearchFilterRunResult, SearchFilterRunDiagnostics } from '../store/listing.store.js';
+import { RequestBudgetUnavailableError, type RequestBudget } from './budget.js';
+import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
+import { searchFilterRequest } from '../domain/search-filter-request.js';
+import { planSearchRequests, type SearchRequestPlan } from './search-request-planner.js';
+import { RequestPausedError } from './request-start-guard.js';
 import { evaluateFailure, type RetryDecision } from './retry-policy.js';
 import { VintedCollectorError } from '../vinted/errors.js';
 
@@ -87,10 +91,15 @@ class InMemoryOriginStateStore implements OriginStateStoreLike {
 
 export interface CollectorLike {
   collect(query: SniperQuery): Promise<MarketplaceListing[]>;
+  collectSource?(query: SniperQuery, options?: { page?: number }): Promise<MarketplaceListing[]>;
 }
 
 export interface ListingStoreLike {
-  completeRun?(listings: MarketplaceListing[], query: SniperQuery): Promise<SearchFilterRunResult>;
+  completeRun?(
+    listings: MarketplaceListing[],
+    query: SniperQuery,
+    diagnostics?: SearchFilterRunDiagnostics,
+  ): Promise<SearchFilterRunResult>;
   saveNew(
     listings: MarketplaceListing[],
     discoveredByQueryId: string,
@@ -116,11 +125,26 @@ export interface SchedulerDeps {
   originState?: OriginStateStoreLike;
   log: Logger;
   origin?: string;
+  now?: () => Date;
+  maxRequestsPerCycle?: number;
+  onOriginPause?: () => void;
 }
+
+interface ConsumerSourceWindow {
+  checkpointKey: string;
+  previousIds: ReadonlySet<string> | undefined;
+  received: Map<string, MarketplaceListing>;
+  coverage: SearchFilterRunDiagnostics['coverage'];
+  pages: number;
+  needsMore: boolean;
+}
+
+const MAX_CONSUMER_SOURCE_WINDOWS = 2048;
 
 export class QueryScheduler {
   private readonly origin: string;
   private readonly originStore: OriginStateStoreLike;
+  private readonly previousConsumerSourceIds = new Map<string, Set<string>>();
 
   constructor(private readonly deps: SchedulerDeps) {
     this.origin = deps.origin ?? 'vinted';
@@ -208,6 +232,22 @@ export class QueryScheduler {
       .sort((a, b) => (b.lastAttemptAt ?? '').localeCompare(a.lastAttemptAt ?? ''))[0];
     const queriesToRun = isProbeCycle ? [previousFailure ?? dueQueries[0]!] : dueQueries;
 
+    if (this.deps.collector.collectSource) {
+      const plans = planSearchRequests(queriesToRun);
+      if (isProbeCycle && plans.length === 0) await this.originStore.releaseProbe(origin, false);
+      const limit = this.deps.maxRequestsPerCycle ?? 1;
+      for (const plan of plans.slice(0, limit)) {
+        if (!this.deps.budget.hasCapacity()) {
+          report.skippedForBudget += plan.consumers.length;
+          if (isProbeCycle) await this.originStore.releaseProbe(origin, false);
+          break;
+        }
+        await this.pollShared(plan, report, isProbeCycle);
+        if (report.originPause) break;
+      }
+      return report;
+    }
+
     for (const query of queriesToRun) {
       if (!this.deps.budget.hasCapacity()) {
         report.skippedForBudget += 1;
@@ -271,7 +311,12 @@ export class QueryScheduler {
     try {
       listings = await this.deps.collector.collect(query);
     } catch (error) {
-      const decision = await this.handleFailure(query, error, report, now, isProbe);
+      if (error instanceof RequestBudgetUnavailableError || error instanceof RequestPausedError) {
+        report.skippedForBudget += 1;
+        if (isProbe) await this.originStore.releaseProbe(this.origin, false);
+        return { haltedOrigin: false };
+      }
+      const decision = await this.handleFailure(query, error, report, this.currentTime(), isProbe);
       return { haltedOrigin: decision.originUpdate !== undefined };
     }
 
@@ -338,6 +383,7 @@ export class QueryScheduler {
     report: CycleReport,
     now: Date,
     isProbe: boolean,
+    updateOrigin = true,
   ): Promise<RetryDecision> {
     report.failed += 1;
 
@@ -359,7 +405,8 @@ export class QueryScheduler {
         : {}),
     });
 
-    if (decision.originUpdate) {
+    if (decision.originUpdate && updateOrigin) {
+      this.deps.onOriginPause?.();
       report.originPause = {
         reason: decision.originUpdate.reason,
         until: decision.originUpdate.blockedUntil?.toISOString() ?? null,
@@ -402,5 +449,175 @@ export class QueryScheduler {
     }
 
     return decision;
+  }
+
+  private currentTime(): Date {
+    return this.deps.now?.() ?? new Date();
+  }
+
+  private async pollShared(
+    plan: SearchRequestPlan,
+    report: CycleReport,
+    isProbe: boolean,
+  ): Promise<void> {
+    if (plan.sourceQuery.filterFormatVersion !== 1) {
+      const failedBefore = report.failed;
+      try {
+        await this.pollOne(plan.sourceQuery, report, this.currentTime(), isProbe);
+      } catch (error) {
+        if (report.failed === failedBefore) {
+          try {
+            await this.handleFailure(plan.sourceQuery, error, report, this.currentTime(), isProbe);
+          } catch {
+            this.deps.log.error('legacy_search_failure_record_failed', {
+              queryId: plan.sourceQuery.id,
+            });
+          }
+        } else if (isProbe) await this.originStore.releaseProbe(this.origin, false);
+      }
+      return;
+    }
+    const collectSource = this.deps.collector.collectSource;
+    const completeRun = this.deps.listings.completeRun;
+    if (!collectSource || !completeRun) {
+      report.failed += plan.consumers.length;
+      if (isProbe) await this.originStore.releaseProbe(this.origin, false);
+      this.deps.log.error('shared_search_storage_unavailable');
+      return;
+    }
+    const started = this.currentTime().getTime();
+    const windows = new Map<SniperQuery, ConsumerSourceWindow>();
+    for (const query of plan.consumers) {
+      const checkpointKey = JSON.stringify([query.id, query.filterRevision, plan.key]);
+      const previousIds = this.previousConsumerSourceIds.get(checkpointKey);
+      const seededLane =
+        !plan.validationError &&
+        (query.seededRequests ?? []).includes(searchFilterRequest(query).index);
+      windows.set(query, {
+        checkpointKey,
+        previousIds,
+        received: new Map(),
+        coverage: previousIds || seededLane ? 'unknown' : 'initial',
+        pages: 0,
+        needsMore: true,
+      });
+    }
+    let page = 0;
+    try {
+      if (plan.validationError) throw plan.validationError;
+      let more = true;
+      while (more) {
+        page++;
+        const listings = await collectSource.call(this.deps.collector, plan.sourceQuery, { page });
+        for (const window of windows.values()) {
+          if (!window.needsMore) continue;
+          window.pages = page;
+          for (const listing of listings) window.received.set(listing.externalId, listing);
+          const overlap =
+            window.previousIds !== undefined &&
+            listings.some((listing) => window.previousIds!.has(listing.externalId));
+          if (overlap) window.coverage = 'caught_up';
+          window.needsMore = window.previousIds !== undefined && !overlap && listings.length === 96;
+        }
+        const needsCatchup = [...windows.values()].some((window) => window.needsMore);
+        more = needsCatchup && page < 3 && this.deps.budget.hasCapacity() && !isProbe;
+        if (needsCatchup && !more) {
+          for (const window of windows.values()) if (window.needsMore) window.coverage = 'limited';
+        }
+      }
+    } catch (error) {
+      if (error instanceof RequestBudgetUnavailableError || error instanceof RequestPausedError) {
+        report.skippedForBudget += plan.consumers.length;
+        if (isProbe) await this.originStore.releaseProbe(this.origin, false);
+        return;
+      }
+      const rejectedAt = this.currentTime();
+      // Gemeinsame Pause nur einmal setzen, mit der längsten erforderlichen Frist.
+      const severity = (query: SniperQuery) => {
+        const decision = evaluateFailure(error, query, rejectedAt);
+        if (decision.originUpdate?.reason === 'interaction_required') return Infinity;
+        return decision.originUpdate?.blockedUntil?.getTime() ?? 0;
+      };
+      const leader = [...plan.consumers].sort((a, b) => severity(b) - severity(a))[0]!;
+      for (const query of [leader, ...plan.consumers.filter((q) => q !== leader)]) {
+        try {
+          await this.handleFailure(query, error, report, rejectedAt, isProbe, query === leader);
+        } catch {
+          this.deps.log.error('shared_search_failure_record_failed', { queryId: query.id });
+        }
+      }
+      return;
+    }
+
+    let accepted = false;
+    // Bereits laufende Teilabfragen erhalten neue Funde vor dem stillen
+    // Ersteinlesen weiterer Filter derselben Rohantwort.
+    const isSeed = (query: SniperQuery) =>
+      !(query.seededRequests ?? []).includes(searchFilterRequest(query).index);
+    const consumers = [...plan.consumers].sort((a, b) => Number(isSeed(a)) - Number(isSeed(b)));
+    for (const query of consumers) {
+      try {
+        const window = windows.get(query)!;
+        const diagnostics: SearchFilterRunDiagnostics = {
+          coverage: window.coverage,
+          source_pages: window.pages,
+          shared_filter_count: plan.consumers.length,
+          duration_ms: Math.min(86_400_000, Math.max(0, this.currentTime().getTime() - started)),
+        };
+        const matches = createTitleKeywordMatcher(
+          query.titleKeywords ?? [],
+          query.keywordMode ?? 'all',
+          query.excludedTitleKeywords ?? [],
+        );
+        const completed = await completeRun.call(
+          this.deps.listings,
+          [...window.received.values()].filter((listing) => matches(listing.title)),
+          query,
+          diagnostics,
+        );
+        report.polled += 1;
+        if (completed.accepted) {
+          accepted = true;
+          report.newHits += completed.hits;
+          if (completed.seeded) report.seeded += 1;
+          else report.newListings += completed.created;
+          // Jede Revision und Teilabfrage behält ihren eigenen bestätigten Stand.
+          // Ein schneller anderer Filter kann diesen Ausschnitt nicht vorziehen.
+          this.previousConsumerSourceIds.delete(window.checkpointKey);
+          this.previousConsumerSourceIds.set(window.checkpointKey, new Set(window.received.keys()));
+          if (this.previousConsumerSourceIds.size > MAX_CONSUMER_SOURCE_WINDOWS)
+            this.previousConsumerSourceIds.delete(
+              this.previousConsumerSourceIds.keys().next().value!,
+            );
+        } else {
+          this.deps.log.info('outdated_search_filter_response_discarded', { queryId: query.id });
+        }
+      } catch (error) {
+        this.deps.log.error('search_filter_completion_failed', {
+          queryId: query.id,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+        try {
+          await this.handleFailure(query, error, report, this.currentTime(), false, false);
+        } catch {
+          this.deps.log.error('search_filter_failure_record_failed', { queryId: query.id });
+        }
+      }
+    }
+    if (isProbe) {
+      await this.originStore.releaseProbe(this.origin, accepted);
+      if (accepted) delete report.originPause;
+    }
+    this.deps.log.info('cycle', {
+      polled: report.polled,
+      new: report.newListings,
+      seeded: report.seeded,
+      failed: report.failed,
+      skipped: report.skippedForBudget,
+      newHits: report.newHits,
+      sharedFilters: plan.consumers.length,
+      sourcePages: page,
+      coverage: [...new Set([...windows.values()].map((window) => window.coverage))].join(','),
+    });
   }
 }

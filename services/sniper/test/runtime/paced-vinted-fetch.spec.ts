@@ -3,6 +3,27 @@ import { pacedVintedFetch } from '../../src/runtime/paced-vinted-fetch.js';
 import type { FetchLike } from '../../src/vinted/session.js';
 
 describe('pacedVintedFetch', () => {
+  it('rechecks the provider gate after waiting and does not spend a request slot', async () => {
+    let blocked = false;
+    const fetchFn = vi.fn(async () => new Response('ok'));
+    const recordStart = vi.fn();
+    const fetch = pacedVintedFetch(fetchFn, {
+      minimumIntervalMs: 2500,
+      requestTimeoutMs: 20000,
+      now: () => 0,
+      sleep: async () => {
+        blocked = true;
+      },
+      assertCanStart: () => {
+        if (blocked) throw new Error('provider paused');
+      },
+      recordStart,
+    });
+    await fetch('https://www.vinted.de/catalog');
+    await expect(fetch('https://www.vinted.de/catalog')).rejects.toThrow('provider paused');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(recordStart).toHaveBeenCalledTimes(1);
+  });
   it('spaces all outgoing requests, including simultaneous callers and failed requests', async () => {
     let clock = 0;
     const started: number[] = [];

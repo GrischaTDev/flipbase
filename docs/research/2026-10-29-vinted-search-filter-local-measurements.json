@@ -1,0 +1,1061 @@
+{
+  "measuredAt": "2026-10-29T21:03:29.055Z",
+  "source": "synthetic; no network; virtual clock",
+  "measurements": [
+    {
+      "filters": 5,
+      "lanes": 5,
+      "options": {},
+      "simulatedMs": 1815200,
+      "cycles": 60,
+      "requests": 182,
+      "skippedForBudget": 0,
+      "firstCycleMs": 40200,
+      "firstCoverageMs": 40200,
+      "backlogMax": 5,
+      "dueWaitP50Ms": 29800,
+      "dueWaitP95Ms": 29800,
+      "dueWaitMaxMs": 40000,
+      "laneGapSamples": 177,
+      "laneGapP50Ms": 50000,
+      "laneGapP95Ms": 50000,
+      "laneGapMaxMs": 50000,
+      "reportGapMaxMs": 30000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 64184
+      },
+      "returned": {
+        "narrow": 10464,
+        "broad": 7008
+      },
+      "discoveryAgeP50Ms": 3200,
+      "discoveryAgeP95Ms": 44200,
+      "discoveryAgeSamples": 12368
+    },
+    {
+      "filters": 10,
+      "lanes": 10,
+      "options": {},
+      "simulatedMs": 1855200,
+      "cycles": 23,
+      "requests": 186,
+      "skippedForBudget": 0,
+      "firstCycleMs": 90200,
+      "firstCoverageMs": 90200,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 79800,
+      "dueWaitP95Ms": 79800,
+      "dueWaitMaxMs": 90000,
+      "laneGapSamples": 176,
+      "laneGapP50Ms": 100000,
+      "laneGapP95Ms": 100000,
+      "laneGapMaxMs": 100000,
+      "reportGapMaxMs": 80000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 352,
+        "broad": 167552
+      },
+      "returned": {
+        "narrow": 8928,
+        "broad": 8928
+      },
+      "discoveryAgeP50Ms": 4200,
+      "discoveryAgeP95Ms": 86200,
+      "discoveryAgeSamples": 17576
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {},
+      "simulatedMs": 1815200,
+      "cycles": 10,
+      "requests": 182,
+      "skippedForBudget": 0,
+      "firstCycleMs": 190200,
+      "firstCoverageMs": 190200,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 179800,
+      "dueWaitP95Ms": 179800,
+      "dueWaitMaxMs": 190000,
+      "laneGapSamples": 162,
+      "laneGapP50Ms": 200000,
+      "laneGapP95Ms": 200000,
+      "laneGapMaxMs": 200000,
+      "reportGapMaxMs": 180000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 8424,
+        "broad": 316224
+      },
+      "returned": {
+        "narrow": 8736,
+        "broad": 8736
+      },
+      "discoveryAgeP50Ms": 4200,
+      "discoveryAgeP95Ms": 86200,
+      "discoveryAgeSamples": 17192
+    },
+    {
+      "filters": 5,
+      "lanes": 30,
+      "options": {
+        "combinations": true
+      },
+      "simulatedMs": 1815200,
+      "cycles": 60,
+      "requests": 182,
+      "skippedForBudget": 0,
+      "firstCycleMs": 40200,
+      "firstCoverageMs": 310200,
+      "backlogMax": 5,
+      "dueWaitP50Ms": 29800,
+      "dueWaitP95Ms": 29800,
+      "dueWaitMaxMs": 40000,
+      "laneGapSamples": 152,
+      "laneGapP50Ms": 300000,
+      "laneGapP95Ms": 300000,
+      "laneGapMaxMs": 300000,
+      "reportGapMaxMs": 30000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 18564,
+        "broad": 360144
+      },
+      "returned": {
+        "narrow": 10464,
+        "broad": 7008
+      },
+      "discoveryAgeP50Ms": 14200,
+      "discoveryAgeP95Ms": 87200,
+      "discoveryAgeSamples": 17166
+    },
+    {
+      "filters": 10,
+      "lanes": 60,
+      "options": {
+        "combinations": true
+      },
+      "simulatedMs": 1855200,
+      "cycles": 23,
+      "requests": 186,
+      "skippedForBudget": 0,
+      "firstCycleMs": 90200,
+      "firstCoverageMs": 650200,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 79800,
+      "dueWaitP95Ms": 79800,
+      "dueWaitMaxMs": 90000,
+      "laneGapSamples": 126,
+      "laneGapP50Ms": 600000,
+      "laneGapP95Ms": 600000,
+      "laneGapMaxMs": 600000,
+      "reportGapMaxMs": 80000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 31752,
+        "broad": 749952
+      },
+      "returned": {
+        "narrow": 8928,
+        "broad": 8928
+      },
+      "discoveryAgeP50Ms": 4200,
+      "discoveryAgeP95Ms": 86200,
+      "discoveryAgeSamples": 17576
+    },
+    {
+      "filters": 20,
+      "lanes": 120,
+      "options": {
+        "combinations": true
+      },
+      "simulatedMs": 1815200,
+      "cycles": 10,
+      "requests": 182,
+      "skippedForBudget": 0,
+      "firstCycleMs": 190200,
+      "firstCoverageMs": 1270200,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 179800,
+      "dueWaitP95Ms": 179800,
+      "dueWaitMaxMs": 190000,
+      "laneGapSamples": 62,
+      "laneGapP50Ms": 1200000,
+      "laneGapP95Ms": 1200000,
+      "laneGapMaxMs": 1200000,
+      "reportGapMaxMs": 180000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 34224,
+        "broad": 741024
+      },
+      "returned": {
+        "narrow": 8736,
+        "broad": 8736
+      },
+      "discoveryAgeP50Ms": 4200,
+      "discoveryAgeP95Ms": 86200,
+      "discoveryAgeSamples": 17192
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "responseMs": 19000
+      },
+      "simulatedMs": 1849000,
+      "cycles": 5,
+      "requests": 96,
+      "skippedForBudget": 0,
+      "firstCycleMs": 380000,
+      "firstCoverageMs": 380000,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 346000,
+      "dueWaitP95Ms": 346000,
+      "dueWaitMaxMs": 361000,
+      "laneGapSamples": 76,
+      "laneGapP50Ms": 385000,
+      "laneGapP95Ms": 385000,
+      "laneGapMaxMs": 390000,
+      "reportGapMaxMs": 366000,
+      "progressGapMaxMs": 24000,
+      "missedBetweenObservedPages": {
+        "narrow": 10987,
+        "broad": 289152
+      },
+      "returned": {
+        "narrow": 4608,
+        "broad": 4608
+      },
+      "discoveryAgeP50Ms": 23000,
+      "discoveryAgeP95Ms": 104000,
+      "discoveryAgeSamples": 9042
+    },
+    {
+      "filters": 10,
+      "lanes": 10,
+      "options": {
+        "empty": true,
+        "durationMs": 300000
+      },
+      "simulatedMs": 335200,
+      "cycles": 4,
+      "requests": 34,
+      "skippedForBudget": 0,
+      "firstCycleMs": 90200,
+      "firstCoverageMs": 90200,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 79800,
+      "dueWaitP95Ms": 80000,
+      "dueWaitMaxMs": 90000,
+      "laneGapSamples": 24,
+      "laneGapP50Ms": 100000,
+      "laneGapP95Ms": 100000,
+      "laneGapMaxMs": 100000,
+      "reportGapMaxMs": 80000,
+      "progressGapMaxMs": 10000,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 0
+      },
+      "returned": {
+        "narrow": 0,
+        "broad": 0
+      },
+      "discoveryAgeP50Ms": null,
+      "discoveryAgeP95Ms": null,
+      "discoveryAgeSamples": 0
+    },
+    {
+      "filters": 5,
+      "lanes": 5,
+      "options": {
+        "minimumIntervalMs": 1000
+      },
+      "simulatedMs": 1800000,
+      "cycles": 297,
+      "requests": 375,
+      "skippedForBudget": 0,
+      "firstCycleMs": 4200,
+      "firstCoverageMs": 4200,
+      "backlogMax": 5,
+      "dueWaitP50Ms": 4000,
+      "dueWaitP95Ms": 4000,
+      "dueWaitMaxMs": 4000,
+      "laneGapSamples": 370,
+      "laneGapP50Ms": 24200,
+      "laneGapP95Ms": 24200,
+      "laneGapMaxMs": 24200,
+      "reportGapMaxMs": 9200,
+      "progressGapMaxMs": 20200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 57392
+      },
+      "returned": {
+        "narrow": 21600,
+        "broad": 14400
+      },
+      "discoveryAgeP50Ms": 3200,
+      "discoveryAgeP95Ms": 19800,
+      "discoveryAgeSamples": 19664
+    },
+    {
+      "filters": 10,
+      "lanes": 10,
+      "options": {
+        "minimumIntervalMs": 1000
+      },
+      "simulatedMs": 1805400,
+      "cycles": 250,
+      "requests": 753,
+      "skippedForBudget": 0,
+      "firstCycleMs": 9200,
+      "firstCoverageMs": 9200,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 2400,
+      "dueWaitP95Ms": 6600,
+      "dueWaitMaxMs": 9000,
+      "laneGapSamples": 743,
+      "laneGapP50Ms": 22600,
+      "laneGapP95Ms": 26800,
+      "laneGapMaxMs": 28400,
+      "reportGapMaxMs": 9200,
+      "progressGapMaxMs": 15200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 142784
+      },
+      "returned": {
+        "narrow": 36192,
+        "broad": 36096
+      },
+      "discoveryAgeP50Ms": 3000,
+      "discoveryAgeP95Ms": 18000,
+      "discoveryAgeSamples": 44942
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 1000
+      },
+      "simulatedMs": 1800400,
+      "cycles": 200,
+      "requests": 870,
+      "skippedForBudget": 1778,
+      "firstCycleMs": 19200,
+      "firstCoverageMs": 19200,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 24000,
+      "dueWaitP95Ms": 32400,
+      "dueWaitMaxMs": 32400,
+      "laneGapSamples": 850,
+      "laneGapP50Ms": 44200,
+      "laneGapP95Ms": 52600,
+      "laneGapMaxMs": 52600,
+      "reportGapMaxMs": 24200,
+      "progressGapMaxMs": 25200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 312340
+      },
+      "returned": {
+        "narrow": 41760,
+        "broad": 41760
+      },
+      "discoveryAgeP50Ms": 3400,
+      "discoveryAgeP95Ms": 39200,
+      "discoveryAgeSamples": 59391
+    },
+    {
+      "filters": 5,
+      "lanes": 5,
+      "options": {
+        "minimumIntervalMs": 2000
+      },
+      "simulatedMs": 1801600,
+      "cycles": 292,
+      "requests": 367,
+      "skippedForBudget": 0,
+      "firstCycleMs": 8200,
+      "firstCoverageMs": 8200,
+      "backlogMax": 5,
+      "dueWaitP50Ms": 4400,
+      "dueWaitP95Ms": 4400,
+      "dueWaitMaxMs": 8000,
+      "laneGapSamples": 362,
+      "laneGapP50Ms": 24600,
+      "laneGapP95Ms": 24600,
+      "laneGapMaxMs": 26400,
+      "reportGapMaxMs": 9200,
+      "progressGapMaxMs": 15200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 57420
+      },
+      "returned": {
+        "narrow": 21120,
+        "broad": 14112
+      },
+      "discoveryAgeP50Ms": 3200,
+      "discoveryAgeP95Ms": 20200,
+      "discoveryAgeSamples": 19405
+    },
+    {
+      "filters": 10,
+      "lanes": 10,
+      "options": {
+        "minimumIntervalMs": 2000
+      },
+      "simulatedMs": 1800000,
+      "cycles": 160,
+      "requests": 644,
+      "skippedForBudget": 0,
+      "firstCycleMs": 18200,
+      "firstCoverageMs": 18200,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 6200,
+      "dueWaitP95Ms": 9400,
+      "dueWaitMaxMs": 18000,
+      "laneGapSamples": 634,
+      "laneGapP50Ms": 26400,
+      "laneGapP95Ms": 29600,
+      "laneGapMaxMs": 29600,
+      "reportGapMaxMs": 11200,
+      "progressGapMaxMs": 5200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 146928
+      },
+      "returned": {
+        "narrow": 30912,
+        "broad": 30912
+      },
+      "discoveryAgeP50Ms": 3000,
+      "discoveryAgeP95Ms": 21800,
+      "discoveryAgeSamples": 39764
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 2000
+      },
+      "simulatedMs": 1811200,
+      "cycles": 66,
+      "requests": 800,
+      "skippedForBudget": 0,
+      "firstCycleMs": 38200,
+      "firstCoverageMs": 38200,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 26200,
+      "dueWaitP95Ms": 26200,
+      "dueWaitMaxMs": 38000,
+      "laneGapSamples": 780,
+      "laneGapP50Ms": 46400,
+      "laneGapP95Ms": 46400,
+      "laneGapMaxMs": 46400,
+      "reportGapMaxMs": 27200,
+      "progressGapMaxMs": 5200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 315840
+      },
+      "returned": {
+        "narrow": 38400,
+        "broad": 38400
+      },
+      "discoveryAgeP50Ms": 3400,
+      "discoveryAgeP95Ms": 38200,
+      "discoveryAgeSamples": 56188
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 5000
+      },
+      "simulatedMs": 1804200,
+      "cycles": 21,
+      "requests": 360,
+      "skippedForBudget": 0,
+      "firstCycleMs": 95200,
+      "firstCoverageMs": 95200,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 80000,
+      "dueWaitP95Ms": 80200,
+      "dueWaitMaxMs": 95000,
+      "laneGapSamples": 340,
+      "laneGapP50Ms": 100200,
+      "laneGapP95Ms": 100400,
+      "laneGapMaxMs": 100400,
+      "reportGapMaxMs": 85200,
+      "progressGapMaxMs": 5200,
+      "missedBetweenObservedPages": {
+        "narrow": 718,
+        "broad": 324460
+      },
+      "returned": {
+        "narrow": 17280,
+        "broad": 17280
+      },
+      "discoveryAgeP50Ms": 4800,
+      "discoveryAgeP95Ms": 86200,
+      "discoveryAgeSamples": 34050
+    },
+    {
+      "filters": 20,
+      "lanes": 120,
+      "options": {
+        "combinations": true,
+        "minimumIntervalMs": 1000
+      },
+      "simulatedMs": 1800400,
+      "cycles": 200,
+      "requests": 870,
+      "skippedForBudget": 1778,
+      "firstCycleMs": 19200,
+      "firstCoverageMs": 225400,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 24000,
+      "dueWaitP95Ms": 32400,
+      "dueWaitMaxMs": 32400,
+      "laneGapSamples": 750,
+      "laneGapP50Ms": 250400,
+      "laneGapP95Ms": 250400,
+      "laneGapMaxMs": 250400,
+      "reportGapMaxMs": 24200,
+      "progressGapMaxMs": 25200,
+      "missedBetweenObservedPages": {
+        "narrow": 57900,
+        "broad": 1842000
+      },
+      "returned": {
+        "narrow": 41760,
+        "broad": 41760
+      },
+      "discoveryAgeP50Ms": 4800,
+      "discoveryAgeP95Ms": 86000,
+      "discoveryAgeSamples": 81932
+    },
+    {
+      "filters": 20,
+      "lanes": 120,
+      "options": {
+        "combinations": true,
+        "minimumIntervalMs": 2000
+      },
+      "simulatedMs": 1811200,
+      "cycles": 66,
+      "requests": 800,
+      "skippedForBudget": 0,
+      "firstCycleMs": 38200,
+      "firstCoverageMs": 283000,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 26200,
+      "dueWaitP95Ms": 26200,
+      "dueWaitMaxMs": 38000,
+      "laneGapSamples": 680,
+      "laneGapP50Ms": 272000,
+      "laneGapP95Ms": 272000,
+      "laneGapMaxMs": 272000,
+      "reportGapMaxMs": 27200,
+      "progressGapMaxMs": 5200,
+      "missedBetweenObservedPages": {
+        "narrow": 59824,
+        "broad": 1816640
+      },
+      "returned": {
+        "narrow": 38400,
+        "broad": 38400
+      },
+      "discoveryAgeP50Ms": 4800,
+      "discoveryAgeP95Ms": 86200,
+      "discoveryAgeSamples": 75610
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "responseMs": 1600
+      },
+      "simulatedMs": 1810800,
+      "cycles": 86,
+      "requests": 863,
+      "skippedForBudget": 91,
+      "firstCycleMs": 32000,
+      "firstCoverageMs": 32000,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 20400,
+      "dueWaitP95Ms": 25400,
+      "dueWaitMaxMs": 30400,
+      "laneGapSamples": 843,
+      "laneGapP50Ms": 42000,
+      "laneGapP95Ms": 47000,
+      "laneGapMaxMs": 47000,
+      "reportGapMaxMs": 25800,
+      "progressGapMaxMs": 11600,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 313524
+      },
+      "returned": {
+        "narrow": 41472,
+        "broad": 41376
+      },
+      "discoveryAgeP50Ms": 4800,
+      "discoveryAgeP95Ms": 36600,
+      "discoveryAgeSamples": 59153
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 2000,
+        "responseMs": 1600
+      },
+      "simulatedMs": 1817800,
+      "cycles": 63,
+      "requests": 764,
+      "skippedForBudget": 0,
+      "firstCycleMs": 39600,
+      "firstCoverageMs": 39600,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 27600,
+      "dueWaitP95Ms": 27600,
+      "dueWaitMaxMs": 38000,
+      "laneGapSamples": 744,
+      "laneGapP50Ms": 49200,
+      "laneGapP95Ms": 49200,
+      "laneGapMaxMs": 49200,
+      "reportGapMaxMs": 28600,
+      "progressGapMaxMs": 6600,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 318488
+      },
+      "returned": {
+        "narrow": 36672,
+        "broad": 36672
+      },
+      "discoveryAgeP50Ms": 4800,
+      "discoveryAgeP95Ms": 41800,
+      "discoveryAgeSamples": 54506
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000
+      },
+      "simulatedMs": 1813600,
+      "cycles": 198,
+      "requests": 870,
+      "skippedForBudget": 3090,
+      "firstCycleMs": 19200,
+      "firstCoverageMs": 19200,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 48000,
+      "dueWaitP95Ms": 52200,
+      "dueWaitMaxMs": 52200,
+      "laneGapSamples": 850,
+      "laneGapP50Ms": 49200,
+      "laneGapP95Ms": 53400,
+      "laneGapMaxMs": 53400,
+      "reportGapMaxMs": 24200,
+      "progressGapMaxMs": 30200,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 316600
+      },
+      "returned": {
+        "narrow": 41760,
+        "broad": 41760
+      },
+      "discoveryAgeP50Ms": 3400,
+      "discoveryAgeP95Ms": 40800,
+      "discoveryAgeSamples": 59608
+    },
+    {
+      "filters": 5,
+      "lanes": 5,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 1600
+      },
+      "simulatedMs": 1800000,
+      "cycles": 200,
+      "requests": 1000,
+      "skippedForBudget": 0,
+      "firstCycleMs": 8000,
+      "firstCoverageMs": 8000,
+      "backlogMax": 5,
+      "dueWaitP50Ms": 6400,
+      "dueWaitP95Ms": 6400,
+      "dueWaitMaxMs": 6400,
+      "laneGapSamples": 995,
+      "laneGapP50Ms": 9000,
+      "laneGapP95Ms": 9000,
+      "laneGapMaxMs": 9000,
+      "reportGapMaxMs": 9000,
+      "progressGapMaxMs": 2600,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 33432
+      },
+      "returned": {
+        "narrow": 57600,
+        "broad": 38400
+      },
+      "discoveryAgeP50Ms": 4400,
+      "discoveryAgeP95Ms": 6800,
+      "discoveryAgeSamples": 43690
+    },
+    {
+      "filters": 10,
+      "lanes": 10,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 1600
+      },
+      "simulatedMs": 1802000,
+      "cycles": 106,
+      "requests": 1060,
+      "skippedForBudget": 0,
+      "firstCycleMs": 16000,
+      "firstCoverageMs": 16000,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 14400,
+      "dueWaitP95Ms": 14400,
+      "dueWaitMaxMs": 14400,
+      "laneGapSamples": 1050,
+      "laneGapP50Ms": 17000,
+      "laneGapP95Ms": 17000,
+      "laneGapMaxMs": 17000,
+      "reportGapMaxMs": 17000,
+      "progressGapMaxMs": 2600,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 128100
+      },
+      "returned": {
+        "narrow": 50880,
+        "broad": 50880
+      },
+      "discoveryAgeP50Ms": 4200,
+      "discoveryAgeP95Ms": 12800,
+      "discoveryAgeSamples": 59743
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 1600
+      },
+      "simulatedMs": 1815000,
+      "cycles": 55,
+      "requests": 1100,
+      "skippedForBudget": 0,
+      "firstCycleMs": 32000,
+      "firstCoverageMs": 32000,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 30400,
+      "dueWaitP95Ms": 30400,
+      "dueWaitMaxMs": 30400,
+      "laneGapSamples": 1080,
+      "laneGapP50Ms": 33000,
+      "laneGapP95Ms": 33000,
+      "laneGapMaxMs": 33000,
+      "reportGapMaxMs": 33000,
+      "progressGapMaxMs": 2600,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 304560
+      },
+      "returned": {
+        "narrow": 52800,
+        "broad": 52800
+      },
+      "discoveryAgeP50Ms": 4600,
+      "discoveryAgeP95Ms": 28000,
+      "discoveryAgeSamples": 70668
+    },
+    {
+      "filters": 20,
+      "lanes": 120,
+      "options": {
+        "combinations": true,
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 1600
+      },
+      "simulatedMs": 1815000,
+      "cycles": 55,
+      "requests": 1100,
+      "skippedForBudget": 0,
+      "firstCycleMs": 32000,
+      "firstCoverageMs": 197000,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 30400,
+      "dueWaitP95Ms": 30400,
+      "dueWaitMaxMs": 30400,
+      "laneGapSamples": 980,
+      "laneGapP50Ms": 198000,
+      "laneGapP95Ms": 198000,
+      "laneGapMaxMs": 198000,
+      "reportGapMaxMs": 33000,
+      "progressGapMaxMs": 2600,
+      "missedBetweenObservedPages": {
+        "narrow": 49980,
+        "broad": 1893360
+      },
+      "returned": {
+        "narrow": 52800,
+        "broad": 52800
+      },
+      "discoveryAgeP50Ms": 6200,
+      "discoveryAgeP95Ms": 87600,
+      "discoveryAgeSamples": 104038
+    },
+    {
+      "filters": 5,
+      "lanes": 5,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 5867
+      },
+      "simulatedMs": 1820100,
+      "cycles": 60,
+      "requests": 300,
+      "skippedForBudget": 0,
+      "firstCycleMs": 29335,
+      "firstCoverageMs": 29335,
+      "backlogMax": 5,
+      "dueWaitP50Ms": 23468,
+      "dueWaitP95Ms": 23468,
+      "dueWaitMaxMs": 23468,
+      "laneGapSamples": 295,
+      "laneGapP50Ms": 30335,
+      "laneGapP95Ms": 30335,
+      "laneGapMaxMs": 30335,
+      "reportGapMaxMs": 30335,
+      "progressGapMaxMs": 6867,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 60272
+      },
+      "returned": {
+        "narrow": 17280,
+        "broad": 11520
+      },
+      "discoveryAgeP50Ms": 9168,
+      "discoveryAgeP95Ms": 31350,
+      "discoveryAgeSamples": 16923
+    },
+    {
+      "filters": 10,
+      "lanes": 10,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 5867
+      },
+      "simulatedMs": 1849770,
+      "cycles": 31,
+      "requests": 310,
+      "skippedForBudget": 0,
+      "firstCycleMs": 58670,
+      "firstCoverageMs": 58670,
+      "backlogMax": 10,
+      "dueWaitP50Ms": 52803,
+      "dueWaitP95Ms": 52803,
+      "dueWaitMaxMs": 52803,
+      "laneGapSamples": 300,
+      "laneGapP50Ms": 59670,
+      "laneGapP95Ms": 59670,
+      "laneGapMaxMs": 59670,
+      "reportGapMaxMs": 59670,
+      "progressGapMaxMs": 6867,
+      "missedBetweenObservedPages": {
+        "narrow": 0,
+        "broad": 164600
+      },
+      "returned": {
+        "narrow": 14880,
+        "broad": 14880
+      },
+      "discoveryAgeP50Ms": 9548,
+      "discoveryAgeP95Ms": 57547,
+      "discoveryAgeSamples": 23946
+    },
+    {
+      "filters": 20,
+      "lanes": 20,
+      "options": {
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 5867
+      },
+      "simulatedMs": 1893440,
+      "cycles": 16,
+      "requests": 320,
+      "skippedForBudget": 0,
+      "firstCycleMs": 117340,
+      "firstCoverageMs": 117340,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 111473,
+      "dueWaitP95Ms": 111473,
+      "dueWaitMaxMs": 111473,
+      "laneGapSamples": 300,
+      "laneGapP50Ms": 118340,
+      "laneGapP95Ms": 118340,
+      "laneGapMaxMs": 118340,
+      "reportGapMaxMs": 118340,
+      "progressGapMaxMs": 6867,
+      "missedBetweenObservedPages": {
+        "narrow": 3351,
+        "broad": 340600
+      },
+      "returned": {
+        "narrow": 15360,
+        "broad": 15360
+      },
+      "discoveryAgeP50Ms": 10488,
+      "discoveryAgeP95Ms": 91887,
+      "discoveryAgeSamples": 30274
+    },
+    {
+      "filters": 20,
+      "lanes": 120,
+      "options": {
+        "combinations": true,
+        "minimumIntervalMs": 1000,
+        "pollIntervalMs": 1000,
+        "tickIntervalMs": 1000,
+        "requestsPerMinute": 120,
+        "responseMs": 5867
+      },
+      "simulatedMs": 1893440,
+      "cycles": 16,
+      "requests": 320,
+      "skippedForBudget": 0,
+      "firstCycleMs": 117340,
+      "firstCoverageMs": 709040,
+      "backlogMax": 20,
+      "dueWaitP50Ms": 111473,
+      "dueWaitP95Ms": 111473,
+      "dueWaitMaxMs": 111473,
+      "laneGapSamples": 200,
+      "laneGapP50Ms": 710040,
+      "laneGapP95Ms": 710040,
+      "laneGapMaxMs": 710040,
+      "reportGapMaxMs": 118340,
+      "progressGapMaxMs": 6867,
+      "missedBetweenObservedPages": {
+        "narrow": 61404,
+        "broad": 1410480
+      },
+      "returned": {
+        "narrow": 15360,
+        "broad": 15360
+      },
+      "discoveryAgeP50Ms": 10488,
+      "discoveryAgeP95Ms": 91887,
+      "discoveryAgeSamples": 30274
+    },
+    {
+      "providerPause": {
+        "minimumIntervalMs": 1000,
+        "retryAfterSeconds": 120,
+        "startsMs": [0, 120000],
+        "rejectionReceivedAtMs": 200,
+        "waitFromRejectionMs": 119800,
+        "timeBasis": "existing scheduler uses cycle start, not rejection arrival"
+      }
+    },
+    {
+      "providerPause": {
+        "minimumIntervalMs": 10000,
+        "retryAfterSeconds": 120,
+        "startsMs": [0, 120000],
+        "rejectionReceivedAtMs": 200,
+        "waitFromRejectionMs": 119800,
+        "timeBasis": "existing scheduler uses cycle start, not rejection arrival"
+      }
+    },
+    {
+      "queuedMutation": {
+        "change": "paused",
+        "staleSubmittedAtMs": 190200,
+        "newFilterDispatchAtMs": 195200,
+        "guard": "simulated database rejection; not SQL verification"
+      }
+    },
+    {
+      "queuedMutation": {
+        "change": "edited",
+        "staleSubmittedAtMs": 190200,
+        "newFilterDispatchAtMs": 200200,
+        "guard": "simulated database rejection; not SQL verification"
+      }
+    },
+    {
+      "queuedMutation": {
+        "change": "deleted",
+        "staleSubmittedAtMs": 190200,
+        "newFilterDispatchAtMs": 195200,
+        "guard": "simulated database rejection; not SQL verification"
+      }
+    },
+    {
+      "identicalRequestComparison": [
+        {
+          "shared": false,
+          "requests": 20,
+          "completedMs": 190200,
+          "assignments": 20
+        },
+        {
+          "shared": true,
+          "requests": 4,
+          "completedMs": 30200,
+          "assignments": 20
+        }
+      ]
+    },
+    {
+      "broadDisplacement": {
+        "sourceItems": 192,
+        "broadReturned": 96,
+        "narrowExpected": 96,
+        "narrowCovered": 0,
+        "narrowDisplaced": 96
+      }
+    }
+  ]
+}

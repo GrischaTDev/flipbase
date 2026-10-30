@@ -20,6 +20,7 @@ import { DealCardComponent } from './components/deal-card/deal-card.component';
 import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { DealFeedState } from './services/deal-feed-state';
+import { DealFeedUpdatesService } from './services/deal-feed-updates.service';
 import { DealFavoritesService } from './services/deal-favorites.service';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { FeedItem, Watchlist } from './models/deal-monitor.model';
@@ -41,6 +42,7 @@ import { FeedItem, Watchlist } from './models/deal-monitor.model';
 })
 export class DealMonitorComponent {
   private readonly api = inject(DealMonitorService);
+  private readonly updates = inject(DealFeedUpdatesService);
   readonly favorites = inject(DealFavoritesService);
   readonly searchEntry = signal('');
   readonly titleQuery = signal('');
@@ -153,6 +155,22 @@ export class DealMonitorComponent {
           workspace ? { workspace, watchlist, brand, size, minPrice, maxPrice, titleQuery } : null,
         ),
       );
+    });
+    effect((onCleanup) => {
+      const workspace = this.workspace()?.id;
+      if (!workspace) return;
+      const cleanup = untracked(() =>
+        this.updates.watch(workspace, () => {
+          if (
+            !this.destroyRef.destroyed &&
+            !this.document.hidden &&
+            !this.state.error() &&
+            this.workspace()?.id === workspace
+          )
+            this.state.notifyUpdate();
+        }),
+      );
+      onCleanup(cleanup);
     });
     const tick = async () => {
       this.now.set(Date.now());

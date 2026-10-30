@@ -19,11 +19,13 @@ export class DealFeedState {
   private generation = 0;
   private request: FeedRequest | null = null;
   private busyGeneration: number | null = null;
+  private updateGeneration: number | null = null;
 
   constructor(private readonly fetchPage: (request: FeedRequest) => Promise<FeedPage>) {}
 
   setContext(request: FeedRequest | null): void {
     this.generation++;
+    this.updateGeneration = null;
     this.request = request;
     this.items.set([]);
     this.pending.set([]);
@@ -43,6 +45,15 @@ export class DealFeedState {
   resume(): void {
     // Auch einen laufenden Seitenabruf verwerfen, bevor der Zulauf weitergeht.
     this.setContext(this.request);
+  }
+
+  notifyUpdate(): void {
+    if (!this.request) return;
+    if (this.busyGeneration === this.generation) {
+      this.updateGeneration = this.generation;
+      return;
+    }
+    void this.refresh();
   }
 
   async refresh(more = false): Promise<void> {
@@ -84,11 +95,17 @@ export class DealFeedState {
     } finally {
       if (this.busyGeneration === generation) this.busyGeneration = null;
       if (generation === this.generation) this.loading.set(false);
+      if (this.updateGeneration === generation) {
+        this.updateGeneration = null;
+        // Fehler werden über die bestehende Pollingpause erneut versucht.
+        if (generation === this.generation && !this.error()) void this.refresh();
+      }
     }
   }
 
   destroy(): void {
     this.generation++;
+    this.updateGeneration = null;
     this.request = null;
   }
 }

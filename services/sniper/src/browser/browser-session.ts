@@ -19,6 +19,8 @@ interface BrowserSessionDependencies {
   minimumIntervalMs: number;
   navigationTiming: VintedNavigationTiming;
   now?: () => Date;
+  onVerificationStart?: () => void;
+  onVerificationEnd?: () => void;
   browser: VintedBrowser;
   originState: OriginStateStoreLike;
   queries: { activeQueries(): Promise<SniperQuery[]> };
@@ -253,6 +255,7 @@ export class BrowserSessionController implements BrowserSession {
       try {
         await this.deps.originState.setBlocked('vinted', 'interaction_required', nextNavigation);
         await this.deps.browser.stopManual();
+        this.deps.onVerificationStart?.();
         const collected = await this.deps.collector.collect(query, { allowRetries: false });
         this.requireLease(owner, sessionId);
         const result = await this.deps.listings.completeRun(collected, query);
@@ -283,6 +286,7 @@ export class BrowserSessionController implements BrowserSession {
           ? error
           : new BrowserSessionError(409, this.message);
       } finally {
+        this.deps.onVerificationEnd?.();
         await this.endLease();
       }
       return this.snapshot(owner);

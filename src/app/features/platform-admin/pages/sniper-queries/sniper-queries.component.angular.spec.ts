@@ -10,12 +10,14 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import type { SniperQuery } from '../../models/sniper-query.model';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
 import { SniperBrowserService } from '../../services/sniper-browser.service';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 import { SniperQueriesComponent } from './sniper-queries.component';
+import { SniperQueryRunStatusComponent } from './sniper-query-run-status.component';
 
 // Die Laufzeitübersetzung der Tests registriert Signal-Eingänge nicht automatisch.
 function registerSignalInputs(component: unknown, names: readonly string[]): void {
@@ -81,6 +83,19 @@ beforeAll(async () => {
     'placeholder',
     'ariaLabel',
   ]);
+  registerSignalInputs(CustomSelectComponent, [
+    'options',
+    'value',
+    'disabled',
+    'ariaLabel',
+    'triggerId',
+  ]);
+  registerSignalInputs(SniperQueryRunStatusComponent, [
+    'query',
+    'pending',
+    'manualRequired',
+    'currentTime',
+  ]);
 });
 
 describe('SniperQueriesComponent activation', () => {
@@ -138,7 +153,11 @@ describe('SniperQueriesComponent activation', () => {
     }).compileComponents();
   });
 
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
 
   it.each(['interaction_required', 'manual'])(
     'does not wait for a first fetch during %s',
@@ -188,6 +207,110 @@ describe('SniperQueriesComponent activation', () => {
     const rendered: HTMLElement = fixture.nativeElement;
     expect(rendered.textContent).toContain('Letzter Abruf: Zugriff abgewiesen');
     expect(rendered.textContent).not.toContain('Wird geprüft');
+  });
+
+  it('keeps relative success and coverage visible while exact diagnostics and all conditions are disclosed on demand', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-29T10:02:00Z'));
+    state.queries.set([
+      {
+        ...query,
+        title: 'Pufferjacken',
+        catalog_id: 79,
+        brand_names: ['Nike'],
+        title_keywords: ['pufferjacke', 'puffer jacke'],
+        excluded_title_keywords: ['weste'],
+        keyword_mode: 'any',
+        last_status: 'ok',
+        last_success_at: '2026-10-29T10:00:00Z',
+        coverage_status: 'caught_up',
+        coverage_checked_at: '2026-10-29T10:00:00Z',
+        last_request_duration_ms: 1234,
+        shared_filter_count: 2,
+      },
+    ]);
+    const fixture = TestBed.createComponent(SniperQueriesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const rendered = fixture.nativeElement as HTMLElement;
+    expect(rendered.textContent).toContain('vor 2 Minuten');
+    fixture.componentInstance.categoryPaths.set(new Map([[79, 'Herren > Kleidung > Jacken']]));
+    fixture.detectChanges();
+    const diagnostics = rendered.querySelector<HTMLDetailsElement>(
+      'details[data-query-run-details]',
+    )!;
+    expect(diagnostics).not.toBeNull();
+    expect(diagnostics.open).toBe(false);
+    diagnostics.querySelector('summary')!.click();
+    expect(diagnostics.open).toBe(true);
+    expect(diagnostics.querySelector('time')?.dateTime).toBe('2026-10-29T10:00:00Z');
+    expect(diagnostics.textContent).toContain('1234 ms');
+    expect(diagnostics.textContent).toContain('2 Filtern');
+    const conditions = rendered.querySelector<HTMLDetailsElement>(
+      'details[data-filter-conditions]',
+    )!;
+    expect(conditions).not.toBeNull();
+    expect(conditions.open).toBe(false);
+    expect(conditions.querySelector('summary')?.textContent).toContain('Herren › Jacken');
+    conditions.querySelector('summary')!.click();
+    expect(conditions.open).toBe(true);
+    expect(conditions.textContent).toContain('pufferjacke, puffer jacke');
+    expect(conditions.textContent).toContain('ohne: weste');
+    expect(conditions.textContent).toContain('Herren > Kleidung > Jacken');
+  });
+
+  it('ages a retained success while the API is unavailable and releases its clock on destroy', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date('2026-10-29T10:00:10Z'));
+    state.queries.set([
+      { ...query, title: 'Jacken', last_status: 'ok', last_success_at: '2026-10-29T10:00:00Z' },
+    ]);
+    const fixture = TestBed.createComponent(SniperQueriesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const rendered = fixture.nativeElement as HTMLElement;
+    expect(rendered.textContent).toContain('Erfolg gerade eben');
+    state.error.set('API nicht erreichbar');
+    vi.advanceTimersByTime(120000);
+    fixture.detectChanges();
+    expect(rendered.textContent).toContain('Erfolg vor 2 Minuten');
+    expect(rendered.textContent).not.toContain('Erfolg gerade eben');
+    fixture.destroy();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('combines search and active state and shows exclusions, prices and bounded coverage', async () => {
+    state.queries.set([
+      {
+        ...query,
+        id: 'one',
+        title: 'Jacken',
+        is_active: true,
+        title_keywords: ['pufferjacke'],
+        excluded_title_keywords: ['weste'],
+        price_to: 40,
+        coverage_status: 'limited',
+        last_error_message: 'Zeitlimit beim Abruf',
+      },
+      { ...query, id: 'two', title: 'Jacken pausiert', is_active: false },
+    ]);
+    const fixture = TestBed.createComponent(SniperQueriesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    component.search.set('Jacken');
+    component.statusFilter.set('active');
+    expect(component.filtered().map((row) => row.id)).toEqual(['one']);
+    component.search.set('weste');
+    expect(component.filtered().map((row) => row.id)).toEqual(['one']);
+    fixture.detectChanges();
+    const rendered = fixture.nativeElement as HTMLElement;
+    expect(rendered.textContent).toContain('ohne: weste');
+    expect(rendered.textContent).toContain('bis 40');
+    expect(rendered.textContent).toContain('Aufholen begrenzt');
+    expect(rendered.textContent).toContain('Zeitlimit beim Abruf');
+    expect(rendered.textContent).not.toContain('vollständig');
   });
 
   it('keeps the manual-pause notice and its next step accessible', async () => {

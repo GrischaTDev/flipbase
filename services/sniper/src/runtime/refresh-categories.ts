@@ -3,6 +3,8 @@ import { parseCategoryTree, type VintedCategory } from '../vinted/categories.js'
 import { isRefreshDue, type CategorySyncState } from './category-refresh.js';
 import type { OriginStateStoreLike } from './scheduler.js';
 import { evaluateFailure } from './retry-policy.js';
+import { RequestBudgetUnavailableError } from './budget.js';
+import { RequestPausedError } from './request-start-guard.js';
 
 export interface CategoryStoreLike {
   readSyncState(): Promise<CategorySyncState>;
@@ -30,6 +32,8 @@ export interface RefreshDeps {
   originState?: Pick<OriginStateStoreLike, 'getState' | 'setCooldown' | 'setBlocked'>;
   maxAgeMs: number;
   log: Logger;
+  now?: () => Date;
+  onOriginPause?: () => void;
 }
 
 /**
@@ -68,16 +72,20 @@ export async function refreshCategoriesIfDue(
     const categories = parseCategoryTree(html);
 
     await deps.store.replaceAll(categories);
-    await deps.store.markRefreshed(categories.length, now);
+    await deps.store.markRefreshed(categories.length, deps.now?.() ?? new Date());
 
     deps.log.info('categories_refreshed', { count: categories.length });
     return 'refreshed';
   } catch (error) {
+    if (error instanceof RequestBudgetUnavailableError || error instanceof RequestPausedError)
+      return 'skipped';
+    const failedAt = deps.now?.() ?? new Date();
     const reason = reasonOf(error);
     deps.log.error('categories_refresh_failed', { reason });
 
     try {
-      const decision = evaluateFailure(error, { consecutiveFailures: 0 }, now);
+      const decision = evaluateFailure(error, { consecutiveFailures: 0 }, failedAt);
+      if (decision.originUpdate) deps.onOriginPause?.();
       if (deps.originState && decision.originUpdate?.state === 'blocked') {
         await deps.originState.setBlocked(
           'vinted',
@@ -91,7 +99,7 @@ export async function refreshCategoriesIfDue(
           decision.errorKind,
         );
       }
-      await deps.store.markFailed(reason, now);
+      await deps.store.markFailed(reason, failedAt);
     } catch (markError) {
       deps.log.error('category_mark_failed', { reason: reasonOf(markError) });
     }

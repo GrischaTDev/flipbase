@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { readKleinanzeigenPrecisionResponse } from './kleinanzeigen-rest-precision-response.mjs';
 const database = process.env.KLEINANZEIGEN_TEST_DB_CONTAINER;
 if (!database || !/^supabase_db_flipbase[-_a-z0-9]*$/u.test(database))
   throw Error('Isolierten Testdatenbank-Container ausdrücklich angeben.');
@@ -100,9 +101,8 @@ try {
   let response;
   while (Date.now() < end) {
     try {
-      response = await fetch(
+      response = await readKleinanzeigenPrecisionResponse(
         'http://127.0.0.1:' + port + '/' + view + '?select=*,target_connection_id::text',
-        { signal: AbortSignal.timeout(2000) },
       );
       if (response.status !== 503) break;
     } catch {
@@ -113,9 +113,9 @@ try {
   if (!response?.ok)
     throw Error(
       'PostgREST-Auswahl konnte nicht gelesen werden: ' +
-        (response ? response.status + ' ' + (await response.text()) : 'keine HTTP-Antwort'),
+        (response ? response.status + ' ' + response.body : 'keine HTTP-Antwort'),
     );
-  const rows = await response.json();
+  const rows = JSON.parse(response.body);
   assert.deepEqual(rows, [{ target_connection_id: '9007199254740993' }]);
   console.log(
     'PostgREST ' +

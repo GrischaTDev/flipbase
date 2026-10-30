@@ -12,12 +12,20 @@ export interface SearchFilterRunResult {
   hits: number;
 }
 
+export interface SearchFilterRunDiagnostics {
+  coverage: 'unknown' | 'initial' | 'caught_up' | 'limited';
+  duration_ms: number;
+  source_pages: number;
+  shared_filter_count: number;
+}
+
 export class ListingStore {
   constructor(private readonly client: SupabaseClient) {}
 
   async completeRun(
     listings: MarketplaceListing[],
     query: SniperQuery,
+    diagnostics?: SearchFilterRunDiagnostics,
   ): Promise<SearchFilterRunResult> {
     if (
       query.filterFormatVersion !== 1 ||
@@ -30,6 +38,7 @@ export class ListingStore {
     const matches = createTitleKeywordMatcher(
       query.titleKeywords ?? [],
       query.keywordMode ?? 'all',
+      query.excludedTitleKeywords ?? [],
     );
     const { data, error } = await this.client.rpc('complete_sniper_search_filter_run', {
       p_query_id: query.id,
@@ -38,6 +47,7 @@ export class ListingStore {
       p_listings: listings
         .filter((listing) => matches(listing.title))
         .map((listing) => listingRow(listing, query.id)),
+      ...(diagnostics ? { p_diagnostics: diagnostics } : {}),
     });
     if (error) throw new Error(`completing search filter run failed: ${error.message}`);
     const payload = data as Partial<SearchFilterRunResult> | null;
@@ -164,6 +174,11 @@ export class ListingStore {
     if (typeof data !== 'number' || !Number.isInteger(data) || data < 0)
       throw new Error('purging listings returned an invalid count');
     return data;
+  }
+
+  async notifyFeedUpdates(): Promise<void> {
+    const { error } = await this.client.rpc('sniper_notify_feed_updates');
+    if (error) throw new Error('Feed-Hinweis konnte nicht gesendet werden.');
   }
 }
 

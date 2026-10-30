@@ -1,0 +1,410 @@
+{
+  "observedAt": "2026-10-29T21:25:59.522585+01:00",
+  "window": {
+    "start": "2026-10-29T19:50:00Z",
+    "endExclusive": "2026-10-29T20:20:00Z"
+  },
+  "container": {
+    "imageId": "sha256:6caa2026c5dbe7d514f9d9d6f5ecc3e21e4e0e5ad1a1514255a5c9c0aa48330d",
+    "imageReference": "ghcr.io/grischatdev/flipbase-sniper@sha256:6caa2026c5dbe7d514f9d9d6f5ecc3e21e4e0e5ad1a1514255a5c9c0aa48330d",
+    "imageRevisionLabel": null,
+    "startedAt": "2026-10-29T19:06:22.478721114Z",
+    "restartCount": 0,
+    "oomKilled": false,
+    "health": "healthy",
+    "memoryLimitBytes": 2147483648
+  },
+  "stats": {
+    "MemUsage": "1.87GiB / 2GiB",
+    "MemPerc": "93.51%",
+    "CPUPerc": "98.78%",
+    "PIDs": "164"
+  },
+  "effectiveTiming": {
+    "minimumIntervalMs": 10000,
+    "timeoutMs": 20000,
+    "tickIntervalMs": 5000,
+    "requestsPerMinute": 30
+  },
+  "compiledSourceSha256": {
+    "index.js": "cc9976e3b1abee69776a9ac5906e5378e3975c2675b7d106bf419bc7a112a076",
+    "config.js": "9fc1ce193c3f9d8076fc52ec587315c2f871baae46752cde65e77691ea4c7b1c",
+    "health.js": "571a712b94b05a86ee0fe4af84c8b18b7f1aecdf3862bc907cf909e787f2b2c2",
+    "runtime/scheduler.js": "06f4bebe0b6fe213527a1fc6bad4c88e53b002663b316323c6801885c4865a66",
+    "domain/search-filter-request.js": "2cd832b2e4bd5833ae9429d5a4372ba3ccf42321a888b2fed93ba8648f74652b"
+  },
+  "logs": {
+    "stdoutLines": 208,
+    "stderrLines": 2,
+    "eventCounts": {
+      "cycle": 92,
+      "watchlist_evaluation_completed": 89,
+      "listings_expired": 27,
+      "query_failed": 2
+    },
+    "cycleSums": {
+      "polled": 160,
+      "new": 1959,
+      "seeded": 0,
+      "failed": 2,
+      "skipped": 0,
+      "newHits": 0
+    },
+    "cycleGapSeconds": {
+      "n": 91,
+      "min": 11.14900016784668,
+      "median": 21.811000108718872,
+      "max": 25.441999912261963
+    },
+    "errors": [
+      {
+        "at": "2026-10-29T19:55:22.511Z",
+        "event": "query_failed",
+        "kind": "network_error",
+        "nextAttemptAt": "2026-10-29T19:55:51.822Z",
+        "httpStatus": "null",
+        "phase": "request",
+        "challengeDetected": "false",
+        "retryAfterSeconds": "null"
+      },
+      {
+        "at": "2026-10-29T20:00:38.273Z",
+        "event": "query_failed",
+        "kind": "parser_error",
+        "nextAttemptAt": "2026-10-29T20:05:26.429Z",
+        "httpStatus": "200",
+        "phase": "parse",
+        "challengeDetected": "false",
+        "retryAfterSeconds": "null"
+      }
+    ]
+  },
+  "database": [
+    {
+      "databaseClock": "2026-10-29T21:25:58.460827+01:00"
+    },
+    {
+      "activeQueries": [
+        {
+          "name": "Adidas",
+          "brandIds": [14],
+          "catalogId": 2050,
+          "priceFrom": null,
+          "priceTo": null,
+          "keywordCount": 0,
+          "keywordMode": "all",
+          "hasSearchText": false,
+          "pollIntervalMs": 20000,
+          "format": 1,
+          "revision": 9,
+          "cursor": 21434,
+          "lastSuccessAt": "2026-10-29T21:25:14.142167+01:00",
+          "lastErrorKind": "network_error",
+          "consecutiveFailures": 0,
+          "runState": "ready"
+        },
+        {
+          "name": "Nike Neu",
+          "brandIds": [53],
+          "catalogId": 2050,
+          "priceFrom": null,
+          "priceTo": null,
+          "keywordCount": 0,
+          "keywordMode": "all",
+          "hasSearchText": false,
+          "pollIntervalMs": 20000,
+          "format": 1,
+          "revision": 21,
+          "cursor": 23526,
+          "lastSuccessAt": "2026-10-29T21:25:23.797357+01:00",
+          "lastErrorKind": "network_error",
+          "consecutiveFailures": 0,
+          "runState": "ready"
+        },
+        {
+          "name": "Blauer",
+          "brandIds": [110522, 14545271],
+          "catalogId": 1206,
+          "priceFrom": null,
+          "priceTo": null,
+          "keywordCount": 0,
+          "keywordMode": "all",
+          "hasSearchText": false,
+          "pollIntervalMs": 20000,
+          "format": 1,
+          "revision": 2,
+          "cursor": 19670,
+          "lastSuccessAt": "2026-10-29T21:25:35.731229+01:00",
+          "lastErrorKind": "parser_error",
+          "consecutiveFailures": 0,
+          "runState": "ready"
+        },
+        {
+          "name": "Ralph Lauren",
+          "brandIds": [88, 4273],
+          "catalogId": 2050,
+          "priceFrom": null,
+          "priceTo": null,
+          "keywordCount": 0,
+          "keywordMode": "all",
+          "hasSearchText": false,
+          "pollIntervalMs": 20000,
+          "format": 1,
+          "revision": 9,
+          "cursor": 22019,
+          "lastSuccessAt": "2026-10-29T21:25:45.876777+01:00",
+          "lastErrorKind": "parser_error",
+          "consecutiveFailures": 0,
+          "runState": "ready"
+        }
+      ]
+    },
+    {
+      "runtime": [
+        {
+          "reportedAt": "2026-10-29T21:25:46.812+01:00",
+          "requestsLastMinute": 5,
+          "rejectedLastMinute": 0,
+          "requestBudget": 30,
+          "lastSuccessAt": "2026-10-29T21:25:45.859+01:00",
+          "connectedSince": "2026-10-29T21:00:52.436+01:00",
+          "hasCycleError": false
+        }
+      ]
+    },
+    {
+      "origin": [
+        {
+          "state": "ready",
+          "blockedUntil": null,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "listingWindow": {
+        "count": 1950,
+        "first": "2026-10-29T20:50:10.281407+01:00",
+        "last": "2026-10-29T21:19:51.053533+01:00",
+        "batchCount": 142,
+        "categoryKnown": 0,
+        "photoTimestampKnown": 0,
+        "itemUpdatedKnown": 0
+      }
+    },
+    {
+      "perQuery": [
+        {
+          "title": "Adidas",
+          "listings": 498,
+          "batches": 42
+        },
+        {
+          "title": "Blauer",
+          "listings": 26,
+          "batches": 17
+        },
+        {
+          "title": "Nike Neu",
+          "listings": 958,
+          "batches": 41
+        },
+        {
+          "title": "Ralph Lauren",
+          "listings": 468,
+          "batches": 42
+        }
+      ]
+    },
+    {
+      "minute": "2026-10-29T20:50:00+01:00",
+      "listings": 48
+    },
+    {
+      "minute": "2026-10-29T20:51:00+01:00",
+      "listings": 72
+    },
+    {
+      "minute": "2026-10-29T20:52:00+01:00",
+      "listings": 61
+    },
+    {
+      "minute": "2026-10-29T20:53:00+01:00",
+      "listings": 60
+    },
+    {
+      "minute": "2026-10-29T20:54:00+01:00",
+      "listings": 67
+    },
+    {
+      "minute": "2026-10-29T20:55:00+01:00",
+      "listings": 50
+    },
+    {
+      "minute": "2026-10-29T20:56:00+01:00",
+      "listings": 71
+    },
+    {
+      "minute": "2026-10-29T20:57:00+01:00",
+      "listings": 61
+    },
+    {
+      "minute": "2026-10-29T20:58:00+01:00",
+      "listings": 73
+    },
+    {
+      "minute": "2026-10-29T20:59:00+01:00",
+      "listings": 80
+    },
+    {
+      "minute": "2026-10-29T21:00:00+01:00",
+      "listings": 54
+    },
+    {
+      "minute": "2026-10-29T21:01:00+01:00",
+      "listings": 71
+    },
+    {
+      "minute": "2026-10-29T21:02:00+01:00",
+      "listings": 72
+    },
+    {
+      "minute": "2026-10-29T21:03:00+01:00",
+      "listings": 79
+    },
+    {
+      "minute": "2026-10-29T21:04:00+01:00",
+      "listings": 54
+    },
+    {
+      "minute": "2026-10-29T21:05:00+01:00",
+      "listings": 48
+    },
+    {
+      "minute": "2026-10-29T21:06:00+01:00",
+      "listings": 75
+    },
+    {
+      "minute": "2026-10-29T21:07:00+01:00",
+      "listings": 47
+    },
+    {
+      "minute": "2026-10-29T21:08:00+01:00",
+      "listings": 93
+    },
+    {
+      "minute": "2026-10-29T21:09:00+01:00",
+      "listings": 75
+    },
+    {
+      "minute": "2026-10-29T21:10:00+01:00",
+      "listings": 62
+    },
+    {
+      "minute": "2026-10-29T21:11:00+01:00",
+      "listings": 50
+    },
+    {
+      "minute": "2026-10-29T21:12:00+01:00",
+      "listings": 82
+    },
+    {
+      "minute": "2026-10-29T21:13:00+01:00",
+      "listings": 43
+    },
+    {
+      "minute": "2026-10-29T21:14:00+01:00",
+      "listings": 71
+    },
+    {
+      "minute": "2026-10-29T21:15:00+01:00",
+      "listings": 84
+    },
+    {
+      "minute": "2026-10-29T21:16:00+01:00",
+      "listings": 44
+    },
+    {
+      "minute": "2026-10-29T21:17:00+01:00",
+      "listings": 46
+    },
+    {
+      "minute": "2026-10-29T21:18:00+01:00",
+      "listings": 85
+    },
+    {
+      "minute": "2026-10-29T21:19:00+01:00",
+      "listings": 72
+    }
+  ],
+  "localCompiledComparison": {
+    "gitRevision": "8f9a81ac02556daf0f7db13b4169c76f703c0d15",
+    "files": [
+      {
+        "file": "index.js",
+        "matches": true
+      },
+      {
+        "file": "config.js",
+        "matches": true
+      },
+      {
+        "file": "health.js",
+        "matches": true
+      },
+      {
+        "file": "runtime/scheduler.js",
+        "matches": true
+      },
+      {
+        "file": "domain/search-filter-request.js",
+        "matches": true
+      }
+    ]
+  },
+  "passiveCatalogTiming": {
+    "kind": "passive_cdp_catalog_timing",
+    "observedFrom": "2026-10-29T20:25:01.434Z",
+    "observedUntil": "2026-10-29T20:25:56.448Z",
+    "endReason": "timer",
+    "samples": [
+      {
+        "startedAt": "2026-10-29T20:25:07.801Z",
+        "durationMs": 1848,
+        "status": 200,
+        "failed": false
+      },
+      {
+        "startedAt": "2026-10-29T20:25:17.799Z",
+        "durationMs": 1538,
+        "status": 200,
+        "failed": false
+      },
+      {
+        "startedAt": "2026-10-29T20:25:30.085Z",
+        "durationMs": 1448,
+        "status": 200,
+        "failed": false
+      },
+      {
+        "startedAt": "2026-10-29T20:25:40.091Z",
+        "durationMs": 1521,
+        "status": 200,
+        "failed": false
+      },
+      {
+        "startedAt": "2026-10-29T20:25:52.069Z",
+        "durationMs": 1658,
+        "status": 200,
+        "failed": false
+      }
+    ]
+  },
+  "earlierMemorySnapshot": {
+    "pids": 164,
+    "memUsage": "1.602GiB / 2GiB",
+    "cpuPercent": 27.28,
+    "memPercent": 80.08,
+    "observedAt": "2026-10-29T20:19:53.619608+00:00"
+  }
+}

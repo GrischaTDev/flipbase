@@ -7,9 +7,10 @@ import { TestBed } from '@angular/core/testing';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DealMonitorComponent } from './deal-monitor.component';
 import { DealMonitorService } from './services/deal-monitor.service';
+import { DealFeedUpdatesService } from './services/deal-feed-updates.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { FeedItem } from './models/deal-monitor.model';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -208,6 +209,14 @@ describe('DealMonitorComponent', () => {
 
   let comp: DealMonitorComponent;
   let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
+  const updateListeners: (() => void)[] = [];
+  const stopUpdates = vi.fn();
+  const mockUpdates = {
+    watch: vi.fn((_workspace: string, onUpdate: () => void) => {
+      updateListeners.push(onUpdate);
+      return stopUpdates;
+    }),
+  };
 
   const mockApi = {
     supportedBrands: vi.fn().mockResolvedValue(['Nike', 'Adidas']),
@@ -245,6 +254,9 @@ describe('DealMonitorComponent', () => {
 
   beforeEach(() => {
     TestBed.resetTestingModule();
+    updateListeners.length = 0;
+    mockUpdates.watch.mockClear();
+    stopUpdates.mockClear();
     currentWorkspace = signal<{ id: string; name: string } | null>({
       id: 'ws-1',
       name: 'Vintage Studio',
@@ -255,11 +267,92 @@ describe('DealMonitorComponent', () => {
         DealMonitorComponent,
         { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
         { provide: DealMonitorService, useValue: mockApi },
+        { provide: DealFeedUpdatesService, useValue: mockUpdates },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
     });
     comp = TestBed.inject(DealMonitorComponent);
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('lädt private Hinweise mit den aktuellen Filtern und erhält pausierte Artikel und Favoriten', async () => {
+    TestBed.flushEffects();
+    await Promise.resolve();
+    expect(mockUpdates.watch).toHaveBeenCalledWith('ws-1', expect.any(Function));
+    comp.selectedBrand.set('Nike');
+    TestBed.flushEffects();
+    await Promise.resolve();
+    const visible = comp.feedItems();
+    await comp.favorites.add(mockFeedItem('saved-favorite'));
+    const favorites = comp.favorites.favorites();
+    comp.state.pause();
+    mockApi.feed.mockResolvedValueOnce({
+      items: [mockFeedItem('new-arrival'), ...visible],
+      covered: true,
+      reported_at: '2026-10-29T20:00:00Z',
+    });
+    updateListeners[0]?.();
+    await Promise.resolve();
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ workspace: 'ws-1', brand: 'Nike' }),
+    );
+    expect(comp.feedItems()).toEqual(visible);
+    expect(comp.state.newCount()).toBe(1);
+    expect(comp.favorites.favorites()).toEqual(favorites);
+  });
+
+  it('beendet das alte Abonnement beim Workspacewechsel und das aktuelle beim Verlassen', () => {
+    TestBed.flushEffects();
+    expect(mockUpdates.watch).toHaveBeenCalledTimes(1);
+    currentWorkspace.set({ id: 'ws-2', name: 'Zweiter Arbeitsbereich' });
+    TestBed.flushEffects();
+    expect(stopUpdates).toHaveBeenCalledTimes(1);
+    expect(mockUpdates.watch).toHaveBeenLastCalledWith('ws-2', expect.any(Function));
+    TestBed.resetTestingModule();
+    expect(stopUpdates).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignoriert Hinweise im Hintergrund und vom vorherigen Workspace vor dem Aufräumen', async () => {
+    TestBed.flushEffects();
+    await Promise.resolve();
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    const calls = mockApi.feed.mock.calls.length;
+    updateListeners[0]();
+    await Promise.resolve();
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
+    hidden.mockReturnValue(false);
+    currentWorkspace.set({ id: 'ws-2', name: 'Zweiter Arbeitsbereich' });
+    updateListeners[0]();
+    await Promise.resolve();
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
+  });
+
+  it('behält Polling bei Verbindungsausfall und die zehnsekündige Fehlerpause trotz weiterer Hinweise', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    const fixture = TestBed.createComponent(DealMonitorComponent);
+    fixture.detectChanges();
+    await Promise.resolve();
+    const feed = fixture.componentInstance;
+    mockApi.feed.mockRejectedValueOnce(new Error('offline'));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(feed.state.error()).toBe('offline');
+    const calls = mockApi.feed.mock.calls.length;
+    updateListeners.at(-1)?.();
+    await Promise.resolve();
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls + 1);
+    expect(feed.state.error()).toBeNull();
+    fixture.destroy();
   });
 
   it('setzt die Titelsuche nach Entprellung serverseitig und beim Zurücksetzen zurück', async () => {

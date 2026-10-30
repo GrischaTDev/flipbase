@@ -34,6 +34,7 @@ export interface SniperQuery {
   consecutiveFailures: number;
   brandIds?: number[];
   titleKeywords?: string[];
+  excludedTitleKeywords?: string[];
   keywordMode?: 'all' | 'any';
   filterRevision?: number;
   filterFormatVersion?: number;

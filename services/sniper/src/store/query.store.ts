@@ -27,6 +27,7 @@ interface QueryRow {
   consecutive_failures: number;
   brand_ids: number[];
   title_keywords: string[];
+  excluded_title_keywords: string[];
   keyword_mode: 'all' | 'any';
   filter_revision: number;
   filter_format_version: number;
@@ -35,7 +36,7 @@ interface QueryRow {
 }
 
 const COLUMNS =
-  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests';
+  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, excluded_title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests';
 
 function toQuery(row: QueryRow): SniperQuery {
   return {
@@ -64,6 +65,7 @@ function toQuery(row: QueryRow): SniperQuery {
     consecutiveFailures: row.consecutive_failures,
     brandIds: row.brand_ids ?? [],
     titleKeywords: row.title_keywords ?? [],
+    excludedTitleKeywords: row.excluded_title_keywords ?? [],
     keywordMode: row.keyword_mode ?? 'all',
     filterRevision: row.filter_revision ?? 1,
     filterFormatVersion: row.filter_format_version ?? 0,

@@ -159,6 +159,14 @@ vergleichbar. Eine Testanzahl allein belegt keine Laufzeitersparnis.
 Umfassende Layoutauswahlen mit mehreren Dateien verteilen sich auf zwei Jobs;
 das Zeitlimit von 30 Minuten je Job bleibt unverändert.
 
+Allgemeine Chromium-Gruppen wachsen bei großen Auswahlen je sechs Fachdateien.
+Der umfassende Vinted-PR mit 50 Fachdateien benötigt damit neun Gruppen mit
+jeweils 59 bis 60 Fällen. Zuvor wurden zwei der fünf Gruppen mit je über 100
+Fällen am 30-Minuten-Limit abgebrochen. Die kleinere Aufteilung erhält die
+vollständige Auswahl, die bestehenden Zeitlimits und alle Erwartungen; sie
+reduziert keine Browserfälle. Kleine gezielte Auswahlen bis zehn Dateien bleiben
+ein einzelner Job.
+
 Für kleine Featureänderungen wird dieser Kern nicht pauschal hinzugefügt.
 Bekannte mehrfach parametrisierte Layoutfamilien verwenden im gezielten Lauf
 repräsentative Telefon-/Desktopgrößen und beide Farbschemata. Besondere Fehler-,

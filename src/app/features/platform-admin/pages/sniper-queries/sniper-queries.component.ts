@@ -11,35 +11,33 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LucidePause, LucidePencil, LucidePlay, LucideTrash2 } from '@lucide/angular';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 import { SniperBrowserService } from '../../services/sniper-browser.service';
 import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
-import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-query.model';
+import { QueryDraft, SniperQuery } from '../../models/sniper-query.model';
+import { SniperQueryRunStatusComponent } from './sniper-query-run-status.component';
 
 @Component({
   selector: 'app-sniper-queries',
   imports: [
-    DatePipe,
     RouterLink,
     ButtonComponent,
     TableActionButtonComponent,
-    BadgeComponent,
-    LoadingIndicatorComponent,
+    SniperQueryRunStatusComponent,
     ModalShellComponent,
     DataTableComponent,
+    CustomSelectComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',
@@ -71,10 +69,21 @@ export class SniperQueriesComponent {
   private readonly browserApi = inject(SniperBrowserService);
   private browserStatusPending = false;
   readonly search = signal('');
+  readonly currentTime = signal(Date.now());
+  readonly statusFilter = signal<'all' | 'active' | 'paused'>('all');
+  readonly statusOptions = [
+    { value: 'all' as const, label: 'Alle Status' },
+    { value: 'active' as const, label: 'Aktiv' },
+    { value: 'paused' as const, label: 'Pausiert' },
+  ];
   readonly filtered = computed(() => {
-    const term = this.search().toLocaleLowerCase('de');
+    const term = this.search().trim().toLocaleLowerCase('de');
     return this.state
       .queries()
+      .filter(
+        (query) =>
+          this.statusFilter() === 'all' || query.is_active === (this.statusFilter() === 'active'),
+      )
       .filter((q) =>
         [q.title, q.notes, this.queryConditions(q)]
           .join(' ')
@@ -85,13 +94,14 @@ export class SniperQueriesComponent {
   readonly activeCount = computed(
     () => this.state.queries().filter((query) => query.is_active).length,
   );
-  readonly statusLabel = queryStatusLabel;
   readonly editIcon = LucidePencil;
   readonly pauseIcon = LucidePause;
   readonly activateIcon = LucidePlay;
   readonly deleteIcon = LucideTrash2;
 
   constructor() {
+    const clock = setInterval(() => this.currentTime.set(Date.now()), 60000);
+    this.destroyRef.onDestroy(() => clearInterval(clock));
     void this.loadCategoryPaths();
     effect(() => {
       void this.state.runtime()?.reported_at;
@@ -146,7 +156,50 @@ export class SniperQueriesComponent {
       ? `${query.keyword_mode === 'any' ? 'Einer der Titelbegriffe' : 'Alle Titelbegriffe'}: ${query.title_keywords.join(', ')}`
       : '';
     const legacy = query.search_text ? `Vinted-Suchtext: ${query.search_text}` : '';
-    return [category, names, terms, legacy].filter(Boolean).join(' · ');
+    const excluded = query.excluded_title_keywords?.length
+      ? `ohne: ${query.excluded_title_keywords.join(', ')}`
+      : '';
+    const price = [
+      query.price_from == null ? '' : `ab ${query.price_from.toLocaleString('de-DE')} €`,
+      query.price_to == null ? '' : `bis ${query.price_to.toLocaleString('de-DE')} €`,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return [category, names, terms, excluded, legacy, price].filter(Boolean).join(' · ');
+  }
+
+  queryBriefConditions(query: SniperQuery): string {
+    const path =
+      query.catalog_id == null ? 'Alle Kategorien' : this.categoryPaths().get(query.catalog_id);
+    const categoryParts = path?.split(' > ') ?? [];
+    const category =
+      categoryParts.length > 1
+        ? `${categoryParts[0]} › ${categoryParts.at(-1)}`
+        : (categoryParts[0] ?? 'Kategorie nicht verfügbar');
+    const brands = query.brand_names?.length
+      ? query.brand_names.slice(0, 2).join(' / ') +
+        (query.brand_names.length > 2 ? ` +${query.brand_names.length - 2}` : '')
+      : query.brand_id
+        ? 'Gespeicherte Marke'
+        : 'alle Marken';
+    const count = query.title_keywords?.length ?? 0;
+    const terms = count
+      ? query.keyword_mode === 'any'
+        ? `${count} ${count === 1 ? 'Titelvariante' : 'Titelvarianten'}`
+        : `${count} ${count === 1 ? 'Titelbegriff' : 'Titelbegriffe (alle)'}`
+      : '';
+    const exclusions = query.excluded_title_keywords?.length
+      ? `${query.excluded_title_keywords.length} ${query.excluded_title_keywords.length === 1 ? 'Ausschluss' : 'Ausschlüsse'}`
+      : '';
+    const prices = [
+      query.price_from == null ? '' : `ab ${query.price_from.toLocaleString('de-DE')} €`,
+      query.price_to == null ? '' : `bis ${query.price_to.toLocaleString('de-DE')} €`,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return [category, brands, terms, exclusions, query.search_text ? 'Vinted-Suchtext' : '', prices]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   hasUnsavedChanges(): boolean {
@@ -228,9 +281,11 @@ export class SniperQueriesComponent {
       if (!this.destroyRef.destroyed) {
         afterNextRender(
           () => {
-            const origin = this.element.nativeElement.querySelector<HTMLButtonElement>(
-              `[data-delete-query="${query.id}"] button`,
-            );
+            const origin = Array.from(
+              this.element.nativeElement.querySelectorAll<HTMLButtonElement>(
+                `[data-delete-query="${query.id}"] button`,
+              ),
+            ).find((button) => button.getClientRects().length > 0);
             const fallback =
               this.element.nativeElement.querySelector<HTMLButtonElement>(
                 '[data-new-query] button',

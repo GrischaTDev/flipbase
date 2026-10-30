@@ -17,6 +17,7 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { SearchMultiSelectComponent } from '../../../../shared/components/search-multi-select/search-multi-select.component';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
+import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -79,7 +80,18 @@ beforeAll(async () => {
   );
   (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp.outputs['valueChange'] =
     'value';
-  registerSignalInputs(NumberInputComponent, ['id', 'min', 'max', 'ariaLabel']);
+  registerSignalInputs(NumberInputComponent, [
+    'id',
+    'min',
+    'max',
+    'step',
+    'unit',
+    'label',
+    'helpText',
+    'error',
+    'ariaLabel',
+  ]);
+  registerSignalInputs(FormFieldComponent, ['controlId', 'label', 'helpText', 'error', 'required']);
   registerSignalInputs(TextFieldComponent, [
     'id',
     'label',
@@ -88,10 +100,12 @@ beforeAll(async () => {
     'type',
     'maxLength',
     'helpText',
+    'required',
+    'error',
   ]);
   registerSignalInputs(
     ButtonComponent,
-    ['disabled', 'loading', 'icon', 'ariaLabel', 'iconPosition'],
+    ['disabled', 'loading', 'icon', 'ariaLabel', 'iconPosition', 'iconOnly'],
     ['clicked'],
   );
   registerSignalInputs(
@@ -239,6 +253,7 @@ describe('central search filter editor', () => {
       brandId: 53,
       brands: [{ id: 53, name: 'Nike' }],
       titleKeywords: ['vintage', 'trackpants'],
+      excludedTitleKeywords: [],
       keywordMode: 'any',
       intervalSeconds: 30,
       notes: 'Notiz',
@@ -313,6 +328,130 @@ describe('central search filter editor', () => {
     expect(component.categories()).toEqual(categories);
     expect(component.categoryError()).toBe('offline');
   });
+  it('keeps suggestions explicit and editable, saving only the chosen title variants and exclusions', async () => {
+    const component = await build();
+    const drafts: QueryDraft[] = [];
+    component.saved.subscribe((draft) => drafts.push(draft));
+    component.form.controls.title.setValue('Pufferjacken');
+    expect(component.keywords()).toEqual([]);
+    component.applyTitleSuggestion('puffer');
+    expect(component.keywords()).toEqual([
+      'puffer',
+      'pufferjacke',
+      'puffer jacke',
+      'pufferjacken',
+      'puffer jacken',
+    ]);
+    expect(component.form.controls.keywordMode.value).toBe('any');
+    expect(component.excludedKeywords()).toEqual([]);
+    component.form.controls.excludedKeywordEntry.setValue(' Pufferweste ');
+    component.addExcludedKeyword();
+    component.form.controls.excludedKeywordEntry.setValue('Weste');
+    component.removeKeyword('puffer');
+    component.submit();
+    expect(drafts[0]).toMatchObject({
+      titleKeywords: ['pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken'],
+      excludedTitleKeywords: ['pufferweste', 'weste'],
+      intervalSeconds: 5,
+      keywordMode: 'any',
+    });
+    expect(component.summary()).toContain('ohne: pufferweste, weste');
+    expect(component.hasUnsavedChanges()).toBe(true);
+  });
+  it('preserves an existing all-rule when adopting additional suggestions', async () => {
+    const component = await build({
+      title: 'Vintage',
+      title_keywords: ['vintage'],
+      keyword_mode: 'all',
+      poll_interval_ms: 20000,
+    } as SniperQuery);
+    component.applyTitleSuggestion('cable');
+    expect(component.form.controls.keywordMode.value).toBe('all');
+    expect(component.keywords()).toEqual([
+      'vintage',
+      'zopfpullover',
+      'zopf pullover',
+      'cable knit',
+    ]);
+  });
+  it('restores exclusions and marks removing an exclusion as unsaved', async () => {
+    const component = await build({
+      title: 'Jacke',
+      catalog_id: 3,
+      title_keywords: ['pufferjacke'],
+      excluded_title_keywords: ['weste'],
+      poll_interval_ms: 5000,
+    } as SniperQuery);
+    expect(component.excludedKeywords()).toEqual(['weste']);
+    component.removeExcludedKeyword('weste');
+    expect(component.excludedKeywords()).toEqual([]);
+    expect(component.hasUnsavedChanges()).toBe(true);
+  });
+  it('edits an explicit variant without leaving the old condition in the saved filter', async () => {
+    const component = await build();
+    const drafts: QueryDraft[] = [];
+    component.saved.subscribe((draft) => drafts.push(draft));
+    component.form.controls.title.setValue('Jacken');
+    component.applyTitleSuggestion('puffer');
+    component.editKeyword('puffer');
+    expect(component.form.controls.keywordEntry.value).toBe('puffer');
+    component.form.controls.keywordEntry.setValue('Puffer Jacken');
+    component.submit();
+    expect(drafts[0].titleKeywords).toEqual([
+      'pufferjacke',
+      'puffer jacke',
+      'pufferjacken',
+      'puffer jacken',
+    ]);
+  });
+  it('keeps saved title variants unchanged until a suggestion is explicitly adopted', async () => {
+    const component = await build({
+      id: 'saved',
+      title: 'Pufferjacken',
+      catalog_id: 3,
+      title_keywords: ['puffer', 'pufferjacke', 'puffer jacke'],
+      keyword_mode: 'any',
+      poll_interval_ms: 5000,
+    } as SniperQuery);
+    const drafts: QueryDraft[] = [];
+    component.saved.subscribe((draft) => drafts.push(draft));
+    component.submit();
+    expect(drafts[0].titleKeywords).toEqual(['puffer', 'pufferjacke', 'puffer jacke']);
+  });
+  it('edits an exclusion and saves its pending replacement without dropping the restriction', async () => {
+    const component = await build({
+      id: 'saved',
+      title: 'Jacken',
+      catalog_id: 3,
+      excluded_title_keywords: ['weste'],
+      poll_interval_ms: 5000,
+    } as SniperQuery);
+    const drafts: QueryDraft[] = [];
+    component.saved.subscribe((draft) => drafts.push(draft));
+    component.editExcludedKeyword('weste');
+    expect(component.form.controls.excludedKeywordEntry.value).toBe('weste');
+    component.form.controls.excludedKeywordEntry.setValue('Pufferweste');
+    component.submit();
+    expect(drafts[0].excludedTitleKeywords).toEqual(['pufferweste']);
+  });
+  it('shows an invalid interval at its field and focuses that input without emitting a draft', async () => {
+    const component = await build();
+    const drafts: QueryDraft[] = [];
+    component.saved.subscribe((draft) => drafts.push(draft));
+    component.form.controls.title.setValue('Jacken');
+    component.categoryChanged(3);
+    component.form.controls.intervalSeconds.setValue(0);
+    component.submit();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const interval = host.querySelector<HTMLInputElement>('#sniper-interval')!;
+    expect(interval.getAttribute('aria-invalid')).toBe('true');
+    const description = interval.getAttribute('aria-describedby');
+    expect(description).toBeTruthy();
+    expect(host.querySelector('#' + description)?.textContent).toContain('1');
+    expect(document.activeElement).toBe(interval);
+    expect(drafts).toEqual([]);
+  });
   it('shows retained legacy search and price restrictions in the effective summary', async () => {
     const component = await build({
       id: 'old',
@@ -329,8 +468,7 @@ describe('central search filter editor', () => {
     expect(component.summary()).toContain('50');
   });
   it('meets accessible form structure with the expanded settings', async () => {
-    const component = await build();
-    component.advanced.set(true);
+    await build();
     fixture.detectChanges();
     const result = await axe.run(fixture.nativeElement, {
       rules: { 'color-contrast': { enabled: false } },

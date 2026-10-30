@@ -107,6 +107,40 @@ function refreshProtocol(
 
 describe('readBrowserDocument', () => {
   const catalogUrl = new URL('https://www.vinted.de/catalog?brand_ids=53');
+  it('requests a fresh document and restores the normal cache after completion', async () => {
+    const { session, commands } = protocol(200, [], 'fresh catalog');
+    await readBrowserDocument(session, catalogUrl);
+    const navigation = commands.findIndex((command) => command.method === 'Page.navigate');
+    const cacheCommands = commands
+      .map((command, index) => ({ ...command, index }))
+      .filter((command) => command.method === 'Network.setCacheDisabled');
+    expect(cacheCommands.map((command) => command.params)).toEqual([
+      { cacheDisabled: true },
+      { cacheDisabled: false },
+    ]);
+    expect(cacheCommands[0]!.index).toBeLessThan(navigation);
+    expect(cacheCommands[1]!.index).toBeGreaterThan(navigation);
+    // Erst ein aktivierter Network-Agent setzt Chromiums Cache-Grenze tatsächlich um.
+    expect(commands.findIndex((command) => command.method === 'Network.enable')).toBeLessThan(
+      cacheCommands[0]!.index,
+    );
+    expect(commands.findIndex((command) => command.method === 'Network.disable')).toBeGreaterThan(
+      cacheCommands[1]!.index,
+    );
+    expect(
+      commands.filter((command) => command.method === 'Network.setBypassServiceWorker'),
+    ).toEqual([{ method: 'Network.setBypassServiceWorker', params: { bypass: false } }]);
+  });
+
+  it('restores the normal cache after an interrupted document read', async () => {
+    const { session, commands } = protocol(200, [], 'oversized'.repeat(1024 * 1024));
+    await expect(readBrowserDocument(session, catalogUrl)).rejects.toThrow('zu groß');
+    expect(commands.filter((command) => command.method === 'Network.setCacheDisabled')).toEqual([
+      { method: 'Network.setCacheDisabled', params: { cacheDisabled: true } },
+      { method: 'Network.setCacheDisabled', params: { cacheDisabled: false } },
+    ]);
+  });
+
   it('loads the original document with scripts, cookies, status and security headers intact', async () => {
     const html = '<html><script>window.executed=true</script>catalog</html>';
     const { session, commands, events } = protocol(
@@ -379,6 +413,32 @@ describe('readBrowserDocument', () => {
     ).rejects.toThrow('expired');
     expect(commands).toHaveLength(0);
     expect(events.listenerCount('Fetch.requestPaused')).toBe(0);
+  });
+  it('settles an abort during protocol setup without later enabling navigation', async () => {
+    const { session, events, commands } = protocol(200, [], 'catalog');
+    const controller = new AbortController();
+    const send = session.send.bind(session);
+    let release: () => void = () => undefined;
+    session.send = ((method: string, params?: Record<string, unknown>) => {
+      if (method === 'Page.enable')
+        return new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      return send(method as 'IO.read', params as { handle: string });
+    }) as CDPSession['send'];
+    const pending = readBrowserDocument(session, catalogUrl, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    controller.abort(new Error('setup cancelled'));
+    const result = await Promise.race([
+      pending,
+      new Promise<string>((resolve) => setTimeout(() => resolve('still blocked'), 100)),
+    ]);
+    release();
+    expect(result).toBeInstanceOf(Error);
+    expect(events.listenerCount('Fetch.requestPaused')).toBe(0);
+    expect(commands.some((command) => command.method === 'Fetch.enable')).toBe(false);
+    expect(commands.some((command) => command.method === 'Page.navigate')).toBe(false);
   });
   it('stops a still-pending navigation immediately after abort', async () => {
     const { session, events, commands } = protocol(200, [], 'catalog');

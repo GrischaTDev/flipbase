@@ -27,7 +27,7 @@
   @if (editorOpen()) {
     <app-modal-shell
       [title]="editing() ? 'Suchfilter bearbeiten' : 'Neuen Suchfilter anlegen'"
-      size="md"
+      size="lg"
       [hasFooter]="false"
       (closed)="modalClosed()"
     >
@@ -50,17 +50,23 @@
     [hasRows]="filtered().length > 0"
     loadingText="Suchfilter werden geladen …"
     [emptyTitle]="
-      state.queries().length === 0
-        ? 'Noch keine Suchfilter'
-        : 'Keine Suchfilter für diese Suche gefunden'
+      state.queries().length === 0 ? 'Noch keine Suchfilter' : 'Keine passenden Suchfilter'
     "
     [emptyText]="
       state.queries().length === 0
         ? 'Lege den ersten zentralen Suchfilter an.'
-        : 'Passe den Suchbegriff an.'
+        : 'Passe die Suche oder Statusauswahl an.'
     "
     (searchValueChange)="search.set($event)"
   >
+    <app-custom-select
+      table-filters
+      class="w-full sm:w-40"
+      [options]="statusOptions"
+      [value]="statusFilter()"
+      (valueChange)="statusFilter.set($event ?? 'all')"
+      ariaLabel="Suchfilter nach Status filtern"
+    />
     <app-button
       data-new-query
       table-filters
@@ -79,87 +85,69 @@
       <p class="text-sm text-fb-text-secondary">
         {{ state.queries().length }} Suchfilter · {{ activeCount() }} aktiv
       </p>
-      <p class="text-xs text-fb-text-muted">
-        Die Filter gelten zentral für alle Nutzer. Breite Filter bei Bedarf ausdrücklich pausieren.
+      <p class="max-w-xl text-xs text-fb-text-muted">
+        Zentrale Filter für alle Nutzer. Der Takt ist ein Wunschwert; Vinted-Limits können ihn
+        verlängern.
       </p>
     </div>
 
     <div
       table-content
-      class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+      class="hidden overflow-x-auto xl:block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
       tabindex="0"
       role="region"
       aria-label="Zentrale Suchfilter durchblättern"
     >
-      <table class="linear-table min-w-[900px]">
+      <table class="linear-table w-full min-w-[900px]">
         <caption class="sr-only">
           Zentrale Vinted-Suchfilter
         </caption>
         <thead>
           <tr>
-            <th scope="col" class="min-w-[300px]">Name</th>
-            <th scope="col" class="min-w-[150px]">Abfrage</th>
-            <th scope="col" class="min-w-[280px]">Status</th>
-            <th scope="col" class="min-w-[140px] text-center">Funde · 24 h</th>
-            <th scope="col" class="min-w-[110px] text-right">Aktionen</th>
+            <th scope="col" class="min-w-[260px]">Name</th>
+            <th scope="col" class="min-w-[120px]">Gewünschter Takt</th>
+            <th scope="col" class="min-w-[260px]">Status</th>
+            <th scope="col" class="min-w-[100px] text-center">Funde · 24 h</th>
+            <th scope="col" class="min-w-[120px] text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody>
           @for (query of filtered(); track query.id) {
             <tr class="align-middle">
-              <th scope="row" class="min-w-[300px] text-left font-normal">
+              <th scope="row" class="min-w-[260px] px-3 py-2 text-left font-normal">
                 <p class="break-words font-medium text-fb-text-primary">
                   {{ queryTitle(query) }}
                 </p>
-                <p class="mt-0.5 max-w-[420px] break-words text-xs text-fb-text-secondary">
-                  {{ queryConditions(query) }}
-                </p>
-                @if (query.notes) {
-                  <p
-                    class="mt-0.5 max-w-[420px] truncate text-xs text-fb-text-muted"
-                    [title]="query.notes"
-                  >
-                    {{ query.notes }}
-                  </p>
-                }
+                <details
+                  data-filter-conditions
+                  class="mt-1 max-w-[420px] text-xs text-fb-text-secondary"
+                >
+                  <summary class="cursor-pointer break-words">
+                    {{ queryBriefConditions(query)
+                    }}<span class="sr-only"> – Bedingungen für {{ queryTitle(query) }}</span>
+                  </summary>
+                  <p class="mt-2 break-words">{{ queryConditions(query) }}</p>
+                  @if (query.notes) {
+                    <p class="mt-1 break-words text-fb-text-muted">{{ query.notes }}</p>
+                  }
+                </details>
               </th>
-              <td class="min-w-[150px] whitespace-nowrap">
-                alle {{ query.poll_interval_ms / 1000 }} Sekunden
+              <td class="min-w-[120px]">{{ query.poll_interval_ms / 1000 }} Sekunden</td>
+              <td class="min-w-[260px]">
+                <app-sniper-query-run-status
+                  [query]="query"
+                  [currentTime]="currentTime()"
+                  [pending]="isCheckPending(query)"
+                  [manualRequired]="manualRequired()"
+                />
               </td>
-              <td class="min-w-[280px]">
-                @if (isCheckPending(query)) {
-                  <span
-                    class="inline-flex items-center gap-1.5 text-xs text-fb-text-muted"
-                    role="status"
-                  >
-                    <app-loading-indicator aria-hidden="true" />
-                    Wird geprüft …
-                  </span>
-                } @else {
-                  <app-badge [tone]="query.is_active ? 'success' : 'neutral'">
-                    {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
-                  </app-badge>
-                  <p class="mt-1 text-xs text-fb-text-muted">
-                    @if (query.is_active && manualRequired()) {
-                      Wartet auf manuelle Vinted-Prüfung
-                    } @else {
-                      Letzter Abruf: {{ statusLabel(query) }}
-                    }
-                  </p>
-                }
-                @if (query.last_polled_at) {
-                  <p class="mt-0.5 text-[11px] text-fb-text-muted">
-                    {{ query.last_polled_at | date: 'dd.MM.yyyy, HH:mm' }}
-                  </p>
-                }
-              </td>
-              <td class="min-w-[140px] whitespace-nowrap text-center tabular-nums">
+              <td class="min-w-[100px] text-center tabular-nums">
                 <span class="font-medium text-fb-text-primary">
                   {{ state.counts()[query.id] ?? 0 }}
                 </span>
               </td>
-              <td class="min-w-[110px] whitespace-nowrap">
-                <div class="flex justify-end gap-1">
+              <td class="min-w-[120px]">
+                <div class="flex justify-end gap-2">
                   @if (query.marketplace === 'vinted') {
                     <app-table-action-button
                       [icon]="editIcon"
@@ -206,6 +194,92 @@
       </table>
     </div>
 
+    <div table-mobile class="xl:hidden">
+      <ul class="divide-y divide-fb-line" aria-label="Zentrale Suchfilter">
+        @for (query of filtered(); track query.id) {
+          <li class="flex min-w-0 flex-col gap-3 px-4 py-4">
+            <div>
+              <h2 class="break-words text-sm font-semibold text-fb-text-primary">
+                {{ queryTitle(query) }}
+              </h2>
+              <details
+                data-filter-conditions
+                class="mt-1 max-w-[420px] text-xs text-fb-text-secondary"
+              >
+                <summary class="cursor-pointer break-words">
+                  {{ queryBriefConditions(query)
+                  }}<span class="sr-only"> – Bedingungen für {{ queryTitle(query) }}</span>
+                </summary>
+                <p class="mt-2 break-words">{{ queryConditions(query) }}</p>
+                @if (query.notes) {
+                  <p class="mt-1 break-words text-fb-text-muted">{{ query.notes }}</p>
+                }
+              </details>
+            </div>
+            <dl class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <dt class="text-fb-text-muted">Gewünschter Takt</dt>
+                <dd class="mt-1 text-fb-text-primary">
+                  {{ query.poll_interval_ms / 1000 }} Sekunden
+                </dd>
+              </div>
+              <div>
+                <dt class="text-fb-text-muted">Funde · 24 h</dt>
+                <dd class="mt-1 tabular-nums text-fb-text-primary">
+                  {{ state.counts()[query.id] ?? 0 }}
+                </dd>
+              </div>
+            </dl>
+            <app-sniper-query-run-status
+              [query]="query"
+              [currentTime]="currentTime()"
+              [pending]="isCheckPending(query)"
+              [manualRequired]="manualRequired()"
+            />
+            <div class="flex flex-wrap gap-2">
+              @if (query.marketplace === 'vinted') {
+                <app-table-action-button
+                  [icon]="editIcon"
+                  [disabled]="editorOpen() || busyId() !== null"
+                  [label]="'Suchfilter bearbeiten: ' + queryTitle(query)"
+                  (clicked)="openEditor(query)"
+                />
+              } @else {
+                <span
+                  class="self-center text-xs text-fb-text-muted"
+                  title="Altes Filterformat kann hier nicht bearbeitet werden"
+                >
+                  Altes Filterformat
+                </span>
+              }
+              <app-table-action-button
+                [icon]="query.is_active ? pauseIcon : activateIcon"
+                [tone]="query.is_active ? 'warning' : 'positive'"
+                [disabled]="
+                  busyId() !== null ||
+                  editorOpen() ||
+                  (query.filter_format_version !== 1 && !isBrandOnly(query) && !query.is_active)
+                "
+                [loading]="busyId() === query.id"
+                [label]="
+                  (query.is_active ? 'Suchfilter pausieren: ' : 'Suchfilter aktivieren: ') +
+                  queryTitle(query)
+                "
+                (clicked)="toggle(query)"
+              />
+              <app-table-action-button
+                [icon]="deleteIcon"
+                [attr.data-delete-query]="query.id"
+                tone="critical"
+                [disabled]="busyId() !== null || editorOpen()"
+                [label]="'Suchfilter löschen: ' + queryTitle(query)"
+                (clicked)="delete(query)"
+              />
+            </div>
+          </li>
+        }
+      </ul>
+    </div>
     <app-button
       table-empty-action
       class="mt-4"

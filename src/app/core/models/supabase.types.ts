@@ -7553,8 +7553,11 @@ export type Database = {
           brand_names: string[]
           catalog_id: number | null
           consecutive_failures: number
+          coverage_checked_at: string | null
+          coverage_status: string
           created_at: string
           deleted_at: string | null
+          excluded_title_keywords: string[]
           filter_format_version: number
           filter_revision: number
           id: string
@@ -7567,6 +7570,7 @@ export type Database = {
           last_error_kind: string | null
           last_error_message: string | null
           last_polled_at: string | null
+          last_request_duration_ms: number | null
           last_status: string
           last_success_at: string | null
           marketplace: string
@@ -7580,6 +7584,7 @@ export type Database = {
           run_state: string
           search_text: string | null
           seeded_requests: number[]
+          shared_filter_count: number
           title: string
           title_keywords: string[]
           updated_at: string
@@ -7590,8 +7595,11 @@ export type Database = {
           brand_names?: string[]
           catalog_id?: number | null
           consecutive_failures?: number
+          coverage_checked_at?: string | null
+          coverage_status?: string
           created_at?: string
           deleted_at?: string | null
+          excluded_title_keywords?: string[]
           filter_format_version?: number
           filter_revision?: number
           id?: string
@@ -7604,6 +7612,7 @@ export type Database = {
           last_error_kind?: string | null
           last_error_message?: string | null
           last_polled_at?: string | null
+          last_request_duration_ms?: number | null
           last_status?: string
           last_success_at?: string | null
           marketplace?: string
@@ -7617,6 +7626,7 @@ export type Database = {
           run_state?: string
           search_text?: string | null
           seeded_requests?: number[]
+          shared_filter_count?: number
           title?: string
           title_keywords?: string[]
           updated_at?: string
@@ -7627,8 +7637,11 @@ export type Database = {
           brand_names?: string[]
           catalog_id?: number | null
           consecutive_failures?: number
+          coverage_checked_at?: string | null
+          coverage_status?: string
           created_at?: string
           deleted_at?: string | null
+          excluded_title_keywords?: string[]
           filter_format_version?: number
           filter_revision?: number
           id?: string
@@ -7641,6 +7654,7 @@ export type Database = {
           last_error_kind?: string | null
           last_error_message?: string | null
           last_polled_at?: string | null
+          last_request_duration_ms?: number | null
           last_status?: string
           last_success_at?: string | null
           marketplace?: string
@@ -7654,11 +7668,54 @@ export type Database = {
           run_state?: string
           search_text?: string | null
           seeded_requests?: number[]
+          shared_filter_count?: number
           title?: string
           title_keywords?: string[]
           updated_at?: string
         }
         Relationships: []
+      }
+      sniper_query_matches: {
+        Row: {
+          filter_revision: number
+          first_matched_at: string
+          id: number
+          is_seed: boolean
+          listing_id: string
+          query_id: string
+        }
+        Insert: {
+          filter_revision: number
+          first_matched_at?: string
+          id?: never
+          is_seed: boolean
+          listing_id: string
+          query_id: string
+        }
+        Update: {
+          filter_revision?: number
+          first_matched_at?: string
+          id?: never
+          is_seed?: boolean
+          listing_id?: string
+          query_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_query_matches_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_query_matches_query_id_fkey"
+            columns: ["query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sniper_query_subscriptions: {
         Row: {
@@ -9480,6 +9537,7 @@ export type Database = {
       complete_sniper_search_filter_run: {
         Args: {
           p_cursor: number
+          p_diagnostics?: Json
           p_listings: Json
           p_query_id: string
           p_revision: number
@@ -12738,6 +12796,7 @@ export type Database = {
         Args: {
           p_brands: Json
           p_catalog_id: number
+          p_excluded_title_keywords?: string[]
           p_expected_revision: number
           p_id: string
           p_keyword_mode: string
@@ -12954,6 +13013,10 @@ export type Database = {
         Args: { p_logo_path: string; p_workspace_id: string }
         Returns: Json
       }
+      sniper_can_access_feed_topic: {
+        Args: { p_topic: string }
+        Returns: boolean
+      }
       sniper_check_favorite_scope: {
         Args: { p_expected_user_id: string; p_workspace_id: string }
         Returns: string
@@ -13036,6 +13099,7 @@ export type Database = {
         Returns: Json
       }
       sniper_normalize_favorite_item: { Args: { p_item: Json }; Returns: Json }
+      sniper_notify_feed_updates: { Args: never; Returns: undefined }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number
@@ -13065,11 +13129,22 @@ export type Database = {
               unusable_reason: string
             }[]
           }
+      sniper_search_filter_matches_title: {
+        Args: {
+          p_query: Database["public"]["Tables"]["sniper_queries"]["Row"]
+          p_title: string
+        }
+        Returns: boolean
+      }
       sniper_supported_brands: {
         Args: { p_workspace_id: string }
         Returns: {
           brand: string
         }[]
+      }
+      sniper_title_contains_keyword: {
+        Args: { p_keyword: string; p_title: string }
+        Returns: boolean
       }
       sniper_watchlist_matches: {
         Args: {

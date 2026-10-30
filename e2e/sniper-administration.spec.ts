@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 // Diese Datei mockt die gesamte Supabase-API und braucht keine echte Sitzung.
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -162,6 +164,7 @@ async function mockAdministration(page: Page) {
           brand_names: brands.map((brand) => brand.name),
           brand_id: brands.length === 1 ? brands[0].id : null,
           title_keywords: body['p_title_keywords'],
+          excluded_title_keywords: body['p_excluded_title_keywords'] ?? [],
           keyword_mode: body['p_keyword_mode'],
           poll_interval_ms: body['p_poll_interval_ms'],
           search_text: body['p_search_text'],
@@ -205,6 +208,86 @@ async function mockAdministration(page: Page) {
     await route.fulfill({ json });
   });
   return {
+    seedOverview: () => {
+      const titles = [
+        'Pufferjacken · Nike & Patagonia',
+        'Pufferjacken · Patagonia',
+        'Windjacken · Nike',
+        'Zopfpullover · Ralph Lauren',
+        'Vintage-Pullover',
+        'Damen-Sneaker',
+        'Vintage-Jacken',
+        'Herrenjacken bis 65 €',
+        'Damen-Stiefel',
+        'Sportjacken',
+        'Steppjacken',
+        'Zopfpullover · weitere Varianten',
+      ];
+      rows.splice(0);
+      for (const [index, title] of titles.entries()) {
+        const puffer = title.startsWith('Pufferjacken');
+        const pullover = title.toLowerCase().includes('pullover');
+        const brand = pullover
+          ? { id: 88, name: 'Ralph Lauren' }
+          : index % 2
+            ? { id: 123, name: 'Patagonia' }
+            : { id: 53, name: 'Nike' };
+        const brands = index === 0 ? [brand, { id: 123, name: 'Patagonia' }] : [brand];
+        rows.push({
+          id: `documentation-${index}`,
+          title,
+          marketplace: 'vinted',
+          query_key: `documentation-${index}`,
+          catalog_id: pullover
+            ? null
+            : title.includes('Sneaker')
+              ? 1050
+              : title.includes('Stiefel')
+                ? 1049
+                : 79,
+          brand_id: brands.length === 1 ? brand.id : null,
+          brand_ids: brands.map((entry) => entry.id),
+          brand_names: brands.map((entry) => entry.name),
+          title_keywords: puffer
+            ? ['puffer', 'pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken']
+            : pullover
+              ? ['zopfpullover', 'zopf pullover', 'cable knit']
+              : title.startsWith('Vintage')
+                ? ['vintage']
+                : [],
+          excluded_title_keywords: puffer ? ['weste', 'pufferweste'] : [],
+          keyword_mode: 'any',
+          poll_interval_ms: index % 2 ? 10000 : 5000,
+          price_from: null,
+          price_to: 30 + index * 5,
+          notes: null,
+          search_text: null,
+          is_active: index % 4 !== 3,
+          filter_revision: 1,
+          filter_format_version: 1,
+          is_seeded: index < 10,
+          is_standard: false,
+          last_status: index === 6 ? 'failed' : index < 10 ? 'ok' : 'never_polled',
+          last_success_at: index < 10 ? '2026-10-29T08:00:00Z' : null,
+          last_polled_at: index < 10 ? '2026-10-29T08:00:00Z' : null,
+          last_error_message: index === 6 ? 'Zeitlimit beim letzten Abruf.' : null,
+          coverage_status:
+            index === 6 ? 'limited' : index < 9 ? 'caught_up' : index === 9 ? 'initial' : 'unknown',
+          coverage_checked_at: index < 10 ? '2026-10-29T08:00:00Z' : null,
+          last_request_duration_ms: index < 10 ? 1234 + index * 100 : null,
+          shared_filter_count: index === 0 ? 2 : 1,
+          consecutive_failures: index === 6 ? 1 : 0,
+          created_at: '2026-10-29T07:00:00Z',
+          updated_at: '2026-10-29T08:00:00Z',
+          deleted_at: null,
+        });
+      }
+    },
+    updateQuery: (id: string, values: Record<string, unknown>) => {
+      const row = rows.find((entry) => entry['id'] === id);
+      if (!row) throw new Error('Lokales Suchfilter-Fixture fehlt.');
+      Object.assign(row, values);
+    },
     staleRuntime: () => {
       runtimeAge = 300_000;
     },
@@ -394,7 +477,12 @@ for (const theme of ['light', 'dark']) {
     await trigger.click();
     await search.press('ArrowDown');
     await search.press('Enter');
+    await search.fill('Patagonia');
+    await picker.getByRole('option', { name: 'Patagonia', exact: true }).click();
     await picker.getByRole('button', { name: 'Auswahl schließen', exact: true }).click();
+    await expect(
+      editor.getByRole('button', { name: 'Patagonia aus Auswahl entfernen', exact: true }),
+    ).toBeVisible();
     await editor
       .getByRole('textbox', { name: 'Stichwörter im Titel · optional', exact: true })
       .fill('Vintage');
@@ -404,9 +492,8 @@ for (const theme of ['light', 'dark']) {
     await expect(
       editor.getByRole('status').filter({ hasText: 'Herren > Kleidung > Jacken' }),
     ).toContainText('Titel enthält alle Begriffe: vintage');
-    await editor.getByRole('button', { name: 'Erweiterte Einstellungen', exact: true }).click();
     await editor
-      .getByRole('spinbutton', { name: 'Abstand zwischen Abfragen in Sekunden', exact: true })
+      .getByRole('spinbutton', { name: 'Gewünschter Abstand in Sekunden', exact: true })
       .fill('30');
     await editor.getByRole('textbox', { name: 'Notiz', exact: true }).fill('Sportmarken');
     await checkAxe(page);
@@ -423,7 +510,16 @@ for (const theme of ['light', 'dark']) {
     backend.failSave(false);
     await editor.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
     await expect(editor).not.toBeVisible();
-    await expect(page.getByRole('table')).toContainText('Herren > Kleidung > Jacken');
+    await expect(page.locator('app-data-table')).toContainText('Herren > Kleidung > Jacken');
+    const conditions = page.locator('details[data-filter-conditions]:visible').first();
+    await expect(conditions).not.toHaveAttribute('open');
+    await conditions.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(conditions).toHaveAttribute('open', '');
+    await expect(conditions.locator('p').first()).toBeVisible();
+    await expect(conditions.locator('p').first()).toContainText('Herren > Kleidung > Jacken');
+    await expect(conditions.locator('p').first()).toContainText('Nike oder Patagonia');
+    await page.keyboard.press('Enter');
     const title = 'Nike Herrenjacken – Vintage';
     await page
       .getByRole('button', { name: `Suchfilter aktivieren: ${title}`, exact: true })
@@ -445,16 +541,19 @@ for (const theme of ['light', 'dark']) {
     const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?', exact: true });
     await expect(discard).toBeVisible();
     await discard.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-    await editing.getByRole('button', { name: 'Erweiterte Einstellungen', exact: true }).click();
+    await expect(discard).not.toBeVisible();
     await editing
       .getByRole('textbox', { name: 'Notiz', exact: true })
       .fill('Gezielter Testbereich');
+    await expect(editing.getByRole('textbox', { name: 'Notiz', exact: true })).toHaveValue(
+      'Gezielter Testbereich',
+    );
     await editing.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-    await expect(page.getByRole('table')).toContainText('Gezielter Testbereich');
+    await expect(page.locator('app-data-table')).toContainText('Gezielter Testbereich');
     await expect(create).toBeFocused();
     await page.reload();
     await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
-    await expect(page.getByRole('table')).toContainText('Nike geändert');
+    await expect(page.locator('app-data-table')).toContainText('Nike geändert');
     await create.click();
     const second = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
     await second.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Herren komplett');
@@ -470,7 +569,7 @@ for (const theme of ['light', 'dark']) {
     await expect(parentCategoryPanel).not.toBeVisible();
     // Übergeordnete Kategorien sind ausdrücklich ohne Marke speicherbar.
     await second.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
-    await expect(page.getByRole('table')).toContainText('Herren komplett');
+    await expect(page.locator('app-data-table')).toContainText('Herren komplett');
     expect(
       backend.calls.some(
         (call) =>
@@ -526,7 +625,7 @@ for (const theme of ['light', 'dark']) {
     expect(backend.calls.filter((call) => call.name === 'delete_sniper_query')).toHaveLength(0);
     await deleteButton.click();
     await confirmation.getByRole('button', { name: 'Löschen', exact: true }).click();
-    await expect(page.getByRole('table')).not.toContainText('Nike geändert');
+    await expect(page.locator('app-data-table')).not.toContainText('Nike geändert');
     await expect(create).toBeFocused();
     await openVintedBotSection(page, 'Botbetrieb');
     await expect(page.getByRole('heading', { name: 'Vinted-Zugriff', exact: true })).toBeVisible();
@@ -583,6 +682,260 @@ for (const theme of ['light', 'dark']) {
     await testInfo.attach('browser-console', {
       body: JSON.stringify(consoleMessages),
       contentType: 'application/json',
+    });
+  });
+}
+
+for (const theme of ['light', 'dark']) {
+  test.describe(`Titelvarianten per Touch ${theme}`, () => {
+    test.use({ hasTouch: true, viewport: { width: theme === 'dark' ? 390 : 834, height: 1000 } });
+    test('übernimmt Vorschläge ausdrücklich, erhält Ausschlüsse und trennt Wunschtempo vom Abrufstand @core-smoke', async ({
+      page,
+    }, testInfo) => {
+      await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const backend = await mockAdministration(page);
+      await page.goto('/admin/vinted-bot/queries');
+      const create = page
+        .locator('[data-new-query]')
+        .getByRole('button', { name: 'Neuer Suchfilter', exact: true });
+      await create.click();
+      const editor = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
+      await expect(editor.getByRole('textbox', { name: 'Filtername', exact: true })).toBeFocused();
+      const touchField = await editor.locator('#sniper-title').evaluate((element) => ({
+        height: element.getBoundingClientRect().height,
+        fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+      }));
+      expect(touchField.height).toBeGreaterThanOrEqual(44);
+      expect(touchField.fontSize).toBeGreaterThanOrEqual(16);
+      await editor.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Pufferjacken');
+      const titleHelp = editor
+        .locator('details')
+        .filter({ hasText: 'So funktionieren die Titelregeln' });
+      await titleHelp.locator('summary').focus();
+      await page.keyboard.press('Enter');
+      await expect(titleHelp).toHaveAttribute('open', '');
+      await expect(titleHelp.locator('p').first()).toBeVisible();
+      await expect(titleHelp.locator('p').first()).toContainText('„Alle“ verlangt jeden Begriff');
+      await expect(titleHelp.locator('p').first()).toContainText('Kein Ausschlussbegriff');
+      await page.keyboard.press('Enter');
+      await editor.getByRole('button', { name: 'Pufferjacken übernehmen', exact: true }).tap();
+      for (const term of ['puffer', 'pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken'])
+        await expect(
+          editor.getByRole('button', { name: `${term} aus Titelbegriffen entfernen`, exact: true }),
+        ).toBeVisible();
+      await expect(
+        editor.getByRole('combobox', { name: 'Welche Stichwörter müssen vorkommen?', exact: true }),
+      ).toContainText('Mindestens eines');
+      await editor.getByRole('button', { name: 'puffer bearbeiten', exact: true }).tap();
+      const titleEntry = editor.getByRole('textbox', {
+        name: 'Stichwörter im Titel · optional',
+        exact: true,
+      });
+      expect((await titleEntry.boundingBox())!.width).toBeGreaterThanOrEqual(240);
+      await expect(titleEntry).toBeFocused();
+      await titleEntry.fill('Puffermantel');
+      await titleEntry.press('Enter');
+      await editor
+        .getByRole('button', { name: 'puffermantel aus Titelbegriffen entfernen', exact: true })
+        .tap();
+      const exclusion = editor.getByRole('textbox', {
+        name: 'Ausschlussbegriffe im Titel · optional',
+        exact: true,
+      });
+      expect((await exclusion.boundingBox())!.width).toBeGreaterThanOrEqual(240);
+      await exclusion.fill('Weste');
+      await exclusion.press('Enter');
+      await exclusion.fill('Pufferweste');
+      await editor.getByRole('button', { name: 'Ausschluss hinzufügen', exact: true }).tap();
+      await editor
+        .getByRole('spinbutton', { name: 'Höchstpreis · optional', exact: true })
+        .fill('50');
+      const interval = editor.getByRole('spinbutton', {
+        name: 'Gewünschter Abstand in Sekunden',
+        exact: true,
+      });
+      await expect(interval).toHaveValue('5');
+      await interval.fill('0');
+      await editor.getByRole('button', { name: 'Suchfilter speichern', exact: true }).tap();
+      await expect(interval).toHaveAttribute('aria-invalid', 'true');
+      await expect(interval).toBeFocused();
+      await interval.fill('1');
+      await checkAxe(page);
+      await page.screenshot({
+        path: testInfo.outputPath('title-variants-touch.png'),
+        fullPage: true,
+      });
+      await editor.getByRole('button', { name: 'Suchfilter speichern', exact: true }).tap();
+      await expect(editor).not.toBeVisible();
+      expect(
+        backend.calls.find((call) => call.name === 'save_sniper_search_filter')?.body,
+      ).toMatchObject({
+        p_title_keywords: ['pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken'],
+        p_excluded_title_keywords: ['weste', 'pufferweste'],
+        p_keyword_mode: 'any',
+        p_poll_interval_ms: 1000,
+        p_price_to: 50,
+      });
+      const table = page.locator('app-data-table');
+      await expect(table).toContainText('ohne: weste, pufferweste');
+      await expect(table).toContainText('Noch kein erfolgreicher Abruf');
+      await expect(table).toContainText('Abrufumfang noch unbekannt');
+      backend.updateQuery('query-1', {
+        last_status: 'failed',
+        last_error_message: 'Zeitlimit beim letzten Abruf',
+        last_success_at: '2026-10-29T08:00:00Z',
+        coverage_status: 'limited',
+        coverage_checked_at: '2026-10-29T08:05:00Z',
+        last_request_duration_ms: 1234,
+        shared_filter_count: 2,
+      });
+      await page.reload();
+      await expect(table).toContainText('Zeitlimit beim letzten Abruf');
+      await expect(table).toContainText('Aufholen begrenzt');
+      await expect(table).toContainText('1234 ms');
+      const run = page.locator('app-sniper-query-run-status:visible').first();
+      await expect(run.getByText('Zeitlimit beim letzten Abruf', { exact: true })).toBeVisible();
+      await expect(
+        run.getByText('Aufholen begrenzt · weitere Artikel möglich', { exact: true }),
+      ).toBeVisible();
+      const runDetails = run.locator('details[data-query-run-details]');
+      await expect(runDetails).not.toHaveAttribute('open');
+      await runDetails.locator('summary').focus();
+      await page.keyboard.press('Enter');
+      await expect(runDetails).toHaveAttribute('open', '');
+      await expect(runDetails.getByText('1234 ms', { exact: true })).toBeVisible();
+      await expect(runDetails.locator('time').first()).toHaveAttribute(
+        'datetime',
+        '2026-10-29T08:00:00Z',
+      );
+      await expect(runDetails.locator('time').first()).toBeVisible();
+      await expect(runDetails).toContainText('Geteilt mit insgesamt 2 Filtern');
+      await page.keyboard.press('Enter');
+      await expect(runDetails.locator('summary')).toBeFocused();
+      const fullConditions = page.locator('details[data-filter-conditions]:visible').first();
+      await fullConditions.locator('summary').focus();
+      await page.keyboard.press('Enter');
+      await expect(fullConditions.locator('p').first()).toBeVisible();
+      await expect(fullConditions.locator('p').first()).toContainText('ohne: weste, pufferweste');
+      await page.keyboard.press('Enter');
+      const status = page.getByRole('combobox', {
+        name: 'Suchfilter nach Status filtern',
+        exact: true,
+      });
+      await status.click();
+      await page.getByRole('option', { name: 'Aktiv', exact: true }).click();
+      await expect(page.getByText('Keine passenden Suchfilter', { exact: true })).toBeVisible();
+      await status.click();
+      await page.getByRole('option', { name: 'Pausiert', exact: true }).click();
+      await expect(table).toContainText('Pufferjacken');
+      const edit = page.getByRole('button', {
+        name: 'Suchfilter bearbeiten: Pufferjacken',
+        exact: true,
+      });
+      await edit.tap();
+      const editing = page.getByRole('dialog', { name: 'Suchfilter bearbeiten', exact: true });
+      await expect(
+        editing.getByRole('button', { name: 'weste aus Ausschlüssen entfernen', exact: true }),
+      ).toBeVisible();
+      await expect(
+        editing.getByRole('button', {
+          name: 'pufferweste aus Ausschlüssen entfernen',
+          exact: true,
+        }),
+      ).toBeVisible();
+      await editing.getByRole('button', { name: 'Abbrechen', exact: true }).tap();
+      await expect(create).toBeFocused();
+      await checkAxe(page);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath('title-variants-list-touch.png'),
+        fullPage: true,
+      });
+    });
+  });
+}
+
+for (const view of [
+  { name: 'desktop-light', theme: 'light', width: 1440, formHeight: 1500 },
+  { name: 'mobile-dark', theme: 'dark', width: 390, formHeight: 2200 },
+]) {
+  test.describe(`Bildnachweis ${view.name}`, () => {
+    test.use({ hasTouch: view.name === 'mobile-dark' });
+    test(`zeigt vollständige Filterübersicht und neue Anlage ${view.name} mit synthetischen Daten`, async ({
+      page,
+    }) => {
+      const directory = resolve('.superpowers/sdd/vinted-search-filters/admin/screenshots');
+      await mkdir(directory, { recursive: true });
+      await page.setViewportSize({ width: view.width, height: 1000 });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript(
+        (theme) => localStorage.setItem('flipbase_theme', theme),
+        view.theme,
+      );
+      const backend = await mockAdministration(page);
+      backend.seedOverview();
+      await page.goto('/admin/vinted-bot/queries');
+      await expect(page.locator('app-data-table')).toContainText('12 Suchfilter');
+      await expect(page.locator('#app-startup')).not.toBeVisible();
+      if (view.name === 'desktop-light') {
+        const tableWidth = await page
+          .getByRole('region', { name: 'Zentrale Suchfilter durchblättern', exact: true })
+          .evaluate((element) => ({
+            available: element.clientWidth,
+            content: element.scrollWidth,
+          }));
+        expect(tableWidth.content).toBeLessThanOrEqual(tableWidth.available + 1);
+      }
+      await checkAxe(page);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+      // Die Übersicht vollständig zeigen, ohne dass die feste mobile Navigation
+      // beim Vollseitenfoto mitten über einer Filterzeile liegt.
+      const overviewHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+      if (view.name === 'desktop-light') expect(overviewHeight).toBeLessThan(1550);
+      await page.setViewportSize({ width: view.width, height: overviewHeight });
+      await page.screenshot({
+        path: resolve(directory, `${view.name}-overview.png`),
+        fullPage: false,
+      });
+      await page
+        .locator('[data-new-query]')
+        .getByRole('button', { name: 'Neuer Suchfilter', exact: true })
+        .click();
+      const editor = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
+      await expect(editor.getByRole('textbox', { name: 'Filtername', exact: true })).toBeFocused();
+      // Für den vollständigen Formularnachweis nur die Fensterhöhe vergrößern;
+      // keine DOM-/CSS-Manipulation und kein abgeschnittener Formularteil.
+      await page.setViewportSize({ width: view.width, height: view.formHeight });
+      await expect(
+        editor.getByRole('button', { name: 'Suchfilter speichern', exact: true }),
+      ).toBeInViewport();
+      await expect(
+        editor.getByRole('textbox', { name: 'Filtername', exact: true }),
+      ).toBeInViewport();
+      await checkAxe(page);
+      await page.screenshot({
+        path: resolve(directory, `${view.name}-new-filter.png`),
+        fullPage: false,
+      });
+      expect(backend.calls).toEqual([]);
+      await writeFile(
+        resolve(directory, `${view.name}-measurements.json`),
+        JSON.stringify(
+          {
+            width: view.width,
+            overviewHeight,
+            editorContentHeight: (await editor.locator('form').boundingBox())?.height,
+            formViewportHeight: view.formHeight,
+          },
+          null,
+          2,
+        ),
+      );
     });
   });
 }

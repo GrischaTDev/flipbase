@@ -6,6 +6,11 @@ interface SearchFilterColumns {
   brand_ids: number[];
   brand_names: string[];
   title_keywords: string[];
+  excluded_title_keywords: string[];
+  coverage_status: string;
+  coverage_checked_at: string | null;
+  last_request_duration_ms: number | null;
+  shared_filter_count: number | null;
   keyword_mode: string;
   filter_revision: number;
   filter_format_version: number;
@@ -42,6 +47,7 @@ export interface QueryDraft {
   catalogId?: number | null;
   brands?: VintedBrand[];
   titleKeywords?: string[];
+  excludedTitleKeywords?: string[];
   keywordMode?: TitleKeywordMode;
   revision?: number | null;
   searchText?: string | null;
@@ -59,7 +65,7 @@ export function normalizeFilterKeyword(value: string): string {
 }
 
 export function queryDraftError(draft: QueryDraft): string | null {
-  if (!draft.title.trim()) return 'Bitte einen Filtername angeben.';
+  if (!draft.title.trim()) return 'Bitte einen Filternamen angeben.';
   if ([...draft.title].length > 100) return 'Der Filtername darf höchstens 100 Zeichen lang sein.';
   const validId = (id: number) => Number.isInteger(id) && id > 0 && id <= 2147483647;
   if (draft.brandId !== null && !validId(draft.brandId))
@@ -85,6 +91,26 @@ export function queryDraftError(draft: QueryDraft): string | null {
   }
   if (draft.keywordMode !== undefined && draft.keywordMode !== 'all' && draft.keywordMode !== 'any')
     return 'Bitte die Verknüpfung der Titelbegriffe auswählen.';
+  const exclusions = draft.excludedTitleKeywords ?? [];
+  if (
+    exclusions.length > 10 ||
+    exclusions.some(
+      (term) =>
+        typeof term !== 'string' ||
+        [...normalizeFilterKeyword(term)].length > 80 ||
+        !/[\p{L}\p{N}]/u.test(normalizeFilterKeyword(term)),
+    )
+  )
+    return 'Bitte höchstens zehn Ausschlussbegriffe mit jeweils 1 bis 80 Zeichen angeben.';
+  const isExcluded = (term: string) =>
+    exclusions.some(
+      (excluded) => normalizeFilterKeyword(term) === normalizeFilterKeyword(excluded),
+    );
+  if (
+    terms.length &&
+    (draft.keywordMode === 'any' ? terms.every(isExcluded) : terms.some(isExcluded))
+  )
+    return 'Die nötigen Titelbegriffe sind zugleich ausgeschlossen. Passe die Begriffe oder ihre Verknüpfung an.';
   if (!brands.length && draft.catalogId == null && !terms.length && !draft.searchText?.trim()) {
     return draft.catalogId === undefined
       ? 'Bitte eine gültige Vinted-Marke auswählen.'
@@ -93,10 +119,10 @@ export function queryDraftError(draft: QueryDraft): string | null {
   if ([...draft.notes].length > 2000) return 'Die Notiz darf höchstens 2.000 Zeichen lang sein.';
   if (
     !Number.isInteger(draft.intervalSeconds) ||
-    draft.intervalSeconds < 10 ||
+    draft.intervalSeconds < 1 ||
     draft.intervalSeconds > 86400
   )
-    return 'Der Takt muss zwischen 10 und 86.400 Sekunden liegen.';
+    return 'Der gewünschte Takt muss zwischen 1 und 86.400 Sekunden liegen.';
   if (draft.searchText && [...draft.searchText].length > 200)
     return 'Der vorhandene Suchtext darf höchstens 200 Zeichen lang sein.';
   for (const price of [draft.priceFrom, draft.priceTo]) {

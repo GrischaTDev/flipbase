@@ -34,8 +34,9 @@ describe('loadConfig', () => {
     const config = loadConfig(validEnv);
 
     expect(config.vintedBaseUrl).toBe('https://www.vinted.de');
-    expect(config.requestsPerMinute).toBe(30);
-    expect(config.tickIntervalMs).toBe(5000);
+    expect(config.requestsPerMinute).toBe(24);
+    expect(config.tickIntervalMs).toBe(1000);
+    expect(config.requestMinIntervalMs).toBe(2500);
     expect(config.categoryMaxAgeMs).toBe(86_400_000);
   });
 

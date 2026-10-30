@@ -93,9 +93,9 @@ Nicht die gesamte Supabase-Umgebungsdatei an den Bot weiterreichen.
 SUPABASE_URL=https://api.flipbase.de
 SUPABASE_SERVICE_ROLE_KEY=<vorhandener Dienstschlüssel>
 VINTED_BASE_URL=https://www.vinted.de
-SNIPER_REQUESTS_PER_MINUTE=30
-SNIPER_TICK_INTERVAL_MS=5000
-SNIPER_REQUEST_MIN_INTERVAL_MS=10000
+SNIPER_REQUESTS_PER_MINUTE=24
+SNIPER_TICK_INTERVAL_MS=1000
+SNIPER_REQUEST_MIN_INTERVAL_MS=2500
 SNIPER_REQUEST_TIMEOUT_MS=20000
 SNIPER_HEALTH_PORT=8080
 SNIPER_CATEGORY_MAX_AGE_MS=86400000
@@ -265,13 +265,53 @@ Vinted-Pause bleibt bei einem Neustart gespeichert.
 
 ### Gleichmäßige Abrufe und Zugriffspausen
 
-Alle Vinted-Anfragen teilen sich einen Mindestabstand: standardmäßig zehn
-Sekunden zwischen zwei Starts. Das gilt auch für Kategorieabrufe und
-Wiederholungen nach Serverfehlern. Anfragen werden nacheinander gestartet;
-das Minutenbudget bleibt zusätzlich bestehen. Der einzelne Markenintervall
-ist die früheste Fälligkeit, keine Zusage eines Abrufs alle 20 Sekunden.
-Bei drei aktiven Marken dauert eine Runde dadurch mindestens rund 30 Sekunden,
-zuzüglich längerer Verarbeitung und des Diensttakts.
+Alle vom Sammler gestarteten Vinted-Abrufe teilen sich einen Mindestabstand:
+standardmäßig 2,5 Sekunden zwischen zwei Starts und höchstens 24 Starts in einem
+rollenden Minutenfenster. Das gilt auch für Kategorien und Wiederholungen nach
+Serverfehlern. Der Browser arbeitet seriell im bestehenden Profil. Nach dem
+regulären Sitzungsaufbau lädt er Katalogantworten ohne Browsercache per Fetch;
+eine reguläre Sitzungsauffrischung darf weiterhin navigieren. Das Budget zählt
+Sammlerabrufe, nicht jedes durch Navigation ausgelöste Netzwerkpaket.
+
+Vor jedem Quellauftrag werden fällige Filter neu gelesen. Nur exakt gleiche
+Quellparameter teilen eine Rohantwort; Titelbegriffe und Ausschlüsse werden
+anschließend je Filter geprüft. Kategorie, Marke, Preis und vorhandener Suchtext
+werden dabei nicht erweitert. Mehrere Marken und ODER-Begriffe bleiben eigene
+Teilabfragen. Das gewünschte Tempo bestimmt die früheste Fälligkeit, garantiert
+aber keinen festen Abstand: weitere Quellen, Antwortzeiten und Anbieterpausen
+wirken weiterhin mit. Bestehende Umgebungswerte haben Vorrang vor neuen Vorgaben.
+
+Bei einer vollen Seite ohne Überschneidung mit dem eigenen vorherigen Abruf werden
+höchstens drei Seiten mit je 96 Artikeln geladen. Jeder Filter hält seinen eigenen
+bestätigten Ausschnitt je Revision und Teilabfrage. Ein schnellerer Filter derselben
+Quelle kann den Stand eines langsameren oder fehlgeschlagenen Empfängers nicht
+vorziehen. Gemeinsame Seiten werden nur bis zum jeweils eigenen Ausschnitt übernommen;
+die Abdeckung und Zahl der Seiten gelten je Empfänger. Der Dienst hält höchstens
+2.048 solche Ausschnitte mit jeweils höchstens 288 Artikelkennungen im Speicher.
+Nach Verdrängung oder Neustart ist die Abdeckung einer bereits eingelesenen
+Teilabfrage zunächst unbekannt; sie wird nicht erneut als stiller Erstbestand ausgegeben.
+Die Anzeige unterscheidet den
+Erstabruf, einen wieder erreichten vorherigen Ausschnitt, eine begrenzte und eine
+unbekannte Abdeckung. Keine dieser Angaben beweist, dass sämtliche passenden
+Vinted-Artikel erfasst sind. Nach einem Neustart beginnt dieser Vergleich neu.
+Ein begrenztes Fenster wird nicht als vollständiger Abruf ausgegeben.
+
+Die wiederhergestellte Produktionskonfiguration aus der Messung am 29.10.2026
+setzt die bisherigen Werte ausdrücklich: 30 Starts/min, 10.000 ms Mindestabstand
+und 5.000 ms Diensttakt. Ein Imagewechsel allein beschleunigt diesen Betrieb
+deshalb nicht. Erst nach gesondert freigegebenem Rollout die bestehende
+Konfiguration mit eingeschränkten Dateirechten sichern, genau diese drei Felder
+auf 24, 2500 und 1000 setzen und den regulären Dienst neu erstellen. Danach die
+effektiv geladenen drei nicht geheimen Werte, den Image-Digest, neue erfolgreiche
+Abrufzeiten, Herkunftsstatus und Fehlerzähler prüfen. Der Sicherungsstand erlaubt
+die Rückkehr zu den vorherigen Werten. Anbieterpausen werden dabei erhalten.
+Diese Umsetzung hat keine Produktionskonfiguration geändert; kurze Messungen
+belegen keine dauerhaft sichere Abrufrate und keine zugesicherte Fundlatenz.
+
+Fehlerpausen beginnen am tatsächlichen Fehlerzeitpunkt. Ein fehlgeschlagenes
+Speichern der gemeinsamen Pause hält weitere Starts auch lokal gesperrt. Die
+Wiederholung der Speicherung oder ein erfolgreicher Probeabruf verwendet den
+bestehenden Herkunftsstatus; eine manuelle Sitzung hebt keine Anbieterfrist auf.
 
 `SNIPER_REQUEST_MIN_INTERVAL_MS` ist zwischen 1.000 und 60.000 Millisekunden
 konfigurierbar. `SNIPER_REQUEST_TIMEOUT_MS` begrenzt einen einzelnen Abruf

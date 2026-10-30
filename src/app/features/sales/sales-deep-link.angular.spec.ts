@@ -5,7 +5,7 @@ import { SALE_PLATFORM_OPTIONS } from '../../core/config/sale-platform-options';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
-import { signal, ɵresolveComponentResources } from '@angular/core';
+import { computed, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -17,6 +17,13 @@ import { InvoiceService } from '../../core/services/invoice.service';
 import { CompanyDocumentError } from '../../core/models/company-document.models';
 import { ReturnService } from '../../core/services/return.service';
 import { SalesService } from '../../core/services/sales.service';
+import { AuthService } from '../../core/services/auth.service';
+import { InventoryService } from '../../core/services/inventory.service';
+import { StockService } from '../../core/services/stock.service';
+import { SalePlatformsService } from '../../core/services/sale-platforms.service';
+import { SupabaseService } from '../../core/services/supabase.service';
+import { mergeSalePlatforms } from '../../core/models/sale-platforms';
+import { EbaySaleActivityStore } from './services/ebay-sale-activity.store';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -196,6 +203,9 @@ let sales = signal<Sale[]>([]);
 let loadedWorkspaceId = signal<string | null>(null);
 let loadError = signal<Error | null>(null);
 let metricsForSale = vi.fn((value: Sale) => calculateStoredSaleMetrics(value));
+let unexpectedRequest = vi.fn(() => {
+  throw new Error('Dieser Routentest darf keine Serverabfrage starten.');
+});
 const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 const originalFocus = HTMLElement.prototype.focus;
 const originalMatchMedia = globalThis.matchMedia;
@@ -204,6 +214,7 @@ afterEach(() => {
   HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   HTMLElement.prototype.focus = originalFocus;
   globalThis.matchMedia = originalMatchMedia;
+  expect(unexpectedRequest).not.toHaveBeenCalled();
 });
 
 beforeEach(() => {
@@ -211,6 +222,15 @@ beforeEach(() => {
   loadedWorkspaceId = signal<string | null>(null);
   loadError = signal<Error | null>(null);
   metricsForSale = vi.fn((value: Sale) => calculateStoredSaleMetrics(value));
+  unexpectedRequest = vi.fn(() => {
+    throw new Error('Dieser Routentest darf keine Serverabfrage starten.');
+  });
+  const platforms = computed(() =>
+    mergeSalePlatforms(
+      [],
+      sales().map((sale) => sale.platform),
+    ),
+  );
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [
@@ -224,6 +244,62 @@ beforeEach(() => {
     providers: [
       provideRouter([{ path: 'sales', component: SalesComponent }]),
       provideTranslateService({ lang: 'de' }),
+      // Die Route prüft Verkäufe und ihre Darstellung. Die eingebettete eBay-
+      // Übersicht bekommt geladene lokale Zustände statt echter Hintergrundabrufe.
+      {
+        provide: InventoryService,
+        useValue: { items: signal([]) } satisfies Pick<InventoryService, 'items'>,
+      },
+      {
+        provide: StockService,
+        useValue: {
+          positions: signal([]),
+          lots: signal([]),
+          loadedWorkspaceId: signal<string | null>(workspace.id),
+          loadPositions: vi.fn(async () => undefined),
+        } satisfies Pick<
+          StockService,
+          'positions' | 'lots' | 'loadedWorkspaceId' | 'loadPositions'
+        >,
+      },
+      {
+        provide: EbaySaleActivityStore,
+        useValue: {
+          drafts: signal([]),
+          reservations: signal([]),
+          error: signal<string | null>(null),
+          loading: signal(false),
+          resolving: signal(false),
+          reload: vi.fn(async () => undefined),
+        } satisfies Pick<
+          EbaySaleActivityStore,
+          'drafts' | 'reservations' | 'error' | 'loading' | 'resolving' | 'reload'
+        >,
+      },
+      {
+        provide: SalePlatformsService,
+        useValue: {
+          options: platforms,
+          error: signal<string | null>(null),
+          reload: vi.fn(async () => undefined),
+          label: (value: string) =>
+            platforms().find((platform) => platform.value === value)?.label ?? value,
+        } satisfies Pick<SalePlatformsService, 'options' | 'error' | 'reload' | 'label'>,
+      },
+      {
+        provide: AuthService,
+        useValue: { currentUser: signal(null) } satisfies Pick<AuthService, 'currentUser'>,
+      },
+      {
+        provide: SupabaseService,
+        useValue: {
+          client: {
+            from: unexpectedRequest,
+            rpc: unexpectedRequest,
+            auth: { getUser: unexpectedRequest, updateUser: unexpectedRequest },
+          },
+        },
+      },
       {
         provide: SalesService,
         useValue: {

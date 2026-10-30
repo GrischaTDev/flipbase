@@ -1,0 +1,6148 @@
+{
+  "runs": [
+    {
+      "method": "existing_document_navigation",
+      "restoration": {
+        "at": "2026-10-29T20:45:49.776614+00:00",
+        "event": "restored",
+        "originalImage": true,
+        "filterConfigurationUnchanged": true,
+        "instrumentationMounts": [],
+        "originalEnvUnchanged": true
+      },
+      "stages": [
+        {
+          "minimumIntervalMs": 5000,
+          "requestsPerMinute": 60,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T20:33:59.341338+00:00",
+          "endedAt": "2026-10-29T20:37:12.990938+00:00",
+          "stopReason": null,
+          "samples": [
+            {
+              "at": "2026-10-29T20:34:15.472372+00:00",
+              "memory": "981.7MiB / 2GiB",
+              "memoryPercent": 47.93,
+              "cpuPercent": "198.03%",
+              "pids": "183",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 2,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:34:31.646449+00:00",
+              "memory": "1.135GiB / 2GiB",
+              "memoryPercent": 56.73,
+              "cpuPercent": "173.81%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 4,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:34:47.836178+00:00",
+              "memory": "1.21GiB / 2GiB",
+              "memoryPercent": 60.52,
+              "cpuPercent": "217.02%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 6,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:35:03.945242+00:00",
+              "memory": "1.603GiB / 2GiB",
+              "memoryPercent": 80.13,
+              "cpuPercent": "190.81%",
+              "pids": "149",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 8,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:35:20.132089+00:00",
+              "memory": "1.348GiB / 2GiB",
+              "memoryPercent": 67.38,
+              "cpuPercent": "133.76%",
+              "pids": "156",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 11,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:35:36.273775+00:00",
+              "memory": "1.281GiB / 2GiB",
+              "memoryPercent": 64.04,
+              "cpuPercent": "244.70%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 13,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:35:52.402080+00:00",
+              "memory": "753.4MiB / 2GiB",
+              "memoryPercent": 36.79,
+              "cpuPercent": "198.26%",
+              "pids": "155",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 15,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:36:08.525891+00:00",
+              "memory": "1.216GiB / 2GiB",
+              "memoryPercent": 60.81,
+              "cpuPercent": "248.58%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 18,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:36:24.647134+00:00",
+              "memory": "1.057GiB / 2GiB",
+              "memoryPercent": 52.83,
+              "cpuPercent": "87.09%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 20,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:36:40.773017+00:00",
+              "memory": "1.213GiB / 2GiB",
+              "memoryPercent": 60.64,
+              "cpuPercent": "197.83%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 22,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:36:56.886641+00:00",
+              "memory": "1.221GiB / 2GiB",
+              "memoryPercent": 61.07,
+              "cpuPercent": "223.45%",
+              "pids": "161",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 24,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:37:12.990678+00:00",
+              "memory": "1.449GiB / 2GiB",
+              "memoryPercent": 72.47,
+              "cpuPercent": "213.02%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 27,
+              "failedQueries": 0
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T20:34:00.215Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T20:34:07.761Z",
+              "event": "measurement_request",
+              "durationMs": "7431",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:14.468Z",
+              "event": "measurement_request",
+              "durationMs": "5929",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:20.986Z",
+              "event": "measurement_request",
+              "durationMs": "5598",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:27.435Z",
+              "event": "measurement_request",
+              "durationMs": "6065",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:28.264Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "34",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:34:28.583Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:34:28.596Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:34:35.587Z",
+              "event": "measurement_request",
+              "durationMs": "5932",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:44.060Z",
+              "event": "measurement_request",
+              "durationMs": "7506",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:50.908Z",
+              "event": "measurement_request",
+              "durationMs": "5698",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:57.293Z",
+              "event": "measurement_request",
+              "durationMs": "6000",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:34:58.094Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "20",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:34:58.480Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:35:05.506Z",
+              "event": "measurement_request",
+              "durationMs": "5964",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:12.104Z",
+              "event": "measurement_request",
+              "durationMs": "5886",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:18.811Z",
+              "event": "measurement_request",
+              "durationMs": "5763",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:25.256Z",
+              "event": "measurement_request",
+              "durationMs": "6104",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:25.898Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "35",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:35:26.243Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:35:33.077Z",
+              "event": "measurement_request",
+              "durationMs": "5778",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:39.571Z",
+              "event": "measurement_request",
+              "durationMs": "5821",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:46.776Z",
+              "event": "measurement_request",
+              "durationMs": "6221",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:53.937Z",
+              "event": "measurement_request",
+              "durationMs": "6803",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:35:54.536Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "22",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:35:54.854Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:35:54.865Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:36:01.684Z",
+              "event": "measurement_request",
+              "durationMs": "5761",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:08.302Z",
+              "event": "measurement_request",
+              "durationMs": "5761",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:14.980Z",
+              "event": "measurement_request",
+              "durationMs": "5601",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:21.363Z",
+              "event": "measurement_request",
+              "durationMs": "6046",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:22.071Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "20",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:36:22.500Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:36:29.305Z",
+              "event": "measurement_request",
+              "durationMs": "5749",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:35.834Z",
+              "event": "measurement_request",
+              "durationMs": "5828",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:42.953Z",
+              "event": "measurement_request",
+              "durationMs": "6122",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:49.155Z",
+              "event": "measurement_request",
+              "durationMs": "5852",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:36:49.839Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "22",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:36:50.235Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:36:57.060Z",
+              "event": "measurement_request",
+              "durationMs": "5772",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:37:03.403Z",
+              "event": "measurement_request",
+              "durationMs": "5591",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:37:10.122Z",
+              "event": "measurement_request",
+              "durationMs": "5867",
+              "status": "200",
+              "path": "/catalog"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 193.649,
+            "completedCatalogCalls": 27,
+            "http200": 27,
+            "completedCallsPerMinute": 8.365651255622286,
+            "http200PerMinute": 8.365651255622286,
+            "durationMinMs": 5591,
+            "durationP50Ms": 5867,
+            "durationP95Ms": 7431,
+            "durationMaxMs": 7506,
+            "failedQueries": 0,
+            "statuses": {
+              "200": 27
+            },
+            "providerRejectionAt": null,
+            "catalogCompletionsAfterRejection": null,
+            "memoryMaxPercent": 80.13,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 24,
+            "loggedNewListings": 153
+          }
+        },
+        {
+          "minimumIntervalMs": 2000,
+          "requestsPerMinute": 120,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T20:37:20.883696+00:00",
+          "endedAt": "2026-10-29T20:40:34.462624+00:00",
+          "stopReason": null,
+          "samples": [
+            {
+              "at": "2026-10-29T20:37:37.016501+00:00",
+              "memory": "786.8MiB / 2GiB",
+              "memoryPercent": 38.42,
+              "cpuPercent": "209.72%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 1,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:37:53.121802+00:00",
+              "memory": "1.023GiB / 2GiB",
+              "memoryPercent": 51.14,
+              "cpuPercent": "52.85%",
+              "pids": "159",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 4,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:38:09.247933+00:00",
+              "memory": "1.117GiB / 2GiB",
+              "memoryPercent": 55.84,
+              "cpuPercent": "208.56%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 6,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:38:25.381726+00:00",
+              "memory": "1.033GiB / 2GiB",
+              "memoryPercent": 51.67,
+              "cpuPercent": "213.32%",
+              "pids": "161",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 8,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:38:41.504690+00:00",
+              "memory": "1.107GiB / 2GiB",
+              "memoryPercent": 55.33,
+              "cpuPercent": "152.47%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 11,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:38:57.616128+00:00",
+              "memory": "1.482GiB / 2GiB",
+              "memoryPercent": 74.11,
+              "cpuPercent": "190.52%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 13,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:39:13.758551+00:00",
+              "memory": "758.9MiB / 2GiB",
+              "memoryPercent": 37.05,
+              "cpuPercent": "159.87%",
+              "pids": "156",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 16,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:39:29.884756+00:00",
+              "memory": "1.199GiB / 2GiB",
+              "memoryPercent": 59.94,
+              "cpuPercent": "261.99%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 18,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:39:46.008733+00:00",
+              "memory": "1.381GiB / 2GiB",
+              "memoryPercent": 69.06,
+              "cpuPercent": "190.86%",
+              "pids": "149",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 20,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:40:02.165882+00:00",
+              "memory": "1.277GiB / 2GiB",
+              "memoryPercent": 63.86,
+              "cpuPercent": "204.91%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 23,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:40:18.308790+00:00",
+              "memory": "1.261GiB / 2GiB",
+              "memoryPercent": 63.06,
+              "cpuPercent": "230.74%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 25,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:40:34.462474+00:00",
+              "memory": "1.169GiB / 2GiB",
+              "memoryPercent": 58.44,
+              "cpuPercent": "224.91%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 28,
+              "failedQueries": 0
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T20:37:21.968Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T20:37:30.549Z",
+              "event": "measurement_request",
+              "durationMs": "8478",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:37:37.177Z",
+              "event": "measurement_request",
+              "durationMs": "5875",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:37:43.914Z",
+              "event": "measurement_request",
+              "durationMs": "5730",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:37:50.164Z",
+              "event": "measurement_request",
+              "durationMs": "5865",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:37:50.867Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "21",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:37:51.219Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:37:51.231Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:37:58.270Z",
+              "event": "measurement_request",
+              "durationMs": "5986",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:04.676Z",
+              "event": "measurement_request",
+              "durationMs": "5673",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:11.713Z",
+              "event": "measurement_request",
+              "durationMs": "5925",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:17.956Z",
+              "event": "measurement_request",
+              "durationMs": "5894",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:18.656Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "24",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:38:18.980Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:38:26.053Z",
+              "event": "measurement_request",
+              "durationMs": "6018",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:32.259Z",
+              "event": "measurement_request",
+              "durationMs": "5531",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:39.160Z",
+              "event": "measurement_request",
+              "durationMs": "5940",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:45.529Z",
+              "event": "measurement_request",
+              "durationMs": "6032",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:46.313Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "28",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:38:46.713Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:38:53.362Z",
+              "event": "measurement_request",
+              "durationMs": "5585",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:38:59.566Z",
+              "event": "measurement_request",
+              "durationMs": "5589",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:06.302Z",
+              "event": "measurement_request",
+              "durationMs": "5767",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:12.645Z",
+              "event": "measurement_request",
+              "durationMs": "6087",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:13.326Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "2",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:39:13.727Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:39:13.743Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:39:20.482Z",
+              "event": "measurement_request",
+              "durationMs": "5675",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:26.657Z",
+              "event": "measurement_request",
+              "durationMs": "5527",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:33.252Z",
+              "event": "measurement_request",
+              "durationMs": "5649",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:39.796Z",
+              "event": "measurement_request",
+              "durationMs": "6255",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:40.696Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "14",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:39:41.029Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:39:47.926Z",
+              "event": "measurement_request",
+              "durationMs": "5832",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:39:54.324Z",
+              "event": "measurement_request",
+              "durationMs": "5711",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:01.035Z",
+              "event": "measurement_request",
+              "durationMs": "5753",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:07.686Z",
+              "event": "measurement_request",
+              "durationMs": "6202",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:08.316Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "37",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:40:08.648Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:40:15.157Z",
+              "event": "measurement_request",
+              "durationMs": "5457",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:21.090Z",
+              "event": "measurement_request",
+              "durationMs": "5279",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:28.145Z",
+              "event": "measurement_request",
+              "durationMs": "6158",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:34.421Z",
+              "event": "measurement_request",
+              "durationMs": "5960",
+              "status": "200",
+              "path": "/catalog"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 193.579,
+            "completedCatalogCalls": 28,
+            "http200": 28,
+            "completedCallsPerMinute": 8.6786273304439,
+            "http200PerMinute": 8.6786273304439,
+            "durationMinMs": 5279,
+            "durationP50Ms": 5832,
+            "durationP95Ms": 6255,
+            "durationMaxMs": 8478,
+            "failedQueries": 0,
+            "statuses": {
+              "200": 28
+            },
+            "providerRejectionAt": null,
+            "catalogCompletionsAfterRejection": null,
+            "memoryMaxPercent": 74.11,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 24,
+            "loggedNewListings": 126
+          }
+        },
+        {
+          "minimumIntervalMs": 1000,
+          "requestsPerMinute": 120,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T20:40:39.019139+00:00",
+          "endedAt": "2026-10-29T20:45:45.671951+00:00",
+          "stopReason": null,
+          "samples": [
+            {
+              "at": "2026-10-29T20:40:55.133050+00:00",
+              "memory": "867.9MiB / 2GiB",
+              "memoryPercent": 42.38,
+              "cpuPercent": "62.16%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 2,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:41:11.260847+00:00",
+              "memory": "995.4MiB / 2GiB",
+              "memoryPercent": 48.6,
+              "cpuPercent": "233.60%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 4,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:41:27.387077+00:00",
+              "memory": "1.196GiB / 2GiB",
+              "memoryPercent": 59.79,
+              "cpuPercent": "209.39%",
+              "pids": "161",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 6,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:41:43.531818+00:00",
+              "memory": "1.063GiB / 2GiB",
+              "memoryPercent": 53.15,
+              "cpuPercent": "74.53%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 9,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:41:59.685332+00:00",
+              "memory": "1.29GiB / 2GiB",
+              "memoryPercent": 64.5,
+              "cpuPercent": "212.49%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 11,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:42:15.817606+00:00",
+              "memory": "1.285GiB / 2GiB",
+              "memoryPercent": 64.27,
+              "cpuPercent": "230.47%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 14,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:42:31.918053+00:00",
+              "memory": "747.1MiB / 2GiB",
+              "memoryPercent": 36.48,
+              "cpuPercent": "101.00%",
+              "pids": "168",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 16,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:42:48.112306+00:00",
+              "memory": "1.054GiB / 2GiB",
+              "memoryPercent": 52.72,
+              "cpuPercent": "174.72%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 18,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:43:04.261579+00:00",
+              "memory": "1.116GiB / 2GiB",
+              "memoryPercent": 55.82,
+              "cpuPercent": "201.32%",
+              "pids": "150",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 20,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:43:20.380655+00:00",
+              "memory": "1.06GiB / 2GiB",
+              "memoryPercent": 53.01,
+              "cpuPercent": "197.39%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 23,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:43:36.495007+00:00",
+              "memory": "1.171GiB / 2GiB",
+              "memoryPercent": 58.55,
+              "cpuPercent": "220.68%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 25,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:43:52.634604+00:00",
+              "memory": "1.428GiB / 2GiB",
+              "memoryPercent": 71.39,
+              "cpuPercent": "224.85%",
+              "pids": "159",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 28,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:44:08.797773+00:00",
+              "memory": "481.6MiB / 2GiB",
+              "memoryPercent": 23.51,
+              "cpuPercent": "101.02%",
+              "pids": "152",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 30,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:44:24.927905+00:00",
+              "memory": "1.006GiB / 2GiB",
+              "memoryPercent": 50.31,
+              "cpuPercent": "248.43%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 32,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:44:41.036854+00:00",
+              "memory": "1.058GiB / 2GiB",
+              "memoryPercent": 52.89,
+              "cpuPercent": "240.67%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 34,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:44:57.312362+00:00",
+              "memory": "1.287GiB / 2GiB",
+              "memoryPercent": 64.37,
+              "cpuPercent": "166.84%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 37,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:45:13.438903+00:00",
+              "memory": "1.373GiB / 2GiB",
+              "memoryPercent": 68.67,
+              "cpuPercent": "147.54%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 39,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:45:29.555854+00:00",
+              "memory": "1.911GiB / 2GiB",
+              "memoryPercent": 95.56,
+              "cpuPercent": "198.80%",
+              "pids": "157",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 41,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:45:45.671857+00:00",
+              "memory": "1.31GiB / 2GiB",
+              "memoryPercent": 65.5,
+              "cpuPercent": "221.78%",
+              "pids": "158",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 44,
+              "failedQueries": 0
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T20:40:39.809Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T20:40:46.839Z",
+              "event": "measurement_request",
+              "durationMs": "6945",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:40:53.315Z",
+              "event": "measurement_request",
+              "durationMs": "5704",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:00.091Z",
+              "event": "measurement_request",
+              "durationMs": "5677",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:06.393Z",
+              "event": "measurement_request",
+              "durationMs": "5904",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:07.129Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "42",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:41:07.501Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:41:07.515Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:41:14.333Z",
+              "event": "measurement_request",
+              "durationMs": "5756",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:20.896Z",
+              "event": "measurement_request",
+              "durationMs": "5837",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:27.624Z",
+              "event": "measurement_request",
+              "durationMs": "5637",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:33.569Z",
+              "event": "measurement_request",
+              "durationMs": "5643",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:34.247Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "31",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:41:34.569Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:41:41.570Z",
+              "event": "measurement_request",
+              "durationMs": "5935",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:48.477Z",
+              "event": "measurement_request",
+              "durationMs": "6164",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:41:54.901Z",
+              "event": "measurement_request",
+              "durationMs": "5579",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:00.787Z",
+              "event": "measurement_request",
+              "durationMs": "5502",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:01.550Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "19",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:42:01.959Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:42:08.948Z",
+              "event": "measurement_request",
+              "durationMs": "5924",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:15.196Z",
+              "event": "measurement_request",
+              "durationMs": "5571",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:21.636Z",
+              "event": "measurement_request",
+              "durationMs": "5503",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:28.516Z",
+              "event": "measurement_request",
+              "durationMs": "6515",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:29.144Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "25",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:42:29.489Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:42:29.507Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:42:36.739Z",
+              "event": "measurement_request",
+              "durationMs": "6168",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:44.300Z",
+              "event": "measurement_request",
+              "durationMs": "6358",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:52.167Z",
+              "event": "measurement_request",
+              "durationMs": "6746",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:58.792Z",
+              "event": "measurement_request",
+              "durationMs": "6131",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:42:59.438Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "26",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:42:59.790Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:43:06.518Z",
+              "event": "measurement_request",
+              "durationMs": "5661",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:12.995Z",
+              "event": "measurement_request",
+              "durationMs": "5773",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:19.290Z",
+              "event": "measurement_request",
+              "durationMs": "5321",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:25.485Z",
+              "event": "measurement_request",
+              "durationMs": "5835",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:26.145Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "25",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:43:26.523Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:43:33.330Z",
+              "event": "measurement_request",
+              "durationMs": "5749",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:39.702Z",
+              "event": "measurement_request",
+              "durationMs": "5683",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:46.507Z",
+              "event": "measurement_request",
+              "durationMs": "5830",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:52.465Z",
+              "event": "measurement_request",
+              "durationMs": "5708",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:43:53.079Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "19",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:43:53.389Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:43:53.401Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:44:00.299Z",
+              "event": "measurement_request",
+              "durationMs": "5849",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:06.685Z",
+              "event": "measurement_request",
+              "durationMs": "5618",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:13.308Z",
+              "event": "measurement_request",
+              "durationMs": "5689",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:20.295Z",
+              "event": "measurement_request",
+              "durationMs": "6693",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:20.922Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "21",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:44:21.313Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:44:28.228Z",
+              "event": "measurement_request",
+              "durationMs": "5859",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:34.527Z",
+              "event": "measurement_request",
+              "durationMs": "5692",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:41.259Z",
+              "event": "measurement_request",
+              "durationMs": "5783",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:47.839Z",
+              "event": "measurement_request",
+              "durationMs": "6260",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:44:48.504Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "13",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:44:48.838Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:44:57.166Z",
+              "event": "measurement_request",
+              "durationMs": "7263",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:04.544Z",
+              "event": "measurement_request",
+              "durationMs": "6404",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:11.160Z",
+              "event": "measurement_request",
+              "durationMs": "5626",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:17.465Z",
+              "event": "measurement_request",
+              "durationMs": "5951",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:18.120Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "28",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:45:18.531Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:45:18.543Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:45:25.215Z",
+              "event": "measurement_request",
+              "durationMs": "5612",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:31.519Z",
+              "event": "measurement_request",
+              "durationMs": "5572",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:38.598Z",
+              "event": "measurement_request",
+              "durationMs": "6139",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:44.907Z",
+              "event": "measurement_request",
+              "durationMs": "5970",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:45:45.557Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "28",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 306.652,
+            "completedCatalogCalls": 44,
+            "http200": 44,
+            "completedCallsPerMinute": 8.609107392092666,
+            "http200PerMinute": 8.609107392092666,
+            "durationMinMs": 5321,
+            "durationP50Ms": 5783,
+            "durationP95Ms": 6746,
+            "durationMaxMs": 7263,
+            "failedQueries": 0,
+            "statuses": {
+              "200": 44
+            },
+            "providerRejectionAt": null,
+            "catalogCompletionsAfterRejection": null,
+            "memoryMaxPercent": 95.56,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 44,
+            "loggedNewListings": 277
+          }
+        }
+      ]
+    },
+    {
+      "method": "same_browser_catalog_fetch",
+      "restoration": {
+        "at": "2026-10-29T20:54:56.948404+00:00",
+        "event": "restored",
+        "originalImage": true,
+        "filterConfigurationUnchanged": true,
+        "instrumentationMounts": [],
+        "originalEnvUnchanged": true
+      },
+      "stages": [
+        {
+          "minimumIntervalMs": 2000,
+          "requestsPerMinute": 120,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T20:46:27.764933+00:00",
+          "endedAt": "2026-10-29T20:49:41.233901+00:00",
+          "stopReason": null,
+          "samples": [
+            {
+              "at": "2026-10-29T20:46:43.878642+00:00",
+              "memory": "849.6MiB / 2GiB",
+              "memoryPercent": 41.48,
+              "cpuPercent": "47.23%",
+              "pids": "163",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 4,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:46:59.999448+00:00",
+              "memory": "842.8MiB / 2GiB",
+              "memoryPercent": 41.15,
+              "cpuPercent": "122.74%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 12,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:47:16.104777+00:00",
+              "memory": "800.4MiB / 2GiB",
+              "memoryPercent": 39.08,
+              "cpuPercent": "71.96%",
+              "pids": "159",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 19,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:47:32.231632+00:00",
+              "memory": "782.2MiB / 2GiB",
+              "memoryPercent": 38.19,
+              "cpuPercent": "153.95%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 26,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:47:48.361494+00:00",
+              "memory": "823.3MiB / 2GiB",
+              "memoryPercent": 40.2,
+              "cpuPercent": "68.15%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 33,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:48:04.473348+00:00",
+              "memory": "836.8MiB / 2GiB",
+              "memoryPercent": 40.86,
+              "cpuPercent": "53.91%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 40,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:48:20.576581+00:00",
+              "memory": "864.2MiB / 2GiB",
+              "memoryPercent": 42.2,
+              "cpuPercent": "112.46%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 46,
+              "failedQueries": 1
+            },
+            {
+              "at": "2026-10-29T20:48:36.719990+00:00",
+              "memory": "894.2MiB / 2GiB",
+              "memoryPercent": 43.66,
+              "cpuPercent": "8.10%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 53,
+              "failedQueries": 1
+            },
+            {
+              "at": "2026-10-29T20:48:52.840938+00:00",
+              "memory": "895.6MiB / 2GiB",
+              "memoryPercent": 43.73,
+              "cpuPercent": "142.89%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 60,
+              "failedQueries": 1
+            },
+            {
+              "at": "2026-10-29T20:49:08.960245+00:00",
+              "memory": "993.2MiB / 2GiB",
+              "memoryPercent": 48.49,
+              "cpuPercent": "103.83%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 67,
+              "failedQueries": 1
+            },
+            {
+              "at": "2026-10-29T20:49:25.094305+00:00",
+              "memory": "1.017GiB / 2GiB",
+              "memoryPercent": 50.83,
+              "cpuPercent": "75.89%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 74,
+              "failedQueries": 1
+            },
+            {
+              "at": "2026-10-29T20:49:41.233798+00:00",
+              "memory": "988.7MiB / 2GiB",
+              "memoryPercent": 48.28,
+              "cpuPercent": "157.13%",
+              "pids": "160",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 81,
+              "failedQueries": 1
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T20:46:28.507Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T20:46:35.412Z",
+              "event": "measurement_request",
+              "durationMs": "6793",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:37.937Z",
+              "event": "measurement_request",
+              "durationMs": "1720",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:39.675Z",
+              "event": "measurement_request",
+              "durationMs": "1082",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:41.776Z",
+              "event": "measurement_request",
+              "durationMs": "1098",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:42.069Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "39",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:46:42.419Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:46:42.432Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:46:44.754Z",
+              "event": "measurement_request",
+              "durationMs": "1266",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:46.719Z",
+              "event": "measurement_request",
+              "durationMs": "1232",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:48.670Z",
+              "event": "measurement_request",
+              "durationMs": "1182",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:50.800Z",
+              "event": "measurement_request",
+              "durationMs": "1089",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:51.053Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "17",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:46:51.396Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:46:53.621Z",
+              "event": "measurement_request",
+              "durationMs": "1181",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:55.709Z",
+              "event": "measurement_request",
+              "durationMs": "1270",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:57.776Z",
+              "event": "measurement_request",
+              "durationMs": "1337",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:46:59.791Z",
+              "event": "measurement_request",
+              "durationMs": "1210",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:00.048Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:00.387Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:47:02.596Z",
+              "event": "measurement_request",
+              "durationMs": "1155",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:05.042Z",
+              "event": "measurement_request",
+              "durationMs": "1601",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:06.858Z",
+              "event": "measurement_request",
+              "durationMs": "1252",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:08.829Z",
+              "event": "measurement_request",
+              "durationMs": "1097",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:09.059Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:11.658Z",
+              "event": "measurement_request",
+              "durationMs": "1204",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:13.553Z",
+              "event": "measurement_request",
+              "durationMs": "1099",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:15.725Z",
+              "event": "measurement_request",
+              "durationMs": "1272",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:17.824Z",
+              "event": "measurement_request",
+              "durationMs": "1227",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:18.147Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:20.768Z",
+              "event": "measurement_request",
+              "durationMs": "1160",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:22.911Z",
+              "event": "measurement_request",
+              "durationMs": "1304",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:24.835Z",
+              "event": "measurement_request",
+              "durationMs": "1228",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:26.956Z",
+              "event": "measurement_request",
+              "durationMs": "1311",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:27.230Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:27.575Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:47:29.825Z",
+              "event": "measurement_request",
+              "durationMs": "1195",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:31.858Z",
+              "event": "measurement_request",
+              "durationMs": "1228",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:33.807Z",
+              "event": "measurement_request",
+              "durationMs": "1177",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:35.745Z",
+              "event": "measurement_request",
+              "durationMs": "1062",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:36.013Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:36.417Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:47:38.686Z",
+              "event": "measurement_request",
+              "durationMs": "1215",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:40.784Z",
+              "event": "measurement_request",
+              "durationMs": "1315",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:42.969Z",
+              "event": "measurement_request",
+              "durationMs": "1501",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:45.188Z",
+              "event": "measurement_request",
+              "durationMs": "1322",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:45.466Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:45.865Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:47:45.878Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:47:48.063Z",
+              "event": "measurement_request",
+              "durationMs": "1130",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:50.330Z",
+              "event": "measurement_request",
+              "durationMs": "1397",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:52.552Z",
+              "event": "measurement_request",
+              "durationMs": "1614",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:54.517Z",
+              "event": "measurement_request",
+              "durationMs": "1173",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:54.789Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:47:55.137Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:47:57.450Z",
+              "event": "measurement_request",
+              "durationMs": "1266",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:47:59.415Z",
+              "event": "measurement_request",
+              "durationMs": "1231",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:01.461Z",
+              "event": "measurement_request",
+              "durationMs": "1277",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:03.557Z",
+              "event": "measurement_request",
+              "durationMs": "1146",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:03.834Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:06.485Z",
+              "event": "measurement_request",
+              "durationMs": "1227",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:07.843Z",
+              "event": "measurement_request",
+              "durationMs": "586",
+              "status": "0",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:07.844Z",
+              "event": "query_failed",
+              "kind": "server_error",
+              "nextAttemptAt": "2026-10-29T20:48:35.216Z"
+            },
+            {
+              "at": "2026-10-29T20:48:10.904Z",
+              "event": "measurement_request",
+              "durationMs": "1647",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:13.578Z",
+              "event": "measurement_request",
+              "durationMs": "1709",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:13.873Z",
+              "event": "cycle",
+              "polled": "3",
+              "new": "5",
+              "seeded": "0",
+              "failed": "1",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:14.236Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:48:16.676Z",
+              "event": "measurement_request",
+              "durationMs": "1391",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:18.448Z",
+              "event": "measurement_request",
+              "durationMs": "1163",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:20.640Z",
+              "event": "measurement_request",
+              "durationMs": "1355",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:20.923Z",
+              "event": "cycle",
+              "polled": "3",
+              "new": "3",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:21.261Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:48:23.753Z",
+              "event": "measurement_request",
+              "durationMs": "1433",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:25.683Z",
+              "event": "measurement_request",
+              "durationMs": "1347",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:28.021Z",
+              "event": "measurement_request",
+              "durationMs": "1365",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:28.272Z",
+              "event": "cycle",
+              "polled": "3",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:28.597Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:48:30.868Z",
+              "event": "measurement_request",
+              "durationMs": "1216",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:32.994Z",
+              "event": "measurement_request",
+              "durationMs": "1343",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:35.135Z",
+              "event": "measurement_request",
+              "durationMs": "1306",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:35.434Z",
+              "event": "cycle",
+              "polled": "3",
+              "new": "3",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:38.304Z",
+              "event": "measurement_request",
+              "durationMs": "1484",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:40.192Z",
+              "event": "measurement_request",
+              "durationMs": "1314",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:42.416Z",
+              "event": "measurement_request",
+              "durationMs": "1539",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:44.406Z",
+              "event": "measurement_request",
+              "durationMs": "1203",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:44.662Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "21",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:47.438Z",
+              "event": "measurement_request",
+              "durationMs": "1393",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:49.538Z",
+              "event": "measurement_request",
+              "durationMs": "1493",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:51.444Z",
+              "event": "measurement_request",
+              "durationMs": "1323",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:53.667Z",
+              "event": "measurement_request",
+              "durationMs": "1347",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:53.943Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:48:54.304Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:48:54.315Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:48:56.871Z",
+              "event": "measurement_request",
+              "durationMs": "1506",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:48:58.610Z",
+              "event": "measurement_request",
+              "durationMs": "1190",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:00.850Z",
+              "event": "measurement_request",
+              "durationMs": "1431",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:02.901Z",
+              "event": "measurement_request",
+              "durationMs": "1199",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:03.149Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:49:03.501Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:49:06.023Z",
+              "event": "measurement_request",
+              "durationMs": "1478",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:08.014Z",
+              "event": "measurement_request",
+              "durationMs": "1424",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:09.939Z",
+              "event": "measurement_request",
+              "durationMs": "1349",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:12.011Z",
+              "event": "measurement_request",
+              "durationMs": "1197",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:12.272Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:49:12.582Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:49:15.034Z",
+              "event": "measurement_request",
+              "durationMs": "1404",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:16.957Z",
+              "event": "measurement_request",
+              "durationMs": "1327",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:19.026Z",
+              "event": "measurement_request",
+              "durationMs": "1396",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:21.347Z",
+              "event": "measurement_request",
+              "durationMs": "1329",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:21.580Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "13",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:49:21.919Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:49:24.422Z",
+              "event": "measurement_request",
+              "durationMs": "1455",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:26.327Z",
+              "event": "measurement_request",
+              "durationMs": "1359",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:28.405Z",
+              "event": "measurement_request",
+              "durationMs": "1418",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:30.531Z",
+              "event": "measurement_request",
+              "durationMs": "1288",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:30.811Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:49:31.138Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:49:34.017Z",
+              "event": "measurement_request",
+              "durationMs": "1830",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:35.662Z",
+              "event": "measurement_request",
+              "durationMs": "1139",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:37.916Z",
+              "event": "measurement_request",
+              "durationMs": "1394",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:40.035Z",
+              "event": "measurement_request",
+              "durationMs": "1272",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:40.343Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:49:40.733Z",
+              "event": "watchlist_evaluation_completed"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 193.469,
+            "completedCatalogCalls": 81,
+            "http200": 80,
+            "completedCallsPerMinute": 25.120303511156827,
+            "http200PerMinute": 24.810176307315384,
+            "durationMinMs": 586,
+            "durationP50Ms": 1304,
+            "durationP95Ms": 1647,
+            "durationMaxMs": 6793,
+            "failedQueries": 1,
+            "statuses": {
+              "0": 1,
+              "200": 80
+            },
+            "providerRejectionAt": null,
+            "catalogCompletionsAfterRejection": null,
+            "memoryMaxPercent": 50.83,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 80,
+            "loggedNewListings": 207
+          }
+        },
+        {
+          "minimumIntervalMs": 1000,
+          "requestsPerMinute": 120,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T20:49:44.687814+00:00",
+          "endedAt": "2026-10-29T20:54:51.066233+00:00",
+          "stopReason": null,
+          "samples": [
+            {
+              "at": "2026-10-29T20:50:00.783574+00:00",
+              "memory": "778.7MiB / 2GiB",
+              "memoryPercent": 38.02,
+              "cpuPercent": "57.66%",
+              "pids": "151",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 4,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:50:16.905397+00:00",
+              "memory": "740.9MiB / 2GiB",
+              "memoryPercent": 36.18,
+              "cpuPercent": "42.59%",
+              "pids": "150",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 12,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:50:33.029377+00:00",
+              "memory": "627.6MiB / 2GiB",
+              "memoryPercent": 30.65,
+              "cpuPercent": "127.28%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 20,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:50:49.154951+00:00",
+              "memory": "672.2MiB / 2GiB",
+              "memoryPercent": 32.82,
+              "cpuPercent": "110.69%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 27,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:51:05.271888+00:00",
+              "memory": "673.7MiB / 2GiB",
+              "memoryPercent": 32.9,
+              "cpuPercent": "93.25%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 35,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:51:21.404939+00:00",
+              "memory": "686.2MiB / 2GiB",
+              "memoryPercent": 33.51,
+              "cpuPercent": "37.28%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 42,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:51:37.547783+00:00",
+              "memory": "735.2MiB / 2GiB",
+              "memoryPercent": 35.9,
+              "cpuPercent": "59.96%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 49,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:51:53.681941+00:00",
+              "memory": "786.4MiB / 2GiB",
+              "memoryPercent": 38.4,
+              "cpuPercent": "122.19%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 56,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:52:09.796931+00:00",
+              "memory": "742.1MiB / 2GiB",
+              "memoryPercent": 36.24,
+              "cpuPercent": "41.18%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 64,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:52:25.926229+00:00",
+              "memory": "737.9MiB / 2GiB",
+              "memoryPercent": 36.03,
+              "cpuPercent": "160.73%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 72,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:52:42.063608+00:00",
+              "memory": "755.8MiB / 2GiB",
+              "memoryPercent": 36.91,
+              "cpuPercent": "62.72%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 79,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:52:58.179807+00:00",
+              "memory": "821.9MiB / 2GiB",
+              "memoryPercent": 40.13,
+              "cpuPercent": "61.26%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 86,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:53:14.281240+00:00",
+              "memory": "789.5MiB / 2GiB",
+              "memoryPercent": 38.55,
+              "cpuPercent": "67.39%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 93,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:53:30.406414+00:00",
+              "memory": "793.9MiB / 2GiB",
+              "memoryPercent": 38.76,
+              "cpuPercent": "50.46%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 100,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:53:46.568641+00:00",
+              "memory": "821.8MiB / 2GiB",
+              "memoryPercent": 40.13,
+              "cpuPercent": "74.44%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 107,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:54:02.672281+00:00",
+              "memory": "795.2MiB / 2GiB",
+              "memoryPercent": 38.83,
+              "cpuPercent": "59.18%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 114,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:54:18.846233+00:00",
+              "memory": "827.5MiB / 2GiB",
+              "memoryPercent": 40.41,
+              "cpuPercent": "97.09%",
+              "pids": "149",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 121,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:54:34.945137+00:00",
+              "memory": "844.8MiB / 2GiB",
+              "memoryPercent": 41.25,
+              "cpuPercent": "22.90%",
+              "pids": "149",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 128,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T20:54:51.066090+00:00",
+              "memory": "829.1MiB / 2GiB",
+              "memoryPercent": 40.48,
+              "cpuPercent": "101.31%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 135,
+              "failedQueries": 0
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T20:49:45.433Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T20:49:52.235Z",
+              "event": "measurement_request",
+              "durationMs": "6690",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:54.203Z",
+              "event": "measurement_request",
+              "durationMs": "1208",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:55.989Z",
+              "event": "measurement_request",
+              "durationMs": "1134",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:58.097Z",
+              "event": "measurement_request",
+              "durationMs": "1169",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:49:58.372Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "13",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:49:58.675Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:49:58.690Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:50:00.946Z",
+              "event": "measurement_request",
+              "durationMs": "1207",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:02.727Z",
+              "event": "measurement_request",
+              "durationMs": "1211",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:04.460Z",
+              "event": "measurement_request",
+              "durationMs": "1105",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:06.748Z",
+              "event": "measurement_request",
+              "durationMs": "1345",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:07.018Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:09.622Z",
+              "event": "measurement_request",
+              "durationMs": "1207",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:11.210Z",
+              "event": "measurement_request",
+              "durationMs": "1052",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:12.964Z",
+              "event": "measurement_request",
+              "durationMs": "1133",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:14.808Z",
+              "event": "measurement_request",
+              "durationMs": "1081",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:15.101Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:15.453Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:50:17.883Z",
+              "event": "measurement_request",
+              "durationMs": "1374",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:19.667Z",
+              "event": "measurement_request",
+              "durationMs": "1182",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:21.403Z",
+              "event": "measurement_request",
+              "durationMs": "1146",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:23.561Z",
+              "event": "measurement_request",
+              "durationMs": "1140",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:23.810Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "11",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:24.151Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:50:26.581Z",
+              "event": "measurement_request",
+              "durationMs": "1382",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:28.464Z",
+              "event": "measurement_request",
+              "durationMs": "1236",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:30.236Z",
+              "event": "measurement_request",
+              "durationMs": "1237",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:32.268Z",
+              "event": "measurement_request",
+              "durationMs": "1249",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:32.585Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:35.333Z",
+              "event": "measurement_request",
+              "durationMs": "1364",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:36.971Z",
+              "event": "measurement_request",
+              "durationMs": "1048",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:38.884Z",
+              "event": "measurement_request",
+              "durationMs": "1336",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:40.859Z",
+              "event": "measurement_request",
+              "durationMs": "1159",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:41.118Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:41.449Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:50:43.759Z",
+              "event": "measurement_request",
+              "durationMs": "1237",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:45.498Z",
+              "event": "measurement_request",
+              "durationMs": "1158",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:47.235Z",
+              "event": "measurement_request",
+              "durationMs": "1070",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:49.242Z",
+              "event": "measurement_request",
+              "durationMs": "1180",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:49.509Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:49.870Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:50:52.258Z",
+              "event": "measurement_request",
+              "durationMs": "1331",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:53.971Z",
+              "event": "measurement_request",
+              "durationMs": "1155",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:55.818Z",
+              "event": "measurement_request",
+              "durationMs": "1269",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:57.828Z",
+              "event": "measurement_request",
+              "durationMs": "1153",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:50:58.239Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:50:58.573Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:51:00.881Z",
+              "event": "measurement_request",
+              "durationMs": "1260",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:02.892Z",
+              "event": "measurement_request",
+              "durationMs": "1418",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:04.643Z",
+              "event": "measurement_request",
+              "durationMs": "1146",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:06.636Z",
+              "event": "measurement_request",
+              "durationMs": "1084",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:06.848Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:51:07.194Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:51:07.205Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:51:09.703Z",
+              "event": "measurement_request",
+              "durationMs": "1442",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:11.570Z",
+              "event": "measurement_request",
+              "durationMs": "1234",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:13.489Z",
+              "event": "measurement_request",
+              "durationMs": "1305",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:15.372Z",
+              "event": "measurement_request",
+              "durationMs": "1072",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:15.607Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "11",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:51:18.184Z",
+              "event": "measurement_request",
+              "durationMs": "1162",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:20.034Z",
+              "event": "measurement_request",
+              "durationMs": "1280",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:21.955Z",
+              "event": "measurement_request",
+              "durationMs": "1277",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:23.930Z",
+              "event": "measurement_request",
+              "durationMs": "1047",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:24.175Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:51:24.540Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:51:26.964Z",
+              "event": "measurement_request",
+              "durationMs": "1370",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:28.787Z",
+              "event": "measurement_request",
+              "durationMs": "1261",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:30.523Z",
+              "event": "measurement_request",
+              "durationMs": "1177",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:32.759Z",
+              "event": "measurement_request",
+              "durationMs": "1423",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:33.010Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:51:33.390Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:51:35.798Z",
+              "event": "measurement_request",
+              "durationMs": "1360",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:37.740Z",
+              "event": "measurement_request",
+              "durationMs": "1283",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:39.685Z",
+              "event": "measurement_request",
+              "durationMs": "1329",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:41.661Z",
+              "event": "measurement_request",
+              "durationMs": "1147",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:41.941Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "3",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:51:42.282Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:51:44.742Z",
+              "event": "measurement_request",
+              "durationMs": "1398",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:46.758Z",
+              "event": "measurement_request",
+              "durationMs": "1401",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:48.467Z",
+              "event": "measurement_request",
+              "durationMs": "1159",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:50.570Z",
+              "event": "measurement_request",
+              "durationMs": "1245",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:50.806Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:51:51.151Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:51:53.801Z",
+              "event": "measurement_request",
+              "durationMs": "1599",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:55.941Z",
+              "event": "measurement_request",
+              "durationMs": "1528",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:51:57.957Z",
+              "event": "measurement_request",
+              "durationMs": "1478",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:00.212Z",
+              "event": "measurement_request",
+              "durationMs": "1290",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:00.472Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:00.842Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:52:03.261Z",
+              "event": "measurement_request",
+              "durationMs": "1353",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:05.113Z",
+              "event": "measurement_request",
+              "durationMs": "1279",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:06.814Z",
+              "event": "measurement_request",
+              "durationMs": "1164",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:08.742Z",
+              "event": "measurement_request",
+              "durationMs": "1010",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:08.985Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:09.424Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:52:11.730Z",
+              "event": "measurement_request",
+              "durationMs": "1258",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:13.465Z",
+              "event": "measurement_request",
+              "durationMs": "1187",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:15.187Z",
+              "event": "measurement_request",
+              "durationMs": "1134",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:17.192Z",
+              "event": "measurement_request",
+              "durationMs": "1143",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:17.452Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "12",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:20.072Z",
+              "event": "measurement_request",
+              "durationMs": "1236",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:21.878Z",
+              "event": "measurement_request",
+              "durationMs": "1160",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:23.651Z",
+              "event": "measurement_request",
+              "durationMs": "1167",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:25.675Z",
+              "event": "measurement_request",
+              "durationMs": "1229",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:25.931Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "4",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:26.301Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:52:28.644Z",
+              "event": "measurement_request",
+              "durationMs": "1299",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:30.452Z",
+              "event": "measurement_request",
+              "durationMs": "1227",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:32.343Z",
+              "event": "measurement_request",
+              "durationMs": "1322",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:34.501Z",
+              "event": "measurement_request",
+              "durationMs": "1273",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:34.780Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:35.145Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:52:37.505Z",
+              "event": "measurement_request",
+              "durationMs": "1306",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:39.344Z",
+              "event": "measurement_request",
+              "durationMs": "1291",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:41.112Z",
+              "event": "measurement_request",
+              "durationMs": "1171",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:43.260Z",
+              "event": "measurement_request",
+              "durationMs": "1236",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:43.542Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "11",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:43.840Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:52:46.305Z",
+              "event": "measurement_request",
+              "durationMs": "1412",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:48.166Z",
+              "event": "measurement_request",
+              "durationMs": "1296",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:49.884Z",
+              "event": "measurement_request",
+              "durationMs": "1127",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:52.040Z",
+              "event": "measurement_request",
+              "durationMs": "1270",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:52.314Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "9",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:52:55.001Z",
+              "event": "measurement_request",
+              "durationMs": "1296",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:56.761Z",
+              "event": "measurement_request",
+              "durationMs": "1197",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:52:58.536Z",
+              "event": "measurement_request",
+              "durationMs": "1221",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:00.625Z",
+              "event": "measurement_request",
+              "durationMs": "1185",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:00.901Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:03.708Z",
+              "event": "measurement_request",
+              "durationMs": "1391",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:05.738Z",
+              "event": "measurement_request",
+              "durationMs": "1412",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:07.672Z",
+              "event": "measurement_request",
+              "durationMs": "1336",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:09.646Z",
+              "event": "measurement_request",
+              "durationMs": "1177",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:09.895Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:10.210Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:53:10.219Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:53:12.536Z",
+              "event": "measurement_request",
+              "durationMs": "1258",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:14.301Z",
+              "event": "measurement_request",
+              "durationMs": "1207",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:16.032Z",
+              "event": "measurement_request",
+              "durationMs": "1166",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:18.100Z",
+              "event": "measurement_request",
+              "durationMs": "1206",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:18.360Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:18.682Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:53:20.967Z",
+              "event": "measurement_request",
+              "durationMs": "1239",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:23.509Z",
+              "event": "measurement_request",
+              "durationMs": "1742",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:25.723Z",
+              "event": "measurement_request",
+              "durationMs": "1640",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:28.103Z",
+              "event": "measurement_request",
+              "durationMs": "1381",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:28.409Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:28.747Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:53:31.458Z",
+              "event": "measurement_request",
+              "durationMs": "1658",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:33.283Z",
+              "event": "measurement_request",
+              "durationMs": "1246",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:35.264Z",
+              "event": "measurement_request",
+              "durationMs": "1422",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:37.578Z",
+              "event": "measurement_request",
+              "durationMs": "1339",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:37.841Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "4",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:40.663Z",
+              "event": "measurement_request",
+              "durationMs": "1385",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:42.570Z",
+              "event": "measurement_request",
+              "durationMs": "1362",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:44.717Z",
+              "event": "measurement_request",
+              "durationMs": "1557",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:46.871Z",
+              "event": "measurement_request",
+              "durationMs": "1262",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:47.204Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:47.504Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:53:49.850Z",
+              "event": "measurement_request",
+              "durationMs": "1300",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:51.797Z",
+              "event": "measurement_request",
+              "durationMs": "1270",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:54.024Z",
+              "event": "measurement_request",
+              "durationMs": "1486",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:56.267Z",
+              "event": "measurement_request",
+              "durationMs": "1266",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:53:56.526Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:53:56.878Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:53:59.319Z",
+              "event": "measurement_request",
+              "durationMs": "1388",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:01.465Z",
+              "event": "measurement_request",
+              "durationMs": "1511",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:03.670Z",
+              "event": "measurement_request",
+              "durationMs": "1524",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:05.855Z",
+              "event": "measurement_request",
+              "durationMs": "1271",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:06.130Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:54:09.052Z",
+              "event": "measurement_request",
+              "durationMs": "1527",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:10.949Z",
+              "event": "measurement_request",
+              "durationMs": "1311",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:12.811Z",
+              "event": "measurement_request",
+              "durationMs": "1270",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:15.210Z",
+              "event": "measurement_request",
+              "durationMs": "1384",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:15.466Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:54:15.856Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:54:15.867Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T20:54:18.204Z",
+              "event": "measurement_request",
+              "durationMs": "1275",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:20.087Z",
+              "event": "measurement_request",
+              "durationMs": "1345",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:22.047Z",
+              "event": "measurement_request",
+              "durationMs": "1365",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:24.412Z",
+              "event": "measurement_request",
+              "durationMs": "1395",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:24.698Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:54:27.505Z",
+              "event": "measurement_request",
+              "durationMs": "1423",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:29.421Z",
+              "event": "measurement_request",
+              "durationMs": "1303",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:31.489Z",
+              "event": "measurement_request",
+              "durationMs": "1486",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:33.520Z",
+              "event": "measurement_request",
+              "durationMs": "1159",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:33.787Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:54:34.178Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:54:36.777Z",
+              "event": "measurement_request",
+              "durationMs": "1540",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:38.786Z",
+              "event": "measurement_request",
+              "durationMs": "1372",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:40.842Z",
+              "event": "measurement_request",
+              "durationMs": "1509",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:43.181Z",
+              "event": "measurement_request",
+              "durationMs": "1387",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:43.434Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "10",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T20:54:43.736Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T20:54:46.122Z",
+              "event": "measurement_request",
+              "durationMs": "1331",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:48.016Z",
+              "event": "measurement_request",
+              "durationMs": "1300",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T20:54:50.202Z",
+              "event": "measurement_request",
+              "durationMs": "1547",
+              "status": "200",
+              "path": "/catalog"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 306.379,
+            "completedCatalogCalls": 135,
+            "http200": 135,
+            "completedCallsPerMinute": 26.437843324770952,
+            "http200PerMinute": 26.437843324770952,
+            "durationMinMs": 1010,
+            "durationP50Ms": 1271,
+            "durationP95Ms": 1547,
+            "durationMaxMs": 6690,
+            "failedQueries": 0,
+            "statuses": {
+              "200": 135
+            },
+            "providerRejectionAt": null,
+            "catalogCompletionsAfterRejection": null,
+            "memoryMaxPercent": 41.25,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 132,
+            "loggedNewListings": 254
+          }
+        }
+      ]
+    },
+    {
+      "method": "same_browser_catalog_fetch_concurrency_2",
+      "restoration": {
+        "at": "2026-10-29T21:08:24.498646+00:00",
+        "event": "restored",
+        "originalImage": true,
+        "filterConfigurationUnchanged": true,
+        "instrumentationMounts": [],
+        "originalEnvUnchanged": true
+      },
+      "stages": [
+        {
+          "minimumIntervalMs": 1000,
+          "requestsPerMinute": 120,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T21:03:36.553334+00:00",
+          "endedAt": "2026-10-29T21:06:50.091007+00:00",
+          "stopReason": null,
+          "samples": [
+            {
+              "at": "2026-10-29T21:03:52.807869+00:00",
+              "memory": "897MiB / 2GiB",
+              "memoryPercent": 43.8,
+              "cpuPercent": "54.75%",
+              "pids": "167",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 4,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:04:08.937426+00:00",
+              "memory": "854.1MiB / 2GiB",
+              "memoryPercent": 41.71,
+              "cpuPercent": "66.46%",
+              "pids": "166",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 13,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:04:25.055852+00:00",
+              "memory": "779.6MiB / 2GiB",
+              "memoryPercent": 38.07,
+              "cpuPercent": "30.44%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 22,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:04:41.178830+00:00",
+              "memory": "795.9MiB / 2GiB",
+              "memoryPercent": 38.86,
+              "cpuPercent": "56.09%",
+              "pids": "163",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 31,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:04:57.307092+00:00",
+              "memory": "780.4MiB / 2GiB",
+              "memoryPercent": 38.11,
+              "cpuPercent": "66.36%",
+              "pids": "163",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 37,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:05:13.428658+00:00",
+              "memory": "814.8MiB / 2GiB",
+              "memoryPercent": 39.78,
+              "cpuPercent": "130.91%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 43,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:05:29.545793+00:00",
+              "memory": "877.2MiB / 2GiB",
+              "memoryPercent": 42.83,
+              "cpuPercent": "52.66%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 50,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:05:45.647787+00:00",
+              "memory": "863.7MiB / 2GiB",
+              "memoryPercent": 42.17,
+              "cpuPercent": "54.51%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 58,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:06:01.766920+00:00",
+              "memory": "905.8MiB / 2GiB",
+              "memoryPercent": 44.23,
+              "cpuPercent": "40.31%",
+              "pids": "162",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 66,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:06:17.874979+00:00",
+              "memory": "895.3MiB / 2GiB",
+              "memoryPercent": 43.72,
+              "cpuPercent": "48.72%",
+              "pids": "163",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 74,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:06:33.976704+00:00",
+              "memory": "917.2MiB / 2GiB",
+              "memoryPercent": 44.79,
+              "cpuPercent": "73.94%",
+              "pids": "163",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 82,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:06:50.090898+00:00",
+              "memory": "925.1MiB / 2GiB",
+              "memoryPercent": 45.17,
+              "cpuPercent": "189.80%",
+              "pids": "163",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 89,
+              "failedQueries": 0
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T21:03:37.451Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T21:03:44.496Z",
+              "event": "measurement_request",
+              "durationMs": "6942",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:46.719Z",
+              "event": "measurement_request",
+              "durationMs": "8166",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:48.384Z",
+              "event": "measurement_request",
+              "durationMs": "1262",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:49.466Z",
+              "event": "measurement_request",
+              "durationMs": "1345",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:50.037Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "29",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:03:50.387Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:03:50.400Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T21:03:53.124Z",
+              "event": "measurement_request",
+              "durationMs": "1659",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:53.956Z",
+              "event": "measurement_request",
+              "durationMs": "1492",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:55.761Z",
+              "event": "measurement_request",
+              "durationMs": "1490",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:56.718Z",
+              "event": "measurement_request",
+              "durationMs": "1447",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:03:57.470Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "10",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:03:57.998Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:04:00.414Z",
+              "event": "measurement_request",
+              "durationMs": "1363",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:01.823Z",
+              "event": "measurement_request",
+              "durationMs": "1771",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:03.829Z",
+              "event": "measurement_request",
+              "durationMs": "1728",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:04.356Z",
+              "event": "measurement_request",
+              "durationMs": "1255",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:05.005Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "3",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:05.452Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:04:07.753Z",
+              "event": "measurement_request",
+              "durationMs": "1246",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:08.978Z",
+              "event": "measurement_request",
+              "durationMs": "1470",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:10.713Z",
+              "event": "measurement_request",
+              "durationMs": "1456",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:11.645Z",
+              "event": "measurement_request",
+              "durationMs": "1388",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:12.194Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:15.036Z",
+              "event": "measurement_request",
+              "durationMs": "1425",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:16.313Z",
+              "event": "measurement_request",
+              "durationMs": "1700",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:17.912Z",
+              "event": "measurement_request",
+              "durationMs": "1325",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:19.167Z",
+              "event": "measurement_request",
+              "durationMs": "1580",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:19.790Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:20.189Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:04:22.587Z",
+              "event": "measurement_request",
+              "durationMs": "1340",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:23.826Z",
+              "event": "measurement_request",
+              "durationMs": "1576",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:25.509Z",
+              "event": "measurement_request",
+              "durationMs": "1420",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:26.758Z",
+              "event": "measurement_request",
+              "durationMs": "1670",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:27.314Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:27.642Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:04:29.986Z",
+              "event": "measurement_request",
+              "durationMs": "1294",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:31.225Z",
+              "event": "measurement_request",
+              "durationMs": "1531",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:32.809Z",
+              "event": "measurement_request",
+              "durationMs": "1310",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:34.123Z",
+              "event": "measurement_request",
+              "durationMs": "1624",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:34.675Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:37.258Z",
+              "event": "measurement_request",
+              "durationMs": "1187",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:38.694Z",
+              "event": "measurement_request",
+              "durationMs": "1623",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:40.260Z",
+              "event": "measurement_request",
+              "durationMs": "1292",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:41.578Z",
+              "event": "measurement_request",
+              "durationMs": "1610",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:42.194Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:42.535Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:04:44.801Z",
+              "event": "measurement_request",
+              "durationMs": "1216",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:45.921Z",
+              "event": "measurement_request",
+              "durationMs": "1336",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:47.592Z",
+              "event": "measurement_request",
+              "durationMs": "1393",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:48.902Z",
+              "event": "measurement_request",
+              "durationMs": "1704",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:04:49.662Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:04:50.028Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:04:53.346Z",
+              "event": "measurement_request",
+              "durationMs": "1266",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:01.850Z",
+              "event": "measurement_request",
+              "durationMs": "10770",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:04.252Z",
+              "event": "measurement_request",
+              "durationMs": "1485",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:05.579Z",
+              "event": "measurement_request",
+              "durationMs": "1813",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:06.153Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:06.529Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T21:05:08.807Z",
+              "event": "measurement_request",
+              "durationMs": "1223",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:10.290Z",
+              "event": "measurement_request",
+              "durationMs": "1707",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:12.697Z",
+              "event": "measurement_request",
+              "durationMs": "1497",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:13.709Z",
+              "event": "measurement_request",
+              "durationMs": "1509",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:14.288Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "12",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:14.630Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:05:16.870Z",
+              "event": "measurement_request",
+              "durationMs": "1183",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:18.195Z",
+              "event": "measurement_request",
+              "durationMs": "1508",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:20.762Z",
+              "event": "measurement_request",
+              "durationMs": "1608",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:22.179Z",
+              "event": "measurement_request",
+              "durationMs": "2025",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:22.980Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:23.378Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:05:26.009Z",
+              "event": "measurement_request",
+              "durationMs": "1574",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:27.030Z",
+              "event": "measurement_request",
+              "durationMs": "1596",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:29.679Z",
+              "event": "measurement_request",
+              "durationMs": "1616",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:30.628Z",
+              "event": "measurement_request",
+              "durationMs": "1566",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:31.269Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:31.765Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:05:33.993Z",
+              "event": "measurement_request",
+              "durationMs": "1173",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:35.310Z",
+              "event": "measurement_request",
+              "durationMs": "1491",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:37.625Z",
+              "event": "measurement_request",
+              "durationMs": "1431",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:38.927Z",
+              "event": "measurement_request",
+              "durationMs": "1733",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:39.471Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:42.221Z",
+              "event": "measurement_request",
+              "durationMs": "1352",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:43.505Z",
+              "event": "measurement_request",
+              "durationMs": "1636",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:45.665Z",
+              "event": "measurement_request",
+              "durationMs": "1287",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:46.975Z",
+              "event": "measurement_request",
+              "durationMs": "1596",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:47.585Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:50.231Z",
+              "event": "measurement_request",
+              "durationMs": "1222",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:51.613Z",
+              "event": "measurement_request",
+              "durationMs": "1605",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:53.919Z",
+              "event": "measurement_request",
+              "durationMs": "1401",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:55.210Z",
+              "event": "measurement_request",
+              "durationMs": "1693",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:55.772Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "10",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:05:56.155Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:05:58.512Z",
+              "event": "measurement_request",
+              "durationMs": "1297",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:05:59.842Z",
+              "event": "measurement_request",
+              "durationMs": "1628",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:02.444Z",
+              "event": "measurement_request",
+              "durationMs": "1640",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:03.448Z",
+              "event": "measurement_request",
+              "durationMs": "1644",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:04.118Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:06:04.513Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:06:06.856Z",
+              "event": "measurement_request",
+              "durationMs": "1297",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:08.217Z",
+              "event": "measurement_request",
+              "durationMs": "1659",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:10.496Z",
+              "event": "measurement_request",
+              "durationMs": "1367",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:11.853Z",
+              "event": "measurement_request",
+              "durationMs": "1725",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:12.477Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:06:12.845Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T21:06:15.144Z",
+              "event": "measurement_request",
+              "durationMs": "1244",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:16.587Z",
+              "event": "measurement_request",
+              "durationMs": "1686",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:18.999Z",
+              "event": "measurement_request",
+              "durationMs": "1504",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:20.239Z",
+              "event": "measurement_request",
+              "durationMs": "1744",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:20.815Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:06:21.113Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:06:23.471Z",
+              "event": "measurement_request",
+              "durationMs": "1300",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:24.973Z",
+              "event": "measurement_request",
+              "durationMs": "1802",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:27.354Z",
+              "event": "measurement_request",
+              "durationMs": "1400",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:28.935Z",
+              "event": "measurement_request",
+              "durationMs": "1981",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:29.486Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:06:32.372Z",
+              "event": "measurement_request",
+              "durationMs": "1509",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:33.698Z",
+              "event": "measurement_request",
+              "durationMs": "1836",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:36.954Z",
+              "event": "measurement_request",
+              "durationMs": "1349",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:37.832Z",
+              "event": "measurement_request",
+              "durationMs": "3226",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:38.438Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "8",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:06:38.823Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:06:41.222Z",
+              "event": "measurement_request",
+              "durationMs": "1342",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:42.847Z",
+              "event": "measurement_request",
+              "durationMs": "1966",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:45.163Z",
+              "event": "measurement_request",
+              "durationMs": "1309",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:46.496Z",
+              "event": "measurement_request",
+              "durationMs": "1643",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:06:47.087Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:06:47.388Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:06:49.822Z",
+              "event": "measurement_request",
+              "durationMs": "1388",
+              "status": "200",
+              "path": "/catalog"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 193.538,
+            "completedCatalogCalls": 89,
+            "http200": 89,
+            "completedCallsPerMinute": 27.591480742799863,
+            "http200PerMinute": 27.591480742799863,
+            "durationMinMs": 1173,
+            "durationP50Ms": 1504,
+            "durationP95Ms": 2025,
+            "durationMaxMs": 10770,
+            "failedQueries": 0,
+            "statuses": {
+              "200": 89
+            },
+            "providerRejectionAt": null,
+            "catalogCompletionsAfterRejection": null,
+            "memoryMaxPercent": 45.17,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 88,
+            "loggedNewListings": 176
+          }
+        },
+        {
+          "minimumIntervalMs": 250,
+          "requestsPerMinute": 120,
+          "tickIntervalMs": 1000,
+          "effectiveFilterIntervalMs": 1000,
+          "startedAt": "2026-10-29T21:06:59.957198+00:00",
+          "endedAt": "2026-10-29T21:08:20.586045+00:00",
+          "stopReason": "provider_rejection",
+          "samples": [
+            {
+              "at": "2026-10-29T21:07:16.094337+00:00",
+              "memory": "872.7MiB / 2GiB",
+              "memoryPercent": 42.61,
+              "cpuPercent": "134.15%",
+              "pids": "148",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 6,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:07:32.198976+00:00",
+              "memory": "750.3MiB / 2GiB",
+              "memoryPercent": 36.64,
+              "cpuPercent": "46.83%",
+              "pids": "147",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 16,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:07:48.327999+00:00",
+              "memory": "775.4MiB / 2GiB",
+              "memoryPercent": 37.86,
+              "cpuPercent": "131.62%",
+              "pids": "145",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 28,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:08:04.467945+00:00",
+              "memory": "734.2MiB / 2GiB",
+              "memoryPercent": 35.85,
+              "cpuPercent": "156.69%",
+              "pids": "145",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 38,
+              "failedQueries": 0
+            },
+            {
+              "at": "2026-10-29T21:08:20.585864+00:00",
+              "memory": "601.8MiB / 2GiB",
+              "memoryPercent": 29.39,
+              "cpuPercent": "24.91%",
+              "pids": "144",
+              "restartCount": 0,
+              "oomKilled": false,
+              "health": "healthy",
+              "requests": 39,
+              "failedQueries": 2
+            }
+          ],
+          "events": [
+            {
+              "at": "2026-10-29T21:07:00.960Z",
+              "event": "started"
+            },
+            {
+              "at": "2026-10-29T21:07:08.215Z",
+              "event": "measurement_request",
+              "durationMs": "7142",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:09.808Z",
+              "event": "measurement_request",
+              "durationMs": "8486",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:11.847Z",
+              "event": "measurement_request",
+              "durationMs": "1110",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:12.259Z",
+              "event": "measurement_request",
+              "durationMs": "1272",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:12.914Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "14",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:13.366Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T21:07:15.835Z",
+              "event": "measurement_request",
+              "durationMs": "1412",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:16.012Z",
+              "event": "measurement_request",
+              "durationMs": "1339",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:17.941Z",
+              "event": "measurement_request",
+              "durationMs": "1092",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:18.323Z",
+              "event": "measurement_request",
+              "durationMs": "1224",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:18.879Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:19.212Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:07:21.451Z",
+              "event": "measurement_request",
+              "durationMs": "1187",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:21.655Z",
+              "event": "measurement_request",
+              "durationMs": "1141",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:23.532Z",
+              "event": "measurement_request",
+              "durationMs": "1052",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:24.090Z",
+              "event": "measurement_request",
+              "durationMs": "1360",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:24.747Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:27.221Z",
+              "event": "measurement_request",
+              "durationMs": "1094",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:27.521Z",
+              "event": "measurement_request",
+              "durationMs": "1146",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:29.734Z",
+              "event": "measurement_request",
+              "durationMs": "1320",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:30.059Z",
+              "event": "measurement_request",
+              "durationMs": "1396",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:30.706Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "4",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:31.065Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:07:33.287Z",
+              "event": "measurement_request",
+              "durationMs": "1157",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:33.533Z",
+              "event": "measurement_request",
+              "durationMs": "1152",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:35.581Z",
+              "event": "measurement_request",
+              "durationMs": "1082",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:36.090Z",
+              "event": "measurement_request",
+              "durationMs": "1341",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:36.696Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:39.217Z",
+              "event": "measurement_request",
+              "durationMs": "1119",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:39.497Z",
+              "event": "measurement_request",
+              "durationMs": "1148",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:41.560Z",
+              "event": "measurement_request",
+              "durationMs": "1128",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:41.848Z",
+              "event": "measurement_request",
+              "durationMs": "1166",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:42.474Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "6",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:42.780Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:07:45.078Z",
+              "event": "measurement_request",
+              "durationMs": "1246",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:45.337Z",
+              "event": "measurement_request",
+              "durationMs": "1255",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:47.452Z",
+              "event": "measurement_request",
+              "durationMs": "1218",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:47.764Z",
+              "event": "measurement_request",
+              "durationMs": "1280",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:48.557Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:51.111Z",
+              "event": "measurement_request",
+              "durationMs": "1112",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:51.658Z",
+              "event": "measurement_request",
+              "durationMs": "1408",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:53.915Z",
+              "event": "measurement_request",
+              "durationMs": "1404",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:54.178Z",
+              "event": "measurement_request",
+              "durationMs": "1418",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:54.797Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "5",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:07:57.318Z",
+              "event": "measurement_request",
+              "durationMs": "1138",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:57.594Z",
+              "event": "measurement_request",
+              "durationMs": "1163",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:07:59.745Z",
+              "event": "measurement_request",
+              "durationMs": "1123",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:08:00.198Z",
+              "event": "measurement_request",
+              "durationMs": "1326",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:08:00.907Z",
+              "event": "cycle",
+              "polled": "4",
+              "new": "7",
+              "seeded": "0",
+              "failed": "0",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:08:01.291Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:08:03.445Z",
+              "event": "measurement_request",
+              "durationMs": "1081",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:08:03.995Z",
+              "event": "measurement_request",
+              "durationMs": "1382",
+              "status": "200",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:08:05.028Z",
+              "event": "measurement_request",
+              "durationMs": "176",
+              "status": "429",
+              "path": "/catalog"
+            },
+            {
+              "at": "2026-10-29T21:08:05.029Z",
+              "event": "query_failed",
+              "kind": "rate_limited",
+              "nextAttemptAt": "2026-10-29T21:09:05.028Z",
+              "httpStatus": "429",
+              "phase": "request",
+              "challengeDetected": "false",
+              "retryAfterSeconds": "null"
+            },
+            {
+              "at": "2026-10-29T21:08:05.102Z",
+              "event": "query_failed",
+              "kind": "server_error",
+              "nextAttemptAt": "2026-10-29T21:08:35.102Z"
+            },
+            {
+              "at": "2026-10-29T21:08:05.114Z",
+              "event": "cycle",
+              "polled": "2",
+              "new": "4",
+              "seeded": "0",
+              "failed": "2",
+              "skipped": "0",
+              "newHits": "0"
+            },
+            {
+              "at": "2026-10-29T21:08:06.533Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:07.917Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:09.324Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:10.695Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:11.049Z",
+              "event": "watchlist_evaluation_completed"
+            },
+            {
+              "at": "2026-10-29T21:08:12.084Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:13.435Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:13.789Z",
+              "event": "listings_expired"
+            },
+            {
+              "at": "2026-10-29T21:08:14.820Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:16.189Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:17.578Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:18.968Z",
+              "event": "origin_in_cooldown"
+            },
+            {
+              "at": "2026-10-29T21:08:20.380Z",
+              "event": "origin_in_cooldown"
+            }
+          ],
+          "summary": {
+            "elapsedSeconds": 80.629,
+            "completedCatalogCalls": 39,
+            "http200": 38,
+            "completedCallsPerMinute": 29.02181597192077,
+            "http200PerMinute": 28.277666844435622,
+            "durationMinMs": 176,
+            "durationP50Ms": 1187,
+            "durationP95Ms": 7142,
+            "durationMaxMs": 8486,
+            "failedQueries": 2,
+            "statuses": {
+              "200": 38,
+              "429": 1
+            },
+            "providerRejectionAt": "2026-10-29T21:08:05.028Z",
+            "catalogCompletionsAfterRejection": 0,
+            "memoryMaxPercent": 42.61,
+            "maximumRestartCount": 0,
+            "oomObserved": false,
+            "successfulQueryCompletions": 38,
+            "loggedNewListings": 65
+          }
+        }
+      ]
+    }
+  ],
+  "postRestoration": {
+    "observedAt": "2026-10-29T21:12:39.108437+00:00",
+    "sameImage": true,
+    "sameEnvironment": true,
+    "sameMounts": true,
+    "sameFilterConfiguration": true,
+    "health": "healthy",
+    "startedAt": "2026-10-29T21:08:24.221769862Z",
+    "restartCount": 0,
+    "oomKilled": false,
+    "rollbackTimers": {
+      "flipbase-sniper-measurement-rollback.timer": "inactive",
+      "flipbase-sniper-measurement-fetch-rollback.timer": "inactive",
+      "flipbase-sniper-measurement-parallel-rollback.timer": "inactive"
+    },
+    "database": [
+      {
+        "origin": [
+          {
+            "state": "ready",
+            "reason": null,
+            "blockedUntil": null
+          }
+        ]
+      },
+      {
+        "filters": [
+          {
+            "name": "Adidas",
+            "isActive": true,
+            "lastSuccessAt": "2026-10-29T21:12:01.75785+00:00",
+            "runState": "ready",
+            "consecutiveFailures": 0,
+            "nextAttemptAt": null
+          },
+          {
+            "name": "Ralph Lauren",
+            "isActive": true,
+            "lastSuccessAt": "2026-10-29T21:12:13.876732+00:00",
+            "runState": "ready",
+            "consecutiveFailures": 0,
+            "nextAttemptAt": null
+          },
+          {
+            "name": "Blauer",
+            "isActive": true,
+            "lastSuccessAt": "2026-10-29T21:12:24.019944+00:00",
+            "runState": "ready",
+            "consecutiveFailures": 0,
+            "nextAttemptAt": null
+          },
+          {
+            "name": "Nike Neu",
+            "isActive": true,
+            "lastSuccessAt": "2026-10-29T21:12:35.575155+00:00",
+            "runState": "ready",
+            "consecutiveFailures": 0,
+            "nextAttemptAt": null
+          }
+        ]
+      }
+    ],
+    "effectiveTiming": {
+      "minimumIntervalMs": 10000,
+      "requestsPerMinute": 30,
+      "tickIntervalMs": 5000,
+      "requestTimeoutMs": 20000
+    },
+    "passiveCacheObserver": {
+      "status": "unavailable",
+      "reason": "CDP ECONNREFUSED during restoration after early 429 stop; zero catalog probes issued by observer."
+    }
+  }
+}

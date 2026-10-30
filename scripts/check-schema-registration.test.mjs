@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 import { getCheckCommands } from './ci-checks.mjs';
+import '../supabase/test-support/kleinanzeigen-rest-precision-response.test.mjs';
 
 test('registers every declarative schema exactly once', async () => {
   const config = await readFile('supabase/config.toml', 'utf8');
