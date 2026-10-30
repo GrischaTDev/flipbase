@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-30 - Juna - Marketplace-Rollout nach ausdrücklicher Freigabe veröffentlichen
+
+**Freigabe und Stand:** Der Nutzer beauftragt PR, Merge nach erfolgreichen Pflichtprüfungen, Worker-Rollout, echte Vinted-Veröffentlichungsprüfung und anschließende Bereinigung. Den eigenen Zweig `juna/marketplace-status-review` auf geprüftem Commit `ba3e7d79` fortgesetzt; sauberer Git-Stand und frischer Abruf bestätigen weiterhin `origin/master` bei `a6ae30ef`. Die drei Code-/Testdateien bleiben gegenüber den dokumentierten lokalen Prüfungen unverändert. Die erneute Vorabprüfung berücksichtigt zusätzlich diesen Sitzungseintrag. Der Auftrag endet erst mit bestätigtem Rollout und Anbieterergebnis; ein grüner PR allein reicht nicht. Fremde Arbeitskopien und Zweige bleiben erhalten.
+
 ## 2026-10-30 - Juna - Fehlende SSH-Werte beim automatischen Marketplace-Rollout beheben
 
 **Auftrag und Grundlage:** Die Online-Arbeit fortsetzen, den automatischen Rollout korrigieren und danach eine echte Vinted-Veröffentlichung prüfen. Den eigenen Zweig `juna/marketplace-status-review` fortgesetzt; lokaler Status und frischer Abruf von `origin` bestätigen den unveränderten Hauptzweig `a6ae30ef`. Andere Arbeitskopien und Zweige bleiben erhalten.
