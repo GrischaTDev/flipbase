@@ -27,6 +27,7 @@ describe('refreshCategoriesIfDue', () => {
       {
         store,
         hasCapacity: () => true,
+        now: () => now,
         maxAgeMs: DAY_MS,
         log,
         fetchHomepage: async () => {
@@ -65,6 +66,7 @@ describe('refreshCategoriesIfDue', () => {
       {
         store,
         hasCapacity: () => true,
+        now: () => now,
         maxAgeMs: DAY_MS,
         log,
         fetchHomepage: async () => {
@@ -107,6 +109,7 @@ describe('refreshCategoriesIfDue', () => {
           store,
           fetchHomepage,
           hasCapacity: () => true,
+          now: () => now,
           maxAgeMs: DAY_MS,
           log,
           originState: {
@@ -138,7 +141,7 @@ describe('refreshCategoriesIfDue', () => {
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -152,7 +155,7 @@ describe('refreshCategoriesIfDue', () => {
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -167,7 +170,7 @@ describe('refreshCategoriesIfDue', () => {
     const fetchHomepage = vi.fn(async () => '<html><body>nichts</body></html>');
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -183,7 +186,7 @@ describe('refreshCategoriesIfDue', () => {
     });
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -202,7 +205,7 @@ describe('refreshCategoriesIfDue', () => {
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => false, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => false, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -219,7 +222,7 @@ describe('refreshCategoriesIfDue', () => {
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -239,7 +242,7 @@ describe('refreshCategoriesIfDue', () => {
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, now: () => now, maxAgeMs: DAY_MS, log },
       now,
     );
 

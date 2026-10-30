@@ -47,6 +47,122 @@ const settle = async () => {
 };
 
 describe('DealFeedState', () => {
+  it('bündelt Hinweise während eines Abrufs zu einem anschließenden Abgleich ohne parallele Abfragen', async () => {
+    let finish!: (page: FeedPage) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<FeedPage>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(page([item('newest')]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    for (let i = 0; i < 10; i++) state.notifyUpdate();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    finish(page([item('older')]));
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await settle();
+    expect(state.items().map((row) => row.id)).toEqual(['newest']);
+  });
+
+  it('legt angekündigte Funde bei pausiertem Feed ausschließlich im Zulauf ab', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(page([item('older')]))
+      .mockResolvedValue(page([item('newest'), item('older')]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    state.pause();
+    state.notifyUpdate();
+    await settle();
+    expect(state.items().map((row) => row.id)).toEqual(['older']);
+    expect(state.pending().map((row) => row.id)).toEqual(['newest', 'older']);
+    expect(state.newCount()).toBe(1);
+    expect(state.paused()).toBe(true);
+  });
+
+  it('hält beim angekündigten Abgleich nach einer älteren Seite deren Karten fest', async () => {
+    const first = Array.from({ length: 60 }, (_, index) => item(String(index)));
+    let finish!: (page: FeedPage) => void;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(page(first))
+      .mockImplementationOnce(
+        () =>
+          new Promise<FeedPage>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(page([item('arrival'), ...first]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    const older = state.refresh(true);
+    state.notifyUpdate();
+    state.notifyUpdate();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    finish(page([item('older')]));
+    await older;
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenLastCalledWith(context);
+    expect(state.items().map((row) => row.id)).toEqual([...first.map((row) => row.id), 'older']);
+    expect(state.pending()[0].id).toBe('arrival');
+    expect(state.paused()).toBe(true);
+  });
+
+  it('verwirft vorgemerkte Hinweise beim Kontextwechsel und nach dem Verlassen', async () => {
+    let finish!: (page: FeedPage) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<FeedPage>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(page([item('workspace-b')]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    state.notifyUpdate();
+    state.setContext({ ...context, workspace: 'b' });
+    finish(page([item('private-a')]));
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(state.items()[0].id).toBe('workspace-b');
+    state.destroy();
+    state.notifyUpdate();
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('startet bei Fehlern keinen vorgemerkten Sofortversuch und erlaubt den späteren Pollingabruf', async () => {
+    let reject!: (error: Error) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<FeedPage>((_resolve, fail) => {
+            reject = fail;
+          }),
+      )
+      .mockResolvedValue(page([item('recovered')]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    state.notifyUpdate();
+    reject(new Error('offline'));
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(state.error()).toBe('offline');
+    await state.refresh();
+    expect(state.items()[0].id).toBe('recovered');
+  });
+
   it('keeps paused cards fixed while buffering arrivals, resumes at the newest page', async () => {
     const fetch = vi.fn().mockResolvedValue(page([item('a')]));
     const state = new DealFeedState(fetch);

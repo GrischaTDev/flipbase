@@ -1,0 +1,63 @@
+@let filter = query();
+<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+  <app-badge [tone]="filter.is_active ? 'success' : 'neutral'">{{
+    filter.is_active ? 'Aktiv' : 'Pausiert'
+  }}</app-badge>
+  <span class="text-xs text-fb-text-secondary">{{ lastSuccessLabel() }}</span>
+</div>
+@if (pending()) {
+  <span class="mt-1 inline-flex items-center gap-1.5 text-xs text-fb-text-muted" role="status"
+    ><app-loading-indicator aria-hidden="true" />Wird geprüft …</span
+  >
+}
+@if (filter.is_active && manualRequired()) {
+  <p class="mt-1 text-xs text-fb-text-primary">Wartet auf manuelle Vinted-Prüfung</p>
+}
+@if (filter.last_status && filter.last_status !== 'ok' && filter.last_status !== 'never_polled') {
+  <p class="mt-1 max-w-md break-words text-xs text-fb-text-primary">
+    {{ filter.last_error_message || statusLabel(filter) }}
+  </p>
+}
+<p class="mt-1 text-xs text-fb-text-secondary">{{ coverageLabel() }}</p>
+<details data-query-run-details class="mt-1 text-xs text-fb-text-muted">
+  <summary class="cursor-pointer">
+    Abrufdetails<span class="sr-only"> für {{ filter.title }}</span>
+  </summary>
+  <p class="mt-2 text-fb-text-secondary">Letzter Abruf: {{ statusLabel(filter) }}</p>
+  <dl class="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-fb-text-secondary">
+    <dt>Letzter Erfolg</dt>
+    <dd>
+      @if (filter.last_success_at) {
+        <time [attr.datetime]="filter.last_success_at">{{
+          filter.last_success_at | date: 'dd.MM.yyyy, HH:mm:ss'
+        }}</time>
+      } @else {
+        Noch kein erfolgreicher Abruf
+      }
+    </dd>
+    @if (filter.last_attempt_at || filter.last_polled_at; as lastAttempt) {
+      <dt>Letzter Versuch</dt>
+      <dd>
+        <time [attr.datetime]="lastAttempt">{{ lastAttempt | date: 'dd.MM.yyyy, HH:mm:ss' }}</time>
+      </dd>
+    }
+    @if (filter.coverage_checked_at) {
+      <dt>Abrufstand</dt>
+      <dd>
+        <time [attr.datetime]="filter.coverage_checked_at">{{
+          filter.coverage_checked_at | date: 'dd.MM.yyyy, HH:mm:ss'
+        }}</time>
+      </dd>
+    }
+    @if (
+      filter.last_request_duration_ms !== undefined && filter.last_request_duration_ms !== null
+    ) {
+      <dt>Dauer</dt>
+      <dd>{{ filter.last_request_duration_ms }} ms</dd>
+    }
+    @if ((filter.shared_filter_count ?? 0) > 1) {
+      <dt>Gemeinsamer Abruf</dt>
+      <dd>Geteilt mit insgesamt {{ filter.shared_filter_count }} Filtern.</dd>
+    }
+  </dl>
+</details>

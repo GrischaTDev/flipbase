@@ -51,7 +51,8 @@ export class SniperAdminService {
     if (
       draft.catalogId !== undefined ||
       draft.brands !== undefined ||
-      draft.titleKeywords !== undefined
+      draft.titleKeywords !== undefined ||
+      draft.excludedTitleKeywords !== undefined
     ) {
       const { error } = await this.client.rpc('save_sniper_search_filter', {
         p_id: draft.id!,
@@ -59,6 +60,7 @@ export class SniperAdminService {
         p_catalog_id: draft.catalogId!,
         p_brands: (draft.brands ?? []).map((brand) => ({ id: brand.id, name: brand.name })),
         p_title_keywords: draft.titleKeywords ?? [],
+        p_excluded_title_keywords: draft.excludedTitleKeywords ?? [],
         p_keyword_mode: draft.keywordMode ?? 'all',
         p_poll_interval_ms: draft.intervalSeconds * 1000,
         p_notes: draft.notes,

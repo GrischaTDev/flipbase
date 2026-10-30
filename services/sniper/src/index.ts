@@ -8,7 +8,7 @@ import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { startCollectorWatchdog } from './runtime/collector-watchdog.js';
 import { RequestBudget } from './runtime/budget.js';
-import { countingFetch } from './runtime/counting-fetch.js';
+import { RequestStartGuard } from './runtime/request-start-guard.js';
 import { pacedVintedFetch } from './runtime/paced-vinted-fetch.js';
 import { ListingRetention } from './runtime/listing-retention.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
@@ -34,6 +34,7 @@ const log = createLogger();
 const client = createSupabaseClient(config);
 const sessionOptions = { baseUrl: config.vintedBaseUrl, userAgent: config.userAgent };
 const budget = new RequestBudget(config.requestsPerMinute);
+const requestGuard = new RequestStartGuard(budget);
 const health = createHealthState(
   () => budget.usageRatio(),
   undefined,
@@ -46,22 +47,29 @@ const metrics = new RequestMetrics();
 const browser = new ChromeVintedBrowser(config.vintedBaseUrl, {
   profileDir: config.browserProfileDir,
   cdpPort: config.browserCdpPort,
+  requestTimeoutMs: config.requestTimeoutMs,
 });
 const counted = pacedVintedFetch(
-  countingFetch(
-    metrics.wrap(async (input, init) => {
-      try {
-        return await browser.fetch(input, init);
-      } finally {
-        // Einzelne Abrufe halten auch einen langen Durchlauf mit vielen Filtern lebendig.
-        health.recordProgress();
-      }
-    }),
-    () => budget.record(),
-  ),
+  metrics.wrap(async (input, init) => {
+    try {
+      const response = await browser.fetch(input, {
+        ...init,
+        signal: init?.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
+      });
+      if (response.status === 403 || response.status === 429) requestGuard.pause();
+      return response;
+    } finally {
+      // Einzelne Abrufe halten auch einen langen Durchlauf mit vielen Filtern lebendig.
+      health.recordProgress();
+    }
+  }),
   {
     minimumIntervalMs: config.requestMinIntervalMs,
     requestTimeoutMs: config.requestTimeoutMs,
+    assertCanStart: () => requestGuard.assertCanStart(),
+    recordStart: () => budget.record(),
   },
 );
 const vintedConnection = new VintedConnectionState();
@@ -81,6 +89,8 @@ const browserSession = new BrowserSessionController({
   listings,
   collector,
   budget,
+  onVerificationStart: () => requestGuard.beginOperatorVerification(),
+  onVerificationEnd: () => requestGuard.endOperatorVerification(),
 });
 const retention = new ListingRetention(() => listings.purgeExpired(), log);
 const evaluator = new WatchlistEvaluator({
@@ -91,6 +101,9 @@ const evaluator = new WatchlistEvaluator({
 });
 
 const scheduler = new QueryScheduler({
+  now: () => new Date(),
+  maxRequestsPerCycle: 1,
+  onOriginPause: () => requestGuard.pause(),
   queries: {
     dueQueries: (now) => queries.dueQueries(now),
     recordSuccess: (id, now) => queries.recordSuccess(id, now),
@@ -165,6 +178,14 @@ while (!controller.signal.aborted) {
     // jeder Abfrage. Nur mitzaehlen ohne fragen hiesse: Diese eine Anfrage
     // laesst sich nie verweigern, verbraucht aber das Budget der anderen.
     const report = (await browserSession.runAutomatic(async () => {
+      const origin = await originState.getState('vinted');
+      if (
+        origin.state === 'ready' ||
+        (origin.reason !== 'interaction_required' &&
+          (!origin.blockedUntil || Date.parse(origin.blockedUntil) <= Date.now()))
+      ) {
+        requestGuard.allowAutomatic();
+      }
       await refreshCategoriesIfDue(
         {
           store: categories,
@@ -205,6 +226,8 @@ while (!controller.signal.aborted) {
           },
           maxAgeMs: config.categoryMaxAgeMs,
           log,
+          now: () => new Date(),
+          onOriginPause: () => requestGuard.pause(),
         },
         now,
       );
@@ -220,6 +243,13 @@ while (!controller.signal.aborted) {
       originPause: { reason: 'interaction_required', until: null },
     };
     health.recordCycle(report, now);
+    if (report.newListings > 0 || report.newHits > 0 || report.seeded > 0) {
+      try {
+        await listings.notifyFeedUpdates();
+      } catch {
+        log.error('feed_notification_failed');
+      }
+    }
     if (report.failed > 0)
       cycleError = 'Der Sammeldurchlauf enthält Fehler. Bitte Aufträge und Dienstprotokoll prüfen.';
     if (report.originPause) {
@@ -274,7 +304,10 @@ while (!controller.signal.aborted) {
 
   // Keine fälligen Aufträge und eine bewusste Vinted-Pause sind ebenfalls Fortschritt.
   health.recordProgress();
-  await sleep(config.tickIntervalMs);
+  const remainingDelay = counted.remainingDelay();
+  await sleep(
+    remainingDelay > 0 ? Math.min(config.tickIntervalMs, remainingDelay) : config.tickIntervalMs,
+  );
 }
 
 stopWatchdog();

@@ -1,5 +1,13 @@
 const WINDOW_MS = 60_000;
 
+/** Interne Begrenzung, keine Ablehnung der externen Quelle. */
+export class RequestBudgetUnavailableError extends Error {
+  constructor() {
+    super('Das eigene Anfragebudget ist vorübergehend ausgeschöpft.');
+    this.name = 'RequestBudgetUnavailableError';
+  }
+}
+
 /**
  * Gleitendes Fenster ueber die letzte Minute. Ohne diese Grenze bremst ein
  * Arbeitsbereich mit vielen Filtern alle anderen aus und das Sperrrisiko

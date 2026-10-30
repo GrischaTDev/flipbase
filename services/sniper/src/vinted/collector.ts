@@ -37,8 +37,19 @@ export class VintedCollector {
     const titleMatches = createTitleKeywordMatcher(
       query.titleKeywords ?? [],
       query.keywordMode ?? 'all',
+      query.excludedTitleKeywords ?? [],
     );
-    const url = buildVintedCatalogUrl(query, this.options.baseUrl);
+    return (await this.collectSource(query, options)).filter((listing) =>
+      titleMatches(listing.title),
+    );
+  }
+
+  /** Ungefilterte Quellantwort; jeder fachliche Empfänger prüft seine Titelregeln selbst. */
+  async collectSource(
+    query: SniperQuery,
+    options: { allowRetries?: boolean; page?: number } = {},
+  ): Promise<MarketplaceListing[]> {
+    const url = buildVintedCatalogUrl(query, this.options.baseUrl, options.page ?? 1);
 
     try {
       const response = await this.request(url, query.id, options.allowRetries ?? true);
@@ -74,7 +85,7 @@ export class VintedCollector {
       }
 
       this.connectionState?.recordSuccess();
-      return listings.filter((listing) => titleMatches(listing.title));
+      return listings;
     } catch (error) {
       this.connectionState?.recordFailure();
       throw error;
@@ -142,12 +153,13 @@ export class VintedCollector {
   }
 }
 
-export function buildVintedCatalogUrl(query: SniperQuery, baseUrl: string): URL {
+export function buildVintedCatalogUrl(query: SniperQuery, baseUrl: string, page = 1): URL {
+  if (!Number.isInteger(page) || page < 1 || page > 3) throw new Error('Ungültige Katalogseite.');
   const request = searchFilterRequest(query);
   const url = new URL(CATALOG_PATH, baseUrl);
   if (request.searchText) url.searchParams.set('search_text', request.searchText);
   url.searchParams.set('order', 'newest_first');
-  url.searchParams.set('page', '1');
+  url.searchParams.set('page', String(page));
   url.searchParams.set('per_page', PER_PAGE);
   if (query.catalogId !== null) url.searchParams.set('catalog_ids', String(query.catalogId));
   if (request.brandId !== null) url.searchParams.set('brand_ids', String(request.brandId));

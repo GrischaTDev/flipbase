@@ -15,9 +15,9 @@ const EnvSchema = z.object({
   SNIPER_BROWSER_CDP_PORT: z.coerce.number().int().min(1).max(65535).default(9228),
   SNIPER_BROWSER_PROFILE_DIR: z.string().min(1).default('/var/lib/flipbase-sniper/browser'),
   VINTED_BASE_URL: z.string().min(1).default('https://www.vinted.de'),
-  SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(30),
-  SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
-  SNIPER_REQUEST_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
+  SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(24),
+  SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(1000),
+  SNIPER_REQUEST_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).max(60_000).default(2500),
   SNIPER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(20_000),
   SNIPER_USER_AGENT: z
     .string()

@@ -56,6 +56,44 @@ describe('SniperAdminService', () => {
     expect(builder.is).toHaveBeenCalledWith('deleted_at', null);
   });
 
+  it('saves explicit title exclusions together with category and keyword rules', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 'query', error: null });
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { rpc } } }],
+    });
+    await TestBed.inject(SniperAdminService).save({
+      id: null,
+      title: 'Pufferjacken',
+      brandId: null,
+      intervalSeconds: 5,
+      notes: '',
+      catalogId: 79,
+      brands: [],
+      titleKeywords: ['pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken'],
+      excludedTitleKeywords: ['weste', 'pufferweste'],
+      keywordMode: 'any',
+      revision: null,
+      searchText: null,
+      priceFrom: null,
+      priceTo: 50,
+    });
+    expect(rpc).toHaveBeenCalledWith('save_sniper_search_filter', {
+      p_id: null,
+      p_title: 'Pufferjacken',
+      p_catalog_id: 79,
+      p_brands: [],
+      p_title_keywords: ['pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken'],
+      p_excluded_title_keywords: ['weste', 'pufferweste'],
+      p_keyword_mode: 'any',
+      p_poll_interval_ms: 5000,
+      p_notes: '',
+      p_expected_revision: null,
+      p_search_text: null,
+      p_price_from: null,
+      p_price_to: 50,
+    });
+  });
+
   it('removes a filter through the restricted function and reports errors', async () => {
     const rpc = vi
       .fn()

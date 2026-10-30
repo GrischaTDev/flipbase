@@ -12,13 +12,14 @@ import {
   signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { LucideX } from '@lucide/angular';
+import { LucidePencil, LucideX } from '@lucide/angular';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
 import {
   SearchMultiSelectComponent,
   SearchMultiSelectOption,
@@ -45,6 +46,7 @@ import { VintedBrandSearchService } from '../../services/vinted-brand-search.ser
     NumberInputComponent,
     ButtonComponent,
     CustomSelectComponent,
+    FormFieldComponent,
     SearchMultiSelectComponent,
     VintedCategoryPickerComponent,
   ],
@@ -66,6 +68,7 @@ export class SniperQueryEditorComponent {
   readonly cancelled = output<void>();
   readonly editing = computed(() => this.query()?.id ?? null);
   readonly error = signal<string | null>(null);
+  readonly submitted = signal(false);
   readonly categories = signal<VintedCategory[]>([]);
   readonly categoryStatus = signal<CategorySyncStatus | null>(null);
   readonly categoryLoading = signal(false);
@@ -76,18 +79,37 @@ export class SniperQueryEditorComponent {
   readonly brandLoading = signal(false);
   readonly brandError = signal<string | null>(null);
   readonly keywords = signal<string[]>([]);
-  readonly advanced = signal(false);
+  readonly excludedKeywords = signal<string[]>([]);
   readonly removeIcon = LucideX;
+  readonly editIcon = LucidePencil;
   readonly form = new FormGroup({
-    title: new FormControl('', { nonNullable: true }),
+    title: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.pattern(/\S/u), Validators.maxLength(100)],
+    }),
     catalogId: new FormControl<number | null>(null),
     keywordEntry: new FormControl('', { nonNullable: true }),
+    excludedKeywordEntry: new FormControl('', { nonNullable: true }),
     keywordMode: new FormControl<TitleKeywordMode>('all', { nonNullable: true }),
-    intervalSeconds: new FormControl(20, { nonNullable: true }),
-    notes: new FormControl('', { nonNullable: true }),
+    intervalSeconds: new FormControl(5, {
+      nonNullable: true,
+      validators: [
+        Validators.required,
+        Validators.min(1),
+        Validators.max(86400),
+        Validators.pattern(/^\d+$/u),
+      ],
+    }),
+    notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
     searchText: new FormControl('', { nonNullable: true }),
-    priceFrom: new FormControl<number | null>(null),
-    priceTo: new FormControl<number | null>(null),
+    priceFrom: new FormControl<number | null>(null, [
+      Validators.min(0),
+      Validators.max(9999999999.99),
+    ]),
+    priceTo: new FormControl<number | null>(null, [
+      Validators.min(0),
+      Validators.max(9999999999.99),
+    ]),
   });
   readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
   readonly catalogId = computed(() => this.formValue().catalogId ?? null);
@@ -108,13 +130,18 @@ export class SniperQueryEditorComponent {
     { value: 'all' as const, label: 'Alle' },
     { value: 'any' as const, label: 'Mindestens eines' },
   ];
-  readonly subrequestCount = computed(
-    () =>
-      Math.max(1, this.brands().length) *
-      (this.formValue().searchText?.trim() || this.formValue().keywordMode !== 'any'
-        ? 1
-        : Math.max(1, this.keywords().length)),
-  );
+  readonly titleSuggestions = [
+    {
+      id: 'puffer' as const,
+      title: 'Pufferjacken',
+      terms: ['puffer', 'pufferjacke', 'puffer jacke', 'pufferjacken', 'puffer jacken'],
+    },
+    {
+      id: 'cable' as const,
+      title: 'Zopfpullover',
+      terms: ['zopfpullover', 'zopf pullover', 'cable knit'],
+    },
+  ];
   readonly summary = computed(() => {
     const category =
       this.catalogId() === null
@@ -137,16 +164,12 @@ export class SniperQueryEditorComponent {
     ]
       .filter(Boolean)
       .join(' ');
-    return `${category} · ${brands}${words}${legacy}${prices ? ' · ' + prices : ''}`;
+    const excluded = this.excludedKeywords().length
+      ? ` · ohne: ${this.excludedKeywords().join(', ')}`
+      : '';
+    return `${category} · ${brands}${words}${excluded}${legacy}${prices ? ' · ' + prices : ''}`;
   });
   readonly categoryStale = signal(false);
-  readonly hasLegacyConditions = computed(() =>
-    Boolean(
-      this.query()?.search_text ||
-      this.query()?.price_from != null ||
-      this.query()?.price_to != null,
-    ),
-  );
 
   constructor() {
     effect(() => this.edit(this.query()));
@@ -170,8 +193,9 @@ export class SniperQueryEditorComponent {
       title: query?.title ?? '',
       catalogId: query?.catalog_id ?? null,
       keywordEntry: '',
+      excludedKeywordEntry: '',
       keywordMode: query?.keyword_mode === 'any' ? 'any' : 'all',
-      intervalSeconds: (query?.poll_interval_ms ?? 20000) / 1000,
+      intervalSeconds: (query?.poll_interval_ms ?? 5000) / 1000,
       notes: query?.notes ?? '',
       searchText: query?.search_text ?? '',
       priceFrom: query?.price_from ?? null,
@@ -186,7 +210,34 @@ export class SniperQueryEditorComponent {
       ids.map((id, index) => ({ id, name: query?.brand_names?.[index] || 'Gespeicherte Marke' })),
     );
     this.keywords.set([...(query?.title_keywords ?? [])]);
+    this.excludedKeywords.set([...(query?.excluded_title_keywords ?? [])]);
     this.error.set(null);
+    this.submitted.set(false);
+  }
+
+  fieldError(
+    field: 'title' | 'intervalSeconds' | 'priceFrom' | 'priceTo' | 'notes',
+  ): string | null {
+    if (!this.submitted()) return null;
+    const values = this.formValue();
+    if (
+      field === 'priceTo' &&
+      values.priceFrom != null &&
+      values.priceTo != null &&
+      values.priceFrom > values.priceTo
+    )
+      return 'Der Höchstpreis muss mindestens so hoch wie der Mindestpreis sein.';
+    if (!this.form.controls[field].invalid) return null;
+    switch (field) {
+      case 'title':
+        return 'Gib einen Filternamen mit 1 bis 100 Zeichen an.';
+      case 'intervalSeconds':
+        return 'Gib eine ganze Zahl von 1 bis 86.400 Sekunden an.';
+      case 'notes':
+        return 'Deine Notiz darf höchstens 2.000 Zeichen enthalten.';
+      default:
+        return 'Gib einen gültigen Preis ab 0 € an.';
+    }
   }
 
   hasUnsavedChanges(): boolean {
@@ -299,8 +350,85 @@ export class SniperQueryEditorComponent {
     this.form.markAsDirty();
   }
 
-  submit(): void {
+  editKeyword(keyword: string): void {
     if (this.saving() || !this.addKeyword()) return;
+    this.removeKeyword(keyword);
+    this.form.controls.keywordEntry.setValue(keyword);
+    this.element.nativeElement.querySelector<HTMLInputElement>('#sniper-keyword-entry')?.focus();
+  }
+
+  applyTitleSuggestion(id: 'puffer' | 'cable'): void {
+    if (this.saving()) return;
+    const suggestion = this.titleSuggestions.find((entry) => entry.id === id)!;
+    const next = [...new Set([...this.keywords(), ...suggestion.terms])];
+    if (next.length > 10) {
+      this.error.set('Bitte höchstens zehn Titelbegriffe angeben. Entferne zuerst einen Begriff.');
+      return;
+    }
+    if (!this.keywords().length) this.form.controls.keywordMode.setValue('any');
+    this.keywords.set(next);
+    this.form.markAsDirty();
+    this.error.set(null);
+  }
+
+  excludedKeywordKeydown(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.addExcludedKeyword();
+  }
+
+  addExcludedKeyword(): boolean {
+    if (this.saving()) return false;
+    const keyword = normalizeFilterKeyword(this.form.controls.excludedKeywordEntry.value);
+    if (!keyword) return true;
+    if ([...keyword].length > 80 || !/[\p{L}\p{N}]/u.test(keyword)) {
+      this.error.set('Ein Ausschlussbegriff braucht 1 bis 80 Zeichen und Buchstaben oder Zahlen.');
+      return false;
+    }
+    if (!this.excludedKeywords().includes(keyword)) {
+      if (this.excludedKeywords().length >= 10) {
+        this.error.set('Bitte höchstens zehn Ausschlussbegriffe angeben.');
+        return false;
+      }
+      this.excludedKeywords.update((values) => [...values, keyword]);
+    }
+    this.form.controls.excludedKeywordEntry.setValue('');
+    this.form.markAsDirty();
+    this.error.set(null);
+    return true;
+  }
+
+  removeExcludedKeyword(keyword: string): void {
+    if (this.saving()) return;
+    this.excludedKeywords.update((values) => values.filter((value) => value !== keyword));
+    this.form.markAsDirty();
+  }
+
+  editExcludedKeyword(keyword: string): void {
+    if (this.saving() || !this.addExcludedKeyword()) return;
+    this.removeExcludedKeyword(keyword);
+    this.form.controls.excludedKeywordEntry.setValue(keyword);
+    this.element.nativeElement.querySelector<HTMLInputElement>('#sniper-excluded-entry')?.focus();
+  }
+
+  submit(): void {
+    if (this.saving() || !this.addKeyword() || !this.addExcludedKeyword()) return;
+    this.submitted.set(true);
+    this.form.markAllAsTouched();
+    const invalid = (['title', 'priceFrom', 'priceTo', 'intervalSeconds', 'notes'] as const).find(
+      (field) => this.fieldError(field),
+    );
+    if (invalid) {
+      const ids = {
+        title: 'sniper-title',
+        priceFrom: 'sniper-price-from',
+        priceTo: 'sniper-price-to',
+        intervalSeconds: 'sniper-interval',
+        notes: 'sniper-notes',
+      };
+      this.element.nativeElement.querySelector<HTMLElement>('#' + ids[invalid])?.focus();
+      return;
+    }
     if (this.categoryMissing()) {
       this.error.set(
         'Die ausgewählte Kategorie ist nicht verfügbar. Bitte lade die Kategorien erneut oder wähle ausdrücklich einen anderen Bereich.',
@@ -315,6 +443,7 @@ export class SniperQueryEditorComponent {
       catalogId: values.catalogId,
       brands: [...this.brands()],
       titleKeywords: [...this.keywords()],
+      excludedTitleKeywords: [...this.excludedKeywords()],
       keywordMode: values.keywordMode,
       intervalSeconds: values.intervalSeconds,
       notes: values.notes,

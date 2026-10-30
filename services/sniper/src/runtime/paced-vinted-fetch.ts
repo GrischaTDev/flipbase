@@ -6,6 +6,8 @@ export interface VintedRequestTiming {
   requestTimeoutMs: number;
   now?: () => number;
   sleep?: Sleep;
+  assertCanStart?: () => void;
+  recordStart?: () => void;
 }
 export interface VintedNavigationTiming {
   remainingDelay(): number;
@@ -25,9 +27,12 @@ export function pacedVintedFetch(
   const fetch: FetchLike = (input, init) => {
     const request = previous.then(async () => {
       init?.signal?.throwIfAborted();
+      timing.assertCanStart?.();
       const remaining = timing.minimumIntervalMs - (now() - lastStarted);
       if (remaining > 0) await wait(remaining);
       init?.signal?.throwIfAborted();
+      timing.assertCanStart?.();
+      timing.recordStart?.();
       lastStarted = now();
       const timeout = AbortSignal.timeout(timing.requestTimeoutMs);
       const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;

@@ -51,6 +51,7 @@ const server = createServer((request, response) => {
     if (Date.now() > renewalExpires) { response.statusCode = 403; response.end('Script renewal expired'); return; }
   }
   cookie = request.headers.cookie ?? '';
+  response.setHeader('Cache-Control', 'public, max-age=3600');
   response.setHeader('Set-Cookie', 'sniper_smoke=persisted; Max-Age=3600; Path=/');
   response.end('<html><body><h1>Local catalog</h1><input id="text" autofocus oninput="fetch(\'/input?text=\'+encodeURIComponent(this.value))"><script src="/renew.js"></script></body></html>');
 });
@@ -67,12 +68,15 @@ try {
   assert.equal(scripts, 1, 'Automatic catalog navigation must allow external and delayed session scripts');
   assert.equal(first.headers.get('set-cookie'), null, 'Chrome owns cookies');
   for (let attempt = 0; attempt < 3; attempt++) {
-    await new Promise(resolve => setTimeout(resolve, 900));
     const next = await browser.fetch(baseUrl + '/catalog', { signal: AbortSignal.timeout(20000) });
-    assert.equal(next.status, 200, 'Automatic catalogs must renew the session past its initial expiry');
-    await new Promise(resolve => setTimeout(resolve, 250));
+    assert.equal(next.status, 200, 'The existing session must support serial catalog fetches');
   }
-  assert.equal(scripts, 4);
+  assert.equal(catalogRequests, 4, 'No-store fetches must reach the server despite cacheable HTML');
+  assert.equal(scripts, 1, 'Lean catalog fetches must not execute another full document');
+  renewalExpires = Date.now() - 1;
+  assert.equal((await browser.fetch(baseUrl + '/catalog')).status, 403, 'An expired session refusal must reach the collector without a hidden retry');
+  assert.equal(catalogRequests, 5, 'A refusal must not trigger an extra catalog navigation');
+  renewalExpires = Date.now() + 10000;
   const refreshed = await browser.fetch(baseUrl + '/catalog?session_refresh');
   assert.equal(refreshed.status, 200);
   assert.match(await refreshed.text(), /Refreshed catalog/);

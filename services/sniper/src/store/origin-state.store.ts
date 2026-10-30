@@ -13,6 +13,10 @@ export interface OriginState {
 const STALE_PROBE_MS = 5 * 60_000;
 
 export class OriginStateStore {
+  private readonly pendingCooldowns = new Map<
+    string,
+    { until: Date; reason: string; updatedAt: string }
+  >();
   private readonly manualPauses = new Map<
     string,
     { notBefore?: Date; updatedAt: string; pending: boolean }
@@ -42,6 +46,26 @@ export class OriginStateStore {
         reason: 'interaction_required',
         probeInFlight: false,
         updatedAt: pause.updatedAt,
+      };
+    }
+    const cooldown = this.pendingCooldowns.get(origin);
+    if (cooldown) {
+      try {
+        await this.setCooldown(origin, cooldown.until, cooldown.reason);
+      } catch (error) {
+        this.log.error('origin_cooldown_persistence_failed', {
+          origin,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+      // Auch nach erfolgreicher Wiederholung gilt diese bestätigte Sperrfrist.
+      return {
+        origin,
+        state: 'cooldown',
+        blockedUntil: cooldown.until.toISOString(),
+        reason: cooldown.reason,
+        probeInFlight: false,
+        updatedAt: cooldown.updatedAt,
       };
     }
     const { data, error } = await this.client
@@ -78,11 +102,19 @@ export class OriginStateStore {
   async setCooldown(origin: string, blockedUntil: Date, reason: string): Promise<void> {
     if (this.manualPauses.has(origin))
       throw new Error('Manual interaction pause cannot become a cooldown');
+    const previous = this.pendingCooldowns.get(origin);
+    const cooldown =
+      previous && previous.until > blockedUntil
+        ? previous
+        : { until: blockedUntil, reason, updatedAt: new Date().toISOString() };
+    // Bereits vor dem Schreiben sperren. Bei Datenbankfehlern darf kein weiterer
+    // Filter die Sperrfrist des Anbieters durch einen alten ready-Stand umgehen.
+    this.pendingCooldowns.set(origin, cooldown);
     const { error } = await this.client.from('sniper_origin_state').upsert({
       origin,
       state: 'cooldown',
-      blocked_until: blockedUntil.toISOString(),
-      reason,
+      blocked_until: cooldown.until.toISOString(),
+      reason: cooldown.reason,
       probe_in_flight: false,
       updated_at: new Date().toISOString(),
     });
@@ -90,6 +122,7 @@ export class OriginStateStore {
     if (error) {
       throw new Error(`setting cooldown for origin ${origin} failed: ${error.message}`);
     }
+    if (this.pendingCooldowns.get(origin) === cooldown) this.pendingCooldowns.delete(origin);
   }
 
   async setBlocked(origin: string, reason: string, notBefore?: Date): Promise<void> {
@@ -131,6 +164,7 @@ export class OriginStateStore {
    */
   async tryAcquireProbe(origin: string, now: Date = new Date()): Promise<boolean> {
     if (this.manualPauses.has(origin)) return false;
+    if (this.pendingCooldowns.has(origin)) return false;
     const acquired = { probe_in_flight: true, updated_at: now.toISOString() };
 
     const free = await this.client
@@ -183,6 +217,7 @@ export class OriginStateStore {
     if (error) {
       throw new Error(`releasing probe for ${origin} failed: ${error.message}`);
     }
+    if (success) this.pendingCooldowns.delete(origin);
   }
 
   async reset(origin: string): Promise<void> {
@@ -199,5 +234,6 @@ export class OriginStateStore {
       throw new Error(`resetting origin ${origin} failed: ${error.message}`);
     }
     this.manualPauses.delete(origin);
+    this.pendingCooldowns.delete(origin);
   }
 }

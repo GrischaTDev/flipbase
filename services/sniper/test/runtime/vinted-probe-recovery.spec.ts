@@ -65,6 +65,7 @@ describe('Vinted recovery across brands and worker restarts', () => {
     let refused = true;
     const makeScheduler = () =>
       new QueryScheduler({
+        now: () => now,
         queries: {
           dueQueries: async (at) =>
             queries

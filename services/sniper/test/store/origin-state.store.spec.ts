@@ -30,6 +30,22 @@ function storeWithResponses(responses: unknown[]) {
 }
 
 describe('OriginStateStore.tryAcquireProbe', () => {
+  it('retains a provider cooldown when persistence fails and never shortens its deadline', async () => {
+    const failure = () => Response.json({ message: 'database unavailable' }, { status: 400 });
+    const later = new Date(NOW.getTime() + 120_000);
+    const { store, requests } = storeWithResponses([failure(), failure(), failure(), null, null]);
+    await expect(store.setCooldown('vinted', later, 'rate_limited')).rejects.toThrow();
+    await expect(store.setCooldown('vinted', NOW, 'network')).rejects.toThrow();
+    expect(await store.getState('vinted')).toMatchObject({
+      state: 'cooldown',
+      blockedUntil: later.toISOString(),
+      reason: 'rate_limited',
+    });
+    expect(requests.every((request) => request.method === 'POST')).toBe(true);
+    expect(requests[1]?.body).toMatchObject({ blocked_until: later.toISOString() });
+    await store.reset('vinted');
+    expect(await store.getState('vinted')).toMatchObject({ state: 'ready' });
+  });
   it('keeps a failed challenge write locally blocked and retries persistence before any later work', async () => {
     const failure = () => Response.json({ message: 'database unavailable' }, { status: 400 });
     const { store, requests } = storeWithResponses([failure(), failure(), null, null]);

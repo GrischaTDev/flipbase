@@ -3,7 +3,9 @@ import type { BrowserInput } from './browser-types.js';
 import { BrowserCleanup } from './browser-cleanup.js';
 import { BrowserDesktop } from './browser-desktop.js';
 import { ChromeProcess, type ChromeProcessOptions } from './chrome-process.js';
-import { VintedNetworkError } from '../vinted/errors.js';
+import { VintedNetworkError, VintedTimeoutError } from '../vinted/errors.js';
+import { readCatalogResponse } from './catalog-response.js';
+import { abortableBrowserOperation } from './request-abort.js';
 
 interface PausedRequest {
   requestId: string;
@@ -20,12 +22,15 @@ export async function readBrowserDocument(
   url: URL,
   signal?: AbortSignal,
   cleanup = new BrowserCleanup(),
+  timeoutMs = 20_000,
 ): Promise<Response> {
   signal?.throwIfAborted();
-  const timeout = AbortSignal.timeout(20_000);
+  const timeout = AbortSignal.timeout(timeoutMs);
   const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
   let settled = false;
   let completed = false;
+  let cacheDisabled = false;
+  let networkEnabled = false;
   let mainFrameId = '';
   let loaderId: string | undefined;
   let documentResponse: Response | undefined;
@@ -187,18 +192,38 @@ export async function readBrowserDocument(
   session.on('Page.lifecycleEvent', onLifecycle);
   session.on('Page.frameNavigated', onFrameNavigated);
   try {
-    await session.send('Page.enable');
-    const { frameTree } = await session.send('Page.getFrameTree');
+    await abortableBrowserOperation(session.send('Page.enable'), requestSignal);
+    const { frameTree } = await abortableBrowserOperation(
+      session.send('Page.getFrameTree'),
+      requestSignal,
+    );
     mainFrameId = frameTree.frame.id;
-    await session.send('Page.setLifecycleEventsEnabled', { enabled: true });
-    await session.send('Network.setBypassServiceWorker', { bypass: false });
-    await session.send('Network.setCacheDisabled', { cacheDisabled: false });
-    await session.send('Fetch.enable', {
-      patterns: [
-        { urlPattern: '*', resourceType: 'Document', requestStage: 'Request' },
-        { urlPattern: '*', resourceType: 'Document', requestStage: 'Response' },
-      ],
-    });
+    await abortableBrowserOperation(
+      session.send('Page.setLifecycleEventsEnabled', { enabled: true }),
+      requestSignal,
+    );
+    await abortableBrowserOperation(
+      session.send('Network.setBypassServiceWorker', { bypass: false }),
+      requestSignal,
+    );
+    // Auch der Dokument-Warmup und die reguläre Sitzungserneuerung benötigen
+    // eine frische Antwort; ein alter 200-Katalog darf einen neuen 307 verdecken.
+    networkEnabled = true;
+    await abortableBrowserOperation(session.send('Network.enable'), requestSignal);
+    cacheDisabled = true;
+    await abortableBrowserOperation(
+      session.send('Network.setCacheDisabled', { cacheDisabled: true }),
+      requestSignal,
+    );
+    await abortableBrowserOperation(
+      session.send('Fetch.enable', {
+        patterns: [
+          { urlPattern: '*', resourceType: 'Document', requestStage: 'Request' },
+          { urlPattern: '*', resourceType: 'Document', requestStage: 'Response' },
+        ],
+      }),
+      requestSignal,
+    );
     requestSignal.throwIfAborted();
     const navigation = session.send('Page.navigate', { url: url.href }).then((result) => {
       if (result.errorText && !settled) throw browserNetworkError(result.errorText);
@@ -222,6 +247,9 @@ export async function readBrowserDocument(
       );
     }
     await cleanup.run(() => session.send('Fetch.disable'));
+    if (cacheDisabled)
+      await cleanup.run(() => session.send('Network.setCacheDisabled', { cacheDisabled: false }));
+    if (networkEnabled) await cleanup.run(() => session.send('Network.disable'));
     await cleanup.run(() => session.send('Page.setLifecycleEventsEnabled', { enabled: false }));
   }
 }
@@ -269,6 +297,9 @@ export class ChromeVintedBrowser implements VintedBrowser {
   private recycleAfterFailure = false;
   private unresponsive = false;
   private closing: Promise<void> | undefined;
+  private previousRequest: Promise<void> = Promise.resolve();
+  private catalogReady = false;
+  private readonly requestTimeoutMs: number;
 
   get needsRestart(): boolean {
     return this.unresponsive || this.runtime.hasFailed;
@@ -276,9 +307,10 @@ export class ChromeVintedBrowser implements VintedBrowser {
 
   constructor(
     private readonly baseUrl: string,
-    options: ChromeProcessOptions,
+    options: ChromeProcessOptions & { requestTimeoutMs?: number },
   ) {
     this.runtime = new ChromeProcess(options);
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 20_000;
     this.desktop = new BrowserDesktop((args, input) => this.runtime.execute(args, input));
   }
 
@@ -296,19 +328,37 @@ export class ChromeVintedBrowser implements VintedBrowser {
   }
 
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
+    const request = this.previousRequest.then(() => this.fetchSerial(input, init));
+    this.previousRequest = request.then(
+      () => undefined,
+      () => undefined,
+    );
+    return request;
+  }
+
+  private async fetchSerial(input: string | URL, init?: RequestInit): Promise<Response> {
     if (this.manual) throw new Error('Die Botsitzung wird gerade manuell bedient.');
     if (this.needsRestart) throw new Error('Der Feed-Browser muss neu gestartet werden.');
     const url = this.validateUrl(input);
+    if (init?.method && init.method.toUpperCase() !== 'GET')
+      throw new Error('Nur Katalog-GETs sind erlaubt.');
     init?.signal?.throwIfAborted();
+    const timeout = AbortSignal.timeout(this.requestTimeoutMs);
+    const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
     const cleanup = new BrowserCleanup();
     let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
     try {
-      await this.runtime.start();
+      await abortableBrowserOperation(this.runtime.start(), signal);
       if (this.needsRestart) throw new Error('Der Feed-Browser wird bereits beendet.');
-      browser = await chromium.connectOverCDP(this.runtime.endpoint, {
-        noDefaults: true,
-        timeout: 5000,
-      });
+      browser = await abortableBrowserOperation(
+        chromium.connectOverCDP(this.runtime.endpoint, {
+          noDefaults: true,
+          timeout: 5000,
+        }),
+        signal,
+        (late) => new BrowserCleanup().run(() => late.close()),
+      );
+      signal.throwIfAborted();
       if (this.needsRestart) throw new Error('Der Feed-Browser wird bereits beendet.');
       const context = browser.contexts()[0];
       if (!context) throw new Error('Browserkontext fehlt.');
@@ -316,26 +366,63 @@ export class ChromeVintedBrowser implements VintedBrowser {
       if (!page || this.requestsSinceTabChange >= 15 || this.recycleAfterFailure) {
         try {
           // Erst Ersatz öffnen, damit Chrome beim letzten geschlossenen Tab weiterläuft.
-          const replacement = await context.newPage();
+          const replacement = await abortableBrowserOperation(context.newPage(), signal, (late) =>
+            new BrowserCleanup().run(() => late.close()),
+          );
           for (const previous of context.pages().filter((candidate) => candidate !== replacement))
-            await previous.close();
+            await abortableBrowserOperation(previous.close(), signal);
           page = replacement;
           this.requestsSinceTabChange = 0;
           this.recycleAfterFailure = false;
+          this.catalogReady = false;
         } catch (error) {
           // Ungeklärte alte Tabs nicht durch immer neue Ersatz-Tabs vermehren.
           this.unresponsive = true;
           throw error;
         }
       }
-      const session = await context.newCDPSession(page);
+      signal.throwIfAborted();
+      if (url.pathname === '/catalog' && this.catalogReady) {
+        const response = await readCatalogResponse(page, url, signal, cleanup);
+        if (response) {
+          this.catalogReady = await this.validCatalogResponse(response);
+          signal.throwIfAborted();
+          this.requestsSinceTabChange++;
+          return response;
+        }
+        this.catalogReady = false;
+      }
+      const session = await abortableBrowserOperation(context.newCDPSession(page), signal, (late) =>
+        new BrowserCleanup().run(() => late.detach()),
+      );
       try {
         const response = await readBrowserDocument(
           session,
           url,
-          init?.signal ?? undefined,
+          signal,
           cleanup,
+          this.requestTimeoutMs,
         );
+        this.catalogReady =
+          url.pathname === '/catalog' && (await this.validCatalogResponse(response));
+        if (this.catalogReady) {
+          const control = await abortableBrowserOperation(
+            session.send('Runtime.evaluate', {
+              expression: 'Boolean(navigator.serviceWorker?.controller)',
+              returnByValue: true,
+            }),
+            signal,
+          );
+          if (control.result.type !== 'boolean' || control.result.value !== false)
+            throw new VintedNetworkError(
+              'Ein Service Worker verhindert den direkten Katalogabruf.',
+            );
+          if (new URL(page.url()).origin !== url.origin)
+            throw new VintedNetworkError(
+              'Der Browser befindet sich nicht auf der Katalogherkunft.',
+            );
+        }
+        signal.throwIfAborted();
         this.requestsSinceTabChange++;
         return response;
       } finally {
@@ -343,7 +430,9 @@ export class ChromeVintedBrowser implements VintedBrowser {
       }
     } catch (error) {
       this.recycleAfterFailure = true;
-      if (!browser) this.unresponsive = true;
+      this.catalogReady = false;
+      if (!browser && !signal.aborted) this.unresponsive = true;
+      if (timeout.aborted && !init?.signal?.aborted) throw new VintedTimeoutError();
       throw error;
     } finally {
       if (browser) {
@@ -354,11 +443,18 @@ export class ChromeVintedBrowser implements VintedBrowser {
     }
   }
 
+  private async validCatalogResponse(response: Response): Promise<boolean> {
+    if (!response.ok || response.headers.get('cf-mitigated') === 'challenge') return false;
+    const body = await response.clone().text();
+    return !body.includes('challenge-running') && !body.includes('<title>Just a moment...</title>');
+  }
+
   async openManual(url: URL): Promise<void> {
     this.validateUrl(url);
     await this.runtime.start();
     await this.stopManual();
     this.manual = true;
+    this.catalogReady = false;
     await this.runtime.execute([
       '/usr/bin/google-chrome-stable',
       `--user-data-dir=${this.runtime.options.profileDir}`,
@@ -387,6 +483,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
         await session.detach();
       }
       this.requestsSinceTabChange = 0;
+      this.catalogReady = false;
       this.recycleAfterFailure = false;
       this.manual = false;
     } finally {

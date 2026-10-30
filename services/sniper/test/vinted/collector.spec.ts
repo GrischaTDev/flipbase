@@ -42,6 +42,15 @@ function build(fetchFn: ReturnType<typeof vi.fn>) {
 }
 
 describe('VintedCollector', () => {
+  it('returns the raw source before applying each filter’s exclusions', async () => {
+    const fetchFn = vi.fn().mockImplementation(async () => catalog());
+    const filter = { ...query, titleKeywords: ['Nike'], excludedTitleKeywords: ['Air Max'] };
+    expect(await build(fetchFn).collectSource(filter, { page: 2 })).toHaveLength(1);
+    expect(new URL(String(fetchFn.mock.calls[0]?.[0])).searchParams.get('page')).toBe('2');
+    expect(await build(fetchFn).collect(filter)).toEqual([]);
+    await expect(build(fetchFn).collectSource(filter, { page: 4 })).rejects.toThrow('Katalogseite');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
   it('reports a provider challenge and its retry delay without retrying or exposing the body', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response('private provider content', {

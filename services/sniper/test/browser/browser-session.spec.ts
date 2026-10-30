@@ -59,6 +59,12 @@ function setup() {
       },
     },
     now: () => new Date(clock),
+    onVerificationStart: () => {
+      events.push('verification_start');
+    },
+    onVerificationEnd: () => {
+      events.push('verification_end');
+    },
     browser: {
       fetch: async () => new Response(''),
       openManual: async (url) => {
@@ -139,6 +145,25 @@ function setup() {
 }
 
 describe('BrowserSessionController', () => {
+  it('opens request access only around a permitted verification and closes it on failure', async () => {
+    const { controller, advance, events, behavior } = setup();
+    const opened = await controller.open('owner');
+    await expect(controller.verify('owner', String(opened.sessionId))).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(events).not.toContain('verification_start');
+    advance(60_000);
+    behavior.collect = async () => {
+      throw new Error('Synthetic verification failure');
+    };
+    await expect(controller.verify('owner', String(opened.sessionId))).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(events.filter((e) => e.startsWith('verification_'))).toEqual([
+      'verification_start',
+      'verification_end',
+    ]);
+  });
   it('waits for the latest actual category or other-filter request before opening', async () => {
     const { controller, automaticNavigation, advance, events } = setup();
     automaticNavigation();

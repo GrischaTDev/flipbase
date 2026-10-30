@@ -79,15 +79,18 @@ function containsKeyword(title: string, keyword: string): boolean {
 export function createTitleKeywordMatcher(
   values: readonly string[],
   mode: TitleKeywordMode,
+  excludedValues: readonly string[] = [],
 ): (title: string) => boolean {
   if (mode !== 'all' && mode !== 'any') {
     throw new Error('Unbekannter Modus für die Titel-Stichwörter.');
   }
   const keywords = normalizeTitleKeywords(values);
+  const excludedKeywords = normalizeTitleKeywords(excludedValues);
   return (title: string): boolean => {
     if (typeof title !== 'string') return false;
-    if (keywords.length === 0) return true;
     const normalizedTitle = normalizeTitleText(title);
+    if (excludedKeywords.some((keyword) => containsKeyword(normalizedTitle, keyword))) return false;
+    if (keywords.length === 0) return true;
     return mode === 'all'
       ? keywords.every((keyword) => containsKeyword(normalizedTitle, keyword))
       : keywords.some((keyword) => containsKeyword(normalizedTitle, keyword));
