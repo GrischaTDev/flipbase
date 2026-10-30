@@ -199,6 +199,24 @@ Verwaltungsfälle 7. Diese Auflistung belegt die Auswahl, nicht bereits den
 erneuten erfolgreichen Browserlauf. Neue lokale und GitHub-Ergebnisse werden
 nach ihren tatsächlichen Läufen im PR festgehalten.
 
+## Lebensdauer der REST-Genauigkeitsprüfung
+
+Im zweiten Pflichtlauf bestehen alle 5.074 SQL-Assertions. Die nachgelagerte
+Kleinanzeigen-REST-Genauigkeitsfixture endet jedoch während eines offenen
+HTTP-Aufrufs mit Exitcode 13 und der Meldung `Detected unsettled top-level await`.
+Auch dieser Lauf zählt deshalb nicht als bestanden.
+
+Isolierte Kindprozesse stellen dieselbe Prozessbeendigung mit verzögerten
+HTTP-Antworten und Antworttexten nach. Der begrenzte Zeitwächter bleibt nun bis
+zum vollständig gelesenen Text aktiv und wird anschließend immer entfernt.
+Hängende Antworten und Antworttexte müssen ausdrücklich an der Zeitgrenze
+scheitern. Die vier neuen Lebenszyklustests werden vom bestehenden
+Schemaregistrierungstest importiert und im verpflichtenden Qualitätsablauf
+ausgeführt. Die gemeinsame Testorchestrierung bleibt unverändert.
+Die Zwei-Sekunden-Grenze je Anfrage, das 20-Sekunden-Startfenster
+und die fachliche Erwartung der exakten großen Konto-ID bleiben erhalten.
+Die Änderung betrifft ausschließlich die lokale Prüfunterstützung.
+
 ## Späterer Rollout
 
 Die Produktion setzt nach dokumentierter Wiederherstellung weiterhin ausdrücklich
