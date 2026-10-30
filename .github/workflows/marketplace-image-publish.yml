@@ -15,6 +15,11 @@ on:
         default: ''
         required: false
   workflow_call:
+    secrets:
+      MARKETPLACE_DEPLOY_SSH_KEY:
+        required: true
+      MARKETPLACE_DEPLOY_KNOWN_HOSTS:
+        required: true
 
 # Veröffentlichung vollständig beenden und gegen gleichzeitige Imageprüfungen serialisieren.
 concurrency:
@@ -217,7 +222,10 @@ jobs:
           SSH_KEY: ${{ secrets.MARKETPLACE_DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARKETPLACE_DEPLOY_KNOWN_HOSTS }}
         run: |
-          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo '::error::Marketplace-SSH-Zugang oder geprüfter Hostschlüssel fehlt.' >&2
+            exit 1
+          fi
           umask 077
           ssh_dir="$(mktemp -d "$RUNNER_TEMP/marketplace-ssh.XXXXXX")"
           echo "MARKETPLACE_SSH_DIR=$ssh_dir" >> "$GITHUB_ENV"
