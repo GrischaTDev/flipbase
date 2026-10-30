@@ -270,9 +270,14 @@ test('reads the native package name without recommendation, description or infor
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    for (const extras of [true, false]) {
+    for (const [cellId, extras] of [
+      ['2-package-size', true],
+      ['2-package-size', false],
+      ['package-size-2', true],
+      ['package-size-2', false],
+    ] as const) {
       await page.setContent(
-        `<div id="2-package-size" data-testid="2-package-size--cell"><div data-testid="2-package-size--cell-title" class="web_ui__Cell__title">${extras ? '<div>Empfohlen</div>' : ''}<span>Mittel</span></div><p>Für Artikel in einem Schuhkarton.</p>${extras ? '<a>Infos zu Größen und Entschädigungen</a>' : ''}<label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
+        `<div id="${cellId}" data-testid="${cellId}--cell"><div data-testid="${cellId}--cell-title" class="web_ui__Cell__title">${extras ? '<div>Empfohlen</div>' : ''}<span>Mittel</span></div><p>Für Artikel in einem Schuhkarton.</p>${extras ? '<a>Infos zu Größen und Entschädigungen</a>' : ''}<label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
       );
       const collected = await page.evaluate(collectVintedListingChoices, 'package' as const);
       assert.deepEqual(parseVintedListingChoices('package', collected).choices, [
@@ -288,20 +293,22 @@ test('rejects missing, hidden or ambiguous names inside an identified native pac
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    for (const title of [
-      '<div data-testid="2-package-size--cell-title"><span></span></div>',
-      '<div data-testid="2-package-size--cell-title"><span>Mittel</span><span>Groß</span></div>',
-      '<div data-testid="2-package-size--cell-title" hidden><span>Mittel</span></div>',
-      '<div data-testid="2-package-size--cell-title" style="opacity:0"><span>Mittel</span></div>',
-      '<div data-testid="2-package-size--cell-title"><span>Mittel</span></div><div data-testid="2-package-size--cell-title"><span>Groß</span></div>',
-    ]) {
-      await page.setContent(
-        `<div id="2-package-size" data-testid="2-package-size--cell">${title}<p>Für Artikel in einem Schuhkarton.</p><label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
-      );
-      await assert.rejects(
-        page.evaluate(collectVintedListingChoices, 'package' as const),
-        /Vinted-Paketname nicht eindeutig\./,
-      );
+    for (const cellId of ['2-package-size', 'package-size-2']) {
+      for (const title of [
+        '<div data-testid="2-package-size--cell-title"><span></span></div>',
+        '<div data-testid="2-package-size--cell-title"><span>Mittel</span><span>Groß</span></div>',
+        '<div data-testid="2-package-size--cell-title" hidden><span>Mittel</span></div>',
+        '<div data-testid="2-package-size--cell-title" style="opacity:0"><span>Mittel</span></div>',
+        '<div data-testid="2-package-size--cell-title"><span>Mittel</span></div><div data-testid="2-package-size--cell-title"><span>Groß</span></div>',
+      ]) {
+        await page.setContent(
+          `<div id="${cellId}" data-testid="${cellId}--cell">${title.replaceAll('2-package-size--cell-title', cellId + '--cell-title')}<p>Für Artikel in einem Schuhkarton.</p><label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
+        );
+        await assert.rejects(
+          page.evaluate(collectVintedListingChoices, 'package' as const),
+          /Vinted-Paketname nicht eindeutig\./,
+        );
+      }
     }
   } finally {
     await browser.close();

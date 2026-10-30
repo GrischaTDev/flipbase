@@ -7,9 +7,38 @@ import {
   selectVintedListingField,
 } from '../../src/vinted-browser-listing-fields.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
+import { openVintedListingChoices } from '../../src/vinted-browser-listing-form.ts';
 import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listing-result.ts';
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
+
+test('keeps the package button name stable when recommendation and selected information move', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`${[2, 3]
+      .map(
+        (id) => `
+      <div id="package-size-${id}" role="button" data-testid="package-size-${id}--cell">
+        <div data-testid="package-size-${id}--cell-title"><div data-recommendation>Empfohlen</div><span>${id === 2 ? 'Mittel' : 'Groß'}</span></div>
+        <p>Für Artikel in einem Schuhkarton.</p><a data-information>Infos zu Größen und Entschädigungen</a>
+        <label><input type="radio" name="package" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${id === 3 ? ' checked' : ''}></label>
+      </div>`,
+      )
+      .join('')}
+      <script>document.querySelectorAll('[role="button"]').forEach(cell => cell.onclick = () => {
+        document.querySelectorAll('[data-recommendation],[data-information]').forEach(element => element.remove());
+        cell.querySelector('input').checked = true;
+      });</script>`);
+    const expected = await openVintedListingChoices(page, 'package');
+    await selectVintedListingField(page, expected, [2], async () => undefined);
+    const actual = await openVintedListingChoices(page, 'package');
+    assert.equal(actual.choices.find((choice) => choice.selected)?.id, 2);
+    assert.equal(actual.choices.find((choice) => choice.id === 2)?.label, 'Mittel');
+  } finally {
+    await browser.close();
+  }
+});
 
 test('retains the value phase after successful guards when a text field cannot be filled', async () => {
   const browser = await chromium.launch({ headless: true });
