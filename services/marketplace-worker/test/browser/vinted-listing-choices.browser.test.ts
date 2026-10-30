@@ -27,10 +27,47 @@ test('identifies opening, missing options and invalid values for every ordinary 
         await assert.rejects(
           openVintedListingChoices(page, field),
           (error: unknown) =>
-            error instanceof VintedListingReadError && error.step === `${field}_${phase}`,
+            error instanceof VintedListingReadError &&
+            error.step === `${field}_${phase === 'open' ? 'open_disabled' : phase}`,
         );
       }
     }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('classifies failed field opening without leaking page contents or retrying the click', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const [reason, markup] of [
+      ['missing', '<div>private@example.invalid</div>'],
+      ['multiple', '<input id="size"><input id="size">'],
+      ['hidden', '<input id="size" hidden>'],
+      [
+        'covered',
+        '<input id="size"><div style="position:fixed;inset:0;z-index:99">private@example.invalid</div>',
+      ],
+    ] as const) {
+      const page = await browser.newPage();
+      await page.setContent(markup);
+      await assert.rejects(openVintedListingChoices(page, 'size'), (error: unknown) => {
+        assert.ok(error instanceof VintedListingReadError);
+        assert.equal(error.step, `size_open_${reason}`);
+        assert.equal(error.message, 'Das Vinted-Inserat konnte nicht gelesen werden.');
+        assert.equal(error.cause, undefined);
+        assert.equal(JSON.stringify(error).includes('private'), false);
+        return true;
+      });
+      await page.close();
+    }
+    const closed = await browser.newPage();
+    await closed.close();
+    await assert.rejects(
+      openVintedListingChoices(closed, 'size'),
+      (error: unknown) =>
+        error instanceof VintedListingReadError && error.step === 'size_open_closed',
+    );
   } finally {
     await browser.close();
   }
@@ -83,7 +120,8 @@ test('identifies the exact failing brand phase without exposing native errors', 
           phase === 'options' ? {} : { brand: { brandId: 53, brandLabel: 'Nike' } },
         ),
         (error: unknown) =>
-          error instanceof VintedListingReadError && error.step === `brand_${phase}`,
+          error instanceof VintedListingReadError &&
+          error.step === `brand_${phase === 'open' ? 'open_disabled' : phase}`,
       );
       for (const searchInput of await page.locator('#brand-search-input').all())
         assert.equal(await searchInput.inputValue(), '');

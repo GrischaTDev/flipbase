@@ -2,6 +2,17 @@ import type { VintedListingChoiceField } from '../../../supabase/functions/_shar
 
 const ordinaryChoiceFields = ['size', 'condition', 'color', 'material'] as const;
 const ordinaryChoicePhases = ['open', 'options', 'parse', 'match', 'choice', 'close'] as const;
+export const vintedListingOpenFailures = [
+  'missing',
+  'multiple',
+  'hidden',
+  'disabled',
+  'covered',
+  'unstable',
+  'closed',
+  'timeout',
+  'failed',
+] as const;
 
 /** Feste Schritte beim Lesen der Vinted-Bearbeitungsmaske; keine Seiteninhalte oder Kennungen. */
 export const vintedListingReadSteps = [
@@ -25,6 +36,9 @@ export const vintedListingReadSteps = [
   'brand_choice',
   'brand_selected',
   'brand_close',
+  ...(['category', 'brand', ...ordinaryChoiceFields] as const).flatMap((field) =>
+    vintedListingOpenFailures.map((reason) => `${field}_open_${reason}` as const),
+  ),
   ...ordinaryChoiceFields.flatMap((field) =>
     ordinaryChoicePhases.map((phase) => `${field}_${phase}` as const),
   ),
