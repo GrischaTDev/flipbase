@@ -395,12 +395,19 @@
     const items = content.querySelectorAll(
       '[data-testid="product-item-id-' + expected.externalId + '--overlay-link"]',
     );
+    const caption = items.length === 1 ? items[0].getAttribute('title') : null;
+    // Vinted ergänzt am Kachellink Marke, Zustand, Größe und Preis. Nur den
+    // vollständig erkannten Zusatz abtrennen; der Artikeltitel bleibt exakt.
+    const title =
+      caption?.match(
+        /^(.+), marke: [^,\r\n]+, zustand: [^,\r\n]+(?:, größe: [^,\r\n]+(?:,[0-9]+)?)?, [0-9]+(?:\.[0-9]{3})*,[0-9]{2} €$/u,
+      )?.[1] ?? caption;
     return (
       items.length === 1 &&
       items[0].tagName === 'A' &&
       visible(items[0]) &&
       items[0].getAttribute('href') === '/items/' + expected.externalId &&
-      items[0].getAttribute('title') === expected.title
+      (caption === expected.title || title === expected.title)
     );
   }
 
@@ -969,7 +976,7 @@
         )
           return null;
         const path =
-          /^\/tc?\/([a-zA-Z0-9_-]{1,128})\/(?:f[1-9][0-9]{0,4}|[1-9][0-9]{0,4}x[1-9][0-9]{0,4})\/([0-9]{1,20}\.(?:webp|jpg|png))$/.exec(
+          /^\/tc?\/([a-zA-Z0-9_-]{1,128})\/(?:f[1-9][0-9]{0,4}|[1-9][0-9]{0,4}x[1-9][0-9]{0,4})\/([0-9]{1,20}\.(?:webp|jpg|png)|[a-f0-9]{8}\.jpeg)$/.exec(
             url.pathname,
           );
         return path ? path[1] + '/' + path[2] : null;

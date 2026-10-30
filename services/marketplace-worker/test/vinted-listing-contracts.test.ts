@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  vintedListingPhotosMatch,
   parseVintedListingChoices,
   parseVintedListingCategoryFields,
   isVintedListingResult,
@@ -14,6 +15,47 @@ import type {
 function option(id: string, label: string, selected = false, disabled = false) {
   return { id, label, selected, disabled };
 }
+
+test('matches observed Vinted JPEG asset names without weakening identity or order', () => {
+  const uploaded = ['74eaef9c', '7ee1ec10'].map((name, index) => ({
+    sourceImageId: String(index + 1),
+    previewUrl: `https://images1.vinted.net/t/06_fixtureAsset${index}/f800/${name}.jpeg`,
+  }));
+  const saved = {
+    valid: true,
+    items: uploaded.map((photo, index) => ({
+      index,
+      ready: true,
+      url: photo.previewUrl.replace('/f800/', '/310x430/'),
+    })),
+  };
+  assert.equal(vintedListingPhotosMatch(uploaded, saved, ['1', '2']), true);
+  for (const url of [
+    saved.items[0]!.url.replace('74eaef9c', '74eaef9d'),
+    saved.items[0]!.url.replace('fixtureAsset0', 'fixtureAsset9'),
+    saved.items[0]!.url.replace('images1.vinted.net', 'images1.vinted.net.example'),
+    saved.items[0]!.url.replace('https:', 'http:'),
+    saved.items[0]!.url.replace('.jpeg', '.svg'),
+  ]) {
+    assert.equal(
+      vintedListingPhotosMatch(
+        uploaded,
+        { ...saved, items: [{ ...saved.items[0]!, url }, saved.items[1]!] },
+        ['1', '2'],
+      ),
+      false,
+    );
+  }
+  assert.equal(vintedListingPhotosMatch(uploaded, saved, ['2', '1']), false);
+  assert.equal(
+    vintedListingPhotosMatch(
+      uploaded,
+      { ...saved, items: saved.items.map((item) => ({ ...item, url: saved.items[0]!.url })) },
+      ['1', '2'],
+    ),
+    false,
+  );
+});
 
 const categoryFields: VintedListingCategoryFields = {
   categoryId: 1223,

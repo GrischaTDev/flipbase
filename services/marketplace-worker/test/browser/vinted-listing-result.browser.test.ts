@@ -29,7 +29,7 @@ async function fixture(
       });
     if (path === '/fixture/filter') return route.fulfill({ json: { ok: true } });
     return route.fulfill({
-      contentType: 'text/html',
+      contentType: 'text/html; charset=utf-8',
       body: `<main id="content">
       <h1>fixture</h1><a href="/settings/profile">Profil bearbeiten</a>
       <button data-testid="closet-seller-filters-active">Aktiv</button>
@@ -87,6 +87,26 @@ test('an initially empty owner profile is read without waiting for a nonexistent
   }
 });
 
+test('active state reads the exact article title from the observed Vinted metadata caption', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const title = 'Jacke, marke: adidas, zustand: Sehr gut, größe: L, 19,90 €';
+    const writes = await fixture(page, { title });
+    const active = await readVintedListingActiveState(page, '123', '98765', 'Jacke', () =>
+      Promise.resolve(),
+    );
+    assert.equal(
+      await page.getByTestId('product-item-id-98765--overlay-link').getAttribute('title'),
+      title,
+    );
+    assert.equal(active, true);
+    assert.equal(writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('the shared status reader requires visible unique controls, owner scope and the exact filtered row', async () => {
   const browser = await chromium.launch();
   try {
@@ -102,8 +122,41 @@ test('the shared status reader requires visible unique controls, owner scope and
     const item =
       '<a data-testid="product-item-id-98765--overlay-link" href="/items/98765" title="Jacke">Artikel</a>';
     const base = active + sold + owner + item;
-    for (const [html, expected] of [
+    for (const [html, expected, title = 'Jacke'] of [
       [base, true],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke, marke: Nike, zustand: Sehr gut, größe: 44,5, 79,90 €"',
+        ),
+        true,
+      ],
+      [
+        base.replace('title="Jacke"', 'title="Jacke, marke: adidas, zustand: Sehr gut, 19,90 €"'),
+        true,
+      ],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke länger, marke: adidas, zustand: Sehr gut, größe: L, 19,90 €"',
+        ),
+        false,
+      ],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke, marke: frei, zustand: Sehr gut, größe: L, marke: adidas, zustand: Sehr gut, größe: L, 19,90 €"',
+        ),
+        false,
+      ],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke, marke: adidas, zustand: Sehr gut, größe: L, 19,90 €"',
+        ),
+        true,
+        'Jacke, marke: adidas, zustand: Sehr gut, größe: L, 19,90 €',
+      ],
       [base.replace('aria-pressed="true"', 'aria-pressed="false"'), false],
       [base.replace(sold, sold.replace('>Verkauft', ' aria-pressed="true">Verkauft')), false],
       [base.replace(owner, ''), false],
@@ -120,7 +173,7 @@ test('the shared status reader requires visible unique controls, owner scope and
         await page.evaluate(hasVintedActiveListingEvidence, {
           accountId: '123',
           externalId: '98765',
-          title: 'Jacke',
+          title,
         }),
         expected,
       );
