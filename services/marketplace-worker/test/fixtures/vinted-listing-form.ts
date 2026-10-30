@@ -87,7 +87,7 @@ export async function createVintedListingFormFixture(
       ${[2, 3]
         .map((id) =>
           options.nativePackage
-            ? `<div id="${id}-package-size" role="presentation" data-testid="${id}-package-size--cell"><div data-testid="${id}-package-size--cell-title" class="web_ui__Cell__title">${id === 2 ? '<div data-package-recommendation>Empfohlen</div>' : ''}<span>${id === 2 ? 'Mittel' : 'Groß'}</span></div><p>Für Artikel in einem Karton</p><a data-package-information>Infos zu Größen und Entschädigungen</a><label for="package_type_selector_${id}"><input type="radio" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${id === 3 ? ' checked' : ''}><span></span></label></div>`
+            ? `<div id="package-size-${id}" role="presentation" data-testid="${id}-package-size--cell"><div data-testid="${id}-package-size--cell--title" class="web_ui__Cell__title">${id === 2 ? '<div data-package-recommendation>Empfohlen</div>' : ''}<div></div><span>${id === 2 ? 'Mittel' : 'Groß'}</span></div><p>Für Artikel in einem Karton</p><a data-package-information>Infos zu Größen und Entschädigungen</a><label for="package_type_selector_${id}"><input type="radio" name="package" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${id === 3 ? ' checked' : ''}><span></span></label></div>`
             : `<button type="button" id="package-size-${id}">${id === 2 ? 'Mittel' : 'Groß'}</button><label><input style="opacity:${options.hiddenPackage ? '0' : '1'}" type="radio" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${id === 3 ? ' checked' : ''}></label>`,
         )
         .join('')}
@@ -114,7 +114,7 @@ export async function createVintedListingFormFixture(
       };
       document.querySelector('#catalog-5').onclick=()=>{const showCategory=()=>{document.querySelector('#catalog-5').hidden=true;document.querySelector('#category-leaves').hidden=false;const previous=document.querySelector('#category-previous-leaves');if(previous)previous.hidden=true;};if(${!!options.categoryLoadingDelayMs}){const previous=document.querySelector('#category-previous-leaves');previous.hidden=false;setTimeout(showCategory,${options.categoryLoadingDelayMs ?? 0});}else showCategory();};
       document.onkeydown=event=>{if(event.key==='Escape') hide();};
-      [2,3].forEach(id=>document.querySelector(${!!options.nativePackage}?'[id="'+id+'-package-size"]':'#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
+      if(!${!!options.nativePackage}) [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
       if(${!!options.nativePackage}) document.querySelector('#price').oninput=()=>document.querySelectorAll('[data-package-recommendation],[data-package-information]').forEach(element=>element.remove());
       document.querySelector('[data-testid="upload-form-save-button"]').onclick=async()=>{
         const clone=document.documentElement.cloneNode(true);

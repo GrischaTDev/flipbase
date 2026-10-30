@@ -55,15 +55,24 @@ function choiceLocator(
   id: number | null,
   group: number | null,
 ): Locator {
-  if (field === 'package')
+  if (field === 'package') {
+    const nativeInputId = 'package_type_selector_' + id;
+    const nativeCell = page
+      .locator(`[id="${id}-package-size"],[id="package-size-${id}"]`)
+      .and(
+        page.locator(
+          `[data-testid="${id}-package-size--cell"],[data-testid="package-size-${id}--cell"]`,
+        ),
+      );
     return page
       .getByRole('button')
       .and(page.locator('#package-size-' + id))
       .or(
-        page.locator(
-          `[id="${id}-package-size"][data-testid="${id}-package-size--cell"]:has(input#package_type_selector_${id})`,
+        nativeCell.locator(
+          `label[for="${nativeInputId}"]:has(input#${nativeInputId}),label:not([for]):has(input#${nativeInputId})`,
         ),
       );
+  }
   if (field === 'brand')
     return page.locator(
       id === null

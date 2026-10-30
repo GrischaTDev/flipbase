@@ -232,7 +232,7 @@
       const title = element.querySelector(
         '[data-testid$="--title"],[class*="__Cell__title"]',
       )?.textContent;
-      // Vinted verwendet beide Kennungen für Paketkacheln; ARIA kann auf die ganze Kachel zeigen.
+      // Kachel-ID und Testkennung verwenden bei Vinted auch unterschiedliche Reihenfolgen.
       const packageId =
         field === 'package' ? /^package_type_selector_([1-9][0-9]*)$/.exec(element.id) : null;
       const packageCell = packageId
@@ -240,18 +240,30 @@
             '[id="' + packageId[1] + '-package-size"],[id="package-size-' + packageId[1] + '"]',
           )
         : null;
-      const packageLabel =
-        packageId && packageCell?.getAttribute('data-testid') === packageCell?.id + '--cell'
-          ? packageCell.textContent
-          : '';
+      const packageCellTestId = packageCell?.getAttribute('data-testid');
+      const packageCellMatches =
+        packageId &&
+        [packageId[1] + '-package-size--cell', 'package-size-' + packageId[1] + '--cell'].includes(
+          packageCellTestId,
+        );
+      if (packageCellTestId && !packageCellMatches)
+        throw new Error('Vinted-Paketname nicht eindeutig.');
+      const packageLabel = packageCellMatches ? packageCell.textContent : '';
       let packageName = '';
       if (packageLabel) {
         const titles = packageCell.querySelectorAll(
-          '[data-testid="' + packageCell.id + '--cell-title"]',
+          '[data-testid$="--cell--title"],[data-testid$="--cell-title"]',
         );
         if (titles.length > 0) {
           const names = titles[0].querySelectorAll(':scope > span');
-          if (titles.length !== 1 || names.length !== 1 || !names[0].textContent?.trim())
+          if (
+            titles.length !== 1 ||
+            ![packageCellTestId + '--title', packageCellTestId + '-title'].includes(
+              titles[0].getAttribute('data-testid'),
+            ) ||
+            names.length !== 1 ||
+            !names[0].textContent?.trim()
+          )
             throw new Error('Vinted-Paketname nicht eindeutig.');
           const name = names[0];
           if (name.getClientRects().length === 0 || name.closest('[hidden],[aria-hidden="true"]'))
