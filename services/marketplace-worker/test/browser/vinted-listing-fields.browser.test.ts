@@ -218,7 +218,7 @@ test('bricht eine nicht zuordenbare eigene Größe vor jedem Upload und Speicher
   }
 });
 
-test('prepares and rereads the observed native color grid without uploading or saving', async () => {
+test('prepares and rereads the observed native color and package controls without uploading or saving', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();

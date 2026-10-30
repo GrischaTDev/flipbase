@@ -266,6 +266,42 @@ test('reads a native package cell only when its identity agrees with the radio',
   }
 });
 
+test('reads the measured package title with different cell ID and test ID order', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const extras of [true, false]) {
+      await page.setContent(
+        `<div id="package-size-2" role="presentation" data-testid="2-package-size--cell"><div data-testid="2-package-size--cell--title">${extras ? '<div data-testid="package-size-suggestion-badge-id-2">Empfohlen</div>' : ''}<div></div><span>Mittel</span></div><p>Für Artikel in einem Schuhkarton.</p>${extras ? '<a>Infos zu Größen und Entschädigungen</a>' : ''}<label for="package_type_selector_2"><input type="radio" id="package_type_selector_2" aria-labelledby="package-size-2" checked></label></div>`,
+      );
+      const collected = await page.evaluate(collectVintedListingChoices, 'package' as const);
+      assert.deepEqual(parseVintedListingChoices('package', collected).choices, [
+        { id: 2, label: 'Mittel', selected: true, disabled: false, sizeGroupId: null },
+      ]);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('rejects another package ID in the measured cell or title metadata', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const field of ['cell', 'title']) {
+      await page.setContent(
+        `<div id="package-size-2" role="presentation" data-testid="${field === 'cell' ? 3 : 2}-package-size--cell"><div data-testid="${field === 'title' ? 3 : 2}-package-size--cell--title"><span>Mittel</span></div><label for="package_type_selector_2"><input type="radio" id="package_type_selector_2" aria-labelledby="package-size-2" checked></label></div>`,
+      );
+      await assert.rejects(
+        page.evaluate(collectVintedListingChoices, 'package' as const),
+        /Vinted-Paketname nicht eindeutig\./,
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('reads the native package name without recommendation, description or information text', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -293,7 +329,11 @@ test('rejects missing, hidden or ambiguous names inside an identified native pac
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    for (const cellId of ['2-package-size', 'package-size-2']) {
+    for (const [cellId, cellTestId, titleTestId] of [
+      ['2-package-size', '2-package-size--cell', '2-package-size--cell-title'],
+      ['package-size-2', 'package-size-2--cell', 'package-size-2--cell-title'],
+      ['package-size-2', '2-package-size--cell', '2-package-size--cell--title'],
+    ] as const) {
       for (const title of [
         '<div data-testid="2-package-size--cell-title"><span></span></div>',
         '<div data-testid="2-package-size--cell-title"><span>Mittel</span><span>Groß</span></div>',
@@ -302,7 +342,7 @@ test('rejects missing, hidden or ambiguous names inside an identified native pac
         '<div data-testid="2-package-size--cell-title"><span>Mittel</span></div><div data-testid="2-package-size--cell-title"><span>Groß</span></div>',
       ]) {
         await page.setContent(
-          `<div id="${cellId}" data-testid="${cellId}--cell">${title.replaceAll('2-package-size--cell-title', cellId + '--cell-title')}<p>Für Artikel in einem Schuhkarton.</p><label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
+          `<div id="${cellId}" data-testid="${cellTestId}">${title.replaceAll('2-package-size--cell-title', titleTestId)}<p>Für Artikel in einem Schuhkarton.</p><label for="package_type_selector_2"><input id="package_type_selector_2" type="radio" checked aria-labelledby="package-size-2"><span></span></label></div>`,
         );
         await assert.rejects(
           page.evaluate(collectVintedListingChoices, 'package' as const),
