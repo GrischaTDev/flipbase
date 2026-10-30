@@ -892,6 +892,9 @@ jobs:
       actions: read
       packages: write
     uses: ./.github/workflows/marketplace-image-publish.yml
+    secrets:
+      MARKETPLACE_DEPLOY_SSH_KEY: ${{ secrets.MARKETPLACE_DEPLOY_SSH_KEY }}
+      MARKETPLACE_DEPLOY_KNOWN_HOSTS: ${{ secrets.MARKETPLACE_DEPLOY_KNOWN_HOSTS }}
 
   release:
     name: Create GitHub Release

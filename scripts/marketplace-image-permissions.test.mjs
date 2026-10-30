@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
@@ -124,8 +127,139 @@ test('automatischer Marketplace-Aufrufer wartet auf ausgewählte Prüfungen und 
   assert.doesNotMatch(caller, /secrets: inherit|continue-on-error/u);
 });
 
+test('Marketplace-Aufrufer übergibt genau die beiden deklarierten Deployment-Secrets', () => {
+  const caller = ci.slice(ci.indexOf('  marketplace-release:'), ci.indexOf('  release:'));
+  const passed = [...caller.matchAll(/^      ([A-Z_]+): \$\{\{ secrets\.([A-Z_]+) \}\}$/gmu)];
+  assert.deepEqual(
+    passed.map(([, target, source]) => [target, source]),
+    [
+      ['MARKETPLACE_DEPLOY_SSH_KEY', 'MARKETPLACE_DEPLOY_SSH_KEY'],
+      ['MARKETPLACE_DEPLOY_KNOWN_HOSTS', 'MARKETPLACE_DEPLOY_KNOWN_HOSTS'],
+    ],
+  );
+  const declaration = publisher.split('  workflow_call:')[1].split(/^jobs:/mu)[0];
+  assert.deepEqual(
+    [...declaration.matchAll(/^      ([A-Z_]+):\r?\n        required: true$/gmu)].map(
+      ([, name]) => name,
+    ),
+    ['MARKETPLACE_DEPLOY_SSH_KEY', 'MARKETPLACE_DEPLOY_KNOWN_HOSTS'],
+  );
+});
+
+function deploymentShellStep(name) {
+  const step = publisher.split(`      - name: ${name}`)[1]?.split('      - name: ')[0];
+  const script = step?.split('        run: |')[1];
+  assert.ok(script, `Der echte Shellschritt fehlt: ${name}`);
+  return script.replace(/^          /gmu, '');
+}
+
+test(
+  'fehlende Marketplace-SSH-Werte brechen vor jeder Datei und Übergabe an Folgeschritte ab',
+  { skip: process.platform !== 'linux' ? 'Die echte CI-Shellprüfung benötigt Linux.' : false },
+  async () => {
+    const script = deploymentShellStep('Set up the restricted Marketplace SSH identity');
+    for (const [key, hosts] of [
+      ['', ''],
+      ['', 'fixture-host'],
+      ['fixture-key', ''],
+    ]) {
+      const directory = await mkdtemp(join(tmpdir(), 'flipbase-marketplace-missing-'));
+      try {
+        const result = spawnSync(
+          'bash',
+          ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script],
+          {
+            encoding: 'utf8',
+            env: {
+              PATH: process.env.PATH,
+              RUNNER_TEMP: directory,
+              GITHUB_ENV: join(directory, 'job-environment'),
+              SSH_KEY: key,
+              KNOWN_HOSTS: hosts,
+            },
+          },
+        );
+        assert.equal(result.error, undefined);
+        assert.notEqual(
+          result.status,
+          0,
+          'Leere Werte dürfen keinen erfolgreichen Schritt ergeben.',
+        );
+        assert.deepEqual(
+          await readdir(directory),
+          [],
+          'Kein unvollständiges SSH-Paket weiterreichen.',
+        );
+        for (const value of [key, hosts].filter(Boolean))
+          assert.ok(!`${result.stdout}${result.stderr}`.includes(value));
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+  },
+);
+
+test(
+  'vollständige Marketplace-SSH-Werte bleiben privat und werden nach Gebrauch entfernt',
+  { skip: process.platform !== 'linux' ? 'Die echte CI-Shellprüfung benötigt Linux.' : false },
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'flipbase-marketplace-identity-'));
+    const key = 'fixture-private-key\nsecond-line\n';
+    const hosts = 'fixture-host ssh-ed25519 fixture-public-key\n';
+    const environment = {
+      PATH: process.env.PATH,
+      RUNNER_TEMP: directory,
+      GITHUB_ENV: join(directory, 'job-environment'),
+      SSH_KEY: key,
+      KNOWN_HOSTS: hosts,
+    };
+    try {
+      const result = spawnSync(
+        'bash',
+        [
+          '--noprofile',
+          '--norc',
+          '-e',
+          '-o',
+          'pipefail',
+          '-c',
+          deploymentShellStep('Set up the restricted Marketplace SSH identity'),
+        ],
+        { encoding: 'utf8', env: environment },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const jobEnvironment = await readFile(environment.GITHUB_ENV, 'utf8');
+      const identity = /^MARKETPLACE_SSH_DIR=(.+)\n$/u.exec(jobEnvironment)?.[1];
+      assert.ok(identity?.startsWith(`${directory}/marketplace-ssh.`));
+      assert.equal(await readFile(join(identity, 'id_ed25519'), 'utf8'), `${key}\n`);
+      assert.equal(await readFile(join(identity, 'known_hosts'), 'utf8'), `${hosts}\n`);
+      assert.equal((await stat(identity)).mode & 0o777, 0o700);
+      for (const filename of ['id_ed25519', 'known_hosts'])
+        assert.equal((await stat(join(identity, filename))).mode & 0o777, 0o600);
+      assert.equal(`${result.stdout}${result.stderr}`, '');
+      const cleanup = spawnSync(
+        'bash',
+        [
+          '--noprofile',
+          '--norc',
+          '-e',
+          '-o',
+          'pipefail',
+          '-c',
+          deploymentShellStep('Remove the temporary SSH identity'),
+        ],
+        { encoding: 'utf8', env: { ...environment, MARKETPLACE_SSH_DIR: identity } },
+      );
+      assert.equal(cleanup.status, 0, cleanup.stderr);
+      assert.deepEqual(await readdir(directory), ['job-environment']);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
 test('nur der freigeschaltete production-Job erhält den eigenen Hostschlüssel und feste SSH-Befehle', () => {
-  const beforeDeploy = publisher.slice(0, publisher.indexOf('  deploy:'));
+  const beforeDeploy = publisher.slice(publisher.indexOf('jobs:'), publisher.indexOf('  deploy:'));
   const deploy = publisher.slice(publisher.indexOf('  deploy:'));
   assert.doesNotMatch(beforeDeploy, /MARKETPLACE_DEPLOY_SSH_KEY|DEPLOY_KNOWN_HOSTS|\bssh /u);
   assert.match(deploy, /environment:\n      name: marketplace-production/u);
