@@ -219,15 +219,72 @@ export async function planMarketplaceRelease(
     );
   }
   if (event === 'push') {
-    assertRelease(/^[1-9][0-9]*$/u.test(environment.GITHUB_RUN_ID ?? ''), 'CI-Laufkennung fehlt.');
-    const run = await api(`actions/runs/${environment.GITHUB_RUN_ID}`);
-    // Der gestartete Job kann noch einen wartenden Gesamtstatus nach einer Umgebungssperre lesen.
+    for (const [variable, message] of [
+      ['GITHUB_RUN_ID', 'CI-Laufkennung fehlt oder ist ungültig.'],
+      ['GITHUB_RUN_ATTEMPT', 'CI-Laufversuch fehlt oder ist ungültig.'],
+    ]) {
+      assertRelease(
+        typeof environment[variable] === 'string' &&
+          /^[1-9][0-9]*$/u.test(environment[variable]) &&
+          Number.isSafeInteger(Number(environment[variable])),
+        message,
+      );
+    }
+    const run = await api(
+      `actions/runs/${environment.GITHUB_RUN_ID}/attempts/${environment.GITHUB_RUN_ATTEMPT}`,
+    );
+    const ownRunIdMatches =
+      Number.isSafeInteger(run?.id) && String(run.id) === environment.GITHUB_RUN_ID;
+    const ownAttemptMatches =
+      Number.isSafeInteger(run?.run_attempt) &&
+      run.run_attempt > 0 &&
+      String(run.run_attempt) === environment.GITHUB_RUN_ATTEMPT;
     assertRelease(
-      validRun(run, sha, 'ci.yml', 'push') &&
-        ['in_progress', 'waiting', 'completed'].includes(run.status) &&
-        (run.status !== 'waiting' || run.conclusion === null) &&
-        (run.status !== 'completed' || run.conclusion === 'success'),
-      'Der aufrufende CI-Lauf gehört nicht zum freigegebenen Hauptzweigstand.',
+      validRun(run, sha, 'ci.yml', 'push') && ownRunIdMatches && ownAttemptMatches,
+      `Die CI-Laufidentität gehört nicht zum freigegebenen Hauptzweigstand: ${JSON.stringify({
+        expected_run_id: environment.GITHUB_RUN_ID.slice(0, 32),
+        actual_run_id: Number.isSafeInteger(run?.id) ? run.id : 'invalid',
+        run_id_matches: ownRunIdMatches,
+        expected_attempt: environment.GITHUB_RUN_ATTEMPT.slice(0, 32),
+        actual_attempt: Number.isSafeInteger(run?.run_attempt) ? run.run_attempt : 'invalid',
+        attempt_matches: ownAttemptMatches,
+        commit_matches: run?.head_sha === sha,
+        branch_matches: run?.head_branch === 'master',
+        repository_matches: run?.head_repository?.full_name === repository,
+        event_matches: run?.event === 'push',
+        workflow_matches: run?.path === '.github/workflows/ci.yml',
+      })}`,
+    );
+    // Der GitHub-Gesamtstatus kann dem bereits gestarteten Schritt noch nachlaufen.
+    const openRunStatuses = ['queued', 'in_progress', 'requested', 'waiting', 'pending'];
+    const knownConclusions = [
+      'success',
+      'failure',
+      'cancelled',
+      'timed_out',
+      'neutral',
+      'skipped',
+      'stale',
+      'action_required',
+    ];
+    const diagnosticStatus =
+      run.status === undefined
+        ? 'missing'
+        : [...openRunStatuses, 'completed'].includes(run.status)
+          ? run.status
+          : 'unknown';
+    const diagnosticConclusion =
+      run.conclusion === null
+        ? null
+        : run.conclusion === undefined
+          ? 'missing'
+          : knownConclusions.includes(run.conclusion)
+            ? run.conclusion
+            : 'unknown';
+    assertRelease(
+      (openRunStatuses.includes(run.status) && run.conclusion === null) ||
+        (run.status === 'completed' && run.conclusion === 'success'),
+      `Der CI-Laufzustand ist nicht freigegeben: ${JSON.stringify({ status: diagnosticStatus, conclusion: diagnosticConclusion })}`,
     );
     assertRelease(
       successfulChecks(await runJobs(run.id, api)),
