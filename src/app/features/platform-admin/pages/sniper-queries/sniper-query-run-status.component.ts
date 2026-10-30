@@ -12,6 +12,7 @@ import { SniperQuery, queryStatusLabel } from '../../models/sniper-query.model';
 })
 export class SniperQueryRunStatusComponent {
   readonly query = input.required<SniperQuery>();
+  readonly compact = input(false);
   readonly pending = input(false);
   readonly manualRequired = input(false);
   readonly currentTime = input(Date.now());

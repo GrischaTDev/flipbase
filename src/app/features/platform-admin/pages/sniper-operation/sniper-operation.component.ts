@@ -5,6 +5,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
@@ -17,6 +18,7 @@ import { VintedCategoriesComponent } from '../vinted-categories/vinted-categorie
 import { SniperBrowserConnectComponent } from '../../components/sniper-browser-connect/sniper-browser-connect.component';
 import { SniperBrowserService } from '../../services/sniper-browser.service';
 import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-sniper-operation',
@@ -28,12 +30,13 @@ import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
     BadgeComponent,
     VintedCategoriesComponent,
     SniperBrowserConnectComponent,
+    PageHeaderComponent,
   ],
   templateUrl: './sniper-operation.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [SniperAdminState],
 })
 export class SniperOperationComponent {
+  readonly embedded = input(false);
   readonly state = inject(SniperAdminState);
   readonly problemQueries = computed(() =>
     this.state

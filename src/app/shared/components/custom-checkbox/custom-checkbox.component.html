@@ -6,7 +6,7 @@
   [attr.aria-disabled]="effectiveDisabled()"
   [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
   [id]="id() || null"
-  class="relative inline-flex items-center gap-2 select-none group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+  class="relative inline-flex items-center gap-2 select-none group pointer-coarse:min-h-11 pointer-coarse:min-w-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
   [class.rounded-sm]="presentation() === 'default'"
   [class.rounded-lg]="presentation() === 'row'"
   [class.w-full]="presentation() === 'row'"

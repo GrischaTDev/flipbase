@@ -18,6 +18,12 @@ import { SniperBrowserService } from '../../services/sniper-browser.service';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 import { SniperQueriesComponent } from './sniper-queries.component';
 import { SniperQueryRunStatusComponent } from './sniper-query-run-status.component';
+import { SniperFilterCardComponent } from '../../components/sniper-filter-card/sniper-filter-card.component';
+import { SniperFilterDetailsComponent } from '../../components/sniper-filter-details/sniper-filter-details.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 
 // Die Laufzeitübersetzung der Tests registriert Signal-Eingänge nicht automatisch.
 function registerSignalInputs(component: unknown, names: readonly string[]): void {
@@ -44,6 +50,36 @@ beforeAll(async () => {
     return readFile(matches[0], 'utf8');
   });
   registerSignalInputs(BadgeComponent, ['tone']);
+  registerSignalInputs(SniperFilterCardComponent, [
+    'query',
+    'category',
+    'finds',
+    'selected',
+    'compact',
+    'disabled',
+    'pending',
+    'manualRequired',
+    'currentTime',
+  ]);
+  registerSignalInputs(SniperFilterDetailsComponent, [
+    'query',
+    'category',
+    'finds',
+    'pending',
+    'manualRequired',
+    'currentTime',
+  ]);
+  registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'appearance']);
+  registerSignalInputs(TableActionMenuComponent, ['label', 'triggerIcon', 'disabled']);
+  registerSignalInputs(CustomCheckboxComponent, ['checked', 'ariaLabel', 'disabled', 'size']);
+  registerSignalInputs(ModalShellComponent, [
+    'title',
+    'subtitle',
+    'presentation',
+    'drawerWidth',
+    'closeOnBackdrop',
+    'hasFooter',
+  ]);
   registerSignalInputs(ButtonComponent, [
     'variant',
     'size',
@@ -92,6 +128,7 @@ beforeAll(async () => {
   ]);
   registerSignalInputs(SniperQueryRunStatusComponent, [
     'query',
+    'compact',
     'pending',
     'manualRequired',
     'currentTime',
@@ -102,6 +139,8 @@ describe('SniperQueriesComponent activation', () => {
   const api = { setActive: vi.fn() };
   const browserApi = { status: vi.fn() };
   const state = {
+    stale: signal(false),
+    vintedUptimeSeconds: signal<number | null>(60),
     queries: signal<SniperQuery[]>([]),
     counts: signal<Partial<Record<string, number>>>({}),
     loaded: signal(true),
@@ -114,6 +153,10 @@ describe('SniperQueriesComponent activation', () => {
     is_active: false,
     last_polled_at: '2026-10-07T15:18:35Z',
     run_state: 'ready',
+    poll_interval_ms: 5000,
+    catalog_id: null,
+    price_from: null,
+    price_to: null,
     last_status: 'forbidden',
   } as SniperQuery;
 
@@ -157,6 +200,48 @@ describe('SniperQueriesComponent activation', () => {
     TestBed.resetTestingModule();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it('keeps failed selections after a partially successful serial pause and refreshes accepted mutations', async () => {
+    const first = { ...query, id: 'first', title: 'Erster', is_active: true };
+    const second = { ...query, id: 'second', title: 'Zweiter', is_active: true };
+    state.queries.set([first, second, { ...query, id: 'other', is_active: true }]);
+    api.setActive.mockImplementation(async (id: string) => {
+      if (id === 'second') throw new Error('Vorübergehend nicht gespeichert');
+    });
+    const fixture = TestBed.createComponent(SniperQueriesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    component.setSelected(first.id, true);
+    component.setSelected(second.id, true);
+    await component.setSelectedActive(false);
+    expect(api.setActive.mock.calls).toEqual([
+      ['first', false],
+      ['second', false],
+    ]);
+    expect(state.refreshAfterMutation).toHaveBeenCalledOnce();
+    expect([...component.selectedIds()]).toEqual(['second']);
+    expect(component.message()).toContain('1 Suchfilter');
+    expect(component.error()).toContain('Zweiter');
+    expect(component.isSaving()).toBe(false);
+  });
+
+  it('uses current filter rows and drops removed selections instead of mutating a stale snapshot', async () => {
+    state.queries.set([
+      { ...query, id: 'changed', is_active: true },
+      { ...query, id: 'removed' },
+    ]);
+    const fixture = TestBed.createComponent(SniperQueriesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    component.setSelected('changed', true);
+    component.setSelected('removed', true);
+    state.queries.set([{ ...query, id: 'changed', is_active: false }]);
+    await component.setSelectedActive(false);
+    expect(api.setActive).not.toHaveBeenCalled();
+    expect(component.selectedIds().size).toBe(0);
   });
 
   it.each(['interaction_required', 'manual'])(
@@ -205,6 +290,9 @@ describe('SniperQueriesComponent activation', () => {
     fixture.detectChanges();
 
     const rendered: HTMLElement = fixture.nativeElement;
+    fixture.componentInstance.openDetails(state.queries()[0]);
+    fixture.detectChanges();
+    await fixture.whenStable();
     expect(rendered.textContent).toContain('Letzter Abruf: Zugriff abgewiesen');
     expect(rendered.textContent).not.toContain('Wird geprüft');
   });
@@ -235,7 +323,9 @@ describe('SniperQueriesComponent activation', () => {
     const rendered = fixture.nativeElement as HTMLElement;
     expect(rendered.textContent).toContain('vor 2 Minuten');
     fixture.componentInstance.categoryPaths.set(new Map([[79, 'Herren > Kleidung > Jacken']]));
+    fixture.componentInstance.openDetails(state.queries()[0]);
     fixture.detectChanges();
+    await fixture.whenStable();
     const diagnostics = rendered.querySelector<HTMLDetailsElement>(
       'details[data-query-run-details]',
     )!;
@@ -246,17 +336,15 @@ describe('SniperQueriesComponent activation', () => {
     expect(diagnostics.querySelector('time')?.dateTime).toBe('2026-10-29T10:00:00Z');
     expect(diagnostics.textContent).toContain('1234 ms');
     expect(diagnostics.textContent).toContain('2 Filtern');
-    const conditions = rendered.querySelector<HTMLDetailsElement>(
-      'details[data-filter-conditions]',
+    const conditions = rendered.querySelector<HTMLElement>(
+      'section[aria-label="Suchbedingungen"]',
     )!;
     expect(conditions).not.toBeNull();
-    expect(conditions.open).toBe(false);
-    expect(conditions.querySelector('summary')?.textContent).toContain('Herren › Jacken');
-    conditions.querySelector('summary')!.click();
-    expect(conditions.open).toBe(true);
-    expect(conditions.textContent).toContain('pufferjacke, puffer jacke');
-    expect(conditions.textContent).toContain('ohne: weste');
-    expect(conditions.textContent).toContain('Herren > Kleidung > Jacken');
+    expect(conditions.textContent).toContain('pufferjacke');
+    expect(conditions.textContent).toContain('puffer jacke');
+    expect(conditions.textContent).toContain('Ausgeschlossen');
+    expect(conditions.textContent).toContain('weste');
+    expect(conditions.textContent).toContain('Herren › Kleidung › Jacken');
   });
 
   it('ages a retained success while the API is unavailable and releases its clock on destroy', async () => {
@@ -306,7 +394,11 @@ describe('SniperQueriesComponent activation', () => {
     expect(component.filtered().map((row) => row.id)).toEqual(['one']);
     fixture.detectChanges();
     const rendered = fixture.nativeElement as HTMLElement;
-    expect(rendered.textContent).toContain('ohne: weste');
+    component.openDetails(state.queries()[0]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(rendered.textContent).toContain('Ausgeschlossen');
+    expect(rendered.textContent).toContain('weste');
     expect(rendered.textContent).toContain('bis 40');
     expect(rendered.textContent).toContain('Aufholen begrenzt');
     expect(rendered.textContent).toContain('Zeitlimit beim Abruf');

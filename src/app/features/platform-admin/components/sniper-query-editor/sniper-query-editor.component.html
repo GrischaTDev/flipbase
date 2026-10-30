@@ -1,9 +1,19 @@
 <form
+  id="sniper-filter-editor"
   [formGroup]="form"
   (ngSubmit)="submit()"
   class="flex flex-col gap-5"
   aria-label="Zentralen Vinted-Suchfilter bearbeiten"
 >
+  @if (duplicate()) {
+    <p
+      class="rounded-lg border border-fb-border-subtle bg-fb-subtle p-3 text-[13px] leading-5 text-fb-text-secondary"
+    >
+      Nutze diesen Filter als Vorlage. Ändere mindestens eine Suchbedingung, zum Beispiel Kategorie,
+      Marke, Titelregeln oder Preis. Ein anderer Name, eine Notiz oder ein anderer Takt allein
+      erzeugt keine neue Suche.
+    </p>
+  }
   <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-5">
     <app-text-field
       label="Filtername"
@@ -21,7 +31,7 @@
     >
       <div>
         <h3 id="sniper-area-heading" class="text-sm font-semibold text-fb-text-primary">
-          Warenbereich
+          1. Deine Suchidee
         </h3>
       </div>
       @if (categoryLoading()) {
@@ -58,9 +68,7 @@
       class="flex min-w-0 flex-col gap-4 border-t border-fb-line pt-5"
       aria-labelledby="sniper-brands-heading"
     >
-      <h3 id="sniper-brands-heading" class="text-sm font-semibold text-fb-text-primary">
-        Marken kombinieren
-      </h3>
+      <h3 id="sniper-brands-heading" class="text-sm font-semibold text-fb-text-primary">Marken</h3>
       <app-search-multi-select
         controlId="vinted-brand-picker"
         label="Marken · optional"
@@ -113,7 +121,7 @@
     >
       <div>
         <h3 id="sniper-words-heading" class="text-sm font-semibold text-fb-text-primary">
-          Titelvarianten & Ausschlüsse
+          2. Titel eingrenzen
         </h3>
         <p class="mt-1 text-xs text-fb-text-muted">
           Ganze Wörter oder Wortgruppen im Artikeltitel: „Puffer“ trifft nicht „Pufferweste“.
@@ -263,7 +271,7 @@
       aria-labelledby="sniper-price-heading"
     >
       <h3 id="sniper-price-heading" class="text-sm font-semibold text-fb-text-primary">
-        Preis & gewünschtes Tempo
+        3. Preis & Abruf
       </h3>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <app-number-input
@@ -316,7 +324,7 @@
       aria-labelledby="sniper-summary-heading"
     >
       <h3 id="sniper-summary-heading" class="text-sm font-semibold text-fb-text-primary">
-        Dein Suchfilter
+        Deine Suche auf einen Blick
       </h3>
       <p role="status" class="break-words text-sm text-fb-text-secondary">{{ summary() }}</p>
       <p class="text-xs text-fb-text-muted">
@@ -330,11 +338,13 @@
     @if (saveError(); as message) {
       <p role="alert" class="text-sm">{{ message }}</p>
     }
-    <div class="flex flex-wrap justify-end gap-2 border-t border-fb-line pt-4">
-      <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
-      <app-button type="submit" variant="primary" [loading]="saving()">{{
-        editing() ? 'Änderungen speichern' : 'Suchfilter speichern'
-      }}</app-button>
-    </div>
+    @if (showActions()) {
+      <div class="flex flex-wrap justify-end gap-2 border-t border-fb-line pt-4">
+        <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
+        <app-button type="submit" variant="primary" [loading]="saving()">{{
+          editing() ? 'Änderungen speichern' : 'Suchfilter speichern'
+        }}</app-button>
+      </div>
+    }
   </fieldset>
 </form>

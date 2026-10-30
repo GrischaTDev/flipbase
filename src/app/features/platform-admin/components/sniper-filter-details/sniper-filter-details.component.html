@@ -1,0 +1,83 @@
+@let filter = query();
+<div class="space-y-5 text-[13px] text-fb-text-primary">
+  <section aria-label="Suchbedingungen">
+    <h3 class="text-sm font-semibold">Wonach gesucht wird</h3>
+    <dl class="mt-4 grid grid-cols-2 gap-4">
+      <div class="col-span-2">
+        <dt class="text-xs text-fb-text-muted">Kategorie</dt>
+        <dd class="mt-1 break-words">{{ category() }}</dd>
+      </div>
+      <div class="col-span-2">
+        <dt class="text-xs text-fb-text-muted">Marken</dt>
+        <dd class="mt-1 break-words">{{ brands() }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fb-text-muted">Preisrahmen</dt>
+        <dd class="mt-1">{{ price() }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fb-text-muted">Gewünschter Takt</dt>
+        <dd class="mt-1">{{ interval() }}</dd>
+      </div>
+      <div class="col-span-2">
+        <dt class="text-xs text-fb-text-muted">
+          {{
+            filter.keyword_mode === 'any'
+              ? 'Mindestens eine dieser Titelvarianten'
+              : 'Alle diese Titelbegriffe'
+          }}
+        </dt>
+        <dd class="mt-2 flex flex-wrap gap-1.5">
+          @for (term of filter.title_keywords ?? []; track term) {
+            <span class="rounded-md bg-fb-subtle px-2 py-1 text-xs">{{ term }}</span>
+          } @empty {
+            Keine Titelbedingung
+          }
+        </dd>
+      </div>
+      <div class="col-span-2">
+        <dt class="text-xs text-fb-text-muted">Ausgeschlossen</dt>
+        <dd class="mt-2 flex flex-wrap gap-1.5">
+          @for (term of filter.excluded_title_keywords ?? []; track term) {
+            <span class="rounded-md bg-fb-subtle px-2 py-1 text-xs">{{ term }}</span>
+          } @empty {
+            Keine Ausschlüsse
+          }
+        </dd>
+      </div>
+      @if (filter.search_text) {
+        <div class="col-span-2">
+          <dt class="text-xs text-fb-text-muted">Bestehender Vinted-Suchtext</dt>
+          <dd class="mt-1 break-words">{{ filter.search_text }}</dd>
+        </div>
+      }
+      @if (filter.notes) {
+        <div class="col-span-2">
+          <dt class="text-xs text-fb-text-muted">Notiz</dt>
+          <dd class="mt-1 whitespace-pre-wrap break-words">{{ filter.notes }}</dd>
+        </div>
+      }
+    </dl>
+  </section>
+  <section class="border-t border-fb-line pt-5" aria-label="Abrufe und Funde">
+    <h3 class="mb-4 text-sm font-semibold">Abrufe & Funde</h3>
+    <p class="mb-4 text-fb-text-secondary">
+      <strong class="text-xl font-semibold tabular-nums text-fb-text-primary">{{
+        finds() ?? '–'
+      }}</strong>
+      Funde in 24 Stunden
+    </p>
+    <app-sniper-query-run-status
+      [query]="filter"
+      [pending]="pending()"
+      [manualRequired]="manualRequired()"
+      [currentTime]="currentTime()"
+    />
+  </section>
+  <p
+    class="rounded-lg border border-fb-border-subtle bg-fb-subtle p-3 text-xs leading-5 text-fb-text-secondary"
+  >
+    Der Takt ist ein Wunschwert. Maßgeblich sind der letzte erfolgreiche Abruf und die tatsächliche
+    Abdeckung. Vinted-Limits können Abrufe verzögern.
+  </p>
+</div>

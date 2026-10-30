@@ -12,12 +12,23 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LucidePause, LucidePencil, LucidePlay, LucideTrash2 } from '@lucide/angular';
+import {
+  LucidePause,
+  LucidePencil,
+  LucidePlay,
+  LucideTrash2,
+  LucidePlus,
+  LucideActivity,
+  LucideArrowRight,
+  LucideLayoutGrid,
+  LucideRows3,
+  LucideX,
+} from '@lucide/angular';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
-import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
@@ -26,23 +37,29 @@ import { VintedCategoryService } from '../../services/vinted-category.service';
 import { SniperBrowserService } from '../../services/sniper-browser.service';
 import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
 import { QueryDraft, SniperQuery } from '../../models/sniper-query.model';
-import { SniperQueryRunStatusComponent } from './sniper-query-run-status.component';
+import { SniperFilterCardComponent } from '../../components/sniper-filter-card/sniper-filter-card.component';
+import { SniperFilterDetailsComponent } from '../../components/sniper-filter-details/sniper-filter-details.component';
+import { SniperOperationComponent } from '../sniper-operation/sniper-operation.component';
+import { filterNeedsAttention, filterCategoryLabel } from '../../models/sniper-filter-presentation';
+
+type FilterStatus = 'all' | 'active' | 'paused' | 'attention';
 
 @Component({
   selector: 'app-sniper-queries',
   imports: [
     RouterLink,
     ButtonComponent,
-    TableActionButtonComponent,
-    SniperQueryRunStatusComponent,
+    PageHeaderComponent,
+    CustomSearchInputComponent,
+    SniperFilterCardComponent,
+    SniperFilterDetailsComponent,
+    SniperOperationComponent,
     ModalShellComponent,
-    DataTableComponent,
     CustomSelectComponent,
     SniperQueryEditorComponent,
   ],
   templateUrl: './sniper-queries.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [SniperAdminState],
 })
 export class SniperQueriesComponent {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -56,6 +73,16 @@ export class SniperQueriesComponent {
   private readonly destroyRef = inject(DestroyRef);
   readonly editorOpen = signal(false);
   readonly editing = signal<SniperQuery | null>(null);
+  readonly duplicating = signal(false);
+  readonly detailId = signal<string | null>(null);
+  readonly detailQuery = computed(
+    () => this.state.queries().find((query) => query.id === this.detailId()) ?? null,
+  );
+  readonly operationOpen = signal(false);
+  readonly view = signal<'cards' | 'compact'>('cards');
+  readonly sort = signal('updated');
+  readonly selectedIds = signal<ReadonlySet<string>>(new Set());
+  private editorReturnId: string | null = null;
   readonly saving = signal(false);
   readonly busyId = signal<string | null>(null);
   readonly pendingCheckBaselines = signal<Record<string, string | null>>({});
@@ -70,19 +97,28 @@ export class SniperQueriesComponent {
   private browserStatusPending = false;
   readonly search = signal('');
   readonly currentTime = signal(Date.now());
-  readonly statusFilter = signal<'all' | 'active' | 'paused'>('all');
+  readonly statusFilter = signal<FilterStatus>('all');
   readonly statusOptions = [
     { value: 'all' as const, label: 'Alle Status' },
     { value: 'active' as const, label: 'Aktiv' },
     { value: 'paused' as const, label: 'Pausiert' },
+    { value: 'attention' as const, label: 'Aufmerksamkeit' },
+  ];
+  readonly sortOptions = [
+    { value: 'updated', label: 'Zuletzt geändert' },
+    { value: 'name', label: 'Name A–Z' },
+    { value: 'finds', label: 'Meiste Funde' },
   ];
   readonly filtered = computed(() => {
     const term = this.search().trim().toLocaleLowerCase('de');
-    return this.state
+    const rows = this.state
       .queries()
       .filter(
         (query) =>
-          this.statusFilter() === 'all' || query.is_active === (this.statusFilter() === 'active'),
+          this.statusFilter() === 'all' ||
+          (this.statusFilter() === 'attention'
+            ? this.needsAttention(query)
+            : query.is_active === (this.statusFilter() === 'active')),
       )
       .filter((q) =>
         [q.title, q.notes, this.queryConditions(q)]
@@ -90,6 +126,13 @@ export class SniperQueriesComponent {
           .toLocaleLowerCase('de')
           .includes(term),
       );
+    if (this.sort() === 'name')
+      rows.sort((a, b) => this.queryTitle(a).localeCompare(this.queryTitle(b), 'de'));
+    if (this.sort() === 'finds')
+      rows.sort((a, b) => (this.state.counts()[b.id] ?? 0) - (this.state.counts()[a.id] ?? 0));
+    if (this.sort() === 'updated')
+      rows.sort((a, b) => Date.parse(b.updated_at ?? '') - Date.parse(a.updated_at ?? ''));
+    return rows;
   });
   readonly activeCount = computed(
     () => this.state.queries().filter((query) => query.is_active).length,
@@ -98,6 +141,35 @@ export class SniperQueriesComponent {
   readonly pauseIcon = LucidePause;
   readonly activateIcon = LucidePlay;
   readonly deleteIcon = LucideTrash2;
+  readonly plusIcon = LucidePlus;
+  readonly activityIcon = LucideActivity;
+  readonly arrowIcon = LucideArrowRight;
+  readonly gridIcon = LucideLayoutGrid;
+  readonly rowsIcon = LucideRows3;
+  readonly closeIcon = LucideX;
+  readonly attentionCount = computed(
+    () => this.state.queries().filter((query) => this.needsAttention(query)).length,
+  );
+  readonly statusTabs = computed(() => [
+    { value: 'all' as const, label: 'Alle', count: this.state.queries().length },
+    { value: 'active' as const, label: 'Aktiv', count: this.activeCount() },
+    {
+      value: 'paused' as const,
+      label: 'Pausiert',
+      count: this.state.queries().length - this.activeCount(),
+    },
+    { value: 'attention' as const, label: 'Aufmerksamkeit', count: this.attentionCount() },
+  ]);
+  readonly operationLabel = computed(() => {
+    if (!this.state.loaded() && !this.state.error()) return 'Botstatus wird geladen …';
+    if (this.state.error() || this.browserError()) return 'Botstand nicht verfügbar';
+    if (this.state.stale()) return 'Betriebsmeldung veraltet';
+    if (this.manualRequired()) return 'Manuelle Prüfung erforderlich';
+    if (this.browserStatus()?.state !== 'ready' || this.state.vintedUptimeSeconds() === null)
+      return 'Vinted-Zugriff nicht bestätigt';
+    if (this.state.runtime()?.last_cycle_error) return 'Bot meldet einen Fehler';
+    return 'Bot läuft';
+  });
 
   constructor() {
     const clock = setInterval(() => this.currentTime.set(Date.now()), 60000);
@@ -106,6 +178,121 @@ export class SniperQueriesComponent {
     effect(() => {
       void this.state.runtime()?.reported_at;
       void this.loadBrowserStatus();
+    });
+    effect(() => {
+      const available = new Set(this.state.queries().map((query) => query.id));
+      const selection = this.selectedIds();
+      const next = new Set([...selection].filter((id) => available.has(id)));
+      if (next.size !== selection.size) this.selectedIds.set(next);
+      const detail = this.detailId();
+      if (detail && !available.has(detail)) this.detailId.set(null);
+    });
+  }
+
+  needsAttention(query: SniperQuery): boolean {
+    return filterNeedsAttention(query) || (query.is_active && this.manualRequired());
+  }
+
+  categoryLabel(query: SniperQuery): string {
+    return filterCategoryLabel(query, this.categoryPaths());
+  }
+
+  openDetails(query: SniperQuery): void {
+    if (!this.isSaving() && !this.editorOpen()) {
+      this.error.set(null);
+      this.message.set(null);
+      this.detailId.set(query.id);
+    }
+  }
+
+  setSelected(id: string, checked: boolean): void {
+    if (this.isSaving()) return;
+    this.selectedIds.update((selection) => {
+      const next = new Set(selection);
+      if (checked && this.state.queries().some((query) => query.id === id)) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  selectVisible(): void {
+    if (!this.isSaving())
+      this.selectedIds.update(
+        (selection) => new Set([...selection, ...this.filtered().map((query) => query.id)]),
+      );
+  }
+
+  clearSelection(): void {
+    if (!this.isSaving()) this.selectedIds.set(new Set());
+  }
+
+  resetSearch(): void {
+    if (!this.state.queries().length) {
+      this.openEditor();
+      return;
+    }
+    this.search.set('');
+    this.statusFilter.set('all');
+  }
+
+  async setSelectedActive(active: boolean): Promise<void> {
+    if (this.isSaving() || this.editorOpen()) return;
+    const ids = [...this.selectedIds()];
+    if (!ids.length) return;
+    this.busyId.set('selection');
+    this.error.set(null);
+    this.message.set(null);
+    const completed = new Set<string>();
+    const failures: string[] = [];
+    let changed = 0;
+    try {
+      for (const id of ids) {
+        if (this.destroyRef.destroyed) return;
+        const query = this.state.queries().find((row) => row.id === id);
+        if (!query || query.is_active === active) {
+          completed.add(id);
+          continue;
+        }
+        try {
+          await this.api.setActive(query.id, active);
+          this.rememberActivation(query, active);
+          completed.add(id);
+          changed++;
+        } catch (error) {
+          failures.push(
+            `${this.queryTitle(query)}: ${error instanceof Error ? error.message : 'Status konnte nicht gespeichert werden.'}`,
+          );
+        }
+      }
+      if (this.destroyRef.destroyed) return;
+      this.selectedIds.update(
+        (selection) =>
+          new Set(
+            [...selection].filter(
+              (id) => !completed.has(id) && this.state.queries().some((query) => query.id === id),
+            ),
+          ),
+      );
+      this.message.set(
+        changed
+          ? `${changed} Suchfilter ${active ? 'aktiviert' : 'pausiert'}. ${active ? 'Abrufe starten, sobald sie möglich sind.' : 'Bereits laufende Abfragen können noch abgeschlossen werden.'}`
+          : failures.length
+            ? null
+            : 'Die ausgewählten Filter haben bereits diesen Status.',
+      );
+      if (failures.length) this.error.set(`Nicht gespeichert: ${failures.join(' · ')}`);
+      if (changed) await this.state.refreshAfterMutation();
+    } finally {
+      this.busyId.set(null);
+    }
+  }
+
+  private rememberActivation(query: SniperQuery, active: boolean): void {
+    this.pendingCheckBaselines.update((baselines) => {
+      const next = { ...baselines };
+      if (active) next[query.id] = query.last_polled_at;
+      else delete next[query.id];
+      return next;
     });
   }
 
@@ -225,9 +412,12 @@ export class SniperQueriesComponent {
     );
   }
 
-  openEditor(query: SniperQuery | null = null): void {
+  openEditor(query: SniperQuery | null = null, duplicate = false): void {
     if (this.isSaving()) return;
     this.editing.set(query);
+    this.editorReturnId = query?.id ?? null;
+    this.duplicating.set(duplicate);
+    this.detailId.set(null);
     this.error.set(null);
     this.message.set(null);
     this.editorOpen.set(true);
@@ -236,12 +426,23 @@ export class SniperQueriesComponent {
   closeEditor(): void {
     this.editorOpen.set(false);
     afterNextRender(
-      () =>
-        this.element.nativeElement
-          .querySelector<HTMLButtonElement>('[data-new-query] button')
-          ?.focus(),
+      () => {
+        const origin = Array.from(
+          this.element.nativeElement.querySelectorAll<HTMLElement>('[data-query-title]'),
+        )
+          .find((element) => element.dataset['queryTitle'] === this.editorReturnId)
+          ?.querySelector<HTMLButtonElement>('button');
+        (
+          origin ??
+          this.element.nativeElement.querySelector<HTMLButtonElement>('[data-new-query] button')
+        )?.focus();
+      },
       { injector: this.injector },
     );
+  }
+
+  closeDetails(): void {
+    if (!this.isSaving()) this.detailId.set(null);
   }
 
   async modalClosed(): Promise<void> {
@@ -320,23 +521,13 @@ export class SniperQueriesComponent {
   }
 
   async toggle(query: SniperQuery): Promise<void> {
-    if (this.busyId()) return;
+    if (this.isSaving() || this.editorOpen()) return;
     this.busyId.set(query.id);
     this.error.set(null);
+    this.message.set(null);
     try {
       await this.api.setActive(query.id, !query.is_active);
-      if (query.is_active) {
-        this.pendingCheckBaselines.update((baselines) => {
-          const next = { ...baselines };
-          delete next[query.id];
-          return next;
-        });
-      } else {
-        this.pendingCheckBaselines.update((baselines) => ({
-          ...baselines,
-          [query.id]: query.last_polled_at,
-        }));
-      }
+      this.rememberActivation(query, !query.is_active);
       this.message.set(
         query.is_active
           ? 'Suchfilter pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
