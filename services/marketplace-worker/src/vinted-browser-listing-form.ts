@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page, Locator } from 'playwright';
 import type {
   VintedListingCategoryFields,
   VintedListingChoiceField,
@@ -9,6 +9,8 @@ import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   VintedListingReadError,
   vintedListingChoiceReadError,
+  vintedListingReadSteps,
+  type vintedListingOpenFailures,
 } from './vinted-listing-read-error.ts';
 import {
   collectVintedListingChoices,
@@ -23,6 +25,36 @@ function assertListingForm(page: Page): void {
     !/^\/items\/(?:new|[1-9][0-9]*\/edit)$/.test(url.pathname)
   )
     throw new Error('Vinted-Formular nicht verfügbar.');
+}
+
+/** Nur feste Zustände verlassen die Browsergrenze; native Meldungen bleiben im Browser. */
+async function listingChoiceOpenError(
+  page: Page,
+  input: Locator,
+  field: VintedListingChoiceField,
+  error: unknown,
+): Promise<VintedListingReadError> {
+  let reason: (typeof vintedListingOpenFailures)[number] = 'failed';
+  try {
+    if (page.isClosed()) reason = 'closed';
+    else {
+      const count = await input.count();
+      if (count === 0) reason = 'missing';
+      else if (count > 1) reason = 'multiple';
+      else if (!(await input.isVisible())) reason = 'hidden';
+      else if (!(await input.isEnabled({ timeout: 250 }))) reason = 'disabled';
+      else if (error instanceof Error) {
+        if (error.message.includes('intercepts pointer events')) reason = 'covered';
+        else if (error.message.includes('element is not stable')) reason = 'unstable';
+        else if (error.name === 'TimeoutError') reason = 'timeout';
+      }
+    }
+  } catch {
+    // Die Seite kann während der rein lesenden Diagnose geschlossen werden.
+    if (page.isClosed()) reason = 'closed';
+  }
+  const step = vintedListingReadSteps.find((candidate) => candidate === `${field}_open_${reason}`);
+  return step ? new VintedListingReadError(step) : vintedListingChoiceReadError(field, 'open');
 }
 
 async function readVisibleListingChoices(
@@ -78,8 +110,8 @@ export async function openVintedListingChoices(
   try {
     // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
     await input.click({ timeout: field === 'brand' ? 15_000 : 5000 });
-  } catch {
-    throw vintedListingChoiceReadError(field, 'open');
+  } catch (error) {
+    throw await listingChoiceOpenError(page, input, field, error);
   }
   if (field === 'category') {
     for (const parentId of categoryPath) {
