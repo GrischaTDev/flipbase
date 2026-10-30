@@ -178,6 +178,27 @@ erstellt. Am 30.10.2026 hat der Nutzer die PR-Erstellung, den Merge nach
 erfolgreichen Pflichtprüfungen und die anschließende Bereinigung ausdrücklich
 beauftragt; die GitHub-Ergebnisse werden im PR festgehalten.
 
+## GitHub-Prüfung und kleinere Browsergruppen
+
+Der erste Pflichtlauf von [PR #515](https://github.com/GrischaTDev/flipbase/pull/515)
+auf Commit `44d16300` verwendet denselben umfassenden Auswahlplan. Qualität,
+Datenbank, Dienst/Image, alle sieben Anwendungstestgruppen, Produktions-PWA,
+Kern/Layout und die neuen Verwaltungsfälle bestehen. Die Chromium-Gruppen 1 und 5
+werden am 30-Minuten-Limit abgebrochen, ohne zuvor einen fachlichen Testfehler zu
+melden. Dieser Lauf ist deshalb **nicht bestanden**; kein Merge erfolgt.
+
+Die 50 allgemeinen Browserdateien werden nun auf neun statt fünf Gruppen
+verteilt. Fallauswahl, Testzeitlimits, Wiederholungsregeln und Erwartungen bleiben
+erhalten. Ein zuvor roter Regressionstest prüft die Gruppenzahl und führt auch die
+letzte Gruppe mit absichtlichem Fehler aus, damit ihr Fehler weiterhin die
+Pflichtfreigabe verhindert. Ein gesonderter Abgleich der tatsächlichen
+Playwright-Falllisten muss vollständige, überschneidungsfreie Abdeckung belegen.
+Der Abgleich bestätigt **567 unveränderte Fälle in 13 Gruppen**, ohne fehlende
+oder doppelte Fälle: Kern 2, Layout 13 + 13, Chromium 60 + achtmal 59, neue
+Verwaltungsfälle 7. Diese Auflistung belegt die Auswahl, nicht bereits den
+erneuten erfolgreichen Browserlauf. Neue lokale und GitHub-Ergebnisse werden
+nach ihren tatsächlichen Läufen im PR festgehalten.
+
 ## Späterer Rollout
 
 Die Produktion setzt nach dokumentierter Wiederherstellung weiterhin ausdrücklich

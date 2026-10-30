@@ -362,14 +362,14 @@ export function buildBrowserMatrix(plan) {
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // 118 umfassende und 219 gezielte Fachfälle überschritten das 30-Minuten-Budget.
-      // Auch gezielte Fachgruppen ab elf Dateien werden aufgeteilt; ab 31 Dateien
-      // wachsen sie in Zehnerschritten. Kleine Pläne und andere Gruppen bleiben gleich.
+      // Fünf Gruppen mit je über 100 Fachfällen überschritten im Vinted-PR das
+      // 30-Minuten-Budget. Sechs Dateien je Gruppe lassen mehr Laufzeitreserve;
+      // Fallauswahl, Zeitlimits und kleine gezielte Pläne bleiben unverändert.
       const maxGroups =
         project === 'layout'
           ? 2
           : project === 'chromium'
-            ? Math.max(3, Math.ceil(files.length / 10))
+            ? Math.max(3, Math.ceil(files.length / 6))
             : 3;
       const groups =
         (plan.full || (project === 'chromium' && files.length > 10)) && project !== 'core-smoke'
