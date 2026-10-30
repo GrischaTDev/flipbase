@@ -37,7 +37,8 @@ jobs:
       contents: read
       actions: read
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # Acht Minuten für nachlaufende GitHub-Prüfanzeigen, zusätzlich Einrichtung und Abschluss.
+    timeout-minutes: 12
     outputs:
       operation: ${{ steps.plan.outputs.operation }}
       commit: ${{ steps.plan.outputs.commit }}

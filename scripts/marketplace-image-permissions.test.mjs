@@ -7,10 +7,21 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   marketplaceReleaseManifest,
-  planMarketplaceRelease,
+  planMarketplaceRelease as planMarketplaceReleaseImplementation,
   publicMarketplaceImage,
   publicationReceipt,
 } from './marketplace-release.mjs';
+
+function planMarketplaceRelease(environment, options = {}) {
+  let elapsed = 0;
+  return planMarketplaceReleaseImplementation(environment, {
+    now: () => elapsed,
+    wait: async (milliseconds) => {
+      elapsed += milliseconds;
+    },
+    ...options,
+  });
+}
 
 const workflow = await readFile(
   new URL('../.github/workflows/marketplace-worker-image.yml', import.meta.url),
@@ -409,6 +420,188 @@ test('laufende Hauptzweig-CI darf erst nach ihrem eigenen grünen Sammelgate ver
 });
 
 const openWorkflowRunStatuses = ['queued', 'in_progress', 'requested', 'waiting', 'pending'];
+
+test('verzögerte Pflichtprüfungen werden nur lesend bis zum eigenen aktuellen Erfolg neu abgefragt', async () => {
+  for (const initialJobs of [
+    [],
+    ...openWorkflowRunStatuses.map((status) => [{ ...checkedJob, status, conclusion: null }]),
+  ]) {
+    let reads = 0;
+    let waits = 0;
+    let elapsed = 0;
+    const fallback = releaseApi({
+      run: runFixture(currentSha, { status: 'queued', conclusion: null }),
+    });
+    const api = async (path, options) => {
+      assert.ok(options.timeoutMs > 0 && options.timeoutMs <= 30000);
+      if (path === 'actions/runs/123/jobs?filter=latest&per_page=100&page=1') {
+        reads += 1;
+        return { jobs: reads === 1 ? initialJobs : [checkedJob] };
+      }
+      return fallback(path);
+    };
+    assert.deepEqual(
+      await planMarketplaceRelease(releaseEnvironment, {
+        api,
+        now: () => elapsed,
+        wait: async (milliseconds) => {
+          waits += 1;
+          elapsed += milliseconds;
+        },
+      }),
+      { operation: 'release', commit: currentSha },
+    );
+    assert.equal(reads, 2);
+    assert.equal(waits, 1);
+    assert.equal(elapsed, 10000);
+  }
+});
+
+test('Wartebudget umfasst API-Zeit und endet ohne Freigabe bei dauerhaft offenen Prüfungen', async () => {
+  let elapsed = 0;
+  let reads = 0;
+  const fallback = releaseApi({ jobs: [{ ...checkedJob, status: 'queued', conclusion: null }] });
+  await assert.rejects(
+    planMarketplaceRelease(releaseEnvironment, {
+      now: () => elapsed,
+      wait: async (milliseconds) => {
+        elapsed += milliseconds;
+      },
+      api: async (path, options) => {
+        assert.ok(options.timeoutMs > 0 && options.timeoutMs <= Math.min(30000, 480000 - elapsed));
+        elapsed += Math.min(6000, options.timeoutMs);
+        reads += 1;
+        return fallback(path);
+      },
+    }),
+    /CI-Prüfungen.*Zeitlimit/u,
+  );
+  assert.equal(elapsed, 480000);
+  assert.ok(reads > 3 && reads < 100);
+  const planTimeout = /^    timeout-minutes: (\d+)$/m.exec(publicationHeaders[0]);
+  assert.ok(planTimeout);
+  assert.ok(Number(planTimeout[1]) * 60000 >= elapsed + 120000);
+  assert.ok(Number(planTimeout[1]) <= 15);
+});
+
+test('verspätete positive API-Antworten erteilen an keiner Freigabegrenze eine Zustimmung', async () => {
+  for (const delayedCall of [1, 2, 3, 4]) {
+    let elapsed = 0;
+    let calls = 0;
+    const fallback = releaseApi();
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        now: () => elapsed,
+        wait: async () => {
+          throw new Error('Positive Antworten benötigen kein Warten');
+        },
+        api: async (path) => {
+          calls += 1;
+          const response = await fallback(path);
+          if (calls === delayedCall) elapsed = 480000;
+          return response;
+        },
+      }),
+      /CI-Prüfungen.*Zeitlimit/u,
+    );
+    assert.equal(calls, delayedCall);
+  }
+});
+
+test('sichtbare abgeschlossene Fehler und ungültige Pflichtprüfungszustände erlauben kein Warten', async () => {
+  const pending = { ...checkedJob, status: 'queued', conclusion: null };
+  for (const jobs of [
+    [pending, { name: 'Quality', status: 'completed', conclusion: 'failure' }],
+    [pending, { name: 'Quality', status: 'completed', conclusion: 'cancelled' }],
+    ...['failure', 'cancelled', 'skipped', 'neutral', null].map((conclusion) => [
+      { ...checkedJob, conclusion },
+    ]),
+    ...[undefined, 'success', 'failure'].map((conclusion) => [{ ...pending, conclusion }]),
+    [{ ...pending, status: 'unrecognized' }],
+  ]) {
+    let waits = 0;
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        api: releaseApi({ jobs }),
+        wait: async () => {
+          waits += 1;
+          throw new Error('Warten ist hier nicht erlaubt');
+        },
+      }),
+      /CI-Prüfungen/u,
+    );
+    assert.equal(waits, 0);
+  }
+});
+
+test('Warten übernimmt keine alten Ergebnisse und bricht bei Fehlern oder geändertem Hauptzweig sofort ab', async () => {
+  for (const changes of [
+    'failed_job',
+    'master',
+    'run_id',
+    'attempt',
+    'run_failure',
+    'unknown_check',
+  ]) {
+    let elapsed = 0;
+    let waits = 0;
+    let reads = 0;
+    const fallback = releaseApi();
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        now: () => elapsed,
+        wait: async (milliseconds) => {
+          waits += 1;
+          elapsed += milliseconds;
+        },
+        api: async (path) => {
+          if (waits > 0 && path === 'git/ref/heads/master' && changes === 'master') {
+            return { ref: 'refs/heads/master', object: { type: 'commit', sha: 'b'.repeat(40) } };
+          }
+          if (waits > 0 && path === 'actions/runs/123/attempts/1') {
+            const override =
+              changes === 'run_id'
+                ? { id: 124 }
+                : changes === 'attempt'
+                  ? { run_attempt: 2 }
+                  : changes === 'run_failure'
+                    ? { conclusion: 'failure' }
+                    : {};
+            return runFixture(currentSha, override);
+          }
+          if (path === 'actions/runs/123/jobs?filter=latest&per_page=100&page=1') {
+            reads += 1;
+            if (reads === 1)
+              return { jobs: [{ ...checkedJob, status: 'queued', conclusion: null }] };
+            return {
+              jobs:
+                changes === 'failed_job'
+                  ? [checkedJob, { name: 'Quality', status: 'completed', conclusion: 'failure' }]
+                  : [{ ...checkedJob, status: 'unrecognized', conclusion: null }],
+            };
+          }
+          return fallback(path);
+        },
+      }),
+      /CI-Prüfungen|CI-Lauf|überholt/u,
+    );
+    assert.equal(waits, 1);
+    assert.ok(reads <= 2);
+  }
+  let masterReads = 0;
+  const fallback = releaseApi();
+  await assert.rejects(
+    planMarketplaceRelease(releaseEnvironment, {
+      api: async (path) => {
+        if (path === 'git/ref/heads/master' && ++masterReads === 2)
+          return { ref: 'refs/heads/master', object: { type: 'commit', sha: 'b'.repeat(40) } };
+        return fallback(path);
+      },
+    }),
+    /überholt/u,
+  );
+  assert.equal(masterReads, 2);
+});
 
 test('eigener CI-Lauf liest genau seinen aktuellen Versuch ohne Rückfall auf die Gesamtübersicht', async () => {
   for (const [expectedAttempt, returnedAttempt] of [
