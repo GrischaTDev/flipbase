@@ -232,21 +232,22 @@
       const title = element.querySelector(
         '[data-testid$="--title"],[class*="__Cell__title"]',
       )?.textContent;
-      // Vinted benennt die sichtbare Paketkachel umgekehrt zur teils ins Leere zeigenden ARIA-ID.
+      // Vinted verwendet beide Kennungen für Paketkacheln; ARIA kann auf die ganze Kachel zeigen.
       const packageId =
         field === 'package' ? /^package_type_selector_([1-9][0-9]*)$/.exec(element.id) : null;
       const packageCell = packageId
-        ? element.closest('[id="' + packageId[1] + '-package-size"]')
+        ? element.closest(
+            '[id="' + packageId[1] + '-package-size"],[id="package-size-' + packageId[1] + '"]',
+          )
         : null;
       const packageLabel =
-        packageId &&
-        packageCell?.getAttribute('data-testid') === packageId[1] + '-package-size--cell'
+        packageId && packageCell?.getAttribute('data-testid') === packageCell?.id + '--cell'
           ? packageCell.textContent
           : '';
       let packageName = '';
       if (packageLabel) {
         const titles = packageCell.querySelectorAll(
-          '[data-testid="' + packageId[1] + '-package-size--cell-title"]',
+          '[data-testid="' + packageCell.id + '--cell-title"]',
         );
         if (titles.length > 0) {
           const names = titles[0].querySelectorAll(':scope > span');
