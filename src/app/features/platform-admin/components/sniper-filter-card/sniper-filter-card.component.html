@@ -1,0 +1,149 @@
+@let filter = query();
+<article
+  [attr.data-query-id]="filter.id"
+  [attr.aria-label]="title()"
+  class="h-full min-w-0 cursor-pointer rounded-xl border bg-fb-surface text-fb-text-primary shadow-xs transition-colors hover:border-fb-border"
+  [class.flex]="!compact()"
+  [class.flex-col]="!compact()"
+  [class.grid]="compact()"
+  [class.border-fb-text-primary]="selected()"
+  [class.border-fb-border-subtle]="!selected()"
+  [class]="
+    compact()
+      ? 'grid-cols-1 items-center gap-x-3 px-3 py-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:gap-5'
+      : ''
+  "
+>
+  <div class="flex min-w-0 items-start gap-2.5" [class]="compact() ? '' : 'px-4 pt-4'">
+    @if (!compact()) {
+      <span
+        class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-fb-subtle text-fb-text-secondary"
+        aria-hidden="true"
+        ><svg [lucideIcon]="shirtIcon" class="size-5"></svg
+      ></span>
+    }
+    <div class="min-w-0 flex-1">
+      <h3 [attr.data-query-title]="filter.id">
+        <app-button
+          variant="plain"
+          [wrapLabel]="true"
+          contentAlign="start"
+          (clicked)="opened.emit()"
+          ><span class="text-[15px] leading-5 font-semibold tracking-tight text-fb-text-primary">{{
+            title()
+          }}</span></app-button
+        >
+      </h3>
+      <p class="mt-1 truncate text-xs text-fb-text-muted" [title]="category()">{{ category() }}</p>
+    </div>
+    <app-custom-checkbox
+      size="sm"
+      [ariaLabel]="title() + ' auswählen'"
+      [checked]="selected()"
+      [disabled]="disabled()"
+      (checkedChange)="selectionChanged.emit($event)"
+    />
+  </div>
+  <div
+    class="min-w-0"
+    [class]="
+      compact() ? 'flex flex-wrap items-baseline gap-x-3 pt-2 lg:block lg:pt-0' : 'px-4 pt-3'
+    "
+  >
+    <p class="break-words text-[13px] text-fb-text-secondary">{{ brands() }}</p>
+    <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <p
+        class="text-lg leading-6 font-semibold tracking-tight tabular-nums"
+        [class.lg:text-sm]="compact()"
+      >
+        {{ price() }}
+      </p>
+      <p class="border-l border-fb-line pl-2 text-xs text-fb-text-muted">
+        Wunschtakt {{ interval() }}
+      </p>
+    </div>
+  </div>
+  <div [class]="compact() ? 'py-2 lg:py-0' : 'flex-1 px-4 py-3'">
+    <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
+      <app-sniper-query-run-status
+        [query]="filter"
+        [currentTime]="currentTime()"
+        [pending]="pending()"
+        [manualRequired]="manualRequired()"
+        [compact]="true"
+      />
+      <p class="shrink-0 text-fb-text-secondary tabular-nums">{{ finds() ?? '–' }} Funde · 24 h</p>
+    </div>
+    @if (issue(); as message) {
+      <div class="mt-1.5">
+        <app-badge [tone]="critical() ? 'critical' : 'caution'"
+          ><svg [lucideIcon]="warningIcon" class="mr-1 size-3" aria-hidden="true"></svg
+          >{{ message }}</app-badge
+        >
+      </div>
+    }
+  </div>
+  <footer
+    class="flex items-center justify-between gap-2 border-fb-line"
+    [class]="compact() ? 'lg:flex-col lg:items-end' : 'border-t px-3 py-1.5'"
+  >
+    <span class="flex items-center gap-1.5 text-xs" [class.text-fb-text-muted]="!filter.is_active"
+      ><span
+        class="size-1.5 rounded-full"
+        [class.bg-fb-success]="filter.is_active"
+        [class.bg-fb-text-muted]="!filter.is_active"
+        aria-hidden="true"
+      ></span
+      >{{ filter.is_active ? 'Aktiv' : 'Pausiert' }}</span
+    >
+    <div class="flex shrink-0 items-center gap-1">
+      <app-button
+        variant="ghost"
+        size="slim"
+        [icon]="filter.is_active ? pauseIcon : playIcon"
+        [disabled]="disabled()"
+        [ariaLabel]="
+          (filter.is_active ? 'Suchfilter pausieren: ' : 'Suchfilter aktivieren: ') + title()
+        "
+        (clicked)="toggled.emit()"
+        >{{ filter.is_active ? 'Pausieren' : 'Aktivieren' }}</app-button
+      >
+      <app-table-action-menu
+        [attr.data-delete-query]="filter.id"
+        [triggerIcon]="settingsIcon"
+        [disabled]="disabled()"
+        [label]="'Einstellungen für ' + title()"
+      >
+        <app-button
+          variant="ghost"
+          [fullWidth]="true"
+          contentAlign="start"
+          [icon]="editIcon"
+          [disabled]="disabled()"
+          (clicked)="edited.emit()"
+          >Bearbeiten</app-button
+        >
+        <app-button
+          variant="ghost"
+          [fullWidth]="true"
+          contentAlign="start"
+          [icon]="copyIcon"
+          [disabled]="disabled()"
+          (clicked)="duplicated.emit()"
+          >Duplizieren</app-button
+        >
+        <div class="my-1 border-t border-fb-line"></div>
+        <app-button
+          variant="table-action"
+          tone="critical"
+          [fullWidth]="true"
+          contentAlign="start"
+          [icon]="deleteIcon"
+          [disabled]="disabled()"
+          (clicked)="deleted.emit()"
+          >Löschen …</app-button
+        >
+      </app-table-action-menu>
+    </div>
+  </footer>
+</article>

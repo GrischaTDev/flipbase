@@ -1,7 +1,8 @@
 <app-button
   variant="table-action"
   size="slim"
-  [icon]="icon"
+  [icon]="triggerIcon()"
+  [disabled]="disabled()"
   [iconOnly]="true"
   [ariaLabel]="label()"
   [title]="label()"

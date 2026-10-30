@@ -9,7 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { LucideEllipsis } from '@lucide/angular';
+import { LucideEllipsis, type LucideIconInput } from '@lucide/angular';
 import { ButtonComponent } from '../button/button.component';
 
 let nextMenuId = 0;
@@ -34,11 +34,13 @@ export class TableActionMenuComponent {
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   readonly label = input('Aktionen');
   readonly panelId = `table-action-menu-${++nextMenuId}`;
-  readonly icon = LucideEllipsis;
+  readonly triggerIcon = input<LucideIconInput>(LucideEllipsis);
+  readonly disabled = input(false);
   readonly isOpen = signal(false);
   readonly position = signal({ top: 0, left: 0 });
 
   toggle(): void {
+    if (this.disabled()) return;
     if (this.isOpen()) {
       this.close();
       return;

@@ -22,6 +22,7 @@ export class ModalShellComponent {
   readonly iconTone = input<ModalTone>('info');
   readonly size = input<ModalSize>('lg');
   readonly presentation = input<'center' | 'drawer' | 'sheet'>('center');
+  readonly drawerWidth = input<'default' | 'wide'>('default');
   readonly closeOnBackdrop = input<boolean>(false);
   readonly hasFooter = input<boolean>(true);
 
@@ -33,7 +34,7 @@ export class ModalShellComponent {
     if (this.presentation() === 'sheet')
       return 'linear-surface fb-dialog-surface flex max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl animate-modal-card';
     if (this.presentation() === 'drawer')
-      return 'linear-surface fb-dialog-surface flex h-dvh w-full max-w-lg flex-col overflow-hidden animate-modal-card';
+      return `linear-surface fb-dialog-surface flex h-dvh w-full ${this.drawerWidth() === 'wide' ? 'max-w-[620px]' : 'max-w-lg'} flex-col overflow-hidden animate-modal-card`;
     const base =
       'linear-surface fb-dialog-surface flex min-h-0 max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl animate-modal-card sm:max-h-[calc(100dvh-3rem)]';
 

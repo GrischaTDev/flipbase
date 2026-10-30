@@ -1,4 +1,11 @@
 <section class="flex flex-col gap-4">
+  @if (!embedded()) {
+    <app-page-header title="Botbetrieb" subtitle="Prüfe Verbindung, Abrufe und Kategorienpflege."
+      ><app-button header-actions link="/admin/vinted-bot/queries"
+        >Zurück zu den Suchfiltern</app-button
+      ></app-page-header
+    >
+  }
   @if (state.error(); as message) {
     <p role="alert" class="flex flex-wrap items-center gap-2">
       {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
@@ -68,7 +75,6 @@
                 >Vinted-Zugriff prüfen</app-button
               >
             }
-            <app-button link="/admin/vinted-bot/queries">Markenfilter verwalten</app-button>
           </div>
         </div>
         @if (browserStatus()?.message; as message) {
@@ -83,24 +89,28 @@
       </div>
     </app-card>
 
-    <div class="grid gap-4 sm:grid-cols-3">
-      <app-card padding="md">
-        <h3 class="text-sm text-fb-text-secondary">Aktive Markenfilter</h3>
-        <p class="mt-2 text-2xl font-semibold">{{ activeCount() }}</p>
-      </app-card>
-      <app-card padding="md">
-        <h3 class="text-sm text-fb-text-secondary">Anfragen · letzte Minute</h3>
-        <p class="mt-2 text-2xl font-semibold">
-          {{ state.runtime()?.requests_last_minute ?? '–' }}
-        </p>
-      </app-card>
-      <app-card padding="md">
-        <h3 class="text-sm text-fb-text-secondary">Abgewiesen · letzte Minute</h3>
-        <p class="mt-2 text-2xl font-semibold">
-          {{ state.runtime()?.rejected_last_minute ?? '–' }}
-        </p>
-      </app-card>
-    </div>
+    <app-card variant="section" padding="md"
+      ><dl class="grid grid-cols-3 gap-3 text-xs text-fb-text-secondary">
+        <div>
+          <dt>Aktive Suchfilter</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+            {{ activeCount() }}
+          </dd>
+        </div>
+        <div>
+          <dt>Anfragen · letzte Minute</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+            {{ state.runtime()?.requests_last_minute ?? '–' }}
+          </dd>
+        </div>
+        <div>
+          <dt>Abgewiesen · letzte Minute</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+            {{ state.runtime()?.rejected_last_minute ?? '–' }}
+          </dd>
+        </div>
+      </dl></app-card
+    >
 
     <app-card padding="md">
       <h2 class="text-base font-semibold text-fb-text-primary">Aktueller Handlungsbedarf</h2>
@@ -115,12 +125,12 @@
               </p>
             }
             @if (query.run_state === 'invalid') {
-              <p class="text-fb-text-secondary">Prüfe die Einstellungen dieses Markenfilters.</p>
+              <p class="text-fb-text-secondary">Prüfe die Einstellungen dieses Suchfilters.</p>
             }
           </div>
         } @empty {
           <p class="text-sm text-fb-text-secondary">
-            Keine Fehlermeldung an den aktiven Markenfiltern.
+            Keine Fehlermeldung an den aktiven Suchfiltern.
           </p>
         }
       </div>
@@ -144,7 +154,7 @@
               <dd>{{ state.runtime()?.request_budget ?? '–' }}</dd>
             </div>
             <div>
-              <dt>Rechnerischer Bedarf der Markenfilter</dt>
+              <dt>Rechnerischer Bedarf der Suchfilter</dt>
               <dd>{{ state.plannedRate() | number: '1.0-2' }} Abfragen pro Minute</dd>
             </div>
           </dl>
@@ -156,11 +166,11 @@
           </p>
           <p>
             Eine aktuelle Betriebsmeldung bestätigt den laufenden Dienst. Erfolgreiche
-            Vinted-Abfragen stehen separat an den Markenfiltern. Die Minutenwerte stammen aus der
+            Vinted-Abfragen stehen separat an den Suchfiltern. Die Minutenwerte stammen aus der
             letzten Meldung.
           </p>
           @if (stoppedQueries().length) {
-            <h3 class="font-medium text-fb-text-primary">Letzte Fehler pausierter Markenfilter</h3>
+            <h3 class="font-medium text-fb-text-primary">Letzte Fehler pausierter Suchfilter</h3>
             @for (query of stoppedQueries(); track query.id) {
               <p>
                 {{ query.title }} · {{ statusLabel(query) }}. Dieser Filter ist pausiert und wird

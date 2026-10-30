@@ -62,11 +62,13 @@ export class SniperQueryEditorComponent {
   private brandRequest = 0;
   private categoryRequest = 0;
   readonly query = input<SniperQuery | null>(null);
+  readonly duplicate = input(false);
+  readonly showActions = input(true);
   readonly saving = input(false);
   readonly saveError = input<string | null>(null);
   readonly saved = output<QueryDraft>();
   readonly cancelled = output<void>();
-  readonly editing = computed(() => this.query()?.id ?? null);
+  readonly editing = computed(() => (this.duplicate() ? null : (this.query()?.id ?? null)));
   readonly error = signal<string | null>(null);
   readonly submitted = signal(false);
   readonly categories = signal<VintedCategory[]>([]);
@@ -190,7 +192,10 @@ export class SniperQueryEditorComponent {
 
   edit(query: SniperQuery | null): void {
     this.form.reset({
-      title: query?.title ?? '',
+      title:
+        this.duplicate() && query
+          ? `${[...(query.title || 'Suchfilter')].slice(0, 92).join('')} – Kopie`
+          : (query?.title ?? ''),
       catalogId: query?.catalog_id ?? null,
       keywordEntry: '',
       excludedKeywordEntry: '',
@@ -447,7 +452,7 @@ export class SniperQueryEditorComponent {
       keywordMode: values.keywordMode,
       intervalSeconds: values.intervalSeconds,
       notes: values.notes,
-      revision: this.query()?.filter_revision ?? (this.query() ? 1 : null),
+      revision: this.editing() ? (this.query()?.filter_revision ?? 1) : null,
       searchText: values.searchText || null,
       priceFrom: values.priceFrom,
       priceTo: values.priceTo,

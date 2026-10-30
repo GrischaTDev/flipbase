@@ -62,7 +62,7 @@ beforeAll(async () => {
   registerSignalInputs(CategoryPickerComponent, ['source', 'label', 'placeholder', 'helpText']);
   registerSignalInputs(
     SniperQueryEditorComponent,
-    ['query', 'saving', 'saveError'],
+    ['query', 'duplicate', 'showActions', 'saving', 'saveError'],
     ['saved', 'cancelled'],
   );
   registerSignalInputs(
@@ -200,6 +200,41 @@ describe('central search filter editor', () => {
     search.mockClear();
     readSnapshot.mockClear();
     vi.useRealTimers();
+  });
+
+  it('duplicates all conditions as a new filter without reusing its saved identity or revision', async () => {
+    const component = await build({
+      id: 'original',
+      title: 'Nike Puffer',
+      catalog_id: 3,
+      brand_ids: [53],
+      brand_names: ['Nike'],
+      title_keywords: ['puffer', 'pufferjacke'],
+      excluded_title_keywords: ['weste'],
+      keyword_mode: 'any',
+      filter_revision: 8,
+      poll_interval_ms: 30000,
+      search_text: 'Winter',
+      price_to: 55,
+    } as SniperQuery);
+    fixture.componentRef.setInput('duplicate', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const drafts: QueryDraft[] = [];
+    component.saved.subscribe((draft) => drafts.push(draft));
+    component.submit();
+    expect(drafts[0]).toMatchObject({
+      id: null,
+      revision: null,
+      title: 'Nike Puffer – Kopie',
+      brands: [{ id: 53, name: 'Nike' }],
+      titleKeywords: ['puffer', 'pufferjacke'],
+      excludedTitleKeywords: ['weste'],
+      keywordMode: 'any',
+      catalogId: 3,
+      priceTo: 55,
+      searchText: 'Winter',
+    });
   });
 
   it('uses shared controls and emits a category-only filter, not a forced brand search', async () => {
