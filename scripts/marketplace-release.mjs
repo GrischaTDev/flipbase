@@ -221,9 +221,11 @@ export async function planMarketplaceRelease(
   if (event === 'push') {
     assertRelease(/^[1-9][0-9]*$/u.test(environment.GITHUB_RUN_ID ?? ''), 'CI-Laufkennung fehlt.');
     const run = await api(`actions/runs/${environment.GITHUB_RUN_ID}`);
+    // Der gestartete Job kann noch einen wartenden Gesamtstatus nach einer Umgebungssperre lesen.
     assertRelease(
       validRun(run, sha, 'ci.yml', 'push') &&
-        ['in_progress', 'completed'].includes(run.status) &&
+        ['in_progress', 'waiting', 'completed'].includes(run.status) &&
+        (run.status !== 'waiting' || run.conclusion === null) &&
         (run.status !== 'completed' || run.conclusion === 'success'),
       'Der aufrufende CI-Lauf gehört nicht zum freigegebenen Hauptzweigstand.',
     );

@@ -405,6 +405,63 @@ test('laufende Hauptzweig-CI darf erst nach ihrem eigenen grünen Sammelgate ver
   }
 });
 
+test('wartende eigene Hauptzweig-CI erlaubt den gestarteten Rollout erst nach grünen Pflichtprüfungen', async () => {
+  const run = runFixture(currentSha, { status: 'waiting', conclusion: null });
+  assert.deepEqual(await planMarketplaceRelease(releaseEnvironment, { api: releaseApi({ run }) }), {
+    operation: 'release',
+    commit: currentSha,
+  });
+  for (const jobs of [
+    [],
+    [{ ...checkedJob, status: 'in_progress', conclusion: null }],
+    [{ ...checkedJob, conclusion: 'failure' }],
+    [{ ...checkedJob, conclusion: 'cancelled' }],
+    [checkedJob, { status: 'completed', conclusion: 'failure' }],
+    [checkedJob, { status: 'completed', conclusion: 'cancelled' }],
+  ]) {
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, { api: releaseApi({ run, jobs }) }),
+      /CI-Prüfungen/u,
+    );
+  }
+});
+
+test('wartende CI behält Identitätsgrenzen und akzeptiert kein bereits gesetztes Ergebnis', async () => {
+  for (const changes of [
+    { head_sha: releaseSha },
+    { head_repository: { full_name: 'fork/flipbase' } },
+    { head_branch: 'feature' },
+    { path: '.github/workflows/fake.yml' },
+    { event: 'pull_request' },
+    { conclusion: 'success' },
+    { conclusion: 'failure' },
+    { conclusion: 'cancelled' },
+    { conclusion: undefined },
+    { status: 'queued' },
+    { status: 'unknown' },
+    { status: 'completed', conclusion: 'failure' },
+    { status: 'completed', conclusion: 'cancelled' },
+  ]) {
+    await assert.rejects(
+      planMarketplaceRelease(releaseEnvironment, {
+        api: releaseApi({
+          run: runFixture(currentSha, { status: 'waiting', conclusion: null, ...changes }),
+        }),
+      }),
+      /CI-Lauf/u,
+    );
+  }
+  await assert.rejects(
+    planMarketplaceRelease(releaseEnvironment, {
+      api: releaseApi({
+        master: 'b'.repeat(40),
+        run: runFixture(currentSha, { status: 'waiting', conclusion: null }),
+      }),
+    }),
+    /überholt/u,
+  );
+});
+
 test('fremde Quellen, PR-Auslöser, Branches und verfälschte CI-Zuordnungen werden abgewiesen', async () => {
   for (const changes of [
     { GITHUB_REPOSITORY: 'other/flipbase' },
