@@ -873,7 +873,7 @@
       items,
     };
   }
-  function collectFormValues() {
+  function collectFormValues(options) {
     const roots = document.querySelectorAll('#content');
     if (roots.length !== 1) return null;
     const root = roots[0],
@@ -900,6 +900,11 @@
     }
     for (const name of ['ai_photo', 'bump']) {
       const nodes = root.querySelectorAll('input#' + name + '[type="checkbox"]');
+      // Die Veröffentlichung ohne KI ist auch in Masken ohne diese optionale Auswahl möglich.
+      if (name === 'ai_photo' && nodes.length === 0 && options?.allowMissingAiPhoto === true) {
+        values[name] = false;
+        continue;
+      }
       if (nodes.length !== 1) return null;
       values[name] = nodes[0].checked;
     }
@@ -913,7 +918,7 @@
       values.title !== content.title ||
       values.description !== content.description ||
       typeof values.price !== 'string' ||
-      schema.aiPhoto !== aiPhoto ||
+      (schema.aiPhoto !== aiPhoto && !(schema.aiPhoto === null && aiPhoto === false)) ||
       schema.bump !== false ||
       values.ai_photo !== aiPhoto ||
       values.bump !== false

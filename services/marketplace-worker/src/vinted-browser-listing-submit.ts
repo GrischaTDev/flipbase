@@ -110,7 +110,7 @@ export async function submitVintedListing(
       content: resolveFlipbaseVintedListingContent(snapshot.content, prepared),
     };
     // Ohne Fotos fehlen die Foto-Zusatzfelder bei Vinted noch. Bezahlte Extras bleiben gesperrt;
-    // die vollständigen Werte einschließlich beider Checkboxen werden nach dem Upload geprüft.
+    // die vollständigen Werte werden nach dem Upload geprüft.
     step = 'metadata';
     const initial = await page.evaluate(collectVintedListingFormMetadata);
     const uniquePhotoOptions = await page.evaluate(() => {
@@ -137,9 +137,14 @@ export async function submitVintedListing(
       authorizeNewForm,
     );
     await check();
-    await page
-      .locator('#content input#ai_photo[type="checkbox"]')
-      .setChecked(snapshot.aiPhoto, { timeout: 5000 });
+    step = 'metadata';
+    const aiPhoto = page.locator('#content input#ai_photo[type="checkbox"]');
+    const aiPhotoCount = await aiPhoto.count();
+    if (aiPhotoCount === 1) {
+      await aiPhoto.setChecked(snapshot.aiPhoto, { timeout: 5000 });
+    } else if (aiPhotoCount !== 0 || snapshot.aiPhoto) {
+      throw new VintedListingReadError('metadata');
+    }
     await check();
     const schema = await readVintedListingCategoryFields(
       page,
@@ -154,7 +159,7 @@ export async function submitVintedListing(
         snapshot.content,
         snapshot.images,
         schema,
-        await page.evaluate(collectVintedListingFormValues),
+        await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
         snapshot.aiPhoto,
       ) ||
       !vintedListingPhotosMatch(

@@ -8,11 +8,16 @@ import { vintedBrowserActions } from '../../src/vinted-browser-actions.ts';
 import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
 import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
+import { collectVintedListingFormValues } from '../../src/vinted-listing-contracts.ts';
 
 /** Nur diese lokale Maske zeigt Zusatzfelder erst bei der ersten Dateiauswahl. */
 async function deferPhotoMetadata(page: Page, missing?: 'ai_photo' | 'bump'): Promise<void> {
   await page.addInitScript((missing) => {
     document.addEventListener('DOMContentLoaded', () => {
+      if (/^\/items\/[0-9]+\/edit$/.test(location.pathname) && missing === 'ai_photo') {
+        document.querySelector('#ai_photo')?.remove();
+        return;
+      }
       if (location.pathname !== '/items/new') return;
       const fields = [...document.querySelectorAll<HTMLInputElement>('#ai_photo,#bump')];
       fields.forEach((field) => field.remove());
@@ -26,12 +31,62 @@ async function deferPhotoMetadata(page: Page, missing?: 'ai_photo' | 'bump'): Pr
   }, missing);
 }
 
+test('optional AI metadata requires explicit opt-in and never permits ambiguous or missing paid options', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await createVintedListingFormFixture(page, { publishing: true });
+    await page.goto('https://www.vinted.de/items/new');
+    await page.locator('#ai_photo').evaluate((field) => field.remove());
+    assert.equal(await page.evaluate(collectVintedListingFormValues), null);
+    const optional = await page.evaluate(collectVintedListingFormValues, {
+      allowMissingAiPhoto: true,
+    });
+    assert.equal(optional?.ai_photo, false);
+    assert.equal(optional?.bump, false);
+    await page.evaluate(() => {
+      const bump = document.querySelector('#bump')!;
+      bump.parentElement!.append(bump.cloneNode());
+    });
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+    await page.evaluate(() =>
+      document.querySelectorAll('#bump').forEach((field) => field.remove()),
+    );
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+    await page.evaluate(() => {
+      const bump = document.createElement('input');
+      bump.type = 'checkbox';
+      bump.id = 'bump';
+      document.querySelector('#content')!.append(bump);
+      for (let i = 0; i < 2; i++) {
+        const field = document.createElement('input');
+        field.type = 'checkbox';
+        field.id = 'ai_photo';
+        document.querySelector('#content')!.append(field);
+      }
+    });
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
 test('publishing writes once after Begin and confirms only the saved content, photos and active ID', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const options of [
       {},
       { photoMetadataAfterSelection: true },
+      { photoMetadataAfterSelection: true, missingAiPhoto: true },
       { localForm: true },
       {
         localForm: true,
@@ -47,7 +102,8 @@ test('publishing writes once after Begin and confirms only the saved content, ph
     ]) {
       const page = await browser.newPage(),
         f = await createVintedListingFormFixture(page, { publishing: true, ...options });
-      if (options.photoMetadataAfterSelection) await deferPhotoMetadata(page);
+      if (options.photoMetadataAfterSelection)
+        await deferPhotoMetadata(page, options.missingAiPhoto ? 'ai_photo' : undefined);
       const pageErrors: string[] = [];
       page.on('pageerror', (error) => pageErrors.push(error.message));
       let identityReads = 0;
@@ -185,7 +241,7 @@ test('does not save or confirm when photo metadata stays absent after upload', a
         page,
         '123',
         'publish',
-        listingClaimFixture.snapshot,
+        { ...listingClaimFixture.snapshot, aiPhoto: missing === 'ai_photo' },
         async () => {
           begins++;
         },
