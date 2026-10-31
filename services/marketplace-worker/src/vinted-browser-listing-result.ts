@@ -10,6 +10,9 @@ import {
 import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import type { MarketplaceListingSnapshot } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import type { VintedUploadedListingPhoto } from './vinted-browser-listing-photos.ts';
+import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
+
+type SavedReadStep = VintedListingReadStep | 'navigation' | 'form_match' | 'photos_match';
 
 /** Öffnet eine bekannte ID frisch zur Inhaltsprüfung. Speichert nichts und beweist allein keine Neuanlage. */
 export async function verifyVintedListingSavedContent(
@@ -20,6 +23,7 @@ export async function verifyVintedListingSavedContent(
   uploaded: readonly VintedUploadedListingPhoto[],
   categoryPath: readonly number[],
   authorize: () => Promise<void>,
+  onStep: (step: SavedReadStep) => void = () => undefined,
 ): Promise<boolean> {
   if (
     typeof accountId !== 'string' ||
@@ -41,7 +45,9 @@ export async function verifyVintedListingSavedContent(
     await authorize();
   };
   await check(false);
+  onStep('navigation');
   await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+  onStep('form');
   await page.locator('#content input[name="title"]').waitFor({ state: 'visible', timeout: 15_000 });
   await check(true);
   const schema = await readVintedListingCategoryFields(
@@ -49,18 +55,30 @@ export async function verifyVintedListingSavedContent(
     accountId,
     snapshot.content.categoryId,
     categoryPath,
-    { brand: snapshot.content },
+    { brand: snapshot.content, onReadField: onStep },
   );
   await check(true);
+  onStep('values');
   const values = await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true });
+  onStep('photos');
   const photos = await page.evaluate(collectVintedListingPhotoState);
-  const matches =
-    vintedListingFormMatches(snapshot.content, snapshot.images, schema, values, snapshot.aiPhoto) &&
-    vintedListingPhotosMatch(
+  onStep('form_match');
+  const formMatches = vintedListingFormMatches(
+    snapshot.content,
+    snapshot.images,
+    schema,
+    values,
+    snapshot.aiPhoto,
+  );
+  let matches = false;
+  if (formMatches) {
+    onStep('photos_match');
+    matches = vintedListingPhotosMatch(
       uploaded,
       photos,
       snapshot.images.map((image) => image.id),
     );
+  }
   await check(true);
   return matches;
 }
@@ -76,6 +94,7 @@ export async function readVintedListingActiveState(
   externalId: string,
   title: string,
   authorize: () => Promise<void>,
+  onStep: (step: 'navigation' | 'filter' | 'loading' | 'evidence') => void = () => undefined,
 ): Promise<boolean> {
   if (
     typeof accountId !== 'string' ||
@@ -97,10 +116,12 @@ export async function readVintedListingActiveState(
     await authorize();
   };
   await check();
+  onStep('navigation');
   await page.goto('https://www.vinted.de/member/' + accountId, {
     waitUntil: 'domcontentloaded',
     timeout: 15_000,
   });
+  onStep('filter');
   await page
     .getByTestId('closet-seller-filters-active')
     .waitFor({ state: 'visible', timeout: 15_000 });
@@ -117,6 +138,7 @@ export async function readVintedListingActiveState(
     const previous =
       (await oldItems.count()) > 0 ? await oldItems.first().elementHandle({ timeout: 5000 }) : null;
     await page.getByTestId('closet-seller-filters-active').click({ timeout: 5000 });
+    onStep('loading');
     try {
       if (previous) await previous.waitForElementState('hidden', { timeout: 15_000 });
     } finally {
@@ -125,6 +147,7 @@ export async function readVintedListingActiveState(
     await loading.waitFor({ state: 'hidden', timeout: 15_000 });
   }
   await check();
+  onStep('evidence');
   const evidence = await page.evaluate(hasVintedActiveListingEvidence, {
     accountId,
     externalId,

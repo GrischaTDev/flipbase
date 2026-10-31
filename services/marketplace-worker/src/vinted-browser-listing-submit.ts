@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { observeVintedListingCreation } from './vinted-browser-listing-save.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
 import type {
   MarketplaceListingAction,
@@ -18,7 +19,11 @@ import {
   VintedInteractionRequiredError,
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
-import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
+import {
+  VintedListingReadError,
+  vintedListingReadSteps,
+  type VintedListingReadStep,
+} from './vinted-listing-read-error.ts';
 import {
   collectVintedListingFormValues,
   collectVintedListingFormMetadata,
@@ -173,26 +178,47 @@ export async function submitVintedListing(
     if ((await button.count()) !== 1 || !(await button.isVisible()) || !(await button.isEnabled()))
       return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
     await check();
+    // Nur feste Prüfschritte speichern; Anbieterantworten und Artikeldaten bleiben im Browser.
+    let confirmationStep = 'save_response';
+    const unconfirmed = (): MarketplaceListingResult => ({
+      outcome: 'outcome_unknown',
+      errorCode: 'provider_unconfirmed_' + confirmationStep,
+    });
     try {
-      // Keine geratenen API-Aufrufe und keine Wiederholung bei Antwortverlust.
-      await Promise.all([
-        page.waitForURL(
+      // Die echte Formularantwort beobachten, keinen eigenen API-Schreibaufruf auslösen.
+      // Vinted leitet eine Neuanlage auch zum eigenen Profil statt zur Artikeladresse weiter.
+      const landed = page
+        .waitForURL(
           (url) =>
             url.origin === 'https://www.vinted.de' &&
             !url.search &&
             !url.hash &&
-            /^\/items\/[1-9][0-9]{0,31}(?:-[^\s/?#]*)?$/.test(url.pathname),
+            (url.pathname === '/member/' + accountId ||
+              /^\/items\/[1-9][0-9]{0,31}(?:-[^\s/?#]*)?$/.test(url.pathname)),
           { timeout, waitUntil: 'domcontentloaded' },
-        ),
-        button.click({ timeout: 5000 }),
-      ]);
-      const savedUrl = new URL(page.url()),
-        externalId = /^\/items\/([1-9][0-9]{0,31})(?:-[^\s/?#]*)?$/.exec(savedUrl.pathname)?.[1];
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      const observer = await observeVintedListingCreation(page, timeout);
+      let externalId: string | null;
+      try {
+        [externalId] = await Promise.all([observer.result, button.click({ timeout: 5000 })]);
+      } finally {
+        await observer.close();
+      }
+      if (!externalId) return unconfirmed();
+      confirmationStep = 'save_navigation';
+      if (!(await landed)) return unconfirmed();
+      const savedUrl = new URL(page.url());
+      const landedId = /^\/items\/([1-9][0-9]{0,31})(?:-[^\s/?#]*)?$/.exec(savedUrl.pathname)?.[1];
+      confirmationStep = 'saved_url';
       if (
-        !externalId ||
         savedUrl.origin !== 'https://www.vinted.de' ||
         savedUrl.search ||
         savedUrl.hash ||
+        (savedUrl.pathname !== '/member/' + accountId && landedId !== externalId) ||
         !(await verifyVintedListingSavedContent(
           page,
           accountId,
@@ -201,6 +227,9 @@ export async function submitVintedListing(
           uploaded,
           categoryPath,
           authorize,
+          (step) => {
+            confirmationStep = 'saved_' + step;
+          },
         )) ||
         !(await readVintedListingActiveState(
           page,
@@ -208,9 +237,12 @@ export async function submitVintedListing(
           externalId,
           snapshot.content.title,
           authorize,
+          (step) => {
+            confirmationStep = 'active_' + step;
+          },
         ))
       )
-        return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
+        return unconfirmed();
       return {
         outcome: 'confirmed',
         action: 'publish',
@@ -219,8 +251,10 @@ export async function submitVintedListing(
         providerState: 'active',
         verifiedAt: new Date().toISOString(),
       };
-    } catch {
-      return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
+    } catch (error) {
+      if (error instanceof VintedListingReadError && vintedListingReadSteps.includes(error.step))
+        confirmationStep += '_' + error.step;
+      return unconfirmed();
     }
   } catch (error) {
     if (
