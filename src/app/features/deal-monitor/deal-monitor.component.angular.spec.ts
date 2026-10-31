@@ -422,7 +422,7 @@ describe('DealMonitorComponent', () => {
     expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ minPrice: 12 }));
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Letzte 7 Tage');
+    expect(host.textContent).toContain('Letzte 3 Tage');
     expect((await axe.run(host)).violations).toEqual([]);
     fixture.destroy();
   });

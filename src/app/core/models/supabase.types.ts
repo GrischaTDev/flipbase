@@ -7430,6 +7430,7 @@ export type Database = {
           id: string
           image_urls: string[]
           is_hidden: boolean
+          is_initial_stock: boolean
           item_price: number
           item_updated_at: string | null
           marketplace: string
@@ -7459,6 +7460,7 @@ export type Database = {
           id?: string
           image_urls?: string[]
           is_hidden?: boolean
+          is_initial_stock?: boolean
           item_price: number
           item_updated_at?: string | null
           marketplace?: string
@@ -7488,6 +7490,7 @@ export type Database = {
           id?: string
           image_urls?: string[]
           is_hidden?: boolean
+          is_initial_stock?: boolean
           item_price?: number
           item_updated_at?: string | null
           marketplace?: string
@@ -7574,6 +7577,7 @@ export type Database = {
           last_status: string
           last_success_at: string | null
           marketplace: string
+          newest_external_id: number | null
           next_attempt_at: string | null
           notes: string | null
           poll_interval_ms: number
@@ -7616,6 +7620,7 @@ export type Database = {
           last_status?: string
           last_success_at?: string | null
           marketplace?: string
+          newest_external_id?: number | null
           next_attempt_at?: string | null
           notes?: string | null
           poll_interval_ms?: number
@@ -7658,6 +7663,7 @@ export type Database = {
           last_status?: string
           last_success_at?: string | null
           marketplace?: string
+          newest_external_id?: number | null
           next_attempt_at?: string | null
           notes?: string | null
           poll_interval_ms?: number

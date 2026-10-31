@@ -15,6 +15,14 @@ alter table public.sniper_queries drop constraint sniper_queries_interval_valid;
 alter table public.sniper_queries add constraint sniper_queries_interval_valid check (poll_interval_ms between 1000 and 86400000);
 comment on column public.sniper_queries.coverage_status is 'Begrenzte Abrufbeobachtung, keine Aussage über den vollständigen Marktplatzbestand.';
 comment on column public.sniper_queries.poll_interval_ms is 'Gewünschter Mindestabstand; tatsächliche Abrufe hängen vom gemeinsamen Budget und Marktplatzzugang ab.';
+-- Vinted vergibt Artikelnummern fortlaufend. Die höchste gesehene Nummer trennt
+-- frisch eingestellte Artikel von alten, die hochgeschoben oder verbilligt wurden.
+alter table public.sniper_queries
+    add column newest_external_id bigint,
+    add constraint sniper_queries_newest_external_id_valid check (newest_external_id > 0);
+comment on column public.sniper_queries.newest_external_id is 'Höchste Vinted-Artikelnummer, die dieser Filter gesehen hat. Deutlich ältere Nummern gelten nicht als neuer Fund.';
+alter table public.sniper_listings add column is_initial_stock boolean not null default false;
+comment on column public.sniper_listings.is_initial_stock is 'Beim ersten Abruf eines Filters vorgefundener Bestand. Bleibt für die Doppelerkennung gespeichert, erscheint aber nicht im Feed.';
 
 create table public.sniper_query_matches (
     id bigint generated always as identity primary key,
@@ -323,6 +331,7 @@ declare
     v_created integer;
     v_hits integer;
     v_seed boolean;
+    v_newest bigint;
     v_external_ids text[];
     v_new_matches uuid[];
 begin
@@ -360,16 +369,26 @@ begin
     if p_cursor < 0 or p_cursor >= 2147483647 then raise exception 'Ungültige Abrufposition.' using errcode = '22023'; end if;
     v_index := p_cursor % v_count;
     v_seed := not v_index = any(v_query.seeded_requests);
+    select max((item->>'external_id')::bigint) into v_newest from jsonb_array_elements(p_listings) item
+    where item->>'external_id' ~ '^[1-9][0-9]{0,17}$';
+    -- Vinted vergibt rund vier Millionen Nummern pro Stunde. Liegt eine Nummer mehr
+    -- als etwa eine Stunde unter dem bekannten Stand, wurde der Artikel nur
+    -- hochgeschoben oder verbilligt und ist kein neuer Fund.
+    if not v_seed and v_query.newest_external_id is not null then
+        select coalesce(jsonb_agg(item), '[]'::jsonb) into p_listings from jsonb_array_elements(p_listings) item
+        where item->>'external_id' !~ '^[1-9][0-9]{0,17}$'
+           or (item->>'external_id')::bigint >= v_query.newest_external_id - 5000000;
+    end if;
     perform set_config('flipbase.sniper_run', v_query.id::text || ':' || v_query.filter_revision::text, true);
     with inserted as (
         insert into public.sniper_listings(marketplace, external_id, title, url, description, image_urls,
             item_price, total_price, currency, brand, size, condition, country_code, seller_name,
             seller_avatar_url, seller_rating, seller_review_count, is_hidden, item_updated_at,
-            photo_uploaded_at, discovered_by_query_id, watchlist_evaluated_at)
+            photo_uploaded_at, discovered_by_query_id, watchlist_evaluated_at, is_initial_stock)
         select v_query.marketplace, item.external_id, item.title, item.url, item.description, coalesce(item.image_urls, '{}'),
             item.item_price, item.total_price, item.currency, item.brand, item.size, item.condition,
             item.country_code, item.seller_name, item.seller_avatar_url, item.seller_rating, item.seller_review_count,
-            coalesce(item.is_hidden, false), item.item_updated_at, item.photo_uploaded_at, p_query_id, case when v_seed then now() end
+            coalesce(item.is_hidden, false), item.item_updated_at, item.photo_uploaded_at, p_query_id, case when v_seed then now() end, v_seed
         from jsonb_to_recordset(p_listings) item(external_id text, title text, url text, description text, image_urls text[],
             item_price numeric, total_price numeric, currency text, brand text, size text, condition text,
             country_code text, seller_name text, seller_avatar_url text, seller_rating numeric,
@@ -388,6 +407,9 @@ begin
     -- bereits gesäten Filters nicht stumm schalten. Älterer Erstbestand und
     -- bereits über echte Abrufe bewertete Artikel bleiben dagegen unverändert.
     if not v_seed then
+        -- Frischer Fund eines laufenden Filters: Erstbestand eines anderen Filters wird sichtbar.
+        update public.sniper_listings listing set is_initial_stock = false
+        where listing.id = any(v_new_matches) and listing.is_initial_stock;
         update public.sniper_listings listing set watchlist_evaluated_at = null
         where listing.id = any(v_new_matches) and listing.watchlist_evaluated_at is not null
           and listing.first_seen_at > coalesce(v_query.last_success_at, v_query.created_at)
@@ -403,6 +425,7 @@ begin
     v_hits := public.sniper_evaluate_watchlist_hits(p_query_id, not v_seed);
     if v_seed then v_query.seeded_requests := array_append(v_query.seeded_requests, v_index); end if;
     update public.sniper_queries set seeded_requests = v_query.seeded_requests,
+        newest_external_id = greatest(v_query.newest_external_id, v_newest),
         is_seeded = cardinality(v_query.seeded_requests) = v_count,
         request_cursor = p_cursor + 1, run_state = 'ready', next_attempt_at = null,
         last_attempt_at = now(), last_success_at = now(), last_polled_at = now(), last_status = 'ok',

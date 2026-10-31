@@ -407,7 +407,7 @@ as $$
         from public.sniper_listings as listing
         where listing.discovered_by_query_id = p_query_id
           and listing.condition is not distinct from p_condition
-          and listing.first_seen_at >= now() - interval '7 days'
+          and listing.first_seen_at >= now() - interval '3 days'
     ),
     grenze as (
         select price_to from public.sniper_queries where id = p_query_id
@@ -471,7 +471,7 @@ as $$
           and query.marketplace = 'vinted'
           and listing.marketplace = 'vinted'
           and listing.condition is not distinct from p_condition
-          and listing.first_seen_at >= now() - interval '7 days'
+          and listing.first_seen_at >= now() - interval '3 days'
           and listing.currency = 'EUR'
           and listing.item_price > 0
           and listing.item_price < 'Infinity'::numeric
@@ -529,7 +529,7 @@ begin
 
     with expired as (
         select id from public.sniper_listings
-        where first_seen_at < now() - interval '7 days'
+        where first_seen_at < now() - interval '3 days'
         order by first_seen_at, id
         limit p_batch_size
         for update skip locked

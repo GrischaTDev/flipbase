@@ -171,7 +171,7 @@
         <p class="mt-2 text-sm text-fb-text-secondary">
           @if (filtersActive()) {
             Passe Suchwort, Marke, Größe oder Preis an. Der Feed durchsucht die gespeicherten Funde
-            der letzten 7 Tage.
+            der letzten 3 Tage.
           } @else {
             Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Du kannst auch
             einen anderen Suchfilter oder eine andere Marke wählen.
@@ -183,7 +183,7 @@
         <div class="mb-3 flex flex-wrap items-center justify-end gap-2">
           <h2 id="feed-finds-title" class="sr-only">Artikel im Vinted Feed</h2>
           <div class="flex items-center gap-3">
-            <p class="text-xs text-fb-text-muted">Letzte 7 Tage</p>
+            <p class="text-xs text-fb-text-muted">Letzte 3 Tage</p>
             <app-button
               [variant]="compact() ? 'primary' : 'secondary'"
               [icon]="compactIcon"
