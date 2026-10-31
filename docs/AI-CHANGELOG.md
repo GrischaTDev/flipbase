@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-31 - Juna - Gescheiterte Auslieferung von PR #524 nachgeholt
+
+**Befund:** Nach dem Merge von PR #524 (`89920536`) scheiterte im Lauf `41180546995` der Job „Deploy to production“. Die Datenbanksicherung war erfolgreich; danach brach die Migration `20261031064255_sniper_feed_freshness` mit `deadlock detected` ab. Sie sperrte zuerst `sniper_queries`, danach `sniper_listings`, während eine andere Verbindung die Fundtabelle hielt und auf die Filtertabelle wartete – vermutlich ein Feed-Abruf oder der Bot. Lesend bestätigt: Die Migration rollte vollständig zurück, keine neue Spalte, kein Historieneintrag, die Anwendung lief unverändert auf dem Vorstand. Die lokalen Prüfungen liefen ohne gleichzeitige Last und konnten das nicht zeigen.
+
+**Behebung nach Rückfrage:** Eine gemergte Migration darf nicht mehr geändert werden, die Auslieferung führt sie unverändert erneut aus. Deshalb den Container `flipbase-sniper` angehalten; damit entfallen auch die vom Bot ausgelösten Feed-Aktualisierungen. Anschließend ausschließlich den gescheiterten Job neu gestartet. Die Migration war nach rund 30 Sekunden eingetragen, der Bot lief nach gut einer Minute wieder. Der zweite Versuch endete erfolgreich; Anwendung und Bot gesund, App 200, Bot-Status ohne Anmeldung 401. Alle fünf aktiven Filter speichern ihre neueste Vinted-Nummer, die Bereinigung auf drei Tage baut den Bestand schrittweise ab.
+
+**Für künftige Sniper-Migrationen:** Schemaänderungen an `sniper_queries` oder `sniper_listings` vor dem Merge mit einem kurzen Anhalten des Bots planen oder die Sperren gleich zu Beginn in fester Reihenfolge holen. Diese Nachtragsänderung betrifft nur das Protokoll.
+
 ## 2026-10-31 - Juna - Botstand im Vinted-Board und Alter der Filtertreffer
 
 **Botstand:** Das Board meldete „Botstand nicht verfügbar“, obwohl der Bot sammelte. `/sniper-browser/status` antwortete öffentlich mit 502 statt 401. Ursache auf dem Server bestätigt: Caddy wurde am 29.10.2026 neu angelegt und erhielt `172.18.0.15`, die UFW-Freigabe für Port 8081 galt weiter nur `172.18.0.12` – inzwischen Authelia. Nach Rückfrage und Sicherung von Compose-Datei und Firewallregeln unter `/root/juna-backups/` erhält Caddy die feste Adresse `172.18.0.250`; vorher mit einem Wegwerfcontainer geprüft und per Probelauf bestätigt, dass nur Caddy neu angelegt wird. Neue Regel vor dem Neustart ergänzt, alte Regel danach entfernt. Danach antworten app.flipbase.de, flipbase.de und auth.flipbase.de normal, der Status-Endpunkt ohne Anmeldung mit 401. Die Board-Anzeige selbst nicht angemeldet im Browser geprüft. Doku in `deploy/RELEASE-PIPELINE.md` angepasst.
