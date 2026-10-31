@@ -21,6 +21,7 @@ import {
 import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
 import {
   collectVintedListingFormValues,
+  collectVintedListingFormMetadata,
   collectVintedListingPhotoState,
   parseVintedListingSnapshot,
   vintedListingFormMatches,
@@ -108,10 +109,20 @@ export async function submitVintedListing(
       ...snapshot,
       content: resolveFlipbaseVintedListingContent(snapshot.content, prepared),
     };
-    // Zusatzoptionen müssen bereits vor dem ersten Upload eindeutig vorhanden sein.
+    // Ohne Fotos fehlen die Foto-Zusatzfelder bei Vinted noch. Bezahlte Extras bleiben gesperrt;
+    // die vollständigen Werte werden nach dem Upload geprüft.
     step = 'metadata';
-    const initial = await page.evaluate(collectVintedListingFormValues);
-    if (!initial || initial.bump !== false)
+    const initial = await page.evaluate(collectVintedListingFormMetadata);
+    const uniquePhotoOptions = await page.evaluate(() => {
+      const roots = document.querySelectorAll('#content');
+      return (
+        roots.length === 1 &&
+        ['ai_photo', 'bump'].every(
+          (id) => roots[0]!.querySelectorAll(`input#${id}[type="checkbox"]`).length <= 1,
+        )
+      );
+    });
+    if (!uniquePhotoOptions || initial.bump === true)
       throw new Error('Vinted-Zusatzoptionen nicht verfügbar.');
     step = 'photos';
     const uploaded = await uploadVintedListingPhotos(
@@ -126,9 +137,14 @@ export async function submitVintedListing(
       authorizeNewForm,
     );
     await check();
-    await page
-      .locator('#content input#ai_photo[type="checkbox"]')
-      .setChecked(snapshot.aiPhoto, { timeout: 5000 });
+    step = 'metadata';
+    const aiPhoto = page.locator('#content input#ai_photo[type="checkbox"]');
+    const aiPhotoCount = await aiPhoto.count();
+    if (aiPhotoCount === 1) {
+      await aiPhoto.setChecked(snapshot.aiPhoto, { timeout: 5000 });
+    } else if (aiPhotoCount !== 0 || snapshot.aiPhoto) {
+      throw new VintedListingReadError('metadata');
+    }
     await check();
     const schema = await readVintedListingCategoryFields(
       page,
@@ -143,7 +159,7 @@ export async function submitVintedListing(
         snapshot.content,
         snapshot.images,
         schema,
-        await page.evaluate(collectVintedListingFormValues),
+        await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
         snapshot.aiPhoto,
       ) ||
       !vintedListingPhotosMatch(

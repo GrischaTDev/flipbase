@@ -52,7 +52,7 @@ export async function verifyVintedListingSavedContent(
     { brand: snapshot.content },
   );
   await check(true);
-  const values = await page.evaluate(collectVintedListingFormValues);
+  const values = await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true });
   const photos = await page.evaluate(collectVintedListingPhotoState);
   const matches =
     vintedListingFormMatches(snapshot.content, snapshot.images, schema, values, snapshot.aiPhoto) &&

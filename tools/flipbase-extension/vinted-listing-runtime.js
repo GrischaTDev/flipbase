@@ -395,12 +395,19 @@
     const items = content.querySelectorAll(
       '[data-testid="product-item-id-' + expected.externalId + '--overlay-link"]',
     );
+    const caption = items.length === 1 ? items[0].getAttribute('title') : null;
+    // Vinted ergänzt am Kachellink Marke, Zustand, Größe und Preis. Nur den
+    // vollständig erkannten Zusatz abtrennen; der Artikeltitel bleibt exakt.
+    const title =
+      caption?.match(
+        /^(.+), marke: [^,\r\n]+, zustand: [^,\r\n]+(?:, größe: [^,\r\n]+(?:,[0-9]+)?)?, [0-9]+(?:\.[0-9]{3})*,[0-9]{2} €$/u,
+      )?.[1] ?? caption;
     return (
       items.length === 1 &&
       items[0].tagName === 'A' &&
       visible(items[0]) &&
       items[0].getAttribute('href') === '/items/' + expected.externalId &&
-      items[0].getAttribute('title') === expected.title
+      (caption === expected.title || title === expected.title)
     );
   }
 
@@ -873,7 +880,7 @@
       items,
     };
   }
-  function collectFormValues() {
+  function collectFormValues(options) {
     const roots = document.querySelectorAll('#content');
     if (roots.length !== 1) return null;
     const root = roots[0],
@@ -900,6 +907,11 @@
     }
     for (const name of ['ai_photo', 'bump']) {
       const nodes = root.querySelectorAll('input#' + name + '[type="checkbox"]');
+      // Die Veröffentlichung ohne KI ist auch in Masken ohne diese optionale Auswahl möglich.
+      if (name === 'ai_photo' && nodes.length === 0 && options?.allowMissingAiPhoto === true) {
+        values[name] = false;
+        continue;
+      }
       if (nodes.length !== 1) return null;
       values[name] = nodes[0].checked;
     }
@@ -913,7 +925,7 @@
       values.title !== content.title ||
       values.description !== content.description ||
       typeof values.price !== 'string' ||
-      schema.aiPhoto !== aiPhoto ||
+      (schema.aiPhoto !== aiPhoto && !(schema.aiPhoto === null && aiPhoto === false)) ||
       schema.bump !== false ||
       values.ai_photo !== aiPhoto ||
       values.bump !== false
@@ -964,7 +976,7 @@
         )
           return null;
         const path =
-          /^\/tc?\/([a-zA-Z0-9_-]{1,128})\/(?:f[1-9][0-9]{0,4}|[1-9][0-9]{0,4}x[1-9][0-9]{0,4})\/([0-9]{1,20}\.(?:webp|jpg|png))$/.exec(
+          /^\/tc?\/([a-zA-Z0-9_-]{1,128})\/(?:f[1-9][0-9]{0,4}|[1-9][0-9]{0,4}x[1-9][0-9]{0,4})\/([0-9]{1,20}\.(?:webp|jpg|png)|[a-f0-9]{8}\.jpeg)$/.exec(
             url.pathname,
           );
         return path ? path[1] + '/' + path[2] : null;

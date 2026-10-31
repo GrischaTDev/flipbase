@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { chromium } from 'playwright';
+import { chromium, type Page } from 'playwright';
 import { submitVintedListing } from '../../src/vinted-browser-listing-submit.ts';
 import { createVintedListingFormFixture } from '../fixtures/vinted-listing-form.ts';
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
@@ -8,12 +8,85 @@ import { vintedBrowserActions } from '../../src/vinted-browser-actions.ts';
 import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
 import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
+import { collectVintedListingFormValues } from '../../src/vinted-listing-contracts.ts';
+
+/** Nur diese lokale Maske zeigt Zusatzfelder erst bei der ersten Dateiauswahl. */
+async function deferPhotoMetadata(page: Page, missing?: 'ai_photo' | 'bump'): Promise<void> {
+  await page.addInitScript((missing) => {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (/^\/items\/[0-9]+\/edit$/.test(location.pathname) && missing === 'ai_photo') {
+        document.querySelector('#ai_photo')?.remove();
+        return;
+      }
+      if (location.pathname !== '/items/new') return;
+      const fields = [...document.querySelectorAll<HTMLInputElement>('#ai_photo,#bump')];
+      fields.forEach((field) => field.remove());
+      document.querySelector('input[name="photos"]')!.addEventListener('change', () => {
+        for (const field of fields) {
+          if (field.id !== missing && !field.isConnected)
+            document.querySelector('#content')!.append(field);
+        }
+      });
+    });
+  }, missing);
+}
+
+test('optional AI metadata requires explicit opt-in and never permits ambiguous or missing paid options', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await createVintedListingFormFixture(page, { publishing: true });
+    await page.goto('https://www.vinted.de/items/new');
+    await page.locator('#ai_photo').evaluate((field) => field.remove());
+    assert.equal(await page.evaluate(collectVintedListingFormValues), null);
+    const optional = await page.evaluate(collectVintedListingFormValues, {
+      allowMissingAiPhoto: true,
+    });
+    assert.equal(optional?.ai_photo, false);
+    assert.equal(optional?.bump, false);
+    await page.evaluate(() => {
+      const bump = document.querySelector('#bump')!;
+      bump.parentElement!.append(bump.cloneNode());
+    });
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+    await page.evaluate(() =>
+      document.querySelectorAll('#bump').forEach((field) => field.remove()),
+    );
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+    await page.evaluate(() => {
+      const bump = document.createElement('input');
+      bump.type = 'checkbox';
+      bump.id = 'bump';
+      document.querySelector('#content')!.append(bump);
+      for (let i = 0; i < 2; i++) {
+        const field = document.createElement('input');
+        field.type = 'checkbox';
+        field.id = 'ai_photo';
+        document.querySelector('#content')!.append(field);
+      }
+    });
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+  } finally {
+    await browser.close();
+  }
+});
 
 test('publishing writes once after Begin and confirms only the saved content, photos and active ID', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const options of [
       {},
+      { photoMetadataAfterSelection: true },
+      { photoMetadataAfterSelection: true, missingAiPhoto: true },
       { localForm: true },
       {
         localForm: true,
@@ -29,6 +102,8 @@ test('publishing writes once after Begin and confirms only the saved content, ph
     ]) {
       const page = await browser.newPage(),
         f = await createVintedListingFormFixture(page, { publishing: true, ...options });
+      if (options.photoMetadataAfterSelection)
+        await deferPhotoMetadata(page, options.missingAiPhoto ? 'ai_photo' : undefined);
       const pageErrors: string[] = [];
       page.on('pageerror', (error) => pageErrors.push(error.message));
       let identityReads = 0;
@@ -100,6 +175,92 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         assert.equal(result.providerState, 'active');
       }
       assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('rejects ambiguous photo options before Begin and the first upload', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const name of ['ai_photo', 'bump'] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { publishing: true });
+      await page.addInitScript((name) => {
+        document.addEventListener('DOMContentLoaded', () => {
+          if (location.pathname !== '/items/new') return;
+          const duplicate = document.createElement('input');
+          duplicate.type = 'checkbox';
+          duplicate.id = name;
+          duplicate.checked = true;
+          document.querySelector('#content')!.append(duplicate);
+        });
+      }, name);
+      await page.goto('about:blank');
+      let begins = 0;
+      await assert.rejects(
+        submitVintedListing(
+          page,
+          '123',
+          'publish',
+          listingClaimFixture.snapshot,
+          async () => {
+            begins++;
+          },
+          async () => undefined,
+          async (id) => ({
+            id,
+            fileName: 'jacke.jpg',
+            mimeType: 'image/jpeg',
+            bytes: new Uint8Array(123),
+          }),
+          [5],
+        ),
+        (error: unknown) => error instanceof VintedListingReadError && error.step === 'metadata',
+      );
+      assert.equal(begins, 0);
+      assert.equal(form.uploads(), 0);
+      assert.equal(form.saves(), 0);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('does not save or confirm when photo metadata stays absent after upload', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const missing of ['ai_photo', 'bump'] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { publishing: true });
+      await deferPhotoMetadata(page, missing);
+      await page.goto('about:blank');
+      let begins = 0;
+      const outcome = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        { ...listingClaimFixture.snapshot, aiPhoto: missing === 'ai_photo' },
+        async () => {
+          begins++;
+        },
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+      ).then(
+        (result) => result.outcome,
+        () => 'failed',
+      );
+      assert.notEqual(outcome, 'confirmed');
+      assert.equal(begins, 1);
+      assert.equal(form.uploads(), 1);
+      assert.equal(form.saves(), 0);
     }
   } finally {
     await browser.close();

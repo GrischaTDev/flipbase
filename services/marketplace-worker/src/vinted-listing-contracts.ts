@@ -14,7 +14,9 @@ import type {
 
 interface ListingRuntime {
   collectPhotoState(): VintedListingPhotoState;
-  collectFormValues(): VintedListingFormValues | null;
+  collectFormValues(
+    options?: { allowMissingAiPhoto?: boolean } | void,
+  ): VintedListingFormValues | null;
   formMatches(
     content: VintedListingContent,
     photos: readonly VintedListingPhotoMetadata[],
