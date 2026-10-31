@@ -8,7 +8,8 @@
   }
   @case ('success') {
     <span
-      class="animate-checkmark-pop flex h-7 w-7 items-center justify-center rounded-full bg-fb-success-strong text-white motion-reduce:animate-none!"
+      class="animate-checkmark-pop flex items-center justify-center rounded-full bg-fb-success-strong text-white motion-reduce:animate-none!"
+      [class]="size() === 'large' ? 'h-14 w-14' : 'h-7 w-7'"
     >
       <svg
         viewBox="0 0 24 24"
@@ -17,7 +18,8 @@
         stroke-width="3"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="animate-checkmark-stroke h-4 w-4 motion-reduce:animate-none! motion-reduce:[stroke-dashoffset:0]!"
+        class="animate-checkmark-stroke motion-reduce:animate-none! motion-reduce:[stroke-dashoffset:0]!"
+        [class]="size() === 'large' ? 'h-7 w-7' : 'h-4 w-4'"
       >
         <path d="m5 12 4 4 10-10" />
       </svg>

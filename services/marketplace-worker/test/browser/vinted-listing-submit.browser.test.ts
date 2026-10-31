@@ -10,6 +10,154 @@ import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 import { collectVintedListingFormValues } from '../../src/vinted-listing-contracts.ts';
 
+test('confirms the created item when Vinted redirects the successful publication to the owner profile', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const id of [456, '456']) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, {
+        publishing: true,
+        saveResponse: { item: { id }, url: '/member/123' },
+      });
+      await page.goto('about:blank');
+      let begins = 0;
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        listingClaimFixture.snapshot,
+        async () => {
+          begins++;
+        },
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+        { saveTimeoutMs: 400 },
+      );
+      assert.equal(result.outcome, 'confirmed', JSON.stringify(result));
+      if (result.outcome === 'confirmed') {
+        assert.equal(result.externalId, '456');
+        assert.equal(result.externalAccountId, '123');
+        assert.equal(result.providerState, 'active');
+      }
+      assert.equal(begins, 1);
+      assert.equal(form.uploads(), 1);
+      assert.equal(form.saves(), 1);
+      assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a missing or invalid creation response and a foreign landing never confirm or repeat a publication', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const [options, code] of [
+      [{ lostSaveResponse: true }, 'save_response'],
+      [{ saveResponse: { url: '/member/123' } }, 'save_response'],
+      [{ saveResponse: { item: { id: '0456' }, url: '/member/123' } }, 'save_response'],
+      [{ saveResponse: { item: { id: 456.5 }, url: '/member/123' } }, 'save_response'],
+      [{ saveStatus: 422 }, 'save_response'],
+      [{ saveContentType: 'text/html' }, 'save_response'],
+      [{ saveRedirect: 'foreign_profile' }, 'save_navigation'],
+      [{ saveRedirect: 'other_item' }, 'saved_url'],
+    ] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { publishing: true, ...options });
+      await page.goto('about:blank');
+      let begins = 0;
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        listingClaimFixture.snapshot,
+        async () => {
+          begins++;
+        },
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+        { saveTimeoutMs: 400 },
+      );
+      assert.deepEqual(
+        result,
+        { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed_' + code },
+        JSON.stringify(options),
+      );
+      assert.equal(begins, 1);
+      assert.equal(form.uploads(), 1);
+      assert.equal(form.saves(), 1);
+      assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('an unconfirmed publication identifies the failed verification without retrying the write', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const [options, code] of [
+      [{ noSaveNavigation: true }, 'provider_unconfirmed_save_navigation'],
+      [{ savedPrice: '11,00' }, 'provider_unconfirmed_saved_form_match'],
+      [{ savedPhotoChanged: true }, 'provider_unconfirmed_saved_photos_match'],
+      [{ active: false }, 'provider_unconfirmed_active_evidence'],
+      [{ savedFormUnavailable: true }, 'provider_unconfirmed_saved_navigation'],
+    ] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { publishing: true, ...options });
+      if ('savedFormUnavailable' in options)
+        await page.route('**/items/456/edit', (route) => route.abort());
+      if ('savedPhotoChanged' in options)
+        await page.addInitScript(() => {
+          document.addEventListener('DOMContentLoaded', () => {
+            if (location.pathname === '/items/456/edit')
+              document.querySelector<HTMLImageElement>('[data-testid="image-wrapper-0"] img')!.src =
+                'https://images1.vinted.net/tc/otherAsset/f800/1788288106.webp';
+          });
+        });
+      await page.goto('about:blank');
+      let begins = 0;
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        listingClaimFixture.snapshot,
+        async () => {
+          begins++;
+        },
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+        { saveTimeoutMs: 400 },
+      );
+      assert.deepEqual(result, { outcome: 'outcome_unknown', errorCode: code });
+      assert.equal(begins, 1);
+      assert.equal(form.uploads(), 1);
+      assert.equal(form.saves(), 1);
+      assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 /** Nur diese lokale Maske zeigt Zusatzfelder erst bei der ersten Dateiauswahl. */
 async function deferPhotoMetadata(page: Page, missing?: 'ai_photo' | 'bump'): Promise<void> {
   await page.addInitScript((missing) => {

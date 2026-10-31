@@ -10,6 +10,11 @@ export async function createVintedListingFormFixture(
     savedPrice?: string;
     active?: boolean;
     noSaveNavigation?: boolean;
+    saveRedirect?: 'profile' | 'foreign_profile' | 'other_item';
+    saveResponse?: unknown;
+    saveStatus?: number;
+    saveContentType?: string;
+    lostSaveResponse?: boolean;
     brandSearch?: 'matching' | 'wrong_label' | 'custom_only';
     brandSearchStartsEmpty?: boolean;
     brandSearchPortal?: boolean;
@@ -55,12 +60,26 @@ export async function createVintedListingFormFixture(
         },
       });
     }
-    if (path === '/fixture/save') {
+    if (path === '/api/v2/item_upload/items' && route.request().method() === 'POST') {
       saves++;
       savedBody = route.request().postData()!;
       if (options.savedPrice)
         savedBody = savedBody.replace('value="12,00"', 'value="' + options.savedPrice + '"');
-      return route.fulfill({ json: { url: '/items/456-fixture' } });
+      if (options.lostSaveResponse) return route.abort();
+      const url =
+        options.saveRedirect === 'profile'
+          ? '/member/123'
+          : options.saveRedirect === 'foreign_profile'
+            ? '/member/124'
+            : options.saveRedirect === 'other_item'
+              ? '/items/457-fixture'
+              : '/items/456-fixture';
+      return route.fulfill({
+        status: options.saveStatus ?? 200,
+        contentType: options.saveContentType ?? 'application/json',
+        json:
+          options.saveResponse === undefined ? { item: { id: 456 }, url } : options.saveResponse,
+      });
     }
     if (path === '/member/123')
       return route.fulfill({
@@ -123,7 +142,7 @@ export async function createVintedListingFormFixture(
           if(source.tagName==='INPUT') {target.setAttribute('value',source.value);if(source.checked)target.setAttribute('checked','');else target.removeAttribute('checked');}
           else target.textContent=source.value;
         });
-        const response=await fetch('/fixture/save',{method:'POST',body:clone.outerHTML});
+        const response=await fetch('/api/v2/item_upload/items',{method:'POST',headers:{'X-Upload-Form':'true'},body:clone.outerHTML});
         if(${options.publishing === true && !options.noSaveNavigation}) location.href=(await response.json()).url;
       };
       if(${options.publishing === true}) document.querySelector('input[name="photos"]').onchange=async event=>{

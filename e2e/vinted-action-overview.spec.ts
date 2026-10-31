@@ -19,20 +19,23 @@ async function checkAccessibility(page: Page, selector: string) {
 async function checkRunningActions(overview: Locator) {
   await expect(overview.locator('[data-action-state="running"]')).toHaveCount(1);
   await expect(overview.getByText('Angebot wird angenommen', { exact: true })).toBeVisible();
-  await expect(overview.getByText('Testperson 1 · 20,00 €', { exact: true })).toBeVisible();
+  await expect(
+    overview.getByText('Testkonto A · Testperson 1 · 20,00 €', { exact: true }),
+  ).toBeVisible();
   await expect(
     overview.locator('[data-action-state="running"] app-loading-indicator'),
   ).toBeVisible();
+  // Ein unbestätigter Vorgang bleibt als kurze Meldung stehen, bis er weggeklickt wird.
+  const unconfirmed = overview.locator('[data-action-state="outcome_unknown"]');
+  await expect(unconfirmed).toHaveCount(1);
+  await expect(unconfirmed).toContainText('Annahme nicht bestätigt');
+  await expect(unconfirmed.getByRole('button', { name: 'Meldung ausblenden' })).toBeVisible();
   await expect(
-    overview.locator('[data-action-state]:not([data-action-state="running"])'),
+    overview.locator(
+      '[data-action-state]:not([data-action-state="running"]):not([data-action-state="outcome_unknown"])',
+    ),
   ).toHaveCount(0);
-  for (const hidden of [
-    'Testperson 2',
-    'Testperson 3',
-    'Testperson 4',
-    'Zuletzt erledigt',
-    'In der Warteschlange',
-  ])
+  for (const hidden of ['Testperson 2', 'Testperson 4', 'Zuletzt erledigt', 'In der Warteschlange'])
     await expect(overview.getByText(hidden, { exact: false })).toHaveCount(0);
 }
 for (const width of [1920, 1280, 390, 320]) {
@@ -164,7 +167,7 @@ test('zeigt Vinted-Veröffentlichungen zentral und bricht wartende Aufträge ab 
   await trigger.click();
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   const publications = overview.locator('app-vinted-listing-action-overview');
-  await expect(publications.getByText('Veröffentlichung beauftragt')).toBeVisible();
+  await expect(publications.getByText('Anzeige wird veröffentlicht')).toBeVisible();
   await expect(publications.getByText('Testkonto A')).toBeVisible();
   await publications.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(publications).toHaveCount(0);
@@ -242,19 +245,20 @@ test('zeigt Abschlüsse automatisch mit grünem Haken und behält das aktivierte
   await expect(
     overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }),
   ).toHaveCount(0);
-  await expect(overview.locator('[data-action-state="succeeded"]')).toHaveCount(1, {
+  // Laufende und vorher unbestätigte Vorgänge zeigen ihren beobachteten Abschluss kurz an.
+  await expect(overview.locator('[data-action-state="succeeded"]')).toHaveCount(2, {
     timeout: 15_000,
   });
   await expect(
-    overview.locator('[data-action-state="succeeded"] app-action-status-indicator svg'),
+    overview.locator('[data-action-state="succeeded"] app-action-status-indicator svg').first(),
   ).toBeVisible();
   await expect(overview.locator('[data-action-state="running"]')).toHaveCount(0);
   await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
   await checkAccessibility(page, '#header-action-overview');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const completedCheck = overview.locator(
-    '[data-action-state="succeeded"] app-action-status-indicator svg',
-  );
+  const completedCheck = overview
+    .locator('[data-action-state="succeeded"] app-action-status-indicator svg')
+    .first();
   await expect(completedCheck).toHaveCSS('animation-name', 'none');
   await expect(completedCheck).toHaveCSS('stroke-dashoffset', '0px');
   await expect(
@@ -281,7 +285,18 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   await expect(offer).toContainText('Annahme beauftragt');
   await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
-  await expect(overview.getByText('Gerade läuft keine Aktion.')).toBeVisible();
+  await overview
+    .locator('[data-action-state="outcome_unknown"]')
+    .getByRole('button', { name: 'Meldung ausblenden' })
+    .click();
+  await expect(overview.getByText('Alles erledigt')).toBeVisible();
+  await expect(
+    overview.locator('[data-action-overview-idle] app-action-status-indicator svg'),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
+  await expect(overview.getByText('Alles erledigt')).toBeVisible();
+  await expect(overview.locator('[data-action-state="outcome_unknown"]')).toHaveCount(0);
   fixture.rejectRead(true);
   await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert', {
     timeout: 15_000,

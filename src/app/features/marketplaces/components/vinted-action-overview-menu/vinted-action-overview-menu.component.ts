@@ -13,6 +13,7 @@ import {
   untracked,
 } from '@angular/core';
 import { LucideListTodo, LucideLoader2, LucideX, type LucideIconData } from '@lucide/angular';
+import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -25,6 +26,7 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
   selector: 'app-vinted-action-overview-menu',
   imports: [
     NgTemplateOutlet,
+    ActionStatusIndicatorComponent,
     ButtonComponent,
     LoadingIndicatorComponent,
     NoticeBannerComponent,
@@ -94,11 +96,8 @@ export class VintedActionOverviewMenuComponent {
   }
 
   onOutsideClick(event: MouseEvent): void {
-    if (
-      !this.mobile() &&
-      event.target instanceof Node &&
-      !this.host.nativeElement.contains(event.target)
-    )
+    // Der Klickpfad bleibt gültig, auch wenn ein Ausblenden-Knopf seine Zeile schon entfernt hat.
+    if (!this.mobile() && !event.composedPath().includes(this.host.nativeElement))
       this.close(false);
   }
   onEscape(event: Event): void {

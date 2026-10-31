@@ -1,26 +1,28 @@
-<section [attr.aria-label]="accountName()" class="space-y-2">
-  <h3 class="truncate text-xs font-medium text-fb-text-secondary">{{ accountName() }} · Vinted</h3>
+<section [attr.aria-label]="accountName()" class="min-w-0">
   <ul class="space-y-1.5">
     @for (row of rows(); track row.action.id) {
       <li
         [attr.data-action-state]="row.action.state"
         [attr.data-action-id]="row.action.id"
-        class="flex min-w-0 items-start gap-2.5 rounded-lg bg-fb-brand-surface px-2 py-2"
+        class="flex min-w-0 items-center gap-2.5 rounded-lg bg-fb-brand-surface px-2 py-2"
       >
-        <app-action-status-indicator
-          [state]="row.action.state === 'succeeded' ? 'success' : 'running'"
-        />
+        <app-action-status-indicator [state]="row.indicator" />
         <div class="min-w-0 flex-1">
           <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ row.title }}</p>
-          @if (row.subtitle) {
-            <p
-              class="truncate text-xs leading-5 text-fb-text-secondary"
-              [attr.title]="row.subtitle"
-            >
-              {{ row.subtitle }}
-            </p>
-          }
+          <p class="truncate text-xs leading-5 text-fb-text-secondary" [attr.title]="row.subtitle">
+            {{ row.subtitle }}
+          </p>
         </div>
+        @if (row.dismissible) {
+          <app-button
+            variant="ghost"
+            size="slim"
+            [icon]="dismissIcon"
+            [iconOnly]="true"
+            ariaLabel="Meldung ausblenden"
+            (clicked)="dismiss(row.action)"
+          />
+        }
       </li>
     }
   </ul>

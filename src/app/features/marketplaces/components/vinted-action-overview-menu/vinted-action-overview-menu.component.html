@@ -62,12 +62,16 @@
   }
 }
 <ng-template #actions>
-  <div class="space-y-3">
+  <div class="space-y-1.5">
     @if (store.error(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }
     @for (group of store.groups(); track group.scope.connectionId) {
-      <app-vinted-action-overview [actions]="group.actions" [accountName]="group.accountName" />
+      <app-vinted-action-overview
+        [actions]="group.actions"
+        [accountName]="group.accountName"
+        [connectionId]="group.scope.connectionId"
+      />
     }
     @if (store.listings().length) {
       <app-vinted-listing-action-overview [entries]="store.listings()" />
@@ -78,7 +82,14 @@
           <app-loading-indicator /> Aktionen werden geladen …
         </p>
       } @else if (!store.error()) {
-        <p role="status" class="text-[13px] text-fb-text-secondary">Gerade läuft keine Aktion.</p>
+        <div
+          role="status"
+          data-action-overview-idle
+          class="flex flex-col items-center gap-3 py-6 text-center"
+        >
+          <app-action-status-indicator state="success" size="large" />
+          <p class="text-[13px] font-medium text-fb-text-primary">Alles erledigt</p>
+        </div>
       }
     }
   </div>

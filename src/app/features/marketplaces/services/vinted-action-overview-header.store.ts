@@ -47,6 +47,8 @@ export class VintedActionOverviewHeaderStore {
   private activeRead: { context: string; repeat: boolean } | null = null;
   private destroyed = false;
   private readonly completionTimes = new Map<string, number>();
+  /** Weggeklickte Fehlermeldungen; nur eine Ansichtshilfe je Browser, kein Auftragsstatus. */
+  private readonly dismissed = signal<ReadonlySet<string>>(readDismissedActions());
   private readonly listingSubscriptions = computed(() => {
     const context = this.context();
     return context
@@ -56,16 +58,27 @@ export class VintedActionOverviewHeaderStore {
         ])
       : null;
   });
-  readonly groups = computed(() =>
-    this.context() && this.snapshot()?.context === this.context()
-      ? (this.snapshot()?.groups ?? [])
-      : [],
-  );
-  readonly listings = computed(() =>
-    this.context() && this.snapshot()?.context === this.context()
-      ? (this.snapshot()?.listings ?? [])
-      : [],
-  );
+  readonly groups = computed(() => {
+    const dismissed = this.dismissed();
+    const groups =
+      this.context() && this.snapshot()?.context === this.context()
+        ? (this.snapshot()?.groups ?? [])
+        : [];
+    return groups.flatMap((group) => {
+      const actions = group.actions.filter(
+        (action) => !dismissed.has(vintedActionDismissKey(group.scope.connectionId, action)),
+      );
+      return actions.length ? [{ ...group, actions }] : [];
+    });
+  });
+  readonly listings = computed(() => {
+    const dismissed = this.dismissed();
+    return this.context() && this.snapshot()?.context === this.context()
+      ? (this.snapshot()?.listings ?? []).filter(
+          ({ job }) => !dismissed.has(vintedListingDismissKey(job)),
+        )
+      : [];
+  });
   readonly count = computed(
     () =>
       this.groups().reduce(
@@ -190,6 +203,8 @@ export class VintedActionOverviewHeaderStore {
             this.completionTimes.delete(completionKey);
             return true;
           }
+          if (action.state === 'failed' || action.state === 'outcome_unknown')
+            return recentFailure(action.updatedAt);
           if (
             action.state !== 'succeeded' ||
             !previousActions.some((previousAction) => previousAction.id === action.id)
@@ -213,11 +228,24 @@ export class VintedActionOverviewHeaderStore {
       const availableAccounts = new Map(
         accounts.map((account) => [account.connectionId, account.displayName]),
       );
+      const previousListings =
+        this.snapshot()?.context === context ? this.snapshot()!.listings : [];
       const listings = (
-        listingResult.failed ? this.listings().map((entry) => entry.job) : listingResult.jobs
+        listingResult.failed ? previousListings.map((entry) => entry.job) : listingResult.jobs
       )
         .filter((job) => job.connectionId !== null && availableAccounts.has(job.connectionId))
-        .filter((job) => job.state !== 'cancelled')
+        .filter((job) => {
+          if (job.state === 'cancelled') return false;
+          if (job.state === 'failed' || job.state === 'outcome_unknown')
+            return recentFailure(job.updatedAt);
+          if (job.state !== 'confirmed') return true;
+          // Erfolge nur kurz zeigen, wenn ihr Übergang in dieser Sitzung beobachtet wurde.
+          const completionKey = `listing:${job.id}`;
+          if (!previousListings.some((entry) => entry.job.id === job.id)) return false;
+          const completedAt = this.completionTimes.get(completionKey) ?? Date.now();
+          this.completionTimes.set(completionKey, completedAt);
+          return Date.now() - completedAt < 60_000;
+        })
         .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
         .slice(0, 20)
         .flatMap((job) => {
@@ -248,6 +276,45 @@ export class VintedActionOverviewHeaderStore {
     }
   }
 
+  /** Blendet eine abgeschlossene Fehlermeldung aus; laufende Aufträge bleiben unberührt. */
+  dismiss(key: string): void {
+    const next = new Set(this.dismissed());
+    next.add(key);
+    const kept = [...next].slice(-200);
+    this.dismissed.set(new Set(kept));
+    try {
+      localStorage.setItem(dismissedStorageKey, JSON.stringify(kept));
+    } catch {
+      // Ohne Browserspeicher gilt das Ausblenden nur bis zum Neuladen.
+    }
+  }
+
   private readonly readError =
     'Die laufenden Aktionen konnten nicht aktualisiert werden. Ein vorhandener Stand bleibt sichtbar.';
+}
+
+const dismissedStorageKey = 'flipbase_dismissed_vinted_actions';
+const failureWindowMs = 7 * 24 * 60 * 60 * 1000;
+
+function recentFailure(updatedAt: string): boolean {
+  return Date.now() - Date.parse(updatedAt) < failureWindowMs;
+}
+
+function readDismissedActions(): ReadonlySet<string> {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(dismissedStorageKey) ?? '[]');
+    return new Set(
+      Array.isArray(stored) ? stored.filter((key): key is string => typeof key === 'string') : [],
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+export function vintedActionDismissKey(connectionId: string, action: VintedAction): string {
+  return `action:${connectionId}:${action.id}`;
+}
+
+export function vintedListingDismissKey(job: VintedListingJob): string {
+  return `listing:${job.id}`;
 }

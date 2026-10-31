@@ -10,4 +10,6 @@ import { LoadingIndicatorComponent } from '../loading-indicator/loading-indicato
 })
 export class ActionStatusIndicatorComponent {
   readonly state = input.required<'running' | 'success' | 'error' | 'paused'>();
+  /** `large` für einen alleinstehenden Abschlusszustand, etwa eine leere Aktionsliste. */
+  readonly size = input<'regular' | 'large'>('regular');
 }

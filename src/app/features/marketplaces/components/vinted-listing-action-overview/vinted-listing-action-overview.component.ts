@@ -1,11 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { LucideX } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
-import { vintedListingJobLabel, type VintedListingJob } from '../../models/vinted-listing-job';
-import type { VintedListingActionEntry } from '../../services/vinted-action-overview-header.store';
-import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
+import type { VintedListingJob } from '../../models/vinted-listing-job';
+import {
+  VintedActionOverviewHeaderStore,
+  vintedListingDismissKey,
+  type VintedListingActionEntry,
+} from '../../services/vinted-action-overview-header.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import {
@@ -35,12 +39,13 @@ export class VintedListingActionOverviewComponent {
   readonly planningError = signal<string | null>(null);
   readonly planning = signal<{ job: VintedListingJob; draft: VintedListingDraft } | null>(null);
   private lastRequest: { key: string; id: string } | null = null;
+  readonly dismissIcon = LucideX;
 
   readonly rows = computed(() =>
     this.entries().map(({ job, accountName }) => ({
       job,
       accountName,
-      label: vintedListingJobLabel(job),
+      label: compactListingLabel(job),
       indicator:
         job.state === 'confirmed' && job.providerState !== 'processing'
           ? ('success' as const)
@@ -49,10 +54,7 @@ export class VintedListingActionOverviewComponent {
             : job.state === 'paused' || (!!job.scheduledAt && job.state === 'queued')
               ? ('paused' as const)
               : ('running' as const),
-      failureReason:
-        job.errorCode === 'provider_unavailable'
-          ? 'Die Cloud-Ausführung konnte die Veröffentlichung bei Vinted nicht abschließen. Es wurde kein Erfolg bestätigt.'
-          : 'Der Auftrag wurde ohne bestätigten Vinted-Erfolg beendet.',
+      dismissible: job.state === 'failed' || job.state === 'outcome_unknown',
       time: new Intl.DateTimeFormat('de-DE', {
         year: 'numeric',
         month: '2-digit',
@@ -66,6 +68,9 @@ export class VintedListingActionOverviewComponent {
       cancellable: ['queued', 'paused'].includes(job.state),
     })),
   );
+  dismiss(job: VintedListingJob): void {
+    this.overview.dismiss(vintedListingDismissKey(job));
+  }
   readonly planInitial = computed<VintedListingScheduleSelection | null>(() => {
     const job = this.planning()?.job;
     return job?.scheduledAt && job.timeZone
@@ -163,5 +168,35 @@ export class VintedListingActionOverviewComponent {
     } finally {
       this.busy.set(null);
     }
+  }
+}
+
+/** Eine kurze Statuszeile; Fehlerdetails bleiben im Auftrag (error_code) für die Kontrolle erhalten. */
+function compactListingLabel(job: VintedListingJob): string {
+  const draft = job.action === 'vinted_draft';
+  switch (job.state) {
+    case 'queued':
+      return job.scheduledAt
+        ? 'Veröffentlichung geplant'
+        : draft
+          ? 'Vinted-Entwurf wird angelegt'
+          : 'Anzeige wird veröffentlicht';
+    case 'paused':
+      return 'Veröffentlichung angehalten';
+    case 'claimed':
+    case 'writing':
+      return draft ? 'Vinted-Entwurf wird angelegt' : 'Anzeige wird veröffentlicht';
+    case 'confirmed':
+      return job.providerState === 'draft'
+        ? 'Vinted-Entwurf angelegt'
+        : job.providerState === 'processing'
+          ? 'Vinted prüft die Anzeige'
+          : 'Anzeige veröffentlicht';
+    case 'failed':
+      return draft ? 'Vinted-Entwurf fehlgeschlagen' : 'Veröffentlichung fehlgeschlagen';
+    case 'outcome_unknown':
+      return draft ? 'Vinted-Entwurf nicht bestätigt' : 'Veröffentlichung nicht bestätigt';
+    case 'cancelled':
+      return 'Abgebrochen';
   }
 }

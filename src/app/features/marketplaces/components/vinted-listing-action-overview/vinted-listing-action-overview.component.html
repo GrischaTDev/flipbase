@@ -1,5 +1,4 @@
-<section aria-label="Inserat-Veröffentlichungen" class="space-y-2">
-  <h3 class="text-xs font-semibold text-fb-text-primary">Inserat-Veröffentlichungen</h3>
+<section aria-label="Inserate" class="space-y-1.5">
   @if (error(); as message) {
     <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
   }
@@ -7,25 +6,19 @@
     @for (row of rows(); track row.job.id) {
       <li
         [attr.data-listing-state]="row.job.state"
-        class="flex min-w-0 items-start gap-2 rounded-lg border border-fb-border p-2"
+        class="flex min-w-0 items-center gap-2.5 rounded-lg bg-fb-brand-surface px-2 py-2"
       >
         <app-action-status-indicator [state]="row.indicator" />
-        <div class="min-w-0 flex-1 space-y-1">
-          <p class="text-[13px] font-semibold leading-4 text-fb-text-primary">{{ row.label }}</p>
-          <p class="break-words text-xs text-fb-text-secondary">
-            {{ row.accountName }} · {{ row.planned ? 'Geplant für' : 'Stand vom' }} {{ row.time }}
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ row.label }}</p>
+          <p class="truncate text-xs leading-5 text-fb-text-secondary">
+            {{ row.accountName }}
+            @if (row.planned) {
+              · {{ row.time }}
+            }
           </p>
-          @if (row.job.state === 'outcome_unknown') {
-            <p class="text-xs text-fb-text-secondary">
-              Der Ausgang ist unklar. Prüfe den Artikel bei Vinted, bevor Du erneut veröffentlichst.
-            </p>
-          } @else if (row.job.state === 'failed') {
-            <p class="text-xs text-fb-text-secondary">
-              {{ row.failureReason }}
-            </p>
-          }
           @if (row.planned || row.cancellable) {
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="mt-1.5 flex flex-wrap items-center gap-2">
               @if (row.planned) {
                 <app-button
                   variant="secondary"
@@ -49,6 +42,16 @@
             </div>
           }
         </div>
+        @if (row.dismissible) {
+          <app-button
+            variant="ghost"
+            size="slim"
+            [icon]="dismissIcon"
+            [iconOnly]="true"
+            ariaLabel="Meldung ausblenden"
+            (clicked)="dismiss(row.job)"
+          />
+        }
       </li>
     }
   </ul>
