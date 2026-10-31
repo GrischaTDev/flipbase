@@ -61,9 +61,9 @@ select throws_ok($$select pg_temp.favorite_page(now(),null,100)$$,'22023',null,'
 reset role;
 insert into public.sniper_queries(id,query_key,brand_id) values ('94000000-0000-4000-8000-000000000050','account-favorite-purge',53);
 insert into public.sniper_listings(external_id,title,url,item_price,total_price,discovered_by_query_id,first_seen_at) values
- ('favorite-purge-old','Alt','https://www.vinted.de/items/101-jacke',20,22,'94000000-0000-4000-8000-000000000050',now()-interval '8 days'),
- ('favorite-purge-new','Neu','https://www.vinted.de/items/104-jacke',20,22,'94000000-0000-4000-8000-000000000050',now()-interval '6 days');
-select is(public.sniper_purge_expired_listings(1000),1,'Feed löscht nach sieben statt erst nach 30 Tagen');
+ ('favorite-purge-old','Alt','https://www.vinted.de/items/101-jacke',20,22,'94000000-0000-4000-8000-000000000050',now()-interval '4 days'),
+ ('favorite-purge-new','Neu','https://www.vinted.de/items/104-jacke',20,22,'94000000-0000-4000-8000-000000000050',now()-interval '2 days');
+select is(public.sniper_purge_expired_listings(1000),1,'Feed löscht nach drei statt erst nach sieben Tagen');
 select is((select count(*) from public.sniper_listings where external_id='favorite-purge-new'),1::bigint,'Jüngere Funde bleiben bestehen');
 set local role authenticated;
 select is(jsonb_array_length(pg_temp.favorite_page()->'items'),3,'Feed-Bereinigung löscht keinen Favoriten');

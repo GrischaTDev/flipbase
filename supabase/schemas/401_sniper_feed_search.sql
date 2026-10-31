@@ -52,7 +52,8 @@ begin
                 and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
             order by found.created_at desc, found.id desc limit 1
         ) as hit on true
-        where listing.first_seen_at >= now() - interval '7 days'
+        where listing.first_seen_at >= now() - interval '3 days'
+            and not listing.is_initial_stock
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
             and (nullif(btrim(p_title_query), '') is null or to_tsvector('simple', coalesce(listing.title,'')) @@ plainto_tsquery('simple', p_title_query))
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))

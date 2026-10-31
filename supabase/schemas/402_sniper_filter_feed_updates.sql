@@ -13,7 +13,8 @@ begin
         where query.marketplace = 'vinted'
             and query.is_active
             and query.deleted_at is null
-            and listing.first_seen_at >= now() - interval '7 days'
+            and listing.first_seen_at >= now() - interval '3 days'
+            and not listing.is_initial_stock
             and nullif(btrim(listing.brand), '') is not null
         order by 1;
 end;
