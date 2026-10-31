@@ -135,12 +135,53 @@ export function groupVintedActions(actions: readonly VintedAction[]) {
   };
 }
 export function describeVintedAction(action: VintedAction): string {
-  const labels: Record<VintedActionKind, readonly [string, string, string]> = {
-    accept: ['Angebot annehmen', 'Angebot wird angenommen', 'Angebot angenommen'],
-    decline: ['Angebot ablehnen', 'Angebot wird abgelehnt', 'Angebot abgelehnt'],
-    counter: ['Gegenangebot senden', 'Gegenangebot wird gesendet', 'Gegenangebot gesendet'],
-    message: ['Nachricht senden', 'Nachricht wird gesendet', 'Nachricht gesendet'],
-    sync: ['Kontodaten aktualisieren', 'Kontodaten werden aktualisiert', 'Kontodaten aktualisiert'],
+  // Reihenfolge: offen, läuft, erledigt, fehlgeschlagen, nicht bestätigt.
+  const labels: Record<VintedActionKind, readonly [string, string, string, string, string]> = {
+    accept: [
+      'Angebot annehmen',
+      'Angebot wird angenommen',
+      'Angebot angenommen',
+      'Annahme fehlgeschlagen',
+      'Annahme nicht bestätigt',
+    ],
+    decline: [
+      'Angebot ablehnen',
+      'Angebot wird abgelehnt',
+      'Angebot abgelehnt',
+      'Ablehnung fehlgeschlagen',
+      'Ablehnung nicht bestätigt',
+    ],
+    counter: [
+      'Gegenangebot senden',
+      'Gegenangebot wird gesendet',
+      'Gegenangebot gesendet',
+      'Gegenangebot fehlgeschlagen',
+      'Gegenangebot nicht bestätigt',
+    ],
+    message: [
+      'Nachricht senden',
+      'Nachricht wird gesendet',
+      'Nachricht gesendet',
+      'Nachricht nicht gesendet',
+      'Nachricht nicht bestätigt',
+    ],
+    sync: [
+      'Kontodaten aktualisieren',
+      'Kontodaten werden aktualisiert',
+      'Kontodaten aktualisiert',
+      'Aktualisierung fehlgeschlagen',
+      'Aktualisierung nicht bestätigt',
+    ],
   };
-  return labels[action.kind][action.state === 'succeeded' ? 2 : action.state === 'running' ? 1 : 0];
+  const index =
+    action.state === 'succeeded'
+      ? 2
+      : action.state === 'running'
+        ? 1
+        : action.state === 'failed'
+          ? 3
+          : action.state === 'outcome_unknown'
+            ? 4
+            : 0;
+  return labels[action.kind][index];
 }

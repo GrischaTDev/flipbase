@@ -920,9 +920,9 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   const listings = overview.locator('app-vinted-listing-action-overview');
   await expect(overview.getByRole('alert')).toHaveCount(0);
-  await expect(listings.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
+  await expect(listings.getByText('Veröffentlichung geplant', { exact: true })).toBeVisible();
   Object.assign(state.jobs[0], { state: 'claimed', version: 2 });
-  await expect(listings.getByText('Wird vorbereitet', { exact: true })).toBeVisible({
+  await expect(listings.locator('[data-listing-state="claimed"]')).toBeVisible({
     timeout: 15_000,
   });
   await expect(
@@ -935,13 +935,13 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
     providerState: 'active',
     verifiedAt: '2026-10-10T00:00:00Z',
   });
-  await expect(listings.getByText('Veröffentlicht', { exact: true })).toBeVisible({
+  await expect(listings.getByText('Anzeige veröffentlicht', { exact: true })).toBeVisible({
     timeout: 15_000,
   });
   await expect(
     listings
       .getByRole('listitem')
-      .filter({ has: page.getByText('Veröffentlicht', { exact: true }) })
+      .filter({ has: page.getByText('Anzeige veröffentlicht', { exact: true }) })
       .locator('app-action-status-indicator svg'),
   ).toBeVisible();
   await expect(
@@ -953,7 +953,7 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
     .poll(() =>
       listings
         .getByRole('listitem')
-        .filter({ has: page.getByText('Veröffentlicht', { exact: true }) })
+        .filter({ has: page.getByText('Anzeige veröffentlicht', { exact: true }) })
         .evaluate((row) => row.getBoundingClientRect().height),
     )
     .toBeLessThan(80);
@@ -1198,7 +1198,7 @@ for (const width of [1440, 390])
       });
       expect(Object.keys(state.reschedules[0])).not.toContain('p_ai_photo');
       await expect(
-        listings.getByText('Veröffentlichung beauftragt', { exact: true }).first(),
+        listings.getByText('Veröffentlichung geplant', { exact: true }).first(),
       ).toBeVisible();
       expect(state.jobCancels).toEqual([]);
     });

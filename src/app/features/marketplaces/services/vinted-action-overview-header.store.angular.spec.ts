@@ -8,7 +8,11 @@ import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import type { VintedAction } from '../models/vinted-action-overview';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
-import { VintedActionOverviewHeaderStore } from './vinted-action-overview-header.store';
+import {
+  VintedActionOverviewHeaderStore,
+  vintedActionDismissKey,
+  vintedListingDismissKey,
+} from './vinted-action-overview-header.store';
 import { VintedListingJobService } from './vinted-listing-job.service';
 import type { VintedListingJob } from '../models/vinted-listing-job';
 
@@ -76,7 +80,10 @@ beforeEach(() => {
     ],
   });
 });
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  localStorage.clear();
+});
 describe('Appweite laufende Vinted-Aktionen', () => {
   it('zeigt den beobachteten Abschluss automatisch und zählt ihn nicht weiter als laufend', async () => {
     vi.useFakeTimers();
@@ -274,5 +281,85 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     await settle();
     expect(list).toHaveBeenCalledTimes(2);
     expect(store.loading()).toBe(false);
+  });
+  it('zeigt alte Erfolge nicht, behält Fehler bis zum Wegklicken und merkt sich das Ausblenden', async () => {
+    enabled.set(true);
+    const base: VintedListingJob = {
+      id: 'cccc3333-3333-4333-8333-333333333333',
+      workspaceId: accounts[0].workspaceId,
+      connectionId: accounts[0].connectionId,
+      draftId: 'dddd4444-4444-4444-8444-444444444444',
+      draftRevision: 1,
+      executionMode: 'cloud',
+      externalAccountId: '123',
+      action: 'publish',
+      state: 'confirmed',
+      version: 3,
+      scheduledAt: null,
+      timeZone: null,
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: null,
+      externalId: '456',
+      providerState: 'active',
+      verifiedAt: '2026-10-27T10:00:00.000Z',
+      createdAt: '2026-10-27T10:00:00Z',
+      updatedAt: new Date().toISOString(),
+      replacesJobId: null,
+    };
+    const failed = {
+      ...base,
+      id: 'eeee5555-5555-4555-8555-555555555555',
+      state: 'outcome_unknown' as const,
+      externalId: null,
+      providerState: null,
+      verifiedAt: null,
+    };
+    const oldFailure = {
+      ...failed,
+      id: 'ffff6666-6666-4666-8666-666666666666',
+      updatedAt: '2020-01-01T00:00:00Z',
+    };
+    readListingJobs.mockResolvedValue([base, failed, oldFailure]);
+    read.mockResolvedValue({
+      actions: [{ ...action, id: 'negotiation:failed', state: 'failed' }],
+    });
+    const store = TestBed.inject(VintedActionOverviewHeaderStore);
+    await settle();
+    expect(store.listings().map(({ job }) => job.id)).toEqual([failed.id]);
+    expect(store.groups().flatMap((group) => group.actions.map((entry) => entry.state))).toEqual([
+      'failed',
+      'failed',
+    ]);
+    store.dismiss(vintedListingDismissKey(failed));
+    store.dismiss(
+      vintedActionDismissKey(accounts[0].connectionId, {
+        ...action,
+        id: 'negotiation:failed',
+      }),
+    );
+    expect(store.listings()).toEqual([]);
+    expect(store.groups().map((group) => group.scope.connectionId)).toEqual([
+      accounts[1].connectionId,
+    ]);
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AuthService, useValue: { currentUser: user, session: signal(null) } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
+        { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: enabled } },
+        { provide: MarketplaceApiService, useValue: { listConnections: list } },
+        { provide: VintedActionOverviewApiService, useValue: { read } },
+        {
+          provide: VintedListingJobService,
+          useValue: { list: readListingJobs, listen, authenticate: vi.fn() },
+        },
+      ],
+    });
+    const reloaded = TestBed.inject(VintedActionOverviewHeaderStore);
+    await settle();
+    expect(reloaded.listings()).toEqual([]);
+    expect(reloaded.groups().map((group) => group.scope.connectionId)).toEqual([
+      accounts[1].connectionId,
+    ]);
   });
 });
