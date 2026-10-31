@@ -224,10 +224,14 @@ Netzwechsel mit API-Konfiguration und Caddyroute gemeinsam angepasst werden.
 Bei aktiver Host-Firewall muss außerdem ausschließlich der bestehende
 Caddy-Container die Browser-API erreichen können. Vor der Freigabe dessen
 aktuelle IP, Gateway und Docker-Bridge prüfen und die Firewallregeln privat
-sichern. Im bestätigten Produktionsnetz lautet die gezielte UFW-Regel:
+sichern. Caddy hat dafür in `/opt/supabase/docker-compose.caddy.yml` die feste
+Adresse `172.18.0.250` (`networks.default.ipv4_address`). Ohne feste Adresse
+vergibt Docker bei jedem Neuanlegen eine neue; so zeigte die Regel am 29.10.2026
+plötzlich auf Authelia und die Browser-API antwortete mit 502. Im bestätigten
+Produktionsnetz lautet die gezielte UFW-Regel:
 
 ```bash
-ufw allow in on br-3b3934a0d38f proto tcp from 172.18.0.12 to 172.18.0.1 port 8081 comment "Flipbase Vinted browser proxy"
+ufw allow in on br-3b3934a0d38f proto tcp from 172.18.0.250 to 172.18.0.1 port 8081 comment "Flipbase Vinted browser proxy (fixed Caddy IP)"
 ```
 
 Diese Adressen nicht ungeprüft auf andere Netze übertragen. Nach einem Wechsel
