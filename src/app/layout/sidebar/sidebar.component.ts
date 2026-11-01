@@ -73,6 +73,11 @@ import {
   isEbayNavigationActive,
   isEbayWorkspaceRoute,
 } from '../../core/config/ebay-workspace-navigation';
+import {
+  KLEINANZEIGEN_WORKSPACE_NAVIGATION,
+  isKleinanzeigenNavigationActive,
+  isKleinanzeigenWorkspaceRoute,
+} from '../../core/config/kleinanzeigen-workspace-navigation';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   dashboard: House,
@@ -131,7 +136,11 @@ export class SidebarComponent {
   readonly backIcon = ArrowLeft;
   readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
   readonly ebayContext = computed(() => isEbayWorkspaceRoute(this.currentUrl()));
-  readonly marketplaceContext = computed(() => this.vintedContext() || this.ebayContext());
+  readonly kleinanzeigenContext = computed(() => isKleinanzeigenWorkspaceRoute(this.currentUrl()));
+  readonly marketplaceContext = computed(
+    () => this.vintedContext() || this.ebayContext() || this.kleinanzeigenContext(),
+  );
+  readonly kleinanzeigenNavigation = KLEINANZEIGEN_WORKSPACE_NAVIGATION;
   readonly ebayNavigation = EBAY_WORKSPACE_NAVIGATION;
   readonly vintedAccountsItem = VINTED_ACCOUNTS_NAVIGATION;
   readonly vintedNavigationGroups = VINTED_WORKSPACE_NAVIGATION_GROUPS;
@@ -200,6 +209,8 @@ export class SidebarComponent {
   }
 
   isMarketplaceItemActive(path: string): boolean {
+    if (this.kleinanzeigenContext())
+      return isKleinanzeigenNavigationActive(path, this.currentUrl());
     return this.ebayContext()
       ? isEbayNavigationActive(path, this.currentUrl())
       : isVintedNavigationActive(path, this.currentUrl());

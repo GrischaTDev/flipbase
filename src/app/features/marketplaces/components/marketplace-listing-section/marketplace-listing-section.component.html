@@ -192,10 +192,16 @@
             </thead>
             <tbody>
               @for (item of section().page?.items ?? []; track listingKey(item.reference)) {
-                <tr class="border-b border-fb-border-subtle align-middle">
+                <tr
+                  class="border-b border-fb-border-subtle align-middle"
+                  [class.bg-fb-surface-hover]="kleinanzeigenActions.isRunning(item.reference)"
+                  [class.grayscale]="kleinanzeigenActions.isRunning(item.reference)"
+                  [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
+                >
                   <td class="p-3">
                     <app-custom-checkbox
                       [checked]="selected().has(listingKey(item.reference))"
+                      [disabled]="kleinanzeigenActions.isRunning(item.reference)"
                       [ariaLabel]="item.title + ' auswählen'"
                       (checkedChange)="
                         selectionChanged.emit({ reference: item.reference, checked: $event })
@@ -210,6 +216,13 @@
                         <span class="text-xs text-fb-text-secondary">{{
                           stateLabel(item.state)
                         }}</span>
+                        @if (kleinanzeigenActions.isRunning(item.reference)) {
+                          <span
+                            role="status"
+                            class="mt-1 flex items-center gap-2 text-xs text-fb-text-primary"
+                            ><app-loading-indicator /> Wird inseriert …</span
+                          >
+                        }
                       </div>
                     </div>
                   </td>
@@ -244,10 +257,17 @@
         </div>
         <div table-mobile class="divide-y divide-fb-border-subtle md:hidden">
           @for (item of section().page?.items ?? []; track listingKey(item.reference)) {
-            <article class="min-w-0 space-y-3 p-4" [attr.aria-label]="item.title">
+            <article
+              class="min-w-0 space-y-3 p-4"
+              [attr.aria-label]="item.title"
+              [class.bg-fb-surface-hover]="kleinanzeigenActions.isRunning(item.reference)"
+              [class.grayscale]="kleinanzeigenActions.isRunning(item.reference)"
+              [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
+            >
               <div class="flex min-w-0 items-start gap-3">
                 <app-custom-checkbox
                   [checked]="selected().has(listingKey(item.reference))"
+                  [disabled]="kleinanzeigenActions.isRunning(item.reference)"
                   [ariaLabel]="item.title + ' auswählen'"
                   (checkedChange)="
                     selectionChanged.emit({ reference: item.reference, checked: $event })
@@ -265,6 +285,14 @@
                     />
                   </p>
                   <p class="mt-1 text-xs text-fb-text-secondary">{{ stateLabel(item.state) }}</p>
+                  @if (kleinanzeigenActions.isRunning(item.reference)) {
+                    <p
+                      role="status"
+                      class="mt-1 flex items-center gap-2 text-xs text-fb-text-primary"
+                    >
+                      <app-loading-indicator /> Wird inseriert …
+                    </p>
+                  }
                 </div>
               </div>
               <div class="flex flex-wrap items-center justify-between gap-3">
@@ -326,48 +354,50 @@
   }
 </ng-template>
 <ng-template #actions let-item>
-  <div class="flex items-center justify-end gap-2">
-    @if (item.reference.platform === 'vinted') {
-      <app-listing-transfer-action
-        (published)="transferPublished.emit($event)"
-        [source]="item.reference"
-        [title]="item.title"
-        [compact]="true"
-      />
-    }
-    @if (item.detailLink) {
-      <app-button
-        variant="secondary"
-        size="slim"
-        [icon]="viewIcon"
-        [link]="item.detailLink.join('/')"
-        [ariaLabel]="item.title + ' ansehen'"
-        [title]="item.title + ' ansehen'"
-        >Ansehen</app-button
-      >
-    } @else if (item.externalUrl) {
-      <app-button
-        variant="secondary"
-        size="slim"
-        [icon]="viewIcon"
-        [href]="item.externalUrl"
-        target="_blank"
-        [ariaLabel]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
-        [title]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
-        >Ansehen</app-button
-      >
-    }
-    @if (item.editLink) {
-      <app-button
-        variant="secondary"
-        size="slim"
-        [icon]="editIcon"
-        [link]="item.editLink.join('/')"
-        [queryParams]="{ connection: item.reference.connectionId }"
-        [ariaLabel]="item.title + ' bearbeiten'"
-        [title]="item.title + ' bearbeiten'"
-        >Bearbeiten</app-button
-      >
-    }
-  </div>
+  @if (!kleinanzeigenActions.isRunning(item.reference)) {
+    <div class="flex items-center justify-end gap-2">
+      @if (item.reference.platform === 'vinted') {
+        <app-listing-transfer-action
+          (published)="transferPublished.emit($event)"
+          [source]="item.reference"
+          [title]="item.title"
+          [compact]="true"
+        />
+      }
+      @if (item.detailLink) {
+        <app-button
+          variant="secondary"
+          size="slim"
+          [icon]="viewIcon"
+          [link]="item.detailLink.join('/')"
+          [ariaLabel]="item.title + ' ansehen'"
+          [title]="item.title + ' ansehen'"
+          >Ansehen</app-button
+        >
+      } @else if (item.externalUrl) {
+        <app-button
+          variant="secondary"
+          size="slim"
+          [icon]="viewIcon"
+          [href]="item.externalUrl"
+          target="_blank"
+          [ariaLabel]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
+          [title]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
+          >Ansehen</app-button
+        >
+      }
+      @if (item.editLink) {
+        <app-button
+          variant="secondary"
+          size="slim"
+          [icon]="editIcon"
+          [link]="item.editLink.join('/')"
+          [queryParams]="{ connection: item.reference.connectionId }"
+          [ariaLabel]="item.title + ' bearbeiten'"
+          [title]="item.title + ' bearbeiten'"
+          >Bearbeiten</app-button
+        >
+      }
+    </div>
+  }
 </ng-template>

@@ -58,7 +58,19 @@
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-4">
-    @if (ebayContext()) {
+    @if (kleinanzeigenContext()) {
+      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Kleinanzeigen</p>
+      <ul class="space-y-0.5" data-kleinanzeigen-navigation>
+        @for (item of kleinanzeigenNavigation; track item.path) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="marketplaceNavigationItem"
+              [ngTemplateOutletContext]="{ $implicit: item }"
+            />
+          </li>
+        }
+      </ul>
+    } @else if (ebayContext()) {
       <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">eBay</p>
       <ul class="space-y-0.5" data-ebay-navigation>
         @for (item of ebayNavigation; track item.path) {

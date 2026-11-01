@@ -528,7 +528,7 @@ test('Mehrfachauswahl hält beim ersten unklaren Ergebnis an und zeigt keine fal
   page,
 }) => {
   const f = await mockKleinanzeigenTransfer(page, { relisting: true });
-  await page.goto('/marketplaces/kleinanzeigen');
+  await page.goto('/marketplaces/kleinanzeigen/listings');
   const action = page.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true });
   await expect(action).toBeDisabled();
   await page
