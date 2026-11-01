@@ -1,576 +1,66 @@
-import { DealFavoritesService } from './services/deal-favorites.service';
-import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
-import { createDealFavoritesFixture } from '../../../test-support/deal-favorites.fixture';
 import '@angular/compiler';
-import { ElementRef, EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import axe from 'axe-core';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DealMonitorComponent } from './deal-monitor.component';
-import { DealMonitorService } from './services/deal-monitor.service';
-import { DealFeedUpdatesService } from './services/deal-feed-updates.service';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DealMonitorComponent, MAX_FEED_SEARCHES } from './deal-monitor.component';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { FeedItem } from './models/deal-monitor.model';
-import { ButtonComponent } from '../../shared/components/button/button.component';
-import { CardComponent } from '../../shared/components/card/card.component';
-import { BadgeComponent } from '../../shared/components/badge/badge.component';
-import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
-import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
-import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
-import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { DealCardComponent } from './components/deal-card/deal-card.component';
-import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
-import { WatchlistEditorComponent } from './components/watchlist-editor/watchlist-editor.component';
-
-interface AngularInputMetadata {
-  inputs: Record<string, unknown>;
-  declaredInputs: Record<string, string>;
-  outputs: Record<string, string>;
-}
-
-const snapshots = new Map<unknown, AngularInputMetadata>();
-let selectValueChangeDescriptor: PropertyDescriptor | undefined;
-
-function registerSignalInputs(
-  component: unknown,
-  inputNames: readonly string[],
-  outputNames: readonly string[] = [],
-): void {
-  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
-  if (!snapshots.has(component))
-    snapshots.set(component, {
-      inputs: metadata.inputs,
-      declaredInputs: metadata.declaredInputs,
-      outputs: metadata.outputs,
-    });
-  metadata.inputs = {
-    ...metadata.inputs,
-    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
-  };
-  metadata.declaredInputs = {
-    ...metadata.declaredInputs,
-    ...Object.fromEntries(inputNames.map((name) => [name, name])),
-  };
-  metadata.outputs = {
-    ...metadata.outputs,
-    ...Object.fromEntries(outputNames.map((name) => [name, name])),
-  };
-}
-
-const componentResources: Readonly<Record<string, string>> = {
-  './custom-search-input.component.html':
-    'src/app/shared/components/custom-search-input/custom-search-input.component.html',
-  './deal-monitor.component.html': 'src/app/features/deal-monitor/deal-monitor.component.html',
-  './page-header.component.html':
-    'src/app/shared/components/page-header/page-header.component.html',
-  './page-header.component.scss':
-    'src/app/shared/components/page-header/page-header.component.scss',
-  './button.component.html': 'src/app/shared/components/button/button.component.html',
-  './button.component.scss': 'src/app/shared/components/button/button.component.scss',
-  './card.component.html': 'src/app/shared/components/card/card.component.html',
-  './card.component.scss': 'src/app/shared/components/card/card.component.scss',
-  './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
-  './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
-  './custom-select.component.html':
-    'src/app/shared/components/custom-select/custom-select.component.html',
-  './custom-select.component.scss':
-    'src/app/shared/components/custom-select/custom-select.component.scss',
-  './modal-shell.component.html':
-    'src/app/shared/components/modal-shell/modal-shell.component.html',
-  './modal-shell.component.scss':
-    'src/app/shared/components/modal-shell/modal-shell.component.scss',
-  './deal-card.component.html':
-    'src/app/features/deal-monitor/components/deal-card/deal-card.component.html',
-  './deal-detail-modal.component.html':
-    'src/app/features/deal-monitor/components/deal-detail-modal/deal-detail-modal.component.html',
-  './deal-detail-modal.component.scss':
-    'src/app/features/deal-monitor/components/deal-detail-modal/deal-detail-modal.component.scss',
-  './watchlist-editor.component.html':
-    'src/app/features/deal-monitor/components/watchlist-editor/watchlist-editor.component.html',
-  './text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
-  './text-field.component.scss': 'src/app/shared/components/text-field/text-field.component.scss',
-  './custom-checkbox.component.html':
-    'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
-  './custom-checkbox.component.scss':
-    'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
-  './number-input.component.html':
-    'src/app/shared/components/number-input/number-input.component.html',
-  './number-input.component.scss':
-    'src/app/shared/components/number-input/number-input.component.scss',
-};
-
-const mockFeedItem = (id: string, size: string | null = null): FeedItem => ({
-  id,
-  title: `Item ${id}`,
-  url: 'https://www.vinted.de/items/1',
-  image_urls: [],
-  item_price: 15,
-  total_price: 18,
-  currency: 'EUR',
-  brand: 'Nike',
-  size,
-  condition: 'Sehr gut',
-  is_hidden: false,
-  first_seen_at: '2026-09-14T12:00:00Z',
-  catalog_id: 1,
-  category_path: 'Herren > Kleidung',
-  reference_price: 30,
-  reference_scope: 'category_condition',
-  discount_percent: 50,
-  watchlist_title: 'Nike Deals',
-});
 
 describe('DealMonitorComponent', () => {
-  beforeAll(async () => {
-    await ɵresolveComponentResources((url) => {
-      const resourcePath = componentResources[url];
-      if (!resourcePath) {
-        throw new Error(`Unbekannte Komponenten-Ressource: ${url}`);
-      }
-      return readFile(resolve(resourcePath), 'utf8');
-    });
-
-    registerSignalInputs(
-      CustomSearchInputComponent,
-      ['id', 'variant', 'size', 'ariaLabel', 'placeholder', 'value', 'maxLength'],
-      ['searched'],
-    );
-    registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge', 'icon']);
-    registerSignalInputs(
-      ButtonComponent,
-      [
-        'variant',
-        'size',
-        'disabled',
-        'loading',
-        'icon',
-        'fullWidth',
-        'iconOnly',
-        'href',
-        'ariaLabel',
-        'ariaPressed',
-        'ariaControls',
-        'title',
-        'target',
-      ],
-      ['clicked'],
-    );
-    registerSignalInputs(CardComponent, ['variant', 'padding', 'rounded', 'overflowVisible']);
-    registerSignalInputs(BadgeComponent, ['tone']);
-    registerSignalInputs(
-      CustomSelectComponent,
-      ['options', 'placeholder', 'triggerId', 'ariaLabel', 'searchable', 'variant', 'value'],
-      ['valueChange'],
-    );
-    registerSignalInputs(
-      NumberInputComponent,
-      [
-        'id',
-        'ariaLabel',
-        'ariaDescribedby',
-        'ariaInvalid',
-        'showStepper',
-        'min',
-        'step',
-        'unit',
-        'value',
-      ],
-      ['valueChange'],
-    );
-    const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-    numberMetadata.outputs = { ...numberMetadata.outputs, valueChange: 'value' };
-    selectValueChangeDescriptor = Object.getOwnPropertyDescriptor(
-      CustomSelectComponent.prototype,
-      'valueChange',
-    );
-    Object.defineProperty(CustomSelectComponent.prototype, 'valueChange', {
-      configurable: true,
-      value: new EventEmitter<string | null>(),
-    });
-    registerSignalInputs(CustomCheckboxComponent, [
-      'presentation',
-      'size',
-      'label',
-      'ariaLabel',
-      'checked',
-    ]);
-    registerSignalInputs(DealCardComponent, ['item'], ['inspect']);
-    registerSignalInputs(DealDetailModalComponent, ['item'], ['closed']);
-    registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
-  });
-
-  afterAll(() => {
-    for (const [component, snapshot] of snapshots) {
-      const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
-      metadata.inputs = snapshot.inputs;
-      metadata.declaredInputs = snapshot.declaredInputs;
-      metadata.outputs = snapshot.outputs;
-    }
-    if (selectValueChangeDescriptor) {
-      Object.defineProperty(
-        CustomSelectComponent.prototype,
-        'valueChange',
-        selectValueChangeDescriptor,
-      );
-    } else {
-      Reflect.deleteProperty(CustomSelectComponent.prototype, 'valueChange');
-    }
-  });
-
-  let comp: DealMonitorComponent;
-  let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
-  const updateListeners: (() => void)[] = [];
-  const stopUpdates = vi.fn();
-  const mockUpdates = {
-    watch: vi.fn((_workspace: string, onUpdate: () => void) => {
-      updateListeners.push(onUpdate);
-      return stopUpdates;
-    }),
-  };
-
-  const mockApi = {
-    supportedBrands: vi.fn().mockResolvedValue(['Nike', 'Adidas']),
-    watchlists: vi.fn().mockResolvedValue([
-      {
-        id: 'wl-1',
-        workspace_id: 'ws-1',
-        title: 'Nike Hoodies',
-        catalog_id: 1,
-        brand: 'Nike',
-        search_text: null,
-        price_from: null,
-        price_to: 50,
-        condition: null,
-        discount_threshold_percent: 40,
-        is_active: true,
-        legacy_brand_id: null,
-      },
-    ]),
-    categories: vi.fn().mockResolvedValue([]),
-    feed: vi.fn().mockResolvedValue({
-      items: [
-        mockFeedItem('1', 'XL'),
-        mockFeedItem('2', 'L'),
-        mockFeedItem('3', 'XXL / 54'),
-        mockFeedItem('4', 'M'),
-        mockFeedItem('5', null),
-      ],
-      covered: true,
-      reported_at: '2026-09-14T12:00:00Z',
-    }),
-    save: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-  };
+  let page: DealMonitorComponent;
+  let layout: PageLayoutService;
 
   beforeEach(() => {
+    localStorage.removeItem('flipbase_widescreen');
     TestBed.resetTestingModule();
-    updateListeners.length = 0;
-    mockUpdates.watch.mockClear();
-    stopUpdates.mockClear();
-    currentWorkspace = signal<{ id: string; name: string } | null>({
-      id: 'ws-1',
-      name: 'Vintage Studio',
-    });
-
     TestBed.configureTestingModule({
       providers: [
         DealMonitorComponent,
-        { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
-        { provide: DealMonitorService, useValue: mockApi },
-        { provide: DealFeedUpdatesService, useValue: mockUpdates },
-        { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'ws-1' }) } },
       ],
     });
-    comp = TestBed.inject(DealMonitorComponent);
+    // Hier zählt nur die Spaltenlogik; die Suchen selbst prüft ihr eigener Test.
+    TestBed.overrideComponent(DealMonitorComponent, { set: { template: '', imports: [] } });
+    layout = TestBed.inject(PageLayoutService);
+    page = TestBed.inject(DealMonitorComponent);
   });
 
   afterEach(() => {
+    localStorage.removeItem('flipbase_widescreen');
     TestBed.resetTestingModule();
-    vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
-  it('lädt private Hinweise mit den aktuellen Filtern und erhält pausierte Artikel und Favoriten', async () => {
-    TestBed.flushEffects();
-    await Promise.resolve();
-    expect(mockUpdates.watch).toHaveBeenCalledWith('ws-1', expect.any(Function));
-    comp.selectedBrand.set('Nike');
-    TestBed.flushEffects();
-    await Promise.resolve();
-    const visible = comp.feedItems();
-    await comp.favorites.add(mockFeedItem('saved-favorite'));
-    const favorites = comp.favorites.favorites();
-    comp.state.pause();
-    mockApi.feed.mockResolvedValueOnce({
-      items: [mockFeedItem('new-arrival'), ...visible],
-      covered: true,
-      reported_at: '2026-10-29T20:00:00Z',
-    });
-    updateListeners[0]?.();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', brand: 'Nike' }),
-    );
-    expect(comp.feedItems()).toEqual(visible);
-    expect(comp.state.newCount()).toBe(1);
-    expect(comp.favorites.favorites()).toEqual(favorites);
+  it('bietet weitere Suchen nur im Widescreen-Modus an', () => {
+    expect(page.canAddSearch()).toBe(false);
+    page.addSearch();
+    expect(page.searches()).toEqual([1]);
+
+    layout.setWidescreen(true);
+    expect(page.canAddSearch()).toBe(true);
+    page.addSearch();
+    expect(page.searches()).toEqual([1, 2]);
+    expect(page.searchColumns()).toBe('repeat(2, minmax(0, 1fr))');
   });
 
-  it('beendet das alte Abonnement beim Workspacewechsel und das aktuelle beim Verlassen', () => {
-    TestBed.flushEffects();
-    expect(mockUpdates.watch).toHaveBeenCalledTimes(1);
-    currentWorkspace.set({ id: 'ws-2', name: 'Zweiter Arbeitsbereich' });
-    TestBed.flushEffects();
-    expect(stopUpdates).toHaveBeenCalledTimes(1);
-    expect(mockUpdates.watch).toHaveBeenLastCalledWith('ws-2', expect.any(Function));
-    TestBed.resetTestingModule();
-    expect(stopUpdates).toHaveBeenCalledTimes(2);
+  it('teilt die Breite bis zur Höchstzahl und behält Nummern beim Entfernen', () => {
+    layout.setWidescreen(true);
+    for (let i = 0; i < MAX_FEED_SEARCHES + 2; i++) page.addSearch();
+    expect(page.searches()).toHaveLength(MAX_FEED_SEARCHES);
+    expect(page.canAddSearch()).toBe(false);
+
+    page.removeSearch(2);
+    page.removeSearch(1);
+    expect(page.searches()).toEqual([1, 3, 4]);
+    page.addSearch();
+    expect(page.searches()).toEqual([1, 3, 4, 5]);
   });
 
-  it('ignoriert Hinweise im Hintergrund und vom vorherigen Workspace vor dem Aufräumen', async () => {
-    TestBed.flushEffects();
-    await Promise.resolve();
-    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
-    const calls = mockApi.feed.mock.calls.length;
-    updateListeners[0]();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    hidden.mockReturnValue(false);
-    currentWorkspace.set({ id: 'ws-2', name: 'Zweiter Arbeitsbereich' });
-    updateListeners[0]();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-  });
-
-  it('behält Polling bei Verbindungsausfall und die zehnsekündige Fehlerpause trotz weiterer Hinweise', async () => {
-    vi.useFakeTimers();
-    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
-    const fixture = TestBed.createComponent(DealMonitorComponent);
-    fixture.detectChanges();
-    await Promise.resolve();
-    const feed = fixture.componentInstance;
-    mockApi.feed.mockRejectedValueOnce(new Error('offline'));
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(feed.state.error()).toBe('offline');
-    const calls = mockApi.feed.mock.calls.length;
-    updateListeners.at(-1)?.();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    await vi.advanceTimersByTimeAsync(9_999);
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls + 1);
-    expect(feed.state.error()).toBeNull();
-    fixture.destroy();
-  });
-
-  it('setzt die Titelsuche nach Entprellung serverseitig und beim Zurücksetzen zurück', async () => {
-    TestBed.flushEffects();
-    comp.searchChanged('Vintage');
-    await new Promise((resolve) => setTimeout(resolve, 280));
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ titleQuery: 'Vintage' }),
-    );
-    comp.resetFilters();
-    TestBed.flushEffects();
-    expect(comp.searchEntry()).toBe('');
-    expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ titleQuery: '' }));
-  });
-
-  it('initializes size filter and options', () => {
-    expect(comp.selectedSize()).toBeNull();
-    expect(comp.sizeOptions.some((opt) => opt.value === 'xxl')).toBe(true);
-    expect(comp.sizeOptions.find((opt) => opt.value === 'xxl')?.label).toBe('XXL');
-    expect(comp.sizeOptions.some((opt) => opt.value === 'xl')).toBe(true);
-  });
-
-  it('requests the selected size from the full saved feed', async () => {
-    TestBed.flushEffects();
-    await comp.state.refresh();
-    expect(comp.feedItems().length).toBe(5);
-    comp.selectedSize.set('xxl');
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', size: 'xxl' }),
-    );
-  });
-
-  it('passes price limits to the feed and rejects an inverted range', () => {
-    TestBed.flushEffects();
-    comp.minPrice.set(10);
-    comp.maxPrice.set(20);
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ minPrice: 10, maxPrice: 20 }),
-    );
-    const calls = mockApi.feed.mock.calls.length;
-    comp.minPrice.set(30);
-    TestBed.flushEffects();
-    expect(comp.priceError()).toContain('Mindestpreis');
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-  });
-
-  it('shows labeled price inputs above the saved finds', async () => {
-    const fixture = TestBed.createComponent(DealMonitorComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('label[for="feed-min-price"]')?.textContent).toContain('Min. Preis');
-    expect(host.querySelector('label[for="feed-max-price"]')?.textContent).toContain('Max. Preis');
-    expect(host.querySelector<HTMLInputElement>('#feed-min-price')?.getAttribute('step')).toBe(
-      '0.01',
-    );
-    const minInput = host.querySelector<HTMLInputElement>('#feed-min-price')!;
-    minInput.value = '12';
-    minInput.dispatchEvent(new Event('input'));
-    fixture.detectChanges();
-    TestBed.flushEffects();
-    expect(fixture.componentInstance.minPrice()).toBe(12);
-    expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ minPrice: 12 }));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(host.querySelector('#feed-finds-grid')).not.toBeNull();
-    expect(host.textContent).not.toContain('Letzte 3 Tage');
-    expect(host.textContent).not.toContain('Kompakt');
-    expect((await axe.run(host)).violations).toEqual([]);
-    fixture.destroy();
-  });
-
-  it('uses the toolbar search field and a brand choice without free text', async () => {
-    const fixture = TestBed.createComponent(DealMonitorComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const search = fixture.debugElement.query(By.directive(CustomSearchInputComponent))
-      .componentInstance as CustomSearchInputComponent;
-    expect([search.variant(), search.size()]).toEqual(['toolbar', 'sm']);
-    const brandSelect = fixture.debugElement
-      .queryAll(By.directive(CustomSelectComponent))
-      .map((select) => select.componentInstance as CustomSelectComponent<string | null>)
-      .find((select) => select.triggerId() === 'feed-brand');
-    expect(brandSelect?.searchable()).toBe(false);
-    expect(brandSelect?.options().map((option) => option.label)).toEqual([
-      'Alle Marken',
-      'Nike',
-      'Adidas',
-    ]);
-    fixture.destroy();
-  });
-
-  it('merkt sich den langsamen Modus und bietet ihn in der Filterleiste an', async () => {
-    localStorage.setItem('flipbase:vinted-feed:slow-mode', 'true');
-    try {
-      const fixture = TestBed.createComponent(DealMonitorComponent);
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-      const feed = fixture.componentInstance;
-      const host = fixture.nativeElement as HTMLElement;
-      expect(feed.slowMode()).toBe(true);
-      expect(
-        host.querySelector('aside[aria-label="Feed filtern"] [data-feed-slow-mode]'),
-      ).not.toBeNull();
-      const checkbox = fixture.debugElement.query(By.directive(CustomCheckboxComponent))
-        .componentInstance as CustomCheckboxComponent;
-      expect(checkbox.checked()).toBe(true);
-      expect(feed.cardMotion()).toContain('starting:-translate-x-12');
-      expect((await axe.run(host)).violations).toEqual([]);
-
-      feed.slowModeChanged(false);
-      fixture.detectChanges();
-      expect(feed.slowMode()).toBe(false);
-      expect(checkbox.checked()).toBe(false);
-      expect(localStorage.getItem('flipbase:vinted-feed:slow-mode')).toBe('false');
-      expect(feed.cardMotion()).toContain('starting:-translate-x-3');
-      fixture.destroy();
-    } finally {
-      localStorage.removeItem('flipbase:vinted-feed:slow-mode');
-    }
-  });
-
-  it('groups feed filters and resets every active choice from the right edge', async () => {
-    const fixture = TestBed.createComponent(DealMonitorComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    const filterCard = host.querySelector('app-card[data-feed-filters]');
-    expect(filterCard).not.toBeNull();
-    expect(filterCard?.classList.contains('overflow-visible')).toBe(true);
-    const reset = host.querySelector<HTMLButtonElement>('[data-feed-filter-reset] button');
-    expect(reset).not.toBeNull();
-    expect(reset?.disabled).toBe(true);
-
-    const feed = fixture.componentInstance;
-    feed.selected.set('wl-1');
-    feed.selectedBrand.set('Nike');
-    feed.selectedSize.set('xxl');
-    feed.minPrice.set(30);
-    feed.maxPrice.set(20);
-    fixture.detectChanges();
-    expect(feed.filtersActive()).toBe(true);
-    expect(feed.priceError()).toContain('Mindestpreis');
-
-    expect(reset?.disabled).toBe(false);
-    expect(reset?.getAttribute('aria-label')).toBe('Filter zurücksetzen');
-    expect(reset?.closest('.ml-auto')).not.toBeNull();
-    reset?.click();
-    TestBed.flushEffects();
-    fixture.detectChanges();
-
-    expect([feed.selected(), feed.selectedBrand(), feed.selectedSize()]).toEqual([
-      null,
-      null,
-      null,
-    ]);
-    expect([feed.minPrice(), feed.maxPrice()]).toEqual([null, null]);
-    expect(feed.priceError()).toBeNull();
-    expect(feed.filtersActive()).toBe(false);
-    expect(reset?.disabled).toBe(true);
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        watchlist: null,
-        brand: null,
-        size: null,
-        minPrice: null,
-        maxPrice: null,
-      }),
-    );
-    expect((await axe.run(host)).violations).toEqual([]);
-    fixture.destroy();
-  });
-
-  it('offers the brands supported by the feed', async () => {
-    TestBed.flushEffects();
-    await comp.loadBrands('ws-1');
-    await comp.state.refresh();
-
-    expect(comp.brandOptions().map((option) => option.label)).toEqual([
-      'Alle Marken',
-      'Nike',
-      'Adidas',
-    ]);
-    comp.selectedBrand.set('Nike');
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', brand: 'Nike' }),
-    );
-  });
-
-  it('manages selected deal for detail modal inspection', () => {
-    expect(comp.selectedDeal()).toBeNull();
-
-    const item = mockFeedItem('test-deal');
-    comp.selectedDeal.set(item);
-    expect(comp.selectedDeal()).toEqual(item);
-
-    comp.selectedDeal.set(null);
-    expect(comp.selectedDeal()).toBeNull();
+  it('zeigt nach dem Ausschalten wieder nur die erste Suche', () => {
+    layout.setWidescreen(true);
+    page.addSearch();
+    layout.setWidth('full');
+    expect(layout.widescreen()).toBe(false);
+    expect(page.searches()).toEqual([1]);
+    expect(page.searchColumns()).toBe('repeat(1, minmax(0, 1fr))');
   });
 });

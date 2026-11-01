@@ -74,6 +74,12 @@ describe('ShellComponent', () => {
     TestBed.inject(PageLayoutService).setWidth('medium');
     fixture.detectChanges();
     expect(content.style.maxWidth).toBe('80rem');
+    TestBed.inject(PageLayoutService).setWidescreen(true);
+    fixture.detectChanges();
+    expect(content.style.maxWidth).toBe('');
+    TestBed.inject(PageLayoutService).setWidescreen(false);
+    fixture.detectChanges();
+    expect(content.style.maxWidth).toBe('80rem');
   });
 
   it('rendert eindeutige Druckhaken für alle Teile des Admin-Rahmens', () => {

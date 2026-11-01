@@ -262,6 +262,25 @@ describe('HeaderComponent', () => {
       'false',
       'false',
     ]);
+    const widescreen = element.querySelector<HTMLButtonElement>(
+      '[data-header-action="widescreen"]',
+    )!;
+    expect([widescreen.textContent?.trim(), widescreen.getAttribute('aria-pressed')]).toEqual([
+      'Widescreen-Modus',
+      'false',
+    ]);
+    widescreen.click();
+    fixture.detectChanges();
+    expect(TestBed.inject(PageLayoutService).widescreen()).toBe(true);
+    expect(widescreen.getAttribute('aria-pressed')).toBe('true');
+    expect(buttons.map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'false',
+      'false',
+    ]);
+    buttons[0].click();
+    fixture.detectChanges();
+    expect(TestBed.inject(PageLayoutService).widescreen()).toBe(false);
     expect(element.querySelector('#header-user-menu')).not.toBeNull();
   });
 

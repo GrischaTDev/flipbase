@@ -419,17 +419,38 @@
                     type="button"
                     (click)="pageLayout.setWidth(width)"
                     [attr.data-page-width]="width"
-                    [attr.aria-pressed]="pageLayout.width() === width"
+                    [attr.aria-pressed]="!pageLayout.widescreen() && pageLayout.width() === width"
                     class="min-h-8 flex-1 cursor-pointer whitespace-nowrap rounded-md px-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary pointer-coarse:min-h-11"
-                    [class.bg-fb-surface]="pageLayout.width() === width"
-                    [class.text-fb-text-primary]="pageLayout.width() === width"
-                    [class.shadow-xs]="pageLayout.width() === width"
-                    [class.text-fb-text-secondary]="pageLayout.width() !== width"
+                    [class.bg-fb-surface]="!pageLayout.widescreen() && pageLayout.width() === width"
+                    [class.text-fb-text-primary]="
+                      !pageLayout.widescreen() && pageLayout.width() === width
+                    "
+                    [class.shadow-xs]="!pageLayout.widescreen() && pageLayout.width() === width"
+                    [class.text-fb-text-secondary]="
+                      pageLayout.widescreen() || pageLayout.width() !== width
+                    "
                   >
                     {{ 'COMMON.PAGE_WIDTH_' + width | translate }}
                   </button>
                 }
               </div>
+              <!-- Widescreen: volle Breite, dazu mehrere Bereiche nebeneinander (z. B. Feed-Suchen). -->
+              <button
+                type="button"
+                data-header-action="widescreen"
+                (click)="pageLayout.setWidescreen(!pageLayout.widescreen())"
+                [attr.aria-pressed]="pageLayout.widescreen()"
+                class="mt-1.5 min-h-8 w-full cursor-pointer whitespace-nowrap rounded-lg border px-2 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary pointer-coarse:min-h-11"
+                [class.border-fb-primary]="pageLayout.widescreen()"
+                [class.bg-fb-surface]="pageLayout.widescreen()"
+                [class.text-fb-text-primary]="pageLayout.widescreen()"
+                [class.shadow-xs]="pageLayout.widescreen()"
+                [class.border-fb-border]="!pageLayout.widescreen()"
+                [class.bg-fb-subtle]="!pageLayout.widescreen()"
+                [class.text-fb-text-secondary]="!pageLayout.widescreen()"
+              >
+                {{ 'COMMON.WIDESCREEN_MODE' | translate }}
+              </button>
             </div>
 
             <!-- Sprache -->

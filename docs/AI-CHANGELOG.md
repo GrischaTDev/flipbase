@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-01 - Juna - Widescreen-Modus und mehrere Suchen im Vinted Feed
+
+**Nutzerwunsch:** Für einen 49-Zoll-Monitor einen Widescreen-Modus unter „Layout“. Im Vinted Feed sollen die Karten die volle Breite füllen, und es sollen weitere Suchen mit eigenen Filtern rechts daneben hinzukommen, die sich die Breite teilen – nur im Widescreen-Modus. Die spätere Idee eines geteilten Arbeitsbereichs (Rechtsklick auf einen Menüpunkt, Seite daneben öffnen) nur dokumentieren.
+
+**Änderung:** `PageLayoutService` merkt sich `widescreen`; eingeschaltet entfällt die Höchstbreite, die Wahl einer der drei Breiten schaltet ihn aus. Neuer Knopf „Widescreen-Modus“ im Nutzermenü. Die bisherige Feed-Logik steckt jetzt unverändert in `DealFeedSearchComponent` (eine Suche mit eigenen Filtern, eigenem Abruf und eigenem Raster); `DealMonitorComponent` zeigt Seitenkopf und bis zu vier Suchen nebeneinander. Im Widescreen-Modus füllt das Raster die Breite mit Spalten ab 15rem. Die erste Suche behält alle bisherigen Feld-IDs, weitere hängen ihre Nummer an.
+
+**Abwägung:** Jede Suche fragt selbst ab (bei vier Suchen viermal so viele Feed-Abfragen) und zusätzliche Suchen werden nicht gespeichert. Beides in `docs/features/widescreen-mode.md` als offen notiert, dort auch die Idee des geteilten Arbeitsbereichs.
+
+**Prüfungen:** Angular-Tests für Feed, Kopfzeile und Rahmen (neue Fälle für Widescreen-Raster, IDs weiterer Suchen, Hinzufügen/Entfernen, Höchstzahl, Ausschalten, Menüknopf, Höchstbreite) sowie Layout-Dienst-Test grün; Format, Lint, Typen und Bau erfolgreich. Browsertest `e2e/deal-monitor.spec.ts` komplett grün inklusive neuem Fall bei 5120 × 1440 (zwei Suchen nebeneinander, AXE ohne Befund); Bildschirmfoto angesehen.
+
 ## 2026-11-01 - Juna - Vinted-Feed: Filterleiste aufgeräumt, Marken nur aus dem Bot
 
 **Nutzerwunsch:** Suchfeld wie die übrigen Felder der Filterleiste, Marke als reine Auswahl ohne Freitextsuche und nur mit den im Vinted-Bot eingestellten Marken, „Letzte 3 Tage“ und den Kompaktmodus entfernen. Dazu die Frage, wann „… neue Artikel warten“ erscheint.
