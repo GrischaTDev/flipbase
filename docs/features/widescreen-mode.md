@@ -29,8 +29,11 @@ Für sehr breite Bildschirme, zum Beispiel einen 49-Zoll-Monitor im 32:9-Format
 
 - **Suchen merken:** Zusätzliche Suchen und ihre Filter gehen beim Neuladen der
   Seite verloren (wie die Filter der einzelnen Suche bisher auch).
-- **Abfragelast:** Jede Suche fragt alle zwei Sekunden selbst ab. Bei vier Suchen
-  sind das viermal so viele Feed-Abfragen. Falls das stört, die Abfragen bündeln.
+- **Abfragelast:** Der Feed liest nur aus unserer Datenbank (`sniper_feed_search`);
+  Vinted und der Bot werden dabei nicht abgefragt, gefiltert wird in der
+  Datenbankfunktion. Jede Suche liest alle zwei Sekunden selbst nach, bei vier
+  Suchen also vier kleine Datenbankabfragen statt einer. Erst bei spürbarer Last
+  bündeln.
 - **Weitere Seiten:** Alle übrigen Seiten nutzen im Widescreen-Modus bisher nur
   die volle Breite und müssen einzeln angepasst werden.
 

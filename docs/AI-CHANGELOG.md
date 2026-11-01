@@ -6,7 +6,7 @@
 
 **Änderung:** `PageLayoutService` merkt sich `widescreen`; eingeschaltet entfällt die Höchstbreite, die Wahl einer der drei Breiten schaltet ihn aus. Neuer Knopf „Widescreen-Modus“ im Nutzermenü. Die bisherige Feed-Logik steckt jetzt unverändert in `DealFeedSearchComponent` (eine Suche mit eigenen Filtern, eigenem Abruf und eigenem Raster); `DealMonitorComponent` zeigt Seitenkopf und bis zu vier Suchen nebeneinander. Im Widescreen-Modus füllt das Raster die Breite mit Spalten ab 15rem. Die erste Suche behält alle bisherigen Feld-IDs, weitere hängen ihre Nummer an.
 
-**Abwägung:** Jede Suche fragt selbst ab (bei vier Suchen viermal so viele Feed-Abfragen) und zusätzliche Suchen werden nicht gespeichert. Beides in `docs/features/widescreen-mode.md` als offen notiert, dort auch die Idee des geteilten Arbeitsbereichs.
+**Abwägung:** Jede Suche liest selbst aus der Datenbank nach (bei vier Suchen viermal so viele Abfragen an `sniper_feed_search`; Vinted und der Bot werden dabei nicht abgefragt) und zusätzliche Suchen werden nicht gespeichert. Beides in `docs/features/widescreen-mode.md` als offen notiert, dort auch die Idee des geteilten Arbeitsbereichs.
 
 **Prüfungen:** Angular-Tests für Feed, Kopfzeile und Rahmen (neue Fälle für Widescreen-Raster, IDs weiterer Suchen, Hinzufügen/Entfernen, Höchstzahl, Ausschalten, Menüknopf, Höchstbreite) sowie Layout-Dienst-Test grün; Format, Lint, Typen und Bau erfolgreich. Browsertest `e2e/deal-monitor.spec.ts` komplett grün inklusive neuem Fall bei 5120 × 1440 (zwei Suchen nebeneinander, AXE ohne Befund); Bildschirmfoto angesehen.
 
