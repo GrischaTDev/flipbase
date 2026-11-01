@@ -220,7 +220,7 @@ for (const { name, paths, full } of [
     assert.equal(plan.full, full);
     if (!full) {
       assert.equal(plan.browserFiles.length, 15);
-      assert.equal(complete.length, 219);
+      assert.equal(complete.length, 223);
     }
     const grouped = [];
     for (const { project, shard } of buildBrowserMatrix(plan)) {

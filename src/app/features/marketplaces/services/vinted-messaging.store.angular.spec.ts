@@ -259,6 +259,35 @@ describe('Vinted-Versandzustand', () => {
     await oldRead;
     expect(store.messages()).toEqual([]);
   });
+  it('lädt die Cloud-Freigabe nach einem vor dem Kontexteffekt begonnenen Abruf', async () => {
+    account.set({
+      ...scope,
+      executionMode: 'cloud',
+      externalAccountId: '123',
+      status: 'connected',
+    });
+    api.readPermission.mockResolvedValue({
+      executionMode: 'cloud',
+      allowed: true,
+      authorizationVersion: 1,
+    });
+    let finishOld: ((messages: unknown[]) => void) | undefined;
+    let finishCurrent: ((messages: unknown[]) => void) | undefined;
+    api.read
+      .mockReturnValueOnce(new Promise((resolve) => (finishOld = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (finishCurrent = resolve)));
+    const oldRead = store.load(scope, conversationId);
+    TestBed.tick();
+    expect(api.read).toHaveBeenCalledTimes(2);
+    finishOld?.([]);
+    await oldRead;
+    await store.load(scope, conversationId);
+    expect(api.read).toHaveBeenCalledTimes(2);
+    finishCurrent?.([]);
+    await vi.waitFor(() => expect(store.cloudSendAllowed()).toBe(true));
+    expect(store.error()).toBeNull();
+    expect(api.enqueue).not.toHaveBeenCalled();
+  });
   const failedMessage: LocalQueuedMessage = {
     id: 'failed-message',
     requestId: 'first-request',

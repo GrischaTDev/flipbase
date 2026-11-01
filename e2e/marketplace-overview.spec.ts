@@ -506,16 +506,22 @@ test('Marktplatzeinstellungen können einen fehlgeschlagenen Abruf erneut laden 
   await page.route('**/rest/v1/marketplace_user_settings?**', (route) => {
     reads++;
     return unavailable
-      ? route.fulfill({ status: 503, json: { message: 'offline' } })
+      ? route.fulfill({
+          status: 503,
+          headers: { 'Retry-After': '0', 'Access-Control-Expose-Headers': 'Retry-After' },
+          json: { message: 'offline' },
+        })
       : route.fallback();
   });
   await page.goto('/settings/marketplaces');
   const settings = page.locator('app-marketplaces-settings');
   await expect(settings.getByRole('alert')).toBeVisible();
   await expect(settings.getByRole('button', { name: 'Kleinanzeigen', exact: true })).toBeDisabled();
+  const failedReads = reads;
+  expect(failedReads).toBeGreaterThan(1);
   unavailable = false;
   await settings.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
   await expect(settings.getByRole('button', { name: 'Kleinanzeigen', exact: true })).toBeEnabled();
   await expect(settings.getByRole('alert')).toHaveCount(0);
-  expect(reads).toBeGreaterThan(1);
+  expect(reads).toBeGreaterThan(failedReads);
 });
