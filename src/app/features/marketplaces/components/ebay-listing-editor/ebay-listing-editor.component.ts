@@ -55,6 +55,7 @@ export class EbayListingEditorComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly dialog = inject(ConfirmDialogService);
   private revision = 0;
+  private editorContextKey: string | null | undefined;
   private readonly routeParameters = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
@@ -110,9 +111,15 @@ export class EbayListingEditorComponent {
     effect(() => {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
-      this.listingId();
-      this.connectionId();
+      const listingId = this.listingId();
+      const connectionId = this.connectionId();
+      const contextKey =
+        user && workspace && !workspace.archived_at
+          ? JSON.stringify([user.id, workspace.id, listingId, connectionId])
+          : null;
       untracked(() => {
+        if (contextKey === this.editorContextKey) return;
+        this.editorContextKey = contextKey;
         const revision = ++this.revision;
         this.clear();
         if (user && workspace && !workspace.archived_at) void this.load(workspace.id, revision);

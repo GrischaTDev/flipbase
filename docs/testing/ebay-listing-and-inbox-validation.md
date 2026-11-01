@@ -28,7 +28,7 @@ Die Tabelle nennt Ergebnisse einzelner Prüfungen, keinen bestandenen Gesamt-Pre
 | Prüfung                                                                                          | Ergebnis                                                                                                                                                              |
 | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Gezieltes Prettier `--write`, `npm run format:check`, `npm run lint`, `npm run typecheck`        | Erfolgreich                                                                                                                                                           |
-| Alle eBay-Deno-Dateien unter `_shared` und in den eBay-Funktionsordnern, `deno test --allow-env` | 134 Fälle erfolgreich                                                                                                                                                 |
+| Alle eBay-Deno-Dateien unter `_shared` und in den eBay-Funktionsordnern, `deno test --allow-env` | 135 Fälle erfolgreich                                                                                                                                                 |
 | `npm exec --no -- vitest run --maxWorkers=3`                                                     | 561 Dateien und 6.082 Fälle erfolgreich; eine alte Sidebar-Menüerwartung fehlgeschlagen                                                                               |
 | Betroffene sieben Vitest-Dateien nach Korrektur der Menüerwartung                                | 75 Fälle erfolgreich; Sidebar, Dashboard, Antwortverträge, Postfach, Erstellung und bestehende Bearbeitung                                                            |
 | `e2e/ebay-workspace.spec.ts`, Chromium, ein Worker                                               | Elf Fälle erfolgreich; nach der letzten Postfachkorrektur die sechs Postfachfälle erneut erfolgreich, anschließend die erweiterte Versandklärung nochmals erfolgreich |
@@ -72,6 +72,18 @@ Playwright-Auflistung enthält weiterhin exakt dieselben 440 eindeutigen Fälle,
 jetzt mit 74/74/73/73/73/73 Fällen pro Gruppe. Dies ist ein Verteilungsnachweis,
 keine lokale Ausführung der gesamten Browserregression. Die vollständige
 CI-Ausführung auf dem endgültigen Stand bleibt vor dem Merge erforderlich.
+
+Zusätzlich drei Fälle für normale Sitzungserneuerung beziehungsweise neue
+Workspace-Objekte mit denselben Kennungen zuerst rot nachgestellt: ungesicherte
+Eingaben in Erstellung, Bearbeitung und Postfach gingen verloren. Die Initialisierung
+ist jetzt an die tatsächliche Identität und das Inseratziel gebunden. Normale
+Sitzungsaktualisierungen erhalten die Eingaben; echte Nutzer-/Workspacewechsel
+und Abmeldung verwerfen sie weiterhin. Alle 32 betroffenen Frontendfälle bestehen.
+Ein weiterer roter Handlerfall bestätigt die nötige Bindung des Prüfabdrucks an
+eBay-Kontoverbindung und Autorisierungsfassung. Eine zwischenzeitlich erneuerte
+eBay-Freigabe erzwingt jetzt eine neue Bestätigung vor EXECUTE. Alle 135 eBay-
+Denofälle bestehen anschließend. Dafür weder den zentralen Auth-Dienst noch das
+Datenbankschema geändert.
 
 Die lokale gemeinsame Supabase-Historie enthält die bestehende Migration
 `20261031064255_sniper_feed_freshness` noch nicht. Der rein lesende Abgleich

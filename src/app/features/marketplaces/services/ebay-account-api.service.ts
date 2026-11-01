@@ -52,7 +52,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   listing_changed:
     'Das Inserat wurde inzwischen geändert. Lade es erneut, bevor Du deine Änderungen überträgst.',
   listing_review_changed:
-    'Die eBay-Gebühren oder Hinweise haben sich geändert. Prüfe das Inserat erneut und bestätige den neuen Stand.',
+    'Die eBay-Kontoverbindung, Gebühren oder Hinweise haben sich geändert. Prüfe das Inserat erneut und bestätige den neuen Stand.',
   revision_rejected:
     'eBay hat die Änderung abgelehnt. Prüfe, ob bereits Verkäufe, Gebote oder Preisvorschläge vorliegen oder das Inserat von einer anderen Anwendung verwaltet wird.',
   save_unconfirmed:

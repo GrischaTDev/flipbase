@@ -42,8 +42,12 @@ describe('eBay-Postfach: Darstellung und Bedienung', () => {
     loadConversation: ReturnType<typeof vi.fn>;
     sendReply: ReturnType<typeof vi.fn>;
   };
+  const user = signal({ id: 'u' });
+  const workspace = signal({ id: 'w', archived_at: null });
   beforeEach(() => {
     sessionStorage.clear();
+    user.set({ id: 'u' });
+    workspace.set({ id: 'w', archived_at: null });
     api = {
       loadStatus: vi.fn(async () => ({
         configured: true,
@@ -69,16 +73,38 @@ describe('eBay-Postfach: Darstellung und Bedienung', () => {
       imports: [EbayMessagesComponent],
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: { currentUser: signal({ id: 'u' }) } },
+        { provide: AuthService, useValue: { currentUser: user } },
         {
           provide: WorkspaceService,
-          useValue: { currentWorkspace: signal({ id: 'w', archived_at: null }) },
+          useValue: { currentWorkspace: workspace },
         },
         { provide: EbayAccountApiService, useValue: api },
       ],
     });
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('erhält eine Antwort bei Sitzungserneuerung und verwirft sie beim Nutzerwechsel', async () => {
+    const fixture = TestBed.createComponent(EbayMessagesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    await vi.waitFor(() => expect(component.store.loading()).toBe(false));
+    await component.open(conversation);
+    component.reply.setValue('Noch nicht gesendet');
+    user.set({ id: 'u' });
+    workspace.set({ id: 'w', archived_at: null });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.reply.value).toBe('Noch nicht gesendet');
+    expect(component.store.selected()?.id).toBe('c1');
+    expect(api.loadStatus).toHaveBeenCalledTimes(1);
+    user.set({ id: 'other' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.reply.value).toBe('');
+    expect(component.store.selected()).toBeNull();
+    expect(api.sendReply).not.toHaveBeenCalled();
+  });
   it('zeigt Gespräch und Verlauf, behandelt Anbietertext als Text und sendet nur über die Aktion', async () => {
     const fixture = TestBed.createComponent(EbayMessagesComponent);
     fixture.detectChanges();

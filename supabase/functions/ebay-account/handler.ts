@@ -314,7 +314,15 @@ export function createEbayAccountHandler(
               return { imageUrl: await uploadEbayImage(config, accessToken, image, fetcher) };
             if (!draft) throw new EbayError('invalid_request');
             const check = await createEbayListing(config, accessToken, draft, false, fetcher);
-            const reviewHash = await hashState(JSON.stringify([draft, check.fees, check.warnings]));
+            const reviewHash = await hashState(
+              JSON.stringify([
+                connection.id,
+                connection.authorization_version,
+                draft,
+                check.fees,
+                check.warnings,
+              ]),
+            );
             if (!check.valid || body.action === 'listing_validate') return { ...check, reviewHash };
             if (body.reviewHash !== reviewHash) throw new EbayError('listing_review_changed');
             // Nach der erneuten Anbieterprüfung unmittelbar vor dem Veröffentlichen erneut prüfen.

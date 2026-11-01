@@ -156,6 +156,49 @@ test('Geänderte Gebühren stoppen die Veröffentlichung vor EXECUTE', async () 
   assert.equal((await result.json()).error, 'listing_review_changed');
   assert.deepEqual(modes, ['VALIDATE', 'VALIDATE']);
 });
+test('Eine erneute Kontofreigabe zwischen Prüfen und Erstellen verlangt eine neue Bestätigung', async () => {
+  const ready = await connectedStore();
+  let current = connection;
+  const modes: string[] = [];
+  const handler = createEbayAccountHandler(
+    {
+      ...ready,
+      status: async () => current,
+      claim: async (user, workspace, id, operation) => {
+        const claimed = await ready.claim(user, workspace, id, operation);
+        return claimed ? { ...claimed, connection: current } : null;
+      },
+    },
+    config,
+    config.allowedOrigins,
+    async (_url, init) => {
+      const mode = JSON.parse(String(init?.body)).variables.input.options.operationMode;
+      modes.push(mode);
+      return mode === 'VALIDATE'
+        ? validationResponse()
+        : Response.json({
+            data: {
+              createListing: {
+                __typename: 'CreateListingSuccess',
+                listing: { listingId: '123' },
+                warnings: [],
+                listingFees: [],
+              },
+            },
+          });
+    },
+  );
+  const { reviewHash } = await (
+    await handler(request('listing_validate', { connectionId, draft: creationDraft }))
+  ).json();
+  current = { ...connection, authorization_version: 2, external_account_id: 'another-account' };
+  const result = await handler(
+    request('listing_create', { connectionId, draft: creationDraft, reviewHash }),
+  );
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).error, 'listing_review_changed');
+  assert.deepEqual(modes, ['VALIDATE', 'VALIDATE']);
+});
 test('Kontowechsel während der Anbieterprüfung verhindert das Erstellen', async () => {
   const modes: string[] = [];
   let changed = false;

@@ -64,6 +64,7 @@ export class EbayMessagesComponent {
     validators: [Validators.required, Validators.maxLength(2000)],
   });
   private readonly drafts = new Map<string, string>();
+  private workspaceContextKey: string | null | undefined;
   readonly refreshIcon = LucideRefreshCw;
   readonly backIcon = LucideArrowLeft;
   readonly sendIcon = LucideSend;
@@ -85,7 +86,13 @@ export class EbayMessagesComponent {
     effect(() => {
       const user = this.auth.currentUser(),
         workspace = this.workspace.currentWorkspace();
+      const contextKey =
+        user && workspace && !workspace.archived_at
+          ? JSON.stringify([user.id, workspace.id])
+          : null;
       untracked(() => {
+        if (contextKey === this.workspaceContextKey) return;
+        this.workspaceContextKey = contextKey;
         this.reply.reset();
         this.drafts.clear();
         this.search.set('');

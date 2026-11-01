@@ -36,6 +36,11 @@ Senden braucht einen sichtbaren Klick. Bei unklarer Antwort kein automatischer
 zweiter Sendeklick. Neue Inserate erhalten eine feste Idempotenzkennung; Prüfung
 und Veröffentlichung werden getrennt. Gebühren und Anbieterfehler bleiben sichtbar.
 
+Eine normale Sitzungserneuerung mit denselben Nutzer-/Workspacekennungen erhält
+ungesicherte Eingaben. Der Prüfabdruck zur Veröffentlichung bindet die
+eBay-Kontoverbindung und ihre Autorisierungsfassung ein; eine erneute eBay-Freigabe
+verlangt vor dem Schreiben einen neuen Prüfstand und eine bewusste Bestätigung.
+
 ## Prüfung
 
 Gezielte Backendfälle für Verträge, Rechte, unbekannte Ergebnisse und Pagination;

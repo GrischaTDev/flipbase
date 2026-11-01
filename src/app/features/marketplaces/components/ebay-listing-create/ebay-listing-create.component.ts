@@ -69,6 +69,7 @@ export class EbayListingCreateComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly dialog = inject(ConfirmDialogService);
   private scope: AccountScope | null = null;
+  private workspaceContextKey: string | null | undefined;
   private revision = 0;
   private categoryRevision = 0;
   private key = crypto.randomUUID().replaceAll('-', '');
@@ -130,7 +131,13 @@ export class EbayListingCreateComponent {
     effect(() => {
       const user = this.auth.currentUser(),
         workspace = this.workspace.currentWorkspace();
+      const contextKey =
+        user && workspace && !workspace.archived_at
+          ? JSON.stringify([user.id, workspace.id])
+          : null;
       untracked(() => {
+        if (contextKey === this.workspaceContextKey) return;
+        this.workspaceContextKey = contextKey;
         const revision = ++this.revision;
         this.scope = null;
         this.form.reset();

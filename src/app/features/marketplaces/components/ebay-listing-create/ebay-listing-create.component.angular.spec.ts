@@ -199,6 +199,21 @@ describe('eBay-Inserat: Prüfung und Veröffentlichung', () => {
     expect(fixture.componentInstance.form.controls.title.value).toBe('');
     expect(fixture.componentInstance.form.enabled).toBe(true);
   });
+  it('Sitzungs- und Workspaceaktualisierungen erhalten denselben geprüften Entwurf', async () => {
+    const fixture = await create(),
+      component = fixture.componentInstance;
+    await fill(component);
+    await component.check();
+    const review = component.review();
+    user.set({ id: 'user' });
+    workspace.set({ id: 'workspace', archived_at: null });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.form.controls.title.value).toBe('Wollschal');
+    expect(component.images()).toHaveLength(1);
+    expect(component.review()).toBe(review);
+    expect(api.loadStatus).toHaveBeenCalledTimes(1);
+  });
   it('verlangt nach geänderten Gebühren eine neue Prüfung und Bestätigung', async () => {
     const fixture = await create(),
       component = fixture.componentInstance;
