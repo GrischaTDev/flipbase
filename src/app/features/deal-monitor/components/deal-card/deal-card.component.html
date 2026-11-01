@@ -1,9 +1,6 @@
 <app-card padding="none" class="h-full">
   <article class="flex h-full flex-col" [attr.aria-label]="item().title">
-    <div
-      class="relative overflow-hidden bg-fb-surface-hover"
-      [class]="compact() ? 'aspect-[3/5]' : 'aspect-[3/4]'"
-    >
+    <div class="relative aspect-[3/4] overflow-hidden bg-fb-surface-hover">
       <!-- Die Bildvorschau ist eine eigene Aktion; die Bildbuttons liegen daneben. -->
       <button
         type="button"
@@ -34,29 +31,7 @@
       }
 
       <div class="pointer-events-none absolute right-2 bottom-2 left-2 flex items-center gap-2">
-        @if (compact()) {
-          <p
-            class="rounded-lg bg-zinc-900/70 px-2 py-1 text-base font-semibold whitespace-nowrap text-white"
-          >
-            {{ item().item_price | currency: item().currency }}
-          </p>
-        }
         <div class="pointer-events-auto ml-auto flex shrink-0 items-center gap-2">
-          @if (compact()) {
-            @if (link(); as href) {
-              <app-button
-                variant="image-overlay"
-                density="compact"
-                size="md"
-                [href]="href"
-                target="_blank"
-                [icon]="icons.external"
-                [iconOnly]="true"
-                [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
-                title="Auf Vinted ansehen"
-              />
-            }
-          }
           <app-button
             variant="image-overlay"
             density="compact"
@@ -73,108 +48,104 @@
       </div>
     </div>
 
-    @if (!compact()) {
-      <div class="flex flex-1 flex-col gap-2.5 p-3">
-        <div class="flex items-start justify-between gap-2">
-          <h3 class="min-w-0 line-clamp-2 text-sm font-semibold text-fb-text-primary">
-            @if (link(); as href) {
-              <a
-                [href]="href"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-                >{{ item().title }}<span class="sr-only"> – auf Vinted öffnen (neuer Tab)</span></a
-              >
-            } @else {
-              {{ item().title }}
-            }
-          </h3>
-          <p
-            class="shrink-0 text-xl leading-5 font-semibold whitespace-nowrap text-fb-text-primary"
-          >
-            {{ item().item_price | currency: item().currency }}
-          </p>
-        </div>
-
-        <dl class="flex flex-wrap items-center gap-1.5">
-          @if (item().brand) {
-            <div class="min-w-0 max-w-full">
-              <dt class="sr-only">Marke:</dt>
-              <dd class="min-w-0">
-                <app-badge tone="brand" size="sm" class="max-w-full">
-                  <span class="truncate" [title]="item().brand">{{ item().brand }}</span>
-                </app-badge>
-              </dd>
-            </div>
-          }
-          @if (item().size) {
-            <div class="min-w-0 max-w-full">
-              <dt class="sr-only">Größe:</dt>
-              <dd class="min-w-0">
-                <app-badge tone="neutral" size="sm" class="max-w-full">
-                  <span class="truncate" [title]="item().size">{{ item().size }}</span>
-                </app-badge>
-              </dd>
-            </div>
-          }
-          @if (item().condition) {
-            <div class="min-w-0 max-w-full">
-              <dt class="sr-only">Zustand:</dt>
-              <dd class="min-w-0">
-                <app-badge tone="success" size="sm" class="max-w-full">
-                  <span class="truncate" [title]="item().condition">{{ item().condition }}</span>
-                </app-badge>
-              </dd>
-            </div>
-          }
-          @if (item().discount_percent !== null) {
-            <div>
-              <dt class="sr-only">Preisvorteil:</dt>
-              <dd>
-                <app-badge tone="success" size="sm">
-                  {{ item().discount_percent | number: '1.0-1' }} % günstiger
-                </app-badge>
-              </dd>
-            </div>
-          }
-        </dl>
-
-        <div class="mt-auto flex flex-wrap items-center justify-between gap-2">
-          <p class="flex min-w-0 items-center gap-1.5 text-xs text-fb-text-muted">
-            <svg [lucideIcon]="icons.discovered" class="size-3.5 shrink-0" aria-hidden="true"></svg>
-            <time
-              [attr.datetime]="item().first_seen_at"
-              [title]="'Entdeckt: ' + (item().first_seen_at | date: 'dd.MM.yyyy · HH:mm')"
+    <div class="flex flex-1 flex-col gap-2.5 p-3">
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="min-w-0 line-clamp-2 text-sm font-semibold text-fb-text-primary">
+          @if (link(); as href) {
+            <a
+              [href]="href"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+              >{{ item().title }}<span class="sr-only"> – auf Vinted öffnen (neuer Tab)</span></a
             >
-              {{ discoveredLabel() }}
-            </time>
-          </p>
-          <div class="flex shrink-0 items-center gap-1.5">
-            <app-button
-              variant="secondary"
-              [icon]="icons.share"
-              [iconOnly]="true"
-              ariaLabel="Artikel teilen"
-              title="Artikel teilen"
-              (clicked)="share()"
-            />
-            @if (link(); as href) {
-              <app-button
-                variant="brand-hover"
-                [href]="href"
-                target="_blank"
-                [icon]="icons.external"
-                iconPosition="end"
-                [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
-                >Vinted</app-button
-              >
-            }
-          </div>
-        </div>
-        @if (shareMessage(); as message) {
-          <p role="status" class="text-xs text-fb-text-secondary">{{ message }}</p>
-        }
+          } @else {
+            {{ item().title }}
+          }
+        </h3>
+        <p class="shrink-0 text-xl leading-5 font-semibold whitespace-nowrap text-fb-text-primary">
+          {{ item().item_price | currency: item().currency }}
+        </p>
       </div>
-    }
+
+      <dl class="flex flex-wrap items-center gap-1.5">
+        @if (item().brand) {
+          <div class="min-w-0 max-w-full">
+            <dt class="sr-only">Marke:</dt>
+            <dd class="min-w-0">
+              <app-badge tone="brand" size="sm" class="max-w-full">
+                <span class="truncate" [title]="item().brand">{{ item().brand }}</span>
+              </app-badge>
+            </dd>
+          </div>
+        }
+        @if (item().size) {
+          <div class="min-w-0 max-w-full">
+            <dt class="sr-only">Größe:</dt>
+            <dd class="min-w-0">
+              <app-badge tone="neutral" size="sm" class="max-w-full">
+                <span class="truncate" [title]="item().size">{{ item().size }}</span>
+              </app-badge>
+            </dd>
+          </div>
+        }
+        @if (item().condition) {
+          <div class="min-w-0 max-w-full">
+            <dt class="sr-only">Zustand:</dt>
+            <dd class="min-w-0">
+              <app-badge tone="success" size="sm" class="max-w-full">
+                <span class="truncate" [title]="item().condition">{{ item().condition }}</span>
+              </app-badge>
+            </dd>
+          </div>
+        }
+        @if (item().discount_percent !== null) {
+          <div>
+            <dt class="sr-only">Preisvorteil:</dt>
+            <dd>
+              <app-badge tone="success" size="sm">
+                {{ item().discount_percent | number: '1.0-1' }} % günstiger
+              </app-badge>
+            </dd>
+          </div>
+        }
+      </dl>
+
+      <div class="mt-auto flex flex-wrap items-center justify-between gap-2">
+        <p class="flex min-w-0 items-center gap-1.5 text-xs text-fb-text-muted">
+          <svg [lucideIcon]="icons.discovered" class="size-3.5 shrink-0" aria-hidden="true"></svg>
+          <time
+            [attr.datetime]="item().first_seen_at"
+            [title]="'Entdeckt: ' + (item().first_seen_at | date: 'dd.MM.yyyy · HH:mm')"
+          >
+            {{ discoveredLabel() }}
+          </time>
+        </p>
+        <div class="flex shrink-0 items-center gap-1.5">
+          <app-button
+            variant="secondary"
+            [icon]="icons.share"
+            [iconOnly]="true"
+            ariaLabel="Artikel teilen"
+            title="Artikel teilen"
+            (clicked)="share()"
+          />
+          @if (link(); as href) {
+            <app-button
+              variant="brand-hover"
+              [href]="href"
+              target="_blank"
+              [icon]="icons.external"
+              iconPosition="end"
+              [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
+              >Vinted</app-button
+            >
+          }
+        </div>
+      </div>
+      @if (shareMessage(); as message) {
+        <p role="status" class="text-xs text-fb-text-secondary">{{ message }}</p>
+      }
+    </div>
   </article>
 </app-card>

@@ -41,7 +41,6 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
 })
 export class DealCardComponent {
   readonly item = input.required<FeedItem>();
-  readonly compact = input(false);
   readonly inspect = output<FeedItem>();
 
   readonly favoritesService = inject(DealFavoritesService);
