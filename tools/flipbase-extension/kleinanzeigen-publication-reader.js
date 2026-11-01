@@ -89,14 +89,18 @@
       },
     );
     if (unknownChecked) return answer('unknown');
-    const expected = ['0:204', '0:914', '0:62', '0:488'];
+    // Gemessene Privatkonto-Varianten für Herrenbekleidung und Herrenschuhe.
+    const expected = [
+      ['0:204', '0:914', '0:62', '0:488'],
+      ['0:202', '0:912', '0:60', '0:486'],
+    ].find(
+      (values) =>
+        extras.length === values.length && extras.every((node) => values.includes(node.value)),
+    );
     if (
-      extras.length !== expected.length ||
+      !expected ||
       extras.some(
-        (node) =>
-          node.type !== 'checkbox' ||
-          node.getAttribute('data-includedfp') !== 'false' ||
-          !expected.includes(node.value),
+        (node) => node.type !== 'checkbox' || node.getAttribute('data-includedfp') !== 'false',
       ) ||
       new Set(extras.map((node) => node.value)).size !== expected.length
     )
