@@ -363,14 +363,14 @@ export function buildBrowserMatrix(plan) {
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // Fünf Gruppen mit je über 100 Fachfällen überschritten im Vinted-PR das
-      // 30-Minuten-Budget. Sechs Dateien je Gruppe lassen mehr Laufzeitreserve;
-      // Fallauswahl, Zeitlimits und kleine gezielte Pläne bleiben unverändert.
+      // Bei vier Gruppen mit je 110 Fällen erreichte eine im umfassenden eBay-Lauf
+      // das 30-Minuten-Budget. Mindestens sechs Gruppen halten auch beim Auslagern
+      // geänderter Dateien Reserve; große Dateimengen werden weiterhin feiner verteilt.
       const maxGroups =
         project === 'layout'
           ? 2
           : project === 'chromium'
-            ? Math.max(3, Math.ceil(files.length / 6))
+            ? Math.max(plan.full ? 6 : 3, Math.ceil(files.length / 6))
             : 3;
       const groups =
         (plan.full || (project === 'chromium' && files.length > 10)) && project !== 'core-smoke'

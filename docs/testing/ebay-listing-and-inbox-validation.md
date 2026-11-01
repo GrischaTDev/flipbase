@@ -61,6 +61,18 @@ der unveränderte Testkörper mit simulierten Kontoantworten ausgeführt; die
 originale Supabase-Testfixture im Repository bleibt erhalten. Der vollständige
 CI-Nachweis für die Korrektur steht weiterhin aus.
 
+Der zweite Lauf bestätigt alle 6.084 Anwendungstests in 562 Dateien sowie die
+korrigierten Dashboard- und eBay-Browserfälle. Drei allgemeine Chromium-Gruppen
+bestehen mit jeweils 110 Fällen; die vierte wird ohne gemeldeten Fachfehler am
+30-Minuten-Joblimit abgebrochen und zählt als unvollständig. Der vollständige
+Standardbereich wird deshalb bei genügend Dateien auf mindestens sechs Gruppen
+verteilt. Der neue Grenzfalltest reproduziert zunächst die zu kleine Aufteilung;
+anschließend bestehen 74 Auswahl-, Runner- und Freigabeprüfungen. Die tatsächliche
+Playwright-Auflistung enthält weiterhin exakt dieselben 440 eindeutigen Fälle,
+jetzt mit 74/74/73/73/73/73 Fällen pro Gruppe. Dies ist ein Verteilungsnachweis,
+keine lokale Ausführung der gesamten Browserregression. Die vollständige
+CI-Ausführung auf dem endgültigen Stand bleibt vor dem Merge erforderlich.
+
 Die lokale gemeinsame Supabase-Historie enthält die bestehende Migration
 `20261031064255_sniper_feed_freshness` noch nicht. Der rein lesende Abgleich
 bricht deshalb ab; keine zusätzliche Version vorhanden. Die Entwicklungsdatenbank

@@ -109,12 +109,15 @@ manuelle Regression behält sämtliche Varianten.
 
 Der Kern erhält eine Teilgruppe. Umfassende Layoutgruppen verwenden bis zu zwei,
 direkt geänderte Browserdateien bis zu drei Teilgruppen. Umfassende Fachgruppen
-verwenden zunächst bis zu drei; bei mehr als 30 Dateien wächst ihre Zahl auf eine
-Teilgruppe je zehn Dateien, aufgerundet. Jede Gruppe erhält höchstens so viele
-Teilgruppen wie Dateien; gezielte Fachgruppen verwenden weiterhin eine. Im
-tatsächlichen breiten CI-Lauf überschritten 118 Fachfälle einschließlich
-Vorbereitung das bestehende 30-Minuten-Jobbudget. Die kleinere Aufteilung lässt
-Reserve, ohne Fälle oder Zeitgrenzen zu verändern. Die echte Playwright-Auflistung
+verwenden bei genügend Dateien mindestens sechs; bei mehr als 36 Dateien wächst
+ihre Zahl auf eine Teilgruppe je sechs Dateien, aufgerundet. Jede Gruppe erhält
+höchstens so viele Teilgruppen wie Dateien. Gezielte Fachgruppen bis zehn Dateien
+verwenden eine; größere gezielte Auswahlen mindestens drei und darüber dieselbe
+Dateigrenze von sechs je Teilgruppe. Im eBay-Lauf enthielt der vollständige
+Standardbereich 440 Fälle in vier Gruppen mit jeweils 110 Fällen; eine Gruppe
+erreichte einschließlich Vorbereitung das bestehende 30-Minuten-Jobbudget.
+Sechs Gruppen verteilen dieselben 440 Fälle mit jeweils 73 oder 74 Fällen und
+erhalten die bestehenden Zeit- und Fehlergrenzen. Die echte Playwright-Auflistung
 prüft nichtleere Gruppen, vollständige Abdeckung ohne Duplikate und die Größe des
 breiten Referenzplans. Eine explizit übergebene Teilgruppe wird nicht nochmals
 aufgeteilt.

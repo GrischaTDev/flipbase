@@ -532,6 +532,17 @@ test('gezielte Fachauswahlen behalten kleine Jobs und teilen große Gruppen ohne
   }
 });
 
+test('umfassende Fachläufe behalten Reserve nach dem Auslagern geänderter Dateien', () => {
+  const files = Array.from({ length: 25 }, (_, index) => `e2e/feature-${index}.spec.ts`);
+  for (const browserFiles of [files, files.slice(1)]) {
+    const plan = { ...twoBrowserGroups, full: true, browserFiles, changedBrowserFiles: [files[0]] };
+    assert.deepEqual(
+      buildBrowserMatrix(plan).filter(({ project }) => project === 'chromium'),
+      Array.from({ length: 6 }, (_, index) => ({ project: 'chromium', shard: `${index + 1}/6` })),
+    );
+  }
+});
+
 test('der vollständige Vinted-PR verteilt seine 50 Fachdateien auf neun Gruppen', () => {
   const plan = {
     ...twoBrowserGroups,
@@ -575,7 +586,10 @@ test('große Fachauswahlen erhalten die bestehenden Kern-, Layout- und Änderung
     assert.deepEqual(buildBrowserMatrix(plan), [
       { project: 'core-smoke', shard: '1/1' },
       ...layout.map((shard) => ({ project: 'layout', shard })),
-      ...['1/3', '2/3', '3/3'].map((shard) => ({ project: 'chromium', shard })),
+      ...Array.from({ length: full ? 6 : 3 }, (_, index) => ({
+        project: 'chromium',
+        shard: `${index + 1}/${full ? 6 : 3}`,
+      })),
       ...changed.map((shard) => ({ project: 'changed-tests', shard })),
     ]);
   }
