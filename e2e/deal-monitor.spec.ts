@@ -524,7 +524,10 @@ for (const theme of ['light', 'dark'] as const) {
           (await page.locator('#feed-watchlist').boundingBox())!.height,
           0,
         );
-        await page.locator('#feed-brand').click();
+        // Per Tastatur öffnen: ein Mausklick ließe den Zeiger für die spätere
+        // AXE-Prüfung im Hover-Zustand über dem Feld stehen.
+        await page.locator('#feed-brand').focus();
+        await page.keyboard.press('Enter');
         await expect(page.getByRole('listbox')).toBeVisible();
         // Marken kommen nur aus den Bot-Filtern; eine Freitextsuche gibt es dort nicht.
         await expect(page.locator('[data-feed-filters] input[role="combobox"]')).toHaveCount(0);
