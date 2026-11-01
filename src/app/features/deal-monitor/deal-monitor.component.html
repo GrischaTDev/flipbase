@@ -13,214 +13,233 @@
     </p>
   }
 
-  <app-card data-feed-filters padding="sm" [overflowVisible]="true" rounded="xl">
-    <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-      <div
-        class="grid min-w-0 grid-cols-1 items-end gap-3 @min-[20rem]:grid-cols-2 @min-[36rem]:grid-cols-4 @min-[70rem]:grid-cols-8"
-      >
-        <div class="min-w-0 @min-[20rem]:col-span-2">
-          <label for="feed-title-search" class="mb-1 block text-sm">Artikel durchsuchen</label>
-          <app-custom-search-input
-            id="feed-title-search"
-            ariaLabel="Artikel im Titel durchsuchen"
-            placeholder="Stichwort im Titel …"
-            [maxLength]="200"
-            [value]="searchEntry()"
-            (searched)="searchChanged($event)"
-          />
-        </div>
-        <div
-          class="min-w-0 @min-[20rem]:col-span-2 @min-[36rem]:col-span-1 @min-[70rem]:col-span-2"
-        >
-          <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
-          ><app-custom-select
-            triggerId="feed-watchlist"
-            variant="toolbar"
-            placeholder="Alle Suchfilter"
-            ariaLabel="Suchfilter"
-            [options]="options()"
-            [(value)]="selected"
-          />
-        </div>
-        <div class="min-w-0">
-          <label for="feed-brand" class="mb-1 block text-sm">Marke</label>
-          <app-custom-select
-            triggerId="feed-brand"
-            variant="toolbar"
-            placeholder="Alle Marken"
-            ariaLabel="Nach Marke filtern"
-            [searchable]="true"
-            [options]="brandOptions()"
-            [(value)]="selectedBrand"
-          />
-        </div>
-        <div class="min-w-0">
-          <label for="feed-size" class="mb-1 block text-sm">Größe</label
-          ><app-custom-select
-            triggerId="feed-size"
-            variant="toolbar"
-            placeholder="Alle Größen"
-            ariaLabel="Größe filtern"
-            [options]="sizeOptions"
-            [(value)]="selectedSize"
-          />
-        </div>
-        <div class="min-w-0">
-          <label for="feed-min-price" class="mb-1 block text-sm">Min. Preis</label>
-          <app-number-input
-            id="feed-min-price"
-            ariaLabel="Mindestpreis in Euro"
-            [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
-            [ariaInvalid]="!!priceError()"
-            [showStepper]="false"
-            [min]="0"
-            [step]="0.01"
-            unit="€"
-            [(value)]="minPrice"
-          />
-        </div>
-        <div class="min-w-0">
-          <label for="feed-max-price" class="mb-1 block text-sm">Max. Preis</label>
-          <app-number-input
-            id="feed-max-price"
-            ariaLabel="Höchstpreis in Euro"
-            [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
-            [ariaInvalid]="!!priceError()"
-            [showStepper]="false"
-            [min]="0"
-            [step]="0.01"
-            unit="€"
-            [(value)]="maxPrice"
-          />
-        </div>
-      </div>
-      <div
-        class="ml-auto flex shrink-0 self-end border-l border-fb-line pl-2"
-        [class.invisible]="!filtersActive()"
-      >
-        <app-button
-          data-feed-filter-reset
-          variant="ghost"
-          size="lg"
-          [icon]="resetIcon"
-          [iconOnly]="true"
-          [disabled]="!filtersActive()"
-          ariaLabel="Filter zurücksetzen"
-          title="Filter zurücksetzen"
-          (clicked)="resetFilters()"
-        />
-      </div>
-    </div>
-  </app-card>
-  @if (priceError(); as text) {
-    <p id="feed-price-error" role="alert" class="text-sm text-fb-critical">{{ text }}</p>
-  }
-  @if (brandError(); as text) {
-    <p role="alert">{{ text }} <app-button (clicked)="loadBrands()">Erneut laden</app-button></p>
-  }
-
-  @if (favorites.error(); as message) {
-    <p role="alert" class="text-sm text-fb-critical">
-      {{ message }} <app-button (clicked)="favorites.refresh()">Favoriten erneut laden</app-button>
-    </p>
-  }
-  @if (state.error(); as text) {
-    <p role="alert">{{ text }} <app-button (clicked)="state.refresh()">Erneut laden</app-button></p>
-  }
-  @if (state.loaded()) {
-    @if (!state.covered()) {
-      <app-card variant="subtle"
-        ><p class="text-sm">
-          Für diesen Bereich sammelt der Monitor noch nicht. Die Administration muss einen passenden
-          Sammelauftrag aktivieren.
-        </p></app-card
-      >
-    } @else if (stale()) {
-      <app-card variant="subtle"
-        ><p class="text-sm">
-          Der Bot meldet sich zurzeit nicht aktuell. Gespeicherte Artikel bleiben sichtbar; neue
-          Funde können fehlen.
-        </p></app-card
-      >
-    }
-    @if (selectedWatchlist()?.is_active === false) {
-      <p class="text-sm">
-        Dieser Suchfilter ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
-        sichtbar.
-      </p>
-    }
-    @if (state.newCount() > 0) {
-      <app-card variant="subtle"
-        ><div class="flex flex-wrap items-center justify-between gap-3">
-          <p role="status">
-            {{ state.newCount() }}{{ state.newCount() === 60 ? '+' : '' }} neue Artikel warten.
-          </p>
-          <app-button (clicked)="state.resume()">Neue Funde anzeigen</app-button>
-        </div></app-card
-      >
-    }
-    @if (feedItems().length === 0) {
-      <app-card
-        ><h2 class="text-base font-semibold">
-          @if (filtersActive()) {
-            Keine Artikel für diese Filter gefunden
-          } @else {
-            Noch keine passenden Artikel
-          }
-        </h2>
-        <p class="mt-2 text-sm text-fb-text-secondary">
-          @if (filtersActive()) {
-            Passe Suchwort, Marke, Größe oder Preis an. Der Feed durchsucht die gespeicherten Funde
-            der letzten 3 Tage.
-          } @else {
-            Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Du kannst auch
-            einen anderen Suchfilter oder eine andere Marke wählen.
-          }
-        </p></app-card
-      >
-    } @else {
-      <section aria-labelledby="feed-finds-title" (focusin)="state.pause()">
-        <div class="mb-3 flex flex-wrap items-center justify-end gap-2">
-          <h2 id="feed-finds-title" class="sr-only">Artikel im Vinted Feed</h2>
-          <div class="flex items-center gap-3">
-            <p class="text-xs text-fb-text-muted">Letzte 3 Tage</p>
-            <app-button
-              [variant]="compact() ? 'primary' : 'secondary'"
-              [icon]="compactIcon"
-              [ariaPressed]="compact()"
-              ariaControls="feed-finds-grid"
-              (clicked)="toggleCompact()"
-              >Kompakt</app-button
-            >
-          </div>
-        </div>
-        <div class="space-y-4">
+  <!-- Bei genug Breite stehen die Filter links neben den Funden, sonst darüber. -->
+  <div
+    class="grid min-w-0 gap-4 @min-[60rem]:grid-cols-[18rem_minmax(0,1fr)] @min-[60rem]:items-start"
+  >
+    <aside
+      aria-label="Feed filtern"
+      class="@container flex min-w-0 flex-col gap-2 @min-[60rem]:top-20 [@media(min-height:44rem)]:@min-[60rem]:sticky"
+    >
+      <app-card data-feed-filters padding="sm" [overflowVisible]="true" rounded="xl">
+        <!-- Schmal (Seitenspalte, kleine Handys) steht „Zurücksetzen“ neben der Checkbox,
+             damit die Felder die volle Breite bekommen. -->
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
           <div
-            id="feed-finds-grid"
-            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+            class="grid min-w-0 grid-cols-1 items-end gap-3 @max-[20rem]:col-span-2 @min-[20rem]:grid-cols-2 @min-[36rem]:grid-cols-4 @min-[70rem]:grid-cols-8"
           >
-            @for (item of feedItems(); track item.id) {
-              <app-deal-card
-                class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
-                [item]="item"
-                [compact]="compact()"
-                (inspect)="selectedDeal.set($event)"
+            <div class="min-w-0 @min-[20rem]:col-span-2">
+              <label for="feed-title-search" class="mb-1 block text-sm">Artikel durchsuchen</label>
+              <app-custom-search-input
+                id="feed-title-search"
+                variant="toolbar"
+                size="sm"
+                ariaLabel="Artikel im Titel durchsuchen"
+                placeholder="Stichwort im Titel …"
+                [maxLength]="200"
+                [value]="searchEntry()"
+                (searched)="searchChanged($event)"
               />
-            }
+            </div>
+            <div
+              class="min-w-0 @min-[20rem]:col-span-2 @min-[36rem]:col-span-1 @min-[70rem]:col-span-2"
+            >
+              <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
+              ><app-custom-select
+                triggerId="feed-watchlist"
+                variant="toolbar"
+                placeholder="Alle Suchfilter"
+                ariaLabel="Suchfilter"
+                [options]="options()"
+                [(value)]="selected"
+              />
+            </div>
+            <div class="min-w-0">
+              <label for="feed-brand" class="mb-1 block text-sm">Marke</label>
+              <app-custom-select
+                triggerId="feed-brand"
+                variant="toolbar"
+                placeholder="Alle Marken"
+                ariaLabel="Nach Marke filtern"
+                [options]="brandOptions()"
+                [(value)]="selectedBrand"
+              />
+            </div>
+            <div class="min-w-0">
+              <label for="feed-size" class="mb-1 block text-sm">Größe</label
+              ><app-custom-select
+                triggerId="feed-size"
+                variant="toolbar"
+                placeholder="Alle Größen"
+                ariaLabel="Größe filtern"
+                [options]="sizeOptions"
+                [(value)]="selectedSize"
+              />
+            </div>
+            <div class="min-w-0">
+              <label for="feed-min-price" class="mb-1 block text-sm">Min. Preis</label>
+              <app-number-input
+                id="feed-min-price"
+                ariaLabel="Mindestpreis in Euro"
+                [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
+                [ariaInvalid]="!!priceError()"
+                [showStepper]="false"
+                [min]="0"
+                [step]="0.01"
+                unit="€"
+                [(value)]="minPrice"
+              />
+            </div>
+            <div class="min-w-0">
+              <label for="feed-max-price" class="mb-1 block text-sm">Max. Preis</label>
+              <app-number-input
+                id="feed-max-price"
+                ariaLabel="Höchstpreis in Euro"
+                [ariaDescribedby]="priceError() ? 'feed-price-error' : ''"
+                [ariaInvalid]="!!priceError()"
+                [showStepper]="false"
+                [min]="0"
+                [step]="0.01"
+                unit="€"
+                [(value)]="maxPrice"
+              />
+            </div>
+          </div>
+          <div
+            class="ml-auto flex shrink-0 self-end border-l border-fb-line pl-2 @max-[20rem]:col-start-2 @max-[20rem]:row-start-2 @max-[20rem]:self-center @max-[20rem]:border-l-0 @max-[20rem]:pl-0"
+            [class.invisible]="!filtersActive()"
+          >
+            <app-button
+              data-feed-filter-reset
+              variant="ghost"
+              size="lg"
+              [icon]="resetIcon"
+              [iconOnly]="true"
+              [disabled]="!filtersActive()"
+              ariaLabel="Filter zurücksetzen"
+              title="Filter zurücksetzen"
+              (clicked)="resetFilters()"
+            />
+          </div>
+          <div
+            data-feed-slow-mode
+            class="col-span-2 min-w-0 self-center @max-[20rem]:col-span-1 @max-[20rem]:row-start-2"
+          >
+            <app-custom-checkbox
+              label="Langsamer Modus"
+              ariaLabel="Langsamer Modus: neue Funde einzeln einschieben"
+              [checked]="slowMode()"
+              (checkedChange)="slowModeChanged($event)"
+            />
+            <p class="mt-1 text-xs text-fb-text-secondary">
+              Neue Funde rücken einzeln von links nach, damit keiner untergeht.
+            </p>
           </div>
         </div>
-      </section>
-      @if (state.hasMore()) {
-        <div class="flex justify-center">
-          <app-button [loading]="state.loading()" (clicked)="state.refresh(true)"
-            >Ältere Artikel laden</app-button
-          >
-        </div>
+      </app-card>
+      @if (priceError(); as text) {
+        <p id="feed-price-error" role="alert" class="text-sm text-fb-critical">{{ text }}</p>
       }
-    }
-  } @else if (state.loading()) {
-    <p role="status">Artikel werden geladen …</p>
-  }
+      @if (brandError(); as text) {
+        <p role="alert">
+          {{ text }} <app-button (clicked)="loadBrands()">Erneut laden</app-button>
+        </p>
+      }
+    </aside>
+
+    <div class="@container flex min-w-0 flex-col gap-4">
+      @if (favorites.error(); as message) {
+        <p role="alert" class="text-sm text-fb-critical">
+          {{ message }}
+          <app-button (clicked)="favorites.refresh()">Favoriten erneut laden</app-button>
+        </p>
+      }
+      @if (state.error(); as text) {
+        <p role="alert">
+          {{ text }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
+        </p>
+      }
+      @if (state.loaded()) {
+        @if (!state.covered()) {
+          <app-card variant="subtle"
+            ><p class="text-sm">
+              Für diesen Bereich sammelt der Monitor noch nicht. Die Administration muss einen
+              passenden Sammelauftrag aktivieren.
+            </p></app-card
+          >
+        } @else if (stale()) {
+          <app-card variant="subtle"
+            ><p class="text-sm">
+              Der Bot meldet sich zurzeit nicht aktuell. Gespeicherte Artikel bleiben sichtbar; neue
+              Funde können fehlen.
+            </p></app-card
+          >
+        }
+        @if (selectedWatchlist()?.is_active === false) {
+          <p class="text-sm">
+            Dieser Suchfilter ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
+            sichtbar.
+          </p>
+        }
+        @if (state.newCount() > 0) {
+          <app-card variant="subtle"
+            ><div class="flex flex-wrap items-center justify-between gap-3">
+              <p role="status">
+                {{ state.newCount() }}{{ state.newCount() === 60 ? '+' : '' }} neue Artikel warten.
+              </p>
+              <app-button (clicked)="state.resume()">Neue Funde anzeigen</app-button>
+            </div></app-card
+          >
+        }
+        @if (feedItems().length === 0) {
+          <app-card
+            ><h2 class="text-base font-semibold">
+              @if (filtersActive()) {
+                Keine Artikel für diese Filter gefunden
+              } @else {
+                Noch keine passenden Artikel
+              }
+            </h2>
+            <p class="mt-2 text-sm text-fb-text-secondary">
+              @if (filtersActive()) {
+                Passe Suchwort, Marke, Größe oder Preis an. Der Feed durchsucht die gespeicherten
+                Funde der letzten 3 Tage.
+              } @else {
+                Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Du kannst auch
+                einen anderen Suchfilter oder eine andere Marke wählen.
+              }
+            </p></app-card
+          >
+        } @else {
+          <section aria-labelledby="feed-finds-title" (focusin)="state.pause()">
+            <h2 id="feed-finds-title" class="sr-only">Artikel im Vinted Feed</h2>
+            <div
+              id="feed-finds-grid"
+              class="grid grid-cols-1 gap-4 @min-[30rem]:grid-cols-2 @min-[46rem]:grid-cols-3 @min-[62rem]:grid-cols-4 @min-[78rem]:grid-cols-5"
+            >
+              @for (item of feedItems(); track item.id) {
+                <app-deal-card
+                  class="motion-safe:transition motion-safe:starting:opacity-0"
+                  [class]="cardMotion()"
+                  [item]="item"
+                  (inspect)="selectedDeal.set($event)"
+                />
+              }
+            </div>
+          </section>
+          @if (state.hasMore()) {
+            <div class="flex justify-center">
+              <app-button [loading]="state.loading()" (clicked)="state.refresh(true)"
+                >Ältere Artikel laden</app-button
+              >
+            </div>
+          }
+        }
+      } @else if (state.loading()) {
+        <p role="status">Artikel werden geladen …</p>
+      }
+    </div>
+  </div>
 </section>
 @if (selectedDeal(); as deal) {
   <app-deal-detail-modal [item]="deal" (closed)="selectedDeal.set(null)" />

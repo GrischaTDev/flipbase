@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DealFeedState } from './deal-feed-state';
+import { DealFeedState, SLOW_MODE_STEP_MS } from './deal-feed-state';
 import {
   FeedItem,
   FeedPage,
@@ -45,6 +45,97 @@ const settle = async () => {
   await Promise.resolve();
   await Promise.resolve();
 };
+
+const seenAt = (id: string, minute: number): FeedItem => ({
+  ...item(id),
+  first_seen_at: `2026-09-12T12:${String(minute).padStart(2, '0')}:00Z`,
+});
+const ids = (items: FeedItem[]) => items.map((entry) => entry.id);
+
+describe('DealFeedState im langsamen Modus', () => {
+  it('schiebt neue Funde einzeln nach, ältester zuerst', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(page([seenAt('old', 1)]))
+        .mockResolvedValue(
+          page([seenAt('c', 4), seenAt('b', 3), seenAt('a', 2), seenAt('old', 1)]),
+        );
+      const state = new DealFeedState(fetch);
+      state.setSlowMode(true);
+      state.setContext(context);
+      await settle();
+      await state.refresh();
+      expect(ids(state.items())).toEqual(['old']);
+      expect(ids(state.queued())).toEqual(['c', 'b', 'a']);
+      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
+      expect(ids(state.items())).toEqual(['a', 'old']);
+      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
+      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
+      expect(ids(state.items())).toEqual(['c', 'b', 'a', 'old']);
+      expect(state.queued()).toEqual([]);
+      // Ein erneuter Abruf derselben Seite stellt nichts doppelt an.
+      await state.refresh();
+      expect(state.queued()).toEqual([]);
+      expect(ids(state.items())).toEqual(['c', 'b', 'a', 'old']);
+      state.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hält während der Pause an und zeigt beim Ausschalten alles sofort', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(page([seenAt('old', 1)]))
+        .mockResolvedValue(page([seenAt('b', 3), seenAt('a', 2), seenAt('old', 1)]));
+      const state = new DealFeedState(fetch);
+      state.setSlowMode(true);
+      state.setContext(context);
+      await settle();
+      await state.refresh();
+      state.pause();
+      vi.advanceTimersByTime(SLOW_MODE_STEP_MS * 3);
+      expect(ids(state.items())).toEqual(['old']);
+      expect(ids(state.queued())).toEqual(['b', 'a']);
+      state.setSlowMode(false);
+      expect(ids(state.items())).toEqual(['b', 'a', 'old']);
+      expect(state.queued()).toEqual([]);
+      state.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('verwirft wartende Funde beim Filterwechsel und zeigt den ersten Stand sofort', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(page([seenAt('old', 1)]))
+        .mockResolvedValueOnce(page([seenAt('a', 2), seenAt('old', 1)]))
+        .mockResolvedValue(page([seenAt('other', 5), seenAt('x', 4)]));
+      const state = new DealFeedState(fetch);
+      state.setSlowMode(true);
+      state.setContext(context);
+      await settle();
+      await state.refresh();
+      expect(ids(state.queued())).toEqual(['a']);
+      state.setContext({ ...context, brand: 'Nike' });
+      await settle();
+      expect(state.queued()).toEqual([]);
+      expect(ids(state.items())).toEqual(['other', 'x']);
+      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
+      expect(ids(state.items())).toEqual(['other', 'x']);
+      state.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe('DealFeedState', () => {
   it('bündelt Hinweise während eines Abrufs zu einem anschließenden Abgleich ohne parallele Abfragen', async () => {
