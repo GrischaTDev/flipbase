@@ -33,7 +33,7 @@ export function requireEbayImageUrl(imageUrl: unknown): string {
   if (!new URL(result).hostname.endsWith('.ebayimg.com')) throw new EbayError('invalid_request');
   return result;
 }
-function requireHttpsImageUrl(imageUrl: unknown): string {
+export function requireHttpsImageUrl(imageUrl: unknown): string {
   if (typeof imageUrl !== 'string' || imageUrl.length > 2048)
     throw new EbayError('invalid_request');
   try {

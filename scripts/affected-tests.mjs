@@ -108,6 +108,8 @@ function browserSpecs(file, files) {
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (/ebay/u.test(file))
+      return ['ebay-workspace', 'ebay-order-import', 'marketplace-accounts', 'settings-layout'];
     if (/vinted-action-overview/u.test(file)) return ['vinted-action-overview'];
     if (/vinted-profile|vinted-feedback-list/u.test(file)) return ['vinted-profile'];
     if (/vinted-provider-drafts|vinted-listing-copy/u.test(file))
@@ -134,7 +136,6 @@ function browserSpecs(file, files) {
         'vinted-negotiation',
         'vinted-action-overview',
       ];
-    if (/ebay/u.test(file)) return ['ebay-order-import', 'marketplace-accounts', 'settings-layout'];
     return Object.keys(files)
       .filter((path) => /^e2e\/(?:vinted|marketplace)[^/]*\.spec\.ts$/u.test(path))
       .map((path) => posix.basename(path, '.spec.ts'));
@@ -362,14 +363,14 @@ export function buildBrowserMatrix(plan) {
   ]
     .filter(({ files }) => files.length)
     .flatMap(({ project, files }) => {
-      // Fünf Gruppen mit je über 100 Fachfällen überschritten im Vinted-PR das
-      // 30-Minuten-Budget. Sechs Dateien je Gruppe lassen mehr Laufzeitreserve;
-      // Fallauswahl, Zeitlimits und kleine gezielte Pläne bleiben unverändert.
+      // Bei vier Gruppen mit je 110 Fällen erreichte eine im umfassenden eBay-Lauf
+      // das 30-Minuten-Budget. Mindestens sechs Gruppen halten auch beim Auslagern
+      // geänderter Dateien Reserve; große Dateimengen werden weiterhin feiner verteilt.
       const maxGroups =
         project === 'layout'
           ? 2
           : project === 'chromium'
-            ? Math.max(3, Math.ceil(files.length / 6))
+            ? Math.max(plan.full ? 6 : 3, Math.ceil(files.length / 6))
             : 3;
       const groups =
         (plan.full || (project === 'chromium' && files.length > 10)) && project !== 'core-smoke'

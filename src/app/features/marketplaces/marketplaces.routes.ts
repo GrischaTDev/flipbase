@@ -1,7 +1,7 @@
 import type { Routes } from '@angular/router';
 import { marketplaceAccessGuard } from './guards/marketplace-access.guard';
 import { vintedListingEditorGuard } from './guards/vinted-listing-editor.guard';
-import { ebayListingEditorGuard } from './guards/ebay-listing-editor.guard';
+import { ebayUnsavedChangesGuard } from './guards/ebay-unsaved-changes.guard';
 
 export const MARKETPLACES_ROUTES: Routes = [
   { path: '', redirectTo: 'overview', pathMatch: 'full' },
@@ -19,9 +19,25 @@ export const MARKETPLACES_ROUTES: Routes = [
     children: [
       { path: '', redirectTo: 'listings', pathMatch: 'full' },
       {
+        path: 'listings/new',
+        canDeactivate: [ebayUnsavedChangesGuard],
+        loadComponent: () =>
+          import('./components/ebay-listing-create/ebay-listing-create.component').then(
+            (module) => module.EbayListingCreateComponent,
+          ),
+      },
+      {
+        path: 'messages',
+        canDeactivate: [ebayUnsavedChangesGuard],
+        loadComponent: () =>
+          import('./components/ebay-messages/ebay-messages.component').then(
+            (module) => module.EbayMessagesComponent,
+          ),
+      },
+      {
         path: 'listings/:listingId/edit',
         runGuardsAndResolvers: 'paramsOrQueryParamsChange',
-        canDeactivate: [ebayListingEditorGuard],
+        canDeactivate: [ebayUnsavedChangesGuard],
         loadComponent: () =>
           import('./components/ebay-listing-editor/ebay-listing-editor.component').then(
             (module) => module.EbayListingEditorComponent,

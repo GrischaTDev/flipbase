@@ -28,6 +28,11 @@
         store.connection()?.status === 'connected'
       ) {
         <div header-actions class="flex flex-wrap gap-2">
+          @if (page() === 'listings') {
+            <app-button variant="primary" [icon]="addIcon" link="/marketplaces/ebay/listings/new"
+              >Inserat erstellen</app-button
+            >
+          }
           <app-button
             [icon]="refreshIcon"
             [loading]="store.isReading() || store.trafficLoading()"
