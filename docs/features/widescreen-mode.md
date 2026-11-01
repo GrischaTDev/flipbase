@@ -24,16 +24,15 @@ Für sehr breite Bildschirme, zum Beispiel einen 49-Zoll-Monitor im 32:9-Format
   verwaltet die Suchen, jede Suche ist eine eigene `DealFeedSearchComponent`
   mit eigenem Abruf. Weitere Suchen hängen ihre Nummer an die Feld-IDs an
   (`feed-min-price-2`).
+- **Datenquelle:** Der Feed liest nur aus unserer Datenbank (`sniper_feed_search`);
+  Vinted und der Bot werden dabei nicht abgefragt, gefiltert wird in der
+  Datenbankfunktion. Jede Suche schaut alle zwei Sekunden nach neuen Funden,
+  das ist für die Datenbank eine kleine Abfrage.
 
 ## Offen
 
 - **Suchen merken:** Zusätzliche Suchen und ihre Filter gehen beim Neuladen der
   Seite verloren (wie die Filter der einzelnen Suche bisher auch).
-- **Abfragelast:** Der Feed liest nur aus unserer Datenbank (`sniper_feed_search`);
-  Vinted und der Bot werden dabei nicht abgefragt, gefiltert wird in der
-  Datenbankfunktion. Jede Suche liest alle zwei Sekunden selbst nach, bei vier
-  Suchen also vier kleine Datenbankabfragen statt einer. Erst bei spürbarer Last
-  bündeln.
 - **Weitere Seiten:** Alle übrigen Seiten nutzen im Widescreen-Modus bisher nur
   die volle Breite und müssen einzeln angepasst werden.
 
