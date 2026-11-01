@@ -394,6 +394,54 @@ test('Postfach trennt eBay/Mitglieder und baut Pagination aus Zahlen statt fremd
   assert.equal(page.conversations[0]?.latestMessage?.text, providerMessage.messageBody);
   assert.throws(() => requireConversationType('SYSTEM'), code('invalid_request'));
 });
+test('Mitgliederpostfach akzeptiert Gespräche ohne optionalen Anbietertitel', async () => {
+  const page = await readEbayInbox(config, 't', 'FROM_MEMBERS', 0, false, async () =>
+    json({
+      conversations: [
+        {
+          conversationId: 'c1',
+          conversationType: 'FROM_MEMBERS',
+          unreadCount: 1,
+          latestMessage: providerMessage,
+        },
+        {
+          conversationId: 'c2',
+          conversationType: 'FROM_MEMBERS',
+          conversationTitle: 'Wollschal',
+          unreadCount: 0,
+          latestMessage: providerMessage,
+        },
+      ],
+      total: 3,
+    }),
+  );
+  assert.equal(page.conversations[0]?.title, 'Unterhaltung');
+  assert.equal(page.conversations[1]?.title, 'Wollschal');
+  assert.equal(page.conversations[0]?.latestMessage?.text, providerMessage.messageBody);
+  assert.equal(page.nextOffset, 2);
+  assert.equal(page.total, 3);
+});
+test('Vorhandene Postfachtitel mit falschem Datentyp bleiben ungültig', async () => {
+  for (const conversationTitle of [null, 42, {}, []]) {
+    await assert.rejects(
+      readEbayInbox(config, 't', 'FROM_MEMBERS', 0, false, async () =>
+        json({
+          conversations: [
+            {
+              conversationId: 'c1',
+              conversationType: 'FROM_MEMBERS',
+              conversationTitle,
+              unreadCount: 0,
+              latestMessage: providerMessage,
+            },
+          ],
+          total: 1,
+        }),
+      ),
+      code('invalid_response'),
+    );
+  }
+});
 test('Leere Zwischenseiten und falscher Gesprächstyp sind keine erfolgreiche Abnahme', async () => {
   await assert.rejects(
     readEbayConversation(config, 't', 'c1', 'FROM_MEMBERS', 0, async () =>

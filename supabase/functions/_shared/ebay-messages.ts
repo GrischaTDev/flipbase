@@ -121,7 +121,8 @@ export async function readEbayInbox(
     return {
       id: text(item.conversationId),
       type,
-      title: text(item.conversationTitle),
+      // Mitgliedergespräche können ohne den optionalen Gesprächsttitel zurückkommen.
+      title: item.conversationTitle === undefined ? 'Unterhaltung' : text(item.conversationTitle),
       unreadCount: count(item.unreadCount),
       listingId:
         item.referenceType === 'LISTING' && /^\d{1,20}$/.test(String(item.referenceId))

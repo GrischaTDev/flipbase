@@ -261,6 +261,45 @@ test('Bestätigte Erstellung bleibt bei einem anschließenden Cachefehler erfolg
   assert.equal((await result.json()).listingId, '123');
   assert.deepEqual(modes, ['VALIDATE', 'VALIDATE', 'EXECUTE']);
 });
+test('Postfach liefert titellose Mitgliedergespräche mit unveränderter Kontobindung', async () => {
+  let calls = 0;
+  const handler = createEbayAccountHandler(
+    await connectedStore(),
+    config,
+    config.allowedOrigins,
+    async (url, init) => {
+      calls++;
+      assert.equal(new URL(String(url)).pathname, '/commerce/message/v1/conversation');
+      assert.equal(init?.method, 'GET');
+      return Response.json({
+        conversations: [
+          {
+            conversationId: 'c1',
+            conversationType: 'FROM_MEMBERS',
+            unreadCount: 1,
+            latestMessage: {
+              messageId: 'm1',
+              createdDate: '2026-11-01T10:00:00Z',
+              messageBody: 'Ist der Schal noch da?',
+              senderUsername: 'buyer',
+              recipientUsername: 'seller',
+            },
+          },
+        ],
+        total: 1,
+      });
+    },
+  );
+  const response = await handler(request('inbox', { connectionId, type: 'FROM_MEMBERS' }));
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.workspaceId, workspaceId);
+  assert.equal(result.connectionId, connectionId);
+  assert.equal(result.conversations[0].title, 'Unterhaltung');
+  assert.equal(result.conversations[0].latestMessage.text, 'Ist der Schal noch da?');
+  assert.equal(result.nextOffset, null);
+  assert.equal(calls, 1);
+});
 test('Geänderte Kontorechte während des Gesprächsabrufs verhindern den Versand', async () => {
   let changed = false,
     calls = 0;
