@@ -692,6 +692,63 @@ for (const theme of ['light', 'dark'] as const) {
   }
 }
 
+test('Widescreen-Modus teilt den Feed auf einem 49-Zoll-Bildschirm in mehrere Suchen @pr-smoke', async ({
+  page,
+}, testInfo) => {
+  // 49 Zoll im 32:9-Format, zum Beispiel 5120 × 1440 Pixel.
+  await page.setViewportSize({ width: 5120, height: 1440 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => localStorage.setItem('flipbase_widescreen', 'true'));
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+  await fixture(page);
+  await page.goto('/vinted-bot');
+  await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
+  await expect(page.getByRole('article')).toHaveCount(8);
+
+  const cardsIn = (search: number) =>
+    page
+      .locator('app-deal-feed-search')
+      .nth(search)
+      .getByRole('article')
+      .evaluateAll((articles) =>
+        articles.map((article) => {
+          const { x, y, width } = article.getBoundingClientRect();
+          return { x, y, width };
+        }),
+      );
+  const columnsIn = (search: number) =>
+    page
+      .locator('app-deal-feed-search')
+      .nth(search)
+      .locator('[id^="feed-finds-grid"]')
+      .evaluate((grid) => getComputedStyle(grid).gridTemplateColumns.split(' ').length);
+  // Eine Suche nutzt die ganze Breite: alle Funde in einer Reihe, Platz für viele weitere.
+  const single = await cardsIn(0);
+  expect(single.every((card) => Math.abs(card.y - single[0].y) < 1)).toBe(true);
+  expect(await columnsIn(0)).toBeGreaterThanOrEqual(15);
+
+  await page.getByRole('button', { name: 'Weitere Suche hinzufügen', exact: true }).click();
+  await expect(page.locator('app-deal-feed-search')).toHaveCount(2);
+  await expect(page.getByRole('article')).toHaveCount(16);
+  const [first, second] = [await cardsIn(0), await cardsIn(1)];
+  const secondFilters = await page.locator('[data-feed-filters]').nth(1).boundingBox();
+  // Die zweite Suche beginnt mit ihren Filtern rechts neben den Funden der ersten.
+  expect(first.at(-1)!.x + first.at(-1)!.width).toBeLessThanOrEqual(secondFilters!.x);
+  expect(secondFilters!.x).toBeGreaterThan(2400);
+  expect(second[0].x).toBeGreaterThan(secondFilters!.x + secondFilters!.width);
+  expect(first[0].width).toBeGreaterThanOrEqual(220);
+  expect(await columnsIn(0)).toBeGreaterThanOrEqual(7);
+  expect(await columnsIn(1)).toBe(await columnsIn(0));
+  await expect(page.locator('#feed-min-price-2')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('feed-widescreen-two-searches.png') });
+  await checkAxe(page);
+
+  await page.getByRole('button', { name: 'Suche 2 entfernen', exact: true }).click();
+  await expect(page.locator('app-deal-feed-search')).toHaveCount(1);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('Account-Favoriten bleiben auf Tablet und Desktop nach Feed-Bereinigung erhalten @core-smoke', async ({
   page,
   browser,

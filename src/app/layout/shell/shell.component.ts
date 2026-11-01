@@ -26,7 +26,9 @@ export class ShellComponent {
   private readonly workspaceContext = inject(WorkspaceContextLockService);
 
   private readonly pageLayout = inject(PageLayoutService);
-  readonly contentMaxWidth = computed(() => pageContentMaxWidth(this.pageLayout.width()));
+  readonly contentMaxWidth = computed(() =>
+    this.pageLayout.widescreen() ? null : pageContentMaxWidth(this.pageLayout.width()),
+  );
 
   readonly isSidebarOpen = signal<boolean>(false);
   readonly isCreateWorkspaceModalOpen = signal<boolean>(false);

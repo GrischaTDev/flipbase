@@ -19,6 +19,17 @@ describe('PageLayoutService', () => {
     expect(new PageLayoutService().width()).toBe('medium');
   });
 
+  it('merkt sich den Widescreen-Modus und beendet ihn bei einer gewählten Breite', () => {
+    localStorage.removeItem('flipbase_widescreen');
+    const layout = new PageLayoutService();
+    expect(layout.widescreen()).toBe(false);
+    layout.setWidescreen(true);
+    expect(new PageLayoutService().widescreen()).toBe(true);
+    layout.setWidth('narrow');
+    expect(layout.widescreen()).toBe(false);
+    expect(new PageLayoutService().widescreen()).toBe(false);
+  });
+
   it('verwirft unbekannte gespeicherte Werte', () => {
     localStorage.setItem('flipbase_page_width', 'invalid');
     expect(new PageLayoutService().width()).toBe('medium');
