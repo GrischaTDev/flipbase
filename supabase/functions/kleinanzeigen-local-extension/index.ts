@@ -28,6 +28,15 @@ async function executionRpc(name: string, args: Record<string, unknown>): Promis
 }
 Deno.serve(
   createKleinanzeigenExtensionHandler({
+    async maintain(hash, input) {
+      return await executionRpc('kleinanzeigen_maintain_connection', {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: hash,
+        p_generation: input.generation,
+        p_external_account_id: input.externalAccountId,
+      });
+    },
     async job(hash, input) {
       const args: Record<string, unknown> = {
         p_workspace_id: input.workspaceId,

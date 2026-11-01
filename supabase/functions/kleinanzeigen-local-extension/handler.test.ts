@@ -20,6 +20,34 @@ const result = {
   canPublish: false,
   expiresAt: '2026-10-17T06:00:00Z',
 };
+
+test('maintains only the verified installation and validates the automatic sync scope', async () => {
+  const body = { ...scope, action: 'maintain', externalAccountId: '123' };
+  const run = { ...scope, runId: '42', state: 'queued' };
+  const handler = createKleinanzeigenExtensionHandler({
+    session: async () => assert.fail('not a heartbeat'),
+    maintain: async (hash, input) => {
+      assert.equal(hash.length, 64);
+      assert.notEqual(hash, secret);
+      assert.equal(input.externalAccountId, '123');
+      return { session: result, run };
+    },
+  });
+  assert.equal((await handler(request(body))).status, 200);
+  for (const reply of [
+    { session: { ...result, externalAccountId: '456' }, run },
+    { session: result, run: { ...run, generation: 2 } },
+    { session: result, run: { ...run, workspaceId: 'other' } },
+    { session: result, run, tokenHash: secret },
+  ]) {
+    const invalid = createKleinanzeigenExtensionHandler({
+      session: async () => result,
+      maintain: async () => reply,
+    });
+    assert.equal((await invalid(request(body))).status, 502);
+  }
+  assert.equal((await handler(request({ ...body, canPublish: true }))).status, 400);
+});
 test('passes only the hash and exact string IDs to the installation store', async () => {
   let received = false;
   const handler = createKleinanzeigenExtensionHandler({

@@ -39,10 +39,17 @@ export const MARKETPLACES_ROUTES: Routes = [
   },
   {
     path: 'kleinanzeigen',
-    loadComponent: () =>
-      import('./components/kleinanzeigen-workspace/kleinanzeigen-workspace.component').then(
-        (m) => m.KleinanzeigenWorkspaceComponent,
-      ),
+    children: [
+      { path: '', redirectTo: 'overview', pathMatch: 'full' },
+      ...['overview', 'listings', 'inbox', 'connection'].map((page) => ({
+        path: page,
+        data: { page },
+        loadComponent: () =>
+          import('./components/kleinanzeigen-workspace/kleinanzeigen-workspace.component').then(
+            (m) => m.KleinanzeigenWorkspaceComponent,
+          ),
+      })),
+    ],
   },
   {
     path: 'vinted',

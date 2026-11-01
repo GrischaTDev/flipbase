@@ -9,9 +9,39 @@ export async function mockKleinanzeigen(
     available?: boolean;
     connectionStatus?: 'connected' | 'needs_login';
     publishingAllowed?: boolean;
+    relisting?: boolean;
   } = {},
 ) {
   await mockMarketplaceOverview(page);
+  if (options.relisting) {
+    await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+      route.fulfill({ json: { items: [] } }),
+    );
+    await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({
+        json: {
+          ok: true,
+          workspaceId: body['p_workspace_id'],
+          connectionId: body['p_connection_id'],
+          actions: [],
+        },
+      });
+    });
+    await page.route('**/auth/v1/user', (route) =>
+      route.fulfill({
+        json: {
+          id: '25000000-0000-4000-8000-000000000001',
+          email: 'marketplace@example.test',
+          aud: 'authenticated',
+          role: 'authenticated',
+          app_metadata: {},
+          user_metadata: { flipbase_action_overview: true },
+          created_at: '2026-09-26T00:00:00Z',
+        },
+      }),
+    );
+  }
   const observedAt = '2026-10-16T06:00:00Z';
   const expiresAt = new Date(Date.now() + 86400000).toISOString();
   const requests: Record<string, unknown>[] = [];
@@ -59,9 +89,30 @@ export async function mockKleinanzeigen(
     canPublish: options.publishingAllowed ?? false,
   };
   await page.addInitScript(
-    ({ binding, available, syncFailure }) => {
+    ({ binding, available, syncFailure, relisting }) => {
       let local: Record<string, unknown> | null = binding;
+      let pendingRelisting: Record<string, unknown> | null = null;
       const send = (data: Record<string, unknown>) => window.postMessage(data, location.origin);
+      window.addEventListener('flipbase-test-relist-complete', (event) => {
+        if (!pendingRelisting) return;
+        const outcome = (event as CustomEvent<string>).detail;
+        send({
+          type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+          requestId: pendingRelisting['requestId'],
+          success: true,
+          result: {
+            externalId: pendingRelisting['externalId'],
+            outcome,
+            ...(outcome === 'confirmed'
+              ? {
+                  newExternalId: '999',
+                  url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/999-160-1',
+                }
+              : { errorCode: 'schema_changed' }),
+          },
+        });
+        pendingRelisting = null;
+      });
       window.addEventListener('message', (event) => {
         if (
           event.source !== window ||
@@ -77,6 +128,7 @@ export async function mockKleinanzeigen(
             installed: available,
             vintedLocal: false,
             kleinanzeigenCapabilities: { accounts: available, sync: available, publish: false },
+            kleinanzeigenRelisting: relisting,
           });
           return;
         }
@@ -90,7 +142,11 @@ export async function mockKleinanzeigen(
         let result: unknown;
         let success = true;
         if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_STATUS') result = local;
-        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_SYNC') {
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_LISTING') {
+          pendingRelisting = data;
+          return;
+        } else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_SYNC') {
           success = !syncFailure;
           result = {
             workspaceId: binding.workspaceId,
@@ -114,7 +170,12 @@ export async function mockKleinanzeigen(
         });
       });
     },
-    { binding, available: options.available !== false, syncFailure: !!options.syncFailure },
+    {
+      binding,
+      available: options.available !== false,
+      syncFailure: !!options.syncFailure,
+      relisting: !!options.relisting,
+    },
   );
   await page.route('**/functions/v1/kleinanzeigen-account', (route) => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -191,5 +252,15 @@ export async function mockKleinanzeigen(
     }
     return route.fulfill({ status: 500, json: { error: 'unexpected_kleinanzeigen_action' } });
   });
-  return { requests, workspaceId, connectionId };
+  return {
+    requests,
+    workspaceId,
+    connectionId,
+    completeRelisting: (outcome: 'confirmed' | 'needs_user_action' = 'confirmed') =>
+      page.evaluate(
+        (state) =>
+          window.dispatchEvent(new CustomEvent('flipbase-test-relist-complete', { detail: state })),
+        outcome,
+      ),
+  };
 }

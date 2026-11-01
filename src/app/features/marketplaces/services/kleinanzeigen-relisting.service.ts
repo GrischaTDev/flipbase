@@ -5,6 +5,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
 import type { MarketplaceOverviewSection } from './marketplace-overview.store';
 import { KleinanzeigenAccountService } from './kleinanzeigen-account.service';
 import { KleinanzeigenExtensionBridge } from './kleinanzeigen-extension-bridge';
+import { KleinanzeigenActionStore } from './kleinanzeigen-action.store';
 import {
   kleinanzeigenRelistingMessage,
   kleinanzeigenRelistingError,
@@ -18,6 +19,7 @@ export class KleinanzeigenRelistingService {
   private readonly accounts = inject(KleinanzeigenAccountService);
   private readonly extension = inject(KleinanzeigenExtensionBridge);
   private readonly confirmation = inject(ConfirmDialogService);
+  private readonly actions = inject(KleinanzeigenActionStore);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly results = signal<readonly { externalId: string; title: string; message: string }[]>([]);
@@ -147,7 +149,19 @@ export class KleinanzeigenRelistingService {
       };
       for (const [index, reference] of references.entries()) {
         if (!current()) return changed;
-        const result = await this.extension.relist(scope, reference.externalId);
+        const actionKey = this.actions.begin(reference, titles[index], account.displayName);
+        let result;
+        try {
+          result = await this.extension.relist(scope, reference.externalId);
+          this.actions.finish(
+            actionKey,
+            result.outcome === 'confirmed' ? 'success' : 'paused',
+            kleinanzeigenRelistingMessage(result),
+          );
+        } catch (error) {
+          this.actions.finish(actionKey, 'error', kleinanzeigenRelistingError(error));
+          throw error;
+        }
         if (!current()) return changed;
         this.results.update((values) => [
           ...values,

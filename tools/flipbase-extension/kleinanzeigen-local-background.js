@@ -938,6 +938,95 @@
     show: (tabId) => chrome.tabs.update(tabId, { active: true }),
   });
   let listingWriteBusy = false;
+  let activeRequests = 0;
+  let maintenancePromise;
+  const maintenanceAlarm = 'flipbase-kleinanzeigen-maintenance';
+
+  async function maintainConnection() {
+    if (activeRequests || listingWriteBusy || handoffBusy || formBusy) return;
+    const installation = await load();
+    const binding = installation?.binding;
+    if (installation?.phase !== 'connected' || !binding) return;
+    const account = await readAccount();
+    if (account.identity?.externalAccountId !== binding.externalAccountId)
+      throw stopped('account_changed');
+    const result = await syncRpc(installation, {
+      action: 'maintain',
+      workspaceId: binding.workspaceId,
+      connectionId: binding.connectionId,
+      generation: binding.generation,
+      externalAccountId: binding.externalAccountId,
+    });
+    const session = result?.session;
+    if (
+      !session ||
+      session.workspaceId !== binding.workspaceId ||
+      session.connectionId !== binding.connectionId ||
+      session.generation !== binding.generation ||
+      session.externalAccountId !== binding.externalAccountId ||
+      session.canPublish !== binding.canPublish ||
+      !Number.isFinite(Date.parse(session.expiresAt)) ||
+      Date.parse(session.expiresAt) <= Date.now()
+    )
+      throw stopped('access_revoked');
+    const current = await load();
+    if (
+      current?.secret !== installation.secret ||
+      current.binding?.generation !== binding.generation ||
+      current.binding.connectionId !== binding.connectionId ||
+      current.binding.workspaceId !== binding.workspaceId
+    )
+      throw stopped('access_revoked');
+    await save({ ...current, binding: { ...current.binding, expiresAt: session.expiresAt } });
+    const run = result.run;
+    if (run !== null) {
+      if (
+        !run ||
+        run.workspaceId !== binding.workspaceId ||
+        run.connectionId !== binding.connectionId ||
+        run.generation !== binding.generation ||
+        !/^[1-9][0-9]{0,18}$/u.test(run.runId ?? '') ||
+        !['queued', 'reading'].includes(run.state)
+      )
+        throw stopped('schema_changed');
+      await synchronize(run, installation.appOrigin);
+    }
+  }
+
+  function runMaintenance() {
+    if (maintenancePromise) return maintenancePromise;
+    maintenancePromise = maintainConnection()
+      .catch(async (error) => {
+        // Keine Seiten öffnen oder Freigaben neu anfordern. Beim nächsten Termin erneut prüfen.
+        await chrome.storage.local.set({
+          kleinanzeigen_maintenance_status: {
+            errorCode: error?.code ?? 'interrupted',
+            observedAt: new Date().toISOString(),
+          },
+        });
+      })
+      .finally(() => {
+        maintenancePromise = undefined;
+      });
+    return maintenancePromise;
+  }
+
+  async function scheduleMaintenance() {
+    if (!chrome.alarms?.get || !chrome.alarms?.create) return;
+    if (!(await chrome.alarms.get(maintenanceAlarm)))
+      await chrome.alarms.create(maintenanceAlarm, { delayInMinutes: 1, periodInMinutes: 15 });
+  }
+  chrome.alarms?.onAlarm?.addListener((alarm) => {
+    if (alarm.name === maintenanceAlarm) void runMaintenance();
+  });
+  chrome.runtime.onStartup?.addListener(() => {
+    void scheduleMaintenance();
+  });
+  chrome.runtime.onInstalled?.addListener(() => {
+    void scheduleMaintenance();
+  });
+  void scheduleMaintenance();
+
   async function listingWrite(operation) {
     if (listingWriteBusy) throw new Error('Ein Kleinanzeigen-Auftrag wird bereits ausgeführt.');
     listingWriteBusy = true;
@@ -975,6 +1064,7 @@
     }
     const request = core.parseRequest(message, origin);
     if (!request) return false;
+    activeRequests++;
     const operation =
       request.action === 'PREPARE_ACCOUNT'
         ? () => runtime.prepare(message, origin)
@@ -1011,7 +1101,10 @@
                           ? () => runtime.disconnect(request)
                           : () => runtime.status();
     Promise.resolve()
-      .then(operation)
+      .then(async () => {
+        if (maintenancePromise) await maintenancePromise;
+        return await operation();
+      })
       .then(
         (result) =>
           respond({
@@ -1038,7 +1131,10 @@
                 ? error.message
                 : 'Die Kleinanzeigen-Verbindung konnte nicht geprüft werden.',
           }),
-      );
+      )
+      .finally(() => {
+        activeRequests--;
+      });
     return true;
   });
 })();

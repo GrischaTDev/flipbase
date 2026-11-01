@@ -10417,6 +10417,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      kleinanzeigen_maintain_connection: {
+        Args: {
+          p_connection_id: number
+          p_external_account_id: string
+          p_generation: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       kleinanzeigen_prepare_listing_job: {
         Args: {
           p_connection_id: number

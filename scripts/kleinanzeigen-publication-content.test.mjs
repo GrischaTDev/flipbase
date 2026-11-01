@@ -94,6 +94,44 @@ async function fillAndUpload(f) {
   for (const image of f.job.images) await f.adapter.upload(f.job, image, 'eA==');
 }
 
+test('activates a searchable brand before filling it and continues through the image upload', async () => {
+  const f = fixture();
+  const doc = f.win.document;
+  const brand = doc.createElement('input');
+  brand.id = 'kleidung_herren.brand';
+  brand.setAttribute('role', 'combobox');
+  brand.setAttribute('aria-expanded', 'false');
+  doc.body.append(brand);
+  brand.addEventListener('focusout', () => {
+    brand.setAttribute('aria-expanded', 'false');
+    doc.querySelectorAll('[role="option"]').forEach((option) => option.remove());
+  });
+  brand.addEventListener('input', () => {
+    if (doc.activeElement !== brand) return;
+    brand.setAttribute('aria-expanded', 'true');
+    const option = doc.createElement('div');
+    option.id = brand.id + '-menu-option-0';
+    option.setAttribute('role', 'option');
+    option.textContent = 'Adidas';
+    option.addEventListener('click', () => {
+      brand.value = 'Adidas';
+      brand.setAttribute('aria-expanded', 'false');
+      option.remove();
+    });
+    doc.body.append(option);
+  });
+  f.job.content.categoryFields[brand.id] = 'Adidas';
+  f.schema.fields.push({ key: brand.id, kind: 'search' });
+  try {
+    await fillAndUpload(f);
+    assert.equal(brand.value, 'Adidas');
+    assert.equal(brand.getAttribute('aria-expanded'), 'false');
+    assert.equal((await f.adapter.verify(f.job)).complete, true);
+  } finally {
+    f.win.close();
+  }
+});
+
 test('fills whole euros through the existing native setter without turning 12.00 into 1200', async () => {
   const f = fixture();
   assert.equal((await f.adapter.fill(f.job, f.schema)).valid, true);

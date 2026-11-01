@@ -3,6 +3,11 @@ import {
   parseKleinanzeigenInstallJobReply,
   type KleinanzeigenInstallJobRequest,
 } from '../_shared/kleinanzeigen-job-contracts.ts';
+import {
+  parseKleinanzeigenMaintenanceRequest,
+  parseKleinanzeigenMaintenanceReply,
+  type KleinanzeigenMaintenanceRequest,
+} from '../_shared/kleinanzeigen-automation-contracts.ts';
 import { parseKleinanzeigenDraftContent } from '../_shared/kleinanzeigen-listing-validation.mts';
 import { validateKleinanzeigenPhoto } from '../_shared/kleinanzeigen-photo.ts';
 import type { loadKleinanzeigenListingPhoto } from './listing-photo.ts';
@@ -23,6 +28,7 @@ import {
 } from '../_shared/kleinanzeigen-contracts.ts';
 export type { KleinanzeigenExtensionRequest } from '../_shared/kleinanzeigen-contracts.ts';
 export interface KleinanzeigenExtensionStore {
+  maintain?(hash: string, input: KleinanzeigenMaintenanceRequest): Promise<unknown>;
   job?(
     hash: string,
     input: Exclude<KleinanzeigenInstallJobRequest, { action: 'job_photo' }>,
@@ -89,6 +95,7 @@ export function createKleinanzeigenExtensionHandler(store: KleinanzeigenExtensio
     if (!/^application\/json(?:\s*;|$)/iu.test(request.headers.get('content-type') ?? ''))
       return respond({ error: 'invalid_request' }, 400);
     let input:
+      | KleinanzeigenMaintenanceRequest
       | KleinanzeigenExtensionRequest
       | KleinanzeigenSyncRequest
       | KleinanzeigenFormImport
@@ -97,6 +104,7 @@ export function createKleinanzeigenExtensionHandler(store: KleinanzeigenExtensio
     try {
       const body = await readBody(request);
       input =
+        parseKleinanzeigenMaintenanceRequest(body) ??
         parseKleinanzeigenExtensionRequest(body) ??
         parseKleinanzeigenSyncRequest(body) ??
         parseKleinanzeigenFormImport(body) ??
@@ -113,6 +121,11 @@ export function createKleinanzeigenExtensionHandler(store: KleinanzeigenExtensio
       const hash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join(
         '',
       );
+      if (input.action === 'maintain') {
+        if (!store.maintain) return respond({ error: 'unavailable' }, 503);
+        const result = parseKleinanzeigenMaintenanceReply(await store.maintain(hash, input), input);
+        return result ? respond(result) : respond({ error: 'invalid_response' }, 502);
+      }
       if (input.action === 'job_photo') {
         if (!store.photo) return respond({ error: 'unavailable' }, 503);
         const photo = await store.photo(hash, input);

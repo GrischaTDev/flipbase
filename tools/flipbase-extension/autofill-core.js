@@ -41,7 +41,7 @@
     return null;
   }
 
-  function setFieldValue(element, value) {
+  function setFieldValue(element, value, { notifyFocusOut = true } = {}) {
     if (!element) return false;
     const setter = findValueSetter(element);
     element.focus?.();
@@ -49,7 +49,7 @@
     else element.value = value;
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
-    element.dispatchEvent(new Event('focusout', { bubbles: true }));
+    if (notifyFocusOut) element.dispatchEvent(new Event('focusout', { bubbles: true }));
     return true;
   }
 

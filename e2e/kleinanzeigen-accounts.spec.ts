@@ -2,6 +2,119 @@ import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { mockKleinanzeigen } from './support/kleinanzeigen-fixture';
 test.use({ hasTouch: true, storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+
+for (const theme of ['light', 'dark'] as const)
+  for (const width of [390, 1440])
+    test.describe(`${width}px ${theme}`, () => {
+      test.use({ hasTouch: width < 768 });
+      test(`Eigener Kleinanzeigen-Bereich mit Navigation und Inserierfortschritt bei ${width}px ${theme}`, async ({
+        page,
+      }, testInfo) => {
+        const fixture = await mockKleinanzeigen(page, { publishingAllowed: true, relisting: true });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        await page.goto('/marketplaces/kleinanzeigen');
+        await expect(page).toHaveURL(/\/marketplaces\/kleinanzeigen\/overview$/);
+        await expect(
+          page.getByRole('heading', { name: 'Kleinanzeigen · Übersicht', exact: true }),
+        ).toBeVisible();
+        const themeToggle = page.getByRole('button', {
+          name: theme === 'dark' ? 'Dunkles Design aktivieren' : 'Helles Design aktivieren',
+          exact: true,
+        });
+        if (await themeToggle.isVisible()) await themeToggle.click();
+        if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
+        else await expect(page.locator('html')).not.toHaveClass(/dark/);
+        if (width < 768)
+          await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
+        const navigation = page.locator('[data-kleinanzeigen-navigation]');
+        await expect(navigation.getByRole('link')).toHaveText([
+          'Übersicht',
+          'Inserate',
+          'Postfach',
+          'Kontoverbindung',
+        ]);
+        await page.screenshot({
+          path: testInfo.outputPath('kleinanzeigen-overview.png'),
+          animations: 'disabled',
+        });
+        await navigation.getByRole('link', { name: 'Postfach', exact: true }).click();
+        await expect(
+          page.getByRole('link', { name: 'Postfach öffnen', exact: true }),
+        ).toHaveAttribute('href', 'https://www.kleinanzeigen.de/m-nachrichten.html');
+        if (width < 768)
+          await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
+        await page
+          .locator('[data-kleinanzeigen-navigation]')
+          .getByRole('link', { name: 'Inserate', exact: true })
+          .click();
+        const section = page.locator('app-marketplace-listing-section').filter({
+          has: page.getByRole('heading', { name: 'Kleinanzeigen Testkonto A', exact: true }),
+        });
+        const selection = section.getByRole('checkbox', {
+          name: 'KA Jacke 01 auswählen',
+          exact: true,
+        });
+        if (width < 768) await selection.tap();
+        else await selection.click();
+        await expect(selection).toHaveAttribute('aria-checked', 'true');
+        await section
+          .getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true })
+          .click();
+        const confirmation = page.getByRole('dialog', {
+          name: 'Ausgewählte neu inserieren?',
+          exact: true,
+        });
+        await confirmation.getByRole('button', { name: 'Neu inserieren', exact: true }).click();
+        const item =
+          width < 768
+            ? section.getByRole('article', { name: 'KA Jacke 01', exact: true })
+            : section.getByRole('row').filter({ hasText: 'KA Jacke 01' });
+        await expect(item).toHaveAttribute('aria-busy', 'true');
+        await expect(item).toHaveCSS('filter', 'grayscale(1)');
+        await expect(item.getByText('Wird inseriert …', { exact: true })).toBeVisible();
+        await page.addScriptTag({ content: axe.source });
+        expect(
+          await page.evaluate(
+            async () =>
+              (await (window as unknown as { axe: typeof axe }).axe.run(document.body)).violations,
+          ),
+        ).toEqual([]);
+        await page.screenshot({
+          path: testInfo.outputPath('kleinanzeigen-running-list.png'),
+          animations: 'disabled',
+        });
+        await page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true }).click();
+        await expect(page.locator('[data-kleinanzeigen-action]')).toContainText('KA Jacke 01');
+        await page.screenshot({
+          path: testInfo.outputPath('kleinanzeigen-running.png'),
+          animations: 'disabled',
+        });
+        await fixture.completeRelisting('needs_user_action');
+        await expect(
+          page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
+        ).toBeVisible();
+        await expect(item).not.toHaveAttribute('aria-busy', 'true');
+        await page
+          .getByRole('button', {
+            name: width < 768 ? 'Dialog schließen' : 'Aktionsübersicht schließen',
+            exact: true,
+          })
+          .click();
+        await expect(
+          section.getByRole('list', { name: 'Ergebnis des erneuten Inserierens' }),
+        ).toBeVisible();
+        expect(
+          await page.evaluate(
+            async () =>
+              (await (window as unknown as { axe: typeof axe }).axe.run(document.body)).violations,
+          ),
+        ).toEqual([]);
+        expect(errors).toEqual([]);
+      });
+    });
 for (const theme of ['light', 'dark'] as const)
   for (const width of [320, 390, 834, 1440])
     test(
@@ -19,7 +132,7 @@ for (const theme of ['light', 'dark'] as const)
         });
         await page.setViewportSize({ width, height: 1000 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
-        await page.goto('/marketplaces/kleinanzeigen');
+        await page.goto('/marketplaces/kleinanzeigen/listings');
         await page.evaluate(
           (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
           theme,
@@ -159,7 +272,7 @@ test('Ein unterbrochener Kleinanzeigen-Abgleich erhält den bestätigten Bestand
   page,
 }) => {
   await mockKleinanzeigen(page, { syncFailure: true });
-  await page.goto('/marketplaces/kleinanzeigen');
+  await page.goto('/marketplaces/kleinanzeigen/listings');
   await page
     .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
     .click();
@@ -175,7 +288,7 @@ test('Kleinanzeigen-Konto entfernen gibt das Profil frei und bleibt nach Neulade
   page,
 }) => {
   const fixture = await mockKleinanzeigen(page);
-  await page.goto('/marketplaces/kleinanzeigen');
+  await page.goto('/marketplaces/kleinanzeigen/listings');
   await page
     .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto A verwalten', exact: true })
     .click();
@@ -241,7 +354,7 @@ test('Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-sm
   page,
 }) => {
   await mockKleinanzeigen(page, { available: false });
-  await page.goto('/marketplaces/kleinanzeigen');
+  await page.goto('/marketplaces/kleinanzeigen/listings');
   await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
   const setup = page.getByRole('dialog', { name: 'Kleinanzeigen-Konto hinzufügen', exact: true });
   await expect(setup.getByRole('button', { name: 'Konto verbinden', exact: true })).toBeDisabled();
@@ -275,7 +388,7 @@ test('Desktop- und Touch-Buttons bleiben bei gleicher Breite getrennt @core-smok
       try {
         const page = await context.newPage();
         await mockKleinanzeigen(page);
-        await page.goto('/marketplaces/kleinanzeigen');
+        await page.goto('/marketplaces/kleinanzeigen/listings');
         expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(hasTouch);
         const add = page.getByRole('button', { name: 'Konto hinzufügen', exact: true });
         const list = page.getByRole('button', {
