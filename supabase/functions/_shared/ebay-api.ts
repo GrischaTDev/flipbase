@@ -9,6 +9,10 @@ export const EBAY_SCOPES = [
   'https://api.ebay.com/oauth/api_scope/sell.inventory',
   'https://api.ebay.com/oauth/api_scope/sell.analytics.readonly',
   'https://api.ebay.com/oauth/api_scope/sell.marketing',
+  'https://api.ebay.com/oauth/api_scope/sell.listing',
+  'https://api.ebay.com/oauth/api_scope/sell.listing.read',
+  'https://api.ebay.com/oauth/api_scope/commerce.message',
+  'https://api.ebay.com/oauth/api_scope/sell.account.readonly',
 ] as const;
 export interface EbayConfig {
   clientId: string;
@@ -36,9 +40,13 @@ export class EbayError extends Error {
       | 'listing_not_owned'
       | 'listing_not_editable'
       | 'listing_changed'
+      | 'listing_review_changed'
       | 'revision_rejected'
       | 'save_unconfirmed'
-      | 'image_rejected',
+      | 'image_rejected'
+      | 'message_rejected'
+      | 'message_send_unconfirmed'
+      | 'listing_creation_rejected',
   ) {
     super(code);
   }

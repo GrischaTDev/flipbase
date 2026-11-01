@@ -306,10 +306,14 @@
   >
     <div class="grid gap-2">
       @for (platform of listingPlatforms; track platform) {
-        @if (platform === 'vinted') {
+        @if (platform === 'vinted' || platform === 'ebay') {
           <app-button
             variant="list-row"
-            link="/marketplaces/vinted/listings/new"
+            [link]="
+              platform === 'ebay'
+                ? '/marketplaces/ebay/listings/new'
+                : '/marketplaces/vinted/listings/new'
+            "
             [fullWidth]="true"
             contentAlign="start"
           >

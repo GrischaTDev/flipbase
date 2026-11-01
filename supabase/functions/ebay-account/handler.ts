@@ -8,13 +8,31 @@ import {
 } from '../_shared/ebay-api.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import {
-  readEbayListingDetails,
   readEbayTraffic,
   requireEbayListingId,
-  reviseEbayListing,
   uploadEbayImage,
   validateEbayUpdate,
 } from '../_shared/ebay-listing-management.ts';
+import { readModernEbayListing, reviseModernEbayListing } from '../_shared/ebay-listing-api.ts';
+import {
+  createEbayListing,
+  findCreatedEbayListing,
+  validateEbayDraft,
+} from '../_shared/ebay-listing-creation.ts';
+import {
+  readEbayCategoryDetails,
+  readEbayListingSettings,
+  searchEbayCategories,
+} from '../_shared/ebay-listing-metadata.ts';
+import {
+  markEbayConversationRead,
+  readEbayConversation,
+  readEbayInbox,
+  requireConversationId,
+  requireConversationType,
+  requireMessageOffset,
+  sendEbayReply,
+} from '../_shared/ebay-messages.ts';
 import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
 import {
   readEbayTrafficOverview,
@@ -186,7 +204,7 @@ export function createEbayAccountHandler(
             return respond({ error: 'invalid_request' }, 400);
           image = file;
           body = {
-            action: 'listing_image',
+            action: form.get('action') === 'draft_image' ? 'draft_image' : 'listing_image',
             workspaceId: form.get('workspaceId'),
             connectionId: form.get('connectionId'),
             listingId: form.get('listingId'),
@@ -222,6 +240,8 @@ export function createEbayAccountHandler(
         const result: EbayConnectionStatus = {
           configured: config !== null,
           listingManagementAvailable: config !== null,
+          listingCreationAvailable: config !== null,
+          messagingAvailable: config !== null,
           importAvailable: config !== null && (await store.importAvailable?.()) === true,
           connection: connection ? mapPublicConnection(connection) : null,
         };
@@ -250,6 +270,141 @@ export function createEbayAccountHandler(
           body.kind,
         );
         return respond({ requested: true, workspaceId, connectionId: body.connectionId });
+      }
+      if (
+        [
+          'listing_settings',
+          'listing_categories',
+          'listing_category',
+          'listing_validate',
+          'listing_create',
+          'listing_created',
+          'draft_image',
+        ].includes(String(body.action))
+      ) {
+        if (!isUuid(body.connectionId)) return respond({ error: 'invalid_request' }, 400);
+        const scope = { workspaceId, connectionId: body.connectionId };
+        const draft = ['listing_validate', 'listing_create'].includes(String(body.action))
+          ? validateEbayDraft(body.draft)
+          : null;
+        const result = await withEbayConnection(
+          scope,
+          bearer,
+          store,
+          config,
+          async ({ accessToken, connection }) => {
+            if (body.action === 'listing_settings')
+              return readEbayListingSettings(config, accessToken, fetcher);
+            if (body.action === 'listing_categories')
+              return searchEbayCategories(config, accessToken, body.query, fetcher);
+            if (body.action === 'listing_category')
+              return readEbayCategoryDetails(config, accessToken, body.categoryId, fetcher);
+            if (body.action === 'listing_created')
+              return findCreatedEbayListing(config, accessToken, String(body.key), fetcher);
+            const current = await store.status(connection.user_id, workspaceId, config.environment);
+            if (
+              !current ||
+              current.id !== connection.id ||
+              current.status !== 'connected' ||
+              current.authorization_version !== connection.authorization_version ||
+              !(await store.canConnect(bearer, workspaceId))
+            )
+              throw new EbayConnectionError('connection_changed');
+            if (body.action === 'draft_image' && image)
+              return { imageUrl: await uploadEbayImage(config, accessToken, image, fetcher) };
+            if (!draft) throw new EbayError('invalid_request');
+            const check = await createEbayListing(config, accessToken, draft, false, fetcher);
+            const reviewHash = await hashState(JSON.stringify([draft, check.fees, check.warnings]));
+            if (!check.valid || body.action === 'listing_validate') return { ...check, reviewHash };
+            if (body.reviewHash !== reviewHash) throw new EbayError('listing_review_changed');
+            // Nach der erneuten Anbieterprüfung unmittelbar vor dem Veröffentlichen erneut prüfen.
+            const latest = await store.status(connection.user_id, workspaceId, config.environment);
+            if (
+              !latest ||
+              latest.id !== connection.id ||
+              latest.status !== 'connected' ||
+              latest.authorization_version !== connection.authorization_version ||
+              !(await store.canConnect(bearer, workspaceId))
+            )
+              throw new EbayConnectionError('connection_changed');
+            const created = await createEbayListing(config, accessToken, draft, true, fetcher);
+            await store.cacheRefresh?.(bearer, scope, 'listings').catch(() => {});
+            return { ...created, reviewHash };
+          },
+          fetcher,
+        );
+        return respond({ ...result, ...scope });
+      }
+      if (
+        ['inbox', 'conversation', 'message_send', 'conversation_read'].includes(String(body.action))
+      ) {
+        if (!isUuid(body.connectionId)) return respond({ error: 'invalid_request' }, 400);
+        const scope = { workspaceId, connectionId: body.connectionId };
+        const type = requireConversationType(body.type);
+        const offset = requireMessageOffset(body.offset ?? 0);
+        const conversationId =
+          body.action === 'inbox' ? null : requireConversationId(body.conversationId);
+        if (body.action === 'message_send' && type !== 'FROM_MEMBERS')
+          return respond({ error: 'invalid_request' }, 400);
+        if (body.unreadOnly !== undefined && typeof body.unreadOnly !== 'boolean')
+          return respond({ error: 'invalid_request' }, 400);
+        const result = await withEbayConnection(
+          scope,
+          bearer,
+          store,
+          config,
+          async ({ accessToken, connection }) => {
+            if (body.action === 'inbox')
+              return readEbayInbox(
+                config,
+                accessToken,
+                type,
+                offset,
+                body.unreadOnly === true,
+                fetcher,
+              );
+            if (body.action === 'conversation')
+              return readEbayConversation(
+                config,
+                accessToken,
+                conversationId!,
+                type,
+                offset,
+                fetcher,
+              );
+            // Vor jeder Schreibwirkung dieselbe aktuelle Kontobindung und Mitgliedschaft prüfen.
+            const current = await store.status(connection.user_id, workspaceId, config.environment);
+            if (
+              !current ||
+              current.id !== connection.id ||
+              current.status !== 'connected' ||
+              current.authorization_version !== connection.authorization_version ||
+              !(await store.canConnect(bearer, workspaceId))
+            )
+              throw new EbayConnectionError('connection_changed');
+            if (body.action === 'message_send') {
+              // Der persönliche Anbieterzugriff bestätigt das Gespräch; kein frei übergebener Empfänger.
+              await readEbayConversation(config, accessToken, conversationId!, type, 0, fetcher);
+              const latest = await store.status(
+                connection.user_id,
+                workspaceId,
+                config.environment,
+              );
+              if (
+                !latest ||
+                latest.id !== connection.id ||
+                latest.status !== 'connected' ||
+                latest.authorization_version !== connection.authorization_version ||
+                !(await store.canConnect(bearer, workspaceId))
+              )
+                throw new EbayConnectionError('connection_changed');
+              return sendEbayReply(config, accessToken, conversationId!, body.text, fetcher);
+            }
+            return markEbayConversationRead(config, accessToken, conversationId!, type, fetcher);
+          },
+          fetcher,
+        );
+        return respond({ ...result, ...scope });
       }
       if (
         [
@@ -303,11 +458,10 @@ export function createEbayAccountHandler(
                 throw new EbayError('invalid_request');
               return readEbayTraffic(config, accessToken, body.listingIds, fetcher);
             }
-            const listing = await readEbayListingDetails(
+            const listing = await readModernEbayListing(
               config,
               accessToken,
               listingId ?? '',
-              connection.username,
               fetcher,
             );
             if (update || image) {
@@ -325,7 +479,8 @@ export function createEbayAccountHandler(
               )
                 throw new EbayConnectionError('connection_changed');
             }
-            if (update) return reviseEbayListing(config, accessToken, listing, update, fetcher);
+            if (update)
+              return reviseModernEbayListing(config, accessToken, listing, update, fetcher);
             if (image)
               return { imageUrl: await uploadEbayImage(config, accessToken, image, fetcher) };
             return listing;
@@ -373,6 +528,7 @@ export function createEbayAccountHandler(
               : [
                     'needs_login',
                     'listing_changed',
+                    'listing_review_changed',
                     'listing_not_editable',
                     'revision_rejected',
                   ].includes(error.code)

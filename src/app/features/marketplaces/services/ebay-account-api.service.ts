@@ -3,6 +3,20 @@ import { SupabaseService } from '../../../core/services/supabase.service';
 import type { AccountScope } from '../models/marketplace.models';
 import { parseEbayOrderBooking } from '../models/ebay-order-import-response';
 import {
+  parseEbayInbox,
+  parseEbayConversationMessages,
+  parseEbaySentMessage,
+} from '../models/ebay-messages-response';
+import type { EbayConversationType } from '../../../../../supabase/functions/_shared/ebay-message-contracts';
+import type { EbayListingDraft } from '../../../../../supabase/functions/_shared/ebay-listing-creation-contracts';
+import {
+  creationScope,
+  parseEbayCategoryDetails,
+  parseEbayListingCheck,
+  parseEbayListingSettings,
+  parseEbayOptions,
+} from '../models/ebay-listing-creation-response';
+import {
   parseEbayAuthorization,
   parseEbayListing,
   parseEbayOrder,
@@ -37,11 +51,19 @@ const ERROR_MESSAGES: Record<string, string> = {
     'Diese Änderung ist für das Inserat nicht möglich. Variantenpreise und einige Angebotsarten müssen bei eBay bearbeitet werden.',
   listing_changed:
     'Das Inserat wurde inzwischen geändert. Lade es erneut, bevor Du deine Änderungen überträgst.',
+  listing_review_changed:
+    'Die eBay-Gebühren oder Hinweise haben sich geändert. Prüfe das Inserat erneut und bestätige den neuen Stand.',
   revision_rejected:
     'eBay hat die Änderung abgelehnt. Prüfe, ob bereits Verkäufe, Gebote oder Preisvorschläge vorliegen oder das Inserat von einer anderen Anwendung verwaltet wird.',
   save_unconfirmed:
     'Die Änderung wurde nicht eindeutig bestätigt. Prüfe das Inserat bei eBay und lade es erneut, bevor Du nochmals speicherst.',
   image_rejected: 'eBay hat dieses Bild abgelehnt. Prüfe Format, Größe und Bildabmessungen.',
+  message_rejected:
+    'eBay hat die Nachricht oder das Gespräch abgelehnt. Lade den Verlauf neu und prüfe die Angaben.',
+  message_send_unconfirmed:
+    'eBay hat den Versand nicht eindeutig bestätigt. Prüfe den Verlauf bei eBay, bevor Du erneut sendest.',
+  listing_creation_rejected:
+    'eBay hat das Inserat abgelehnt. Prüfe Kategorie, Merkmale und Versandrichtlinien.',
   invalid_request: 'Die eBay-Anfrage enthält ungültige Angaben. Prüfe deine Eingaben.',
   connection_busy_or_unavailable:
     'Deine Verbindung ist gerade beschäftigt oder benötigt eine neue Anmeldung. Lade den Status erneut.',
@@ -89,6 +111,114 @@ export class EbayAccountApiService {
   }
   async loadStatus(workspaceId: string) {
     return parseEbayStatus(await this.request({ action: 'status', workspaceId }), workspaceId);
+  }
+  async loadListingSettings(scope: AccountScope) {
+    return parseEbayListingSettings(
+      await this.request({ action: 'listing_settings', ...scope }),
+      scope,
+    );
+  }
+  async searchCategories(scope: AccountScope, query: string) {
+    const result = creationScope(
+      await this.request({ action: 'listing_categories', ...scope, query }),
+      scope,
+    );
+    return parseEbayOptions(result['categories']);
+  }
+  async loadCategoryDetails(scope: AccountScope, categoryId: string) {
+    return parseEbayCategoryDetails(
+      await this.request({ action: 'listing_category', ...scope, categoryId }),
+      scope,
+    );
+  }
+  async checkNewListing(scope: AccountScope, draft: EbayListingDraft, reviewHash?: string) {
+    return parseEbayListingCheck(
+      await this.request({
+        action: reviewHash ? 'listing_create' : 'listing_validate',
+        ...scope,
+        draft,
+        reviewHash,
+      }),
+      scope,
+    );
+  }
+  async findCreatedListing(scope: AccountScope, key: string): Promise<string | null> {
+    const result = creationScope(
+      await this.request({ action: 'listing_created', ...scope, key }),
+      scope,
+    );
+    if (result['listingId'] === null) return null;
+    if (typeof result['listingId'] !== 'string' || !/^\d{1,20}$/.test(result['listingId']))
+      throw new Error('Ungültiger Veröffentlichungsstatus.');
+    return result['listingId'];
+  }
+  async uploadDraftImage(scope: AccountScope, image: File) {
+    const form = new FormData();
+    form.set('action', 'draft_image');
+    form.set('workspaceId', scope.workspaceId);
+    form.set('connectionId', scope.connectionId);
+    form.set('image', image);
+    return parseEbayImageUpload(await this.request(form), scope);
+  }
+  async loadInbox(
+    scope: AccountScope,
+    type: EbayConversationType,
+    unreadOnly: boolean,
+    offset = 0,
+  ) {
+    return parseEbayInbox(
+      await this.request({ action: 'inbox', ...scope, type, unreadOnly, offset }),
+      scope,
+      type,
+    );
+  }
+  async loadConversation(
+    scope: AccountScope,
+    conversationId: string,
+    type: EbayConversationType,
+    offset = 0,
+  ) {
+    return parseEbayConversationMessages(
+      await this.request({ action: 'conversation', ...scope, conversationId, type, offset }),
+      scope,
+      conversationId,
+      type,
+    );
+  }
+  async sendReply(scope: AccountScope, conversationId: string, text: string) {
+    return parseEbaySentMessage(
+      await this.request({
+        action: 'message_send',
+        ...scope,
+        conversationId,
+        type: 'FROM_MEMBERS',
+        text,
+      }),
+      scope,
+    );
+  }
+  async markConversationRead(
+    scope: AccountScope,
+    conversationId: string,
+    type: EbayConversationType,
+  ) {
+    const result = await this.request({
+      action: 'conversation_read',
+      ...scope,
+      conversationId,
+      type,
+    });
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('ok' in result) ||
+      result.ok !== true ||
+      !('workspaceId' in result) ||
+      result.workspaceId !== scope.workspaceId ||
+      !('connectionId' in result) ||
+      result.connectionId !== scope.connectionId
+    )
+      throw new EbayAccountRequestError('invalid_response', ERROR_MESSAGES['invalid_response']);
   }
   async loadOrderStatus(scope: AccountScope, orderId: string) {
     return parseEbayOrderBooking(await this.request({ action: 'order_status', ...scope, orderId }));

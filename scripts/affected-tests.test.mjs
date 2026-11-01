@@ -654,6 +654,26 @@ test('Vinted-Verkaufsansicht wählt nur die zugehörigen Browserfälle', () => {
   assert.deepEqual(plan.browserFiles, ['e2e/vinted-sales.spec.ts']);
 });
 
+test('eBay-Inserate und Nachrichten wählen ihre eigene Browserabnahme statt Vinted', () => {
+  for (const path of [
+    'src/app/features/marketplaces/components/ebay-listing-create/ebay-listing-create.component.html',
+    'src/app/features/marketplaces/services/ebay-inbox.store.ts',
+  ]) {
+    const plan = selectAffectedTests([path], {
+      [path]: 'export const fixture = true;',
+      'e2e/ebay-workspace.spec.ts': 'test()',
+      'e2e/ebay-order-import.spec.ts': 'test()',
+      'e2e/vinted-inbox-experience.spec.ts': 'test()',
+      'e2e/vinted-listing-drafts.spec.ts': 'test()',
+    });
+    assert.equal(plan.full, false);
+    assert.deepEqual(plan.browserFiles, [
+      'e2e/ebay-order-import.spec.ts',
+      'e2e/ebay-workspace.spec.ts',
+    ]);
+  }
+});
+
 test('Vinted-Anbieterentwuerfe und Datenuebernahme waehlen ihre bestehenden Browserdateien', () => {
   for (const path of [
     'src/app/features/marketplaces/components/vinted-provider-drafts/vinted-provider-drafts.component.ts',

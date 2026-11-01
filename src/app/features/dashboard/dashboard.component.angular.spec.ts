@@ -743,13 +743,14 @@ describe('DashboardComponent', () => {
     ).toEqual(['Bis 30 Tage', '31–60 Tage', '61–90 Tage', 'Über 90 Tage']);
     expect(host.textContent).not.toContain('Durchschnittl. EK');
   });
-  it('öffnet die Marktplatzwahl mit Vinted und zwei Platzhaltern', () => {
+  it('öffnet Vinted- und eBay-Erstellung und erhält den Kleinanzeigen-Platzhalter', () => {
     const fixture = createDashboard();
     fixture.componentInstance.listingDialogOpen.set(true);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('a[href="/marketplaces/vinted/listings/new"]')).not.toBeNull();
-    expect(host.querySelectorAll('app-modal-shell app-badge')).toHaveLength(2);
+    expect(host.querySelector('a[href="/marketplaces/ebay/listings/new"]')).not.toBeNull();
+    expect(host.querySelectorAll('app-modal-shell app-badge')).toHaveLength(1);
     expect(
       host.querySelector('app-modal-shell app-marketplace-platform-identity .sr-only'),
     ).toBeNull();

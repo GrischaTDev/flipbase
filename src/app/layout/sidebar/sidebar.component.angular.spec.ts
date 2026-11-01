@@ -370,6 +370,7 @@ describe('SidebarComponent', () => {
     expect(links.map((link) => link.textContent?.trim())).toEqual([
       'Inserate',
       'Bestellungen',
+      'Postfach',
       'Statistiken',
       'Kontoverbindung',
     ]);
@@ -382,7 +383,7 @@ describe('SidebarComponent', () => {
     expect(element.querySelector('a[aria-label="Zurück zu Flipbase"]')).not.toBeNull();
     const closed = vi.fn();
     fixture.componentInstance.closed.subscribe(closed);
-    links[2]?.click();
+    element.querySelector<HTMLAnchorElement>('a[href="/marketplaces/ebay/statistics"]')?.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(closed).toHaveBeenCalledOnce();

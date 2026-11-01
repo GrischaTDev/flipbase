@@ -70,6 +70,7 @@ const checks = {
         'supabase/functions/ebay-account-deletion/endpoint.test.ts',
         'supabase/functions/_shared/ebay-api.test.ts',
         'supabase/functions/_shared/ebay-listing-management.test.ts',
+        'supabase/functions/_shared/ebay-modern-api.test.ts',
         'supabase/functions/_shared/ebay-order-amounts.test.ts',
         'supabase/functions/_shared/ebay-order-source.test.ts',
         'supabase/functions/ebay-account/connection-read.test.ts',

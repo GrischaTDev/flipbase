@@ -108,6 +108,8 @@ function browserSpecs(file, files) {
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (/ebay/u.test(file))
+      return ['ebay-workspace', 'ebay-order-import', 'marketplace-accounts', 'settings-layout'];
     if (/vinted-action-overview/u.test(file)) return ['vinted-action-overview'];
     if (/vinted-profile|vinted-feedback-list/u.test(file)) return ['vinted-profile'];
     if (/vinted-provider-drafts|vinted-listing-copy/u.test(file))
@@ -134,7 +136,6 @@ function browserSpecs(file, files) {
         'vinted-negotiation',
         'vinted-action-overview',
       ];
-    if (/ebay/u.test(file)) return ['ebay-order-import', 'marketplace-accounts', 'settings-layout'];
     return Object.keys(files)
       .filter((path) => /^e2e\/(?:vinted|marketplace)[^/]*\.spec\.ts$/u.test(path))
       .map((path) => posix.basename(path, '.spec.ts'));

@@ -1,0 +1,255 @@
+<section class="space-y-4" aria-label="eBay-Inserat erstellen">
+  <app-page-header
+    title="eBay-Inserat erstellen"
+    subtitle="Festpreis · eBay Deutschland · Versand aus Deutschland"
+  >
+    <div header-actions>
+      <app-button link="/marketplaces/ebay/listings" [disabled]="busy()"
+        >Zurück zu Inseraten</app-button
+      >
+    </div>
+  </app-page-header>
+  @if (loading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Kontorichtlinien werden geladen …</p>
+  }
+  @if (sandbox()) {
+    <p role="status" class="text-sm text-fb-text-secondary">
+      Du arbeitest mit einem eBay-Testkonto.
+    </p>
+  }
+  @if (error(); as error) {
+    <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+  }
+  @if (createdId(); as id) {
+    <app-card title="Inserat veröffentlicht">
+      <p role="status" class="mb-4 text-sm text-fb-text-primary">
+        eBay hat die Veröffentlichung bestätigt. Du kannst das Inserat jetzt prüfen und in der
+        Inseratliste mit Deinem Bestand verknüpfen.
+      </p>
+      <app-button [href]="listingUrl(id)" target="_blank" [icon]="externalIcon"
+        >Inserat bei eBay ansehen</app-button
+      >
+    </app-card>
+  } @else if (pending()) {
+    <app-card title="Veröffentlichung prüfen">
+      <p class="mb-4 text-sm text-fb-text-secondary">
+        Der letzte Veröffentlichungsversuch ist noch unklar. Flipbase veröffentlicht nicht erneut.
+        Prüfe, ob eBay das Inserat bereits angelegt hat.
+      </p>
+      <app-button [icon]="checkIcon" [loading]="busy()" (clicked)="checkPublication()"
+        >Veröffentlichungsstatus prüfen</app-button
+      >
+    </app-card>
+  } @else if (settings(); as settings) {
+    @if (!settings.payment.length || !settings.fulfillment.length || !settings.returns.length) {
+      <app-card title="Kontorichtlinien fehlen"
+        ><p class="text-sm text-fb-text-secondary">
+          Richte bei eBay zuerst Deine Zahlungs-, Versand- und Rückgaberichtlinien für Deutschland
+          ein. Danach kannst Du hier ein Inserat erstellen.
+        </p></app-card
+      >
+    } @else {
+      <form [formGroup]="form" class="space-y-4" (ngSubmit)="$event.preventDefault()">
+        <app-card title="Angebotsdaten">
+          <div class="space-y-4">
+            <app-text-field
+              label="Titel"
+              formControlName="title"
+              [required]="true"
+              [maxLength]="80"
+            />
+            <div class="grid gap-4 sm:grid-cols-2">
+              <app-number-input
+                label="Preis"
+                unit="EUR"
+                formControlName="price"
+                [min]="0.01"
+                [max]="1000000"
+                [step]="0.01"
+              />
+              <app-number-input
+                label="Menge"
+                formControlName="quantity"
+                [min]="1"
+                [max]="1000"
+                [step]="1"
+              />
+            </div>
+            <app-text-field
+              label="Beschreibung"
+              formControlName="description"
+              [required]="true"
+              [multiline]="8"
+              [maxLength]="20000"
+            />
+          </div>
+        </app-card>
+        <app-card title="Kategorie und Merkmale">
+          <div class="space-y-4">
+            <div class="flex flex-col items-end gap-2 sm:flex-row">
+              <app-text-field
+                class="w-full flex-1"
+                label="Kategorie suchen"
+                [formControl]="search"
+                helpText="Zum Beispiel Herrenpullover oder Sneaker."
+              />
+              <app-button
+                [icon]="searchIcon"
+                [loading]="categoryLoading()"
+                [disabled]="busy() || !!review() || search.value.trim().length < 2"
+                (clicked)="searchCategories()"
+                >Suchen</app-button
+              >
+            </div>
+            <app-custom-select
+              label="eBay-Kategorie"
+              ariaLabel="eBay-Kategorie"
+              [required]="true"
+              [options]="categories()"
+              [value]="categoryId()"
+              [disabled]="busy() || categoryLoading() || !!review()"
+              (valueChange)="selectCategory($event)"
+            />
+            @if (categoryId() && conditions().length) {
+              <app-custom-select
+                label="Zustand"
+                ariaLabel="Zustand"
+                [required]="true"
+                formControlName="condition"
+                [options]="conditions()"
+              />
+              <div class="grid gap-4 sm:grid-cols-2">
+                @for (aspect of aspects(); track aspect.name) {
+                  @if (aspect.selectionOnly && !aspect.multiple) {
+                    <app-custom-select
+                      [label]="aspect.name"
+                      [ariaLabel]="aspect.name"
+                      [required]="aspect.required"
+                      [options]="aspect.options"
+                      [formControl]="aspect.control"
+                      [searchable]="true"
+                    />
+                  } @else {
+                    <app-text-field
+                      [label]="aspect.name"
+                      [required]="aspect.required"
+                      [formControl]="aspect.control"
+                      [helpText]="aspect.multiple ? 'Mehrere Werte mit Semikolon trennen.' : ''"
+                    />
+                  }
+                }
+              </div>
+            }
+          </div>
+        </app-card>
+        <app-card title="Standort und Kontorichtlinien">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <app-text-field
+              label="Postleitzahl"
+              formControlName="postalCode"
+              [required]="true"
+              [maxLength]="5"
+            />
+            <app-text-field label="Ort" formControlName="location" [required]="true" />
+            <app-custom-select
+              label="Zahlung"
+              ariaLabel="Zahlungsrichtlinie"
+              formControlName="payment"
+              [options]="options(settings.payment)"
+              [required]="true"
+            />
+            <app-custom-select
+              label="Versand"
+              ariaLabel="Versandrichtlinie"
+              formControlName="fulfillment"
+              [options]="options(settings.fulfillment)"
+              [required]="true"
+            />
+            <app-custom-select
+              label="Rückgabe"
+              ariaLabel="Rückgaberichtlinie"
+              formControlName="returns"
+              [options]="options(settings.returns)"
+              [required]="true"
+            />
+          </div>
+        </app-card>
+      </form>
+      <app-card title="Bilder">
+        <app-product-media-editor
+          [images]="images()"
+          [canDescribe]="false"
+          [canCrop]="false"
+          [minimumImages]="1"
+          [maximumImages]="24"
+          [validateFile]="validateImage"
+          [disabled]="busy() || !!review()"
+          (imagesChange)="images.set($event)"
+          fileHelpText="Mindestens ein Foto · maximal 24 Bilder mit je 12 MB"
+        />
+      </app-card>
+      @if (review(); as review) {
+        <app-card [title]="review.valid ? 'Bereit zur Veröffentlichung' : 'Angaben prüfen'">
+          <div class="space-y-3">
+            @for (issue of review.issues; track $index) {
+              <p role="alert" class="text-sm text-fb-critical">{{ issue }}</p>
+            }
+            @for (warning of review.warnings; track $index) {
+              <p class="text-sm text-fb-text-secondary">eBay: {{ warning }}</p>
+            }
+            @if (review.valid) {
+              <p class="text-sm text-fb-text-primary">
+                {{ review.draft.title }} · {{ review.draft.quantity }} Stück ·
+                {{ review.draft.price | currency: 'EUR' }} je Stück
+              </p>
+              @if (review.fees.length) {
+                <p class="text-sm font-medium text-fb-text-primary">
+                  Von eBay gemeldete Angebotsgebühren
+                </p>
+                @for (fee of review.fees; track $index) {
+                  <p class="text-sm text-fb-text-secondary">
+                    {{ fee.amount | currency: fee.currency }}
+                  </p>
+                }
+              } @else {
+                <p class="text-sm text-fb-text-secondary">
+                  eBay hat keine Angebotsgebühren zurückgegeben. Verkaufs- und optionale
+                  Zusatzgebühren können trotzdem anfallen.
+                </p>
+              }
+              <p class="text-sm text-fb-text-secondary">
+                Die Prüfung hat noch kein Inserat veröffentlicht. Erst „Bei eBay veröffentlichen“
+                erstellt Dein Angebot.
+              </p>
+            }
+            <div class="flex flex-wrap justify-end gap-2">
+              <app-button [disabled]="busy()" (clicked)="edit()">Angaben bearbeiten</app-button>
+              @if (review.valid) {
+                <app-button
+                  variant="primary"
+                  [icon]="sendIcon"
+                  [loading]="busy()"
+                  (clicked)="publish()"
+                  >Bei eBay veröffentlichen</app-button
+                >
+              }
+            </div>
+          </div>
+        </app-card>
+      } @else {
+        <div class="flex justify-end">
+          <app-button
+            variant="primary"
+            [icon]="checkIcon"
+            [loading]="busy()"
+            [disabled]="categoryLoading()"
+            (clicked)="check()"
+            >Bei eBay prüfen</app-button
+          >
+        </div>
+      }
+    }
+  } @else if (!loading()) {
+    <app-button link="/marketplaces/ebay/connection">Kontoverbindung prüfen</app-button>
+  }
+</section>
