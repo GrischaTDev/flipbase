@@ -1,6 +1,9 @@
 import { computed, signal } from '@angular/core';
 import { FeedItem, FeedPage, FeedRequest } from '../models/deal-monitor.model';
 
+/** Abstand, in dem der langsame Modus den nächsten neuen Fund einschiebt. */
+export const SLOW_MODE_STEP_MS = 900;
+
 /** Ein Kontextwechsel verwirft auch verspätete Antworten des alten Arbeitsbereichs. */
 export class DealFeedState {
   readonly items = signal<FeedItem[]>([]);
@@ -12,6 +15,9 @@ export class DealFeedState {
   readonly covered = signal(false);
   readonly reportedAt = signal<string | null>(null);
   readonly hasMore = signal(false);
+  readonly slowMode = signal(false);
+  /** Neue Funde für den langsamen Modus, neuester zuerst. */
+  readonly queued = signal<FeedItem[]>([]);
   readonly newCount = computed(() => {
     const known = new Set(this.items().map((item) => item.id));
     return this.pending().filter((item) => !known.has(item.id)).length;
@@ -20,6 +26,7 @@ export class DealFeedState {
   private request: FeedRequest | null = null;
   private busyGeneration: number | null = null;
   private updateGeneration: number | null = null;
+  private releaseTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly fetchPage: (request: FeedRequest) => Promise<FeedPage>) {}
 
@@ -36,7 +43,17 @@ export class DealFeedState {
     this.covered.set(false);
     this.reportedAt.set(null);
     this.paused.set(false);
+    this.clearQueue();
     if (request) void this.refresh();
+  }
+
+  setSlowMode(enabled: boolean): void {
+    this.slowMode.set(enabled);
+    if (enabled) return;
+    // Ausgeschaltet erscheinen alle wartenden Funde sofort wieder als Stapel.
+    const waiting = this.queued();
+    this.clearQueue();
+    if (waiting.length) this.items.update((items) => [...waiting, ...items]);
   }
 
   pause(): void {
@@ -82,6 +99,10 @@ export class DealFeedState {
         this.hasMore.set(page.items.length === 60);
       } else if (this.paused() && this.loaded()) {
         this.pending.set(page.items);
+      } else if (this.slowMode() && this.loaded() && this.items().length > 0) {
+        this.queueNewFinds(page.items);
+        this.pending.set([]);
+        this.hasMore.set(page.items.length === 60);
       } else {
         this.items.set(page.items);
         this.pending.set([]);
@@ -107,5 +128,51 @@ export class DealFeedState {
     this.generation++;
     this.updateGeneration = null;
     this.request = null;
+    this.clearQueue();
   }
+
+  /**
+   * Nur Funde, die neuer als der oberste sichtbare Artikel sind, warten auf ihren
+   * Einschub. Alles andere übernimmt die Seite wie gewohnt an seiner Stelle.
+   */
+  private queueNewFinds(pageItems: FeedItem[]): void {
+    const newest = this.items()[0];
+    const shown = new Set(this.items().map((item) => item.id));
+    const present = new Set(pageItems.map((item) => item.id));
+    const waiting = new Set(this.queued().map((item) => item.id));
+    const fresh = pageItems.filter(
+      (item) => !shown.has(item.id) && !waiting.has(item.id) && isNewer(item, newest),
+    );
+    const queued = [...fresh, ...this.queued().filter((item) => present.has(item.id))];
+    const queuedIds = new Set(queued.map((item) => item.id));
+    this.queued.set(queued);
+    this.items.set(pageItems.filter((item) => !queuedIds.has(item.id)));
+    this.scheduleRelease();
+  }
+
+  private scheduleRelease(): void {
+    if (this.releaseTimer !== undefined || this.queued().length === 0) return;
+    this.releaseTimer = setTimeout(() => {
+      this.releaseTimer = undefined;
+      // Während der Pause schaut jemand auf die Karten; danach geht es weiter.
+      if (this.paused()) return;
+      const queued = this.queued();
+      const next = queued.at(-1);
+      if (!next) return;
+      this.queued.set(queued.slice(0, -1));
+      this.items.update((items) => [next, ...items]);
+      this.scheduleRelease();
+    }, SLOW_MODE_STEP_MS);
+  }
+
+  private clearQueue(): void {
+    clearTimeout(this.releaseTimer);
+    this.releaseTimer = undefined;
+    this.queued.set([]);
+  }
+}
+
+function isNewer(item: FeedItem, reference: FeedItem): boolean {
+  const difference = Date.parse(item.first_seen_at) - Date.parse(reference.first_seen_at);
+  return difference > 0 || (difference === 0 && item.id > reference.id);
 }

@@ -11,6 +11,10 @@ insert into public.workspace_members (workspace_id, user_id, role) values
 insert into public.sniper_queries (id, query_key, brand_id, is_active) values
   ('92000000-0000-4000-8000-000000000003', 'feed-brand-nike', 53, true),
   ('92000000-0000-4000-8000-000000000004', 'feed-brand-adidas', 14, false);
+insert into public.sniper_queries (id, query_key, brand_ids, brand_names, is_active) values
+  ('92000000-0000-4000-8000-000000000006', 'feed-brand-configured', array[255, 362],
+    array['Carhartt WIP', ' Levi''s '], true),
+  ('92000000-0000-4000-8000-000000000007', 'feed-brand-paused', array[2319], array['Gucci'], false);
 insert into public.sniper_listings
   (external_id, title, url, item_price, total_price, brand, discovered_by_query_id, first_seen_at)
 values
@@ -19,13 +23,18 @@ values
   ('feed-brand-adidas', 'Adidas', 'https://www.vinted.de/items/2', 12, 14, 'Adidas',
     '92000000-0000-4000-8000-000000000004', now() - interval '2 minutes'),
   ('feed-brand-other', 'Andere Marke', 'https://www.vinted.de/items/3', 15, 17, 'Reebok',
-    '92000000-0000-4000-8000-000000000003', now() - interval '1 minute');
+    '92000000-0000-4000-8000-000000000003', now() - interval '1 minute'),
+  ('feed-brand-stray', 'Mitgefunden', 'https://www.vinted.de/items/4', 15, 17, 'Stüssy',
+    '92000000-0000-4000-8000-000000000006', now() - interval '1 minute');
 
 select set_config('request.jwt.claim.sub', '92000000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 select is((select array_agg(brand order by brand) from public.sniper_supported_brands(
-  '92000000-0000-4000-8000-000000000002')), array['Nike', 'Reebok'],
-  'Nur Marken aus aktiven Vinted-Sammelauftraegen erscheinen');
+  '92000000-0000-4000-8000-000000000002')), array['Carhartt WIP', 'Levi''s', 'Nike', 'Reebok'],
+  'Eingestellte Marken aktiver Filter erscheinen; alte Markenfilter behalten ihre Funde');
+select ok(not exists(select 1 from public.sniper_supported_brands(
+  '92000000-0000-4000-8000-000000000002') where brand in ('Stüssy', 'Gucci')),
+  'Mitgefundene Marken und pausierte Filter erscheinen nicht');
 select is(jsonb_array_length(public.sniper_feed_by_brand(
   '92000000-0000-4000-8000-000000000002', null, ' nike ', null, null, 1)->'items'),
   1, 'Marke wird vor der Seitenteilung und ohne Beachtung der Schreibweise gefiltert');
