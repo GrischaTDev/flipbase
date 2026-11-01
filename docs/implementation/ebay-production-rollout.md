@@ -2,6 +2,43 @@
 
 Stand: 1. Oktober 2026. Geprüfte Grundlage: `a987e304`, Release `v0.276.1`.
 
+## Vorbereitung vom 1. November 2026: Listing API und Postfach
+
+Der neue Aufgabenstand verwendet für Inseratdetails, Bearbeitung und Erstellung
+die GraphQL Listing API 1.0.0. Das Postfach verwendet die Message API 1.0.0.
+Dies beschreibt den geprüften lokalen Stand, keinen bereits erfolgten Rollout.
+
+- Den öffentlichen Einstieg `ebay-account` samt vollständiger relativer
+  Quellen aus demselben freigegebenen Merge aktualisieren. Der Anwendungsrollout
+  allein aktualisiert diesen Dienst weiterhin nicht. Die vorhandene
+  Verschlüsselung und Kontobindung erhalten; keine Datenbankmigration erforderlich.
+- Der Status bestätigt die neuen Serverfähigkeiten mit
+  `listingCreationAvailable` und `messagingAvailable`. Fehlen diese Angaben,
+  starten die neuen Oberflächen keine entsprechenden Anbieteraktionen.
+- Die OAuth-Freigabe ergänzt `sell.listing`, `sell.listing.read`,
+  `commerce.message` und `sell.account.readonly` (jeweils unter
+  `https://api.ebay.com/oauth/api_scope/`). Bestehende Refresh Tokens erhalten
+  dadurch keine zusätzlichen Rechte. Das betroffene Konto muss bewusst erneut
+  verbunden werden; ein Zugriff ohne Freigabe bleibt gesperrt.
+- Die Erstellung unterstützt zunächst Festpreis, EUR, eBay Deutschland,
+  Versand aus Deutschland und vorhandene Kontorichtlinien. Kategorien, Merkmale
+  und Zustände werden bei eBay gelesen, Fotos über die Media API hochgeladen.
+  Die Anbieterprüfung veröffentlicht nichts. Gebühren und Hinweise werden vor
+  dem bestätigten Erstellen erneut verglichen.
+- Eine unklare Veröffentlichung bleibt mit fester Idempotenzkennung und SKU
+  gesperrt; die Statusklärung liest nur. Bei unklarem Nachrichtenversand erfolgt
+  ebenfalls kein automatischer zweiter Versuch. Die Sperren überstehen ein
+  Neuladen desselben Browsertabs; sie sind keine geräteübergreifende Entwurfsablage.
+- Der Hintergrundcache bleibt vorerst beim bewährten Trading-Lesevertrag.
+  Bestellungen und Verkaufsprüfung bleiben erhalten. Eine vollständige Ablösung
+  aller Trading-Aufrufe ist mit diesem Aufgabenstand nicht behauptet.
+
+Für eine produktive Abnahme nach Freigabe zuerst Serverfähigkeiten und erneute
+Kontofreigabe prüfen. Danach eigene Inseratdetails und Postfach lesend prüfen.
+Eine echte Veröffentlichung oder Nachricht braucht einen ausdrücklich dafür
+gewählten Inhalt und Empfänger. Die lokalen Prüfungen verwenden Anbieterantworten
+aus Testfällen und belegen keine erfolgreiche Aktion im echten eBay-Konto.
+
 ## Nachtrag vom 23. Oktober 2026: öffentliche Bestellprüfung abgleichen
 
 Bei Bestellung 7587 lag keine Erstattung vor: eBay lieferte `PAID`, `FULFILLED`

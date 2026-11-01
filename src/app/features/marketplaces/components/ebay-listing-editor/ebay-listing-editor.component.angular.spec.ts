@@ -136,6 +136,16 @@ describe('eBay-Inseratbearbeitung', () => {
     await vi.waitFor(() => expect(component.loading()).toBe(false));
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('eine Sitzungserneuerung desselben Nutzers erhält ungespeicherte Änderungen', async () => {
+    component.form.controls.title.setValue('Unsaved title');
+    user.set({ id: 'user-a' });
+    workspace.set({ id: 'workspace-a', archived_at: null });
+    TestBed.tick();
+    await vi.waitFor(() => expect(component.loading()).toBe(false));
+    expect(component.form.controls.title.value).toBe('Unsaved title');
+    expect(api.loadListingDetails).toHaveBeenCalledTimes(1);
+    expect(api.updateListing).not.toHaveBeenCalled();
+  });
   it('rendert beschriftete Felder, die gemeinsame Bildverwaltung und die Aktion im Seitenkopf', async () => {
     const fixture = TestBed.createComponent(EbayListingEditorComponent);
     fixture.detectChanges();

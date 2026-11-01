@@ -38,6 +38,14 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
   if (typeof response['configured'] !== 'boolean') throw new Error('Ungültige eBay-Antwort.');
   const importAvailable = response['importAvailable'] === true;
   const listingManagementAvailable = response['listingManagementAvailable'] === true;
+  const capabilities = {
+    listingCreationAvailable: response['listingCreationAvailable'] === true,
+    messagingAvailable: response['messagingAvailable'] === true,
+  };
+  for (const key of ['listingCreationAvailable', 'messagingAvailable']) {
+    if (response[key] !== undefined && typeof response[key] !== 'boolean')
+      throw new Error('Ungültige eBay-Antwort.');
+  }
   if (
     response['listingManagementAvailable'] !== undefined &&
     typeof response['listingManagementAvailable'] !== 'boolean'
@@ -48,6 +56,7 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
   if (response['connection'] === null)
     return {
       configured: response['configured'],
+      ...capabilities,
       importAvailable,
       listingManagementAvailable,
       connection: null,
@@ -63,6 +72,7 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
     throw new Error('Ungültige eBay-Antwort.');
   return {
     configured: response['configured'],
+    ...capabilities,
     importAvailable,
     listingManagementAvailable,
     connection: {

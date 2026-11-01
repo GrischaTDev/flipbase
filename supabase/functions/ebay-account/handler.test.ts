@@ -4,7 +4,8 @@ import { createEbayAccountHandler, mapPublicConnection } from './handler.ts';
 import type { EbayAccountStore, StoredEbayConnection } from './handler.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
-import { readEbayListingDetails } from '../_shared/ebay-listing-management.ts';
+import { readModernEbayListing } from '../_shared/ebay-listing-api.ts';
+import { validateEbayDraft } from '../_shared/ebay-listing-creation.ts';
 
 const workspaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const connectionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -29,6 +30,43 @@ const connection: StoredEbayConnection = {
   last_read_at: null,
   authorization_version: 1,
 };
+function ownGraphqlListing() {
+  return Response.json({
+    data: {
+      sellerListings: {
+        __typename: 'ListingsSuccess',
+        listings: [
+          {
+            __typename: 'ListingSuccess',
+            listingId: '123',
+            listing: {
+              listingId: '123',
+              marketplace: 'EBAY_DE',
+              listingTerms: {
+                listingFormat: 'FIXED_PRICE',
+                lifecycleTerms: { listingStatus: 'ACTIVE' },
+              },
+              sellerProduct: {
+                title: 'Original',
+                description: 'Text',
+                images: [{ ebayImageUrl: 'https://i.ebayimg.com/photo.jpg' }],
+              },
+              items: [
+                {
+                  sku: 'own-sku',
+                  itemTerms: {
+                    availability: { quantityAvailable: 1 },
+                    pricingTerms: { fixedPrice: { original: { value: '10', currency: 'EUR' } } },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+}
 function store(overrides: Partial<EbayAccountStore> = {}): EbayAccountStore {
   return {
     authenticate: async (bearer) => (bearer === 'Bearer valid' ? userId : null),
@@ -50,6 +88,235 @@ function request(action: string, extras: Record<string, unknown> = {}, bearer = 
     body: JSON.stringify({ action, workspaceId, ...extras }),
   });
 }
+
+async function connectedStore(overrides: Partial<EbayAccountStore> = {}) {
+  const encryptedTokens = await encryptTokens(
+    {
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      expiresAt: Date.now() + 100000,
+      refreshExpiresAt: Date.now() + 1000000,
+    },
+    config.encryptionKey,
+    connectionId,
+  );
+  return store({ claim: async () => ({ connection, encryptedTokens }), ...overrides });
+}
+const creationDraft = validateEbayDraft({
+  key: 'a'.repeat(32),
+  title: 'Wollschal',
+  description: 'Guter Zustand',
+  price: 29,
+  quantity: 1,
+  categoryId: '12',
+  conditionId: '3000',
+  postalCode: '12345',
+  location: 'Testort',
+  paymentPolicyId: '1',
+  fulfillmentPolicyId: '2',
+  returnPolicyId: '3',
+  imageUrls: ['https://i.ebayimg.com/photo.jpg'],
+  aspects: [],
+});
+function validationResponse(amount = '0.35') {
+  return Response.json({
+    data: {
+      createListing: {
+        __typename: 'CreateListingValidationSuccess',
+        warnings: [],
+        listingFees: [
+          { listingFeeType: 'INSERTION_FEE', feeAmount: { value: amount, currency: 'EUR' } },
+        ],
+      },
+    },
+  });
+}
+test('Geänderte Gebühren stoppen die Veröffentlichung vor EXECUTE', async () => {
+  const modes: string[] = [];
+  let amount = '0.35';
+  const handler = createEbayAccountHandler(
+    await connectedStore(),
+    config,
+    config.allowedOrigins,
+    async (_url, init) => {
+      modes.push(JSON.parse(String(init?.body)).variables.input.options.operationMode);
+      return validationResponse(amount);
+    },
+  );
+  const checked = await handler(
+    request('listing_validate', { connectionId, draft: creationDraft }),
+  );
+  assert.equal(checked.status, 200);
+  const { reviewHash } = await checked.json();
+  amount = '0.50';
+  const result = await handler(
+    request('listing_create', { connectionId, draft: creationDraft, reviewHash }),
+  );
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).error, 'listing_review_changed');
+  assert.deepEqual(modes, ['VALIDATE', 'VALIDATE']);
+});
+test('Eine erneute Kontofreigabe zwischen Prüfen und Erstellen verlangt eine neue Bestätigung', async () => {
+  const ready = await connectedStore();
+  let current = connection;
+  const modes: string[] = [];
+  const handler = createEbayAccountHandler(
+    {
+      ...ready,
+      status: async () => current,
+      claim: async (user, workspace, id, operation) => {
+        const claimed = await ready.claim(user, workspace, id, operation);
+        return claimed ? { ...claimed, connection: current } : null;
+      },
+    },
+    config,
+    config.allowedOrigins,
+    async (_url, init) => {
+      const mode = JSON.parse(String(init?.body)).variables.input.options.operationMode;
+      modes.push(mode);
+      return mode === 'VALIDATE'
+        ? validationResponse()
+        : Response.json({
+            data: {
+              createListing: {
+                __typename: 'CreateListingSuccess',
+                listing: { listingId: '123' },
+                warnings: [],
+                listingFees: [],
+              },
+            },
+          });
+    },
+  );
+  const { reviewHash } = await (
+    await handler(request('listing_validate', { connectionId, draft: creationDraft }))
+  ).json();
+  current = { ...connection, authorization_version: 2, external_account_id: 'another-account' };
+  const result = await handler(
+    request('listing_create', { connectionId, draft: creationDraft, reviewHash }),
+  );
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).error, 'listing_review_changed');
+  assert.deepEqual(modes, ['VALIDATE', 'VALIDATE']);
+});
+test('Kontowechsel während der Anbieterprüfung verhindert das Erstellen', async () => {
+  const modes: string[] = [];
+  let changed = false;
+  const handler = createEbayAccountHandler(
+    await connectedStore({
+      status: async () => ({ ...connection, authorization_version: changed ? 2 : 1 }),
+    }),
+    config,
+    config.allowedOrigins,
+    async (_url, init) => {
+      modes.push(JSON.parse(String(init?.body)).variables.input.options.operationMode);
+      changed = modes.length > 1;
+      return validationResponse();
+    },
+  );
+  const { reviewHash } = await (
+    await handler(request('listing_validate', { connectionId, draft: creationDraft }))
+  ).json();
+  const result = await handler(
+    request('listing_create', { connectionId, draft: creationDraft, reviewHash }),
+  );
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).error, 'connection_changed');
+  assert.deepEqual(modes, ['VALIDATE', 'VALIDATE']);
+});
+test('Bestätigte Erstellung bleibt bei einem anschließenden Cachefehler erfolgreich', async () => {
+  const modes: string[] = [];
+  const handler = createEbayAccountHandler(
+    await connectedStore({
+      cacheRefresh: async () => {
+        throw new Error('Cache später');
+      },
+    }),
+    config,
+    config.allowedOrigins,
+    async (_url, init) => {
+      const mode = JSON.parse(String(init?.body)).variables.input.options.operationMode;
+      modes.push(mode);
+      return mode === 'VALIDATE'
+        ? validationResponse()
+        : Response.json({
+            data: {
+              createListing: {
+                __typename: 'CreateListingSuccess',
+                listing: { listingId: '123' },
+                warnings: [],
+                listingFees: [],
+              },
+            },
+          });
+    },
+  );
+  const { reviewHash } = await (
+    await handler(request('listing_validate', { connectionId, draft: creationDraft }))
+  ).json();
+  const result = await handler(
+    request('listing_create', { connectionId, draft: creationDraft, reviewHash }),
+  );
+  assert.equal(result.status, 200);
+  assert.equal((await result.json()).listingId, '123');
+  assert.deepEqual(modes, ['VALIDATE', 'VALIDATE', 'EXECUTE']);
+});
+test('Geänderte Kontorechte während des Gesprächsabrufs verhindern den Versand', async () => {
+  let changed = false,
+    calls = 0;
+  const handler = createEbayAccountHandler(
+    await connectedStore({
+      canConnect: async () => !changed,
+    }),
+    config,
+    config.allowedOrigins,
+    async (url) => {
+      calls++;
+      assert.match(String(url), /\/conversation\/c1\?/);
+      changed = true;
+      return Response.json({
+        conversationType: 'FROM_MEMBERS',
+        conversationTitle: 'Schal',
+        messages: [],
+        total: 0,
+      });
+    },
+  );
+  const response = await handler(
+    request('message_send', {
+      connectionId,
+      conversationId: 'c1',
+      type: 'FROM_MEMBERS',
+      text: 'Hallo',
+    }),
+  );
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error, 'connection_changed');
+  assert.equal(calls, 1);
+});
+test('Systemnachrichten erlauben keinen Versand und keine Kontolease', async () => {
+  let claims = 0;
+  const handler = createEbayAccountHandler(
+    store({
+      claim: async () => {
+        claims++;
+        return null;
+      },
+    }),
+    config,
+    config.allowedOrigins,
+  );
+  const result = await handler(
+    request('message_send', {
+      connectionId,
+      conversationId: 'c1',
+      type: 'FROM_EBAY',
+      text: 'Hallo',
+    }),
+  );
+  assert.equal(result.status, 400);
+  assert.equal(claims, 0);
+});
 
 test('öffentlicher Status bindet den Lesespeicher an die Autorisierungsfassung', () => {
   assert.equal(mapPublicConnection(connection).authorizationVersion, 1);
@@ -322,14 +589,8 @@ test('Artikel- und Werbeberichte behalten Kontobindung und verwerfen Antworten n
   }
 });
 test('Eine zwischenzeitlich erneuerte Freigabe stoppt die Änderung vor dem Schreiben', async () => {
-  const item =
-    '<GetItemResponse><Ack>Success</Ack><Item><ItemID>123</ItemID><Seller><UserID>seller</UserID></Seller><Title>Original</Title><Description>Text</Description><ListingType>FixedPriceItem</ListingType><SellingStatus><ListingStatus>Active</ListingStatus><CurrentPrice currencyID="EUR">10</CurrentPrice></SellingStatus><PictureDetails><PictureURL>https://i.ebayimg.com/photo.jpg</PictureURL></PictureDetails></Item></GetItemResponse>';
-  const listing = await readEbayListingDetails(
-    config,
-    'token',
-    '123',
-    'seller',
-    async () => new Response(item),
+  const listing = await readModernEbayListing(config, 'token', '123', async () =>
+    ownGraphqlListing(),
   );
   const encryptedTokens = await encryptTokens(
     {
@@ -350,8 +611,8 @@ test('Eine zwischenzeitlich erneuerte Freigabe stoppt die Änderung vor dem Schr
     config,
     config.allowedOrigins,
     async (_url, init) => {
-      calls.push(new Headers(init?.headers).get('X-EBAY-API-CALL-NAME') ?? '');
-      return new Response(item);
+      calls.push(JSON.parse(String(init?.body)).query.split('(')[0]);
+      return ownGraphqlListing();
     },
   );
   const result = await handler(
@@ -362,7 +623,7 @@ test('Eine zwischenzeitlich erneuerte Freigabe stoppt die Änderung vor dem Schr
     }),
   );
   assert.equal(result.status, 409);
-  assert.deepEqual(calls, ['GetItem']);
+  assert.deepEqual(calls, ['query FlipbaseListing']);
 });
 test('Überlange Bildanfragen werden vor dem Multipart-Parser abgewiesen', async () => {
   const handler = createEbayAccountHandler(store(), config, config.allowedOrigins);
@@ -400,10 +661,7 @@ test('Ein Multipart-Bild wird dem bestätigten eigenen Konto zugeordnet und erst
     config.allowedOrigins,
     async (url) => {
       calls.push(String(url));
-      if (String(url).endsWith('/ws/api.dll'))
-        return new Response(
-          '<GetItemResponse><Ack>Success</Ack><Item><ItemID>123</ItemID><Seller><UserID>seller</UserID></Seller><Title>Original</Title><Description>Text</Description><ListingType>FixedPriceItem</ListingType><SellingStatus><ListingStatus>Active</ListingStatus></SellingStatus></Item></GetItemResponse>',
-        );
+      if (String(url).includes('graphqlapi.ebay.com')) return ownGraphqlListing();
       return Response.json({ imageUrl: 'https://i.ebayimg.com/upload.jpg' }, { status: 201 });
     },
   );

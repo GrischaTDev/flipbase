@@ -532,6 +532,17 @@ test('gezielte Fachauswahlen behalten kleine Jobs und teilen große Gruppen ohne
   }
 });
 
+test('umfassende Fachläufe behalten Reserve nach dem Auslagern geänderter Dateien', () => {
+  const files = Array.from({ length: 25 }, (_, index) => `e2e/feature-${index}.spec.ts`);
+  for (const browserFiles of [files, files.slice(1)]) {
+    const plan = { ...twoBrowserGroups, full: true, browserFiles, changedBrowserFiles: [files[0]] };
+    assert.deepEqual(
+      buildBrowserMatrix(plan).filter(({ project }) => project === 'chromium'),
+      Array.from({ length: 6 }, (_, index) => ({ project: 'chromium', shard: `${index + 1}/6` })),
+    );
+  }
+});
+
 test('der vollständige Vinted-PR verteilt seine 50 Fachdateien auf neun Gruppen', () => {
   const plan = {
     ...twoBrowserGroups,
@@ -575,7 +586,10 @@ test('große Fachauswahlen erhalten die bestehenden Kern-, Layout- und Änderung
     assert.deepEqual(buildBrowserMatrix(plan), [
       { project: 'core-smoke', shard: '1/1' },
       ...layout.map((shard) => ({ project: 'layout', shard })),
-      ...['1/3', '2/3', '3/3'].map((shard) => ({ project: 'chromium', shard })),
+      ...Array.from({ length: full ? 6 : 3 }, (_, index) => ({
+        project: 'chromium',
+        shard: `${index + 1}/${full ? 6 : 3}`,
+      })),
       ...changed.map((shard) => ({ project: 'changed-tests', shard })),
     ]);
   }
@@ -652,6 +666,26 @@ test('Vinted-Verkaufsansicht wählt nur die zugehörigen Browserfälle', () => {
   });
   assert.equal(plan.full, false);
   assert.deepEqual(plan.browserFiles, ['e2e/vinted-sales.spec.ts']);
+});
+
+test('eBay-Inserate und Nachrichten wählen ihre eigene Browserabnahme statt Vinted', () => {
+  for (const path of [
+    'src/app/features/marketplaces/components/ebay-listing-create/ebay-listing-create.component.html',
+    'src/app/features/marketplaces/services/ebay-inbox.store.ts',
+  ]) {
+    const plan = selectAffectedTests([path], {
+      [path]: 'export const fixture = true;',
+      'e2e/ebay-workspace.spec.ts': 'test()',
+      'e2e/ebay-order-import.spec.ts': 'test()',
+      'e2e/vinted-inbox-experience.spec.ts': 'test()',
+      'e2e/vinted-listing-drafts.spec.ts': 'test()',
+    });
+    assert.equal(plan.full, false);
+    assert.deepEqual(plan.browserFiles, [
+      'e2e/ebay-order-import.spec.ts',
+      'e2e/ebay-workspace.spec.ts',
+    ]);
+  }
 });
 
 test('Vinted-Anbieterentwuerfe und Datenuebernahme waehlen ihre bestehenden Browserdateien', () => {
