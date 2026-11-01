@@ -353,13 +353,18 @@ for (const theme of ['light', 'dark'] as const) {
           return { x, y, width, height };
         }),
       );
-      expect(allCards[0].x).toBeLessThan(allCards[1].x);
-      expect(allCards[1].x).toBeLessThan(allCards[2].x);
-      expect(allCards[0].y).toBeCloseTo(allCards[1].y, 0);
-      expect(allCards[1].y).toBeCloseTo(allCards[2].y, 0);
-      expect(allCards[0].width).toBeCloseTo(allCards[4].width, 0);
-      expect(allCards[4].y).toBeCloseTo(allCards[0].y, 0);
-      expect(allCards[5].y).toBeGreaterThan(allCards[0].y);
+      // Die Filter belegen links eine eigene Spalte; das Raster nutzt die übrige Breite.
+      const filterColumn = await page.locator('[data-feed-filters]').boundingBox();
+      expect(filterColumn!.x + filterColumn!.width).toBeLessThanOrEqual(allCards[0].x);
+      const firstRow = allCards.filter((card) => Math.abs(card.y - allCards[0].y) < 1);
+      expect(firstRow.length).toBeGreaterThanOrEqual(3);
+      for (const [index, card] of firstRow.entries()) {
+        if (index > 0) expect(firstRow[index - 1].x).toBeLessThan(card.x);
+        expect(card.width).toBeCloseTo(allCards[0].width, 0);
+      }
+      expect(allCards[0].width).toBeGreaterThanOrEqual(220);
+      expect(allCards[firstRow.length].y).toBeGreaterThan(allCards[0].y);
+      expect(allCards[firstRow.length].width).toBeCloseTo(allCards[0].width, 0);
     }
     const viewItem = firstCard.getByRole('link', {
       name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
@@ -486,7 +491,7 @@ for (const theme of ['light', 'dark'] as const) {
   ]) {
     test.describe(`Kartenansicht ${theme} ${viewport.width}px`, () => {
       test.use({ hasTouch: viewport.width <= 390, isMobile: viewport.width <= 390 });
-      test(`Feed-Kompaktmodus ${theme} ${viewport.width}px @pr-smoke`, async ({
+      test(`Feed-Karten und Filterleiste ${theme} ${viewport.width}px @pr-smoke`, async ({
         page,
       }, testInfo) => {
         await page.setViewportSize(viewport);
@@ -510,6 +515,40 @@ for (const theme of ['light', 'dark'] as const) {
         const filters = page.locator('[data-feed-filters]');
         const maxPrice = page.getByRole('spinbutton', { name: 'Höchstpreis in Euro' });
         const resetFilters = page.getByRole('button', { name: 'Filter zurücksetzen', exact: true });
+        const titleSearch = page.getByRole('searchbox', {
+          name: 'Artikel im Titel durchsuchen',
+          exact: true,
+        });
+        // Suchfeld und Auswahlfelder teilen sich dieselbe Toolbar-Höhe.
+        expect((await titleSearch.boundingBox())!.height).toBeCloseTo(
+          (await page.locator('#feed-watchlist').boundingBox())!.height,
+          0,
+        );
+        // Per Tastatur öffnen: ein Mausklick ließe den Zeiger für die spätere
+        // AXE-Prüfung im Hover-Zustand über dem Feld stehen.
+        await page.locator('#feed-brand').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('listbox')).toBeVisible();
+        // Marken kommen nur aus den Bot-Filtern; eine Freitextsuche gibt es dort nicht.
+        await expect(page.locator('[data-feed-filters] input[role="combobox"]')).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('listbox')).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Kompakt', exact: true })).toHaveCount(0);
+        await expect(page.getByText('Letzte 3 Tage', { exact: true })).toHaveCount(0);
+        // Breit stehen die Filter links neben den Funden, schmal darüber.
+        const filterPlacement = await filters.boundingBox();
+        const firstCardBox = await page.getByRole('article').first().boundingBox();
+        if (viewport.width >= 1440) {
+          expect(filterPlacement!.x + filterPlacement!.width).toBeLessThanOrEqual(firstCardBox!.x);
+        } else {
+          expect(filterPlacement!.y + filterPlacement!.height).toBeLessThanOrEqual(firstCardBox!.y);
+        }
+        await expect(
+          page.getByRole('checkbox', {
+            name: 'Langsamer Modus: neue Funde einzeln einschieben',
+            exact: true,
+          }),
+        ).not.toBeChecked();
         const filtersBeforeInput = await filters.boundingBox();
         const priceBeforeInput = await maxPrice.boundingBox();
         await expect(resetFilters).toBeHidden();
@@ -521,11 +560,20 @@ for (const theme of ['light', 'dark'] as const) {
         expect(filtersAfterInput!.height).toBeCloseTo(filtersBeforeInput!.height, 0);
         expect(priceAfterInput!.x).toBeCloseTo(priceBeforeInput!.x, 0);
         expect(priceAfterInput!.width).toBeCloseTo(priceBeforeInput!.width, 0);
-        expect(resetBox!.x).toBeGreaterThanOrEqual(priceAfterInput!.x + priceAfterInput!.width);
-        expect(resetBox!.y + resetBox!.height).toBeCloseTo(
-          priceAfterInput!.y + priceAfterInput!.height,
-          0,
-        );
+        if (filtersAfterInput!.width < 320) {
+          // Schmale Filterkarte: Felder in voller Breite, Zurücksetzen unten rechts.
+          expect(resetBox!.y).toBeGreaterThanOrEqual(priceAfterInput!.y + priceAfterInput!.height);
+          expect(resetBox!.x + resetBox!.width).toBeCloseTo(
+            priceAfterInput!.x + priceAfterInput!.width,
+            0,
+          );
+        } else {
+          expect(resetBox!.x).toBeGreaterThanOrEqual(priceAfterInput!.x + priceAfterInput!.width);
+          expect(resetBox!.y + resetBox!.height).toBeCloseTo(
+            priceAfterInput!.y + priceAfterInput!.height,
+            0,
+          );
+        }
         const priceTextFits = await maxPrice.evaluate((input: HTMLInputElement) => {
           const styles = getComputedStyle(input);
           const context = document.createElement('canvas').getContext('2d')!;
@@ -557,12 +605,10 @@ for (const theme of ['light', 'dark'] as const) {
           name: 'Nike Sneaker 1 in Großansicht öffnen',
           exact: true,
         });
-        const toggle = page.getByRole('button', { name: 'Kompakt', exact: true });
         const viewItem = firstCard.getByRole('link', {
           name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
           exact: true,
         });
-        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
         await expect(firstCard.getByRole('heading', { name: 'Nike Sneaker 1' })).toBeVisible();
         await expect(firstCard.locator('dl app-badge')).toHaveCount(4);
         await expect(firstCard.getByRole('img')).toHaveCount(1);
@@ -578,32 +624,13 @@ for (const theme of ['light', 'dark'] as const) {
           .getByRole('region', { name: 'Artikel im Vinted Feed' })
           .screenshot({ path: testInfo.outputPath('feed-standard.png') });
 
-        await toggle.focus();
-        await page.keyboard.press('Enter');
-        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-        await expect(toggle).toBeFocused();
-        await expect(firstCard.locator('h3, dl, time')).toHaveCount(0);
-        await expect(firstCard.getByRole('button', { name: 'Artikel teilen' })).toHaveCount(0);
-        await expect(firstCard.locator('app-button')).toHaveCount(2);
-        await expect(viewItem).toHaveText('');
-        await expect(viewItem).toHaveAttribute('href', 'https://www.vinted.de/items/1');
-        await expect(viewItem).toHaveAttribute('target', '_blank');
-        await expect(viewItem).toHaveAttribute('rel', 'noopener noreferrer');
-        await expect(firstCard.getByText('19,00', { exact: false })).toBeVisible();
-        const compactPhoto = await preview.boundingBox();
-        expect(compactPhoto!.height).toBeGreaterThan(normalPhoto!.height);
-        expect(compactPhoto!.height / compactPhoto!.width).toBeCloseTo(5 / 3, 2);
         const favorite = firstCard.getByRole('button', { name: 'Zu Favoriten hinzufügen' });
         await favorite.click();
         const savedFavorite = firstCard.getByRole('button', { name: 'Aus Favoriten entfernen' });
         await expect(savedFavorite).toHaveAttribute('aria-pressed', 'true');
         await expect(page.getByRole('dialog')).toHaveCount(0);
         const favoriteBox = await savedFavorite.boundingBox();
-        const linkBox = await viewItem.boundingBox();
         const currentPhoto = await preview.boundingBox();
-        expect(linkBox!.width).toBeCloseTo(favoriteBox!.width, 0);
-        expect(linkBox!.height).toBeCloseTo(favoriteBox!.height, 0);
-        expect(linkBox!.x + linkBox!.width).toBeLessThan(favoriteBox!.x);
         expect(favoriteBox!.y + favoriteBox!.height).toBeGreaterThan(
           currentPhoto!.y + currentPhoto!.height - 20,
         );
@@ -612,7 +639,7 @@ for (const theme of ['light', 'dark'] as const) {
         await checkAxe(page);
         await page
           .getByRole('region', { name: 'Artikel im Vinted Feed' })
-          .screenshot({ path: testInfo.outputPath('feed-compact.png') });
+          .screenshot({ path: testInfo.outputPath('feed-favorite.png') });
         if (viewport.width <= 390) {
           const touchState = await savedFavorite.evaluate((button) => ({
             coarse: matchMedia('(pointer: coarse)').matches,
@@ -621,7 +648,6 @@ for (const theme of ['light', 'dark'] as const) {
             classes: button.className,
           }));
           expect(favoriteBox!.width, JSON.stringify(touchState)).toBeGreaterThanOrEqual(44);
-          expect(linkBox!.width).toBeGreaterThanOrEqual(44);
         }
         await page.context().route('https://www.vinted.de/items/1', (route) =>
           route.fulfill({
@@ -645,8 +671,6 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(preview).toBeFocused();
         await savedFavorite.click();
         await expect(favorite).toHaveAttribute('aria-pressed', 'false');
-        await toggle.click();
-        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
         await expect(firstCard.getByRole('heading', { name: 'Nike Sneaker 1' })).toBeVisible();
         expect(await pageHeader.innerHTML()).toBe(headerBefore);
         expect(await filterMarkup()).toBe(filtersBefore);

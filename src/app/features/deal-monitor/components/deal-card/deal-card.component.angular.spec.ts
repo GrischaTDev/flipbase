@@ -80,7 +80,7 @@ describe('DealCardComponent', () => {
       './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
     };
     await ɵresolveComponentResources((url) => readFile(resolve(resources[url]!), 'utf8'));
-    registerSignalInputs(DealCardComponent, ['item', 'compact'], ['inspect']);
+    registerSignalInputs(DealCardComponent, ['item'], ['inspect']);
     registerSignalInputs(CardComponent, ['variant', 'padding']);
     registerSignalInputs(BadgeComponent, ['tone', 'size']);
     registerSignalInputs(
@@ -113,7 +113,7 @@ describe('DealCardComponent', () => {
     });
   });
 
-  it('zeigt ein Hauptbild und alle Angaben mit getrennten Aktionen', () => {
+  it('zeigt ein Hauptbild und alle Angaben mit getrennten Aktionen', async () => {
     const fixture = TestBed.createComponent(DealCardComponent);
     fixture.componentRef.setInput('item', item);
     fixture.detectChanges();
@@ -136,40 +136,12 @@ describe('DealCardComponent', () => {
     expect(card.querySelector('time')?.getAttribute('datetime')).toBe(item.first_seen_at);
     expect(card.querySelectorAll('app-button')).toHaveLength(3);
     expect(card.textContent).not.toContain('Käuferschutz');
-  });
-
-  it('blendet im Kompakt-Modus Angaben aus und behält Preis und zwei benannte Bildaktionen', async () => {
-    const fixture = TestBed.createComponent(DealCardComponent);
-    fixture.componentRef.setInput('item', item);
-    fixture.componentRef.setInput('compact', true);
-    fixture.detectChanges();
-    const card = fixture.nativeElement as HTMLElement;
-    expect(card.querySelector('h3, dl, time')).toBeNull();
-    expect(card.textContent).not.toContain(item.title);
-    expect(card.textContent).not.toContain(item.brand);
-    expect(card.textContent).not.toContain(item.condition);
-    expect(card.textContent).toContain('15');
-    expect(card.querySelectorAll('app-button')).toHaveLength(2);
-    const link = card.querySelector<HTMLAnchorElement>('a');
-    expect(link?.textContent?.trim()).toBe('');
-    expect(link?.getAttribute('aria-label')).toBe(item.title + ' – auf Vinted ansehen (neuer Tab)');
-    expect(link?.href).toBe(item.url);
-    expect(link?.target).toBe('_blank');
-    expect(link?.rel).toBe('noopener noreferrer');
-    expect(card.querySelector('[aria-pressed]')?.getAttribute('aria-pressed')).toBe('false');
-    expect((await axe.run(card)).violations).toEqual([]);
-
-    fixture.componentRef.setInput('compact', false);
-    fixture.detectChanges();
-    expect(card.querySelector('h3')?.textContent).toContain(item.title);
-    expect(card.querySelector('dl')).not.toBeNull();
     expect((await axe.run(card)).violations).toEqual([]);
   });
 
   it('öffnet die Großansicht nur über die Bildvorschau und nicht beim Merken', () => {
     const fixture = TestBed.createComponent(DealCardComponent);
     fixture.componentRef.setInput('item', item);
-    fixture.componentRef.setInput('compact', true);
     const inspected = vi.fn();
     fixture.componentInstance.inspect.subscribe(inspected);
     fixture.detectChanges();
@@ -199,15 +171,12 @@ describe('DealCardComponent', () => {
     expect(card.textContent).toContain('Kein Artikelbild');
   });
 
-  it('behält den Hinweis auf nicht kaufbare Artikel in beiden Ansichten', () => {
+  it('zeigt den Hinweis auf nicht kaufbare Artikel ohne unsicheren Link', () => {
     const fixture = TestBed.createComponent(DealCardComponent);
     fixture.componentRef.setInput('item', { ...item, is_hidden: true, url: 'javascript:alert(1)' });
-    for (const compact of [false, true]) {
-      fixture.componentRef.setInput('compact', compact);
-      fixture.detectChanges();
-      const card = fixture.nativeElement as HTMLElement;
-      expect(card.textContent).toContain('Noch nicht kaufbar');
-      expect(card.querySelector('a')).toBeNull();
-    }
+    fixture.detectChanges();
+    const card = fixture.nativeElement as HTMLElement;
+    expect(card.textContent).toContain('Noch nicht kaufbar');
+    expect(card.querySelector('a')).toBeNull();
   });
 });

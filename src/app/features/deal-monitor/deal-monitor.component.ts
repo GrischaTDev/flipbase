@@ -9,12 +9,13 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideBot, LucideImage, LucideRefreshCcw } from '@lucide/angular';
+import { LucideBot, LucideRefreshCcw } from '@lucide/angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
 import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
@@ -25,6 +26,8 @@ import { DealFavoritesService } from './services/deal-favorites.service';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { FeedItem, Watchlist } from './models/deal-monitor.model';
 
+const SLOW_MODE_STORAGE_KEY = 'flipbase:vinted-feed:slow-mode';
+
 @Component({
   selector: 'app-deal-monitor',
   imports: [
@@ -32,6 +35,7 @@ import { FeedItem, Watchlist } from './models/deal-monitor.model';
     ButtonComponent,
     CardComponent,
     CustomSelectComponent,
+    CustomCheckboxComponent,
     NumberInputComponent,
     CustomSearchInputComponent,
     DealCardComponent,
@@ -59,7 +63,6 @@ export class DealMonitorComponent {
   readonly minPrice = signal<number | null>(null);
   readonly maxPrice = signal<number | null>(null);
   readonly selectedDeal = signal<FeedItem | null>(null);
-  readonly compact = signal(false);
   readonly sizeOptions = [
     { value: null as string | null, label: 'Alle Größen' },
     { value: 'xs', label: 'XS' },
@@ -75,7 +78,6 @@ export class DealMonitorComponent {
   readonly now = signal(Date.now());
   readonly pageIcon = LucideBot;
   readonly resetIcon = LucideRefreshCcw;
-  readonly compactIcon = LucideImage;
   readonly options = computed(() => [
     { value: null as string | null, label: 'Alle Suchfilter' },
     ...this.watchlists().map((row) => ({ value: row.id, label: row.title })),
@@ -88,6 +90,13 @@ export class DealMonitorComponent {
     this.watchlists().find((row) => row.id === this.selected()),
   );
   readonly feedItems = this.state.items;
+  readonly slowMode = this.state.slowMode;
+  // Im langsamen Modus rückt jeder Fund sichtbar von links herein.
+  readonly cardMotion = computed(() =>
+    this.slowMode()
+      ? 'motion-safe:duration-500 motion-safe:ease-out motion-safe:starting:-translate-x-12'
+      : 'motion-safe:duration-200 motion-safe:starting:-translate-x-3',
+  );
   readonly filtersActive = computed(
     () =>
       this.selected() !== null ||
@@ -117,6 +126,7 @@ export class DealMonitorComponent {
   private timer?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    this.state.setSlowMode(this.readSlowModePreference());
     effect(() => {
       const workspace = this.workspace()?.id ?? null;
       untracked(() => {
@@ -230,8 +240,21 @@ export class DealMonitorComponent {
     this.searchTimer = setTimeout(() => this.titleQuery.set(value.trim()), 250);
   }
 
-  toggleCompact(): void {
-    this.compact.update((compact) => !compact);
+  slowModeChanged(enabled: boolean): void {
+    this.state.setSlowMode(enabled);
+    try {
+      this.document.defaultView?.localStorage.setItem(SLOW_MODE_STORAGE_KEY, String(enabled));
+    } catch {
+      // Ohne Browserspeicher gilt die Wahl nur für diesen Besuch.
+    }
+  }
+
+  private readSlowModePreference(): boolean {
+    try {
+      return this.document.defaultView?.localStorage.getItem(SLOW_MODE_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
   }
 
   resetFilters(): void {

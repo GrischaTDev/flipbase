@@ -83,7 +83,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   protected readonly actionIcon = LucidePlus;
   protected readonly triggerClasses = computed(() => {
     const base =
-      'fb-select-trigger flex w-full cursor-pointer items-center gap-2 overflow-hidden border text-[13px] leading-4 font-medium text-[var(--fb-control-text)] [font-family:var(--fb-control-font)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--fb-control-focus)] disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:min-h-11';
+      'fb-select-trigger group flex w-full cursor-pointer items-center gap-2 overflow-hidden border text-[13px] leading-4 font-medium text-[var(--fb-control-text)] [font-family:var(--fb-control-font)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--fb-control-focus)] disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:min-h-11';
     if (this.variant() === 'pill') {
       return (
         base +

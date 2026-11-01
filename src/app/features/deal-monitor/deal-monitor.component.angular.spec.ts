@@ -4,6 +4,7 @@ import { createDealFavoritesFixture } from '../../../test-support/deal-favorites
 import '@angular/compiler';
 import { ElementRef, EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -17,6 +18,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { CardComponent } from '../../shared/components/card/card.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
+import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { DealCardComponent } from './components/deal-card/deal-card.component';
@@ -90,6 +92,10 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/features/deal-monitor/components/watchlist-editor/watchlist-editor.component.html',
   './text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
   './text-field.component.scss': 'src/app/shared/components/text-field/text-field.component.scss',
+  './custom-checkbox.component.html':
+    'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
+  './custom-checkbox.component.scss':
+    'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
   './number-input.component.html':
     'src/app/shared/components/number-input/number-input.component.html',
   './number-input.component.scss':
@@ -129,7 +135,7 @@ describe('DealMonitorComponent', () => {
 
     registerSignalInputs(
       CustomSearchInputComponent,
-      ['id', 'ariaLabel', 'placeholder', 'value', 'maxLength'],
+      ['id', 'variant', 'size', 'ariaLabel', 'placeholder', 'value', 'maxLength'],
       ['searched'],
     );
     registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge', 'icon']);
@@ -184,7 +190,14 @@ describe('DealMonitorComponent', () => {
       configurable: true,
       value: new EventEmitter<string | null>(),
     });
-    registerSignalInputs(DealCardComponent, ['item', 'compact'], ['inspect']);
+    registerSignalInputs(CustomCheckboxComponent, [
+      'presentation',
+      'size',
+      'label',
+      'ariaLabel',
+      'checked',
+    ]);
+    registerSignalInputs(DealCardComponent, ['item'], ['inspect']);
     registerSignalInputs(DealDetailModalComponent, ['item'], ['closed']);
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
   });
@@ -422,9 +435,63 @@ describe('DealMonitorComponent', () => {
     expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ minPrice: 12 }));
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Letzte 3 Tage');
+    expect(host.querySelector('#feed-finds-grid')).not.toBeNull();
+    expect(host.textContent).not.toContain('Letzte 3 Tage');
+    expect(host.textContent).not.toContain('Kompakt');
     expect((await axe.run(host)).violations).toEqual([]);
     fixture.destroy();
+  });
+
+  it('uses the toolbar search field and a brand choice without free text', async () => {
+    const fixture = TestBed.createComponent(DealMonitorComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const search = fixture.debugElement.query(By.directive(CustomSearchInputComponent))
+      .componentInstance as CustomSearchInputComponent;
+    expect([search.variant(), search.size()]).toEqual(['toolbar', 'sm']);
+    const brandSelect = fixture.debugElement
+      .queryAll(By.directive(CustomSelectComponent))
+      .map((select) => select.componentInstance as CustomSelectComponent<string | null>)
+      .find((select) => select.triggerId() === 'feed-brand');
+    expect(brandSelect?.searchable()).toBe(false);
+    expect(brandSelect?.options().map((option) => option.label)).toEqual([
+      'Alle Marken',
+      'Nike',
+      'Adidas',
+    ]);
+    fixture.destroy();
+  });
+
+  it('merkt sich den langsamen Modus und bietet ihn in der Filterleiste an', async () => {
+    localStorage.setItem('flipbase:vinted-feed:slow-mode', 'true');
+    try {
+      const fixture = TestBed.createComponent(DealMonitorComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const feed = fixture.componentInstance;
+      const host = fixture.nativeElement as HTMLElement;
+      expect(feed.slowMode()).toBe(true);
+      expect(
+        host.querySelector('aside[aria-label="Feed filtern"] [data-feed-slow-mode]'),
+      ).not.toBeNull();
+      const checkbox = fixture.debugElement.query(By.directive(CustomCheckboxComponent))
+        .componentInstance as CustomCheckboxComponent;
+      expect(checkbox.checked()).toBe(true);
+      expect(feed.cardMotion()).toContain('starting:-translate-x-12');
+      expect((await axe.run(host)).violations).toEqual([]);
+
+      feed.slowModeChanged(false);
+      fixture.detectChanges();
+      expect(feed.slowMode()).toBe(false);
+      expect(checkbox.checked()).toBe(false);
+      expect(localStorage.getItem('flipbase:vinted-feed:slow-mode')).toBe('false');
+      expect(feed.cardMotion()).toContain('starting:-translate-x-3');
+      fixture.destroy();
+    } finally {
+      localStorage.removeItem('flipbase:vinted-feed:slow-mode');
+    }
   });
 
   it('groups feed filters and resets every active choice from the right edge', async () => {
@@ -476,35 +543,6 @@ describe('DealMonitorComponent', () => {
       }),
     );
     expect((await axe.run(host)).violations).toEqual([]);
-    fixture.destroy();
-  });
-
-  it('schaltet die Karten um, ohne Seitentitel, Filter oder den Datenabruf zu verändern', async () => {
-    const fixture = TestBed.createComponent(DealMonitorComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    const header = host.querySelector('app-page-header')?.outerHTML;
-    const filters = host.querySelector('[data-feed-filters]')?.outerHTML;
-    const calls = mockApi.feed.mock.calls.length;
-    const toggle = host.querySelector<HTMLButtonElement>(
-      'button[aria-controls="feed-finds-grid"]',
-    )!;
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    toggle.click();
-    fixture.detectChanges();
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
-    expect(host.querySelector('app-deal-card h3')).toBeNull();
-    expect(host.querySelector('app-deal-card a')?.textContent?.trim()).toBe('');
-    expect(host.querySelector('app-page-header')?.outerHTML).toBe(header);
-    expect(host.querySelector('[data-feed-filters]')?.outerHTML).toBe(filters);
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    expect((await axe.run(host)).violations).toEqual([]);
-    toggle.click();
-    fixture.detectChanges();
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(host.querySelector('app-deal-card h3')).not.toBeNull();
     fixture.destroy();
   });
 
