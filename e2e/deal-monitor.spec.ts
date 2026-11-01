@@ -353,13 +353,18 @@ for (const theme of ['light', 'dark'] as const) {
           return { x, y, width, height };
         }),
       );
-      expect(allCards[0].x).toBeLessThan(allCards[1].x);
-      expect(allCards[1].x).toBeLessThan(allCards[2].x);
-      expect(allCards[0].y).toBeCloseTo(allCards[1].y, 0);
-      expect(allCards[1].y).toBeCloseTo(allCards[2].y, 0);
-      expect(allCards[0].width).toBeCloseTo(allCards[4].width, 0);
-      expect(allCards[4].y).toBeCloseTo(allCards[0].y, 0);
-      expect(allCards[5].y).toBeGreaterThan(allCards[0].y);
+      // Die Filter belegen links eine eigene Spalte; das Raster nutzt die übrige Breite.
+      const filterColumn = await page.locator('[data-feed-filters]').boundingBox();
+      expect(filterColumn!.x + filterColumn!.width).toBeLessThanOrEqual(allCards[0].x);
+      const firstRow = allCards.filter((card) => Math.abs(card.y - allCards[0].y) < 1);
+      expect(firstRow.length).toBeGreaterThanOrEqual(3);
+      for (const [index, card] of firstRow.entries()) {
+        if (index > 0) expect(firstRow[index - 1].x).toBeLessThan(card.x);
+        expect(card.width).toBeCloseTo(allCards[0].width, 0);
+      }
+      expect(allCards[0].width).toBeGreaterThanOrEqual(220);
+      expect(allCards[firstRow.length].y).toBeGreaterThan(allCards[0].y);
+      expect(allCards[firstRow.length].width).toBeCloseTo(allCards[0].width, 0);
     }
     const viewItem = firstCard.getByRole('link', {
       name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
@@ -552,11 +557,20 @@ for (const theme of ['light', 'dark'] as const) {
         expect(filtersAfterInput!.height).toBeCloseTo(filtersBeforeInput!.height, 0);
         expect(priceAfterInput!.x).toBeCloseTo(priceBeforeInput!.x, 0);
         expect(priceAfterInput!.width).toBeCloseTo(priceBeforeInput!.width, 0);
-        expect(resetBox!.x).toBeGreaterThanOrEqual(priceAfterInput!.x + priceAfterInput!.width);
-        expect(resetBox!.y + resetBox!.height).toBeCloseTo(
-          priceAfterInput!.y + priceAfterInput!.height,
-          0,
-        );
+        if (filtersAfterInput!.width < 320) {
+          // Schmale Filterkarte: Felder in voller Breite, Zurücksetzen unten rechts.
+          expect(resetBox!.y).toBeGreaterThanOrEqual(priceAfterInput!.y + priceAfterInput!.height);
+          expect(resetBox!.x + resetBox!.width).toBeCloseTo(
+            priceAfterInput!.x + priceAfterInput!.width,
+            0,
+          );
+        } else {
+          expect(resetBox!.x).toBeGreaterThanOrEqual(priceAfterInput!.x + priceAfterInput!.width);
+          expect(resetBox!.y + resetBox!.height).toBeCloseTo(
+            priceAfterInput!.y + priceAfterInput!.height,
+            0,
+          );
+        }
         const priceTextFits = await maxPrice.evaluate((input: HTMLInputElement) => {
           const styles = getComputedStyle(input);
           const context = document.createElement('canvas').getContext('2d')!;

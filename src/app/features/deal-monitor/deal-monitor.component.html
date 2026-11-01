@@ -19,12 +19,14 @@
   >
     <aside
       aria-label="Feed filtern"
-      class="@container flex min-w-0 flex-col gap-2 @min-[60rem]:sticky @min-[60rem]:top-4"
+      class="@container flex min-w-0 flex-col gap-2 @min-[60rem]:top-20 [@media(min-height:44rem)]:@min-[60rem]:sticky"
     >
       <app-card data-feed-filters padding="sm" [overflowVisible]="true" rounded="xl">
+        <!-- Schmal (Seitenspalte, kleine Handys) steht „Zurücksetzen“ neben der Checkbox,
+             damit die Felder die volle Breite bekommen. -->
         <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
           <div
-            class="grid min-w-0 grid-cols-1 items-end gap-3 @min-[20rem]:grid-cols-2 @min-[36rem]:grid-cols-4 @min-[70rem]:grid-cols-8"
+            class="grid min-w-0 grid-cols-1 items-end gap-3 @max-[20rem]:col-span-2 @min-[20rem]:grid-cols-2 @min-[36rem]:grid-cols-4 @min-[70rem]:grid-cols-8"
           >
             <div class="min-w-0 @min-[20rem]:col-span-2">
               <label for="feed-title-search" class="mb-1 block text-sm">Artikel durchsuchen</label>
@@ -104,7 +106,7 @@
             </div>
           </div>
           <div
-            class="ml-auto flex shrink-0 self-end border-l border-fb-line pl-2"
+            class="ml-auto flex shrink-0 self-end border-l border-fb-line pl-2 @max-[20rem]:col-start-2 @max-[20rem]:row-start-2 @max-[20rem]:self-center @max-[20rem]:border-l-0 @max-[20rem]:pl-0"
             [class.invisible]="!filtersActive()"
           >
             <app-button
@@ -119,19 +121,20 @@
               (clicked)="resetFilters()"
             />
           </div>
-        </div>
-        <div data-feed-slow-mode class="mt-3 border-t border-fb-line pt-3">
-          <app-custom-checkbox
-            presentation="row"
-            size="sm"
-            label="Langsamer Modus"
-            ariaLabel="Langsamer Modus: neue Funde einzeln einschieben"
-            [checked]="slowMode()"
-            (checkedChange)="slowModeChanged($event)"
-          />
-          <p class="mt-1 text-xs text-fb-text-secondary">
-            Neue Funde rücken einzeln von links nach, damit keiner untergeht.
-          </p>
+          <div
+            data-feed-slow-mode
+            class="col-span-2 min-w-0 self-center @max-[20rem]:col-span-1 @max-[20rem]:row-start-2"
+          >
+            <app-custom-checkbox
+              label="Langsamer Modus"
+              ariaLabel="Langsamer Modus: neue Funde einzeln einschieben"
+              [checked]="slowMode()"
+              (checkedChange)="slowModeChanged($event)"
+            />
+            <p class="mt-1 text-xs text-fb-text-secondary">
+              Neue Funde rücken einzeln von links nach, damit keiner untergeht.
+            </p>
+          </div>
         </div>
       </app-card>
       @if (priceError(); as text) {
