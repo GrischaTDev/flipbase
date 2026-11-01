@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-01 - Juna - Kontrast leerer Auswahlfelder beim Überfahren im Dunkelmodus
+
+**Befund:** In der CI von PR #527 meldete AXE `color-contrast` am leeren Markenfeld des Vinted-Feeds 3,94:1 statt 4,5:1. Der Platzhalter einer leeren `app-custom-select` nutzt `text-fb-text-muted` (dunkel `#aaaab2` aus `flipbase-shell.css`); beim Überfahren liegt er auf `--fb-control-hover` (`#48484d`). Ruhend reicht der Kontrast auf allen dunklen Flächen (4,98 bis 6,37:1), hell auch beim Überfahren (4,73:1). Betroffen waren alle leeren Auswahlfelder im dunklen Schema, unabhängig von der Variante.
+
+**Abwägung:** Eine dunklere Hover-Fläche hätte die sichtbare Hover-Stufe von 1,26 auf etwa 1,11 verringert, ein helleres Grau hätte alle gedämpften Texte der App verändert. Stattdessen wechselt nur der leere Platzhalter beim Überfahren in `text-fb-text-secondary` (dunkel 5,52:1, hell 5,97:1), wie es die Checkbox bei ihrer Beschriftung bereits tut. Gewählte Werte bleiben unverändert in der Controlfarbe.
+
+**Prüfungen:** Neuer Kontrasttest liest die Farbwerte aus `flipbase-theme.css` und `flipbase-shell.css` und sichert ruhend und beim Überfahren für hell und dunkel 4,5:1 ab; neuer Komponentenfall prüft die Klassen in allen vier Varianten. Alle 275 Angular-Testdateien (2.948 Fälle), Shared-UI-Prüfung, Format, Lint, Typen und Produktionsbau erfolgreich; die erzeugte Hover-Regel im CSS nachgesehen. Browserfälle mit echtem Hover lokal nicht ausgeführt, weil Docker nicht läuft.
+
 ## 2026-10-31 - Juna - Gescheiterte Auslieferung von PR #524 nachgeholt
 
 **Befund:** Nach dem Merge von PR #524 (`89920536`) scheiterte im Lauf `41180546995` der Job „Deploy to production“. Die Datenbanksicherung war erfolgreich; danach brach die Migration `20261031064255_sniper_feed_freshness` mit `deadlock detected` ab. Sie sperrte zuerst `sniper_queries`, danach `sniper_listings`, während eine andere Verbindung die Fundtabelle hielt und auf die Filtertabelle wartete – vermutlich ein Feed-Abruf oder der Bot. Lesend bestätigt: Die Migration rollte vollständig zurück, keine neue Spalte, kein Historieneintrag, die Anwendung lief unverändert auf dem Vorstand. Die lokalen Prüfungen liefen ohne gleichzeitige Last und konnten das nicht zeigen.
