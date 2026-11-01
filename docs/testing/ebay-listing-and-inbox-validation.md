@@ -37,7 +37,7 @@ Die Tabelle nennt Ergebnisse einzelner Prüfungen, keinen bestandenen Gesamt-Pre
 | `npm run test:workflow` unter Windows                                                            | 646 erfolgreich, 44 ausgelassen, drei plattformbedingte Fehler                                                                                                        |
 | Die drei fehlgeschlagenen Shell-Vertragstests unter Linux/Node 22                                | Erfolgreich im isolierten Container ohne Netzwerk und mit schreibgeschützter Projektquelle; nur Ersatzbefehle, keine echten Marketplace-Images oder Hostprüfungen     |
 | `npm run test:orchestrator`                                                                      | Acht erfolgreich, drei unter Windows ausgelassen                                                                                                                      |
-| `npm run test:audit`, Actionlint, Migrationsumfang und SQL-Paket                                 | Erfolgreich; 260 Migrationen vollständig paketiert                                                                                                                    |
+| `npm run test:audit`, Actionlint, Migrationsumfang und SQL-Paket                                 | Erfolgreich; nach Übernahme des aktuellen Hauptzweigs 261 Migrationen vollständig paketiert                                                                           |
 | `npm run preflight:plan`, anschließend `npm run preflight`                                       | Umfassende Auswahl; tatsächlicher Vorabcheck mit Exitcode 1 unvollständig wegen der GitHub-exklusiven Image-/Hostprüfungen                                            |
 
 Die Browserfälle verwenden die echte Angular-Oberfläche mit simulierten
@@ -85,8 +85,23 @@ eBay-Freigabe erzwingt jetzt eine neue Bestätigung vor EXECUTE. Alle 135 eBay-
 Denofälle bestehen anschließend. Dafür weder den zentralen Auth-Dienst noch das
 Datenbankschema geändert.
 
-Die lokale gemeinsame Supabase-Historie enthält die bestehende Migration
-`20261031064255_sniper_feed_freshness` noch nicht. Der rein lesende Abgleich
+Den inzwischen veröffentlichten Hauptzweig `c97511a5` mit PR #527 und #529 vor
+der endgültigen Prüfung übernommen. Beide unabhängigen Changelog-Ergänzungen
+erhalten; fremde Zweige und Arbeitskopien bleiben unverändert. Der vorherige
+CI-Lauf mit sechs allgemeinen Browsergruppen ist vollständig erfolgreich; der
+gemeinsame Endstand enthält zusätzlich die Sitzungs-/Freigabekorrektur.
+
+Auf diesem gemeinsamen Stand erneut 76 Frontendfälle einschließlich des
+gemeinsamen Select-Bausteins, alle 135 eBay-Backendfälle und elf eBay-Browserfälle
+erfolgreich ausgeführt. Auch Typprüfung, Angular-Produktionsbau, Suite-Audit und
+74 Auswahl-/Freigabetests bestehen. Die erneute tatsächliche Playwright-Auflistung
+bestätigt dieselben 440 eindeutigen allgemeinen Chromium-Fälle in sechs Gruppen.
+Der lokale Gesamt-Preflight bleibt mit Exitcode 1 an der dokumentierten Grenze
+für Marketplace-Image-/Hostprüfungen unvollständig.
+
+Die lokale gemeinsame Supabase-Historie enthält die bestehenden Migrationen
+`20261031064255_sniper_feed_freshness` und
+`20261101122947_sniper_feed_configured_brands` noch nicht. Der rein lesende Abgleich
 bricht deshalb ab; keine zusätzliche Version vorhanden. Die Entwicklungsdatenbank
 wurde weder zurückgesetzt noch für diese unabhängige Aufgabe verändert.
 Datenbanktests, die vollständige datenbankgestützte Browsermatrix und die
