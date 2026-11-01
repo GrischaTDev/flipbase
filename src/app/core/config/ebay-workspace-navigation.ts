@@ -9,6 +9,7 @@ export interface EbayNavigationItem {
 export const EBAY_WORKSPACE_NAVIGATION: readonly EbayNavigationItem[] = [
   { path: '/marketplaces/ebay/listings', label: 'Inserate', icon: 'tag' },
   { path: '/marketplaces/ebay/orders', label: 'Bestellungen', icon: 'shoppingBag' },
+  { path: '/marketplaces/ebay/messages', label: 'Postfach', icon: 'messageCircle' },
   { path: '/marketplaces/ebay/statistics', label: 'Statistiken', icon: 'barChart' },
   { path: '/marketplaces/ebay/connection', label: 'Kontoverbindung', icon: 'settings' },
 ];

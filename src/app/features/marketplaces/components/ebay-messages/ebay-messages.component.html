@@ -1,0 +1,240 @@
+<section class="space-y-4" aria-label="eBay-Postfach">
+  <app-page-header
+    title="Postfach"
+    [subtitle]="
+      store.connection()?.username
+        ? 'Konto: ' + store.connection()?.username
+        : 'Deine eBay-Nachrichten'
+    "
+  >
+    <div header-actions class="flex flex-wrap gap-2">
+      <app-button
+        [icon]="refreshIcon"
+        [loading]="store.loading()"
+        [disabled]="store.sending() || store.reading() || !store.connection()"
+        (clicked)="store.load()"
+        >Aktualisieren</app-button
+      >
+      <app-button
+        href="https://www.ebay.de/mye/myebay/messages"
+        target="_blank"
+        [icon]="externalIcon"
+        >Bei eBay öffnen</app-button
+      >
+    </div>
+  </app-page-header>
+  @if (store.error(); as error) {
+    <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+  }
+  @if (store.connection()?.status !== 'connected' && !store.loading()) {
+    <div class="rounded-lg border border-fb-line bg-fb-surface p-5">
+      <p class="mb-3 text-sm text-fb-text-secondary">
+        Verbinde Dein eBay-Konto, um Dein Postfach zu öffnen.
+      </p>
+      <app-button link="/marketplaces/ebay/connection">Kontoverbindung öffnen</app-button>
+    </div>
+  } @else {
+    <div
+      class="grid min-h-[32rem] min-w-0 overflow-hidden rounded-lg border border-fb-line bg-fb-surface md:h-[calc(100dvh-13rem)] md:grid-cols-[19rem_minmax(0,1fr)]"
+    >
+      <div
+        class="min-w-0 flex-col border-fb-line md:flex md:border-r"
+        [class.hidden]="!!store.selected()"
+      >
+        <div class="space-y-3 border-b border-fb-line p-4">
+          <app-custom-search-input
+            ariaLabel="Geladene Gespräche suchen"
+            placeholder="Name, Inserat oder Nachricht"
+            [value]="search()"
+            (valueChange)="search.set($event)"
+          />
+          <app-custom-select
+            label="Nachrichten anzeigen"
+            ariaLabel="Nachrichten anzeigen"
+            [options]="filterOptions"
+            [value]="filter()"
+            [disabled]="store.loading() || store.reading() || store.sending()"
+            (valueChange)="changeFilter($event)"
+          />
+        </div>
+        <nav aria-label="eBay-Gespräche" class="min-h-0 flex-1 overflow-y-auto">
+          @if (store.loading() && !store.conversations().length) {
+            <p role="status" class="p-4 text-sm text-fb-text-secondary">
+              Gespräche werden geladen …
+            </p>
+          }
+          @for (conversation of conversations(); track conversation.id) {
+            <app-button
+              variant="list-row"
+              [wrapLabel]="true"
+              contentAlign="start"
+              [fullWidth]="true"
+              [disabled]="store.sending() || store.loading() || store.reading()"
+              [ariaPressed]="store.selected()?.id === conversation.id"
+              (clicked)="open(conversation)"
+            >
+              <span class="block min-w-0 flex-1 py-2 text-left">
+                <span class="flex items-center justify-between gap-2">
+                  <span class="truncate font-semibold">{{
+                    conversation.latestMessage?.sender === store.connection()?.username
+                      ? conversation.latestMessage?.recipient
+                      : conversation.latestMessage?.sender || conversation.title
+                  }}</span>
+                  @if (conversation.unreadCount) {
+                    <span
+                      class="rounded-full bg-fb-text-primary px-2 py-0.5 text-xs text-fb-surface"
+                      aria-label="Ungelesene Nachrichten"
+                      >{{ conversation.unreadCount }}</span
+                    >
+                  }
+                </span>
+                <span class="mt-1 block truncate text-xs text-fb-text-secondary">{{
+                  conversation.title
+                }}</span>
+                <span class="mt-1 block truncate text-xs text-fb-text-secondary">{{
+                  conversation.latestMessage?.text
+                }}</span>
+              </span>
+            </app-button>
+          } @empty {
+            @if (!store.loading() && !store.error()) {
+              <p class="p-4 text-sm text-fb-text-secondary">Keine Gespräche für diese Auswahl.</p>
+            }
+          }
+          @if (store.nextOffset() !== null) {
+            <div class="p-3">
+              <app-button
+                [fullWidth]="true"
+                [disabled]="store.loading() || store.reading() || store.sending()"
+                (clicked)="store.load(true)"
+                >Weitere Gespräche</app-button
+              >
+            </div>
+          }
+        </nav>
+      </div>
+      <div
+        class="min-w-0 flex-col md:flex"
+        [class.hidden]="!store.selected()"
+        [class.flex]="!!store.selected()"
+      >
+        @if (store.selected(); as conversation) {
+          <div class="flex flex-wrap items-center gap-3 border-b border-fb-line p-4">
+            <app-button
+              class="md:hidden"
+              variant="ghost"
+              [icon]="backIcon"
+              [disabled]="store.sending()"
+              (clicked)="close()"
+              >Zurück</app-button
+            >
+            <h2 class="min-w-0 flex-1 break-words text-sm font-semibold text-fb-text-primary">
+              {{ conversation.title }}
+            </h2>
+            <app-button
+              size="slim"
+              [icon]="refreshIcon"
+              [disabled]="store.loading() || store.reading() || store.sending()"
+              (clicked)="store.open(conversation)"
+              >Verlauf aktualisieren</app-button
+            >
+            @if (conversation.unreadCount) {
+              <app-button
+                size="slim"
+                [icon]="checkIcon"
+                [disabled]="store.reading() || store.sending()"
+                (clicked)="store.markRead()"
+                >Als gelesen markieren</app-button
+              >
+            }
+          </div>
+          <div
+            class="min-h-[16rem] flex-1 space-y-4 overflow-y-auto p-4"
+            role="log"
+            aria-label="Nachrichtenverlauf"
+            aria-live="polite"
+          >
+            @if (store.reading()) {
+              <p role="status" class="text-sm text-fb-text-secondary">
+                Nachrichten werden geladen …
+              </p>
+            }
+            @for (message of store.messages(); track message.id) {
+              <article
+                class="max-w-[90%] rounded-lg border border-fb-line bg-fb-subtle p-3"
+                [class.ml-auto]="message.sender === store.connection()?.username"
+              >
+                <p class="mb-1 text-xs font-medium text-fb-text-secondary">{{ message.sender }}</p>
+                <p
+                  class="whitespace-pre-wrap break-words text-sm text-fb-text-primary [overflow-wrap:anywhere]"
+                >
+                  {{ message.text }}
+                </p>
+                @for (attachment of message.attachments; track attachment.url) {
+                  <a
+                    class="mt-2 block break-all text-sm underline"
+                    [href]="attachment.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >{{ attachment.name }}</a
+                  >
+                }
+                <time
+                  class="mt-2 block text-xs text-fb-text-secondary"
+                  [attr.datetime]="message.createdAt"
+                  >{{ message.createdAt | date: 'dd.MM.yyyy HH:mm' }}</time
+                >
+              </article>
+            }
+            @if (store.nextMessageOffset() !== null) {
+              <app-button
+                [disabled]="store.reading() || store.sending()"
+                (clicked)="store.open(conversation, true)"
+                >Weitere Nachrichten</app-button
+              >
+            }
+          </div>
+          <div class="space-y-3 border-t border-fb-line p-4">
+            @if (store.conversationError(); as error) {
+              <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+            }
+            @if (store.sendUnconfirmed()) {
+              <p role="status" class="text-sm text-fb-text-secondary">
+                Der letzte Versand ist unklar. Prüfe den Verlauf direkt bei eBay, bevor Du eine
+                weitere Nachricht sendest.
+              </p>
+              <app-button [disabled]="store.sending()" (clicked)="confirmReviewed()"
+                >Verlauf geprüft</app-button
+              >
+            }
+            @if (conversation.type === 'FROM_MEMBERS') {
+              <app-text-field
+                label="Deine Antwort"
+                [formControl]="reply"
+                [multiline]="3"
+                [maxLength]="2000"
+                helpText="Bis zu 2.000 Zeichen. Erst der Sendebutton verschickt Deine Nachricht."
+              />
+              <div class="flex justify-end">
+                <app-button
+                  variant="primary"
+                  [icon]="sendIcon"
+                  [loading]="store.sending()"
+                  [disabled]="!store.canReply() || reply.invalid"
+                  (clicked)="send()"
+                  >Nachricht senden</app-button
+                >
+              </div>
+            } @else {
+              <p class="text-sm text-fb-text-secondary">
+                Auf eBay-Systemnachrichten kannst Du hier nicht antworten.
+              </p>
+            }
+          </div>
+        } @else {
+          <p class="m-auto p-8 text-sm text-fb-text-secondary">Wähle ein Gespräch aus.</p>
+        }
+      </div>
+    </div>
+  }
+</section>

@@ -11,6 +11,8 @@ export interface EbayConnection extends AccountScope {
   readonly lastReadAt: string | null;
 }
 export interface EbayConnectionStatus {
+  readonly listingCreationAvailable?: boolean;
+  readonly messagingAvailable?: boolean;
   readonly listingManagementAvailable?: boolean;
   readonly importAvailable?: boolean;
   readonly configured: boolean;
@@ -35,6 +37,8 @@ export interface EbayListing {
   }[];
 }
 export interface EbayListingDetails extends EbayListing {
+  readonly marketplace?: string;
+  readonly itemSku?: string | null;
   readonly description: string;
   readonly imageUrls: readonly string[];
   readonly revision: string;

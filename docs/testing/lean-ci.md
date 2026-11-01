@@ -167,6 +167,14 @@ vollständige Auswahl, die bestehenden Zeitlimits und alle Erwartungen; sie
 reduziert keine Browserfälle. Kleine gezielte Auswahlen bis zehn Dateien bleiben
 ein einzelner Job.
 
+Umfassende Standardläufe verwenden bei genügend Dateien mindestens sechs Gruppen.
+Das Auslagern direkt geänderter Dateien darf die restlichen Fachfälle nicht
+wieder in wenige große Jobs verdichten: Im eBay-Lauf waren 440 Fälle auf vier
+Gruppen verteilt, eine davon erreichte das 30-Minuten-Limit. Die Auflistung
+bestätigt anschließend dieselben 440 eindeutigen Fälle in sechs Gruppen mit
+74/74/73/73/73/73 Fällen. Kleine gezielte Pläne und die übrigen Pflichtgruppen
+behalten ihre bisherige Aufteilung.
+
 Für kleine Featureänderungen wird dieser Kern nicht pauschal hinzugefügt.
 Bekannte mehrfach parametrisierte Layoutfamilien verwenden im gezielten Lauf
 repräsentative Telefon-/Desktopgrößen und beide Farbschemata. Besondere Fehler-,

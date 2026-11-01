@@ -11,6 +11,25 @@ import {
 
 describe('eBay-Antwortverträge', () => {
   const scope = { workspaceId: 'workspace-a', connectionId: 'connection-a' };
+  it('aktiviert Erstellung und Postfach nur nach ausdrücklichem Servernachweis', () => {
+    const legacy = { configured: true, connection: null };
+    expect(parseEbayStatus(legacy, scope.workspaceId)).toMatchObject({
+      listingCreationAvailable: false,
+      messagingAvailable: false,
+    });
+    expect(
+      parseEbayStatus(
+        { ...legacy, listingCreationAvailable: true, messagingAvailable: true },
+        scope.workspaceId,
+      ),
+    ).toMatchObject({
+      listingCreationAvailable: true,
+      messagingAvailable: true,
+    });
+    expect(() =>
+      parseEbayStatus({ ...legacy, messagingAvailable: 'true' }, scope.workspaceId),
+    ).toThrow();
+  });
   it('erhält Abgleichmetadaten einschließlich erster noch ausstehender Basis', () => {
     const sync = { status: 'pending', lastCompletedAt: null, lastError: null };
     expect(

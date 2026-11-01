@@ -1,5 +1,13 @@
 # eBay-API: Möglichkeiten und Einbindung in Flipbase
 
+**Aktualisierung vom 1. November 2026:** Der folgende Text dokumentiert den
+damaligen Stand. Artikelzuordnung und Bestellprüfung wurden inzwischen über
+PR #465 integriert. Die Listing API ist seit dem 26. Oktober 2026 als Version
+1.0.0 veröffentlicht. Die Fortsetzung für GraphQL-Inserate und das Postfach steht
+im [aktuellen Entwurf](../superpowers/specs/2026-11-01-ebay-listing-and-inbox-design.md).
+Die nachfolgenden Aussagen zu einer unveröffentlichten Listing API gelten damit
+nicht mehr als aktueller API-Befund.
+
 Stand: 2. Oktober 2026. Die persönliche eBay-Verbindung wurde über PR #273
 (`ce391ce9`, Release `v0.276.2`) veröffentlicht und am 1. Oktober eingerichtet.
 Anmeldung, eigene Inserate/Bestellungen, Workspacewechsel sowie Trennen und
