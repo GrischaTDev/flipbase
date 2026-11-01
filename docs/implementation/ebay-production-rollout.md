@@ -2,6 +2,64 @@
 
 Stand: 1. Oktober 2026. Geprüfte Grundlage: `a987e304`, Release `v0.276.1`.
 
+## Durchgeführter Funktionsrollout vom 1. November 2026
+
+Auf ausdrücklichen Nutzerauftrag den öffentlichen Dienst aus dem erfolgreich
+geprüften Merge `a495b333e136dc593dfb69b199bc37a7987a846c` aktualisiert.
+Die 26 Dateien der vollständigen relativen Importkette von `ebay-account/index.ts`
+stammen aus diesem Commit. Elf Dateien aktualisiert oder ergänzt, davon sechs
+neu. Die fünf ersetzten Fassungen entsprechen bekannten Git-Quellen.
+
+Vorher alle öffentlichen Funktionsquellen, `.env` und die aktiven Compose-Dateien
+ausschließlich für root lesbar gesichert. Quelle und Konfiguration unmittelbar
+vor der Änderung nochmals mit den aufgenommenen Ausgangswerten verglichen.
+Nur die elf vorgesehenen Dateien atomar ersetzt. Die 90 übrigen Funktionsdateien,
+alle Zugangswerte und Verschlüsselungsschlüssel bleiben gleich. Keine anderen
+Container oder Datenbankschemata verändert.
+
+Mit den bestehenden Compose-Dateien ausschließlich den öffentlichen Dienst
+`functions` neu erzeugt:
+
+```sh
+docker compose up -d --no-deps --no-build --pull never --force-recreate --wait --wait-timeout 90 functions
+```
+
+Der Dienst ist `healthy`. Alle 26 Dateien zusätzlich im laufenden Container
+per SHA-256 bestätigt; keine Bootfehler. Vor und nach der Umstellung erfolgreich:
+
+| Öffentliche Prüfung             | Ergebnis                                       |
+| ------------------------------- | ---------------------------------------------- |
+| Browser-Vorabfrage aus der App  | 200 am Envoy-Gateway, App-Ursprung freigegeben |
+| Konto-POST ohne Anmeldung       | 401                                            |
+| Bestätigung des Löschendpoints  | 200, Antwort mit vorhandenem Token berechnet   |
+| Löschmeldung ohne Signatur      | 412                                            |
+| Bewusst deaktivierter Vergleich | 410                                            |
+| Abgelehnter OAuth-Rückweg       | 303 zur App                                    |
+
+Die private Sicherung liegt auf dem Server unter
+`/root/flipbase-ebay-rollout-20261101-listing-inbox-a495b333/backup`.
+Sie enthält `public-functions/` und `config/`; Konfigurationsdateien sind nur
+für root lesbar. Ein Rückweg stellt ausschließlich die betroffenen Quellen
+wieder her, entfernt die sechs neuen Dateien nach Wertabgleich und erzeugt
+wieder nur `functions`. Zwischenzeitliche fremde Änderungen erhalten.
+
+### Erneute Kontofreigabe durch den Nutzer
+
+1. Öffne [eBay-Konten](https://app.flipbase.de/marketplaces/ebay/connection)
+   und wähle den Workspace mit Deinem bisherigen eBay-Konto.
+2. Öffne über das Zahnrad die Einstellungen dieses Kontos und wähle
+   **Verbindung trennen**.
+3. Wähle danach **Mit eBay verbinden**, melde Dich bei demselben eBay-Konto an
+   und bestätige eBays erweiterte Freigabe für Inserate und Nachrichten.
+4. Warte auf die Rückkehr zu Flipbase. Prüfe den Verbindungsstatus, bei Bedarf
+   mit **Status aktualisieren**, und öffne anschließend **Postfach**.
+
+Der neue Server fordert die vollständigen Rechte an. Ein bestehender Refresh
+Token erhält sie nicht allein durch den Rollout. Zugangswerte müssen dafür
+nicht geändert werden. Die persönliche eBay-Freigabe und ein echter angemeldeter
+Abruf sind noch offen. Beim Rollout wurden keine echten eBay-Nachrichten oder
+Inserate gesendet, veröffentlicht oder gelöscht.
+
 ## Vorbereitung vom 1. November 2026: Listing API und Postfach
 
 Der neue Aufgabenstand verwendet für Inseratdetails, Bearbeitung und Erstellung

@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-01 - Juna - eBay-Postfach ohne Gesprächsttitel lesen
+
+**Auftrag:** Nach der erneuten Kontofreigabe meldet das öffentliche Postfach `invalid_response`. Vom frisch abgerufenen `origin/master` auf `juna/ebay-inbox-response` begonnen; fremde Arbeitskopien erhalten. Den noch unveröffentlichten operativen Rolloutnachweis derselben eBay-Arbeit in diesen Korrekturstand übernommen.
+
+**Ursache und Änderung:** Der Anbieterabruf gelingt mit HTTP 200. Bei Mitgliedergesprächen fehlt jedoch `conversationTitle`; die bisherige Auswertung verlangt zwingend einen Text und verwirft dadurch die ganze Seite. Fehlt das optionale Feld, verwendet die normalisierte Antwort jetzt „Unterhaltung“. Vorhandene Titel und die Prüfung fehlerhafter Datentypen bleiben erhalten. Keine Änderung an Anmeldung, Nachrichtenversand, Rechten, Pagination oder Oberfläche.
+
+**Prüfung:** Den Fehler mit einem neuen Anbieterfall zuerst rot reproduziert. Danach alle 138 eBay-Denofälle erfolgreich, einschließlich Handlerfall mit Kontobindung und ausschließlich lesendem Anbieterabruf. Zusätzlich den tatsächlich korrigierten Leser in einem privaten Wegwerfcontainer mit den echten Mitglieds- und Systemantworten sowie je einem Verlauf erfolgreich ausgeführt: ausschließlich vier GETs. Zugangstokens bleiben auf dem Server; keine Nachrichteninhalte oder Gesprächskennungen in Ausgaben, Testdaten oder Git. Temporäre Zugangsdaten nach dem Versuch entfernt. Der öffentliche Funktionsdienst wurde dabei nicht verändert.
+
+**Offen:** Der geprüfte Korrekturstand muss vor dem öffentlichen Funktionsrollout über den freigegebenen PR und erfolgreiche ausgewählte CI übernommen werden. Eine weitere Kontofreigabe ist für diesen Auswertungsfehler nicht erforderlich.
+
+**Freigabe und Integration:** Der Nutzer hat PR, Merge nach erfolgreichen Tests und den direkten öffentlichen Postfachrollout ausdrücklich freigegeben. Die inzwischen veröffentlichten reinen Protokollnachträge aus `9f3adda5` übernommen und beide unabhängigen Ergänzungen vollständig erhalten. Gegenüber dem lokal geprüften Stand bleiben sämtliche Anwendungs- und Funktionsquellen unverändert; der erneute Vorabcheck umfasst den zusammengeführten Dokumentationsstand.
+
+## 2026-11-01 - Juna - Öffentlichen eBay-Funktionsdienst aktualisieren
+
+**Auftrag:** Nach dem Merge von PR #528 auf ausdrücklichen Nutzerauftrag den öffentlichen eBay-Funktionsrollout durchführen und die erneute Kontofreigabe erklären. Sauberen Stand und frisch abgerufenes `origin/master` geprüft; den operativen Nachweis auf `juna/ebay-public-function-rollout` begonnen. Die belegte primäre Arbeitskopie und fremde Zweige bleiben unverändert.
+
+**Umsetzung:** Die vollständige relative Importkette von `ebay-account/index.ts` mit Deno aufgelöst und 26 Funktionsdateien aus dem freigegebenen Merge `a495b333` paketiert. Elf Dateien waren abweichend oder fehlten, darunter sechs neue Dateien. Die fünf alten Fassungen anhand ihrer Werte als bekannte Git-Quellen bestätigt. Vor der Änderung sämtliche öffentlichen Funktionsquellen, `.env` und aktive Compose-Dateien ausschließlich für root lesbar gesichert. Ausgangswerte unmittelbar vor dem Schreiben erneut geprüft, nur die elf vorgesehenen Dateien atomar ersetzt und ausschließlich `functions` ohne neue Images oder abhängige Dienste neu erzeugt. Alle 90 übrigen Funktionsdateien, Konfiguration, Laufzeitumgebung, Verschlüsselungsschlüssel und anderen Container unverändert.
+
+**Prüfung:** Der öffentliche Dienst ist `healthy`; alle 26 Dateien zusätzlich direkt im laufenden Container per SHA-256 bestätigt, keine Bootfehler. Vor und nach dem Rollout erfolgreich: Browser-Vorabfrage mit erlaubtem App-Ursprung (200 am Envoy-Gateway), anonymer Konto-POST (401), rechnerisch geprüfte Löschbestätigung (200), unsignierte Löschmeldung (412), deaktivierter Marktvergleich (410) und abgelehnter OAuth-Rückweg (303). Sicherungsrechte geprüft. Keine echten eBay-Nachrichten, Inserate, Verkäufe oder Kontofreigaben ausgelöst. Anleitung und Rückweg im [Rolloutdokument](implementation/ebay-production-rollout.md) ergänzt; Dokumentation gezielt formatiert und mit `git diff --check` geprüft.
+
+**Offen:** Der Nutzer muss im richtigen Workspace sein bestehendes eBay-Konto über die Kontoeinstellungen trennen und mit demselben Konto neu verbinden, damit eBay die erweiterten Rechte für Inserate und Nachrichten freigibt. Eine echte angemeldete Anbieterprüfung erfolgt erst danach. Der operative Nachweis ist lokal dokumentiert; kein neuer Anwendungsstand, keine Datenbankänderung und kein weiterer PR veröffentlicht.
+
 ## 2026-11-01 - Juna - Kleinanzeigen-Endpunkt und Erweiterung 1.12.0 bereitstellen
 
 **Freigabe:** Der Nutzer beauftragt ausdrücklich den öffentlichen Erweiterungsendpunkt, das Neuladen der vorhandenen Erweiterung und die anschließende Prüfung von automatischer Verbindung und Inserieren mit Bildern. Kein bestimmtes Inserat ist zur echten Veröffentlichung oder Löschung freigegeben; die produktive Formularprüfung endet deshalb vor diesen Schritten.
