@@ -1,4 +1,6 @@
 import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
+import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
+import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { KleinanzeigenRelistingActionComponent } from '../kleinanzeigen-relisting-action/kleinanzeigen-relisting-action.component';
 import {
@@ -40,6 +42,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 @Component({
   selector: 'app-marketplace-listing-section',
   imports: [
+    LoadingIndicatorComponent,
     RouterLink,
     ListingTransferActionComponent,
     KleinanzeigenRelistingActionComponent,
@@ -61,6 +64,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceListingSectionComponent {
+  readonly kleinanzeigenActions = inject(KleinanzeigenActionStore);
   readonly section = input.required<MarketplaceOverviewSection>();
   readonly showAccountManagement = input(false);
   readonly collapsible = input(true);
@@ -123,7 +127,7 @@ export class MarketplaceListingSectionComponent {
       case 'ebay':
         return '/marketplaces/ebay/listings';
       case 'kleinanzeigen':
-        return '/marketplaces/kleinanzeigen';
+        return '/marketplaces/kleinanzeigen/listings';
     }
   });
   readonly accountQuery = computed(() =>

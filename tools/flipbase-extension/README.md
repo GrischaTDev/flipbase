@@ -1,5 +1,32 @@
 # Flipbase Listing-Assistent
 
+## Version 1.12.0: Verbindung und Inserate automatisch aktuell halten
+
+Die Erweiterung prüft das gebundene Kleinanzeigen-Konto alle 15 Minuten, solange
+Chrome läuft. Bei gültiger Anmeldung verlängert sie die bestehende Freigabe auf
+30 Tage und ruft fällige Inseratbestände automatisch ab. Die erste Prüfung folgt
+etwa eine Minute nach dem Aktualisieren oder Starten der Erweiterung. Ein
+Kontowechsel, fehlende Rechte, ein archivierter Arbeitsbereich oder eine
+widerrufene beziehungsweise abgelaufene Freigabe stoppen den Ablauf. Eine bereits
+erloschene Freigabe musst Du einmal erneut verbinden. Veröffentlichungsrechte
+werden dabei niemals automatisch ergänzt.
+
+Flipbase bietet einen eigenen Kleinanzeigen-Bereich mit **Übersicht**, **Inseraten**,
+**Postfach** und **Kontoverbindung**. Das Postfach führt direkt zu Deinen Nachrichten
+bei Kleinanzeigen. Beim Neueinstellen wird die betroffene Anzeige grau und zeigt
+einen Spinner; der Fortschritt erscheint auch unter **Laufende Aktionen**, wenn
+Du diese Ansicht in den App-Einstellungen aktiviert hast.
+
+Die Markenauswahl bleibt während der Suche geöffnet. Dadurch laufen die weiteren
+Eigenschaften und die Bildübernahme weiter. Der zusätzliche Bearbeitungstab liest
+die ursprüngliche Anzeige als Sicherung; erst die vollständige, geprüfte
+Neufassung erlaubt den vorhandenen Lösch- und Veröffentlichungsablauf.
+
+Für die Bereitstellung gehören App, Migration, `kleinanzeigen-local-extension`
+einschließlich der gemeinsamen Verträge und Erweiterung **1.12.0** zusammen.
+Danach die Erweiterung aktualisieren und Flipbase neu laden. Ein reines App-Update
+aktiviert die automatische Erneuerung noch nicht.
+
 ## Version 1.11.0: Kleinanzeigen-Kategorie optional und Auswahl neu inserieren
 
 Neue Kleinanzeigen-Fassungen starten mit **Verhandlungsbasis** und **Versand und Abholung**.

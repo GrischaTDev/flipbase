@@ -114,8 +114,11 @@
       }
       const control = doc.getElementById(field.key);
       if (!control) fail('schema_changed');
-      if (field.kind === 'search') input(field.key, value);
-      else control.click();
+      if (field.kind === 'search') {
+        // Ein künstliches Verlassen schließt die React-Vorschläge vor ihrer Auswahl.
+        control.click();
+        if (!core.setFieldValue(control, value, { notifyFocusOut: false })) fail('invalid_fields');
+      } else control.click();
       const option = await wait(() => {
         const values = Array.from(doc.querySelectorAll('[role="option"]')).filter(
           (node) =>

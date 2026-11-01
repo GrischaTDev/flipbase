@@ -84,7 +84,7 @@ export class VintedMessagingStore {
   }
   private revision = 0;
   private destroyed = false;
-  private activeRead: string | null = null;
+  private activeRead: { context: string | null; revision: number } | null = null;
   private readRevision = 0;
   private lastReadAt = 0;
   private readonly intents = new Map<string, string>();
@@ -140,7 +140,7 @@ export class VintedMessagingStore {
   async load(scope: AccountScope, conversationId: string): Promise<void> {
     if (
       !this.matches(scope, conversationId) ||
-      this.activeRead === this.context() ||
+      (this.activeRead?.context === this.context() && this.activeRead.revision === this.revision) ||
       this.sending()
     )
       return;
@@ -148,7 +148,8 @@ export class VintedMessagingStore {
     this.loadedContext.set(context);
     const revision = this.revision;
     const readRevision = ++this.readRevision;
-    this.activeRead = context;
+    const activeRead = { context, revision };
+    this.activeRead = activeRead;
     try {
       const [messages, permission] = await Promise.all([
         this.api.read(scope, conversationId),
@@ -175,7 +176,7 @@ export class VintedMessagingStore {
       )
         this.readFailure.set('Die Versandwarteschlange konnte nicht geladen werden.');
     } finally {
-      if (this.activeRead === context) this.activeRead = null;
+      if (this.activeRead === activeRead) this.activeRead = null;
     }
   }
   async send(

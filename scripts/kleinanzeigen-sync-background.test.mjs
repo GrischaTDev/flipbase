@@ -39,12 +39,25 @@ function fixture(options = {}) {
   let nextTab = 17;
   let pageNumber = 1;
   let listener;
+  let alarmListener;
+  let scheduledAlarm;
   let pageReads = 0;
   let listingReloads = 0;
   let providerVersion = 1;
   let visibleVersion = 1;
   let failFinish = !!options.failFinish;
   const chrome = {
+    alarms: {
+      get: async () => scheduledAlarm,
+      create: async (name, schedule) => {
+        scheduledAlarm = { name, ...schedule };
+      },
+      onAlarm: {
+        addListener: (fn) => {
+          alarmListener = fn;
+        },
+      },
+    },
     storage: {
       local: {
         setAccessLevel: async () => {},
@@ -84,7 +97,9 @@ function fixture(options = {}) {
           return {
             success: true,
             result: {
-              identity,
+              identity: options.foreignIdentity
+                ? { ...identity, externalAccountId: '999' }
+                : identity,
               quota: {
                 externalAccountId: '123',
                 accountType: 'private',
@@ -139,7 +154,19 @@ function fixture(options = {}) {
       const body = JSON.parse(init.body);
       calls.push(body);
       let reply;
-      if (body.action === 'heartbeat')
+      if (body.action === 'maintain')
+        reply = {
+          session: {
+            workspaceId,
+            connectionId: '12',
+            generation: 1,
+            externalAccountId: options.foreignSession ? '999' : '123',
+            canPublish: false,
+            expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+          },
+          run: options.fresh ? null : { ...scope, state: 'queued' },
+        };
+      else if (body.action === 'heartbeat')
         reply = {
           workspaceId,
           connectionId: '12',
@@ -191,6 +218,16 @@ function fixture(options = {}) {
   ])
     vm.runInContext(readFileSync('tools/flipbase-extension/' + file, 'utf8'), context);
   return {
+    alarm: async () => {
+      alarmListener({ name: 'flipbase-kleinanzeigen-maintenance' });
+      // Der normale Status wartet auf denselben Wartungslauf, ohne einen zweiten zu starten.
+      await new Promise((resolve) =>
+        listener({ type: 'FLIPBASE_KLEINANZEIGEN_STATUS', requestId: 'status' }, sender, resolve),
+      );
+    },
+    get scheduledAlarm() {
+      return scheduledAlarm;
+    },
     changeProvider: () => {
       providerVersion++;
     },
@@ -209,6 +246,48 @@ function fixture(options = {}) {
       }),
   };
 }
+
+test('renews the same installation and synchronizes automatically without pairing or a visible tab', async () => {
+  const f = fixture();
+  await f.alarm();
+  assert.equal(f.scheduledAlarm.periodInMinutes, 15);
+  assert.equal(f.calls[0].action, 'maintain');
+  assert.ok(
+    Date.parse(f.stored.kleinanzeigen_local_installation.binding.expiresAt) >
+      Date.now() + 29 * 86400000,
+  );
+  assert.equal(f.stored.kleinanzeigen_local_installation.binding.generation, 1);
+  assert.equal(f.calls.filter((call) => call.action === 'sync_finish').length, 1);
+  assert.equal(f.pageReads, 1);
+});
+
+test('renews a fresh connection without reading listings again', async () => {
+  const f = fixture({ fresh: true });
+  await f.alarm();
+  assert.deepEqual(
+    f.calls.map((call) => call.action),
+    ['maintain'],
+  );
+  assert.equal(f.pageReads, 0);
+});
+
+for (const options of [{ foreignIdentity: true }, { foreignSession: true }])
+  test(
+    'stops automatic maintenance for a changed identity: ' + JSON.stringify(options),
+    async () => {
+      const f = fixture(options);
+      await f.alarm();
+      assert.equal(f.pageReads, 0);
+      assert.equal(
+        f.calls.some((call) => call.action === 'sync_claim'),
+        false,
+      );
+      assert.equal(
+        f.stored.kleinanzeigen_maintenance_status.errorCode,
+        options.foreignIdentity ? 'account_changed' : 'access_revoked',
+      );
+    },
+  );
 test('runs the bound full snapshot through actual background adapters and returns no local secrets', async () => {
   const f = fixture();
   const response = await f.send(sync);

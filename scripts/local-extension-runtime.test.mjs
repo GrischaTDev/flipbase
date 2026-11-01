@@ -1956,7 +1956,7 @@ test('Content script renders a reserved tab and only GETs identity with no cooki
   dom.window.close();
 });
 
-test('Manifest narrows application and provider access without changing Kleinanzeigen autofill scripts', () => {
+test('Manifest narrows application and provider access and keeps Kleinanzeigen autofill registered', () => {
   const manifest = JSON.parse(
     readFileSync(new URL('../tools/flipbase-extension/manifest.json', import.meta.url), 'utf8'),
   );
@@ -1966,7 +1966,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.11.0');
+  assert.equal(manifest.version, '1.12.0');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
