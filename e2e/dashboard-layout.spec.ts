@@ -41,7 +41,11 @@ for (const theme of ['light', 'dark'] as const) {
       'href',
       '/marketplaces/vinted/listings/new',
     );
-    await expect(dialog.getByText('Geplant', { exact: true })).toHaveCount(2);
+    await expect(dialog.getByRole('link', { name: 'eBay', exact: true })).toHaveAttribute(
+      'href',
+      '/marketplaces/ebay/listings/new',
+    );
+    await expect(dialog.getByText('Geplant', { exact: true })).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(

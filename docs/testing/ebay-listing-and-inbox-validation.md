@@ -49,6 +49,18 @@ Es wurden keine echten eBay-Nachrichten oder Inserate versendet.
 
 ## Offene Nachweise und Rollout
 
+Im ersten Lauf von PR #528 bestehen Unit- und Datenbanktests, die neuen
+eBay-Browserfälle, Produktions-PWA und Marketplace-Image-/Hostprüfungen.
+Der [Dashboard-Browserjob](https://github.com/GrischaTDev/flipbase/actions/runs/41327295776/job/124910048217)
+scheitert an der alten Erwartung von zwei „Geplant“-Einträgen. Mit der neuen
+eBay-Erstellung bleibt genau ein geplanter Marktplatz. Die Erwartung wurde
+angepasst und um das tatsächliche eBay-Linkziel ergänzt. Zuerst denselben Fehler
+lokal nachgestellt, danach beide vorhandenen Testabläufe in Hell/Dunkel mit
+allen sieben Breiten erfolgreich geprüft. Dafür wurde ausschließlich lokal
+der unveränderte Testkörper mit simulierten Kontoantworten ausgeführt; die
+originale Supabase-Testfixture im Repository bleibt erhalten. Der vollständige
+CI-Nachweis für die Korrektur steht weiterhin aus.
+
 Die lokale gemeinsame Supabase-Historie enthält die bestehende Migration
 `20261031064255_sniper_feed_freshness` noch nicht. Der rein lesende Abgleich
 bricht deshalb ab; keine zusätzliche Version vorhanden. Die Entwicklungsdatenbank
