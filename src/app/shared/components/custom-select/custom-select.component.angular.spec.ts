@@ -193,6 +193,24 @@ describe('CustomSelectComponent', () => {
     expect(fixture.componentInstance.isOpen()).toBe(false);
   });
 
+  it('hebt nur den leeren Platzhalter beim Überfahren in die zweite Textfarbe', () => {
+    for (const variant of ['default', 'pill', 'filter', 'toolbar'] as const) {
+      const fixture = createSelect({ variant });
+      const trigger = triggerOf(fixture);
+      const label = trigger.querySelector('span.truncate')!;
+
+      expect(trigger.classList).toContain('group');
+      expect(label.classList).toContain('text-fb-text-muted');
+      expect(label.classList).toContain('group-hover:text-fb-text-secondary');
+
+      fixture.componentInstance.writeValue(options[0].value);
+      fixture.detectChanges();
+      expect(label.classList).not.toContain('text-fb-text-muted');
+      expect(label.classList).not.toContain('group-hover:text-fb-text-secondary');
+      fixture.destroy();
+    }
+  });
+
   it('kennzeichnet eine verpflichtende Auswahl für Hilfstechnologien', () => {
     const fixture = createSelect({ required: true });
 
