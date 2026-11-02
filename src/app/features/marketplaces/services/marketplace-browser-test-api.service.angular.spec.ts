@@ -690,3 +690,27 @@ it('bewahrt eine ausstehende Textspeicherung und bestätigt alte Antworten nicht
   request.mockResolvedValueOnce(Response.json({ fields: { ...fields, description: null } }));
   await expect(api.readListingData(scope, id, 'token')).rejects.toThrow('ungültige');
 });
+
+it('akzeptiert nur die eindeutige Löschbestätigung und wiederholt weder unklare Antworten noch Netzfehler', async () => {
+  const request = vi.fn().mockResolvedValueOnce(Response.json({ status: 'confirmed' }));
+  vi.stubGlobal('fetch', request);
+  await api.deleteListing(scope, id, 'token');
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/delete');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id });
+  for (const response of [
+    Response.json({ status: 'outcome_unknown' }),
+    Response.json({ status: 'failed' }),
+    Response.json({ status: 'confirmed', unexpected: true }),
+    new Response('private invalid payload'),
+  ]) {
+    request.mockResolvedValueOnce(response);
+    await expect(api.deleteListing(scope, id, 'token')).rejects.toThrow(
+      'Die Löschung wurde nicht bestätigt.',
+    );
+  }
+  request.mockRejectedValueOnce(new Error('private network detail'));
+  await expect(api.deleteListing(scope, id, 'token')).rejects.toThrow(
+    'Die Löschung wurde nicht bestätigt.',
+  );
+  expect(request).toHaveBeenCalledTimes(6);
+});

@@ -18,7 +18,7 @@ export type ButtonVariant =
   | 'table-action'
   | 'thumbnail-remove';
 
-export type TableActionTone = 'brand' | 'positive' | 'warning' | 'critical';
+export type TableActionTone = 'neutral' | 'brand' | 'positive' | 'warning' | 'critical';
 
 export type ButtonSize = 'slim' | 'md' | 'lg' | 'search' | 'comfortable' | 'touch';
 
@@ -122,6 +122,8 @@ export class ButtonComponent {
     };
 
     const tableActionToneStyles: Record<TableActionTone, string> = {
+      neutral:
+        'hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:bg-fb-surface-hover focus-visible:text-fb-text-primary',
       brand:
         'hover:bg-[var(--fb-color-brand-surface)] hover:text-[var(--fb-color-brand-text)] focus-visible:bg-[var(--fb-color-brand-surface)] focus-visible:text-[var(--fb-color-brand-text)]',
       positive:

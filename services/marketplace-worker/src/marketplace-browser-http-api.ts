@@ -1,3 +1,5 @@
+import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
+
 import type { VintedPublicationVersion } from './vinted-publication-age.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BrowserDragPoint, BrowserInfo } from './gologin-cloud-browser.ts';
@@ -108,7 +110,8 @@ interface BrowserApiOptions {
   conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'> &
-    Partial<Pick<SupabaseVintedListingCache, 'saveTransferSource'>>;
+    Partial<Pick<SupabaseVintedListingCache, 'saveTransferSource' | 'remove'>>;
+
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'> &
     Partial<Pick<SupabaseVintedProfileCache, 'saveDetails'>>;
   readOnly?: boolean;
@@ -837,8 +840,76 @@ export class MarketplaceBrowserHttpApi {
             this.inFlight.delete(key);
           }
         }
+
         return;
       }
+
+      if (path === '/marketplace-browser/listings/delete') {
+        if (this.readOnly) throw new RequestError(403);
+        const edits = this.edits;
+        if (!edits || !this.listingCache?.remove) throw new RequestError(503);
+        const entryId = body['entryId'];
+        if (
+          Object.keys(body).length !== 3 ||
+          Object.keys(body).some(
+            (key) => !['workspaceId', 'connectionId', 'entryId'].includes(key),
+          ) ||
+          typeof entryId !== 'string' ||
+          !uuidPattern.test(entryId)
+        )
+          throw new RequestError(400);
+        const key = `${scope.workspaceId}:${scope.connectionId}:edit`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          const entry = await edits.entry(scope, 'publication', entryId);
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
+          const currentSessionId = sessionId;
+          const authorize = async () => {
+            const current = await edits.entry(scope, 'publication', entryId);
+            if (current.accountId !== entry.accountId || current.externalId !== entry.externalId)
+              throw new Error('Kontozuordnung geändert');
+            await this.broker.run(scope, currentSessionId, async () => undefined);
+          };
+          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (!browser.deleteListing) throw new RequestError(503);
+            return parseVintedListingDeleteResult(
+              await browser.deleteListing(entry.accountId, entry.externalId, authorize),
+            );
+          });
+          let cachePending = false;
+          if (result.status === 'confirmed') {
+            try {
+              await authorize();
+              await this.listingCache.remove(scope, entryId, entry.externalId);
+            } catch {
+              cachePending = true;
+            }
+          }
+          let cleanup: 'complete' | 'pending' = 'complete';
+          try {
+            await (this.broker.finishAction?.(scope, currentSessionId) ??
+              this.broker.close(scope, currentSessionId));
+          } catch {
+            cleanup = 'pending';
+          }
+          sessionId = undefined;
+          json(response, 200, {
+            status: result.status,
+            ...(cleanup === 'pending' ? { cleanup } : {}),
+            ...(cachePending ? { cache: 'pending' } : {}),
+          });
+        } finally {
+          try {
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
+
       if (path === '/marketplace-browser/listings/content/save') {
         if (this.readOnly) throw new RequestError(403);
         const edits = this.edits;
@@ -1429,6 +1500,7 @@ export class MarketplaceBrowserHttpApi {
         // Nur feste Kategorien protokollieren, keine Kennungen, Inhalte oder Anbieterantworten.
         const route = [
           'category/read',
+          'delete',
           'content/read',
           'content/save',
           'edit/read',

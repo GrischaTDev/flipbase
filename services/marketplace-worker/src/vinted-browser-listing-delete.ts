@@ -2,6 +2,28 @@ import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 
+export interface VintedListingDeleteResult {
+  status: 'confirmed' | 'failed' | 'outcome_unknown';
+  step: 'authorize' | 'source' | 'open' | 'confirm' | 'verify';
+}
+export function parseVintedListingDeleteResult(input: unknown): VintedListingDeleteResult {
+  if (
+    !input ||
+    typeof input !== 'object' ||
+    Array.isArray(input) ||
+    Object.keys(input).length !== 2 ||
+    !('status' in input) ||
+    !('step' in input) ||
+    typeof input.status !== 'string' ||
+    !['confirmed', 'failed', 'outcome_unknown'].includes(input.status) ||
+    typeof input.step !== 'string' ||
+    !['authorize', 'source', 'open', 'confirm', 'verify'].includes(input.step) ||
+    (input.status === 'confirmed' && input.step !== 'verify')
+  )
+    throw new Error('Ungültige Löschbestätigung');
+  return input as VintedListingDeleteResult;
+}
+
 /** Löscht genau einmal über die native Oberfläche; nur ein danach gelesener 404 bestätigt die Entfernung. */
 export async function deleteVintedListing(
   page: Page,
@@ -9,10 +31,10 @@ export async function deleteVintedListing(
   accountId: string,
   authorize: () => Promise<void>,
   timeoutMs = 15_000,
-): Promise<{ status: 'confirmed' | 'failed' | 'outcome_unknown'; step: string }> {
+): Promise<VintedListingDeleteResult> {
   if (page.url() !== 'about:blank') throw new Error('Die Artikelseite ist nicht neu reserviert.');
   let attempted = false;
-  let step = 'authorize';
+  let step: VintedListingDeleteResult['step'] = 'authorize';
   try {
     if (![itemId, accountId].every((id) => /^[1-9][0-9]{0,31}$/.test(id)))
       return { status: 'failed', step };

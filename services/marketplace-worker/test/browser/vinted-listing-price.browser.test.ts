@@ -201,3 +201,36 @@ test('auch der einfache Bearbeitungs-Fallback fokussiert das Preisfeld vor der E
     await browser.close();
   }
 });
+
+test('Preisänderung erlaubt fehlende optionale KI-Auswahl, verlangt aber weiterhin die Push-Auswahl', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingEditFormFixture(page, { missingAiPhoto: true });
+    const result = await updateVintedListingPrice(
+      page,
+      '98765',
+      '123',
+      2050,
+      3990,
+      async () => undefined,
+    );
+    assert.equal(result.status, 'confirmed');
+    assert.equal(form.saves(), 1);
+    assert.equal(form.state().price, '39,90 €');
+    assert.equal(form.state().title, 'Meine Schuhe');
+    assert.equal(form.listOpens(), 0);
+    const blocked = await browser.newPage();
+    const blockedForm = await createVintedListingEditFormFixture(blocked, {
+      missingAiPhoto: true,
+      missingBump: true,
+    });
+    await assert.rejects(
+      updateVintedListingPrice(blocked, '98765', '123', 2050, 3990, async () => undefined),
+    );
+    assert.equal(blockedForm.saves(), 0);
+    assert.equal(blockedForm.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});

@@ -61,6 +61,7 @@ let browserApi: {
   readListingData: ReturnType<typeof vi.fn>;
   readListingEdit: ReturnType<typeof vi.fn>;
   readListingContent: ReturnType<typeof vi.fn>;
+  deleteListing: ReturnType<typeof vi.fn>;
   saveListingEdit: ReturnType<typeof vi.fn>;
   saveListingPrice: ReturnType<typeof vi.fn>;
   readProfileDetails: ReturnType<typeof vi.fn>;
@@ -115,6 +116,7 @@ beforeEach(() => {
     deleteConnection: vi.fn().mockResolvedValue(undefined),
     readListingData: vi.fn(),
     readListingEdit: vi.fn(),
+    deleteListing: vi.fn().mockResolvedValue(undefined),
     readListingContent: vi.fn().mockResolvedValue(listingCurrentContentFixture()),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
     saveListingPrice: vi.fn().mockResolvedValue(undefined),
@@ -597,6 +599,43 @@ describe('Inseratbeschreibungen und Kennzahlen', () => {
     await Promise.all([first, second, saving]);
     expect(browserApi.saveListingPrice).toHaveBeenCalledOnce();
   });
+  it('entfernt ein Inserat erst nach bestätigter Löschung und erhält es bei unklarem Ausgang', async () => {
+    api.readSnapshot.mockResolvedValue(
+      publication('Vorhandener Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z'),
+    );
+    await settle();
+    const before = store.snapshot()!.publications.items[0];
+    browserApi.deleteListing.mockRejectedValueOnce(new Error('Nicht bestätigt'));
+    await expect(store.deleteListing(accountA.connectionId, before.id)).rejects.toThrow(
+      'Nicht bestätigt',
+    );
+    expect(store.snapshot()!.publications.items[0]).toEqual(before);
+    const pending = deferred<void>();
+    browserApi.deleteListing.mockReturnValueOnce(pending.promise);
+    const deleting = store.deleteListing(accountA.connectionId, before.id);
+    expect(store.snapshot()!.publications.items[0]).toEqual(before);
+    pending.resolve(undefined);
+    await deleting;
+    expect(store.snapshot()!.publications.items).toEqual([]);
+    expect(store.snapshot()!.publications.total).toBe(0);
+  });
+  it('übernimmt eine verspätete Löschantwort nicht in ein anderes Konto', async () => {
+    api.readSnapshot.mockResolvedValue(
+      publication('Vorhandener Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z'),
+    );
+    await settle();
+    const before = store.snapshot()!.publications.items[0];
+    const pending = deferred<void>();
+    browserApi.deleteListing.mockReturnValueOnce(pending.promise);
+    const deleting = store.deleteListing(accountA.connectionId, before.id);
+    const observed = expect(deleting).rejects.toThrow('Kontoauswahl');
+    await store.selectConnection(accountB.connectionId);
+    pending.resolve(undefined);
+    await observed;
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(store.snapshot()!.publications.items).toHaveLength(1);
+  });
+
   it('übernimmt ausschließlich bestätigte Preise in die Liste und erhält alle anderen Angaben', async () => {
     api.readSnapshot.mockResolvedValue(
       publication('Vorhandener Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z'),

@@ -14,6 +14,7 @@ import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
 import { readVintedListingEdit, updateVintedListing } from './vinted-browser-listing-edit.ts';
 import { submitVintedListing } from './vinted-browser-listing-submit.ts';
 import { readVintedListingNewCategory } from './vinted-browser-listing-category.ts';
+import { deleteVintedListing } from './vinted-browser-listing-delete.ts';
 import { readVintedListingCurrentContent } from './vinted-browser-listing-content.ts';
 import { updateVintedListingContent } from './vinted-browser-listing-update.ts';
 import { updateVintedListingPrice } from './vinted-browser-listing-price.ts';
@@ -125,6 +126,13 @@ export function vintedBrowserActions(
         throw new VintedListingReadError('reserve');
       }
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
+    }),
+    deleteListing: afterSessionRenewal(async (accountId, externalId, authorize) => {
+      await authorize();
+      const contexts = connection.contexts?.();
+      if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
+      const page = await contexts[0]!.newPage();
+      return deleteVintedListing(page, externalId, accountId, authorize);
     }),
     updateListingContent: afterSessionRenewal(
       async (accountId, externalId, base, desired, authorize, photos) => {

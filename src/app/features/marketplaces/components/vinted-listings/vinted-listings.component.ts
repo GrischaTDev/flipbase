@@ -1,6 +1,5 @@
 import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
-import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import {
   VintedListingsTableComponent,
@@ -25,7 +24,9 @@ import {
   LucideRotateCcw,
   LucideCopy,
   LucidePencil,
+  LucideTrash2,
 } from '@lucide/angular';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { VintedListingEditorComponent } from '../vinted-listing-editor/vinted-listing-editor.component';
 import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
@@ -51,7 +52,6 @@ import { VintedListingOperationStore } from '../../services/vinted-listing-opera
 @Component({
   selector: 'app-vinted-listings',
   imports: [
-    ListingTransferActionComponent,
     CurrencyPipe,
     NgTemplateOutlet,
     VintedListingsTableComponent,
@@ -80,6 +80,8 @@ export class VintedListingsComponent {
   readonly relistIcon = LucideRotateCcw;
   readonly templateIcon = LucideCopy;
   readonly editIcon = LucidePencil;
+  readonly deleteIcon = LucideTrash2;
+  private readonly confirm = inject(ConfirmDialogService);
   readonly plans = inject(VintedRelistingPlanStore);
   readonly editingPlan = signal<VintedListingJob | null>(null);
   readonly entries = computed(() => {
@@ -103,6 +105,8 @@ export class VintedListingsComponent {
   canCreateFrom(entry: MarketplaceEntry): boolean {
     return (
       this.store.canManage() &&
+      entry.connectionId === this.store.selectedConnection()?.connectionId &&
+      entry.workspaceId === this.store.selectedConnection()?.workspaceId &&
       this.store.selectedConnection()?.status === 'connected' &&
       this.store.selectedConnection()?.executionMode === 'cloud' &&
       !!entry.externalId &&
@@ -128,6 +132,7 @@ export class VintedListingsComponent {
       comparisonLabel: this.statistics.comparisonLabel(entry),
       highlighted: this.metricDisplay.highlighted().has(entry.id),
       running: this.operations.isRunning(entry),
+      runningLabel: this.operations.runningLabel(entry),
     })),
   );
   readonly priceEntry = signal<MarketplaceEntry | null>(null);
@@ -196,6 +201,21 @@ export class VintedListingsComponent {
         if (account) void this.selectLinkedConnection(connectionId, workspaceId);
       });
     });
+  }
+
+  async deleteListing(entry: MarketplaceEntry): Promise<void> {
+    if (!this.canCreateFrom(entry)) return;
+    const confirmed = await this.confirm.frage({
+      titel: 'Inserat löschen?',
+      text: entry.title,
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (!confirmed || !this.canCreateFrom(entry)) return;
+    // Fehler bleiben in „Laufende Aktionen“ sichtbar, auch nach dem Schließen des Dialogs.
+    await this.operations
+      .deleteListing(entry, () => this.store.deleteListing(entry.connectionId, entry.id))
+      .catch(() => undefined);
   }
 
   changePrice(entry: MarketplaceEntry, event: MouseEvent): void {

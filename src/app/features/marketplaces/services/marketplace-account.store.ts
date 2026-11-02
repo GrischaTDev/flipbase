@@ -1037,6 +1037,40 @@ export class MarketplaceAccountStore {
     }
     return result;
   }
+  /** Entfernt die Lesekopie erst nach bestätigter Löschung beim Anbieter. */
+  async deleteListing(connectionId: string, entryId: string): Promise<void> {
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (
+      !key ||
+      !this.isCurrent(key) ||
+      !this.canManage() ||
+      connection?.executionMode !== 'cloud' ||
+      connection.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token ||
+      !this.accountSnapshot()?.publications.items.some((entry) => entry.id === entryId)
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    await this.browserApi.deleteListing(this.scope(connection), entryId, token);
+    if (!this.isCurrent(key) || selection !== this.selectionRevision)
+      throw new Error('Die Kontoauswahl hat sich geändert. Prüfe die Löschung bei Vinted.');
+    this.accountSnapshot.update((value) =>
+      value && value.connectionId === connectionId
+        ? {
+            ...value,
+            publications: {
+              ...value.publications,
+              total: Math.max(0, value.publications.total - 1),
+              items: value.publications.items.filter((entry) => entry.id !== entryId),
+            },
+          }
+        : value,
+    );
+  }
+
   /** Liest den vollständigen Vinted-Stand eines eigenen Inserats als Grundlage einer Bearbeitung. */
   async readListingContent(
     connectionId: string,

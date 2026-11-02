@@ -1,59 +1,30 @@
-<app-entry-page-layout
-  [title]="
-    relisting()
-      ? relistStep() === 'details'
-        ? 'Artikel bearbeiten'
-        : 'Relisting festlegen'
-      : source()
+@if (relisting()) {
+  @if (!modalActions()) {
+    <div class="mb-4 flex justify-end">
+      <app-button
+        variant="primary"
+        [disabled]="!canStartPublication()"
+        [loading]="saving() || preparingPhotos()"
+        (clicked)="submitRelisting()"
+        >{{ plannedJob() ? 'Änderungen speichern' : 'Relisten' }}</app-button
+      >
+    </div>
+  }
+  <ng-container [ngTemplateOutlet]="feedback" />
+} @else {
+  <app-entry-page-layout
+    [title]="
+      source()
         ? 'Neues Inserat aus Vorlage'
         : openedSavedDraft()
           ? 'Entwurf bearbeiten'
           : 'Inserat erstellen'
-  "
-  [backLabel]="
-    relisting()
-      ? relistStep() === 'options'
-        ? 'Zurück zu den Artikeldetails'
-        : 'Relisten schließen'
-      : source()
-        ? 'Vorlage schließen'
-        : 'Zur Entwurfsübersicht'
-  "
-  (cancelled)="
-    publication()
-      ? returnToEditor()
-      : relisting() && relistStep() === 'options'
-        ? previousRelistStep()
-        : cancel()
-  "
->
-  <div entry-header-actions class="flex flex-wrap items-center gap-2">
-    @if (!publication()) {
-      @if (relisting()) {
-        @if (relistStep() === 'details') {
-          <app-button
-            variant="primary"
-            [disabled]="!canStartPublication()"
-            (clicked)="nextRelistStep()"
-            >Relisting festlegen</app-button
-          >
-        } @else {
-          <app-button
-            variant="secondary"
-            [disabled]="saving() || preparingPhotos()"
-            (clicked)="previousRelistStep()"
-            >Zurück</app-button
-          >
-          <app-button
-            variant="primary"
-            data-review-opener
-            [disabled]="!canStartPublication() || preparingPhotos()"
-            [loading]="saving() || preparingPhotos()"
-            (clicked)="submitRelisting()"
-            >{{ plannedJob() ? 'Änderungen speichern' : 'Relisten' }}</app-button
-          >
-        }
-      } @else {
+    "
+    [backLabel]="source() ? 'Vorlage schließen' : 'Zur Entwurfsübersicht'"
+    (cancelled)="publication() ? returnToEditor() : cancel()"
+  >
+    <div entry-header-actions class="flex flex-wrap items-center gap-2">
+      @if (!publication()) {
         <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
         <app-button
           variant="secondary"
@@ -76,8 +47,11 @@
           >Veröffentlichung planen</app-button
         >
       }
-    }
-  </div>
+    </div>
+    <ng-container [ngTemplateOutlet]="feedback" />
+  </app-entry-page-layout>
+}
+<ng-template #feedback>
   @if (publicationAnnouncement()) {
     <p data-publication-result role="status" class="sr-only">
       {{ publicationAnnouncement() }}
@@ -98,10 +72,98 @@
       >Du hast keinen Zugriff auf die Inseratentwürfe dieses Arbeitsbereichs.</app-notice-banner
     >
   } @else if (loading()) {
-    <p role="status" class="text-sm text-fb-text-secondary">Entwurf wird geladen …</p>
+    <p role="status" class="text-sm text-fb-text-secondary">
+      {{ relisting() ? 'Inserat wird geladen …' : 'Entwurf wird geladen …' }}
+    </p>
   } @else if (!loadError()) {
-    <div [formGroup]="form" [attr.inert]="publication() ? '' : null">
-      @if (!relisting() || relistStep() === 'details') {
+    @if (relisting()) {
+      <div class="space-y-4" [formGroup]="form" [attr.inert]="publication() ? '' : null">
+        <app-text-field
+          label="Titel"
+          [error]="visibleFieldErrors()['title'] ?? null"
+          [maxLength]="categorySchema()?.titleMaxLength ?? 20000"
+          formControlName="title"
+        />
+        <app-text-field
+          label="Beschreibung"
+          [multiline]="4"
+          [error]="visibleFieldErrors()['description'] ?? null"
+          [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
+          formControlName="description"
+        />
+        <div class="space-y-4">
+          <app-card title="Bildbearbeitung">
+            <div class="space-y-4">
+              <div class="grid gap-4 sm:grid-cols-3">
+                <app-custom-select
+                  label="Auflösung"
+                  ariaLabel="Auflösung"
+                  [options]="photoSizeOptions"
+                  [value]="photoSize() ?? 'none'"
+                  (valueChange)="selectPhotoSize($event)"
+                  [disabled]="saving() || preparingPhotos()"
+                />
+                <app-custom-select
+                  label="Filter"
+                  ariaLabel="Filter"
+                  [options]="photoFilterOptions"
+                  [value]="photoFilter()"
+                  (valueChange)="photoFilter.set($event ?? 'none')"
+                  [disabled]="saving() || preparingPhotos()"
+                />
+                <app-custom-select
+                  label="Weißer Rahmen"
+                  ariaLabel="Weißer Rahmen"
+                  [options]="photoBorderOptions"
+                  [value]="photoBorder()"
+                  (valueChange)="photoBorder.set($event ?? 'none')"
+                  [disabled]="saving() || preparingPhotos()"
+                />
+              </div>
+              <app-vinted-listing-photo-preview
+                [compact]="true"
+                [image]="images()[0] ?? null"
+                [options]="photoOptions()"
+              />
+            </div>
+          </app-card>
+          <app-card title="Veröffentlichung">
+            <div class="space-y-4">
+              <app-custom-select
+                label="Veröffentlichungszeitpunkt"
+                ariaLabel="Veröffentlichungszeitpunkt"
+                [options]="relistTimingOptions"
+                [value]="relistTiming()"
+                (valueChange)="relistTiming.set($event ?? 'now')"
+                [disabled]="saving() || preparingPhotos()"
+              />
+              @if (relistTiming() === 'delay') {
+                <app-custom-select
+                  label="Wartezeit"
+                  ariaLabel="Wartezeit"
+                  [options]="relistMinuteOptions"
+                  [value]="relistMinutes()"
+                  (valueChange)="relistMinutes.set($event ?? 5)"
+                  [disabled]="saving()"
+                />
+              }
+              @if (relistTiming() === 'scheduled') {
+                <div class="grid gap-4 sm:grid-cols-2" [formGroup]="relistScheduleForm">
+                  <app-form-field label="Datum" controlId="vinted-relist-date"
+                    ><app-date-picker
+                      id="vinted-relist-date"
+                      ariaLabel="Veröffentlichungsdatum"
+                      formControlName="date"
+                  /></app-form-field>
+                  <app-text-field label="Uhrzeit" placeholder="18:00" formControlName="time" />
+                </div>
+              }
+            </div>
+          </app-card>
+        </div>
+      </div>
+    } @else {
+      <div [formGroup]="form" [attr.inert]="publication() ? '' : null">
         <app-two-column-layout ratio="2-1">
           <div main class="space-y-4">
             <app-card title="Fotos">
@@ -279,81 +341,8 @@
             }
           </div>
         </app-two-column-layout>
-      } @else {
-        <div class="mx-auto max-w-2xl space-y-4">
-          <app-card title="Bildbearbeitung">
-            <div class="space-y-4">
-              <p class="text-sm text-fb-text-secondary">
-                Für das Relisten empfehlen wir, die Bilder leicht anzupassen.
-              </p>
-              <div class="grid gap-4 sm:grid-cols-3">
-                <app-custom-select
-                  label="Auflösung"
-                  ariaLabel="Auflösung"
-                  [options]="photoSizeOptions"
-                  [value]="photoSize() ?? 'none'"
-                  (valueChange)="selectPhotoSize($event)"
-                  [disabled]="saving() || preparingPhotos()"
-                />
-                <app-custom-select
-                  label="Filter"
-                  ariaLabel="Filter"
-                  [options]="photoFilterOptions"
-                  [value]="photoFilter()"
-                  (valueChange)="photoFilter.set($event ?? 'none')"
-                  [disabled]="saving() || preparingPhotos()"
-                />
-                <app-custom-select
-                  label="Weißer Rahmen"
-                  ariaLabel="Weißer Rahmen"
-                  [options]="photoBorderOptions"
-                  [value]="photoBorder()"
-                  (valueChange)="photoBorder.set($event ?? 'none')"
-                  [disabled]="saving() || preparingPhotos()"
-                />
-              </div>
-              <app-vinted-listing-photo-preview
-                [image]="images()[0] ?? null"
-                [options]="photoOptions()"
-              />
-            </div>
-          </app-card>
-          <app-card title="Veröffentlichung">
-            <div class="space-y-4">
-              <app-custom-select
-                label="Veröffentlichungszeitpunkt"
-                ariaLabel="Veröffentlichungszeitpunkt"
-                [options]="relistTimingOptions"
-                [value]="relistTiming()"
-                (valueChange)="relistTiming.set($event ?? 'now')"
-                [disabled]="saving() || preparingPhotos()"
-              />
-              @if (relistTiming() === 'delay') {
-                <app-custom-select
-                  label="Wartezeit"
-                  ariaLabel="Wartezeit"
-                  [options]="relistMinuteOptions"
-                  [value]="relistMinutes()"
-                  (valueChange)="relistMinutes.set($event ?? 5)"
-                  [disabled]="saving()"
-                />
-              }
-              @if (relistTiming() === 'scheduled') {
-                <div class="grid gap-4 sm:grid-cols-2" [formGroup]="relistScheduleForm">
-                  <app-form-field label="Datum" controlId="vinted-relist-date"
-                    ><app-date-picker
-                      id="vinted-relist-date"
-                      ariaLabel="Veröffentlichungsdatum"
-                      formControlName="date"
-                  /></app-form-field>
-                  <app-text-field label="Uhrzeit" placeholder="18:00" formControlName="time" />
-                </div>
-              }
-            </div>
-          </app-card>
-        </div>
-      }
-    </div>
+      </div>
+    }
   }
   @if (publication(); as opened) {
     <app-vinted-listing-publication-preview
@@ -373,8 +362,7 @@
       (closed)="returnToEditor()"
     />
   }
-</app-entry-page-layout>
-
+</ng-template>
 @if (planningPublication()) {
   <app-vinted-listing-schedule-dialog
     [initial]="publicationSchedule()"

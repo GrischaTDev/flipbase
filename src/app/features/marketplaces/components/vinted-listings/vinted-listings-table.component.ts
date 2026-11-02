@@ -20,6 +20,7 @@ export interface VintedWardrobeTableRow {
   readonly comparisonLabel: string | null;
   readonly highlighted: boolean;
   readonly running: boolean;
+  readonly runningLabel?: string;
 }
 
 @Component({

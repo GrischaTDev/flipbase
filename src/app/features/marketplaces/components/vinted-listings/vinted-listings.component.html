@@ -136,7 +136,7 @@
                   role="status"
                   class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-fb-surface px-3 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
                 >
-                  Preis wird geändert
+                  {{ operations.runningLabel(entry) }}
                 </p>
               }
             </div>
@@ -216,6 +216,7 @@
     @if (priceEditor.available(entry)) {
       <app-button
         variant="table-action"
+        tone="neutral"
         size="slim"
         [icon]="priceIcon"
         [disabled]="savingPrice()"
@@ -226,21 +227,11 @@
         (clicked)="changePrice(entry, $event)"
       />
     }
-    <app-listing-transfer-action
-      [attr.inert]="operations.isRunning(entry) ? '' : null"
-      [compact]="true"
-      [source]="{
-        platform: 'vinted',
-        workspaceId: entry.workspaceId,
-        connectionId: entry.connectionId,
-        externalId: entry.externalId || '',
-      }"
-      [title]="entry.title"
-    />
     @if (canCreateFrom(entry)) {
       @if (entry.publicationState === 'active') {
         <app-button
           variant="table-action"
+          tone="neutral"
           size="slim"
           [icon]="relistIcon"
           [iconOnly]="true"
@@ -252,6 +243,7 @@
       }
       <app-button
         variant="table-action"
+        tone="neutral"
         size="slim"
         [icon]="templateIcon"
         [iconOnly]="true"
@@ -259,6 +251,17 @@
         [ariaLabel]="entry.title + ' als Vorlage für neues Inserat verwenden'"
         ariaHaspopup="dialog"
         (clicked)="editorSource.set({ entry, mode: 'template' })"
+      />
+      <app-button
+        variant="table-action"
+        tone="neutral"
+        size="slim"
+        [icon]="deleteIcon"
+        [iconOnly]="true"
+        title="Inserat löschen"
+        [ariaLabel]="entry.title + ' löschen'"
+        ariaHaspopup="dialog"
+        (clicked)="deleteListing(entry)"
       />
     }
   </ng-template>
@@ -287,11 +290,24 @@
 @if (editingPlan(); as job) {
   <app-modal-shell
     title="Geplantes Relisting"
-    size="full"
+    size="lg"
     [hasFooter]="false"
     (closed)="plannedEditor.cancel()"
   >
-    <app-vinted-listing-editor #plannedEditor [plannedJob]="job" (closed)="closeEditor()" />
+    <app-button
+      header-actions
+      variant="primary"
+      [disabled]="!plannedEditor.canStartPublication() || plannedEditor.preparingPhotos()"
+      [loading]="plannedEditor.saving() || plannedEditor.preparingPhotos()"
+      (clicked)="plannedEditor.submitRelisting()"
+      >Änderungen speichern</app-button
+    >
+    <app-vinted-listing-editor
+      #plannedEditor
+      [modalActions]="true"
+      [plannedJob]="job"
+      (closed)="closeEditor()"
+    />
   </app-modal-shell>
 }
 @if (editorSource(); as source) {
@@ -299,10 +315,26 @@
     [title]="
       source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden'
     "
-    size="full"
+    [size]="source.mode === 'relist' ? 'lg' : 'full'"
     [hasFooter]="false"
     (closed)="editor.cancel()"
   >
-    <app-vinted-listing-editor #editor [source]="source" (closed)="closeEditor()" />
+    <div header-actions>
+      @if (source.mode === 'relist') {
+        <app-button
+          variant="primary"
+          [disabled]="!editor.canStartPublication() || editor.preparingPhotos()"
+          [loading]="editor.saving() || editor.preparingPhotos()"
+          (clicked)="editor.submitRelisting()"
+          >Relisten</app-button
+        >
+      }
+    </div>
+    <app-vinted-listing-editor
+      #editor
+      [modalActions]="true"
+      [source]="source"
+      (closed)="closeEditor()"
+    />
   </app-modal-shell>
 }

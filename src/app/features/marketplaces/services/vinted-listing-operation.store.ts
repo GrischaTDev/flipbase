@@ -5,6 +5,7 @@ import type { MarketplaceEntry } from '../models/marketplace-read.models';
 
 export interface VintedListingOperation {
   readonly key: string;
+  readonly kind: 'price' | 'delete';
   readonly userId: string;
   readonly workspaceId: string;
   readonly connectionId: string;
@@ -14,7 +15,7 @@ export interface VintedListingOperation {
   readonly message: string;
 }
 
-/** Behält den Fortschritt einer Preisänderung auch nach dem Schließen der Artikelansicht. */
+/** Behält den Fortschritt einer Artikelaktion auch nach dem Schließen der Artikelansicht. */
 @Injectable({ providedIn: 'root' })
 export class VintedListingOperationStore {
   private readonly auth = inject(AuthService);
@@ -44,35 +45,64 @@ export class VintedListingOperationStore {
   }
 
   async changePrice(entry: MarketplaceEntry, save: () => Promise<void>): Promise<void> {
+    return this.run(entry, 'price', save);
+  }
+
+  async deleteListing(entry: MarketplaceEntry, remove: () => Promise<void>): Promise<void> {
+    return this.run(entry, 'delete', remove);
+  }
+
+  runningLabel(entry: MarketplaceEntry): string {
+    return this.entries().some(
+      (action) =>
+        action.entryId === entry.id &&
+        action.connectionId === entry.connectionId &&
+        action.state === 'running' &&
+        action.kind === 'delete',
+    )
+      ? 'Inserat wird gelöscht'
+      : 'Preis wird geändert';
+  }
+
+  private async run(
+    entry: MarketplaceEntry,
+    kind: 'price' | 'delete',
+    action: () => Promise<void>,
+  ): Promise<void> {
     const userId = this.auth.currentUser()?.id;
     if (
       !userId ||
       entry.workspaceId !== this.workspace.currentWorkspace()?.id ||
       this.isRunning(entry)
     )
-      throw new Error('Die Preisänderung ist für diesen Artikel nicht verfügbar.');
+      throw new Error('Die Aktion ist für diesen Artikel nicht verfügbar.');
     const key = crypto.randomUUID();
     this.actions.update((actions) => [
       ...actions,
       {
         key,
+        kind,
         userId,
         workspaceId: entry.workspaceId,
         connectionId: entry.connectionId,
         entryId: entry.id,
         title: entry.title,
         state: 'running',
-        message: 'Preis wird geändert …',
+        message: kind === 'delete' ? 'Inserat wird gelöscht …' : 'Preis wird geändert …',
       },
     ]);
     try {
-      await save();
-      this.finish(key, 'success', 'Der neue Preis wurde bestätigt.');
+      await action();
+      this.finish(
+        key,
+        'success',
+        kind === 'delete' ? 'Das Inserat wurde gelöscht.' : 'Der neue Preis wurde bestätigt.',
+      );
     } catch (error) {
       this.finish(
         key,
         'error',
-        error instanceof Error ? error.message : 'Die Preisänderung konnte nicht bestätigt werden.',
+        error instanceof Error ? error.message : 'Die Aktion konnte nicht bestätigt werden.',
       );
       throw error;
     }

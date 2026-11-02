@@ -281,6 +281,15 @@ describe('ButtonComponent', () => {
     expect(button.querySelector('svg')?.classList).toContain('fill-current');
   });
 
+  it('verwendet für neutrale Tabellenaktionen denselben grauen Hover wie die übrigen Controls', () => {
+    fixture.componentRef.setInput('variant', 'table-action');
+    fixture.componentRef.setInput('tone', 'neutral');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('hover:bg-fb-surface-hover');
+    expect(button.classList).not.toContain('hover:bg-fb-accent-surface');
+  });
+
   it('renders navigation as a native link with query parameters', () => {
     fixture.componentRef.setInput('link', '/audit');
     fixture.componentRef.setInput('queryParams', { purchaseId: 'purchase-1' });
