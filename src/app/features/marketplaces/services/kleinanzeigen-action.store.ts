@@ -11,6 +11,7 @@ export interface KleinanzeigenAction {
   readonly accountName: string;
   readonly state: 'running' | 'success' | 'paused' | 'error';
   readonly message: string;
+  readonly operation: 'relist' | 'delete';
 }
 
 /** Lokale Fortschritte bleiben auch nach dem Wechsel auf eine andere Seite sichtbar. */
@@ -44,7 +45,36 @@ export class KleinanzeigenActionStore {
     );
   }
 
-  begin(reference: MarketplaceListingReference, title: string, accountName: string): string {
+  runningLabel(reference: MarketplaceListingReference): string {
+    return this.entries().find(
+      (action) =>
+        action.state === 'running' &&
+        action.reference.connectionId === reference.connectionId &&
+        action.reference.externalId === reference.externalId,
+    )?.operation === 'delete'
+      ? 'Wird gelöscht …'
+      : 'Wird inseriert …';
+  }
+  reconcile(reference: MarketplaceListingReference): void {
+    this.actions.update((actions) =>
+      actions.map((action) =>
+        ['paused', 'error'].includes(action.state) &&
+        action.operation === 'relist' &&
+        action.userId === this.auth.currentUser()?.id &&
+        action.reference.workspaceId === reference.workspaceId &&
+        action.reference.connectionId === reference.connectionId &&
+        action.reference.externalId === reference.externalId
+          ? { ...action, state: 'success', message: 'Neu inseriert' }
+          : action,
+      ),
+    );
+  }
+  begin(
+    reference: MarketplaceListingReference,
+    title: string,
+    accountName: string,
+    operation: 'relist' | 'delete' = 'relist',
+  ): string {
     const userId = this.auth.currentUser()?.id;
     if (!userId || reference.workspaceId !== this.workspace.currentWorkspace()?.id)
       throw new Error('Der Arbeitsbereich wurde gewechselt.');
@@ -65,7 +95,11 @@ export class KleinanzeigenActionStore {
         title,
         accountName,
         state: 'running',
-        message: 'Anzeige wird vorbereitet und inseriert …',
+        operation,
+        message:
+          operation === 'delete'
+            ? 'Anzeige wird gelöscht …'
+            : 'Anzeige wird vorbereitet und inseriert …',
       },
     ]);
     return key;

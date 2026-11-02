@@ -437,6 +437,139 @@ try {
   console.log(
     'Echtes MV3-Neuinserieren: Originalbild vor Löschung gesichert, verzögerte Löschantwort abgewartet, genau eine Löschung und eine bestätigte Neuanlage; Wiederholung ohne zweiten Klick.',
   );
+  // Eigene Tabs sind umrahmt, fremde Tabs bleiben außerhalb der Gruppe.
+  const workTabs = await worker.evaluate(async () => {
+    const values = (await chrome.storage.local.get('kleinanzeigen_work_tabs'))
+      .kleinanzeigen_work_tabs;
+    const group = await chrome.tabGroups.get(values.groupId);
+    const members = await chrome.tabs.query({ groupId: group.id });
+    return { group, members: members.map(({ id }) => id) };
+  });
+  assert.equal(workTabs.group.title, 'Flipbase · Kleinanzeigen');
+  assert.equal(workTabs.group.color, 'yellow');
+  assert.ok(workTabs.members.length >= 2);
+  const statusPage = context
+    .pages()
+    .find((page) => page.url() === 'https://www.kleinanzeigen.de/m-einstellungen.html');
+  await statusPage.locator('#flipbase-workspace-assistant').waitFor();
+  // Neue eigenständige Löschaktion: keine Veröffentlichung und keine erneute Löschung bei Wiederholung.
+  provider.reset({ used: 8, relisting: true });
+  await provider.prepare(worker);
+  // Website-Sender muss über die reale App-Brücke laufen, nicht aus dem Worker selbst.
+  const removeListing = async (patch = {}) =>
+    relistingApp.evaluate(
+      async ({ workspaceId, patch }) =>
+        await new Promise((resolve, reject) => {
+          const requestId = 'delete-' + crypto.randomUUID();
+          const timer = setTimeout(() => reject(Error('Löschen ohne Antwort')), 60000);
+          window.addEventListener('message', function receive(event) {
+            if (
+              event.source !== window ||
+              event.data?.type !== 'FLIPBASE_KLEINANZEIGEN_RESULT' ||
+              event.data.requestId !== requestId
+            )
+              return;
+            clearTimeout(timer);
+            window.removeEventListener('message', receive);
+            resolve(event.data);
+          });
+          window.postMessage(
+            {
+              type: 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING',
+              requestId,
+              workspaceId,
+              connectionId: '9',
+              generation: 2,
+              externalId: '999',
+              title: 'Jacke',
+              ...patch,
+            },
+            location.origin,
+          );
+        }),
+      { workspaceId: publicationWorkspaceId, patch },
+    );
+  assert.equal((await removeListing({ connectionId: '10' })).success, false);
+  assert.equal((await removeListing({ title: 'Fremde Anzeige' })).success, false);
+  assert.equal(provider.deletes, 0);
+  const deletion = await removeListing();
+  assert.equal(deletion.success, true, JSON.stringify(deletion));
+  assert.equal(deletion.result.confirmed, true);
+  assert.equal(provider.deletes, 1);
+  assert.equal(provider.submits, 0);
+  assert.equal((await removeListing()).success, false);
+  assert.equal(provider.deletes, 1);
+  console.log(
+    'Gruppierte eigene Tabs mit Assistent sowie kontogebundene Einzellöschung ohne Veröffentlichung bestanden.',
+  );
+  // Manueller Abschluss nach einem berechtigten Gebührenstopp, anschließend weitere Navigation.
+  await worker.evaluate(async () => {
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('flipbase_kleinanzeigen_relisting', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction('attempts', 'readwrite');
+      transaction.objectStore('attempts').clear();
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    database.close();
+  });
+  provider.reset({ used: 8, relisting: true, unknownFee: true });
+  await provider.prepare(worker);
+  const paused = await relist();
+  assert.equal(paused.result.errorCode, 'fees_or_quota', JSON.stringify(paused));
+  assert.equal(provider.submits, 0);
+  assert.equal(provider.deletes, 0);
+  const manualForm = context
+    .pages()
+    .filter((page) =>
+      page.url().startsWith('https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html'),
+    )
+    .at(-1);
+  await manualForm.getByRole('button', { name: 'Anzeige aufgeben', exact: true }).click();
+  await manualForm.waitForURL('https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt3.html');
+  await manualForm.waitForFunction(() => sessionStorage.getItem('flipbase_kleinanzeigen_receipt'));
+  await manualForm.goto('https://www.kleinanzeigen.de/m-meine-anzeigen.html');
+  const statuses = await relistingApp.evaluate(
+    async (workspaceId) =>
+      await new Promise((resolve, reject) => {
+        const requestId = 'status-' + crypto.randomUUID();
+        const timer = setTimeout(() => reject(Error('Status ohne Antwort')), 60000);
+        window.addEventListener('message', function receive(event) {
+          if (
+            event.source !== window ||
+            event.data?.type !== 'FLIPBASE_KLEINANZEIGEN_RESULT' ||
+            event.data.requestId !== requestId
+          )
+            return;
+          clearTimeout(timer);
+          window.removeEventListener('message', receive);
+          resolve(event.data);
+        });
+        window.postMessage(
+          {
+            type: 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS',
+            requestId,
+            workspaceId,
+            connectionId: '9',
+            generation: 2,
+          },
+          location.origin,
+        );
+      }),
+    publicationWorkspaceId,
+  );
+  assert.equal(statuses.success, true, JSON.stringify(statuses));
+  assert.equal(statuses.result[0].phase, 'confirmed', JSON.stringify(statuses));
+  assert.equal((await relist()).result.outcome, 'confirmed');
+  assert.equal(provider.submits, 1, 'Nur der manuelle Klick hat veröffentlicht.');
+  assert.equal(provider.deletes, 0, 'Der lesende Abschluss löscht keine Altanzeige.');
+  console.log(
+    'Manueller Abschluss nach Gebührenstopp auch nach Weiternavigation erkannt; kein zweiter Submit und keine automatische Löschung.',
+  );
   console.log(
     'Vollständige reale MV3-Ausführung mit Chromium ' +
       context.browser()?.version() +

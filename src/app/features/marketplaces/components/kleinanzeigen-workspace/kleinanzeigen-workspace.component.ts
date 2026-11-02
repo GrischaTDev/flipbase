@@ -1,4 +1,4 @@
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {
   ChangeDetectionStrategy,
@@ -28,7 +28,6 @@ import { overviewAccountKey } from '../../models/marketplace-overview-normalizat
   selector: 'app-kleinanzeigen-workspace',
   imports: [
     NgTemplateOutlet,
-    DatePipe,
     PageHeaderComponent,
     ModalShellComponent,
     ButtonComponent,
@@ -45,11 +44,7 @@ export class KleinanzeigenWorkspaceComponent {
   readonly page =
     (inject(ActivatedRoute).snapshot.data['page'] as string | undefined) ?? 'listings';
   readonly pageTitle =
-    this.page === 'overview'
-      ? 'Kleinanzeigen · Übersicht'
-      : this.page === 'connection'
-        ? 'Kleinanzeigen · Kontoverbindung'
-        : 'Kleinanzeigen · Inserate';
+    this.page === 'connection' ? 'Kleinanzeigen · Kontoverbindung' : 'Kleinanzeigen · Inserate';
   readonly kleinanzeigenAccount = viewChild(KleinanzeigenAccountsComponent);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
@@ -62,11 +57,6 @@ export class KleinanzeigenWorkspaceComponent {
   readonly managing = signal<MarketplaceOverviewAccount | null>(null);
   readonly accountKey = overviewAccountKey;
   readonly accounts = computed(() => this.store.platforms().flatMap((group) => group.accounts));
-  readonly activeCount = computed(() =>
-    this.accounts().some((account) => account.activeCount === null)
-      ? null
-      : this.accounts().reduce((total, account) => total + (account.activeCount ?? 0), 0),
-  );
   constructor() {
     effect(() => {
       const userId = this.auth.currentUser()?.id;

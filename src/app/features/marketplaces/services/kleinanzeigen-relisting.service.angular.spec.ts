@@ -16,6 +16,7 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
   const extension = {
     relistingAvailable: signal(true),
     relist: vi.fn(),
+    deleteListing: vi.fn(),
     relistingAttempts: vi.fn(),
     synchronize: vi.fn(),
   };
@@ -123,5 +124,88 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     expect(extension.relist).toHaveBeenCalledTimes(1);
     expect(service.results()).toEqual([]);
     expect(accounts.requestSync).not.toHaveBeenCalled();
+  });
+  const deletable: MarketplaceOverviewSection = {
+    ...section,
+    page: {
+      total: 1,
+      nextCursor: null,
+      completeness: 'complete',
+      items: [
+        {
+          reference,
+          title: 'Jacke',
+          state: 'active',
+          priceCents: 1200,
+          currency: 'EUR',
+          imageUrl: null,
+          publishedAt: null,
+          actions: [],
+          detailLink: null,
+          externalUrl: null,
+          editLink: null,
+        },
+      ],
+    },
+  };
+  it('löscht nur die bestätigte einzelne Anzeige und gleicht danach ab', async () => {
+    extension.deleteListing.mockResolvedValue(undefined);
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    expect(await service.remove(deletable, reference)).toBe(true);
+    expect(confirmation.frage).toHaveBeenCalledWith(
+      expect.objectContaining({ titel: 'Inserat endgültig löschen?' }),
+    );
+    expect(extension.deleteListing).toHaveBeenCalledWith(
+      { workspaceId: 'workspace', connectionId: '9', generation: 2 },
+      '11',
+      'Jacke',
+    );
+    expect(accounts.requestSync).toHaveBeenCalledTimes(1);
+    expect(extension.relist).not.toHaveBeenCalled();
+  });
+  it('löscht nach Abbruch oder mit fremdem Konto nichts', async () => {
+    confirmation.frage.mockResolvedValue(false);
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    expect(await service.remove(deletable, reference)).toBe(false);
+    confirmation.frage.mockResolvedValue(true);
+    expect(await service.remove(deletable, { ...reference, connectionId: 'foreign' })).toBe(false);
+    expect(extension.deleteListing).not.toHaveBeenCalled();
+  });
+  it('meldet eine unbestätigte Löschung als Fehler ohne zweiten Versuch', async () => {
+    extension.deleteListing.mockRejectedValue(new Error('Die Löschung ist unklar.'));
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    expect(await service.remove(deletable, reference)).toBe(false);
+    expect(extension.deleteListing).toHaveBeenCalledTimes(1);
+    expect(service.error()).toContain('unklar');
+    expect(accounts.requestSync).not.toHaveBeenCalled();
+  });
+  it('entfernt bestätigte Vorgänge aus der offenen Auswahl', async () => {
+    extension.relistingAttempts.mockResolvedValue([
+      { externalId: '11', title: 'Jacke', phase: 'confirmed' },
+      { externalId: '12', title: 'Hose', phase: 'deleted' },
+    ]);
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    await service.loadPending(section);
+    expect(service.pending().map((value) => value.externalId)).toEqual(['12']);
+  });
+  it('widerruft eine bestätigte Löschung nicht bei anschließend fehlgeschlagenem Bestandsabgleich', async () => {
+    extension.deleteListing.mockResolvedValue(undefined);
+    accounts.requestSync.mockRejectedValue(new Error('offline'));
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    expect(await service.remove(deletable, reference)).toBe(true);
+    expect(service.error()).toContain('Inserat gelöscht');
+    expect(extension.deleteListing).toHaveBeenCalledTimes(1);
+  });
+  it('zeigt angehaltene Vorgänge auch ohne Kopfmenü an und entfernt den Hinweis nach belegtem Abschluss', async () => {
+    extension.relist.mockResolvedValue({ externalId: '11', outcome: 'outcome_unknown' });
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    await service.run(section);
+    expect(service.error()).toContain('Ergebnis noch unklar');
+    extension.relistingAttempts.mockResolvedValue([
+      { externalId: '11', title: 'Jacke', phase: 'confirmed' },
+    ]);
+    await service.loadPending(section);
+    expect(service.error()).toBeNull();
+    expect(service.pending()).toEqual([]);
   });
 });

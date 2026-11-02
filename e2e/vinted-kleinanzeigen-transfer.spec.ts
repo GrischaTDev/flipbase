@@ -416,11 +416,13 @@ test('Zentrale Übersicht zeigt echte Kleinanzeigen-Konten und den bestätigten 
   await target
     .getByRole('button', { name: 'Inserate von Kleinanzeigen Privatkonto anzeigen', exact: true })
     .click();
+  await target
+    .getByRole('button', { name: 'Aktionen für Vinted-Jacke vollständig', exact: true })
+    .click();
   await expect(
-    target.getByRole('link', {
-      name: 'Vinted-Jacke vollständig auf Kleinanzeigen ansehen',
-      exact: true,
-    }),
+    target
+      .getByRole('dialog', { name: 'Aktionen für Vinted-Jacke vollständig', exact: true })
+      .getByRole('link', { name: 'Ansehen', exact: true }),
   ).toHaveAttribute('href', 'https://www.kleinanzeigen.de/s-anzeige/jacke/999-1-2');
   expect(f.job?.externalId).toBe('999');
 });
@@ -530,7 +532,7 @@ test('Mehrfachauswahl hält beim ersten unklaren Ergebnis an und zeigt keine fal
   const f = await mockKleinanzeigenTransfer(page, { relisting: true });
   await page.goto('/marketplaces/kleinanzeigen/listings');
   const action = page.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true });
-  await expect(action).toBeDisabled();
+  await expect(action).toHaveCount(0);
   await page
     .getByRole('checkbox', {
       name: 'Alle Inserate auf dieser Seite von Kleinanzeigen Privatkonto auswählen',
@@ -546,9 +548,8 @@ test('Mehrfachauswahl hält beim ersten unklaren Ergebnis an und zeigt keine fal
   await expect(confirmation).toContainText('Kleinanzeigen Artikel 1');
   await expect(confirmation).toContainText('Kleinanzeigen Artikel 2');
   await confirmation.getByRole('button', { name: 'Neu inserieren', exact: true }).click();
-  await expect(
-    page.getByRole('list', { name: 'Ergebnis des erneuten Inserierens', exact: true }),
-  ).toContainText('Ergebnis noch unklar');
+  await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
+  await expect(page.locator('[data-kleinanzeigen-action]')).toContainText('Ergebnis noch unklar');
   const requests = f.bridgeRequests.filter(
     (value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_LISTING',
   );

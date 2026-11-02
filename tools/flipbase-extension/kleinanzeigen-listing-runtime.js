@@ -183,12 +183,20 @@
         if ((await adapter.prepare(record))?.complete !== true) return stop('preparation_failed');
         preparedHere = true;
         await adapter.check();
-        if ((await adapter.verify())?.complete !== true) return stop('images_incomplete');
+        {
+          const verification = await adapter.verify();
+          if (verification?.complete !== true)
+            return stop(verification?.errorCode ?? 'images_incomplete');
+        }
         if ((await adapter.costs())?.allowed !== true) return stop('fees_or_quota');
         if ((await adapter.sourceUnchanged(record.snapshot)) !== true)
           return stop('source_changed');
         await adapter.check();
-        if ((await adapter.verify())?.complete !== true) return stop('images_incomplete');
+        {
+          const verification = await adapter.verify();
+          if (verification?.complete !== true)
+            return stop(verification?.errorCode ?? 'images_incomplete');
+        }
         if ((await adapter.costs())?.allowed !== true) return stop('fees_or_quota');
         await save({ phase: 'deleting' });
         if ((await adapter.remove())?.confirmed !== true) return stop('deletion_unconfirmed');
@@ -199,7 +207,11 @@
       if (!preparedHere && (await adapter.prepare(record))?.complete !== true)
         return stop('preparation_failed');
       await adapter.check();
-      if ((await adapter.verify())?.complete !== true) return stop('images_incomplete');
+      {
+        const verification = await adapter.verify();
+        if (verification?.complete !== true)
+          return stop(verification?.errorCode ?? 'images_incomplete');
+      }
       if ((await adapter.costs())?.allowed !== true) return stop('fees_or_quota');
       await save({ phase: 'submitting' });
       await adapter.submit();
@@ -215,7 +227,7 @@
         : stop(
             ['deleting', 'deleted'].includes(record.phase)
               ? 'deletion_unconfirmed'
-              : (error?.message ?? 'preparation_failed'),
+              : (error?.code ?? error?.message ?? 'preparation_failed'),
           );
     }
   }

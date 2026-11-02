@@ -1,3 +1,7 @@
+import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
+import { KleinanzeigenRelistingService } from '../../services/kleinanzeigen-relisting.service';
+import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
@@ -7,6 +11,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  effect,
+  untracked,
   computed,
   inject,
   input,
@@ -21,6 +27,7 @@ import {
   LucidePencil,
   LucideRefreshCw,
   LucideSettings,
+  LucideTrash2,
 } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -42,6 +49,8 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 @Component({
   selector: 'app-marketplace-listing-section',
   imports: [
+    TableActionMenuComponent,
+    NoticeBannerComponent,
     LoadingIndicatorComponent,
     RouterLink,
     ListingTransferActionComponent,
@@ -59,11 +68,15 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
     ProductThumbnailComponent,
     VintedListingAgeComponent,
   ],
+  providers: [KleinanzeigenExtensionBridge, KleinanzeigenRelistingService],
   templateUrl: './marketplace-listing-section.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceListingSectionComponent {
+  readonly relisting = inject(KleinanzeigenRelistingService);
+  private readonly extension = inject(KleinanzeigenExtensionBridge);
+  readonly deleteIcon = LucideTrash2;
   readonly kleinanzeigenActions = inject(KleinanzeigenActionStore);
   readonly section = input.required<MarketplaceOverviewSection>();
   readonly showAccountManagement = input(false);
@@ -162,6 +175,42 @@ export class MarketplaceListingSectionComponent {
   });
   constructor() {
     this.destroy.onDestroy(() => this.cancelSearch());
+    const accountScope = computed(() =>
+      this.section().account.platform === 'kleinanzeigen'
+        ? this.section().account.workspaceId + ':' + this.section().account.connectionId
+        : '',
+    );
+    effect(() => {
+      if (accountScope()) untracked(() => this.extension.checkInstallation());
+    });
+    effect(() => {
+      if (accountScope() && this.extension.relistingAvailable())
+        untracked(() => void this.relisting.loadPending(this.section()));
+    });
+    const reconcile = () => {
+      if (
+        document.visibilityState !== 'hidden' &&
+        this.section().account.platform === 'kleinanzeigen' &&
+        !this.relisting.busy()
+      )
+        void this.relisting.loadPending(this.section());
+    };
+    window.addEventListener('focus', reconcile);
+    const timer = setInterval(reconcile, 30_000);
+    this.destroy.onDestroy(() => {
+      clearInterval(timer);
+      window.removeEventListener('focus', reconcile);
+    });
+  }
+  async relistOne(reference: MarketplaceListingReference): Promise<void> {
+    const pending = this.relisting
+      .pending()
+      .find((attempt) => attempt.externalId === reference.externalId);
+    if (await this.relisting.run({ ...this.section(), selection: [reference] }, pending))
+      this.retried.emit();
+  }
+  async deleteOne(reference: MarketplaceListingReference): Promise<void> {
+    if (await this.relisting.remove(this.section(), reference)) this.retried.emit();
   }
   stateLabel(state: MarketplaceListingState): string {
     return {

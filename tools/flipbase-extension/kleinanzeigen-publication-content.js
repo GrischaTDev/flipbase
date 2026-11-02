@@ -302,15 +302,16 @@
     function verify(job) {
       identity(job);
       const paths = reader.readPhotos(doc);
-      return {
-        complete:
-          expectedJob === job.id &&
-          fingerprint === state(job) &&
-          nativeFieldsValid() &&
-          paths?.length === job.images.length &&
-          uploaded.length === job.images.length &&
-          paths.every((path, index) => path === uploadedPaths[index]),
-      };
+      if (expectedJob !== job.id || fingerprint !== state(job))
+        return { complete: false, errorCode: 'form_changed' };
+      if (!nativeFieldsValid()) return { complete: false, errorCode: 'invalid_fields' };
+      if (
+        paths?.length !== job.images.length ||
+        uploaded.length !== job.images.length ||
+        !paths.every((path, index) => path === uploadedPaths[index])
+      )
+        return { complete: false, errorCode: 'images_incomplete' };
+      return { complete: true };
     }
     async function submitOnce(job) {
       identity(job);

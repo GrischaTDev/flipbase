@@ -63,6 +63,32 @@
     let busy = false;
     const readSaved = adapter.load ?? load;
     const writeSaved = adapter.save ?? save;
+    async function reconcile(record, installation) {
+      if (record.phase === 'confirmed' || !record.content || !record.baseline || !record.tabId)
+        return record;
+      try {
+        const result = await adapter.result(
+          installation,
+          {
+            id: record.externalId,
+            externalAccountId: installation.binding.externalAccountId,
+            content: record.content,
+          },
+          { ...record, installation, jobId: record.externalId },
+          async (value) => {
+            record = { ...record, receipt: value.receipt, tabId: value.tabId };
+            await writeSaved(record);
+          },
+        );
+        if (result?.outcome === 'confirmed') {
+          record = { ...record, phase: 'confirmed', result, updatedAt: new Date().toISOString() };
+          await writeSaved(record);
+        }
+      } catch {
+        /* Unklare Ergebnisse erhalten die Sicherung, ohne erneut zu schreiben. */
+      }
+      return record;
+    }
     async function run(request, origin) {
       if (busy) throw new Error('Ein Kleinanzeigen-Inserat wird bereits neu eingestellt.');
       busy = true;
@@ -100,6 +126,7 @@
           request.externalId,
         ].join(':');
         record = await readSaved(key);
+        if (record) record = await reconcile(record, installation);
         if (record && record.generation !== request.generation && record.phase !== 'secured') {
           // Bewusstes Fortsetzen mit neuer, aktuell geprüfter Freigabe desselben Kontos.
           record = { ...record, generation: binding.generation };
@@ -262,6 +289,7 @@
             ),
         });
         await persist({ lastResult: result, updatedAt: new Date().toISOString() });
+        if (result.outcome === 'confirmed' && adapter.completed) await adapter.completed(record);
         if (result.outcome !== 'confirmed' && record.tabId) await adapter.show(record.tabId);
         return {
           ...result,
@@ -301,13 +329,20 @@
         binding.externalAccountId,
         '',
       ].join(':');
-      return (await (adapter.all ?? all)())
-        .filter((record) => record.key.startsWith(prefix) && record.phase !== 'confirmed')
-        .map((record) => ({
+      const results = [];
+      for (const entry of (await (adapter.all ?? all)()).filter((record) =>
+        record.key.startsWith(prefix),
+      )) {
+        const saved = await readSaved(entry.key);
+        if (!saved) continue;
+        const record = await reconcile(saved, installation);
+        results.push({
           externalId: record.externalId,
           title: record.snapshot.content.title,
           phase: record.phase,
-        }));
+        });
+      }
+      return results;
     }
     return { run, list };
   }
