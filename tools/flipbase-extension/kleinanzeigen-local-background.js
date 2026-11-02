@@ -76,27 +76,22 @@
     let tab;
     const previous = await load();
     const workTabs = (await chrome.storage.local.get(workTabsKey))[workTabsKey];
-    const tabId = accountTabId ?? workTabs?.accountTabId ?? previous?.tabId;
+    const address = 'https://www.kleinanzeigen.de/m-meine-anzeigen.html';
+    const tabId = listingTabId ?? workTabs?.listingTabId ?? accountTabId ?? previous?.tabId;
     if (Number.isInteger(tabId)) {
       try {
         tab = await chrome.tabs.get(tabId);
       } catch {
-        /* Geschlossener eigener Arbeitstab wird neu angelegt. */
+        /* Geschlossener eigener Tab. */
       }
     }
-    if (tab?.incognito || tab?.url !== 'https://www.kleinanzeigen.de/m-einstellungen.html')
-      tab = undefined;
-    if (!tab)
-      tab = await chrome.tabs.create({
-        url: 'https://www.kleinanzeigen.de/m-einstellungen.html',
-        active: false,
-        index: 0,
-      });
-    else await chrome.tabs.reload(tab.id);
+    if (tab?.incognito || !isListingAddress(tab?.url)) tab = undefined;
+    if (!tab) tab = await chrome.tabs.create({ url: address, active: false, index: 0 });
     await organizeWorkTab(tab);
     accountTabId = tab.id;
+    listingTabId = tab.id;
     const remembered = (await chrome.storage.local.get(workTabsKey))[workTabsKey] ?? {};
-    await chrome.storage.local.set({ [workTabsKey]: { ...remembered, accountTabId } });
+    await chrome.storage.local.set({ [workTabsKey]: { ...remembered, listingTabId: tab.id } });
     while (Date.now() - start < 15000) {
       try {
         const current = await chrome.tabs.get(tab.id);
@@ -104,6 +99,7 @@
           const answer = await chrome.tabs.sendMessage(tab.id, {
             type: 'KLEINANZEIGEN_READ_ACCOUNT',
             minimumDocumentTime: start,
+            requireQuota,
           });
           if (answer?.success === true && answer.result?.identity) {
             // Die Kontodaten werden nach dem load-Ereignis nachgeladen.
@@ -213,6 +209,16 @@
       throw stopped('access_revoked');
     return await sendSession(installation, body);
   }
+  function isListingAddress(address) {
+    try {
+      const url = new URL(address);
+      return (
+        url.origin === 'https://www.kleinanzeigen.de' && url.pathname === '/m-meine-anzeigen.html'
+      );
+    } catch {
+      return false;
+    }
+  }
   async function readListingPage(installation, cursor, runId) {
     if (runId !== undefined && listingReadRunId !== runId) {
       listingReadRunId = runId;
@@ -236,14 +242,16 @@
         if (Number.isInteger(workTabs?.listingTabId)) {
           try {
             const previous = await chrome.tabs.get(workTabs.listingTabId);
-            if (!previous.incognito && previous.url === address) tab = previous;
+            if (!previous.incognito && isListingAddress(previous.url)) tab = previous;
           } catch {
             /* Nur einen ausdrücklich gespeicherten eigenen Tab wiederverwenden. */
           }
         }
       }
-      if (tab) await chrome.tabs.reload(tab.id);
-      else tab = await chrome.tabs.create({ url: address, active: false, index: 0 });
+      if (tab) {
+        if (tab.url === address) await chrome.tabs.reload(tab.id);
+        else await chrome.tabs.update(tab.id, { url: address });
+      } else tab = await chrome.tabs.create({ url: address, active: false, index: 0 });
       await organizeWorkTab(tab);
       listingTabId = tab.id;
       listingCursor = 'page:1';
@@ -843,7 +851,9 @@
           /* Navigation oder geschlossener eigener Arbeitstab. */
         }
       }
-      if (receipt || !owned) break;
+      // Beim Seitenwechsel ist das neue Content Script kurz noch nicht erreichbar.
+      // Den eigenen Tab abwarten, ohne einen weiteren Veröffentlichungsklick auszulösen.
+      if (receipt || (!owned && !tabs.some((tab) => tab.id === progress.tabId))) break;
       await delay(500);
     }
     if (!receipt) return { outcome: 'outcome_unknown', errorCode: 'publication_unconfirmed' };
@@ -1047,16 +1057,7 @@
       );
       if (!page) throw new Error('source_changed');
       await readListingPage(installation, page.pageCursor);
-      const answer = await chrome.tabs.sendMessage(listingTabId, {
-        type: 'KLEINANZEIGEN_RELISTING_STEP',
-        action: 'remove',
-        externalId,
-        title,
-        expectedExternalAccountId: installation.binding.externalAccountId,
-        minimumDocumentTime: listingDocumentTime,
-      });
-      if (!answer?.success) throw new Error(answer?.errorCode ?? 'deletion_unconfirmed');
-      return answer.result;
+      return await removeAndVerify(installation, externalId, title);
     },
     result: publicationResult,
     confirmed: async (record, installation) => {
@@ -1092,6 +1093,49 @@
       }
     },
   });
+  async function removeAndVerify(installation, externalId, title) {
+    let response;
+    try {
+      response = await chrome.tabs.sendMessage(listingTabId, {
+        type: 'KLEINANZEIGEN_RELISTING_STEP',
+        action: 'remove',
+        externalId,
+        title,
+        expectedExternalAccountId: installation.binding.externalAccountId,
+        minimumDocumentTime: listingDocumentTime,
+      });
+    } catch (error) {
+      // Eine Navigation kann den Antwortkanal schließen. Niemals den Löschklick wiederholen.
+      if (
+        !/message (?:channel|port) closed|asynchronous response|receiving end does not exist|could not establish connection|No tab with id|disconnected port/iu.test(
+          error?.message ?? '',
+        )
+      )
+        throw error;
+    }
+    if (response && !response.success) throw stopped(response.errorCode ?? 'deletion_unconfirmed');
+    // Auch eine verlorene Antwort ist nur nach frischem, vollständigem Bestandsnachweis bestätigt.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const binding = installation.binding;
+      const session = await syncRpc(installation, {
+        action: 'heartbeat',
+        workspaceId: binding.workspaceId,
+        connectionId: binding.connectionId,
+        generation: binding.generation,
+      });
+      if (
+        !session.canPublish ||
+        session.externalAccountId !== binding.externalAccountId ||
+        session.generation !== binding.generation
+      )
+        throw stopped('access_revoked');
+      const pages = await readAllPublications(installation);
+      if (!pages.some((page) => page.items.some((item) => item.externalId === externalId)))
+        return { confirmed: true };
+      if (attempt < 2) await delay(500);
+    }
+    throw stopped('deletion_unconfirmed');
+  }
   async function deleteListing(request, origin) {
     const installation = await load();
     const binding = installation?.binding;
@@ -1132,23 +1176,7 @@
     if (!page) throw stopped('source_changed');
     await readListingPage(installation, page.pageCursor);
     await check();
-    const response = await chrome.tabs.sendMessage(listingTabId, {
-      type: 'KLEINANZEIGEN_RELISTING_STEP',
-      action: 'remove',
-      externalId: request.externalId,
-      title: request.title,
-      expectedExternalAccountId: binding.externalAccountId,
-      minimumDocumentTime: listingDocumentTime,
-    });
-    // Keine Wiederholung nach verlorener oder unklarer Antwort.
-    if (!response?.success || response.result?.confirmed !== true)
-      throw stopped('deletion_unconfirmed');
-    if (
-      (await readAllPublications(installation)).some((page) =>
-        page.items.some((item) => item.externalId === request.externalId),
-      )
-    )
-      throw stopped('deletion_unconfirmed');
+    await removeAndVerify(installation, request.externalId, request.title);
     return { externalId: request.externalId, confirmed: true };
   }
   let listingWriteBusy = false;
@@ -1431,7 +1459,11 @@
               error instanceof Error
                 ? error.message === 'image_quality_insufficient'
                   ? 'Die Bildquelle ist zu klein oder beschädigt. Verwende die Originalbilder, bevor Du erneut inserierst.'
-                  : error.message
+                  : /message (?:channel|port) closed|asynchronous response|receiving end does not exist|extension context invalidated|could not establish connection|disconnected port/iu.test(
+                        error.message,
+                      )
+                    ? 'Die Verbindung zur Erweiterung wurde unterbrochen. Prüfe den Status Deiner Anzeige, bevor Du die Aktion erneut startest.'
+                    : error.message
                 : 'Die Kleinanzeigen-Verbindung konnte nicht geprüft werden.',
           }),
       )

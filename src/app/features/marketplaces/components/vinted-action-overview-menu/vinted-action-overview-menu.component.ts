@@ -19,6 +19,7 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
+import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
@@ -36,6 +37,7 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
     VintedListingActionOverviewComponent,
   ],
   templateUrl: './vinted-action-overview-menu.component.html',
+  providers: [KleinanzeigenExtensionBridge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'relative inline-flex',
@@ -46,6 +48,7 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
 })
 export class VintedActionOverviewMenuComponent {
   readonly store = inject(VintedActionOverviewHeaderStore);
+  readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly kleinanzeigen = inject(KleinanzeigenActionStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -54,6 +57,17 @@ export class VintedActionOverviewMenuComponent {
   readonly count = computed(() => this.store.count() + this.kleinanzeigen.runningCount());
   readonly hasRunning = computed(
     () => this.store.hasRunning() || this.kleinanzeigen.runningCount() > 0,
+  );
+  readonly hasFailure = computed(
+    () =>
+      this.kleinanzeigen.hasFailure() ||
+      !!this.store.error() ||
+      this.store
+        .groups()
+        .some((group) =>
+          group.actions.some((action) => ['failed', 'outcome_unknown'].includes(action.state)),
+        ) ||
+      this.store.listings().some(({ job }) => ['failed', 'outcome_unknown'].includes(job.state)),
   );
   readonly label = computed(() => `Laufende Aktionen (${this.count()})`);
   readonly queueIcon = LucideListTodo;

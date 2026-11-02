@@ -154,10 +154,13 @@
             node.getAttribute('aria-busy') !== 'true' &&
             node.getAttribute('aria-disabled') !== 'true',
         );
-        if (confirm.length !== 1) return { confirmed: false };
-        check();
-        confirmationClicked = true;
-        confirm[0].click();
+        if (confirm.length > 1) return { confirmed: false };
+        // Der Dialog kann bereits sichtbar sein, während sein Bestätigungsbutton noch lädt.
+        if (confirm.length === 1) {
+          check();
+          confirmationClicked = true;
+          confirm[0].click();
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }

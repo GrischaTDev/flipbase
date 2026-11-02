@@ -118,21 +118,6 @@
             <app-kleinanzeigen-relisting-action [section]="section()" (changed)="retried.emit()" />
           </div>
         }
-        @if (relisting.error(); as message) {
-          <app-notice-banner class="mb-3" announcement="alert">
-            <div class="space-y-2">
-              <p>{{ message }}</p>
-              @if (extension.updateRequired()) {
-                <app-button variant="secondary" (clicked)="extension.openSettings()"
-                  >Erweiterung öffnen</app-button
-                >
-                <p class="text-xs">
-                  Falls sich kein Fenster öffnet: Gib chrome://extensions in die Adresszeile ein.
-                </p>
-              }
-            </div>
-          </app-notice-banner>
-        }
       }
       <app-data-table
         [embedded]="collapsible() || section().account.platform !== 'kleinanzeigen'"
@@ -214,10 +199,11 @@
               @for (item of section().page?.items ?? []; track listingKey(item.reference)) {
                 <tr
                   class="border-b border-fb-border-subtle align-middle"
-                  [class.bg-fb-brand-surface]="kleinanzeigenActions.isRunning(item.reference)"
-                  [class.ring-inset]="kleinanzeigenActions.isRunning(item.reference)"
-                  [class.ring-1]="kleinanzeigenActions.isRunning(item.reference)"
-                  [class.ring-fb-brand]="kleinanzeigenActions.isRunning(item.reference)"
+                  [class]="
+                    kleinanzeigenActions.isRunning(item.reference)
+                      ? 'bg-black/10 dark:bg-black/25 grayscale'
+                      : ''
+                  "
                   [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
                 >
                   <td class="p-3">
@@ -274,10 +260,11 @@
             <article
               class="min-w-0 space-y-3 p-4"
               [attr.aria-label]="item.title"
-              [class.bg-fb-brand-surface]="kleinanzeigenActions.isRunning(item.reference)"
-              [class.ring-inset]="kleinanzeigenActions.isRunning(item.reference)"
-              [class.ring-1]="kleinanzeigenActions.isRunning(item.reference)"
-              [class.ring-fb-brand]="kleinanzeigenActions.isRunning(item.reference)"
+              [class]="
+                kleinanzeigenActions.isRunning(item.reference)
+                  ? 'bg-black/10 dark:bg-black/25 grayscale'
+                  : ''
+              "
               [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
             >
               <div class="flex min-w-0 items-start gap-3">

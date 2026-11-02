@@ -1,4 +1,4 @@
-@if (store.enabled()) {
+@if (store.enabled() || kleinanzeigen.entries().length) {
   <span class="relative inline-flex">
     <app-button
       data-action-overview-trigger
@@ -7,13 +7,31 @@
       [icon]="hasRunning() ? runningIcon : queueIcon"
       [iconOnly]="true"
       [ariaLabel]="label()"
-      [title]="label()"
+      [title]="hasFailure() ? label() + ' – Aktion prüfen' : label()"
       [ariaExpanded]="opened()"
       ariaControls="header-action-overview"
       [ariaHaspopup]="mobile() ? 'dialog' : null"
       (clicked)="toggle()"
     />
-    @if (count()) {
+    @if (hasFailure()) {
+      <span role="status" class="sr-only">Eine Aktion benötigt Deine Prüfung.</span>
+      <span
+        data-action-overview-error
+        aria-hidden="true"
+        class="pointer-events-none absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fb-critical text-white"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          class="h-3 w-3"
+        >
+          <path d="m7 7 10 10M17 7 7 17" />
+        </svg>
+      </span>
+    } @else if (count()) {
       <span
         aria-hidden="true"
         class="pointer-events-none absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-fb-primary px-1 text-[10px] font-semibold text-fb-on-accent"
@@ -86,6 +104,12 @@
           <p class="text-xs text-fb-text-secondary">Kleinanzeigen · {{ action.accountName }}</p>
           <p class="break-words text-[13px] font-medium text-fb-text-primary">{{ action.title }}</p>
           <p role="status" class="text-xs text-fb-text-secondary">{{ action.message }}</p>
+          @if (action.requiresExtensionUpdate) {
+            <app-button variant="secondary" size="slim" (clicked)="extension.openSettings()"
+              >Erweiterung öffnen</app-button
+            >
+            <p class="text-xs text-fb-text-secondary">Alternativ: chrome://extensions öffnen.</p>
+          }
           <app-button
             variant="ghost"
             size="slim"

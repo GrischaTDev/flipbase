@@ -458,10 +458,14 @@ try {
   });
   assert.equal(workTabs.group.title, 'Flipbase · Kleinanzeigen');
   assert.equal(workTabs.group.color, 'yellow');
-  assert.ok(workTabs.members.length >= 2);
+  assert.equal(
+    workTabs.members.length,
+    1,
+    'Nach Abschluss bleibt nur der gemeinsame Anzeigen-Arbeitstab.',
+  );
   const statusPage = context
     .pages()
-    .find((page) => page.url() === 'https://www.kleinanzeigen.de/m-einstellungen.html');
+    .find((page) => page.url() === 'https://www.kleinanzeigen.de/m-meine-anzeigen.html');
   await statusPage.locator('#flipbase-workspace-assistant').waitFor();
   // Neue eigenständige Löschaktion: keine Veröffentlichung und keine erneute Löschung bei Wiederholung.
   provider.reset({ used: 8, relisting: true });
@@ -512,6 +516,29 @@ try {
   assert.equal(provider.deletes, 1);
   console.log(
     'Gruppierte eigene Tabs mit Assistent sowie kontogebundene Einzellöschung ohne Veröffentlichung bestanden.',
+  );
+  for (const deleteRemains of [false, true]) {
+    provider.reset({ used: 8, relisting: true, deleteNavigation: true, deleteRemains });
+    await provider.prepare(worker);
+    const navigationResult = await removeListing();
+    assert.equal(navigationResult.success, !deleteRemains, JSON.stringify(navigationResult));
+    assert.equal(provider.deletes, 1, 'Verlorene Antwort löst keinen zweiten Löschklick aus.');
+    assert.equal(provider.submits, 0);
+    if (deleteRemains) assert.match(navigationResult.error, /Löschung/);
+    assert.equal(
+      context.pages().filter((page) => page.url().includes('/m-einstellungen.html')).length,
+      0,
+      'Keine Einstellungen-Tabs.',
+    );
+    assert.equal(
+      context.pages().filter((page) => new URL(page.url()).pathname === '/m-meine-anzeigen.html')
+        .length,
+      1,
+      'Rückleitung verwendet denselben eigenen Tab.',
+    );
+  }
+  console.log(
+    'Lösch-Navigation: vollständige Nachprüfung ohne zweiten Klick; erhaltene Anzeige wird nicht als gelöscht bestätigt. Keine Einstellungen-Tabs.',
   );
   // Manueller Abschluss nach einem berechtigten Gebührenstopp, anschließend weitere Navigation.
   await worker.evaluate(async () => {

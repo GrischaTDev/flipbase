@@ -1,7 +1,6 @@
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenRelistingService } from '../../services/kleinanzeigen-relisting.service';
 import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
-import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
@@ -50,7 +49,6 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
   selector: 'app-marketplace-listing-section',
   imports: [
     TableActionMenuComponent,
-    NoticeBannerComponent,
     LoadingIndicatorComponent,
     RouterLink,
     ListingTransferActionComponent,

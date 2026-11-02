@@ -1,6 +1,8 @@
 import { EbaySaleActivityStore } from '../../features/sales/services/ebay-sale-activity.store';
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
+import { ActionStatusIndicatorComponent } from '../../shared/components/action-status-indicator/action-status-indicator.component';
+import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideTranslateService, TranslateService } from '@ngx-translate/core';
@@ -25,6 +27,7 @@ import type { AppNotification } from '../../core/models/webhook.models';
 import { MarketplaceFeedbackNotificationStore } from '../../features/marketplaces/services/marketplace-feedback-notification.store';
 import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
 import { MarketplaceMessageNotificationStore } from '../../features/marketplaces/services/marketplace-message-notification.store';
+import { KleinanzeigenActionStore } from '../../features/marketplaces/services/kleinanzeigen-action.store';
 import { VintedActionOverviewHeaderStore } from '../../features/marketplaces/services/vinted-action-overview-header.store';
 
 const generalNotification: AppNotification = {
@@ -47,6 +50,7 @@ const favoriteNotification: AppNotification = {
 };
 
 describe('HeaderComponent', () => {
+  let restoreBindings: (() => void) | undefined;
   beforeAll(async () => {
     const resources: Readonly<Record<string, string>> = {
       './vinted-action-overview-menu.component.html':
@@ -91,7 +95,11 @@ describe('HeaderComponent', () => {
     });
   });
 
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    restoreBindings?.();
+    restoreBindings = undefined;
+  });
 
   async function renderHeader(
     favorites: AppNotification[] = [],
@@ -141,6 +149,7 @@ describe('HeaderComponent', () => {
         {
           provide: AuthService,
           useValue: {
+            currentUser: signal({ id: 'owner' }),
             userName: signal('Daniel'),
             userEmail: signal('daniel@example.com'),
             signOut: vi.fn(),
@@ -220,6 +229,45 @@ describe('HeaderComponent', () => {
     return fixture;
   }
 
+  it('zeigt Fehler auch bei ausgeschalteter Aktionsübersicht am roten Badge und nur im Menü', async () => {
+    restoreBindings = await prepareMarketplaceRendering([
+      {
+        type: ActionStatusIndicatorComponent,
+        path: 'src/app/shared/components/action-status-indicator/action-status-indicator.component.ts',
+      },
+    ]);
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const actions = TestBed.inject(KleinanzeigenActionStore);
+    expect(element.querySelector('[data-action-overview-trigger]')).toBeNull();
+    const key = actions.begin(
+      {
+        platform: 'kleinanzeigen',
+        workspaceId: 'workspace-1',
+        connectionId: '9',
+        externalId: '11',
+      },
+      'Sneaker',
+      'Privat',
+      'delete',
+    );
+    actions.finish(key, 'error', 'Die Verbindung zur Erweiterung wurde unterbrochen.');
+    fixture.detectChanges();
+    const trigger = element.querySelector<HTMLButtonElement>(
+      '[data-action-overview-trigger] button',
+    )!;
+    expect(trigger.title).toContain('Aktion prüfen');
+    expect(element.querySelector('[data-action-overview-error]')).not.toBeNull();
+    expect(element.querySelector('[data-kleinanzeigen-action]')).toBeNull();
+    trigger.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-kleinanzeigen-action]')?.textContent).toContain(
+      'Die Verbindung zur Erweiterung wurde unterbrochen.',
+    );
+    actions.dismiss(key);
+    fixture.detectChanges();
+    expect(element.querySelector('[data-action-overview-error]')).toBeNull();
+  });
   it('blendet nur die Workspace-Auswahl aus und schließt ein zuvor geöffnetes Menü', async () => {
     const fixture = await renderHeader();
     const element = fixture.nativeElement as HTMLElement;

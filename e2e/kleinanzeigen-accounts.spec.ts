@@ -10,7 +10,11 @@ for (const theme of ['light', 'dark'] as const)
       test(`Eigener Kleinanzeigen-Bereich mit Navigation und Inserierfortschritt bei ${width}px ${theme}`, async ({
         page,
       }, testInfo) => {
-        const fixture = await mockKleinanzeigen(page, { publishingAllowed: true, relisting: true });
+        const fixture = await mockKleinanzeigen(page, {
+          publishingAllowed: true,
+          relisting: true,
+          actionOverview: !(width === 390 && theme === 'dark'),
+        });
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.message));
         await page.setViewportSize({ width, height: 1000 });
@@ -79,8 +83,9 @@ for (const theme of ['light', 'dark'] as const)
         ).toHaveCount(0);
         await expect(item).toHaveAttribute('aria-busy', 'true');
         await expect(item.getByText('Alter unbekannt', { exact: true })).toHaveCount(0);
-        await expect(item).toHaveClass(/bg-fb-brand-surface/);
-        await expect(item).toHaveCSS('filter', 'none');
+        await expect(item).not.toHaveClass(/bg-fb-brand-surface|ring-fb-brand/);
+        await expect(item).toHaveClass(/bg-black\/10/);
+        await expect(item).toHaveCSS('filter', 'grayscale(1)');
         const thumbnail = item.locator('app-product-thumbnail img');
         await expect(thumbnail).toHaveCSS('object-fit', 'cover');
         await expect
@@ -116,7 +121,16 @@ for (const theme of ['light', 'dark'] as const)
             exact: true,
           })
           .click();
-        await expect(section.getByRole('alert')).toContainText('Anbieterformular');
+        await expect(section.getByRole('alert')).toHaveCount(0);
+        await expect(page.locator('[data-action-overview-error]')).toBeVisible();
+        await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
+        await expect(page.locator('[data-kleinanzeigen-action]')).toContainText('Anbieterformular');
+        await page
+          .getByRole('button', {
+            name: width < 768 ? 'Dialog schließen' : 'Aktionsübersicht schließen',
+            exact: true,
+          })
+          .click();
         await expect(section.getByText('Noch offene Vorgänge in diesem Browserprofil')).toHaveCount(
           0,
         );

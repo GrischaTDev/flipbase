@@ -335,8 +335,12 @@ export function createKleinanzeigenPublicationFixture() {
                 '">Anzeige Jacke</a></h3><button>Reservieren</button></li>'
               : '') +
             '</ul><nav aria-label="Seiten-Navigation"><span aria-current="page">Seite 1</span><button disabled>Nächste</button></nav>' +
-            '<dialog id="delete-dialog"><h2>Anzeige löschen</h2><button type="button">Abbrechen</button><button id="confirm-delete" aria-disabled="false" aria-busy="false"><span>Ja, Anzeige löschen</span></button></dialog></main>' +
-            '<script>document.getElementById("delete-old")?.addEventListener("click",()=>document.getElementById("delete-dialog").showModal());document.getElementById("confirm-delete").onclick=async()=>{await fetch("/fixture-delete",{method:"POST"});document.querySelector("[data-adid]").remove();document.getElementById("delete-dialog").close();};</script>',
+            '<dialog id="delete-dialog"><h2>Anzeige löschen</h2><button type="button">Abbrechen</button><button id="confirm-delete" aria-disabled="true" aria-busy="true"><span>Ja, Anzeige löschen</span></button></dialog></main>' +
+            '<script>document.getElementById("delete-old")?.addEventListener("click",()=>{document.getElementById("delete-dialog").showModal();setTimeout(()=>{document.getElementById("confirm-delete").setAttribute("aria-busy","false");document.getElementById("confirm-delete").setAttribute("aria-disabled","false");},400);});document.getElementById("confirm-delete").onclick=async()=>{await fetch("/fixture-delete",{method:"POST"});' +
+            (options.deleteNavigation
+              ? 'location.href="/m-meine-anzeigen.html?actMsg=DEL_MSG";'
+              : 'document.querySelector("[data-adid]").remove();document.getElementById("delete-dialog").close();') +
+            '};</script>',
         ),
       });
     if (url.pathname === '/p-anzeige-bearbeiten.html') {
@@ -375,7 +379,7 @@ export function createKleinanzeigenPublicationFixture() {
       assert.equal(request.method(), 'POST');
       await new Promise((resolve) => setTimeout(resolve, 250));
       deletes++;
-      removed = true;
+      removed = !options.deleteRemains;
       return route.fulfill({ json: { ok: true } });
     }
     if (url.pathname === '/p-kategorie-aendern.html')
@@ -432,11 +436,13 @@ export function createKleinanzeigenPublicationFixture() {
       published = true;
       return route.fulfill({ json: { ok: true } });
     }
-    if (url.pathname === '/p-anzeige-aufgeben-schritt3.html')
+    if (url.pathname === '/p-anzeige-aufgeben-schritt3.html') {
+      await new Promise((resolve) => setTimeout(resolve, 500));
       return route.fulfill({
         contentType: 'text/html',
         body: html('<a href="' + target + '">Anzeige ansehen</a>'),
       });
+    }
     throw Error('Unbekannte lokale Anbieterroute ' + url.pathname);
   }
   async function prepare(worker) {

@@ -12,6 +12,7 @@ export interface KleinanzeigenAction {
   readonly state: 'running' | 'success' | 'paused' | 'error';
   readonly message: string;
   readonly operation: 'relist' | 'delete';
+  readonly requiresExtensionUpdate?: boolean;
 }
 
 /** Lokale Fortschritte bleiben auch nach dem Wechsel auf eine andere Seite sichtbar. */
@@ -29,6 +30,9 @@ export class KleinanzeigenActionStore {
           (action) => action.userId === userId && action.reference.workspaceId === workspace.id,
         );
   });
+  readonly hasFailure = computed(() =>
+    this.entries().some((entry) => entry.state === 'error' || entry.state === 'paused'),
+  );
   readonly runningCount = computed(
     () => this.entries().filter((action) => action.state === 'running').length,
   );
@@ -105,9 +109,16 @@ export class KleinanzeigenActionStore {
     return key;
   }
 
-  finish(key: string, state: KleinanzeigenAction['state'], message: string): void {
+  finish(
+    key: string,
+    state: KleinanzeigenAction['state'],
+    message: string,
+    requiresExtensionUpdate = false,
+  ): void {
     this.actions.update((actions) =>
-      actions.map((action) => (action.key === key ? { ...action, state, message } : action)),
+      actions.map((action) =>
+        action.key === key ? { ...action, state, message, requiresExtensionUpdate } : action,
+      ),
     );
   }
 
