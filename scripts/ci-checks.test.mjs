@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import test from 'node:test';
-import { executeCheckCommand, runCiCheck } from './ci-checks.mjs';
+import { executeCheckCommand, getCheckCommands, runCiCheck } from './ci-checks.mjs';
 
 test('übergibt Pfade und Metadaten wörtlich statt als Shellcode', async (t) => {
   const repository = await mkdtemp(join(tmpdir(), 'ci-command-'));
@@ -87,4 +87,87 @@ test('Quality entfernt geerbte PG-Verbindungen und aktiviert keine Release-Daten
     assert.equal(env.KEEP_VALUE, 'yes');
   }
   assert.equal(environment.PGDATABASE, 'flipbase_release_test');
+});
+
+test('leichte Qualität bleibt ohne Workflowinfrastruktur; vollständige Qualitätsgruppe bleibt aufrufbar', () => {
+  const lightweight = getCheckCommands('quality-light');
+  assert.deepEqual(
+    lightweight.map(({ args }) => args),
+    [
+      ['run', 'format:check'],
+      ['run', 'lint'],
+      ['run', 'typecheck'],
+      ['run', 'test:audit'],
+    ],
+  );
+  assert.deepEqual(
+    getCheckCommands('workflow').map(({ args }) => args),
+    [['run', 'test:workflow']],
+  );
+  assert.ok(getCheckCommands('quality').some(({ args }) => args.includes('test:workflow')));
+});
+
+test('getrennte Qualitäts- und Workflowgruppe entfernen geerbte Datenbankverbindungen', async () => {
+  for (const group of ['quality-light', 'workflow']) {
+    const calls = [];
+    await runCiCheck(group, {
+      environment: { PATH: process.env.PATH, PGHOST: 'external.invalid', KEEP_VALUE: 'yes' },
+      spawnProcess(command, args, options) {
+        calls.push(options.env);
+        const child = new EventEmitter();
+        queueMicrotask(() => child.emit('exit', 0, null));
+        return child;
+      },
+    });
+    assert.ok(calls.length);
+    for (const environment of calls) {
+      assert.equal(environment.PGHOST, undefined);
+      assert.equal(environment.KEEP_VALUE, 'yes');
+    }
+  }
+});
+
+test('Pfadvarianten werden eindeutig zusammengeführt und bewusste Befehlspfade haben Vorrang', async () => {
+  for (const override of [undefined, { Path: 'command-tools' }, { PATH: 'command-tools' }]) {
+    let actual;
+    await executeCheckCommand(
+      { name: 'Pfadvertrag', command: 'node', args: [], env: override },
+      {
+        environment: { Path: 'inherited-tools', OTHER_VALUE: 'unchanged' },
+        spawnProcess(command, args, options) {
+          actual = options.env;
+          const child = new EventEmitter();
+          queueMicrotask(() => child.emit('exit', 0, null));
+          return child;
+        },
+      },
+    );
+    assert.deepEqual(
+      Object.keys(actual).filter((key) => /^path$/iu.test(key)),
+      ['PATH'],
+    );
+    assert.equal(
+      actual.PATH,
+      `${dirname(process.execPath)}${delimiter}${override ? 'command-tools' : 'inherited-tools'}`,
+    );
+    assert.equal(actual.OTHER_VALUE, 'unchanged');
+  }
+});
+
+test('echter Kindprozess findet Git auch bei ausschließlich geerbtem Windows-Path', async () => {
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/^path$/iu.test(key)),
+  );
+  environment.Path = process.env.PATH ?? process.env.Path;
+  await executeCheckCommand(
+    {
+      name: 'Git aus geerbtem Werkzeugpfad',
+      command: 'node',
+      args: [
+        '--eval',
+        'const {spawnSync}=require("node:child_process");const result=spawnSync("git",["--version"],{encoding:"utf8"});if(result.error)throw result.error;if(result.status!==0||!result.stdout.startsWith("git version "))process.exit(1);',
+      ],
+    },
+    { environment },
+  );
 });

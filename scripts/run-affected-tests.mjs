@@ -55,7 +55,7 @@ if (kind === 'unit') {
   commands = groups.map(({ project, shard }) => [
     'node_modules/@playwright/test/cli.js',
     'test',
-    '--config=playwright.affected.config.ts',
+    `--config=${['ui', 'changed-ui', 'ui-layout'].includes(project) ? 'playwright.ui.config.ts' : 'playwright.affected.config.ts'}`,
     `--project=${project}`,
     ...(!explicitShard && shard !== '1/1' ? [`--shard=${shard}`] : []),
     ...browserArgs,

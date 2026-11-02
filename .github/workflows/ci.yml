@@ -48,6 +48,7 @@ jobs:
       tests_reused: ${{ steps.reuse.outputs.tests_reused }}
       receipt_name: ${{ steps.reuse.outputs.receipt_name }}
       test_plan: ${{ steps.preflight.outputs.test_plan }}
+      workflow_required: ${{ steps.preflight.outputs.workflow_required }}
       unit_required: ${{ steps.preflight.outputs.unit_required }}
       unit_matrix: ${{ steps.preflight.outputs.unit_matrix }}
       browser_required: ${{ steps.preflight.outputs.browser_required }}
@@ -153,8 +154,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check formatting, lint, types and workflow contracts
-        run: node scripts/ci-checks.mjs quality
+      - name: Check formatting, lint, types and suite registration
+        run: node scripts/ci-checks.mjs quality-light
+
+      - name: Check affected workflow contracts
+        if: ${{ needs.changes.outputs.workflow_required == 'true' }}
+        run: node scripts/ci-checks.mjs workflow
 
       - name: Set up Deno for marketplace functions
         if: ${{ needs.changes.outputs.marketplace_required == 'true' || needs.changes.outputs.push == 'true' }}
@@ -171,6 +176,7 @@ jobs:
         run: node scripts/ci-checks.mjs push
 
       - name: Lint workflow files
+        if: ${{ needs.changes.outputs.workflow_required == 'true' }}
         env:
           ACTIONLINT_VERSION: 1.7.12
           ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
@@ -331,6 +337,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Start local Supabase
+        if: ${{ matrix.database != false }}
         run: npx supabase start
 
       - name: Run browser smoke tests
@@ -351,7 +358,7 @@ jobs:
           retention-days: 7
 
       - name: Stop local Supabase
-        if: ${{ always() }}
+        if: ${{ always() && matrix.database != false }}
         run: npx supabase stop --no-backup
 
   extension:

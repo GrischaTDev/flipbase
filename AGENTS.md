@@ -139,9 +139,10 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 ## Verbindlicher Vorabcheck für alle KI-Assistenten
 
 Diese Schritte führt die arbeitende KI **vor jedem PR, auch einem Entwurfs-PR,
-und vor jedem weiteren Push auf einen offenen PR selbst aus**. Sie gelten im
-gesamten Repository, einschließlich Dokumentations- und Regeländerungen. Dem
-Nutzer nur die Befehle zu nennen oder auf die spätere CI zu verweisen genügt nicht.
+und vor jedem weiteren Push auf einen offenen PR selbst aus**. Der lokale
+Vorabcheck liefert den Entwicklungsnachweis; GitHub prüft den ausgewählten
+Freigabeumfang vor dem Merge. Eine vollständige CI lokal nachzubauen ist keine
+Voraussetzung für einen PR.
 
 1. **Geänderte Dateien automatisch formatieren.** Mit den installierten
    Projektabhängigkeiten gezielt die eigenen, von Prettier unterstützten Dateien
@@ -150,32 +151,35 @@ Nutzer nur die Befehle zu nennen oder auf die spätere CI zu verweisen genügt n
    gelöschte auslassen und den Diff kontrollieren. `npm run format` enthält
    `prettier --write .` und bearbeitet das ganze Repository; angehängte Dateinamen
    begrenzen diesen Befehl nicht. Keine fachfremden Änderungen mitnehmen.
-2. **Den tatsächlichen Prüfumfang ansehen:** `npm run preflight:plan` gegen den
+2. **Den Prüfumfang ansehen:** `npm run preflight:plan` gegen den
    frisch abgerufenen Zielzweig ausführen. Standard ist `origin/master`; bei einem
    anderen PR-Ziel beiden Preflight-Befehlen `-- --base <ref>` übergeben. Commits,
    Index, Arbeitskopie sowie neue und gelöschte Dateien müssen berücksichtigt sein.
    Auch die Einsatzstellen gemeinsamer Bausteine prüfen; nur neue Tests reichen nicht.
-3. **Den Plan ausführen:** `npm run preflight` mit der in CI verwendeten Node-22-
-   Laufzeit und den gesperrten Projektabhängigkeiten ausführen. Die Planansicht ist
-   kein Testnachweis. Der gemeinsame Ablauf wählt die betroffenen Qualitäts-,
-   Typ-, Test- und Bauprüfungen; Angular-Vorlagen benötigen weiterhin den Bau.
+3. **Den lokalen Entwicklungscheck ausführen:** `npm run preflight` mit Node 22
+   und den gesperrten Projektabhängigkeiten ausführen. Der Standardlauf prüft die
+   betroffenen lokalen Bereiche und zeigt den zusätzlichen CI-Freigabeumfang
+   gesondert an. Die Planansicht allein ist kein Testnachweis. Angular-Vorlagen
+   benötigen weiterhin den Bau. `-- --ci` beziehungsweise `-- --full` ist ein
+   ausdrücklich gewählter Nachbau des vollständigen Plans, keine Routinepflicht.
 4. **Format und Lint müssen bei jedem PR erfolgreich geprüft sein:**
    `npm run format:check` und `npm run lint`. Hat der Preflight diese identischen
    Befehle für den unveränderten Stand bereits erfolgreich ausgeführt, zählt das
    Ergebnis; nicht doppelt ausführen. Bei reinen Dokumentationsänderungen oder
    wenn der Preflight einen dieser Befehle noch nicht erfolgreich ausgeführt hat,
    die fehlenden Prüfungen gesondert ausführen.
-5. **Fehler vor dem PR beheben.** Nach Autofixes, weiteren Änderungen oder einer
-   Konfliktauflösung erneut formatieren, den Plan aktualisieren und den Preflight
-   auf dem endgültigen Stand ausführen. Betroffene Prüfungen erneut nachweisen;
-   Ergebnisse eines älteren Stands nicht als Prüfung der Korrektur ausgeben.
-6. **Technische Grenzen offen behandeln.** Fehlende Voraussetzungen soweit
-   möglich herstellen und alle lokal ausführbaren Prüfungen durchführen. Die
-   dokumentierten Marketplace-Imageprüfungen bleiben dem GitHub-gehosteten
-   Wegwerfrunner vorbehalten. Ein deshalb unvollständiger Preflight zählt nicht
-   als bestanden: fehlenden Bereich, konkreten Grund und nötigen CI-Nachweis im
-   PR benennen. Echte Format-, Lint- oder Testfehler sind keine solche Ausnahme;
-   vor dem Merge müssen alle ausgewählten Pflichtprüfungen erfolgreich sein.
+5. **Fehler vor dem PR beheben.** Nach Korrekturen und Konfliktauflösungen die
+   geänderten Dateien formatieren, den Plan aktualisieren und die betroffenen
+   Prüfungen am endgültigen Stand nachweisen. Bestandene Prüfungen unveränderter
+   Teile nicht ohne neuen Grund wiederholen.
+6. **Lokalen Erfolg und CI-Nachweis trennen.** Planmäßig nur auf GitHub
+   ausgeführte Datenbank-, Browser-, Image- oder Hostprüfungen machen den lokalen
+   Entwicklungscheck nicht unvollständig. Ihre Ergebnisse stehen bis zur CI
+   aus; lokale Teilprüfungen ersetzen sie nicht. Fehlt dagegen ein Werkzeug für
+   eine tatsächlich ausgewählte lokale Prüfung oder schlägt sie fehl, ist dieser
+   Entwicklungsnachweis unvollständig. Vor dem Merge müssen alle ausgewählten
+   CI-Pflichtprüfungen erfolgreich sein. Marketplace-Image-/Hostprüfungen bleiben
+   ausschließlich dem dokumentierten GitHub-gehosteten Wegwerfrunner vorbehalten.
 7. **Nachweise festhalten:** ausgeführte Befehle, tatsächliche Ergebnisse und
    verbleibende Prüflücken in PR-Beschreibung und Abschluss nennen. Exitcodes
    korrekt auswerten. Keine pauschale Behauptung „alle Tests grün“ bei Teilprüfungen.
@@ -210,32 +214,33 @@ oder Regeländerung löst dadurch keine vollständige Anwendungstestsuite aus.
   neue Fälle für konkrete Fehler, wichtige Geschäftsabläufe oder bisher
   ungesicherte Risiken ergänzen. Berechnungen, Datumsgrenzen und Fehlerkombinationen
   möglichst mit schnellen Modell-, Service- oder Komponententests prüfen.
-- **Browsermatrix nur bei der betroffenen Oberfläche ausführen.** Eine Änderung
-  an der Galerie darf keinen vollständigen Verkaufs- oder Einkaufslauf auslösen.
-  Produktions-PWA-, Offline- und Updateprüfungen laufen bei Änderungen an diesen
-  Funktionen oder ihren Abhängigkeiten als eigener Pflichtjob. Lint, Formatierung,
-  Typprüfung und der erforderliche Bau bleiben bestehen.
-- **Breite Änderungen ausdrücklich breiter prüfen.** Globale Konfiguration,
-  Anmeldung/Rechtegrenzen, Datenbankschema und nicht sicher zuordenbare Änderungen
-  behalten einen umfassenden Lauf. Die Auswahl selbst ist durch Tests abzusichern;
-  eine leere Auswahl ist kein Nachweis einer bestandenen Browserprüfung.
-  Die vollständige Browserregression bleibt gezielt manuell verfügbar und wird
-  nicht ungefragt täglich oder bei jedem PR gestartet.
+- **Browserumfang nach Risiko begrenzen.** Repräsentative betroffene Abläufe
+  prüfen; zusätzliche Breiten, Hell/Dunkel, Touch und AXE nur dort kombinieren,
+  wo die Änderung sie berührt. Eine reine Fachlogikkorrektur verlangt keine
+  vollständige Geräte- und Darstellungsmatrix. Produktions-PWA, Offline und
+  Updates behalten bei einschlägigen Änderungen ihren CI-Pflichtjob.
+- **Breite technische Änderungen gezielt absichern.** Gemeinsame Konfiguration
+  und unbekannte Abhängigkeiten können breite schnelle Anwendungstests und einen
+  allgemeinen Browserkern erfordern. Anmeldung, Rechte, Datenintegrität,
+  Migrationen und Anbieter-Schreibwege behalten ihre einschlägigen Pflichtfälle.
+  Daraus folgt keine vollständige Browserregression für jeden solchen PR.
+  Den vollständigen Lauf bewusst vor Beta-Meilensteinen oder zur Diagnose
+  starten; kein täglicher oder wöchentlicher Automatismus.
 - **Testregistrierung mitprüfen:** Bei neuen oder verschobenen Tests auch die
   zugehörigen Auswahlscripte, verbindlichen Soll-Listen und Suite-Prüfungen lokal
   ausführen. Ein einzeln bestandener Test belegt nicht, dass ihn die CI korrekt
   auswählt.
-- **UI-Änderungen mit den betroffenen bestehenden Browserfällen prüfen:** die
-  relevanten CI-Breiten, Touch-Bedienung und Farbschemata einbeziehen. Tests gegen
-  eine ruhende Vorschau ausführen; keinen parallelen Bau starten, der die Seite
-  währenddessen neu lädt.
-- **Relevante Unterschiede zur CI vor dem PR nachstellen:** insbesondere bei
-  PWA-, Service-Worker- und Browser-Lebenszyklusänderungen die betroffenen Fälle
-  auch unter Linux mit den CI-Versionen prüfen. Bei Hinweisen auf Last- oder
-  Zeitprobleme die verfügbaren Ressourcen entsprechend begrenzen. Isolierte
-  Projektkopien müssen alle benötigten Dateien einschließlich versteckter
-  Baukonfigurationen enthalten. Ist diese Prüfung lokal nicht möglich, die
-  konkrete Prüflücke offen benennen; ein Windows-Ergebnis ersetzt sie nicht.
+- **Den betroffenen Ablauf früh bestätigen.** Bestehende passende Browserfälle
+  oder eine gezielte Bedienprüfung nutzen, wenn nur der Browser die Änderung
+  sinnvoll nachweist. Kein neuer Browsertest allein wegen einer geänderten Datei.
+  Tests gegen eine ruhende Vorschau ausführen; keinen parallelen Bau starten,
+  der die Seite währenddessen neu lädt.
+- **Unterschiede zur CI bei konkretem Anlass nachstellen.** Linux-, Ressourcen-
+  oder Browserversionsgegenproben sind bei entsprechenden Fehlerhinweisen oder
+  plattformabhängigen Änderungen sinnvoll. Sie sind keine zusätzliche lokale
+  Pflicht bei jeder PWA- oder Browseränderung. Der Linux-Freigabenachweis erfolgt
+  regulär in CI. Isolierte Diagnosekopien müssen alle benötigten Dateien
+  einschließlich versteckter Baukonfigurationen enthalten.
 - **CI-Fehler zuerst gezielt untersuchen:** den fehlgeschlagenen Fall anhand von
   Logs und Aufzeichnungen möglichst klein lokal nachstellen und nach der
   Korrektur gezielt prüfen, bevor ein neuer vollständiger Lauf startet.
@@ -385,8 +390,10 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
   Touch-Zusatzflächen dürfen keinen Eingabetext überlagern.
 - Labels, Pflichtangaben, Hinweise und Fehler über app-form-field vereinheitlichen.
   Technische/native Spezialflächen nur nach den dokumentierten Ausnahmen.
-- Shared-UI-Prüfung und tatsächliche Verbraucher in Hell/Dunkel sowie Maus/Touch
-  prüfen; historische Shopify-Regeln haben keinen Vorrang vor dem aktuellen Vertrag.
+- Shared-UI-Prüfung und repräsentative betroffene Verbraucher nach Risiko in
+  Hell/Dunkel beziehungsweise mit Maus/Touch prüfen; keine vollständige Matrix
+  aller Verbraucher bei jeder Änderung. Historische Shopify-Regeln haben keinen
+  Vorrang vor dem aktuellen Vertrag.
 - Auf Nutzerauftrag umfasst die Gestaltung auch Ausgaben, Steuer/DATEV,
   Bankabgleich und Auswertung vollständig. Bestehende Anordnung, Berechnungen,
   Beleg-/Druckdarstellung und Export-/Speicherabläufe erhalten.

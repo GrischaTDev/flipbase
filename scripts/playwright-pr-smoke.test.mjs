@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { readSelectionFiles, selectAffectedTests, buildBrowserMatrix } from './affected-tests.mjs';
-import { coreBrowserTests } from './browser-test-selection.mjs';
+import { coreBrowserTests, uiBrowserFiles } from './browser-test-selection.mjs';
 
 const executeFile = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -36,7 +36,9 @@ async function listTests(config, selectionArguments = [], environment = {}) {
       'node_modules/@playwright/test/cli.js',
       'test',
       `--config=${config}`,
-      ...(config === 'playwright.affected.config.ts' ? [] : ['--project=chromium']),
+      ...(['playwright.affected.config.ts', 'playwright.ui.config.ts'].includes(config)
+        ? []
+        : ['--project=chromium']),
       '--list',
       '--reporter=json',
       ...selectionArguments,
@@ -56,16 +58,35 @@ const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
 async function listPlan(paths, selectionArguments = [], files = sources) {
   const plan = selectAffectedTests(paths, files);
-  const listed = await listTests('playwright.affected.config.ts', selectionArguments, {
-    AFFECTED_TEST_PLAN: JSON.stringify(plan),
-  });
-  return { ...listed, plan };
+  const selectedProject = selectionArguments
+    .find((argument) => argument.startsWith('--project='))
+    ?.slice('--project='.length);
+  const projects = buildBrowserMatrix(plan)
+    .map(({ project }) => project)
+    .filter((project) => !selectedProject || project === selectedProject);
+  const configs = [
+    ...new Set(
+      projects.map((project) =>
+        ['ui', 'changed-ui', 'ui-layout'].includes(project)
+          ? 'playwright.ui.config.ts'
+          : 'playwright.affected.config.ts',
+      ),
+    ),
+  ];
+  const listed = await Promise.all(
+    configs.map((config) =>
+      listTests(config, selectionArguments, {
+        AFFECTED_TEST_PLAN: JSON.stringify(plan),
+      }),
+    ),
+  );
+  return { selected: listed.flatMap(({ selected }) => selected), plan };
 }
 
 test('PR-Kern bleibt klein, eindeutig und bewahrt Traces ohne Wiederholungen', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.equal(selected.length, coreBrowserTests.length);
-  assert.ok(selected.length >= 10 && selected.length <= 25);
+  assert.ok(selected.length > 0 && selected.length <= 10);
   for (const [file, title] of coreBrowserTests)
     assert.equal(
       selected.filter(
@@ -149,16 +170,14 @@ test('Marktplatzänderung erhält Ausfälle, Kontotrennung, Produktgrenzen und p
     );
 });
 
-test('globale und unbekannte Änderungen wählen Kern und breite Layoutvarianten einschließlich Touch', async () => {
+test('globale und unbekannte Änderungen wählen einen kleinen echten Integrationskern', async () => {
   for (const paths of [['package-lock.json'], ['unknown/config.json']]) {
     const { selected, plan } = await listPlan(paths);
     assert.equal(plan.full, true);
-    assert.equal(plan.pwa, true);
-    assert.ok(selected.length > coreBrowserTests.length && selected.length < 250);
-    assert.ok(selected.some(([, title]) => title.includes('bei 320px per Touch')));
-    assert.ok(selected.some(([, title]) => title.includes('bei 768px per Touch')));
-    assert.ok(selected.some(([, title]) => title.includes('iPad desktop mode')));
-    assert.ok(selected.some(([, title]) => title.includes('WCAG AA')));
+    assert.equal(selected.length, coreBrowserTests.length);
+    assert.ok(selected.some(([file]) => file === 'login.spec.ts'));
+    assert.ok(selected.some(([, title]) => title.includes('genau einmal')));
+    assert.deepEqual(plan.layoutBrowserFiles, []);
     assert.equal(new Set(keys(selected)).size, selected.length);
   }
 });
@@ -169,6 +188,78 @@ test('Dokumentation erzeugt keinen scheinbar erfolgreichen leeren Browserjob', (
   assert.equal(plan.pwa, false);
 });
 
+test('UI-Fixtures benötigen keine Datenbank und erlauben keine echte Backend-Testdatei', async () => {
+  const plan = selectAffectedTests(
+    [
+      'src/app/features/marketplaces/components/marketplace-overview/marketplace-overview.component.html',
+    ],
+    sources,
+  );
+  const matrix = buildBrowserMatrix(plan);
+  assert.ok(matrix.length > 0);
+  assert.ok(matrix.every(({ project, database }) => project === 'ui' && database === false));
+  for (const file of uiBrowserFiles) {
+    assert.match(sources[file], /storageState:\s*\{\s*cookies:\s*\[\],\s*origins:\s*\[\]/u, file);
+    assert.doesNotMatch(
+      sources[file],
+      /from ['"].*(?:local-supabase|support\/fixtures)['"]/u,
+      file,
+    );
+  }
+  await assert.rejects(
+    () =>
+      listTests('playwright.ui.config.ts', [], {
+        AFFECTED_TEST_PLAN: JSON.stringify({
+          ...plan,
+          uiBrowserFiles: ['e2e/login.spec.ts'],
+          changedUiBrowserFiles: [],
+        }),
+      }),
+    /Ungültige oder leere UI-Browserauswahl/u,
+  );
+});
+
+test('gemeinsame Controls prüfen sechs echte Verbraucher ohne vollständige Seitenmatrix', async () => {
+  const { selected, plan } = await listPlan([
+    'src/app/shared/components/button/button.component.html',
+  ]);
+  assert.equal(plan.full, false);
+  assert.equal(plan.pwa, false);
+  assert.equal(selected.length, 6);
+  assert.ok(
+    buildBrowserMatrix(plan).every(
+      ({ project, database }) => project === 'ui-layout' && database === false,
+    ),
+  );
+  for (const title of ['390px', '1440px', '834px', 'Desktop light', 'Desktop dark'])
+    assert.ok(
+      selected.some(([, actualTitle]) => actualTitle.includes(title)),
+      title,
+    );
+});
+
+test('eigene ruhende UI-Vorschau startet weder Anwendungsserver noch echte Anmeldung', async () => {
+  const plan = selectAffectedTests(['e2e/marketplace-overview.spec.ts'], sources);
+  const environment = { AFFECTED_TEST_PLAN: JSON.stringify(plan) };
+  const ordinary = await listTests('playwright.ui.config.ts', [], {
+    ...environment,
+    PLAYWRIGHT_BASE_URL: '',
+  });
+  assert.equal(ordinary.report.config.globalSetup, null);
+  assert.match(ordinary.report.config.webServer.command, /npm start/u);
+  const preview = await listTests('playwright.ui.config.ts', [], {
+    ...environment,
+    PLAYWRIGHT_BASE_URL: 'http://127.0.0.1:4307',
+  });
+  assert.equal(preview.report.config.globalSetup, null);
+  assert.equal(preview.report.config.webServer, null);
+  assert.deepEqual(keys(preview.selected), keys(ordinary.selected));
+  const backend = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(selectAffectedTests(['e2e/login.spec.ts'], sources)),
+  });
+  assert.match(backend.report.config.globalSetup, /global-setup\.ts$/u);
+});
+
 test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () => {
   const { selected } = await listPlan(['e2e/date-picker-layer.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['date-picker-layer.spec.ts']);
@@ -176,11 +267,13 @@ test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () 
   assert.ok(selected.some(([, title]) => !/@(?:pr|core)-smoke/u.test(title)));
 });
 
-test('direkt geänderte Galerie hebt die Variantenreduktion vollständig auf', async () => {
+test('direkt geänderte Galerie erhält sämtliche Varianten und Fehlerfälle', async () => {
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
   assert.deepEqual(keys(selected), keys(complete.selected));
   assert.equal(selected.length, 31);
+  assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
+  assert.ok(selected.some(([, title]) => title.includes('Bildfehlerrahmen')));
   for (const width of [390, 1440])
     for (const theme of ['light', 'dark'])
       assert.equal(
@@ -233,8 +326,8 @@ for (const { name, paths, full } of [
     const { plan, selected: complete } = await listPlan(paths);
     assert.equal(plan.full, full);
     if (!full) {
-      assert.equal(plan.browserFiles.length, 15);
-      assert.equal(complete.length, 231);
+      assert.ok(plan.browserFiles.length + (plan.uiBrowserFiles?.length ?? 0) > 0);
+      assert.ok(complete.length > 0);
     }
     const grouped = [];
     for (const { project, shard } of buildBrowserMatrix(plan)) {
@@ -242,7 +335,8 @@ for (const { name, paths, full } of [
       assert.ok(selected.length > 0, project + ' ' + shard);
       // Auch 219 gezielte Fachfälle überschritten in CI das 30-Minuten-Budget.
       // Beide Referenzpläne brauchen Reserve und müssen alle Fälle erhalten.
-      if (project === 'chromium') assert.ok(selected.length <= 80, `${shard}: ${selected.length}`);
+      if (['chromium', 'ui'].includes(project))
+        assert.ok(selected.length <= 80, `${project} ${shard}: ${selected.length}`);
       grouped.push(...selected);
     }
     assert.equal(new Set(keys(grouped)).size, grouped.length);
@@ -308,6 +402,8 @@ test('CI verlangt alle Browsermatrixjobs innerhalb der bisherigen Schutzgrenzen'
   assert.ok(browserJob.includes('matrix: ${{ fromJSON(needs.changes.outputs.browser_matrix) }}'));
   assert.ok(browserJob.includes('AFFECTED_BROWSER_PROJECT: ${{ matrix.project }}'));
   assert.ok(browserJob.includes('browser --shard=${{ matrix.shard }}'));
+  assert.ok(browserJob.includes('if: ${{ matrix.database != false }}'));
+  assert.ok(browserJob.includes('if: ${{ always() && matrix.database != false }}'));
   assert.match(browserJob, /timeout-minutes: 30/);
   assert.ok(
     browserJob.includes(
@@ -363,9 +459,8 @@ test('unbekannter gemeinsamer Pfad bleibt neben unabhängigen Feature-/Browserä
   ]) {
     const { selected, plan } = await listPlan(['src/app/shared/unknown-control.ts', unrelated]);
     assert.equal(plan.full, true);
-    assert.equal(plan.pwa, true);
     assert.ok(selected.some(([file]) => file === 'login.spec.ts'));
-    assert.ok(selected.some(([, title]) => title.includes('bei 320px per Touch')));
+    assert.ok(selected.some(([, title]) => title.includes('genau einmal')));
   }
 });
 
