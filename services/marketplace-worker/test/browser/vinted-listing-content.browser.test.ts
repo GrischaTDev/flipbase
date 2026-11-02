@@ -16,6 +16,8 @@ async function fixture(
     item?: 'other' | 'unavailable';
     /** Die Marke steht nicht in der Vorschlagsliste und erscheint erst nach der Suche. */
     brandSearch?: boolean;
+    missingAiPhoto?: boolean;
+    missingBump?: boolean;
   } = {},
 ) {
   let writes = 0;
@@ -54,7 +56,7 @@ async function fixture(
       contentType: 'text/html; charset=utf-8',
       body: `<main id="content">
       <input name="photos" type="file" accept="image/jpeg,image/png"><input name="title" value="Meine Schuhe"><textarea name="description">Sehr gut erhalten.</textarea><input name="price" value="20,50 €">
-      <input id="ai_photo" type="checkbox" checked><input id="bump" type="checkbox">
+      ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox" checked>'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
       <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
       ${options.unknown ? '<input name="isbn" id="isbn" value="Unbekanntes Merkmal">' : ''}
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div><div role="button" id="catalog-1904">Damen</div><div role="button" id="catalog-1193">Kinder</div></div>
@@ -124,6 +126,36 @@ test('reads the complete selected content and ordered photos from an own fresh t
     await browser.close();
   }
 });
+test('reads existing listings without the optional AI control and keeps the push control required', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const writes = await fixture(page, { missingAiPhoto: true });
+    const result = await readVintedListingCurrentContent(page, '123', '98765', () =>
+      Promise.resolve(),
+    );
+    assert.equal(result.aiPhoto, false);
+    assert.equal(result.schema.aiPhoto, null);
+    assert.equal(result.bump, false);
+    assert.equal(result.content.title, 'Meine Schuhe');
+    assert.equal(result.content.priceCents, 2050);
+    assert.equal(result.photoUrls.length, 2);
+    assert.equal(page.isClosed(), true);
+    assert.equal(writes(), 0);
+
+    const incomplete = await browser.newPage();
+    const otherWrites = await fixture(incomplete, { missingAiPhoto: true, missingBump: true });
+    await assert.rejects(
+      readVintedListingCurrentContent(incomplete, '123', '98765', () => Promise.resolve()),
+      (error) => error instanceof VintedListingReadError && error.step === 'values',
+    );
+    assert.equal(incomplete.isClosed(), true);
+    assert.equal(otherWrites(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('keeps unknown fields visible and rejects foreign accounts, changed content and unsafe photo sources', async () => {
   const browser = await chromium.launch();
   try {

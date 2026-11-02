@@ -1189,7 +1189,11 @@
     )
       invalid();
     const schema = parseCategoryFields(input.schema, content.categoryId);
-    if (schema.aiPhoto !== input.aiPhoto || schema.bump !== input.bump) invalid();
+    if (
+      (schema.aiPhoto !== input.aiPhoto && !(schema.aiPhoto === null && input.aiPhoto === false)) ||
+      schema.bump !== input.bump
+    )
+      invalid();
     // Kennungen und Namen stammen aus derselben aktuellen Auswahl, nie aus getrennten Quellen.
     const selected = (field) =>
       schema.fields

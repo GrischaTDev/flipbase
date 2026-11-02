@@ -13,6 +13,22 @@ test('accepts a complete current listing bound to the expected account and item'
   assert.deepEqual(parseVintedListingCurrentContent(withoutBrand, '123', '98765'), withoutBrand);
 });
 
+test('accepts unavailable AI only as disabled and retains the missing-control metadata', () => {
+  const fixture = listingCurrentContentFixture();
+  const input = { ...fixture, aiPhoto: false, schema: { ...fixture.schema, aiPhoto: null } };
+  assert.deepEqual(parseVintedListingCurrentContent(input, '123', '98765'), input);
+  assert.throws(() =>
+    parseVintedListingCurrentContent({ ...input, aiPhoto: true }, '123', '98765'),
+  );
+  assert.throws(() =>
+    parseVintedListingCurrentContent(
+      { ...input, schema: { ...input.schema, bump: null } },
+      '123',
+      '98765',
+    ),
+  );
+});
+
 test('rejects foreign bindings, extra data and content that differs from the selected choices', () => {
   const cases: ((value: ReturnType<typeof listingCurrentContentFixture>) => unknown)[] = [
     (value) => ({ ...value, externalId: '98766' }),
