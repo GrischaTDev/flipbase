@@ -299,7 +299,9 @@
       data-review-opener
       variant="primary"
       [disabled]="!plannedEditor.canStartPublication() || plannedEditor.preparingPhotos()"
-      [loading]="plannedEditor.saving() || plannedEditor.preparingPhotos()"
+      [loading]="
+        plannedEditor.saving() || plannedEditor.preparingPhotos() || plannedEditor.preparingSource()
+      "
       (clicked)="plannedEditor.submitRelisting()"
       >Änderungen speichern</app-button
     >
@@ -327,7 +329,7 @@
           variant="primary"
           data-review-opener
           [disabled]="!editor.canStartPublication() || editor.preparingPhotos()"
-          [loading]="editor.saving() || editor.preparingPhotos()"
+          [loading]="editor.saving() || editor.preparingPhotos() || editor.preparingSource()"
           (clicked)="editor.submitRelisting()"
           >Relisten</app-button
         >

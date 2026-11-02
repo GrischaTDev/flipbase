@@ -1,8 +1,26 @@
 import type { MarketplaceEntry } from './marketplace-read.models';
+import { emptyVintedListingContent, type VintedListingContent } from './vinted-listing-content';
 
 export interface VintedListingEditorSource {
   readonly entry: MarketplaceEntry;
   readonly mode: 'relist' | 'template';
+}
+
+/** Öffnet mit dem letzten lokalen Stand; ein fehlender Text löst keinen Anbieterabruf aus. */
+export function vintedListingSourceContent(
+  entry: MarketplaceEntry,
+  description: string | null = null,
+): VintedListingContent {
+  const content = entry.listingContent ?? emptyVintedListingContent();
+  return {
+    ...content,
+    title: entry.title,
+    description: description ?? entry.text ?? content.description,
+    priceCents: entry.price === null ? content.priceCents : Math.round(entry.price * 100),
+    brandLabel: content.brandLabel || entry.brand || '',
+    sizeLabel: content.sizeLabel || entry.size || '',
+    conditionLabel: content.conditionLabel || entry.status || '',
+  };
 }
 
 /** Längste Kante; das ursprüngliche Seitenverhältnis und der gesamte Ausschnitt bleiben erhalten. */

@@ -6,6 +6,7 @@ import type {
 
 import type { VintedPublicationAge } from './vinted-listing-age';
 import type { VintedPublicationState } from './vinted-publication-state';
+import type { VintedListingContent } from './vinted-listing-content';
 
 export type MarketplaceEntryKind = 'publication' | 'conversation' | 'message' | 'sale' | 'activity';
 export interface MarketplacePage<T> {
@@ -31,6 +32,8 @@ export interface MarketplaceEntry extends AccountScope {
   readonly status: string | null;
   readonly imageUrl: string | null;
   readonly imageUrls?: readonly string[];
+  /** Bereits in Flipbase gespeicherte Artikeldetails, zusammen mit den Originalfotos gelesen. */
+  readonly listingContent?: VintedListingContent;
   readonly metrics: MarketplaceMetrics;
   readonly conversationId: string | null;
   readonly direction: 'inbound' | 'outbound' | 'unknown';

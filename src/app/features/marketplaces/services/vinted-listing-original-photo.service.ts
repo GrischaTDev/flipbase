@@ -100,7 +100,7 @@ export class VintedListingOriginalPhotoService {
         if (!url) throw new Error('Ein Originalfoto konnte nicht geladen werden.');
         return url;
       });
-      return { ...entry, imageUrl: imageUrls[0] ?? null, imageUrls };
+      return { ...entry, listingContent: draft.content, imageUrl: imageUrls[0] ?? null, imageUrls };
     });
   }
 }
