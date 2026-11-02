@@ -1,5 +1,12 @@
 import type { ImageCrop } from '../../../core/models/image-crop';
+import type {
+  VintedListingPhotoFilter,
+  VintedListingPhotoBorder,
+} from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
+export type { VintedListingPhotoFilter, VintedListingPhotoBorder };
 export interface VintedListingPhotoOptions {
+  readonly filter?: VintedListingPhotoFilter;
+  readonly border?: VintedListingPhotoBorder;
   readonly resize: number | null;
   readonly crops: Readonly<Record<string, ImageCrop>>;
 }
@@ -17,7 +24,12 @@ export function parseVintedListingPhotoOptions(
   if (!value || typeof value !== 'object' || Array.isArray(value)) return fail();
   const options = value as Record<string, unknown>;
   if (
-    Object.keys(options).length !== 2 ||
+    Object.keys(options).some((key) => !['resize', 'crops', 'filter', 'border'].includes(key)) ||
+    !Object.hasOwn(options, 'resize') ||
+    (Object.hasOwn(options, 'filter') &&
+      !['none', 'lighter', 'darker', 'soft'].includes(options['filter'] as string)) ||
+    (Object.hasOwn(options, 'border') &&
+      !['none', 'small', 'medium', 'large'].includes(options['border'] as string)) ||
     (options['resize'] !== null && ![1200, 1600, 2400].includes(options['resize'] as number)) ||
     !options['crops'] ||
     typeof options['crops'] !== 'object' ||
@@ -49,5 +61,14 @@ export function parseVintedListingPhotoOptions(
       return fail();
     crops[id] = { x, y, width, height, rotation: crop['rotation'] as ImageCrop['rotation'] };
   }
-  return { resize: options['resize'] as number | null, crops };
+  return {
+    resize: options['resize'] as number | null,
+    crops,
+    ...(Object.hasOwn(options, 'filter')
+      ? { filter: options['filter'] as VintedListingPhotoFilter }
+      : {}),
+    ...(Object.hasOwn(options, 'border')
+      ? { border: options['border'] as VintedListingPhotoBorder }
+      : {}),
+  };
 }

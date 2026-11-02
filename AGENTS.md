@@ -365,6 +365,9 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 - Vor UI-Änderungen `docs/design/admin-ui-guidelines.md` lesen. Dort stehen
   die aktuellen Apple-Quellen, der Maßvertrag und verbindliche Nutzerentscheidungen.
+- In großen Formularmodalen stehen die Formularaktionen oben beim Titel im
+  vorhandenen Kopfbereich. Keine zweite Aktionsleiste am Formularende. Kurze
+  Bestätigungsdialoge behalten ihren üblichen Dialogfuß.
 - Das helle Logo-Gelb `#fcc601` bleibt der primäre Markenakzent. Nicht ungefragt
   durch Orange, Goldbraun oder ein anderes Gelb ersetzen.
 - Radien, Schatten, Dichte und Bewegung anhand der dokumentierten Referenz

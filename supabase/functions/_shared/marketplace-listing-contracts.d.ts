@@ -83,7 +83,11 @@ export interface VintedListingPhotoCrop {
   readonly height: number;
   readonly rotation: 0 | 90 | 180 | 270;
 }
+export type VintedListingPhotoFilter = 'none' | 'lighter' | 'darker' | 'soft';
+export type VintedListingPhotoBorder = 'none' | 'small' | 'medium' | 'large';
 export interface VintedListingPhotoOptions {
+  readonly filter?: VintedListingPhotoFilter;
+  readonly border?: VintedListingPhotoBorder;
   readonly resize: number | null;
   readonly crops: Readonly<Record<string, VintedListingPhotoCrop>>;
 }

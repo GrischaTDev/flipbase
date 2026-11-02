@@ -28,30 +28,54 @@
   "
 >
   <div entry-header-actions class="flex flex-wrap items-center gap-2">
-    @if (!publication() && !relisting()) {
-      <app-button
-        variant="secondary"
-        [disabled]="loading() || saving() || !!loadError() || !store.canManage()"
-        (clicked)="copying.set(true)"
-        >Daten übernehmen</app-button
-      >
-      <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
-      <app-button
-        variant="secondary"
-        [disabled]="!canSave()"
-        [loading]="saving()"
-        (clicked)="save()"
-        >Entwurf speichern</app-button
-      >
-      <app-button data-review-opener [disabled]="!canStartPublication()" (clicked)="publishNow()">{{
-        relisting() ? 'Jetzt relisten' : 'Jetzt veröffentlichen'
-      }}</app-button>
-      <app-button
-        variant="secondary"
-        [disabled]="!canStartPublication()"
-        (clicked)="openSchedule()"
-        >{{ relisting() ? 'Später relisten' : 'Veröffentlichung planen' }}</app-button
-      >
+    @if (!publication()) {
+      @if (relisting()) {
+        @if (relistStep() === 'details') {
+          <app-button
+            variant="primary"
+            [disabled]="!canStartPublication()"
+            (clicked)="nextRelistStep()"
+            >Relisting festlegen</app-button
+          >
+        } @else {
+          <app-button
+            variant="secondary"
+            [disabled]="saving() || preparingPhotos()"
+            (clicked)="previousRelistStep()"
+            >Zurück</app-button
+          >
+          <app-button
+            variant="primary"
+            data-review-opener
+            [disabled]="!canStartPublication() || preparingPhotos()"
+            [loading]="saving() || preparingPhotos()"
+            (clicked)="submitRelisting()"
+            >{{ plannedJob() ? 'Änderungen speichern' : 'Relisten' }}</app-button
+          >
+        }
+      } @else {
+        <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
+        <app-button
+          variant="secondary"
+          [disabled]="!canSave()"
+          [loading]="saving()"
+          (clicked)="save()"
+          >Entwurf speichern</app-button
+        >
+        <app-button
+          variant="primary"
+          data-review-opener
+          [disabled]="!canStartPublication()"
+          (clicked)="publishNow()"
+          >Jetzt veröffentlichen</app-button
+        >
+        <app-button
+          variant="secondary"
+          [disabled]="!canStartPublication()"
+          (clicked)="openSchedule()"
+          >Veröffentlichung planen</app-button
+        >
+      }
     }
   </div>
   @if (publicationAnnouncement()) {
@@ -264,29 +288,43 @@
               <p class="text-sm text-fb-text-secondary">
                 Für das Relisten empfehlen wir, die Bilder leicht anzupassen.
               </p>
-              <app-custom-checkbox
-                label="Bildauflösung anpassen"
-                [checked]="resizePhotos()"
-                (checkedChange)="resizePhotos.set($event)"
-                [disabled]="saving() || preparingPhotos()"
-              />
-              @if (resizePhotos()) {
+              <div class="grid gap-4 sm:grid-cols-3">
                 <app-custom-select
                   label="Auflösung"
                   ariaLabel="Auflösung"
                   [options]="photoSizeOptions"
-                  [value]="photoSize()"
-                  (valueChange)="photoSize.set($event)"
+                  [value]="photoSize() ?? 'none'"
+                  (valueChange)="selectPhotoSize($event)"
                   [disabled]="saving() || preparingPhotos()"
                 />
-              }
+                <app-custom-select
+                  label="Filter"
+                  ariaLabel="Filter"
+                  [options]="photoFilterOptions"
+                  [value]="photoFilter()"
+                  (valueChange)="photoFilter.set($event ?? 'none')"
+                  [disabled]="saving() || preparingPhotos()"
+                />
+                <app-custom-select
+                  label="Weißer Rahmen"
+                  ariaLabel="Weißer Rahmen"
+                  [options]="photoBorderOptions"
+                  [value]="photoBorder()"
+                  (valueChange)="photoBorder.set($event ?? 'none')"
+                  [disabled]="saving() || preparingPhotos()"
+                />
+              </div>
+              <app-vinted-listing-photo-preview
+                [image]="images()[0] ?? null"
+                [options]="photoOptions()"
+              />
             </div>
           </app-card>
           <app-card title="Veröffentlichung">
             <div class="space-y-4">
               <app-custom-select
-                label="Relisten"
-                ariaLabel="Relisten"
+                label="Veröffentlichungszeitpunkt"
+                ariaLabel="Veröffentlichungszeitpunkt"
                 [options]="relistTimingOptions"
                 [value]="relistTiming()"
                 (valueChange)="relistTiming.set($event ?? 'now')"
@@ -317,29 +355,6 @@
           </app-card>
         </div>
       }
-      @if (relisting()) {
-        <div class="mt-4 flex justify-end gap-2">
-          @if (relistStep() === 'details') {
-            <app-button [disabled]="!canStartPublication()" (clicked)="nextRelistStep()"
-              >Weiter</app-button
-            >
-          } @else {
-            <app-button
-              variant="secondary"
-              [disabled]="saving() || preparingPhotos()"
-              (clicked)="previousRelistStep()"
-              >Zurück</app-button
-            >
-            <app-button
-              data-review-opener
-              [disabled]="!canStartPublication() || preparingPhotos()"
-              [loading]="saving() || preparingPhotos()"
-              (clicked)="submitRelisting()"
-              >{{ plannedJob() ? 'Änderungen speichern' : 'Relisten' }}</app-button
-            >
-          }
-        </div>
-      }
     </div>
   }
   @if (publication(); as opened) {
@@ -368,17 +383,5 @@
     [busy]="publicationBusy()"
     (selected)="schedulePublication($event)"
     (closed)="planningPublication.set(false)"
-  />
-}
-
-@if (copying() && !publication() && workspaceId(); as copyWorkspaceId) {
-  <app-vinted-listing-copy-dialog
-    [workspaceId]="copyWorkspaceId"
-    [content]="content()"
-    [targetDraftId]="draft()?.id ?? null"
-    [targetConnectionId]="form.controls.connectionId.value"
-    [disabled]="saving() || loading()"
-    (closed)="copying.set(false)"
-    (applied)="applyCopiedFields($event)"
   />
 }

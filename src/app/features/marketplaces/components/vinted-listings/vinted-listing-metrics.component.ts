@@ -11,6 +11,7 @@ import type { VintedListingMetricChange } from '../../models/vinted-listing-metr
   host: { class: 'flex flex-wrap gap-2' },
 })
 export class VintedListingMetricsComponent {
+  readonly metric = input<'all' | 'views' | 'favorites'>('all');
   readonly metrics = input.required<MarketplaceMetrics>();
   readonly change = input<VintedListingMetricChange | null>(null);
   readonly highlighted = input(false);

@@ -69,6 +69,8 @@ Mehrzeilige Felder und Mehrfachwerte dürfen mit dem Inhalt wachsen. Größere a
 
 **Formulardialog:** eine zusammenhängende Fensterfläche mit verständlichem Titel, wenig Erklärung, passender Inhaltsbreite und internem Scrollbereich. Eine Hauptaktion; sekundäre Aktion davor, Hauptaktion am Ende der Aktionsgruppe. Ein reiner Info-/Kontodialog benötigt keinen zusätzlichen leeren Fußbereich. Escape, Fokusfalle und Rückfokus bleiben erhalten.
 
+**Große Formularmodale:** Formularaktionen stehen oben beim Titel über den vorhandenen gemeinsamen Kopfbereich. Keine zusätzliche Aktionsleiste am Formularende. Das gilt auch für mehrstufige Formulare: Jeder Schritt zeigt seine Aktionen oben. Kurze Bestätigungsdialoge behalten ihren üblichen Dialogfuß. Diese Nutzerentscheidung vom 02.11.2026 ist verbindlich.
+
 Beschriftungen erscheinen genau einmal und sind mit der tatsächlichen Eingabe verknüpft. Placeholder ersetzt kein Label. Pflichtangabe nicht allein über Farbe vermitteln. Keine ungefragten Info-, Warn- oder Erklärtexte ergänzen; Hilfetexte nur auf ausdrücklichen Nutzerauftrag. Labels und Badges nicht zusätzlich erklären. Konkrete Fehler und notwendige Eingabevalidierung stehen am Feld und werden über `aria-describedby` zugeordnet. Vorhandene Werte, Speicherabläufe, Such-/Baum-/Mehrfachauswahlsemantik und Tastaturbedienung bleiben erhalten.
 
 Eine Listbox enthält Auswahloptionen. Ergänzende Aktionen wie „Verkäufer erstellen“ stehen semantisch außerhalb der Liste, innerhalb desselben Popovers. Dessen Positionierung, Tastatursteuerung und Rückfokus bleiben erhalten. Fensterregeln dürfen die gemeinsame Labelrolle nicht überschreiben.

@@ -835,9 +835,19 @@
       });
       let photoOptions;
       if (Object.hasOwn(value, 'photoOptions')) {
-        const options = fields(value['photoOptions'], ['resize', 'crops']);
+        const raw = value['photoOptions'];
+        const options = fields(raw, [
+          'resize',
+          'crops',
+          ...(raw && Object.hasOwn(raw, 'filter') ? ['filter'] : []),
+          ...(raw && Object.hasOwn(raw, 'border') ? ['border'] : []),
+        ]);
         if (
           (options.resize !== null && ![1200, 1600, 2400].includes(options.resize)) ||
+          (Object.hasOwn(options, 'filter') &&
+            !['none', 'lighter', 'darker', 'soft'].includes(options.filter)) ||
+          (Object.hasOwn(options, 'border') &&
+            !['none', 'small', 'medium', 'large'].includes(options.border)) ||
           !options.crops ||
           typeof options.crops !== 'object' ||
           Array.isArray(options.crops)
@@ -862,7 +872,12 @@
             throw invalid();
           crops[imageId] = Object.freeze({ ...crop });
         }
-        photoOptions = Object.freeze({ resize: options.resize, crops: Object.freeze(crops) });
+        photoOptions = Object.freeze({
+          resize: options.resize,
+          crops: Object.freeze(crops),
+          ...(Object.hasOwn(options, 'filter') ? { filter: options.filter } : {}),
+          ...(Object.hasOwn(options, 'border') ? { border: options.border } : {}),
+        });
       }
       return Object.freeze({
         content: content(value['content']),

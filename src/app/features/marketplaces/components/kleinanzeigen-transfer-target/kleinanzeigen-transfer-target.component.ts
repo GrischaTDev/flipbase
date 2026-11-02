@@ -1,3 +1,4 @@
+import { LucideSend } from '@lucide/angular';
 import { KleinanzeigenListingHandoffService } from '../../services/kleinanzeigen-listing-handoff.service';
 import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
 import { kleinanzeigenContentKey } from '../../models/kleinanzeigen-provider-schema';
@@ -59,6 +60,7 @@ export interface KleinanzeigenCategorySelection {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class KleinanzeigenTransferTargetComponent {
+  readonly publishIcon = LucideSend;
   readonly listing = input.required<Listing>();
   readonly content = input.required<KleinanzeigenDraftInput>();
   readonly photoCount = input(0);

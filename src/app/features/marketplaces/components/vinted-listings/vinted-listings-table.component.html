@@ -1,0 +1,181 @@
+<app-data-table
+  ariaLabel="Kleiderschrank"
+  [toolbarVisible]="false"
+  [hasRows]="rows().length > 0 || plans().length > 0"
+  emptyTitle="Noch keine Artikel im Kleiderschrank"
+>
+  <div
+    table-content
+    class="max-w-full overflow-x-auto rounded-xl focus-visible:outline-2 focus-visible:outline-fb-primary"
+    role="region"
+    aria-label="Artikelliste"
+    tabindex="0"
+  >
+    <table class="w-full min-w-[48rem] table-fixed text-[13px]">
+      <caption class="sr-only">
+        Artikel im Kleiderschrank
+      </caption>
+      <colgroup>
+        <col />
+        <col class="w-28" />
+        <col class="w-20" />
+        <col class="w-20" />
+        <col class="w-24" />
+        <col class="w-40" />
+      </colgroup>
+      <thead class="bg-fb-subtle text-left text-xs text-fb-text-secondary">
+        <tr>
+          <th scope="col" class="px-3 py-2 font-medium">Artikel</th>
+          <th scope="col" class="px-2 py-2 font-medium">Alter</th>
+          <th scope="col" class="px-2 py-2 text-right font-medium">Aufrufe</th>
+          <th scope="col" class="px-2 py-2 text-right font-medium">Favoriten</th>
+          <th scope="col" class="px-2 py-2 text-right font-medium">Preis</th>
+          <th scope="col" class="sticky right-0 bg-fb-subtle px-3 py-2 text-right font-medium">
+            Aktionen
+          </th>
+        </tr>
+      </thead>
+      <tbody class="bg-fb-surface">
+        @for (plan of plans(); track plan.job.id) {
+          <tr
+            data-relisting-plan
+            [attr.aria-label]="plan.draft.content.title"
+            class="border-t border-fb-border-subtle"
+          >
+            <td class="px-3 py-2">
+              <div class="flex min-w-0 items-center gap-3">
+                <app-product-thumbnail [src]="plan.imageUrl" alt="" size="md" fit="cover" />
+                <div class="min-w-0">
+                  <h2 class="truncate text-sm font-semibold text-fb-text-primary">
+                    {{ plan.draft.content.title }}
+                  </h2>
+                  <p class="mt-1 text-xs text-fb-text-secondary">{{ plan.label }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-2 py-2 text-fb-text-secondary">—</td>
+            <td class="px-2 py-2 text-right text-fb-text-secondary">—</td>
+            <td class="px-2 py-2 text-right text-fb-text-secondary">—</td>
+            <td class="whitespace-nowrap px-2 py-2 text-right font-semibold text-fb-text-primary">
+              {{
+                (plan.draft.content.priceCents ?? 0) / 100
+                  | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}
+            </td>
+            <td class="sticky right-0 bg-fb-surface px-3 py-2 text-right">
+              <app-button
+                variant="table-action"
+                size="slim"
+                [icon]="editIcon"
+                [iconOnly]="true"
+                title="Planung bearbeiten"
+                [ariaLabel]="'Planung für ' + plan.draft.content.title + ' bearbeiten'"
+                [disabled]="!planEditable()(plan.job)"
+                (clicked)="planEdited.emit(plan.job)"
+              />
+            </td>
+          </tr>
+        }
+        @for (row of rows(); track row.entry.id) {
+          @let entry = row.entry;
+          <tr
+            data-listing-row
+            [class.opacity-60]="row.running"
+            [attr.aria-busy]="row.running ? 'true' : null"
+            class="border-t border-fb-border-subtle"
+          >
+            <td class="px-3 py-2">
+              <a
+                [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
+                class="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-fb-primary"
+                [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
+                ><app-product-thumbnail [src]="entry.imageUrl" alt="" size="md" fit="cover" />
+                <div class="min-w-0">
+                  <h2
+                    class="truncate text-sm font-semibold text-fb-text-primary"
+                    [attr.title]="entry.title"
+                  >
+                    {{ entry.title }}
+                  </h2>
+                  @if (row.running) {
+                    <p role="status" class="mt-1 text-xs text-fb-text-secondary">
+                      Preis wird geändert
+                    </p>
+                  } @else if (entry.brand || entry.size) {
+                    <p class="mt-1 truncate text-xs text-fb-text-secondary">
+                      {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+                    </p>
+                  }
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    @if (publicationBadge(entry.publicationState); as badge) {
+                      <app-badge [tone]="badge.tone">{{ badge.label }}</app-badge>
+                    }
+                    @if (entry.promoted) {
+                      <app-badge tone="info">Gepusht</app-badge>
+                    }
+                    @if (entry.status) {
+                      <span
+                        class="truncate text-xs text-fb-text-secondary"
+                        [attr.title]="'Zustand: ' + entry.status"
+                        >{{ entry.status }}</span
+                      >
+                    }
+                  </div>
+                </div></a
+              >
+            </td>
+            <td class="px-2 py-2">
+              <app-vinted-listing-age
+                [publishedAt]="entry.publishedAt"
+                [publicationAge]="entry.publicationAge"
+                [createdAt]="entry.createdAt"
+                [publicationState]="entry.publicationState ?? 'unknown'"
+                [compact]="true"
+              />
+            </td>
+            <td class="px-2 py-2">
+              <app-vinted-listing-metrics
+                class="justify-end"
+                metric="views"
+                [metrics]="entry.metrics"
+                [change]="row.change"
+                [periodLabel]="periodLabel()"
+                [attr.title]="row.comparisonLabel"
+                [highlighted]="row.highlighted"
+              />
+            </td>
+            <td class="px-2 py-2">
+              <app-vinted-listing-metrics
+                class="justify-end"
+                metric="favorites"
+                [metrics]="entry.metrics"
+                [change]="row.change"
+                [periodLabel]="periodLabel()"
+                [attr.title]="row.comparisonLabel"
+                [highlighted]="row.highlighted"
+              />
+            </td>
+            <td class="whitespace-nowrap px-2 py-2 text-right font-semibold text-fb-text-primary">
+              {{
+                entry.price === null
+                  ? '—'
+                  : (entry.price | currency: entry.currency : 'symbol' : '1.2-2' : 'de')
+              }}
+            </td>
+            <td class="sticky right-0 bg-fb-surface px-3 py-2">
+              <div
+                class="flex flex-wrap items-center justify-end gap-1"
+                [attr.inert]="row.running ? '' : null"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="actionsTemplate()"
+                  [ngTemplateOutletContext]="{ $implicit: entry }"
+                />
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</app-data-table>

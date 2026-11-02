@@ -1,3 +1,4 @@
+import { LucideSend } from '@lucide/angular';
 import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
 import {
   ChangeDetectionStrategy,
@@ -22,6 +23,7 @@ import type { MarketplaceListingReference } from '../../models/marketplace-overv
   host: { class: 'contents' },
 })
 export class ListingTransferActionComponent {
+  readonly publishIcon = LucideSend;
   readonly source = input.required<MarketplaceListingReference>();
   readonly title = input('Inserat');
   readonly compact = input(false);

@@ -1,7 +1,11 @@
 import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
+import {
+  VintedListingsTableComponent,
+  type VintedWardrobeTableRow,
+} from './vinted-listings-table.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,6 +24,7 @@ import {
   LucideBadgeEuro,
   LucideRotateCcw,
   LucideCopy,
+  LucidePencil,
 } from '@lucide/angular';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { VintedListingEditorComponent } from '../vinted-listing-editor/vinted-listing-editor.component';
@@ -48,6 +53,8 @@ import { VintedListingOperationStore } from '../../services/vinted-listing-opera
   imports: [
     ListingTransferActionComponent,
     CurrencyPipe,
+    NgTemplateOutlet,
+    VintedListingsTableComponent,
     RouterLink,
     ButtonComponent,
     BadgeComponent,
@@ -72,6 +79,7 @@ export class VintedListingsComponent {
   readonly priceIcon = LucideBadgeEuro;
   readonly relistIcon = LucideRotateCcw;
   readonly templateIcon = LucideCopy;
+  readonly editIcon = LucidePencil;
   readonly plans = inject(VintedRelistingPlanStore);
   readonly editingPlan = signal<VintedListingJob | null>(null);
   readonly entries = computed(() => {
@@ -113,6 +121,15 @@ export class VintedListingsComponent {
   private handledConnectionId: string | null = null;
   readonly page = computed(() => this.store.snapshot()?.publications ?? null);
   readonly publicationBadge = vintedPublicationBadge;
+  readonly tableRows = computed<readonly VintedWardrobeTableRow[]>(() =>
+    this.entries().map((entry) => ({
+      entry,
+      change: this.statistics.change(entry),
+      comparisonLabel: this.statistics.comparisonLabel(entry),
+      highlighted: this.metricDisplay.highlighted().has(entry.id),
+      running: this.operations.isRunning(entry),
+    })),
+  );
   readonly priceEntry = signal<MarketplaceEntry | null>(null);
   readonly savingPrice = signal(false);
   readonly priceNotice = signal<string | null>(null);

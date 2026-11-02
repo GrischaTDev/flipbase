@@ -228,9 +228,12 @@
           publicationConfirmed() ||
           savedDraft()?.status === 'online'
         "
+        [icon]="publishIcon"
+        [iconOnly]="true"
+        title="Inserieren"
+        ariaLabel="Inserieren"
         (clicked)="publish()"
-        >Inserieren</app-button
-      >
+      />
     }
   </div>
 </app-modal-shell>

@@ -1,7 +1,4 @@
-import {
-  VintedListingCopyDialogComponent,
-  type VintedListingCopySelection,
-} from '../vinted-listing-copy-dialog/vinted-listing-copy-dialog.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -26,13 +23,15 @@ import type { VintedListingEditorSource } from '../../models/vinted-listing-sour
 import {
   emptyVintedListingPhotoOptions,
   type VintedListingPhotoOptions,
+  type VintedListingPhotoFilter,
+  type VintedListingPhotoBorder,
 } from '../../models/vinted-listing-photo-options';
 import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { VintedListingPhotoPreviewComponent } from './vinted-listing-photo-preview.component';
 import {
   VintedListingScheduleDialogComponent,
   type VintedListingScheduleSelection,
@@ -103,11 +102,11 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   imports: [
     DatePickerComponent,
     FormFieldComponent,
-    VintedListingCopyDialogComponent,
     ReactiveFormsModule,
     ButtonComponent,
     CardComponent,
     CustomSelectComponent,
+    VintedListingPhotoPreviewComponent,
     CustomCheckboxComponent,
     EntryPageLayoutComponent,
     TextFieldComponent,
@@ -129,7 +128,8 @@ export class VintedListingEditorComponent {
   readonly plannedJob = input<VintedListingJob | null>(null);
   readonly waitingPlan = signal<VintedListingJob | null>(null);
   readonly relistStep = signal<'details' | 'options'>('details');
-  readonly resizePhotos = signal(false);
+  readonly photoFilter = signal<VintedListingPhotoFilter>('none');
+  readonly photoBorder = signal<VintedListingPhotoBorder>('none');
   readonly relistTiming = signal<'now' | 'delay' | 'scheduled'>('now');
   readonly relistMinutes = signal(5);
   readonly relistTimingOptions = [
@@ -155,11 +155,28 @@ export class VintedListingEditorComponent {
   readonly photoSize = signal<number | null>(null);
   readonly preparingPhotos = signal(false);
   readonly photoSizeOptions = [
-    { value: null, label: 'Originalauflösung' },
+    { value: 'none' as const, label: 'Keine Änderung' },
     { value: 1200, label: '1200 Pixel' },
     { value: 1600, label: '1600 Pixel' },
     { value: 2400, label: '2400 Pixel' },
   ];
+  readonly photoFilterOptions = [
+    { value: 'none' as const, label: 'Keine Änderung' },
+    { value: 'lighter' as const, label: 'Heller' },
+    { value: 'darker' as const, label: 'Dunkler' },
+    { value: 'soft' as const, label: 'Weicher' },
+  ];
+  readonly photoBorderOptions = [
+    { value: 'none' as const, label: 'Kein Rahmen' },
+    { value: 'small' as const, label: 'Klein' },
+    { value: 'medium' as const, label: 'Mittel' },
+    { value: 'large' as const, label: 'Groß' },
+  ];
+  selectPhotoSize(value: number | string | null): void {
+    this.photoSize.set(
+      typeof value === 'number' && [1200, 1600, 2400].includes(value) ? value : null,
+    );
+  }
   private readonly photoUrls = new Set<string>();
   readonly store = inject(MarketplaceAccountStore);
   private readonly auth = inject(AuthService);
@@ -199,7 +216,6 @@ export class VintedListingEditorComponent {
   readonly saving = signal(false);
   readonly imageEditing = signal(false);
   readonly dirty = signal(false);
-  readonly copying = signal(false);
   readonly error = signal<string | null>(null);
   readonly loadError = signal<string | null>(null);
   readonly conflict = signal(false);
@@ -748,37 +764,6 @@ export class VintedListingEditorComponent {
     this.images.set(images);
     if (changed) this.markChanged();
   }
-  applyCopiedFields(selection: VintedListingCopySelection): void {
-    if (this.saving() || this.loading() || !this.context()) return;
-    const content = selection.content;
-    const fields = selection.fields;
-    const categoryChanged =
-      fields.includes('category') && this.content().categoryId !== content.categoryId;
-    const values: Partial<ReturnType<typeof this.form.getRawValue>> = {};
-    if (fields.includes('title')) values.title = content.title;
-    if (fields.includes('description')) values.description = content.description;
-    if (fields.includes('price'))
-      values.price =
-        content.priceCents === null ? '' : (content.priceCents / 100).toFixed(2).replace('.', ',');
-    if (fields.includes('category'))
-      values.categoryId = content.categoryId === null ? null : String(content.categoryId);
-    for (const [field, control, value] of [
-      ['brand', 'brand', content.brandLabel],
-      ['size', 'size', content.sizeLabel],
-      ['condition', 'condition', content.conditionLabel],
-      ['colors', 'colors', content.colorLabels.join(', ')],
-      ['materials', 'materials', content.materialLabels.join(', ')],
-    ] as const)
-      if (categoryChanged || fields.includes(field)) values[control] = value;
-    // Nicht gewählte Eingaben bleiben auch dann erhalten, wenn sie noch unvollständig sind.
-    this.referenceContent.set(content);
-    this.selectedBrand.set(null);
-    this.selectedFields.set(null);
-    this.brandEdited = false;
-    this.form.patchValue(values, { emitEvent: false });
-    this.markChanged();
-    this.copying.set(false);
-  }
   applyTemplate(content: VintedListingContent): void {
     this.referenceContent.set(content);
     this.patch(content, this.form.controls.connectionId.value);
@@ -936,6 +921,10 @@ export class VintedListingEditorComponent {
     this.saveAttempted.set(false);
     this.imageEditing.set(false);
     this.preparingPhotos.set(false);
+    this.photoSize.set(null);
+    this.photoFilter.set('none');
+    this.photoBorder.set('none');
+    this.relistStep.set('details');
     this.draft.set(null);
     this.images.set([]);
     this.categories.set([]);
@@ -1026,7 +1015,8 @@ export class VintedListingEditorComponent {
         this.patch(draft.content, draft.connectionId);
         this.images.set(images);
         this.photoSize.set(draft.photoOptions?.resize ?? null);
-        this.resizePhotos.set(draft.photoOptions?.resize != null);
+        this.photoFilter.set(draft.photoOptions?.filter ?? 'none');
+        this.photoBorder.set(draft.photoOptions?.border ?? 'none');
       } else {
         const requestedId = this.route.snapshot.queryParamMap?.get('connectionId');
         const requestedWorkspace = this.route.snapshot.queryParamMap?.get('workspaceId');
@@ -1079,14 +1069,14 @@ export class VintedListingEditorComponent {
       if (this.current(generation, context)) this.categoryLoading.set(false);
     }
   }
-  private photoOptions(): VintedListingPhotoOptions {
-    return {
-      resize: this.resizePhotos() ? this.photoSize() : null,
-      crops: Object.fromEntries(
-        this.images().flatMap((image) => (image.crop ? [[image.key, image.crop]] : [])),
-      ),
-    };
-  }
+  readonly photoOptions = computed<VintedListingPhotoOptions>(() => ({
+    resize: this.photoSize(),
+    ...(this.photoFilter() !== 'none' ? { filter: this.photoFilter() } : {}),
+    ...(this.photoBorder() !== 'none' ? { border: this.photoBorder() } : {}),
+    crops: Object.fromEntries(
+      this.images().flatMap((image) => (image.crop ? [[image.key, image.crop]] : [])),
+    ),
+  }));
   private async persist(generation: number, change: number): Promise<void> {
     const context = this.loadedContext;
     const workspaceId = this.workspaceId()!;
@@ -1172,7 +1162,9 @@ export class VintedListingEditorComponent {
         this.draft.set(draft);
       }
       const options: VintedListingPhotoOptions = {
-        resize: this.resizePhotos() ? this.photoSize() : null,
+        resize: this.photoSize(),
+        ...(this.photoFilter() !== 'none' ? { filter: this.photoFilter() } : {}),
+        ...(this.photoBorder() !== 'none' ? { border: this.photoBorder() } : {}),
         crops,
       };
       if (!same(options, draft.photoOptions ?? emptyVintedListingPhotoOptions())) {

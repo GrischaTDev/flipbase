@@ -422,3 +422,19 @@ test('direkte Shellprüfungen schützen auch sudo, Diagnosen und Cleanup vor lok
     assert.equal((await readFile(capture, 'utf8')).trim().split('\n').length, 3);
   });
 });
+
+test('gemeinsamer Fotorenderer wählt Uploadbrowser und beide Images aus', () => {
+  const renderer = 'supabase/functions/_shared/vinted-listing-photo-renderer.mts';
+  const source = 'services/marketplace-worker/src/vinted-browser-photo-export.ts';
+  const files = {
+    [browserTest]:
+      "import { exportVintedListingPhoto } from '../../src/vinted-browser-photo-export.ts';",
+    [source]:
+      "import { renderVintedListingPhoto } from '../../../supabase/functions/_shared/vinted-listing-photo-renderer.mts';",
+    [renderer]: 'export function renderVintedListingPhoto() {}',
+  };
+  const plan = select([renderer], files);
+  assert.deepEqual(plan.workerBrowserTests, [browserTest]);
+  assert.equal(plan.workerImageRequired, true);
+  assert.equal(plan.sessionImageRequired, true);
+});

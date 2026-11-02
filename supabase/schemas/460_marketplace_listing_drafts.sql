@@ -50,8 +50,10 @@ create or replace function public.marketplace_listing_photo_options_valid(p_opti
 returns boolean language plpgsql immutable security invoker set search_path='' as $$
 declare v_key text; v_crop jsonb;
 begin
-  if p_image_ids is null or p_options is null or octet_length(p_options::text)>20000 or jsonb_typeof(p_options)<>'object' or (select count(*) from jsonb_object_keys(p_options))<>2
+  if p_image_ids is null or p_options is null or octet_length(p_options::text)>20000 or jsonb_typeof(p_options)<>'object' or p_options-array['resize','crops','filter','border']<>'{}'::jsonb
     or not (p_options ?& array['resize','crops']) or (p_options->'resize'<>'null'::jsonb and p_options->'resize' not in ('1200'::jsonb,'1600'::jsonb,'2400'::jsonb))
+    or (p_options ? 'filter' and p_options->'filter' not in ('"none"'::jsonb,'"lighter"'::jsonb,'"darker"'::jsonb,'"soft"'::jsonb))
+    or (p_options ? 'border' and p_options->'border' not in ('"none"'::jsonb,'"small"'::jsonb,'"medium"'::jsonb,'"large"'::jsonb))
     or jsonb_typeof(p_options->'crops')<>'object' then return false; end if;
   for v_key,v_crop in select key,value from jsonb_each(p_options->'crops') loop
     if v_key !~ '^[1-9][0-9]{0,18}$' or not (v_key::bigint=any(p_image_ids)) or jsonb_typeof(v_crop)<>'object'

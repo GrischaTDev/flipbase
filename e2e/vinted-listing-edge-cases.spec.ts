@@ -1,5 +1,5 @@
 import axe from 'axe-core';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Locator } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -23,7 +23,7 @@ const detailPath = `/marketplaces/vinted/listings/${accountIds[0]}/${entryId}`;
 
 for (const width of [390, 1440])
   for (const theme of ['light', 'dark'] as const) {
-    test(`Unvollständigen Vinted-Entwurf durch Datenübernahme ergänzen bei ${width}px ${theme} @marketplace-preview`, async ({
+    test(`Unvollständigen Vinted-Entwurf direkt im Formular ergänzen bei ${width}px ${theme} @marketplace-preview`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -43,23 +43,6 @@ for (const width of [390, 1440])
           json: { fields: { title: 'Unvollständiger Entwurf', description: '', price: '' } },
         }),
       );
-      const source = {
-        id: '2',
-        workspaceId,
-        connectionId: null,
-        revision: 1,
-        content: { ...emptyVintedListingContent(), title: 'Preisquelle', priceCents: 1800 },
-        images: [],
-        inventoryItemId: null,
-        createdAt: '2026-10-20T10:00:00Z',
-        updatedAt: '2026-10-20T10:00:00Z',
-      };
-      await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', (route) =>
-        route.fulfill({ json: { items: [source], nextCursor: null } }),
-      );
-      await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
-        route.fulfill({ json: source }),
-      );
       const saves: Record<string, unknown>[] = [];
       await page.route('**/marketplace-browser/listings/edit/save', (route) => {
         saves.push(route.request().postDataJSON() as Record<string, unknown>);
@@ -75,33 +58,10 @@ for (const width of [390, 1440])
       await expect(
         detail.getByRole('heading', { name: 'Vinted-Entwurf bearbeiten', exact: true }),
       ).toBeVisible();
-      const opener = detail.getByRole('button', { name: 'Daten übernehmen', exact: true });
-      await expect(opener).toBeEnabled();
-      await expect(detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
-        '',
-      );
-      await opener.click();
-      const dialog = page.getByRole('dialog', { name: 'Daten übernehmen', exact: true });
-      await dialog.getByRole('combobox', { name: 'Quelle auswählen' }).click();
-      await dialog.getByRole('option', { name: 'Preisquelle', exact: true }).click();
-      await expect(dialog.getByRole('checkbox')).toHaveCount(3);
-      await dialog.getByRole('checkbox', { name: 'Verkaufspreis', exact: true }).click();
       await expect(
-        dialog.getByRole('checkbox', { name: 'Verkaufspreis', exact: true }),
-      ).toBeChecked();
-      await page.evaluate(axe.source);
-      expect(
-        (
-          await page.evaluate(() =>
-            (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listing-copy-dialog'),
-          )
-        ).violations,
-      ).toEqual([]);
-      await dialog.getByRole('button', { name: 'Übertragen', exact: true }).click();
-      await expect(dialog).not.toBeVisible();
-      await expect(detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
-        '18,00',
-      );
+        detail.getByRole('button', { name: 'Daten übernehmen', exact: true }),
+      ).toHaveCount(0);
+      await detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('18,00');
       expect(saves).toEqual([]);
       await detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
       await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
@@ -230,11 +190,12 @@ async function prepareListing(page: Page, listing: ListingFixture) {
   return runtimeErrors;
 }
 
-async function screenshot(page: Page, name: string) {
+async function screenshot(page: Page, name: string, surface?: Locator) {
   const directory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
   if (!directory) return;
   await mkdir(directory, { recursive: true });
-  await page.screenshot({ path: join(directory, `${name}.png`), fullPage: true });
+  if (surface) await surface.screenshot({ path: join(directory, `${name}.png`) });
+  else await page.screenshot({ path: join(directory, `${name}.png`), fullPage: true });
 }
 
 async function checkPage(page: Page, runtimeErrors: string[]) {
@@ -424,7 +385,7 @@ for (const width of [320, 390, 834, 1440]) {
       const listView = page.getByRole('button', { name: 'Listenansicht', exact: true });
       await expect(gridView).toHaveAttribute('aria-pressed', 'true');
       await expect(listView).toHaveAttribute('aria-pressed', 'false');
-      const cards = page.locator('app-vinted-listings a[aria-label^="Inserat "]');
+      const cards = page.locator('app-vinted-listings [data-listing-row]');
       const firstThumbnail = cards.first().locator('app-product-thumbnail');
       const gridWidth = (await firstThumbnail.boundingBox())!.width;
       await listView.click();
@@ -434,13 +395,21 @@ for (const width of [320, 390, 834, 1440]) {
       const checkPublicationStates = async () => {
         await expect(
           page
-            .getByRole('link', { name: 'Inserat Neu eingestellter Schal öffnen', exact: true })
+            .locator('[data-listing-row]')
+            .filter({
+              has: page.getByRole('link', {
+                name: 'Inserat Neu eingestellter Schal öffnen',
+                exact: true,
+              }),
+            })
             .locator('app-vinted-listing-age'),
         ).toHaveText('Neu');
         for (const stateCase of stateCases.filter((stateCase) => stateCase.state !== 'draft')) {
-          const card = page.getByRole('link', {
-            name: `Inserat ${stateCase.title} öffnen`,
-            exact: true,
+          const card = page.locator('[data-listing-row]').filter({
+            has: page.getByRole('link', {
+              name: `Inserat ${stateCase.title} öffnen`,
+              exact: true,
+            }),
           });
           await expect(card.getByText(stateCase.label, { exact: true })).toBeVisible();
           if (stateCase.state !== 'reserved')
@@ -470,13 +439,13 @@ for (const width of [320, 390, 834, 1440]) {
         'Eine besonders lange Testmarke ohne Zeilenumbruch',
       );
       await expect(cards.first()).toContainText('29,90');
-      await expect(cards.first().locator('app-vinted-listing-metrics')).toBeVisible();
+      await expect(cards.first().locator('app-vinted-listing-metrics').first()).toBeVisible();
       await expect(cards.first().getByText('Gepusht', { exact: true })).toBeVisible();
       await expect(cards.first().locator('[data-metric-increase="favorites"]')).toContainText('+3');
       const listBounds = (await cards.first().boundingBox())!;
       const statusBounds = (await cards
         .first()
-        .locator('p[title="Zustand: Sehr gut"]')
+        .locator('[title="Zustand: Sehr gut"]')
         .boundingBox())!;
       expect(statusBounds.width).toBeGreaterThan(1);
       const metricBounds = await cards
@@ -857,17 +826,44 @@ for (const width of [390, 1440])
         await page.keyboard.press('Escape');
         await expect(quickPrice).toBeFocused();
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        await expect(wardrobe.getByRole('columnheader')).toHaveText([
+          'Artikel',
+          'Alter',
+          'Aufrufe',
+          'Favoriten',
+          'Preis',
+          'Aktionen',
+        ]);
+        await expect(
+          wardrobe
+            .locator('[data-listing-row] td')
+            .last()
+            .getByRole('button', { name: 'Preis für Jacke für Preisänderung ändern', exact: true }),
+        ).toBeVisible();
         await quickPrice.click();
         await input.fill('22');
         await input.press('Enter');
         await expect(dialog).not.toBeVisible();
-        await expect(wardrobe.locator('article[aria-busy="true"]')).toHaveCount(1);
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(1);
         await expect(
           wardrobe.getByRole('status').filter({ hasText: 'Preis wird geändert' }),
         ).toBeVisible();
-        await screenshot(page, `vinted-price-running-${width}-${theme}`);
+        await screenshot(page, `vinted-price-running-list-${width}-${theme}`, wardrobe);
+        await wardrobe.getByRole('button', { name: 'Rasteransicht', exact: true }).click();
+        const busyCard = wardrobe.locator('[data-listing-row][aria-busy="true"]');
+        await expect(busyCard.locator('app-product-thumbnail')).toBeVisible();
+        await expect(busyCard.getByRole('status')).toBeVisible();
+        const imageBox = await busyCard.locator('app-product-thumbnail').boundingBox();
+        const statusBox = await busyCard.getByRole('status').boundingBox();
+        expect(imageBox).not.toBeNull();
+        expect(statusBox).not.toBeNull();
+        expect(
+          Math.abs(statusBox!.y + statusBox!.height / 2 - (imageBox!.y + imageBox!.height / 2)),
+        ).toBeLessThan(2);
+        await screenshot(page, `vinted-price-running-grid-${width}-${theme}`, wardrobe);
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
         finishSave();
-        await expect(wardrobe.locator('article[aria-busy="true"]')).toHaveCount(0);
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(0);
         await expect(wardrobe).toContainText('22,00');
         await expect(page).toHaveURL(/\/vinted\/listings$/);
         expect(saves[2]).toEqual({
@@ -1013,6 +1009,7 @@ for (const width of [1440, 390]) {
 for (const width of [390, 1440])
   for (const theme of ['light', 'dark'] as const)
     test.describe(`Relist-Editor ${width} ${theme}`, () => {
+      test.use({ hasTouch: width === 390 });
       test.use({ hasTouch: width < 1024 });
       test(`Relisten und Vorlage bewahren Originale und übernehmen vollständige Daten bei ${width}px ${theme} @marketplace-preview`, async ({
         page,
@@ -1081,6 +1078,18 @@ for (const width of [390, 1440])
         );
         await page.goto('/marketplaces/vinted/listings');
         const wardrobe = page.locator('app-vinted-listings');
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        const sourceActions = wardrobe.locator('[data-listing-row] td').last();
+        await expect(sourceActions.getByRole('button')).toHaveCount(4);
+        const actionBounds = await sourceActions.boundingBox();
+        for (const button of await sourceActions.getByRole('button').all()) {
+          const bounds = await button.boundingBox();
+          expect(bounds!.x).toBeGreaterThanOrEqual(actionBounds!.x);
+          expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+            actionBounds!.x + actionBounds!.width,
+          );
+        }
+        await screenshot(page, `vinted-wardrobe-actions-${width}-${theme}`, wardrobe);
         await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
         const editor = page.locator('app-vinted-listing-editor');
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
@@ -1100,7 +1109,9 @@ for (const width of [390, 1440])
         await expect(
           editor.getByText(/Die Vinted-Kategorien konnten nicht geladen werden/),
         ).toHaveCount(0);
-        await expect(editor.getByRole('button', { name: 'Weiter', exact: true })).toBeVisible();
+        await expect(
+          editor.getByRole('button', { name: 'Relisting festlegen', exact: true }),
+        ).toBeVisible();
         const preview = editor.locator('app-vinted-listing-media img').first();
         await expect(preview).toBeVisible();
         const prepared = await preview.evaluate(async (image: HTMLImageElement) => ({
@@ -1110,21 +1121,40 @@ for (const width of [390, 1440])
         }));
         expect([prepared.width, prepared.height]).toEqual([160, 200]);
         expect(Buffer.from(prepared.bytes).equals(photo)).toBe(true);
-        await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
+        await screenshot(
+          page,
+          `vinted-relist-details-${width}-${theme}`,
+          page.locator('[data-modal-surface]'),
+        );
+        await editor.getByRole('button', { name: 'Relisting festlegen', exact: true }).click();
         await expect(
           editor.getByRole('heading', { name: 'Relisting festlegen', exact: true }),
         ).toBeVisible();
-        await expect(editor.getByRole('combobox', { name: 'Auflösung', exact: true })).toHaveCount(
+        await expect(
+          editor.getByRole('combobox', { name: 'Auflösung', exact: true }),
+        ).toContainText('Keine Änderung');
+        await expect(editor.getByRole('checkbox', { name: 'Bildauflösung anpassen' })).toHaveCount(
           0,
         );
-        await editor.getByRole('checkbox', { name: 'Bildauflösung anpassen', exact: true }).click();
+        const outputPreview = editor.locator('app-vinted-listing-photo-preview img');
+        await expect(outputPreview).toBeVisible();
+        await editor.getByRole('combobox', { name: 'Filter', exact: true }).click();
+        await page.getByRole('option', { name: 'Heller', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Weißer Rahmen', exact: true }).click();
+        await page.getByRole('option', { name: 'Mittel', exact: true }).click();
         await editor.getByRole('combobox', { name: 'Auflösung', exact: true }).click();
         await page.getByRole('option', { name: '1600 Pixel', exact: true }).click();
-        await editor.getByRole('combobox', { name: 'Relisten', exact: true }).click();
+        await expect(outputPreview).toBeVisible();
+        await expect(outputPreview).toHaveJSProperty('naturalHeight', 1600);
+        await editor
+          .getByRole('combobox', { name: 'Veröffentlichungszeitpunkt', exact: true })
+          .click();
         await page.getByRole('option', { name: 'Verzögert relisten', exact: true }).click();
         await editor.getByRole('combobox', { name: 'Wartezeit', exact: true }).click();
         await page.getByRole('option', { name: '10 Min.', exact: true }).click();
-        await editor.getByRole('combobox', { name: 'Relisten', exact: true }).click();
+        await editor
+          .getByRole('combobox', { name: 'Veröffentlichungszeitpunkt', exact: true })
+          .click();
         await page.getByRole('option', { name: 'Relisting planen', exact: true }).click();
         await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
         await editor
@@ -1133,7 +1163,7 @@ for (const width of [390, 1440])
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
           listing.content.title,
         );
-        await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
+        await editor.getByRole('button', { name: 'Relisting festlegen', exact: true }).click();
         await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
         await page.evaluate(axe.source);
         expect(
@@ -1143,7 +1173,11 @@ for (const width of [390, 1440])
             )
           ).violations,
         ).toEqual([]);
-        await screenshot(page, `vinted-relist-${width}-${theme}`);
+        await screenshot(
+          page,
+          `vinted-relist-${width}-${theme}`,
+          page.locator('[data-modal-surface]'),
+        );
         await page.keyboard.press('Escape');
         await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
         await expect(editor).toHaveCount(0);
@@ -1160,6 +1194,11 @@ for (const width of [390, 1440])
           editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
         ).toBeVisible();
         await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await screenshot(
+          page,
+          `vinted-template-${width}-${theme}`,
+          page.locator('[data-modal-surface]'),
+        );
         await page.keyboard.press('Escape');
         await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
         const originalSource = {
@@ -1230,6 +1269,7 @@ for (const width of [390, 1440])
           relistExternalId: '98765',
           revision: 1,
           content: { ...listing.content, aiPhoto: listing.aiPhoto },
+          photoOptions: { resize: null, crops: {}, filter: 'darker', border: 'small' },
           images: [
             {
               id: '21',
@@ -1293,6 +1333,14 @@ for (const width of [390, 1440])
           };
           return route.fulfill({ json: plannedDraft });
         });
+        await page.route('**/rest/v1/rpc/marketplace_set_listing_photo_options', (route) => {
+          plannedDraft = {
+            ...plannedDraft,
+            photoOptions: route.request().postDataJSON().p_options,
+            revision: plannedDraft.revision + 1,
+          };
+          return route.fulfill({ json: plannedDraft });
+        });
         await page.route('**/rest/v1/rpc/marketplace_edit_relisting_plan', (route) => {
           const body = route.request().postDataJSON();
           edits.push(body.p_editing);
@@ -1352,7 +1400,9 @@ for (const width of [390, 1440])
         );
         await page.goto('/marketplaces/vinted/listings');
         const imported = await (await importedResponse).json();
-        const plan = wardrobe.getByRole('article', { name: listing.content.title, exact: true });
+        const plan = wardrobe
+          .locator('[data-relisting-plan]')
+          .filter({ hasText: listing.content.title });
         await expect(plan).toContainText('Veröffentlichung geplant für');
         await expect(
           wardrobe.getByRole('heading', {
@@ -1371,26 +1421,47 @@ for (const width of [390, 1440])
             exact: true,
           }),
         ).toHaveCount(0);
-        await plan.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+        await plan
+          .getByRole('button', {
+            name: `Planung für ${listing.content.title} bearbeiten`,
+            exact: true,
+          })
+          .click();
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
           listing.content.title,
         );
         await page.keyboard.press('Escape');
         await expect(editor).toHaveCount(0);
         expect(edits).toEqual([true, false]);
-        await plan.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+        await plan
+          .getByRole('button', {
+            name: `Planung für ${listing.content.title} bearbeiten`,
+            exact: true,
+          })
+          .click();
         await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('25,90');
-        await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
+        await editor.getByRole('button', { name: 'Relisting festlegen', exact: true }).click();
+        await expect(editor.getByRole('combobox', { name: 'Filter', exact: true })).toContainText(
+          'Dunkler',
+        );
+        await expect(
+          editor.getByRole('combobox', { name: 'Weißer Rahmen', exact: true }),
+        ).toContainText('Klein');
+        await editor.getByRole('combobox', { name: 'Filter', exact: true }).click();
+        await page.getByRole('option', { name: 'Weicher', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Weißer Rahmen', exact: true }).click();
+        await page.getByRole('option', { name: 'Groß', exact: true }).click();
         await editor.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
         await expect(editor).toHaveCount(0);
         expect(plannedDraft.content.priceCents).toBe(2590);
+        expect(plannedDraft.photoOptions).toMatchObject({ filter: 'soft', border: 'large' });
         expect(enqueues).toHaveLength(1);
         expect(enqueues[0]).toMatchObject({
           p_draft_id: '20',
           p_replaces_job_id: '30',
           p_delay_seconds: 0,
         });
-        await screenshot(page, `vinted-relist-planned-${width}-${theme}`);
+        await screenshot(page, `vinted-relist-planned-${width}-${theme}`, wardrobe);
         await checkPage(page, errors);
         plannedJob = {
           ...plannedJob,

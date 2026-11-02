@@ -1,4 +1,3 @@
-import { vintedListingCopyRendering } from '../../../../../../e2e/support/vinted-listing-copy-rendering';
 import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { signal } from '@angular/core';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -125,7 +124,6 @@ beforeAll(async () => {
       path: 'src/app/features/marketplaces/components/vinted-listing-price-dialog/vinted-listing-price-dialog.component.ts',
     },
     { type: NumberInputComponent, path: shared + 'number-input/number-input.component.ts' },
-    ...vintedListingCopyRendering,
     ...listingTransferRendering,
     {
       type: ProductGalleryComponent,
@@ -556,26 +554,6 @@ describe('Reaktive Inseratdetails', () => {
   });
 });
 
-it('überträgt im nativen Entwurf nur gewählte Felder und erhält eigene Eingaben bis zum Speichern', async () => {
-  const f = setup([{ ...entry('a'), publicationState: 'draft' }]);
-  await settle();
-  await f.component.edit();
-  const before = f.component.form.getRawValue();
-  f.component.form.controls.title.setValue('Meine Eingabe');
-  f.component.applyCopiedFields({
-    content: {
-      ...listingCurrentContentFixture().content,
-      title: 'Quelle',
-      description: 'Übernommene Beschreibung',
-    },
-    fields: ['description'],
-  });
-  expect(f.component.form.controls.title.value).toBe('Meine Eingabe');
-  expect(f.component.form.controls.description.value).toBe('Übernommene Beschreibung');
-  expect(f.component.form.controls.price.value).toBe(before.price);
-  expect(f.store.saveListingContent).not.toHaveBeenCalled();
-});
-
 it('ergaenzt den Preis auch im nur teilweise lesbaren nativen Entwurf ohne neue Veroeffentlichung', async () => {
   const f = setup([{ ...entry('a'), publicationState: 'draft', price: null }]);
   await settle();
@@ -583,11 +561,7 @@ it('ergaenzt den Preis auch im nur teilweise lesbaren nativen Entwurf ohne neue 
   f.store.readListingEdit.mockResolvedValueOnce({ title: 'Entwurf', description: '', price: '' });
   await f.component.edit();
   expect(f.component.canSave()).toBe(true);
-  expect(f.component.copyFields()).toEqual(['title', 'description', 'price']);
-  f.component.applyCopiedFields({
-    content: { ...f.component.copyContent(), priceCents: 1800 },
-    fields: ['price'],
-  });
+  f.component.form.controls.price.setValue('18,00');
   expect(f.component.form.controls.price.value).toBe('18,00');
   expect(f.store.saveListingContent).not.toHaveBeenCalled();
   expect(f.store.saveListingEdit).not.toHaveBeenCalled();

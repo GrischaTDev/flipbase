@@ -1,13 +1,3 @@
-import { emptyVintedListingContent } from '../../models/vinted-listing-content';
-import {
-  vintedListingCopyFields,
-  type VintedListingCopyField,
-} from '../../models/vinted-listing-copy';
-import {
-  VintedListingCopyDialogComponent,
-  type VintedListingCopySelection,
-} from '../vinted-listing-copy-dialog/vinted-listing-copy-dialog.component';
-import type { VintedListingContent } from '../../models/vinted-listing-content';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { CurrencyPipe } from '@angular/common';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
@@ -65,7 +55,6 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
   selector: 'app-vinted-listing-detail',
   imports: [
     VintedListingPriceDialogComponent,
-    VintedListingCopyDialogComponent,
     ListingTransferActionComponent,
     CurrencyPipe,
     ReactiveFormsModule,
@@ -165,13 +154,6 @@ export class VintedListingDetailComponent {
   readonly priceForm = this.priceEditor.form;
   readonly priceControl = this.priceEditor.control;
 
-  readonly copying = signal(false);
-  readonly copyFields = computed<readonly VintedListingCopyField[]>(() =>
-    this.current()
-      ? vintedListingCopyFields.map((field) => field.key)
-      : ['title', 'description', 'price'],
-  );
-  readonly copyError = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
   readonly metricDisplay = createVintedListingMetricDisplay(this.store, () =>
@@ -312,7 +294,6 @@ export class VintedListingDetailComponent {
     this.descriptionError.set(false);
     this.editing.set(false);
     this.priceEditor.reset();
-    this.copying.set(false);
     this.loadingCurrent.set(false);
     this.basicReady.set(false);
     this.busy.set(false);
@@ -421,7 +402,6 @@ export class VintedListingDetailComponent {
     if (this.busy()) return;
     this.requestVersion++;
     this.editing.set(false);
-    this.copying.set(false);
     this.loadingCurrent.set(false);
     this.error.set(null);
     this.arrangedPhotos.set(null);
@@ -520,76 +500,6 @@ export class VintedListingDetailComponent {
     } finally {
       if (this.isCurrent(version)) this.loadingCurrent.set(false);
     }
-  }
-  copyContent(): VintedListingContent {
-    const current = this.current();
-    const fields = this.form.getRawValue();
-    // Die aktuelle Form darf unvollständig sein; übertragen werden später nur gewählte Felder.
-    return {
-      ...(current?.content ?? emptyVintedListingContent()),
-      title: fields.title,
-      description: fields.description,
-    };
-  }
-  applyCopiedFields(selection: VintedListingCopySelection): void {
-    const current = this.current();
-    if (
-      !this.canSave() ||
-      !this.entry() ||
-      this.entry()?.publicationState !== 'draft' ||
-      this.busy() ||
-      !this.editing()
-    )
-      return;
-    this.copyError.set(null);
-    const content = selection.content;
-    const values: Partial<ReturnType<typeof this.form.getRawValue>> = {};
-    if (selection.fields.includes('title')) values.title = content.title;
-    if (selection.fields.includes('description')) values.description = content.description;
-    if (selection.fields.includes('price'))
-      values.price = content.priceCents === null ? '' : vintedListingPriceText(content.priceCents);
-    if (!current) {
-      if (selection.fields.some((field) => !['title', 'description', 'price'].includes(field)))
-        return;
-      this.form.patchValue(values);
-      for (const field of Object.keys(values) as (keyof typeof this.form.controls)[])
-        this.form.controls[field].markAsDirty();
-      this.copying.set(false);
-      return;
-    }
-    for (const [group, field, ids] of [
-      [
-        'brand',
-        'brand',
-        [
-          content.brandId === null && content.brandLabel
-            ? 'none'
-            : content.brandId === null
-              ? ''
-              : String(content.brandId),
-        ],
-      ],
-      ['size', 'size', [content.sizeId === null ? '' : String(content.sizeId)]],
-      ['condition', 'condition', [content.conditionId === null ? '' : String(content.conditionId)]],
-      ['package', 'package', [content.packageSizeId === null ? '' : String(content.packageSizeId)]],
-      ['colors', 'color', content.colorIds.map(String)],
-      ['materials', 'material', content.materialIds.map(String)],
-    ] as const) {
-      if (!selection.fields.includes(group)) continue;
-      const options = vintedListingEditOptions(current.schema, field);
-      if (ids.some((id) => id && !options.some((option) => option.value === id))) {
-        this.copyError.set(
-          'Eine gewählte Angabe ist für diesen Vinted-Entwurf nicht verfügbar. Wähle sie ab und lege sie anschließend im Formular fest.',
-        );
-        return;
-      }
-      values[field] =
-        field === 'color' || field === 'material' ? this.labelsOf(field, ids) : (ids[0] ?? '');
-    }
-    this.form.patchValue(values);
-    for (const field of Object.keys(values) as (keyof typeof this.form.controls)[])
-      this.form.controls[field].markAsDirty();
-    this.copying.set(false);
   }
   async save(): Promise<void> {
     if (this.form.invalid || this.busy() || !this.canSave()) {

@@ -76,6 +76,8 @@ test('only a bound cloud claim becomes a tokenless frozen listing scope', async 
 test('photo output options stay frozen separately from immutable original image metadata', async () => {
   const photoOptions = {
     resize: 1600,
+    filter: 'lighter',
+    border: 'medium',
     crops: { [response.snapshot.images[0]!.id]: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
   };
   const f = fixture({ snapshot: { ...response.snapshot, photoOptions } });
@@ -134,6 +136,13 @@ test('claim rejects rounded identifiers, foreign worker, account, connection and
     { snapshot: { ...response.snapshot, connectionId: 'other' } },
     { snapshot: { ...response.snapshot, bump: true } },
     { snapshot: { ...response.snapshot, photoOptions: { resize: 42, crops: {} } } },
+    {
+      snapshot: {
+        ...response.snapshot,
+        photoOptions: { resize: null, crops: {}, filter: 'unknown' },
+      },
+    },
+    { snapshot: { ...response.snapshot, photoOptions: { resize: null, crops: {}, border: null } } },
     {
       snapshot: {
         ...response.snapshot,
