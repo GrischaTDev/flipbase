@@ -29,6 +29,9 @@ create or replace function public.marketplace_remember_listing_photo_source(p_jo
 returns void language plpgsql volatile security invoker set search_path='' as $$
 begin
   if p_job.connection_id is null or p_external_id is null or p_external_id !~ '^[1-9][0-9]{0,31}$' then return; end if;
+  -- Ältere bestätigte Aufträge können keine Bildaufnahme enthalten. Die bestätigte Veröffentlichung bleibt gültig; keine Originale erfinden.
+  if jsonb_typeof(p_job.snapshot->'images') is distinct from 'array' then return; end if;
+  if jsonb_array_length(p_job.snapshot->'images') not between 1 and 20 then return; end if;
   insert into public.marketplace_listing_photo_sources(workspace_id,connection_id,external_account_id,external_id,draft_id,images)
     values(p_job.workspace_id,p_job.connection_id,p_job.external_account_id,p_external_id,p_job.draft_id,p_job.snapshot->'images')
     on conflict(connection_id,external_account_id,external_id) do nothing;
@@ -51,6 +54,7 @@ begin
     select distinct on (external_id) workspace_id,connection_id,external_account_id,external_id,draft_id,snapshot->'images'
     from public.marketplace_listing_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=v_account
       and external_id=any(p_external_ids) and action='publish' and state='confirmed'
+      and case when jsonb_typeof(snapshot->'images')='array' then jsonb_array_length(snapshot->'images') between 1 and 20 else false end
     order by external_id,created_at,id on conflict(connection_id,external_account_id,external_id) do nothing;
 
   select coalesce(jsonb_agg(jsonb_build_object('externalId',source.external_id,'draft',public.marketplace_listing_draft_document(draft)||jsonb_build_object('images',source.images,'photoOptions',null,'connectionId',source.connection_id))),'[]'::jsonb) into v_items

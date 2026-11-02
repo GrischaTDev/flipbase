@@ -1364,6 +1364,7 @@ for (const width of [390, 1440])
             draftRevision: plannedDraft.revision,
             itemTitle: plannedDraft.content.title,
             scheduledAt: body.p_scheduled_at,
+            timeZone: body.p_time_zone,
             version: 1,
             replacesJobId: '30',
           };
@@ -1460,6 +1461,7 @@ for (const width of [390, 1440])
           p_draft_id: '20',
           p_replaces_job_id: '30',
           p_delay_seconds: 0,
+          p_time_zone: await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
         });
         await screenshot(page, `vinted-relist-planned-${width}-${theme}`, wardrobe);
         await checkPage(page, errors);

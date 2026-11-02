@@ -256,6 +256,8 @@ insert into public.marketplace_account_entries(id,workspace_id,connection_id,kin
 values ('46800000-0000-4000-8000-000000000062','46700000-0000-4000-8000-000000000011','46700000-0000-4000-8000-000000000024','publication','page-62','{"title":"Unbekannt","publicationState":"unknown"}',clock_timestamp());
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"46700000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select lives_ok($$select public.marketplace_read_listing_photo_sources('46700000-0000-4000-8000-000000000011','46700000-0000-4000-8000-000000000021',array['46730','46710'])$$,'Historische Bestätigungen ohne Bildaufnahme verhindern den Originalabruf nicht');
+select is(jsonb_array_length(public.marketplace_read_listing_photo_sources('46700000-0000-4000-8000-000000000011','46700000-0000-4000-8000-000000000021',array['46730','46710'])->'items'),0,'Historische Aufträge erzeugen keine erfundenen Originalreferenzen');
 create temporary table publication_page_one as select public.marketplace_read_page('46700000-0000-4000-8000-000000000011','46700000-0000-4000-8000-000000000024','publication') as value;
 create temporary table publication_page_two as select public.marketplace_read_page('46700000-0000-4000-8000-000000000011','46700000-0000-4000-8000-000000000024','publication',(select value->>'nextCursor' from publication_page_one)) as value;
 select is((select value->'items'->0->>'title' from publication_page_one),'Page 61','Erste globale API-Seite beginnt mit der neuesten belegten Erstellung');

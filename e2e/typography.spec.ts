@@ -45,7 +45,16 @@ test('verwendet die Systemschrift im Verwaltungsbereich und Inter als lokalen Fa
     '/catalog',
     '/accounting',
   ]) {
-    await page.goto(route);
+    // Seiten wie im normalen Gebrauch wechseln, ohne die ganze App pro Abschnitt neu zu starten.
+    if (new URL(page.url()).pathname !== route) {
+      if (route === '/inventory') {
+        // Der direkte Bestandsweg ist kein eigener Eintrag in der Navigation.
+        await page.goto(route);
+      } else {
+        await page.locator(`app-sidebar a[href="${route}"]`).first().click();
+        await expect(page).toHaveURL(route);
+      }
+    }
     await expect(page.locator('main h1')).toBeVisible();
     const unexpectedFontElements = await page.evaluate(() => {
       const isVisible = (element: HTMLElement): boolean => {

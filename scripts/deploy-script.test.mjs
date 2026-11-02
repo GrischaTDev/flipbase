@@ -1793,6 +1793,10 @@ test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge
   const resolveContractFile = (directory, modulePath) => {
     const contractPath = posix.join(directory, modulePath);
     if (/\.[cm]?ts$/u.test(contractPath)) return contractPath;
+    if (contractPath.endsWith('.mjs')) {
+      const sourcePath = contractPath.replace(/\.mjs$/u, '.mts');
+      if (existsSync(join(root, sourcePath))) return sourcePath;
+    }
     return existsSync(join(root, `${contractPath}.ts`))
       ? `${contractPath}.ts`
       : `${contractPath}.d.ts`;

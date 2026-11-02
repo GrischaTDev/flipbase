@@ -850,3 +850,26 @@ it('speichert beim Zuschneiden und Vergrößern die Originaldatei und nur Ausgab
   });
   expect(await original.text()).toBe('camera-original-Exif');
 });
+
+it('sperrt Formularelemente ohne Wertverlust oder zusätzliche Inhaltsänderung', async () => {
+  const f = setup();
+  await settle();
+  publicationInput(f);
+  const values = f.component.form.getRawValue();
+  const changed = vi.fn();
+  const subscription = f.component.form.valueChanges.subscribe(changed);
+  f.component.draft.set({ ...draft, connectionId: 'account-a', relistExternalId: '98765' });
+  f.component.setImageEditing(true);
+  await settle();
+  expect(f.component.form.controls.connectionId.disabled).toBe(true);
+  expect(f.component.form.controls.aiPhoto.disabled).toBe(true);
+  expect(f.component.form.getRawValue()).toEqual(values);
+  f.component.setImageEditing(false);
+  f.component.draft.set(null);
+  await settle();
+  expect(f.component.form.controls.aiPhoto.enabled).toBe(true);
+  expect(f.component.form.controls.connectionId.enabled).toBe(true);
+  expect(f.component.form.getRawValue()).toEqual(values);
+  expect(changed).not.toHaveBeenCalled();
+  subscription.unsubscribe();
+});

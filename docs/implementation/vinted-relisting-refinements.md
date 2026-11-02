@@ -73,3 +73,15 @@ Anwendungsprüfung abgeschwächt. Aktuelle Aufnahmen mit synthetischen Testdaten
 liegen privat unter `vinted-refinements-review`; keine Bilder im Repository.
 Format-/Lintprüfung in der vollständigen privaten Quellkopie mit denselben
 Abhängigkeiten, um fremde ignorierte Hilfsdateien nicht anzufassen.
+
+PR #541: Nutzer hat Push, PR, erfolgreiche Pflichtprüfungen, Merge und Bereinigung
+freigegeben. Hauptstand `727d7cfb` eingebunden; Fortsetzung in eigener isolierter
+Arbeitskopie zum Erhalt paralleler Erweiterungsdateien. Der erste CI-Lauf fand
+fehlende Rendererfreigabe im Docker-Kontext, historische Aufträge ohne
+Bildaufnahme, veraltete Browserfallzahlen und eine fest kodierte Zeitzone der
+Relist-Testantwort. Zusammenhängend korrigiert, ohne Prüfungen zu lockern. Die
+sechste erzeugte Migration erhält alte Bestätigungen ohne erfundene Fotos;
+412 SQL-Fälle bestätigen auch den bisherigen Veröffentlichungszeitvertrag.
+Reactive-Forms-Sperren verhindern Entwicklerwarnungen im Editor und bei der
+Artikelauswahl. Vier UTC-Relistfälle bestehen einschließlich Warnungsprüfung.
+Der vollständige neue CI-Nachweis bleibt bis zum grünen PR offen.

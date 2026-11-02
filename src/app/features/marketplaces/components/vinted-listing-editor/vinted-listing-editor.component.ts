@@ -483,6 +483,21 @@ export class VintedListingEditorComponent {
 
   constructor() {
     effect(() => {
+      const photoDisabled = this.saving() || this.imageEditing();
+      const accountDisabled = this.relisting();
+      untracked(() => {
+        const controls = [
+          { control: this.form.controls.aiPhoto, disabled: photoDisabled },
+          { control: this.form.controls.connectionId, disabled: accountDisabled },
+        ];
+        for (const { control, disabled } of controls) {
+          if (control.disabled === disabled) continue;
+          if (disabled) control.disable({ emitEvent: false });
+          else control.enable({ emitEvent: false });
+        }
+      });
+    });
+    effect(() => {
       const context = this.context();
       untracked(() => void this.load(context));
     });

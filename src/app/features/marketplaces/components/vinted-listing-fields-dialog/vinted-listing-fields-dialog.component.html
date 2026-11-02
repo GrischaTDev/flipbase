@@ -20,7 +20,6 @@
           [options]="singleOptions(field.name)"
           [formControl]="form.controls[field.control]"
           [searchable]="field.name === 'size'"
-          [disabled]="disabled() || loading()"
           [error]="fieldErrors()[field.name] ?? null"
         />
         @if (!inline() && previousLabel(field.name); as previous) {

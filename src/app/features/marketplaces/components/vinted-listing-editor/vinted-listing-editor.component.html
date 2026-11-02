@@ -122,7 +122,6 @@
                 class="mt-4 block"
                 label="Meine Fotos wurden mit KI erstellt oder verändert"
                 formControlName="aiPhoto"
-                [disabled]="saving() || imageEditing()"
               />
               @if (visibleFieldErrors()['photos']; as message) {
                 <p
@@ -201,7 +200,6 @@
                   ariaLabel="Zielkonto für diesen Entwurf"
                   [error]="publicationAttempted() ? accountIssue() : null"
                   [options]="accountOptions()"
-                  [disabled]="relisting()"
                   formControlName="connectionId"
                 />
                 @if (publicationAttempted() && accountIssue()) {
