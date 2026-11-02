@@ -1106,6 +1106,13 @@ for (const width of [390, 1440])
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
           listing.content.title,
         );
+        await expect(editor.locator('app-card')).toHaveCount(0);
+        await expect(
+          editor.getByRole('region', { name: 'Bildbearbeitung', exact: true }),
+        ).toBeVisible();
+        await expect(
+          editor.getByRole('region', { name: 'Veröffentlichung', exact: true }),
+        ).toBeVisible();
         await expect(
           editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
         ).toHaveValue(listing.content.description);

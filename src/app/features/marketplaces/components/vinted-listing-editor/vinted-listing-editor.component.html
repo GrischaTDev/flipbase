@@ -92,7 +92,13 @@
           formControlName="description"
         />
         <div class="space-y-4">
-          <app-card title="Bildbearbeitung">
+          <section
+            aria-labelledby="vinted-relist-photo-heading"
+            class="space-y-3 border-t border-fb-border-subtle pt-4"
+          >
+            <h3 id="vinted-relist-photo-heading" class="text-sm font-semibold text-fb-text-primary">
+              Bildbearbeitung
+            </h3>
             <div class="space-y-4">
               <div class="grid gap-4 sm:grid-cols-3">
                 <app-custom-select
@@ -126,8 +132,17 @@
                 [options]="photoOptions()"
               />
             </div>
-          </app-card>
-          <app-card title="Veröffentlichung">
+          </section>
+          <section
+            aria-labelledby="vinted-relist-publication-heading"
+            class="space-y-3 border-t border-fb-border-subtle pt-4"
+          >
+            <h3
+              id="vinted-relist-publication-heading"
+              class="text-sm font-semibold text-fb-text-primary"
+            >
+              Veröffentlichung
+            </h3>
             <div class="space-y-4">
               <app-custom-select
                 label="Veröffentlichungszeitpunkt"
@@ -159,7 +174,7 @@
                 </div>
               }
             </div>
-          </app-card>
+          </section>
         </div>
       </div>
     } @else {

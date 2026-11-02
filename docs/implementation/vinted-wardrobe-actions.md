@@ -30,6 +30,7 @@ Keine Veröffentlichung vor dieser Abnahme.
 - [x] Bestehende übrige Artikeldaten unverändert übernehmen; Vorlagen und regulären Editor erhalten.
 - [x] Sofort, Wartezeit und fester Termin sowie Originalbilder und vorhandene Bildoptionen erhalten.
 - [x] Aktionen oben; keine zusätzlichen Erklärtexte.
+- [x] Sichtkorrektur: Bildbearbeitung und Veröffentlichung als flache Abschnitte ohne innere Cards.
 - [x] Dasselbe kurze Formular für die Bearbeitung noch nicht ausgeführter Relist-Planungen.
 
 ## 5. Funktionsprüfung und Sichtkontrolle

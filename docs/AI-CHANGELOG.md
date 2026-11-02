@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-02 - Juna - Relist-Modal ohne verschachtelte Cards
+
+**Sichtkorrektur:** Bildbearbeitung und Veröffentlichung im kompakten Relist-Modal als flache, beschriftete Abschnitte statt zusätzlicher Cards darstellen. Überschriften, Abstände und dezente Trennlinien gliedern die gemeinsame Modalfläche. Dieselbe Darstellung gilt für geplante Relistings. Die Nutzerentscheidung gegen Cards in Cards in den gemeinsamen UI-Regeln festgehalten. Formularfelder und Abläufe bleiben erhalten; die Sichtfreigabe vor einem PR steht weiterhin aus.
+
+**Prüfung:** Anwendungsbau einschließlich Angular-Vorlagen, Lint und vollständige Formatprüfung erfolgreich. Vier bestehende Relist-/Vorlagenfälle bei 390/1440 Pixeln in Hell/Dunkel einschließlich AXE erneut erfolgreich; sie prüfen jetzt zusätzlich die flachen benannten Abschnitte ohne innere Cards. Neue Screenshots unter `wardrobe-flat-modal-review` erstellt. Keine echten Anbieter-Schreibzugriffe, kein Push und kein PR. Der zuvor dokumentierte vollständige CI-Nachweis bleibt offen.
+
 ## 2026-11-02 - Juna - Kleiderschrankaktionen und kurzes Relist-Modal überarbeiten
 
 **Nutzerentscheidung:** Inserieren aus der Kleiderschrankleiste entfernen, graue Artikelaktionen entsprechend den Einstellungen, Löschaktion ergänzen. Relisten bleibt in einem kurzen Modal mit Titel, Beschreibung, Bildoptionen und Veröffentlichungszeit; keine volle Artikeldatenmaske und kein zusätzlicher Detailschritt. Vor einem PR verlangt der Nutzer ausdrücklich eine Sichtkontrolle. Der vorbereitete Leser-Fix bleibt enthalten, seine frühere PR-Rückfrage ist durch diese neue Abnahmebedingung ersetzt.
