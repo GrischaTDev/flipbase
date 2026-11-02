@@ -870,3 +870,34 @@ test('isolated import keeps pending chat activity with a null detail check throu
   assert.equal(conversation?.body['occurredAt'], '2026-10-03T08:00:00.000Z');
   assert.equal(conversation?.body['detailCheckedAt'], null);
 });
+
+test('Löschbefehle transportieren nur zwei gebundene IDs und akzeptieren keine erfundene Bestätigung', async () => {
+  assert.deepEqual(
+    validateBrowserResult('deleteListing', { status: 'confirmed', step: 'verify' }),
+    { status: 'confirmed', step: 'verify' },
+  );
+  for (const value of [
+    { status: 'confirmed', step: 'open' },
+    { status: 'confirmed', step: 'verify', extra: true },
+    { status: 'yes', step: 'verify' },
+  ])
+    assert.throws(() => validateBrowserResult('deleteListing', value));
+  const calls: unknown[] = [];
+  const result = await executeBrowserAction(
+    {
+      version: () => 'fixture',
+      deleteListing: async (account, externalId, authorize) => {
+        await authorize();
+        calls.push([account, externalId]);
+        return { status: 'confirmed', step: 'verify' };
+      },
+    },
+    { name: 'deleteListing', arguments: ['123', '98765'] },
+    async () => {
+      calls.push('authorize');
+    },
+    async () => undefined,
+  );
+  assert.deepEqual(result, { status: 'confirmed', step: 'verify' });
+  assert.deepEqual(calls, ['authorize', 'authorize', ['123', '98765']]);
+});

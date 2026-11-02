@@ -72,6 +72,7 @@ export class VintedActionOverviewMenuComponent {
   readonly hasFailure = computed(
     () =>
       this.kleinanzeigen.hasFailure() ||
+      this.listingOperations.entries().some((action) => action.state === 'error') ||
       !!this.store.error() ||
       this.store
         .groups()

@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
@@ -38,6 +39,7 @@ function setup(connectionId: string) {
     listingMetricChanges: signal({}),
     consumeListingMetricChanges: () => ({}),
     saveListingPrice: vi.fn().mockResolvedValue(undefined),
+    deleteListing: vi.fn().mockResolvedValue(undefined),
     async selectConnection(id: string) {
       this.selectionVersion.update((value) => value + 1);
       const account = connections().find((item) => item.connectionId === id);
@@ -410,4 +412,40 @@ it('blendet beim bestätigten Übergang alte und neue Cachekarte aus, bis die ne
   vi.spyOn(component, 'page').mockReturnValue({ ...old, items: [old.items[1]!] });
   expect(component.entries().map((entry) => entry.externalId)).toEqual(['456']);
   expect(store.selectedConnection().connectionId).toBe(accountA.connectionId);
+});
+
+it('führt eine Löschung nur nach Bestätigung aus und behält ihren Fehler in den laufenden Aktionen', async () => {
+  const { component, store } = setup('');
+  TestBed.tick();
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: 'delete-1',
+          externalId: '98765',
+          title: 'Schal',
+          publicationState: 'active',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0];
+  const confirm = TestBed.inject(ConfirmDialogService);
+  const rejected = component.deleteListing(entry);
+  confirm.antworte(false);
+  await rejected;
+  expect(store.deleteListing).not.toHaveBeenCalled();
+  store.deleteListing.mockRejectedValueOnce(new Error('Nicht bestätigt'));
+  const deleting = component.deleteListing(entry);
+  confirm.antworte(true);
+  await deleting;
+  expect(store.deleteListing).toHaveBeenCalledWith(accountA.connectionId, entry.id);
+  expect(component.operations.entries()[0]).toMatchObject({
+    kind: 'delete',
+    state: 'error',
+    message: 'Nicht bestätigt',
+  });
 });

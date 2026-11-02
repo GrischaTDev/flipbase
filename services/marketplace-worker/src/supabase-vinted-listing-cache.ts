@@ -21,6 +21,25 @@ export class SupabaseVintedListingCache {
     this.request = options.fetch ?? fetch;
   }
 
+  /** Entfernt ausschließlich die vom Anbieter bestätigt gelöschte Lesekopie, keine Originalbilder. */
+  async remove(scope: BrowserSessionScope, entryId: string, externalId: string): Promise<void> {
+    const url = new URL('/rest/v1/marketplace_account_entries', this.baseUrl);
+    for (const [field, value] of Object.entries({
+      workspace_id: scope.workspaceId,
+      connection_id: scope.connectionId,
+      id: entryId,
+      external_id: externalId,
+      kind: 'publication',
+    }))
+      url.searchParams.set(field, 'eq.' + value);
+    const response = await this.request(url, {
+      method: 'DELETE',
+      headers: { apikey: this.serviceRoleKey, Authorization: 'Bearer ' + this.serviceRoleKey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error('Inseratcache nicht verfügbar');
+  }
+
   async save(
     scope: BrowserSessionScope,
     entryId: string,

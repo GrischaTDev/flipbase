@@ -150,7 +150,9 @@ export async function readOpenVintedListingContent(
   onStep: (step: VintedListingReadStep) => void = () => undefined,
 ): Promise<VintedListingCurrentContent> {
   onStep('values');
-  const before = await page.evaluate(collectVintedListingFormValues);
+  const before = await page.evaluate(collectVintedListingFormValues, {
+    allowMissingAiPhoto: true,
+  });
   if (!before) throw invalid();
   onStep('photos');
   const photosBefore = await loadedPhotos(page);
@@ -181,7 +183,9 @@ export async function readOpenVintedListingContent(
   await check();
   onStep('changed');
   // Das Öffnen der Auswahllisten darf nichts verändert haben; sonst keinen gemischten Stand liefern.
-  const after = await page.evaluate(collectVintedListingFormValues);
+  const after = await page.evaluate(collectVintedListingFormValues, {
+    allowMissingAiPhoto: true,
+  });
   const photosAfter = await page.evaluate(collectVintedListingPhotoState);
   if (!sameValues(before, after) || !samePhotos(photosBefore, photosAfter)) throw invalid();
   onStep('parse');

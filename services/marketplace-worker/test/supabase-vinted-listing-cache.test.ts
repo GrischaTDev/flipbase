@@ -41,3 +41,36 @@ test('Inseratcache übergibt nur das gebundene Konto und die bestätigten Felder
   });
   assert.ok(!JSON.stringify(body).includes('user-token'));
 });
+
+test('Löschcache begrenzt alle Kontofilter und berührt weder Storage noch Originalquellen', async () => {
+  let calls = 0;
+  const cache = new SupabaseVintedListingCache({
+    url: 'https://db.example.test',
+    serviceRoleKey: 'server-key',
+    fetch: async (input, init) => {
+      calls++;
+      const url = new URL(String(input));
+      assert.equal(url.pathname, '/rest/v1/marketplace_account_entries');
+      assert.equal(init?.method, 'DELETE');
+      assert.deepEqual(Object.fromEntries(url.searchParams), {
+        workspace_id: 'eq.workspace',
+        connection_id: 'eq.connection',
+        id: 'eq.entry',
+        external_id: 'eq.41',
+        kind: 'eq.publication',
+      });
+      return new Response(null, { status: 204 });
+    },
+  });
+  await cache.remove(
+    {
+      workspaceId: 'workspace',
+      connectionId: 'connection',
+      userId: 'user',
+      userAccessToken: 'token',
+    },
+    'entry',
+    '41',
+  );
+  assert.equal(calls, 1);
+});

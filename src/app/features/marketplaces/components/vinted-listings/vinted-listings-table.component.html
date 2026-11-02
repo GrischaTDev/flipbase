@@ -99,7 +99,7 @@
                   </h2>
                   @if (row.running) {
                     <p role="status" class="mt-1 text-xs text-fb-text-secondary">
-                      Preis wird geändert
+                      {{ row.runningLabel ?? 'Preis wird geändert' }}
                     </p>
                   } @else if (entry.brand || entry.size) {
                     <p class="mt-1 truncate text-xs text-fb-text-secondary">

@@ -20,6 +20,7 @@ import type { VintedListingPhotoOptions } from '../../models/vinted-listing-phot
   host: { class: 'block min-w-0' },
 })
 export class VintedListingPhotoPreviewComponent {
+  readonly compact = input(false);
   readonly image = input<ListingImageDraft | null>(null);
   readonly options = input.required<VintedListingPhotoOptions>();
   readonly preview = signal<string | null>(null);

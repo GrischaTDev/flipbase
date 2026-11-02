@@ -77,6 +77,7 @@ test('Preisänderung wahrt Schreibrechte, Kontozuordnung und Konfliktstatus', as
 
 async function fixture(
   options: {
+    deleteStatus?: 'confirmed' | 'failed' | 'outcome_unknown';
     missing?: boolean;
     readAccessOnly?: boolean;
     cacheFailure?: boolean;
@@ -100,6 +101,12 @@ async function fixture(
   const targets: unknown[] = [];
   const browser: BrowserInfo = {
     version: () => 'fixture',
+    deleteListing: async (account, item, authorize) => {
+      targets.push(['delete', account, item]);
+      if (options.reassign) reassigned = true;
+      await authorize();
+      return { status: options.deleteStatus ?? 'confirmed', step: 'verify' };
+    },
     updateListingPrice: async (item, account, expected, price, authorize) => {
       targets.push(['price', item, account, expected, price]);
       if (options.failPriceStep)
@@ -149,6 +156,10 @@ async function fixture(
       : undefined,
     listingCache: {
       save: async () => true,
+      remove: async (scope, id, externalId) => {
+        targets.push(['removed-cache', scope.workspaceId, scope.connectionId, id, externalId]);
+        if (options.cacheFailure) throw new Error('private cache detail');
+      },
       saveTransferSource: async (scope, id, listing) => {
         targets.push([
           'cached-source',
@@ -214,6 +225,12 @@ async function fixture(
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   return {
+    remove: (body: unknown) =>
+      fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/delete`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
     price: (body: unknown) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/price/save`, {
         method: 'POST',
@@ -605,5 +622,67 @@ test('Preisdialog bewahrt den Abbruchschritt vor dem Sitzungsbroker und meldet n
     } finally {
       await f.close();
     }
+  }
+});
+
+test('Löschen bindet das eigene Inserat serverseitig und entfernt den Cache nur nach Bestätigung', async () => {
+  for (const status of ['confirmed', 'failed', 'outcome_unknown'] as const) {
+    const f = await fixture({ deleteStatus: status });
+    try {
+      const response = await f.remove({ workspaceId, connectionId, entryId });
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { status });
+      assert.deepEqual(
+        f.targets.filter((t) => Array.isArray(t) && t[0] === 'delete'),
+        [['delete', '123', '98765']],
+      );
+      assert.equal(
+        f.targets.filter((t) => Array.isArray(t) && t[0] === 'removed-cache').length,
+        status === 'confirmed' ? 1 : 0,
+      );
+      assert.equal(f.closed(), 1);
+    } finally {
+      await f.close();
+    }
+  }
+});
+test('Löschen lehnt fremde Ziele und fehlende Rechte ab und wiederholt keinen Anbieteraufruf', async () => {
+  for (const options of [{ readOnly: true }, { reassign: true }]) {
+    const f = await fixture(options);
+    try {
+      const response = await f.remove({ workspaceId, connectionId, entryId });
+      assert.equal(response.ok, false);
+      assert.equal(
+        f.targets.some((t) => Array.isArray(t) && t[0] === 'removed-cache'),
+        false,
+      );
+    } finally {
+      await f.close();
+    }
+  }
+  const f = await fixture();
+  try {
+    for (const body of [
+      { workspaceId, connectionId, entryId, externalId: 'foreign' },
+      { workspaceId, connectionId, entryId: '98765' },
+    ])
+      assert.equal((await f.remove(body)).status, 400);
+    assert.equal(f.opened(), 0);
+  } finally {
+    await f.close();
+  }
+});
+test('Bestätigte Löschung bleibt bei ausstehendem Cache oder Browserabbau bestätigt', async () => {
+  const f = await fixture({ cacheFailure: true, failClose: true });
+  try {
+    const response = await f.remove({ workspaceId, connectionId, entryId });
+    assert.deepEqual(await response.json(), {
+      status: 'confirmed',
+      cache: 'pending',
+      cleanup: 'pending',
+    });
+    assert.equal(f.targets.filter((t) => Array.isArray(t) && t[0] === 'delete').length, 1);
+  } finally {
+    await f.close();
   }
 });

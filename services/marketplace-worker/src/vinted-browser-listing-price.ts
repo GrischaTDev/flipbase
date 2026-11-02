@@ -64,7 +64,7 @@ export async function updateVintedListingPrice(
     };
     await check();
     step = 'read';
-    const base = await page.evaluate(collectVintedListingFormValues);
+    const base = await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true });
     if (!base || base.bump)
       throw new Error('Das Vinted-Formular konnte nicht sicher gelesen werden.');
     const currentPriceCents = parseVintedListingPriceCents(base.price);
@@ -79,7 +79,9 @@ export async function updateVintedListingPrice(
     await fillVintedListingPrice(input, price);
     await check();
     step = 'verify';
-    const prepared = await page.evaluate(collectVintedListingFormValues);
+    const prepared = await page.evaluate(collectVintedListingFormValues, {
+      allowMissingAiPhoto: true,
+    });
     if (
       !prepared ||
       prepared.title !== base.title ||

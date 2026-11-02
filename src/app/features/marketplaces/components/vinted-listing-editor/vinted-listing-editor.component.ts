@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
   ChangeDetectionStrategy,
@@ -100,6 +101,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   selector: 'app-vinted-listing-editor',
   templateUrl: './vinted-listing-editor.component.html',
   imports: [
+    NgTemplateOutlet,
     DatePickerComponent,
     FormFieldComponent,
     ReactiveFormsModule,
@@ -125,9 +127,9 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   host: { class: 'block min-w-0', '(window:beforeunload)': 'beforeUnload($event)' },
 })
 export class VintedListingEditorComponent {
+  readonly modalActions = input(false);
   readonly plannedJob = input<VintedListingJob | null>(null);
   readonly waitingPlan = signal<VintedListingJob | null>(null);
-  readonly relistStep = signal<'details' | 'options'>('details');
   readonly photoFilter = signal<VintedListingPhotoFilter>('none');
   readonly photoBorder = signal<VintedListingPhotoBorder>('none');
   readonly relistTiming = signal<'now' | 'delay' | 'scheduled'>('now');
@@ -148,6 +150,7 @@ export class VintedListingEditorComponent {
   private readonly jobsApi = inject(VintedListingJobService);
   readonly source = input<VintedListingEditorSource | null>(null);
   readonly closed = output<void>();
+  readonly publicationReturned = output<void>();
   readonly relisting = computed(
     () =>
       this.source()?.mode === 'relist' || !!this.plannedJob() || !!this.draft()?.relistExternalId,
@@ -523,29 +526,6 @@ export class VintedListingEditorComponent {
     this.publicationSchedule.set(null);
     void this.openPublication();
   }
-  nextRelistStep(): void {
-    this.publicationAttempted.set(true);
-    if (this.accountIssue() || this.contentError() || Object.keys(this.fieldErrors()).length) {
-      this.focusFirstIssue();
-      return;
-    }
-    this.relistStep.set('options');
-    this.error.set(null);
-    this.focusRelistStep();
-  }
-  previousRelistStep(): void {
-    if (this.saving() || this.preparingPhotos() || this.publicationBusy()) return;
-    this.relistStep.set('details');
-    this.focusRelistStep();
-  }
-  private focusRelistStep(): void {
-    setTimeout(() => {
-      const heading = this.host?.nativeElement.querySelector<HTMLElement>('h1');
-      heading?.setAttribute('tabindex', '-1');
-      heading?.focus();
-      heading?.scrollIntoView({ block: 'start' });
-    });
-  }
   async submitRelisting(): Promise<void> {
     if (this.preparingPhotos() || this.saving() || this.publication()) return;
     this.error.set(null);
@@ -597,6 +577,12 @@ export class VintedListingEditorComponent {
       this.contentError() ||
       Object.keys(this.fieldErrors()).length
     ) {
+      if (this.relisting()) {
+        const hiddenIssue = Object.entries(this.fieldErrors()).find(
+          ([field]) => !['title', 'description'].includes(field),
+        )?.[1];
+        this.error.set(this.accountIssue() ?? this.contentError() ?? hiddenIssue ?? null);
+      }
       this.focusFirstIssue();
       return;
     }
@@ -639,9 +625,11 @@ export class VintedListingEditorComponent {
   returnToEditor(): void {
     if (this.publicationBusy()) return;
     this.closePublication();
-    setTimeout(() =>
-      this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
-    );
+    setTimeout(() => {
+      if (this.modalActions()) this.publicationReturned.emit();
+      else
+        this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus();
+    });
   }
   publicationAccepted(job: VintedListingJob): void {
     const opened = this.publication();
@@ -939,7 +927,6 @@ export class VintedListingEditorComponent {
     this.photoSize.set(null);
     this.photoFilter.set('none');
     this.photoBorder.set('none');
-    this.relistStep.set('details');
     this.draft.set(null);
     this.images.set([]);
     this.categories.set([]);

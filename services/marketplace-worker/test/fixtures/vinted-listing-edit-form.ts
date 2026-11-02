@@ -50,6 +50,8 @@ export async function createVintedListingEditFormFixture(
   page: Pick<Page, 'route'>,
   options: {
     foreign?: boolean;
+    missingAiPhoto?: boolean;
+    missingBump?: boolean;
     ignoreSave?: boolean;
     /** Bestehender Preis wird beim Fokussieren in Vinteds Eingabeformat gebracht. */
     formatPriceOnFocus?: boolean;
@@ -187,7 +189,7 @@ export async function createVintedListingEditFormFixture(
       body: `<main id="content">
       <input name="photos" type="file" accept="image/jpeg,image/png">
       <input name="title" value="${state.title}"><textarea name="description">${state.description}</textarea><input name="price" value="${state.price}">
-      <input id="ai_photo" type="checkbox"><input id="bump" type="checkbox">
+      ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox">'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
       <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="${label('brand', [state.brand])}"><input id="size" readonly value="${label('size', [state.size])}"><input id="condition" readonly value="${label('condition', [state.condition])}"><input id="color" readonly value="${label('color', state.colors)}"><input id="material" readonly value="${label('material', state.materials)}">
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${option('brand', 'radio', [state.brand])}</div>

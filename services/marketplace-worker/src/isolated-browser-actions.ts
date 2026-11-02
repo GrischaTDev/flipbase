@@ -1,3 +1,4 @@
+import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
 import {
   isVintedNegotiationCommand,
   isVintedNegotiationOffer,
@@ -222,6 +223,7 @@ export async function executeBrowserAction(
     readListingEdit: [2],
     readListingCategory: [3],
     readListingContent: [2],
+    deleteListing: [2],
     updateListingContent: [4, 5],
     updateListing: [3],
     updateListingPrice: [4],
@@ -281,6 +283,14 @@ export async function executeBrowserAction(
         throw new VintedListingReadError('result');
       }
     }
+    case 'deleteListing':
+      return parseVintedListingDeleteResult(
+        await required(browser.deleteListing)(
+          identifier(argumentsList[0]),
+          identifier(argumentsList[1]),
+          authorize,
+        ),
+      );
     case 'updateListingContent':
       return required(browser.updateListingContent)(
         identifier(argumentsList[0]),
@@ -956,6 +966,10 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         throw new VintedListingReadError('result');
       }
     },
+    deleteListing: async (accountId, externalId, authorize) =>
+      parseVintedListingDeleteResult(
+        await run('deleteListing', [accountId, externalId], authorize),
+      ),
     updateListingContent: async (accountId, externalId, base, desired, authorize, photos) =>
       (await run(
         'updateListingContent',
@@ -1099,6 +1113,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     if (typeof value['categoryId'] !== 'number') throw new Error('Ungültige Vinted-Kategorie');
     return parseVintedListingCategoryFields(input, value['categoryId']);
   }
+  if (name === 'deleteListing') return parseVintedListingDeleteResult(input);
   if (name === 'readListingContent') {
     const value = commandRecord(input);
     return parseVintedListingCurrentContent(

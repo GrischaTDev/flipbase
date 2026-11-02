@@ -96,7 +96,11 @@ test('Galerie prüft Telefon und Desktop sowie Fokus und Fehler, ohne fachfremde
     'vinted-listing-edge-cases.spec.ts',
     'vinted-workspace-ui.spec.ts',
   ]);
-  assert.ok(selected.length > 0 && selected.length < 29);
+  const gallery = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
+  const workspace = await listTests('playwright.config.ts', ['vinted-workspace-ui.spec.ts']);
+  assert.ok(
+    selected.length > 0 && selected.length < gallery.selected.length + workspace.selected.length,
+  );
   assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
   assert.ok(selected.some(([, title]) => title.includes('Bildfehlerrahmen')));
   assert.ok(selected.some(([, title]) => title.includes('390px dark')));
@@ -176,7 +180,17 @@ test('direkt geänderte Galerie hebt die Variantenreduktion vollständig auf', a
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
   assert.deepEqual(keys(selected), keys(complete.selected));
-  assert.equal(selected.length, 27);
+  assert.equal(selected.length, 31);
+  for (const width of [390, 1440])
+    for (const theme of ['light', 'dark'])
+      assert.equal(
+        selected.filter(([, title]) =>
+          title.includes(
+            `Inserat löschen wahrt Bestätigung und zeigt den Fortschritt bei ${width}px ${theme}`,
+          ),
+        ).length,
+        1,
+      );
 });
 
 test('gelöschte und umbenannte Browserdateien führen zu einer konservativen echten Auswahl', async () => {
@@ -220,7 +234,7 @@ for (const { name, paths, full } of [
     assert.equal(plan.full, full);
     if (!full) {
       assert.equal(plan.browserFiles.length, 15);
-      assert.equal(complete.length, 227);
+      assert.equal(complete.length, 231);
     }
     const grouped = [];
     for (const { project, shard } of buildBrowserMatrix(plan)) {

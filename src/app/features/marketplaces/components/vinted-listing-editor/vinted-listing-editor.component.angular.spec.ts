@@ -779,17 +779,22 @@ describe('Vinted-Inserateditor', () => {
   });
 });
 
-it('führt beim Weitergehen noch keine Speicherung aus und erhält die Artikeldetails', async () => {
+it('erhält alle übrigen Artikeldaten bei Text- und Bildoptionen ohne vorzeitiges Speichern', async () => {
   const f = setup();
   await settle();
   publicationInput(f);
-  f.component.nextRelistStep();
-  expect(f.component.relistStep()).toBe('options');
+  const before = f.component.form.getRawValue();
+  f.component.form.controls.title.setValue('Neuer Titel');
+  f.component.form.controls.description.setValue('Neue Beschreibung');
+  f.component.photoFilter.set('lighter');
+  expect(f.component.form.getRawValue()).toEqual({
+    ...before,
+    title: 'Neuer Titel',
+    description: 'Neue Beschreibung',
+  });
   expect(f.component.photoSize()).toBeNull();
   expect(f.create).not.toHaveBeenCalled();
   expect(f.save).not.toHaveBeenCalled();
-  f.component.previousRelistStep();
-  expect(f.component.form.controls.title.value).toBe('Meine Jacke');
 });
 it('übergibt verzögertes Relisten ohne vorab berechneten Veröffentlichungstermin', async () => {
   const f = setup();

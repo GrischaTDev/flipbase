@@ -113,6 +113,11 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   ): Promise<
     import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCurrentContent
   >;
+  deleteListing?(
+    accountId: string,
+    externalId: string,
+    authorize: () => Promise<void>,
+  ): Promise<import('./vinted-browser-listing-delete.ts').VintedListingDeleteResult>;
   /**
    * Ändert ein eigenes Inserat ohne Kategorie; bestätigt nur nach erneutem Abruf. Mit `photos`
    * werden vorhandene Fotos entfernt oder umsortiert, neue Fotos sind nicht möglich.

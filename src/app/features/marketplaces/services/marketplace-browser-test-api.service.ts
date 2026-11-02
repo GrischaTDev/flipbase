@@ -701,6 +701,42 @@ export class MarketplaceBrowserTestApiService {
     return parseVintedListingCategoryFields(body.fields, categoryId);
   }
 
+  async deleteListing(scope: AccountScope, entryId: string, accessToken: string): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/listings/delete',
+        {
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+          entryId,
+        },
+        accessToken,
+      );
+    } catch {
+      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok) throw new Error('Das Inserat konnte nicht gelöscht werden.');
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
+    }
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).some((key) => !['status', 'cleanup', 'cache'].includes(key)) ||
+      !('status' in body) ||
+      body.status !== 'confirmed' ||
+      ('cleanup' in body && body.cleanup !== 'pending') ||
+      ('cache' in body && body.cache !== 'pending')
+    )
+      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
+  }
+
   /**
    * Vollständiger Iststand eines bestehenden Inserats. Welches Vinted-Inserat zum Eintrag gehört,
    * bestimmt allein der Server; die App kennt dessen Vinted-Kennung nicht und prüft das Konto.
