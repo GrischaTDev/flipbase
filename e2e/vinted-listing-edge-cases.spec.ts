@@ -1020,6 +1020,7 @@ for (const width of [390, 1440])
           title: 'Meine Schuhe',
           text: 'Sehr gut erhalten.',
           textState: 'loaded',
+          imageUrls: ['https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg'],
         });
         await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
         const original = Buffer.from(
@@ -1046,9 +1047,20 @@ for (const width of [390, 1440])
           externalAccountId: '100',
           photoUrls: ['https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg'],
         };
-        await page.route('**/marketplace-browser/listings/content/read', (route) =>
-          route.fulfill({ json: { listing } }),
-        );
+        let providerReads = 0;
+        let providerAvailable = false;
+        let releaseProvider!: () => void;
+        const blockedProvider = new Promise<void>((resolve) => {
+          releaseProvider = resolve;
+        });
+        await page.route('**/marketplace-browser/listings/content/read', async (route) => {
+          providerReads++;
+          if (!providerAvailable) {
+            await blockedProvider;
+            return route.fulfill({ json: { listing: null } });
+          }
+          return route.fulfill({ json: { listing } });
+        });
         await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
           route.fulfill({
             contentType: 'image/jpeg',
@@ -1104,7 +1116,7 @@ for (const width of [390, 1440])
         await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
         const editor = page.locator('app-vinted-listing-editor');
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-          listing.content.title,
+          'Meine Schuhe',
         );
         await expect(editor.locator('app-card')).toHaveCount(0);
         await expect(
@@ -1115,7 +1127,8 @@ for (const width of [390, 1440])
         ).toBeVisible();
         await expect(
           editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
-        ).toHaveValue(listing.content.description);
+        ).toHaveValue('Sehr gut erhalten.');
+        expect(providerReads).toBe(0);
         await expect(editor.getByLabel('Marke', { exact: true })).toHaveCount(0);
         await expect(
           editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }),
@@ -1140,6 +1153,28 @@ for (const width of [390, 1440])
           `vinted-relist-details-${width}-${theme}`,
           page.locator('[data-modal-surface]'),
         );
+        // Ein nicht erreichbarer Anbieter darf erst nach dem ausdrücklichen Auftrag stören.
+        await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Mein neuer Titel');
+        await page
+          .getByRole('dialog', { name: 'Artikel relisten', exact: true })
+          .locator('footer')
+          .getByRole('button', { name: 'Relisten', exact: true })
+          .click();
+        await expect.poll(() => providerReads).toBe(1);
+        await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+        releaseProvider();
+        await expect(editor.locator('app-notice-banner')).toBeVisible();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          'Mein neuer Titel',
+        );
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        providerAvailable = true;
+        await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          'Meine Schuhe',
+        );
+        expect(providerReads).toBe(1);
         await expect(
           editor.getByRole('combobox', { name: 'Auflösung', exact: true }),
         ).toContainText('Keine Änderung');
@@ -1168,7 +1203,7 @@ for (const width of [390, 1440])
         await page.getByRole('option', { name: 'Relisting planen', exact: true }).click();
         await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-          listing.content.title,
+          'Meine Schuhe',
         );
         await page.evaluate(axe.source);
         expect(
@@ -1256,9 +1291,17 @@ for (const width of [390, 1440])
             body: original,
           }),
         );
+        // Der reguläre Flipbase-Abgleich legt Originaladressen und vollständige Details lokal ab.
+        await page.reload();
+        const readsBeforeCachedRelist = providerReads;
         await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-          listing.content.title,
+          'Meine Schuhe',
+        );
+        expect(providerReads).toBe(readsBeforeCachedRelist);
+        await expect(editor.locator('app-vinted-listing-photo-preview img')).toHaveAttribute(
+          'src',
+          /storage\/v1\/object\/sign\/marketplace-listing-media\//,
         );
         await expect(editor.locator('app-vinted-listing-photo-preview img')).toHaveJSProperty(
           'naturalHeight',

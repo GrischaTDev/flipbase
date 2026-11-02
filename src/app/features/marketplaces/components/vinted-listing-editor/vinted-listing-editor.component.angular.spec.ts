@@ -2,7 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -18,6 +19,22 @@ import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-lis
 import { buildVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
+import { parseMarketplacePage } from '../../models/marketplace-response';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
+import { listingCurrentContentFixture } from '../../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
+import { prepareFlipbaseVintedListingContent } from '../../models/flipbase-vinted-listing-form';
+
+let restoreBindings: (() => void) | undefined;
+beforeAll(async () => {
+  restoreBindings = await prepareMarketplaceRendering([
+    {
+      type: VintedListingEditorComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-editor/vinted-listing-editor.component.ts',
+    },
+  ]);
+});
+afterAll(() => restoreBindings?.());
 
 const account = {
   marketplace: 'vinted',
@@ -115,9 +132,10 @@ function publicationInput(f: ReturnType<typeof setup>) {
   f.component.openFieldSelection();
   f.component.selectFields(selection(), true);
 }
-function setup(query: Record<string, string> = {}) {
+function setup(query: Record<string, string> = {}, source?: VintedListingEditorSource) {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
+  const readListingContent = vi.fn().mockRejectedValue(new Error('Anbieter nicht erreichbar'));
   const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
     ...draft,
     content,
@@ -144,6 +162,8 @@ function setup(query: Record<string, string> = {}) {
           canManage: signal(true),
           selectedConnection: signal(null),
           connections,
+          readListingContent,
+          cachedListingDescription: vi.fn().mockReturnValue(null),
         },
       },
       {
@@ -169,7 +189,19 @@ function setup(query: Record<string, string> = {}) {
       },
       {
         provide: VintedListingDraftService,
-        useValue: { create, save, load: vi.fn().mockResolvedValue(draft) },
+        useValue: {
+          create,
+          createRelisting: vi.fn(
+            async (_workspace, content, connectionId, _request, externalId) => ({
+              ...draft,
+              content,
+              connectionId,
+              relistExternalId: externalId,
+            }),
+          ),
+          save,
+          load: vi.fn().mockResolvedValue(draft),
+        },
       },
       {
         provide: VintedListingImageService,
@@ -186,9 +218,18 @@ function setup(query: Record<string, string> = {}) {
       },
     ],
   });
-  const component = TestBed.runInInjectionContext(() => new VintedListingEditorComponent());
+  const fixture = source ? TestBed.createComponent(VintedListingEditorComponent) : null;
+  if (fixture && source) {
+    fixture.componentRef.setInput('source', source);
+    fixture.detectChanges();
+  }
+  const component =
+    fixture?.componentInstance ??
+    TestBed.runInInjectionContext(() => new VintedListingEditorComponent());
   return {
     component,
+    fixture,
+    readListingContent,
     create,
     save,
     workspace,
@@ -199,6 +240,175 @@ function setup(query: Record<string, string> = {}) {
 afterEach(() => {
   TestBed.resetTestingModule();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+function localRelisting(
+  description: string | null = 'Lokal gespeicherter Text',
+): VintedListingEditorSource {
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          workspaceId: 'workspace-a',
+          connectionId: 'account-a',
+          id: 'local-item',
+          externalId: '98765',
+          title: 'Lokal gespeicherter Titel',
+          text: description,
+          textState: description === null ? 'not_loaded' : 'loaded',
+          price: 39.9,
+          currency: 'EUR',
+          imageUrl: 'https://images.example.test/original.jpg',
+          imageUrls: ['https://images.example.test/original.jpg'],
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    { workspaceId: 'workspace-a', connectionId: 'account-a' },
+  ).items[0];
+  return { entry, mode: 'relist' };
+}
+
+describe('Relisten aus der lokalen Lesekopie', () => {
+  it('öffnet auch bei nicht erreichbarem Anbieter sofort mit lokalen Texten und Fotos, ohne Abruf oder Prüfung', async () => {
+    const request = vi.fn();
+    vi.stubGlobal('fetch', request);
+    const f = setup({}, localRelisting());
+    await settle();
+    f.fixture!.detectChanges();
+    expect(f.component.loading()).toBe(false);
+    expect(f.component.loadError()).toBeNull();
+    expect(f.component.form.controls.title.value).toBe('Lokal gespeicherter Titel');
+    expect(f.component.form.controls.description.value).toBe('Lokal gespeicherter Text');
+    expect(f.component.images()[0]).toMatchObject({
+      file: null,
+      previewUrl: 'https://images.example.test/original.jpg',
+    });
+    expect(f.readListingContent).not.toHaveBeenCalled();
+    expect(TestBed.inject(VintedListingOriginalPhotoService).read).not.toHaveBeenCalled();
+    expect(TestBed.inject(VintedCategoryService).readSnapshot).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+    expect(f.create).not.toHaveBeenCalled();
+    expect(f.save).not.toHaveBeenCalled();
+  });
+
+  it('beginnt den Anbieterabruf erst mit Relisten, zeigt die Aktion und erhält währenddessen geänderte Texte', async () => {
+    const f = setup({}, localRelisting());
+    await settle();
+    const open = vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+    let finish!: (value: ReturnType<typeof listingCurrentContentFixture>) => void;
+    f.readListingContent.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: async () => new Blob(['original'], { type: 'image/jpeg' }),
+      }),
+    );
+    const preparing = f.component.submitRelisting();
+    expect(f.component.preparingSource()).toBe(true);
+    expect(TestBed.inject(VintedListingOperationStore).entries()[0]).toMatchObject({
+      kind: 'relist',
+      state: 'running',
+    });
+    f.component.form.controls.title.setValue('Während der Aktion geändert');
+    f.component.form.controls.description.setValue('Meine lokale Änderung');
+    finish(listingCurrentContentFixture());
+    await preparing;
+    expect(f.readListingContent).toHaveBeenCalledOnce();
+    expect(open).toHaveBeenCalledOnce();
+    expect(f.component.content()).toMatchObject({
+      ...prepareFlipbaseVintedListingContent(listingCurrentContentFixture().content),
+      title: 'Während der Aktion geändert',
+      description: 'Meine lokale Änderung',
+    });
+    expect(f.component.images()[0].file?.size).toBe(8);
+    expect(f.component.preparingSource()).toBe(false);
+    expect(TestBed.inject(VintedListingOperationStore).entries()).toEqual([]);
+    expect(TestBed.inject(VintedCategoryService).readSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('verwendet bereits gespeicherte vollständige Artikeldaten auch für die Aktion ohne neuen Vinted-Abruf', async () => {
+    const source = localRelisting();
+    const stored = listingCurrentContentFixture().content;
+    const f = setup({}, { ...source, entry: { ...source.entry, listingContent: stored } });
+    await settle();
+    vi.mocked(f.imageApi.upload).mockImplementation(async (current) => ({
+      ...current,
+      images: [
+        {
+          id: '2',
+          storagePath: 'workspace-a/1/2.jpg',
+          fileName: 'original.jpg',
+          mimeType: 'image/jpeg',
+          byteSize: 8,
+        },
+      ],
+    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: async () => new Blob(['original'], { type: 'image/jpeg' }),
+      }),
+    );
+    await f.component.submitRelisting();
+    expect(f.readListingContent).not.toHaveBeenCalled();
+    expect(f.component.error()).toBeNull();
+    expect(f.component.publication()?.draft.relistExternalId).toBe('98765');
+    expect(f.component.publication()?.draft.content.priceCents).toBe(3990);
+    expect(TestBed.inject(VintedListingDraftService).createRelisting).toHaveBeenCalledOnce();
+    expect(f.imageApi.upload).toHaveBeenCalledOnce();
+    expect(f.component.content()).toMatchObject({
+      ...prepareFlipbaseVintedListingContent(stored),
+      title: source.entry.title,
+      description: source.entry.text,
+      priceCents: 3990,
+    });
+    expect(stored).toEqual(listingCurrentContentFixture().content);
+  });
+
+  it.each([false, true])(
+    'behandelt fehlenden lokalen Beschreibungstext nicht als unbeabsichtigtes Leeren (bewusst geleert: %s)',
+    async (edited) => {
+      const f = setup({}, localRelisting(null));
+      await settle();
+      vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+      f.readListingContent.mockResolvedValueOnce(listingCurrentContentFixture());
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          blob: async () => new Blob(['original'], { type: 'image/jpeg' }),
+        }),
+      );
+      if (edited) f.component.form.controls.description.markAsDirty();
+      await f.component.submitRelisting();
+      expect(f.component.form.controls.description.value).toBe(
+        edited ? '' : listingCurrentContentFixture().content.description,
+      );
+    },
+  );
+
+  it('behält bei einem Fehler nach der ausdrücklichen Aktion das Formular und meldet den Fehler in den laufenden Aktionen', async () => {
+    const f = setup({}, localRelisting());
+    await settle();
+    await f.component.submitRelisting();
+    expect(f.component.loadError()).toBeNull();
+    expect(f.component.error()).toBe('Anbieter nicht erreichbar');
+    expect(f.component.form.controls.title.value).toBe('Lokal gespeicherter Titel');
+    expect(TestBed.inject(VintedListingOperationStore).entries()[0]).toMatchObject({
+      kind: 'relist',
+      state: 'error',
+      message: 'Anbieter nicht erreichbar',
+    });
+  });
 });
 describe('Vinted-Inserateditor', () => {
   it('sperrt die Prüfungsschaltfläche während eines langsamen Kategorienabrufs', async () => {

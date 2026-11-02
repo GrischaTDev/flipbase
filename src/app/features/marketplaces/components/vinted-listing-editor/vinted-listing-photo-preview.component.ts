@@ -41,6 +41,17 @@ export class VintedListingPhotoPreviewComponent {
         this.preview.set(null);
         this.error.set(null);
         this.loading.set(!!image);
+        if (
+          image &&
+          options.resize === null &&
+          !options.crops[image.key] &&
+          (!options.filter || options.filter === 'none') &&
+          (!options.border || options.border === 'none')
+        ) {
+          this.preview.set(image.previewUrl);
+          this.loading.set(false);
+          return;
+        }
         if (image) void this.render(image, options, generation);
       });
     });

@@ -5,7 +5,7 @@ import type { MarketplaceEntry } from '../models/marketplace-read.models';
 
 export interface VintedListingOperation {
   readonly key: string;
-  readonly kind: 'price' | 'delete';
+  readonly kind: 'price' | 'delete' | 'relist';
   readonly userId: string;
   readonly workspaceId: string;
   readonly connectionId: string;
@@ -52,22 +52,33 @@ export class VintedListingOperationStore {
     return this.run(entry, 'delete', remove);
   }
 
+  async prepareRelisting(entry: MarketplaceEntry, prepare: () => Promise<void>): Promise<void> {
+    return this.run(entry, 'relist', prepare, true);
+  }
+
+  label(kind: VintedListingOperation['kind']): string {
+    return kind === 'relist' ? 'Relisting' : kind === 'delete' ? 'Löschung' : 'Preisänderung';
+  }
+
   runningLabel(entry: MarketplaceEntry): string {
-    return this.entries().some(
+    const action = this.entries().find(
       (action) =>
         action.entryId === entry.id &&
         action.connectionId === entry.connectionId &&
-        action.state === 'running' &&
-        action.kind === 'delete',
-    )
-      ? 'Inserat wird gelöscht'
-      : 'Preis wird geändert';
+        action.state === 'running',
+    );
+    return action?.kind === 'relist'
+      ? 'Relisting wird vorbereitet'
+      : action?.kind === 'delete'
+        ? 'Inserat wird gelöscht'
+        : 'Preis wird geändert';
   }
 
   private async run(
     entry: MarketplaceEntry,
-    kind: 'price' | 'delete',
+    kind: VintedListingOperation['kind'],
     action: () => Promise<void>,
+    removeWhenPrepared = false,
   ): Promise<void> {
     const userId = this.auth.currentUser()?.id;
     if (
@@ -88,11 +99,20 @@ export class VintedListingOperationStore {
         entryId: entry.id,
         title: entry.title,
         state: 'running',
-        message: kind === 'delete' ? 'Inserat wird gelöscht …' : 'Preis wird geändert …',
+        message:
+          kind === 'relist'
+            ? 'Relisting wird vorbereitet …'
+            : kind === 'delete'
+              ? 'Inserat wird gelöscht …'
+              : 'Preis wird geändert …',
       },
     ]);
     try {
       await action();
+      if (removeWhenPrepared) {
+        this.actions.update((actions) => actions.filter((action) => action.key !== key));
+        return;
+      }
       this.finish(
         key,
         'success',
