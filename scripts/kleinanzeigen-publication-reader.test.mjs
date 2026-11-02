@@ -11,7 +11,7 @@ for (const file of [
 ])
   vm.runInContext(readFileSync('tools/flipbase-extension/' + file + '.js', 'utf8'), context);
 const reader = context.FlipbaseKleinanzeigenPublicationReader;
-function form() {
+function form(extraValues = ['0:204', '0:914', '0:62', '0:488']) {
   return new JSDOM(
     '<script type="application/json" id="astroSharedData">' +
       JSON.stringify({
@@ -19,7 +19,7 @@ function form() {
         userProfile: { userId: 88, commercialUser: false, contactName: 'Privat' },
       }) +
       '</script><main><input id="ad-title" maxlength="65"><textarea id="ad-description" maxlength="4000"></textarea><input id="ad-price-amount" maxlength="8"><input id="ad-zip-code" maxlength="5"><div id="ad-category-path">Mode &amp; Beauty &gt; Herrenbekleidung</div><label for="kleidung_herren.art">Art</label><button role="combobox" id="kleidung_herren.art" aria-required="false">Shirts</button><label for="kleidung_herren.groesse">Größe</label><button role="combobox" id="kleidung_herren.groesse" aria-required="false">M</button><input type="hidden" name="attributeMap[kleidung_herren.condition]"><button aria-haspopup="dialog">Zustand auswählenGut</button><input type="radio" id="ad-shipping-enabled-yes"><input type="radio" id="ad-shipping-enabled-no"><button id="ad-shipping-options">Versandmethoden auswählen</button><input type="radio" id="ad-type-OFFER" checked><input type="radio" id="ad-buy-now-false" checked><input type="checkbox" id="ad-address-visibility"><input type="checkbox" id="ad-marketing-consent"><h3>Kostenpflichtige Optionen</h3>' +
-      ['0:204', '0:914', '0:62', '0:488']
+      extraValues
         .map(
           (value, i) =>
             '<div role="group"><input type="checkbox" name="articles" value="' +
@@ -53,6 +53,26 @@ test('a selected paid add-on or explicit charge takes precedence over the normal
       '<div role="alert">Für diese Anzeige fällt eine Gebühr von 1,99 € an.</div>',
     );
   assert.equal(reader.readFee(other, '88').state, 'paid');
+});
+
+test('recognizes the measured shoe add-ons and blocks every selected paid option', () => {
+  const doc = form(['0:202', '0:912', '0:60', '0:486']);
+  doc.getElementById('ad-category-path').textContent = 'Mode & Beauty > Herrenschuhe';
+  assert.equal(reader.readFee(doc, '88').state, 'free');
+  for (const extra of doc.querySelectorAll('input[name="articles"]')) {
+    extra.checked = true;
+    assert.equal(reader.readFee(doc, '88').state, 'paid');
+    extra.checked = false;
+  }
+});
+
+test('unknown, mixed and duplicate add-on values cannot pass as a measured free form', () => {
+  for (const values of [
+    ['0:202', '0:912', '0:60', '0:999'],
+    ['0:202', '0:914', '0:60', '0:486'],
+    ['0:202', '0:912', '0:60', '0:60'],
+  ])
+    assert.equal(reader.readFee(form(values), '88').state, 'unknown');
 });
 for (const change of [
   (doc) => doc.querySelector('input[name="articles"]').remove(),

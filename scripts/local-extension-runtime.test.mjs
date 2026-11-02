@@ -1966,7 +1966,7 @@ test('Manifest narrows application and provider access and keeps Kleinanzeigen a
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.12.0');
+  assert.equal(manifest.version, '1.12.1');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
