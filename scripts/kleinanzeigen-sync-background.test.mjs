@@ -46,6 +46,11 @@ function fixture(options = {}) {
   let providerVersion = 1;
   let visibleVersion = 1;
   let failFinish = !!options.failFinish;
+  let deleted = false;
+  let deleteClicks = 0;
+  let pendingReads = 0;
+  if (options.deletion)
+    stored.kleinanzeigen_local_installation.binding = { ...binding, canPublish: true };
   const chrome = {
     alarms: {
       get: async () => scheduledAlarm,
@@ -83,6 +88,21 @@ function fixture(options = {}) {
       },
       get: async (id) => {
         if (!tabs.has(id)) throw Error('closed');
+        if (pendingReads > 0) {
+          pendingReads--;
+          if (!pendingReads) {
+            const previous = { ...tabs.get(id) };
+            tabs.set(id, { id, url: previous.pendingUrl, status: 'complete' });
+            return previous;
+          }
+        }
+        return tabs.get(id);
+      },
+      update: async (id, patch) => {
+        if (patch.url) {
+          tabs.set(id, { ...tabs.get(id), pendingUrl: patch.url, status: 'complete' });
+          pendingReads = 2;
+        }
         return tabs.get(id);
       },
       reload: async (id) => {
@@ -93,6 +113,14 @@ function fixture(options = {}) {
         }
       },
       sendMessage: async (_id, message) => {
+        if (message.type === 'KLEINANZEIGEN_RELISTING_STEP' && message.action === 'remove') {
+          deleteClicks++;
+          deleted = !options.deleteRemains;
+          tabs.get(_id).url = 'https://www.kleinanzeigen.de/m-meine-anzeigen.html?actMsg=DEL_MSG';
+          throw Error(
+            'A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received',
+          );
+        }
         if (message.type === 'KLEINANZEIGEN_READ_ACCOUNT')
           return {
             success: true,
@@ -121,19 +149,21 @@ function fixture(options = {}) {
             success: true,
             result: {
               identity,
-              items: [
-                {
-                  externalId: options.duplicate ? '101' : String(100 + pageNumber),
-                  title: 'Anzeige ' + pageNumber + ' Version ' + visibleVersion,
-                  url:
-                    'https://www.kleinanzeigen.de/s-anzeige/test/' +
-                    (options.duplicate ? '101' : String(100 + pageNumber)) +
-                    '-160-1',
-                  publishedAt: null,
-                  publishedOn: options.publishedOn ?? null,
-                  state: 'active',
-                },
-              ],
+              items: deleted
+                ? []
+                : [
+                    {
+                      externalId: options.duplicate ? '101' : String(100 + pageNumber),
+                      title: 'Anzeige ' + pageNumber + ' Version ' + visibleVersion,
+                      url:
+                        'https://www.kleinanzeigen.de/s-anzeige/test/' +
+                        (options.duplicate ? '101' : String(100 + pageNumber)) +
+                        '-160-1',
+                      publishedAt: null,
+                      publishedOn: options.publishedOn ?? null,
+                      state: 'active',
+                    },
+                  ],
               pageCursor: 'page:' + pageNumber,
               nextCursor: options.multi && pageNumber === 1 ? 'page:2' : null,
               complete: !(options.multi && pageNumber === 1),
@@ -174,7 +204,7 @@ function fixture(options = {}) {
           connectionId: '12',
           generation: 1,
           externalAccountId: '123',
-          canPublish: false,
+          canPublish: options.deletion === true,
           expiresAt: binding.expiresAt,
         };
       else if (body.action === 'sync_claim')
@@ -236,6 +266,9 @@ function fixture(options = {}) {
     get listingReloads() {
       return listingReloads;
     },
+    get deleteClicks() {
+      return deleteClicks;
+    },
     stored,
     calls,
     tabs,
@@ -248,6 +281,27 @@ function fixture(options = {}) {
       }),
   };
 }
+
+for (const deleteRemains of [false, true])
+  test(
+    'confirms deletion across a pending canonical navigation without repeating the click: ' +
+      deleteRemains,
+    async () => {
+      const f = fixture({ deletion: true, deleteRemains });
+      const response = await f.send({
+        type: 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING',
+        requestId: 'delete-nav',
+        workspaceId,
+        connectionId: '12',
+        generation: 1,
+        externalId: '101',
+        title: 'Anzeige 1 Version 1',
+      });
+      assert.equal(response.success, !deleteRemains, JSON.stringify(response));
+      assert.equal(f.deleteClicks, 1);
+      if (deleteRemains) assert.match(response.error, /Löschung/);
+    },
+  );
 test('uses the confirmed local publication day only for the exact account and keeps the provider day', async () => {
   for (const publishedOn of [null, '2026-10-30']) {
     const f = fixture({ publishedOn });

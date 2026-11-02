@@ -1,6 +1,6 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.2
+## Aktuell: Version 1.14.3
 
 Vor erneutem Inserieren und Löschen prüft Flipbase die tatsächlich geladene
 Erweiterung. Veraltete oder nicht erreichbare Versionen stoppen vor der Aktion.
@@ -8,6 +8,12 @@ Erweiterung. Veraltete oder nicht erreichbare Versionen stoppen vor der Aktion.
 Kann eine alte oder deaktivierte Erweiterung den Button noch nicht bedienen,
 öffne `chrome://extensions` über die Adresszeile. Lade nach der Aktualisierung
 auch die Flipbase-Seite neu.
+
+Nach dem Löschen wartet die Bestandsprüfung eine vorgemerkte Navigation ab und
+erkennt die eigene Anzeigenseite auch mit Löschbestätigung in der URL. Eine
+Neufassung wird weiterhin erst nach frischem, vollständigem Nachweis der
+Abwesenheit veröffentlicht; der Löschklick wird bei einer verlorenen Antwort
+nicht wiederholt.
 
 Kontoprüfung und Kontingentabruf verwenden den vorhandenen Anzeigen-Arbeitstab;
 es wird kein zusätzlicher Einstellungen-Tab geöffnet. Nach einem Erweiterungsupdate

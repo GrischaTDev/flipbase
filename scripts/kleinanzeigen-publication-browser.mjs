@@ -573,6 +573,36 @@ try {
   console.log(
     'Lösch-Navigation: vollständige Nachprüfung ohne zweiten Klick; erhaltene Anzeige wird nicht als gelöscht bestätigt. Keine Einstellungen-Tabs.',
   );
+  for (const deleteRemains of [false, true]) {
+    await worker.evaluate(async () => {
+      const database = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('flipbase_kleinanzeigen_relisting', 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      await new Promise((resolve, reject) => {
+        const transaction = database.transaction('attempts', 'readwrite');
+        transaction.objectStore('attempts').clear();
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+      });
+      database.close();
+    });
+    provider.reset({ used: 8, relisting: true, deleteNavigation: true, deleteRemains });
+    await provider.prepare(worker);
+    const result = await relist();
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.result.outcome === 'confirmed', !deleteRemains, JSON.stringify(result));
+    assert.equal(provider.deletes, 1, 'Auch beim Neuinserieren nur ein Löschklick.');
+    assert.equal(provider.submits, deleteRemains ? 0 : 1);
+    if (!deleteRemains) {
+      assert.equal(provider.uploads, 1);
+      assert.equal(result.result.newExternalId, '1001');
+    }
+  }
+  console.log(
+    'Neuinserieren nach Löschweiterleitung: vollständige neue Anzeige mit Originalbild; erhaltene Altanzeige verhindert Veröffentlichung.',
+  );
   // Manueller Abschluss nach einem berechtigten Gebührenstopp, anschließend weitere Navigation.
   await worker.evaluate(async () => {
     const database = await new Promise((resolve, reject) => {

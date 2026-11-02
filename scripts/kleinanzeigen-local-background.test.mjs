@@ -41,7 +41,7 @@ function fixture(options = {}) {
     },
     runtime: {
       id: extensionId,
-      getManifest: () => ({ version: '1.14.2' }),
+      getManifest: () => ({ version: '1.14.3' }),
       getURL: (path) => 'chrome-extension://' + extensionId + '/' + path,
       onMessage: { addListener: (fn) => listeners.push(fn) },
     },
@@ -153,7 +153,7 @@ function fixture(options = {}) {
 test('checks the loaded worker version and opens only its own extension settings from the app', async () => {
   const f = fixture();
   const version = await f.send({ type: 'FLIPBASE_KLEINANZEIGEN_VERSION', requestId: 'version' });
-  assert.equal(version.result.version, '1.14.2');
+  assert.equal(version.result.version, '1.14.3');
   assert.equal(f.tabsCreated, 0);
   const opened = await f.send({
     type: 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS',
