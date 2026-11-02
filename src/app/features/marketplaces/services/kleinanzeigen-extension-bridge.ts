@@ -74,7 +74,7 @@ export class KleinanzeigenExtensionBridge {
     if (!this.installedVersion || !this.supportedVersion(this.installedVersion)) {
       this.updateRequired.set(true);
       throw new Error(
-        'Die Flipbase-Erweiterung ist veraltet. Aktualisiere sie auf Version 1.14.0 und lade Flipbase neu.',
+        'Die Flipbase-Erweiterung ist veraltet. Aktualisiere sie auf Version 1.14.1 und lade Flipbase neu.',
       );
     }
     this.updateRequired.set(false);
@@ -91,8 +91,9 @@ export class KleinanzeigenExtensionBridge {
     const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(version);
     if (!match) return false;
     const major = Number(match[1]),
-      minor = Number(match[2]);
-    return major > 1 || (major === 1 && minor >= 14);
+      minor = Number(match[2]),
+      patch = Number(match[3]);
+    return major > 1 || (major === 1 && (minor > 14 || (minor === 14 && patch >= 1)));
   }
   private destroyed = false;
   private checkTimer: ReturnType<typeof setTimeout> | undefined;
@@ -278,7 +279,7 @@ export class KleinanzeigenExtensionBridge {
   ): Promise<void> {
     if (!this.handoffAvailable())
       throw new Error(
-        'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.0 und lade die Seite neu.',
+        'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.1 und lade die Seite neu.',
       );
     const result = await this.request(
       'OPEN_LISTING',
@@ -309,7 +310,7 @@ export class KleinanzeigenExtensionBridge {
   ): Promise<KleinanzeigenRelistingResult> {
     if (!this.relistingAvailable())
       throw new Error(
-        'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.0 und lade die Seite neu.',
+        'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.1 und lade die Seite neu.',
       );
     const result = parseKleinanzeigenRelistingResult(
       await this.request(
@@ -338,7 +339,7 @@ export class KleinanzeigenExtensionBridge {
   ): Promise<void> {
     if (!this.deletionAvailable())
       throw new Error(
-        'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.0 und lade die Seite neu.',
+        'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.1 und lade die Seite neu.',
       );
     const result = await this.request('DELETE_LISTING', { ...scope, externalId, title }, 180000);
     if (

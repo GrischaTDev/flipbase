@@ -109,6 +109,12 @@ export function kleinanzeigenRelistingMessage(result: KleinanzeigenRelistingResu
 export function kleinanzeigenRelistingError(error: unknown): string {
   if (!(error instanceof Error))
     return 'Der Vorgang konnte nicht bestätigt werden. Prüfe seinen Status im ursprünglichen Browserprofil.';
+  if (
+    /message (?:channel|port) closed|asynchronous response|receiving end does not exist|extension context invalidated|could not establish connection|disconnected port/iu.test(
+      error.message,
+    )
+  )
+    return 'Die Verbindung zur Erweiterung wurde unterbrochen. Prüfe den Status Deiner Anzeige bei Kleinanzeigen, bevor Du die Aktion erneut startest.';
   if (['account_changed', 'grant_changed', 'access_revoked'].includes(error.message))
     return 'Browserkonto oder Freigabe hat sich geändert. Prüfe Deine Kleinanzeigen-Verbindung.';
   if (error.message === 'images_incomplete')

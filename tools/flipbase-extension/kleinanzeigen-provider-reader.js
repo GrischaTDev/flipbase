@@ -33,9 +33,9 @@
       return null;
     return { externalAccountId: id, displayName: profile.contactName.trim(), accountType };
   }
-  function pageIdentity(doc, path) {
+  function pageIdentity(doc, path, address = doc.URL) {
     try {
-      const url = new URL(doc.URL);
+      const url = new URL(address);
       if (
         url.protocol !== 'https:' ||
         !HOSTS.has(url.hostname) ||
@@ -74,8 +74,8 @@
       return null;
     }
   }
-  function readQuota(doc, observedAt) {
-    const identity = pageIdentity(doc, '/m-einstellungen.html');
+  function readQuota(doc, observedAt, address = doc.URL) {
+    const identity = pageIdentity(doc, '/m-einstellungen.html', address);
     if (!identity || typeof observedAt !== 'string' || !Number.isFinite(Date.parse(observedAt)))
       return null;
     const matches = Array.from(

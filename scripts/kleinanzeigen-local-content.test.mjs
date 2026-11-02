@@ -218,3 +218,65 @@ test('unavailable details keep a valid own-listing snapshot and unknown date', a
   assert.equal(reply.success, true);
   assert.equal(reply.result.items[0].publishedOn, null);
 });
+
+for (const variant of ['valid', 'foreign-account', 'redirect', 'missing-quota']) {
+  test('reads fresh account without a settings tab: ' + variant, async () => {
+    const requests = [];
+    const f = fixture({
+      publications: true,
+      stale: true,
+      detailFetch: async (address, options) => {
+        requests.push({ address, options });
+        return {
+          ok: true,
+          url: variant === 'redirect' ? 'https://elsewhere.test/m-einstellungen.html' : address,
+          headers: new Headers({ 'content-type': 'text/html' }),
+          text: async () =>
+            '<script type="application/json" id="astroSharedData">' +
+            JSON.stringify({
+              user: { userId: variant === 'foreign-account' ? 999 : 123, accountType: 'PRIVATE' },
+              userProfile: {
+                userId: variant === 'foreign-account' ? 999 : 123,
+                contactName: 'Testkonto',
+                commercialUser: false,
+              },
+            }) +
+            '</script><main>' +
+            (variant === 'missing-quota'
+              ? ''
+              : 'Du hast in den letzten 30 Tagen 8 Anzeigen aufgegeben.') +
+            '</main>',
+        };
+      },
+    });
+    const reply = await new Promise((resolve) => {
+      assert.equal(
+        f.listener(
+          {
+            type: 'KLEINANZEIGEN_READ_ACCOUNT',
+            minimumDocumentTime: f.now - 100,
+            requireQuota: false,
+          },
+          { id: extensionId },
+          resolve,
+        ),
+        true,
+      );
+    });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].address, 'https://www.kleinanzeigen.de/m-einstellungen.html');
+    assert.equal(requests[0].options.cache, 'no-store');
+    assert.equal(requests[0].options.credentials, 'same-origin');
+    assert.equal(requests[0].options.redirect, 'error');
+    if (variant === 'redirect') assert.equal(reply.success, false);
+    else {
+      assert.equal(reply.success, true);
+      assert.equal(
+        reply.result.identity.externalAccountId,
+        variant === 'foreign-account' ? '999' : '123',
+      );
+      assert.equal(reply.result.quota?.used ?? null, variant === 'missing-quota' ? null : 8);
+    }
+    assert.equal(f.document.querySelectorAll('iframe').length, 0);
+  });
+}

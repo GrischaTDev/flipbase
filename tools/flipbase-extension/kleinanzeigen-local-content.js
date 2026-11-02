@@ -2,6 +2,52 @@
 (function initKleinanzeigenLocalContent() {
   const reader = globalThis.FlipbaseKleinanzeigenReader;
   if (!reader || window.top !== window) return;
+  let accountRead;
+  async function readAccount(requireQuota) {
+    const address = 'https://www.kleinanzeigen.de/m-einstellungen.html';
+    const response = await fetch(address, {
+      method: 'GET',
+      credentials: 'same-origin',
+      redirect: 'error',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (
+      !response.ok ||
+      response.url !== address ||
+      !response.headers.get('content-type')?.includes('text/html')
+    )
+      throw new Error('needs_login');
+    const html = await response.text();
+    if (html.length > 2000000) throw new Error('schema_changed');
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const identity = reader.pageIdentity(doc, '/m-einstellungen.html', address);
+    if (!identity) throw new Error('needs_login');
+    const quota = reader.readQuota(doc, new Date().toISOString(), address);
+    if (!requireQuota || quota) return { identity, quota };
+    // Manche Anbieterfassungen laden den Zähler erst im Browser nach. Kein eigener Tab,
+    // keine Formularaktion: denselben Ursprung kurz eingebettet laden und danach entfernen.
+    const frame = document.createElement('iframe');
+    frame.hidden = true;
+    frame.title = 'Kleinanzeigen-Kontingent prüfen';
+    frame.src = address;
+    document.body.append(frame);
+    try {
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline) {
+        const current = frame.contentDocument;
+        const freshIdentity = current && reader.pageIdentity(current, '/m-einstellungen.html');
+        if (freshIdentity && freshIdentity.externalAccountId !== identity.externalAccountId)
+          throw new Error('account_changed');
+        const freshQuota = current && reader.readQuota(current, new Date().toISOString());
+        if (freshIdentity && freshQuota) return { identity: freshIdentity, quota: freshQuota };
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return { identity, quota: null };
+    } finally {
+      frame.remove();
+    }
+  }
   async function enrichPublicationDays(page) {
     // Nur beim ausdruecklichen Abgleich: begrenzte parallele GETs, kein Formular und kein Upload.
     const signal = AbortSignal.timeout(8000);
@@ -64,10 +110,31 @@
       !Number.isFinite(minimum) ||
       minimum > now + 1000 ||
       minimum < now - maxAge ||
-      performance.timeOrigin < minimum
+      (performance.timeOrigin < minimum &&
+        !(
+          message.type === 'KLEINANZEIGEN_READ_ACCOUNT' &&
+          new URL(document.URL).pathname === '/m-meine-anzeigen.html'
+        ))
     )
       return stop('not_ready');
     if (message.type === 'KLEINANZEIGEN_READ_ACCOUNT') {
+      if (new URL(document.URL).pathname === '/m-meine-anzeigen.html') {
+        if (!accountRead)
+          accountRead = readAccount(message.requireQuota === true).finally(() => {
+            accountRead = undefined;
+          });
+        accountRead
+          .then((result) => respond({ success: true, result }))
+          .catch((error) =>
+            respond({
+              success: false,
+              errorCode: ['account_changed', 'needs_login'].includes(error.message)
+                ? error.message
+                : 'schema_changed',
+            }),
+          );
+        return true;
+      }
       const identity = reader.pageIdentity(document, '/m-einstellungen.html');
       if (!identity) return stop('needs_login');
       respond({
