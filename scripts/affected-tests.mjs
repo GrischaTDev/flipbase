@@ -84,6 +84,8 @@ const pwaPath =
   /^(?:public\/(?:sw\.js|manifest\.webmanifest|icons\/)|ngsw-config\.json|scripts\/(?:.*pwa.*|service-worker.*|app-startup.*)|e2e\/pwa-|src\/app\/(?:core\/services\/(?:pwa|push-navigation|web-push)|shared\/components\/(?:pwa-|push-navigation)|features\/purchases\/(?:components\/purchase-entry-form\/|guards\/purchase-entry|services\/(?:offline-purchase|purchase-buffer)|models\/offline-purchase|utils\/(?:offline-purchase|purchase-buffer))))/u;
 const implicitGlobalPath =
   /^(?:e2e\/global-setup\.ts|src\/app\/core\/services\/app-startup\.service\.ts)$/u;
+const marketplaceBrowserBoundary =
+  /^src\/app\/features\/marketplaces\/(?:services\/(?:marketplace-api\.service|marketplace-account\.store)\.ts|vinted-workspace\.component\.ts|components\/vinted-account-content\/vinted-account-content\.component\.ts)$/u;
 
 const isSpec = (file) => file.startsWith('src/') && file.endsWith('.spec.ts');
 const isBrowser = (file) =>
@@ -96,7 +98,7 @@ const isDocument = (file) =>
 const isLanding = (file) => /^(?:landing\/|scripts\/landing-)/u.test(file);
 const sorted = (values) => [...new Set(values)].sort();
 
-function browserSpecs(file, files) {
+function browserSpecs(file) {
   if (/^tools\/flipbase-extension\/kleinanzeigen-/u.test(file))
     return ['kleinanzeigen-accounts', 'vinted-kleinanzeigen-transfer'];
   if (
@@ -115,6 +117,7 @@ function browserSpecs(file, files) {
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (marketplaceBrowserBoundary.test(file)) return null;
     if (/ebay/u.test(file))
       return ['ebay-workspace', 'ebay-order-import', 'marketplace-accounts', 'settings-layout'];
     if (/vinted-action-overview/u.test(file)) return ['vinted-action-overview'];
@@ -122,6 +125,10 @@ function browserSpecs(file, files) {
     if (/vinted-provider-drafts|vinted-listing-copy/u.test(file))
       return ['vinted-listing-drafts', 'vinted-listing-edge-cases', 'vinted-workspace-ui'];
     if (/vinted-sales/u.test(file)) return ['vinted-sales'];
+    if (/vinted-listing-editor/u.test(file))
+      return ['vinted-listing-edge-cases', 'vinted-listing-drafts'];
+    if (/vinted-listing-(?:source|original-photo|operation)/u.test(file))
+      return ['vinted-listing-edge-cases'];
     if (/kleinanzeigen-(?:listing|publication|form|transfer)|listing-transfer/u.test(file))
       return ['kleinanzeigen-accounts', 'vinted-kleinanzeigen-transfer'];
     if (/kleinanzeigen/u.test(file)) return ['kleinanzeigen-accounts', 'marketplace-overview'];
@@ -130,12 +137,7 @@ function browserSpecs(file, files) {
     if (/vinted-listing-(?:detail|age)|vinted-listings|vinted-listing-clock/u.test(file))
       return ['vinted-listing-edge-cases', 'vinted-workspace-ui'];
     if (/listing/u.test(file))
-      return [
-        'vinted-listing-edge-cases',
-        'vinted-listing-drafts',
-        'listing-studio',
-        'vinted-workspace-ui',
-      ];
+      return ['vinted-listing-edge-cases', 'vinted-listing-drafts', 'vinted-workspace-ui'];
     if (/message|inbox|negotiation|offer|favorite/u.test(file))
       return [
         'vinted-inbox-experience',
@@ -143,22 +145,70 @@ function browserSpecs(file, files) {
         'vinted-negotiation',
         'vinted-action-overview',
       ];
-    return Object.keys(files)
-      .filter((path) => /^e2e\/(?:vinted|marketplace)[^/]*\.spec\.ts$/u.test(path))
-      .map((path) => posix.basename(path, '.spec.ts'));
+    return null;
   }
   return featureSpecs[feature] ?? [];
 }
 
+function isTypeOnlyModuleDeclaration(declaration) {
+  if (!declaration) return false;
+  if (ts.isImportDeclaration(declaration)) {
+    const clause = declaration.importClause;
+    return (
+      !!clause &&
+      (clause.isTypeOnly ||
+        (!clause.name &&
+          clause.namedBindings &&
+          ts.isNamedImports(clause.namedBindings) &&
+          clause.namedBindings.elements.length > 0 &&
+          clause.namedBindings.elements.every((element) => element.isTypeOnly)))
+    );
+  }
+  return (
+    ts.isExportDeclaration(declaration) &&
+    (declaration.isTypeOnly ||
+      (declaration.exportClause &&
+        ts.isNamedExports(declaration.exportClause) &&
+        declaration.exportClause.elements.length > 0 &&
+        declaration.exportClause.elements.every((element) => element.isTypeOnly)))
+  );
+}
+
+function isTypeOnlyReference(node) {
+  return (
+    !!(node.parent?.parent && ts.isImportTypeNode(node.parent.parent)) ||
+    isTypeOnlyModuleDeclaration(node.parent)
+  );
+}
+
+function isTypeOnlySource(file, content) {
+  if (!file.endsWith('.ts') || file.endsWith('.spec.ts') || typeof content !== 'string')
+    return false;
+  const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
+  return (
+    source.statements.length > 0 &&
+    source.statements.every(
+      (statement) =>
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        isTypeOnlyModuleDeclaration(statement),
+    )
+  );
+}
+
 /** Lokale Imports, Reexports und Angular-Ressourcen. Gelöschte Pfade bleiben auflösbar. */
-function reverseDependencies(files, changedPaths) {
+function reverseDependencies(files, changedPaths, runtimeOnly = false) {
   const available = new Set([...Object.keys(files), ...changedPaths]);
   const reverse = new Map();
   for (const [file, content] of Object.entries(files)) {
     if (typeof content !== 'string' || !/\.[cm]?[jt]s$/u.test(file)) continue;
     const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
     const visit = (node) => {
-      if (ts.isStringLiteralLike(node) && node.text.startsWith('.')) {
+      if (
+        ts.isStringLiteralLike(node) &&
+        node.text.startsWith('.') &&
+        (!runtimeOnly || !isTypeOnlyReference(node))
+      ) {
         const base = posix.normalize(posix.join(posix.dirname(file), node.text));
         const dependency = [
           base,
@@ -183,13 +233,17 @@ function reverseDependencies(files, changedPaths) {
 export function selectAffectedTests(paths, files) {
   const changed = paths ?? [];
   const reverse = reverseDependencies(files, changed);
+  const runtimeReverse = reverseDependencies(files, changed, true);
+  const browserChanges = changed.filter(
+    (file) => !sharedUiPath.test(file) && !isTypeOnlySource(file, files[file]),
+  );
   const globalRoots = new Set(['src/main.ts', 'src/app/app.config.ts', 'e2e/global-setup.ts']);
   // Visuelle Controls erreichen regelmäßig die Appwurzel. Das allein ändert
   // weder deren Provider noch den PWA-Lebenszyklus.
-  const globalConsumers = new Set(changed.filter((file) => !sharedUiPath.test(file)));
+  const globalConsumers = new Set(browserChanges);
   for (const file of globalConsumers) {
     if (file.endsWith('.routes.ts') || file.endsWith('.spec.ts')) continue;
-    for (const consumer of reverse.get(file) ?? []) globalConsumers.add(consumer);
+    for (const consumer of runtimeReverse.get(file) ?? []) globalConsumers.add(consumer);
   }
   const applicationPaths = changed.filter(
     (file) =>
@@ -226,22 +280,28 @@ export function selectAffectedTests(paths, files) {
   for (const file of Object.keys(files))
     if (isSpec(file) && sharedDirectories.includes(posix.dirname(file))) localAffected.add(file);
   const candidates = new Set();
-  const browserConsumers = new Set(changed.filter((file) => !sharedUiPath.test(file)));
+  let conservativeBrowser = false;
+  const browserConsumers = new Set(browserChanges);
   for (const file of browserConsumers) {
     if (file.endsWith('.routes.ts') || file.endsWith('.spec.ts')) continue;
-    for (const consumer of reverse.get(file) ?? []) browserConsumers.add(consumer);
+    // Direkte Sammleränderungen erhalten unten den Schutzkern. Ihre einzelnen
+    // Verbraucher werden nicht erneut zu sämtlichen Fachseiten aufgefächert.
+    if (marketplaceBrowserBoundary.test(file)) continue;
+    for (const consumer of runtimeReverse.get(file) ?? []) browserConsumers.add(consumer);
   }
   for (const file of browserConsumers) {
     // Routensammlungen und Tests importieren mehrere Funktionen. Ihre indirekte
     // Berührung darf nicht wieder alle Funktionen als geändert behandeln.
     if (
       file.endsWith('.spec.ts') ||
+      isTypeOnlySource(file, files[file]) ||
       (!changed.includes(file) &&
-        (file.endsWith('.routes.ts') ||
-          /vinted-(?:account-content|workspace)\.component/u.test(file)))
+        (file.endsWith('.routes.ts') || marketplaceBrowserBoundary.test(file)))
     )
       continue;
-    for (const name of browserSpecs(file, files)) candidates.add(`e2e/${name}.spec.ts`);
+    const specs = browserSpecs(file);
+    if (specs === null) conservativeBrowser = true;
+    else for (const name of specs) candidates.add(`e2e/${name}.spec.ts`);
   }
   const hasFeatureOrBrowserConsumer = (file) => {
     // Jede unsichere Änderung braucht ihren eigenen nachweisbaren Verbraucher.
@@ -294,7 +354,7 @@ export function selectAffectedTests(paths, files) {
     typeof files[file] === 'string' &&
     !changedBrowsers.includes(file) &&
     !browserFiles.includes(file);
-  const coreBrowserFiles = full ? sorted(coreFiles.filter(available)) : [];
+  const coreBrowserFiles = full || conservativeBrowser ? sorted(coreFiles.filter(available)) : [];
   const layoutBrowserFiles = changed.some(
     (file) => sharedUiPath.test(file) || /^src\/styles/u.test(file),
   )
@@ -419,12 +479,15 @@ export function buildBrowserMatrix(plan) {
           : project === 'chromium'
             ? Math.max(plan.full ? 6 : 3, Math.ceil(files.length / 6))
             : 3;
+      // Die UI-Jobzahl folgt einem Dateibudget, keiner garantierten Zeitprognose.
       const groups =
-        (plan.full || ((project === 'chromium' || project === 'ui') && files.length > 10)) &&
-        project !== 'core-smoke' &&
-        project !== 'ui-layout'
-          ? Math.min(maxGroups, files.length)
-          : 1;
+        project === 'ui'
+          ? Math.ceil(files.length / 2)
+          : (plan.full || (project === 'chromium' && files.length > 10)) &&
+              project !== 'core-smoke' &&
+              project !== 'ui-layout'
+            ? Math.min(maxGroups, files.length)
+            : 1;
       return Array.from({ length: groups }, (_, index) => ({
         project,
         shard: `${index + 1}/${groups}`,

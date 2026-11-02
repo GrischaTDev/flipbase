@@ -75,6 +75,7 @@ export default defineConfig({
             use: { browserName: 'chromium' as const },
             testMatch: changed.map((file) => file.slice(4)),
             grep: /.*/,
+            grepInvert: representativeBrowserGrepInvert,
           },
         ]
       : []),

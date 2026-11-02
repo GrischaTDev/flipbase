@@ -55,6 +55,11 @@ Reexports und relative Angular-Ressourcen. Rückwärts verfolgte Abhängigkeiten
 beziehen Verbraucher gemeinsamer Bausteine ein. Neue Quellen und Tests zählen
 mit; ignorierte Abhängigkeiten und Bauausgaben nicht. Routensammlungen und
 übergreifende Container begrenzen die Ausbreitung auf unabhängige Funktionen.
+Explizite Typimporte bleiben für Unit- und Typprüfung sichtbar, erweitern aber
+keinen Browser-Laufzeitgraphen. Reine Typdateien verlangen keinen Seitenrundgang.
+Indirekt erreichte API-/Kontosammler verteilen eine einzelne Fachänderung nicht
+erneut auf alle unabhängigen Funktionen. Direkte Änderungen dieser Sammler
+behalten ihren ausdrücklich zugeordneten Schutzumfang.
 
 - **Anwendungstests:** Direkt geänderte oder abhängige Node-, DOM- und
   Angular-Dateien; nur benötigte Suiten erhalten einen Job. Lokal prüfen
@@ -66,8 +71,10 @@ mit; ignorierte Abhängigkeiten und Bauausgaben nicht. Routensammlungen und
 - **Fachbrowser:** `featureSpecs` und konkrete Marketplacebereiche wählen
   bestehende betroffene Abläufe. Ein kleiner allgemeiner Kern sichert breite
   Änderungen ab; die umfassende Layoutregression ist keine Standardzugabe.
-- **Geänderte Browserdateien:** Ihre vollständige Auswahl bleibt ausdrücklich
-  erhalten. Eine Änderung der Testdatei darf keine unmarkierten Fälle verlieren.
+- **Geänderte Browserdateien:** Dieselben ausdrücklich registrierten
+  Repräsentanten wie bei einer Fachänderung. Eine Testdateiänderung erzwingt
+  nicht sämtliche Parameterkombinationen; einzigartige Fehleraussagen und neue
+  oder unbekannte Titel bleiben erhalten.
 - **PWA und Dienste:** Eigene CI-Prüfungen für einschlägige Service-Worker-,
   Offline-, Update-, Push-, Worker-, Sniper- und Landingänderungen.
 
@@ -97,21 +104,28 @@ und die Regeln für repräsentative Varianten. `buildBrowserMatrix` bildet darau
 die CI-Gruppen. Die vorhandenen vollständigen Tests bleiben für Diagnose und
 bewusste Regression erhalten.
 
-| Projekt         | Inhalt                                                                |
-| --------------- | --------------------------------------------------------------------- |
-| `core-smoke`    | Kleiner ausdrücklich benannter allgemeiner Kern für breite Änderungen |
-| `ui-layout`     | Sechs gemeinsame UI-Verbraucher ohne Datenbank                        |
-| `ui`            | Betroffene geprüfte UI-Fixtures ohne Datenbank                        |
-| `changed-ui`    | Vollständige direkt geänderte UI-Fixturedateien ohne Datenbank        |
-| `layout`        | Ausdrücklich gewählte Layoutfälle mit Backend                         |
-| `chromium`      | Betroffene Fachabläufe mit repräsentativen Varianten                  |
-| `changed-tests` | Vollständige direkt geänderte Browserdateien                          |
+| Projekt         | Inhalt                                                                       |
+| --------------- | ---------------------------------------------------------------------------- |
+| `core-smoke`    | Kleiner ausdrücklich benannter allgemeiner Kern für breite Änderungen        |
+| `ui-layout`     | Sechs gemeinsame UI-Verbraucher ohne Datenbank                               |
+| `ui`            | Betroffene geprüfte UI-Fixtures ohne Datenbank                               |
+| `changed-ui`    | Direkt geänderte UI-Fixtures mit registrierten Repräsentanten ohne Datenbank |
+| `layout`        | Ausdrücklich gewählte Layoutfälle mit Backend                                |
+| `chromium`      | Betroffene Fachabläufe mit repräsentativen Varianten                         |
+| `changed-tests` | Direkt geänderte Backendfälle mit registrierten Repräsentanten               |
 
 Die konkrete Fachauswahl hat Vorrang vor Kern und Layout. Direkt geänderte
 Browserdateien haben wiederum Vorrang vor den anderen Gruppen. So erscheinen
 Fälle nicht mehrfach in verschiedenen Gruppen. Auflistungstests prüfen
 nichtleere Gruppen, eindeutige Zuordnung und den erwarteten Umfang. Eine
 Testauflistung bestätigt die Auswahl, nicht das Browserverhalten.
+
+Eine normale UI-Gruppe enthält höchstens zwei zugeordnete Dateien. Drei
+betroffene UI-Dateien laufen daher in zwei parallelen Teilgruppen, statt ihre
+verschiedenen Abläufe nacheinander in einem Job zu sammeln. Dies ist ein
+Aufteilungsbudget, keine Zusage einer bestimmten Minutenzahl. Innerhalb der
+Gruppe bleiben ein Worker, gleiche Erwartungen und derselbe ausgewählte
+Fallumfang bestehen; direkt geänderte Fälle behalten ihre eigene Gruppe.
 
 Die datenbankfreien Gruppen sind auf die ausdrücklich geprüfte Dateiliste in
 `browser-test-selection.mjs` begrenzt. Neue Dateien erhalten diese Einstufung
@@ -126,6 +140,15 @@ Darstellungsfehler erhält seine fehlerauslösende Variante; fachliche
 Fehlerfälle behalten ihre Erwartungen. Ein zusätzlicher lokaler Linuxlauf ist
 bei konkreten Plattform- oder Ressourcenfragen sinnvoll, keine pauschale
 Voraussetzung für PWA- oder UI-Änderungen.
+
+Bekannte mehrfach parametrisierte Geschäftsabläufe laufen einmal mit dem
+explizit gewählten Repräsentanten; echte Layoutfamilien behalten bis zu zwei
+Varianten. Bedingte Aussagen im Testkörper bestimmen die Auswahl mit: Die
+Mosaikprüfung braucht beispielsweise ihre zusätzlichen Desktop-/Status- und
+Fotogegenproben. Es gibt keinen allgemeinen Filter für „dark“ oder eine beliebige
+Bildschirmbreite. Die vollständige Matrix bleibt in der manuellen Regression
+verfügbar. Ein neuer eigenständig benannter Fehlerfall wird ohne Manifeständerung
+nicht unterdrückt.
 
 Browserprüfungen laufen gegen eine ruhende Vorschau mit synthetischen Daten.
 CI-Matrixjobs verwenden eigene lokale Datenbanken und frische Testkonten.

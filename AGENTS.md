@@ -219,6 +219,12 @@ oder Regeländerung löst dadurch keine vollständige Anwendungstestsuite aus.
   wo die Änderung sie berührt. Eine reine Fachlogikkorrektur verlangt keine
   vollständige Geräte- und Darstellungsmatrix. Produktions-PWA, Offline und
   Updates behalten bei einschlägigen Änderungen ihren CI-Pflichtjob.
+- **Eine geänderte Browserdatei ist keine Vollregression.** Bekannte wiederholte
+  Geschäftsfälle auch dort mit den ausdrücklich registrierten Repräsentanten
+  prüfen. Unterschiedliche Fehler-, Speicher- und Berechtigungsfälle erhalten;
+  neue oder unbekannte Testtitel nicht durch pauschale Breiten-/Themefilter
+  entfernen. Ein konkreter Darstellungsfehler erhält einen eigenständig benannten
+  Fall für die auslösende Variante. Die gesamte Matrix bleibt bewusst ausführbar.
 - **Breite technische Änderungen gezielt absichern.** Gemeinsame Konfiguration
   und unbekannte Abhängigkeiten können breite schnelle Anwendungstests und einen
   allgemeinen Browserkern erfordern. Anmeldung, Rechte, Datenintegrität,

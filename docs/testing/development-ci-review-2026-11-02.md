@@ -298,3 +298,63 @@ Auflistungsvergleich bestätigt sämtliche 31 direkt geänderten Galeriefälle.
 Der vorangegangene Windows-Pfadfehler ist mit echtem Git-Kindprozess aus npm
 abgesichert; die beiden Infrastruktur-Vertragsdateien bleiben vollständig in
 der CI registriert. Eine vollständige GitHub-Freigabe wird daraus nicht abgeleitet.
+
+## Nachmessung am 3. November: PR #547
+
+Die erste Umstellung begrenzte die Browserauswahl innerhalb eines Features noch
+nicht ausreichend. Der reine Relist-Einstieg wählte trotz `full=false` insgesamt
+235 Browserfälle und benötigte 19:55 Minuten. Davon entfielen im längsten Job
+16:08 Minuten auf die eigentlichen Fälle nach dem Teststart; die geänderte
+Inseratdatei allein benötigte 10:28 Minuten. Der Vorschau-/Teststart beanspruchte
+nur 30 bis 42 Sekunden. Eine reine Startoptimierung löst diesen Engpass nicht.
+
+Der zusätzliche optionale Typ im gemeinsamen Lesemodell erreichte über
+Typimporte und gemeinsame API-/Kontosammler zahlreiche unabhängige Ansichten.
+Die allgemeine Zuordnung nach dem Wort „listing“ zog außerdem das eigenständige
+Inserierstudio hinein. Beide Ursachen werden im Selektor begrenzt. Die Unit-
+und Typprüfung behält die abhängigen Dateien; Browser folgen den passenden
+Laufzeitfamilien. Der PR-Umfang wird auf vier Dateien und drei datenbankfreie
+Teilgruppen begrenzt. Normale UI-Gruppen enthalten höchstens zwei Dateien.
+
+Bekannte Mehrfachvarianten werden nun auch bei direkt geänderten Testdateien
+reduziert: Inseratfälle 31 auf 12, Entwürfe 42 auf 19, Workspace sechs auf zwei
+und Aktionsübersicht 17 auf zehn. Das exakte Titelmanifest entfernt keine
+unbekannten neuen Fehlerfälle. Die vollständige manuelle Matrix bleibt bestehen.
+Besondere Assertions im Testkörper bestimmen ausdrücklich abweichende
+Repräsentanten, etwa Foto-/Statusgegenproben, Desktop-Relist und Tabletwechsel.
+
+Der [Produktionslauf zu #547](https://github.com/GrischaTDev/flipbase/actions/runs/41541249171)
+benötigte 6:21 Minuten. Belegt sind 49 Sekunden vollständige npm-Installation im
+Auswahljob sowie im Dockerbau 36,2 Sekunden npm, 34 Sekunden Angular und
+55,4 Sekunden Cacheexport. Web und Sniper überschrieben bisher denselben
+Cachebereich; sie schreiben künftig getrennt. Der Grund dieses konkreten
+Cachemisses ist nicht bewiesen. Weitere 71 Sekunden zwischen letztem Log und
+Jobabschluss sind nicht erklärt und werden nicht dem Bau zugeschrieben.
+
+Der Auswahljob benötigt nur den gesperrten TypeScript-Parser und installiert
+zukünftig ausschließlich dieses Paket mit Lockfile-Integritätsprüfung ohne
+Anwendungshooks. Für die weitere Diagnose speichern erfolgreiche Browserjobs
+einen JSON-Bericht mit Einzelfalldauern für drei Tage. Ein
+[Docker-Cachebereich je Image](https://docs.docker.com/build/cache/backends/gha/#scope)
+verhindert das gegenseitige Überschreiben; der
+[Playwright-JSON-Reporter](https://playwright.dev/docs/test-reporters#json-reporter)
+liefert die bislang fehlenden erfolgreichen Einzelfallzeiten. Neue Laufzeiten
+werden gemessen und nicht aus der kleineren Fallzahl garantiert.
+
+Die neue tatsächliche Auswahl umfasst 43 statt 235 Fälle. Im isolierten
+Linux-Container mit zwei CPUs und vier GiB RAM bestehen alle: zwölf Inseratfälle
+in 132,5 Sekunden, die weiteren 31 Fälle in 284,6 Sekunden, ohne Testdatenbank.
+Verwendet wurden Playwright 1.62.1/Chromium 151.0.7922.34 und Node 22.23.3 des
+vorhandenen Images. Die beiden Projekte liefen nacheinander gegen dieselbe
+ruhende Vorschau. Die größte reguläre UI-Gruppe wird danach rein organisatorisch
+auf zwei parallele Teilgruppen verteilt; keine weiteren Fälle entfallen.
+Diese Messung belegt die Funktionsprüfung unter begrenzten Ressourcen und
+ersetzt den neuen GitHub-Lauf einschließlich dessen Einrichtung nicht.
+
+Der lokale Vorabcheck unter Node 22.23.4 besteht einschließlich Format, Lint,
+Typen, Suite-Audit, Actionlint und 186 Skriptfällen; zwei vorhandene Linux-SSH-
+Fälle bleiben CI-Nachweis. Nach der letzten Matrixaufteilung bestehen zusätzlich
+alle 84 betroffenen Selektor-/Auflistungsverträge und das betroffene Lint. Die
+echten Playwright-Listen bestätigen nichtleere Teilgruppen sowie vollständige
+Abdeckung ohne doppelte Fälle. Unveränderte Browserabläufe werden für diese
+organisatorische Aufteilung nicht erneut durchgespielt.
