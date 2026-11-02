@@ -196,4 +196,16 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     expect(service.error()).toContain('Inserat gelöscht');
     expect(extension.deleteListing).toHaveBeenCalledTimes(1);
   });
+  it('zeigt angehaltene Vorgänge auch ohne Kopfmenü an und entfernt den Hinweis nach belegtem Abschluss', async () => {
+    extension.relist.mockResolvedValue({ externalId: '11', outcome: 'outcome_unknown' });
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    await service.run(section);
+    expect(service.error()).toContain('Ergebnis noch unklar');
+    extension.relistingAttempts.mockResolvedValue([
+      { externalId: '11', title: 'Jacke', phase: 'confirmed' },
+    ]);
+    await service.loadPending(section);
+    expect(service.error()).toBeNull();
+    expect(service.pending()).toEqual([]);
+  });
 });

@@ -109,6 +109,7 @@ for (const theme of ['light', 'dark'] as const)
             exact: true,
           })
           .click();
+        await expect(section.getByRole('alert')).toContainText('Anbieterformular');
         await expect(section.getByText('Noch offene Vorgänge in diesem Browserprofil')).toHaveCount(
           0,
         );
@@ -143,6 +144,25 @@ for (const theme of ['light', 'dark'] as const)
         expect((await fixture.deletedListings())[0]).toMatchObject({
           externalId: '101',
           title: 'KA Jacke 01',
+        });
+        await page.goto('/marketplaces/kleinanzeigen/connection');
+        const cards = page.locator('app-kleinanzeigen-accounts article');
+        await expect(cards).toHaveCount(2);
+        for (const card of await cards.all()) {
+          await expect(card).toHaveClass(/linear-surface/);
+          await expect(card).toHaveCSS('padding-left', '16px');
+        }
+        await page.addScriptTag({ content: axe.source });
+        expect(
+          await page.evaluate(
+            async () =>
+              (await (window as unknown as { axe: typeof axe }).axe.run(document.body)).violations,
+          ),
+        ).toEqual([]);
+        await page.screenshot({
+          path: testInfo.outputPath('kleinanzeigen-connection.png'),
+          fullPage: true,
+          animations: 'disabled',
         });
         expect(errors).toEqual([]);
       });

@@ -27,6 +27,7 @@ export class KleinanzeigenRelistingService {
   readonly pending = signal<readonly KleinanzeigenRelistingAttempt[]>([]);
   private destroyed = false;
   private loadingPending = false;
+  private pendingPublicationId: string | null = null;
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
@@ -59,13 +60,18 @@ export class KleinanzeigenRelistingService {
         userId === this.auth.currentUser()?.id &&
         this.workspace.currentWorkspace()?.id === section.account.workspaceId
       ) {
-        for (const attempt of result.filter((attempt) => attempt.phase === 'confirmed'))
+        for (const attempt of result.filter((attempt) => attempt.phase === 'confirmed')) {
+          if (this.pendingPublicationId === attempt.externalId) {
+            this.error.set(null);
+            this.pendingPublicationId = null;
+          }
           this.actions.reconcile({
             platform: 'kleinanzeigen',
             workspaceId: account.workspaceId,
             connectionId: account.connectionId,
             externalId: attempt.externalId,
           });
+        }
         this.pending.set(result.filter((attempt) => attempt.phase !== 'confirmed'));
       }
     } catch (error) {
@@ -109,6 +115,7 @@ export class KleinanzeigenRelistingService {
     if (!current()) return false;
     this.busy.set(true);
     this.error.set(null);
+    this.pendingPublicationId = null;
     let key: string | undefined;
     let deleted = false;
     try {
@@ -188,6 +195,7 @@ export class KleinanzeigenRelistingService {
     if (!current()) return false;
     this.busy.set(true);
     this.error.set(null);
+    this.pendingPublicationId = null;
     this.results.set([]);
     let changed = false;
     try {
@@ -273,7 +281,11 @@ export class KleinanzeigenRelistingService {
             message: kleinanzeigenRelistingMessage(result),
           },
         ]);
-        if (result.outcome !== 'confirmed') break;
+        if (result.outcome !== 'confirmed') {
+          this.pendingPublicationId = reference.externalId;
+          this.error.set(kleinanzeigenRelistingMessage(result));
+          break;
+        }
         changed = true;
       }
       if (changed && current()) {

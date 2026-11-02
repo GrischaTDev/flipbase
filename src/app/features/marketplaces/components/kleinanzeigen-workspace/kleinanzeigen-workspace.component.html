@@ -16,7 +16,15 @@
   @if (workspace.currentWorkspace(); as current) {
     @if (!current.archived_at) {
       @if (page === 'connection') {
-        <app-kleinanzeigen-accounts [workspaceId]="current.id" (changed)="reloadListings()" />
+        <section class="min-w-0 space-y-3" aria-labelledby="kleinanzeigen-connections-heading">
+          <h2
+            id="kleinanzeigen-connections-heading"
+            class="text-base font-semibold text-fb-text-primary"
+          >
+            Deine Kleinanzeigen-Konten
+          </h2>
+          <app-kleinanzeigen-accounts [workspaceId]="current.id" (changed)="reloadListings()" />
+        </section>
       } @else {
         @if (page === 'listings' || !accounts().length) {
           <section class="min-w-0 space-y-3" aria-labelledby="kleinanzeigen-accounts-heading">
