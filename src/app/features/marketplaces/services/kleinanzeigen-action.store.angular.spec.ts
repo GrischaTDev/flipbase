@@ -29,6 +29,19 @@ describe('Kleinanzeigen-Fortschritt', () => {
   });
   afterEach(() => TestBed.resetTestingModule());
 
+  it('zeigt Fehler nur im eigenen Arbeitsbereich und bis zum Ausblenden an', () => {
+    const store = TestBed.inject(KleinanzeigenActionStore);
+    const key = store.begin(reference, 'Sneaker', 'Privat', 'delete');
+    expect(store.hasFailure()).toBe(false);
+    store.finish(key, 'error', 'Verbindung unterbrochen');
+    expect(store.hasFailure()).toBe(true);
+    workspace.currentWorkspace.set({ id: 'other', archived_at: null });
+    expect(store.hasFailure()).toBe(false);
+    workspace.currentWorkspace.set({ id: 'workspace', archived_at: null });
+    expect(store.hasFailure()).toBe(true);
+    store.dismiss(key);
+    expect(store.hasFailure()).toBe(false);
+  });
   it('sperrt nur die betroffene Anzeige und gibt sie nach dem Ergebnis frei', () => {
     const store = TestBed.inject(KleinanzeigenActionStore);
     const key = store.begin(reference, 'Sneaker', 'Privat');

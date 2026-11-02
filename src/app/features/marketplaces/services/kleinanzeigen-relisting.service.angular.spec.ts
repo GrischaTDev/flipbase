@@ -6,6 +6,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { KleinanzeigenAccountService } from './kleinanzeigen-account.service';
 import { KleinanzeigenExtensionBridge } from './kleinanzeigen-extension-bridge';
+import { KleinanzeigenActionStore } from './kleinanzeigen-action.store';
 import { KleinanzeigenRelistingService } from './kleinanzeigen-relisting.service';
 import type { MarketplaceOverviewSection } from './marketplace-overview.store';
 
@@ -15,6 +16,7 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
   const accounts = { readAccounts: vi.fn(), requestSync: vi.fn() };
   const extension = {
     relistingAvailable: signal(true),
+    updateRequired: signal(false),
     ensureCurrent: vi.fn().mockResolvedValue(undefined),
     relist: vi.fn(),
     deleteListing: vi.fn(),
@@ -69,6 +71,7 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     accounts.requestSync.mockResolvedValue({ id: 'run' });
     confirmation.frage.mockResolvedValue(true);
     extension.relistingAvailable.set(true);
+    extension.updateRequired.set(false);
     extension.relistingAttempts.mockResolvedValue([]);
     extension.synchronize.mockResolvedValue(undefined);
     extension.relist.mockImplementation(async (_scope, externalId) => ({
@@ -88,6 +91,24 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     });
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('führt bereits vor dem Löschstart auftretende Versionsfehler als fehlgeschlagene Aktion auf', async () => {
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    const store = TestBed.inject(KleinanzeigenActionStore);
+    extension.ensureCurrent.mockRejectedValueOnce(
+      new Error('Aktualisiere die Flipbase-Erweiterung.'),
+    );
+    extension.updateRequired.set(true);
+    expect(await service.remove(deletable, reference)).toBe(false);
+    expect(store.entries()).toHaveLength(1);
+    expect(store.entries()[0]).toMatchObject({
+      state: 'error',
+      operation: 'delete',
+      requiresExtensionUpdate: true,
+    });
+    expect(store.hasFailure()).toBe(true);
+    expect(extension.deleteListing).not.toHaveBeenCalled();
+    expect(confirmation.frage).not.toHaveBeenCalled();
+  });
   it('startet bei veralteter Erweiterung weder Bestätigung noch Anbieteraktion', async () => {
     extension.ensureCurrent.mockRejectedValueOnce(new Error('Erweiterung veraltet'));
     const service = TestBed.inject(KleinanzeigenRelistingService);
@@ -180,14 +201,28 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     expect(await service.remove(deletable, { ...reference, connectionId: 'foreign' })).toBe(false);
     expect(extension.deleteListing).not.toHaveBeenCalled();
   });
-  it('meldet eine unbestätigte Löschung als Fehler ohne zweiten Versuch', async () => {
-    extension.deleteListing.mockRejectedValue(new Error('Die Löschung ist unklar.'));
-    const service = TestBed.inject(KleinanzeigenRelistingService);
-    expect(await service.remove(deletable, reference)).toBe(false);
-    expect(extension.deleteListing).toHaveBeenCalledTimes(1);
-    expect(service.error()).toContain('unklar');
-    expect(accounts.requestSync).not.toHaveBeenCalled();
-  });
+  it.each([
+    ['Die Löschung ist unklar.', 'unklar'],
+    [
+      'A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received',
+      'Die Verbindung zur Erweiterung wurde unterbrochen.',
+    ],
+  ])(
+    'meldet die unbestätigte Löschung auf Deutsch und ohne zweiten Versuch: %s',
+    async (error, expected) => {
+      extension.deleteListing.mockRejectedValue(new Error(error));
+      const service = TestBed.inject(KleinanzeigenRelistingService);
+      expect(await service.remove(deletable, reference)).toBe(false);
+      expect(extension.deleteListing).toHaveBeenCalledTimes(1);
+      expect(service.error()).toContain(expected);
+      expect(TestBed.inject(KleinanzeigenActionStore).entries()[0]).toMatchObject({
+        state: 'error',
+        operation: 'delete',
+        message: expect.stringContaining(expected),
+      });
+      expect(accounts.requestSync).not.toHaveBeenCalled();
+    },
+  );
   it('entfernt bestätigte Vorgänge aus der offenen Auswahl', async () => {
     extension.relistingAttempts.mockResolvedValue([
       { externalId: '11', title: 'Jacke', phase: 'confirmed' },
@@ -205,7 +240,7 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     expect(service.error()).toContain('Inserat gelöscht');
     expect(extension.deleteListing).toHaveBeenCalledTimes(1);
   });
-  it('zeigt angehaltene Vorgänge auch ohne Kopfmenü an und entfernt den Hinweis nach belegtem Abschluss', async () => {
+  it('behält angehaltene Vorgänge bis zum belegten Abschluss und entfernt danach den Hinweis', async () => {
     extension.relist.mockResolvedValue({ externalId: '11', outcome: 'outcome_unknown' });
     const service = TestBed.inject(KleinanzeigenRelistingService);
     await service.run(section);

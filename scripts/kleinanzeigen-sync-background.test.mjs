@@ -313,7 +313,8 @@ test('runs the bound full snapshot through actual background adapters and return
   assert.ok(!JSON.stringify(response).includes('a'.repeat(64)));
   assert.ok(!JSON.stringify(response).includes('c'.repeat(64)));
   assert.equal(f.stored.vinted_local_installation, undefined);
-  assert.equal(f.tabs.size, 2);
+  assert.equal(f.tabs.size, 1);
+  assert.ok([...f.tabs.values()].every((tab) => !tab.url.includes('m-einstellungen')));
 });
 test('a multi-page read uses the observed navigation and imports each page only once', async () => {
   const f = fixture({ multi: true });
@@ -364,7 +365,7 @@ test('a distinct new single-page sync reloads the provider tab and sees changed 
   assert.equal((await f.send(sync)).success, true);
   f.changeProvider();
   assert.equal((await f.send({ ...sync, runId: '43', requestId: 'sync-next' })).success, true);
-  assert.equal(f.listingReloads, 1);
+  assert.equal(f.listingReloads, 2);
   assert.equal(
     f.calls.filter((body) => body.action === 'sync_page').at(-1).items[0].title,
     'Anzeige 1 Version 2',

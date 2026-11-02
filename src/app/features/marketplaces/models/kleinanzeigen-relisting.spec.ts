@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   kleinanzeigenRelistingPaths,
+  kleinanzeigenRelistingError,
   parseKleinanzeigenRelistingResult,
 } from './kleinanzeigen-relisting';
 import { validateKleinanzeigenHandoff } from './kleinanzeigen-listing-handoff';
 
 describe('Kleinanzeigen-Formularweg und neue Anzeigenkennung', () => {
+  it.each([
+    'A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received',
+    'The message port closed before a response was received.',
+    'Could not establish connection. Receiving end does not exist.',
+    'Extension context invalidated.',
+  ])('übersetzt verlorene Browserkanäle ohne einen Erfolg zu behaupten: %s', (message) => {
+    expect(kleinanzeigenRelistingError(new Error(message))).toBe(
+      'Die Verbindung zur Erweiterung wurde unterbrochen. Prüfe den Status Deiner Anzeige bei Kleinanzeigen, bevor Du die Aktion erneut startest.',
+    );
+  });
   const content = {
     title: 'Jacke',
     description: 'Original',

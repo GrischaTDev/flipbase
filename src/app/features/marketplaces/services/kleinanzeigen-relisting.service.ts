@@ -168,7 +168,15 @@ export class KleinanzeigenRelistingService {
       const message = deleted
         ? 'Inserat gelöscht. Der anschließende Bestandsabgleich ist noch nicht bestätigt.'
         : kleinanzeigenRelistingError(error);
-      if (key) this.actions.finish(key, deleted ? 'success' : 'error', message);
+      if (!key && current() && !this.actions.isRunning(reference))
+        key = this.actions.begin(reference, item.title, account.displayName, 'delete');
+      if (key)
+        this.actions.finish(
+          key,
+          deleted ? 'success' : 'error',
+          message,
+          this.extension.updateRequired(),
+        );
       if (current()) this.error.set(message);
       return deleted;
     } finally {
@@ -199,6 +207,7 @@ export class KleinanzeigenRelistingService {
     this.pendingPublicationId = null;
     this.results.set([]);
     let changed = false;
+    let started = false;
     try {
       await this.extension.ensureCurrent();
       const response = await this.accounts.readAccounts(account.workspaceId);
@@ -217,7 +226,7 @@ export class KleinanzeigenRelistingService {
         );
       if (!this.extension.relistingAvailable())
         throw new Error(
-          'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.0 und lade die Seite neu.',
+          'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.1 und lade die Seite neu.',
         );
       const references = resume
         ? [
@@ -261,6 +270,7 @@ export class KleinanzeigenRelistingService {
       };
       for (const [index, reference] of references.entries()) {
         if (!current()) return changed;
+        started = true;
         const actionKey = this.actions.begin(reference, titles[index], account.displayName);
         let result;
         try {
@@ -271,7 +281,12 @@ export class KleinanzeigenRelistingService {
             kleinanzeigenRelistingMessage(result),
           );
         } catch (error) {
-          this.actions.finish(actionKey, 'error', kleinanzeigenRelistingError(error));
+          this.actions.finish(
+            actionKey,
+            'error',
+            kleinanzeigenRelistingError(error),
+            this.extension.updateRequired(),
+          );
           throw error;
         }
         if (!current()) return changed;
@@ -296,7 +311,39 @@ export class KleinanzeigenRelistingService {
       }
       return changed;
     } catch (error) {
-      if (current()) this.error.set(kleinanzeigenRelistingError(error));
+      if (current()) {
+        const message = kleinanzeigenRelistingError(error);
+        this.error.set(message);
+        if (!started) {
+          const reference = resume
+            ? {
+                platform: 'kleinanzeigen' as const,
+                workspaceId: account.workspaceId,
+                connectionId: account.connectionId,
+                externalId: resume.externalId,
+              }
+            : section.selection[0];
+          if (
+            reference &&
+            reference.platform === 'kleinanzeigen' &&
+            !this.actions.isRunning(reference) &&
+            reference.workspaceId === account.workspaceId &&
+            reference.connectionId === account.connectionId
+          ) {
+            const title =
+              resume?.title ??
+              section.page?.items.find((item) => item.reference.externalId === reference.externalId)
+                ?.title ??
+              'Anzeige';
+            this.actions.finish(
+              this.actions.begin(reference, title, account.displayName),
+              'error',
+              message,
+              this.extension.updateRequired(),
+            );
+          }
+        }
+      }
       return changed;
     } finally {
       this.busy.set(false);

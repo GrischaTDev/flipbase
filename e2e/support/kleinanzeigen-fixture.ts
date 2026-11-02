@@ -10,6 +10,7 @@ export async function mockKleinanzeigen(
     connectionStatus?: 'connected' | 'needs_login';
     publishingAllowed?: boolean;
     relisting?: boolean;
+    actionOverview?: boolean;
   } = {},
 ) {
   await mockMarketplaceOverview(page);
@@ -42,7 +43,7 @@ export async function mockKleinanzeigen(
           aud: 'authenticated',
           role: 'authenticated',
           app_metadata: {},
-          user_metadata: { flipbase_action_overview: true },
+          user_metadata: { flipbase_action_overview: options.actionOverview ?? true },
           created_at: '2026-09-26T00:00:00Z',
         },
       }),
@@ -153,7 +154,7 @@ export async function mockKleinanzeigen(
         let result: unknown;
         let success = true;
         if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_STATUS') result = local;
-        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.0' };
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.1' };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS') result = { opened: true };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING') {

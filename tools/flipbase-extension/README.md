@@ -1,6 +1,6 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.0
+## Aktuell: Version 1.14.1
 
 Vor erneutem Inserieren und Löschen prüft Flipbase die tatsächlich geladene
 Erweiterung. Veraltete oder nicht erreichbare Versionen stoppen vor der Aktion.
@@ -9,10 +9,14 @@ Kann eine alte oder deaktivierte Erweiterung den Button noch nicht bedienen,
 öffne `chrome://extensions` über die Adresszeile. Lade nach der Aktualisierung
 auch die Flipbase-Seite neu.
 
-Die Kontingentprüfung wartet begrenzt auf den nachgeladenen offiziellen Zähler.
+Kontoprüfung und Kontingentabruf verwenden den vorhandenen Anzeigen-Arbeitstab;
+es wird kein zusätzlicher Einstellungen-Tab geöffnet. Die Kontingentprüfung
+wartet begrenzt auf den nachgeladenen offiziellen Zähler.
 Der aktuelle Löschdialog mit **Ja, Anzeige löschen** und die gemessenen
 Preisoptionen für Damenschuhe werden unterstützt. Unbekannte Kosten, unklare
-Schreibversuche und unvollständige Bilder stoppen weiterhin.
+Schreibversuche und unvollständige Bilder stoppen weiterhin. Bei einer
+Löschweiterleitung wird der vollständige eigene Bestand erneut gelesen,
+ohne den Löschklick zu wiederholen.
 
 Eigene Arbeitstabs öffnen vorne in der gelben Kleinanzeigen-Gruppe im
 Hintergrund. Beim Fortsetzen wird der eigene vorbereitete Formulartab
@@ -23,7 +27,8 @@ Anzeige zu. Beim Bestandsabgleich hat das Anbieterdatum Vorrang.
 
 Die Kleinanzeigen-Seite enthält **Inserate** und **Kontoverbindung**, das
 **Postfach** öffnet Kleinanzeigen. Kontodaten und Aktionen stehen in den
-Kontokacheln. Laufende Inserate erhalten eine gelbe Markierung; die
+Kontokacheln. Laufende Inserate werden neutral abgedunkelt; Fehler stehen in „Laufende Aktionen“
+und werden durch ein rotes X am Aktionsbutton angezeigt; die
 Marktplatzübersicht zeigt Tabellen ohne einen zweiten Kartenrahmen und gefüllte,
 proportional beschnittene Bildvorschauen.
 
