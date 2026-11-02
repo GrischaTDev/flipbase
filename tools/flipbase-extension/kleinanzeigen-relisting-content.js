@@ -147,8 +147,11 @@
       if (dialogs.length === 1 && !confirmationClicked) {
         const confirm = [...dialogs[0].querySelectorAll('button')].filter(
           (node) =>
-            ['Löschen', 'Anzeige löschen', 'Ja, löschen'].includes(text(node)) &&
+            ['Löschen', 'Anzeige löschen', 'Ja, löschen', 'Ja, Anzeige löschen'].includes(
+              text(node),
+            ) &&
             !node.disabled &&
+            node.getAttribute('aria-busy') !== 'true' &&
             node.getAttribute('aria-disabled') !== 'true',
         );
         if (confirm.length !== 1) return { confirmed: false };

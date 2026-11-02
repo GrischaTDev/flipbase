@@ -119,6 +119,7 @@ export class KleinanzeigenRelistingService {
     let key: string | undefined;
     let deleted = false;
     try {
+      await this.extension.ensureCurrent();
       const response = await this.accounts.readAccounts(account.workspaceId);
       const target = response.canManage
         ? response.accounts.find((value) => value.connectionId === account.connectionId)
@@ -199,6 +200,7 @@ export class KleinanzeigenRelistingService {
     this.results.set([]);
     let changed = false;
     try {
+      await this.extension.ensureCurrent();
       const response = await this.accounts.readAccounts(account.workspaceId);
       if (!current()) return false;
       const target = response.canManage
@@ -215,7 +217,7 @@ export class KleinanzeigenRelistingService {
         );
       if (!this.extension.relistingAvailable())
         throw new Error(
-          'Aktualisiere die Flipbase-Erweiterung auf Version 1.11.0 und lade die Seite neu.',
+          'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.0 und lade die Seite neu.',
         );
       const references = resume
         ? [
@@ -244,11 +246,11 @@ export class KleinanzeigenRelistingService {
           'Anzeige ' + reference.externalId,
       );
       const confirmed = await this.confirmation.frage({
-        titel: resume ? 'Gesicherten Vorgang fortsetzen?' : 'Ausgewählte neu inserieren?',
+        titel: resume ? 'Anzeige fertigstellen?' : 'Anzeige neu inserieren?',
         text: resume
-          ? `${titles[0]}\n\nDie Erweiterung prüft den gespeicherten Stand. Unklare Lösch- oder Veröffentlichungsklicks werden nicht wiederholt. Nach bestätigter Löschung wird die gesicherte Neufassung fertiggestellt.`
-          : `${titles.join('\n')}\n\nDie Erweiterung sichert Texte und Bilder, bereitet die neue Anzeige vor und löscht anschließend die alte Anzeige endgültig. Merker und Aufrufe werden nicht übernommen. Bei Gebühren oder fehlenden Angaben hält sie an.`,
-        bestaetigenText: resume ? 'Fortsetzen und prüfen' : 'Neu inserieren',
+          ? `${titles[0]}\n\nDie gesicherte Anzeige wird geprüft und fertiggestellt. Bereits ausgeführte Schritte werden nicht wiederholt.`
+          : `${titles.join('\n')}\n\nDie bisherige Anzeige wird endgültig durch eine neue ersetzt. Merker und Aufrufe gehen verloren.`,
+        bestaetigenText: 'Neu inserieren',
         abbrechenText: 'Abbrechen',
       });
       if (!confirmed || !current()) return false;

@@ -1053,7 +1053,7 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
     td:last-child {
     border-bottom-right-radius: 8px;
   }
-  .fb-admin app-data-table > section {
+  .fb-admin app-data-table > section.linear-surface {
     border-color: var(--fb-table-divider);
     box-shadow: 0 1px 3px rgb(0 0 0 / 3%);
   }

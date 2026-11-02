@@ -133,7 +133,12 @@
           await writeSaved(record);
         }
         if (!record || record.phase === 'secured') {
-          const source = await adapter.source(installation, request.externalId);
+          const previousTabId = record?.tabId;
+          const source = await adapter.source(
+            installation,
+            request.externalId,
+            record?.sourceTabId,
+          );
           const snapshot = source.snapshot;
           const categoryPath = Object.hasOwn(request.categoryPaths, snapshot.categoryLabel)
             ? request.categoryPaths[snapshot.categoryLabel]
@@ -161,6 +166,7 @@
             sourceDocumentTime: source.minimumDocumentTime,
             attemptId: crypto.randomUUID(),
             createdAt: new Date().toISOString(),
+            ...(Number.isInteger(previousTabId) ? { tabId: previousTabId } : {}),
           };
           // Erst nach erfolgreichem Commit dieser Transaktion darf der Löschweg beginnen.
           await writeSaved(record);
@@ -193,7 +199,7 @@
           check,
           prepare: async () => {
             const baseline = await adapter.baseline(installation);
-            const target = await adapter.target(installation, request, record.categoryPath);
+            const target = await adapter.target(installation, request, record.categoryPath, record);
             const schema = target.result.schema;
             if (!schema || schema.categoryLabel !== record.snapshot.categoryLabel)
               return { complete: false };
@@ -290,7 +296,6 @@
         });
         await persist({ lastResult: result, updatedAt: new Date().toISOString() });
         if (result.outcome === 'confirmed' && adapter.completed) await adapter.completed(record);
-        if (result.outcome !== 'confirmed' && record.tabId) await adapter.show(record.tabId);
         return {
           ...result,
           externalId: request.externalId,

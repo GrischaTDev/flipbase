@@ -87,6 +87,29 @@
   if (typeof window === 'undefined' || !root.chrome?.runtime?.onMessage || window.top !== window)
     return;
   // Die Erfolgsmeldung auch bei manueller Veröffentlichung sichern, bevor der Nutzer weiternavigiert.
+  document.addEventListener(
+    'click',
+    (event) => {
+      const button = root.FlipbaseKleinanzeigenPublicationReader?.postingButton(document);
+      if (!button || !button.contains(event.target)) return;
+      try {
+        const marker = JSON.parse(
+          sessionStorage.getItem('flipbase_kleinanzeigen_attempt') ?? 'null',
+        );
+        if (marker?.attemptId && marker.jobId)
+          sessionStorage.setItem(
+            'flipbase_kleinanzeigen_attempt',
+            JSON.stringify({
+              ...marker,
+              submittedAt: new Date().toISOString(),
+            }),
+          );
+      } catch {
+        /* Ohne lokale Markierung wird kein Datum erfunden. */
+      }
+    },
+    true,
+  );
   function rememberReceipt() {
     try {
       const marker = JSON.parse(sessionStorage.getItem('flipbase_kleinanzeigen_attempt') ?? 'null');
@@ -94,7 +117,13 @@
       if (marker?.attemptId && marker.jobId && receipt)
         sessionStorage.setItem(
           'flipbase_kleinanzeigen_receipt',
-          JSON.stringify({ ...marker, receipt }),
+          JSON.stringify({
+            ...marker,
+            receipt: {
+              ...receipt,
+              ...(marker.submittedAt ? { submittedAt: marker.submittedAt } : {}),
+            },
+          }),
         );
     } catch {
       /* Eine fehlende lokale Bestätigung bleibt ein unklarer Ausgang. */
@@ -146,6 +175,8 @@
         /* Nur exakt zum Versuch passende Belege verwenden. */
       }
     }
+    if (receipt && !receipt.submittedAt && typeof marker.submittedAt === 'string')
+      receipt = { ...receipt, submittedAt: marker.submittedAt };
     respond({ success: true, result: { owned: true, receipt } });
     return true;
   });

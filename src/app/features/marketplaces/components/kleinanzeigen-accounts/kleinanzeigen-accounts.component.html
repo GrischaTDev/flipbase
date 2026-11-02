@@ -16,8 +16,12 @@
     >
   }
   @if (canManage()) {
-    @if (!connectionId()) {
-      <div>
+    @if (!connectionId() && (setupOnly() || !visibleAccounts().length)) {
+      <div
+        [class.linear-surface]="!setupOnly()"
+        [class.rounded-xl]="!setupOnly()"
+        [class.p-4]="!setupOnly()"
+      >
         @if (extension.checking()) {
           <p class="text-sm text-fb-text-secondary" role="status">Erweiterung wird geprüft …</p>
         }
@@ -66,7 +70,7 @@
       </div>
     }
     @if (!setupOnly() && !visibleAccounts().length && !loading()) {
-      <div>
+      <app-notice-banner>
         <p class="text-sm text-fb-text-secondary">
           @if (connectionId()) {
             Dieses Konto ist nicht mehr verfügbar. Schließe die Verwaltung und aktualisiere die
@@ -76,7 +80,7 @@
             Browserprofil.
           }
         </p>
-      </div>
+      </app-notice-banner>
     }
     @if (visibleAccounts().length) {
       <div class="grid min-w-0 gap-4" [class.lg:grid-cols-2]="!connectionId()">

@@ -278,6 +278,8 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
   it('bietet ohne Kleinanzeigen-Fähigkeit die Einrichtung statt einer vermeintlich bereiten Verbindung an', async () => {
     bridge.capabilities.set({ accounts: false, sync: false, publish: false });
     const fixture = await create();
+    fixture.componentRef.setInput('setupOnly', true);
+    fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Erweiterung');
     const buttons = Array.from(
       fixture.nativeElement.querySelectorAll('button'),

@@ -11,6 +11,15 @@
   let listingReadRunId;
   const syncProgressKey = 'kleinanzeigen_sync_progress';
   const workTabsKey = 'kleinanzeigen_work_tabs';
+  const publicationDaysKey = 'kleinanzeigen_publication_days';
+  const publicationDayScope = (installation, externalId) =>
+    JSON.stringify([
+      installation.appOrigin,
+      installation.binding.workspaceId,
+      installation.binding.connectionId,
+      installation.binding.externalAccountId,
+      externalId,
+    ]);
   const load = async () => {
     await ready;
     return (await chrome.storage.local.get(key))[key] ?? null;
@@ -62,7 +71,7 @@
     await chrome.storage.local.set({ [workTabsKey]: { ...remembered, groupId } });
     return tab;
   }
-  async function readAccount() {
+  async function readAccount({ requireQuota = false, externalAccountId } = {}) {
     const start = Date.now();
     let tab;
     const previous = await load();
@@ -81,6 +90,7 @@
       tab = await chrome.tabs.create({
         url: 'https://www.kleinanzeigen.de/m-einstellungen.html',
         active: false,
+        index: 0,
       });
     else await chrome.tabs.reload(tab.id);
     await organizeWorkTab(tab);
@@ -95,13 +105,22 @@
             type: 'KLEINANZEIGEN_READ_ACCOUNT',
             minimumDocumentTime: start,
           });
-          if (answer?.success === true && answer.result?.identity) return answer.result;
+          if (answer?.success === true && answer.result?.identity) {
+            // Die Kontodaten werden nach dem load-Ereignis nachgeladen.
+            if (
+              !requireQuota ||
+              answer.result.quota ||
+              (externalAccountId && answer.result.identity.externalAccountId !== externalAccountId)
+            )
+              return answer.result;
+          }
         }
       } catch {
         /* Content Script nach Navigation kurz abwarten. */
       }
       await delay(250);
     }
+    if (requireQuota) throw stopped('quota_unknown');
     throw new Error(
       'Melde Dich im Kleinanzeigen-Arbeitstab an und starte die Kontoprüfung erneut.',
     );
@@ -224,7 +243,7 @@
         }
       }
       if (tab) await chrome.tabs.reload(tab.id);
-      else tab = await chrome.tabs.create({ url: address, active: false });
+      else tab = await chrome.tabs.create({ url: address, active: false, index: 0 });
       await organizeWorkTab(tab);
       listingTabId = tab.id;
       listingCursor = 'page:1';
@@ -293,6 +312,13 @@
       listingCursor = page.nextCursor;
       page = await read();
     }
+    if (runId !== undefined) {
+      const days = (await chrome.storage.local.get(publicationDaysKey))[publicationDaysKey] ?? {};
+      for (const item of page.items) {
+        const known = days[publicationDayScope(installation, item.externalId)];
+        if (!item.publishedOn && /^\d{4}-\d{2}-\d{2}$/u.test(known ?? '')) item.publishedOn = known;
+      }
+    }
     return page;
   }
   async function synchronize(request, origin) {
@@ -335,7 +361,10 @@
       Date.parse(binding.expiresAt) <= Date.now()
     )
       throw stopped('access_revoked');
-    const account = await readAccount();
+    const account = await readAccount({
+      requireQuota: true,
+      externalAccountId: binding.externalAccountId,
+    });
     const q = account.quota;
     if (
       account.identity?.externalAccountId !== binding.externalAccountId ||
@@ -441,10 +470,29 @@
         readIdentity: async () => (await readAccount()).identity,
         open: async () => {
           started = Date.now();
-          tab = await chrome.tabs.create({
-            url: 'https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html#flipbase-form-read',
-            active: false,
-          });
+          const url =
+            'https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html#flipbase-form-read';
+          const savedTabs = (await chrome.storage.local.get(workTabsKey))[workTabsKey] ?? {};
+          if (
+            Number.isInteger(owner?.reuseTabId) &&
+            savedTabs.publicationTabIds?.includes(owner.reuseTabId)
+          ) {
+            try {
+              const saved = await chrome.tabs.get(owner.reuseTabId);
+              if (
+                !saved.incognito &&
+                new URL(saved.url).origin === 'https://www.kleinanzeigen.de' &&
+                new URL(saved.url).pathname === '/p-anzeige-aufgeben-schritt2.html'
+              ) {
+                // Ein reiner Hashwechsel erzeugt kein frisches Dokument.
+                await chrome.tabs.reload(saved.id);
+                tab = saved;
+              }
+            } catch {
+              /* Ein geschlossener eigener Entwurf wird neu angelegt. */
+            }
+          }
+          if (!tab) tab = await chrome.tabs.create({ url, active: false, index: 0 });
           await organizeWorkTab(tab);
           const remembered = (await chrome.storage.local.get(workTabsKey))[workTabsKey] ?? {};
           await chrome.storage.local.set({
@@ -596,6 +644,7 @@
         tab = await chrome.tabs.create({
           url: 'https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html#flipbase-assisted',
           active: false,
+          index: 0,
         });
       }
       const values = (await chrome.storage.local.get(key))[key] ?? {};
@@ -801,13 +850,30 @@
     const pages = await readAllPublications(installation);
     if ((await readAccount()).identity.externalAccountId !== job.externalAccountId)
       throw stopped('account_changed');
-    return globalThis.FlipbaseKleinanzeigenPublicationResults.confirm(
+    const result = globalThis.FlipbaseKleinanzeigenPublicationResults.confirm(
       job,
       progress.baseline,
       receipt,
       pages,
       Date.now(),
     );
+    const submitted = Date.parse(receipt.submittedAt ?? '');
+    if (
+      result.outcome === 'confirmed' &&
+      Number.isFinite(submitted) &&
+      submitted >= progress.minimumDocumentTime &&
+      submitted <= Date.now()
+    ) {
+      const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(submitted);
+      const days = (await chrome.storage.local.get(publicationDaysKey))[publicationDaysKey] ?? {};
+      await chrome.storage.local.set({
+        [publicationDaysKey]: {
+          ...days,
+          [publicationDayScope(installation, result.externalId)]: day,
+        },
+      });
+    }
+    return result;
   }
   const publicationRuntime = globalThis.FlipbaseKleinanzeigenPublicationJobs?.create({
     now: () => Date.now(),
@@ -890,7 +956,7 @@
     }
     const minimumDocumentTime = Date.now();
     if (tab?.url === url && !tab.incognito) await chrome.tabs.reload(tab.id);
-    else tab = await chrome.tabs.create({ url, active: false });
+    else tab = await chrome.tabs.create({ url, active: false, index: 0 });
     await organizeWorkTab(tab);
     const sourceTabs = (await chrome.storage.local.get(workTabsKey))[workTabsKey] ?? {};
     await chrome.storage.local.set({ [workTabsKey]: { ...sourceTabs, sourceTabId: tab.id } });
@@ -967,8 +1033,8 @@
       (await readAllPublications(installation)).flatMap((page) =>
         page.items.map((item) => item.externalId),
       ),
-    target: async (installation, request, categoryPath) => {
-      const owner = {};
+    target: async (installation, request, categoryPath, record) => {
+      const owner = { reuseTabId: record?.tabId };
       await loadFormSchema({ ...request, categoryPath }, installation.appOrigin, owner);
       return owner;
     },
@@ -1013,7 +1079,6 @@
         }
       }
     },
-    show: (tabId) => chrome.tabs.update(tabId, { active: true }),
   });
   async function deleteListing(request, origin) {
     const installation = await load();
@@ -1165,14 +1230,36 @@
   });
   void scheduleMaintenance();
 
-  async function listingWrite(operation) {
+  const workspaceStatusKey = 'kleinanzeigen_workspace_status';
+  let visibleWriteBusy = false;
+  async function listingWrite(operation, visible = true) {
     if (reconciliationPromise) await reconciliationPromise;
     if (listingWriteBusy) throw new Error('Ein Kleinanzeigen-Auftrag wird bereits ausgeführt.');
     listingWriteBusy = true;
+    if (visible) visibleWriteBusy = true;
     try {
-      return await operation();
+      if (visible) await chrome.storage.local.set({ [workspaceStatusKey]: { phase: 'running' } });
+      const result = await operation();
+      if (visible)
+        await chrome.storage.local.set({
+          [workspaceStatusKey]: {
+            phase: result?.outcome && result.outcome !== 'confirmed' ? 'paused' : 'completed',
+            errorCode: result?.errorCode ?? null,
+          },
+        });
+      return result;
+    } catch (error) {
+      if (visible)
+        await chrome.storage.local.set({
+          [workspaceStatusKey]: {
+            phase: 'paused',
+            errorCode: error?.code ?? error?.message ?? 'preparation_failed',
+          },
+        });
+      throw error;
     } finally {
       listingWriteBusy = false;
+      if (visible) visibleWriteBusy = false;
     }
   }
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -1185,13 +1272,22 @@
         !sender.url?.startsWith('https://www.kleinanzeigen.de/')
       )
         return false;
-      chrome.storage.local.get(workTabsKey).then((values) => {
+      Promise.all([
+        chrome.storage.local.get(workTabsKey),
+        chrome.storage.local.get(workspaceStatusKey),
+      ]).then(([values, statuses]) => {
         const tabs = values[workTabsKey] ?? {};
         const owned =
           Object.entries(tabs).some(
             ([key, value]) => key.endsWith('TabId') && value === sender.tab.id,
           ) || tabs.publicationTabIds?.includes(sender.tab.id);
-        respond({ owned: !!owned, busy: listingWriteBusy });
+        const status = statuses[workspaceStatusKey];
+        respond({
+          owned: !!owned,
+          phase:
+            status?.phase === 'running' && !visibleWriteBusy ? 'paused' : (status?.phase ?? 'idle'),
+          errorCode: status?.errorCode ?? null,
+        });
       });
       return true;
     }
@@ -1221,6 +1317,17 @@
     }
     const request = core.parseRequest(message, origin);
     if (!request) return false;
+    if (request.action === 'VERSION') {
+      respond({ success: true, result: { version: chrome.runtime.getManifest().version } });
+      return true;
+    }
+    if (request.action === 'OPEN_SETTINGS') {
+      chrome.tabs.create({ url: 'chrome://extensions/?id=' + chrome.runtime.id }).then(
+        () => respond({ success: true, result: { opened: true } }),
+        () => respond({ success: false, error: 'Öffne chrome://extensions im Browser.' }),
+      );
+      return true;
+    }
     activeRequests++;
     const operation =
       request.action === 'PREPARE_ACCOUNT'
@@ -1232,8 +1339,9 @@
                 if (!relistingRuntime)
                   throw new Error('Aktualisiere die Erweiterung für erneutes Inserieren.');
                 if (listingWriteBusy) return [];
-                reconciliationPromise = listingWrite(() =>
-                  relistingRuntime.list(request, origin),
+                reconciliationPromise = listingWrite(
+                  () => relistingRuntime.list(request, origin),
+                  false,
                 ).finally(() => {
                   reconciliationPromise = undefined;
                 });

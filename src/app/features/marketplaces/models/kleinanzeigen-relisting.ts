@@ -68,6 +68,10 @@ export function kleinanzeigenRelistingMessage(result: KleinanzeigenRelistingResu
   if (result.outcome === 'outcome_unknown')
     return 'Ergebnis noch unklar. Es wird kein zweites Inserat erstellt; bitte Status prüfen.';
   switch (result.errorCode) {
+    case 'quota_unknown':
+      return 'Das Anzeigenkontingent konnte nicht geladen werden. Versuche es erneut.';
+    case 'quota_exhausted':
+      return 'Dein kostenloses Anzeigenkontingent ist aufgebraucht.';
     case 'category_missing':
       return 'Kategorie nicht gefunden. Die alte Anzeige bleibt erhalten.';
     case 'fees_or_quota':

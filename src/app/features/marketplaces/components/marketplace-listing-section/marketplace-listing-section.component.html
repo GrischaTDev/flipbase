@@ -119,10 +119,23 @@
           </div>
         }
         @if (relisting.error(); as message) {
-          <app-notice-banner class="mb-3" announcement="alert">{{ message }}</app-notice-banner>
+          <app-notice-banner class="mb-3" announcement="alert">
+            <div class="space-y-2">
+              <p>{{ message }}</p>
+              @if (extension.updateRequired()) {
+                <app-button variant="secondary" (clicked)="extension.openSettings()"
+                  >Erweiterung öffnen</app-button
+                >
+                <p class="text-xs">
+                  Falls sich kein Fenster öffnet: Gib chrome://extensions in die Adresszeile ein.
+                </p>
+              }
+            </div>
+          </app-notice-banner>
         }
       }
       <app-data-table
+        [embedded]="collapsible() || section().account.platform !== 'kleinanzeigen'"
         [ariaLabel]="'Inserate von ' + section().account.displayName"
         [searchEnabled]="section().account.supportsSearch"
         [searchValue]="section().query.search"
@@ -201,8 +214,10 @@
               @for (item of section().page?.items ?? []; track listingKey(item.reference)) {
                 <tr
                   class="border-b border-fb-border-subtle align-middle"
-                  [class.bg-fb-surface-hover]="kleinanzeigenActions.isRunning(item.reference)"
-                  [class.grayscale]="kleinanzeigenActions.isRunning(item.reference)"
+                  [class.bg-fb-brand-surface]="kleinanzeigenActions.isRunning(item.reference)"
+                  [class.ring-inset]="kleinanzeigenActions.isRunning(item.reference)"
+                  [class.ring-1]="kleinanzeigenActions.isRunning(item.reference)"
+                  [class.ring-fb-brand]="kleinanzeigenActions.isRunning(item.reference)"
                   [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
                 >
                   <td class="p-3">
@@ -217,7 +232,12 @@
                   </td>
                   <td class="p-3">
                     <div class="flex min-w-0 items-center gap-3">
-                      <app-product-thumbnail [src]="item.imageUrl" [alt]="item.title" size="sm" />
+                      <app-product-thumbnail
+                        [src]="item.imageUrl"
+                        [alt]="item.title"
+                        size="sm"
+                        fit="cover"
+                      />
                       <div class="min-w-0">
                         <p class="break-words font-medium text-fb-text-primary">{{ item.title }}</p>
                         <span class="text-xs text-fb-text-secondary">{{
@@ -254,8 +274,10 @@
             <article
               class="min-w-0 space-y-3 p-4"
               [attr.aria-label]="item.title"
-              [class.bg-fb-surface-hover]="kleinanzeigenActions.isRunning(item.reference)"
-              [class.grayscale]="kleinanzeigenActions.isRunning(item.reference)"
+              [class.bg-fb-brand-surface]="kleinanzeigenActions.isRunning(item.reference)"
+              [class.ring-inset]="kleinanzeigenActions.isRunning(item.reference)"
+              [class.ring-1]="kleinanzeigenActions.isRunning(item.reference)"
+              [class.ring-fb-brand]="kleinanzeigenActions.isRunning(item.reference)"
               [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
             >
               <div class="flex min-w-0 items-start gap-3">
@@ -267,7 +289,12 @@
                     selectionChanged.emit({ reference: item.reference, checked: $event })
                   "
                 />
-                <app-product-thumbnail [src]="item.imageUrl" [alt]="item.title" size="sm" />
+                <app-product-thumbnail
+                  [src]="item.imageUrl"
+                  [alt]="item.title"
+                  size="sm"
+                  fit="cover"
+                />
                 <div class="min-w-0 flex-1">
                   <h4 class="break-words text-sm font-medium text-fb-text-primary">
                     {{ item.title }}

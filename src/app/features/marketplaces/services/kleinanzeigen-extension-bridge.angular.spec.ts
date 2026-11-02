@@ -24,6 +24,42 @@ describe('Kleinanzeigen-Erweiterungsbrücke', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
+  it.each(['1.13.0', '1.9.9', 'unbekannt'])(
+    'stoppt veraltete Version %s vor einer Aktion',
+    async (version) => {
+      const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
+      const pending = bridge.ensureCurrent();
+      const request = vi.mocked(window.postMessage).mock.calls.at(-1)![0] as {
+        requestId: string;
+        type: string;
+      };
+      expect(request.type).toBe('FLIPBASE_KLEINANZEIGEN_VERSION');
+      message({
+        type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+        requestId: request.requestId,
+        success: true,
+        result: { version },
+      });
+      await expect(pending).rejects.toThrow('1.14.0');
+      expect(bridge.updateRequired()).toBe(true);
+    },
+  );
+  it('prüft vor jeder Aktion erneut und unterscheidet eine abgeschaltete Erweiterung', async () => {
+    const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
+    const pending = bridge.ensureCurrent();
+    const request = vi.mocked(window.postMessage).mock.calls.at(-1)![0] as { requestId: string };
+    message({
+      type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+      requestId: request.requestId,
+      success: true,
+      result: { version: '1.14.0' },
+    });
+    await pending;
+    const unavailable = expect(bridge.ensureCurrent()).rejects.toThrow('nicht erreichbar');
+    await vi.advanceTimersByTimeAsync(3000);
+    await unavailable;
+    expect(window.postMessage).toHaveBeenCalledTimes(2);
+  });
   it('erkennt nur die ausdrücklich erreichbaren Kleinanzeigen-Fähigkeiten', () => {
     const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
     message({
@@ -349,7 +385,7 @@ describe('Kontingent und Auftragsausführung', () => {
   it('fordert für Löschen ausdrücklich eine unterstützende Erweiterung und eine bestätigte Antwort', async () => {
     const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
     const scope = { workspaceId: workspace, connectionId: '9', generation: 2 };
-    await expect(bridge.deleteListing(scope, '999', 'Jacke')).rejects.toThrow('1.13.0');
+    await expect(bridge.deleteListing(scope, '999', 'Jacke')).rejects.toThrow('1.14.0');
     message({
       type: 'FLIPBASE_EXTENSION_STATUS',
       installed: true,

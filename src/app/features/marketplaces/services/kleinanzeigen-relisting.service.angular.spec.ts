@@ -15,6 +15,7 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
   const accounts = { readAccounts: vi.fn(), requestSync: vi.fn() };
   const extension = {
     relistingAvailable: signal(true),
+    ensureCurrent: vi.fn().mockResolvedValue(undefined),
     relist: vi.fn(),
     deleteListing: vi.fn(),
     relistingAttempts: vi.fn(),
@@ -87,6 +88,14 @@ describe('Ausgewählte Kleinanzeigen neu inserieren', () => {
     });
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('startet bei veralteter Erweiterung weder Bestätigung noch Anbieteraktion', async () => {
+    extension.ensureCurrent.mockRejectedValueOnce(new Error('Erweiterung veraltet'));
+    const service = TestBed.inject(KleinanzeigenRelistingService);
+    expect(await service.run(section)).toBe(false);
+    expect(service.error()).toBe('Erweiterung veraltet');
+    expect(confirmation.frage).not.toHaveBeenCalled();
+    expect(extension.relist).not.toHaveBeenCalled();
+  });
   it('verarbeitet bestätigte Auswahl nacheinander und gleicht den Bestand erst danach ab', async () => {
     const service = TestBed.inject(KleinanzeigenRelistingService);
     expect(await service.run(section)).toBe(true);
