@@ -39,9 +39,15 @@ select '25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000
 insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values
  ('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000022','activity','other','{"title":"Anderes Konto"}');
 
+insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body) values
+ ('25000000-0000-4000-8000-000000000041','25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000021','publication','987654321','{"title":"Relist-Artikel","externalId":"untrusted-body-id","publicationState":"active"}');
+
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"25000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select is((select count(*)::int from public.marketplace_connections),2,'Inhaber sieht nur eigenen Workspace');
+select is(public.marketplace_read_page('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000021','publication')->'items'->0->>'externalId','987654321','Kleiderschrank liefert die kanonische Vinted-ID für Relisten und Vorlagen');
+select is(public.marketplace_read_page('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000021','publication')->'items'->0->>'id','25000000-0000-4000-8000-000000000041','Interne Artikel-ID bleibt getrennt erhalten');
+select is(public.marketplace_read_snapshot('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000021')->'publications'->'items'->0->>'externalId','987654321','Auch der erste Kontoabruf liefert die Vinted-ID');
 select is(jsonb_array_length(public.marketplace_list_connections('25000000-0000-4000-8000-000000000011')->'connections'),2,'Kontoliste ist vollständig');
 select is(public.marketplace_create_connection('25000000-0000-4000-8000-000000000011','  Neues Konto  ')->>'displayName','Neues Konto','Kontoanlage normalisiert nur den Namen');
 select is((select status from public.marketplace_connections where display_name='Neues Konto'),'needs_login','Vorbereitete Verbindung ist nicht angemeldet');

@@ -172,6 +172,7 @@ begin
     order by e.sort_at desc, e.id desc limit 51
   )
   select coalesce(jsonb_agg((e.body || jsonb_build_object('id', e.id, 'workspaceId', e.workspace_id, 'connectionId', e.connection_id)
+    || case when p_kind='publication' then jsonb_build_object('externalId',e.external_id) else '{}'::jsonb end
     || case when p_kind='conversation' then jsonb_build_object('readVersion',e.current_read_version,
       'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end)
       -- Der Artikelstreifen zeigt den gespeicherten Inseratspreis, keinen privaten Transaktionspreis.
