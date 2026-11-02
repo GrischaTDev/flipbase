@@ -8,6 +8,7 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { VintedListingEditorComponent } from './vinted-listing-editor.component';
@@ -129,6 +130,7 @@ function setup(query: Record<string, string> = {}) {
   }));
   TestBed.configureTestingModule({
     providers: [
+      { provide: VintedListingJobService, useValue: { editPlan: vi.fn() } },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       {
@@ -796,4 +798,50 @@ it('erhaelt einen halb eingegebenen Preis bei ausschliesslicher Titeluebernahme'
   });
   expect(f.component.form.controls.price.value).toBe('12,');
   expect(f.component.form.controls.title.value).toBe('Neuer Titel');
+});
+
+it('führt beim Weitergehen noch keine Speicherung aus und erhält die Artikeldetails', async () => {
+  const f = setup();
+  await settle();
+  publicationInput(f);
+  f.component.nextRelistStep();
+  expect(f.component.relistStep()).toBe('options');
+  expect(f.component.resizePhotos()).toBe(false);
+  expect(f.create).not.toHaveBeenCalled();
+  expect(f.save).not.toHaveBeenCalled();
+  f.component.previousRelistStep();
+  expect(f.component.form.controls.title.value).toBe('Meine Jacke');
+});
+it('übergibt verzögertes Relisten ohne vorab berechneten Veröffentlichungstermin', async () => {
+  const f = setup();
+  await settle();
+  const open = vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+  f.component.relistTiming.set('delay');
+  f.component.relistMinutes.set(3);
+  await f.component.submitRelisting();
+  expect(open).toHaveBeenCalledOnce();
+  expect(f.component.publicationSchedule()).toBeNull();
+});
+it('hält eine vergangene feste Uhrzeit vor der Speicherung zurück', async () => {
+  const f = setup();
+  await settle();
+  const open = vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+  f.component.relistTiming.set('scheduled');
+  f.component.relistScheduleForm.setValue({ date: '2000-01-01', time: '18:00' });
+  await f.component.submitRelisting();
+  expect(open).not.toHaveBeenCalled();
+  expect(f.component.error()).toContain('Zukunft');
+});
+
+it('bereitet Fotos nur bei ausdrücklich gewählter Bildanpassung auf', async () => {
+  const f = setup();
+  await settle();
+  const photos = vi.spyOn(f.component, 'preparePhotos').mockResolvedValue();
+  vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+  await f.component.submitRelisting();
+  expect(photos).not.toHaveBeenCalled();
+  f.component.resizePhotos.set(true);
+  await f.component.submitRelisting();
+  expect(photos).toHaveBeenCalledOnce();
+  expect(f.component.resizePhotos()).toBe(false);
 });

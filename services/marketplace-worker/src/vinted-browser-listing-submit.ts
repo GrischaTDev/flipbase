@@ -179,7 +179,7 @@ export async function submitVintedListing(
     if ((await button.count()) !== 1 || !(await button.isVisible()) || !(await button.isEnabled()))
       return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
     await check();
-    if (snapshot.relistExternalId) {
+    if (snapshot.relistExternalId && snapshot.relistStage !== 'publish') {
       // Die vollständigen Angaben, privaten Originale und angenommenen Uploads liegen vor.
       // Erst nach bestätigter Löschung darf die neue Veröffentlichung beginnen.
       const removed = await deleteVintedListing(
@@ -196,6 +196,13 @@ export async function submitVintedListing(
             removed.step +
             '_' +
             (removed.status === 'failed' ? 'failed' : 'unconfirmed'),
+        };
+      if (snapshot.relistStage === 'delete')
+        return {
+          outcome: 'relisting_deleted',
+          externalId: snapshot.relistExternalId,
+          externalAccountId: accountId,
+          verifiedAt: new Date().toISOString(),
         };
       await check();
     }

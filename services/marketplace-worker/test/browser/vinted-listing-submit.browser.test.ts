@@ -15,6 +15,8 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
   try {
     for (const mode of [
       'confirmed',
+      'staged',
+      'publish',
       'foreign',
       'closed',
       'reserved',
@@ -50,7 +52,7 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
         assert.equal(form.saves(), 0, 'Kein neues Inserat vor der Löschung');
         assert.equal(form.uploads(), 1, 'Das vollständige Foto wurde vor der Löschung vorbereitet');
         deletes++;
-        removed = mode === 'confirmed';
+        removed = mode === 'confirmed' || mode === 'staged';
         await route.fulfill({ json: { ok: true } });
       });
       await context.route('https://www.vinted.de/items/98765', async (route) =>
@@ -70,7 +72,15 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
         page,
         '123',
         'publish',
-        { ...listingClaimFixture.snapshot, relistExternalId: '98765' },
+        {
+          ...listingClaimFixture.snapshot,
+          relistExternalId: '98765',
+          ...(mode === 'staged'
+            ? { relistStage: 'delete' as const }
+            : mode === 'publish'
+              ? { relistStage: 'publish' as const }
+              : {}),
+        },
         async () => undefined,
         async () => undefined,
         async (id) => ({
@@ -84,13 +94,19 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
       );
       assert.equal(
         deletes,
-        mode === 'confirmed' || mode === 'unconfirmed' ? 1 : 0,
+        mode === 'confirmed' || mode === 'unconfirmed' || mode === 'staged' ? 1 : 0,
         JSON.stringify(result),
       );
-      assert.equal(form.saves(), mode === 'confirmed' ? 1 : 0);
+      assert.equal(form.saves(), mode === 'confirmed' || mode === 'publish' ? 1 : 0);
       assert.equal(
         result.outcome,
-        mode === 'confirmed' ? 'confirmed' : mode === 'unconfirmed' ? 'outcome_unknown' : 'failed',
+        mode === 'staged'
+          ? 'relisting_deleted'
+          : mode === 'confirmed' || mode === 'publish'
+            ? 'confirmed'
+            : mode === 'unconfirmed'
+              ? 'outcome_unknown'
+              : 'failed',
       );
       await context.close();
     }

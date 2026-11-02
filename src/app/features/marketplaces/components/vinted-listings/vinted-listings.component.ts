@@ -1,3 +1,5 @@
+import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
+import type { VintedListingJob } from '../../models/vinted-listing-job';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { CurrencyPipe } from '@angular/common';
 import {
@@ -59,7 +61,7 @@ import { VintedListingOperationStore } from '../../services/vinted-listing-opera
     VintedListingEditorComponent,
   ],
   templateUrl: './vinted-listings.component.html',
-  providers: [MarketplaceListingStatisticsStore],
+  providers: [MarketplaceListingStatisticsStore, VintedRelistingPlanStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block min-w-0 w-full max-w-full overflow-hidden' },
 })
@@ -70,6 +72,17 @@ export class VintedListingsComponent {
   readonly priceIcon = LucideBadgeEuro;
   readonly relistIcon = LucideRotateCcw;
   readonly templateIcon = LucideCopy;
+  readonly plans = inject(VintedRelistingPlanStore);
+  readonly editingPlan = signal<VintedListingJob | null>(null);
+  readonly entries = computed(() => {
+    const deleted = new Set(this.plans.plans().map((plan) => plan.job.relistExternalId));
+    return (this.page()?.items ?? []).filter((entry) => !deleted.has(entry.externalId));
+  });
+  closeEditor(): void {
+    this.editorSource.set(null);
+    this.editingPlan.set(null);
+    void this.plans.refresh();
+  }
   readonly editorSource = signal<VintedListingEditorSource | null>(null);
   canCreateFrom(entry: MarketplaceEntry): boolean {
     return (

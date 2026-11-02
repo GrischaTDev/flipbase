@@ -352,6 +352,12 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 ## Styling
 
+- Keine ungefragten Info-, Warn- oder Erklärtexte in der Oberfläche ergänzen.
+  Funktionen sollen durch klare Beschriftungen und ihre Bedienung verständlich sein.
+  Hilfetexte nur auf ausdrücklichen Nutzerauftrag; redundante Erklärungen zu
+  vorhandenen Labels oder Badges entfallen. Konkrete Fehler und notwendige
+  Eingabevalidierung bleiben sichtbar.
+
 - Vor UI-Änderungen `docs/design/admin-ui-guidelines.md` lesen. Dort stehen
   die aktuellen Apple-Quellen, der Maßvertrag und verbindliche Nutzerentscheidungen.
 - Das helle Logo-Gelb `#fcc601` bleibt der primäre Markenakzent. Nicht ungefragt

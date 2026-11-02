@@ -18,6 +18,10 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { selectVintedListingSchedule } from '../../models/vinted-listing-schedule';
+import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
 import { prepareVintedListingPhoto } from '../../services/vinted-listing-photo-preparation';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -93,6 +97,8 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   selector: 'app-vinted-listing-editor',
   templateUrl: './vinted-listing-editor.component.html',
   imports: [
+    DatePickerComponent,
+    FormFieldComponent,
     VintedListingCopyDialogComponent,
     ReactiveFormsModule,
     ButtonComponent,
@@ -116,10 +122,31 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   host: { class: 'block min-w-0', '(window:beforeunload)': 'beforeUnload($event)' },
 })
 export class VintedListingEditorComponent {
+  readonly plannedJob = input<VintedListingJob | null>(null);
+  readonly waitingPlan = signal<VintedListingJob | null>(null);
+  readonly relistStep = signal<'details' | 'options'>('details');
+  readonly resizePhotos = signal(false);
+  readonly relistTiming = signal<'now' | 'delay' | 'scheduled'>('now');
+  readonly relistMinutes = signal(5);
+  readonly relistTimingOptions = [
+    { value: 'now' as const, label: 'Sofort relisten' },
+    { value: 'delay' as const, label: 'Verzögert relisten' },
+    { value: 'scheduled' as const, label: 'Relisting planen' },
+  ];
+  readonly relistMinuteOptions = [1, 2, 3, 5, 10].map((value) => ({
+    value,
+    label: `${value} Min.`,
+  }));
+  readonly relistScheduleForm = new FormGroup({
+    date: new FormControl('', { nonNullable: true }),
+    time: new FormControl('', { nonNullable: true }),
+  });
+  private readonly jobsApi = inject(VintedListingJobService);
   readonly source = input<VintedListingEditorSource | null>(null);
   readonly closed = output<void>();
   readonly relisting = computed(
-    () => this.source()?.mode === 'relist' || !!this.draft()?.relistExternalId,
+    () =>
+      this.source()?.mode === 'relist' || !!this.plannedJob() || !!this.draft()?.relistExternalId,
   );
   readonly photoSize = signal<number | null>(null);
   readonly preparingPhotos = signal(false);
@@ -152,6 +179,7 @@ export class VintedListingEditorComponent {
           user.id,
           workspace.id,
           this.params().get('draftId'),
+          this.plannedJob()?.id,
           this.source()?.entry.connectionId,
           this.source()?.entry.id,
           this.source()?.mode,
@@ -459,12 +487,59 @@ export class VintedListingEditorComponent {
     this.publicationSchedule.set(null);
     void this.openPublication();
   }
-  publishAfter(minutes: number): void {
-    this.schedulePublication({
-      scheduledAt: new Date(Date.now() + minutes * 60_000).toISOString(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      latePolicy: 'pause_after_30_minutes',
+  nextRelistStep(): void {
+    this.publicationAttempted.set(true);
+    if (this.accountIssue() || this.contentError() || Object.keys(this.fieldErrors()).length) {
+      this.focusFirstIssue();
+      return;
+    }
+    this.relistStep.set('options');
+    this.error.set(null);
+    this.focusRelistStep();
+  }
+  previousRelistStep(): void {
+    if (this.saving() || this.preparingPhotos() || this.publicationBusy()) return;
+    this.relistStep.set('details');
+    this.focusRelistStep();
+  }
+  private focusRelistStep(): void {
+    setTimeout(() => {
+      const heading = this.host?.nativeElement.querySelector<HTMLElement>('h1');
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus();
+      heading?.scrollIntoView({ block: 'start' });
     });
+  }
+  async submitRelisting(): Promise<void> {
+    if (this.preparingPhotos() || this.saving() || this.publication()) return;
+    this.error.set(null);
+    try {
+      const scheduled = this.relistTiming() === 'scheduled';
+      this.publicationSchedule.set(
+        scheduled
+          ? {
+              ...selectVintedListingSchedule(
+                {
+                  ...this.relistScheduleForm.getRawValue(),
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                },
+                Date.now(),
+              ),
+              latePolicy: 'pause_after_30_minutes',
+            }
+          : null,
+      );
+      if (this.resizePhotos()) {
+        await this.preparePhotos();
+        if (this.error()) return;
+        this.resizePhotos.set(false);
+      }
+      await this.openPublication();
+    } catch (error) {
+      this.error.set(
+        error instanceof Error ? error.message : 'Die Planung konnte nicht gespeichert werden.',
+      );
+    }
   }
   async preparePhotos(): Promise<void> {
     if (this.preparingPhotos() || this.saving() || this.imageEditing()) return;
@@ -576,7 +651,10 @@ export class VintedListingEditorComponent {
     );
     this.publicationSchedule.set(null);
     this.jobRefresh.update((value) => value + 1);
-    if (this.source()) this.closed.emit();
+    if (this.source() || this.plannedJob()) {
+      this.waitingPlan.set(null);
+      this.closed.emit();
+    }
     setTimeout(() =>
       this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
     );
@@ -784,8 +862,24 @@ export class VintedListingEditorComponent {
     );
   }
   async cancel(): Promise<void> {
-    if (this.source()) {
-      if (await this.canLeave()) this.closed.emit();
+    if (this.source() || this.plannedJob()) {
+      if (await this.canLeave()) {
+        const waiting = this.waitingPlan();
+        if (waiting) {
+          try {
+            await this.jobsApi.editPlan(waiting, false);
+            this.waitingPlan.set(null);
+          } catch (error) {
+            this.error.set(
+              error instanceof Error
+                ? error.message
+                : 'Die Planung konnte nicht fortgesetzt werden.',
+            );
+            return;
+          }
+        }
+        this.closed.emit();
+      }
       return;
     }
     await this.router.navigate(['/marketplaces/vinted/listing-drafts']);
@@ -880,8 +974,24 @@ export class VintedListingEditorComponent {
       return;
     }
     const workspaceId = this.workspaceId()!;
-    const id = idOverride ?? this.params().get('draftId');
+    const id = idOverride ?? this.plannedJob()?.draftId ?? this.params().get('draftId');
     try {
+      if (this.plannedJob() && !this.waitingPlan()) {
+        const paused = await this.jobsApi.editPlan(this.plannedJob()!, true);
+        if (!this.current(generation, context)) {
+          await this.jobsApi.editPlan(paused, false);
+          return;
+        }
+        this.waitingPlan.set(paused);
+        this.relistTiming.set('scheduled');
+        if (paused.scheduledAt) {
+          const date = new Date(paused.scheduledAt);
+          this.relistScheduleForm.setValue({
+            date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+            time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+          });
+        }
+      }
       const source = this.source();
       if (source) {
         if (source.entry.workspaceId !== workspaceId)

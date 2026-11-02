@@ -78,6 +78,7 @@ export type MarketplaceListingAction = 'publish' | 'vinted_draft' | 'update';
 /** Unveränderliche private Originale; URLs entstehen erst im autorisierten Ausführungsweg. */
 export interface MarketplaceListingSnapshot {
   readonly relistExternalId?: string;
+  readonly relistStage?: 'delete' | 'publish';
   readonly content: VintedListingContent;
   readonly images: readonly {
     readonly id: string;
@@ -94,6 +95,12 @@ export interface MarketplaceListingSnapshot {
 
 /** Ein Ergebnis gilt nur nach einem erneuten Anbieterabruf als bestätigt. */
 export type MarketplaceListingResult =
+  | {
+      readonly outcome: 'relisting_deleted';
+      readonly externalId: string;
+      readonly externalAccountId: string;
+      readonly verifiedAt: string;
+    }
   | {
       readonly outcome: 'confirmed';
       readonly action: MarketplaceListingAction;

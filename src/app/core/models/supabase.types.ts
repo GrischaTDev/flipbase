@@ -4395,6 +4395,8 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          relist_deleted_account_id: string | null
+          relist_deleted_at: string | null
           relist_external_id: string | null
           request_id: string
           revision: number
@@ -4410,6 +4412,8 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          relist_deleted_account_id?: string | null
+          relist_deleted_at?: string | null
           relist_external_id?: string | null
           request_id?: string
           revision?: number
@@ -4425,6 +4429,8 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          relist_deleted_account_id?: string | null
+          relist_deleted_at?: string | null
           relist_external_id?: string | null
           request_id?: string
           revision?: number
@@ -4536,6 +4542,8 @@ export type Database = {
           permission_id: number | null
           provider_result: Json | null
           provider_state: string | null
+          relist_delay_seconds: number
+          relist_publish_at: string | null
           replaces_job_id: number | null
           request_hash: string
           request_id: string
@@ -4576,6 +4584,8 @@ export type Database = {
           permission_id?: number | null
           provider_result?: Json | null
           provider_state?: string | null
+          relist_delay_seconds?: number
+          relist_publish_at?: string | null
           replaces_job_id?: number | null
           request_hash: string
           request_id: string
@@ -4616,6 +4626,8 @@ export type Database = {
           permission_id?: number | null
           provider_result?: Json | null
           provider_state?: string | null
+          relist_delay_seconds?: number
+          relist_publish_at?: string | null
           replaces_job_id?: number | null
           request_hash?: string
           request_id?: string
@@ -11280,6 +11292,14 @@ export type Database = {
         Args: { p_image_id: string }
         Returns: string
       }
+      marketplace_edit_relisting_plan: {
+        Args: {
+          p_editing: boolean
+          p_expected_version: number
+          p_job_id: string
+        }
+        Returns: Json
+      }
       marketplace_enqueue_listing: {
         Args: {
           p_action: string
@@ -11300,6 +11320,7 @@ export type Database = {
           p_draft_id: string
           p_expected_revision: number
           p_late_policy?: string
+          p_relist_delay_seconds?: number
           p_replaces_job_id?: number
           p_replaces_version?: number
           p_request_id: string
@@ -11339,6 +11360,20 @@ export type Database = {
           p_price_cents?: number
           p_request_id: string
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_enqueue_relisting: {
+        Args: {
+          p_ai_photo: boolean
+          p_delay_seconds?: number
+          p_draft_id: string
+          p_expected_revision: number
+          p_replaces_job_id?: string
+          p_replaces_version?: number
+          p_request_id: string
+          p_scheduled_at?: string
+          p_time_zone?: string
         }
         Returns: Json
       }
@@ -11772,6 +11807,8 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          relist_deleted_account_id: string | null
+          relist_deleted_at: string | null
           relist_external_id: string | null
           request_id: string
           revision: number
@@ -11998,6 +12035,10 @@ export type Database = {
           p_parent_id?: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_read_relisting_plans: {
+        Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_read_snapshot: {

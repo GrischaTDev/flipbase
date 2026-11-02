@@ -163,3 +163,29 @@ test('mixed write permissions and wrong-account receipts are rejected before the
   );
   assert.deepEqual(f.calls, []);
 });
+
+test('a deletion receipt queues the publish phase and is accepted only for its matching delete claim', async () => {
+  const receipt = {
+    outcome: 'relisting_deleted' as const,
+    externalId: '98765',
+    externalAccountId: '123',
+    verifiedAt: '2026-10-09T12:00:00.000Z',
+  };
+  for (const stage of ['delete', 'publish'] as const) {
+    const f = fixture(
+      { snapshot: { ...fixtureClaim.snapshot, relistExternalId: '98765', relistStage: stage } },
+      { state: 'queued' },
+    );
+    const claim = await f.store.claim(binding.workerId, 4, binding.runnerId);
+    assert.ok(claim);
+    if (stage === 'delete') {
+      await f.store.finish(claim, receipt);
+      assert.deepEqual(f.calls.at(-1)?.body.p_result, receipt);
+    } else {
+      const before = f.calls.length;
+      await assert.rejects(f.store.finish(claim, receipt));
+      assert.equal(f.calls.length, before);
+    }
+    await assert.rejects(f.store.finish(claim, { ...receipt, externalId: '99999' }));
+  }
+});

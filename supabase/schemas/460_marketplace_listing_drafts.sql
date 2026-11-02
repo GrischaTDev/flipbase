@@ -46,6 +46,9 @@ revoke all on function public.marketplace_listing_content_valid(jsonb) from publ
 grant execute on function public.marketplace_listing_content_valid(jsonb) to authenticated, service_role;
 
 create table public.marketplace_listing_drafts (
+  relist_deleted_at timestamptz,
+  relist_deleted_account_id text,
+  check ((relist_deleted_at is null) = (relist_deleted_account_id is null)),
   relist_external_id text check (relist_external_id ~ '^[1-9][0-9]{0,31}$'),
   id bigint generated always as identity primary key,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,

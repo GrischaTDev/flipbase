@@ -136,6 +136,9 @@ async function prepareListing(page: Page, listing: ListingFixture) {
     Reflect.deleteProperty(Object.getPrototypeOf(navigator), 'serviceWorker'),
   );
   await mockMarketplace(page, true, false, false, false, []);
+  await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
+    route.fulfill({ json: { items: [] } }),
+  );
   const entry = {
     id: entryId,
     externalId: '98765',
@@ -1081,13 +1084,17 @@ for (const width of [390, 1440])
         await expect(
           editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
         ).toHaveValue(listing.content.description);
-        await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toBeVisible();
+        await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await expect(
+          editor.getByRole('button', { name: 'Daten übernehmen', exact: true }),
+        ).toHaveCount(0);
+        await expect(
+          editor.getByRole('button', { name: 'Entwurf speichern', exact: true }),
+        ).toHaveCount(0);
         await expect(
           editor.getByText(/Die Vinted-Kategorien konnten nicht geladen werden/),
         ).toHaveCount(0);
-        await expect(
-          editor.getByRole('button', { name: 'In 10 Min. relisten', exact: true }),
-        ).toBeVisible();
+        await expect(editor.getByRole('button', { name: 'Weiter', exact: true })).toBeVisible();
         const preview = editor.locator('app-vinted-listing-media img').first();
         await expect(preview).toBeVisible();
         const prepared = await preview.evaluate(async (image: HTMLImageElement) => ({
@@ -1097,17 +1104,31 @@ for (const width of [390, 1440])
         }));
         expect([prepared.width, prepared.height]).toEqual([160, 200]);
         expect(Buffer.from(prepared.bytes).includes(Buffer.from('Exif'))).toBe(false);
-        await editor.getByRole('combobox', { name: 'Bildauflösung (längste Kante)' }).click();
+        await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
+        await expect(
+          editor.getByRole('heading', { name: 'Relisting festlegen', exact: true }),
+        ).toBeVisible();
+        await expect(editor.getByRole('combobox', { name: 'Auflösung', exact: true })).toHaveCount(
+          0,
+        );
+        await editor.getByRole('checkbox', { name: 'Bildauflösung anpassen', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Auflösung', exact: true }).click();
         await page.getByRole('option', { name: '1600 Pixel', exact: true }).click();
-        await editor.getByRole('button', { name: 'Fotos vorbereiten', exact: true }).click();
-        await expect
-          .poll(() =>
-            preview.evaluate((image: HTMLImageElement) => [
-              image.naturalWidth,
-              image.naturalHeight,
-            ]),
-          )
-          .toEqual([1280, 1600]);
+        await editor.getByRole('combobox', { name: 'Relisten', exact: true }).click();
+        await page.getByRole('option', { name: 'Verzögert relisten', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Wartezeit', exact: true }).click();
+        await page.getByRole('option', { name: '10 Min.', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Relisten', exact: true }).click();
+        await page.getByRole('option', { name: 'Relisting planen', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
+        await editor
+          .getByRole('button', { name: 'Zurück zu den Artikeldetails', exact: true })
+          .click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
         await page.evaluate(axe.source);
         expect(
           (
@@ -1133,6 +1154,166 @@ for (const width of [390, 1440])
           editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
         ).toBeVisible();
         await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        const createdAt = new Date().toISOString();
+        let plannedDraft = {
+          id: '20',
+          workspaceId,
+          connectionId: accountIds[0],
+          relistExternalId: '98765',
+          revision: 1,
+          content: { ...listing.content, aiPhoto: listing.aiPhoto },
+          images: [
+            {
+              id: '21',
+              storagePath: `${workspaceId}/20/25000000-0000-4000-8000-000000000041.jpg`,
+              fileName: 'foto.jpg',
+              mimeType: 'image/jpeg',
+              byteSize: photo.length,
+            },
+          ],
+          inventoryItemId: null,
+          createdAt,
+          updatedAt: createdAt,
+        };
+        let plannedJob = {
+          id: '30',
+          workspaceId,
+          connectionId: accountIds[0],
+          draftId: '20',
+          draftRevision: 1,
+          relistExternalId: '98765',
+          relistDeletedAt: createdAt,
+          relistDelaySeconds: 0,
+          itemTitle: listing.content.title,
+          externalAccountId: '100',
+          executionMode: 'cloud',
+          action: 'publish',
+          state: 'queued',
+          version: 1,
+          scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+          timeZone: 'Europe/Berlin',
+          latePolicy: 'pause_after_30_minutes',
+          errorCode: null as string | null,
+          externalId: null,
+          providerState: null,
+          verifiedAt: null,
+          createdAt,
+          updatedAt: createdAt,
+          replacesJobId: null as string | null,
+        };
+        const edits: boolean[] = [];
+        const enqueues: Record<string, unknown>[] = [];
+        await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
+          route.fulfill({ json: { items: [plannedJob] } }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+          route.fulfill({ json: { items: [plannedJob] } }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
+          route.fulfill({ json: plannedDraft }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_save_listing_draft', (route) => {
+          const body = route.request().postDataJSON();
+          plannedDraft = {
+            ...plannedDraft,
+            content: body.p_content,
+            revision: plannedDraft.revision + 1,
+          };
+          return route.fulfill({ json: plannedDraft });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_edit_relisting_plan', (route) => {
+          const body = route.request().postDataJSON();
+          edits.push(body.p_editing);
+          plannedJob = {
+            ...plannedJob,
+            state: body.p_editing ? 'paused' : 'queued',
+            errorCode: body.p_editing ? 'editing' : null,
+            version: plannedJob.version + 1,
+          };
+          return route.fulfill({ json: plannedJob });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_enqueue_relisting', (route) => {
+          const body = route.request().postDataJSON();
+          enqueues.push(body);
+          plannedJob = {
+            ...plannedJob,
+            id: '31',
+            state: 'queued',
+            errorCode: null,
+            draftRevision: plannedDraft.revision,
+            itemTitle: plannedDraft.content.title,
+            scheduledAt: body.p_scheduled_at,
+            version: 1,
+            replacesJobId: '30',
+          };
+          return route.fulfill({ json: plannedJob });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_permission', (route) =>
+          route.fulfill({
+            json: { allowed: true, authorizationVersion: 1, executionMode: 'cloud' },
+          }),
+        );
+        await page.route('**/functions/v1/vinted-brand-search', (route) =>
+          route.fulfill({ json: { brands: [{ id: 254956, name: 'Jako' }] } }),
+        );
+        await page.route('**/marketplace-browser/healthz', (route) =>
+          route.fulfill({
+            json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: true },
+          }),
+        );
+        await page.route('**/storage/v1/**', (route) =>
+          route.request().method() === 'POST'
+            ? route.fulfill({
+                json: (route.request().postDataJSON().paths as string[]).map((path) => ({
+                  path,
+                  signedURL: `/object/sign/marketplace-listing-media/${path}?token=fixture`,
+                  error: null,
+                })),
+              })
+            : route.fulfill({ contentType: 'image/jpeg', body: photo }),
+        );
+        await page.goto('/marketplaces/vinted/listings');
+        const plan = wardrobe.getByRole('article', { name: listing.content.title, exact: true });
+        await expect(plan).toContainText('Veröffentlichung geplant für');
+        await expect(
+          wardrobe.getByRole('heading', {
+            name: 'Noch keine Artikel im Kleiderschrank',
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await expect(
+          wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
+        ).toHaveCount(0);
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        await expect(plan).toContainText('Veröffentlichung geplant für');
+        await expect(
+          wardrobe.getByRole('heading', {
+            name: 'Noch keine Artikel im Kleiderschrank',
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await plan.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await page.keyboard.press('Escape');
+        await expect(editor).toHaveCount(0);
+        expect(edits).toEqual([true, false]);
+        await plan.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+        await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('25,90');
+        await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
+        await editor.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+        await expect(editor).toHaveCount(0);
+        expect(plannedDraft.content.priceCents).toBe(2590);
+        expect(enqueues).toHaveLength(1);
+        expect(enqueues[0]).toMatchObject({
+          p_draft_id: '20',
+          p_replaces_job_id: '30',
+          p_delay_seconds: 0,
+        });
+        await screenshot(page, `vinted-relist-planned-${width}-${theme}`);
         await checkPage(page, errors);
       });
     });

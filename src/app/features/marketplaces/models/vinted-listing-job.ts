@@ -19,6 +19,8 @@ export interface VintedListingPermission {
   readonly executionMode: VintedListingExecutionMode;
 }
 export interface VintedListingJob {
+  readonly relistDeletedAt?: string | null;
+  readonly relistDelaySeconds?: number;
   readonly relistExternalId?: string | null;
   readonly itemTitle?: string;
   readonly id: string;
@@ -171,6 +173,9 @@ export function parseVintedListingJob(
   return {
     id,
     workspaceId,
+    relistDeletedAt: data['relistDeletedAt'] == null ? null : timestamp(data['relistDeletedAt']),
+    relistDelaySeconds:
+      data['relistDelaySeconds'] == null ? 0 : integer(data['relistDelaySeconds'], 0),
     relistExternalId: relistExternalId as string | null | undefined,
     itemTitle: typeof itemTitle === 'string' ? itemTitle : undefined,
     connectionId,

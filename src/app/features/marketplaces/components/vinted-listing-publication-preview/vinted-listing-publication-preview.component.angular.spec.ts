@@ -404,3 +404,17 @@ it('prüft ein eigenes Formular ohne Abruf einer Vinted-Formularauswahl', async 
   expect(f.component.review()?.ready).toBe(true);
   f.fixture.destroy();
 });
+
+it('ersetzt ausschließlich den unverändert für die Bearbeitung pausierten Auftrag', async () => {
+  const f = setup(true);
+  await settle(f);
+  const previous = { id: '10', version: 4, state: 'paused', errorCode: 'editing' };
+  f.fixture.componentRef.setInput('replacesJob', previous);
+  f.api.list.mockResolvedValueOnce([previous]);
+  await f.component.load();
+  expect(f.component.blockedJob()).toBeNull();
+  f.api.list.mockResolvedValueOnce([{ ...previous, state: 'claimed', version: 5 }]);
+  await f.component.load();
+  expect(f.component.blockedJob()).toBeTruthy();
+  f.fixture.destroy();
+});

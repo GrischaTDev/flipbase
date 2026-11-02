@@ -9,6 +9,10 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { MarketplaceListingStatisticsStore } from '../../services/marketplace-listing-statistics.store';
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
+import { VintedListingJobService } from '../../services/vinted-listing-job.service';
+import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
+import { VintedListingImageService } from '../../services/vinted-listing-image.service';
+import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
 import { VintedListingsComponent } from './vinted-listings.component';
 import { parseMarketplacePage } from '../../models/marketplace-response';
 
@@ -39,6 +43,10 @@ function setup(connectionId: string) {
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedRelistingPlanStore,
+        useValue: { plans: signal([]), error: signal(null), refresh: vi.fn() },
+      },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'price-user' }) } },
       MarketplaceListingStatisticsStore,
       { provide: MarketplaceApiService, useValue: { readListingStatistics: vi.fn() } },
@@ -229,4 +237,48 @@ it('schließt bei einem Kontowechsel den Preisdialog und verwirft verspätete An
   expect(component.priceEditor.open()).toBe(false);
   expect(component.priceEntry()).toBe(null);
   expect(component.priceNotice()).toBe(null);
+});
+
+async function settlePlans() {
+  TestBed.tick();
+  for (let index = 0; index < 12; index++) await Promise.resolve();
+  TestBed.tick();
+}
+function pendingPlans() {
+  const selectedConnection = signal(accountA);
+  let resolve!: (value: readonly never[]) => void;
+  const first = new Promise<readonly never[]>((done) => (resolve = done));
+  const listPlans = vi.fn().mockReturnValueOnce(first).mockResolvedValue([]);
+  TestBed.configureTestingModule({
+    providers: [
+      { provide: AuthService, useValue: { currentUser: signal({ id: 'plan-user' }) } },
+      {
+        provide: MarketplaceAccountStore,
+        useValue: { selectedConnection, canManage: signal(true) },
+      },
+      { provide: VintedListingJobService, useValue: { listPlans } },
+      { provide: VintedListingDraftService, useValue: {} },
+      { provide: VintedListingImageService, useValue: {} },
+    ],
+  });
+  const plans = TestBed.runInInjectionContext(() => new VintedRelistingPlanStore());
+  return { plans, selectedConnection, listPlans, resolve };
+}
+it('verwirft den verspäteten Planabruf eines zuvor gewählten Kontos', async () => {
+  const f = pendingPlans();
+  await settlePlans();
+  f.selectedConnection.set(accountB);
+  await settlePlans();
+  f.resolve([]);
+  await settlePlans();
+  expect(f.listPlans).toHaveBeenLastCalledWith(accountB.workspaceId, accountB.connectionId);
+  expect(f.plans.plans()).toEqual([]);
+});
+it('startet nach dem Schließen des Kleiderschranks keinen weiteren Planabruf', async () => {
+  const f = pendingPlans();
+  await settlePlans();
+  TestBed.resetTestingModule();
+  f.resolve([]);
+  for (let index = 0; index < 12; index++) await Promise.resolve();
+  expect(f.listPlans).toHaveBeenCalledOnce();
 });

@@ -17,6 +17,7 @@ import type { VintedListingLatePolicy } from '../models/vinted-listing-schedule'
 export interface VintedListingJobIntent {
   /** Für denselben Versuch behalten, auch wenn die Antwort verloren geht. */
   readonly requestId: string;
+  readonly relistDelaySeconds?: number;
   readonly action: VintedListingJobAction;
   readonly aiPhoto: boolean;
   readonly schedule: {
@@ -70,7 +71,7 @@ function accepted(
         Date.parse(result.scheduledAt) !== Date.parse(intent.schedule.scheduledAt) ||
         result.timeZone !== intent.schedule.timeZone ||
         result.latePolicy !== intent.schedule.latePolicy
-      : result.scheduledAt !== null
+      : result.scheduledAt !== null && !result.relistDeletedAt
   )
     return invalid();
   return result;
@@ -176,10 +177,62 @@ export class VintedListingJobService {
     if (new Set(jobs.map((job) => job.id)).size !== jobs.length) return invalid();
     return jobs;
   }
+  async listPlans(workspaceId: string, connectionId: string): Promise<readonly VintedListingJob[]> {
+    const result = listingResponse(
+      await this.client.rpc('marketplace_read_relisting_plans', {
+        p_workspace_id: workspaceId,
+        p_connection_id: connectionId,
+      }),
+    );
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('items' in result) ||
+      !Array.isArray(result.items)
+    )
+      return invalid();
+    return result.items.map((value) => parseVintedListingJob(value, workspaceId));
+  }
+  async editPlan(job: VintedListingJob, editing: boolean): Promise<VintedListingJob> {
+    return parseVintedListingJob(
+      listingResponse(
+        await this.client.rpc('marketplace_edit_relisting_plan', {
+          p_job_id: job.id,
+          p_expected_version: job.version,
+          p_editing: editing,
+        }),
+      ),
+      job.workspaceId,
+      job.draftId,
+      job.id,
+    );
+  }
+  async relist(
+    draft: VintedListingDraft,
+    intent: VintedListingJobIntent,
+    previous: VintedListingJob | null = null,
+  ): Promise<VintedListingJob> {
+    if (!draft.relistExternalId || !draft.connectionId) return invalid();
+    const result = listingResponse(
+      await this.client.rpc('marketplace_enqueue_relisting', {
+        p_draft_id: draft.id,
+        p_expected_revision: draft.revision,
+        p_request_id: requestIdentifier(intent.requestId),
+        p_ai_photo: intent.aiPhoto,
+        p_scheduled_at: intent.schedule?.scheduledAt ?? undefined,
+        p_time_zone: intent.schedule?.timeZone ?? undefined,
+        p_delay_seconds: intent.relistDelaySeconds ?? 0,
+        p_replaces_job_id: previous?.id,
+        p_replaces_version: previous?.version,
+      }),
+    );
+    return accepted(result, draft, intent, previous?.id ?? null);
+  }
   async enqueue(
     draft: VintedListingDraft,
     intent: VintedListingJobIntent,
   ): Promise<VintedListingJob> {
+    if (draft.relistExternalId) return this.relist(draft, intent);
     if (!draft.connectionId) return invalid();
     const result = listingResponse(
       await this.client.rpc('marketplace_enqueue_listing', {

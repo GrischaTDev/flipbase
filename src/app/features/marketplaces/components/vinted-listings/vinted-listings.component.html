@@ -64,7 +64,7 @@
         : 'min-w-0 overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface'
     "
   >
-    @if (viewMode() === 'list' && publications.items.length) {
+    @if (viewMode() === 'list' && entries().length) {
       <div
         class="hidden grid-cols-[minmax(0,1fr)_12rem_7rem_10rem] gap-4 border-b border-fb-border-subtle bg-fb-subtle px-4 py-2 text-xs text-fb-text-secondary xl:grid"
         aria-hidden="true"
@@ -73,7 +73,54 @@
         ><span class="text-right">Aktionen</span>
       </div>
     }
-    @for (entry of publications.items; track entry.id) {
+    @for (plan of plans.plans(); track plan.job.id) {
+      <article
+        [class]="
+          viewMode() === 'grid'
+            ? 'flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface'
+            : 'grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 border-b border-fb-border-subtle p-3 last:border-b-0'
+        "
+        [attr.aria-label]="plan.draft.content.title"
+      >
+        <div class="relative">
+          <app-product-thumbnail
+            class="block w-full"
+            [src]="plan.imageUrl"
+            [alt]="plan.draft.content.title"
+            size="listing"
+            [flush]="true"
+          />
+          @if (viewMode() === 'grid') {
+            <p
+              class="absolute inset-x-2 top-2 rounded-md bg-fb-surface px-2 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
+            >
+              {{ plan.label }}
+            </p>
+          }
+        </div>
+        <div class="min-w-0 space-y-3" [class.p-3]="viewMode() === 'grid'">
+          <h2 class="truncate text-sm font-semibold text-fb-text-primary">
+            {{ plan.draft.content.title }}
+          </h2>
+          @if (viewMode() === 'list') {
+            <p class="text-xs text-fb-text-secondary">{{ plan.label }}</p>
+          }
+          <p class="text-sm text-fb-text-secondary">
+            {{
+              (plan.draft.content.priceCents ?? 0) / 100
+                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+            }}
+          </p>
+          <app-button
+            variant="secondary"
+            [disabled]="!plans.canEdit(plan.job)"
+            (clicked)="editingPlan.set(plan.job)"
+            >Bearbeiten</app-button
+          >
+        </div>
+      </article>
+    }
+    @for (entry of entries(); track entry.id) {
       <article
         [class.opacity-60]="operations.isRunning(entry)"
         [attr.aria-busy]="operations.isRunning(entry) ? 'true' : null"
@@ -301,10 +348,12 @@
         </div>
       </article>
     } @empty {
-      <app-card
-        title="Noch keine Artikel im Kleiderschrank"
-        subtitle="Deine Artikel erscheinen nach einer Datenübernahme."
-      />
+      @if (!plans.plans().length) {
+        <app-card
+          title="Noch keine Artikel im Kleiderschrank"
+          subtitle="Deine Artikel erscheinen nach einer Datenübernahme."
+        />
+      }
     }
   </div>
   @if (priceEditor.open()) {
@@ -326,6 +375,19 @@
     >
   }
 }
+@if (plans.error(); as error) {
+  <p role="alert" class="mt-3 text-sm text-fb-critical">{{ error }}</p>
+}
+@if (editingPlan(); as job) {
+  <app-modal-shell
+    title="Geplantes Relisting"
+    size="full"
+    [hasFooter]="false"
+    (closed)="plannedEditor.cancel()"
+  >
+    <app-vinted-listing-editor #plannedEditor [plannedJob]="job" (closed)="closeEditor()" />
+  </app-modal-shell>
+}
 @if (editorSource(); as source) {
   <app-modal-shell
     [title]="
@@ -335,6 +397,6 @@
     [hasFooter]="false"
     (closed)="editor.cancel()"
   >
-    <app-vinted-listing-editor #editor [source]="source" (closed)="editorSource.set(null)" />
+    <app-vinted-listing-editor #editor [source]="source" (closed)="closeEditor()" />
   </app-modal-shell>
 }
