@@ -2,11 +2,13 @@
 
 Stand: 02.11.2026. Analyse: Juna. Geprüfter Aufgabenstand: `ea282af6` auf `juna/vinted-wardrobe-relisting`; frisch abgerufenes `origin/master`: `8d2d65c9`.
 
-Nachtrag zum anschließenden Nutzerauftrag: Die Originalspeicherung und getrennte
-Vinted-Ausgabe aus Punkt 1 sind inzwischen
-[umgesetzt](../implementation/vinted-listing-original-photos.md). Die folgenden
-Befunde dokumentieren weiterhin den damaligen Prüfstand; die drei übrigen
-Auftrags-/Anzeigeprobleme sind mit der Originalbildkorrektur nicht behoben.
+Nachtrag zu den anschließenden Nutzeraufträgen: Die
+[Originalspeicherung und getrennte Vinted-Ausgabe](../implementation/vinted-listing-original-photos.md)
+aus Punkt 1 und die
+[Planungs- und Anzeigekorrekturen](../implementation/vinted-relisting-plans.md)
+aus den Punkten 2–4 sind inzwischen umgesetzt und gezielt geprüft. Die folgenden
+Befunde dokumentieren den damaligen Prüfstand. Die Pflichtprüfungen in GitHub
+stehen weiterhin aus.
 
 ## Ergebnis
 

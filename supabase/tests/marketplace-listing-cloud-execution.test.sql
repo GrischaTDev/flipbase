@@ -113,6 +113,7 @@ set local role service_role;
 select is(public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061'),null::jsonb,'Vor dem festen Termin wird nicht veröffentlicht');
 set local role authenticated;
 select is(jsonb_array_length(public.marketplace_read_relisting_plans('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021')->'items'),1,'Die gelöschte Quelle bleibt als Planung im Kleiderschrank sichtbar');
+select is(public.marketplace_read_relisting_plans('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021')->'items'->0->>'id',(select job->>'id' from cloud_listing_context),'Vorhandene Clients können die bisherige Auftragsantwort weiter lesen');
 update cloud_listing_context set job=public.marketplace_edit_relisting_plan(job->>'id',(job->>'version')::bigint,true);
 select is((select job->>'errorCode' from cloud_listing_context),'editing','Bearbeitung pausiert die Veröffentlichung');
 select throws_ok($$select public.marketplace_edit_relisting_plan((select job->>'id' from cloud_listing_context),1,false)$$,'40001',null,'Veraltete Bearbeitungskennung kann eine Planung nicht fortsetzen');

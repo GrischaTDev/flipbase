@@ -119,7 +119,7 @@ begin
       and state='confirmed' and snapshot ? 'relistExternalId' and relist_imported_at is null loop
     perform public.marketplace_request_relisting_import(v_job);
   end loop;
-  select coalesce(jsonb_agg(jsonb_build_object('job',public.marketplace_listing_job_document(job),'draft',public.marketplace_listing_job_draft_document(job)) order by job.created_at desc),'[]'::jsonb) into v_items
+  select coalesce(jsonb_agg(public.marketplace_listing_job_document(job)||jsonb_build_object('job',public.marketplace_listing_job_document(job),'draft',public.marketplace_listing_job_draft_document(job)) order by job.created_at desc),'[]'::jsonb) into v_items
     from public.marketplace_listing_jobs job where workspace_id=p_workspace_id and connection_id=p_connection_id and snapshot ? 'relistExternalId'
     and external_account_id=v_account and (state in ('queued','paused','claimed','writing','outcome_unknown','failed') or (state='confirmed' and relist_imported_at is null))
     and exists(select 1 from public.marketplace_listing_drafts where id=job.draft_id and relist_deleted_at is not null);
