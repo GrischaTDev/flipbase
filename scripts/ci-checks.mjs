@@ -36,6 +36,13 @@ const checks = {
       args: ['run', 'test:audit'],
     },
   ],
+  'quality-light': [
+    { name: 'Check formatting', command: 'npm', args: ['run', 'format:check'] },
+    { name: 'Lint', command: 'npm', args: ['run', 'lint'] },
+    { name: 'Check types', command: 'npm', args: ['run', 'typecheck'] },
+    { name: 'Audit test suite classification', command: 'npm', args: ['run', 'test:audit'] },
+  ],
+  workflow: [{ name: 'Test workflow contracts', command: 'npm', args: ['run', 'test:workflow'] }],
   marketplace: [
     {
       name: 'Check and test marketplace functions in Deno',
@@ -393,13 +400,19 @@ export async function executeCheckCommand(
     String(value).replaceAll('$GITHUB_SHA', commit).replaceAll('$RUNNER_TEMP', temporaryDirectory);
   let executable = command.command;
   let args = command.args.map(expand);
+  const overrides = Object.fromEntries(
+    Object.entries(command.env ?? {}).map(([key, value]) => [key, expand(value)]),
+  );
+  const pathValue = (values) =>
+    values.PATH ?? Object.entries(values).find(([key]) => /^path$/iu.test(key))?.[1];
+  const inheritedPath = pathValue(overrides) ?? pathValue(environment) ?? '';
   const env = {
     ...environment,
-    ...Object.fromEntries(
-      Object.entries(command.env ?? {}).map(([key, value]) => [key, expand(value)]),
-    ),
-    PATH: `${dirname(process.execPath)}${delimiter}${environment.PATH ?? ''}`,
+    ...overrides,
   };
+  // Windows behandelt Path und PATH gleich; Node gibt bei Duplikaten nur eine Variante weiter.
+  for (const key of Object.keys(env)) if (/^path$/iu.test(key)) delete env[key];
+  env.PATH = `${dirname(process.execPath)}${delimiter}${inheritedPath}`;
   if (executable === 'node') executable = process.execPath;
   if (executable === 'npm' && environment.npm_execpath) {
     executable = process.execPath;
@@ -431,7 +444,7 @@ export async function executeCheckCommand(
 
 export async function runCiCheck(name, options = {}) {
   const commands = getCheckCommands(name);
-  if (name === 'quality') {
+  if (['quality', 'quality-light', 'workflow'].includes(name)) {
     // Release-Fixtures dürfen nur in der isolierten PostgreSQL-Gruppe aktiv werden.
     const environment = Object.fromEntries(
       Object.entries(options.environment ?? process.env).filter(([key]) => !/^PG/iu.test(key)),

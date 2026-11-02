@@ -24,6 +24,42 @@ const files = {
   'e2e/purchase-profitability.spec.ts': '',
 };
 
+test('gemeinsame Controls prüfen lokal eigene Verträge und in CI alle betroffenen Verbraucher', () => {
+  const button = 'src/app/shared/components/button/button.component';
+  const purchase = 'src/app/features/purchases/components/purchase-form';
+  const sources = {
+    [button + '.ts']: 'export class Button {}',
+    [button + '.angular.spec.ts']: "import './button.component';",
+    [purchase + '.ts']: "import '../../../shared/components/button/button.component';",
+    [purchase + '.angular.spec.ts']: "import './purchase-form';",
+  };
+  const plan = selectAffectedTests([button + '.ts'], sources);
+  assert.deepEqual(plan.localUnits.angular, [button + '.angular.spec.ts']);
+  assert.deepEqual(
+    plan.units.angular,
+    [purchase + '.angular.spec.ts', button + '.angular.spec.ts'].sort(),
+  );
+  const mixed = selectAffectedTests([button + '.ts', purchase + '.ts'], sources);
+  assert.deepEqual(mixed.localUnits.angular, plan.units.angular);
+});
+
+const coreFixtures = Object.fromEntries(
+  [
+    'core-smoke',
+    'inventory-sale',
+    'purchase-tax-costs',
+    'purchase-editable-draft',
+    'company-documents',
+    'login',
+    'local-supabase',
+    'vinted-kleinanzeigen-transfer',
+  ].map((name) => [`e2e/${name}.spec.ts`, '']),
+);
+
+function selectedFeatureBrowserFiles(plan) {
+  return [...plan.browserFiles, ...(plan.uiBrowserFiles ?? [])].sort();
+}
+
 test('Profiländerung wählt die Profilbearbeitung ohne Artikel- oder Verkaufsabläufe', () => {
   const profilePath =
     'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts';
@@ -33,7 +69,7 @@ test('Profiländerung wählt die Profilbearbeitung ohne Artikel- oder Verkaufsab
     'e2e/vinted-profile.spec.ts': 'test()',
   });
   assert.equal(plan.full, false);
-  assert.deepEqual(plan.browserFiles, ['e2e/vinted-profile.spec.ts']);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), ['e2e/vinted-profile.spec.ts']);
 });
 
 test('Galerievorlage wählt abhängige Artikeltests statt Einkauf und PWA', () => {
@@ -46,8 +82,122 @@ test('Galerievorlage wählt abhängige Artikeltests statt Einkauf und PWA', () =
     'src/app/features/marketplaces/components/vinted-listing-detail/detail.angular.spec.ts',
   ]);
   assert.deepEqual(plan.units.node, []);
-  assert.deepEqual(plan.browserFiles, ['e2e/vinted-listing-edge-cases.spec.ts']);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), ['e2e/vinted-listing-edge-cases.spec.ts']);
   assert.equal(plan.pwa, false);
+});
+
+test('generische Buttons erreichen PWA-Hinweis und App ohne globale Browser- oder PWA-Auswahl', () => {
+  const button = 'src/app/shared/components/button/button.component';
+  const notice = 'src/app/shared/components/pwa-update-notice/pwa-update-notice.component';
+  const sources = {
+    ...files,
+    ...coreFixtures,
+    [button + '.ts']: 'export class Button {}',
+    [button + '.angular.spec.ts']: "import './button.component';",
+    [notice + '.ts']: "import '../button/button.component';",
+    [notice + '.angular.spec.ts']: "import './pwa-update-notice.component';",
+    'src/app/app.ts': "import './shared/components/pwa-update-notice/pwa-update-notice.component';",
+    'src/app/app.angular.spec.ts': "import './app';",
+    'e2e/responsive-admin-layout.spec.ts': '',
+    'e2e/settings-layout.spec.ts': '',
+  };
+  const plan = selectAffectedTests([button + '.ts'], sources);
+  assert.equal(plan.full, false);
+  assert.equal(plan.pwa, false);
+  assert.deepEqual(plan.units.angular, [
+    'src/app/app.angular.spec.ts',
+    button + '.angular.spec.ts',
+    notice + '.angular.spec.ts',
+  ]);
+  assert.deepEqual(plan.units.node, []);
+  assert.deepEqual(plan.coreBrowserFiles, []);
+  assert.deepEqual(plan.browserFiles, []);
+  assert.deepEqual(plan.uiBrowserFiles, []);
+  assert.deepEqual(plan.layoutBrowserFiles, [
+    'e2e/responsive-admin-layout.spec.ts',
+    'e2e/settings-layout.spec.ts',
+  ]);
+  assert.deepEqual(buildBrowserMatrix(plan), [
+    { project: 'ui-layout', shard: '1/1', database: false },
+  ]);
+});
+
+test('nichtvisuelle Provider über Appconfig behalten umfassende Anwendungstests und PWA', () => {
+  const provider = 'src/app/core/services/application-settings.service.ts';
+  const plan = selectAffectedTests([provider], {
+    ...files,
+    ...coreFixtures,
+    [provider]: 'export class ApplicationSettings {}',
+    'src/app/app.config.ts': "import './core/services/application-settings.service';",
+    'e2e/responsive-admin-layout.spec.ts': '',
+  });
+  assert.equal(plan.full, true);
+  assert.equal(plan.pwa, true);
+  assert.deepEqual(plan.units.node, ['src/app/features/purchases/purchases.spec.ts']);
+  assert.deepEqual(plan.units.angular, [
+    'src/app/features/marketplaces/components/vinted-listing-detail/detail.angular.spec.ts',
+  ]);
+  assert.deepEqual(plan.coreBrowserFiles, Object.keys(coreFixtures).sort());
+  assert.deepEqual(plan.layoutBrowserFiles, []);
+});
+
+test('SQL-Schemaänderungen wählen keine pauschale Frontend- oder PWA-Regression', () => {
+  const path = 'supabase/schemas/30_inventory.sql';
+  const plan = selectAffectedTests([path], { ...files, ...coreFixtures, [path]: '' });
+  assert.equal(plan.full, false);
+  assert.equal(plan.pwa, false);
+  assert.deepEqual(plan.units, { node: [], dom: [], angular: [] });
+  assert.deepEqual(plan.coreBrowserFiles, []);
+  assert.deepEqual(plan.layoutBrowserFiles, []);
+  assert.deepEqual(plan.browserFiles, []);
+  assert.deepEqual(plan.uiBrowserFiles, []);
+  assert.deepEqual(buildBrowserMatrix(plan), []);
+});
+
+test('gemischte Fachdateien behalten vollständige UI-Auswahl ohne Datenbank und ohne Duplikate', () => {
+  const profile =
+    'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts';
+  const changedUi = 'e2e/marketplace-overview.spec.ts';
+  const plan = selectAffectedTests(
+    [profile, 'src/app/features/purchases/purchases.component.html', changedUi],
+    {
+      ...files,
+      [profile]: 'export class ProfileEditor {}',
+      'src/app/features/purchases/purchases.component.html': '<table />',
+      'e2e/vinted-profile.spec.ts': '',
+      [changedUi]: '',
+    },
+  );
+  assert.equal(plan.full, false);
+  assert.deepEqual(plan.browserFiles, ['e2e/purchase-profitability.spec.ts']);
+  assert.deepEqual(plan.uiBrowserFiles, ['e2e/vinted-profile.spec.ts']);
+  assert.deepEqual(plan.changedBrowserFiles, []);
+  assert.deepEqual(plan.changedUiBrowserFiles, [changedUi]);
+  const selected = [
+    ...plan.coreBrowserFiles,
+    ...plan.layoutBrowserFiles,
+    ...plan.browserFiles,
+    ...plan.uiBrowserFiles,
+    ...plan.changedBrowserFiles,
+    ...plan.changedUiBrowserFiles,
+  ];
+  assert.equal(new Set(selected).size, selected.length);
+  assert.deepEqual([...selected].sort(), [
+    changedUi,
+    'e2e/purchase-profitability.spec.ts',
+    'e2e/vinted-profile.spec.ts',
+  ]);
+  assert.deepEqual(buildBrowserMatrix(plan), [
+    { project: 'chromium', shard: '1/1', database: true },
+    { project: 'ui', shard: '1/1', database: false },
+    { project: 'changed-ui', shard: '1/1', database: false },
+  ]);
+  const { result, invocations } = runBrowserGroups(plan);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    invocations.map(({ project }) => project),
+    ['chromium', 'ui', 'changed-ui'],
+  );
 });
 
 test('mehrere Änderungen bilden die Vereinigung der betroffenen Funktionen', () => {
@@ -59,7 +209,7 @@ test('mehrere Änderungen bilden die Vereinigung der betroffenen Funktionen', ()
     files,
   );
   assert.deepEqual(plan.units.node, ['src/app/features/purchases/purchases.spec.ts']);
-  assert.deepEqual(plan.browserFiles, [
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), [
     'e2e/purchase-profitability.spec.ts',
     'e2e/vinted-listing-edge-cases.spec.ts',
   ]);
@@ -74,7 +224,7 @@ test('gemeinsame Abhängigkeiten wählen auch fachübergreifende Nutzer aus', ()
   };
   const plan = selectAffectedTests(['src/app/core/models/value.ts'], sources);
   assert.equal(plan.full, false);
-  assert.deepEqual(plan.browserFiles, [
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), [
     'e2e/purchase-profitability.spec.ts',
     'e2e/vinted-listing-edge-cases.spec.ts',
   ]);
@@ -95,7 +245,7 @@ test('Dokumentation und eigenständiger Worker starten keine Anwendungstests', (
   ]) {
     const plan = selectAffectedTests(paths, files);
     assert.equal(plan.full, false);
-    assert.deepEqual(plan.browserFiles, []);
+    assert.deepEqual(selectedFeatureBrowserFiles(plan), []);
     assert.deepEqual(plan.units.angular, []);
     assert.equal(plan.pwa, false);
   }
@@ -105,7 +255,7 @@ test('bekannte Landingpage startet ihre Vertragsprüfung ohne Anwendungs- oder B
   const plan = selectAffectedTests(['landing/index.html'], files);
   assert.equal(plan.full, false);
   assert.equal(plan.checks.landing, true);
-  assert.deepEqual(plan.browserFiles, []);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), []);
   assert.deepEqual(plan.units.node, []);
   assert.equal(plan.pwa, false);
 });
@@ -113,10 +263,32 @@ test('bekannte Landingpage startet ihre Vertragsprüfung ohne Anwendungs- oder B
 test('eigenständiger Push-Worker prüft ausschließlich seinen Dienst', () => {
   const plan = selectAffectedTests(['services/push-worker/src/main.ts'], files);
   assert.equal(plan.full, false);
-  assert.deepEqual(plan.checks, { marketplace: false, push: true, landing: false });
-  assert.deepEqual(plan.browserFiles, []);
+  assert.deepEqual(plan.checks, {
+    marketplace: false,
+    push: true,
+    landing: false,
+    workflow: false,
+  });
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), []);
   assert.deepEqual(plan.units.node, []);
   assert.equal(plan.pwa, false);
+});
+
+test('Workflowverträge folgen technischen Werkzeugänderungen statt jeder Fachkorrektur', () => {
+  for (const [path, workflow] of [
+    ['src/app/features/purchases/purchases.ts', false],
+    ['docs/testing/lean-ci.md', false],
+    ['services/marketplace-worker/src/vinted-account-import.ts', false],
+    ['scripts/preflight.mjs', true],
+    ['.github/workflows/ci.yml', true],
+    ['deploy/apply-release-migrations.sh', true],
+    ['docker/Dockerfile', true],
+    ['angular.json', true],
+    ['package-lock.json', true],
+  ]) {
+    const plan = selectAffectedTests([path], files);
+    assert.equal(plan.checks.workflow, workflow, path);
+  }
 });
 
 test('Einkaufsübersicht wählt keine eigenständige Artikelanlage aus', () => {
@@ -125,7 +297,7 @@ test('Einkaufsübersicht wählt keine eigenständige Artikelanlage aus', () => {
     'src/app/features/purchases/purchases.component.html': '<table></table>',
     'e2e/purchase-entry.spec.ts': '',
   });
-  assert.deepEqual(plan.browserFiles, ['e2e/purchase-profitability.spec.ts']);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), ['e2e/purchase-profitability.spec.ts']);
 });
 
 test('PWA-Änderungen wählen die Produktionsprüfung aus', () => {
@@ -133,12 +305,16 @@ test('PWA-Änderungen wählen die Produktionsprüfung aus', () => {
   assert.equal(plan.pwa, true);
 });
 
-test('globale Browservorbereitung und zentraler Appstart behalten einen umfassenden Lauf', () => {
-  for (const file of ['e2e/global-setup.ts', 'src/app/core/services/app-startup.service.ts']) {
-    const plan = selectAffectedTests([file], files);
+test('globale Vorbereitung behält den Kern, nur der Appstart verlangt zusätzlich PWA', () => {
+  for (const [file, pwa] of [
+    ['e2e/global-setup.ts', false],
+    ['src/app/core/services/app-startup.service.ts', true],
+  ]) {
+    const plan = selectAffectedTests([file], { ...files, ...coreFixtures });
     assert.equal(plan.full, true, file);
-    assert.equal(plan.pwa, true, file);
-    assert.ok(plan.coreBrowserFiles.length > 0);
+    assert.equal(plan.pwa, pwa, file);
+    assert.equal(plan.coreBrowserFiles.length, 8, file);
+    assert.deepEqual(plan.layoutBrowserFiles, [], file);
   }
 });
 
@@ -174,16 +350,18 @@ test('gemeinsame Hilfsdatei einer Produktions-PWA-Prüfung wählt PWA aus', () =
 });
 
 test('unbekannte Änderungen, globale Konfiguration und fehlender Diff wählen umfassend', () => {
-  for (const paths of [
-    null,
-    ['package-lock.json'],
-    ['.github/workflows/ci.yml'],
-    ['src/app/core/guards/auth.guard.ts'],
-    ['unknown/config.json'],
+  for (const [paths, pwa] of [
+    [null, true],
+    [['package-lock.json'], true],
+    [['.github/workflows/ci.yml'], false],
+    [['src/app/core/guards/auth.guard.ts'], true],
+    [['unknown/config.json'], false],
   ]) {
-    const plan = selectAffectedTests(paths, files);
+    const plan = selectAffectedTests(paths, { ...files, ...coreFixtures });
     assert.equal(plan.full, true, JSON.stringify(paths));
-    assert.equal(plan.pwa, true);
+    assert.equal(plan.pwa, pwa, JSON.stringify(paths));
+    assert.equal(plan.coreBrowserFiles.length, 8);
+    assert.deepEqual(plan.layoutBrowserFiles, []);
     assert.deepEqual(plan.units.node, ['src/app/features/purchases/purchases.spec.ts']);
   }
 });
@@ -191,7 +369,7 @@ test('unbekannte Änderungen, globale Konfiguration und fehlender Diff wählen u
 test('direkt geänderte Browserfälle werden auch ohne Kernmarkierung ausgewählt', () => {
   const plan = selectAffectedTests(['e2e/purchase-profitability.spec.ts'], files);
   assert.deepEqual(plan.changedBrowserFiles, ['e2e/purchase-profitability.spec.ts']);
-  assert.deepEqual(plan.browserFiles, []);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), []);
 });
 
 test('Templates, JS-Importpfade, Reexports und zyklische Importe werden verfolgt', () => {
@@ -241,7 +419,7 @@ test('Marktplatzübersicht und ihre Auswahl wählen die eigenen Browserfälle', 
     });
     assert.equal(plan.full, false, path);
     assert.deepEqual(
-      plan.browserFiles,
+      selectedFeatureBrowserFiles(plan),
       ['e2e/kleinanzeigen-accounts.spec.ts', 'e2e/marketplace-overview.spec.ts'],
       path,
     );
@@ -258,7 +436,7 @@ test('Kleinanzeigen-Konten wählen eigene Konten- und Übersichtsabläufe', () =
     'e2e/marketplace-overview.spec.ts': '',
   });
   assert.equal(plan.full, false);
-  assert.deepEqual(plan.browserFiles, [
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), [
     'e2e/kleinanzeigen-accounts.spec.ts',
     'e2e/marketplace-overview.spec.ts',
   ]);
@@ -272,7 +450,7 @@ test('Kleinanzeigen-Erweiterungsänderungen wählen den Transferablauf und seine
     'e2e/kleinanzeigen-accounts.spec.ts': '',
     'e2e/vinted-kleinanzeigen-transfer.spec.ts': '',
   });
-  assert.deepEqual(plan.browserFiles, [
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), [
     'e2e/kleinanzeigen-accounts.spec.ts',
     'e2e/vinted-kleinanzeigen-transfer.spec.ts',
   ]);
@@ -404,7 +582,10 @@ test('Finanzseiten wählen die vorhandenen Browserfälle für gemeinsame Control
       'e2e/responsive-admin-layout.spec.ts': '',
     });
     assert.equal(plan.full, false);
-    assert.ok(plan.browserFiles.includes('e2e/responsive-admin-layout.spec.ts'), feature);
+    assert.ok(
+      selectedFeatureBrowserFiles(plan).includes('e2e/responsive-admin-layout.spec.ts'),
+      feature,
+    );
     assert.equal(plan.pwa, false);
   }
 });
@@ -431,7 +612,10 @@ test('Bankzuordnung wählt ihre Modelle, Dienste und den bestehenden Finanz-Brow
   for (const changed of [model + '.ts', service + '.ts', dialog + '.html', bank + '.ts']) {
     const plan = selectAffectedTests([changed], sources);
     assert.equal(plan.full, false, changed);
-    assert.ok(plan.browserFiles.includes('e2e/responsive-admin-layout.spec.ts'), changed);
+    assert.ok(
+      selectedFeatureBrowserFiles(plan).includes('e2e/responsive-admin-layout.spec.ts'),
+      changed,
+    );
     assert.equal(plan.pwa, false, changed);
     if (changed === model + '.ts') {
       assert.ok(plan.units.node.includes(model + '.spec.ts'));
@@ -476,7 +660,7 @@ test('vollständige Angular-Matrix verteilt alle Dateien auf ausreichend kleine 
       full: false,
       units: { node: [], dom: [], angular: Array(260).fill('case.angular.spec.ts') },
     }),
-    [{ suite: 'angular', shard: '1/1' }],
+    Array.from({ length: 5 }, (_, index) => ({ suite: 'angular', shard: `${index + 1}/5` })),
   );
   assert.deepEqual(buildUnitMatrix({ full: true, units: { node: [], dom: [], angular: [] } }), []);
 });
@@ -498,6 +682,7 @@ test('die Browsermatrix enthält jeden gewählten Bereich und jede Teilgruppe ge
             Array.from({ length: groups }, (_, index) => ({
               project,
               shard: String(index + 1) + '/' + String(groups),
+              database: true,
             })),
           );
         assert.deepEqual(buildBrowserMatrix(plan), expected);
@@ -526,7 +711,7 @@ test('gezielte Fachauswahlen behalten kleine Jobs und teilen große Gruppen ohne
     };
     assert.deepEqual(
       buildBrowserMatrix(plan),
-      shards.map((shard) => ({ project: 'chromium', shard })),
+      shards.map((shard) => ({ project: 'chromium', shard, database: true })),
       `${count} Fachdateien`,
     );
   }
@@ -538,7 +723,11 @@ test('umfassende Fachläufe behalten Reserve nach dem Auslagern geänderter Date
     const plan = { ...twoBrowserGroups, full: true, browserFiles, changedBrowserFiles: [files[0]] };
     assert.deepEqual(
       buildBrowserMatrix(plan).filter(({ project }) => project === 'chromium'),
-      Array.from({ length: 6 }, (_, index) => ({ project: 'chromium', shard: `${index + 1}/6` })),
+      Array.from({ length: 6 }, (_, index) => ({
+        project: 'chromium',
+        shard: `${index + 1}/6`,
+        database: true,
+      })),
     );
   }
 });
@@ -555,6 +744,7 @@ test('der vollständige Vinted-PR verteilt seine 50 Fachdateien auf neun Gruppen
     Array.from({ length: 9 }, (_, index) => ({
       project: 'chromium',
       shard: `${index + 1}/9`,
+      database: true,
     })),
   );
   const { result, invocations } = runBrowserGroups(plan, 'chromium', [], '9/9');
@@ -563,6 +753,7 @@ test('der vollständige Vinted-PR verteilt seine 50 Fachdateien auf neun Gruppen
     invocations.map(({ project, args }) => ({
       project,
       shard: args.find((arg) => arg.startsWith('--shard='))?.slice(8),
+      database: true,
     })),
     buildBrowserMatrix(plan),
   );
@@ -584,13 +775,14 @@ test('große Fachauswahlen erhalten die bestehenden Kern-, Layout- und Änderung
       changedBrowserFiles: files('changed'),
     };
     assert.deepEqual(buildBrowserMatrix(plan), [
-      { project: 'core-smoke', shard: '1/1' },
-      ...layout.map((shard) => ({ project: 'layout', shard })),
+      { project: 'core-smoke', shard: '1/1', database: true },
+      ...layout.map((shard) => ({ project: 'layout', shard, database: true })),
       ...Array.from({ length: full ? 6 : 3 }, (_, index) => ({
         project: 'chromium',
         shard: `${index + 1}/${full ? 6 : 3}`,
+        database: true,
       })),
-      ...changed.map((shard) => ({ project: 'changed-tests', shard })),
+      ...changed.map((shard) => ({ project: 'changed-tests', shard, database: true })),
     ]);
   }
 });
@@ -652,6 +844,7 @@ test('wenige Browserdateien erzeugen keine leeren Teilgruppen', () => {
       Array.from({ length: expected }, (_, index) => ({
         project: 'changed-tests',
         shard: String(index + 1) + '/' + String(expected),
+        database: true,
       })),
     );
   }
@@ -665,7 +858,7 @@ test('Vinted-Verkaufsansicht wählt nur die zugehörigen Browserfälle', () => {
     'e2e/vinted-workspace-ui.spec.ts': 'test()',
   });
   assert.equal(plan.full, false);
-  assert.deepEqual(plan.browserFiles, ['e2e/vinted-sales.spec.ts']);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), ['e2e/vinted-sales.spec.ts']);
 });
 
 test('eBay-Inserate und Nachrichten wählen ihre eigene Browserabnahme statt Vinted', () => {
@@ -681,7 +874,7 @@ test('eBay-Inserate und Nachrichten wählen ihre eigene Browserabnahme statt Vin
       'e2e/vinted-listing-drafts.spec.ts': 'test()',
     });
     assert.equal(plan.full, false);
-    assert.deepEqual(plan.browserFiles, [
+    assert.deepEqual(selectedFeatureBrowserFiles(plan), [
       'e2e/ebay-order-import.spec.ts',
       'e2e/ebay-workspace.spec.ts',
     ]);
@@ -701,7 +894,7 @@ test('Vinted-Anbieterentwuerfe und Datenuebernahme waehlen ihre bestehenden Brow
       'e2e/vinted-sales.spec.ts': 'test()',
     });
     assert.equal(plan.full, false);
-    assert.deepEqual(plan.browserFiles, [
+    assert.deepEqual(selectedFeatureBrowserFiles(plan), [
       'e2e/vinted-listing-drafts.spec.ts',
       'e2e/vinted-listing-edge-cases.spec.ts',
       'e2e/vinted-workspace-ui.spec.ts',
@@ -725,26 +918,33 @@ test('Aktionsübersicht wählt ihre Browsermatrix für Anzeige und persönliche 
   for (const changed of [overview, preference, settings]) {
     const plan = selectAffectedTests([changed], sources);
     assert.equal(plan.full, false);
-    assert.ok(plan.browserFiles.includes(browser), changed);
+    assert.ok(selectedFeatureBrowserFiles(plan).includes(browser), changed);
   }
 });
 
 test('unbekannte gemeinsame Dateien und gelöschte Browserdateien bleiben konservativ', () => {
   for (const path of [
     'src/app/shared/new-control.ts',
+    'src/app/shared/components/new-control/new-control.component.ts',
     'src/app/core/new-boundary.ts',
     'e2e/removed.spec.ts',
   ]) {
-    const plan = selectAffectedTests([path], files);
+    const plan = selectAffectedTests([path], { ...files, ...coreFixtures });
     assert.equal(plan.full, true, path);
-    assert.ok(plan.coreBrowserFiles.length > 0, path);
-    assert.equal(plan.pwa, true, path);
+    assert.equal(plan.coreBrowserFiles.length, 8, path);
+    assert.deepEqual(plan.units.node, ['src/app/features/purchases/purchases.spec.ts']);
+    assert.deepEqual(plan.units.angular, [
+      'src/app/features/marketplaces/components/vinted-listing-detail/detail.angular.spec.ts',
+    ]);
+    assert.deepEqual(plan.layoutBrowserFiles, [], path);
+    assert.equal(plan.pwa, false, path);
   }
 });
 
-test('Kern und Layout gehören nur zum umfassenden Plan und ersetzen keine direkt geänderte Datei', () => {
+test('breite Konfiguration wählt den kleinen Kern ohne Layout und erhält geänderte Dateien', () => {
   const sources = {
     ...files,
+    ...coreFixtures,
     'e2e/admin-layout.spec.ts': '',
     'e2e/pwa-mobile-layout.spec.ts': '',
   };
@@ -758,12 +958,12 @@ test('Kern und Layout gehören nur zum umfassenden Plan und ersetzen keine direk
     ['package-lock.json', 'e2e/pwa-mobile-layout.spec.ts'],
     sources,
   );
-  assert.ok(global.coreBrowserFiles.includes('e2e/purchase-profitability.spec.ts'));
-  assert.deepEqual(global.layoutBrowserFiles, ['e2e/admin-layout.spec.ts']);
+  assert.deepEqual(global.coreBrowserFiles, Object.keys(coreFixtures).sort());
+  assert.deepEqual(global.layoutBrowserFiles, []);
   assert.deepEqual(global.changedBrowserFiles, ['e2e/pwa-mobile-layout.spec.ts']);
   assert.deepEqual(
     buildBrowserMatrix(global).map(({ project }) => project),
-    ['core-smoke', 'layout', 'changed-tests'],
+    ['core-smoke', 'changed-tests'],
   );
 });
 
@@ -799,7 +999,7 @@ test('Dateileser berücksichtigt unversionierte Quellen und Vorlagen, aber keine
     const plan = selectAffectedTests([component + '.html'], discovered);
     assert.equal(plan.full, false);
     assert.deepEqual(plan.units.node, [component + '.spec.ts']);
-    assert.deepEqual(plan.browserFiles, ['e2e/purchase-profitability.spec.ts']);
+    assert.deepEqual(selectedFeatureBrowserFiles(plan), ['e2e/purchase-profitability.spec.ts']);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -809,7 +1009,7 @@ test('große umfassende Dateigruppen behalten getrennte Sitzungen ohne doppelte 
   const plan = {
     ...twoBrowserGroups,
     coreBrowserFiles: ['e2e/login.spec.ts'],
-    layoutBrowserFiles: ['e2e/admin-layout.spec.ts', 'e2e/settings-layout.spec.ts'],
+    layoutBrowserFiles: ['e2e/admin-layout.spec.ts', 'e2e/other-layout.spec.ts'],
     browserFiles: ['e2e/purchase-tax-costs.spec.ts', 'e2e/company-documents.spec.ts'],
     changedBrowserFiles: [
       'e2e/responsive-admin-layout.spec.ts',
@@ -844,7 +1044,7 @@ test('große umfassende Dateigruppen behalten getrennte Sitzungen ohne doppelte 
 });
 
 test('unabhängige Änderungen verdecken keinen unbekannten Shared- oder Core-Pfad', () => {
-  const sources = { ...files, 'e2e/admin-layout.spec.ts': '' };
+  const sources = { ...files, ...coreFixtures, 'e2e/admin-layout.spec.ts': '' };
   const knownShared = 'src/app/shared/components/product-gallery/product-gallery.component.html';
   for (const orphan of ['src/app/shared/new-control.ts', 'src/app/core/new-boundary.ts']) {
     for (const unrelated of [
@@ -854,8 +1054,8 @@ test('unabhängige Änderungen verdecken keinen unbekannten Shared- oder Core-Pf
     ]) {
       const plan = selectAffectedTests([orphan, unrelated], sources);
       assert.equal(plan.full, true, orphan + ' + ' + unrelated);
-      assert.equal(plan.pwa, true);
-      assert.ok(plan.layoutBrowserFiles.includes('e2e/admin-layout.spec.ts'));
+      assert.equal(plan.pwa, false);
+      assert.deepEqual(plan.layoutBrowserFiles, []);
       assert.ok(
         plan.coreBrowserFiles.length > 0 ||
           plan.browserFiles.length > 0 ||
@@ -879,10 +1079,13 @@ test('betroffene Fachdateien ersetzen ihre Kern-/Layoutüberschneidung vollstän
   for (const feature of [accounting, audit]) {
     const plan = selectAffectedTests(['package-lock.json', feature], sources);
     assert.equal(plan.full, true);
-    assert.ok(plan.browserFiles.includes('e2e/company-documents.spec.ts'));
+    assert.ok(selectedFeatureBrowserFiles(plan).includes('e2e/company-documents.spec.ts'));
     assert.ok(!plan.coreBrowserFiles.includes('e2e/company-documents.spec.ts'));
-    assert.ok(!plan.layoutBrowserFiles.some((file) => plan.browserFiles.includes(file)));
-    assert.ok(!plan.coreBrowserFiles.some((file) => plan.browserFiles.includes(file)));
+    const featureFiles = selectedFeatureBrowserFiles(plan);
+    assert.ok(!plan.layoutBrowserFiles.some((file) => featureFiles.includes(file)));
+    assert.ok(!plan.coreBrowserFiles.some((file) => featureFiles.includes(file)));
+    const selected = [...plan.coreBrowserFiles, ...plan.layoutBrowserFiles, ...featureFiles];
+    assert.equal(new Set(selected).size, selected.length);
     assert.equal(
       buildBrowserMatrix(plan).filter(({ project }) => project === 'chromium').length,
       Math.min(3, plan.browserFiles.length),

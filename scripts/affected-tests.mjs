@@ -8,6 +8,7 @@ import ts from 'typescript';
 import {
   coreBrowserFiles as coreFiles,
   layoutBrowserFiles as layoutFiles,
+  uiBrowserFiles as uiFiles,
 } from './browser-test-selection.mjs';
 import {
   classifyChanges,
@@ -72,7 +73,13 @@ const featureSpecs = {
 };
 
 const globalPath =
-  /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|playwright\.[^/]*|\.github\/workflows\/ci\.yml|scripts\/(?:affected-tests|run-affected-tests|detect-supabase-changes|reuse-pr-checks|required-checks|playwright-pr-smoke|browser-test-selection)[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/layout\/|src\/app\/core\/guards\/|supabase\/)/u;
+  /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|playwright\.[^/]*|\.github\/workflows\/ci\.yml|scripts\/(?:affected-tests|run-affected-tests|detect-supabase-changes|reuse-pr-checks|required-checks|playwright-pr-smoke|browser-test-selection)[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/core\/guards\/)/u;
+const sharedUiPath =
+  /^src\/app\/(?:layout\/|shared\/components\/(?:badge|button|card|confirm-dialog|custom-checkbox|custom-search-input|custom-select|data-table|date-picker|entry-page-layout|form-field|loading-indicator|modal-shell|notice-banner|number-input|page-header|route-tabs|search-multi-select|section-navigation|split-pane|summary-metric|table-action-button|table-action-menu|table-column-menu|table-column-picker|table-sort-header|text-field|toast|two-column-layout)\/)/u;
+const runtimePath =
+  /^(?:package(?:-lock)?\.json|angular\.json|src\/(?:main\.ts|environments\/|index\.html)|src\/app\/app\.(?:config|routes)\.ts|src\/app\/core\/(?:guards\/|services\/(?:app-startup|supabase|auth)\.service\.ts))/u;
+const workflowPath =
+  /^(?:scripts\/|\.github\/|deploy\/|docker\/|package(?:-lock)?\.json|(?:angular|tsconfig[^/]*|vitest[^/]*|playwright[^/]*)\.(?:json|ts)|\.dockerignore)/u;
 const pwaPath =
   /^(?:public\/(?:sw\.js|manifest\.webmanifest|icons\/)|ngsw-config\.json|scripts\/(?:.*pwa.*|service-worker.*|app-startup.*)|e2e\/pwa-|src\/app\/(?:core\/services\/(?:pwa|push-navigation|web-push)|shared\/components\/(?:pwa-|push-navigation)|features\/purchases\/(?:components\/purchase-entry-form\/|guards\/purchase-entry|services\/(?:offline-purchase|purchase-buffer)|models\/offline-purchase|utils\/(?:offline-purchase|purchase-buffer))))/u;
 const implicitGlobalPath =
@@ -176,14 +183,10 @@ function reverseDependencies(files, changedPaths) {
 export function selectAffectedTests(paths, files) {
   const changed = paths ?? [];
   const reverse = reverseDependencies(files, changed);
-  const globalRoots = new Set([
-    'src/main.ts',
-    'src/app/app.ts',
-    'src/app/app.component.ts',
-    'src/app/app.config.ts',
-    'e2e/global-setup.ts',
-  ]);
-  const globalConsumers = new Set(changed);
+  const globalRoots = new Set(['src/main.ts', 'src/app/app.config.ts', 'e2e/global-setup.ts']);
+  // Visuelle Controls erreichen regelmäßig die Appwurzel. Das allein ändert
+  // weder deren Provider noch den PWA-Lebenszyklus.
+  const globalConsumers = new Set(changed.filter((file) => !sharedUiPath.test(file)));
   for (const file of globalConsumers) {
     if (file.endsWith('.routes.ts') || file.endsWith('.spec.ts')) continue;
     for (const consumer of reverse.get(file) ?? []) globalConsumers.add(consumer);
@@ -203,7 +206,7 @@ export function selectAffectedTests(paths, files) {
         globalPath.test(file) ||
         implicitGlobalPath.test(file) ||
         (!pwaPath.test(file) &&
-          !/^(?:src\/app\/(?:features|shared|core)\/|e2e\/|services\/marketplace-worker\/|tools\/flipbase-extension\/)/u.test(
+          !/^(?:src\/app\/(?:features|shared|core|layout)\/|e2e\/|services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/)/u.test(
             file,
           )) ||
         (/^src\/app\/features\//u.test(file) &&
@@ -213,8 +216,22 @@ export function selectAffectedTests(paths, files) {
   const affected = new Set(changed);
   for (const file of affected)
     for (const consumer of reverse.get(file) ?? []) affected.add(consumer);
+  // Lokal reichen bei generischen Controls deren eigene Verträge; die CI
+  // prüft zusätzlich sämtliche abhängigen Komponenten. Fachliche Shared-
+  // Bausteine wie die Produktgalerie behalten ihre konkreten Verbraucher.
+  const localAffected = new Set(changed.filter((file) => !sharedUiPath.test(file)));
+  for (const file of localAffected)
+    for (const consumer of reverse.get(file) ?? []) localAffected.add(consumer);
+  const sharedDirectories = changed.filter((file) => sharedUiPath.test(file)).map(posix.dirname);
+  for (const file of Object.keys(files))
+    if (isSpec(file) && sharedDirectories.includes(posix.dirname(file))) localAffected.add(file);
   const candidates = new Set();
-  for (const file of affected) {
+  const browserConsumers = new Set(changed.filter((file) => !sharedUiPath.test(file)));
+  for (const file of browserConsumers) {
+    if (file.endsWith('.routes.ts') || file.endsWith('.spec.ts')) continue;
+    for (const consumer of reverse.get(file) ?? []) browserConsumers.add(consumer);
+  }
+  for (const file of browserConsumers) {
     // Routensammlungen und Tests importieren mehrere Funktionen. Ihre indirekte
     // Berührung darf nicht wieder alle Funktionen als geändert behandeln.
     if (
@@ -246,17 +263,22 @@ export function selectAffectedTests(paths, files) {
       (/^(?:src\/app\/(?:core|shared)\/|e2e\/support\/)/u.test(file) &&
         !file.endsWith('.spec.ts') &&
         !pwaPath.test(file) &&
+        !sharedUiPath.test(file) &&
         !hasFeatureOrBrowserConsumer(file)),
   );
   const units = { node: [], dom: [], angular: [] };
+  const localUnits = { node: [], dom: [], angular: [] };
   for (const file of Object.keys(files).sort()) {
-    if (!isSpec(file) || typeof files[file] !== 'string' || (!full && !affected.has(file)))
-      continue;
-    units[
-      file.endsWith('.angular.spec.ts') ? 'angular' : file.endsWith('.dom.spec.ts') ? 'dom' : 'node'
-    ].push(file);
+    if (!isSpec(file) || typeof files[file] !== 'string') continue;
+    const suite = file.endsWith('.angular.spec.ts')
+      ? 'angular'
+      : file.endsWith('.dom.spec.ts')
+        ? 'dom'
+        : 'node';
+    if (localAffected.has(file)) localUnits[suite].push(file);
+    if (full || affected.has(file)) units[suite].push(file);
   }
-  const changedBrowserFiles = sorted(
+  const changedBrowsers = sorted(
     changed.filter((file) => isBrowser(file) && typeof files[file] === 'string'),
   );
   const browserFiles = sorted(
@@ -264,41 +286,55 @@ export function selectAffectedTests(paths, files) {
       (file) =>
         typeof files[file] === 'string' &&
         isBrowser(file) &&
-        !changedBrowserFiles.includes(file) &&
-        (candidates.has(file) || affected.has(file)),
+        !changedBrowsers.includes(file) &&
+        (candidates.has(file) || browserConsumers.has(file)),
     ),
   );
   const available = (file) =>
     typeof files[file] === 'string' &&
-    !changedBrowserFiles.includes(file) &&
+    !changedBrowsers.includes(file) &&
     !browserFiles.includes(file);
   const coreBrowserFiles = full ? sorted(coreFiles.filter(available)) : [];
-  const layoutBrowserFiles = full ? sorted(layoutFiles.filter(available)) : [];
+  const layoutBrowserFiles = changed.some(
+    (file) => sharedUiPath.test(file) || /^src\/styles/u.test(file),
+  )
+    ? sorted(layoutFiles.filter(available))
+    : [];
   return {
     full,
     units,
+    localUnits,
     coreBrowserFiles,
     layoutBrowserFiles,
     // Fachlich betroffene Dateien bleiben vollständig in ihrer eigenen Gruppe.
     // Kern/Layout ziehen diese Dateien vorher ab, keine einzelnen Fachfälle.
-    browserFiles,
-    changedBrowserFiles,
+    browserFiles: browserFiles.filter((file) => !uiFiles.includes(file)),
+    changedBrowserFiles: changedBrowsers.filter((file) => !uiFiles.includes(file)),
+    uiBrowserFiles: browserFiles.filter((file) => uiFiles.includes(file)),
+    changedUiBrowserFiles: changedBrowsers.filter((file) => uiFiles.includes(file)),
     checks: {
       marketplace:
-        full ||
+        paths === null ||
         changed.some((file) =>
-          /^(?:services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/functions\/(?:marketplace-|ebay-|_shared\/))/u.test(
+          /^(?:package(?:-lock)?\.json|services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/functions\/(?:marketplace-|ebay-|_shared\/))/u.test(
             file,
           ),
         ),
       push: pathsSelectPush(paths),
-      landing: full || changed.some(isLanding),
+      landing: paths === null || changed.some(isLanding),
+      workflow: paths === null || changed.some((file) => workflowPath.test(file)),
     },
     pwa:
-      full ||
-      changed.some((file) => pwaPath.test(file)) ||
-      [...affected].some(
-        (file) => (!file.endsWith('.spec.ts') || file.startsWith('e2e/')) && pwaPath.test(file),
+      paths === null ||
+      changed.some((file) => runtimePath.test(file) || pwaPath.test(file)) ||
+      [...globalConsumers].some(
+        (file) => file === 'src/app/app.config.ts' || file === 'src/main.ts',
+      ) ||
+      [...browserConsumers].some(
+        (file) =>
+          (!file.endsWith('.spec.ts') || file.startsWith('e2e/')) &&
+          !file.includes('/components/') &&
+          pwaPath.test(file),
       ),
   };
 }
@@ -347,7 +383,7 @@ export function buildUnitMatrix(plan) {
     if (!files) continue;
     // Die vollständigen Angular-Gruppen müssen einschließlich Vorbereitung in
     // das bestehende Zehn-Minuten-Limit passen; alle Dateien bleiben enthalten.
-    const shards = plan.full && suite === 'angular' ? Math.ceil(files / 60) : 1;
+    const shards = suite === 'angular' ? Math.ceil(files / 60) : 1;
     for (let shard = 1; shard <= shards; shard++)
       matrix.push({ suite, shard: String(shard) + '/' + String(shards) });
   }
@@ -356,13 +392,24 @@ export function buildUnitMatrix(plan) {
 
 export function buildBrowserMatrix(plan) {
   return [
-    { project: 'core-smoke', files: plan.coreBrowserFiles ?? [] },
-    { project: 'layout', files: plan.layoutBrowserFiles ?? [] },
-    { project: 'chromium', files: plan.browserFiles },
-    { project: 'changed-tests', files: plan.changedBrowserFiles },
+    { project: 'core-smoke', files: plan.coreBrowserFiles ?? [], database: true },
+    {
+      project: 'layout',
+      files: (plan.layoutBrowserFiles ?? []).filter((file) => !uiFiles.includes(file)),
+      database: true,
+    },
+    {
+      project: 'ui-layout',
+      files: (plan.layoutBrowserFiles ?? []).filter((file) => uiFiles.includes(file)),
+      database: false,
+    },
+    { project: 'chromium', files: plan.browserFiles ?? [], database: true },
+    { project: 'changed-tests', files: plan.changedBrowserFiles ?? [], database: true },
+    { project: 'ui', files: plan.uiBrowserFiles ?? [], database: false },
+    { project: 'changed-ui', files: plan.changedUiBrowserFiles ?? [], database: false },
   ]
     .filter(({ files }) => files.length)
-    .flatMap(({ project, files }) => {
+    .flatMap(({ project, files, database }) => {
       // Bei vier Gruppen mit je 110 Fällen erreichte eine im umfassenden eBay-Lauf
       // das 30-Minuten-Budget. Mindestens sechs Gruppen halten auch beim Auslagern
       // geänderter Dateien Reserve; große Dateimengen werden weiterhin feiner verteilt.
@@ -373,12 +420,15 @@ export function buildBrowserMatrix(plan) {
             ? Math.max(plan.full ? 6 : 3, Math.ceil(files.length / 6))
             : 3;
       const groups =
-        (plan.full || (project === 'chromium' && files.length > 10)) && project !== 'core-smoke'
+        (plan.full || ((project === 'chromium' || project === 'ui') && files.length > 10)) &&
+        project !== 'core-smoke' &&
+        project !== 'ui-layout'
           ? Math.min(maxGroups, files.length)
           : 1;
       return Array.from({ length: groups }, (_, index) => ({
         project,
         shard: `${index + 1}/${groups}`,
+        database,
       }));
     });
 }

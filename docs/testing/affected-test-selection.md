@@ -1,200 +1,185 @@
 # Betroffene Funktionen prüfen
 
-Eine Änderung an der Fotogalerie löst ihre bestehenden Regressionen aus, keinen
-unabhängigen Verkaufsablauf. Globale oder unsicher zuordenbare Änderungen
-behalten eine breite Prüfung. Format, Lint, Typprüfung und der erforderliche
-Anwendungsbau bleiben bestehen.
+Eine Galeriekorrektur prüft die Galerie und ihre tatsächlichen Abhängigkeiten.
+Unabhängige Verkaufs- oder Einkaufsabläufe werden dabei nicht erneut
+durchgespielt. Lokal genügt ein gezielter Entwicklungsnachweis; die ausgewählte
+Freigabeprüfung erfolgt auf GitHub. Format, Lint, Typprüfung und der erforderliche
+Angular-Bau bleiben bestehen.
 
-## Ein Plan für lokalen Vorabcheck und CI
+## Ein Änderungsplan, zwei Ausführungsumfänge
 
-`scripts/preflight.mjs` verbindet die vorhandene Änderungserkennung, die
-Anwendungsauswahl und die Marketplace-Auswahl. In einem PR wird mit der von
-GitHub vorgegebenen Basis verglichen, beim Hauptzweig-Push mit dem vorherigen
-Commit. Lokal wird der gemeinsame Vorfahr mit `origin/master` verwendet;
-zusätzlich werden Index, Arbeitskopie und neue nicht ignorierte Dateien erfasst.
-Umbenennungen berücksichtigen alten und neuen Pfad. Unaufgelöste Konflikte oder
-ein ungültiger Vergleich führen zu einem Fehler.
+`scripts/preflight.mjs` verbindet Änderungserkennung, Anwendungsauswahl und
+Marketplace-Auswahl. Im PR zählt die GitHub-Basis, beim Hauptzweig-Push der
+vorherige Commit. Lokal zählt der gemeinsame Vorfahr mit dem frisch abgerufenen
+`origin/master`, einschließlich Index, Arbeitskopie und neuer nicht ignorierter
+Dateien. Umbenennungen berücksichtigen alten und neuen Pfad. Git-Konflikte und
+ein ungültiger Vergleich sind Fehler.
 
 ```bash
-# Gesamten betroffenen Prüfumfang nur anzeigen
+# Lokalen Entwicklungsumfang und CI-Freigabeumfang anzeigen
 npm run preflight:plan
 
-# Diesen Umfang ausführen
+# Nur den lokalen Entwicklungsumfang ausführen
 npm run preflight
+
+# Native Anbieter-/Erweiterungsbrowser ausdrücklich lokal hinzunehmen
+npm run preflight -- --native
+
+# Vollständigen ausgewählten Umfang bewusst nachbauen
+npm run preflight -- --ci
 
 # Anderer Zielzweig oder maschinenlesbarer Plan
 npm run preflight:plan -- --base origin/master
-npm run preflight -- --json
+npm run preflight:plan -- --json
 ```
 
-Die Planansicht erzeugt keinen erfolgreichen Testnachweis. Der ausführende
-Vorabcheck bricht bei fehlenden benötigten Werkzeugen oder einem fehlgeschlagenen
-Kindprozess ab. Er übernimmt dessen Fehlercode. Ausgewählte Marketplace-Images
-bleiben im lokalen Plan sichtbar, können wegen ihrer privilegierten Hostprüfungen
-aber nur auf dem wegwerfbaren GitHub-gehosteten Linux-Runner ausgeführt werden.
-Lokal bricht der Vorabcheck dafür vor den Ausführungsbefehlen als **unvollständig**
-ab; auch `CI=true` hebt diese Grenze nicht auf. Extension- und native
-Worker-Browserbefehle bleiben separat lokal nutzbar. Die gemeinsamen Befehle stehen
-in `ci-checks.mjs`, `run-affected-tests.mjs` und `run-marketplace-checks.mjs`;
-GitHub stellt davor Node, Browser, Deno beziehungsweise lokale Supabase bereit.
-Die [Voraussetzungen](lean-ci.md#lokale-voraussetzungen) gelten auch lokal.
+`--full` ist ein Alias für `--ci`. Die Planansicht ist kein Testnachweis.
+Der Standardlauf führt schnelle betroffene Tests, Qualität und den nötigen Bau
+aus. Er verlangt keinen lokalen Nachbau von GitHub-Datenbanken, Browsermatrizen,
+Workflowfixtures oder privilegierten Images. Diese Bereiche bleiben separat im
+Freigabeplan sichtbar; ihre planmäßige Ausführung nur in CI ist kein lokaler
+Fehler. Ein tatsächlich ausgewählter lokaler Fehler oder ein fehlendes Werkzeug
+wird dagegen nicht als Erfolg gewertet.
+
+Der vollständige Aufruf benötigt alle Voraussetzungen seiner Auswahl. Er
+übernimmt Fehlercodes der Kindprozesse und bleibt bei einer nicht ausführbaren
+Pflichtintegration unvollständig. Marketplace-Images sind weiterhin ausschließlich
+auf dem dokumentierten GitHub-gehosteten Linux-Wegwerfrunner erlaubt; `--ci`,
+`--full` oder `CI=true` heben das nicht auf. Details stehen unter
+[Voraussetzungen und Hostgrenzen](lean-ci.md#ausdrücklicher-vollständiger-nachbau-und-voraussetzungen).
 
 ## Anwendungstests und Fachzuordnung
 
 `scripts/affected-tests.mjs` liest lokale TypeScript-/JavaScript-Imports,
-Reexports und relative Angular-Ressourcen. Die Abhängigkeiten werden rückwärts
-verfolgt: Änderungen eines gemeinsamen Bausteins beziehen seine Verbraucher ein.
-Die Dateiaufnahme enthält auch neue Quellen und Tests, aber keine ignorierten
-Abhängigkeiten oder Bauausgaben.
+Reexports und relative Angular-Ressourcen. Rückwärts verfolgte Abhängigkeiten
+beziehen Verbraucher gemeinsamer Bausteine ein. Neue Quellen und Tests zählen
+mit; ignorierte Abhängigkeiten und Bauausgaben nicht. Routensammlungen und
+übergreifende Container begrenzen die Ausbreitung auf unabhängige Funktionen.
 
 - **Anwendungstests:** Direkt geänderte oder abhängige Node-, DOM- und
-  Angular-Dateien. Nur benötigte Suiten bekommen einen Job. Breite Angularpläne
-  werden mit höchstens 60 Dateien pro Teilgruppe aufgeteilt.
-- **Fachbrowser:** Die Zuordnung `featureSpecs` und konkrete Marketplacebereiche
-  wählen vorhandene Browserdateien. Fachliche Fehler- und Grenzfälle werden
-  nicht durch historische Tags ausgeschlossen.
-- **Geänderte Browserdateien:** Alle enthaltenen Fälle und Varianten laufen in
-  `changed-tests`, auch wenn sie keine Markierung tragen.
-- **PWA:** Ein eigener Job erhält die zwei Produktions-Testbauten und prüft
-  Service Worker, Offline-Einkauf, Entwürfe, Update und Push-Navigation.
-- **Dienste:** Worker-, Push-, Sniper- und Landingprüfungen werden für ihren
-  Bereich beziehungsweise bei Änderungen gemeinsamer Prüfwerkzeuge ausgewählt.
+  Angular-Dateien; nur benötigte Suiten erhalten einen Job. Lokal prüfen
+  generische Controls ihre eigenen Unitverträge, in CI zusätzlich alle
+  abhängigen Komponenten. Bei breiten CI-Plänen werden Tests auf Teilgruppen verteilt.
+- **Scripts:** Änderungen wählen passende Geschwistertests lokal. Die vollständigen
+  Workflowverträge laufen bei einschlägigen Script-, Workflow-, Deployment-,
+  Konfigurations- und Lockfileänderungen in CI.
+- **Fachbrowser:** `featureSpecs` und konkrete Marketplacebereiche wählen
+  bestehende betroffene Abläufe. Ein kleiner allgemeiner Kern sichert breite
+  Änderungen ab; die umfassende Layoutregression ist keine Standardzugabe.
+- **Geänderte Browserdateien:** Ihre vollständige Auswahl bleibt ausdrücklich
+  erhalten. Eine Änderung der Testdatei darf keine unmarkierten Fälle verlieren.
+- **PWA und Dienste:** Eigene CI-Prüfungen für einschlägige Service-Worker-,
+  Offline-, Update-, Push-, Worker-, Sniper- und Landingänderungen.
 
-| Änderung                        | Erwartete Auswahl                                                       |
-| ------------------------------- | ----------------------------------------------------------------------- |
-| Galerie oder deren HTML         | Artikel-Browserfälle und abhängige Anwendungstests                      |
-| Altersberechnung eines Inserats | Alters-/Artikeltests, keine ganze Vinted-Arbeitsfläche                  |
-| Einkaufsübersicht               | Einkaufstests ohne unabhängige Verkaufsabläufe                          |
-| Gemeinsames Formular            | Betroffene Einsatzstellen, gegebenenfalls Offline-Entwürfe              |
-| `public/sw.js`                  | Produktions-PWA und PWA-Skriptprüfungen                                 |
-| Dokumentation und `AGENTS.md`   | Markdown-Formatierung                                                   |
-| Worker-Formularcode             | Zugehörige native Browserfixtures und notwendige Dienst-/Imageprüfungen |
-| Session-`.dockerignore`         | Session-Imageprüfung, weil sich der tatsächliche Baukontext ändert      |
+| Änderung                        | Erwarteter Nachweis                                                                 |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| Galerie oder deren HTML         | Abhängige Anwendungstests und repräsentativer Artikelablauf                         |
+| Altersberechnung eines Inserats | Alters-/Artikeltests; keine gesamte Vinted-Arbeitsfläche                            |
+| Einkaufsübersicht               | Betroffener Einkaufsablauf; keine unabhängigen Verkäufe                             |
+| Gemeinsames Formular            | Betroffene Tests und repräsentative Verbraucher; Entwürfe bei entsprechendem Risiko |
+| `public/sw.js`                  | PWA-Scriptprüfungen und Produktions-PWA in CI                                       |
+| Dokumentation und `AGENTS.md`   | Format und vorgeschriebener Lintnachweis; keine Anwendungstests und kein Bau        |
+| Rechte oder Datenbankschema     | Einschlägige Rechte-, Datenintegritäts- und Migrationsfälle in CI                   |
+| Worker-Formularcode             | Zugehörige native Anbieterfixtures und notwendige Dienst-/Imageprüfungen            |
+| Session-`.dockerignore`         | Session-Imageprüfung wegen des veränderten Baukontexts                              |
 
-Routensammlungen und übergreifende Container bilden bewusst Grenzen. Ein
-indirekter Verbraucher soll nicht jede unabhängige Unterfunktion auswählen.
-Direkte Änderungen dieser Sammlungen erhalten den breiteren Umfang.
+Globale oder unbekannte Abhängigkeiten wählen schnelle Anwendungstests
+konservativ breit. Jeder geänderte unbekannte gemeinsame Pfad wird einzeln
+bewertet; eine zusätzliche Featureänderung darf den Rückfall nicht verdecken.
+Rechte, Kontentrennung, Migrationen, Originalerhalt und Anbieter-Schreibgrenzen
+behalten ihre einschlägigen Pflichtfälle. Neue Funktionen müssen passend
+zugeordnet werden. Der Selektor erfindet keine fehlende Browserabdeckung.
 
-Globale Konfiguration, zentrale Anmeldung/Rechte, Schema, App-Provider,
-gemeinsame Testvorbereitung und unbekannte Bereiche wählen konservativ breit.
-Bei unbekannten gemeinsamen Dateien wird jeder geänderte Pfad einzeln geprüft;
-eine zusätzliche unabhängige Featureänderung kann diesen Rückfall nicht verdecken.
-Neue Funktionen müssen der passenden Fachzuordnung zugeordnet werden. Eine
-fehlende Browserabdeckung wird durch den Selektor nicht erfunden.
-
-## Browsergruppen ohne verlorene oder doppelte Fachfälle
+## Browserumfang nach Risiko
 
 `scripts/browser-test-selection.mjs` enthält den ausdrücklich gewählten Kern
-und die begrenzten Layoutfamilien. `buildBrowserMatrix` ist die gemeinsame
-Quelle für lokale Aufrufe und CI-Matrix.
+und die Regeln für repräsentative Varianten. `buildBrowserMatrix` bildet daraus
+die CI-Gruppen. Die vorhandenen vollständigen Tests bleiben für Diagnose und
+bewusste Regression erhalten.
 
-| Projekt         | Inhalt                                                                         |
-| --------------- | ------------------------------------------------------------------------------ |
-| `core-smoke`    | 20 ausdrücklich benannte zentrale Abläufe für breite Änderungen                |
-| `layout`        | Markierte Fälle der gemeinsamen Layoutdateien, ohne bereits gewählte Kernfälle |
-| `chromium`      | Fachlich zugeordnete Regressionen                                              |
-| `changed-tests` | Vollständige direkt geänderte Browserdateien                                   |
+| Projekt         | Inhalt                                                                |
+| --------------- | --------------------------------------------------------------------- |
+| `core-smoke`    | Kleiner ausdrücklich benannter allgemeiner Kern für breite Änderungen |
+| `ui-layout`     | Sechs gemeinsame UI-Verbraucher ohne Datenbank                        |
+| `ui`            | Betroffene geprüfte UI-Fixtures ohne Datenbank                        |
+| `changed-ui`    | Vollständige direkt geänderte UI-Fixturedateien ohne Datenbank        |
+| `layout`        | Ausdrücklich gewählte Layoutfälle mit Backend                         |
+| `chromium`      | Betroffene Fachabläufe mit repräsentativen Varianten                  |
+| `changed-tests` | Vollständige direkt geänderte Browserdateien                          |
 
-Eine konkret betroffene Fachdatei hat Vorrang vor Kern und Layout. Ihre Fälle
-werden aus diesen beiden Gruppen herausgenommen und vollständig der Fachgruppe
-zugeordnet. Dadurch bleiben beispielsweise unmarkierte Bankzuordnungs- und
-Speicherfehlerfälle erhalten, wenn zugleich das Lockfile geändert wurde.
-Direkt geänderte Testdateien haben wiederum Vorrang vor allen anderen Gruppen.
+Die konkrete Fachauswahl hat Vorrang vor Kern und Layout. Direkt geänderte
+Browserdateien haben wiederum Vorrang vor den anderen Gruppen. So erscheinen
+Fälle nicht mehrfach in verschiedenen Gruppen. Auflistungstests prüfen
+nichtleere Gruppen, eindeutige Zuordnung und den erwarteten Umfang. Eine
+Testauflistung bestätigt die Auswahl, nicht das Browserverhalten.
 
-Ausschließlich bekannte mehrfach parametrisierte Layoutfamilien reduzieren im
-normalen Fachlauf die zusätzlichen 320-/834-Pixel-Varianten. 390/1440 Pixel und
-beide Farbschemata sowie besondere Fehler-, Fokus- und Bedienungsfälle bleiben.
-Bei direkt geänderten Testdateien gilt diese Einschränkung nicht. Die vollständige
-manuelle Regression behält sämtliche Varianten.
+Die datenbankfreien Gruppen sind auf die ausdrücklich geprüfte Dateiliste in
+`browser-test-selection.mjs` begrenzt. Neue Dateien erhalten diese Einstufung
+erst nach Prüfung ihrer API- und Sitzungsfixtures. Backendgruppen behalten die
+echte Anmeldung und Datenbank. `PLAYWRIGHT_BASE_URL` kann für UI-Gruppen eine
+ruhende eigene Vorschau vorgeben; dann startet Playwright keinen weiteren Server.
 
-Der Kern erhält eine Teilgruppe. Umfassende Layoutgruppen verwenden bis zu zwei,
-direkt geänderte Browserdateien bis zu drei Teilgruppen. Umfassende Fachgruppen
-verwenden bei genügend Dateien mindestens sechs; bei mehr als 36 Dateien wächst
-ihre Zahl auf eine Teilgruppe je sechs Dateien, aufgerundet. Jede Gruppe erhält
-höchstens so viele Teilgruppen wie Dateien. Gezielte Fachgruppen bis zehn Dateien
-verwenden eine; größere gezielte Auswahlen mindestens drei und darüber dieselbe
-Dateigrenze von sechs je Teilgruppe. Im eBay-Lauf enthielt der vollständige
-Standardbereich 440 Fälle in vier Gruppen mit jeweils 110 Fällen; eine Gruppe
-erreichte einschließlich Vorbereitung das bestehende 30-Minuten-Jobbudget.
-Sechs Gruppen verteilen dieselben 440 Fälle mit jeweils 73 oder 74 Fällen und
-erhalten die bestehenden Zeit- und Fehlergrenzen. Die echte Playwright-Auflistung
-prüft nichtleere Gruppen, vollständige Abdeckung ohne Duplikate und die Größe des
-breiten Referenzplans. Eine explizit übergebene Teilgruppe wird nicht nochmals
-aufgeteilt.
+Nicht jede Änderung benötigt jede Breite, beide Farbschemata und Maus/Touch.
+Repräsentative Telefon-/Desktopvarianten und zusätzliche AXE-, Fokus- oder
+Bedienfälle nach der tatsächlich geänderten Oberfläche auswählen. Ein
+Darstellungsfehler erhält seine fehlerauslösende Variante; fachliche
+Fehlerfälle behalten ihre Erwartungen. Ein zusätzlicher lokaler Linuxlauf ist
+bei konkreten Plattform- oder Ressourcenfragen sinnvoll, keine pauschale
+Voraussetzung für PWA- oder UI-Änderungen.
 
-Jeder tatsächliche Aufruf legt im globalen Setup ein frisches lokales Testkonto
-an; jeder CI-Matrixjob hat eine eigene lokale Datenbank. Die Worker melden sich
-unabhängig mit den nur im Laufprozess übergebenen Zugangsdaten an. Vor jedem
-neuen Browserkontext prüft die Fixture die Sitzung: Bei weniger als 120 Sekunden
-Restgültigkeit meldet sie das Konto regulär neu an. Browserzustand und
-vorbereitender API-Client erhalten dieselbe Sitzung; auch zusätzliche manuelle
-Kontexte verwenden diesen aktuellen Zustand. Ausdrücklich anonyme oder eigene
-Testzustände bleiben erhalten. Die globale Authdatei wird von Workern nicht
-überschrieben und kein Refresh-Token zwischen Workern rotiert. Fehlgeschlagene
-oder unbrauchbar kurze Anmeldungen brechen vor der Workspace-Erstellung ab.
-Sitzungsdauer, Authlimits und Produktionsanmeldung bleiben unverändert.
+Browserprüfungen laufen gegen eine ruhende Vorschau mit synthetischen Daten.
+CI-Matrixjobs verwenden eigene lokale Datenbanken und frische Testkonten.
+Die Fixture erneuert zu kurze Sitzungen vor einem Browserkontext und teilt
+keine rotierenden Refresh-Tokens zwischen Workern. Ausdrücklich anonyme
+Testzustände bleiben erhalten. Produktionsanmeldung und Sitzungsgrenzen werden
+für schnellere Tests nicht verändert.
 
-Leere Auswahl startet keinen Browserjob. Der Runner akzeptiert sie nicht als
-bestandenen Test und verwendet kein `--passWithNoTests`. Fehler stoppen den
-lokalen Gesamtaufruf; CI sammelt die Ergebnisse der unabhängigen Matrixjobs.
+Leere Auswahl startet keinen Browserjob und zählt nicht als bestandener
+Browsertest. Kein `--passWithNoTests` und keine abgeschwächten Erwartungen.
+Ein fehlgeschlagener ausgewählter Pflichtjob verhindert die Freigabe.
 
 ## Marketplace-Erweiterung und Images
 
-`scripts/marketplace-check-selection.mjs` verfolgt die lokalen Imports der
-bestehenden nativen Workerbrowserdateien transitiv. Direkt geänderte Fixtures
-und Tests wählen ihre Verbraucher. Globale Paket-/Prüfänderungen wählen alle
-nativen lokalen Fälle. Die besondere Session-Stopp-Prüfung bleibt Bestandteil
-des echten Session-Imagechecks.
+`scripts/marketplace-check-selection.mjs` verfolgt lokale Imports vorhandener
+nativer Workerbrowserdateien transitiv. Direkt geänderte Fixtures und Tests
+wählen ihre Verbraucher; globale Paket-/Prüfänderungen wählen alle relevanten
+nativen Fälle. Anbieter-Schreibprüfungen bleiben synthetisch und erhalten ihre
+Konten-, Gebühren-, Kontingent-, Originalbild- und Wiederholungsschutzgrenzen.
 
-Der native Workerbrowserjob installiert seine gesperrte Playwright-Version in
-`$RUNNER_TEMP/flipbase-worker-browsers`. Installation, Sandboxvorbereitung und
-Tests verwenden denselben Pfad. `configure-worker-browser-sandbox.mjs` prüft
-zunächst den GitHub-gehosteten Linux-Runner und die tatsächliche AppArmor-Sperre.
-Nur bei aktiver Usernamespace-Sperre erhält die eindeutig installierte
-Headless-Shell ein auf ihren exakten Pfad begrenztes AppArmor-Profil. Die
-Chromium-Sandbox bleibt aktiv. Lokale Aufrufe des Setups sind ausgeschlossen;
-fehlende Browser oder Fehler beim Laden des Profils brechen den Job ab.
-Änderungen am Setup wählen alle nativen Workerbrowserfälle aus. Der manuelle
-Imagepublisher verwendet vor seinen Prüfungen denselben Setup.
+Die Kleinanzeigen-Erweiterung läuft in ihrem eigenen CI-Job und wird nicht in
+jedem Anwendungsbrowser-Shard wiederholt. Native Workerbrowser verwenden ihre
+gesperrte Playwright-Version. Auf GitHub nutzen Installation, Sandboxvorbereitung
+und Tests denselben temporären Browserpfad. Ein erforderliches AppArmor-Profil
+ist auf den exakten Browserpfad begrenzt; die Chromium-Sandbox bleibt aktiv.
+Lokales Ausführen dieses Hostsetups ist ausgeschlossen.
 
-Die Kleinanzeigen-Erweiterung läuft einmal im eigenen Job und wird nicht mehr
-in jedem Anwendungsbrowser-Shard wiederholt. Die Imageauswahl erfasst die
-wirklichen Docker-COPY-Quellen und Ignoredateien. Worker-/Brokerintegration und
-Sandbox-/Profilprüfungen teilen sich einen Sessionbau und einen Import-Smoke.
-Alle bestehenden Prüfungen der Isolation und Veröffentlichungsgrenzen bleiben.
+Die Imageauswahl berücksichtigt echte Docker-COPY-Quellen und Ignoredateien.
+Worker-/Brokerintegration und Sandbox-/Profilprüfungen teilen sich Sessionbau
+und Import-Smoke. Session-Stopp, Isolation und Veröffentlichungsgrenzen bleiben
+Bestandteil der echten Imageprüfungen. PR-Prüfworkflow und der ausschließlich
+auf `master` zulässige Publisher behalten getrennte Rechte.
 
-Der wiederverwendbare Prüfworkflow `marketplace-worker-image.yml` enthält
-ausschließlich Jobs mit Leserechten. Der separate `marketplace-image-publish.yml`
-veröffentlicht nur nach manuellem Start auf `master`: zuerst Extension und native
-Workerbrowser, dann der gemeinsame Imagebau samt Prüfungen, danach Login und Push
-derselben Images im selben Job. Änderungen an beiden Workflowdateien wählen alle
-Marketplace-Prüfbereiche. Schreibrechte des Publishers erreichen den PR-Aufrufer
-nicht; GitHub validiert auch bedingt ausgeschlossene Jobs eines aufgerufenen Workflows.
+## Nachweis und bewusste Gesamtprüfung
 
-## Nachweis und vollständige Regression
+Lokale Nachweise und ausstehende CI-Freigabe im PR getrennt benennen. Vor dem
+Merge müssen alle ausgewählten CI-Pflichtjobs erfolgreich sein. Der
+Wiederverwendungsnachweis bindet Git-Dateibaum und Auswahlhash einschließlich
+Marketplaceumfang. Alte oder abweichende Nachweise ersetzen keinen aktuellen
+Lauf. Ohne passenden Nachweis prüft CI nach dem Merge erneut.
 
-Die Sammelprüfung verlangt Erfolg für jeden ausgewählten Job. Fehler, Abbrüche
-oder unerwartetes Überspringen verhindern die automatische Veröffentlichung.
-Eine erzwungene Merge-Sperre durch Branch Protection wird für GitHub Free im
-privaten Repository nicht vorausgesetzt.
-
-Ein wiederverwendbarer PR-Nachweis bindet den Dateibaum und den SHA-256-Wert aus
-Bereichsauswahl, Anwendungsplan und Marketplaceplan. Andere Auswahlen oder alte
-Nachweise ersetzen keine erneute Prüfung. Ohne passenden Nachweis wird der
-aktuelle Umfang nach dem Merge ausgeführt.
-
-Für eine Diagnose können einzelne Pfade weiterhin ausdrücklich gewählt werden:
+Einzelne Pfade lassen sich für die Diagnose weiterhin ausdrücklich wählen:
 
 ```bash
 node scripts/affected-tests.mjs --paths src/app/shared/components/product-gallery/product-gallery.component.html
 ```
 
-Mit `AFFECTED_TEST_PLAN` kann `run-affected-tests.mjs` denselben Plan ausführen;
-`browser --list` prüft die Auswahl ohne Browserstart. Die Auswahltests benutzen
-hierfür die echte Playwright-Auflistung, einschließlich gemischter Änderungen,
-vollständiger geänderter Dateien und nichtleerer Teilgruppen.
+`AFFECTED_TEST_PLAN` übergibt den Plan an `run-affected-tests.mjs`;
+`browser --list` kontrolliert die Auswahl ohne Browserstart. Neue oder
+verschobene Tests benötigen auch einen passenden Registrierungs-/Auswahltest.
+Ein einzeln bestandener Fall beweist nicht seine richtige CI-Zuordnung.
 
-`npm run test:e2e:pr` führt den festen Kern als allgemeinen Diagnoselauf aus.
-Die vollständige Browserregression bleibt über `npm run test:e2e:nightly`
-beziehungsweise „Optional quality checks“ manuell verfügbar. Es gibt keinen
-zusätzlichen Zeitplan und keine still gekürzten Pflichtprüfungen.
+Vor Beta-Meilensteinen oder bei begründetem Diagnosebedarf die vollständige
+Regression bewusst starten. `npm run test:e2e:pr` bleibt als Kern-Diagnoselauf,
+`npm run test:e2e:nightly` beziehungsweise „Optional quality checks“ als
+vollständiger manueller Browserlauf verfügbar. Es gibt keinen täglichen oder
+wöchentlichen Zeitplan.
