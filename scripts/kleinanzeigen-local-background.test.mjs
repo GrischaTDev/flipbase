@@ -15,7 +15,7 @@ const prepare = {
   apiUrl: 'https://api.flipbase.de/functions/v1/kleinanzeigen-local-extension',
   canPublish: false,
 };
-function fixture() {
+function fixture(options = {}) {
   const stored = {};
   const listeners = [];
   let popup = null;
@@ -24,6 +24,8 @@ function fixture() {
   const requests = [];
   let sessionResult = null;
   let accountQuota = null;
+  let reloads = 0;
+  let tabReads = 0;
   let accountIdentity = {
     externalAccountId: '123',
     displayName: 'Testkonto',
@@ -39,7 +41,7 @@ function fixture() {
     },
     runtime: {
       id: extensionId,
-      getManifest: () => ({ version: '1.14.1' }),
+      getManifest: () => ({ version: '1.14.2' }),
       getURL: (path) => 'chrome-extension://' + extensionId + '/' + path,
       onMessage: { addListener: (fn) => listeners.push(fn) },
     },
@@ -49,19 +51,32 @@ function fixture() {
         createdUrls.push(url);
         return { id: 17, url, status: 'complete' };
       },
-      get: async () => ({
-        id: 17,
-        url: 'https://www.kleinanzeigen.de/m-einstellungen.html',
-        status: 'complete',
-      }),
-      reload: async () => {},
-      sendMessage: async () => ({
-        success: true,
-        result: {
-          identity: accountIdentity,
-          quota: typeof accountQuota === 'function' ? accountQuota() : accountQuota,
-        },
-      }),
+      get: async () => {
+        const pending = options.pendingNavigation && tabReads++ === 0;
+        return {
+          id: 17,
+          url: pending ? '' : 'https://www.kleinanzeigen.de/m-meine-anzeigen.html',
+          status: pending ? 'loading' : 'complete',
+        };
+      },
+      reload: async () => {
+        reloads++;
+      },
+      sendMessage: async () => {
+        if (options.staleReader && !reloads)
+          throw Error('Could not establish connection. Receiving end does not exist.');
+        if (options.oldReader && !reloads) return { success: false, errorCode: 'needs_login' };
+        if (options.accountError)
+          return { success: false, readerRevision: 2, errorCode: options.accountError };
+        return {
+          success: true,
+          readerRevision: 2,
+          result: {
+            identity: accountIdentity,
+            quota: typeof accountQuota === 'function' ? accountQuota() : accountQuota,
+          },
+        };
+      },
     },
     windows: {
       create: async (value) => {
@@ -104,6 +119,9 @@ function fixture() {
     stored,
     createdUrls,
     requests,
+    get reloads() {
+      return reloads;
+    },
     set quota(value) {
       accountQuota = value;
     },
@@ -119,7 +137,8 @@ function fixture() {
       sessionResult = value;
     },
     async approve() {
-      for (let i = 0; !popup && i < 40; i++) await new Promise(setImmediate);
+      for (let i = 0; !popup && i < 200; i++)
+        await new Promise((resolve) => setTimeout(resolve, 10));
       assert.ok(popup, 'Bestätigungsfenster muss geöffnet werden');
       const nonce = new URL(popup.url).hash.slice(1);
       const sender = { id: extensionId, frameId: 0, url: popup.url };
@@ -134,7 +153,7 @@ function fixture() {
 test('checks the loaded worker version and opens only its own extension settings from the app', async () => {
   const f = fixture();
   const version = await f.send({ type: 'FLIPBASE_KLEINANZEIGEN_VERSION', requestId: 'version' });
-  assert.equal(version.result.version, '1.14.1');
+  assert.equal(version.result.version, '1.14.2');
   assert.equal(f.tabsCreated, 0);
   const opened = await f.send({
     type: 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS',
@@ -151,6 +170,28 @@ test('checks the loaded worker version and opens only its own extension settings
   );
   assert.equal(f.tabsCreated, 1);
 });
+
+for (const option of ['staleReader', 'oldReader', 'pendingNavigation']) {
+  test('refreshes only the owned listing reader after extension update: ' + option, async () => {
+    const f = fixture({ [option]: true });
+    const pending = f.send(prepare);
+    await f.approve();
+    const result = await pending;
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(f.reloads, option === 'pendingNavigation' ? 0 : 1);
+    assert.equal(f.tabsCreated, 1);
+    assert.deepEqual(f.createdUrls, ['https://www.kleinanzeigen.de/m-meine-anzeigen.html']);
+  });
+}
+for (const accountError of ['account_unreadable', 'provider_unavailable']) {
+  test('does not report a technical account-read failure as logout: ' + accountError, async () => {
+    const f = fixture({ accountError });
+    const result = await f.send(prepare);
+    assert.equal(result.success, false);
+    assert.doesNotMatch(result.error, /Melde|Anmeldung|abgelaufen|Arbeits/);
+    assert.equal(f.reloads, 0);
+  });
+}
 test('rejects foreign websites and iframes before opening any provider tab', () => {
   const f = fixture();
   for (const sender of [

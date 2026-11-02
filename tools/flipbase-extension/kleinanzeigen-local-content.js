@@ -5,48 +5,61 @@
   let accountRead;
   async function readAccount(requireQuota) {
     const address = 'https://www.kleinanzeigen.de/m-einstellungen.html';
-    const response = await fetch(address, {
-      method: 'GET',
-      credentials: 'same-origin',
-      redirect: 'error',
-      cache: 'no-store',
-      signal: AbortSignal.timeout(8000),
-    });
-    if (
-      !response.ok ||
-      response.url !== address ||
-      !response.headers.get('content-type')?.includes('text/html')
-    )
-      throw new Error('needs_login');
-    const html = await response.text();
-    if (html.length > 2000000) throw new Error('schema_changed');
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const identity = reader.pageIdentity(doc, '/m-einstellungen.html', address);
-    if (!identity) throw new Error('needs_login');
-    const quota = reader.readQuota(doc, new Date().toISOString(), address);
-    if (!requireQuota || quota) return { identity, quota };
-    // Manche Anbieterfassungen laden den Zähler erst im Browser nach. Kein eigener Tab,
-    // keine Formularaktion: denselben Ursprung kurz eingebettet laden und danach entfernen.
-    const frame = document.createElement('iframe');
-    frame.hidden = true;
-    frame.title = 'Kleinanzeigen-Kontingent prüfen';
-    frame.src = address;
-    document.body.append(frame);
-    try {
-      const deadline = Date.now() + 8000;
-      while (Date.now() < deadline) {
-        const current = frame.contentDocument;
-        const freshIdentity = current && reader.pageIdentity(current, '/m-einstellungen.html');
-        if (freshIdentity && freshIdentity.externalAccountId !== identity.externalAccountId)
-          throw new Error('account_changed');
-        const freshQuota = current && reader.readQuota(current, new Date().toISOString());
-        if (freshIdentity && freshQuota) return { identity: freshIdentity, quota: freshQuota };
-        await new Promise((resolve) => setTimeout(resolve, 100));
+    const signal = AbortSignal.timeout(8000);
+    const get = async (url, type) => {
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          credentials: 'same-origin',
+          redirect: 'error',
+          cache: 'no-store',
+          signal,
+        });
+      } catch {
+        throw new Error('provider_unavailable');
       }
-      return { identity, quota: null };
-    } finally {
-      frame.remove();
+      if (response.status === 401) throw new Error('needs_login');
+      if (
+        !response.ok ||
+        response.url !== url ||
+        !response.headers.get('content-type')?.includes(type)
+      )
+        throw new Error('account_unreadable');
+      const text = await response.text();
+      if (text.length > 2000000) throw new Error('account_unreadable');
+      return text;
+    };
+    const snapshot = async () =>
+      new DOMParser().parseFromString(await get(address, 'text/html'), 'text/html');
+    const doc = await snapshot();
+    const identity = reader.pageIdentity(doc, '/m-einstellungen.html', address);
+    if (!identity) throw new Error('account_unreadable');
+    if (!requireQuota)
+      return { identity, quota: reader.readQuota(doc, new Date().toISOString(), address) };
+    let counters;
+    try {
+      counters = JSON.parse(
+        await get(
+          'https://www.kleinanzeigen.de/m-einstellungen-bearbeiten.json',
+          'application/json',
+        ),
+      );
+    } catch (error) {
+      throw new Error(error instanceof SyntaxError ? 'quota_unknown' : error.message);
     }
+    // Die aktuelle Kontoidentität muss auch nach dem Zählerabruf unverändert sein.
+    const current = await snapshot();
+    const currentIdentity = reader.pageIdentity(current, '/m-einstellungen.html', address);
+    if (!currentIdentity) throw new Error('account_unreadable');
+    if (
+      currentIdentity.externalAccountId !== identity.externalAccountId ||
+      currentIdentity.accountType !== identity.accountType
+    )
+      throw new Error('account_changed');
+    const quota = reader.readAccountQuota(current, counters, new Date().toISOString(), address);
+    if (!quota) throw new Error('quota_unknown');
+    return { identity: currentIdentity, quota };
   }
   async function enrichPublicationDays(page) {
     // Nur beim ausdruecklichen Abgleich: begrenzte parallele GETs, kein Formular und kein Upload.
@@ -102,7 +115,7 @@
     const now = Date.now();
     const maxAge = message.type === 'KLEINANZEIGEN_READ_ACCOUNT' ? 60000 : 900000;
     const stop = (errorCode) => {
-      respond({ success: false, errorCode });
+      respond({ success: false, readerRevision: 2, errorCode });
       return false;
     };
     if (
@@ -124,11 +137,18 @@
             accountRead = undefined;
           });
         accountRead
-          .then((result) => respond({ success: true, result }))
+          .then((result) => respond({ success: true, readerRevision: 2, result }))
           .catch((error) =>
             respond({
               success: false,
-              errorCode: ['account_changed', 'needs_login'].includes(error.message)
+              readerRevision: 2,
+              errorCode: [
+                'account_changed',
+                'needs_login',
+                'account_unreadable',
+                'provider_unavailable',
+                'quota_unknown',
+              ].includes(error.message)
                 ? error.message
                 : 'schema_changed',
             }),
@@ -139,6 +159,7 @@
       if (!identity) return stop('needs_login');
       respond({
         success: true,
+        readerRevision: 2,
         result: { identity, quota: reader.readQuota(document, new Date(now).toISOString()) },
       });
       return false;
