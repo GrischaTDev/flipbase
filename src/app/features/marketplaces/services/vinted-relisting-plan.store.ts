@@ -2,7 +2,6 @@ import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } f
 import { AuthService } from '../../../core/services/auth.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedListingJobService } from './vinted-listing-job.service';
-import { VintedListingDraftService } from './vinted-listing-draft.service';
 import { VintedListingImageService } from './vinted-listing-image.service';
 import { vintedListingJobLabel, type VintedListingJob } from '../models/vinted-listing-job';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
@@ -18,7 +17,6 @@ export class VintedRelistingPlanStore {
   private readonly accounts = inject(MarketplaceAccountStore);
   private readonly auth = inject(AuthService);
   private readonly jobs = inject(VintedListingJobService);
-  private readonly drafts = inject(VintedListingDraftService);
   private readonly images = inject(VintedListingImageService);
   readonly plans = signal<readonly VintedRelistingPlan[]>([]);
   readonly error = signal<string | null>(null);
@@ -28,7 +26,12 @@ export class VintedRelistingPlanStore {
       this.accounts.canManage() &&
       account?.status === 'connected' &&
       account.executionMode === 'cloud'
-      ? JSON.stringify([this.auth.currentUser()!.id, account.workspaceId, account.connectionId])
+      ? JSON.stringify([
+          this.auth.currentUser()!.id,
+          account.workspaceId,
+          account.connectionId,
+          account.externalAccountId,
+        ])
       : null;
   });
   private generation = 0;
@@ -62,21 +65,25 @@ export class VintedRelistingPlanStore {
       generation = this.generation;
     this.refreshing = true;
     try {
-      if (Date.now() - this.thumbnailsLoadedAt > 45 * 60_000) {
-        this.cache.clear();
+      const reloadThumbnails = Date.now() - this.thumbnailsLoadedAt > 45 * 60_000;
+      if (reloadThumbnails) {
         this.thumbnailsLoadedAt = Date.now();
       }
-      const jobs = await this.jobs.listPlans(account.workspaceId, account.connectionId);
+      const records = await this.jobs.listPlans(account.workspaceId, account.connectionId);
+      if (generation !== this.generation || this.destroyed) return;
+      const missing = [...this.cache.values()].filter(
+        (previous) => !records.some((record) => record.job.id === previous.job.id),
+      );
+      const needsSnapshot =
+        missing.length > 0 || records.some((record) => record.job.state === 'confirmed');
+      const snapshotLoaded =
+        !needsSnapshot || (await this.accounts.reloadImportedSnapshot(account));
       if (generation !== this.generation || this.destroyed) return;
       const plans: VintedRelistingPlan[] = [];
-      for (const job of jobs) {
-        const previous = this.cache.get(job.draftId);
-        const draft =
-          previous?.draft.revision === job.draftRevision
-            ? previous.draft
-            : await this.drafts.load(account.workspaceId, job.draftId);
+      for (const { job, draft } of records) {
+        const previous = this.cache.get(job.id);
         const imageUrl =
-          previous?.draft.revision === draft.revision
+          !reloadThumbnails && previous?.draft.revision === draft.revision
             ? previous.imageUrl
             : ((await this.images.thumbnailUrls([draft])).get(draft.id) ?? null);
         if (generation !== this.generation || this.destroyed) return;
@@ -95,11 +102,13 @@ export class VintedRelistingPlanStore {
         const plan = { job, draft, imageUrl, label };
         plans.push(plan);
       }
+      // Erst die Lesekopie übernehmen, dann die bisher sichtbare Karte entfernen.
+      if (!snapshotLoaded) plans.push(...missing);
       if (generation !== this.generation) return;
       this.plans.set(plans);
       this.error.set(null);
       this.cache.clear();
-      plans.forEach((plan) => this.cache.set(plan.draft.id, plan));
+      plans.forEach((plan) => this.cache.set(plan.job.id, plan));
     } catch (error) {
       if (generation === this.generation)
         this.error.set(

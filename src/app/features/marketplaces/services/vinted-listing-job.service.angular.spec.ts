@@ -57,6 +57,25 @@ function api(rpc: ReturnType<typeof vi.fn>) {
   return TestBed.inject(VintedListingJobService);
 }
 describe('Vinted-Inseratauftragservice', () => {
+  it('liest Planinhalt nur aus der kontogebundenen angenommenen Revision', async () => {
+    const plan = {
+      job: { ...body, relistExternalId: '123' },
+      draft: { ...draft, relistExternalId: '123' },
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: { items: [plan] }, error: null });
+    const service = api(rpc);
+    expect(
+      (await service.listPlans(draft.workspaceId, draft.connectionId!))[0]?.draft.revision,
+    ).toBe(3);
+    for (const wrong of [
+      { ...plan, draft: { ...plan.draft, revision: 4 } },
+      { ...plan, draft: { ...plan.draft, connectionId: 'foreign' } },
+      { ...plan, draft: { ...plan.draft, relistExternalId: '456' } },
+    ]) {
+      rpc.mockResolvedValue({ data: { items: [wrong] }, error: null });
+      await expect(service.listPlans(draft.workspaceId, draft.connectionId!)).rejects.toThrow();
+    }
+  });
   it('listens privately to this draft, validates change hints and stops late callbacks', () => {
     const workspaceId = '46600000-0000-4000-8000-000000000011';
     const onChange = vi.fn(),

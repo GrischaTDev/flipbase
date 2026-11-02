@@ -15,6 +15,9 @@ import { VintedListingImageService } from '../../services/vinted-listing-image.s
 import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
 import { VintedListingsComponent } from './vinted-listings.component';
 import { parseMarketplacePage } from '../../models/marketplace-response';
+import { emptyVintedListingContent } from '../../models/vinted-listing-content';
+import { parseVintedListingJob } from '../../models/vinted-listing-job';
+import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-plan';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
 afterEach(() => TestBed.resetTestingModule());
@@ -281,4 +284,130 @@ it('startet nach dem Schließen des Kleiderschranks keinen weiteren Planabruf', 
   f.resolve([]);
   for (let index = 0; index < 12; index++) await Promise.resolve();
   expect(f.listPlans).toHaveBeenCalledOnce();
+});
+
+function acceptedPlan(): VintedRelistingPlanRecord {
+  const draft = {
+    id: '20',
+    workspaceId: accountA.workspaceId,
+    connectionId: '46300000-0000-4000-8000-000000000021',
+    revision: 1,
+    relistExternalId: '123',
+    inventoryItemId: null,
+    content: { ...emptyVintedListingContent(), title: 'Beauftragte Jacke', priceCents: 2000 },
+    images: [],
+    createdAt: '2026-11-02T12:00:00Z',
+    updatedAt: '2026-11-02T12:00:00Z',
+  };
+  const job = parseVintedListingJob(
+    {
+      id: '30',
+      workspaceId: draft.workspaceId,
+      connectionId: draft.connectionId,
+      draftId: draft.id,
+      draftRevision: 1,
+      externalAccountId: '123',
+      executionMode: 'cloud',
+      action: 'publish',
+      state: 'queued',
+      version: 1,
+      scheduledAt: '2026-11-03T18:00:00Z',
+      timeZone: 'Europe/Berlin',
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: null,
+      externalId: null,
+      providerState: null,
+      verifiedAt: null,
+      replacesJobId: null,
+      createdAt: draft.createdAt,
+      updatedAt: draft.updatedAt,
+      relistExternalId: '123',
+      itemTitle: draft.content.title,
+    },
+    draft.workspaceId,
+  );
+  return { job, draft };
+}
+function loadedPlanStore(record = acceptedPlan()) {
+  const listPlans = vi.fn().mockResolvedValue([record]);
+  const reloadImportedSnapshot = vi.fn().mockResolvedValue(true);
+  const load = vi.fn().mockResolvedValue({
+    ...record.draft,
+    revision: 2,
+    content: { ...record.draft.content, title: 'Nicht beauftragt', priceCents: 2500 },
+  });
+  TestBed.configureTestingModule({
+    providers: [
+      { provide: AuthService, useValue: { currentUser: signal({ id: 'plan-user' }) } },
+      {
+        provide: MarketplaceAccountStore,
+        useValue: {
+          selectedConnection: signal({ ...accountA, connectionId: record.job.connectionId! }),
+          canManage: signal(true),
+          reloadImportedSnapshot,
+        },
+      },
+      { provide: VintedListingJobService, useValue: { listPlans } },
+      { provide: VintedListingDraftService, useValue: { load } },
+      {
+        provide: VintedListingImageService,
+        useValue: { thumbnailUrls: vi.fn().mockResolvedValue(new Map()) },
+      },
+    ],
+  });
+  const plans = TestBed.runInInjectionContext(() => new VintedRelistingPlanStore());
+  return { plans, listPlans, load, reloadImportedSnapshot };
+}
+it('stellt die angenommene Aufnahme dar, auch wenn ein neuerer Entwurf nicht beauftragt wurde', async () => {
+  const f = loadedPlanStore();
+  await settlePlans();
+  expect(f.plans.plans()[0]?.draft.content.title).toBe('Beauftragte Jacke');
+  expect(f.plans.plans()[0]?.draft.content.priceCents).toBe(2000);
+  expect(f.load).not.toHaveBeenCalled();
+});
+it('entfernt die bestätigte Karte erst nach erfolgreichem Laden der neuen Lesekopie', async () => {
+  const record = acceptedPlan();
+  const confirmed = {
+    ...record,
+    job: { ...record.job, state: 'confirmed' as const, externalId: '456' },
+  };
+  const f = loadedPlanStore(confirmed);
+  await settlePlans();
+  expect(f.plans.plans()).toHaveLength(1);
+  f.listPlans.mockResolvedValue([]);
+  f.reloadImportedSnapshot.mockResolvedValue(false);
+  await f.plans.refresh();
+  expect(f.plans.plans()).toHaveLength(1);
+  f.reloadImportedSnapshot.mockResolvedValue(true);
+  await f.plans.refresh();
+  expect(f.plans.plans()).toHaveLength(0);
+});
+it('blendet beim bestätigten Übergang alte und neue Cachekarte aus, bis die neue Lesekopie übernommen ist', () => {
+  const { component, store } = setup('');
+  const record = acceptedPlan();
+  const old = parseMarketplacePage(
+    {
+      items: [
+        { ...accountA, id: 'old', externalId: '123', title: 'Alt' },
+        { ...accountA, id: 'new', externalId: '456', title: 'Neu' },
+      ],
+      total: 2,
+      nextCursor: null,
+    },
+    accountA,
+  );
+  vi.spyOn(component, 'page').mockReturnValue(old);
+  component.plans.plans.set([
+    {
+      ...record,
+      job: { ...record.job, state: 'confirmed', externalId: '456' },
+      imageUrl: null,
+      label: 'Veröffentlicht',
+    },
+  ]);
+  expect(component.entries()).toEqual([]);
+  component.plans.plans.set([]);
+  vi.spyOn(component, 'page').mockReturnValue({ ...old, items: [old.items[1]!] });
+  expect(component.entries().map((entry) => entry.externalId)).toEqual(['456']);
+  expect(store.selectedConnection().connectionId).toBe(accountA.connectionId);
 });

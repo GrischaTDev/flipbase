@@ -75,7 +75,15 @@ export class VintedListingsComponent {
   readonly plans = inject(VintedRelistingPlanStore);
   readonly editingPlan = signal<VintedListingJob | null>(null);
   readonly entries = computed(() => {
-    const deleted = new Set(this.plans.plans().map((plan) => plan.job.relistExternalId));
+    const deleted = new Set(
+      this.plans
+        .plans()
+        .flatMap((plan) =>
+          plan.job.state === 'confirmed'
+            ? [plan.job.relistExternalId, plan.job.externalId]
+            : [plan.job.relistExternalId],
+        ),
+    );
     return (this.page()?.items ?? []).filter((entry) => !deleted.has(entry.externalId));
   });
   closeEditor(): void {

@@ -81,6 +81,27 @@ let api: {
   readPublication: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
+it('übernimmt den nach einem Relist neu importierten Stand vor dem Entfernen der Planung', async () => {
+  await settle();
+  api.readSnapshot.mockResolvedValue(snapshot(accountA, 'Neu importiert'));
+  expect(await store.reloadImportedSnapshot(accountA)).toBe(true);
+  expect(store.snapshot()?.profile?.displayName).toBe('Neu importiert');
+});
+it('bestätigt einen gescheiterten Importabruf nicht als übernommen', async () => {
+  await settle();
+  api.readSnapshot.mockRejectedValue(new MarketplaceApiError('request_failed'));
+  expect(await store.reloadImportedSnapshot(accountA)).toBe(false);
+});
+it('verwirft eine verspätete Relist-Lesekopie nach einem Kontowechsel', async () => {
+  await settle();
+  const response = deferred<MarketplaceSnapshot>();
+  api.readSnapshot.mockReturnValueOnce(response.promise);
+  const refresh = store.reloadImportedSnapshot(accountA);
+  await store.selectConnection(accountB.connectionId);
+  response.resolve(snapshot(accountA, 'Verspätet'));
+  expect(await refresh).toBe(false);
+  expect(store.snapshot()?.connectionId).toBe(accountB.connectionId);
+});
 beforeEach(() => {
   localStorage.clear();
   currentWorkspace = signal<{ id: string; archived_at?: string } | null>({

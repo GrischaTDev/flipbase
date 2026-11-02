@@ -386,6 +386,35 @@ export class MarketplaceAccountStore {
     await this.drainPendingImport();
   }
 
+  async reloadImportedSnapshot(scope: AccountScope): Promise<boolean> {
+    const connection = this.selectedConnection();
+    const selection = this.selectionRevision;
+    if (
+      !this.canManage() ||
+      this.destroyed ||
+      !connection ||
+      connection.workspaceId !== scope.workspaceId ||
+      connection.connectionId !== scope.connectionId ||
+      this.loading() ||
+      this.loadingSnapshot() ||
+      this.loadingMessages() ||
+      this.loadingPage() ||
+      this.busy() ||
+      this.backgroundFetching()
+    )
+      return false;
+    const previous = this.snapshot();
+    this.pendingImport.set({ scope, lastSyncedAt: connection.lastSyncedAt, force: true });
+    await this.drainPendingImport();
+    return (
+      selection === this.selectionRevision &&
+      !this.destroyed &&
+      !this.loadError() &&
+      !this.pendingImport() &&
+      this.snapshot() !== previous
+    );
+  }
+
   private async drainPendingImport(): Promise<void> {
     const pending = this.pendingImport();
     if (!pending || this.destroyed || this.backgroundFetching()) return;

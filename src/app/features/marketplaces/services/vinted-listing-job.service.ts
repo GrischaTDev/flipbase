@@ -13,6 +13,10 @@ import {
   type VintedListingPermission,
 } from '../models/vinted-listing-job';
 import type { VintedListingLatePolicy } from '../models/vinted-listing-schedule';
+import {
+  parseVintedRelistingPlan,
+  type VintedRelistingPlanRecord,
+} from '../models/vinted-relisting-plan';
 
 export interface VintedListingJobIntent {
   /** Für denselben Versuch behalten, auch wenn die Antwort verloren geht. */
@@ -177,7 +181,10 @@ export class VintedListingJobService {
     if (new Set(jobs.map((job) => job.id)).size !== jobs.length) return invalid();
     return jobs;
   }
-  async listPlans(workspaceId: string, connectionId: string): Promise<readonly VintedListingJob[]> {
+  async listPlans(
+    workspaceId: string,
+    connectionId: string,
+  ): Promise<readonly VintedRelistingPlanRecord[]> {
     const result = listingResponse(
       await this.client.rpc('marketplace_read_relisting_plans', {
         p_workspace_id: workspaceId,
@@ -191,7 +198,11 @@ export class VintedListingJobService {
       !Array.isArray(result.items)
     )
       return invalid();
-    return result.items.map((value) => parseVintedListingJob(value, workspaceId));
+    const plans = result.items.map((value) =>
+      parseVintedRelistingPlan(value, workspaceId, connectionId),
+    );
+    if (new Set(plans.map((plan) => plan.job.id)).size !== plans.length) return invalid();
+    return plans;
   }
   async editPlan(job: VintedListingJob, editing: boolean): Promise<VintedListingJob> {
     return parseVintedListingJob(

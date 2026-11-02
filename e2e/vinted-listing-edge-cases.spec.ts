@@ -1256,17 +1256,21 @@ for (const width of [390, 1440])
           timeZone: 'Europe/Berlin',
           latePolicy: 'pause_after_30_minutes',
           errorCode: null as string | null,
-          externalId: null,
-          providerState: null,
-          verifiedAt: null,
+          externalId: null as string | null,
+          providerState: null as 'active' | 'processing' | null,
+          verifiedAt: null as string | null,
           createdAt,
           updatedAt: createdAt,
           replacesJobId: null as string | null,
         };
         const edits: boolean[] = [];
         const enqueues: Record<string, unknown>[] = [];
+        let acceptedDraft = plannedDraft;
+        let planVisible = true;
         await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
-          route.fulfill({ json: { items: [plannedJob] } }),
+          route.fulfill({
+            json: { items: planVisible ? [{ job: plannedJob, draft: acceptedDraft }] : [] },
+          }),
         );
         await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
           route.fulfill({ json: { items: [plannedJob] } }),
@@ -1297,6 +1301,7 @@ for (const width of [390, 1440])
         await page.route('**/rest/v1/rpc/marketplace_enqueue_relisting', (route) => {
           const body = route.request().postDataJSON();
           enqueues.push(body);
+          acceptedDraft = plannedDraft;
           plannedJob = {
             ...plannedJob,
             id: '31',
@@ -1334,7 +1339,13 @@ for (const width of [390, 1440])
               })
             : route.fulfill({ contentType: 'image/jpeg', body: photo }),
         );
+        const importedResponse = page.waitForResponse(
+          (response) =>
+            response.url().endsWith('/rpc/marketplace_read_snapshot') &&
+            response.request().postDataJSON()?.p_connection_id === accountIds[0],
+        );
         await page.goto('/marketplaces/vinted/listings');
+        const imported = await (await importedResponse).json();
         const plan = wardrobe.getByRole('article', { name: listing.content.title, exact: true });
         await expect(plan).toContainText('Veröffentlichung geplant für');
         await expect(
@@ -1374,6 +1385,59 @@ for (const width of [390, 1440])
           p_delay_seconds: 0,
         });
         await screenshot(page, `vinted-relist-planned-${width}-${theme}`);
+        await checkPage(page, errors);
+        plannedJob = {
+          ...plannedJob,
+          state: 'confirmed',
+          externalId: '45678',
+          providerState: 'active',
+          verifiedAt: new Date().toISOString(),
+        };
+        await expect(plan).toContainText('Veröffentlicht', { timeout: 15000 });
+        await expect(
+          wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
+        ).toHaveCount(0);
+        let releaseImport!: () => void;
+        const importReady = new Promise<void>((resolve) => {
+          releaseImport = resolve;
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_snapshot', async (route) => {
+          await importReady;
+          return route.fulfill({
+            json: {
+              ...imported,
+              publications: {
+                items: [
+                  {
+                    ...imported.publications.items[0],
+                    id: 'publication-new',
+                    externalId: '45678',
+                    title: 'Neu veröffentlicht',
+                    price: 25.9,
+                  },
+                ],
+                total: 1,
+                nextCursor: null,
+              },
+            },
+          });
+        });
+        const pendingImport = page.waitForRequest(
+          (request) =>
+            request.url().endsWith('/rpc/marketplace_read_snapshot') &&
+            request.postDataJSON()?.p_connection_id === accountIds[0],
+        );
+        planVisible = false;
+        await pendingImport;
+        await expect(plan).toContainText('Veröffentlicht');
+        await expect(
+          wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
+        ).toHaveCount(0);
+        releaseImport();
+        await expect(
+          wardrobe.getByRole('button', { name: 'Neu veröffentlicht relisten', exact: true }),
+        ).toBeVisible();
+        await expect(plan).toHaveCount(0);
         await checkPage(page, errors);
       });
     });

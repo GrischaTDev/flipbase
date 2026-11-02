@@ -4534,6 +4534,8 @@ export type Database = {
           created_at: string
           draft_id: number
           draft_revision: number
+          editing_previous_error_code: string | null
+          editing_previous_state: string | null
           error_code: string | null
           execution_mode: string
           external_account_id: string
@@ -4546,6 +4548,7 @@ export type Database = {
           provider_result: Json | null
           provider_state: string | null
           relist_delay_seconds: number
+          relist_imported_at: string | null
           relist_publish_at: string | null
           replaces_job_id: number | null
           request_hash: string
@@ -4576,6 +4579,8 @@ export type Database = {
           created_at?: string
           draft_id: number
           draft_revision: number
+          editing_previous_error_code?: string | null
+          editing_previous_state?: string | null
           error_code?: string | null
           execution_mode: string
           external_account_id: string
@@ -4588,6 +4593,7 @@ export type Database = {
           provider_result?: Json | null
           provider_state?: string | null
           relist_delay_seconds?: number
+          relist_imported_at?: string | null
           relist_publish_at?: string | null
           replaces_job_id?: number | null
           request_hash: string
@@ -4618,6 +4624,8 @@ export type Database = {
           created_at?: string
           draft_id?: number
           draft_revision?: number
+          editing_previous_error_code?: string | null
+          editing_previous_state?: string | null
           error_code?: string | null
           execution_mode?: string
           external_account_id?: string
@@ -4630,6 +4638,7 @@ export type Database = {
           provider_result?: Json | null
           provider_state?: string | null
           relist_delay_seconds?: number
+          relist_imported_at?: string | null
           relist_publish_at?: string | null
           replaces_job_id?: number | null
           request_hash?: string
@@ -11535,6 +11544,12 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_listing_job_draft_document: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: Json
+      }
       marketplace_listing_job_timing: {
         Args: { p_late_policy: string; p_now: string; p_scheduled_at: string }
         Returns: string
@@ -12183,6 +12198,12 @@ export type Database = {
           p_time_zone: string
         }
         Returns: Json
+      }
+      marketplace_request_relisting_import: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: undefined
       }
       marketplace_reschedule_listing: {
         Args: {
