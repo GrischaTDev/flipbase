@@ -291,11 +291,12 @@
   <app-modal-shell
     title="Geplantes Relisting"
     size="lg"
-    [hasFooter]="false"
+    [hasFooter]="!plannedEditor.publication()"
     (closed)="plannedEditor.cancel()"
   >
     <app-button
-      header-actions
+      modal-footer
+      data-review-opener
       variant="primary"
       [disabled]="!plannedEditor.canStartPublication() || plannedEditor.preparingPhotos()"
       [loading]="plannedEditor.saving() || plannedEditor.preparingPhotos()"
@@ -306,6 +307,7 @@
       #plannedEditor
       [modalActions]="true"
       [plannedJob]="job"
+      (publicationReturned)="focusEditorAction()"
       (closed)="closeEditor()"
     />
   </app-modal-shell>
@@ -316,17 +318,40 @@
       source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden'
     "
     [size]="source.mode === 'relist' ? 'lg' : 'full'"
-    [hasFooter]="false"
+    [hasFooter]="!editor.publication()"
     (closed)="editor.cancel()"
   >
-    <div header-actions>
+    <div modal-footer class="flex flex-wrap items-center justify-end gap-2">
       @if (source.mode === 'relist') {
         <app-button
           variant="primary"
+          data-review-opener
           [disabled]="!editor.canStartPublication() || editor.preparingPhotos()"
           [loading]="editor.saving() || editor.preparingPhotos()"
           (clicked)="editor.submitRelisting()"
           >Relisten</app-button
+        >
+      } @else {
+        <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ editor.status() }}</span>
+        <app-button
+          variant="secondary"
+          [disabled]="!editor.canSave()"
+          [loading]="editor.saving()"
+          (clicked)="editor.save()"
+          >Entwurf speichern</app-button
+        >
+        <app-button
+          variant="secondary"
+          [disabled]="!editor.canStartPublication()"
+          (clicked)="editor.openSchedule()"
+          >Veröffentlichung planen</app-button
+        >
+        <app-button
+          variant="primary"
+          data-review-opener
+          [disabled]="!editor.canStartPublication()"
+          (clicked)="editor.publishNow()"
+          >Jetzt veröffentlichen</app-button
         >
       }
     </div>
@@ -334,6 +359,7 @@
       #editor
       [modalActions]="true"
       [source]="source"
+      (publicationReturned)="focusEditorAction()"
       (closed)="closeEditor()"
     />
   </app-modal-shell>

@@ -1,4 +1,6 @@
-@if (relisting()) {
+@if (modalActions()) {
+  <ng-container [ngTemplateOutlet]="feedback" />
+} @else if (relisting()) {
   @if (!modalActions()) {
     <div class="mb-4 flex justify-end">
       <app-button

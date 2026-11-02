@@ -150,6 +150,7 @@ export class VintedListingEditorComponent {
   private readonly jobsApi = inject(VintedListingJobService);
   readonly source = input<VintedListingEditorSource | null>(null);
   readonly closed = output<void>();
+  readonly publicationReturned = output<void>();
   readonly relisting = computed(
     () =>
       this.source()?.mode === 'relist' || !!this.plannedJob() || !!this.draft()?.relistExternalId,
@@ -624,9 +625,11 @@ export class VintedListingEditorComponent {
   returnToEditor(): void {
     if (this.publicationBusy()) return;
     this.closePublication();
-    setTimeout(() =>
-      this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
-    );
+    setTimeout(() => {
+      if (this.modalActions()) this.publicationReturned.emit();
+      else
+        this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus();
+    });
   }
   publicationAccepted(job: VintedListingJob): void {
     const opened = this.publication();

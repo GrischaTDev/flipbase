@@ -101,6 +101,11 @@ export class VintedListingsComponent {
     this.editingPlan.set(null);
     void this.plans.refresh();
   }
+  focusEditorAction(): void {
+    this.element?.nativeElement
+      .querySelector<HTMLButtonElement>('app-modal-shell [data-review-opener] button')
+      ?.focus();
+  }
   readonly editorSource = signal<VintedListingEditorSource | null>(null);
   canCreateFrom(entry: MarketplaceEntry): boolean {
     return (

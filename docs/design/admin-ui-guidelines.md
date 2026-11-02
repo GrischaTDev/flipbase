@@ -71,7 +71,7 @@ Mehrzeilige Felder und Mehrfachwerte dürfen mit dem Inhalt wachsen. Größere a
 
 **Keine Cards in Cards:** Innerhalb eines Modals keine weiteren Card-Flächen für Formularabschnitte verschachteln. Gruppen mit Überschriften, Abständen und bei Bedarf dezenten Trennlinien gliedern. Diese Nutzerentscheidung vom 02.11.2026 ist verbindlich.
 
-**Große Formularmodale:** Formularaktionen stehen oben beim Titel über den vorhandenen gemeinsamen Kopfbereich. Keine zusätzliche Aktionsleiste am Formularende. Das gilt auch für mehrstufige Formulare: Jeder Schritt zeigt seine Aktionen oben. Kurze Bestätigungsdialoge behalten ihren üblichen Dialogfuß. Diese Nutzerentscheidung vom 02.11.2026 ist verbindlich.
+**Seiten und Modale:** Bei vollständigen Formularseiten stehen die Aktionen oben im gemeinsamen Kopfbereich. In Modalen stehen die Aktionen unten rechts im gemeinsamen Dialogfuß; die Hauptaktion steht am Ende der Gruppe. Das gilt auch für große und mehrstufige Formularmodale. Diese präzisierte Nutzerentscheidung vom 02.11.2026 ersetzt die frühere pauschale Kopfbereichsregel für Modale.
 
 Beschriftungen erscheinen genau einmal und sind mit der tatsächlichen Eingabe verknüpft. Placeholder ersetzt kein Label. Pflichtangabe nicht allein über Farbe vermitteln. Keine ungefragten Info-, Warn- oder Erklärtexte ergänzen; Hilfetexte nur auf ausdrücklichen Nutzerauftrag. Labels und Badges nicht zusätzlich erklären. Konkrete Fehler und notwendige Eingabevalidierung stehen am Feld und werden über `aria-describedby` zugeordnet. Vorhandene Werte, Speicherabläufe, Such-/Baum-/Mehrfachauswahlsemantik und Tastaturbedienung bleiben erhalten.
 

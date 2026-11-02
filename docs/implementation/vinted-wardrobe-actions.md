@@ -2,7 +2,7 @@
 
 Freigabegrundlage: Nutzerkorrektur nach der echten Sichtkontrolle von #543.
 Vor einem PR die fertige lokale Oberfläche mit Screenshots zur Sichtkontrolle zeigen.
-Keine Veröffentlichung vor dieser Abnahme.
+Nutzerabnahme mit präzisierter Fußbereichsregel und PR-Freigabe am 02.11.2026 erhalten.
 
 ## 1. Falschen Einstieg entfernen
 
@@ -29,7 +29,7 @@ Keine Veröffentlichung vor dieser Abnahme.
 - [x] Keine vollständige Artikeldatenmaske und kein zusätzlicher Detailschritt beim Relisten.
 - [x] Bestehende übrige Artikeldaten unverändert übernehmen; Vorlagen und regulären Editor erhalten.
 - [x] Sofort, Wartezeit und fester Termin sowie Originalbilder und vorhandene Bildoptionen erhalten.
-- [x] Aktionen oben; keine zusätzlichen Erklärtexte.
+- [x] Präzisierte Sichtkorrektur: Modalaktionen unten rechts; Seitenaktionen oben. Keine zusätzlichen Erklärtexte.
 - [x] Sichtkorrektur: Bildbearbeitung und Veröffentlichung als flache Abschnitte ohne innere Cards.
 - [x] Dasselbe kurze Formular für die Bearbeitung noch nicht ausgeführter Relist-Planungen.
 
@@ -38,7 +38,7 @@ Keine Veröffentlichung vor dieser Abnahme.
 - [x] Vorbereiteten Leser-Fix für fehlende optionale KI-Auswahl erhalten.
 - [x] Betroffene Komponenten, Anbieterabläufe und gemeinsame Verbraucher prüfen.
 - [x] Lokale Screenshots von Aktionsleiste, kurzem Modal und Löschbestätigung für die Abnahme erstellen.
-- [ ] Nutzerabnahme vor PR und Veröffentlichung abwarten.
+- [x] Nutzerabnahme mit letzter Korrektur der Aktionsposition und Freigabe zur PR-Erstellung erhalten.
 
 ## Prüfnachweis und verbleibende Abnahme
 
@@ -61,4 +61,4 @@ Keine Veröffentlichung vor dieser Abnahme.
   CI-Plan einschließlich übriger Anwendungsbrowser- und PWA-Prüfungen bleibt vor dem Merge offen.
 - Screenshots: lokale Prüfartefakte unter `wardrobe-review` im Visualisierungsordner dieser Sitzung.
   Browser-Plugin nicht verfügbar; vorhandene Playwright-Prüfungen gegen die ruhende lokale Vorschau.
-- Kein Push, kein PR und keine Veröffentlichung vor der ausdrücklich verlangten Sichtkontrolle.
+- Nach der Sichtkontrolle wurde die PR-Erstellung mit der letzten Fußbereichskorrektur freigegeben.

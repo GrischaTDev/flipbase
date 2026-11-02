@@ -1129,7 +1129,7 @@ for (const width of [390, 1440])
         await expect(
           page
             .getByRole('dialog', { name: 'Artikel relisten', exact: true })
-            .locator('header')
+            .locator('footer')
             .getByRole('button', { name: 'Relisten', exact: true }),
         ).toBeVisible();
         const preview = editor.locator('app-vinted-listing-photo-preview img');
@@ -1196,7 +1196,10 @@ for (const width of [390, 1440])
           listing.content.title,
         );
         await expect(
-          editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
+          page
+            .getByRole('dialog', { name: 'Als Vorlage für neues Inserat verwenden', exact: true })
+            .locator('footer')
+            .getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
         ).toBeVisible();
         await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
         await screenshot(
