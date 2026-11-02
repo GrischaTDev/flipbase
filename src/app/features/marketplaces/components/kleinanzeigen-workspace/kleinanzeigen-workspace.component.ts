@@ -47,11 +47,9 @@ export class KleinanzeigenWorkspaceComponent {
   readonly pageTitle =
     this.page === 'overview'
       ? 'Kleinanzeigen · Übersicht'
-      : this.page === 'inbox'
-        ? 'Kleinanzeigen · Postfach'
-        : this.page === 'connection'
-          ? 'Kleinanzeigen · Kontoverbindung'
-          : 'Kleinanzeigen · Inserate';
+      : this.page === 'connection'
+        ? 'Kleinanzeigen · Kontoverbindung'
+        : 'Kleinanzeigen · Inserate';
   readonly kleinanzeigenAccount = viewChild(KleinanzeigenAccountsComponent);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);

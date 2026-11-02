@@ -15,7 +15,7 @@ for (const theme of ['light', 'dark'] as const)
         page.on('pageerror', (error) => errors.push(error.message));
         await page.setViewportSize({ width, height: 1000 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
-        await page.goto('/marketplaces/kleinanzeigen');
+        await page.goto('/marketplaces/kleinanzeigen/inbox');
         await expect(page).toHaveURL(/\/marketplaces\/kleinanzeigen\/overview$/);
         await expect(
           page.getByRole('heading', { name: 'Kleinanzeigen · Übersicht', exact: true }),
@@ -33,19 +33,18 @@ for (const theme of ['light', 'dark'] as const)
         await expect(navigation.getByRole('link')).toHaveText([
           'Übersicht',
           'Inserate',
-          'Postfach',
           'Kontoverbindung',
         ]);
         await page.screenshot({
           path: testInfo.outputPath('kleinanzeigen-overview.png'),
           animations: 'disabled',
         });
-        await navigation.getByRole('link', { name: 'Postfach', exact: true }).click();
+        await expect(navigation.getByRole('link', { name: 'Postfach', exact: true })).toHaveCount(
+          0,
+        );
         await expect(
-          page.getByRole('link', { name: 'Postfach öffnen', exact: true }),
+          page.getByRole('link', { name: 'Nachrichten bei Kleinanzeigen', exact: true }),
         ).toHaveAttribute('href', 'https://www.kleinanzeigen.de/m-nachrichten.html');
-        if (width < 768)
-          await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
         await page
           .locator('[data-kleinanzeigen-navigation]')
           .getByRole('link', { name: 'Inserate', exact: true })

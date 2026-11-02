@@ -358,6 +358,16 @@ try {
         }),
       publicationWorkspaceId,
     );
+  provider.reset({ used: 8, relisting: true, smallRelistingImages: true });
+  await provider.prepare(worker);
+  const tooSmall = await relist();
+  assert.equal(tooSmall.success, false, JSON.stringify(tooSmall));
+  assert.match(tooSmall.error, /Bildquelle.*Originalbilder/u);
+  assert.equal(provider.deletes, 0);
+  assert.equal(provider.uploads, 0);
+  assert.equal(provider.submits, 0);
+  provider.reset({ used: 8, relisting: true });
+  await provider.prepare(worker);
   const recreated = await relist();
   assert.equal(recreated.success, true, JSON.stringify(recreated));
   if (recreated.result.outcome !== 'confirmed')
@@ -381,6 +391,49 @@ try {
   assert.equal(provider.deletes, 1);
   assert.equal(provider.submits, 1);
   assert.deepEqual(fixture.errors, []);
+  // Einen unter der alten Version vorbereiteten Vorgang mit gültigen, aber winzigen Bildbytes fortsetzen.
+  await worker.evaluate(async (encoded) => {
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('flipbase_kleinanzeigen_relisting', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const record = await new Promise((resolve, reject) => {
+      const request = database.transaction('attempts').objectStore('attempts').getAll();
+      request.onsuccess = () => resolve(request.result[0]);
+      request.onerror = () => reject(request.error);
+    });
+    const bytes = Uint8Array.from(atob(encoded), (value) => value.charCodeAt(0));
+    const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+      .map((value) => value.toString(16).padStart(2, '0'))
+      .join('');
+    record.phase = 'prepared';
+    record.images[0] = {
+      ...record.images[0],
+      encoded,
+      mimeType: 'image/png',
+      byteSize: bytes.length,
+      sha256,
+    };
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction('attempts', 'readwrite');
+      transaction.objectStore('attempts').put(record);
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    database.close();
+  }, provider.thumbnailEncoded);
+  provider.reset({ used: 8, relisting: true });
+  await provider.prepare(worker);
+  const resumedSmall = await relist();
+  assert.equal(resumedSmall.success, false, JSON.stringify(resumedSmall));
+  assert.match(resumedSmall.error, /Bildquelle.*Originalbilder/u);
+  assert.equal(provider.deletes, 0);
+  assert.equal(provider.uploads, 0);
+  assert.equal(provider.submits, 0);
+  console.log(
+    '96-Pixel-Bilder bei Neuabruf und aus altem gesicherten Vorgang gestoppt: jeweils null Löschungen, Uploads und Veröffentlichungen.',
+  );
   console.log(
     'Echtes MV3-Neuinserieren: Originalbild vor Löschung gesichert, verzögerte Löschantwort abgewartet, genau eine Löschung und eine bestätigte Neuanlage; Wiederholung ohne zweiten Klick.',
   );

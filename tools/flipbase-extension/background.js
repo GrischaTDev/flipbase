@@ -10,6 +10,7 @@ importScripts(
   'kleinanzeigen-publication-jobs.js',
   'kleinanzeigen-publication-results.js',
   'kleinanzeigen-relisting-jobs.js',
+  'kleinanzeigen-relisting-images.js',
   'kleinanzeigen-local-background.js',
 );
 importScripts(

@@ -138,6 +138,8 @@
           // Erst nach erfolgreichem Commit dieser Transaktion darf der Löschweg beginnen.
           await writeSaved(record);
         }
+        // Auch vor einem Fortsetzen alte, bereits gesicherte Vorschaufotos sperren.
+        if (record.phase !== 'confirmed') await adapter.verifyPhotos(record.images);
         const persist = async (fields) => {
           record = { ...record, ...fields };
           await writeSaved(record);

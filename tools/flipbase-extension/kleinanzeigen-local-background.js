@@ -885,13 +885,14 @@
             redirect: 'error',
             signal: AbortSignal.timeout(30000),
           }),
-        url,
+        globalThis.FlipbaseKleinanzeigenRelistingImages.sourceUrl(url),
       );
       if (!result.ok) throw new Error('images_incomplete');
       const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/u.exec(result.dataUrl);
       if (!match) throw new Error('images_incomplete');
       const bytes = Uint8Array.from(atob(match[2]), (value) => value.charCodeAt(0));
       if (!bytes.length || bytes.length > 12582912) throw new Error('images_incomplete');
+      await globalThis.FlipbaseKleinanzeigenRelistingImages.verify(bytes, match[1]);
       const sha256 = Array.from(
         new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
         (value) => value.toString(16).padStart(2, '0'),
@@ -904,6 +905,12 @@
         sha256,
         encoded: match[2],
       };
+    },
+    verifyPhotos: async (images) => {
+      for (const image of images) {
+        const bytes = Uint8Array.from(atob(image.encoded), (value) => value.charCodeAt(0));
+        await globalThis.FlipbaseKleinanzeigenRelistingImages.verify(bytes, image.mimeType);
+      }
     },
     baseline: async (installation) =>
       (await readAllPublications(installation)).flatMap((page) =>
@@ -1128,7 +1135,9 @@
             success: false,
             error:
               error instanceof Error
-                ? error.message
+                ? error.message === 'image_quality_insufficient'
+                  ? 'Die Bildquelle ist zu klein oder beschädigt. Verwende die Originalbilder, bevor Du erneut inserierst.'
+                  : error.message
                 : 'Die Kleinanzeigen-Verbindung konnte nicht geprüft werden.',
           }),
       )
