@@ -140,7 +140,7 @@ try {
         }),
       publicationWorkspaceId,
     );
-    assert.equal(answer.success, true, JSON.stringify(answer));
+    assert.equal(answer.success, true, JSON.stringify({ answer, calls: provider.calls }));
     assert.equal(answer.result.handled, true);
     assert.deepEqual(fixture.errors, []);
     assert.equal(
@@ -507,11 +507,44 @@ try {
   assert.equal((await removeListing({ connectionId: '10' })).success, false);
   assert.equal((await removeListing({ title: 'Fremde Anzeige' })).success, false);
   assert.equal(provider.deletes, 0);
+  // Tatsächliches Erweiterungsneuladen: App bekommt eine neue Brücke, der eigene
+  // Anbieter-Tab bleibt mit ungültigem altem Seitenskript geöffnet.
+  const beforeReload = await worker.evaluate(
+    async () =>
+      (await chrome.storage.local.get('kleinanzeigen_work_tabs')).kleinanzeigen_work_tabs
+        .listingTabId,
+  );
+  const extensionId = new URL(worker.url()).host;
+  const extensionsPage = await context.newPage();
+  await extensionsPage.goto('chrome://extensions/');
+  // Das isolierte Testprofil muss wie eine entpackte Nutzerinstallation im
+  // Entwicklermodus bleiben; sonst deaktiviert Chrome sie beim Neuladen.
+  const developerMode = extensionsPage.locator('extensions-toolbar #devMode');
+  if (!(await developerMode.evaluate((element) => element.checked))) await developerMode.click();
+  const replacement = context.waitForEvent('serviceworker', { timeout: 15000 });
+  await extensionsPage
+    .locator('extensions-item[id="' + extensionId + '"] #dev-reload-button')
+    .click();
+  worker = await replacement;
+  await extensionsPage.close();
+  await relistingApp.reload();
   const deletion = await removeListing();
   assert.equal(deletion.success, true, JSON.stringify(deletion));
   assert.equal(deletion.result.confirmed, true);
   assert.equal(provider.deletes, 1);
   assert.equal(provider.submits, 0);
+  assert.equal(
+    await worker.evaluate(
+      async () =>
+        (await chrome.storage.local.get('kleinanzeigen_work_tabs')).kleinanzeigen_work_tabs
+          .listingTabId,
+    ),
+    beforeReload,
+    'Der alte eigene Tab wird nach dem Update selbstständig erneuert.',
+  );
+  console.log(
+    'Echtes Neuladen über chrome://extensions: derselbe eigene Anzeigen-Tab automatisch erneuert, bestehende Kontofreigabe erhalten.',
+  );
   assert.equal((await removeListing()).success, false);
   assert.equal(provider.deletes, 1);
   console.log(

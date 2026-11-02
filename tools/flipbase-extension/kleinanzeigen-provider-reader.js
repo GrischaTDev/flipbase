@@ -94,6 +94,43 @@
       source: 'account_settings',
     };
   }
+  function readAccountQuota(doc, counters, observedAt, address = doc.URL) {
+    const identity = pageIdentity(doc, '/m-einstellungen.html', address);
+    if (
+      !identity ||
+      !record(counters) ||
+      typeof observedAt !== 'string' ||
+      !Number.isFinite(Date.parse(observedAt))
+    )
+      return null;
+    let account;
+    try {
+      account = JSON.parse(
+        doc.querySelector('#astroSharedData[type="application/json"]').textContent,
+      );
+    } catch {
+      return null;
+    }
+    // Der offizielle Zähler enthält keine Nutzerkennung. Seine Kontozuordnung wird
+    // nur intern verglichen; Kontaktdaten verlassen diesen Leser nicht.
+    if (
+      typeof account.user.email !== 'string' ||
+      !account.user.email ||
+      account.user.email !== account.userProfile.email ||
+      counters.emailAddress !== account.user.email ||
+      counters.accountType !== account.user.accountType ||
+      !Number.isSafeInteger(counters.newAdCount) ||
+      counters.newAdCount < 0
+    )
+      return null;
+    return {
+      externalAccountId: identity.externalAccountId,
+      accountType: identity.accountType,
+      used: counters.newAdCount,
+      observedAt,
+      source: 'account_settings',
+    };
+  }
   function imageUrl(value) {
     try {
       const url = new URL(value);
@@ -238,6 +275,7 @@
     parseIdentity,
     pageIdentity,
     readQuota,
+    readAccountQuota,
     readPublicationPage,
     readPublicationDetails,
   });

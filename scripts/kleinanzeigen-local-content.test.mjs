@@ -280,3 +280,92 @@ for (const variant of ['valid', 'foreign-account', 'redirect', 'missing-quota'])
     assert.equal(f.document.querySelectorAll('iframe').length, 0);
   });
 }
+
+for (const variant of [
+  'valid',
+  'changed-account',
+  'wrong-owner',
+  'missing-count',
+  'network-error',
+]) {
+  test('reads official JSON quota without an embedded settings page: ' + variant, async () => {
+    const requests = [];
+    let htmlReads = 0;
+    const f = fixture({
+      publications: true,
+      stale: true,
+      detailFetch: async (address, options) => {
+        requests.push({ address, options });
+        if (variant === 'network-error') throw new TypeError('Failed to fetch');
+        const counters = address.endsWith('.json');
+        if (!counters) htmlReads++;
+        const id = variant === 'changed-account' && htmlReads > 1 ? 999 : 123;
+        return {
+          ok: true,
+          status: 200,
+          url: address,
+          headers: new Headers({
+            'content-type': counters ? 'application/json;charset=UTF-8' : 'text/html',
+            'x-frame-options': 'DENY',
+          }),
+          text: async () =>
+            counters
+              ? JSON.stringify({
+                  emailAddress:
+                    variant === 'wrong-owner' ? 'other@example.test' : 'owner@example.test',
+                  accountType: 'PRIVATE',
+                  newAdCount: variant === 'missing-count' ? undefined : 5,
+                  liveAdCount: 88,
+                })
+              : '<script id="astroSharedData" type="application/json">' +
+                JSON.stringify({
+                  user: { userId: id, accountType: 'PRIVATE', email: 'owner@example.test' },
+                  userProfile: {
+                    userId: id,
+                    contactName: 'Testkonto',
+                    commercialUser: false,
+                    email: 'owner@example.test',
+                  },
+                }) +
+                '</script><main><p id="quota"></p></main>',
+        };
+      },
+    });
+    const reply = await new Promise((resolve) =>
+      f.listener(
+        {
+          type: 'KLEINANZEIGEN_READ_ACCOUNT',
+          minimumDocumentTime: f.now - 100,
+          requireQuota: true,
+        },
+        { id: extensionId },
+        resolve,
+      ),
+    );
+    assert.equal(reply.readerRevision, 2);
+    if (variant === 'valid') {
+      assert.equal(reply.success, true);
+      assert.equal(reply.result.quota.used, 5);
+      assert.equal(reply.result.quota.externalAccountId, '123');
+      assert.ok(!JSON.stringify(reply).includes('example.test'));
+    } else {
+      assert.equal(reply.success, false);
+      assert.equal(
+        reply.errorCode,
+        variant === 'changed-account'
+          ? 'account_changed'
+          : variant === 'network-error'
+            ? 'provider_unavailable'
+            : 'quota_unknown',
+      );
+    }
+    assert.equal(requests.length, variant === 'network-error' ? 1 : 3);
+    for (const { options } of requests) {
+      assert.equal(options.method, 'GET');
+      assert.equal(options.cache, 'no-store');
+      assert.equal(options.credentials, 'same-origin');
+      assert.equal(options.redirect, 'error');
+    }
+    assert.equal(f.document.querySelectorAll('iframe').length, 0);
+  });
+}

@@ -4,6 +4,19 @@ Geprüft am 16.10.2026 in einer bereits angemeldeten privaten Browsersitzung. Ke
 
 ## Kontokennung und offizielles Kontingent
 
+Nachprüfung 02.11.2026: Ein beim Neuladen der Erweiterung bereits offener eigener
+Anzeigen-Tab kann einen ungültigen Erweiterungskontext behalten. Ein fehlender
+Seitenskript-Leser belegt keine Abmeldung; nur diesen gespeicherten eigenen Tab
+ohne Fokuswechsel neu laden. Die Kontoseite setzt `X-Frame-Options: DENY` und darf
+nicht als eingebettete Zählerquelle vorausgesetzt werden. Ihr beobachteter eigener
+GET `/m-einstellungen-bearbeiten.json` liefert `newAdCount` für neu aufgegebene
+Anzeigen in 30 Tagen und separat `liveAdCount` für den Onlinebestand. Dies sowohl
+an der sichtbaren Kontoseite als auch an der Zuordnung im ausgelieferten eigenen
+Frontend geprüft. Die JSON-Antwort muss intern zu Kontotyp und Kontozuordnung
+der vor und nach dem Abruf frisch gelesenen `astroSharedData` passen. Nur die
+öffentliche Kontokennung, Kontotyp, Zähler und Beobachtungszeit werden ausgegeben;
+Kontaktdaten und übrige Kontoeinstellungen weder gespeichert noch weitergegeben.
+
 Auf /m-einstellungen.html und im Anzeigenformular steht die Identität in einem Script mit id astroSharedData und type application/json. user.userId und userProfile.userId müssen als Dezimalstrings identisch sein. Privatkonto wird nur bei accountType PRIVATE zusammen mit commercialUser false angenommen. Kontaktname, Kontokennung und Kontotyp sind die einzigen übernommenen Profilfelder.
 
 Die Einstellungsseite zeigte unabhängig voneinander 17 aktive Anzeigen und 8 in den letzten 30 Tagen aufgegebene Anzeigen. Nur der ausdrücklich beschriftete 30-Tage-Zähler ist eine Kontingentquelle. Aktive Anzeigen sind dafür ungeeignet. Der Adapter fordert genau ein passendes Zählerfeld und eine erfolgreiche Kontoprüfung.

@@ -73,6 +73,8 @@
   }
   async function readAccount({ requireQuota = false, externalAccountId } = {}) {
     const start = Date.now();
+    let refreshed = false;
+    let waitingForQuota = false;
     let tab;
     const previous = await load();
     const workTabs = (await chrome.storage.local.get(workTabsKey))[workTabsKey];
@@ -92,34 +94,58 @@
     listingTabId = tab.id;
     const remembered = (await chrome.storage.local.get(workTabsKey))[workTabsKey] ?? {};
     await chrome.storage.local.set({ [workTabsKey]: { ...remembered, listingTabId: tab.id } });
+    const refreshReader = async () => {
+      if (refreshed) return;
+      const current = await chrome.tabs.get(tab.id);
+      if (current.incognito || !isListingAddress(current.url)) throw stopped('account_unreadable');
+      refreshed = true;
+      await chrome.tabs.reload(tab.id);
+      listingDocumentTime = undefined;
+      listingCursor = undefined;
+    };
     while (Date.now() - start < 15000) {
       try {
         const current = await chrome.tabs.get(tab.id);
+        if (current.incognito) throw stopped('account_unreadable');
         if (current.status === 'complete') {
+          if (!isListingAddress(current.url)) {
+            if (isListingAddress(current.pendingUrl)) {
+              await delay(250);
+              continue;
+            }
+            throw stopped('account_unreadable');
+          }
           const answer = await chrome.tabs.sendMessage(tab.id, {
             type: 'KLEINANZEIGEN_READ_ACCOUNT',
             minimumDocumentTime: start,
             requireQuota,
           });
-          if (answer?.success === true && answer.result?.identity) {
-            // Die Kontodaten werden nach dem load-Ereignis nachgeladen.
+          if (answer && answer.readerRevision !== 2) {
+            if (refreshed) throw stopped('extension_unreachable');
+            await refreshReader();
+          } else if (answer?.success === true && answer.result?.identity) {
             if (
               !requireQuota ||
               answer.result.quota ||
               (externalAccountId && answer.result.identity.externalAccountId !== externalAccountId)
             )
               return answer.result;
+            waitingForQuota = true;
+          } else if (answer?.errorCode && answer.errorCode !== 'not_ready') {
+            throw stopped(answer.errorCode);
+          } else if (Date.now() - start >= 500) {
+            await refreshReader();
           }
         }
-      } catch {
-        /* Content Script nach Navigation kurz abwarten. */
+      } catch (error) {
+        if (error?.code) throw error;
+        // Alte Seitenskripte werden beim Erweiterungsupdate ungültig. Nur den
+        // gespeicherten eigenen Anzeigen-Tab einmal ohne Fokuswechsel neu laden.
+        if (Date.now() - start >= 500) await refreshReader();
       }
       await delay(250);
     }
-    if (requireQuota) throw stopped('quota_unknown');
-    throw new Error(
-      'Melde Dich im Kleinanzeigen-Arbeitstab an und starte die Kontoprüfung erneut.',
-    );
+    throw stopped(waitingForQuota ? 'quota_unknown' : 'extension_unreachable');
   }
   async function confirm(details) {
     const nonce = crypto.randomUUID();
@@ -154,6 +180,23 @@
     if (pendingConsent?.windowId === windowId) pendingConsent.finish(false);
   });
   function stopped(code) {
+    const accountMessages = {
+      needs_login:
+        'Deine Kleinanzeigen-Sitzung ist abgelaufen. Melde Dich bei Kleinanzeigen erneut an.',
+      account_unreadable:
+        'Die Kleinanzeigen-Kontodaten konnten nicht gelesen werden. Starte den Abgleich erneut.',
+      provider_unavailable:
+        'Kleinanzeigen hat die Kontoprüfung nicht beantwortet. Versuche den Abgleich erneut.',
+      extension_unreachable:
+        'Die Erweiterung konnte die Kleinanzeigen-Seite nicht lesen. Lade die Erweiterung und Flipbase neu.',
+      quota_unknown:
+        'Dein Anzeigenkontingent konnte nicht gelesen werden. Versuche den Abgleich erneut.',
+    };
+    if (accountMessages[code]) {
+      const error = new Error(accountMessages[code]);
+      error.code = code;
+      return error;
+    }
     const error = new Error(
       code === 'account_changed'
         ? 'Das Kleinanzeigen-Konto hat sich geändert.'
@@ -163,7 +206,7 @@
             ? 'Die Anzeige ist nicht mehr vorhanden oder wurde geändert. Aktualisiere die Inserateliste.'
             : code === 'deletion_unconfirmed'
               ? 'Die Löschung wurde nicht eindeutig bestätigt. Prüfe Deine Inserate bei Kleinanzeigen, bevor Du erneut löschst.'
-              : 'Der Kleinanzeigen-Abgleich wurde gestoppt. Prüfe Deine Anmeldung und starte ihn erneut.',
+              : 'Der Kleinanzeigen-Abgleich wurde gestoppt. Starte ihn erneut.',
     );
     error.code = code;
     return error;

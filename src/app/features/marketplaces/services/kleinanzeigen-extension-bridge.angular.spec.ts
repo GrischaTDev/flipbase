@@ -24,7 +24,7 @@ describe('Kleinanzeigen-Erweiterungsbrücke', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
-  it.each(['1.14.0', '1.13.0', '1.9.9', 'unbekannt'])(
+  it.each(['1.14.1', '1.14.0', '1.13.0', '1.9.9', 'unbekannt'])(
     'stoppt veraltete Version %s vor einer Aktion',
     async (version) => {
       const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
@@ -40,7 +40,7 @@ describe('Kleinanzeigen-Erweiterungsbrücke', () => {
         success: true,
         result: { version },
       });
-      await expect(pending).rejects.toThrow('1.14.1');
+      await expect(pending).rejects.toThrow('1.14.2');
       expect(bridge.updateRequired()).toBe(true);
     },
   );
@@ -52,7 +52,7 @@ describe('Kleinanzeigen-Erweiterungsbrücke', () => {
       type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
       requestId: request.requestId,
       success: true,
-      result: { version: '1.14.1' },
+      result: { version: '1.14.2' },
     });
     await pending;
     const unavailable = expect(bridge.ensureCurrent()).rejects.toThrow('nicht erreichbar');
@@ -385,7 +385,7 @@ describe('Kontingent und Auftragsausführung', () => {
   it('fordert für Löschen ausdrücklich eine unterstützende Erweiterung und eine bestätigte Antwort', async () => {
     const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
     const scope = { workspaceId: workspace, connectionId: '9', generation: 2 };
-    await expect(bridge.deleteListing(scope, '999', 'Jacke')).rejects.toThrow('1.14.1');
+    await expect(bridge.deleteListing(scope, '999', 'Jacke')).rejects.toThrow('1.14.2');
     message({
       type: 'FLIPBASE_EXTENSION_STATUS',
       installed: true,

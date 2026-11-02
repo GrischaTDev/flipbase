@@ -1,6 +1,6 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.1
+## Aktuell: Version 1.14.2
 
 Vor erneutem Inserieren und Löschen prüft Flipbase die tatsächlich geladene
 Erweiterung. Veraltete oder nicht erreichbare Versionen stoppen vor der Aktion.
@@ -10,8 +10,10 @@ Kann eine alte oder deaktivierte Erweiterung den Button noch nicht bedienen,
 auch die Flipbase-Seite neu.
 
 Kontoprüfung und Kontingentabruf verwenden den vorhandenen Anzeigen-Arbeitstab;
-es wird kein zusätzlicher Einstellungen-Tab geöffnet. Die Kontingentprüfung
-wartet begrenzt auf den nachgeladenen offiziellen Zähler.
+es wird kein zusätzlicher Einstellungen-Tab geöffnet. Nach einem Erweiterungsupdate
+erneuert der Assistent ein ungültiges Seitenskript dort automatisch. Das offizielle
+30-Tage-Kontingent wird über denselben lesenden JSON-Abruf wie bei Kleinanzeigen
+geladen und an das geprüfte Konto gebunden. Die Kontoseite wird nicht eingebettet.
 Der aktuelle Löschdialog mit **Ja, Anzeige löschen** und die gemessenen
 Preisoptionen für Damenschuhe werden unterstützt. Unbekannte Kosten, unklare
 Schreibversuche und unvollständige Bilder stoppen weiterhin. Bei einer
