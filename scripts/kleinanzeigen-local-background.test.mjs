@@ -20,6 +20,7 @@ function fixture() {
   const listeners = [];
   let popup = null;
   let tabsCreated = 0;
+  const createdUrls = [];
   const requests = [];
   let sessionResult = null;
   let accountQuota = null;
@@ -38,12 +39,14 @@ function fixture() {
     },
     runtime: {
       id: extensionId,
+      getManifest: () => ({ version: '1.14.0' }),
       getURL: (path) => 'chrome-extension://' + extensionId + '/' + path,
       onMessage: { addListener: (fn) => listeners.push(fn) },
     },
     tabs: {
       create: async ({ url }) => {
         tabsCreated++;
+        createdUrls.push(url);
         return { id: 17, url, status: 'complete' };
       },
       get: async () => ({
@@ -56,7 +59,7 @@ function fixture() {
         success: true,
         result: {
           identity: accountIdentity,
-          quota: accountQuota,
+          quota: typeof accountQuota === 'function' ? accountQuota() : accountQuota,
         },
       }),
     },
@@ -99,6 +102,7 @@ function fixture() {
     });
   return {
     stored,
+    createdUrls,
     requests,
     set quota(value) {
       accountQuota = value;
@@ -127,6 +131,26 @@ function fixture() {
     },
   };
 }
+test('checks the loaded worker version and opens only its own extension settings from the app', async () => {
+  const f = fixture();
+  const version = await f.send({ type: 'FLIPBASE_KLEINANZEIGEN_VERSION', requestId: 'version' });
+  assert.equal(version.result.version, '1.14.0');
+  assert.equal(f.tabsCreated, 0);
+  const opened = await f.send({
+    type: 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS',
+    requestId: 'settings',
+  });
+  assert.equal(opened.result.opened, true);
+  assert.deepEqual(f.createdUrls, ['chrome://extensions/?id=' + extensionId]);
+  await assert.rejects(
+    f.send(
+      { type: 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS', requestId: 'foreign' },
+      { ...app, url: 'https://foreign.example' },
+    ),
+    /rejected/u,
+  );
+  assert.equal(f.tabsCreated, 1);
+});
 test('rejects foreign websites and iframes before opening any provider tab', () => {
   const f = fixture();
   for (const sender of [
@@ -217,13 +241,15 @@ test('reads the official quota for the exact local scope without exposing instal
     secret: 'a'.repeat(64),
     binding,
   };
-  f.quota = {
+  let quotaReads = 0;
+  const observedQuota = {
     externalAccountId: '123',
     accountType: 'private',
     used: 99,
     observedAt,
     source: 'account_settings',
   };
+  f.quota = () => (++quotaReads < 3 ? null : observedQuota);
   f.session = {
     workspaceId,
     connectionId: '12',
@@ -242,6 +268,7 @@ test('reads the official quota for the exact local scope without exposing instal
   });
   assert.equal(result.success, true);
   assert.equal(result.result.quota.used, 99);
+  assert.equal(quotaReads, 3, 'Auf den nachgeladenen offiziellen Zähler warten');
   assert.ok(!JSON.stringify(result).includes('a'.repeat(64)));
   const body = JSON.parse(f.requests.at(-1).init.body);
   assert.equal(body.action, 'quota_observation');

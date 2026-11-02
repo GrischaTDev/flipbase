@@ -1,6 +1,8 @@
 <section
   data-data-table
-  class="linear-surface relative overflow-visible rounded-xl"
+  class="relative overflow-visible"
+  [class.linear-surface]="!embedded()"
+  [class.rounded-xl]="!embedded()"
   [attr.aria-label]="ariaLabel()"
 >
   @if (toolbarVisible()) {

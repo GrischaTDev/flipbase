@@ -542,7 +542,7 @@ test('Mehrfachauswahl hält beim ersten unklaren Ergebnis an und zeigt keine fal
   await expect(action).toBeEnabled();
   await action.click();
   const confirmation = page.getByRole('dialog', {
-    name: 'Ausgewählte neu inserieren?',
+    name: 'Anzeige neu inserieren?',
     exact: true,
   });
   await expect(confirmation).toContainText('Kleinanzeigen Artikel 1');

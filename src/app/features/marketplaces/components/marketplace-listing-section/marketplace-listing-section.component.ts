@@ -75,7 +75,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 })
 export class MarketplaceListingSectionComponent {
   readonly relisting = inject(KleinanzeigenRelistingService);
-  private readonly extension = inject(KleinanzeigenExtensionBridge);
+  readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly deleteIcon = LucideTrash2;
   readonly kleinanzeigenActions = inject(KleinanzeigenActionStore);
   readonly section = input.required<MarketplaceOverviewSection>();

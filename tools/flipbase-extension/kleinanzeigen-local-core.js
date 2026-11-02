@@ -55,6 +55,8 @@
       PREPARE_ACCOUNT: ['type', 'requestId', 'workspaceId', 'apiUrl', 'canPublish'],
       CONNECT: ['type', 'requestId', 'nonce', 'binding'],
       STATUS: ['type', 'requestId'],
+      VERSION: ['type', 'requestId'],
+      OPEN_SETTINGS: ['type', 'requestId'],
       SYNC: ['type', 'requestId', 'workspaceId', 'connectionId', 'runId', 'generation'],
       FORM_SCHEMA: [
         'type',

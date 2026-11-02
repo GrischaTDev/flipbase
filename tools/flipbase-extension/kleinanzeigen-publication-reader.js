@@ -89,10 +89,11 @@
       },
     );
     if (unknownChecked) return answer('unknown');
-    // Gemessene Privatkonto-Varianten für Herrenbekleidung und Herrenschuhe.
+    // Gemessene Privatkonto-Varianten für Herrenbekleidung, Herren- und Damenschuhe.
     const expected = [
       ['0:204', '0:914', '0:62', '0:488'],
       ['0:202', '0:912', '0:60', '0:486'],
+      ['0:203', '0:913', '0:61', '0:487'],
     ].find(
       (values) =>
         extras.length === values.length && extras.every((node) => values.includes(node.value)),
