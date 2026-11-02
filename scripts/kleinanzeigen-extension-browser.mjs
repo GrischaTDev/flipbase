@@ -12,8 +12,13 @@ const workspaceId = '51000000-0000-4000-8000-000000000011';
 const draftId = '51000000-0000-4000-8000-000000000041';
 const imageId = '51000000-0000-4000-8000-000000000071';
 const account = {
-  user: { userId: 88, accountType: 'PRIVATE' },
-  userProfile: { userId: 88, commercialUser: false, contactName: 'Privat' },
+  user: { userId: 88, accountType: 'PRIVATE', email: 'provider@example.test' },
+  userProfile: {
+    userId: 88,
+    commercialUser: false,
+    contactName: 'Privat',
+    email: 'provider@example.test',
+  },
 };
 const astro =
   '<script id="astroSharedData" type="application/json">' + JSON.stringify(account) + '</script>';
@@ -137,6 +142,7 @@ const fixture = await createKleinanzeigenBrowserFixture(directory, async (route)
   if (url.origin === 'https://www.kleinanzeigen.de' && url.pathname === '/m-einstellungen.html')
     return route.fulfill({
       contentType: 'text/html',
+      headers: { 'x-frame-options': 'DENY' },
       body: astro + '<main>Du hast in den letzten 30 Tagen 99 Anzeigen aufgegeben.</main>',
     });
   if (url.origin === 'https://www.kleinanzeigen.de' && url.pathname === '/m-meine-anzeigen.html')

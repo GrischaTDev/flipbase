@@ -58,8 +58,13 @@ const image = {
 const astro =
   '<script id="astroSharedData" type="application/json">' +
   JSON.stringify({
-    user: { userId: 88, accountType: 'PRIVATE' },
-    userProfile: { userId: 88, commercialUser: false, contactName: 'Privat' },
+    user: { userId: 88, accountType: 'PRIVATE', email: 'provider@example.test' },
+    userProfile: {
+      userId: 88,
+      commercialUser: false,
+      contactName: 'Privat',
+      email: 'provider@example.test',
+    },
   }) +
   '</script>';
 const html = (body) =>
@@ -312,9 +317,21 @@ export function createKleinanzeigenPublicationFixture() {
       }
       throw Error('Unerwartete RPC-Aktion ' + body.action);
     }
+    if (url.pathname === '/m-einstellungen-bearbeiten.json') {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      return route.fulfill({
+        json: {
+          emailAddress: 'provider@example.test',
+          accountType: 'PRIVATE',
+          newAdCount: used,
+          liveAdCount: 77,
+        },
+      });
+    }
     if (url.pathname === '/m-einstellungen.html')
       return route.fulfill({
         contentType: 'text/html',
+        headers: { 'x-frame-options': 'DENY' },
         body: html(
           '<main><p id="quota"></p></main><script>setTimeout(()=>document.getElementById("quota").textContent="Du hast in den letzten 30 Tagen ' +
             used +

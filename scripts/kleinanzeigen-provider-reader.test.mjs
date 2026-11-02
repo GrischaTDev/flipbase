@@ -22,6 +22,46 @@ function doc(html, path = '/p-anzeige-aufgeben-schritt2.html') {
     { url: 'https://www.kleinanzeigen.de' + path },
   ).window.document;
 }
+
+for (const used of [0, 1, 99, 100]) {
+  test('reads the bound official newAdCount without substituting live ads: ' + used, () => {
+    const account = {
+      ...identity,
+      user: { ...identity.user, email: 'owner@example.test' },
+      userProfile: { ...identity.userProfile, email: 'owner@example.test' },
+    };
+    const document = new JSDOM(
+      '<script id="astroSharedData" type="application/json">' +
+        JSON.stringify(account) +
+        '</script>',
+      { url: 'https://www.kleinanzeigen.de/m-einstellungen.html' },
+    ).window.document;
+    const counters = {
+      emailAddress: 'owner@example.test',
+      accountType: 'PRIVATE',
+      newAdCount: used,
+      liveAdCount: 777,
+      privateField: 'never-return',
+    };
+    const quota = reader.readAccountQuota(document, counters, new Date().toISOString());
+    assert.equal(quota.used, used);
+    assert.equal(quota.externalAccountId, '123');
+    assert.ok(!JSON.stringify(quota).includes('example.test'));
+    assert.ok(!JSON.stringify(quota).includes('never-return'));
+    for (const patch of [
+      { emailAddress: 'other@example.test' },
+      { accountType: 'BUSINESS' },
+      { newAdCount: -1 },
+      { newAdCount: 1.5 },
+      { newAdCount: '5' },
+      { newAdCount: null },
+    ])
+      assert.equal(
+        reader.readAccountQuota(document, { ...counters, ...patch }, new Date().toISOString()),
+        null,
+      );
+  });
+}
 test('reads only a matching stable account identity, never email or tokens', () => {
   const result = reader.parseIdentity(identity);
   assert.equal(result?.externalAccountId, '123');

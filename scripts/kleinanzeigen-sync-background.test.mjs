@@ -96,6 +96,7 @@ function fixture(options = {}) {
         if (message.type === 'KLEINANZEIGEN_READ_ACCOUNT')
           return {
             success: true,
+            readerRevision: 2,
             result: {
               identity: options.foreignIdentity
                 ? { ...identity, externalAccountId: '999' }
