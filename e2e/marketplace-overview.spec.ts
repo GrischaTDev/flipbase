@@ -74,6 +74,10 @@ for (const theme of ['light', 'dark'] as const)
           expect(Math.max(...metricColumns) - Math.min(...metricColumns)).toBeLessThanOrEqual(1);
         }
         await vinted.getByRole('button', { name: 'Inserate von Testkonto A anzeigen' }).tap();
+        const embeddedTable = vinted.locator('[data-data-table]');
+        await expect(embeddedTable).not.toHaveClass(/linear-surface/);
+        await expect(embeddedTable).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect(embeddedTable).toHaveCSS('box-shadow', 'none');
         await expect(
           vinted.getByRole('checkbox', { name: 'A Jacke 01 auswählen', exact: true }),
         ).toBeVisible();

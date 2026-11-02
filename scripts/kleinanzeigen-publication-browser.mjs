@@ -382,6 +382,17 @@ try {
       }),
     );
   assert.equal(recreated.result.outcome, 'confirmed', JSON.stringify(recreated));
+  const dates = await worker.evaluate(
+    async () =>
+      (await chrome.storage.local.get('kleinanzeigen_publication_days'))
+        .kleinanzeigen_publication_days,
+  );
+  assert.ok(
+    Object.values(dates ?? {}).includes(
+      new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date()),
+    ),
+    'Bestätigte Veröffentlichung sichert den tatsächlichen Veröffentlichungstag',
+  );
   assert.equal(recreated.result.newExternalId, '1001');
   assert.equal(provider.deletes, 1);
   assert.equal(provider.uploads, 1);
@@ -519,7 +530,17 @@ try {
   });
   provider.reset({ used: 8, relisting: true, unknownFee: true });
   await provider.prepare(worker);
+  const activeBeforePause = await worker.evaluate(async () =>
+    (await chrome.tabs.query({ active: true })).map((tab) => tab.id),
+  );
   const paused = await relist();
+  assert.deepEqual(
+    await worker.evaluate(async () =>
+      (await chrome.tabs.query({ active: true })).map((tab) => tab.id),
+    ),
+    activeBeforePause,
+    'Ein Stopp darf keinen Fokuswechsel auslösen',
+  );
   assert.equal(paused.result.errorCode, 'fees_or_quota', JSON.stringify(paused));
   assert.equal(provider.submits, 0);
   assert.equal(provider.deletes, 0);
@@ -529,6 +550,28 @@ try {
       page.url().startsWith('https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html'),
     )
     .at(-1);
+  const formCount = context
+    .pages()
+    .filter((page) =>
+      page.url().startsWith('https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html'),
+    ).length;
+  const resumed = await relist();
+  assert.equal(resumed.result.errorCode, 'fees_or_quota');
+  assert.equal(
+    context
+      .pages()
+      .filter((page) =>
+        page.url().startsWith('https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html'),
+      ).length,
+    formCount,
+    'Fortsetzen verwendet den bereits vorbereiteten eigenen Tab',
+  );
+  assert.equal(provider.deletes, 0);
+  assert.equal(provider.submits, 0);
+  await manualForm
+    .locator('#flipbase-workspace-assistant')
+    .getByText('Angehalten:', { exact: false })
+    .waitFor();
   await manualForm.getByRole('button', { name: 'Anzeige aufgeben', exact: true }).click();
   await manualForm.waitForURL('https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt3.html');
   await manualForm.waitForFunction(() => sessionStorage.getItem('flipbase_kleinanzeigen_receipt'));
@@ -564,6 +607,10 @@ try {
   );
   assert.equal(statuses.success, true, JSON.stringify(statuses));
   assert.equal(statuses.result[0].phase, 'confirmed', JSON.stringify(statuses));
+  await manualForm
+    .locator('#flipbase-workspace-assistant')
+    .getByText('Vorgang abgeschlossen', { exact: true })
+    .waitFor();
   assert.equal((await relist()).result.outcome, 'confirmed');
   assert.equal(provider.submits, 1, 'Nur der manuelle Klick hat veröffentlicht.');
   assert.equal(provider.deletes, 0, 'Der lesende Abschluss löscht keine Altanzeige.');

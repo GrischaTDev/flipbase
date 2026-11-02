@@ -1,5 +1,34 @@
 # Flipbase Listing-Assistent
 
+## Aktuell: Version 1.14.0
+
+Vor erneutem Inserieren und Löschen prüft Flipbase die tatsächlich geladene
+Erweiterung. Veraltete oder nicht erreichbare Versionen stoppen vor der Aktion.
+Über **Erweiterung öffnen** lässt sich die Erweiterungsverwaltung aufrufen.
+Kann eine alte oder deaktivierte Erweiterung den Button noch nicht bedienen,
+öffne `chrome://extensions` über die Adresszeile. Lade nach der Aktualisierung
+auch die Flipbase-Seite neu.
+
+Die Kontingentprüfung wartet begrenzt auf den nachgeladenen offiziellen Zähler.
+Der aktuelle Löschdialog mit **Ja, Anzeige löschen** und die gemessenen
+Preisoptionen für Damenschuhe werden unterstützt. Unbekannte Kosten, unklare
+Schreibversuche und unvollständige Bilder stoppen weiterhin.
+
+Eigene Arbeitstabs öffnen vorne in der gelben Kleinanzeigen-Gruppe im
+Hintergrund. Beim Fortsetzen wird der eigene vorbereitete Formulartab
+wiederverwendet. Ein Stopp wechselt den aktiven Tab nicht und erscheint mit
+seinem Grund im Assistenten. Ein tatsächlicher Veröffentlichungsklick wird
+zeitlich festgehalten; erst ein bestätigter Erfolg ordnet den Tag der neuen
+Anzeige zu. Beim Bestandsabgleich hat das Anbieterdatum Vorrang.
+
+Die Kleinanzeigen-Seite enthält **Inserate** und **Kontoverbindung**, das
+**Postfach** öffnet Kleinanzeigen. Kontodaten und Aktionen stehen in den
+Kontokacheln. Laufende Inserate erhalten eine gelbe Markierung; die
+Marktplatzübersicht zeigt Tabellen ohne einen zweiten Kartenrahmen und gefüllte,
+proportional beschnittene Bildvorschauen.
+
+Die folgenden Abschnitte beschreiben frühere Versionen.
+
 ## Version 1.12.0: Verbindung und Inserate automatisch aktuell halten
 
 Die Erweiterung prüft das gebundene Kleinanzeigen-Konto alle 15 Minuten, solange

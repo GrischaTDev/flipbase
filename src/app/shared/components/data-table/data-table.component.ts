@@ -19,6 +19,7 @@ export class DataTableComponent<
   TSortField extends string = string,
 > {
   readonly ariaLabel = input('Datentabelle');
+  readonly embedded = input(false);
   readonly searchValue = input('');
   readonly searchPlaceholder = input('Suchen und filtern …');
   readonly searchAriaLabel = input('Liste durchsuchen');

@@ -64,8 +64,15 @@
     const readSaved = adapter.load ?? load;
     const writeSaved = adapter.save ?? save;
     async function reconcile(record, installation) {
-      if (record.phase === 'confirmed' || !record.content || !record.baseline || !record.tabId)
+      if (record.phase === 'confirmed') {
+        try {
+          await adapter.confirmed?.(record, installation);
+        } catch {
+          /* Ein Anzeigefehler entwertet keinen bestätigten Anbieterbeleg. */
+        }
         return record;
+      }
+      if (!record.content || !record.baseline || !record.tabId) return record;
       try {
         const result = await adapter.result(
           installation,
@@ -83,6 +90,7 @@
         if (result?.outcome === 'confirmed') {
           record = { ...record, phase: 'confirmed', result, updatedAt: new Date().toISOString() };
           await writeSaved(record);
+          await adapter.confirmed?.(record, installation);
         }
       } catch {
         /* Unklare Ergebnisse erhalten die Sicherung, ohne erneut zu schreiben. */
@@ -133,7 +141,12 @@
           await writeSaved(record);
         }
         if (!record || record.phase === 'secured') {
-          const source = await adapter.source(installation, request.externalId);
+          const previousTabId = record?.tabId;
+          const source = await adapter.source(
+            installation,
+            request.externalId,
+            record?.sourceTabId,
+          );
           const snapshot = source.snapshot;
           const categoryPath = Object.hasOwn(request.categoryPaths, snapshot.categoryLabel)
             ? request.categoryPaths[snapshot.categoryLabel]
@@ -161,6 +174,7 @@
             sourceDocumentTime: source.minimumDocumentTime,
             attemptId: crypto.randomUUID(),
             createdAt: new Date().toISOString(),
+            ...(Number.isInteger(previousTabId) ? { tabId: previousTabId } : {}),
           };
           // Erst nach erfolgreichem Commit dieser Transaktion darf der Löschweg beginnen.
           await writeSaved(record);
@@ -193,7 +207,7 @@
           check,
           prepare: async () => {
             const baseline = await adapter.baseline(installation);
-            const target = await adapter.target(installation, request, record.categoryPath);
+            const target = await adapter.target(installation, request, record.categoryPath, record);
             const schema = target.result.schema;
             if (!schema || schema.categoryLabel !== record.snapshot.categoryLabel)
               return { complete: false };
@@ -290,7 +304,6 @@
         });
         await persist({ lastResult: result, updatedAt: new Date().toISOString() });
         if (result.outcome === 'confirmed' && adapter.completed) await adapter.completed(record);
-        if (result.outcome !== 'confirmed' && record.tabId) await adapter.show(record.tabId);
         return {
           ...result,
           externalId: request.externalId,

@@ -13,6 +13,12 @@ export async function mockKleinanzeigen(
   } = {},
 ) {
   await mockMarketplaceOverview(page);
+  await page.route('https://img.kleinanzeigen.de/api/v1/prod-ads/images/preview-test', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80"><rect width="160" height="80" fill="#fcc601"/></svg>',
+    }),
+  );
   if (options.relisting) {
     await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
       route.fulfill({ json: { items: [] } }),
@@ -147,6 +153,8 @@ export async function mockKleinanzeigen(
         let result: unknown;
         let success = true;
         if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_STATUS') result = local;
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.0' };
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS') result = { opened: true };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING') {
           deletedListings.push(data);
@@ -231,6 +239,7 @@ export async function mockKleinanzeigen(
             state: index === 1 ? 'unknown' : 'active',
             available: true,
             publishedAt: null,
+            imageUrl: 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/preview-test',
             observedAt,
           }))
         : [];

@@ -66,7 +66,7 @@ for (const theme of ['light', 'dark'] as const)
           .getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true })
           .click();
         const confirmation = page.getByRole('dialog', {
-          name: 'Ausgewählte neu inserieren?',
+          name: 'Anzeige neu inserieren?',
           exact: true,
         });
         await confirmation.getByRole('button', { name: 'Neu inserieren', exact: true }).click();
@@ -79,7 +79,14 @@ for (const theme of ['light', 'dark'] as const)
         ).toHaveCount(0);
         await expect(item).toHaveAttribute('aria-busy', 'true');
         await expect(item.getByText('Alter unbekannt', { exact: true })).toHaveCount(0);
-        await expect(item).toHaveCSS('filter', 'grayscale(1)');
+        await expect(item).toHaveClass(/bg-fb-brand-surface/);
+        await expect(item).toHaveCSS('filter', 'none');
+        const thumbnail = item.locator('app-product-thumbnail img');
+        await expect(thumbnail).toHaveCSS('object-fit', 'cover');
+        await expect
+          .poll(() => thumbnail.evaluate((image: HTMLImageElement) => image.naturalWidth))
+          .toBe(160);
+        await expect(item).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
         await expect(item.getByText('Wird inseriert …', { exact: true })).toBeVisible();
         await page.addScriptTag({ content: axe.source });
         expect(
@@ -146,6 +153,14 @@ for (const theme of ['light', 'dark'] as const)
           title: 'KA Jacke 01',
         });
         await page.goto('/marketplaces/kleinanzeigen/connection');
+        await page.evaluate(
+          (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
+          theme,
+        );
+        await expect(page.getByTestId('kleinanzeigen-local-binding')).toHaveCount(0);
+        await expect(
+          page.getByText('Entferne zuerst die Verknüpfung', { exact: false }),
+        ).toHaveCount(0);
         const cards = page.locator('app-kleinanzeigen-accounts article');
         await expect(cards).toHaveCount(2);
         for (const card of await cards.all()) {

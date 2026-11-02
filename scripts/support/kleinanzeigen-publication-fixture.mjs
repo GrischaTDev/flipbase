@@ -316,7 +316,9 @@ export function createKleinanzeigenPublicationFixture() {
       return route.fulfill({
         contentType: 'text/html',
         body: html(
-          '<main>Du hast in den letzten 30 Tagen ' + used + ' Anzeigen aufgegeben.</main>',
+          '<main><p id="quota"></p></main><script>setTimeout(()=>document.getElementById("quota").textContent="Du hast in den letzten 30 Tagen ' +
+            used +
+            ' Anzeigen aufgegeben.",650);</script>',
         ),
       });
     if (url.pathname === '/m-meine-anzeigen.html')
@@ -333,7 +335,7 @@ export function createKleinanzeigenPublicationFixture() {
                 '">Anzeige Jacke</a></h3><button>Reservieren</button></li>'
               : '') +
             '</ul><nav aria-label="Seiten-Navigation"><span aria-current="page">Seite 1</span><button disabled>Nächste</button></nav>' +
-            '<dialog id="delete-dialog"><h2>Anzeige löschen?</h2><button id="confirm-delete">Anzeige löschen</button></dialog></main>' +
+            '<dialog id="delete-dialog"><h2>Anzeige löschen</h2><button type="button">Abbrechen</button><button id="confirm-delete" aria-disabled="false" aria-busy="false"><span>Ja, Anzeige löschen</span></button></dialog></main>' +
             '<script>document.getElementById("delete-old")?.addEventListener("click",()=>document.getElementById("delete-dialog").showModal());document.getElementById("confirm-delete").onclick=async()=>{await fetch("/fixture-delete",{method:"POST"});document.querySelector("[data-adid]").remove();document.getElementById("delete-dialog").close();};</script>',
         ),
       });

@@ -129,6 +129,7 @@ function fixture(options = {}) {
                     (options.duplicate ? '101' : String(100 + pageNumber)) +
                     '-160-1',
                   publishedAt: null,
+                  publishedOn: options.publishedOn ?? null,
                   state: 'active',
                 },
               ],
@@ -246,6 +247,20 @@ function fixture(options = {}) {
       }),
   };
 }
+test('uses the confirmed local publication day only for the exact account and keeps the provider day', async () => {
+  for (const publishedOn of [null, '2026-10-30']) {
+    const f = fixture({ publishedOn });
+    const key = JSON.stringify(['https://app.flipbase.de', workspaceId, '12', '123', '101']);
+    f.stored.kleinanzeigen_publication_days = {
+      [key]: '2026-11-02',
+      [JSON.stringify(['https://app.flipbase.de', workspaceId, '12', 'other', '102'])]:
+        '2026-11-01',
+    };
+    assert.equal((await f.send(sync)).success, true);
+    const page = f.calls.find((call) => call.action === 'sync_page');
+    assert.equal(page.items[0].publishedOn, publishedOn ?? '2026-11-02');
+  }
+});
 
 test('renews the same installation and synchronizes automatically without pairing or a visible tab', async () => {
   const f = fixture();

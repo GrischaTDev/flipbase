@@ -109,16 +109,32 @@ test('a selected paid add-on or explicit charge takes precedence over the normal
   assert.equal(reader.readFee(other, '88').state, 'paid');
 });
 
-test('recognizes the measured shoe add-ons and blocks every selected paid option', () => {
-  const doc = form(['0:202', '0:912', '0:60', '0:486']);
-  doc.getElementById('ad-category-path').textContent = 'Mode & Beauty > Herrenschuhe';
-  assert.equal(reader.readFee(doc, '88').state, 'free');
-  for (const extra of doc.querySelectorAll('input[name="articles"]')) {
-    extra.checked = true;
-    assert.equal(reader.readFee(doc, '88').state, 'paid');
-    extra.checked = false;
-  }
-});
+for (const values of [
+  ['0:202', '0:912', '0:60', '0:486'],
+  ['0:203', '0:913', '0:61', '0:487'],
+])
+  test(
+    'recognizes measured shoe add-ons ' + values[0] + ' and blocks every selected paid option',
+    () => {
+      const doc = form(values);
+      const buyNow = values[0] === '0:203';
+      doc.getElementById('ad-category-path').textContent =
+        'Mode & Beauty > ' + (buyNow ? 'Damenschuhe' : 'Herrenschuhe');
+      if (buyNow) {
+        doc.getElementById('ad-buy-now-false').checked = false;
+        doc
+          .querySelector('main')
+          .insertAdjacentHTML('beforeend', '<input type="radio" id="ad-buy-now-true" checked>');
+        assert.equal(reader.readFee(doc, '88').state, 'unknown');
+      }
+      assert.equal(reader.readFee(doc, '88', buyNow).state, 'free');
+      for (const extra of doc.querySelectorAll('input[name="articles"]')) {
+        extra.checked = true;
+        assert.equal(reader.readFee(doc, '88', buyNow).state, 'paid');
+        extra.checked = false;
+      }
+    },
+  );
 
 test('unknown, mixed and duplicate add-on values cannot pass as a measured free form', () => {
   for (const values of [

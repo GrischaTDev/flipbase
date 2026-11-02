@@ -92,3 +92,53 @@ test('manuelle Erfolgsmeldung bleibt nach Navigation erhalten, fremder Versuch w
   );
   win.close();
 });
+test('ordnet den erfolgreichen Klick statt eines früheren Versuchs dem gespeicherten Beleg zu', () => {
+  const dom = new JSDOM('<button id="submit">Anzeige aufgeben</button>', {
+    url: 'https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html',
+    runScripts: 'outside-only',
+  });
+  const win = dom.window;
+  let now = Date.parse('2026-11-01T22:59:00Z');
+  win.Date = class extends Date {
+    constructor() {
+      super(now);
+    }
+  };
+  let listener;
+  win.chrome = {
+    runtime: { id: 'extension', onMessage: { addListener: (value) => (listener = value) } },
+  };
+  win.FlipbaseKleinanzeigenPublicationReader = {
+    postingButton: (doc) => doc.getElementById('submit'),
+  };
+  const marker = { jobId: '12', attemptId: 'a'.repeat(36), minimumDocumentTime: 1 };
+  win.sessionStorage.setItem('flipbase_kleinanzeigen_attempt', JSON.stringify(marker));
+  win.eval(readFileSync('tools/flipbase-extension/kleinanzeigen-publication-results.js', 'utf8'));
+  win.document.getElementById('submit').click();
+  now = Date.parse('2026-11-02T00:01:00Z');
+  win.document.getElementById('submit').click();
+  dom.reconfigure({ url: receipt.url });
+  win.document.body.innerHTML = '<a href="' + item.url + '">Anzeige ansehen</a>';
+  const read = () => {
+    let response;
+    listener(
+      { type: 'KLEINANZEIGEN_READ_RECEIPT', ...marker },
+      { id: 'extension' },
+      (value) => (response = value),
+    );
+    return response.result.receipt;
+  };
+  assert.equal(read().submittedAt, new Date(now).toISOString());
+  dom.reconfigure({ url: 'https://www.kleinanzeigen.de/m-meine-anzeigen.html' });
+  win.document.body.replaceChildren();
+  win.sessionStorage.setItem(
+    'flipbase_kleinanzeigen_attempt',
+    JSON.stringify({ ...marker, submittedAt: '2026-11-03T00:01:00Z' }),
+  );
+  assert.equal(
+    read().submittedAt,
+    new Date(now).toISOString(),
+    'Ein vorhandener Erfolgsbeleg behält seinen Klickzeitpunkt',
+  );
+  win.close();
+});
