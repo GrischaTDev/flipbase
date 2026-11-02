@@ -34,6 +34,32 @@ test('ändert nur den Preis ohne Auswahllisten und bestätigt den gespeicherten 
   }
 });
 
+test('bestätigt den gespeicherten Preis auch ohne Seitenwechsel und klickt nur einmal', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingEditFormFixture(page, {
+      noSaveNavigation: true,
+      itemApi: 'full',
+      saveResponseDelayMs: 100,
+    });
+    const result = await updateVintedListingPrice(
+      page,
+      '98765',
+      '123',
+      2050,
+      3990,
+      async () => undefined,
+      2000,
+    );
+    assert.equal(result.status, 'confirmed');
+    assert.equal(form.saves(), 1);
+    assert.equal(form.state().price, '39,90 €');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('weist einen inzwischen geänderten Preis ohne Speichern ab', async () => {
   const browser = await chromium.launch();
   try {

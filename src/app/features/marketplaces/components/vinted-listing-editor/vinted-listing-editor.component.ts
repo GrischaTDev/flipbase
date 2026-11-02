@@ -10,12 +10,16 @@ import {
   computed,
   effect,
   inject,
+  input,
+  output,
   signal,
   untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
+import { prepareVintedListingPhoto } from '../../services/vinted-listing-photo-preparation';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -112,6 +116,20 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
   host: { class: 'block min-w-0', '(window:beforeunload)': 'beforeUnload($event)' },
 })
 export class VintedListingEditorComponent {
+  readonly source = input<VintedListingEditorSource | null>(null);
+  readonly closed = output<void>();
+  readonly relisting = computed(
+    () => this.source()?.mode === 'relist' || !!this.draft()?.relistExternalId,
+  );
+  readonly photoSize = signal<number | null>(null);
+  readonly preparingPhotos = signal(false);
+  readonly photoSizeOptions = [
+    { value: null, label: 'Originalauflösung' },
+    { value: 1200, label: '1200 Pixel' },
+    { value: 1600, label: '1600 Pixel' },
+    { value: 2400, label: '2400 Pixel' },
+  ];
+  private readonly photoUrls = new Set<string>();
   readonly store = inject(MarketplaceAccountStore);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
@@ -130,7 +148,14 @@ export class VintedListingEditorComponent {
     const user = this.auth.currentUser();
     const workspace = this.workspace.currentWorkspace();
     return user && workspace && !workspace.archived_at && this.store.canManage()
-      ? JSON.stringify([user.id, workspace.id, this.params().get('draftId')])
+      ? JSON.stringify([
+          user.id,
+          workspace.id,
+          this.params().get('draftId'),
+          this.source()?.entry.connectionId,
+          this.source()?.entry.id,
+          this.source()?.mode,
+        ])
       : null;
   });
   readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? null);
@@ -270,6 +295,7 @@ export class VintedListingEditorComponent {
       !this.loadError() &&
       !this.saving() &&
       !this.imageEditing() &&
+      !this.preparingPhotos() &&
       !this.conflict() &&
       this.dirty(),
   );
@@ -282,6 +308,7 @@ export class VintedListingEditorComponent {
       !this.loadError() &&
       !this.saving() &&
       !this.imageEditing() &&
+      !this.preparingPhotos() &&
       !this.conflict(),
   );
   readonly brandScope = computed(() => this.context() ?? 'unavailable');
@@ -425,11 +452,50 @@ export class VintedListingEditorComponent {
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.markChanged());
     this.destroyRef.onDestroy(() => {
       this.generation++;
+      this.photoUrls.forEach((url) => URL.revokeObjectURL(url));
     });
   }
   publishNow(): void {
     this.publicationSchedule.set(null);
     void this.openPublication();
+  }
+  publishAfter(minutes: number): void {
+    this.schedulePublication({
+      scheduledAt: new Date(Date.now() + minutes * 60_000).toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      latePolicy: 'pause_after_30_minutes',
+    });
+  }
+  async preparePhotos(): Promise<void> {
+    if (this.preparingPhotos() || this.saving() || this.imageEditing()) return;
+    const generation = this.generation;
+    this.preparingPhotos.set(true);
+    this.error.set(null);
+    try {
+      const prepared: ListingImageDraft[] = [];
+      for (const image of this.images()) {
+        const blob = image.file ?? (await this.readPhoto(image.previewUrl));
+        const file = await prepareVintedListingPhoto(blob, image.fileName, this.photoSize());
+        if (generation !== this.generation) return;
+        const previewUrl = URL.createObjectURL(file);
+        this.photoUrls.add(previewUrl);
+        prepared.push({ ...image, file, fileName: file.name, previewUrl });
+      }
+      this.changeImages(prepared);
+    } catch (error) {
+      if (generation === this.generation)
+        this.error.set(
+          error instanceof Error ? error.message : 'Die Fotos konnten nicht vorbereitet werden.',
+        );
+    } finally {
+      if (generation === this.generation) this.preparingPhotos.set(false);
+    }
+  }
+  private async readPhoto(url: string): Promise<Blob> {
+    const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(30_000) });
+    if (!response.ok)
+      throw new Error('Ein Originalfoto konnte nicht geladen werden. Versuche es erneut.');
+    return response.blob();
   }
   openSchedule(): void {
     if (this.canStartPublication()) this.planningPublication.set(true);
@@ -510,6 +576,7 @@ export class VintedListingEditorComponent {
     );
     this.publicationSchedule.set(null);
     this.jobRefresh.update((value) => value + 1);
+    if (this.source()) this.closed.emit();
     setTimeout(() =>
       this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
     );
@@ -717,6 +784,10 @@ export class VintedListingEditorComponent {
     );
   }
   async cancel(): Promise<void> {
+    if (this.source()) {
+      if (await this.canLeave()) this.closed.emit();
+      return;
+    }
     await this.router.navigate(['/marketplaces/vinted/listing-drafts']);
   }
   beforeUnload(event: BeforeUnloadEvent): void {
@@ -790,6 +861,7 @@ export class VintedListingEditorComponent {
     this.publicationAttempted.set(false);
     this.saveAttempted.set(false);
     this.imageEditing.set(false);
+    this.preparingPhotos.set(false);
     this.draft.set(null);
     this.images.set([]);
     this.categories.set([]);
@@ -810,7 +882,43 @@ export class VintedListingEditorComponent {
     const workspaceId = this.workspaceId()!;
     const id = idOverride ?? this.params().get('draftId');
     try {
-      if (id) {
+      const source = this.source();
+      if (source) {
+        if (source.entry.workspaceId !== workspaceId)
+          throw new Error('Der Arbeitsbereich hat sich geändert.');
+        const current = await this.store.readListingContent(
+          source.entry.connectionId,
+          source.entry.id,
+        );
+        if (!this.current(generation, context)) return;
+        if (current.externalId !== source.entry.externalId)
+          throw new Error('Die Artikelzuordnung hat sich geändert.');
+        const images: ListingImageDraft[] = [];
+        for (const [index, url] of current.photoUrls.entries()) {
+          const file = await prepareVintedListingPhoto(
+            await this.readPhoto(url),
+            `photo-${index + 1}.jpg`,
+            null,
+          );
+          if (!this.current(generation, context)) return;
+          const previewUrl = URL.createObjectURL(file);
+          this.photoUrls.add(previewUrl);
+          images.push({
+            key: crypto.randomUUID(),
+            storagePath: null,
+            file,
+            fileName: file.name,
+            previewUrl,
+          });
+        }
+        if (!images.length)
+          throw new Error('Die Originalfotos konnten nicht vollständig geladen werden.');
+        this.referenceContent.set(current.content);
+        this.patch({ ...current.content, aiPhoto: current.aiPhoto }, source.entry.connectionId);
+        this.images.set(images);
+        this.changed.update((value) => value + 1);
+        this.dirty.set(true);
+      } else if (id) {
         const draft = await this.api.load(workspaceId, id);
         if (!this.current(generation, context)) return;
         const images = await this.imageApi.previews(draft);
@@ -883,7 +991,15 @@ export class VintedListingEditorComponent {
       let draft = this.draft();
       draft = draft
         ? await this.api.save(draft, content, connectionId)
-        : await this.api.create(workspaceId, content, connectionId, this.requestId);
+        : this.source()?.mode === 'relist'
+          ? await this.api.createRelisting(
+              workspaceId,
+              content,
+              connectionId!,
+              this.requestId,
+              this.source()!.entry.externalId!,
+            )
+          : await this.api.create(workspaceId, content, connectionId, this.requestId);
       if (!this.current(generation, context)) return;
       this.draft.set(draft);
       // Wiederholte Neuanlage liefert den bereits vorhandenen Stand; neue Eingaben benötigen eine neue Revision.
@@ -905,8 +1021,9 @@ export class VintedListingEditorComponent {
           this.progress.set(`Foto ${index + 1} von ${selection.length} wird hochgeladen …`);
           const oldIds = new Set(draft.images.map((entry) => entry.id));
           const replaceId = stored?.id ?? replaceIds[0];
-          const file =
+          let file =
             image.file ?? (await this.imageApi.renamedFile(draft, image.key, image.fileName));
+          if (this.relisting()) file = await prepareVintedListingPhoto(file, image.fileName, null);
           if (!this.current(generation, context)) return;
           draft = await this.imageApi.upload(draft, file, replaceId);
           if (!this.current(generation, context)) return;

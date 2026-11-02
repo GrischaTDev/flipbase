@@ -4395,6 +4395,7 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          relist_external_id: string | null
           request_id: string
           revision: number
           updated_at: string
@@ -4409,6 +4410,7 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          relist_external_id?: string | null
           request_id?: string
           revision?: number
           updated_at?: string
@@ -4423,6 +4425,7 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          relist_external_id?: string | null
           request_id?: string
           revision?: number
           updated_at?: string
@@ -11247,6 +11250,16 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_create_relisting_draft: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_external_id: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_delete_listing_draft: {
         Args: {
           p_expected_revision: number
@@ -11759,6 +11772,7 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          relist_external_id: string | null
           request_id: string
           revision: number
           updated_at: string

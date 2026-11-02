@@ -12,7 +12,16 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideLayoutGrid, LucideList, LucideBadgeEuro } from '@lucide/angular';
+import {
+  LucideLayoutGrid,
+  LucideList,
+  LucideBadgeEuro,
+  LucideRotateCcw,
+  LucideCopy,
+} from '@lucide/angular';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { VintedListingEditorComponent } from '../vinted-listing-editor/vinted-listing-editor.component';
+import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -30,6 +39,7 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { createVintedListingPriceEditor } from '../../services/vinted-listing-price-editor';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 
 @Component({
   selector: 'app-vinted-listings',
@@ -45,6 +55,8 @@ import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialo
     VintedListingMetricsComponent,
     VintedListingAgeComponent,
     VintedListingPriceDialogComponent,
+    ModalShellComponent,
+    VintedListingEditorComponent,
   ],
   templateUrl: './vinted-listings.component.html',
   providers: [MarketplaceListingStatisticsStore],
@@ -56,7 +68,20 @@ export class VintedListingsComponent {
   readonly gridIcon = LucideLayoutGrid;
   readonly listIcon = LucideList;
   readonly priceIcon = LucideBadgeEuro;
+  readonly relistIcon = LucideRotateCcw;
+  readonly templateIcon = LucideCopy;
+  readonly editorSource = signal<VintedListingEditorSource | null>(null);
+  canCreateFrom(entry: MarketplaceEntry): boolean {
+    return (
+      this.store.canManage() &&
+      this.store.selectedConnection()?.status === 'connected' &&
+      this.store.selectedConnection()?.executionMode === 'cloud' &&
+      !!entry.externalId &&
+      !this.operations.isRunning(entry)
+    );
+  }
   readonly store = inject(MarketplaceAccountStore);
+  readonly operations = inject(VintedListingOperationStore);
   readonly statistics = inject(MarketplaceListingStatisticsStore);
   private readonly workspace = inject(WorkspaceService);
   private readonly route = inject(ActivatedRoute);

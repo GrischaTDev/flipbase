@@ -10,6 +10,95 @@ import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 import { collectVintedListingFormValues } from '../../src/vinted-listing-contracts.ts';
 
+test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unklare Quellen stoppen', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const mode of [
+      'confirmed',
+      'foreign',
+      'closed',
+      'reserved',
+      'draft',
+      'unconfirmed',
+    ] as const) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const form = await createVintedListingFormFixture(
+        { route: context.route.bind(context), goto: page.goto.bind(page) },
+        { publishing: true },
+      );
+      let deletes = 0;
+      let removed = false;
+      await context.route('**/api/v2/item_upload/items/98765', async (route) => {
+        if (route.request().headers()['accept'] !== 'application/json')
+          return route.fulfill({ contentType: 'text/html', body: '<html></html>' });
+        await route.fulfill(
+          removed
+            ? { status: 404, json: { code: 100 } }
+            : {
+                json: {
+                  item: {
+                    id: 98765,
+                    // Die echte Bearbeitungsantwort enthält keine Besitz-/Reservierungsfelder.
+                    is_draft: mode === 'draft',
+                  },
+                },
+              },
+        );
+      });
+      await context.route('**/fixture/delete/98765', async (route) => {
+        assert.equal(form.saves(), 0, 'Kein neues Inserat vor der Löschung');
+        assert.equal(form.uploads(), 1, 'Das vollständige Foto wurde vor der Löschung vorbereitet');
+        deletes++;
+        removed = mode === 'confirmed';
+        await route.fulfill({ json: { ok: true } });
+      });
+      await context.route('https://www.vinted.de/items/98765', async (route) =>
+        route.fulfill({
+          contentType: 'text/html; charset=utf-8',
+          body: `<main id="content"><a href="/member/${mode === 'foreign' ? '999' : '123'}">Verkäufer</a>
+            ${mode === 'closed' ? '' : '<a href="/member/items/close">Als verkauft markieren</a>'}
+            ${mode === 'reserved' ? '' : '<a href="/member/items/reservation">Als reserviert markieren</a>'}
+            <button data-testid="item-edit-button">Angebot bearbeiten</button>
+            <button data-testid="item-delete-button" onclick="document.querySelector('[data-testid=item-delete-modal]').hidden=false">Löschen</button></main>
+            <div hidden data-testid="item-delete-modal"><h2>Artikel löschen?</h2>
+            <button data-testid="item-delete-confirmation-button" onclick="fetch('/fixture/delete/98765', {method:'DELETE'}).then(()=>{location.href='/member/123'})">Löschen</button></div>`,
+        }),
+      );
+      await page.goto('about:blank');
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        { ...listingClaimFixture.snapshot, relistExternalId: '98765' },
+        async () => undefined,
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+        { saveTimeoutMs: 500 },
+      );
+      assert.equal(
+        deletes,
+        mode === 'confirmed' || mode === 'unconfirmed' ? 1 : 0,
+        JSON.stringify(result),
+      );
+      assert.equal(form.saves(), mode === 'confirmed' ? 1 : 0);
+      assert.equal(
+        result.outcome,
+        mode === 'confirmed' ? 'confirmed' : mode === 'unconfirmed' ? 'outcome_unknown' : 'failed',
+      );
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('confirms the created item when Vinted redirects the successful publication to the owner profile', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

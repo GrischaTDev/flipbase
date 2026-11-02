@@ -4,6 +4,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, expect, it, vi } from 'vitest';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceListingStatisticsStore } from '../../services/marketplace-listing-statistics.store';
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
@@ -38,6 +39,7 @@ function setup(connectionId: string) {
   };
   TestBed.configureTestingModule({
     providers: [
+      { provide: AuthService, useValue: { currentUser: signal({ id: 'price-user' }) } },
       MarketplaceListingStatisticsStore,
       { provide: MarketplaceApiService, useValue: { readListingStatistics: vi.fn() } },
       { provide: MarketplaceAccountStore, useValue: store },
@@ -120,7 +122,7 @@ it('bindet keine Statistik mehr in den Kleiderschrank ein', async () => {
   expect(template).not.toContain('app-vinted-wardrobe-statistics');
 });
 
-it('öffnet den Preisdialog ohne Detailnavigation und erhält Eingaben nach einem Fehler', async () => {
+it('schließt den Preisdialog sofort und zeigt einen Fehler in den laufenden Aktionen', async () => {
   const { component, store } = setup('');
   TestBed.tick();
   const entry = parseMarketplacePage(
@@ -148,8 +150,15 @@ it('öffnet den Preisdialog ohne Detailnavigation und erhält Eingaben nach eine
   await component.priceEditor.save();
   expect(component.priceEditor.control.value).toBe(25);
   expect(component.priceEditor.error()).toBe('Nicht bestätigt');
-  expect(component.priceEditor.open()).toBe(true);
+  expect(component.priceEditor.open()).toBe(false);
+  expect(component.operations.entries()[0]).toMatchObject({
+    state: 'error',
+    title: 'Schal',
+    message: 'Nicht bestätigt',
+  });
   expect(component.priceNotice()).toBe(null);
+  component.changePrice(entry, new MouseEvent('click'));
+  component.priceEditor.control.setValue(25);
   await component.priceEditor.save();
   expect(store.saveListingPrice).toHaveBeenLastCalledWith(
     accountA.connectionId,
@@ -184,7 +193,8 @@ it('erhält Preisdialog und laufende Speicherung bei einer Hintergrundaktualisie
   store.selectedConnection.set({ ...store.selectedConnection() });
   TestBed.tick();
   expect(component.savingPrice()).toBe(true);
-  expect(component.priceEditor.open()).toBe(true);
+  expect(component.priceEditor.open()).toBe(false);
+  expect(component.operations.isRunning(entry)).toBe(true);
   await component.priceEditor.save();
   expect(store.saveListingPrice).toHaveBeenCalledOnce();
   finish();
@@ -210,7 +220,7 @@ it('schließt bei einem Kontowechsel den Preisdialog und verwirft verspätete An
   const saving = component.priceEditor.save();
   await component.priceEditor.save();
   component.priceEditor.close();
-  expect(component.priceEditor.open()).toBe(true);
+  expect(component.priceEditor.open()).toBe(false);
   expect(store.saveListingPrice).toHaveBeenCalledOnce();
   store.selectionVersion.update((version) => version + 1);
   TestBed.tick();

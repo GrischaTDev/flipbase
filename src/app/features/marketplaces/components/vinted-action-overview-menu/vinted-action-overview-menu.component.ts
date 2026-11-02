@@ -20,6 +20,7 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
 
@@ -47,13 +48,22 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
 export class VintedActionOverviewMenuComponent {
   readonly store = inject(VintedActionOverviewHeaderStore);
   readonly kleinanzeigen = inject(KleinanzeigenActionStore);
+  readonly listingOperations = inject(VintedListingOperationStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   readonly opened = signal(false);
   readonly mobile = signal(window.innerWidth < 640);
-  readonly count = computed(() => this.store.count() + this.kleinanzeigen.runningCount());
+  readonly count = computed(
+    () =>
+      this.store.count() +
+      this.kleinanzeigen.runningCount() +
+      this.listingOperations.runningCount(),
+  );
   readonly hasRunning = computed(
-    () => this.store.hasRunning() || this.kleinanzeigen.runningCount() > 0,
+    () =>
+      this.store.hasRunning() ||
+      this.kleinanzeigen.runningCount() > 0 ||
+      this.listingOperations.runningCount() > 0,
   );
   readonly label = computed(() => `Laufende Aktionen (${this.count()})`);
   readonly queueIcon = LucideListTodo;

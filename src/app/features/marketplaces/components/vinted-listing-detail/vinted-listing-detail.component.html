@@ -1,6 +1,7 @@
 @if (!editing()) {
   <div class="mb-4 flex items-center justify-between gap-3">
     <app-button
+      #priceReturnLink
       [link]="
         entry()?.publicationState === 'draft'
           ? '/marketplaces/vinted/listing-drafts'

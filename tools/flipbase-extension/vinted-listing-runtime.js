@@ -748,6 +748,8 @@
       });
     }
     function snapshot(input, workspaceId, connectionId) {
+      const relisting =
+        input && typeof input === 'object' && Object.hasOwn(input, 'relistExternalId');
       const value = fields(input, [
         'content',
         'images',
@@ -755,6 +757,7 @@
         'bump',
         'connectionId',
         'inventoryItemId',
+        ...(relisting ? ['relistExternalId'] : []),
       ]);
       if (
         value['connectionId'] !== connectionId ||
@@ -812,6 +815,7 @@
       });
       return Object.freeze({
         content: content(value['content']),
+        ...(relisting ? { relistExternalId: id(value['relistExternalId']) } : {}),
         images: Object.freeze(images),
         connectionId,
         inventoryItemId: value['inventoryItemId'] === null ? null : uuid(value['inventoryItemId']),

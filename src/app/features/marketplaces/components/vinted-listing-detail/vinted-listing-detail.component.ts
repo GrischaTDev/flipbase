@@ -95,6 +95,9 @@ export class VintedListingDetailComponent {
   private readonly destroy = inject(DestroyRef);
   private readonly builder = inject(FormBuilder);
   private readonly injector = inject(Injector);
+  private readonly priceReturnLink = viewChild('priceReturnLink', {
+    read: ElementRef<HTMLElement>,
+  });
   private readonly priceChangeTrigger = viewChild('priceChangeTrigger', {
     read: ElementRef<HTMLElement>,
   });
@@ -431,8 +434,12 @@ export class VintedListingDetailComponent {
     this.priceEditor.close();
   }
   private restorePriceFocus(): void {
+    const saving = this.busy();
     afterNextRender(
-      () => this.priceChangeTrigger()?.nativeElement.querySelector('button')?.focus(),
+      () => {
+        if (saving) this.priceReturnLink()?.nativeElement.querySelector('a')?.focus();
+        else this.priceChangeTrigger()?.nativeElement.querySelector('button')?.focus();
+      },
       { injector: this.injector },
     );
   }

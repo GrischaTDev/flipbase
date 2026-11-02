@@ -77,6 +77,7 @@ export type MarketplaceListingAction = 'publish' | 'vinted_draft' | 'update';
 
 /** Unveränderliche private Originale; URLs entstehen erst im autorisierten Ausführungsweg. */
 export interface MarketplaceListingSnapshot {
+  readonly relistExternalId?: string;
   readonly content: VintedListingContent;
   readonly images: readonly {
     readonly id: string;

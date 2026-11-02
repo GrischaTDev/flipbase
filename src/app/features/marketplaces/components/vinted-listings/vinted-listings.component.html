@@ -75,6 +75,8 @@
     }
     @for (entry of publications.items; track entry.id) {
       <article
+        [class.opacity-60]="operations.isRunning(entry)"
+        [attr.aria-busy]="operations.isRunning(entry) ? 'true' : null"
         [class]="
           viewMode() === 'grid'
             ? 'flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface'
@@ -101,6 +103,14 @@
               />
               @if (entry.promoted) {
                 <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
+              }
+              @if (operations.isRunning(entry)) {
+                <p
+                  role="status"
+                  class="absolute left-1/2 top-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-fb-surface px-3 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
+                >
+                  Preis wird geändert
+                </p>
               }
             </div>
             <div class="p-3">
@@ -166,6 +176,11 @@
                 fit="cover"
               />
               <div class="min-w-0 flex-1">
+                @if (operations.isRunning(entry)) {
+                  <p role="status" class="text-xs font-medium text-fb-text-secondary">
+                    Preis wird geändert
+                  </p>
+                }
                 <h2
                   class="truncate text-sm font-semibold text-fb-text-primary"
                   [attr.title]="entry.title"
@@ -228,6 +243,7 @@
           }
         </a>
         <div
+          [attr.inert]="operations.isRunning(entry) ? '' : null"
           [class]="
             viewMode() === 'grid'
               ? 'flex flex-wrap items-center gap-2 border-t border-fb-border-subtle bg-fb-subtle/50 p-2'
@@ -239,6 +255,7 @@
               variant="table-action"
               size="slim"
               [icon]="priceIcon"
+              [disabled]="savingPrice()"
               [iconOnly]="true"
               title="Preis ändern"
               [ariaLabel]="'Preis für ' + entry.title + ' ändern'"
@@ -247,6 +264,7 @@
             />
           }
           <app-listing-transfer-action
+            [attr.inert]="operations.isRunning(entry) ? '' : null"
             [compact]="true"
             [source]="{
               platform: 'vinted',
@@ -256,6 +274,30 @@
             }"
             [title]="entry.title"
           />
+          @if (canCreateFrom(entry)) {
+            @if (entry.publicationState === 'active') {
+              <app-button
+                variant="table-action"
+                size="slim"
+                [icon]="relistIcon"
+                [iconOnly]="true"
+                title="Relisten"
+                [ariaLabel]="entry.title + ' relisten'"
+                ariaHaspopup="dialog"
+                (clicked)="editorSource.set({ entry, mode: 'relist' })"
+              />
+            }
+            <app-button
+              variant="table-action"
+              size="slim"
+              [icon]="templateIcon"
+              [iconOnly]="true"
+              title="Als Vorlage für neues Inserat verwenden"
+              [ariaLabel]="entry.title + ' als Vorlage für neues Inserat verwenden'"
+              ariaHaspopup="dialog"
+              (clicked)="editorSource.set({ entry, mode: 'template' })"
+            />
+          }
         </div>
       </article>
     } @empty {
@@ -283,4 +325,16 @@
       >Weitere Artikel laden</app-button
     >
   }
+}
+@if (editorSource(); as source) {
+  <app-modal-shell
+    [title]="
+      source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden'
+    "
+    size="full"
+    [hasFooter]="false"
+    (closed)="editor.cancel()"
+  >
+    <app-vinted-listing-editor #editor [source]="source" (closed)="editorSource.set(null)" />
+  </app-modal-shell>
 }

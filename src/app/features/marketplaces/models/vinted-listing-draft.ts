@@ -12,6 +12,7 @@ export interface VintedListingImage {
   readonly byteSize: number;
 }
 export interface VintedListingDraft {
+  readonly relistExternalId?: string | null;
   readonly id: string;
   readonly workspaceId: string;
   readonly connectionId: string | null;
@@ -68,6 +69,12 @@ export function parseVintedListingDraft(
 ): VintedListingDraft {
   const data = record(value);
   const id = listingIdentifier(data['id']);
+  const relistExternalId = data['relistExternalId'];
+  if (
+    relistExternalId != null &&
+    (typeof relistExternalId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(relistExternalId))
+  )
+    return invalid();
   if (data['workspaceId'] !== workspaceId || (expectedId && expectedId !== id)) return invalid();
   if (!Array.isArray(data['images']) || data['images'].length > 100) return invalid();
   const imageIds = new Set<string>();
@@ -101,6 +108,7 @@ export function parseVintedListingDraft(
   return {
     id,
     workspaceId,
+    relistExternalId: relistExternalId as string | null | undefined,
     connectionId: nullableText(data['connectionId']),
     revision: revision(data['revision']),
     content: parseVintedListingContent(data['content']),

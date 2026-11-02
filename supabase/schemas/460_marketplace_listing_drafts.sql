@@ -46,6 +46,7 @@ revoke all on function public.marketplace_listing_content_valid(jsonb) from publ
 grant execute on function public.marketplace_listing_content_valid(jsonb) to authenticated, service_role;
 
 create table public.marketplace_listing_drafts (
+  relist_external_id text check (relist_external_id ~ '^[1-9][0-9]{0,31}$'),
   id bigint generated always as identity primary key,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   connection_id uuid,
@@ -194,6 +195,7 @@ begin
   if p_expected_revision is null or v_draft.revision <> p_expected_revision then raise exception 'Der Entwurf wurde auf einem anderen Gerät geändert. Lade den aktuellen Stand.' using errcode='40001'; end if;
   if not public.marketplace_listing_content_valid(p_content) then raise exception 'Ungültige Inseratangaben.' using errcode='22023'; end if;
   if p_connection_id is not null and not exists (select 1 from public.marketplace_connections where workspace_id=v_draft.workspace_id and id=p_connection_id and marketplace='vinted') then raise exception 'Kein Zugriff auf dieses Konto.' using errcode='42501'; end if;
+  if v_draft.relist_external_id is not null and p_connection_id is distinct from v_draft.connection_id then raise exception 'Relisten ist nur im ursprünglichen Konto möglich.' using errcode='22023'; end if;
   update public.marketplace_listing_drafts set content=p_content, connection_id=p_connection_id, revision=revision+1, updated_at=now() where id=p_id::bigint returning * into v_draft;
   return public.marketplace_listing_draft_document(v_draft);
 end;

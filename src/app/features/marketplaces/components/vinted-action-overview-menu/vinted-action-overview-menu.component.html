@@ -76,6 +76,25 @@
     @if (store.listings().length) {
       <app-vinted-listing-action-overview [entries]="store.listings()" />
     }
+    @for (action of listingOperations.entries(); track action.key) {
+      <div class="flex items-start gap-3 rounded-lg border border-fb-border-subtle p-3">
+        <app-action-status-indicator [state]="action.state" />
+        <div class="min-w-0 flex-1 space-y-1">
+          <p class="text-sm font-medium text-fb-text-primary">Preisänderung · {{ action.title }}</p>
+          <p role="status" class="text-xs text-fb-text-secondary">{{ action.message }}</p>
+        </div>
+        @if (action.state !== 'running') {
+          <app-button
+            variant="ghost"
+            size="slim"
+            [icon]="closeIcon"
+            [iconOnly]="true"
+            [ariaLabel]="'Preisänderung für ' + action.title + ' ausblenden'"
+            (clicked)="listingOperations.dismiss(action.key)"
+          />
+        }
+      </div>
+    }
     @for (action of kleinanzeigen.entries(); track action.key) {
       <div
         class="flex items-start gap-2 border-t border-fb-border-subtle py-3"
@@ -106,7 +125,12 @@
         }
       </div>
     }
-    @if (!store.groups().length && !store.listings().length && !kleinanzeigen.entries().length) {
+    @if (
+      !store.groups().length &&
+      !store.listings().length &&
+      !kleinanzeigen.entries().length &&
+      !listingOperations.entries().length
+    ) {
       @if (store.loading()) {
         <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
           <app-loading-indicator /> Aktionen werden geladen …

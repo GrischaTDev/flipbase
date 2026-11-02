@@ -1,6 +1,8 @@
 import { vintedListingCopyRendering } from '../../../../../../e2e/support/vinted-listing-copy-rendering';
 import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { signal } from '@angular/core';
+import { AuthService } from '../../../../core/services/auth.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { VintedListingPriceChangedError } from '../../services/marketplace-browser-test-api.service';
@@ -98,6 +100,11 @@ function setup(items: MarketplaceEntry[] = []) {
   };
   TestBed.configureTestingModule({
     providers: [
+      { provide: AuthService, useValue: { currentUser: signal({ id: 'price-user' }) } },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal({ id: account.workspaceId }) },
+      },
       {
         provide: ActivatedRoute,
         useValue: { paramMap: params, snapshot: { paramMap: params.value } },
@@ -190,10 +197,12 @@ describe('Reaktive Inseratdetails', () => {
     component.priceControl.setValue(10);
     store.saveListingPrice.mockRejectedValueOnce(new Error('Nicht bestätigt'));
     await component.savePrice();
-    expect(component.changingPrice()).toBe(true);
+    expect(component.changingPrice()).toBe(false);
     expect(component.priceControl.value).toBe(10);
     expect(component.priceError()).toBe('Nicht bestätigt');
     expect(component.entry()?.price).toBe(20.5);
+    component.openPriceChange();
+    component.priceControl.setValue(10);
     await component.savePrice();
     expect(store.saveListingPrice).toHaveBeenLastCalledWith(account.connectionId, 'a', 2050, 1000);
     expect(component.changingPrice()).toBe(false);
@@ -215,8 +224,10 @@ describe('Reaktive Inseratdetails', () => {
     await component.savePrice();
     expect(component.priceError()).toContain('18,00');
     expect(component.priceControl.value).toBe(10);
-    expect(component.changingPrice()).toBe(true);
+    expect(component.changingPrice()).toBe(false);
     expect(store.saveListingPrice).toHaveBeenCalledOnce();
+    component.openPriceChange();
+    component.priceControl.setValue(10);
     await component.savePrice();
     expect(store.saveListingPrice).toHaveBeenLastCalledWith(account.connectionId, 'a', 1800, 1000);
     expect(component.entry()?.price).toBe(10);
@@ -275,7 +286,7 @@ describe('Reaktive Inseratdetails', () => {
     component.closePriceChange();
     await component.savePrice();
     expect(store.saveListingPrice).toHaveBeenCalledOnce();
-    expect(component.changingPrice()).toBe(true);
+    expect(component.changingPrice()).toBe(false);
     expect(component.priceControl.disabled).toBe(true);
     params.next(convertToParamMap({ connectionId: account.connectionId, entryId: 'b' }));
     await settle();

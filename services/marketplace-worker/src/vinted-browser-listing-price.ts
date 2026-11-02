@@ -8,6 +8,7 @@ import {
 import { parseVintedListingPriceCents } from './vinted-browser-listing-content.ts';
 import { collectVintedListingFormValues } from './vinted-listing-contracts.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
+import { readVintedListingItem } from './vinted-browser-listing-item.ts';
 import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
 import {
   vintedListingUpdateFailure,
@@ -95,18 +96,27 @@ export async function updateVintedListingPrice(
     step = 'save';
     try {
       await save.click({ timeout: 10_000 });
-      // Erst nach Vinteds Seitenwechsel erneut öffnen, sonst könnte die Speicherung abgebrochen werden.
-      await page.waitForURL(
-        (url) =>
-          url.origin === 'https://www.vinted.de' && url.pathname !== '/items/' + itemId + '/edit',
-        { timeout: 15_000 },
-      );
     } catch {
       return { status: 'unconfirmed' };
     }
     step = 'confirm';
     const status = await confirmVintedEdit(
-      () => readVintedListingEdit(page, itemId, accountId),
+      async () => {
+        await checkAuthorization();
+        if ((await readVintedAccountIdentity(page))?.id !== accountId)
+          throw new Error('Die Kontozuordnung hat sich geändert.');
+        // Die gespeicherte Anbieterantwort entscheidet auch bei ausbleibendem SPA-Seitenwechsel.
+        // Solange das Speichern noch läuft, darf kein Neuladen die Anfrage abbrechen.
+        const item = await readVintedListingItem(page, itemId);
+        if (item)
+          return {
+            title: item.title,
+            description: item.description,
+            price: String(item.priceCents / 100),
+          };
+        if (page.url() === target) throw new Error('Die Speicherung ist noch nicht bestätigt.');
+        return readVintedListingEdit(page, itemId, accountId);
+      },
       (saved) =>
         saved.title === fields.title &&
         saved.description === fields.description &&

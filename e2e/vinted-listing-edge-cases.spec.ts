@@ -138,6 +138,7 @@ async function prepareListing(page: Page, listing: ListingFixture) {
   await mockMarketplace(page, true, false, false, false, []);
   const entry = {
     id: entryId,
+    externalId: '98765',
     publicationState: 'active',
     ...listing,
     price: 29.9,
@@ -728,6 +729,27 @@ for (const width of [390, 1440])
           text: 'Vorhandener Text',
           textState: 'loaded',
         });
+        await page.route('**/auth/v1/user', (route) =>
+          route.fulfill({
+            json: {
+              id: '25000000-0000-4000-8000-000000000001',
+              email: 'marketplace@example.test',
+              aud: 'authenticated',
+              role: 'authenticated',
+              app_metadata: {},
+              user_metadata: { flipbase_action_overview: true },
+              created_at: '2026-09-26T00:00:00Z',
+            },
+          }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
+          route.fulfill({
+            json: { ok: true, workspaceId, connectionId: accountIds[0], actions: [] },
+          }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+          route.fulfill({ json: { items: [] } }),
+        );
         await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
         let reads = 0;
         for (const route of ['edit/read', 'content/read'])
@@ -740,7 +762,7 @@ for (const width of [390, 1440])
         await page.route('**/marketplace-browser/listings/price/save', async (route) => {
           saves.push(route.request().postDataJSON());
           if (saves.length === 1) return route.fulfill({ json: { status: 'unconfirmed' } });
-          if (saves.length > 2) return route.fulfill({ json: { status: 'confirmed' } });
+          if (saves.length > 3) return route.fulfill({ json: { status: 'confirmed' } });
           await new Promise<void>((resolve) => {
             finishSave = resolve;
           });
@@ -752,7 +774,7 @@ for (const width of [390, 1440])
         await opener.click();
         const dialog = page.getByRole('dialog', { name: 'Preis ändern', exact: true });
         const input = dialog.getByRole('spinbutton', { name: 'Neuer Verkaufspreis', exact: true });
-        await expect(input).toHaveValue('29.9');
+        await expect(input).toHaveValue('29.90');
         await expect(input).toBeEnabled();
         expect(reads).toBe(0);
         await page.keyboard.press('Escape');
@@ -762,9 +784,22 @@ for (const width of [390, 1440])
         await input.fill('24.5');
         await screenshot(page, `vinted-price-dialog-${width}-${theme}`);
         await input.press('Enter');
-        await expect(dialog.getByRole('alert')).toContainText('bestätigt');
-        await expect(input).toHaveValue('24.5');
+        await expect(dialog).not.toBeVisible();
+        await expect(
+          detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }),
+        ).toBeFocused();
         await expect(detail).toContainText('29,90');
+        const runningActions = page.getByRole('button', { name: /Laufende Aktionen/ });
+        await runningActions.click();
+        await expect(
+          page.getByText('Preisänderung · Jacke für Preisänderung', { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByText(/Vinted hat die Änderung nicht eindeutig bestätigt/),
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await opener.click();
+        await input.fill('24.50');
         for (const key of ['Tab', 'Shift+Tab']) {
           for (let step = 0; step < 5; step++) {
             await page.keyboard.press(key);
@@ -779,15 +814,16 @@ for (const width of [390, 1440])
             )
           ).violations,
         ).toEqual([]);
-        await screenshot(page, `vinted-price-${width}-${theme}`);
-        await dialog.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
-        await expect(input).toBeDisabled();
-        await page.keyboard.press('Escape');
-        await expect(dialog).toBeVisible();
-        expect(saves).toHaveLength(2);
-        finishSave();
+        await dialog.getByRole('button', { name: 'Preis speichern', exact: true }).click();
         await expect(dialog).not.toBeVisible();
-        await expect(opener).toBeFocused();
+        await expect(
+          detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }),
+        ).toBeFocused();
+        expect(saves).toHaveLength(2);
+        await runningActions.click();
+        await expect(page.getByText('Preis wird geändert …', { exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
+        finishSave();
         await expect(detail).toContainText('24,50');
         expect(saves).toEqual(
           [1, 2].map(() => ({
@@ -809,7 +845,7 @@ for (const width of [390, 1440])
           exact: true,
         });
         await quickPrice.click();
-        await expect(input).toHaveValue('24.5');
+        await expect(input).toHaveValue('24.50');
         await page.keyboard.press('Escape');
         await expect(quickPrice).toBeFocused();
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
@@ -817,7 +853,13 @@ for (const width of [390, 1440])
         await input.fill('22');
         await input.press('Enter');
         await expect(dialog).not.toBeVisible();
-        await expect(quickPrice).toBeFocused();
+        await expect(wardrobe.locator('article[aria-busy="true"]')).toHaveCount(1);
+        await expect(
+          wardrobe.getByRole('status').filter({ hasText: 'Preis wird geändert' }),
+        ).toBeVisible();
+        await screenshot(page, `vinted-price-running-${width}-${theme}`);
+        finishSave();
+        await expect(wardrobe.locator('article[aria-busy="true"]')).toHaveCount(0);
         await expect(wardrobe).toContainText('22,00');
         await expect(page).toHaveURL(/\/vinted\/listings$/);
         expect(saves[2]).toEqual({
@@ -959,3 +1001,138 @@ for (const width of [1440, 390]) {
     await checkPage(page, errors);
   });
 }
+
+for (const width of [390, 1440])
+  for (const theme of ['light', 'dark'] as const)
+    test.describe(`Relist-Editor ${width} ${theme}`, () => {
+      test.use({ hasTouch: width < 1024 });
+      test(`Relisten und Vorlage übernehmen vollständige Daten und bereiten Fotos vor bei ${width}px ${theme} @marketplace-preview`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const errors = await prepareListing(page, {
+          title: 'Meine Schuhe',
+          text: 'Sehr gut erhalten.',
+          textState: 'loaded',
+        });
+        await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+        const original = Buffer.from(
+          await page.evaluate(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 160;
+            canvas.height = 200;
+            const context = canvas.getContext('2d')!;
+            context.fillStyle = '#b6d5e8';
+            context.fillRect(0, 0, 160, 200);
+            return canvas.toDataURL('image/jpeg').split(',')[1];
+          }),
+          'base64',
+        );
+        const metadata = Buffer.from('Exif\0\0Flipbase-Metadaten-Test', 'utf8');
+        const segment = Buffer.alloc(metadata.length + 4);
+        segment[0] = 255;
+        segment[1] = 225;
+        segment.writeUInt16BE(metadata.length + 2, 2);
+        metadata.copy(segment, 4);
+        const photo = Buffer.concat([original.subarray(0, 2), segment, original.subarray(2)]);
+        const listing = {
+          ...listingCurrentContentFixture(),
+          externalAccountId: '100',
+          photoUrls: ['https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg'],
+        };
+        await page.route('**/marketplace-browser/listings/content/read', (route) =>
+          route.fulfill({ json: { listing } }),
+        );
+        await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
+          route.fulfill({
+            contentType: 'image/jpeg',
+            headers: { 'access-control-allow-origin': '*' },
+            body: photo,
+          }),
+        );
+        await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+          route.fulfill({
+            json: {
+              id: 1,
+              refreshed_at: '2026-11-02T00:00:00Z',
+              requested_at: null,
+              last_attempt_at: null,
+              category_count: 1,
+              last_error: null,
+            },
+          }),
+        );
+        await page.route('**/rest/v1/vinted_categories*', (route) =>
+          route.fulfill({
+            json:
+              Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
+                ? []
+                : [{ id: 2738, parent_id: null, title: 'Fußballschuhe', path: 'Fußballschuhe' }],
+          }),
+        );
+        await page.goto('/marketplaces/vinted/listings');
+        const wardrobe = page.locator('app-vinted-listings');
+        await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
+        const editor = page.locator('app-vinted-listing-editor');
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await expect(
+          editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
+        ).toHaveValue(listing.content.description);
+        await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toBeVisible();
+        await expect(
+          editor.getByText(/Die Vinted-Kategorien konnten nicht geladen werden/),
+        ).toHaveCount(0);
+        await expect(
+          editor.getByRole('button', { name: 'In 10 Min. relisten', exact: true }),
+        ).toBeVisible();
+        const preview = editor.locator('app-vinted-listing-media img').first();
+        await expect(preview).toBeVisible();
+        const prepared = await preview.evaluate(async (image: HTMLImageElement) => ({
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+          bytes: Array.from(new Uint8Array(await (await fetch(image.src)).arrayBuffer())),
+        }));
+        expect([prepared.width, prepared.height]).toEqual([160, 200]);
+        expect(Buffer.from(prepared.bytes).includes(Buffer.from('Exif'))).toBe(false);
+        await editor.getByRole('combobox', { name: 'Bildauflösung (längste Kante)' }).click();
+        await page.getByRole('option', { name: '1600 Pixel', exact: true }).click();
+        await editor.getByRole('button', { name: 'Fotos vorbereiten', exact: true }).click();
+        await expect
+          .poll(() =>
+            preview.evaluate((image: HTMLImageElement) => [
+              image.naturalWidth,
+              image.naturalHeight,
+            ]),
+          )
+          .toEqual([1280, 1600]);
+        await page.evaluate(axe.source);
+        expect(
+          (
+            await page.evaluate(() =>
+              (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listing-editor'),
+            )
+          ).violations,
+        ).toEqual([]);
+        await screenshot(page, `vinted-relist-${width}-${theme}`);
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        await expect(editor).toHaveCount(0);
+        await wardrobe
+          .getByRole('button', {
+            name: 'Meine Schuhe als Vorlage für neues Inserat verwenden',
+            exact: true,
+          })
+          .click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await expect(
+          editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
+        ).toBeVisible();
+        await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await checkPage(page, errors);
+      });
+    });

@@ -44,7 +44,7 @@ create policy "Abgebrochene Inseratfotos bereinigen" on storage.objects for dele
 create or replace function public.marketplace_listing_draft_document(p_draft public.marketplace_listing_drafts)
 returns jsonb language sql stable security invoker set search_path = '' as $$
   select jsonb_build_object('id',p_draft.id::text,'workspaceId',p_draft.workspace_id,'connectionId',p_draft.connection_id,
-    'content',p_draft.content,'revision',p_draft.revision,'inventoryItemId',p_draft.inventory_item_id,
+    'content',p_draft.content,'revision',p_draft.revision,'inventoryItemId',p_draft.inventory_item_id,'relistExternalId',p_draft.relist_external_id,
     'createdAt',p_draft.created_at,'updatedAt',p_draft.updated_at,'images',coalesce((
       select jsonb_agg(jsonb_build_object('id',i.id::text,'storagePath',i.storage_path,'fileName',i.file_name,
         'mimeType',i.mime_type,'byteSize',i.byte_size) order by selected.position)

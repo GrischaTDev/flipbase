@@ -346,6 +346,10 @@ export class VintedListingJobPanelComponent {
     );
   }
   private reason(job: VintedListingJob): string {
+    if (job.errorCode?.startsWith('relisting_delete_'))
+      return job.state === 'outcome_unknown'
+        ? 'Die Löschung des bisherigen Inserats wurde nicht bestätigt. Es wurde kein neues Inserat veröffentlicht. Prüfe den ursprünglichen Artikel bei Vinted.'
+        : 'Das bisherige Inserat konnte nicht sicher gelöscht werden. Es wurde kein neues Inserat veröffentlicht. Deine Angaben und Fotos bleiben im Entwurf.';
     if (job.state === 'outcome_unknown')
       return 'Die Anbieterantwort fehlt. Prüfe den Artikel bei Vinted. Nicht erneut veröffentlichen, solange der Ausgang unklar ist.';
     if (job.errorCode === 'schedule_late')

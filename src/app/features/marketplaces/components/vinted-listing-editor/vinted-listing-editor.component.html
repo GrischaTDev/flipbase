@@ -1,5 +1,13 @@
 <app-entry-page-layout
-  [title]="openedSavedDraft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
+  [title]="
+    relisting()
+      ? 'Artikel relisten'
+      : source()
+        ? 'Neues Inserat aus Vorlage'
+        : openedSavedDraft()
+          ? 'Entwurf bearbeiten'
+          : 'Inserat erstellen'
+  "
   backLabel="Zur Entwurfsübersicht"
   (cancelled)="publication() ? returnToEditor() : cancel()"
 >
@@ -19,14 +27,34 @@
         (clicked)="save()"
         >Entwurf speichern</app-button
       >
-      <app-button data-review-opener [disabled]="!canStartPublication()" (clicked)="publishNow()"
-        >Jetzt veröffentlichen</app-button
-      >
-      <app-button variant="secondary" [disabled]="!canStartPublication()" (clicked)="openSchedule()"
-        >Veröffentlichung planen</app-button
+      <app-button data-review-opener [disabled]="!canStartPublication()" (clicked)="publishNow()">{{
+        relisting() ? 'Jetzt relisten' : 'Jetzt veröffentlichen'
+      }}</app-button>
+      <app-button
+        variant="secondary"
+        [disabled]="!canStartPublication()"
+        (clicked)="openSchedule()"
+        >{{ relisting() ? 'Später relisten' : 'Veröffentlichung planen' }}</app-button
       >
     }
   </div>
+  @if (relisting()) {
+    <app-notice-banner
+      >Beim Relisten wird zuerst Dein bestehendes Inserat gelöscht und danach das neue
+      veröffentlicht. Falls die Veröffentlichung scheitert, bleiben Deine Angaben und Fotos im
+      Entwurf gespeichert.</app-notice-banner
+    >
+    <div class="my-3 flex flex-wrap items-center gap-2">
+      @for (minutes of [1, 2, 3, 5, 10]; track minutes) {
+        <app-button
+          variant="secondary"
+          [disabled]="!canStartPublication()"
+          (clicked)="publishAfter(minutes)"
+          >In {{ minutes }} Min. relisten</app-button
+        >
+      }
+    </div>
+  }
   @if (publicationAnnouncement()) {
     <p data-publication-result role="status" class="sr-only">
       {{ publicationAnnouncement() }}
@@ -53,6 +81,30 @@
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
           <app-card title="Fotos">
+            @if (source() || relisting()) {
+              <div class="mb-4 flex flex-wrap items-end gap-2">
+                <app-custom-select
+                  class="min-w-48"
+                  label="Bildauflösung (längste Kante)"
+                  ariaLabel="Bildauflösung (längste Kante)"
+                  [options]="photoSizeOptions"
+                  [value]="photoSize()"
+                  (valueChange)="photoSize.set($event)"
+                  [disabled]="saving() || preparingPhotos() || imageEditing()"
+                />
+                <app-button
+                  variant="secondary"
+                  [loading]="preparingPhotos()"
+                  [disabled]="saving() || imageEditing()"
+                  (clicked)="preparePhotos()"
+                  >Fotos vorbereiten</app-button
+                >
+              </div>
+              <p class="mb-3 text-xs text-fb-text-secondary">
+                Der gesamte Ausschnitt und das Seitenverhältnis bleiben erhalten. Beim Relisten
+                werden Bildmetadaten immer entfernt.
+              </p>
+            }
             <p class="mb-3 text-xs text-fb-text-secondary">{{ images().length }} von 20 Fotos</p>
             <app-vinted-listing-media
               role="group"
@@ -145,6 +197,7 @@
                 ariaLabel="Zielkonto für diesen Entwurf"
                 [error]="publicationAttempted() ? accountIssue() : null"
                 [options]="accountOptions()"
+                [disabled]="relisting()"
                 formControlName="connectionId"
               />
               @if (publicationAttempted() && accountIssue()) {
