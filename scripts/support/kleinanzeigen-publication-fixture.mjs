@@ -1,6 +1,6 @@
 // Synthetischer Anbieter für die echte MV3-Veröffentlichung; keine Netzwerkweiterleitung.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 export const publicationWorkspaceId = '51000000-0000-4000-8000-000000000011';
 const workspaceId = publicationWorkspaceId,
@@ -10,7 +10,38 @@ const workspaceId = publicationWorkspaceId,
 const draftId = '51000000-0000-4000-8000-000000000041',
   imageId = '51000000-0000-4000-8000-000000000071';
 const target = 'https://www.kleinanzeigen.de/s-anzeige/jacke/1001-1-2';
-const bytes = readFileSync('tools/flipbase-extension/images/flipbase-mark-16.png');
+// Echte Fotomaße statt eines 16-Pixel-Icons; die Vorschauroute liefert absichtlich nur 96 Pixel.
+function photoPng(width, height) {
+  const chunk = (name, data) => {
+    const body = Buffer.concat([Buffer.from(name), data]);
+    let crc = 0xffffffff;
+    for (const byte of body) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+    const size = Buffer.alloc(4),
+      checksum = Buffer.alloc(4);
+    size.writeUInt32BE(data.length);
+    checksum.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
+    return Buffer.concat([size, body, checksum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 2;
+  const pixels = Buffer.alloc((width * 3 + 1) * height, 128);
+  for (let row = 0; row < height; row++) pixels[row * (width * 3 + 1)] = 0;
+  return Buffer.concat([
+    Buffer.from('89504e470d0a1a0a', 'hex'),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(pixels)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+const bytes = photoPng(900, 675);
+const thumbnail = photoPng(96, 72);
+const sourceImagePath = '/api/v1/prod-ads/images/aa/00000000-0000-4000-8000-000000000099';
 const image = {
   imageId,
   storagePath:
@@ -174,7 +205,14 @@ export function createKleinanzeigenPublicationFixture() {
       return route.fulfill({ status: 204, body: '' });
     calls.push({ url: url.href, method: request.method() });
     if (url.hostname === 'img.kleinanzeigen.de')
-      return route.fulfill({ contentType: 'image/png', body: bytes });
+      return route.fulfill({
+        contentType: 'image/png',
+        body:
+          url.pathname === sourceImagePath &&
+          (url.searchParams.get('rule') !== '$_59.AUTO' || options.smallRelistingImages)
+            ? thumbnail
+            : bytes,
+      });
     if (url.hostname === 'app.flipbase.de')
       return route.fulfill({
         contentType: 'text/html',
@@ -323,7 +361,11 @@ export function createKleinanzeigenPublicationFixture() {
           .replace('aria-expanded="false" value="">', 'aria-expanded="false" value="Adidas">')
           .replace(
             '<div id="photos"></div>',
-            '<div id="photos"><img alt="Bild zur Anzeige" src="https://img.kleinanzeigen.de/source-original.png"><input type="hidden" name="adImages[0].url" value="https://img.kleinanzeigen.de/source-original.png"></div>',
+            '<div id="photos"><img alt="Bild zur Anzeige" src="https://img.kleinanzeigen.de' +
+              sourceImagePath +
+              '?jwt=preview"><input type="hidden" name="adImages[0].url" value="https://img.kleinanzeigen.de' +
+              sourceImagePath +
+              '?jwt=preview"></div>',
           ),
       });
     }
@@ -425,6 +467,9 @@ export function createKleinanzeigenPublicationFixture() {
     );
   }
   return {
+    get thumbnailEncoded() {
+      return thumbnail.toString('base64');
+    },
     get deletes() {
       return deletes;
     },

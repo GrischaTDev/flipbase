@@ -6,14 +6,13 @@ import {
 } from './kleinanzeigen-workspace-navigation';
 
 describe('Kleinanzeigen-Navigation', () => {
-  it('bietet die vier wesentlichen Bereiche als eigene Seiten', () => {
+  it('bietet nur tatsächlich integrierte Bereiche als eigene Seiten', () => {
     expect(KLEINANZEIGEN_WORKSPACE_NAVIGATION.map((item) => item.label)).toEqual([
       'Übersicht',
       'Inserate',
-      'Postfach',
       'Kontoverbindung',
     ]);
-    expect(new Set(KLEINANZEIGEN_WORKSPACE_NAVIGATION.map((item) => item.path)).size).toBe(4);
+    expect(new Set(KLEINANZEIGEN_WORKSPACE_NAVIGATION.map((item) => item.path)).size).toBe(3);
   });
   it('trennt den Kleinanzeigen-Bereich von anderen Plattformen und ähnlich benannten Pfaden', () => {
     expect(isKleinanzeigenWorkspaceRoute('/marketplaces/kleinanzeigen?account=9')).toBe(true);
