@@ -7,7 +7,6 @@ export const KLEINANZEIGEN_WORKSPACE_NAVIGATION: readonly {
 }[] = [
   { path: '/marketplaces/kleinanzeigen/overview', label: 'Übersicht', icon: 'dashboard' },
   { path: '/marketplaces/kleinanzeigen/listings', label: 'Inserate', icon: 'tag' },
-  { path: '/marketplaces/kleinanzeigen/inbox', label: 'Postfach', icon: 'bookOpen' },
   { path: '/marketplaces/kleinanzeigen/connection', label: 'Kontoverbindung', icon: 'settings' },
 ];
 

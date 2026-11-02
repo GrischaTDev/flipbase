@@ -3,14 +3,68 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
-const context = vm.createContext({ URL });
+const context = vm.createContext({ URL, Blob });
 for (const file of [
   'kleinanzeigen-provider-reader',
   'kleinanzeigen-form-reader',
   'kleinanzeigen-publication-reader',
+  'kleinanzeigen-relisting-images',
 ])
   vm.runInContext(readFileSync('tools/flipbase-extension/' + file + '.js', 'utf8'), context);
 const reader = context.FlipbaseKleinanzeigenPublicationReader;
+const relistingImages = context.FlipbaseKleinanzeigenRelistingImages;
+test('relisting downloads the large gallery variant instead of the signed edit thumbnail', () => {
+  const address =
+    'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/00000000-0000-4000-8000-000000000099';
+  const result = new URL(relistingImages.sourceUrl(address + '?AccessKeyId=fixture&jwt=thumbnail'));
+  assert.equal(result.origin + result.pathname, address);
+  assert.equal(result.searchParams.get('rule'), '$_59.AUTO');
+  assert.deepEqual([...result.searchParams.keys()], ['rule']);
+  for (const invalid of [
+    'http://img.kleinanzeigen.de/a',
+    'https://img.kleinanzeigen.de.evil.test/a',
+    'https://user:password@img.kleinanzeigen.de/a',
+  ])
+    assert.throws(() => relistingImages.sourceUrl(invalid));
+});
+test('relisting rejects small, corrupt and undecodable photos before deleting the source', async () => {
+  for (const [width, height] of [
+    [96, 72],
+    [72, 96],
+    [0, 900],
+  ]) {
+    let closed = false;
+    await assert.rejects(
+      relistingImages.verify(new Uint8Array([1]), 'image/jpeg', async () => ({
+        width,
+        height,
+        close: () => {
+          closed = true;
+        },
+      })),
+      /image_quality_insufficient/,
+    );
+    assert.equal(closed, true);
+  }
+  await assert.rejects(
+    relistingImages.verify(new Uint8Array([1]), 'image/jpeg', async () => {
+      throw Error('invalid image');
+    }),
+    /image_quality_insufficient/,
+  );
+  for (const [width, height] of [
+    [900, 675],
+    [675, 900],
+  ]) {
+    const result = await relistingImages.verify(new Uint8Array([1]), 'image/jpeg', async () => ({
+      width,
+      height,
+      close() {},
+    }));
+    assert.equal(result.width, width);
+    assert.equal(result.height, height);
+  }
+});
 function form(extraValues = ['0:204', '0:914', '0:62', '0:488']) {
   return new JSDOM(
     '<script type="application/json" id="astroSharedData">' +

@@ -389,6 +389,11 @@ function relistingJobsFixture() {
       calls.push('photo');
       throw Error('images_incomplete');
     },
+    verifyPhotos: async (images) => {
+      assert.ok(Array.isArray(images));
+      assert.equal(images.length, 0);
+      calls.push('quality');
+    },
     baseline: async () => (removed ? [] : ['12']),
     target: async () => ({
       tabId: 2,
@@ -443,6 +448,8 @@ test('erneutes Inserieren sichert die vollständige Fassung vor der ersten Lösc
   assert.equal(result.externalId, '12');
   assert.equal(result.newExternalId, '99');
   assert.ok(f.calls.indexOf('save:secured') < f.calls.indexOf('remove'));
+  assert.ok(f.calls.indexOf('quality') >= 0);
+  assert.ok(f.calls.indexOf('quality') < f.calls.indexOf('remove'));
   assert.equal(f.calls.filter((value) => value === 'submit').length, 1);
   await runtime.run(f.request, 'https://app.flipbase.de');
   assert.equal(f.calls.filter((value) => value === 'submit').length, 1);
@@ -460,6 +467,22 @@ test('eine fehlgeschlagene Sicherung erhält die Altanzeige unverändert', async
     /disk_full/u,
   );
   assert.ok(!f.calls.includes('remove'));
+});
+test('abgelehnte Bildqualität erhält die Sicherung und stoppt vor Löschen oder Veröffentlichen', async () => {
+  const f = relistingJobsFixture();
+  f.adapter.verifyPhotos = async () => {
+    throw Error('image_quality_insufficient');
+  };
+  await assert.rejects(
+    context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter).run(
+      f.request,
+      'https://app.flipbase.de',
+    ),
+    /image_quality_insufficient/u,
+  );
+  assert.equal(f.records.size, 1);
+  assert.ok(!f.calls.includes('remove'));
+  assert.ok(!f.calls.includes('submit'));
 });
 test('nach Gebührenstopp kann eine korrigierte Altanzeige mit erneuerter Freigabe neu gesichert werden', async () => {
   const f = relistingJobsFixture();

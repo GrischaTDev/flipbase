@@ -1,6 +1,9 @@
 <div class="min-w-0 space-y-5">
   <app-page-header [title]="pageTitle" [icon]="storeIcon">
-    <div header-actions>
+    <div header-actions class="flex flex-wrap gap-2">
+      <app-button href="https://www.kleinanzeigen.de/m-nachrichten.html" target="_blank"
+        >Nachrichten bei Kleinanzeigen</app-button
+      >
       @if (workspace.currentWorkspace(); as current) {
         @if (!current.archived_at) {
           <app-button variant="primary" [icon]="addIcon" (clicked)="adding.set(true)"
@@ -12,20 +15,7 @@
   </app-page-header>
   @if (workspace.currentWorkspace(); as current) {
     @if (!current.archived_at) {
-      @if (page === 'inbox') {
-        <app-card variant="section">
-          <div class="space-y-3">
-            <h2 class="text-base font-semibold text-fb-text-primary">Deine Nachrichten</h2>
-            <p class="text-sm text-fb-text-secondary">
-              Dein Kleinanzeigen-Postfach öffnet sich im verbundenen Browserprofil direkt bei
-              Kleinanzeigen.
-            </p>
-            <app-button href="https://www.kleinanzeigen.de/m-nachrichten.html" target="_blank"
-              >Postfach öffnen</app-button
-            >
-          </div>
-        </app-card>
-      } @else if (page === 'connection') {
+      @if (page === 'connection') {
         <app-kleinanzeigen-accounts [workspaceId]="current.id" (changed)="reloadListings()" />
       } @else {
         @if (page === 'overview') {
