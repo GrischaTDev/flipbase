@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-02 - Juna - Kleinanzeigen-Löschweiterleitung beim Neuinserieren abwarten
+
+**Auftrag und Trennung:** Nutzer meldet nach tatsächlich erfolgter Löschung einen angehaltenen Neuinserierlauf. Eigener Zweig `juna/kleinanzeigen-delete-confirmation` vom frisch abgerufenen `origin/master` (`727d7cfb`), parallele Vinted-Arbeit und belegten lokalen Hauptzweig erhalten.
+
+**Echte lesende Diagnose:** Im betroffenen eigenen Bestand fehlt die gewählte Altanzeige; der tatsächlich geladene Leser 1.14.2 liefert fünf Anzeigen und bestätigt deren Abwesenheit. Die Neufassung steht mit sechs Bildern und bedienbarem Veröffentlichungsbutton bereit, der Assistent meldet dennoch eine unbestätigte Löschung. Keine echte Anzeige veröffentlicht oder erneut gelöscht, keine Sicherung verändert.
+
+**Reproduktion und Korrektur:** Die Bestandsprüfung nach dem Löschklick erwartet eine exakt abfragefreie URL und prüft eine noch vorgemerkte Navigation zu früh. Mit altem vollständigem Dokument, Löschbestätigungs-Abfrage und ausstehender Rückleitung reproduzierbar: eine bereits gelöschte Anzeige wird fälschlich als abgelaufene Sitzung gewertet; der Neuinserierlauf verdeckt das als unbestätigte Löschung. Die Prüfung wartet die Navigation ab, erlaubt die eigene Bestandsseite mit regulärer Abfrage und behält die frische Dokumentzeit sowie Konto- und Vollständigkeitsprüfung. Unbekannte Ziele gelten als technischer Lesefehler. Erweiterung und Versionsprüfung auf 1.14.3.
+
+**Nachweise:** Gezielte Gegenprobe scheitert vor der Korrektur und besteht danach, einschließlich weiterhin vorhandener Altanzeige und genau einem Löschklick. Zusätzlich den bestehenden nativen MV3-Lauf um vollständiges Neuinserieren nach Löschweiterleitung sowie erhaltene Altanzeige ohne Veröffentlichung erweitert. Node 22.23.4: 187 gezielte Windows-Fälle und 411 ausgewählte Erweiterungs-/Auswahlfälle unter Linux erfolgreich. Nativer MV3-Verbindungs-, Wiederaufnahme- und Veröffentlichungsablauf unter Windows und Linux (Chromium 151.0.7922.34), Linux mit zwei CPUs/vier GiB, vollständig erfolgreich. Anwendungslauf mit 2.759 Node-, 370 DOM- und 3.001 Angular-Fällen erfolgreich; Edge-Fälle, Suite-Audit, Format, Lint, Typen und Produktionsbau einschließlich Angular-Vorlagen erfolgreich. Plan und tatsächlichen Vorabcheck ausgeführt; lokaler Gesamtcheck bleibt wegen der fehlenden gemeinsamen Supabase-Migrationen `20261031064255`, `20261101122947` und `20261101174454` unvollständig. Fremde Datenbank erhalten; die ausgewählte CI muss diese Prüflücke vor dem Merge schließen. Live-Veröffentlichung bleibt beim Nutzer.
+
 ## 2026-11-02 - Juna - Kleinanzeigen-Kontoprüfung nach Erweiterungsneuladen reparieren
 
 **Auftrag und Trennung:** Der Nutzer ist nachweislich angemeldet, erhält beim Abgleich und Inserieren aber eine Anmeldeaufforderung. Frisch abgerufenes `origin/master` (`79f5f473`), eigener Zweig `juna/kleinanzeigen-account-read-fix`; primäre Vinted-Arbeitskopie mit fremden Änderungen und belegter lokaler Hauptzweig bleiben erhalten.

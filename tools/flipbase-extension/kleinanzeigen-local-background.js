@@ -277,7 +277,7 @@
         /* Eigener Arbeitstab wurde geschlossen. */
       }
     }
-    if (tab?.incognito || tab?.url !== address) tab = undefined;
+    if (tab?.incognito || (tab && !isListingAddress(tab.url))) tab = undefined;
     if (!tab || Number(listingCursor?.slice(5)) > Number(cursor.slice(5))) {
       listingDocumentTime = Date.now();
       if (!tab) {
@@ -307,8 +307,12 @@
         let answer;
         try {
           const current = await chrome.tabs.get(listingTabId);
-          if (current.status === 'complete') {
-            if (current.url !== address) throw stopped('needs_login');
+          if (current.status === 'complete' && !current.pendingUrl) {
+            // Nach einer Löschung kann die alte vollständige Seite noch sichtbar
+            // sein, während Chrome bereits die nächste Navigation vorgemerkt hat.
+            // Die Bestätigung enthält außerdem regulär eine actMsg-Abfrage.
+            if (current.incognito || !isListingAddress(current.url))
+              throw stopped('account_unreadable');
             answer = await chrome.tabs.sendMessage(listingTabId, {
               type: 'KLEINANZEIGEN_READ_PAGE',
               minimumDocumentTime: listingDocumentTime,

@@ -255,7 +255,7 @@ export async function mockKleinanzeigenTransfer(
             wrongBindingOnPublish && categoryReviewed
               ? { ...binding, externalAccountId: '89' }
               : binding;
-        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.2' };
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.3' };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS') result = { opened: true };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_LISTING') {
