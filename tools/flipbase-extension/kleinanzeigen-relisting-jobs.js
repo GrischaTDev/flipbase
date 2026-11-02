@@ -64,8 +64,15 @@
     const readSaved = adapter.load ?? load;
     const writeSaved = adapter.save ?? save;
     async function reconcile(record, installation) {
-      if (record.phase === 'confirmed' || !record.content || !record.baseline || !record.tabId)
+      if (record.phase === 'confirmed') {
+        try {
+          await adapter.confirmed?.(record, installation);
+        } catch {
+          /* Ein Anzeigefehler entwertet keinen bestätigten Anbieterbeleg. */
+        }
         return record;
+      }
+      if (!record.content || !record.baseline || !record.tabId) return record;
       try {
         const result = await adapter.result(
           installation,
@@ -83,6 +90,7 @@
         if (result?.outcome === 'confirmed') {
           record = { ...record, phase: 'confirmed', result, updatedAt: new Date().toISOString() };
           await writeSaved(record);
+          await adapter.confirmed?.(record, installation);
         }
       } catch {
         /* Unklare Ergebnisse erhalten die Sicherung, ohne erneut zu schreiben. */

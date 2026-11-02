@@ -607,6 +607,10 @@ try {
   );
   assert.equal(statuses.success, true, JSON.stringify(statuses));
   assert.equal(statuses.result[0].phase, 'confirmed', JSON.stringify(statuses));
+  await manualForm
+    .locator('#flipbase-workspace-assistant')
+    .getByText('Vorgang abgeschlossen', { exact: true })
+    .waitFor();
   assert.equal((await relist()).result.outcome, 'confirmed');
   assert.equal(provider.submits, 1, 'Nur der manuelle Klick hat veröffentlicht.');
   assert.equal(provider.deletes, 0, 'Der lesende Abschluss löscht keine Altanzeige.');

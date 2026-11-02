@@ -531,9 +531,21 @@ test('manuellen Abschluss nur nachlesen und danach keine Löschung oder Veröffe
     externalId: '99',
     url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/99-1-2',
   });
+  let confirmations = 0;
+  f.adapter.confirmed = async (record, installation) => {
+    assert.equal(record.externalId, f.request.externalId);
+    assert.equal(installation.binding.connectionId, f.binding.connectionId);
+    confirmations++;
+  };
   const status = await runtime.list(f.request, 'https://app.flipbase.de');
   assert.equal(status[0].phase, 'confirmed');
+  assert.equal(confirmations, 1);
+  await runtime.list(f.request, 'https://app.flipbase.de');
+  assert.equal(confirmations, 2, 'Auch nach Unterbrechung den gespeicherten Abschluss anzeigen');
   assert.deepEqual(f.calls.slice(before.length), ['save:confirmed']);
+  f.adapter.confirmed = async () => {
+    throw Error('status_unavailable');
+  };
   assert.equal((await runtime.run(f.request, 'https://app.flipbase.de')).newExternalId, '99');
   assert.ok(!f.calls.includes('remove'));
   assert.ok(!f.calls.includes('submit'));

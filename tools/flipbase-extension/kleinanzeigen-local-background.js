@@ -1059,6 +1059,18 @@
       return answer.result;
     },
     result: publicationResult,
+    confirmed: async (record, installation) => {
+      const status = (await chrome.storage.local.get(workspaceStatusKey))[workspaceStatusKey];
+      if (
+        status?.externalId === record.externalId &&
+        status.workspaceId === installation.binding.workspaceId &&
+        status.connectionId === installation.binding.connectionId &&
+        status.appOrigin === installation.appOrigin
+      )
+        await chrome.storage.local.set({
+          [workspaceStatusKey]: { ...status, phase: 'completed', errorCode: null },
+        });
+    },
     completed: async (record) => {
       const owned = (await chrome.storage.local.get(workTabsKey))[workTabsKey] ?? {};
       for (const tabId of [record.sourceTabId, record.tabId]) {
@@ -1232,17 +1244,27 @@
 
   const workspaceStatusKey = 'kleinanzeigen_workspace_status';
   let visibleWriteBusy = false;
-  async function listingWrite(operation, visible = true) {
+  async function listingWrite(operation, visible = true, context = null) {
     if (reconciliationPromise) await reconciliationPromise;
     if (listingWriteBusy) throw new Error('Ein Kleinanzeigen-Auftrag wird bereits ausgeführt.');
     listingWriteBusy = true;
     if (visible) visibleWriteBusy = true;
+    const scope = context
+      ? {
+          externalId: context.externalId,
+          workspaceId: context.workspaceId,
+          connectionId: context.connectionId,
+          appOrigin: context.appOrigin,
+        }
+      : {};
     try {
-      if (visible) await chrome.storage.local.set({ [workspaceStatusKey]: { phase: 'running' } });
+      if (visible)
+        await chrome.storage.local.set({ [workspaceStatusKey]: { ...scope, phase: 'running' } });
       const result = await operation();
       if (visible)
         await chrome.storage.local.set({
           [workspaceStatusKey]: {
+            ...scope,
             phase: result?.outcome && result.outcome !== 'confirmed' ? 'paused' : 'completed',
             errorCode: result?.errorCode ?? null,
           },
@@ -1252,6 +1274,7 @@
       if (visible)
         await chrome.storage.local.set({
           [workspaceStatusKey]: {
+            ...scope,
             phase: 'paused',
             errorCode: error?.code ?? error?.message ?? 'preparation_failed',
           },
@@ -1349,11 +1372,15 @@
               }
             : request.action === 'RELIST_LISTING'
               ? () =>
-                  listingWrite(() => {
-                    if (!relistingRuntime)
-                      throw new Error('Aktualisiere die Erweiterung für erneutes Inserieren.');
-                    return relistingRuntime.run(request, origin);
-                  })
+                  listingWrite(
+                    () => {
+                      if (!relistingRuntime)
+                        throw new Error('Aktualisiere die Erweiterung für erneutes Inserieren.');
+                      return relistingRuntime.run(request, origin);
+                    },
+                    true,
+                    { ...request, appOrigin: origin },
+                  )
               : request.action === 'OPEN_LISTING'
                 ? () => openListing(request, origin)
                 : request.action === 'QUOTA'
