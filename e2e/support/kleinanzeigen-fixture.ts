@@ -154,7 +154,7 @@ export async function mockKleinanzeigen(
         let result: unknown;
         let success = true;
         if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_STATUS') result = local;
-        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.2' };
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_VERSION') result = { version: '1.14.3' };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_OPEN_SETTINGS') result = { opened: true };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING') {

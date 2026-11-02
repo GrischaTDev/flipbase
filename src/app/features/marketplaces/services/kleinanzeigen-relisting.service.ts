@@ -226,7 +226,7 @@ export class KleinanzeigenRelistingService {
         );
       if (!this.extension.relistingAvailable())
         throw new Error(
-          'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.2 und lade die Seite neu.',
+          'Aktualisiere die Flipbase-Erweiterung auf Version 1.14.3 und lade die Seite neu.',
         );
       const references = resume
         ? [
