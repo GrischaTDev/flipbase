@@ -20,7 +20,8 @@ export interface KleinanzeigenRelistingResult {
 export interface KleinanzeigenRelistingAttempt {
   readonly externalId: string;
   readonly title: string;
-  readonly phase: 'secured' | 'deleting' | 'deleted' | 'submitting' | 'outcome_unknown';
+  readonly phase:
+    'secured' | 'deleting' | 'deleted' | 'submitting' | 'outcome_unknown' | 'confirmed';
 }
 export function parseKleinanzeigenRelistingResult(
   value: unknown,
@@ -78,8 +79,27 @@ export function kleinanzeigenRelistingMessage(result: KleinanzeigenRelistingResu
     case 'deletion_unconfirmed':
     case 'deletion_not_confirmed':
       return 'Die Löschung konnte nicht eindeutig bestätigt werden. Die gesicherte Neufassung bleibt im Browser; bitte prüfen.';
+    case 'images_incomplete':
+      return 'Die Bildübertragung ist noch nicht vollständig bestätigt. Bitte prüfe das geöffnete Formular.';
+    case 'form_changed':
+      return 'Die Formularangaben haben sich während der Übernahme geändert. Bitte prüfe das geöffnete Formular.';
+    case 'invalid_fields':
+    case 'contact_details_required':
+      return 'Pflichtangaben im Anbieterformular fehlen oder sind ungültig. Bitte prüfe die markierten Felder.';
+    case 'account_changed':
+    case 'access_revoked':
+      return 'Browserkonto oder Freigabe hat sich geändert. Prüfe Deine Kontoverbindung.';
+    case 'schema_changed':
+    case 'category_changed':
+      return 'Das Anbieterformular entspricht nicht mehr der geprüften Fassung. Bitte prüfe das geöffnete Formular.';
+    case 'preparation_failed':
+      return 'Das neue Formular konnte nicht vollständig vorbereitet werden. Bitte prüfe das geöffnete Formular.';
     default:
-      return 'Automatische Übernahme angehalten. Bitte die gesicherte Fassung im geöffneten Formular prüfen.';
+      return (
+        'Der Vorgang wurde angehalten (' +
+        (result.errorCode ?? 'Grund unbekannt') +
+        '). Bitte prüfe das geöffnete Formular.'
+      );
   }
 }
 export function kleinanzeigenRelistingError(error: unknown): string {

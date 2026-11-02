@@ -1,0 +1,22 @@
+#flipbase-workspace-assistant {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border: 1px solid #fcc601;
+  border-radius: 12px;
+  background: #171717;
+  color: #fff;
+  box-shadow: 0 4px 16px #0003;
+  font:
+    13px/1.5 system-ui,
+    sans-serif;
+}
+#flipbase-workspace-assistant strong {
+  color: #fcc601;
+}
+#flipbase-workspace-assistant p {
+  margin: 4px 0 0;
+}

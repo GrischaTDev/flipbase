@@ -74,6 +74,15 @@
         'externalId',
         'categoryPaths',
       ],
+      DELETE_LISTING: [
+        'type',
+        'requestId',
+        'workspaceId',
+        'connectionId',
+        'generation',
+        'externalId',
+        'title',
+      ],
       RELIST_ATTEMPTS: ['type', 'requestId', 'workspaceId', 'connectionId', 'generation'],
       OPEN_LISTING: [
         'type',
@@ -143,9 +152,14 @@
     )
       return null;
     if (
-      ['QUOTA', 'PUBLISH_JOB', 'OPEN_LISTING', 'RELIST_LISTING', 'RELIST_ATTEMPTS'].includes(
-        action,
-      ) &&
+      [
+        'QUOTA',
+        'PUBLISH_JOB',
+        'OPEN_LISTING',
+        'RELIST_LISTING',
+        'RELIST_ATTEMPTS',
+        'DELETE_LISTING',
+      ].includes(action) &&
       (!uuid.test(message.workspaceId ?? '') ||
         typeof message.connectionId !== 'string' ||
         !/^[1-9][0-9]{0,18}$/u.test(message.connectionId) ||
@@ -157,6 +171,14 @@
             !/^[1-9][0-9]{0,18}$/u.test(message.jobId) ||
             BigInt(message.jobId) > 9223372036854775807n ||
             !['publish', 'reconcile'].includes(message.mode))))
+    )
+      return null;
+    if (
+      action === 'DELETE_LISTING' &&
+      (!identifier(message.externalId) ||
+        typeof message.title !== 'string' ||
+        !message.title.trim() ||
+        message.title.length > 65)
     )
       return null;
     if (

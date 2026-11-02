@@ -337,6 +337,7 @@ function relistingJobsFixture() {
   const calls = [];
   const records = new Map();
   let removed = false;
+  let submitted = false;
   let title = 'Jacke';
   let costsAllowed = true;
   const binding = {
@@ -413,6 +414,7 @@ function relistingJobsFixture() {
       if (action === 'prepare') return { valid: true };
       if (action === 'verify') return { complete: true };
       if (action === 'fee') return { state: 'free', observedAt: new Date().toISOString() };
+      if (action === 'submit') submitted = true;
       return { clicked: true };
     },
     quota: async () => ({
@@ -423,11 +425,14 @@ function relistingJobsFixture() {
       removed = true;
       return { confirmed: true };
     },
-    result: async () => ({
-      outcome: 'confirmed',
-      externalId: '99',
-      url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/99-1-2',
-    }),
+    result: async () =>
+      submitted
+        ? {
+            outcome: 'confirmed',
+            externalId: '99',
+            url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/99-1-2',
+          }
+        : { outcome: 'outcome_unknown' },
     show: async () => {},
   };
   return {
@@ -511,5 +516,58 @@ test('offene Sicherungen sind kontogebunden lesbar und verschwinden nach bestät
   );
   f.costs(true);
   await runtime.run(f.request, 'https://app.flipbase.de');
-  assert.equal((await runtime.list(f.request, 'https://app.flipbase.de')).length, 0);
+  assert.equal((await runtime.list(f.request, 'https://app.flipbase.de'))[0].phase, 'confirmed');
+});
+
+test('manuellen Abschluss nur nachlesen und danach keine Löschung oder Veröffentlichung wiederholen', async () => {
+  const f = relistingJobsFixture();
+  const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);
+  f.costs(false);
+  await runtime.run(f.request, 'https://app.flipbase.de');
+  assert.equal([...f.records.values()][0].phase, 'secured');
+  const before = [...f.calls];
+  f.adapter.result = async () => ({
+    outcome: 'confirmed',
+    externalId: '99',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/99-1-2',
+  });
+  const status = await runtime.list(f.request, 'https://app.flipbase.de');
+  assert.equal(status[0].phase, 'confirmed');
+  assert.deepEqual(f.calls.slice(before.length), ['save:confirmed']);
+  assert.equal((await runtime.run(f.request, 'https://app.flipbase.de')).newExternalId, '99');
+  assert.ok(!f.calls.includes('remove'));
+  assert.ok(!f.calls.includes('submit'));
+});
+test('ein fehlender Beleg räumt keine gesicherte Fassung weg', async () => {
+  const f = relistingJobsFixture();
+  f.costs(false);
+  const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);
+  await runtime.run(f.request, 'https://app.flipbase.de');
+  assert.equal((await runtime.list(f.request, 'https://app.flipbase.de'))[0].phase, 'secured');
+  assert.equal(f.records.size, 1);
+  assert.ok(!f.calls.includes('remove'));
+  assert.ok(!f.calls.includes('submit'));
+});
+test('konkrete Formularfehler vor der Löschung weitergeben', async () => {
+  const f = relistingFixture();
+  f.adapter.verify = async () => ({ complete: false, errorCode: 'invalid_fields' });
+  assert.equal(
+    (await context.FlipbaseKleinanzeigenRelisting.run(f.adapter)).errorCode,
+    'invalid_fields',
+  );
+  assert.ok(!f.calls.includes('remove'));
+});
+
+test('behält den technischen Fehlergrund trotz allgemeiner Meldung des Hintergrunddienstes', async () => {
+  const f = relistingFixture();
+  f.adapter.verify = async () => {
+    const error = new Error('Der Abgleich wurde gestoppt.');
+    error.code = 'invalid_fields';
+    throw error;
+  };
+  assert.equal(
+    (await context.FlipbaseKleinanzeigenRelisting.run(f.adapter)).errorCode,
+    'invalid_fields',
+  );
+  assert.ok(!f.calls.includes('remove'));
 });

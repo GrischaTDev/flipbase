@@ -92,6 +92,10 @@ export async function mockKleinanzeigen(
     ({ binding, available, syncFailure, relisting }) => {
       let local: Record<string, unknown> | null = binding;
       let pendingRelisting: Record<string, unknown> | null = null;
+      const deletedListings: Record<string, unknown>[] = [];
+      (
+        window as unknown as { flipbaseTestDeletes: Record<string, unknown>[] }
+      ).flipbaseTestDeletes = deletedListings;
       const send = (data: Record<string, unknown>) => window.postMessage(data, location.origin);
       window.addEventListener('flipbase-test-relist-complete', (event) => {
         if (!pendingRelisting) return;
@@ -129,6 +133,7 @@ export async function mockKleinanzeigen(
             vintedLocal: false,
             kleinanzeigenCapabilities: { accounts: available, sync: available, publish: false },
             kleinanzeigenRelisting: relisting,
+            kleinanzeigenDeletion: relisting,
           });
           return;
         }
@@ -143,7 +148,10 @@ export async function mockKleinanzeigen(
         let success = true;
         if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_STATUS') result = local;
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_ATTEMPTS') result = [];
-        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_LISTING') {
+        else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING') {
+          deletedListings.push(data);
+          result = { externalId: data['externalId'], confirmed: true };
+        } else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_RELIST_LISTING') {
           pendingRelisting = data;
           return;
         } else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_SYNC') {
@@ -256,6 +264,12 @@ export async function mockKleinanzeigen(
     requests,
     workspaceId,
     connectionId,
+    deletedListings: () =>
+      page.evaluate(
+        () =>
+          (window as unknown as { flipbaseTestDeletes: Record<string, unknown>[] })
+            .flipbaseTestDeletes,
+      ),
     completeRelisting: (outcome: 'confirmed' | 'needs_user_action' = 'confirmed') =>
       page.evaluate(
         (state) =>

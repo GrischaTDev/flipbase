@@ -16,6 +16,7 @@
   let kleinanzeigenFormSchemaAvailable = false;
   let kleinanzeigenAssistedListings = false;
   let kleinanzeigenRelisting = false;
+  let kleinanzeigenDeletion = false;
   let kleinanzeigenAccount;
   let localAccount;
   let readiness;
@@ -32,13 +33,14 @@
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: backgroundReachable || kleinanzeigenAvailable,
         backgroundReachable,
-        version: '1.11.0',
+        version: '1.13.0',
         vintedLocal: backgroundReachable,
         vintedSourceDetails: vintedSourceDetailsAvailable,
         kleinanzeigenQuota: kleinanzeigenQuotaAvailable,
         kleinanzeigenFormSchema: kleinanzeigenFormSchemaAvailable,
         kleinanzeigenAssistedListings,
         kleinanzeigenRelisting,
+        kleinanzeigenDeletion,
         kleinanzeigenCapabilities: {
           accounts: kleinanzeigenAvailable,
           sync: kleinanzeigenSyncAvailable,
@@ -53,7 +55,7 @@
     if (backgroundReachable || kleinanzeigenAvailable)
       window.dispatchEvent(
         new CustomEvent('flipbase:extension-ready', {
-          detail: { version: '1.11.0', ready: true },
+          detail: { version: '1.13.0', ready: true },
         }),
       );
   }
@@ -75,6 +77,7 @@
             kleinanzeigenAssistedListings =
               kleinanzeigenAvailable && response?.assistedListings === true;
             kleinanzeigenRelisting = kleinanzeigenAvailable && response?.relisting === true;
+            kleinanzeigenDeletion = kleinanzeigenAvailable && response?.deletion === true;
             kleinanzeigenAccount = kleinanzeigenAvailable ? (response.result ?? null) : undefined;
             announceExtension();
           },

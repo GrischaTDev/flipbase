@@ -2,7 +2,7 @@
   <app-page-header [title]="pageTitle" [icon]="storeIcon">
     <div header-actions class="flex flex-wrap gap-2">
       <app-button href="https://www.kleinanzeigen.de/m-nachrichten.html" target="_blank"
-        >Nachrichten bei Kleinanzeigen</app-button
+        >Postfach</app-button
       >
       @if (workspace.currentWorkspace(); as current) {
         @if (!current.archived_at) {
@@ -16,53 +16,16 @@
   @if (workspace.currentWorkspace(); as current) {
     @if (!current.archived_at) {
       @if (page === 'connection') {
-        <app-kleinanzeigen-accounts [workspaceId]="current.id" (changed)="reloadListings()" />
+        <section class="min-w-0 space-y-3" aria-labelledby="kleinanzeigen-connections-heading">
+          <h2
+            id="kleinanzeigen-connections-heading"
+            class="text-base font-semibold text-fb-text-primary"
+          >
+            Deine Kleinanzeigen-Konten
+          </h2>
+          <app-kleinanzeigen-accounts [workspaceId]="current.id" (changed)="reloadListings()" />
+        </section>
       } @else {
-        @if (page === 'overview') {
-          <div class="grid min-w-0 gap-3 sm:grid-cols-2">
-            <app-card variant="section">
-              <p class="text-sm text-fb-text-secondary">Verbundene Konten</p>
-              <p class="mt-2 text-2xl font-semibold text-fb-text-primary">
-                {{ accounts().length }}
-              </p>
-            </app-card>
-            <app-card variant="section">
-              <p class="text-sm text-fb-text-secondary">Aktive Inserate</p>
-              <p class="mt-2 text-2xl font-semibold text-fb-text-primary">
-                {{ activeCount() ?? '–' }}
-              </p>
-            </app-card>
-          </div>
-          <app-card variant="section">
-            <div class="space-y-3">
-              <h2 class="text-base font-semibold text-fb-text-primary">Deine Konten</h2>
-              <p class="text-sm text-fb-text-secondary">
-                Die aktuelle Erweiterung erneuert Deine Verbindung und gleicht Deine Inserate alle
-                15 Minuten ab, solange der Browser läuft und Du bei Kleinanzeigen angemeldet bist.
-              </p>
-              @for (account of accounts(); track accountKey(account)) {
-                <div
-                  class="flex flex-wrap items-center justify-between gap-3 border-t border-fb-border-subtle pt-3"
-                >
-                  <div class="min-w-0">
-                    <h3 class="truncate text-sm font-medium text-fb-text-primary">
-                      {{ account.displayName }}
-                    </h3>
-                    <p class="text-xs text-fb-text-secondary">
-                      Letzter Abgleich:
-                      {{
-                        (account.observedAt | date: 'dd.MM.yyyy HH:mm') || 'Noch nicht abgerufen'
-                      }}
-                    </p>
-                  </div>
-                  <app-button [link]="'/marketplaces/kleinanzeigen/listings'"
-                    >Inserate ansehen</app-button
-                  >
-                </div>
-              }
-            </div>
-          </app-card>
-        }
         @if (page === 'listings' || !accounts().length) {
           <section class="min-w-0 space-y-3" aria-labelledby="kleinanzeigen-accounts-heading">
             <h2

@@ -60,4 +60,22 @@ describe('Kleinanzeigen-Fortschritt', () => {
     workspace.currentWorkspace.set({ id: 'workspace', archived_at: '2026-11-01' });
     expect(store.entries()).toEqual([]);
   });
+  it('räumt nach bestätigter manueller Veröffentlichung den alten Prüfhinweis auf', () => {
+    const store = TestBed.inject(KleinanzeigenActionStore);
+    const key = store.begin(reference, 'Sneaker', 'Privat');
+    store.finish(key, 'paused', 'Formular prüfen');
+    store.reconcile({ ...reference, connectionId: 'foreign' });
+    expect(store.entries()[0].state).toBe('paused');
+    store.reconcile(reference);
+    expect(store.entries()[0]).toMatchObject({ state: 'success', message: 'Neu inseriert' });
+    const interrupted = store.begin(reference, 'Sneaker', 'Privat');
+    store.finish(interrupted, 'error', 'Ansicht gewechselt');
+    store.reconcile(reference);
+    expect(store.entries()[0]).toMatchObject({ state: 'success', message: 'Neu inseriert' });
+  });
+  it('unterscheidet den Löschfortschritt vom erneuten Inserieren', () => {
+    const store = TestBed.inject(KleinanzeigenActionStore);
+    store.begin(reference, 'Sneaker', 'Privat', 'delete');
+    expect(store.runningLabel(reference)).toBe('Wird gelöscht …');
+  });
 });

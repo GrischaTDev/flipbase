@@ -5,7 +5,6 @@ export const KLEINANZEIGEN_WORKSPACE_NAVIGATION: readonly {
   readonly label: string;
   readonly icon: WorkspaceNavigationIcon;
 }[] = [
-  { path: '/marketplaces/kleinanzeigen/overview', label: 'Übersicht', icon: 'dashboard' },
   { path: '/marketplaces/kleinanzeigen/listings', label: 'Inserate', icon: 'tag' },
   { path: '/marketplaces/kleinanzeigen/connection', label: 'Kontoverbindung', icon: 'settings' },
 ];
@@ -20,6 +19,6 @@ export function isKleinanzeigenNavigationActive(path: string, url: string): bool
   return (
     current === path ||
     current.startsWith(path + '/') ||
-    (path === '/marketplaces/kleinanzeigen/overview' && current === '/marketplaces/kleinanzeigen')
+    (path === '/marketplaces/kleinanzeigen/listings' && current === '/marketplaces/kleinanzeigen')
   );
 }

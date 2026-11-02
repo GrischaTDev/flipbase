@@ -86,6 +86,27 @@
   root.FlipbaseKleinanzeigenPublicationResults = Object.freeze({ confirm, readReceipt });
   if (typeof window === 'undefined' || !root.chrome?.runtime?.onMessage || window.top !== window)
     return;
+  // Die Erfolgsmeldung auch bei manueller Veröffentlichung sichern, bevor der Nutzer weiternavigiert.
+  function rememberReceipt() {
+    try {
+      const marker = JSON.parse(sessionStorage.getItem('flipbase_kleinanzeigen_attempt') ?? 'null');
+      const receipt = readReceipt(document);
+      if (marker?.attemptId && marker.jobId && receipt)
+        sessionStorage.setItem(
+          'flipbase_kleinanzeigen_receipt',
+          JSON.stringify({ ...marker, receipt }),
+        );
+    } catch {
+      /* Eine fehlende lokale Bestätigung bleibt ein unklarer Ausgang. */
+    }
+  }
+  rememberReceipt();
+  if (root.MutationObserver) {
+    const observer = new MutationObserver(rememberReceipt);
+    observer.observe(document.body, { childList: true, subtree: true });
+    root.setTimeout(() => observer.disconnect(), 120000);
+    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+  }
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (
       sender.id !== chrome.runtime.id ||
@@ -108,7 +129,24 @@
       marker.minimumDocumentTime !== message.minimumDocumentTime
     )
       return false;
-    respond({ success: true, result: { owned: true, receipt: readReceipt(document) } });
+    rememberReceipt();
+    let receipt = readReceipt(document);
+    if (!receipt) {
+      try {
+        const saved = JSON.parse(
+          sessionStorage.getItem('flipbase_kleinanzeigen_receipt') ?? 'null',
+        );
+        if (
+          saved?.attemptId === marker.attemptId &&
+          saved.jobId === marker.jobId &&
+          saved.minimumDocumentTime === marker.minimumDocumentTime
+        )
+          receipt = saved.receipt;
+      } catch {
+        /* Nur exakt zum Versuch passende Belege verwenden. */
+      }
+    }
+    respond({ success: true, result: { owned: true, receipt } });
     return true;
   });
 })(globalThis);

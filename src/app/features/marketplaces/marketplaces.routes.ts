@@ -56,9 +56,10 @@ export const MARKETPLACES_ROUTES: Routes = [
   {
     path: 'kleinanzeigen',
     children: [
-      { path: '', redirectTo: 'overview', pathMatch: 'full' },
-      { path: 'inbox', redirectTo: 'overview', pathMatch: 'full' },
-      ...['overview', 'listings', 'connection'].map((page) => ({
+      { path: '', redirectTo: 'listings', pathMatch: 'full' },
+      { path: 'inbox', redirectTo: 'listings', pathMatch: 'full' },
+      { path: 'overview', redirectTo: 'listings', pathMatch: 'full' },
+      ...['listings', 'connection'].map((page) => ({
         path: page,
         data: { page },
         loadComponent: () =>

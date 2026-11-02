@@ -83,6 +83,9 @@
         @for (account of visibleAccounts(); track account.connectionId) {
           <article
             class="min-w-0 space-y-4"
+            [class.linear-surface]="!connectionId()"
+            [class.rounded-xl]="!connectionId()"
+            [class.p-4]="!connectionId()"
             [attr.aria-label]="'Kleinanzeigen-Konto ' + account.displayName"
           >
             @let status = connectionStatus(account);
