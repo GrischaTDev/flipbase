@@ -1,36 +1,44 @@
-<span
-  role="group"
-  [attr.aria-label]="metrics().views === null ? 'Aufrufe unbekannt' : metrics().views + ' Aufrufe'"
->
-  <span class="inline-flex items-center gap-1 text-xs text-fb-text-secondary">
-    <svg lucideEye class="size-3.5" aria-hidden="true"></svg>
-    <span data-views class="tabular-nums">{{ metrics().views ?? '—' }}</span>
-    @if (change()?.views; as increase) {
-      <span data-metric-increase="views" class="font-semibold tabular-nums text-fb-badge-on-success"
-        ><span class="sr-only">{{ increase }} zusätzliche Aufrufe, {{ periodLabel() }}: </span>+{{
-          increase
-        }}</span
-      >
-    }
+@if (metric() !== 'favorites') {
+  <span
+    role="group"
+    [attr.aria-label]="
+      metrics().views === null ? 'Aufrufe unbekannt' : metrics().views + ' Aufrufe'
+    "
+  >
+    <span class="inline-flex items-center gap-1 text-xs text-fb-text-secondary">
+      <svg lucideEye class="size-3.5" aria-hidden="true"></svg>
+      <span data-views class="tabular-nums">{{ metrics().views ?? '—' }}</span>
+      @if (change()?.views; as increase) {
+        <span
+          data-metric-increase="views"
+          class="font-semibold tabular-nums text-fb-badge-on-success"
+          ><span class="sr-only">{{ increase }} zusätzliche Aufrufe, {{ periodLabel() }}: </span>+{{
+            increase
+          }}</span
+        >
+      }
+    </span>
   </span>
-</span>
-<span
-  role="group"
-  [attr.aria-label]="
-    metrics().favorites === null ? 'Favoritenzahl unbekannt' : metrics().favorites + ' Favoriten'
-  "
->
-  <span class="inline-flex items-center gap-1 text-xs text-fb-text-secondary">
-    <svg lucideHeart class="size-3.5" aria-hidden="true"></svg>
-    <span data-favorites class="tabular-nums">{{ metrics().favorites ?? '—' }}</span>
-    @if (change()?.favorites; as increase) {
-      <span
-        data-metric-increase="favorites"
-        class="font-semibold tabular-nums text-fb-badge-on-success"
-        ><span class="sr-only"
-          >Favoritenzahl um {{ increase }} gestiegen, {{ periodLabel() }}: </span
-        >+{{ increase }}</span
-      >
-    }
+}
+@if (metric() !== 'views') {
+  <span
+    role="group"
+    [attr.aria-label]="
+      metrics().favorites === null ? 'Favoritenzahl unbekannt' : metrics().favorites + ' Favoriten'
+    "
+  >
+    <span class="inline-flex items-center gap-1 text-xs text-fb-text-secondary">
+      <svg lucideHeart class="size-3.5" aria-hidden="true"></svg>
+      <span data-favorites class="tabular-nums">{{ metrics().favorites ?? '—' }}</span>
+      @if (change()?.favorites; as increase) {
+        <span
+          data-metric-increase="favorites"
+          class="font-semibold tabular-nums text-fb-badge-on-success"
+          ><span class="sr-only"
+            >Favoritenzahl um {{ increase }} gestiegen, {{ periodLabel() }}: </span
+          >+{{ increase }}</span
+        >
+      }
+    </span>
   </span>
-</span>
+}

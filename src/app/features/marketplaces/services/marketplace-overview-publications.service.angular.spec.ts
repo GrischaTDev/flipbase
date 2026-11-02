@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SupabaseService } from '../../../core/services/supabase.service';
+import { VintedListingOriginalPhotoService } from './vinted-listing-original-photo.service';
 import { MarketplaceApiService } from './marketplace-api.service';
 
 const scope = {
@@ -62,6 +63,10 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
     };
     TestBed.configureTestingModule({
       providers: [
+        {
+          provide: VintedListingOriginalPhotoService,
+          useValue: { entries: async (_scope: unknown, entries: readonly unknown[]) => entries },
+        },
         MarketplaceApiService,
         { provide: SupabaseService, useValue: { client: { from } } },
       ],

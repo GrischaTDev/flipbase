@@ -4,9 +4,11 @@
     size="slim"
     [ariaLabel]="title() + ' inserieren'"
     [ariaHaspopup]="'dialog'"
+    [icon]="publishIcon"
+    [iconOnly]="true"
+    title="Inserieren"
     (clicked)="open.set(true)"
-    >Inserieren</app-button
-  >
+  />
   @if (open()) {
     <app-listing-transfer-dialog
       [source]="reference()"

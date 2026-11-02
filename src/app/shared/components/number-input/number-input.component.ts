@@ -53,6 +53,15 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaDescribedby = input<string>('');
   readonly ariaInvalid = input<boolean | string | null>(null);
   readonly asCurrency = input<boolean>(false);
+  readonly fractionDigits = input<number | null>(null);
+  private readonly editingValue = signal<string | null>(null);
+  readonly displayValue = computed(() => {
+    const value = this.value();
+    const digits = this.fractionDigits();
+    return (
+      this.editingValue() ?? (value !== null && digits !== null ? value.toFixed(digits) : value)
+    );
+  });
   readonly disabled = input<boolean>(false);
   /** Kompatibilität für bestehende Aufrufer; visuelle Stepper werden nicht mehr gerendert. */
   readonly showStepper = input(false);
@@ -96,6 +105,7 @@ export class NumberInputComponent implements ControlValueAccessor {
   private onTouched: () => void = () => undefined;
 
   writeValue(val: number | null): void {
+    this.editingValue.set(null);
     this.value.set(val);
   }
 
@@ -113,10 +123,12 @@ export class NumberInputComponent implements ControlValueAccessor {
 
   handleInput(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;
+    if (this.fractionDigits() !== null) this.editingValue.set(raw);
     this.setValue(raw === '' ? null : Number(raw));
   }
 
   handleBlur(): void {
+    this.editingValue.set(null);
     this.onTouched();
   }
 

@@ -115,7 +115,12 @@ export class VintedListingFieldsDialogComponent {
   constructor() {
     effect(() => {
       const disabled = this.disabled() || this.loading();
-      for (const control of [this.colorLabels, this.materialLabels]) {
+      for (const control of [
+        ...Object.values(this.form.controls),
+        this.colorLabels,
+        this.materialLabels,
+      ]) {
+        if (control.disabled === disabled) continue;
         if (disabled) control.disable({ emitEvent: false });
         else control.enable({ emitEvent: false });
       }

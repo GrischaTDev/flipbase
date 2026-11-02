@@ -10,7 +10,10 @@
       >
         <app-action-status-indicator [state]="row.indicator" />
         <div class="min-w-0 flex-1">
-          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ row.label }}</p>
+          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">
+            {{ row.job.relistExternalId ? 'Relisten · ' : '' }}{{ row.label
+            }}{{ row.job.itemTitle ? ' · ' + row.job.itemTitle : '' }}
+          </p>
           <p class="truncate text-xs leading-5 text-fb-text-secondary">
             {{ row.accountName }}
             @if (row.planned) {

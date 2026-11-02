@@ -37,9 +37,12 @@
         jobs.job()?.state ?? ''
       )
     "
+    [icon]="publishIcon"
+    [iconOnly]="true"
+    title="Inserieren"
+    ariaLabel="Inserieren"
     (clicked)="openListing()"
-    >Inserieren</app-button
-  >
+  />
   <app-kleinanzeigen-publication-panel
     [scope]="publicationScope()"
     [publicationAllowed]="publicationAllowed()"

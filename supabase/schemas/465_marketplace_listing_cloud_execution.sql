@@ -31,12 +31,12 @@ begin
   if not found then return null; end if;
   perform public.marketplace_expire_cloud_listing_attempts();
   update public.marketplace_listing_jobs job set state='cancelled',error_code='authorization_revoked',lease_expires_at=null
-    where execution_mode='cloud' and state in ('queued','paused','claimed') and not public.marketplace_listing_job_valid(job);
+    where execution_mode='cloud' and state in ('queued','paused','claimed') and not (job.state='paused' and job.error_code='editing') and not public.marketplace_listing_job_valid(job);
   update public.marketplace_listing_jobs job set state='paused',error_code='schedule_late'
-    where execution_mode='cloud' and state='queued' and public.marketplace_listing_job_timing(job.scheduled_at,job.late_policy,clock_timestamp())='paused';
+    where execution_mode='cloud' and state='queued' and public.marketplace_listing_job_timing(coalesce(job.relist_publish_at,job.scheduled_at),job.late_policy,clock_timestamp())='paused';
   if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
   select * into v_job from public.marketplace_listing_jobs job where execution_mode='cloud' and state='queued' and public.marketplace_listing_job_valid(job)
-    and public.marketplace_listing_job_timing(job.scheduled_at,job.late_policy,clock_timestamp())='due'
+    and ((job.snapshot ? 'relistExternalId' and job.relist_publish_at is null) or public.marketplace_listing_job_timing(coalesce(job.relist_publish_at,job.scheduled_at),job.late_policy,clock_timestamp())='due')
     order by scheduled_at nulls first,created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
   select * into v_permission from public.marketplace_listing_permissions where id=v_job.permission_id for update;
@@ -46,7 +46,7 @@ begin
     cloud_browser_session_id=v_session.public_id,cloud_worker_id=p_worker_id,cloud_worker_epoch=p_worker_epoch,cloud_runner_id=p_runner_id where id=v_job.id returning * into v_job;
   return jsonb_build_object('jobId',v_job.id::text,'claimToken',v_job.claim_token,'workspaceId',v_job.workspace_id,'connectionId',v_job.connection_id,'userId',v_job.requested_by,
     'workerId',p_worker_id,'workerEpoch',p_worker_epoch,'runnerId',p_runner_id,'authorizationVersion',v_job.authorization_version,'externalAccountId',v_job.external_account_id,
-    'sessionId',v_session.public_id,'expiresAt',v_session.expires_at,'absoluteExpiresAt',v_session.absolute_expires_at,'action',v_job.action,'snapshot',v_job.snapshot);
+    'sessionId',v_session.public_id,'expiresAt',v_session.expires_at,'absoluteExpiresAt',v_session.absolute_expires_at,'action',v_job.action,'snapshot',v_job.snapshot || case when v_job.snapshot ? 'relistExternalId' then jsonb_build_object('relistStage',case when v_job.relist_publish_at is null then 'delete' else 'publish' end) else '{}'::jsonb end);
 end;
 $$;
 
@@ -61,7 +61,7 @@ begin
     and claim_token=p_claim_token and cloud_worker_id=p_worker_id and cloud_worker_epoch=p_worker_epoch and state in ('claimed','writing')
     and lease_expires_at>clock_timestamp() and absolute_expires_at>clock_timestamp() for update;
   if not found or not public.marketplace_listing_job_valid(v_job) then return v_inactive; end if;
-  if v_job.state='claimed' and public.marketplace_listing_job_timing(v_job.scheduled_at,v_job.late_policy,clock_timestamp())<>'due' then
+  if v_job.state='claimed' and not (v_job.snapshot ? 'relistExternalId' and v_job.relist_publish_at is null) and public.marketplace_listing_job_timing(coalesce(v_job.relist_publish_at,v_job.scheduled_at),v_job.late_policy,clock_timestamp())<>'due' then
     update public.marketplace_listing_jobs set state='paused',error_code='schedule_late',lease_expires_at=null where id=v_job.id;
     return v_inactive;
   end if;
@@ -97,6 +97,21 @@ begin
     and (connection_id=p_connection_id or (connection_id is null and snapshot->>'connectionId'=p_connection_id::text))
     and claim_token=p_claim_token and cloud_worker_id=p_worker_id and cloud_worker_epoch=p_worker_epoch for update;
   if not found then raise exception 'Inseratversuch ungültig.' using errcode='42501'; end if;
+  if p_result->>'outcome'='relisting_deleted' then
+    if v_job.provider_result=p_result then return public.marketplace_listing_job_document(v_job); end if;
+    if (select count(*) from jsonb_object_keys(p_result))<>4 or p_result->>'externalId' is distinct from v_job.snapshot->>'relistExternalId'
+      or p_result->>'externalAccountId' is distinct from v_job.external_account_id or p_result->>'verifiedAt' is null
+      or (p_result->>'verifiedAt')::timestamptz > clock_timestamp()+interval '1 minute' or (p_result->>'verifiedAt')::timestamptz < v_job.started_at-interval '1 minute'
+      or v_job.started_at is null or v_job.state not in ('writing','outcome_unknown') or v_job.relist_publish_at is not null then
+      raise exception 'Ungültiger Löschbeleg.' using errcode='22023';
+    end if;
+    update public.marketplace_account_entries set body=jsonb_set(body,'{publicationState}',to_jsonb('ended'::text)) where workspace_id=v_job.workspace_id and connection_id=v_job.connection_id and kind='publication' and external_id=v_job.snapshot->>'relistExternalId';
+    update public.marketplace_listing_drafts set relist_deleted_at=(p_result->>'verifiedAt')::timestamptz,relist_deleted_account_id=v_job.external_account_id where id=v_job.draft_id;
+    update public.marketplace_listing_jobs set state='queued',error_code=null,started_at=null,lease_expires_at=null,
+      relist_publish_at=coalesce(scheduled_at,clock_timestamp()+make_interval(secs=>relist_delay_seconds)),provider_result=p_result
+      where id=v_job.id returning * into v_job;
+    return public.marketplace_listing_job_document(v_job);
+  end if;
   return public.marketplace_listing_finish_job(v_job,p_result);
 end;
 $$;

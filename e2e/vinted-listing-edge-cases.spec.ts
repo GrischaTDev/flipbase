@@ -1,5 +1,5 @@
 import axe from 'axe-core';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Locator } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -23,7 +23,7 @@ const detailPath = `/marketplaces/vinted/listings/${accountIds[0]}/${entryId}`;
 
 for (const width of [390, 1440])
   for (const theme of ['light', 'dark'] as const) {
-    test(`Unvollständigen Vinted-Entwurf durch Datenübernahme ergänzen bei ${width}px ${theme} @marketplace-preview`, async ({
+    test(`Unvollständigen Vinted-Entwurf direkt im Formular ergänzen bei ${width}px ${theme} @marketplace-preview`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -43,23 +43,6 @@ for (const width of [390, 1440])
           json: { fields: { title: 'Unvollständiger Entwurf', description: '', price: '' } },
         }),
       );
-      const source = {
-        id: '2',
-        workspaceId,
-        connectionId: null,
-        revision: 1,
-        content: { ...emptyVintedListingContent(), title: 'Preisquelle', priceCents: 1800 },
-        images: [],
-        inventoryItemId: null,
-        createdAt: '2026-10-20T10:00:00Z',
-        updatedAt: '2026-10-20T10:00:00Z',
-      };
-      await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', (route) =>
-        route.fulfill({ json: { items: [source], nextCursor: null } }),
-      );
-      await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
-        route.fulfill({ json: source }),
-      );
       const saves: Record<string, unknown>[] = [];
       await page.route('**/marketplace-browser/listings/edit/save', (route) => {
         saves.push(route.request().postDataJSON() as Record<string, unknown>);
@@ -75,33 +58,10 @@ for (const width of [390, 1440])
       await expect(
         detail.getByRole('heading', { name: 'Vinted-Entwurf bearbeiten', exact: true }),
       ).toBeVisible();
-      const opener = detail.getByRole('button', { name: 'Daten übernehmen', exact: true });
-      await expect(opener).toBeEnabled();
-      await expect(detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
-        '',
-      );
-      await opener.click();
-      const dialog = page.getByRole('dialog', { name: 'Daten übernehmen', exact: true });
-      await dialog.getByRole('combobox', { name: 'Quelle auswählen' }).click();
-      await dialog.getByRole('option', { name: 'Preisquelle', exact: true }).click();
-      await expect(dialog.getByRole('checkbox')).toHaveCount(3);
-      await dialog.getByRole('checkbox', { name: 'Verkaufspreis', exact: true }).click();
       await expect(
-        dialog.getByRole('checkbox', { name: 'Verkaufspreis', exact: true }),
-      ).toBeChecked();
-      await page.evaluate(axe.source);
-      expect(
-        (
-          await page.evaluate(() =>
-            (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listing-copy-dialog'),
-          )
-        ).violations,
-      ).toEqual([]);
-      await dialog.getByRole('button', { name: 'Übertragen', exact: true }).click();
-      await expect(dialog).not.toBeVisible();
-      await expect(detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
-        '18,00',
-      );
+        detail.getByRole('button', { name: 'Daten übernehmen', exact: true }),
+      ).toHaveCount(0);
+      await detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('18,00');
       expect(saves).toEqual([]);
       await detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
       await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
@@ -136,8 +96,12 @@ async function prepareListing(page: Page, listing: ListingFixture) {
     Reflect.deleteProperty(Object.getPrototypeOf(navigator), 'serviceWorker'),
   );
   await mockMarketplace(page, true, false, false, false, []);
+  await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
+    route.fulfill({ json: { items: [] } }),
+  );
   const entry = {
     id: entryId,
+    externalId: '98765',
     publicationState: 'active',
     ...listing,
     price: 29.9,
@@ -226,11 +190,12 @@ async function prepareListing(page: Page, listing: ListingFixture) {
   return runtimeErrors;
 }
 
-async function screenshot(page: Page, name: string) {
+async function screenshot(page: Page, name: string, surface?: Locator) {
   const directory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
   if (!directory) return;
   await mkdir(directory, { recursive: true });
-  await page.screenshot({ path: join(directory, `${name}.png`), fullPage: true });
+  if (surface) await surface.screenshot({ path: join(directory, `${name}.png`) });
+  else await page.screenshot({ path: join(directory, `${name}.png`), fullPage: true });
 }
 
 async function checkPage(page: Page, runtimeErrors: string[]) {
@@ -420,7 +385,7 @@ for (const width of [320, 390, 834, 1440]) {
       const listView = page.getByRole('button', { name: 'Listenansicht', exact: true });
       await expect(gridView).toHaveAttribute('aria-pressed', 'true');
       await expect(listView).toHaveAttribute('aria-pressed', 'false');
-      const cards = page.locator('app-vinted-listings a[aria-label^="Inserat "]');
+      const cards = page.locator('app-vinted-listings [data-listing-row]');
       const firstThumbnail = cards.first().locator('app-product-thumbnail');
       const gridWidth = (await firstThumbnail.boundingBox())!.width;
       await listView.click();
@@ -430,13 +395,21 @@ for (const width of [320, 390, 834, 1440]) {
       const checkPublicationStates = async () => {
         await expect(
           page
-            .getByRole('link', { name: 'Inserat Neu eingestellter Schal öffnen', exact: true })
+            .locator('[data-listing-row]')
+            .filter({
+              has: page.getByRole('link', {
+                name: 'Inserat Neu eingestellter Schal öffnen',
+                exact: true,
+              }),
+            })
             .locator('app-vinted-listing-age'),
         ).toHaveText('Neu');
         for (const stateCase of stateCases.filter((stateCase) => stateCase.state !== 'draft')) {
-          const card = page.getByRole('link', {
-            name: `Inserat ${stateCase.title} öffnen`,
-            exact: true,
+          const card = page.locator('[data-listing-row]').filter({
+            has: page.getByRole('link', {
+              name: `Inserat ${stateCase.title} öffnen`,
+              exact: true,
+            }),
           });
           await expect(card.getByText(stateCase.label, { exact: true })).toBeVisible();
           if (stateCase.state !== 'reserved')
@@ -466,13 +439,13 @@ for (const width of [320, 390, 834, 1440]) {
         'Eine besonders lange Testmarke ohne Zeilenumbruch',
       );
       await expect(cards.first()).toContainText('29,90');
-      await expect(cards.first().locator('app-vinted-listing-metrics')).toBeVisible();
+      await expect(cards.first().locator('app-vinted-listing-metrics').first()).toBeVisible();
       await expect(cards.first().getByText('Gepusht', { exact: true })).toBeVisible();
       await expect(cards.first().locator('[data-metric-increase="favorites"]')).toContainText('+3');
       const listBounds = (await cards.first().boundingBox())!;
       const statusBounds = (await cards
         .first()
-        .locator('p[title="Zustand: Sehr gut"]')
+        .locator('[title="Zustand: Sehr gut"]')
         .boundingBox())!;
       expect(statusBounds.width).toBeGreaterThan(1);
       const metricBounds = await cards
@@ -728,6 +701,32 @@ for (const width of [390, 1440])
           text: 'Vorhandener Text',
           textState: 'loaded',
         });
+        await page.route('**/auth/v1/user', (route) =>
+          route.fulfill({
+            json: {
+              id: '25000000-0000-4000-8000-000000000001',
+              email: 'marketplace@example.test',
+              aud: 'authenticated',
+              role: 'authenticated',
+              app_metadata: {},
+              user_metadata: { flipbase_action_overview: true },
+              created_at: '2026-09-26T00:00:00Z',
+            },
+          }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
+          route.fulfill({
+            json: {
+              ok: true,
+              workspaceId,
+              connectionId: route.request().postDataJSON().p_connection_id,
+              actions: [],
+            },
+          }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+          route.fulfill({ json: { items: [] } }),
+        );
         await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
         let reads = 0;
         for (const route of ['edit/read', 'content/read'])
@@ -740,7 +739,7 @@ for (const width of [390, 1440])
         await page.route('**/marketplace-browser/listings/price/save', async (route) => {
           saves.push(route.request().postDataJSON());
           if (saves.length === 1) return route.fulfill({ json: { status: 'unconfirmed' } });
-          if (saves.length > 2) return route.fulfill({ json: { status: 'confirmed' } });
+          if (saves.length > 3) return route.fulfill({ json: { status: 'confirmed' } });
           await new Promise<void>((resolve) => {
             finishSave = resolve;
           });
@@ -752,7 +751,7 @@ for (const width of [390, 1440])
         await opener.click();
         const dialog = page.getByRole('dialog', { name: 'Preis ändern', exact: true });
         const input = dialog.getByRole('spinbutton', { name: 'Neuer Verkaufspreis', exact: true });
-        await expect(input).toHaveValue('29.9');
+        await expect(input).toHaveValue('29.90');
         await expect(input).toBeEnabled();
         expect(reads).toBe(0);
         await page.keyboard.press('Escape');
@@ -762,9 +761,22 @@ for (const width of [390, 1440])
         await input.fill('24.5');
         await screenshot(page, `vinted-price-dialog-${width}-${theme}`);
         await input.press('Enter');
-        await expect(dialog.getByRole('alert')).toContainText('bestätigt');
-        await expect(input).toHaveValue('24.5');
+        await expect(dialog).not.toBeVisible();
+        await expect(
+          detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }),
+        ).toBeFocused();
         await expect(detail).toContainText('29,90');
+        const runningActions = page.getByRole('button', { name: /Laufende Aktionen/ });
+        await runningActions.click();
+        await expect(
+          page.getByText('Preisänderung · Jacke für Preisänderung', { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByText(/Vinted hat die Änderung nicht eindeutig bestätigt/),
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await opener.click();
+        await input.fill('24.50');
         for (const key of ['Tab', 'Shift+Tab']) {
           for (let step = 0; step < 5; step++) {
             await page.keyboard.press(key);
@@ -779,15 +791,16 @@ for (const width of [390, 1440])
             )
           ).violations,
         ).toEqual([]);
-        await screenshot(page, `vinted-price-${width}-${theme}`);
-        await dialog.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
-        await expect(input).toBeDisabled();
-        await page.keyboard.press('Escape');
-        await expect(dialog).toBeVisible();
-        expect(saves).toHaveLength(2);
-        finishSave();
+        await dialog.getByRole('button', { name: 'Preis speichern', exact: true }).click();
         await expect(dialog).not.toBeVisible();
-        await expect(opener).toBeFocused();
+        await expect(
+          detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }),
+        ).toBeFocused();
+        expect(saves).toHaveLength(2);
+        await runningActions.click();
+        await expect(page.getByText('Preis wird geändert …', { exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
+        finishSave();
         await expect(detail).toContainText('24,50');
         expect(saves).toEqual(
           [1, 2].map(() => ({
@@ -809,15 +822,48 @@ for (const width of [390, 1440])
           exact: true,
         });
         await quickPrice.click();
-        await expect(input).toHaveValue('24.5');
+        await expect(input).toHaveValue('24.50');
         await page.keyboard.press('Escape');
         await expect(quickPrice).toBeFocused();
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        await expect(wardrobe.getByRole('columnheader')).toHaveText([
+          'Artikel',
+          'Alter',
+          'Aufrufe',
+          'Favoriten',
+          'Preis',
+          'Aktionen',
+        ]);
+        await expect(
+          wardrobe
+            .locator('[data-listing-row] td')
+            .last()
+            .getByRole('button', { name: 'Preis für Jacke für Preisänderung ändern', exact: true }),
+        ).toBeVisible();
         await quickPrice.click();
         await input.fill('22');
         await input.press('Enter');
         await expect(dialog).not.toBeVisible();
-        await expect(quickPrice).toBeFocused();
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(1);
+        await expect(
+          wardrobe.getByRole('status').filter({ hasText: 'Preis wird geändert' }),
+        ).toBeVisible();
+        await screenshot(page, `vinted-price-running-list-${width}-${theme}`, wardrobe);
+        await wardrobe.getByRole('button', { name: 'Rasteransicht', exact: true }).click();
+        const busyCard = wardrobe.locator('[data-listing-row][aria-busy="true"]');
+        await expect(busyCard.locator('app-product-thumbnail')).toBeVisible();
+        await expect(busyCard.getByRole('status')).toBeVisible();
+        const imageBox = await busyCard.locator('app-product-thumbnail').boundingBox();
+        const statusBox = await busyCard.getByRole('status').boundingBox();
+        expect(imageBox).not.toBeNull();
+        expect(statusBox).not.toBeNull();
+        expect(
+          Math.abs(statusBox!.y + statusBox!.height / 2 - (imageBox!.y + imageBox!.height / 2)),
+        ).toBeLessThan(2);
+        await screenshot(page, `vinted-price-running-grid-${width}-${theme}`, wardrobe);
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        finishSave();
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(0);
         await expect(wardrobe).toContainText('22,00');
         await expect(page).toHaveURL(/\/vinted\/listings$/);
         expect(saves[2]).toEqual({
@@ -959,3 +1005,518 @@ for (const width of [1440, 390]) {
     await checkPage(page, errors);
   });
 }
+
+for (const width of [390, 1440])
+  for (const theme of ['light', 'dark'] as const)
+    test.describe(`Relist-Editor ${width} ${theme}`, () => {
+      test.use({ hasTouch: width === 390 });
+      test.use({ hasTouch: width < 1024 });
+      test(`Relisten und Vorlage bewahren Originale und übernehmen vollständige Daten bei ${width}px ${theme} @marketplace-preview`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const errors = await prepareListing(page, {
+          title: 'Meine Schuhe',
+          text: 'Sehr gut erhalten.',
+          textState: 'loaded',
+        });
+        await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+        const original = Buffer.from(
+          await page.evaluate(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 160;
+            canvas.height = 200;
+            const context = canvas.getContext('2d')!;
+            context.fillStyle = '#b6d5e8';
+            context.fillRect(0, 0, 160, 200);
+            return canvas.toDataURL('image/jpeg').split(',')[1];
+          }),
+          'base64',
+        );
+        const metadata = Buffer.from('Exif\0\0Flipbase-Metadaten-Test', 'utf8');
+        const segment = Buffer.alloc(metadata.length + 4);
+        segment[0] = 255;
+        segment[1] = 225;
+        segment.writeUInt16BE(metadata.length + 2, 2);
+        metadata.copy(segment, 4);
+        const photo = Buffer.concat([original.subarray(0, 2), segment, original.subarray(2)]);
+        const listing = {
+          ...listingCurrentContentFixture(),
+          externalAccountId: '100',
+          photoUrls: ['https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg'],
+        };
+        await page.route('**/marketplace-browser/listings/content/read', (route) =>
+          route.fulfill({ json: { listing } }),
+        );
+        await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
+          route.fulfill({
+            contentType: 'image/jpeg',
+            headers: { 'access-control-allow-origin': '*' },
+            body: photo,
+          }),
+        );
+        await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+          route.fulfill({
+            json: {
+              id: 1,
+              refreshed_at: '2026-11-02T00:00:00Z',
+              requested_at: null,
+              last_attempt_at: null,
+              category_count: 1,
+              last_error: null,
+            },
+          }),
+        );
+        await page.route('**/rest/v1/vinted_categories*', (route) =>
+          route.fulfill({
+            json:
+              Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
+                ? []
+                : [{ id: 2738, parent_id: null, title: 'Fußballschuhe', path: 'Fußballschuhe' }],
+          }),
+        );
+        await page.goto('/marketplaces/vinted/listings');
+        const wardrobe = page.locator('app-vinted-listings');
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        const sourceActions = wardrobe.locator('[data-listing-row] td').last();
+        await expect(sourceActions.getByRole('button')).toHaveCount(4);
+        const actionBounds = await sourceActions.boundingBox();
+        for (const button of await sourceActions.getByRole('button').all()) {
+          const bounds = await button.boundingBox();
+          expect(bounds!.x).toBeGreaterThanOrEqual(actionBounds!.x);
+          expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+            actionBounds!.x + actionBounds!.width,
+          );
+        }
+        await screenshot(page, `vinted-wardrobe-actions-${width}-${theme}`, wardrobe);
+        await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
+        const editor = page.locator('app-vinted-listing-editor');
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await expect(
+          editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
+        ).toHaveValue(listing.content.description);
+        await expect(editor.getByLabel('Marke', { exact: true })).toHaveValue('Jako');
+        await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await expect(
+          editor.getByRole('button', { name: 'Daten übernehmen', exact: true }),
+        ).toHaveCount(0);
+        await expect(
+          editor.getByRole('button', { name: 'Entwurf speichern', exact: true }),
+        ).toHaveCount(0);
+        await expect(
+          editor.getByText(/Die Vinted-Kategorien konnten nicht geladen werden/),
+        ).toHaveCount(0);
+        await expect(
+          editor.getByRole('button', { name: 'Relisting festlegen', exact: true }),
+        ).toBeVisible();
+        const preview = editor.locator('app-vinted-listing-media img').first();
+        await expect(preview).toBeVisible();
+        const prepared = await preview.evaluate(async (image: HTMLImageElement) => ({
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+          bytes: Array.from(new Uint8Array(await (await fetch(image.src)).arrayBuffer())),
+        }));
+        expect([prepared.width, prepared.height]).toEqual([160, 200]);
+        expect(Buffer.from(prepared.bytes).equals(photo)).toBe(true);
+        await screenshot(
+          page,
+          `vinted-relist-details-${width}-${theme}`,
+          page.locator('[data-modal-surface]'),
+        );
+        await editor.getByRole('button', { name: 'Relisting festlegen', exact: true }).click();
+        await expect(
+          editor.getByRole('heading', { name: 'Relisting festlegen', exact: true }),
+        ).toBeVisible();
+        await expect(
+          editor.getByRole('combobox', { name: 'Auflösung', exact: true }),
+        ).toContainText('Keine Änderung');
+        await expect(editor.getByRole('checkbox', { name: 'Bildauflösung anpassen' })).toHaveCount(
+          0,
+        );
+        const outputPreview = editor.locator('app-vinted-listing-photo-preview img');
+        await expect(outputPreview).toBeVisible();
+        await editor.getByRole('combobox', { name: 'Filter', exact: true }).click();
+        await page.getByRole('option', { name: 'Heller', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Weißer Rahmen', exact: true }).click();
+        await page.getByRole('option', { name: 'Mittel', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Auflösung', exact: true }).click();
+        await page.getByRole('option', { name: '1600 Pixel', exact: true }).click();
+        await expect(outputPreview).toBeVisible();
+        await expect(outputPreview).toHaveJSProperty('naturalHeight', 1600);
+        await editor
+          .getByRole('combobox', { name: 'Veröffentlichungszeitpunkt', exact: true })
+          .click();
+        await page.getByRole('option', { name: 'Verzögert relisten', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Wartezeit', exact: true }).click();
+        await page.getByRole('option', { name: '10 Min.', exact: true }).click();
+        await editor
+          .getByRole('combobox', { name: 'Veröffentlichungszeitpunkt', exact: true })
+          .click();
+        await page.getByRole('option', { name: 'Relisting planen', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
+        await editor
+          .getByRole('button', { name: 'Zurück zu den Artikeldetails', exact: true })
+          .click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await editor.getByRole('button', { name: 'Relisting festlegen', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toBeVisible();
+        await page.evaluate(axe.source);
+        expect(
+          (
+            await page.evaluate(() =>
+              (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listing-editor'),
+            )
+          ).violations,
+        ).toEqual([]);
+        await screenshot(
+          page,
+          `vinted-relist-${width}-${theme}`,
+          page.locator('[data-modal-surface]'),
+        );
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        await expect(editor).toHaveCount(0);
+        await wardrobe
+          .getByRole('button', {
+            name: 'Meine Schuhe als Vorlage für neues Inserat verwenden',
+            exact: true,
+          })
+          .click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await expect(
+          editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
+        ).toBeVisible();
+        await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await screenshot(
+          page,
+          `vinted-template-${width}-${theme}`,
+          page.locator('[data-modal-surface]'),
+        );
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        const originalSource = {
+          id: '40',
+          workspaceId,
+          connectionId: accountIds[0],
+          revision: 1,
+          content: listing.content,
+          images: [
+            {
+              id: '41',
+              storagePath: `${workspaceId}/40/25000000-0000-4000-8000-000000000041.jpg`,
+              fileName: 'camera-original.jpg',
+              mimeType: 'image/jpeg',
+              byteSize: photo.length,
+            },
+          ],
+          inventoryItemId: null,
+          createdAt: '2026-11-02T00:00:00Z',
+          updatedAt: '2026-11-02T00:00:00Z',
+        };
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) =>
+          route.fulfill({
+            json: {
+              items: route.request().postDataJSON().p_external_ids.includes('98765')
+                ? [{ externalId: '98765', draft: originalSource }]
+                : [],
+            },
+          }),
+        );
+        await page.route('**/storage/v1/**', (route) =>
+          route.request().method() === 'POST'
+            ? route.fulfill({
+                json: (route.request().postDataJSON().paths as string[]).map((path) => ({
+                  path,
+                  signedURL: `/object/sign/marketplace-listing-media/${path}?token=original`,
+                  error: null,
+                })),
+              })
+            : route.fulfill({ contentType: 'image/jpeg', body: photo }),
+        );
+        // Vinted liefert inzwischen eine bearbeitete Ausgabe; Flipbase muss die private Quelle laden.
+        await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
+          route.fulfill({
+            contentType: 'image/jpeg',
+            headers: { 'access-control-allow-origin': '*' },
+            body: original,
+          }),
+        );
+        await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        const restored = await editor
+          .locator('app-vinted-listing-media img')
+          .first()
+          .evaluate(async (image: HTMLImageElement) =>
+            Array.from(new Uint8Array(await (await fetch(image.src)).arrayBuffer())),
+          );
+        expect(Buffer.from(restored).equals(photo)).toBe(true);
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        const createdAt = new Date().toISOString();
+        let plannedDraft = {
+          id: '20',
+          workspaceId,
+          connectionId: accountIds[0],
+          relistExternalId: '98765',
+          revision: 1,
+          content: { ...listing.content, aiPhoto: listing.aiPhoto },
+          photoOptions: { resize: null, crops: {}, filter: 'darker', border: 'small' },
+          images: [
+            {
+              id: '21',
+              storagePath: `${workspaceId}/20/25000000-0000-4000-8000-000000000041.jpg`,
+              fileName: 'foto.jpg',
+              mimeType: 'image/jpeg',
+              byteSize: photo.length,
+            },
+          ],
+          inventoryItemId: null,
+          createdAt,
+          updatedAt: createdAt,
+        };
+        let plannedJob = {
+          id: '30',
+          workspaceId,
+          connectionId: accountIds[0],
+          draftId: '20',
+          draftRevision: 1,
+          relistExternalId: '98765',
+          relistDeletedAt: createdAt,
+          relistDelaySeconds: 0,
+          itemTitle: listing.content.title,
+          externalAccountId: '100',
+          executionMode: 'cloud',
+          action: 'publish',
+          state: 'queued',
+          version: 1,
+          scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+          timeZone: 'Europe/Berlin',
+          latePolicy: 'pause_after_30_minutes',
+          errorCode: null as string | null,
+          externalId: null as string | null,
+          providerState: null as 'active' | 'processing' | null,
+          verifiedAt: null as string | null,
+          createdAt,
+          updatedAt: createdAt,
+          replacesJobId: null as string | null,
+        };
+        const edits: boolean[] = [];
+        const enqueues: Record<string, unknown>[] = [];
+        let acceptedDraft = plannedDraft;
+        let planVisible = true;
+        await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
+          route.fulfill({
+            json: { items: planVisible ? [{ job: plannedJob, draft: acceptedDraft }] : [] },
+          }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+          route.fulfill({ json: { items: [plannedJob] } }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
+          route.fulfill({ json: plannedDraft }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_save_listing_draft', (route) => {
+          const body = route.request().postDataJSON();
+          plannedDraft = {
+            ...plannedDraft,
+            content: body.p_content,
+            revision: plannedDraft.revision + 1,
+          };
+          return route.fulfill({ json: plannedDraft });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_set_listing_photo_options', (route) => {
+          plannedDraft = {
+            ...plannedDraft,
+            photoOptions: route.request().postDataJSON().p_options,
+            revision: plannedDraft.revision + 1,
+          };
+          return route.fulfill({ json: plannedDraft });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_edit_relisting_plan', (route) => {
+          const body = route.request().postDataJSON();
+          edits.push(body.p_editing);
+          plannedJob = {
+            ...plannedJob,
+            state: body.p_editing ? 'paused' : 'queued',
+            errorCode: body.p_editing ? 'editing' : null,
+            version: plannedJob.version + 1,
+          };
+          return route.fulfill({ json: plannedJob });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_enqueue_relisting', (route) => {
+          const body = route.request().postDataJSON();
+          enqueues.push(body);
+          acceptedDraft = plannedDraft;
+          plannedJob = {
+            ...plannedJob,
+            id: '31',
+            state: 'queued',
+            errorCode: null,
+            draftRevision: plannedDraft.revision,
+            itemTitle: plannedDraft.content.title,
+            scheduledAt: body.p_scheduled_at,
+            timeZone: body.p_time_zone,
+            version: 1,
+            replacesJobId: '30',
+          };
+          return route.fulfill({ json: plannedJob });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_permission', (route) =>
+          route.fulfill({
+            json: { allowed: true, authorizationVersion: 1, executionMode: 'cloud' },
+          }),
+        );
+        await page.route('**/functions/v1/vinted-brand-search', (route) =>
+          route.fulfill({ json: { brands: [{ id: 254956, name: 'Jako' }] } }),
+        );
+        await page.route('**/marketplace-browser/healthz', (route) =>
+          route.fulfill({
+            json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: true },
+          }),
+        );
+        await page.route('**/storage/v1/**', (route) =>
+          route.request().method() === 'POST'
+            ? route.fulfill({
+                json: (route.request().postDataJSON().paths as string[]).map((path) => ({
+                  path,
+                  signedURL: `/object/sign/marketplace-listing-media/${path}?token=fixture`,
+                  error: null,
+                })),
+              })
+            : route.fulfill({ contentType: 'image/jpeg', body: photo }),
+        );
+        const importedResponse = page.waitForResponse(
+          (response) =>
+            response.url().endsWith('/rpc/marketplace_read_snapshot') &&
+            response.request().postDataJSON()?.p_connection_id === accountIds[0],
+        );
+        await page.goto('/marketplaces/vinted/listings');
+        const imported = await (await importedResponse).json();
+        const plan = wardrobe
+          .locator('[data-relisting-plan]')
+          .filter({ hasText: listing.content.title });
+        await expect(plan).toContainText('Veröffentlichung geplant für');
+        await expect(
+          wardrobe.getByRole('heading', {
+            name: 'Noch keine Artikel im Kleiderschrank',
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await expect(
+          wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
+        ).toHaveCount(0);
+        await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
+        await expect(plan).toContainText('Veröffentlichung geplant für');
+        await expect(
+          wardrobe.getByRole('heading', {
+            name: 'Noch keine Artikel im Kleiderschrank',
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await plan
+          .getByRole('button', {
+            name: `Planung für ${listing.content.title} bearbeiten`,
+            exact: true,
+          })
+          .click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        await page.keyboard.press('Escape');
+        await expect(editor).toHaveCount(0);
+        expect(edits).toEqual([true, false]);
+        await plan
+          .getByRole('button', {
+            name: `Planung für ${listing.content.title} bearbeiten`,
+            exact: true,
+          })
+          .click();
+        await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('25,90');
+        await editor.getByRole('button', { name: 'Relisting festlegen', exact: true }).click();
+        await expect(editor.getByRole('combobox', { name: 'Filter', exact: true })).toContainText(
+          'Dunkler',
+        );
+        await expect(
+          editor.getByRole('combobox', { name: 'Weißer Rahmen', exact: true }),
+        ).toContainText('Klein');
+        await editor.getByRole('combobox', { name: 'Filter', exact: true }).click();
+        await page.getByRole('option', { name: 'Weicher', exact: true }).click();
+        await editor.getByRole('combobox', { name: 'Weißer Rahmen', exact: true }).click();
+        await page.getByRole('option', { name: 'Groß', exact: true }).click();
+        await editor.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+        await expect(editor).toHaveCount(0);
+        expect(plannedDraft.content.priceCents).toBe(2590);
+        expect(plannedDraft.photoOptions).toMatchObject({ filter: 'soft', border: 'large' });
+        expect(enqueues).toHaveLength(1);
+        expect(enqueues[0]).toMatchObject({
+          p_draft_id: '20',
+          p_replaces_job_id: '30',
+          p_delay_seconds: 0,
+          p_time_zone: await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+        });
+        await screenshot(page, `vinted-relist-planned-${width}-${theme}`, wardrobe);
+        await checkPage(page, errors);
+        plannedJob = {
+          ...plannedJob,
+          state: 'confirmed',
+          externalId: '45678',
+          providerState: 'active',
+          verifiedAt: new Date().toISOString(),
+        };
+        await expect(plan).toContainText('Veröffentlicht', { timeout: 15000 });
+        await expect(
+          wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
+        ).toHaveCount(0);
+        let releaseImport!: () => void;
+        const importReady = new Promise<void>((resolve) => {
+          releaseImport = resolve;
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_snapshot', async (route) => {
+          await importReady;
+          return route.fulfill({
+            json: {
+              ...imported,
+              publications: {
+                items: [
+                  {
+                    ...imported.publications.items[0],
+                    id: 'publication-new',
+                    externalId: '45678',
+                    title: 'Neu veröffentlicht',
+                    price: 25.9,
+                  },
+                ],
+                total: 1,
+                nextCursor: null,
+              },
+            },
+          });
+        });
+        const pendingImport = page.waitForRequest(
+          (request) =>
+            request.url().endsWith('/rpc/marketplace_read_snapshot') &&
+            request.postDataJSON()?.p_connection_id === accountIds[0],
+        );
+        planVisible = false;
+        await pendingImport;
+        await expect(plan).toContainText('Veröffentlicht');
+        await expect(
+          wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
+        ).toHaveCount(0);
+        releaseImport();
+        await expect(
+          wardrobe.getByRole('button', { name: 'Neu veröffentlicht relisten', exact: true }),
+        ).toBeVisible();
+        await expect(plan).toHaveCount(0);
+        await checkPage(page, errors);
+      });
+    });

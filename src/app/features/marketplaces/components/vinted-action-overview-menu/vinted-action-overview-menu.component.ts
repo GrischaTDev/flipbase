@@ -21,6 +21,7 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
 
@@ -50,13 +51,22 @@ export class VintedActionOverviewMenuComponent {
   readonly store = inject(VintedActionOverviewHeaderStore);
   readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly kleinanzeigen = inject(KleinanzeigenActionStore);
+  readonly listingOperations = inject(VintedListingOperationStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   readonly opened = signal(false);
   readonly mobile = signal(window.innerWidth < 640);
-  readonly count = computed(() => this.store.count() + this.kleinanzeigen.runningCount());
+  readonly count = computed(
+    () =>
+      this.store.count() +
+      this.kleinanzeigen.runningCount() +
+      this.listingOperations.runningCount(),
+  );
   readonly hasRunning = computed(
-    () => this.store.hasRunning() || this.kleinanzeigen.runningCount() > 0,
+    () =>
+      this.store.hasRunning() ||
+      this.kleinanzeigen.runningCount() > 0 ||
+      this.listingOperations.runningCount() > 0,
   );
   readonly hasFailure = computed(
     () =>

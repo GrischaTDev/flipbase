@@ -62,10 +62,10 @@ async function mockShoeCategories(page: Page) {
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
 for (const width of [390, 1440]) {
-  test.describe(`Datenübernahme ${width}px`, () => {
+  test.describe(`direkte Bearbeitung ${width}px`, () => {
     test.use({ hasTouch: width === 390 });
     for (const theme of ['light', 'dark'] as const) {
-      test(`trennt Vinted-Entwürfe und übernimmt gewählte Daten bei ${width}px ${theme} @marketplace-preview`, async ({
+      test(`trennt Vinted-Entwürfe und speichert direkte Änderungen bei ${width}px ${theme} @marketplace-preview`, async ({
         page,
       }) => {
         await page.setViewportSize({ width, height: 1000 });
@@ -78,22 +78,6 @@ for (const width of [390, 1440]) {
         });
         const state = await mockDrafts(page, true);
         await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
-        const source = {
-          ...state.draft(),
-          id: '2',
-          content: {
-            ...emptyVintedListingContent(),
-            title: 'Quelljacke',
-            description: 'Nur Text der Quelle',
-            priceCents: 9900,
-          },
-        };
-        state.setOverviewDrafts([state.draft(), source]);
-        await page.route('**/rest/v1/rpc/marketplace_read_listing_draft', (route) =>
-          route.request().postDataJSON().p_id === '2'
-            ? route.fulfill({ json: source })
-            : route.fallback(),
-        );
         await page.route('**/rest/v1/marketplace_account_entries?**', (route) => {
           const query = new URL(route.request().url()).searchParams;
           if (query.get('body->>publicationState') !== 'eq.draft') return route.fallback();
@@ -139,40 +123,13 @@ for (const width of [390, 1440]) {
           .getByRole('textbox', { name: 'Beschreibung', exact: true })
           .fill('Meine Beschreibung');
         await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('12,');
-        const opener = editor.getByRole('button', { name: 'Daten übernehmen', exact: true });
-        await opener.click();
-        const dialog = page.getByRole('dialog', { name: 'Daten übernehmen', exact: true });
-        await expect(dialog).toBeVisible();
-        await dialog.getByRole('combobox', { name: 'Quelle auswählen' }).click();
-        await dialog.getByRole('option', { name: 'Quelljacke', exact: true }).click();
-        await expect(dialog.getByText('Nur Text der Quelle', { exact: true })).toBeVisible();
         await expect(
-          dialog.getByRole('button', { name: 'Übertragen', exact: true }),
-        ).toBeDisabled();
-        await dialog.getByRole('checkbox', { name: 'Titel', exact: true }).click();
-        await expect(dialog.getByRole('checkbox', { name: 'Titel', exact: true })).toBeChecked();
-        await checkListingSurface(page, 'app-vinted-listing-copy-dialog');
-        await page.screenshot({ path: test.info().outputPath('listing-copy-dialog.png') });
-        await dialog.getByRole('button', { name: 'Übertragen', exact: true }).click();
-        await expect(dialog).not.toBeVisible();
-        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-          'Quelljacke',
-        );
-        await expect(
-          editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
-        ).toHaveValue('Meine Beschreibung');
-        await expect(
-          editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }),
-        ).toHaveValue('12,');
-        expect(state.creates).toEqual([]);
-        expect(state.draft().content.title).toBe('');
-        await opener.click();
-        await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-        await expect(opener).toBeFocused();
+          editor.getByRole('button', { name: 'Daten übernehmen', exact: true }),
+        ).toHaveCount(0);
         await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('12,50');
         await saveDraft(page);
         expect(state.draft().content).toMatchObject({
-          title: 'Quelljacke',
+          title: 'Mein Titel',
           description: 'Meine Beschreibung',
           priceCents: 1250,
         });
@@ -327,6 +284,8 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
     }),
   );
   await page.route('**/rest/v1/rpc/marketplace_*listing*', async (route) => {
+    if (route.request().url().endsWith('/marketplace_read_listing_photo_sources'))
+      return route.fallback();
     const name = new URL(route.request().url()).pathname.split('/').at(-1);
     const body = route.request().postDataJSON() as Record<string, unknown>;
     if (name === 'marketplace_read_listing_jobs') {

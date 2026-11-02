@@ -1,0 +1,20 @@
+@if (image(); as photo) {
+  <figure class="space-y-2" [attr.aria-busy]="loading() ? 'true' : null">
+    <figcaption class="text-sm font-medium text-fb-text-primary">Vorschau</figcaption>
+    <div
+      class="flex min-h-40 items-center justify-center overflow-hidden rounded-lg border border-fb-border-subtle bg-fb-subtle p-3"
+    >
+      @if (preview(); as url) {
+        <img
+          [src]="url"
+          [alt]="'Vorschau für ' + photo.fileName"
+          class="max-h-64 max-w-full object-contain"
+        />
+      } @else if (loading()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Vorschau wird erstellt …</p>
+      } @else if (error(); as message) {
+        <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+      }
+    </div>
+  </figure>
+}

@@ -344,6 +344,11 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 ## State & Services
 
+- Originalbilder bleiben in Flipbase unverändert gespeichert. Zuschnitt, Rahmen,
+  Größen- und Farbänderungen erzeugen ausschließlich separate Marktplatzausgaben.
+  Spätere Relists beginnen wieder mit den Originalen; ein Anbieterabgleich darf
+  diese nicht durch bereits bearbeitete Bilder ersetzen.
+
 - Signals für lokalen State, `computed()` für abgeleiteten State.
 - **Kein** `mutate` auf Signals — `update` oder `set`.
 - State-Transformationen rein und vorhersagbar halten.
@@ -352,8 +357,17 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 ## Styling
 
+- Keine ungefragten Info-, Warn- oder Erklärtexte in der Oberfläche ergänzen.
+  Funktionen sollen durch klare Beschriftungen und ihre Bedienung verständlich sein.
+  Hilfetexte nur auf ausdrücklichen Nutzerauftrag; redundante Erklärungen zu
+  vorhandenen Labels oder Badges entfallen. Konkrete Fehler und notwendige
+  Eingabevalidierung bleiben sichtbar.
+
 - Vor UI-Änderungen `docs/design/admin-ui-guidelines.md` lesen. Dort stehen
   die aktuellen Apple-Quellen, der Maßvertrag und verbindliche Nutzerentscheidungen.
+- In großen Formularmodalen stehen die Formularaktionen oben beim Titel im
+  vorhandenen Kopfbereich. Keine zweite Aktionsleiste am Formularende. Kurze
+  Bestätigungsdialoge behalten ihren üblichen Dialogfuß.
 - Das helle Logo-Gelb `#fcc601` bleibt der primäre Markenakzent. Nicht ungefragt
   durch Orange, Goldbraun oder ein anderes Gelb ersetzen.
 - Radien, Schatten, Dichte und Bewegung anhand der dokumentierten Referenz

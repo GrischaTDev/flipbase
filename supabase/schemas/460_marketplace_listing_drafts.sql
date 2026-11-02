@@ -45,7 +45,36 @@ $$;
 revoke all on function public.marketplace_listing_content_valid(jsonb) from public, anon;
 grant execute on function public.marketplace_listing_content_valid(jsonb) to authenticated, service_role;
 
+-- Bearbeitung beschreibt ausschließlich die Vinted-Ausgabe; gespeicherte Quelldateien bleiben unverändert.
+create or replace function public.marketplace_listing_photo_options_valid(p_options jsonb,p_image_ids bigint[])
+returns boolean language plpgsql immutable security invoker set search_path='' as $$
+declare v_key text; v_crop jsonb;
+begin
+  if p_image_ids is null or p_options is null or octet_length(p_options::text)>20000 or jsonb_typeof(p_options)<>'object' or p_options-array['resize','crops','filter','border']<>'{}'::jsonb
+    or not (p_options ?& array['resize','crops']) or (p_options->'resize'<>'null'::jsonb and p_options->'resize' not in ('1200'::jsonb,'1600'::jsonb,'2400'::jsonb))
+    or (p_options ? 'filter' and p_options->'filter' not in ('"none"'::jsonb,'"lighter"'::jsonb,'"darker"'::jsonb,'"soft"'::jsonb))
+    or (p_options ? 'border' and p_options->'border' not in ('"none"'::jsonb,'"small"'::jsonb,'"medium"'::jsonb,'"large"'::jsonb))
+    or jsonb_typeof(p_options->'crops')<>'object' then return false; end if;
+  for v_key,v_crop in select key,value from jsonb_each(p_options->'crops') loop
+    if v_key !~ '^[1-9][0-9]{0,18}$' or not (v_key::bigint=any(p_image_ids)) or jsonb_typeof(v_crop)<>'object'
+      or (select count(*) from jsonb_object_keys(v_crop))<>5 or not (v_crop ?& array['x','y','width','height','rotation'])
+      or exists(select 1 from jsonb_each(v_crop) where jsonb_typeof(value)<>'number') then return false; end if;
+    if v_crop->'rotation' not in ('0'::jsonb,'90'::jsonb,'180'::jsonb,'270'::jsonb) or (v_crop->>'x')::numeric<0 or (v_crop->>'y')::numeric<0
+      or (v_crop->>'width')::numeric<=0 or (v_crop->>'height')::numeric<=0 or (v_crop->>'x')::numeric+(v_crop->>'width')::numeric>1.000000001
+      or (v_crop->>'y')::numeric+(v_crop->>'height')::numeric>1.000000001 then return false; end if;
+  end loop;
+  return true;
+end;
+$$;
+revoke all on function public.marketplace_listing_photo_options_valid(jsonb,bigint[]) from public,anon;
+grant execute on function public.marketplace_listing_photo_options_valid(jsonb,bigint[]) to authenticated,service_role;
+
 create table public.marketplace_listing_drafts (
+  photo_options jsonb not null default '{"resize":null,"crops":{}}'::jsonb,
+  relist_deleted_at timestamptz,
+  relist_deleted_account_id text,
+  check ((relist_deleted_at is null) = (relist_deleted_account_id is null)),
+  relist_external_id text check (relist_external_id ~ '^[1-9][0-9]{0,31}$'),
   id bigint generated always as identity primary key,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   connection_id uuid,
@@ -194,6 +223,7 @@ begin
   if p_expected_revision is null or v_draft.revision <> p_expected_revision then raise exception 'Der Entwurf wurde auf einem anderen Gerät geändert. Lade den aktuellen Stand.' using errcode='40001'; end if;
   if not public.marketplace_listing_content_valid(p_content) then raise exception 'Ungültige Inseratangaben.' using errcode='22023'; end if;
   if p_connection_id is not null and not exists (select 1 from public.marketplace_connections where workspace_id=v_draft.workspace_id and id=p_connection_id and marketplace='vinted') then raise exception 'Kein Zugriff auf dieses Konto.' using errcode='42501'; end if;
+  if v_draft.relist_external_id is not null and p_connection_id is distinct from v_draft.connection_id then raise exception 'Relisten ist nur im ursprünglichen Konto möglich.' using errcode='22023'; end if;
   update public.marketplace_listing_drafts set content=p_content, connection_id=p_connection_id, revision=revision+1, updated_at=now() where id=p_id::bigint returning * into v_draft;
   return public.marketplace_listing_draft_document(v_draft);
 end;

@@ -176,7 +176,7 @@ test('direkt geänderte Galerie hebt die Variantenreduktion vollständig auf', a
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
   assert.deepEqual(keys(selected), keys(complete.selected));
-  assert.equal(selected.length, 23);
+  assert.equal(selected.length, 27);
 });
 
 test('gelöschte und umbenannte Browserdateien führen zu einer konservativen echten Auswahl', async () => {
@@ -220,7 +220,7 @@ for (const { name, paths, full } of [
     assert.equal(plan.full, full);
     if (!full) {
       assert.equal(plan.browserFiles.length, 15);
-      assert.equal(complete.length, 223);
+      assert.equal(complete.length, 227);
     }
     const grouped = [];
     for (const { project, shard } of buildBrowserMatrix(plan)) {

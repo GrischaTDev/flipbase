@@ -8,6 +8,8 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
+import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { VintedListingEditorComponent } from './vinted-listing-editor.component';
@@ -129,6 +131,11 @@ function setup(query: Record<string, string> = {}) {
   }));
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedListingOriginalPhotoService,
+        useValue: { read: vi.fn().mockResolvedValue(null) },
+      },
+      { provide: VintedListingJobService, useValue: { editPlan: vi.fn() } },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       {
@@ -168,6 +175,11 @@ function setup(query: Record<string, string> = {}) {
         provide: VintedListingImageService,
         useValue: {
           upload: vi.fn(),
+          savePhotoOptions: vi.fn().mockImplementation(async (draft, photoOptions) => ({
+            ...draft,
+            photoOptions,
+            revision: draft.revision + 1,
+          })),
           previews: vi.fn().mockResolvedValue([]),
           setOrder: vi.fn().mockImplementation(async (current) => current),
         },
@@ -767,33 +779,97 @@ describe('Vinted-Inserateditor', () => {
   });
 });
 
-it('befüllt den geöffneten Entwurf ohne neuen Entwurf oder unmittelbares Speichern', async () => {
+it('führt beim Weitergehen noch keine Speicherung aus und erhält die Artikeldetails', async () => {
   const f = setup();
   await settle();
-  f.component.form.controls.connectionId.setValue('account-a');
-  f.component.copying.set(true);
-  const content = {
-    ...emptyVintedListingContent(),
-    title: 'Übernommener Titel',
-    description: 'Quelle',
-  };
-  f.component.applyCopiedFields({ content, fields: ['title', 'description'] });
-  expect(f.component.form.controls.title.value).toBe(content.title);
-  expect(f.component.form.controls.connectionId.value).toBe('account-a');
-  expect(f.component.dirty()).toBe(true);
-  expect(f.component.copying()).toBe(false);
+  publicationInput(f);
+  f.component.nextRelistStep();
+  expect(f.component.relistStep()).toBe('options');
+  expect(f.component.photoSize()).toBeNull();
   expect(f.create).not.toHaveBeenCalled();
   expect(f.save).not.toHaveBeenCalled();
+  f.component.previousRelistStep();
+  expect(f.component.form.controls.title.value).toBe('Meine Jacke');
 });
-
-it('erhaelt einen halb eingegebenen Preis bei ausschliesslicher Titeluebernahme', async () => {
+it('übergibt verzögertes Relisten ohne vorab berechneten Veröffentlichungstermin', async () => {
   const f = setup();
   await settle();
-  f.component.form.controls.price.setValue('12,');
-  f.component.applyCopiedFields({
-    content: { ...f.component.content(), title: 'Neuer Titel' },
-    fields: ['title'],
+  const open = vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+  f.component.relistTiming.set('delay');
+  f.component.relistMinutes.set(3);
+  await f.component.submitRelisting();
+  expect(open).toHaveBeenCalledOnce();
+  expect(f.component.publicationSchedule()).toBeNull();
+});
+it('hält eine vergangene feste Uhrzeit vor der Speicherung zurück', async () => {
+  const f = setup();
+  await settle();
+  const open = vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+  f.component.relistTiming.set('scheduled');
+  f.component.relistScheduleForm.setValue({ date: '2000-01-01', time: '18:00' });
+  await f.component.submitRelisting();
+  expect(open).not.toHaveBeenCalled();
+  expect(f.component.error()).toContain('Zukunft');
+});
+
+it('hält bei gewählter Ausgabegröße die Originaldateien im Editor unverändert', async () => {
+  const f = setup();
+  await settle();
+  publicationInput(f);
+  const originals = f.component.images();
+  const files = originals.map((image) => image.file);
+  vi.spyOn(f.component, 'openPublication').mockResolvedValue();
+  f.component.photoSize.set(1600);
+  await f.component.submitRelisting();
+  expect(f.component.images()).toBe(originals);
+  expect(f.component.images().map((image) => image.file)).toEqual(files);
+  expect(f.component.photoSize()).toBe(1600);
+});
+
+it('speichert beim Zuschneiden und Vergrößern die Originaldatei und nur Ausgabeparameter', async () => {
+  const f = setup();
+  await settle();
+  publicationInput(f);
+  const original = new File(['camera-original-Exif'], 'original.jpg', { type: 'image/jpeg' });
+  const cropped = new File(['cropped-output'], 'crop.jpg', { type: 'image/jpeg' });
+  const crop = { x: 0.25, y: 0, width: 0.5, height: 1, rotation: 0 as const };
+  f.component.images.update((images) =>
+    images.map((image) => ({ ...image, originalFile: original, file: cropped, crop })),
+  );
+  f.component.photoSize.set(1600);
+  f.component.photoFilter.set('lighter');
+  f.component.photoBorder.set('medium');
+  await f.component.openPublication();
+  expect(f.imageApi.upload).toHaveBeenCalledWith(expect.anything(), original, undefined);
+  expect(f.imageApi.upload).not.toHaveBeenCalledWith(expect.anything(), cropped, expect.anything());
+  expect(f.imageApi.savePhotoOptions).toHaveBeenCalledWith(expect.anything(), {
+    resize: 1600,
+    filter: 'lighter',
+    border: 'medium',
+    crops: { '2': crop },
   });
-  expect(f.component.form.controls.price.value).toBe('12,');
-  expect(f.component.form.controls.title.value).toBe('Neuer Titel');
+  expect(await original.text()).toBe('camera-original-Exif');
+});
+
+it('sperrt Formularelemente ohne Wertverlust oder zusätzliche Inhaltsänderung', async () => {
+  const f = setup();
+  await settle();
+  publicationInput(f);
+  const values = f.component.form.getRawValue();
+  const changed = vi.fn();
+  const subscription = f.component.form.valueChanges.subscribe(changed);
+  f.component.draft.set({ ...draft, connectionId: 'account-a', relistExternalId: '98765' });
+  f.component.setImageEditing(true);
+  await settle();
+  expect(f.component.form.controls.connectionId.disabled).toBe(true);
+  expect(f.component.form.controls.aiPhoto.disabled).toBe(true);
+  expect(f.component.form.getRawValue()).toEqual(values);
+  f.component.setImageEditing(false);
+  f.component.draft.set(null);
+  await settle();
+  expect(f.component.form.controls.aiPhoto.enabled).toBe(true);
+  expect(f.component.form.controls.connectionId.enabled).toBe(true);
+  expect(f.component.form.getRawValue()).toEqual(values);
+  expect(changed).not.toHaveBeenCalled();
+  subscription.unsubscribe();
 });

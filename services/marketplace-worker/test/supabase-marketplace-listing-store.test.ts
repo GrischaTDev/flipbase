@@ -73,6 +73,23 @@ test('only a bound cloud claim becomes a tokenless frozen listing scope', async 
   });
 });
 
+test('photo output options stay frozen separately from immutable original image metadata', async () => {
+  const photoOptions = {
+    resize: 1600,
+    filter: 'lighter',
+    border: 'medium',
+    crops: { [response.snapshot.images[0]!.id]: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+  };
+  const f = fixture({ snapshot: { ...response.snapshot, photoOptions } });
+  const claim = await f.store.claim(binding.workerId, 4, binding.runnerId);
+  assert.ok(claim);
+  assert.deepEqual(claim.snapshot.photoOptions, photoOptions);
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops[response.snapshot.images[0]!.id]));
+  assert.deepEqual(claim.snapshot.images, response.snapshot.images);
+});
+
 test('receipt confirms the same external item, provider state and verification time', async () => {
   const result = {
     outcome: 'confirmed',
@@ -118,6 +135,23 @@ test('claim rejects rounded identifiers, foreign worker, account, connection and
     { action: 'update' },
     { snapshot: { ...response.snapshot, connectionId: 'other' } },
     { snapshot: { ...response.snapshot, bump: true } },
+    { snapshot: { ...response.snapshot, photoOptions: { resize: 42, crops: {} } } },
+    {
+      snapshot: {
+        ...response.snapshot,
+        photoOptions: { resize: null, crops: {}, filter: 'unknown' },
+      },
+    },
+    { snapshot: { ...response.snapshot, photoOptions: { resize: null, crops: {}, border: null } } },
+    {
+      snapshot: {
+        ...response.snapshot,
+        photoOptions: {
+          resize: null,
+          crops: { unknown: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+        },
+      },
+    },
     {
       snapshot: {
         ...response.snapshot,
@@ -162,4 +196,30 @@ test('mixed write permissions and wrong-account receipts are rejected before the
     }),
   );
   assert.deepEqual(f.calls, []);
+});
+
+test('a deletion receipt queues the publish phase and is accepted only for its matching delete claim', async () => {
+  const receipt = {
+    outcome: 'relisting_deleted' as const,
+    externalId: '98765',
+    externalAccountId: '123',
+    verifiedAt: '2026-10-09T12:00:00.000Z',
+  };
+  for (const stage of ['delete', 'publish'] as const) {
+    const f = fixture(
+      { snapshot: { ...fixtureClaim.snapshot, relistExternalId: '98765', relistStage: stage } },
+      { state: 'queued' },
+    );
+    const claim = await f.store.claim(binding.workerId, 4, binding.runnerId);
+    assert.ok(claim);
+    if (stage === 'delete') {
+      await f.store.finish(claim, receipt);
+      assert.deepEqual(f.calls.at(-1)?.body.p_result, receipt);
+    } else {
+      const before = f.calls.length;
+      await assert.rejects(f.store.finish(claim, receipt));
+      assert.equal(f.calls.length, before);
+    }
+    await assert.rejects(f.store.finish(claim, { ...receipt, externalId: '99999' }));
+  }
 });

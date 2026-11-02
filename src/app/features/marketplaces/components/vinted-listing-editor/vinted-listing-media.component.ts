@@ -22,6 +22,9 @@ export class VintedListingMediaComponent {
       key: image.key,
       media: null,
       file: image.file,
+      originalFile: image.originalFile,
+      originalPreviewUrl: image.originalPreviewUrl,
+      crop: image.crop,
       previewUrl: image.previewUrl,
       fileName: image.fileName,
     })),
@@ -40,6 +43,9 @@ export class VintedListingMediaComponent {
             : image.file;
         return {
           key: image.key,
+          originalFile: image.originalFile,
+          originalPreviewUrl: image.originalPreviewUrl,
+          crop: image.crop,
           file,
           fileName,
           previewUrl: image.previewUrl,

@@ -212,5 +212,26 @@ select throws_ok($$select public.marketplace_save_listing_draft((select body->>'
  '42501', null, 'Archivierte Arbeitsbereiche können keine Entwürfe ändern');
 select throws_ok($$select public.marketplace_delete_listing_draft('46000000-0000-4000-8000-000000000011',(select body->>'id' from draft_test_context),3)$$,
  '42501',null,'Archivierte Arbeitsbereiche können keine Entwürfe löschen');
+-- Relisten und Vorlagen bleiben nach erneutem Öffnen klar getrennt und kontogebunden.
+reset role;
+insert into public.workspaces(id,name) values ('46900000-0000-4000-8000-000000000011','Relist-Test');
+insert into public.workspace_members(workspace_id,user_id,role) values ('46900000-0000-4000-8000-000000000011','46000000-0000-4000-8000-000000000001','owner');
+insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id) values
+ ('46900000-0000-4000-8000-000000000021','46900000-0000-4000-8000-000000000011','Relist-Konto','cloud','connected','46901');
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values
+ ('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','publication','98765','{"title":"Original","publicationState":"active"}');
+create temporary table relist_test_context(body jsonb);
+grant all on relist_test_context to authenticated;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','46000000-0000-4000-8000-000000000001',true);
+insert into relist_test_context select public.marketplace_create_relisting_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','{"title":"Neu"}','46900000-0000-4000-8000-000000000031','98765');
+select is((select body->>'relistExternalId' from relist_test_context),'98765','Relist-Quelle wird dauerhaft gespeichert');
+select is(public.marketplace_read_listing_draft((select body->>'id' from relist_test_context))->>'relistExternalId','98765','Wiederöffnen erhält die Relist-Zuordnung');
+select is(public.marketplace_create_relisting_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','{"title":"Neu"}','46900000-0000-4000-8000-000000000031','98765')->>'id',(select body->>'id' from relist_test_context),'Antwortverlust erzeugt keinen zweiten Relist-Entwurf');
+select throws_ok($$select public.marketplace_save_listing_draft((select body->>'id' from relist_test_context),1,'{"title":"Neu"}',null)$$,'22023',null,'Relist-Entwurf kann nicht auf ein anderes Konto umgehängt werden');
+select is(public.marketplace_create_listing_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','{"title":"Vorlage"}',null,'46900000-0000-4000-8000-000000000032')->>'relistExternalId',null,'Ein unabhängiger neuer Entwurf hat keinen Löschauftrag');
+select throws_ok($$select public.marketplace_create_relisting_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','{}','46900000-0000-4000-8000-000000000033','99999')$$,'42501',null,'Eine fehlende Quelle wird abgewiesen');
+select set_config('request.jwt.claim.sub','46000000-0000-4000-8000-000000000002',true);
+select throws_ok($$select public.marketplace_create_relisting_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','{}','46900000-0000-4000-8000-000000000034','98765')$$,'42501',null,'Fremde Arbeitsbereiche können keinen Relist-Entwurf anlegen');
 select * from finish();
 rollback;

@@ -404,7 +404,8 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     const buttons = [...f.nativeElement.querySelectorAll('button')].map((b) =>
       b.textContent.trim(),
     );
-    expect(buttons).toContain('Inserieren');
+    expect(buttons).not.toContain('Inserieren');
+    expect(f.nativeElement.querySelector('button[aria-label="Inserieren"] svg')).not.toBeNull();
     expect(buttons).not.toContain('Entwurf speichern');
   });
   it.each([false, true])(

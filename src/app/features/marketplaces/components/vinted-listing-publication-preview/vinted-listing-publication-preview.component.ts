@@ -64,6 +64,8 @@ export class VintedListingPublicationPreviewComponent {
   readonly disabled = input(false);
   /** Beauftragt die Veröffentlichung nach den bisherigen Sicherheitsprüfungen ohne zweite Prüfseite. */
   readonly direct = input(false);
+  readonly replacesJob = input<VintedListingJob | null>(null);
+  readonly relistDelaySeconds = input(0);
   private readonly directAttempted = signal(false);
   readonly accepted = output<VintedListingJob>();
   readonly closed = output<void>();
@@ -151,14 +153,25 @@ export class VintedListingPublicationPreviewComponent {
         )
       : null;
   });
-  readonly blockedJob = computed(
-    () =>
-      this.jobs().find((job) =>
-        ['queued', 'paused', 'claimed', 'writing', 'outcome_unknown', 'confirmed'].includes(
-          job.state,
-        ),
-      ) ?? null,
-  );
+  readonly blockedJob = computed(() => {
+    const previous = this.replacesJob();
+    return (
+      this.jobs().find((job) => {
+        const editing =
+          previous &&
+          job.id === previous.id &&
+          job.version === previous.version &&
+          job.state === 'paused' &&
+          job.errorCode === 'editing';
+        return (
+          !editing &&
+          ['queued', 'paused', 'claimed', 'writing', 'outcome_unknown', 'confirmed'].includes(
+            job.state,
+          )
+        );
+      }) ?? null
+    );
+  });
   readonly listingJobLabel = vintedListingJobLabel;
   readonly blockedLabel = computed(() =>
     this.blockedJob() ? vintedListingJobLabel(this.blockedJob()!) : '',
@@ -375,6 +388,7 @@ export class VintedListingPublicationPreviewComponent {
       action: 'publish' as const,
       aiPhoto: this.aiPhoto(),
       schedule: this.schedule(),
+      relistDelaySeconds: this.relistDelaySeconds(),
     };
     if (
       !this.intent() &&
@@ -400,7 +414,9 @@ export class VintedListingPublicationPreviewComponent {
         this.permission.set(permission);
       }
       if (!this.current(generation, binding) || this.disabled()) return;
-      const accepted = await this.api.enqueue(draft, intent);
+      const accepted = this.replacesJob()
+        ? await this.api.relist(draft, intent, this.replacesJob())
+        : await this.api.enqueue(draft, intent);
       if (!this.current(generation, binding)) return;
       if (
         accepted.externalAccountId !== account.externalAccountId ||

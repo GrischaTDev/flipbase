@@ -1,4 +1,3 @@
-import { vintedListingCopyRendering } from '../../../../e2e/support/vinted-listing-copy-rendering';
 import { vintedProfileEditorRendering } from '../../../../e2e/support/vinted-profile-editor-rendering';
 import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { ActionStatusIndicatorComponent } from '../../shared/components/action-status-indicator/action-status-indicator.component';
@@ -180,7 +179,6 @@ beforeAll(async () => {
       type: SummaryMetricComponent,
       path: 'src/app/shared/components/summary-metric/summary-metric.component.ts',
     },
-    ...vintedListingCopyRendering,
     {
       type: VintedSalesComponent,
       path: 'src/app/features/marketplaces/components/vinted-sales/vinted-sales.component.ts',

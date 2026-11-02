@@ -87,11 +87,33 @@ export class VintedListingDraftService {
       workspaceId,
     );
   }
+  async createRelisting(
+    workspaceId: string,
+    content: VintedListingContent,
+    connectionId: string,
+    requestId: string,
+    externalId: string,
+  ): Promise<VintedListingDraft> {
+    return parseVintedListingDraft(
+      listingResponse(
+        await this.client.rpc('marketplace_create_relisting_draft', {
+          p_workspace_id: workspaceId,
+          p_connection_id: connectionId,
+          p_content: JSON.parse(JSON.stringify(content)) as Json,
+          p_request_id: requestId,
+          p_external_id: externalId,
+        }),
+      ),
+      workspaceId,
+    );
+  }
   async save(
     draft: VintedListingDraft,
     content: VintedListingContent,
     connectionId: string | null,
   ): Promise<VintedListingDraft> {
+    if (draft.relistExternalId && draft.connectionId !== connectionId)
+      throw new Error('Relisten ist nur im ursprünglichen Konto möglich.');
     return parseVintedListingDraft(
       listingResponse(
         await this.client.rpc('marketplace_save_listing_draft', {

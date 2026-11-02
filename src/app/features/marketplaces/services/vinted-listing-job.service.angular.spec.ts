@@ -57,6 +57,25 @@ function api(rpc: ReturnType<typeof vi.fn>) {
   return TestBed.inject(VintedListingJobService);
 }
 describe('Vinted-Inseratauftragservice', () => {
+  it('liest Planinhalt nur aus der kontogebundenen angenommenen Revision', async () => {
+    const plan = {
+      job: { ...body, relistExternalId: '123' },
+      draft: { ...draft, relistExternalId: '123' },
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: { items: [plan] }, error: null });
+    const service = api(rpc);
+    expect(
+      (await service.listPlans(draft.workspaceId, draft.connectionId!))[0]?.draft.revision,
+    ).toBe(3);
+    for (const wrong of [
+      { ...plan, draft: { ...plan.draft, revision: 4 } },
+      { ...plan, draft: { ...plan.draft, connectionId: 'foreign' } },
+      { ...plan, draft: { ...plan.draft, relistExternalId: '456' } },
+    ]) {
+      rpc.mockResolvedValue({ data: { items: [wrong] }, error: null });
+      await expect(service.listPlans(draft.workspaceId, draft.connectionId!)).rejects.toThrow();
+    }
+  });
   it('listens privately to this draft, validates change hints and stops late callbacks', () => {
     const workspaceId = '46600000-0000-4000-8000-000000000011';
     const onChange = vi.fn(),
@@ -237,4 +256,59 @@ describe('Vinted-Inseratauftragservice', () => {
       },
     ]);
   });
+});
+
+it('übergibt die Wartezeit ohne vorab berechneten Termin an den Relist-Auftrag', async () => {
+  const rpc = vi.fn().mockResolvedValue({
+    data: {
+      ...body,
+      executionMode: 'cloud',
+      relistExternalId: '98765',
+      relistDelaySeconds: 180,
+      scheduledAt: null,
+      timeZone: null,
+    },
+    error: null,
+  });
+  await api(rpc).enqueue(
+    { ...draft, relistExternalId: '98765' },
+    { ...intent, schedule: null, relistDelaySeconds: 180 },
+  );
+  expect(rpc).toHaveBeenCalledWith(
+    'marketplace_enqueue_relisting',
+    expect.objectContaining({
+      p_delay_seconds: 180,
+      p_scheduled_at: undefined,
+      p_time_zone: undefined,
+    }),
+  );
+});
+it('ersetzt beim Speichern einer bearbeiteten Planung genau den pausierten Auftrag', async () => {
+  const previous = parseVintedListingJob(
+    {
+      ...body,
+      state: 'paused',
+      errorCode: 'editing',
+      relistExternalId: '98765',
+      relistDeletedAt: body.createdAt,
+    },
+    draft.workspaceId,
+  );
+  const rpc = vi.fn().mockResolvedValue({
+    data: {
+      ...body,
+      relistExternalId: '98765',
+      relistDeletedAt: body.createdAt,
+      replacesJobId: previous.id,
+    },
+    error: null,
+  });
+  await api(rpc).relist({ ...draft, relistExternalId: '98765' }, intent, previous);
+  expect(rpc).toHaveBeenCalledWith(
+    'marketplace_enqueue_relisting',
+    expect.objectContaining({
+      p_replaces_job_id: previous.id,
+      p_replaces_version: previous.version,
+    }),
+  );
 });

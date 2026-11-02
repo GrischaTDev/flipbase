@@ -44,7 +44,7 @@ create policy "Abgebrochene Inseratfotos bereinigen" on storage.objects for dele
 create or replace function public.marketplace_listing_draft_document(p_draft public.marketplace_listing_drafts)
 returns jsonb language sql stable security invoker set search_path = '' as $$
   select jsonb_build_object('id',p_draft.id::text,'workspaceId',p_draft.workspace_id,'connectionId',p_draft.connection_id,
-    'content',p_draft.content,'revision',p_draft.revision,'inventoryItemId',p_draft.inventory_item_id,
+    'photoOptions',p_draft.photo_options,'content',p_draft.content,'revision',p_draft.revision,'inventoryItemId',p_draft.inventory_item_id,'relistExternalId',p_draft.relist_external_id,
     'createdAt',p_draft.created_at,'updatedAt',p_draft.updated_at,'images',coalesce((
       select jsonb_agg(jsonb_build_object('id',i.id::text,'storagePath',i.storage_path,'fileName',i.file_name,
         'mimeType',i.mime_type,'byteSize',i.byte_size) order by selected.position)
@@ -83,7 +83,9 @@ begin
   elsif cardinality(v_draft.image_ids)>=100 then raise exception 'Dieser Entwurf enthält bereits 100 Fotos.' using errcode='22023'; end if;
   update public.marketplace_listing_images set state='ready' where id=p_image_id::bigint;
   -- Erst das vollständig hochgeladene Original bestätigen, dann seine Auswahlposition atomar ersetzen.
-  update public.marketplace_listing_drafts set image_ids=case when p_replace_image_id is null then array_append(image_ids,p_image_id::bigint) else array_replace(image_ids,p_replace_image_id::bigint,p_image_id::bigint) end,revision=revision+1,updated_at=now() where id=p_draft_id::bigint returning * into v_draft;
+  update public.marketplace_listing_drafts set image_ids=case when p_replace_image_id is null then array_append(image_ids,p_image_id::bigint) else array_replace(image_ids,p_replace_image_id::bigint,p_image_id::bigint) end,
+    photo_options=jsonb_set(photo_options,'{crops}',(photo_options->'crops')-coalesce(p_replace_image_id,'')),
+    revision=revision+1,updated_at=now() where id=p_draft_id::bigint returning * into v_draft;
   return public.marketplace_listing_draft_document(v_draft);
 end;
 $$;
@@ -95,7 +97,9 @@ begin
   if p_expected_revision is null or v_draft.revision<>p_expected_revision then raise exception 'Der Entwurf wurde inzwischen geändert.' using errcode='40001'; end if;
   if p_image_ids is null or cardinality(p_image_ids)>100 or exists(select 1 from unnest(p_image_ids) id where id is null or id !~ '^[1-9][0-9]{0,18}$') or (select count(distinct id) from unnest(p_image_ids) id)<>cardinality(p_image_ids) then raise exception 'Ungültige Bildauswahl.' using errcode='22023'; end if;
   if exists(select 1 from unnest(p_image_ids) selected(id) where not exists(select 1 from public.marketplace_listing_images i where i.id=selected.id::bigint and i.draft_id=p_draft_id::bigint and i.state='ready')) then raise exception 'Diese Fotos gehören nicht zum Entwurf.' using errcode='42501'; end if;
-  update public.marketplace_listing_drafts set image_ids=p_image_ids::bigint[],revision=revision+1,updated_at=now() where id=p_draft_id::bigint returning * into v_draft;
+  update public.marketplace_listing_drafts set image_ids=p_image_ids::bigint[],
+    photo_options=jsonb_set(photo_options,'{crops}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(photo_options->'crops') where key=any(p_image_ids)),'{}'::jsonb)),
+    revision=revision+1,updated_at=now() where id=p_draft_id::bigint returning * into v_draft;
   return public.marketplace_listing_draft_document(v_draft);
 end;
 $$;
@@ -116,3 +120,19 @@ end;
 $$;
 revoke all on function public.marketplace_reserve_listing_image(text,text,text,bigint),public.marketplace_commit_listing_image(text,bigint,text,text),public.marketplace_set_listing_image_order(text,bigint,text[]),public.marketplace_discard_listing_image(text) from public,anon;
 grant execute on function public.marketplace_reserve_listing_image(text,text,text,bigint),public.marketplace_commit_listing_image(text,bigint,text,text),public.marketplace_set_listing_image_order(text,bigint,text[]),public.marketplace_discard_listing_image(text) to authenticated;
+
+create or replace function public.marketplace_set_listing_photo_options(p_draft_id text,p_expected_revision bigint,p_options jsonb)
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare v_draft public.marketplace_listing_drafts;
+begin
+  v_draft:=public.marketplace_lock_listing_draft(p_draft_id);
+  if p_expected_revision is distinct from v_draft.revision then raise exception 'Der Entwurf wurde inzwischen geändert.' using errcode='40001'; end if;
+  if not public.marketplace_listing_photo_options_valid(p_options,v_draft.image_ids) then raise exception 'Ungültige Bildbearbeitung.' using errcode='22023'; end if;
+  if v_draft.photo_options is distinct from p_options then
+    update public.marketplace_listing_drafts set photo_options=p_options,revision=revision+1,updated_at=clock_timestamp() where id=v_draft.id returning * into v_draft;
+  end if;
+  return public.marketplace_listing_draft_document(v_draft);
+end;
+$$;
+revoke all on function public.marketplace_set_listing_photo_options(text,bigint,jsonb) from public,anon;
+grant execute on function public.marketplace_set_listing_photo_options(text,bigint,jsonb) to authenticated;

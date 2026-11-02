@@ -141,7 +141,10 @@ export class MarketplaceListingRunner {
             }
             if (
               !isVintedListingResult(provided, claim.action, claim.accountId) ||
-              (provided.outcome === 'confirmed' && !beginConfirmed)
+              (['confirmed', 'relisting_deleted'].includes(provided.outcome) && !beginConfirmed) ||
+              (provided.outcome === 'relisting_deleted' &&
+                (claim.snapshot.relistStage !== 'delete' ||
+                  provided.externalId !== claim.snapshot.relistExternalId))
             )
               return {
                 outcome: beginAttempted ? 'outcome_unknown' : 'failed',

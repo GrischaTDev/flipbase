@@ -54,6 +54,7 @@ export async function createVintedListingEditFormFixture(
     /** Bestehender Preis wird beim Fokussieren in Vinteds Eingabeformat gebracht. */
     formatPriceOnFocus?: boolean;
     saveResponseDelayMs?: number;
+    noSaveNavigation?: boolean;
     state?: Partial<EditFormState>;
     /** So viele Ablagen eines gezogenen Fotos bleiben ohne Wirkung. */
     ignoredPhotoDrops?: number;
@@ -264,7 +265,7 @@ export async function createVintedListingEditFormFixture(
           title:document.querySelector('[name=title]').value,description:document.querySelector('[name=description]').value,price:document.querySelector('[name=price]').value,
           brand:one('brand'),size:one('size'),condition:one('condition'),colors:selected('color').map(identifier),materials:selected('material').map(identifier),
           packageSize:[2,3].find(id=>document.querySelector('#package_type_selector_'+id).checked)??null,photos})});
-        location.href='/items/98765';
+        ${options.noSaveNavigation ? '' : "location.href='/items/98765';"}
       };
       </script>`,
     });

@@ -1,3 +1,5 @@
+import { parseMarketplacePage } from '../models/marketplace-response';
+import { VintedListingOriginalPhotoService } from './vinted-listing-original-photo.service';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../../core/services/supabase.service';
@@ -185,5 +187,91 @@ describe('Private Vinted-Fotos', () => {
       ),
     ).rejects.toThrow();
     expect(remove).toHaveBeenCalledWith(['workspace-a/5/a.jpg']);
+  });
+});
+
+describe('Gesicherte Inseratoriginale', () => {
+  function originalService(connectionId = 'account-a') {
+    const image = {
+      id: '7',
+      storagePath: 'workspace-a/5/original.jpg',
+      fileName: 'Original.jpg',
+      mimeType: 'image/jpeg',
+      byteSize: 123,
+    };
+    const saved = { ...draft, connectionId, images: [image] };
+    const rpc = vi
+      .fn()
+      .mockResolvedValue({ data: { items: [{ externalId: '98765', draft: saved }] }, error: null });
+    const createSignedUrls = vi.fn().mockResolvedValue({
+      data: [
+        {
+          path: image.storagePath,
+          signedUrl: 'https://private.example.test/original',
+          error: null,
+        },
+      ],
+      error: null,
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: SupabaseService,
+          useValue: { client: { rpc, storage: { from: () => ({ createSignedUrls }) } } },
+        },
+      ],
+    });
+    return { service: TestBed.inject(VintedListingOriginalPhotoService), rpc, image };
+  }
+  it('verwendet für einen späteren Relist die gesicherte Datei statt des Anbieterbildes', async () => {
+    const f = originalService();
+    const photos = await f.service.read(
+      { workspaceId: 'workspace-a', connectionId: 'account-a' },
+      '98765',
+    );
+    expect(photos?.[0].storagePath).toBe(f.image.storagePath);
+    expect(photos?.[0].previewUrl).toBe('https://private.example.test/original');
+    expect(f.rpc).toHaveBeenCalledWith(
+      'marketplace_read_listing_photo_sources',
+      expect.objectContaining({ p_external_ids: ['98765'] }),
+    );
+  });
+  it('lehnt Originale einer anderen Kontozuordnung ab', async () => {
+    const f = originalService('account-b');
+    await expect(
+      f.service.read({ workspaceId: 'workspace-a', connectionId: 'account-a' }, '98765'),
+    ).rejects.toThrow('gewählten Konto');
+  });
+  it('liefert ohne bisherige Sicherung ausdrücklich keine erfundenen Originale', async () => {
+    const f = originalService();
+    f.rpc.mockResolvedValueOnce({ data: { items: [] }, error: null });
+    expect(
+      await f.service.read({ workspaceId: 'workspace-a', connectionId: 'account-a' }, '98765'),
+    ).toBeNull();
+  });
+  it('zeigt nach einem Anbieterabgleich weiter die private Originalgalerie', async () => {
+    const f = originalService();
+    const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
+    const page = parseMarketplacePage(
+      {
+        items: [
+          {
+            ...scope,
+            id: 'listing-1',
+            externalId: '98765',
+            title: 'Jacke',
+            imageUrl: 'https://vinted.example/bordered.jpg',
+            imageUrls: ['https://vinted.example/bordered.jpg'],
+          },
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+      scope,
+    );
+    const entries = await f.service.entries(scope, page.items);
+    expect(entries[0].imageUrl).toBe('https://private.example.test/original');
+    expect(entries[0].imageUrls).toEqual(['https://private.example.test/original']);
+    expect(page.items[0].imageUrl).toBe('https://vinted.example/bordered.jpg');
   });
 });

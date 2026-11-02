@@ -317,6 +317,19 @@
       Array.isArray(input)
     )
       return false;
+    if (input.outcome === 'relisting_deleted')
+      return (
+        action === 'publish' &&
+        Object.keys(input).length === 4 &&
+        typeof input.externalId === 'string' &&
+        /^[1-9][0-9]{0,31}$/.test(input.externalId) &&
+        input.externalAccountId === accountId &&
+        typeof input.verifiedAt === 'string' &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(input.verifiedAt) &&
+        Number.isFinite(Date.parse(input.verifiedAt)) &&
+        Date.parse(input.verifiedAt) <= Date.now() + 60000 &&
+        new Date(input.verifiedAt).toISOString() === input.verifiedAt
+      );
     if (input.outcome === 'failed' || input.outcome === 'outcome_unknown') {
       return (
         Object.keys(input).length === 2 &&
@@ -748,6 +761,8 @@
       });
     }
     function snapshot(input, workspaceId, connectionId) {
+      const relisting =
+        input && typeof input === 'object' && Object.hasOwn(input, 'relistExternalId');
       const value = fields(input, [
         'content',
         'images',
@@ -755,6 +770,9 @@
         'bump',
         'connectionId',
         'inventoryItemId',
+        ...(relisting ? ['relistExternalId'] : []),
+        ...(input && Object.hasOwn(input, 'relistStage') ? ['relistStage'] : []),
+        ...(input && Object.hasOwn(input, 'photoOptions') ? ['photoOptions'] : []),
       ]);
       if (
         value['connectionId'] !== connectionId ||
@@ -763,6 +781,11 @@
         !Array.isArray(value['images']) ||
         value['images'].length < 1 ||
         value['images'].length > 20
+      )
+        throw invalid();
+      if (
+        value['relistStage'] !== undefined &&
+        (!relisting || !['delete', 'publish'].includes(value['relistStage']))
       )
         throw invalid();
       const seen = new Set(),
@@ -810,8 +833,57 @@
           byteSize,
         });
       });
+      let photoOptions;
+      if (Object.hasOwn(value, 'photoOptions')) {
+        const raw = value['photoOptions'];
+        const options = fields(raw, [
+          'resize',
+          'crops',
+          ...(raw && Object.hasOwn(raw, 'filter') ? ['filter'] : []),
+          ...(raw && Object.hasOwn(raw, 'border') ? ['border'] : []),
+        ]);
+        if (
+          (options.resize !== null && ![1200, 1600, 2400].includes(options.resize)) ||
+          (Object.hasOwn(options, 'filter') &&
+            !['none', 'lighter', 'darker', 'soft'].includes(options.filter)) ||
+          (Object.hasOwn(options, 'border') &&
+            !['none', 'small', 'medium', 'large'].includes(options.border)) ||
+          !options.crops ||
+          typeof options.crops !== 'object' ||
+          Array.isArray(options.crops)
+        )
+          throw invalid();
+        const crops = {};
+        for (const [imageId, raw] of Object.entries(options.crops)) {
+          if (!seen.has(imageId)) throw invalid();
+          const crop = fields(raw, ['x', 'y', 'width', 'height', 'rotation']);
+          if (
+            !['x', 'y', 'width', 'height'].every(
+              (key) => typeof crop[key] === 'number' && Number.isFinite(crop[key]),
+            ) ||
+            ![0, 90, 180, 270].includes(crop.rotation) ||
+            crop.x < 0 ||
+            crop.y < 0 ||
+            crop.width <= 0 ||
+            crop.height <= 0 ||
+            crop.x + crop.width > 1.000000001 ||
+            crop.y + crop.height > 1.000000001
+          )
+            throw invalid();
+          crops[imageId] = Object.freeze({ ...crop });
+        }
+        photoOptions = Object.freeze({
+          resize: options.resize,
+          crops: Object.freeze(crops),
+          ...(Object.hasOwn(options, 'filter') ? { filter: options.filter } : {}),
+          ...(Object.hasOwn(options, 'border') ? { border: options.border } : {}),
+        });
+      }
       return Object.freeze({
         content: content(value['content']),
+        ...(photoOptions ? { photoOptions } : {}),
+        ...(relisting ? { relistExternalId: id(value['relistExternalId']) } : {}),
+        ...(value['relistStage'] ? { relistStage: value['relistStage'] } : {}),
         images: Object.freeze(images),
         connectionId,
         inventoryItemId: value['inventoryItemId'] === null ? null : uuid(value['inventoryItemId']),

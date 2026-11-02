@@ -26,7 +26,7 @@ supabase/*
 supabase/migrations/*
 !supabase/migrations/*.sql
 
-# Die App importiert diese reinen Verträge und Betragsfunktionen beim Angular-Bau. Andere
+# Die App importiert diese gemeinsamen Verträge sowie Bild- und Betragsfunktionen beim Angular-Bau. Andere
 # Edge-Function-Dateien bleiben aus dem Docker-Kontext ausgeschlossen.
 !supabase/functions/
 supabase/functions/*
@@ -43,6 +43,7 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-message-contracts.d.ts
 !supabase/functions/_shared/marketplace-negotiation-contracts.d.ts
 !supabase/functions/_shared/marketplace-listing-contracts.d.ts
+!supabase/functions/_shared/vinted-listing-photo-renderer.mts
 !supabase/functions/_shared/marketplace-profile-contracts.d.ts
 !supabase/functions/_shared/marketplace-local-listing-contracts.d.ts
 !supabase/functions/_shared/negotiation-config.ts

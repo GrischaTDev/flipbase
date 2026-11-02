@@ -134,7 +134,7 @@ describe('Vinted category field dialog', () => {
     expect(f.fixture.nativeElement.textContent).toContain('Paketgröße');
     expect(f.component.error()).toBeNull();
   });
-  it('sperrt direkte Farben und Materialien beim Speichern und gibt sie danach wieder frei', async () => {
+  it('sperrt Artikelauswahl beim Speichern ohne zusätzliche Änderungsereignisse', async () => {
     const f = setup();
     f.fixture.componentRef.setInput('inline', true);
     await settle(f);
@@ -142,10 +142,14 @@ describe('Vinted category field dialog', () => {
     await settle(f);
     expect(f.component.colorLabels.disabled).toBe(true);
     expect(f.component.materialLabels.disabled).toBe(true);
+    expect(Object.values(f.component.form.controls).every((control) => control.disabled)).toBe(
+      true,
+    );
     f.fixture.componentRef.setInput('disabled', false);
     await settle(f);
     expect(f.component.colorLabels.enabled).toBe(true);
     expect(f.component.materialLabels.enabled).toBe(true);
+    expect(Object.values(f.component.form.controls).every((control) => control.enabled)).toBe(true);
     expect(f.selected).not.toHaveBeenCalled();
   });
   it('zeigt nicht mehr angebotene Entwurfswerte direkt an und erfindet dafür keine Kennungen', async () => {

@@ -19,6 +19,10 @@ export interface VintedListingPermission {
   readonly executionMode: VintedListingExecutionMode;
 }
 export interface VintedListingJob {
+  readonly relistDeletedAt?: string | null;
+  readonly relistDelaySeconds?: number;
+  readonly relistExternalId?: string | null;
+  readonly itemTitle?: string;
   readonly id: string;
   readonly workspaceId: string;
   readonly connectionId: string | null;
@@ -90,6 +94,14 @@ export function parseVintedListingJob(
 ): VintedListingJob {
   const data = record(value);
   const id = listingIdentifier(data['id']);
+  const relistExternalId = data['relistExternalId'];
+  if (
+    relistExternalId != null &&
+    (typeof relistExternalId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(relistExternalId))
+  )
+    return invalid();
+  const itemTitle = data['itemTitle'];
+  if (itemTitle != null && typeof itemTitle !== 'string') return invalid();
   const draftId = listingIdentifier(data['draftId']);
   if (
     data['workspaceId'] !== workspaceId ||
@@ -161,6 +173,11 @@ export function parseVintedListingJob(
   return {
     id,
     workspaceId,
+    relistDeletedAt: data['relistDeletedAt'] == null ? null : timestamp(data['relistDeletedAt']),
+    relistDelaySeconds:
+      data['relistDelaySeconds'] == null ? 0 : integer(data['relistDelaySeconds'], 0),
+    relistExternalId: relistExternalId as string | null | undefined,
+    itemTitle: typeof itemTitle === 'string' ? itemTitle : undefined,
     connectionId,
     draftId,
     draftRevision: integer(data['draftRevision']),

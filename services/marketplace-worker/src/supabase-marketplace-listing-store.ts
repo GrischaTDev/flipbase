@@ -189,6 +189,12 @@ export class SupabaseMarketplaceListingStore {
     }
   }
   async finish(claim: CloudListingClaim, result: MarketplaceListingResult): Promise<void> {
+    if (
+      result.outcome === 'relisting_deleted' &&
+      (claim.snapshot.relistStage !== 'delete' ||
+        result.externalId !== claim.snapshot.relistExternalId)
+    )
+      throw invalid();
     if (!isVintedListingResult(result, claim.action, claim.accountId)) throw invalid();
     const input = await this.rpc('marketplace_cloud_listing_finish', {
       ...this.binding(claim),
@@ -205,6 +211,7 @@ export class SupabaseMarketplaceListingStore {
       document['externalAccountId'] !== claim.accountId ||
       document['action'] !== claim.action ||
       (document['state'] !== result.outcome &&
+        !(document['state'] === 'queued' && result.outcome === 'relisting_deleted') &&
         !(document['state'] === 'cancelled' && result.outcome === 'failed')) ||
       (result.outcome === 'confirmed' &&
         (document['externalId'] !== result.externalId ||

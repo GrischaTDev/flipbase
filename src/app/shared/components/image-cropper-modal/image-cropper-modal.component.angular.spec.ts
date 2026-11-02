@@ -180,4 +180,23 @@ describe('ImageCropperModalComponent', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:original');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:transformed');
   });
+  it('liefert den Ausschnitt als Parameter relativ zum unveränderten Original', async () => {
+    initialFile.set(file);
+    TestBed.tick();
+    const image = new Image();
+    component.imageLoaded({
+      original: { objectUrl: 'blob:raw', image, size: { width: 40, height: 40 } },
+      transformed: { objectUrl: 'blob:raw', image, size: { width: 40, height: 40 } },
+      exifTransform: { rotate: 0, flip: false },
+    });
+    component.imageCropped(cropEvent(new Blob(['crop'], { type: 'image/jpeg' })));
+    const ready = vi.spyOn(component.imageReady, 'emit');
+    await component.applyCropAndCompress();
+    expect(ready).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceFile: file,
+        crop: { x: 0, y: 0, width: 0.5, height: 0.5, rotation: 0 },
+      }),
+    );
+  });
 });

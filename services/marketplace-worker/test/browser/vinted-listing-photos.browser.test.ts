@@ -1,3 +1,5 @@
+import { renderVintedListingPhoto } from '../../../../supabase/functions/_shared/vinted-listing-photo-renderer.mts';
+import { exportVintedListingPhoto } from '../../src/vinted-browser-photo-export.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium, type Page } from 'playwright';
@@ -224,6 +226,205 @@ test('photos appearing while loading the private original are rejected before Be
     );
     assert.ok(!f.calls.includes('begin'));
     assert.ok(!f.calls.some((call) => call.startsWith('upload:')));
+  } finally {
+    await browser.close();
+  }
+});
+
+test('export uses an immutable original, strips metadata and applies edits only to the native upload file', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const raw = Buffer.from(
+      await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#337799';
+        ctx.fillRect(0, 0, 640, 480);
+        return canvas.toDataURL('image/jpeg', 0.95).split(',')[1]!;
+      }),
+      'base64',
+    );
+    const metadata = Buffer.from('Exif\0\0Flipbase-original-camera', 'utf8');
+    const segment = Buffer.alloc(metadata.length + 4);
+    segment[0] = 255;
+    segment[1] = 225;
+    segment.writeUInt16BE(metadata.length + 2, 2);
+    metadata.copy(segment, 4);
+    const original = Buffer.concat([raw.subarray(0, 2), segment, raw.subarray(2)]);
+    const pristine = Buffer.from(original);
+    const photo = {
+      id: originals[0]!.id,
+      fileName: 'camera-original.jpg',
+      mimeType: 'image/jpeg' as const,
+      bytes: new Uint8Array(original),
+    };
+    const options = {
+      resize: 1200,
+      crops: { [photo.id]: { x: 0.25, y: 0, width: 0.5, height: 1, rotation: 0 as const } },
+    };
+    const first = await exportVintedListingPhoto(page, photo, options),
+      second = await exportVintedListingPhoto(page, photo, options);
+    assert.equal(Buffer.from(first.bytes).includes(Buffer.from('Exif')), false);
+    assert.deepEqual(
+      first.bytes,
+      second.bytes,
+      'A repeated relist starts from the original, never from its previous output',
+    );
+    assert.deepEqual(Buffer.from(photo.bytes), pristine);
+    const f = await fixture(page);
+    await uploadVintedListingPhotos(
+      page,
+      '789',
+      [
+        {
+          ...originals[0]!,
+          fileName: photo.fileName,
+          mimeType: photo.mimeType,
+          byteSize: photo.bytes.length,
+        },
+      ],
+      async () => photo,
+      f.beforeWrite,
+      f.authorize,
+      { photoOptions: options },
+    );
+    const output = await page
+      .locator('input[name="photos"]')
+      .evaluate(async (input: HTMLInputElement) => {
+        const file = input.files![0]!;
+        const image = await createImageBitmap(file);
+        const result = {
+          width: image.width,
+          height: image.height,
+          mimeType: file.type,
+          name: file.name,
+        };
+        image.close();
+        return result;
+      });
+    assert.deepEqual(output, {
+      width: 800,
+      height: 1200,
+      mimeType: 'image/jpeg',
+      name: 'camera-original.jpg',
+    });
+    assert.deepEqual(Buffer.from(photo.bytes), pristine);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('preview and upload share filters and frame sizes without changing the original or its aspect', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const base64 = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 240;
+      canvas.height = 120;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#646464';
+      ctx.fillRect(0, 0, 240, 120);
+      for (let x = 100; x < 140; x++) {
+        ctx.fillStyle = x % 2 ? '#ffffff' : '#000000';
+        ctx.fillRect(x, 0, 1, 30);
+      }
+      return canvas.toDataURL('image/png').split(',')[1]!;
+    });
+    const original = Buffer.from(base64, 'base64');
+    const photo = {
+      id: '1',
+      fileName: 'original.png',
+      mimeType: 'image/png' as const,
+      bytes: new Uint8Array(original),
+    };
+    async function pixels(encoded: string) {
+      return page.evaluate(async (encoded) => {
+        const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const sample = (x: number, y: number) => ctx.getImageData(x, y, 1, 1).data[0]!;
+        let margin = 0;
+        while (margin < canvas.height / 2 && sample(20, margin) > 245) margin++;
+        return {
+          width: canvas.width,
+          height: canvas.height,
+          center: sample(120, 60),
+          contrast: Math.abs(sample(120, 15) - sample(121, 15)),
+          corner: sample(0, 0),
+          margin,
+        };
+      }, encoded);
+    }
+    const unchanged = await exportVintedListingPhoto(page, photo, { resize: null, crops: {} });
+    const baseline = await pixels(Buffer.from(unchanged.bytes).toString('base64'));
+    for (const filter of ['lighter', 'darker', 'soft'] as const) {
+      const options = { resize: null, crops: {}, filter };
+      const upload = await exportVintedListingPhoto(page, photo, options);
+      const preview = await page.evaluate(renderVintedListingPhoto, {
+        base64,
+        mimeType: photo.mimeType,
+        resize: null,
+        crop: null,
+        filter,
+      });
+      assert.deepEqual(
+        upload.bytes,
+        new Uint8Array(Buffer.from(preview, 'base64')),
+        'Vorschau entspricht dem tatsächlichen Upload',
+      );
+      const output = await pixels(preview);
+      assert.deepEqual([output.width, output.height], [240, 120]);
+      if (filter === 'lighter') assert.ok(output.center > baseline.center + 4);
+      if (filter === 'darker') assert.ok(output.center < baseline.center - 4);
+      if (filter === 'soft')
+        assert.ok(output.contrast < baseline.contrast / 2, JSON.stringify({ baseline, output }));
+    }
+    let previousMargin = 0;
+    for (const border of ['small', 'medium', 'large'] as const) {
+      const output = await exportVintedListingPhoto(page, photo, {
+        resize: 1200,
+        crops: {},
+        filter: 'darker',
+        border,
+      });
+      const data = await pixels(Buffer.from(output.bytes).toString('base64'));
+      assert.deepEqual([data.width, data.height], [1200, 600]);
+      assert.ok(data.corner > 245);
+      // Der mittige obere Rand wächst mit jeder Stufe; das gesamte Foto bleibt sichtbar.
+      const margin = await page.evaluate(async (encoded) => {
+        const image = new Image();
+        image.src = 'data:image/jpeg;base64,' + encoded;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(image, 0, 0);
+        let y = 0;
+        while (y < canvas.height / 2 && ctx.getImageData(canvas.width / 2, y, 1, 1).data[0]! > 245)
+          y++;
+        return y;
+      }, Buffer.from(output.bytes).toString('base64'));
+      assert.ok(margin > previousMargin);
+      previousMargin = margin;
+      const repeated = await exportVintedListingPhoto(page, photo, {
+        resize: 1200,
+        crops: {},
+        filter: 'darker',
+        border,
+      });
+      assert.deepEqual(output.bytes, repeated.bytes);
+    }
+    assert.deepEqual(Buffer.from(photo.bytes), original);
   } finally {
     await browser.close();
   }

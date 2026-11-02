@@ -1,3 +1,4 @@
+import type { ImageCrop } from '../../../core/models/image-crop';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -17,6 +18,9 @@ import { IMAGE_FILE_ACCEPT, imageFileError } from './image-file';
 import { CropperFrameAccessibilityDirective } from './cropper-frame-accessibility.directive';
 
 export interface CroppedImageResult {
+  crop?: ImageCrop;
+  sourceFile?: File | null;
+  sourceUrl?: string;
   file: File;
   dataUrl: string;
   blob: Blob;
@@ -50,6 +54,8 @@ export class ImageCropperModalComponent {
   readonly imageFile = signal<File | null>(null);
   readonly imageBase64 = signal<string | null>(null);
   readonly imageUrl = signal<string | null>(null);
+  private readonly sourceSize = signal<{ width: number; height: number } | null>(null);
+  private readonly crop = signal<ImageCrop | null>(null);
   readonly croppedBlob = signal<Blob | null>(null);
   readonly rotation = signal(0);
   readonly isProcessing = signal(false);
@@ -95,10 +101,22 @@ export class ImageCropperModalComponent {
   imageCropped(event: ImageCroppedEvent): void {
     // Die Bibliothek erzeugt pro Bewegung eine URL; verwendet wird nur ihr Blob.
     if (event.objectUrl) URL.revokeObjectURL(event.objectUrl);
-    if (!this.cancelled) this.croppedBlob.set(event.blob ?? null);
+    if (!this.cancelled) {
+      this.croppedBlob.set(event.blob ?? null);
+      const size = this.sourceSize();
+      if (size)
+        this.crop.set({
+          x: event.imagePosition.x1 / size.width,
+          y: event.imagePosition.y1 / size.height,
+          width: (event.imagePosition.x2 - event.imagePosition.x1) / size.width,
+          height: (event.imagePosition.y2 - event.imagePosition.y1) / size.height,
+          rotation: this.rotation() as ImageCrop['rotation'],
+        });
+    }
   }
 
   imageLoaded(image: LoadedImage): void {
+    this.sourceSize.set(image.transformed.size);
     for (const url of [image.original.objectUrl, image.transformed.objectUrl]) {
       if (url?.startsWith('blob:')) this.loadedObjectUrls.add(url);
     }
@@ -144,6 +162,9 @@ export class ImageCropperModalComponent {
       const file = new File([compressed], name, { type: 'image/jpeg' });
       this.imageReady.emit({
         file,
+        crop: this.crop() ?? undefined,
+        sourceFile: this.imageFile(),
+        sourceUrl: this.imageUrl() ?? this.imageBase64() ?? undefined,
         dataUrl,
         blob: file,
         originalSize: this.imageFile()?.size ?? blob.size,
@@ -169,6 +190,8 @@ export class ImageCropperModalComponent {
     this.releaseLoadedImages();
     this.sourceVersion.update((version) => version + 1);
     this.rotation.set(0);
+    this.crop.set(null);
+    this.sourceSize.set(null);
     this.croppedBlob.set(null);
     const error = file ? imageFileError(file) : null;
     this.errorMessage.set(error);

@@ -1,6 +1,7 @@
 @if (!editing()) {
   <div class="mb-4 flex items-center justify-between gap-3">
     <app-button
+      #priceReturnLink
       [link]="
         entry()?.publicationState === 'draft'
           ? '/marketplaces/vinted/listing-drafts'
@@ -31,14 +32,6 @@
     (cancelled)="cancelEdit()"
   >
     <div entry-header-actions class="flex flex-wrap items-center gap-2">
-      @if (item.publicationState === 'draft') {
-        <app-button
-          variant="secondary"
-          [disabled]="busy() || !canSave()"
-          (clicked)="copyError.set(null); copying.set(true)"
-          >Daten übernehmen</app-button
-        >
-      }
       <span role="status" aria-live="polite" class="text-xs text-fb-text-secondary">{{
         editStatus()
       }}</span>
@@ -314,21 +307,6 @@
       Dieses Inserat ist für das ausgewählte Konto nicht verfügbar.
     </p></app-card
   >
-}
-
-@if (copying() && editing() && canSave() && entry(); as copyEntry) {
-  <app-vinted-listing-copy-dialog
-    [workspaceId]="copyEntry.workspaceId"
-    [content]="copyContent()"
-    [targetEntryId]="entryId()"
-    [targetConnectionId]="connectionId()"
-    [allowCategory]="false"
-    [allowedFields]="copyFields()"
-    [disabled]="busy()"
-    [applyError]="copyError()"
-    (closed)="copying.set(false)"
-    (applied)="applyCopiedFields($event)"
-  />
 }
 
 @if (changingPrice()) {

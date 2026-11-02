@@ -4395,6 +4395,10 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          photo_options: Json
+          relist_deleted_account_id: string | null
+          relist_deleted_at: string | null
+          relist_external_id: string | null
           request_id: string
           revision: number
           updated_at: string
@@ -4409,6 +4413,10 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          photo_options?: Json
+          relist_deleted_account_id?: string | null
+          relist_deleted_at?: string | null
+          relist_external_id?: string | null
           request_id?: string
           revision?: number
           updated_at?: string
@@ -4423,6 +4431,10 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          photo_options?: Json
+          relist_deleted_account_id?: string | null
+          relist_deleted_at?: string | null
+          relist_external_id?: string | null
           request_id?: string
           revision?: number
           updated_at?: string
@@ -4522,6 +4534,8 @@ export type Database = {
           created_at: string
           draft_id: number
           draft_revision: number
+          editing_previous_error_code: string | null
+          editing_previous_state: string | null
           error_code: string | null
           execution_mode: string
           external_account_id: string
@@ -4533,6 +4547,9 @@ export type Database = {
           permission_id: number | null
           provider_result: Json | null
           provider_state: string | null
+          relist_delay_seconds: number
+          relist_imported_at: string | null
+          relist_publish_at: string | null
           replaces_job_id: number | null
           request_hash: string
           request_id: string
@@ -4562,6 +4579,8 @@ export type Database = {
           created_at?: string
           draft_id: number
           draft_revision: number
+          editing_previous_error_code?: string | null
+          editing_previous_state?: string | null
           error_code?: string | null
           execution_mode: string
           external_account_id: string
@@ -4573,6 +4592,9 @@ export type Database = {
           permission_id?: number | null
           provider_result?: Json | null
           provider_state?: string | null
+          relist_delay_seconds?: number
+          relist_imported_at?: string | null
+          relist_publish_at?: string | null
           replaces_job_id?: number | null
           request_hash: string
           request_id: string
@@ -4602,6 +4624,8 @@ export type Database = {
           created_at?: string
           draft_id?: number
           draft_revision?: number
+          editing_previous_error_code?: string | null
+          editing_previous_state?: string | null
           error_code?: string | null
           execution_mode?: string
           external_account_id?: string
@@ -4613,6 +4637,9 @@ export type Database = {
           permission_id?: number | null
           provider_result?: Json | null
           provider_state?: string | null
+          relist_delay_seconds?: number
+          relist_imported_at?: string | null
+          relist_publish_at?: string | null
           replaces_job_id?: number | null
           request_hash?: string
           request_id?: string
@@ -4794,6 +4821,61 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_photo_sources: {
+        Row: {
+          connection_id: string
+          created_at: string
+          draft_id: number
+          external_account_id: string
+          external_id: string
+          id: number
+          images: Json
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          draft_id: number
+          external_account_id: string
+          external_id: string
+          id?: never
+          images: Json
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          draft_id?: number
+          external_account_id?: string
+          external_id?: string
+          id?: never
+          images?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_photo_sourc_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_photo_sources_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_photo_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -11247,6 +11329,16 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_create_relisting_draft: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_external_id: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_delete_listing_draft: {
         Args: {
           p_expected_revision: number
@@ -11266,6 +11358,14 @@ export type Database = {
       marketplace_discard_listing_image: {
         Args: { p_image_id: string }
         Returns: string
+      }
+      marketplace_edit_relisting_plan: {
+        Args: {
+          p_editing: boolean
+          p_expected_version: number
+          p_job_id: string
+        }
+        Returns: Json
       }
       marketplace_enqueue_listing: {
         Args: {
@@ -11287,6 +11387,7 @@ export type Database = {
           p_draft_id: string
           p_expected_revision: number
           p_late_policy?: string
+          p_relist_delay_seconds?: number
           p_replaces_job_id?: number
           p_replaces_version?: number
           p_request_id: string
@@ -11326,6 +11427,20 @@ export type Database = {
           p_price_cents?: number
           p_request_id: string
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_enqueue_relisting: {
+        Args: {
+          p_ai_photo: boolean
+          p_delay_seconds?: number
+          p_draft_id: string
+          p_expected_revision: number
+          p_replaces_job_id?: string
+          p_replaces_version?: number
+          p_request_id: string
+          p_scheduled_at?: string
+          p_time_zone?: string
         }
         Returns: Json
       }
@@ -11429,6 +11544,12 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_listing_job_draft_document: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: Json
+      }
       marketplace_listing_job_timing: {
         Args: { p_late_policy: string; p_now: string; p_scheduled_at: string }
         Returns: string
@@ -11441,6 +11562,10 @@ export type Database = {
       }
       marketplace_listing_permission_valid: {
         Args: { p_permission_id: number; p_user_id: string; p_version?: number }
+        Returns: boolean
+      }
+      marketplace_listing_photo_options_valid: {
+        Args: { p_image_ids: number[]; p_options: Json }
         Returns: boolean
       }
       marketplace_listing_statistics_previous_end: {
@@ -11759,6 +11884,10 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          photo_options: Json
+          relist_deleted_account_id: string | null
+          relist_deleted_at: string | null
+          relist_external_id: string | null
           request_id: string
           revision: number
           updated_at: string
@@ -11936,6 +12065,14 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_read_listing_photo_sources: {
+        Args: {
+          p_connection_id: string
+          p_external_ids: string[]
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_read_listing_statistics_overview: {
         Args: {
           p_connection_id?: string
@@ -11986,6 +12123,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_read_relisting_plans: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_snapshot: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
@@ -12025,6 +12166,13 @@ export type Database = {
         }
         Returns: number
       }
+      marketplace_remember_listing_photo_source: {
+        Args: {
+          p_external_id: string
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: undefined
+      }
       marketplace_rename_connection: {
         Args: {
           p_connection_id: string
@@ -12050,6 +12198,12 @@ export type Database = {
           p_time_zone: string
         }
         Returns: Json
+      }
+      marketplace_request_relisting_import: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: undefined
       }
       marketplace_reschedule_listing: {
         Args: {
@@ -12175,6 +12329,14 @@ export type Database = {
           p_draft_id: string
           p_expected_revision: number
           p_image_ids: string[]
+        }
+        Returns: Json
+      }
+      marketplace_set_listing_photo_options: {
+        Args: {
+          p_draft_id: string
+          p_expected_revision: number
+          p_options: Json
         }
         Returns: Json
       }

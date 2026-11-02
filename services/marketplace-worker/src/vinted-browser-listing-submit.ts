@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { deleteVintedListing } from './vinted-browser-listing-delete.ts';
 import { observeVintedListingCreation } from './vinted-browser-listing-save.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
 import type {
@@ -140,6 +141,7 @@ export async function submitVintedListing(
         await beforeWrite();
       },
       authorizeNewForm,
+      { photoOptions: snapshot.photoOptions },
     );
     await check();
     step = 'metadata';
@@ -178,6 +180,33 @@ export async function submitVintedListing(
     if ((await button.count()) !== 1 || !(await button.isVisible()) || !(await button.isEnabled()))
       return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
     await check();
+    if (snapshot.relistExternalId && snapshot.relistStage !== 'publish') {
+      // Die vollständigen Angaben, privaten Originale und angenommenen Uploads liegen vor.
+      // Erst nach bestätigter Löschung darf die neue Veröffentlichung beginnen.
+      const removed = await deleteVintedListing(
+        await page.context().newPage(),
+        snapshot.relistExternalId,
+        accountId,
+        authorize,
+      );
+      if (removed.status !== 'confirmed')
+        return {
+          outcome: removed.status,
+          errorCode:
+            'relisting_delete_' +
+            removed.step +
+            '_' +
+            (removed.status === 'failed' ? 'failed' : 'unconfirmed'),
+        };
+      if (snapshot.relistStage === 'delete')
+        return {
+          outcome: 'relisting_deleted',
+          externalId: snapshot.relistExternalId,
+          externalAccountId: accountId,
+          verifiedAt: new Date().toISOString(),
+        };
+      await check();
+    }
     // Nur feste Prüfschritte speichern; Anbieterantworten und Artikeldaten bleiben im Browser.
     let confirmationStep = 'save_response';
     const unconfirmed = (): MarketplaceListingResult => ({

@@ -1,5 +1,11 @@
+import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
+import type { VintedListingJob } from '../../models/vinted-listing-job';
 import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
+import {
+  VintedListingsTableComponent,
+  type VintedWardrobeTableRow,
+} from './vinted-listings-table.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,7 +18,17 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideLayoutGrid, LucideList, LucideBadgeEuro } from '@lucide/angular';
+import {
+  LucideLayoutGrid,
+  LucideList,
+  LucideBadgeEuro,
+  LucideRotateCcw,
+  LucideCopy,
+  LucidePencil,
+} from '@lucide/angular';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { VintedListingEditorComponent } from '../vinted-listing-editor/vinted-listing-editor.component';
+import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -30,12 +46,15 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { createVintedListingPriceEditor } from '../../services/vinted-listing-price-editor';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 
 @Component({
   selector: 'app-vinted-listings',
   imports: [
     ListingTransferActionComponent,
     CurrencyPipe,
+    NgTemplateOutlet,
+    VintedListingsTableComponent,
     RouterLink,
     ButtonComponent,
     BadgeComponent,
@@ -45,9 +64,11 @@ import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialo
     VintedListingMetricsComponent,
     VintedListingAgeComponent,
     VintedListingPriceDialogComponent,
+    ModalShellComponent,
+    VintedListingEditorComponent,
   ],
   templateUrl: './vinted-listings.component.html',
-  providers: [MarketplaceListingStatisticsStore],
+  providers: [MarketplaceListingStatisticsStore, VintedRelistingPlanStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block min-w-0 w-full max-w-full overflow-hidden' },
 })
@@ -56,7 +77,40 @@ export class VintedListingsComponent {
   readonly gridIcon = LucideLayoutGrid;
   readonly listIcon = LucideList;
   readonly priceIcon = LucideBadgeEuro;
+  readonly relistIcon = LucideRotateCcw;
+  readonly templateIcon = LucideCopy;
+  readonly editIcon = LucidePencil;
+  readonly plans = inject(VintedRelistingPlanStore);
+  readonly editingPlan = signal<VintedListingJob | null>(null);
+  readonly entries = computed(() => {
+    const deleted = new Set(
+      this.plans
+        .plans()
+        .flatMap((plan) =>
+          plan.job.state === 'confirmed'
+            ? [plan.job.relistExternalId, plan.job.externalId]
+            : [plan.job.relistExternalId],
+        ),
+    );
+    return (this.page()?.items ?? []).filter((entry) => !deleted.has(entry.externalId));
+  });
+  closeEditor(): void {
+    this.editorSource.set(null);
+    this.editingPlan.set(null);
+    void this.plans.refresh();
+  }
+  readonly editorSource = signal<VintedListingEditorSource | null>(null);
+  canCreateFrom(entry: MarketplaceEntry): boolean {
+    return (
+      this.store.canManage() &&
+      this.store.selectedConnection()?.status === 'connected' &&
+      this.store.selectedConnection()?.executionMode === 'cloud' &&
+      !!entry.externalId &&
+      !this.operations.isRunning(entry)
+    );
+  }
   readonly store = inject(MarketplaceAccountStore);
+  readonly operations = inject(VintedListingOperationStore);
   readonly statistics = inject(MarketplaceListingStatisticsStore);
   private readonly workspace = inject(WorkspaceService);
   private readonly route = inject(ActivatedRoute);
@@ -67,6 +121,15 @@ export class VintedListingsComponent {
   private handledConnectionId: string | null = null;
   readonly page = computed(() => this.store.snapshot()?.publications ?? null);
   readonly publicationBadge = vintedPublicationBadge;
+  readonly tableRows = computed<readonly VintedWardrobeTableRow[]>(() =>
+    this.entries().map((entry) => ({
+      entry,
+      change: this.statistics.change(entry),
+      comparisonLabel: this.statistics.comparisonLabel(entry),
+      highlighted: this.metricDisplay.highlighted().has(entry.id),
+      running: this.operations.isRunning(entry),
+    })),
+  );
   readonly priceEntry = signal<MarketplaceEntry | null>(null);
   readonly savingPrice = signal(false);
   readonly priceNotice = signal<string | null>(null);

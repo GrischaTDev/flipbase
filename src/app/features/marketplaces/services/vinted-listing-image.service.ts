@@ -1,3 +1,4 @@
+import type { VintedListingPhotoOptions } from '../models/vinted-listing-photo-options';
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { ListingImageDraft } from '../../../shared/components/listing-image-editor/listing-image-draft';
@@ -64,6 +65,7 @@ export class VintedListingImageService {
       throw new Error('Ein gespeichertes Foto konnte nicht geladen werden. Lade die Fotos erneut.');
     return draft.images.map((image) => ({
       key: image.id,
+      crop: draft.photoOptions?.crops[image.id] ?? null,
       storagePath: image.storagePath,
       file: null,
       fileName: image.fileName,
@@ -135,6 +137,22 @@ export class VintedListingImageService {
       }
       throw error;
     }
+  }
+  async savePhotoOptions(
+    draft: VintedListingDraft,
+    options: VintedListingPhotoOptions,
+  ): Promise<VintedListingDraft> {
+    return parseVintedListingDraft(
+      listingResponse(
+        await this.client.rpc('marketplace_set_listing_photo_options', {
+          p_draft_id: draft.id,
+          p_expected_revision: draft.revision,
+          p_options: JSON.parse(JSON.stringify(options)),
+        }),
+      ),
+      draft.workspaceId,
+      draft.id,
+    );
   }
   async setOrder(draft: VintedListingDraft, ids: readonly string[]): Promise<VintedListingDraft> {
     return parseVintedListingDraft(

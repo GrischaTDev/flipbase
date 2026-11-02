@@ -48,49 +48,78 @@
   </div>
   @if (statistics.error(); as error) {
     <p class="mb-3 text-xs text-fb-text-secondary" role="status">{{ error }}</p>
-  } @else if (statistics.missingHistory()) {
-    <p class="mb-3 text-xs text-fb-text-secondary">
-      Die Messhistorie wird aufgebaut. Änderungszahlen erscheinen, sobald ein Vergleichswert für den
-      Zeitraum vorliegt.
-    </p>
   }
   @if (priceNotice(); as notice) {
     <p class="mb-3 text-sm text-fb-success" role="status">{{ notice }}</p>
   }
-  <div
-    [class]="
-      viewMode() === 'grid'
-        ? 'grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
-        : 'min-w-0 overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface'
-    "
-  >
-    @if (viewMode() === 'list' && publications.items.length) {
-      <div
-        class="hidden grid-cols-[minmax(0,1fr)_12rem_7rem_10rem] gap-4 border-b border-fb-border-subtle bg-fb-subtle px-4 py-2 text-xs text-fb-text-secondary xl:grid"
-        aria-hidden="true"
-      >
-        <span>Artikel</span><span>Status &amp; Aktivität</span><span class="text-right">Preis</span
-        ><span class="text-right">Aktionen</span>
-      </div>
-    }
-    @for (entry of publications.items; track entry.id) {
-      <article
-        [class]="
-          viewMode() === 'grid'
-            ? 'flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface'
-            : 'min-w-0 border-b border-fb-border-subtle last:border-b-0 xl:grid xl:grid-cols-[minmax(0,1fr)_10rem] xl:items-center xl:gap-4 xl:px-4'
-        "
-      >
-        <a
-          [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
-          [class]="
-            viewMode() === 'grid'
-              ? 'block min-w-0 flex-1 rounded-t-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary'
-              : 'grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary xl:grid-cols-[minmax(0,1fr)_12rem_7rem] xl:gap-4 xl:px-0 xl:py-4'
-          "
-          [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
+  @if (viewMode() === 'list') {
+    <app-vinted-listings-table
+      [rows]="tableRows()"
+      [plans]="plans.plans()"
+      [periodLabel]="statistics.periodLabel()"
+      [actionsTemplate]="listingActions"
+      [planEditable]="plans.canEdit"
+      (planEdited)="editingPlan.set($event)"
+    />
+  } @else {
+    <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+      @for (plan of plans.plans(); track plan.job.id) {
+        <article
+          data-relisting-plan
+          class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface"
+          [attr.aria-label]="plan.draft.content.title"
         >
-          @if (viewMode() === 'grid') {
+          <div class="relative">
+            <app-product-thumbnail
+              class="block w-full"
+              [src]="plan.imageUrl"
+              [alt]="plan.draft.content.title"
+              size="listing"
+              [flush]="true"
+            />
+            <p
+              class="absolute inset-x-2 top-2 rounded-md bg-fb-surface px-2 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
+            >
+              {{ plan.label }}
+            </p>
+          </div>
+          <div class="min-w-0 flex-1 space-y-3 p-3">
+            <h2 class="truncate text-sm font-semibold text-fb-text-primary">
+              {{ plan.draft.content.title }}
+            </h2>
+            <p class="text-sm text-fb-text-secondary">
+              {{
+                (plan.draft.content.priceCents ?? 0) / 100
+                  | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}
+            </p>
+          </div>
+          <div class="flex justify-end border-t border-fb-border-subtle bg-fb-subtle/50 p-2">
+            <app-button
+              variant="table-action"
+              size="slim"
+              [icon]="editIcon"
+              [iconOnly]="true"
+              title="Planung bearbeiten"
+              [ariaLabel]="'Planung für ' + plan.draft.content.title + ' bearbeiten'"
+              [disabled]="!plans.canEdit(plan.job)"
+              (clicked)="editingPlan.set(plan.job)"
+            />
+          </div>
+        </article>
+      }
+      @for (entry of entries(); track entry.id) {
+        <article
+          data-listing-row
+          [class.opacity-60]="operations.isRunning(entry)"
+          [attr.aria-busy]="operations.isRunning(entry) ? 'true' : null"
+          class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface"
+        >
+          <a
+            [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
+            class="block min-w-0 flex-1 rounded-t-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
+            [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
+          >
             <div class="relative overflow-hidden">
               <app-product-thumbnail
                 class="block w-full"
@@ -101,6 +130,14 @@
               />
               @if (entry.promoted) {
                 <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
+              }
+              @if (operations.isRunning(entry)) {
+                <p
+                  role="status"
+                  class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-fb-surface px-3 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
+                >
+                  Preis wird geändert
+                </p>
               }
             </div>
             <div class="p-3">
@@ -157,114 +194,74 @@
                 />
               </div>
             </div>
-          } @else {
-            <div class="flex min-w-0 items-center gap-3">
-              <app-product-thumbnail
-                [src]="entry.imageUrl"
-                [alt]="entry.title"
-                size="md"
-                fit="cover"
-              />
-              <div class="min-w-0 flex-1">
-                <h2
-                  class="truncate text-sm font-semibold text-fb-text-primary"
-                  [attr.title]="entry.title"
-                >
-                  {{ entry.title }}
-                </h2>
-                @if (entry.brand || entry.size) {
-                  <p
-                    class="mt-1 truncate text-xs text-fb-text-secondary"
-                    [attr.title]="(entry.brand ?? '') + ' ' + (entry.size ?? '')"
-                  >
-                    {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
-                  </p>
-                }
-                @if (entry.status) {
-                  <p
-                    class="mt-1 truncate text-xs text-fb-text-secondary"
-                    [attr.title]="'Zustand: ' + entry.status"
-                  >
-                    <span class="sr-only">Zustand: </span>{{ entry.status }}
-                  </p>
-                }
-              </div>
-            </div>
-            <div
-              class="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs xl:col-span-1 xl:flex-col xl:items-start"
-            >
-              <div class="flex flex-wrap items-center gap-2">
-                @if (publicationBadge(entry.publicationState); as badge) {
-                  <app-badge [tone]="badge.tone">{{ badge.label }}</app-badge>
-                }
-                <app-vinted-listing-age
-                  class="shrink-0"
-                  [publishedAt]="entry.publishedAt"
-                  [publicationAge]="entry.publicationAge"
-                  [createdAt]="entry.createdAt"
-                  [publicationState]="entry.publicationState ?? 'unknown'"
-                  [compact]="true"
-                />
-                @if (entry.promoted) {
-                  <app-badge tone="info">Gepusht</app-badge>
-                }
-              </div>
-              <app-vinted-listing-metrics
-                class="ml-auto max-w-full xl:ml-0"
-                [metrics]="entry.metrics"
-                [change]="statistics.change(entry)"
-                [periodLabel]="statistics.periodLabel()"
-                [attr.title]="statistics.comparisonLabel(entry)"
-                [highlighted]="metricDisplay.highlighted().has(entry.id)"
-              />
-            </div>
-            <p
-              class="col-start-2 row-start-1 whitespace-nowrap text-right text-sm font-semibold text-fb-text-primary xl:col-start-3"
-            >
-              {{
-                entry.price === null ? 'Preis unbekannt' : (entry.price | currency: entry.currency)
-              }}
-            </p>
-          }
-        </a>
-        <div
-          [class]="
-            viewMode() === 'grid'
-              ? 'flex flex-wrap items-center gap-2 border-t border-fb-border-subtle bg-fb-subtle/50 p-2'
-              : 'flex flex-wrap items-center justify-end gap-2 px-3 pb-3 xl:px-0 xl:py-3'
-          "
-        >
-          @if (priceEditor.available(entry)) {
-            <app-button
-              variant="table-action"
-              size="slim"
-              [icon]="priceIcon"
-              [iconOnly]="true"
-              title="Preis ändern"
-              [ariaLabel]="'Preis für ' + entry.title + ' ändern'"
-              ariaHaspopup="dialog"
-              (clicked)="changePrice(entry, $event)"
+          </a>
+          <div
+            class="flex flex-wrap items-center gap-2 border-t border-fb-border-subtle bg-fb-subtle/50 p-2"
+            [attr.inert]="operations.isRunning(entry) ? '' : null"
+          >
+            <ng-container
+              [ngTemplateOutlet]="listingActions"
+              [ngTemplateOutletContext]="{ $implicit: entry }"
             />
-          }
-          <app-listing-transfer-action
-            [compact]="true"
-            [source]="{
-              platform: 'vinted',
-              workspaceId: entry.workspaceId,
-              connectionId: entry.connectionId,
-              externalId: entry.externalId || '',
-            }"
-            [title]="entry.title"
-          />
-        </div>
-      </article>
-    } @empty {
-      <app-card
-        title="Noch keine Artikel im Kleiderschrank"
-        subtitle="Deine Artikel erscheinen nach einer Datenübernahme."
+          </div>
+        </article>
+      } @empty {
+        @if (!plans.plans().length) {
+          <app-card title="Noch keine Artikel im Kleiderschrank" />
+        }
+      }
+    </div>
+  }
+  <ng-template #listingActions let-entry>
+    @if (priceEditor.available(entry)) {
+      <app-button
+        variant="table-action"
+        size="slim"
+        [icon]="priceIcon"
+        [disabled]="savingPrice()"
+        [iconOnly]="true"
+        title="Preis ändern"
+        [ariaLabel]="'Preis für ' + entry.title + ' ändern'"
+        ariaHaspopup="dialog"
+        (clicked)="changePrice(entry, $event)"
       />
     }
-  </div>
+    <app-listing-transfer-action
+      [attr.inert]="operations.isRunning(entry) ? '' : null"
+      [compact]="true"
+      [source]="{
+        platform: 'vinted',
+        workspaceId: entry.workspaceId,
+        connectionId: entry.connectionId,
+        externalId: entry.externalId || '',
+      }"
+      [title]="entry.title"
+    />
+    @if (canCreateFrom(entry)) {
+      @if (entry.publicationState === 'active') {
+        <app-button
+          variant="table-action"
+          size="slim"
+          [icon]="relistIcon"
+          [iconOnly]="true"
+          title="Relisten"
+          [ariaLabel]="entry.title + ' relisten'"
+          ariaHaspopup="dialog"
+          (clicked)="editorSource.set({ entry, mode: 'relist' })"
+        />
+      }
+      <app-button
+        variant="table-action"
+        size="slim"
+        [icon]="templateIcon"
+        [iconOnly]="true"
+        title="Als Vorlage für neues Inserat verwenden"
+        [ariaLabel]="entry.title + ' als Vorlage für neues Inserat verwenden'"
+        ariaHaspopup="dialog"
+        (clicked)="editorSource.set({ entry, mode: 'template' })"
+      />
+    }
+  </ng-template>
   @if (priceEditor.open()) {
     <app-vinted-listing-price-dialog
       [title]="priceEntry()?.title ?? ''"
@@ -283,4 +280,29 @@
       >Weitere Artikel laden</app-button
     >
   }
+}
+@if (plans.error(); as error) {
+  <p role="alert" class="mt-3 text-sm text-fb-critical">{{ error }}</p>
+}
+@if (editingPlan(); as job) {
+  <app-modal-shell
+    title="Geplantes Relisting"
+    size="full"
+    [hasFooter]="false"
+    (closed)="plannedEditor.cancel()"
+  >
+    <app-vinted-listing-editor #plannedEditor [plannedJob]="job" (closed)="closeEditor()" />
+  </app-modal-shell>
+}
+@if (editorSource(); as source) {
+  <app-modal-shell
+    [title]="
+      source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden'
+    "
+    size="full"
+    [hasFooter]="false"
+    (closed)="editor.cancel()"
+  >
+    <app-vinted-listing-editor #editor [source]="source" (closed)="closeEditor()" />
+  </app-modal-shell>
 }

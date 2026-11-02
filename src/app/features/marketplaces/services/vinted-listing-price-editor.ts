@@ -3,6 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
 import type { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedListingPriceChangedError } from './marketplace-browser-test-api.service';
+import { VintedListingOperationStore } from './vinted-listing-operation.store';
 
 /** Gemeinsamer Preisablauf für Detailansicht und Kleiderschrank. */
 export function createVintedListingPriceEditor(options: {
@@ -14,6 +15,7 @@ export function createVintedListingPriceEditor(options: {
   confirmed: () => void;
   closed: () => void;
 }) {
+  const operations = inject(VintedListingOperationStore);
   const open = signal(false);
   const error = signal<string | null>(null);
   const control = new FormControl<number | null>(null, [
@@ -29,6 +31,7 @@ export function createVintedListingPriceEditor(options: {
     const connection = options.store.selectedConnection();
     return (
       !!entry &&
+      !operations.isRunning(entry) &&
       entry.price !== null &&
       entry.currency === 'EUR' &&
       entry.publicationState !== 'draft' &&
@@ -91,21 +94,19 @@ export function createVintedListingPriceEditor(options: {
         version === revision &&
         selection === options.store.selectionVersion() &&
         options.entry()?.id === entry!.id &&
-        available(options.entry());
+        options.entry()?.connectionId === entry!.connectionId;
       options.busy.set(true);
       error.set(null);
       control.disable();
+      open.set(false);
+      options.closed();
       try {
-        await options.store.saveListingPrice(
-          entry!.connectionId,
-          entry!.id,
-          expectedPriceCents,
-          cents,
+        await operations.changePrice(entry!, () =>
+          options.store.saveListingPrice(entry!.connectionId, entry!.id, expectedPriceCents, cents),
         );
         if (!current()) return;
         options.priceRead(cents / 100);
         open.set(false);
-        options.closed();
         options.confirmed();
       } catch (failure) {
         if (!current()) return;
