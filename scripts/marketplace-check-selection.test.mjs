@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { access, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { execFile, spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { delimiter, dirname, join } from 'node:path';
+import { delimiter, dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import ts from 'typescript';
 import { promisify } from 'node:util';
 import { marketplaceImageChecks } from './marketplace-image-checks.mjs';
 
@@ -158,6 +159,63 @@ test('Imagebefehl baut Session und Import-Smoke bei beiden Images genau einmal',
     ),
   );
   assert.deepEqual(marketplaceImageCommands(select(['docs/test.md'])).commands, []);
+});
+
+test('alle relativen Laufzeitimporte sind im tatsächlichen Session-Image enthalten', async () => {
+  const { commands } = marketplaceImageCommands(select(null));
+  const [, args] = commands.find(([, arguments_]) =>
+    arguments_.includes('services/marketplace-worker/Dockerfile.chromium-session'),
+  );
+  const contexts = new Map([['', args.at(-1)]]);
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== '--build-context') continue;
+    const [name, path] = args[index + 1].split('=');
+    contexts.set(name, path);
+  }
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const files = new Map();
+  async function copyInput(source, target) {
+    if ((await stat(join(repository, source))).isDirectory()) {
+      for (const name of await readdir(join(repository, source)))
+        await copyInput(posix.join(source, name), posix.join(target, name));
+    } else {
+      files.set(target, source);
+    }
+  }
+  const docker = await readFile(
+    join(repository, 'services/marketplace-worker/Dockerfile.chromium-session'),
+    'utf8',
+  );
+  for (const [, context = '', inputs] of docker.matchAll(/^COPY (?:--from=(\S+) )?(.+)$/gmu)) {
+    assert.ok(contexts.has(context), `Fehlender Baukontext: ${context}`);
+    const paths = inputs.trim().split(/\s+/u);
+    const destination = paths.pop();
+    for (const path of paths) {
+      const target = posix.resolve('/app', destination);
+      await copyInput(
+        posix.join(contexts.get(context), path),
+        destination.endsWith('/') ? posix.join(target, posix.basename(path)) : target,
+      );
+    }
+  }
+  const pending = ['/app/runtime/chromium-session.ts'];
+  const visited = new Set();
+  while (pending.length) {
+    const target = pending.pop();
+    if (visited.has(target)) continue;
+    visited.add(target);
+    const source = files.get(target);
+    assert.ok(source, `Fehlendes Laufzeitmodul: ${target}`);
+    const compiled = ts.transpileModule(await readFile(join(repository, source), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    for (const { fileName } of ts.preProcessFile(compiled).importedFiles) {
+      if (!fileName.startsWith('.')) continue;
+      const dependency = posix.resolve(posix.dirname(target), fileName);
+      assert.ok(files.has(dependency), `${source}: ${fileName} fehlt als ${dependency}`);
+      pending.push(dependency);
+    }
+  }
 });
 
 test('ungültige Pläne, Pfadargumente und Broker ohne Session schlagen fehl', () => {

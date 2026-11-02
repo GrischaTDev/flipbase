@@ -85,3 +85,9 @@ sechste erzeugte Migration erhält alte Bestätigungen ohne erfundene Fotos;
 Reactive-Forms-Sperren verhindern Entwicklerwarnungen im Editor und bei der
 Artikelauswahl. Vier UTC-Relistfälle bestehen einschließlich Warnungsprüfung.
 Der vollständige neue CI-Nachweis bleibt bis zum grünen PR offen.
+
+Beim zweiten Lauf fehlt der Renderer noch im separaten Session-Image mit
+unübersetztem TypeScript. Benannten Baukontext und die ursprüngliche `.mts`-Datei
+für diese Sitzung ergänzt. Die neue lokale Prüfung des tatsächlichen
+Docker-COPY-Importgraphs reproduziert den Fehler vor der Korrektur. Der gemeinsame
+Imagebefehl gilt auch für die spätere Veröffentlichung; erneuter CI-Nachweis nötig.

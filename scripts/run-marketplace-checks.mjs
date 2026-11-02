@@ -97,6 +97,8 @@ export function marketplaceImageCommands(plan, imageTag = 'ci') {
         'pilot=tools/cloud-browser-pilot',
         '--build-context',
         'extension=tools/flipbase-extension',
+        '--build-context',
+        'shared=supabase/functions/_shared',
         '--tag',
         sessionImage,
         'services/marketplace-worker',
