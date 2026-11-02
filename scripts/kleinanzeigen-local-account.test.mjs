@@ -183,3 +183,27 @@ test('renewal accepts the current contact name without accepting a stale binding
   );
   assert.equal(f.value.binding.displayName, 'Neuer Kontaktname');
 });
+
+test('Löschanforderungen verlangen genaue Kontobindung, Kennung und ausdrücklich benannten Titel', () => {
+  const request = {
+    type: 'FLIPBASE_KLEINANZEIGEN_DELETE_LISTING',
+    requestId: 'delete-1',
+    workspaceId,
+    connectionId: '12',
+    generation: 1,
+    externalId: '999',
+    title: 'Jacke',
+  };
+  assert.equal(core.parseRequest(request, origin)?.action, 'DELETE_LISTING');
+  for (const patch of [
+    { title: '' },
+    { title: 'x'.repeat(66) },
+    { externalId: '../999' },
+    { generation: 0 },
+    { connectionId: '0' },
+    { workspaceId: 'foreign' },
+    { unexpected: true },
+  ])
+    assert.equal(core.parseRequest({ ...request, ...patch }, origin), null);
+  assert.equal(core.parseRequest(request, 'https://evil.example'), null);
+});

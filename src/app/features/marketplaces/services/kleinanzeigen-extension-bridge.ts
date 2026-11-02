@@ -54,6 +54,7 @@ export class KleinanzeigenExtensionBridge {
   readonly formSchemaAvailable = this.formSchemaState.asReadonly();
   readonly handoffAvailable = signal(false);
   readonly relistingAvailable = signal(false);
+  readonly deletionAvailable = signal(false);
   private destroyed = false;
   private checkTimer: ReturnType<typeof setTimeout> | undefined;
   readonly capabilities = this.capabilityState.asReadonly();
@@ -67,6 +68,7 @@ export class KleinanzeigenExtensionBridge {
       this.cancel();
       this.handoffAvailable.set(false);
       this.relistingAvailable.set(false);
+      this.deletionAvailable.set(false);
       this.capabilityState.set(unavailable);
       this.formSchemaState.set(false);
       this.quotaState.set(false);
@@ -86,6 +88,7 @@ export class KleinanzeigenExtensionBridge {
     this.checkTimer = setTimeout(() => {
       this.handoffAvailable.set(false);
       this.relistingAvailable.set(false);
+      this.deletionAvailable.set(false);
       this.capabilityState.set(unavailable);
       this.formSchemaState.set(false);
       this.quotaState.set(false);
@@ -289,6 +292,26 @@ export class KleinanzeigenExtensionBridge {
       );
     return result;
   }
+  async deleteListing(
+    scope: { workspaceId: string; connectionId: string; generation: number },
+    externalId: string,
+    title: string,
+  ): Promise<void> {
+    if (!this.deletionAvailable())
+      throw new Error(
+        'Aktualisiere die Flipbase-Erweiterung auf Version 1.13.0 und lade die Seite neu.',
+      );
+    const result = await this.request('DELETE_LISTING', { ...scope, externalId, title }, 180000);
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      (result as Record<string, unknown>)['externalId'] !== externalId ||
+      (result as Record<string, unknown>)['confirmed'] !== true
+    )
+      throw new Error(
+        'Die Löschung wurde nicht eindeutig bestätigt. Aktualisiere die Inserateliste, bevor Du erneut löschst.',
+      );
+  }
   async relistingAttempts(scope: {
     readonly workspaceId: string;
     readonly connectionId: string;
@@ -309,9 +332,14 @@ export class KleinanzeigenExtensionBridge {
           !/^[1-9][0-9]{0,31}$/u.test(value.externalId) ||
           typeof value.title !== 'string' ||
           value.title.length > 65 ||
-          !['secured', 'deleting', 'deleted', 'submitting', 'outcome_unknown'].includes(
-            value.phase,
-          ),
+          ![
+            'secured',
+            'deleting',
+            'deleted',
+            'submitting',
+            'outcome_unknown',
+            'confirmed',
+          ].includes(value.phase),
       )
     )
       throw new Error('Die gesicherten Anzeigen konnten nicht gelesen werden.');
@@ -361,7 +389,8 @@ export class KleinanzeigenExtensionBridge {
       | 'PUBLISH_JOB'
       | 'OPEN_LISTING'
       | 'RELIST_LISTING'
-      | 'RELIST_ATTEMPTS',
+      | 'RELIST_ATTEMPTS'
+      | 'DELETE_LISTING',
     fields: Readonly<Record<string, unknown>>,
     timeout = 60000,
   ): Promise<unknown> {
@@ -418,6 +447,11 @@ export class KleinanzeigenExtensionBridge {
         response['installed'] === true &&
           caps['accounts'] === true &&
           response['kleinanzeigenAssistedListings'] === true,
+      );
+      this.deletionAvailable.set(
+        response['installed'] === true &&
+          caps['accounts'] === true &&
+          response['kleinanzeigenDeletion'] === true,
       );
       this.relistingAvailable.set(
         response['installed'] === true &&

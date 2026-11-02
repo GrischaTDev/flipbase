@@ -1758,7 +1758,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.11.0');
+  assert.equal(announcement.reply.version, '1.13.0');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1966,7 +1966,7 @@ test('Manifest narrows application and provider access and keeps Kleinanzeigen a
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.12.2');
+  assert.equal(manifest.version, '1.13.0');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
@@ -1985,7 +1985,7 @@ test('Manifest narrows application and provider access and keeps Kleinanzeigen a
         script.js.includes('kleinanzeigen-autofill.js') && script.js.includes('autofill-core.js'),
     ),
   );
-  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'alarms']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'alarms', 'tabGroups']);
   assert.deepEqual(manifest.web_accessible_resources, [
     { resources: ['images/flipbase-mark.png'], matches: ['https://www.vinted.de/*'] },
   ]);

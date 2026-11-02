@@ -7,10 +7,14 @@
   <app-card padding="none">
     <ng-container [ngTemplateOutlet]="accountHeader" />
   </app-card>
-  <app-card class="mt-4" padding="none">
-    <h3 card-header class="text-sm font-bold text-fb-text-primary">Inserate</h3>
-    <ng-container [ngTemplateOutlet]="listingsContent" />
-  </app-card>
+  @if (section().account.platform === 'kleinanzeigen') {
+    <div class="mt-4 min-w-0"><ng-container [ngTemplateOutlet]="listingsContent" /></div>
+  } @else {
+    <app-card class="mt-4" padding="none">
+      <h3 card-header class="text-sm font-bold text-fb-text-primary">Inserate</h3>
+      <ng-container [ngTemplateOutlet]="listingsContent" />
+    </app-card>
+  }
 }
 <ng-template #accountHeader>
   <div
@@ -108,6 +112,16 @@
       [class.border-t]="collapsible()"
       [class.border-fb-border-subtle]="collapsible()"
     >
+      @if (section().account.platform === 'kleinanzeigen') {
+        @if (section().selection.length && !relisting.busy()) {
+          <div class="mb-3 flex min-w-0 justify-end">
+            <app-kleinanzeigen-relisting-action [section]="section()" (changed)="retried.emit()" />
+          </div>
+        }
+        @if (relisting.error(); as message) {
+          <app-notice-banner class="mb-3" announcement="alert">{{ message }}</app-notice-banner>
+        }
+      }
       <app-data-table
         [ariaLabel]="'Inserate von ' + section().account.displayName"
         [searchEnabled]="section().account.supportsSearch"
@@ -150,13 +164,6 @@
           <p class="text-xs text-fb-text-secondary" role="status">
             {{ section().selection.length }} ausgewählt
           </p>
-          @if (section().account.platform === 'kleinanzeigen') {
-            <app-kleinanzeigen-relisting-action
-              class="w-full"
-              [section]="section()"
-              (changed)="retried.emit()"
-            />
-          }
         </div>
         <app-button
           table-error-action
@@ -216,13 +223,6 @@
                         <span class="text-xs text-fb-text-secondary">{{
                           stateLabel(item.state)
                         }}</span>
-                        @if (kleinanzeigenActions.isRunning(item.reference)) {
-                          <span
-                            role="status"
-                            class="mt-1 flex items-center gap-2 text-xs text-fb-text-primary"
-                            ><app-loading-indicator /> Wird inseriert …</span
-                          >
-                        }
                       </div>
                     </div>
                   </td>
@@ -233,15 +233,9 @@
                     />
                   </td>
                   <td class="p-3">
-                    <app-vinted-listing-age
-                      [publishedAt]="item.publishedAt"
-                      [publishedOn]="item.publishedOn ?? null"
-                      [publicationAge]="item.publicationAge"
-                      [createdAt]="item.createdAt"
-                      [publicationState]="
-                        item.reference.platform === 'vinted' ? item.state : undefined
-                      "
-                      [compact]="true"
+                    <ng-container
+                      [ngTemplateOutlet]="listingAge"
+                      [ngTemplateOutletContext]="{ $implicit: item }"
                     />
                   </td>
                   <td class="p-3">
@@ -285,24 +279,12 @@
                     />
                   </p>
                   <p class="mt-1 text-xs text-fb-text-secondary">{{ stateLabel(item.state) }}</p>
-                  @if (kleinanzeigenActions.isRunning(item.reference)) {
-                    <p
-                      role="status"
-                      class="mt-1 flex items-center gap-2 text-xs text-fb-text-primary"
-                    >
-                      <app-loading-indicator /> Wird inseriert …
-                    </p>
-                  }
                 </div>
               </div>
               <div class="flex flex-wrap items-center justify-between gap-3">
-                <app-vinted-listing-age
-                  [publishedAt]="item.publishedAt"
-                  [publishedOn]="item.publishedOn ?? null"
-                  [publicationAge]="item.publicationAge"
-                  [createdAt]="item.createdAt"
-                  [publicationState]="item.reference.platform === 'vinted' ? item.state : undefined"
-                  [compact]="true"
+                <ng-container
+                  [ngTemplateOutlet]="listingAge"
+                  [ngTemplateOutletContext]="{ $implicit: item }"
                 />
                 <ng-container
                   [ngTemplateOutlet]="actions"
@@ -342,7 +324,6 @@
     </div>
   }
 </ng-template>
-
 <ng-template #price let-item>
   @if (item.priceCents === null) {
     Preis unbekannt
@@ -353,51 +334,106 @@
     <span class="text-xs text-fb-text-secondary">(Währung unbekannt)</span>
   }
 </ng-template>
+<ng-template #listingAge let-item>
+  @if (kleinanzeigenActions.isRunning(item.reference)) {
+    <span role="status" class="flex items-center gap-2 text-xs text-fb-text-primary">
+      <app-loading-indicator /> {{ kleinanzeigenActions.runningLabel(item.reference) }}
+    </span>
+  } @else {
+    <app-vinted-listing-age
+      [publishedAt]="item.publishedAt"
+      [publishedOn]="item.publishedOn ?? null"
+      [publicationAge]="item.publicationAge"
+      [createdAt]="item.createdAt"
+      [publicationState]="item.reference.platform === 'vinted' ? item.state : undefined"
+      [compact]="true"
+    />
+  }
+</ng-template>
 <ng-template #actions let-item>
   @if (!kleinanzeigenActions.isRunning(item.reference)) {
-    <div class="flex items-center justify-end gap-2">
-      @if (item.reference.platform === 'vinted') {
-        <app-listing-transfer-action
-          (published)="transferPublished.emit($event)"
-          [source]="item.reference"
-          [title]="item.title"
-          [compact]="true"
-        />
-      }
-      @if (item.detailLink) {
-        <app-button
-          variant="secondary"
-          size="slim"
-          [icon]="viewIcon"
-          [link]="item.detailLink.join('/')"
-          [ariaLabel]="item.title + ' ansehen'"
-          [title]="item.title + ' ansehen'"
-          >Ansehen</app-button
-        >
-      } @else if (item.externalUrl) {
-        <app-button
-          variant="secondary"
-          size="slim"
-          [icon]="viewIcon"
-          [href]="item.externalUrl"
-          target="_blank"
-          [ariaLabel]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
-          [title]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
-          >Ansehen</app-button
-        >
-      }
-      @if (item.editLink) {
-        <app-button
-          variant="secondary"
-          size="slim"
-          [icon]="editIcon"
-          [link]="item.editLink.join('/')"
-          [queryParams]="{ connection: item.reference.connectionId }"
-          [ariaLabel]="item.title + ' bearbeiten'"
-          [title]="item.title + ' bearbeiten'"
-          >Bearbeiten</app-button
-        >
-      }
-    </div>
+    @if (item.reference.platform === 'kleinanzeigen') {
+      <div class="flex justify-end">
+        <app-table-action-menu [label]="'Aktionen für ' + item.title" [disabled]="relisting.busy()">
+          @if (item.externalUrl) {
+            <app-button
+              variant="list-row"
+              density="compact"
+              [fullWidth]="true"
+              contentAlign="start"
+              [icon]="viewIcon"
+              [href]="item.externalUrl"
+              target="_blank"
+              >Ansehen</app-button
+            >
+          }
+          <app-button
+            variant="list-row"
+            density="compact"
+            [fullWidth]="true"
+            contentAlign="start"
+            [icon]="retryIcon"
+            [disabled]="item.state !== 'active'"
+            (clicked)="relistOne(item.reference)"
+            >Neu inserieren</app-button
+          >
+          <app-button
+            variant="list-row"
+            density="compact"
+            [fullWidth]="true"
+            contentAlign="start"
+            [icon]="deleteIcon"
+            [disabled]="item.state !== 'active'"
+            (clicked)="deleteOne(item.reference)"
+            >Inserat löschen</app-button
+          >
+        </app-table-action-menu>
+      </div>
+    } @else {
+      <div class="flex items-center justify-end gap-2">
+        @if (item.reference.platform === 'vinted') {
+          <app-listing-transfer-action
+            (published)="transferPublished.emit($event)"
+            [source]="item.reference"
+            [title]="item.title"
+            [compact]="true"
+          />
+        }
+        @if (item.detailLink) {
+          <app-button
+            variant="secondary"
+            size="slim"
+            [icon]="viewIcon"
+            [link]="item.detailLink.join('/')"
+            [ariaLabel]="item.title + ' ansehen'"
+            [title]="item.title + ' ansehen'"
+            >Ansehen</app-button
+          >
+        } @else if (item.externalUrl) {
+          <app-button
+            variant="secondary"
+            size="slim"
+            [icon]="viewIcon"
+            [href]="item.externalUrl"
+            target="_blank"
+            [ariaLabel]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
+            [title]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
+            >Ansehen</app-button
+          >
+        }
+        @if (item.editLink) {
+          <app-button
+            variant="secondary"
+            size="slim"
+            [icon]="editIcon"
+            [link]="item.editLink.join('/')"
+            [queryParams]="{ connection: item.reference.connectionId }"
+            [ariaLabel]="item.title + ' bearbeiten'"
+            [title]="item.title + ' bearbeiten'"
+            >Bearbeiten</app-button
+          >
+        }
+      </div>
+    }
   }
 </ng-template>

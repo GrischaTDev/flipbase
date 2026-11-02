@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
+import { JSDOM } from 'jsdom';
 const context = vm.createContext({ URL });
 vm.runInContext(
   readFileSync('tools/flipbase-extension/kleinanzeigen-publication-results.js', 'utf8'),
@@ -57,3 +58,37 @@ for (const patch of [
     if (patch === 'ordinary_list') r.url = 'https://www.kleinanzeigen.de/m-meine-anzeigen.html';
     assert.equal(results.confirm(job, baseline, r, [p], Date.now()).outcome, 'outcome_unknown');
   });
+
+test('manuelle Erfolgsmeldung bleibt nach Navigation erhalten, fremder Versuch wird abgewiesen', () => {
+  const dom = new JSDOM('<a href="' + item.url + '">Anzeige ansehen</a>', {
+    url: receipt.url,
+    runScripts: 'outside-only',
+  });
+  const win = dom.window;
+  const marker = { jobId: '12', attemptId: 'a'.repeat(36), minimumDocumentTime: 1 };
+  win.sessionStorage.setItem('flipbase_kleinanzeigen_attempt', JSON.stringify(marker));
+  let listener;
+  win.chrome = {
+    runtime: { id: 'extension', onMessage: { addListener: (value) => (listener = value) } },
+  };
+  win.eval(readFileSync('tools/flipbase-extension/kleinanzeigen-publication-results.js', 'utf8'));
+  assert.ok(
+    JSON.parse(
+      win.sessionStorage.getItem('flipbase_kleinanzeigen_receipt'),
+    ).receipt.candidates.includes(item.url),
+  );
+  dom.reconfigure({ url: 'https://www.kleinanzeigen.de/m-meine-anzeigen.html' });
+  win.document.body.replaceChildren();
+  const message = { type: 'KLEINANZEIGEN_READ_RECEIPT', ...marker };
+  let response;
+  assert.equal(
+    listener(message, { id: 'extension' }, (value) => (response = value)),
+    true,
+  );
+  assert.ok(response.result.receipt.candidates.includes(item.url));
+  assert.equal(
+    listener({ ...message, attemptId: 'b'.repeat(36) }, { id: 'extension' }, () => assert.fail()),
+    false,
+  );
+  win.close();
+});

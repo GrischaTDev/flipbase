@@ -346,4 +346,24 @@ describe('Kontingent und Auftragsausführung', () => {
     });
     await expect(p).rejects.toThrow('Auftrag');
   });
+  it('fordert für Löschen ausdrücklich eine unterstützende Erweiterung und eine bestätigte Antwort', async () => {
+    const bridge = TestBed.inject(KleinanzeigenExtensionBridge);
+    const scope = { workspaceId: workspace, connectionId: '9', generation: 2 };
+    await expect(bridge.deleteListing(scope, '999', 'Jacke')).rejects.toThrow('1.13.0');
+    message({
+      type: 'FLIPBASE_EXTENSION_STATUS',
+      installed: true,
+      kleinanzeigenCapabilities: { accounts: true, sync: true, publish: true },
+      kleinanzeigenDeletion: true,
+    });
+    const pending = bridge.deleteListing(scope, '999', 'Jacke');
+    const request = vi.mocked(window.postMessage).mock.calls.at(-1)![0] as { requestId: string };
+    message({
+      type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+      requestId: request.requestId,
+      success: true,
+      result: { externalId: '999', confirmed: false },
+    });
+    await expect(pending).rejects.toThrow('nicht eindeutig bestätigt');
+  });
 });

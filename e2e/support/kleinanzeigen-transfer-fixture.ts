@@ -27,6 +27,36 @@ export async function mockKleinanzeigenTransfer(
   } = {},
 ) {
   await mockMarketplaceOverview(page);
+  if (options.relisting) {
+    await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+      route.fulfill({ json: { items: [] } }),
+    );
+    await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({
+        json: {
+          ok: true,
+          workspaceId: body['p_workspace_id'],
+          connectionId: body['p_connection_id'],
+          actions: [],
+        },
+      });
+    });
+    await page.route('**/auth/v1/user', (route) =>
+      route.fulfill({
+        json: {
+          id: '25000000-0000-4000-8000-000000000001',
+          email: 'marketplace@example.test',
+          aud: 'authenticated',
+          role: 'authenticated',
+          app_metadata: {},
+          user_metadata: { flipbase_action_overview: true },
+          created_at: '2026-09-26T00:00:00Z',
+        },
+      }),
+    );
+  }
+
   const sourceCalls: string[] = [];
   await page.route('**/marketplace-browser/**', (route) => {
     sourceCalls.push(route.request().url());

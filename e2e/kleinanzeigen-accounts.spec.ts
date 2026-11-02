@@ -16,9 +16,9 @@ for (const theme of ['light', 'dark'] as const)
         await page.setViewportSize({ width, height: 1000 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
         await page.goto('/marketplaces/kleinanzeigen/inbox');
-        await expect(page).toHaveURL(/\/marketplaces\/kleinanzeigen\/overview$/);
+        await expect(page).toHaveURL(/\/marketplaces\/kleinanzeigen\/listings$/);
         await expect(
-          page.getByRole('heading', { name: 'Kleinanzeigen · Übersicht', exact: true }),
+          page.getByRole('heading', { name: 'Kleinanzeigen · Inserate', exact: true }),
         ).toBeVisible();
         const themeToggle = page.getByRole('button', {
           name: theme === 'dark' ? 'Dunkles Design aktivieren' : 'Helles Design aktivieren',
@@ -30,11 +30,7 @@ for (const theme of ['light', 'dark'] as const)
         if (width < 768)
           await page.getByRole('button', { name: 'Toggle navigation', exact: true }).click();
         const navigation = page.locator('[data-kleinanzeigen-navigation]');
-        await expect(navigation.getByRole('link')).toHaveText([
-          'Übersicht',
-          'Inserate',
-          'Kontoverbindung',
-        ]);
+        await expect(navigation.getByRole('link')).toHaveText(['Inserate', 'Kontoverbindung']);
         await page.screenshot({
           path: testInfo.outputPath('kleinanzeigen-overview.png'),
           animations: 'disabled',
@@ -42,9 +38,10 @@ for (const theme of ['light', 'dark'] as const)
         await expect(navigation.getByRole('link', { name: 'Postfach', exact: true })).toHaveCount(
           0,
         );
-        await expect(
-          page.getByRole('link', { name: 'Nachrichten bei Kleinanzeigen', exact: true }),
-        ).toHaveAttribute('href', 'https://www.kleinanzeigen.de/m-nachrichten.html');
+        await expect(page.getByRole('link', { name: 'Postfach', exact: true })).toHaveAttribute(
+          'href',
+          'https://www.kleinanzeigen.de/m-nachrichten.html',
+        );
         await page
           .locator('[data-kleinanzeigen-navigation]')
           .getByRole('link', { name: 'Inserate', exact: true })
@@ -56,6 +53,12 @@ for (const theme of ['light', 'dark'] as const)
           name: 'KA Jacke 01 auswählen',
           exact: true,
         });
+        await expect(
+          section.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true }),
+        ).toHaveCount(0);
+        await expect(section.getByRole('heading', { name: 'Inserate', exact: true })).toHaveCount(
+          0,
+        );
         if (width < 768) await selection.tap();
         else await selection.click();
         await expect(selection).toHaveAttribute('aria-checked', 'true');
@@ -71,7 +74,11 @@ for (const theme of ['light', 'dark'] as const)
           width < 768
             ? section.getByRole('article', { name: 'KA Jacke 01', exact: true })
             : section.getByRole('row').filter({ hasText: 'KA Jacke 01' });
+        await expect(
+          section.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true }),
+        ).toHaveCount(0);
         await expect(item).toHaveAttribute('aria-busy', 'true');
+        await expect(item.getByText('Alter unbekannt', { exact: true })).toHaveCount(0);
         await expect(item).toHaveCSS('filter', 'grayscale(1)');
         await expect(item.getByText('Wird inseriert …', { exact: true })).toBeVisible();
         await page.addScriptTag({ content: axe.source });
@@ -102,15 +109,41 @@ for (const theme of ['light', 'dark'] as const)
             exact: true,
           })
           .click();
-        await expect(
-          section.getByRole('list', { name: 'Ergebnis des erneuten Inserierens' }),
-        ).toBeVisible();
+        await expect(section.getByText('Noch offene Vorgänge in diesem Browserprofil')).toHaveCount(
+          0,
+        );
         expect(
           await page.evaluate(
             async () =>
               (await (window as unknown as { axe: typeof axe }).axe.run(document.body)).violations,
           ),
         ).toEqual([]);
+        const menuTrigger = item.getByRole('button', {
+          name: 'Aktionen für KA Jacke 01',
+          exact: true,
+        });
+        await menuTrigger.click();
+        const menu = item.getByRole('dialog', { name: 'Aktionen für KA Jacke 01', exact: true });
+        await expect(menu.getByRole('link', { name: 'Ansehen', exact: true })).toBeVisible();
+        await expect(
+          menu.getByRole('button', { name: 'Neu inserieren', exact: true }),
+        ).toBeVisible();
+        await menu.getByRole('button', { name: 'Inserat löschen', exact: true }).click();
+        const deletion = page.getByRole('dialog', {
+          name: 'Inserat endgültig löschen?',
+          exact: true,
+        });
+        await expect(deletion).toContainText('KA Jacke 01');
+        await deletion.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+        expect(await fixture.deletedListings()).toEqual([]);
+        await menuTrigger.click();
+        await menu.getByRole('button', { name: 'Inserat löschen', exact: true }).click();
+        await deletion.getByRole('button', { name: 'Inserat löschen', exact: true }).click();
+        await expect.poll(async () => (await fixture.deletedListings()).length).toBe(1);
+        expect((await fixture.deletedListings())[0]).toMatchObject({
+          externalId: '101',
+          title: 'KA Jacke 01',
+        });
         expect(errors).toEqual([]);
       });
     });
@@ -217,9 +250,9 @@ for (const theme of ['light', 'dark'] as const)
         await expect(
           listings.locator('app-badge').filter({ hasText: 'Verbunden' }).locator('span'),
         ).toHaveClass(/bg-fb-badge-success/);
-        await expect(
-          listings.getByRole('heading', { name: 'Inserate', exact: true }),
-        ).toBeVisible();
+        await expect(listings.getByRole('heading', { name: 'Inserate', exact: true })).toHaveCount(
+          0,
+        );
         const checkbox = listings.getByRole('checkbox', {
           name: 'KA Jacke 01 auswählen',
           exact: true,
@@ -228,12 +261,15 @@ for (const theme of ['light', 'dark'] as const)
         await checkbox.focus();
         await page.keyboard.press('Space');
         await expect(listings.getByText('1 ausgewählt', { exact: true })).toBeVisible();
+        await listings
+          .getByRole('button', { name: 'Aktionen für KA Jacke 01', exact: true })
+          .click();
         await expect(
-          listings.getByRole('link', {
-            name: 'KA Jacke 01 auf Kleinanzeigen ansehen',
-            exact: true,
-          }),
+          listings
+            .getByRole('dialog', { name: 'Aktionen für KA Jacke 01', exact: true })
+            .getByRole('link', { name: 'Ansehen', exact: true }),
         ).toHaveAttribute('href', 'https://www.kleinanzeigen.de/s-anzeige/test/101-160-1');
+        await page.keyboard.press('Escape');
         await listings.getByRole('button', { name: 'Weiter', exact: true }).tap();
         await expect(
           listings.getByRole('checkbox', { name: 'KA Jacke 26 auswählen', exact: true }),
