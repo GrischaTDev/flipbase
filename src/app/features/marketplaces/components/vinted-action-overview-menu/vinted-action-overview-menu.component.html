@@ -120,7 +120,15 @@
       >
         <app-action-status-indicator [state]="action.state" />
         <div class="min-w-0 flex-1 space-y-1">
-          <p class="text-xs text-fb-text-secondary">Kleinanzeigen · {{ action.accountName }}</p>
+          <p class="flex items-center gap-1.5 text-xs text-fb-text-secondary">
+            <img
+              ngSrc="/images/platforms/kleinanzeigen.svg"
+              width="16"
+              height="16"
+              alt="Kleinanzeigen"
+              class="size-4 shrink-0 object-contain"
+            />{{ action.accountName }}
+          </p>
           <p class="break-words text-[13px] font-medium text-fb-text-primary">{{ action.title }}</p>
           <p role="status" class="text-xs text-fb-text-secondary">{{ action.message }}</p>
           @if (action.requiresExtensionUpdate) {

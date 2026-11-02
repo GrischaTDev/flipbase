@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-02 - Juna - Kleinanzeigen-Aktionen kompakt und neutral darstellen
+
+**Auftrag:** Zurückgestellte UI-Punkte umsetzen. Neuer eigener Zweig `juna/kleinanzeigen-ui-polish` vom frisch abgerufenen `origin/master`; primäre Vinted-Arbeitskopie, offener Inserier-Kernfix und Plan-Arbeitskopie bleiben erhalten. Hauptzweig ist von anderer Arbeit belegt und wird nicht umgeschaltet.
+
+**Darstellung:** Normale Tabellenaktionen verwenden standardmäßig denselben neutralen Hover wie die Kontoeinstellungen; ausdrücklich gewählte Statusfarben bleiben möglich. Gemeinsame Menürolle für kompakte Einträge mit 28 Pixeln bei Maus und mindestens 44 Pixeln bei Touch. Kleinanzeigen verwendet diese Rolle für Ansehen, Neuinserieren und rot gekennzeichnetes Löschen. Menüfläche schmaler mit kleineren Innenabständen. Laufende Inserate heller neutral hinterlegt, weiterhin gesperrt und ohne gelben Rahmen. Aktionsübersicht zeigt das bestehende Kleinanzeigen-Logo vor dem Kontonamen.
+
+**Bereits vorhanden:** Eingebettete Tabellen ohne zweite Oberfläche, füllende unverzerrte Bildvorschauen, Kontoeinstellungen an der Kachel, Auswahlaktion nur nach Checkboxauswahl, kurze Bestätigungen und Datumsübernahme neuer bestätigter Inserate bleiben erhalten. Keine Anbieteraktionen oder Änderungen an der Erweiterung im UI-Zweig.
+
+**Prüfung:** Node 22 mit gesperrten Abhängigkeiten (`npm ci`). Bestehende Kleinanzeigen-Browserfälle um gemessene Menügrößen (Maus 28px, Touch 44px), grauen Hoververgleich, Gefahrenfarbe, Logo und Escape/Rückfokus erweitert. 23 Angular-Fälle für Buttons und Datentabellen erfolgreich. Produktionsbau einschließlich Angular-Vorlagen, `npm run lint`, `npm run format:check` und Shared-UI-Audit erfolgreich. Zwölf vorhandene Chromium-Browserfälle für Kleinanzeigen und die Marktplatzübersicht mit Konto-/Filter-/Auswahl-/Menü-/Fortschritts-/Löschbestätigungsablauf und AXE-Prüfung erfolgreich: 320, 390, 834 und 1440 Pixel, Hell/Dunkel, Maus/Touch. Vier betroffene Kleinanzeigen-Fälle zusätzlich gegen die Entwicklungsvorschau erfolgreich, um Designbilder ohne den erwartbaren Update-Hinweis der Produktionsvorschau mit absichtlich blockiertem Service Worker zu erhalten. Kein neuer Produktions-PWA-Fehler behauptet. Browser-Plugin nicht verfügbar; bestehende isolierte Playwright-Fixtures mit Testdaten verwendet, keine echte Anzeige oder Kontoverbindung geändert. Screenshots visuell geprüft und außerhalb des Repositorys gesichert. Keine vollständige CI-, Linux- oder Safari-Abnahme; kein PR und kein Push.
+
 ## 2026-11-02 - Juna - Kleinanzeigen-Löschweiterleitung beim Neuinserieren abwarten
 
 **Auftrag und Trennung:** Nutzer meldet nach tatsächlich erfolgter Löschung einen angehaltenen Neuinserierlauf. Eigener Zweig `juna/kleinanzeigen-delete-confirmation` vom frisch abgerufenen `origin/master` (`727d7cfb`), parallele Vinted-Arbeit und belegten lokalen Hauptzweig erhalten.
