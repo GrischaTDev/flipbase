@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-02 - Juna - Fehlende Vinted-Aktionen im echten Kleiderschrank korrigieren
+
+**Befund:** Nutzer sieht nach Veröffentlichung keine Relist-/Vorlagenbuttons. Im bestehenden Browser die aktuelle Baukennung 0.403.0 und das verbundene Cloud-Konto bestätigt. Der echte Kontoabruf ergänzt die interne ID, liefert für Veröffentlichungen aber keine kanonische Vinted-ID. Die neue Oberfläche benötigt diese separate ID; die bisherigen Browser-Fixtures enthielten sie bereits und verdeckten die Lücke.
+
+**Korrektur:** `marketplace_read_page` liefert für Veröffentlichungen zusätzlich `externalId` aus der kontogebundenen Tabellenzeile und überschreibt dabei veraltete Werte im gespeicherten Inhalt. Interne ID, Zugriffsprüfung und übrige Seitenarten bleiben erhalten. Neue SQL-Fälle prüfen direkte Seite und Kontosnapshot sowie die Trennung beider IDs. Vor der Korrektur zwei echte Fehlassertionen, danach alle 37 Kontofälle erfolgreich. Migration wird über den CLI-Abgleich eigener isolierter Datenbankkopien erzeugt; echte Anzeigen werden nicht verändert. Getrennte Arbeitskopie von frisch abgerufenem `origin/master` 386eeeb4; parallele Erweiterungsdateien bleiben unberührt.
+
+**Nachweise:** Migration mit `supabase db diff --from ... --to ... --use-pg-delta` erzeugt, vollständig geprüft und transaktional auf eine frische Ausgangskopie angewendet. Vollständige öffentliche Schemadumps danach identisch zur korrigierten Kopie; Typen neu erzeugt und unverändert. 215 SQL-Fälle für Konten, Kontoverifizierung, Gesprächsstatus, Verkäufe und Veröffentlichungszeiten erfolgreich und zurückgerollt. Format und Lint erfolgreich. Plan und tatsächlichen Node-22-Vorabcheck ausgeführt; Actionlint 1.7.12 eingebunden. Der Gesamtcheck bleibt beim bestehenden Supabase-CLI-Statusaufruf unvollständig: Dieser meldet `docker: command not found`, obwohl die lokale Engine und der gezielt verwendete Datenbankcontainer nachweislich erreichbar sind. Die fremde Entwicklungsdatenbank bleibt unverändert. Vollständiger ausgewählter CI-Nachweis und Prüfung der Buttons nach Veröffentlichung stehen noch aus; keine produktive Migration und keine Vinted-Schreibaktion vorgenommen.
+
 ## 2026-11-02 - Juna - Kleinanzeigen-Löschweiterleitung beim Neuinserieren abwarten
 
 **Auftrag und Trennung:** Nutzer meldet nach tatsächlich erfolgter Löschung einen angehaltenen Neuinserierlauf. Eigener Zweig `juna/kleinanzeigen-delete-confirmation` vom frisch abgerufenen `origin/master` (`727d7cfb`), parallele Vinted-Arbeit und belegten lokalen Hauptzweig erhalten.
