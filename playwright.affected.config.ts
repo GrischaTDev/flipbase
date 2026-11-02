@@ -4,6 +4,7 @@ import {
   coreBrowserGrep,
   layoutBrowserGrep,
   representativeBrowserGrepInvert,
+  uiBrowserFiles,
 } from './scripts/browser-test-selection.mjs';
 
 const plan: unknown = JSON.parse(process.env['AFFECTED_TEST_PLAN'] ?? 'null');
@@ -18,15 +19,17 @@ function validFiles(files: unknown): files is string[] {
 const normal: unknown = 'browserFiles' in plan ? plan.browserFiles : null;
 const changed: unknown = 'changedBrowserFiles' in plan ? plan.changedBrowserFiles : null;
 const core: unknown = 'coreBrowserFiles' in plan ? plan.coreBrowserFiles : [];
-const layout: unknown = 'layoutBrowserFiles' in plan ? plan.layoutBrowserFiles : [];
+const requestedLayout: unknown = 'layoutBrowserFiles' in plan ? plan.layoutBrowserFiles : [];
 if (
   !validFiles(normal) ||
   !validFiles(changed) ||
   !validFiles(core) ||
-  !validFiles(layout) ||
-  normal.length + changed.length + core.length + layout.length === 0
+  !validFiles(requestedLayout)
 )
   throw new Error('Ungültige oder leere Browserauswahl.');
+const layout = requestedLayout.filter((file) => !uiBrowserFiles.includes(file));
+if (normal.length + changed.length + core.length + layout.length === 0)
+  throw new Error('Leere Backend-Browserauswahl.');
 
 export default defineConfig({
   ...prConfig,
