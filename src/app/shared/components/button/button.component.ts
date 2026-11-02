@@ -37,9 +37,9 @@ export type ButtonSize = 'slim' | 'md' | 'lg' | 'search' | 'comfortable' | 'touc
 })
 export class ButtonComponent {
   readonly variant = input<ButtonVariant>('secondary');
-  readonly tone = input<TableActionTone>('brand');
+  readonly tone = input<TableActionTone>('neutral');
   readonly size = input<ButtonSize>('md');
-  readonly density = input<'default' | 'compact'>('default');
+  readonly density = input<'default' | 'compact' | 'menu'>('default');
   readonly shape = input<'default' | 'circle' | 'capsule'>('default');
   readonly loading = input<boolean>(false);
   readonly disabled = input<boolean>(false);
@@ -111,9 +111,12 @@ export class ButtonComponent {
         'bg-fb-critical-surface hover:bg-fb-critical-border text-fb-critical border border-fb-critical-border shadow-sm font-semibold focus-visible:outline-fb-critical',
       ghost:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
-      'list-row': this.ariaPressed()
-        ? 'bg-fb-well text-fb-text-primary border border-transparent'
-        : 'bg-transparent text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
+      'list-row':
+        this.tone() === 'critical'
+          ? 'bg-transparent text-fb-critical hover:bg-fb-critical-surface border border-transparent'
+          : this.ariaPressed()
+            ? 'bg-fb-well text-fb-text-primary border border-transparent'
+            : 'bg-transparent text-fb-text-primary hover:bg-fb-surface-hover border border-transparent',
       plain:
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary p-0 border-0 underline-offset-4 hover:underline',
       'table-action': 'border border-transparent bg-transparent text-fb-text-muted shadow-none',
@@ -180,9 +183,11 @@ export class ButtonComponent {
       variantStyles[this.variant()],
       this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
       this.variant() === 'list-row'
-        ? this.density() === 'compact'
-          ? 'min-h-11 rounded-lg py-2 text-[13px] gap-2'
-          : 'min-h-18 rounded-lg py-3 text-sm gap-2'
+        ? this.density() === 'menu'
+          ? 'min-h-7 rounded-md py-1 text-[13px] gap-2'
+          : this.density() === 'compact'
+            ? 'min-h-11 rounded-lg py-2 text-[13px] gap-2'
+            : 'min-h-18 rounded-lg py-3 text-sm gap-2'
         : this.shape() === 'circle' || this.shape() === 'capsule'
           ? sizeClasses.replace('rounded-lg', 'rounded-full')
           : ['table-action', 'thumbnail-remove', 'image-overlay'].includes(this.variant())

@@ -1,4 +1,4 @@
-import { NgTemplateOutlet } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -28,6 +28,7 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
 @Component({
   selector: 'app-vinted-action-overview-menu',
   imports: [
+    NgOptimizedImage,
     NgTemplateOutlet,
     ActionStatusIndicatorComponent,
     ButtonComponent,

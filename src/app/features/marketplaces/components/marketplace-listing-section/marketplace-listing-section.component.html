@@ -201,7 +201,7 @@
                   class="border-b border-fb-border-subtle align-middle"
                   [class]="
                     kleinanzeigenActions.isRunning(item.reference)
-                      ? 'bg-black/10 dark:bg-black/25 grayscale'
+                      ? 'bg-black/5 dark:bg-black/15 grayscale'
                       : ''
                   "
                   [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
@@ -262,7 +262,7 @@
               [attr.aria-label]="item.title"
               [class]="
                 kleinanzeigenActions.isRunning(item.reference)
-                  ? 'bg-black/10 dark:bg-black/25 grayscale'
+                  ? 'bg-black/5 dark:bg-black/15 grayscale'
                   : ''
               "
               [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
@@ -372,7 +372,7 @@
           @if (item.externalUrl) {
             <app-button
               variant="list-row"
-              density="compact"
+              density="menu"
               [fullWidth]="true"
               contentAlign="start"
               [icon]="viewIcon"
@@ -383,7 +383,7 @@
           }
           <app-button
             variant="list-row"
-            density="compact"
+            density="menu"
             [fullWidth]="true"
             contentAlign="start"
             [icon]="retryIcon"
@@ -393,10 +393,11 @@
           >
           <app-button
             variant="list-row"
-            density="compact"
+            density="menu"
             [fullWidth]="true"
             contentAlign="start"
             [icon]="deleteIcon"
+            tone="critical"
             [disabled]="item.state !== 'active'"
             (clicked)="deleteOne(item.reference)"
             >Inserat löschen</app-button

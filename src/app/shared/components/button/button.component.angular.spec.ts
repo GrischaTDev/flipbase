@@ -250,8 +250,8 @@ describe('ButtonComponent', () => {
     fixture.detectChanges();
 
     const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
-    expect(button.className).toContain('hover:bg-[var(--fb-color-brand-surface)]');
-    expect(button.className).toContain('focus-visible:bg-[var(--fb-color-brand-surface)]');
+    expect(button.className).toContain('hover:bg-fb-surface-hover');
+    expect(button.className).toContain('focus-visible:bg-fb-surface-hover');
 
     fixture.componentRef.setInput('tone', 'critical');
     fixture.detectChanges();
