@@ -747,7 +747,12 @@ for (const width of [390, 1440])
         );
         await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
           route.fulfill({
-            json: { ok: true, workspaceId, connectionId: accountIds[0], actions: [] },
+            json: {
+              ok: true,
+              workspaceId,
+              connectionId: route.request().postDataJSON().p_connection_id,
+              actions: [],
+            },
           }),
         );
         await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
@@ -1084,6 +1089,7 @@ for (const width of [390, 1440])
         await expect(
           editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
         ).toHaveValue(listing.content.description);
+        await expect(editor.getByLabel('Marke', { exact: true })).toHaveValue('Jako');
         await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
         await expect(
           editor.getByRole('button', { name: 'Daten übernehmen', exact: true }),

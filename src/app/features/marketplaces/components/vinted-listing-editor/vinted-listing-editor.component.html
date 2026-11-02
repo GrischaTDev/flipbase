@@ -211,7 +211,7 @@
                     <p class="text-xs text-fb-critical">{{ message }}</p>
                   }
                 </div>
-                @if (!relisting() && workspaceId(); as workspaceId) {
+                @if (workspaceId(); as workspaceId) {
                   <div [attr.data-listing-issue]="visibleFieldErrors()['brand'] ? '' : null">
                     <app-vinted-listing-brand-dialog
                       [inline]="true"
