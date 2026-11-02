@@ -73,6 +73,21 @@ test('only a bound cloud claim becomes a tokenless frozen listing scope', async 
   });
 });
 
+test('photo output options stay frozen separately from immutable original image metadata', async () => {
+  const photoOptions = {
+    resize: 1600,
+    crops: { [response.snapshot.images[0]!.id]: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+  };
+  const f = fixture({ snapshot: { ...response.snapshot, photoOptions } });
+  const claim = await f.store.claim(binding.workerId, 4, binding.runnerId);
+  assert.ok(claim);
+  assert.deepEqual(claim.snapshot.photoOptions, photoOptions);
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops[response.snapshot.images[0]!.id]));
+  assert.deepEqual(claim.snapshot.images, response.snapshot.images);
+});
+
 test('receipt confirms the same external item, provider state and verification time', async () => {
   const result = {
     outcome: 'confirmed',
@@ -118,6 +133,16 @@ test('claim rejects rounded identifiers, foreign worker, account, connection and
     { action: 'update' },
     { snapshot: { ...response.snapshot, connectionId: 'other' } },
     { snapshot: { ...response.snapshot, bump: true } },
+    { snapshot: { ...response.snapshot, photoOptions: { resize: 42, crops: {} } } },
+    {
+      snapshot: {
+        ...response.snapshot,
+        photoOptions: {
+          resize: null,
+          crops: { unknown: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+        },
+      },
+    },
     {
       snapshot: {
         ...response.snapshot,

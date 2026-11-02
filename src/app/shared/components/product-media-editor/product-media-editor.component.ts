@@ -54,6 +54,7 @@ export class ProductMediaEditorComponent {
   readonly canAdd = input(true);
   /** `false`: Das Zuschneiden entfällt, etwa bei Bildern, die ein Marktplatz verwaltet. */
   readonly canCrop = input(true);
+  readonly preserveOriginal = input(false);
   /** `false`: Bildname und Alternativtext entfallen; Position und Löschen bleiben. */
   readonly canDescribe = input(true);
   readonly canEditAltText = input(true);
@@ -109,6 +110,7 @@ export class ProductMediaEditorComponent {
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly readers = new Set<FileReader>();
+  private readonly originalUrls = new Set<string>();
   private dragDepth = 0;
 
   constructor() {
@@ -124,6 +126,7 @@ export class ProductMediaEditorComponent {
     this.destroyRef.onDestroy(() => {
       for (const reader of this.readers) reader.abort();
       this.readers.clear();
+      this.originalUrls.forEach((url) => URL.revokeObjectURL(url));
     });
   }
 
@@ -308,12 +311,32 @@ export class ProductMediaEditorComponent {
   applyCrop(result: CroppedImageResult): void {
     const key = this.cropKey();
     if (this.disabled() || !key) return;
+    if (this.preserveOriginal() && !result.crop) {
+      this.errors.set([
+        'Der Bildausschnitt konnte nicht übernommen werden. Öffne das Original erneut.',
+      ]);
+      return;
+    }
     this.change(
-      this.drafts().map((image) =>
-        image.key === key
-          ? { ...image, media: null, file: result.file, previewUrl: result.dataUrl }
-          : image,
-      ),
+      this.drafts().map((image) => {
+        if (image.key !== key) return image;
+        const prior = image.originalPreviewUrl ? (image.originalFile ?? null) : image.file;
+        const originalFile = result.sourceFile === undefined ? prior : result.sourceFile;
+        let originalPreviewUrl = result.sourceUrl ?? image.originalPreviewUrl ?? image.previewUrl;
+        if (this.preserveOriginal() && originalFile && originalFile !== prior) {
+          originalPreviewUrl = URL.createObjectURL(originalFile);
+          this.originalUrls.add(originalPreviewUrl);
+        }
+        return {
+          ...image,
+          media: null,
+          file: result.file,
+          previewUrl: result.dataUrl,
+          ...(this.preserveOriginal()
+            ? { originalFile, originalPreviewUrl, crop: result.crop }
+            : {}),
+        };
+      }),
     );
     this.cropKey.set(null);
     this.announcement.set(

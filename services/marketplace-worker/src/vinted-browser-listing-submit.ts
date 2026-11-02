@@ -141,6 +141,7 @@ export async function submitVintedListing(
         await beforeWrite();
       },
       authorizeNewForm,
+      { photoOptions: snapshot.photoOptions },
     );
     await check();
     step = 'metadata';

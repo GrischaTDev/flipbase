@@ -1,3 +1,4 @@
+import { exportVintedListingPhoto } from '../../src/vinted-browser-photo-export.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium, type Page } from 'playwright';
@@ -224,6 +225,92 @@ test('photos appearing while loading the private original are rejected before Be
     );
     assert.ok(!f.calls.includes('begin'));
     assert.ok(!f.calls.some((call) => call.startsWith('upload:')));
+  } finally {
+    await browser.close();
+  }
+});
+
+test('export uses an immutable original, strips metadata and applies edits only to the native upload file', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const raw = Buffer.from(
+      await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#337799';
+        ctx.fillRect(0, 0, 640, 480);
+        return canvas.toDataURL('image/jpeg', 0.95).split(',')[1]!;
+      }),
+      'base64',
+    );
+    const metadata = Buffer.from('Exif\0\0Flipbase-original-camera', 'utf8');
+    const segment = Buffer.alloc(metadata.length + 4);
+    segment[0] = 255;
+    segment[1] = 225;
+    segment.writeUInt16BE(metadata.length + 2, 2);
+    metadata.copy(segment, 4);
+    const original = Buffer.concat([raw.subarray(0, 2), segment, raw.subarray(2)]);
+    const pristine = Buffer.from(original);
+    const photo = {
+      id: originals[0]!.id,
+      fileName: 'camera-original.jpg',
+      mimeType: 'image/jpeg' as const,
+      bytes: new Uint8Array(original),
+    };
+    const options = {
+      resize: 1200,
+      crops: { [photo.id]: { x: 0.25, y: 0, width: 0.5, height: 1, rotation: 0 as const } },
+    };
+    const first = await exportVintedListingPhoto(page, photo, options),
+      second = await exportVintedListingPhoto(page, photo, options);
+    assert.equal(Buffer.from(first.bytes).includes(Buffer.from('Exif')), false);
+    assert.deepEqual(
+      first.bytes,
+      second.bytes,
+      'A repeated relist starts from the original, never from its previous output',
+    );
+    assert.deepEqual(Buffer.from(photo.bytes), pristine);
+    const f = await fixture(page);
+    await uploadVintedListingPhotos(
+      page,
+      '789',
+      [
+        {
+          ...originals[0]!,
+          fileName: photo.fileName,
+          mimeType: photo.mimeType,
+          byteSize: photo.bytes.length,
+        },
+      ],
+      async () => photo,
+      f.beforeWrite,
+      f.authorize,
+      { photoOptions: options },
+    );
+    const output = await page
+      .locator('input[name="photos"]')
+      .evaluate(async (input: HTMLInputElement) => {
+        const file = input.files![0]!;
+        const image = await createImageBitmap(file);
+        const result = {
+          width: image.width,
+          height: image.height,
+          mimeType: file.type,
+          name: file.name,
+        };
+        image.close();
+        return result;
+      });
+    assert.deepEqual(output, {
+      width: 800,
+      height: 1200,
+      mimeType: 'image/jpeg',
+      name: 'camera-original.jpg',
+    });
+    assert.deepEqual(Buffer.from(photo.bytes), pristine);
   } finally {
     await browser.close();
   }

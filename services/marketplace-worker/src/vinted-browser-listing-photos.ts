@@ -1,3 +1,4 @@
+import { exportVintedListingPhoto } from './vinted-browser-photo-export.ts';
 import { setTimeout } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import type { MarketplaceListingSnapshot } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
@@ -42,7 +43,10 @@ export async function uploadVintedListingPhotos(
   loadPhoto: (id: string) => Promise<MarketplaceListingPhoto>,
   beforeWrite: () => Promise<void>,
   authorize: () => Promise<void>,
-  options: { uploadTimeoutMs?: number } = {},
+  options: {
+    uploadTimeoutMs?: number;
+    photoOptions?: MarketplaceListingSnapshot['photoOptions'];
+  } = {},
 ): Promise<readonly VintedUploadedListingPhoto[]> {
   const timeout = options.uploadTimeoutMs ?? 20_000;
   if (
@@ -79,7 +83,12 @@ export async function uploadVintedListingPhotos(
   if ((await input.count()) !== 1 || !(await input.isEnabled())) throw invalid();
   const acceptedMimeTypes =
     (await input.getAttribute('accept'))?.split(',').map((type) => type.trim().toLowerCase()) ?? [];
-  if (originals.some((image) => !acceptedMimeTypes.includes(image.mimeType))) throw invalid();
+  if (
+    options.photoOptions
+      ? !acceptedMimeTypes.includes('image/jpeg')
+      : originals.some((image) => !acceptedMimeTypes.includes(image.mimeType))
+  )
+    throw invalid();
   const initial = await page.evaluate(collectPhotoState);
   if (!initial.valid || initial.items.length !== 0) throw invalid();
   const accepted: VintedUploadedListingPhoto[] = [];
@@ -96,6 +105,9 @@ export async function uploadVintedListingPhotos(
       photo.bytes.byteLength !== original.byteSize
     )
       throw invalid();
+    const upload = options.photoOptions
+      ? await exportVintedListingPhoto(page, photo, options.photoOptions)
+      : photo;
     await check();
     const prepared = await page.evaluate(collectPhotoState);
     if (!matchesPrefix(prepared, accepted) || prepared.items.length !== accepted.length)
@@ -108,9 +120,9 @@ export async function uploadVintedListingPhotos(
       throw invalid();
     await input.setInputFiles(
       {
-        name: photo.fileName,
-        mimeType: photo.mimeType,
-        buffer: Buffer.from(photo.bytes.buffer, photo.bytes.byteOffset, photo.bytes.byteLength),
+        name: upload.fileName,
+        mimeType: upload.mimeType,
+        buffer: Buffer.from(upload.bytes.buffer, upload.bytes.byteOffset, upload.bytes.byteLength),
       },
       { timeout: 10_000 },
     );

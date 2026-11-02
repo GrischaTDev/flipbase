@@ -2,6 +2,12 @@
 
 Stand: 02.11.2026. Analyse: Juna. Geprüfter Aufgabenstand: `ea282af6` auf `juna/vinted-wardrobe-relisting`; frisch abgerufenes `origin/master`: `8d2d65c9`.
 
+Nachtrag zum anschließenden Nutzerauftrag: Die Originalspeicherung und getrennte
+Vinted-Ausgabe aus Punkt 1 sind inzwischen
+[umgesetzt](../implementation/vinted-listing-original-photos.md). Die folgenden
+Befunde dokumentieren weiterhin den damaligen Prüfstand; die drei übrigen
+Auftrags-/Anzeigeprobleme sind mit der Originalbildkorrektur nicht behoben.
+
 ## Ergebnis
 
 Der beauftragte Einzelablauf ist umgesetzt: Artikel bearbeiten, anschließend optionale Bilder und Veröffentlichung festlegen; erst das Original löschen, dann sofort oder später veröffentlichen. Gegenüber den Konkurrenzfunktionen fehlen vor allem zusätzliche lokale Bildwerkzeuge, Original-/Ergebnisvergleich und optionale Text-KI. Dafür ist zunächst kein zusätzlicher KI-Dienst nötig.
@@ -41,7 +47,7 @@ Vintz' Veröffentlichung vor Löschung übernehmen wir nicht: Der Nutzer hat aus
 
 [Editor](../../src/app/features/marketplaces/components/vinted-listing-editor/vinted-listing-editor.component.ts): `load()` rendert jedes geladene Quellfoto bereits über `prepareVintedListingPhoto`. `persist()` rendert dieselbe Datei für Relists nochmals. Bei gewählter Auflösungsanpassung liegt `preparePhotos()` dazwischen. Normal sind damit zwei, mit Größenanpassung drei JPEG-Kodierungen möglich; manuelle Zuschnitte können weitere Verarbeitung hinzufügen.
 
-[Fotovorbereitung](../../src/app/features/marketplaces/services/vinted-listing-photo-preparation.ts) schreibt jeweils JPEG mit Qualität 0,95. Originalauflösung bedeutet gleiche Pixelmaße, nicht unveränderte Originaldatei. Das kann unnötige Qualitätsverluste erzeugen; ein sichtbarer Qualitätsverlust wurde in dieser Sitzung nicht gemessen. Größerrechnen auf 2400 Pixel ergänzt außerdem keine echten Bilddetails.
+Die damalige Fotovorbereitung (`vinted-listing-photo-preparation.ts`, inzwischen entfernt) schrieb jeweils JPEG mit Qualität 0,95. Originalauflösung bedeutet gleiche Pixelmaße, nicht unveränderte Originaldatei. Das kann unnötige Qualitätsverluste erzeugen; ein sichtbarer Qualitätsverlust wurde in dieser Sitzung nicht gemessen. Größerrechnen auf 2400 Pixel ergänzt außerdem keine echten Bilddetails.
 
 **Korrekturziel:** Quellblob und Bearbeitungsparameter getrennt erhalten. Vorschau und Export aus derselben unveränderten Quelle berechnen; genau eine abschließende JPEG-Ausgabe pro Veröffentlichung. Danach Metadatenfreiheit prüfen. Hochskalierung nur als bewusste Größenänderung, ohne Qualitätsversprechen. Rücksetzen sowie Vorher/Nachher werden damit ohne KI möglich.
 

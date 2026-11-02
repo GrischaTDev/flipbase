@@ -298,4 +298,30 @@ describe('ProductMediaEditorComponent', () => {
     TestBed.resetTestingModule();
     expect(PreviewReader.instances[1].abort).toHaveBeenCalledOnce();
   });
+  it('bewahrt beim Zuschneiden Originaldatei und Ursprungsadresse für die nächste Bearbeitung', () => {
+    const original = {
+      key: 'original',
+      file,
+      media: null,
+      previewUrl: 'data:image/png;base64,original',
+    };
+    images.set([original]);
+    TestBed.tick();
+    vi.spyOn(component, 'preserveOriginal').mockReturnValue(true);
+    component.startCrop('original');
+    const result = {
+      file: new File(['output'], 'out.jpg', { type: 'image/jpeg' }),
+      dataUrl: 'data:image/jpeg;base64,edited',
+      blob: new Blob(['output']),
+      originalSize: 7,
+      compressedSize: 6,
+      crop: { x: 0, y: 0, width: 1, height: 0.5, rotation: 0 as const },
+      sourceFile: file,
+    };
+    component.applyCrop(result);
+    expect(component.drafts()[0].originalFile).toBe(file);
+    expect(component.drafts()[0].originalPreviewUrl).toBe(original.previewUrl);
+    expect(component.drafts()[0].crop).toEqual(result.crop);
+    expect(component.drafts()[0].file).toBe(result.file);
+  });
 });

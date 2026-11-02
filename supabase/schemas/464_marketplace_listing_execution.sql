@@ -134,6 +134,7 @@ begin
   if v_outcome<>'confirmed' and p_job.state not in ('claimed','writing','outcome_unknown') then raise exception 'Inseratversuch ungültig.' using errcode='42501'; end if;
   update public.marketplace_listing_jobs set state=v_outcome,external_id=v_external_id,provider_state=v_provider_state,verified_at=v_verified_at,error_code=v_error,
     provider_result=p_result,finished_at=clock_timestamp(),lease_expires_at=null where id=p_job.id returning * into v_job;
+  if v_outcome='confirmed' and v_job.action='publish' then perform public.marketplace_remember_listing_photo_source(v_job,v_external_id); end if;
   return public.marketplace_listing_job_document(v_job);
 end;
 $$;

@@ -1,3 +1,4 @@
+import { VintedListingOriginalPhotoService } from './vinted-listing-original-photo.service';
 import type {
   MarketplaceListingQuery,
   MarketplaceOverviewPage,
@@ -74,6 +75,7 @@ function confirmWrite(result: RpcResult): void {
 /** Kontodaten und private Aktualisierungsmeldungen mit serverseitig geprüftem Zugriff. */
 @Injectable({ providedIn: 'root' })
 export class MarketplaceApiService {
+  private readonly originals = inject(VintedListingOriginalPhotoService);
   private readonly client = inject(SupabaseService).client;
 
   listenAccountImports(
@@ -270,7 +272,7 @@ export class MarketplaceApiService {
   }
 
   async readSnapshot(scope: AccountScope): Promise<MarketplaceSnapshot> {
-    return parseMarketplaceSnapshot(
+    const snapshot = parseMarketplaceSnapshot(
       dataOf(
         await this.client.rpc('marketplace_read_snapshot', {
           p_workspace_id: scope.workspaceId,
@@ -279,6 +281,13 @@ export class MarketplaceApiService {
       ),
       scope,
     );
+    return {
+      ...snapshot,
+      publications: {
+        ...snapshot.publications,
+        items: await this.originals.entries(scope, snapshot.publications.items),
+      },
+    };
   }
   async readPublication(scope: AccountScope, entryId: string): Promise<MarketplaceEntry | null> {
     const { data, error } = await this.client
@@ -293,10 +302,11 @@ export class MarketplaceApiService {
     if (!data) return null;
     if (!data.body || typeof data.body !== 'object' || Array.isArray(data.body))
       throw new MarketplaceResponseError();
-    return parseMarketplacePage(
+    const entry = parseMarketplacePage(
       { items: [{ ...data.body, id: data.id, ...scope }], total: 1, nextCursor: null },
       scope,
     ).items[0];
+    return (await this.originals.entries(scope, [entry]))[0] ?? null;
   }
   async readPage(
     scope: AccountScope,
@@ -304,7 +314,7 @@ export class MarketplaceApiService {
     cursor: string | null = null,
     conversationId: string | null = null,
   ): Promise<MarketplacePage<MarketplaceEntry>> {
-    return parseMarketplacePage(
+    const page = parseMarketplacePage(
       dataOf(
         await this.client.rpc('marketplace_read_page', {
           p_workspace_id: scope.workspaceId,
@@ -317,6 +327,9 @@ export class MarketplaceApiService {
       scope,
       kind === 'message' ? (conversationId ?? undefined) : undefined,
     );
+    return kind === 'publication'
+      ? { ...page, items: await this.originals.entries(scope, page.items) }
+      : page;
   }
 
   /** Eigene Inserate mit vollständiger Kennung und Filtern über die ganze Lesekopie. */
@@ -385,7 +398,7 @@ export class MarketplaceApiService {
           scope,
         ).items[0],
     );
-    const items = parsed.map(normalizeVintedPublication);
+    const items = (await this.originals.entries(scope, parsed)).map(normalizeVintedPublication);
     const last = rows.at(-1);
     return {
       items,

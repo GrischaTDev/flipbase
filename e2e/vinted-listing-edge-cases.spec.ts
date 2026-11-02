@@ -1009,7 +1009,7 @@ for (const width of [390, 1440])
   for (const theme of ['light', 'dark'] as const)
     test.describe(`Relist-Editor ${width} ${theme}`, () => {
       test.use({ hasTouch: width < 1024 });
-      test(`Relisten und Vorlage übernehmen vollständige Daten und bereiten Fotos vor bei ${width}px ${theme} @marketplace-preview`, async ({
+      test(`Relisten und Vorlage bewahren Originale und übernehmen vollständige Daten bei ${width}px ${theme} @marketplace-preview`, async ({
         page,
       }) => {
         await page.setViewportSize({ width, height: 1000 });
@@ -1103,7 +1103,7 @@ for (const width of [390, 1440])
           bytes: Array.from(new Uint8Array(await (await fetch(image.src)).arrayBuffer())),
         }));
         expect([prepared.width, prepared.height]).toEqual([160, 200]);
-        expect(Buffer.from(prepared.bytes).includes(Buffer.from('Exif'))).toBe(false);
+        expect(Buffer.from(prepared.bytes).equals(photo)).toBe(true);
         await editor.getByRole('button', { name: 'Weiter', exact: true }).click();
         await expect(
           editor.getByRole('heading', { name: 'Relisting festlegen', exact: true }),
@@ -1154,6 +1154,66 @@ for (const width of [390, 1440])
           editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }),
         ).toBeVisible();
         await expect(editor.getByText(/zuerst Dein bestehendes Inserat gelöscht/)).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        const originalSource = {
+          id: '40',
+          workspaceId,
+          connectionId: accountIds[0],
+          revision: 1,
+          content: listing.content,
+          images: [
+            {
+              id: '41',
+              storagePath: `${workspaceId}/40/25000000-0000-4000-8000-000000000041.jpg`,
+              fileName: 'camera-original.jpg',
+              mimeType: 'image/jpeg',
+              byteSize: photo.length,
+            },
+          ],
+          inventoryItemId: null,
+          createdAt: '2026-11-02T00:00:00Z',
+          updatedAt: '2026-11-02T00:00:00Z',
+        };
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) =>
+          route.fulfill({
+            json: {
+              items: route.request().postDataJSON().p_external_ids.includes('98765')
+                ? [{ externalId: '98765', draft: originalSource }]
+                : [],
+            },
+          }),
+        );
+        await page.route('**/storage/v1/**', (route) =>
+          route.request().method() === 'POST'
+            ? route.fulfill({
+                json: (route.request().postDataJSON().paths as string[]).map((path) => ({
+                  path,
+                  signedURL: `/object/sign/marketplace-listing-media/${path}?token=original`,
+                  error: null,
+                })),
+              })
+            : route.fulfill({ contentType: 'image/jpeg', body: photo }),
+        );
+        // Vinted liefert inzwischen eine bearbeitete Ausgabe; Flipbase muss die private Quelle laden.
+        await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
+          route.fulfill({
+            contentType: 'image/jpeg',
+            headers: { 'access-control-allow-origin': '*' },
+            body: original,
+          }),
+        );
+        await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          listing.content.title,
+        );
+        const restored = await editor
+          .locator('app-vinted-listing-media img')
+          .first()
+          .evaluate(async (image: HTMLImageElement) =>
+            Array.from(new Uint8Array(await (await fetch(image.src)).arrayBuffer())),
+          );
+        expect(Buffer.from(restored).equals(photo)).toBe(true);
         await page.keyboard.press('Escape');
         await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
         const createdAt = new Date().toISOString();

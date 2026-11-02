@@ -4395,6 +4395,7 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          photo_options: Json
           relist_deleted_account_id: string | null
           relist_deleted_at: string | null
           relist_external_id: string | null
@@ -4412,6 +4413,7 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          photo_options?: Json
           relist_deleted_account_id?: string | null
           relist_deleted_at?: string | null
           relist_external_id?: string | null
@@ -4429,6 +4431,7 @@ export type Database = {
           id?: never
           image_ids?: number[]
           inventory_item_id?: string | null
+          photo_options?: Json
           relist_deleted_account_id?: string | null
           relist_deleted_at?: string | null
           relist_external_id?: string | null
@@ -4809,6 +4812,61 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_photo_sources: {
+        Row: {
+          connection_id: string
+          created_at: string
+          draft_id: number
+          external_account_id: string
+          external_id: string
+          id: number
+          images: Json
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          draft_id: number
+          external_account_id: string
+          external_id: string
+          id?: never
+          images: Json
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          draft_id?: number
+          external_account_id?: string
+          external_id?: string
+          id?: never
+          images?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_photo_sourc_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_photo_sources_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_photo_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -11491,6 +11549,10 @@ export type Database = {
         Args: { p_permission_id: number; p_user_id: string; p_version?: number }
         Returns: boolean
       }
+      marketplace_listing_photo_options_valid: {
+        Args: { p_image_ids: number[]; p_options: Json }
+        Returns: boolean
+      }
       marketplace_listing_statistics_previous_end: {
         Args: { p_at: string; p_length: string; p_zone: string }
         Returns: string
@@ -11807,6 +11869,7 @@ export type Database = {
           id: number
           image_ids: number[]
           inventory_item_id: string | null
+          photo_options: Json
           relist_deleted_account_id: string | null
           relist_deleted_at: string | null
           relist_external_id: string | null
@@ -11987,6 +12050,14 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_read_listing_photo_sources: {
+        Args: {
+          p_connection_id: string
+          p_external_ids: string[]
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_read_listing_statistics_overview: {
         Args: {
           p_connection_id?: string
@@ -12079,6 +12150,13 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: number
+      }
+      marketplace_remember_listing_photo_source: {
+        Args: {
+          p_external_id: string
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: undefined
       }
       marketplace_rename_connection: {
         Args: {
@@ -12230,6 +12308,14 @@ export type Database = {
           p_draft_id: string
           p_expected_revision: number
           p_image_ids: string[]
+        }
+        Returns: Json
+      }
+      marketplace_set_listing_photo_options: {
+        Args: {
+          p_draft_id: string
+          p_expected_revision: number
+          p_options: Json
         }
         Returns: Json
       }

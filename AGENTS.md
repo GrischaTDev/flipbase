@@ -344,6 +344,11 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 ## State & Services
 
+- Originalbilder bleiben in Flipbase unverändert gespeichert. Zuschnitt, Rahmen,
+  Größen- und Farbänderungen erzeugen ausschließlich separate Marktplatzausgaben.
+  Spätere Relists beginnen wieder mit den Originalen; ein Anbieterabgleich darf
+  diese nicht durch bereits bearbeitete Bilder ersetzen.
+
 - Signals für lokalen State, `computed()` für abgeleiteten State.
 - **Kein** `mutate` auf Signals — `update` oder `set`.
 - State-Transformationen rein und vorhersagbar halten.

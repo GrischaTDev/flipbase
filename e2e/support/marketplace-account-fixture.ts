@@ -489,6 +489,7 @@ export async function mockMarketplace(
         : 'needs_login';
       json = { ok: true };
     }
+    if (name === 'marketplace_read_listing_photo_sources') json = { items: [] };
     if (name === 'marketplace_read_snapshot') {
       const scope = { workspaceId, connectionId: body['p_connection_id'] };
       const account = accounts.find((a) => a.connectionId === scope.connectionId)!;

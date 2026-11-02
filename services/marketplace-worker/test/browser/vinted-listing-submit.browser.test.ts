@@ -719,13 +719,28 @@ test('the real isolated transport publishes in its own tab and preserves the exi
       { publishing: true },
     );
     await original.locator('#title').fill('Meine eigene Arbeit');
+    const originalPhoto = Buffer.from(
+      await original.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        canvas.getContext('2d')!.fillRect(0, 0, 640, 480);
+        return canvas.toDataURL('image/jpeg').split(',')[1]!;
+      }),
+      'base64',
+    );
+    const pristinePhoto = Buffer.from(originalPhoto);
     const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
     const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
     let begins = 0;
     const result = await actions.submitListing!(
       '123',
       'publish',
-      listingClaimFixture.snapshot,
+      {
+        ...listingClaimFixture.snapshot,
+        images: [{ ...listingClaimFixture.snapshot.images[0]!, byteSize: originalPhoto.length }],
+        photoOptions: { resize: 1200, crops: {} },
+      },
       () => {
         begins++;
         assert.equal(f.writes(), 0);
@@ -737,7 +752,7 @@ test('the real isolated transport publishes in its own tab and preserves the exi
           id,
           fileName: 'jacke.jpg',
           mimeType: 'image/jpeg',
-          bytes: new Uint8Array(123),
+          bytes: new Uint8Array(originalPhoto),
         }),
       [5],
     );
@@ -745,6 +760,7 @@ test('the real isolated transport publishes in its own tab and preserves the exi
     assert.equal(begins, 1);
     assert.equal(f.uploads(), 1);
     assert.equal(f.saves(), 1);
+    assert.deepEqual(originalPhoto, pristinePhoto);
     assert.equal(await original.locator('#title').inputValue(), 'Meine eigene Arbeit');
     assert.deepEqual(context.pages(), [original]);
   } finally {

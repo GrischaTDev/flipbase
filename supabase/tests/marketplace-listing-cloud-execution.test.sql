@@ -21,7 +21,6 @@ select '46500000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46500000-0
 update public.marketplace_listing_drafts set image_ids=array[(select id from public.marketplace_listing_images where created_by='46500000-0000-4000-8000-000000000001')] where id=(select (draft->>'id')::bigint from cloud_listing_context);
 insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',storage_path,'{"size":123,"mimetype":"image/jpeg"}' from public.marketplace_listing_images where created_by='46500000-0000-4000-8000-000000000001';
 set local role authenticated;
-savepoint relist_workflow;
 update cloud_listing_context set job=public.marketplace_enqueue_listing(draft->>'id',1,'publish','46500000-0000-4000-8000-000000000031',false);
 select throws_ok($$select public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061')$$,'42501',null,'Clients können keinen Cloud-Inseratversuch übernehmen');
 set local role service_role;
@@ -46,12 +45,13 @@ update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('4
 select isnt((select claim->>'claimToken' from cloud_listing_context),(select old_claim->>'claimToken' from cloud_listing_context),'Nach physischem Stopp erhält Vorbereitung einen neuen Versuch');
 select throws_ok($$select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (old_claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1)$$,'42501',null,'Der alte Browser darf nach Neuübernahme nicht beginnen');
 select is(public.marketplace_cloud_listing_check('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',2)->>'active','false','Falsche Worker-Epoche erhält keine Schreibfreigabe');
-savepoint wrong_profile;
 reset role;
 update public.marketplace_browser_sessions set provider_profile_id='other-profile' where state='active';
 set local role service_role;
 select is(public.marketplace_cloud_listing_check('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1)->>'active','false','Fremdes Browserprofil kann keinen Inseratversuch ausführen');
-rollback to wrong_profile;
+reset role;
+update public.marketplace_browser_sessions set provider_profile_id='cloud-listing-profile' where state='active';
+set local role service_role;
 select lives_ok($$select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1)$$,'Cloud-Schreibbeginn wird einmalig angenommen');
 select throws_ok($$select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1)$$,'42501',null,'Cloud-Schreibbeginn wird nie wiederholt');
 reset role;
@@ -74,10 +74,26 @@ select lives_ok($$select public.marketplace_cloud_listing_finish('46500000-0000-
 select lives_ok($$select public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1,(select result from cloud_listing_context))$$,'Identischer später Cloud-Beleg bleibt idempotent');
 select is((select provider_state from public.marketplace_listing_jobs),'processing','Anbieterprüfung wird getrennt von aktiver Veröffentlichung gespeichert');
 -- Der feste Termin betrifft nur die Veröffentlichung, nicht die Löschung.
-rollback to relist_workflow;
+-- Neuer unabhängiger Testentwurf; TAP-Ergebnisse dürfen nicht mit zurückgerollt werden.
 reset role;
-update public.marketplace_listing_drafts set relist_external_id='98765' where id=(select (draft->>'id')::bigint from cloud_listing_context);
-insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','publication','98765','{"title":"Original","publicationState":"active"}');
+update public.marketplace_listing_jobs set state='cancelled',error_code='test_fixture_reset',lease_expires_at=null where workspace_id='46500000-0000-4000-8000-000000000011' and state in ('queued','paused','claimed','writing');
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where workspace_id='46500000-0000-4000-8000-000000000011' and state in ('active','stopping');
+delete from public.marketplace_worker_runtime where worker_id='46500000-0000-4000-8000-000000000051';
+insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id) values('46500000-0000-4000-8000-000000000021','46500000-0000-4000-8000-000000000011','Cloud','cloud','connected','46501') on conflict(id) do nothing;
+insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','cloud-listing-profile') on conflict(workspace_id,connection_id) do nothing;
+set local role authenticated;
+select public.marketplace_approve_listings('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','46501');
+delete from cloud_listing_context;
+insert into cloud_listing_context(draft) select public.marketplace_create_listing_draft('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','{"title":"Cloud-Test","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"conditionId":2,"packageSizeId":2}');
+reset role;
+insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
+select '46500000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46500000-0000-4000-8000-000000000011/'||(draft->>'id')||'/46500000-0000-4000-8000-000000000041.jpg','test.jpg','image/jpeg',123,'ready','46500000-0000-4000-8000-000000000001' from cloud_listing_context;
+update public.marketplace_listing_drafts set image_ids=array(select id from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from cloud_listing_context)) where id=(select (draft->>'id')::bigint from cloud_listing_context);
+insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',storage_path,'{"size":123,"mimetype":"image/jpeg"}' from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from cloud_listing_context);
+
+reset role;
+update public.marketplace_listing_drafts set relist_external_id='54321' where id=(select (draft->>'id')::bigint from cloud_listing_context);
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','publication','54321','{"title":"Original","publicationState":"active"}');
 set local role authenticated;
 update cloud_listing_context set job=public.marketplace_enqueue_relisting(draft->>'id',1,'46500000-0000-4000-8000-000000000071',false,clock_timestamp()+interval '1 hour','Europe/Berlin');
 set local role service_role;
@@ -85,7 +101,7 @@ select public.marketplace_worker_claim('46500000-0000-4000-8000-000000000051');
 update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061');
 select is((select claim->'snapshot'->>'relistStage' from cloud_listing_context),'delete','Geplantes Relisting löscht sofort, obwohl die Veröffentlichung erst später fällig ist');
 select lives_ok($$select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1)$$,'Löschphase darf vor dem Veröffentlichungstermin beginnen');
-update cloud_listing_context set result=jsonb_build_object('outcome','relisting_deleted','externalId','98765','externalAccountId','46501','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+update cloud_listing_context set result=jsonb_build_object('outcome','relisting_deleted','externalId','54321','externalAccountId','46501','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 select throws_ok($$select public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1,(select result||'{"externalId":"99999"}'::jsonb from cloud_listing_context))$$,'22023',null,'Ein Löschbeleg für eine andere Quelle wird verworfen');
 update cloud_listing_context set job=public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',job->>'id',(claim->>'claimToken')::uuid,'46500000-0000-4000-8000-000000000051',1,result);
 select is((select job->>'state' from cloud_listing_context),'queued','Bestätigte Löschung hinterlässt einen wartenden Auftrag');
@@ -117,7 +133,23 @@ set local role authenticated;
 select throws_ok($$select public.marketplace_edit_relisting_plan((select job->>'id' from cloud_listing_context),(select version from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from cloud_listing_context)),true)$$,'22023',null,'Eine bereits übernommene Veröffentlichung kann nicht mehr bearbeitet werden');
 
 -- Relative Wartezeit beginnt nach dem Löschbeleg.
-rollback to relist_workflow;
+-- Neuer unabhängiger Testentwurf; TAP-Ergebnisse dürfen nicht mit zurückgerollt werden.
+reset role;
+update public.marketplace_listing_jobs set state='cancelled',error_code='test_fixture_reset',lease_expires_at=null where workspace_id='46500000-0000-4000-8000-000000000011' and state in ('queued','paused','claimed','writing');
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where workspace_id='46500000-0000-4000-8000-000000000011' and state in ('active','stopping');
+delete from public.marketplace_worker_runtime where worker_id='46500000-0000-4000-8000-000000000051';
+insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id) values('46500000-0000-4000-8000-000000000021','46500000-0000-4000-8000-000000000011','Cloud','cloud','connected','46501') on conflict(id) do nothing;
+insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','cloud-listing-profile') on conflict(workspace_id,connection_id) do nothing;
+set local role authenticated;
+select public.marketplace_approve_listings('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','46501');
+delete from cloud_listing_context;
+insert into cloud_listing_context(draft) select public.marketplace_create_listing_draft('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','{"title":"Cloud-Test","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"conditionId":2,"packageSizeId":2}');
+reset role;
+insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
+select '46500000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46500000-0000-4000-8000-000000000011/'||(draft->>'id')||'/46500000-0000-4000-8000-000000000041.jpg','test.jpg','image/jpeg',123,'ready','46500000-0000-4000-8000-000000000001' from cloud_listing_context;
+update public.marketplace_listing_drafts set image_ids=array(select id from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from cloud_listing_context)) where id=(select (draft->>'id')::bigint from cloud_listing_context);
+insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',storage_path,'{"size":123,"mimetype":"image/jpeg"}' from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from cloud_listing_context);
+
 reset role;
 update public.marketplace_listing_drafts set relist_external_id='98765' where id=(select (draft->>'id')::bigint from cloud_listing_context);
 insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','publication','98765','{"title":"Original","publicationState":"active"}');
@@ -132,5 +164,42 @@ select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000
 update cloud_listing_context set result=jsonb_build_object('outcome','relisting_deleted','externalId','98765','externalAccountId','46501','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 update cloud_listing_context set job=public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',job->>'id',(claim->>'claimToken')::uuid,'46500000-0000-4000-8000-000000000051',1,result);
 select ok((select (job->>'scheduledAt')::timestamptz between clock_timestamp()+interval '179 seconds' and clock_timestamp()+interval '181 seconds' from cloud_listing_context),'Drei Minuten Wartezeit werden ab bestätigter Löschung berechnet');
+
+-- Originale und Ausgabeparameter bleiben über Veröffentlichung und spätere Relists getrennt.
+set local role authenticated;
+select is(jsonb_array_length(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['98765'])->'items'),1,'Originale sind vor dem Löschen der importierten Quelle gesichert');
+select is(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['98765'])->'items'->0->'draft'->'images'->0->>'fileName','test.jpg','Gesicherte Datei bleibt das ursprüngliche Foto');
+select ok(public.marketplace_listing_photo_options_valid('{"resize":1600,"crops":{}}',array[1::bigint]),'Eine optionale Ausgabegröße ist gültig');
+select ok(not public.marketplace_listing_photo_options_valid('{"resize":42,"crops":{}}',array[1::bigint]),'Unbekannte Ausgabegrößen werden verworfen');
+select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{"2":{"x":0,"y":0,"width":1,"height":1,"rotation":0}}}',array[1::bigint]),'Ein Ausschnitt für ein anderes Original wird verworfen');
+select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{"1":{"x":0,"y":0,"width":2,"height":1,"rotation":0}}}',array[1::bigint]),'Ein Ausschnitt außerhalb des Originals wird verworfen');
+update cloud_listing_context context set draft=public.marketplace_set_listing_photo_options(draft->>'id',(select revision from public.marketplace_listing_drafts where id=(context.draft->>'id')::bigint),jsonb_build_object('resize',1600,'crops','{}'::jsonb));
+select is((select draft->'photoOptions'->>'resize' from cloud_listing_context),'1600','Ausgabeparameter werden getrennt gespeichert');
+select is((select draft->'images'->0->>'fileName' from cloud_listing_context),'test.jpg','Ändern der Ausgabeparameter verändert die Originaldatei nicht');
+select is(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['98765'])->'items'->0->'draft'->'photoOptions','null'::jsonb,'Originalgalerien übernehmen keine früheren Ausgabeparameter');
+select throws_ok($$select public.marketplace_set_listing_photo_options((select draft->>'id' from cloud_listing_context),1,'{"resize":2400,"crops":{}}')$$,'40001',null,'Veraltete Revision kann die Ausgabeparameter nicht ändern');
+select throws_ok($$update public.marketplace_listing_photo_sources set images='[]'$$,'42501',null,'Clients können gesicherte Originale nicht überschreiben');
+select ok(not has_table_privilege('authenticated','public.marketplace_listing_photo_sources','TRUNCATE'),'Clients können die Originalsicherung auch nicht vollständig leeren');
+select ok(not has_function_privilege('authenticated','public.marketplace_remember_listing_photo_source(public.marketplace_listing_jobs,text)','EXECUTE'),'Interne Originalzuordnung bleibt dem Server vorbehalten');
+select throws_ok($$select public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000012','46500000-0000-4000-8000-000000000021',array['98765'])$$,'42501',null,'Fremder Arbeitsbereich erhält keine Originaldateien');
+reset role;
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
+update public.marketplace_listing_jobs set relist_publish_at=clock_timestamp()-interval '1 second' where id=(select (job->>'id')::bigint from cloud_listing_context);
+set local role service_role;
+update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061');
+select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1);
+update cloud_listing_context set result=jsonb_build_object('outcome','confirmed','action','publish','externalId','76543','externalAccountId','46501','providerState','active','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+update cloud_listing_context set job=public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',job->>'id',(claim->>'claimToken')::uuid,'46500000-0000-4000-8000-000000000051',1,result);
+set local role authenticated;
+select is(jsonb_array_length(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'),1,'Neue Anbieterkennung verweist nach dem Relist auf gespeicherte Originale');
+select is(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'->0->'draft'->'images',public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['98765'])->'items'->0->'draft'->'images','Alt und Neu zeigen die unmodifizierte Bildsicherung');
+reset role;
+update public.marketplace_listing_drafts set connection_id=null where id=(select (draft->>'id')::bigint from cloud_listing_context);
+set local role authenticated;
+select is(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'->0->'draft'->>'connectionId','46500000-0000-4000-8000-000000000021','Originalzuordnung folgt nicht einer später veränderten Entwurfsbindung');
+reset role;
+update public.marketplace_connections set external_account_id='46599' where id='46500000-0000-4000-8000-000000000021';
+set local role authenticated;
+select is(jsonb_array_length(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'),0,'Neu gekoppeltes Konto übernimmt keine Originale des vorigen Vinted-Kontos');
 select * from finish();
 rollback;

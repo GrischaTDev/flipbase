@@ -1,3 +1,4 @@
+import { parseVintedListingPhotoOptions } from './vinted-listing-photo-options';
 import { describe, expect, it } from 'vitest';
 import { vintedListingPhotoDimensions } from './vinted-listing-source';
 
@@ -11,4 +12,18 @@ describe('Bildauflösungen beim Relisten', () => {
     expect(() => vintedListingPhotoDimensions(0, 100, 1600)).toThrow();
     expect(() => vintedListingPhotoDimensions(900, 675, 99999)).toThrow();
   });
+});
+
+it('bindet den Ausgabeausschnitt an ein vorhandenes Original und bewahrt normalisierte Koordinaten', () => {
+  const crop = { x: 0.25, y: 0, width: 0.5, height: 1, rotation: 90 };
+  expect(parseVintedListingPhotoOptions({ resize: 1600, crops: { '7': crop } }, ['7'])).toEqual({
+    resize: 1600,
+    crops: { '7': crop },
+  });
+  for (const options of [
+    { resize: 42, crops: {} },
+    { resize: null, crops: { '8': crop } },
+    { resize: null, crops: { '7': { ...crop, width: 2 } } },
+  ])
+    expect(() => parseVintedListingPhotoOptions(options, ['7'])).toThrow();
 });

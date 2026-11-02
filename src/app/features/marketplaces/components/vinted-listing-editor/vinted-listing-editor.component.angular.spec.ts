@@ -8,6 +8,7 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
@@ -130,6 +131,10 @@ function setup(query: Record<string, string> = {}) {
   }));
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedListingOriginalPhotoService,
+        useValue: { read: vi.fn().mockResolvedValue(null) },
+      },
       { provide: VintedListingJobService, useValue: { editPlan: vi.fn() } },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
@@ -170,6 +175,11 @@ function setup(query: Record<string, string> = {}) {
         provide: VintedListingImageService,
         useValue: {
           upload: vi.fn(),
+          savePhotoOptions: vi.fn().mockImplementation(async (draft, photoOptions) => ({
+            ...draft,
+            photoOptions,
+            revision: draft.revision + 1,
+          })),
           previews: vi.fn().mockResolvedValue([]),
           setOrder: vi.fn().mockImplementation(async (current) => current),
         },
@@ -833,15 +843,39 @@ it('hält eine vergangene feste Uhrzeit vor der Speicherung zurück', async () =
   expect(f.component.error()).toContain('Zukunft');
 });
 
-it('bereitet Fotos nur bei ausdrücklich gewählter Bildanpassung auf', async () => {
+it('hält bei gewählter Ausgabegröße die Originaldateien im Editor unverändert', async () => {
   const f = setup();
   await settle();
-  const photos = vi.spyOn(f.component, 'preparePhotos').mockResolvedValue();
+  publicationInput(f);
+  const originals = f.component.images();
+  const files = originals.map((image) => image.file);
   vi.spyOn(f.component, 'openPublication').mockResolvedValue();
-  await f.component.submitRelisting();
-  expect(photos).not.toHaveBeenCalled();
   f.component.resizePhotos.set(true);
+  f.component.photoSize.set(1600);
   await f.component.submitRelisting();
-  expect(photos).toHaveBeenCalledOnce();
-  expect(f.component.resizePhotos()).toBe(false);
+  expect(f.component.images()).toBe(originals);
+  expect(f.component.images().map((image) => image.file)).toEqual(files);
+  expect(f.component.resizePhotos()).toBe(true);
+});
+
+it('speichert beim Zuschneiden und Vergrößern die Originaldatei und nur Ausgabeparameter', async () => {
+  const f = setup();
+  await settle();
+  publicationInput(f);
+  const original = new File(['camera-original-Exif'], 'original.jpg', { type: 'image/jpeg' });
+  const cropped = new File(['cropped-output'], 'crop.jpg', { type: 'image/jpeg' });
+  const crop = { x: 0.25, y: 0, width: 0.5, height: 1, rotation: 0 as const };
+  f.component.images.update((images) =>
+    images.map((image) => ({ ...image, originalFile: original, file: cropped, crop })),
+  );
+  f.component.resizePhotos.set(true);
+  f.component.photoSize.set(1600);
+  await f.component.openPublication();
+  expect(f.imageApi.upload).toHaveBeenCalledWith(expect.anything(), original, undefined);
+  expect(f.imageApi.upload).not.toHaveBeenCalledWith(expect.anything(), cropped, expect.anything());
+  expect(f.imageApi.savePhotoOptions).toHaveBeenCalledWith(expect.anything(), {
+    resize: 1600,
+    crops: { '2': crop },
+  });
+  expect(await original.text()).toBe('camera-original-Exif');
 });

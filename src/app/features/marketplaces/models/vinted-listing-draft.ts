@@ -1,4 +1,8 @@
 import {
+  parseVintedListingPhotoOptions,
+  type VintedListingPhotoOptions,
+} from './vinted-listing-photo-options';
+import {
   parseVintedListingContent,
   type VintedListingContent,
   type VintedListingTemplateFields,
@@ -12,6 +16,7 @@ export interface VintedListingImage {
   readonly byteSize: number;
 }
 export interface VintedListingDraft {
+  readonly photoOptions?: VintedListingPhotoOptions;
   readonly relistExternalId?: string | null;
   readonly id: string;
   readonly workspaceId: string;
@@ -113,6 +118,10 @@ export function parseVintedListingDraft(
     revision: revision(data['revision']),
     content: parseVintedListingContent(data['content']),
     images,
+    photoOptions: parseVintedListingPhotoOptions(
+      data['photoOptions'],
+      images.map((image) => image.id),
+    ),
     inventoryItemId: nullableText(data['inventoryItemId']),
     createdAt: timestamp(data['createdAt']),
     updatedAt: timestamp(data['updatedAt']),

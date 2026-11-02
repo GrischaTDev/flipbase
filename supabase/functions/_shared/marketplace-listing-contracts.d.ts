@@ -76,7 +76,19 @@ export interface VintedListingValidationIssue {
 export type MarketplaceListingAction = 'publish' | 'vinted_draft' | 'update';
 
 /** Unveränderliche private Originale; URLs entstehen erst im autorisierten Ausführungsweg. */
+export interface VintedListingPhotoCrop {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly rotation: 0 | 90 | 180 | 270;
+}
+export interface VintedListingPhotoOptions {
+  readonly resize: number | null;
+  readonly crops: Readonly<Record<string, VintedListingPhotoCrop>>;
+}
 export interface MarketplaceListingSnapshot {
+  readonly photoOptions?: VintedListingPhotoOptions;
   readonly relistExternalId?: string;
   readonly relistStage?: 'delete' | 'publish';
   readonly content: VintedListingContent;

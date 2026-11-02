@@ -1,7 +1,11 @@
+import type { ImageCrop } from './image-crop';
 import { CatalogProductMedia } from './flipbase.models';
 
 /** Reihenfolge entspricht der Galerie; das erste Bild ist das Hauptbild. */
 export interface ProductImageDraft {
+  readonly originalFile?: File | null;
+  readonly originalPreviewUrl?: string;
+  readonly crop?: ImageCrop | null;
   readonly key: string;
   readonly media: CatalogProductMedia | null;
   readonly file: File | null;
