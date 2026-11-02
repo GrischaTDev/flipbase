@@ -282,9 +282,7 @@ describe('SellersComponent', () => {
     const editAction = host.querySelector('[data-seller-edit-action]');
     const archiveActions = [...host.querySelectorAll('[data-seller-archive-action]')];
 
-    expect(editAction?.querySelector('button')?.className).toContain(
-      'hover:bg-[var(--fb-color-brand-surface)]',
-    );
+    expect(editAction?.querySelector('button')?.className).toContain('hover:bg-fb-surface-hover');
     expect(archiveActions[0]?.querySelector('button')?.className).toContain(
       '--fb-color-warning-surface',
     );

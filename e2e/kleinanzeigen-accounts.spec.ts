@@ -84,7 +84,7 @@ for (const theme of ['light', 'dark'] as const)
         await expect(item).toHaveAttribute('aria-busy', 'true');
         await expect(item.getByText('Alter unbekannt', { exact: true })).toHaveCount(0);
         await expect(item).not.toHaveClass(/bg-fb-brand-surface|ring-fb-brand/);
-        await expect(item).toHaveClass(/bg-black\/10/);
+        await expect(item).toHaveClass(/bg-black\/5/);
         await expect(item).toHaveCSS('filter', 'grayscale(1)');
         const thumbnail = item.locator('app-product-thumbnail img');
         await expect(thumbnail).toHaveCSS('object-fit', 'cover');
@@ -106,6 +106,9 @@ for (const theme of ['light', 'dark'] as const)
         });
         await page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true }).click();
         await expect(page.locator('[data-kleinanzeigen-action]')).toContainText('KA Jacke 01');
+        await expect(
+          page.locator('[data-kleinanzeigen-action] img[alt="Kleinanzeigen"]'),
+        ).toBeVisible();
         await page.screenshot({
           path: testInfo.outputPath('kleinanzeigen-running.png'),
           animations: 'disabled',
@@ -144,13 +147,39 @@ for (const theme of ['light', 'dark'] as const)
           name: 'Aktionen für KA Jacke 01',
           exact: true,
         });
+        if (width >= 768) {
+          const settings = section.getByRole('button', {
+            name: 'Konto Kleinanzeigen Testkonto A verwalten',
+            exact: true,
+          });
+          await settings.hover();
+          const hoverColor = await settings.evaluate(
+            (node) => getComputedStyle(node).backgroundColor,
+          );
+          await menuTrigger.hover();
+          await expect(menuTrigger).toHaveCSS('background-color', hoverColor);
+        }
         await menuTrigger.click();
         const menu = item.getByRole('dialog', { name: 'Aktionen für KA Jacke 01', exact: true });
         await expect(menu.getByRole('link', { name: 'Ansehen', exact: true })).toBeVisible();
         await expect(
           menu.getByRole('button', { name: 'Neu inserieren', exact: true }),
         ).toBeVisible();
-        await menu.getByRole('button', { name: 'Inserat löschen', exact: true }).click();
+        const viewAction = menu.getByRole('link', { name: 'Ansehen', exact: true });
+        const deleteAction = menu.getByRole('button', { name: 'Inserat löschen', exact: true });
+        await expect(viewAction).toHaveCSS('font-size', '13px');
+        await expect(viewAction).toHaveCSS('height', width < 768 ? '44px' : '28px');
+        expect(await deleteAction.evaluate((node) => getComputedStyle(node).color)).not.toBe(
+          await viewAction.evaluate((node) => getComputedStyle(node).color),
+        );
+        await page.screenshot({
+          path: testInfo.outputPath('kleinanzeigen-compact-menu.png'),
+          animations: 'disabled',
+        });
+        await page.keyboard.press('Escape');
+        await expect(menuTrigger).toBeFocused();
+        await menuTrigger.click();
+        await deleteAction.click();
         const deletion = page.getByRole('dialog', {
           name: 'Inserat endgültig löschen?',
           exact: true,
