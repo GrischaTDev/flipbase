@@ -2,6 +2,9 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
+import type { VintedListingJob } from '../models/vinted-listing-job';
+import type { VintedListingDraft } from '../models/vinted-listing-draft';
+import type { VintedRelistingPlanRecord } from '../models/vinted-relisting-plan';
 
 export interface VintedListingOperation {
   readonly key: string;
@@ -21,6 +24,52 @@ export class VintedListingOperationStore {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly actions = signal<readonly VintedListingOperation[]>([]);
+  private readonly accepted = signal<
+    readonly { userId: string; record: VintedRelistingPlanRecord; imageUrl: string | null }[]
+  >([]);
+  readonly acceptedRelistings = computed(() => {
+    const user = this.auth.currentUser();
+    const workspace = this.workspace.currentWorkspace();
+    return user && workspace && !workspace.archived_at
+      ? this.accepted().filter(
+          (pending) =>
+            pending.userId === user.id && pending.record.job.workspaceId === workspace.id,
+        )
+      : [];
+  });
+  acceptRelisting(
+    entry: MarketplaceEntry,
+    job: VintedListingJob,
+    draft: VintedListingDraft,
+    userId: string,
+  ): void {
+    if (
+      job.workspaceId !== entry.workspaceId ||
+      job.connectionId !== entry.connectionId ||
+      job.relistExternalId !== entry.externalId ||
+      draft.workspaceId !== job.workspaceId ||
+      draft.connectionId !== job.connectionId ||
+      draft.id !== job.draftId ||
+      draft.revision !== job.draftRevision ||
+      (job.relistEntryId != null && job.relistEntryId !== entry.id)
+    )
+      throw new Error('Der angenommene Relist-Auftrag gehört nicht zum gewählten Artikel.');
+    this.accepted.update((pending) => [
+      ...pending.filter((item) => item.record.job.id !== job.id),
+      { userId, record: { job, draft }, imageUrl: entry.imageUrl },
+    ]);
+  }
+  releaseRelisting(job: VintedListingJob, userId = this.auth.currentUser()?.id): void {
+    this.accepted.update((pending) =>
+      pending.filter(
+        (item) =>
+          item.userId !== userId ||
+          item.record.job.workspaceId !== job.workspaceId ||
+          item.record.job.connectionId !== job.connectionId ||
+          item.record.job.id !== job.id,
+      ),
+    );
+  }
   readonly entries = computed(() => {
     const user = this.auth.currentUser();
     const workspace = this.workspace.currentWorkspace();

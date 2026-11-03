@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import {
   completeListingMigration,
   completeListingJobsMigration,
+  completeRelistingLifecycleMigration,
 } from './vinted-listing-migration.mjs';
 const schemas = [
   'revoke all on public.marketplace_listing_drafts from public,anon,authenticated;\ngrant select on public.marketplace_listing_drafts to authenticated;',
@@ -38,6 +40,197 @@ const jobsGenerated =
   'CREATE TABLE public.marketplace_listing_jobs (id bigint);\nCREATE TABLE public.marketplace_listing_permissions (id bigint);';
 const jobsSchema =
   'revoke all on public.marketplace_listing_jobs from public,anon,authenticated;\nrevoke all on public.marketplace_listing_permissions from public,anon,authenticated;\ngrant execute on function public.marketplace_enqueue_listing(text,bigint,text,uuid,boolean,timestamptz,text,text) to authenticated;';
+const lifecycleFunction =
+  "CREATE OR REPLACE FUNCTION public.marketplace_bind_relisting_entry() RETURNS text LANGUAGE sql AS $$ SELECT 'DROP VIEW public.unchanged; KeepCase'; $$;";
+
+function lifecycleFixture(extra = '') {
+  const raw = `alter table public.label_brands drop constraint label_brands_name_check;
+alter table public.label_brands add constraint label_brands_name_check CHECK (name <> ''::text) not valid;
+alter table public.label_brands validate constraint label_brands_name_check;
+drop view if exists public.unchanged;
+create or replace view public.unchanged as select 1;
+alter table public.marketplace_listing_jobs add column relist_entry_id uuid;
+CREATE INDEX marketplace_listing_jobs_relist_entry ON public.marketplace_listing_jobs USING btree (relist_entry_id) WHERE (relist_entry_id IS NOT NULL);
+alter table public.marketplace_listing_jobs drop constraint marketplace_listing_jobs_editing_previous_state_check;
+alter table public.marketplace_listing_jobs add constraint marketplace_listing_jobs_editing_previous_state_check CHECK (editing_previous_state = 'cancelled') not valid;
+alter table public.marketplace_listing_jobs validate constraint marketplace_listing_jobs_editing_previous_state_check;
+alter table public.marketplace_listing_jobs add constraint marketplace_listing_jobs_relist_entry_check CHECK (relist_entry_id IS NULL OR snapshot ? 'relistExternalId') not valid;
+alter table public.marketplace_listing_jobs validate constraint marketplace_listing_jobs_relist_entry_check;
+alter table public.marketplace_listing_jobs add constraint marketplace_listing_jobs_workspace_id_connection_id_relist_fkey FOREIGN KEY (workspace_id, connection_id, relist_entry_id) REFERENCES public.marketplace_account_entries(workspace_id, connection_id, id) ON DELETE SET NULL (relist_entry_id) not valid;
+alter table public.marketplace_listing_jobs validate constraint marketplace_listing_jobs_workspace_id_connection_id_relist_fkey;
+${lifecycleFunction}
+${extra}`;
+  const proof = {
+    rawSha256: createHash('sha256').update(raw).digest('hex'),
+    constraints: [
+      {
+        schema: 'public',
+        table: 'label_brands',
+        name: 'label_brands_name_check',
+        beforeDefinition: "CHECK (name <> ''::text)",
+        afterDefinition: "CHECK (name <> ''::text)",
+      },
+    ],
+    views: [
+      {
+        schema: 'public',
+        name: 'unchanged',
+        beforeDefinition: 'SELECT 1;',
+        afterDefinition: 'SELECT 1;',
+        beforeOptions: ['security_invoker=true'],
+        afterOptions: ['security_invoker=true'],
+        beforeAcl: [],
+        afterAcl: [],
+      },
+    ],
+    functions: [
+      {
+        schema: 'public',
+        name: 'marketplace_bind_relisting_entry',
+        isNew: true,
+        beforeHash: null,
+        afterHash: createHash('sha256')
+          .update(lifecycleFunction.slice(0, -1) + '\n')
+          .digest('hex'),
+      },
+    ],
+  };
+  const schema =
+    'revoke all on function public.marketplace_bind_relisting_entry() from public,anon,authenticated;\ngrant execute on function public.marketplace_bind_relisting_entry() to service_role;';
+  return { raw, proof, schema };
+}
+
+test('generates lifecycle SQL from proven task changes while retaining quoted function content', () => {
+  const { raw, proof, schema } = lifecycleFixture();
+  const result = completeRelistingLifecycleMigration(raw, [schema], proof);
+  assert.doesNotMatch(result, /label_brands/);
+  assert.doesNotMatch(result, /^(?:drop view|create or replace view)/gimu);
+  assert.match(result, /add column relist_entry_id uuid/);
+  assert.match(result, /foreign key \(workspace_id, connection_id, relist_entry_id\)/);
+  assert.match(result, /select 'DROP VIEW public.unchanged; KeepCase'/);
+  assert.match(
+    result,
+    /revoke all on function public.marketplace_bind_relisting_entry\(\) from public,anon,authenticated/,
+  );
+  assert.match(
+    result,
+    /grant execute on function public.marketplace_bind_relisting_entry\(\) to service_role/,
+  );
+});
+
+test('rejects unproven, changed or incomplete lifecycle generator excess', () => {
+  for (const change of [
+    (proof) => {
+      proof.rawSha256 = '0'.repeat(64);
+    },
+    (proof) => {
+      proof.constraints[0].afterDefinition = 'CHECK (false)';
+    },
+    (proof) => {
+      proof.constraints = [];
+    },
+    (proof) => {
+      proof.views[0].afterOptions = [];
+    },
+    (proof) => {
+      proof.views[0].afterAcl = ['authenticated=arwdDxt/postgres'];
+    },
+    (proof) => {
+      proof.functions = [];
+    },
+  ]) {
+    const { raw, proof, schema } = lifecycleFixture();
+    change(proof);
+    assert.throws(() => completeRelistingLifecycleMigration(raw, [schema], proof));
+  }
+  const { raw, proof, schema } = lifecycleFixture();
+  const partial = raw.replace(
+    'alter table public.label_brands validate constraint label_brands_name_check;',
+    '',
+  );
+  assert.throws(() =>
+    completeRelistingLifecycleMigration(partial, [schema], {
+      ...proof,
+      rawSha256: createHash('sha256').update(partial).digest('hex'),
+    }),
+  );
+});
+
+test('rejects unrelated DDL and requires existing integrity checks plus explicit private helper rights', () => {
+  for (const extra of [
+    'DROP TABLE public.workspaces;',
+    'ALTER TABLE public.marketplace_listing_jobs DROP CONSTRAINT marketplace_listing_jobs_check;',
+    'CREATE OR REPLACE FUNCTION public.foreign_function() RETURNS int LANGUAGE sql AS $$select 1$$;',
+    'GRANT ALL ON TABLE public.marketplace_listing_jobs TO authenticated;',
+  ]) {
+    const { raw, proof, schema } = lifecycleFixture(extra);
+    assert.throws(() => completeRelistingLifecycleMigration(raw, [schema], proof));
+  }
+  const { raw, proof, schema } = lifecycleFixture();
+  assert.throws(() =>
+    completeRelistingLifecycleMigration(raw, [schema.replace(',authenticated', '')], proof),
+  );
+  const missingColumn = raw.replace(
+    'alter table public.marketplace_listing_jobs add column relist_entry_id uuid;',
+    '',
+  );
+  assert.throws(() =>
+    completeRelistingLifecycleMigration(missingColumn, [schema], {
+      ...proof,
+      rawSha256: createHash('sha256').update(missingColumn).digest('hex'),
+    }),
+  );
+});
+
+test('requires complete view options and ACL evidence', () => {
+  for (const field of ['beforeOptions', 'afterOptions', 'beforeAcl', 'afterAcl']) {
+    const { raw, proof, schema } = lifecycleFixture();
+    delete proof.views[0][field];
+    assert.throws(() => completeRelistingLifecycleMigration(raw, [schema], proof));
+  }
+  const { raw, proof, schema } = lifecycleFixture();
+  for (const field of ['beforeOptions', 'afterOptions', 'beforeAcl', 'afterAcl'])
+    delete proof.views[0][field];
+  assert.throws(() => completeRelistingLifecycleMigration(raw, [schema], proof));
+});
+
+test('checks the complete raw function against the independent catalog hash', () => {
+  for (const [before, after] of [
+    ['KeepCase', 'ChangedCase'],
+    ['marketplace_bind_relisting_entry()', 'marketplace_bind_relisting_entry(uuid)'],
+  ]) {
+    const { raw, proof, schema } = lifecycleFixture();
+    const changed = raw.replace(before, after);
+    proof.rawSha256 = createHash('sha256').update(changed).digest('hex');
+    assert.throws(
+      () => completeRelistingLifecycleMigration(changed, [schema], proof),
+      /Funktionsdefinition/,
+    );
+  }
+});
+
+test('accepts CRLF transport without changing quoted function values', () => {
+  const { raw, proof, schema } = lifecycleFixture();
+  const windows = raw.replace(/\n/gu, '\r\n');
+  proof.rawSha256 = createHash('sha256').update(windows).digest('hex');
+  assert.match(completeRelistingLifecycleMigration(windows, [schema], proof), /KeepCase/);
+});
+
+test('rejects mixed ACL targets and client grants in raw SQL and declarative helper rights', () => {
+  for (const permission of [
+    'grant execute on function public.marketplace_bind_relisting_entry(), public.foreign_function() to service_role;',
+    'grant execute on function public.marketplace_bind_relisting_entry() to authenticated;',
+    'grant execute on function public.marketplace_bind_relisting_entry() to service_role,authenticated;',
+    'grant public to authenticated -- function public.marketplace_bind_relisting_entry()\n;',
+  ]) {
+    const { raw, proof, schema } = lifecycleFixture(permission);
+    assert.throws(() => completeRelistingLifecycleMigration(raw, [schema], proof));
+    const clean = lifecycleFixture();
+    assert.throws(() =>
+      completeRelistingLifecycleMigration(clean.raw, [clean.schema, permission], clean.proof),
+    );
+  }
+});
 
 test('completes the rescheduling function with explicit permissions', () => {
   const generated =

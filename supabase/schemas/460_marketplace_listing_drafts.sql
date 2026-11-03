@@ -201,7 +201,7 @@ begin
     end if;
   end if;
   select coalesce(jsonb_agg(public.marketplace_listing_draft_document(d) order by d.created_at desc,d.id desc),'[]'::jsonb) into v_rows from (
-    select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id and deleted_at is null
+    select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id and deleted_at is null and relist_external_id is null
       and (btrim(p_query)='' or position(lower(btrim(p_query)) in lower(content->>'title'))>0)
       and (v_cursor_id is null or (created_at,id)<(v_cursor_at,v_cursor_id))
     order by created_at desc,id desc limit p_limit+1

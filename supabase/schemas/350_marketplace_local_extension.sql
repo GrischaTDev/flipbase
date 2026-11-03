@@ -145,10 +145,14 @@ begin
           and public.marketplace_publication_age_sort_at(v_entry->'body'->'publicationAge',v_observed) is null)
       then raise exception 'Ungültige Inseratquelle' using errcode='22023'; end if;
     end if;
+    if v_entry->>'kind'='publication' and not public.marketplace_relisting_import_allowed(p_workspace_id,p_connection_id,v_entry->>'externalId') then continue; end if;
     insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at,observed_at)
       values(p_workspace_id,p_connection_id,v_entry->>'kind',v_entry->>'externalId',v_entry->'body',(v_entry->>'sortAt')::timestamptz,v_observed)
       on conflict(workspace_id,connection_id,kind,external_id) do update set body=excluded.body,sort_at=excluded.sort_at,observed_at=excluded.observed_at;
-    if v_entry->>'kind'='publication' then v_count:=v_count+1; end if;
+    if v_entry->>'kind'='publication' then
+      v_count:=v_count+1;
+      perform public.marketplace_accept_relisting_import(p_workspace_id,p_connection_id,v_entry->>'externalId',v_observed);
+    end if;
   end loop;
   v_complete:=(p_snapshot->>'publicationsComplete')::boolean;
   -- Auch vollständige lokale Lesekopien löschen niemals Anzeigen oder interpretieren fehlende Datensätze als Verkauf.

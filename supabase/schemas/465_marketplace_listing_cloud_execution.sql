@@ -40,6 +40,7 @@ begin
     order by scheduled_at nulls first,created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
   select * into v_permission from public.marketplace_listing_permissions where id=v_job.permission_id for update;
+  perform public.marketplace_bind_relisting_entry(v_job);
   insert into public.marketplace_browser_sessions(workspace_id,connection_id,started_by,provider_profile_id,expires_at,worker_id,worker_epoch,heartbeat_at,absolute_expires_at)
     values(v_job.workspace_id,v_job.connection_id,v_job.requested_by,v_permission.provider_profile_id,clock_timestamp()+interval '90 seconds',p_worker_id,p_worker_epoch,clock_timestamp(),clock_timestamp()+interval '10 minutes') returning * into v_session;
   update public.marketplace_listing_jobs set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=v_session.expires_at,absolute_expires_at=v_session.absolute_expires_at,
@@ -105,7 +106,8 @@ begin
       or v_job.started_at is null or v_job.state not in ('writing','outcome_unknown') or v_job.relist_publish_at is not null then
       raise exception 'Ungültiger Löschbeleg.' using errcode='22023';
     end if;
-    update public.marketplace_account_entries set body=jsonb_set(body,'{publicationState}',to_jsonb('ended'::text)) where workspace_id=v_job.workspace_id and connection_id=v_job.connection_id and kind='publication' and external_id=v_job.snapshot->>'relistExternalId';
+    -- Inhalt und Position der ursprünglichen Karte bleiben bis zur bestätigten Neuverknüpfung erhalten.
+    perform public.marketplace_bind_relisting_entry(v_job);
     update public.marketplace_listing_drafts set relist_deleted_at=(p_result->>'verifiedAt')::timestamptz,relist_deleted_account_id=v_job.external_account_id where id=v_job.draft_id;
     update public.marketplace_listing_jobs set state='queued',error_code=null,started_at=null,lease_expires_at=null,
       relist_publish_at=coalesce(scheduled_at,clock_timestamp()+make_interval(secs=>relist_delay_seconds)),provider_result=p_result

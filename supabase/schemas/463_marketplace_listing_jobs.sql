@@ -36,6 +36,7 @@ create table public.marketplace_listing_jobs (
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   connection_id uuid,
   draft_id bigint not null,
+  relist_entry_id uuid,
   -- Kontolöschung leert sowohl Verbindung als auch Freigabe. Erst beide Änderungen zusammen prüfen.
   permission_id bigint references public.marketplace_listing_permissions(id) on delete set null deferrable initially deferred,
   requested_by uuid not null references auth.users(id),
@@ -55,7 +56,7 @@ create table public.marketplace_listing_jobs (
   time_zone text,
   late_policy text not null default 'pause_after_30_minutes' check (late_policy in ('pause_after_30_minutes','publish_when_available')),
   error_code text check (error_code ~ '^[a-z_]{1,80}$'),
-  editing_previous_state text check (editing_previous_state in ('queued','paused','failed')),
+  editing_previous_state text check (editing_previous_state in ('queued','paused','failed','cancelled')),
   editing_previous_error_code text check (editing_previous_error_code ~ '^[a-z_]{1,80}$'),
   relist_imported_at timestamptz,
   external_id text check (external_id ~ '^[1-9][0-9]{0,31}$'),
@@ -67,15 +68,19 @@ create table public.marketplace_listing_jobs (
   unique (workspace_id,requested_by,request_id),
   foreign key (workspace_id,connection_id) references public.marketplace_connections(workspace_id,id) on delete set null (connection_id),
   foreign key (workspace_id,draft_id) references public.marketplace_listing_drafts(workspace_id,id),
+  foreign key (workspace_id,connection_id,relist_entry_id) references public.marketplace_account_entries(workspace_id,connection_id,id) on delete set null (relist_entry_id),
+  constraint marketplace_listing_jobs_relist_entry_check check (relist_entry_id is null or snapshot ? 'relistExternalId'),
   check ((scheduled_at is null and time_zone is null) or (scheduled_at is not null and isfinite(scheduled_at) and time_zone is not null)),
   check (state<>'confirmed' or (external_id is not null and provider_state is not null and verified_at is not null))
 );
 comment on table public.marketplace_listing_jobs is 'Dauerhafte Inhalts- und Fotoaufnahme mit festem Konto und Ausführer; queued bestätigt ausschließlich die lokale Auftragsannahme.';
+comment on column public.marketplace_listing_jobs.relist_entry_id is 'Stabile Flipbase-Karte eines Relists; Anbieterkennungen wechseln erst mit belegter Veröffentlichung. Ältere Aufträge werden im normalen Ablauf gebunden.';
 create unique index marketplace_listing_jobs_one_unresolved on public.marketplace_listing_jobs(draft_id) where state in ('queued','paused','claimed','writing','outcome_unknown');
 create unique index marketplace_listing_jobs_one_relisting on public.marketplace_listing_jobs(connection_id,(snapshot->>'relistExternalId'))
   where snapshot ? 'relistExternalId' and state in ('queued','paused','claimed','writing','outcome_unknown','confirmed');
 create index marketplace_listing_jobs_workspace on public.marketplace_listing_jobs(workspace_id,created_at desc,id desc);
 create index marketplace_listing_jobs_connection on public.marketplace_listing_jobs(connection_id);
+create index marketplace_listing_jobs_relist_entry on public.marketplace_listing_jobs(relist_entry_id) where relist_entry_id is not null;
 create index marketplace_listing_jobs_permission on public.marketplace_listing_jobs(permission_id);
 create index marketplace_listing_jobs_user on public.marketplace_listing_jobs(requested_by);
 create unique index marketplace_listing_jobs_replacement on public.marketplace_listing_jobs(replaces_job_id) where replaces_job_id is not null;
@@ -211,20 +216,54 @@ $$;
 revoke all on function public.marketplace_listing_job_timing(timestamptz,text,timestamptz) from public,anon;
 grant execute on function public.marketplace_listing_job_timing(timestamptz,text,timestamptz) to authenticated,service_role;
 
+-- Ältere Aufträge werden nur an eine nachweislich zugehörige erhaltene Zeile gebunden.
+-- Kein Migrations-Backfill: Planlesen, Übernahme und Ergebnis speichern die Bindung im normalen Ablauf.
+create or replace function public.marketplace_relisting_job_is_latest(p_job public.marketplace_listing_jobs)
+returns boolean language sql stable security invoker set search_path='' as $$
+  select not exists(select 1 from public.marketplace_listing_jobs newer where newer.workspace_id=p_job.workspace_id and newer.connection_id=p_job.connection_id
+    and newer.external_account_id=p_job.external_account_id and newer.snapshot ? 'relistExternalId' and newer.id>p_job.id
+    and ((p_job.relist_entry_id is not null and newer.relist_entry_id=p_job.relist_entry_id)
+      or newer.snapshot->>'relistExternalId'=p_job.snapshot->>'relistExternalId'
+      or (p_job.state='confirmed' and (p_job.relist_entry_id is null or newer.relist_entry_id is null) and newer.snapshot->>'relistExternalId'=p_job.external_id)));
+$$;
+revoke all on function public.marketplace_relisting_job_is_latest(public.marketplace_listing_jobs) from public,anon,authenticated;
+grant execute on function public.marketplace_relisting_job_is_latest(public.marketplace_listing_jobs) to service_role;
+
+create or replace function public.marketplace_bind_relisting_entry(p_job public.marketplace_listing_jobs)
+returns uuid language plpgsql volatile security invoker set search_path='' as $$
+declare v_entry_id uuid;
+begin
+  if not (p_job.snapshot ? 'relistExternalId') or p_job.connection_id is null
+    or not exists(select 1 from public.marketplace_connections account where account.workspace_id=p_job.workspace_id and account.id=p_job.connection_id
+      and account.marketplace='vinted' and account.external_account_id=p_job.external_account_id) then return null; end if;
+  select id into v_entry_id from public.marketplace_account_entries
+    where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id and kind='publication'
+      and (external_id=p_job.snapshot->>'relistExternalId' or (p_job.state='confirmed' and external_id=p_job.external_id))
+      and (p_job.relist_entry_id is null or id=p_job.relist_entry_id)
+    order by (external_id=p_job.snapshot->>'relistExternalId') desc limit 1 for update;
+  if v_entry_id is not null and p_job.relist_entry_id is null then
+    update public.marketplace_listing_jobs set relist_entry_id=v_entry_id where id=p_job.id and relist_entry_id is null;
+  end if;
+  return v_entry_id;
+end;
+$$;
+revoke all on function public.marketplace_bind_relisting_entry(public.marketplace_listing_jobs) from public,anon,authenticated;
+grant execute on function public.marketplace_bind_relisting_entry(public.marketplace_listing_jobs) to service_role;
+
 create or replace function public.marketplace_listing_job_document(p_job public.marketplace_listing_jobs)
 returns jsonb language sql stable security invoker set search_path='' as $$
   select jsonb_build_object('id',p_job.id::text,'workspaceId',p_job.workspace_id,'connectionId',p_job.connection_id,'draftId',p_job.draft_id::text,
     'draftRevision',p_job.draft_revision,'executionMode',p_job.execution_mode,'externalAccountId',p_job.external_account_id,'action',p_job.action,
     'state',p_job.state,'version',p_job.version,'scheduledAt',coalesce(p_job.relist_publish_at,p_job.scheduled_at),'timeZone',case when coalesce(p_job.relist_publish_at,p_job.scheduled_at) is not null then coalesce(p_job.time_zone,'Europe/Berlin') else null end,'latePolicy',p_job.late_policy,
     'errorCode',p_job.error_code,'externalId',p_job.external_id,'providerState',p_job.provider_state,'verifiedAt',p_job.verified_at,'createdAt',p_job.created_at,'updatedAt',p_job.updated_at,'replacesJobId',p_job.replaces_job_id::text,
-    'relistDeletedAt',(select relist_deleted_at from public.marketplace_listing_drafts where id=p_job.draft_id),'relistDelaySeconds',p_job.relist_delay_seconds,'relistExternalId',p_job.snapshot->>'relistExternalId','itemTitle',p_job.snapshot->'content'->>'title');
+    'relistEntryId',p_job.relist_entry_id,'relistDeletedAt',(select relist_deleted_at from public.marketplace_listing_drafts where id=p_job.draft_id),'relistDelaySeconds',p_job.relist_delay_seconds,'relistExternalId',p_job.snapshot->>'relistExternalId','itemTitle',p_job.snapshot->'content'->>'title');
 $$;
 revoke all on function public.marketplace_listing_job_document(public.marketplace_listing_jobs) from public,anon,authenticated;
 
 create or replace function public.marketplace_enqueue_listing_internal(p_draft_id text,p_expected_revision bigint,p_action text,p_request_id uuid,p_ai_photo boolean,
   p_scheduled_at timestamptz default null,p_time_zone text default null,p_late_policy text default 'pause_after_30_minutes',p_replaces_job_id bigint default null,p_replaces_version bigint default null,p_relist_delay_seconds integer default 0)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare v_draft public.marketplace_listing_drafts; v_permission public.marketplace_listing_permissions; v_job public.marketplace_listing_jobs; v_previous public.marketplace_listing_jobs; v_images jsonb; v_hash text; v_request jsonb;
+declare v_draft public.marketplace_listing_drafts; v_permission public.marketplace_listing_permissions; v_job public.marketplace_listing_jobs; v_previous public.marketplace_listing_jobs; v_images jsonb; v_hash text; v_request jsonb; v_relist_entry_id uuid;
 begin
   perform pg_advisory_xact_lock(91731,1);
   select * into v_draft from public.marketplace_listing_drafts where id=p_draft_id::bigint and deleted_at is null;
@@ -261,11 +300,18 @@ begin
       and e.kind='publication' and e.external_id=v_draft.relist_external_id and e.body->>'publicationState'='active'))) then
     raise exception 'Die Relist-Quelle ist nicht mehr verfügbar.' using errcode='22023';
   end if;
+  if v_draft.relist_external_id is not null then
+    select id into v_relist_entry_id from public.marketplace_account_entries where workspace_id=v_draft.workspace_id and connection_id=v_draft.connection_id
+      and kind='publication' and external_id=v_draft.relist_external_id for update;
+    -- Alte gelöschte Quellen ohne erhaltene Cachezeile bleiben wiederaufnehmbar; ihre frühere UUID wird nicht erfunden.
+    if v_relist_entry_id is null and v_draft.relist_deleted_at is null then raise exception 'Die Relist-Quelle ist nicht mehr verfügbar.' using errcode='22023'; end if;
+  end if;
   if p_replaces_job_id is not null then
     select * into v_previous from public.marketplace_listing_jobs where id=p_replaces_job_id and workspace_id=v_draft.workspace_id and draft_id=v_draft.id for update;
     if not found then raise exception 'Kein Zugriff auf diesen Inseratauftrag.' using errcode='42501'; end if;
     if v_previous.version<>p_replaces_version then raise exception 'Der Auftrag wurde inzwischen geändert.' using errcode='40001'; end if;
-    if v_previous.state not in ('queued','paused') or (v_previous.scheduled_at is null and v_previous.relist_publish_at is null) then raise exception 'Dieser Auftrag kann nicht mehr ersetzt werden.' using errcode='22023'; end if;
+    if v_previous.state not in ('queued','paused') or (v_previous.scheduled_at is null and v_previous.relist_publish_at is null
+      and not (v_previous.state='paused' and v_previous.error_code='editing' and v_previous.editing_previous_state in ('failed','cancelled'))) then raise exception 'Dieser Auftrag kann nicht mehr ersetzt werden.' using errcode='22023'; end if;
     if not public.marketplace_listing_permission_valid(v_previous.permission_id,v_previous.requested_by,v_previous.authorization_version)
       or v_previous.connection_id is distinct from v_draft.connection_id or v_previous.execution_mode<>v_permission.execution_mode or v_previous.external_account_id<>v_permission.external_account_id then
       raise exception 'Die bisherige Planung gehört nicht zur aktuellen Kontofreigabe.' using errcode='42501';
@@ -287,12 +333,12 @@ begin
     where exists(select 1 from storage.objects object where object.bucket_id='marketplace-listing-media' and object.name=image.storage_path and object.metadata->>'size'=image.byte_size::text and object.metadata->>'mimetype'=image.mime_type);
   if coalesce(jsonb_array_length(v_images),0)<>cardinality(v_draft.image_ids) then raise exception 'Die Originalfotos sind noch nicht vollständig gespeichert.' using errcode='22023'; end if;
   insert into public.marketplace_listing_jobs(workspace_id,connection_id,draft_id,permission_id,requested_by,request_id,request_hash,draft_revision,authorization_version,
-    external_account_id,execution_mode,action,snapshot,scheduled_at,time_zone,late_policy,replaces_job_id,relist_delay_seconds,relist_publish_at)
+    external_account_id,execution_mode,action,snapshot,scheduled_at,time_zone,late_policy,replaces_job_id,relist_delay_seconds,relist_publish_at,relist_entry_id)
     values(v_draft.workspace_id,v_draft.connection_id,v_draft.id,v_permission.id,(select auth.uid()),p_request_id,v_hash,v_draft.revision,v_permission.authorization_version,
       v_permission.external_account_id,v_permission.execution_mode,p_action,jsonb_build_object('content',v_draft.content-'aiPhoto','images',v_images,'aiPhoto',p_ai_photo,'bump',false,
       'connectionId',v_draft.connection_id,'inventoryItemId',v_draft.inventory_item_id,'photoOptions',v_draft.photo_options)
       || case when v_draft.relist_external_id is null then '{}'::jsonb else jsonb_build_object('relistExternalId',v_draft.relist_external_id) end,
-      p_scheduled_at,p_time_zone,p_late_policy,p_replaces_job_id,p_relist_delay_seconds,case when v_draft.relist_deleted_at is not null then coalesce(p_scheduled_at,clock_timestamp()+make_interval(secs=>p_relist_delay_seconds)) else null end) returning * into v_job;
+      p_scheduled_at,p_time_zone,p_late_policy,p_replaces_job_id,p_relist_delay_seconds,case when v_draft.relist_deleted_at is not null then coalesce(p_scheduled_at,clock_timestamp()+make_interval(secs=>p_relist_delay_seconds)) else null end,v_relist_entry_id) returning * into v_job;
   if v_draft.relist_external_id is not null then perform public.marketplace_remember_listing_photo_source(v_job,v_draft.relist_external_id); end if;
   return public.marketplace_listing_job_document(v_job);
 end;
@@ -409,7 +455,9 @@ begin
   perform public.marketplace_lock_listing_workspace(v_job.workspace_id);
   select * into v_job from public.marketplace_listing_jobs where id=p_job_id::bigint for update;
   if v_job.version is distinct from p_expected_version then raise exception 'Der Auftrag wurde inzwischen geändert.' using errcode='40001'; end if;
-  if p_editing is null or not (v_job.snapshot ? 'relistExternalId') or v_job.state not in ('queued','paused','failed') or v_job.relist_publish_at is null then raise exception 'Die Veröffentlichung hat bereits begonnen.' using errcode='22023'; end if;
+  if p_editing is null or not (v_job.snapshot ? 'relistExternalId') or v_job.state not in ('queued','paused','failed','cancelled')
+    or (v_job.state='cancelled' and not exists(select 1 from public.marketplace_listing_drafts where id=v_job.draft_id and relist_deleted_at is not null))
+    or (v_job.relist_publish_at is null and v_job.state not in ('failed','cancelled') and v_job.error_code is distinct from 'editing') then raise exception 'Die Veröffentlichung hat bereits begonnen.' using errcode='22023'; end if;
   if not p_editing and (v_job.error_code is distinct from 'editing' or (v_job.editing_previous_state='queued' and not public.marketplace_listing_job_valid(v_job))) then raise exception 'Die ursprüngliche Planung kann nicht fortgesetzt werden.' using errcode='22023'; end if;
   if p_editing then
     if v_job.state='paused' and v_job.error_code='editing' then return public.marketplace_listing_job_document(v_job); end if;
@@ -440,6 +488,7 @@ create or replace function public.marketplace_request_relisting_import(p_job pub
 returns void language plpgsql volatile security invoker set search_path='' as $$
 begin
   if p_job.state<>'confirmed' or p_job.action<>'publish' or p_job.execution_mode<>'cloud' or not (p_job.snapshot ? 'relistExternalId')
+    or not public.marketplace_relisting_job_is_latest(p_job)
     or p_job.relist_imported_at is not null or not public.marketplace_sync_authorization_valid(p_job.workspace_id,p_job.requested_by)
     or not exists(select 1 from public.marketplace_connections where id=p_job.connection_id and workspace_id=p_job.workspace_id
       and external_account_id=p_job.external_account_id and execution_mode='cloud' and status='connected') then return; end if;
@@ -461,19 +510,28 @@ begin
   perform public.marketplace_lock_listing_workspace(p_workspace_id);
   select external_account_id into v_account from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id;
   if not found then raise exception 'Kein Zugriff auf dieses Marktplatzkonto.' using errcode='42501'; end if;
+  for v_job in select * from public.marketplace_listing_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=v_account
+      and snapshot ? 'relistExternalId' and relist_entry_id is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
+    perform public.marketplace_bind_relisting_entry(v_job);
+  end loop;
+  for v_job in select * from public.marketplace_listing_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=v_account
+      and state='confirmed' and snapshot ? 'relistExternalId' and relist_imported_at is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
+    perform public.marketplace_relink_relisting_entry(v_job);
+  end loop;
   update public.marketplace_listing_jobs job set relist_imported_at=clock_timestamp()
     where job.workspace_id=p_workspace_id and job.connection_id=p_connection_id and job.external_account_id=v_account
       and job.state='confirmed' and job.snapshot ? 'relistExternalId' and job.relist_imported_at is null
-      and exists(select 1 from public.marketplace_account_entries entry where entry.workspace_id=p_workspace_id and entry.connection_id=p_connection_id and entry.kind='publication' and entry.external_id=job.external_id)
+      and exists(select 1 from public.marketplace_account_entries entry where entry.workspace_id=p_workspace_id and entry.connection_id=p_connection_id and entry.kind='publication' and entry.external_id=job.external_id and entry.observed_at>job.finished_at)
       and not exists(select 1 from public.marketplace_account_entries entry where entry.workspace_id=p_workspace_id and entry.connection_id=p_connection_id and entry.kind='publication' and entry.external_id=job.snapshot->>'relistExternalId');
   for v_job in select * from public.marketplace_listing_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=v_account
-      and state='confirmed' and snapshot ? 'relistExternalId' and relist_imported_at is null loop
+      and state='confirmed' and snapshot ? 'relistExternalId' and relist_imported_at is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
     perform public.marketplace_request_relisting_import(v_job);
   end loop;
   select coalesce(jsonb_agg(public.marketplace_listing_job_document(job)||jsonb_build_object('job',public.marketplace_listing_job_document(job),'draft',public.marketplace_listing_job_draft_document(job)) order by job.created_at desc),'[]'::jsonb) into v_items
     from public.marketplace_listing_jobs job where workspace_id=p_workspace_id and connection_id=p_connection_id and snapshot ? 'relistExternalId'
-    and external_account_id=v_account and (state in ('queued','paused','claimed','writing','outcome_unknown','failed') or (state='confirmed' and relist_imported_at is null))
-    and exists(select 1 from public.marketplace_listing_drafts where id=job.draft_id and relist_deleted_at is not null);
+    and external_account_id=v_account and (state in ('queued','paused','claimed','writing','outcome_unknown','failed') or (state='confirmed' and relist_imported_at is null)
+      or (state='cancelled' and exists(select 1 from public.marketplace_listing_drafts where id=job.draft_id and relist_deleted_at is not null)))
+    and public.marketplace_relisting_job_is_latest(job);
   return jsonb_build_object('items',v_items);
 end;
 $$;

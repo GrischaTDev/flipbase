@@ -117,9 +117,12 @@
                 {{ entry.title }}
               </h2>
               @if (publicationBadge(entry.publicationState); as badge) {
-                <app-badge class="mt-2" [class.invisible]="!!row.plan" [tone]="badge.tone">{{
-                  badge.label
-                }}</app-badge>
+                <app-badge
+                  class="mt-2"
+                  [class.invisible]="!!row.plan && row.plan.job.state !== 'confirmed'"
+                  [tone]="badge.tone"
+                  >{{ badge.label }}</app-badge
+                >
               }
               <div class="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
                 @if (entry.brand || entry.size) {
@@ -132,7 +135,7 @@
                 }
                 <app-vinted-listing-age
                   class="ml-auto shrink-0"
-                  [class.invisible]="!!row.plan"
+                  [class.invisible]="!!row.plan && row.plan.job.state !== 'confirmed'"
                   [publishedAt]="entry.publishedAt"
                   [publicationAge]="entry.publicationAge"
                   [createdAt]="entry.createdAt"

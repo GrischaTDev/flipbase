@@ -113,6 +113,27 @@ export class VintedAccountBusyError extends Error {
   }
 }
 
+export class VintedListingRelistingLockedError extends Error {
+  constructor() {
+    super('Dieses Inserat wird gerade relistet. Warte, bis der Auftrag abgeschlossen ist.');
+  }
+}
+
+async function assertListingNotRelisting(response: Response): Promise<void> {
+  if (response.status !== 409) return;
+  const failure: unknown = await response
+    .clone()
+    .json()
+    .catch(() => null);
+  if (
+    failure &&
+    typeof failure === 'object' &&
+    'code' in failure &&
+    failure.code === 'vinted_listing_relisting_locked'
+  )
+    throw new VintedListingRelistingLockedError();
+}
+
 export class VintedListingPriceChangedError extends VintedListingChangedError {
   constructor(readonly priceCents: number) {
     super();
@@ -738,6 +759,7 @@ export class MarketplaceBrowserTestApiService {
       throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    await assertListingNotRelisting(response);
     if (!response.ok) throw new Error('Das Inserat konnte nicht gelöscht werden.');
     let body: unknown;
     try {
@@ -863,6 +885,7 @@ export class MarketplaceBrowserTestApiService {
       throw new VintedEditUnconfirmedError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    await assertListingNotRelisting(response);
     if (response.status === 429) throw new VintedAccountBusyError();
     if (!response.ok) throw new VintedEditUnconfirmedError();
     const body: unknown = await response.json().catch(() => null);
@@ -898,6 +921,7 @@ export class MarketplaceBrowserTestApiService {
       throw new VintedEditUnconfirmedError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    await assertListingNotRelisting(response);
     if (!response.ok) throw new VintedEditUnconfirmedError();
     const body: unknown = await response.json();
     if (
@@ -940,6 +964,7 @@ export class MarketplaceBrowserTestApiService {
       throw new VintedEditUnconfirmedError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    await assertListingNotRelisting(response);
     if (response.status === 400)
       throw new Error('Die Angaben sind unvollständig. Prüfe Titel, Beschreibung und Preis.');
     if (!response.ok) {

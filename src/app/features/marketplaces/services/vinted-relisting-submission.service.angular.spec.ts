@@ -7,6 +7,7 @@ import { VintedBrandSearchService } from '../../platform-admin/services/vinted-b
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 import { parseMarketplacePage } from '../models/marketplace-response';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
+import type { VintedListingJob } from '../models/vinted-listing-job';
 import type { MarketplaceConnection } from '../models/marketplace.models';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { MarketplaceApiService } from './marketplace-api.service';
@@ -121,6 +122,30 @@ function setup() {
     images: current.images.filter((image: { id: string }) => ids.includes(image.id)),
     revision: current.revision + 1,
   }));
+  const acceptedJob = (current: VintedListingDraft): VintedListingJob => ({
+    id: '30',
+    workspaceId: current.workspaceId,
+    connectionId: account.connectionId,
+    draftId: current.id,
+    draftRevision: current.revision,
+    externalAccountId: account.externalAccountId!,
+    executionMode: 'cloud',
+    action: 'publish',
+    state: 'queued',
+    version: 1,
+    scheduledAt: null,
+    timeZone: null,
+    latePolicy: 'pause_after_30_minutes',
+    errorCode: null,
+    externalId: null,
+    providerState: null,
+    verifiedAt: null,
+    createdAt: current.createdAt,
+    updatedAt: current.updatedAt,
+    replacesJobId: null,
+    relistExternalId: current.relistExternalId,
+    relistDelaySeconds: 300,
+  });
   const jobs = {
     readPermission: vi
       .fn()
@@ -129,11 +154,9 @@ function setup() {
       .fn()
       .mockResolvedValue({ allowed: true, executionMode: 'cloud', authorizationVersion: 1 }),
     list: vi.fn().mockResolvedValue([]),
-    enqueue: vi.fn().mockResolvedValue({
-      connectionId: account.connectionId,
-      externalAccountId: account.externalAccountId,
-      executionMode: 'cloud',
-    }),
+    enqueue: vi
+      .fn()
+      .mockImplementation(async (current: VintedListingDraft) => acceptedJob(current)),
   };
   const runtime = {
     readListingContent: read,
@@ -184,6 +207,7 @@ function setup() {
   });
   return {
     service: TestBed.inject(VintedRelistingSubmissionService),
+    acceptedJob,
     operations: TestBed.inject(VintedListingOperationStore),
     input,
     user,
@@ -275,6 +299,7 @@ describe('Appweiter Relist-Auftrag', () => {
     );
     expect(f.refresh).toHaveBeenCalledOnce();
     expect(f.operations.entries()).toEqual([]);
+    expect(f.operations.acceptedRelistings()[0]?.record.job.id).toBe('30');
   });
   it('behält Fotoabruf-Fehler ausschließlich in der appweiten Aktionsliste und schreibt keinen Auftrag', async () => {
     const f = setup();
@@ -288,20 +313,22 @@ describe('Appweiter Relist-Auftrag', () => {
     expect(f.create).not.toHaveBeenCalled();
     expect(f.jobs.enqueue).not.toHaveBeenCalled();
   });
+  it('behält einen bereits angenommenen Relist auch bei einem anschließenden Übersichtsfehler gesperrt', async () => {
+    const f = setup();
+    f.refresh.mockRejectedValue(new Error('Übersicht offline'));
+    await expect(f.service.start(f.input)).rejects.toThrow('Übersicht offline');
+    expect(f.jobs.enqueue).toHaveBeenCalledOnce();
+    expect(f.operations.acceptedRelistings()[0]?.record.job.id).toBe('30');
+  });
   it.each(['workspace', 'logout'] as const)(
     'beendet einen während der Annahme bestätigten Auftrag trotz Kontextwechsel ohne falschen Fehler: %s',
     async (change) => {
       const f = setup();
       let accept!: () => void;
       f.jobs.enqueue.mockImplementationOnce(
-        () =>
+        (current: VintedListingDraft) =>
           new Promise((resolve) => {
-            accept = () =>
-              resolve({
-                connectionId: f.input.account.connectionId,
-                externalAccountId: f.input.account.externalAccountId,
-                executionMode: f.input.account.executionMode,
-              });
+            accept = () => resolve(f.acceptedJob(current));
           }),
       );
       const task = f.service.start(f.input);

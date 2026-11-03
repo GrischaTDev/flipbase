@@ -82,7 +82,7 @@ export class VintedRelistingSubmissionService {
           throw new Error('Die Kontofreigabe hat sich geändert.');
       };
       await authorize();
-      await this.prepare(submission, target, options, current, authorize);
+      await this.prepare(submission, target, options, current, authorize, userId!);
       await this.overview.refresh();
     });
   }
@@ -114,6 +114,7 @@ export class VintedRelistingSubmissionService {
     options: VintedListingPhotoOptions,
     current: () => void,
     authorize: () => Promise<void>,
+    userId: string,
   ): Promise<void> {
     const { entry } = submission;
     current();
@@ -285,5 +286,6 @@ export class VintedRelistingSubmissionService {
       throw new Error(
         'Die Auftragsantwort passt nicht zu Deinem Zielkonto. Prüfe den Auftragsverlauf.',
       );
+    this.operations.acceptRelisting(entry, accepted, draft, userId);
   }
 }

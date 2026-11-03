@@ -24,7 +24,7 @@ import {
   type VintedAccountIdentity,
 } from './vinted-browser-reader.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from './gologin-api-limit.ts';
-import type { VintedEditAccess } from './vinted-edit-access.ts';
+import { VintedRelistingEntryLockedError, type VintedEditAccess } from './vinted-edit-access.ts';
 import type { VintedListingEditFields } from './vinted-browser-listing-edit.ts';
 import type { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
 import type { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
@@ -894,21 +894,31 @@ export class MarketplaceBrowserHttpApi {
         this.inFlight.add(key);
         let sessionId: string | undefined;
         try {
-          const entry = await edits.entry(scope, 'publication', entryId);
+          const entry = await edits.entry(scope, 'publication', entryId, 'write');
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
+          let relistingLockFailure: VintedRelistingEntryLockedError | undefined;
           const authorize = async () => {
-            const current = await edits.entry(scope, 'publication', entryId);
+            const current = await edits
+              .entry(scope, 'publication', entryId, 'write')
+              .catch((error: unknown) => {
+                if (error instanceof VintedRelistingEntryLockedError) relistingLockFailure = error;
+                throw error;
+              });
             if (current.accountId !== entry.accountId || current.externalId !== entry.externalId)
               throw new Error('Kontozuordnung geändert');
             await this.broker.run(scope, currentSessionId, async () => undefined);
           };
-          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
-            if (!browser.deleteListing) throw new RequestError(503);
-            return parseVintedListingDeleteResult(
-              await browser.deleteListing(entry.accountId, entry.externalId, authorize),
-            );
-          });
+          const result = await this.broker
+            .run(scope, currentSessionId, async (browser) => {
+              if (!browser.deleteListing) throw new RequestError(503);
+              return parseVintedListingDeleteResult(
+                await browser.deleteListing(entry.accountId, entry.externalId, authorize),
+              );
+            })
+            .catch((error: unknown) => {
+              throw relistingLockFailure ?? error;
+            });
           let cachePending = false;
           if (result.status === 'confirmed') {
             try {
@@ -973,11 +983,17 @@ export class MarketplaceBrowserHttpApi {
         this.inFlight.add(key);
         let sessionId: string | undefined;
         try {
+          const entry = await edits.entry(scope, 'publication', entryId, 'write');
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
-          const entry = await edits.entry(scope, 'publication', entryId);
+          let relistingLockFailure: VintedRelistingEntryLockedError | undefined;
           const authorize = async () => {
-            const current = await edits.entry(scope, 'publication', entryId);
+            const current = await edits
+              .entry(scope, 'publication', entryId, 'write')
+              .catch((error: unknown) => {
+                if (error instanceof VintedRelistingEntryLockedError) relistingLockFailure = error;
+                throw error;
+              });
             if (current.accountId !== entry.accountId || current.externalId !== entry.externalId)
               throw new Error('Kontozuordnung geändert');
             await this.broker.run(scope, currentSessionId, async () => undefined);
@@ -1007,7 +1023,10 @@ export class MarketplaceBrowserHttpApi {
               }
             })
             .catch((error: unknown) => {
-              throw stoppedBeforeSaving ? new VintedListingNotSavedError() : error;
+              throw (
+                relistingLockFailure ??
+                (stoppedBeforeSaving ? new VintedListingNotSavedError() : error)
+              );
             });
           let cachePending = false;
           if (status === 'confirmed' && this.listingCache) {
@@ -1064,6 +1083,7 @@ export class MarketplaceBrowserHttpApi {
         if (typeof entryId !== 'string' || !uuidPattern.test(entryId)) throw new RequestError(400);
         let fields: VintedListingEditFields | undefined;
         const priceOnly = path === '/marketplace-browser/listings/price/save';
+        const entryMode = path.endsWith('/save') ? 'write' : 'read';
         let priceChange: { expectedPriceCents: number; priceCents: number } | undefined;
         if (priceOnly) {
           const expected = body['expectedPriceCents'],
@@ -1114,11 +1134,23 @@ export class MarketplaceBrowserHttpApi {
         this.inFlight.add(key);
         let sessionId: string | undefined;
         try {
-          const entry = await this.edits.entry(scope, 'publication', entryId);
+          const entry = await this.edits.entry(scope, 'publication', entryId, entryMode);
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
           let editReadFailure: VintedListingReadError | undefined;
+          let relistingLockFailure: VintedRelistingEntryLockedError | undefined;
           let stoppedBeforeSaving = false;
+          const authorizeWrite = async () => {
+            const current = await this.edits!.entry(scope, 'publication', entryId, 'write').catch(
+              (error: unknown) => {
+                if (error instanceof VintedRelistingEntryLockedError) relistingLockFailure = error;
+                throw error;
+              },
+            );
+            if (current.accountId !== entry.accountId || current.externalId !== entry.externalId)
+              throw new Error('Kontozuordnung geändert');
+            await this.broker.run(scope, currentSessionId, async () => undefined);
+          };
           const result = await this.broker
             .run(scope, currentSessionId, async (browser) => {
               if (priceChange) {
@@ -1129,15 +1161,7 @@ export class MarketplaceBrowserHttpApi {
                     entry.accountId,
                     priceChange.expectedPriceCents,
                     priceChange.priceCents,
-                    async () => {
-                      const current = await this.edits!.entry(scope, 'publication', entryId);
-                      if (
-                        current.accountId !== entry.accountId ||
-                        current.externalId !== entry.externalId
-                      )
-                        throw new Error('Kontozuordnung geändert');
-                      await this.broker.run(scope, currentSessionId, async () => undefined);
-                    },
+                    authorizeWrite,
                   )
                   .catch((error: unknown) => {
                     this.logListingReadDetail('price/save', error);
@@ -1156,15 +1180,7 @@ export class MarketplaceBrowserHttpApi {
                     entry.externalId,
                     entry.accountId,
                     fields,
-                    async () => {
-                      const current = await this.edits!.entry(scope, 'publication', entryId);
-                      if (
-                        current.accountId !== entry.accountId ||
-                        current.externalId !== entry.externalId
-                      )
-                        throw new Error('Kontozuordnung geändert');
-                      await this.broker.run(scope, currentSessionId, async () => undefined);
-                    },
+                    authorizeWrite,
                   ),
                 };
               }
@@ -1179,7 +1195,9 @@ export class MarketplaceBrowserHttpApi {
             })
             .catch((error: unknown) => {
               throw (
-                editReadFailure ?? (stoppedBeforeSaving ? new VintedListingNotSavedError() : error)
+                relistingLockFailure ??
+                editReadFailure ??
+                (stoppedBeforeSaving ? new VintedListingNotSavedError() : error)
               );
             });
           let cachePending = false;
@@ -1194,7 +1212,7 @@ export class MarketplaceBrowserHttpApi {
                 : null;
           if (cachedFields && this.listingCache) {
             try {
-              const current = await this.edits.entry(scope, 'publication', entryId);
+              const current = await this.edits.entry(scope, 'publication', entryId, entryMode);
               if (current.externalId !== entry.externalId || current.accountId !== entry.accountId)
                 throw new Error('Kontozuordnung geändert');
               await this.broker.run(scope, currentSessionId, async () => undefined);
@@ -1571,6 +1589,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (response.headersSent) {
         response.destroy();
+        return;
+      }
+      if (error instanceof VintedRelistingEntryLockedError) {
+        json(response, 409, { code: 'vinted_listing_relisting_locked' });
         return;
       }
       if (error instanceof VintedListingReadError) {

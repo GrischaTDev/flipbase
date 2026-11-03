@@ -133,13 +133,16 @@ export class VintedListingsComponent {
   actionsBlocked(entry: MarketplaceEntry): boolean {
     return (
       this.operations.isRunning(entry) ||
+      this.operations
+        .acceptedRelistings()
+        .some((pending) => this.matchesPlan(pending.record.job, entry)) ||
       this.plans
         .plans()
         .some(
           (plan) =>
             plan.job.workspaceId === entry.workspaceId &&
             plan.job.connectionId === entry.connectionId &&
-            plan.job.relistExternalId === entry.externalId,
+            this.matchesPlan(plan.job, entry),
         )
     );
   }
@@ -167,7 +170,7 @@ export class VintedListingsComponent {
           candidate.job.id === plan.job.id &&
           candidate.job.workspaceId === entry.workspaceId &&
           candidate.job.connectionId === entry.connectionId &&
-          candidate.job.relistExternalId === entry.externalId,
+          this.matchesPlan(candidate.job, entry),
       );
     // Ein bereits gestarteter Auftrag darf auch über einen alten Klickstand nicht geöffnet werden.
     if (current && this.plans.canEdit(current.job)) this.editingPlan.set(current.job);
@@ -197,28 +200,40 @@ export class VintedListingsComponent {
       );
     const remaining = new Set(plans);
     const visible = new Set(this.entries().map((entry) => entry.id));
-    const rows = this.displayedEntries()
-      .filter(
-        (source) =>
-          source.workspaceId === account?.workspaceId &&
-          source.connectionId === account.connectionId,
-      )
-      .flatMap((source) => {
-        const plan = plans.find(
-          (candidate) => candidate.job.relistExternalId === source.externalId,
-        );
-        if (plan) remaining.delete(plan);
-        return plan
-          ? [this.listingRow(this.plannedEntry(plan, source), plan)]
-          : visible.has(source.id)
-            ? [this.listingRow(source)]
-            : [];
-      });
+    const sources = this.displayedEntries().filter(
+      (source) =>
+        source.workspaceId === account?.workspaceId && source.connectionId === account.connectionId,
+    );
+    const rows = sources.flatMap((source) => {
+      const plan = plans.find((candidate) => this.matchesPlan(candidate.job, source));
+      if (plan) {
+        const boundSource =
+          sources.find((entry) => entry.id === plan.job.relistEntryId) ??
+          sources.find((entry) => entry.externalId === plan.job.relistExternalId) ??
+          sources.find((entry) => this.matchesPlan(plan.job, entry));
+        if (source !== boundSource || !remaining.has(plan)) return [];
+      }
+      if (plan) remaining.delete(plan);
+      return plan
+        ? [this.listingRow(this.plannedEntry(plan, source), plan)]
+        : visible.has(source.id)
+          ? [this.listingRow(source)]
+          : [];
+    });
     return [
       ...rows,
       ...[...remaining].map((plan) => this.listingRow(this.plannedEntry(plan), plan)),
     ];
   });
+  private matchesPlan(job: VintedListingJob, entry: MarketplaceEntry): boolean {
+    return (
+      job.workspaceId === entry.workspaceId &&
+      job.connectionId === entry.connectionId &&
+      (job.relistEntryId === entry.id ||
+        job.relistExternalId === entry.externalId ||
+        (!!job.externalId && job.externalId === entry.externalId))
+    );
+  }
   private listingRow(entry: MarketplaceEntry, plan?: VintedRelistingPlan): VintedWardrobeTableRow {
     const running =
       this.operations.isRunning(entry) ||
@@ -236,16 +251,22 @@ export class VintedListingsComponent {
   }
   private plannedEntry(plan: VintedRelistingPlan, previous?: MarketplaceEntry): MarketplaceEntry {
     const content = plan.draft.content;
+    const confirmed = plan.job.state === 'confirmed';
+    const imported = confirmed
+      ? this.page()?.items.find(
+          (entry) =>
+            entry.workspaceId === plan.job.workspaceId &&
+            entry.connectionId === plan.job.connectionId &&
+            entry.externalId === plan.job.externalId,
+        )
+      : undefined;
     return {
       workspaceId: plan.job.workspaceId,
       connectionId: plan.job.connectionId!,
-      id: `relisting-${plan.job.id}`,
-      externalId: plan.job.relistExternalId,
       text: content.description,
       occurredAt: null,
       currency: 'EUR',
       status: content.conditionLabel || null,
-      metrics: { views: null, favorites: null, observedAt: null },
       conversationId: null,
       direction: 'unknown',
       promoted: null,
@@ -257,9 +278,22 @@ export class VintedListingsComponent {
       priceLabel: null,
       publicationState: 'active',
       ...previous,
-      title: content.title,
-      price: content.priceCents === null ? null : content.priceCents / 100,
-      imageUrl: plan.imageUrl ?? previous?.imageUrl ?? null,
+      ...imported,
+      id: plan.job.relistEntryId ?? previous?.id ?? `relisting-${plan.job.id}`,
+      externalId: confirmed ? plan.job.externalId : plan.job.relistExternalId,
+      title: imported?.title ?? content.title,
+      price: imported
+        ? imported.price
+        : content.priceCents === null
+          ? null
+          : content.priceCents / 100,
+      imageUrl: imported?.imageUrl ?? plan.imageUrl ?? previous?.imageUrl ?? null,
+      metrics: confirmed
+        ? (imported?.metrics ?? { views: null, favorites: null, observedAt: null })
+        : (previous?.metrics ?? { views: null, favorites: null, observedAt: null }),
+      publishedAt: confirmed ? (imported?.publishedAt ?? null) : previous?.publishedAt,
+      createdAt: confirmed ? (imported?.createdAt ?? null) : previous?.createdAt,
+      publicationAge: confirmed ? (imported?.publicationAge ?? null) : previous?.publicationAge,
     };
   }
   readonly priceEntry = signal<MarketplaceEntry | null>(null);

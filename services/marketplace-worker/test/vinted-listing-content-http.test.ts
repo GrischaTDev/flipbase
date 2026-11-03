@@ -11,6 +11,7 @@ import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-
 import { SupabaseVintedListingCache } from '../src/supabase-vinted-listing-cache.ts';
 import { VintedListingPhotoSource } from '../src/vinted-listing-photo-source.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
+import { VintedRelistingEntryLockedError } from '../src/vinted-edit-access.ts';
 import {
   BrowserActionFailedError,
   plainFailureMessage,
@@ -170,6 +171,8 @@ async function fixture(
     /** Das Speichern bricht im getrennten Browser beim Verschieben der Fotos ab. */
     failSave?: boolean;
     failPriceStep?: 'verify' | 'confirm';
+    relistingLocked?: boolean;
+    relistingLockedAfterOpen?: boolean;
   } = {},
 ) {
   let terminated = false,
@@ -214,6 +217,11 @@ async function fixture(
       await authorize();
       return options.foreignItem ? 'conflict' : 'confirmed';
     },
+    updateListing: async (item, account, fields, authorize) => {
+      targets.push(['edit', item, account, fields]);
+      await authorize();
+      return 'confirmed';
+    },
     readListingContent: async (account, item, authorize) => {
       reads++;
       targets.push([account, item]);
@@ -255,7 +263,17 @@ async function fixture(
       options.missing || options.readAccessOnly
         ? undefined
         : ({
-            entry: (scope: BrowserSessionScope, kind: string, id?: string) => {
+            entry: (
+              scope: BrowserSessionScope,
+              kind: string,
+              id?: string,
+              mode?: 'read' | 'write',
+            ) => {
+              if (
+                mode === 'write' &&
+                (options.relistingLocked || (options.relistingLockedAfterOpen && opened > 0))
+              )
+                return Promise.reject(new VintedRelistingEntryLockedError());
               targets.push([
                 scope.workspaceId,
                 scope.connectionId,
@@ -276,6 +294,7 @@ async function fixture(
       open: (scope) => {
         if (scope.workspaceId !== workspaceId || scope.connectionId !== connectionId)
           return Promise.reject(new Error('private denied detail'));
+        terminated = false;
         opened++;
         return Promise.resolve('46700000-0000-4000-8000-000000000004');
       },
@@ -286,9 +305,11 @@ async function fixture(
         operation: (browser: BrowserInfo) => Promise<T>,
       ) =>
         operation(browser).catch((error: unknown) => {
-          if (options.failAtStep || options.failSave) {
+          if (options.failAtStep || options.failSave || options.relistingLockedAfterOpen) {
             terminated = true;
-            throw new MarketplaceBrowserSessionEndedError('interrupted');
+            throw new MarketplaceBrowserSessionEndedError('interrupted', {
+              isSessionClosed: true,
+            });
           }
           throw error;
         }),
@@ -329,6 +350,12 @@ async function fixture(
         headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }),
+    edit: (body: unknown) =>
+      fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/edit/save`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
     request: (body: unknown) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/content/read`, {
         method: 'POST',
@@ -345,6 +372,41 @@ async function fixture(
     targets,
   };
 }
+
+test('relisting locks reject all listing writes before browser start and survive broker masking on renewed authorization', async () => {
+  const base = listingCurrentContentFixture().content;
+  for (const afterOpen of [false, true]) {
+    for (const route of ['save', 'price', 'edit', 'remove'] as const) {
+      const f = await fixture({ relistingLocked: !afterOpen, relistingLockedAfterOpen: afterOpen });
+      try {
+        const body = {
+          workspaceId,
+          connectionId,
+          entryId,
+          ...(route === 'save' ? { base, content: { ...base, title: 'Changed' } } : {}),
+          ...(route === 'price' ? { expectedPriceCents: 2050, priceCents: 1000 } : {}),
+          ...(route === 'edit'
+            ? { fields: { title: 'Changed', description: 'Text', price: '10,00' } }
+            : {}),
+        };
+        const response = await f[route](body);
+        assert.equal(response.status, 409, `${route}: afterOpen=${afterOpen}`);
+        assert.deepEqual(await response.json(), { code: 'vinted_listing_relisting_locked' });
+        assert.equal(f.opened(), afterOpen ? 1 : 0);
+        assert.equal(
+          f.targets.some(
+            (target) =>
+              Array.isArray(target) && ['saved-cache', 'removed-cache'].includes(String(target[0])),
+          ),
+          false,
+        );
+        assert.equal((await f.request({ workspaceId, connectionId, entryId })).status, 200);
+      } finally {
+        await f.close();
+      }
+    }
+  }
+});
 
 test('content HTTP read resolves account and item from the own entry and releases its browser', async () => {
   const f = await fixture();

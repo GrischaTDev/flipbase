@@ -4548,6 +4548,7 @@ export type Database = {
           provider_result: Json | null
           provider_state: string | null
           relist_delay_seconds: number
+          relist_entry_id: string | null
           relist_imported_at: string | null
           relist_publish_at: string | null
           replaces_job_id: number | null
@@ -4593,6 +4594,7 @@ export type Database = {
           provider_result?: Json | null
           provider_state?: string | null
           relist_delay_seconds?: number
+          relist_entry_id?: string | null
           relist_imported_at?: string | null
           relist_publish_at?: string | null
           replaces_job_id?: number | null
@@ -4638,6 +4640,7 @@ export type Database = {
           provider_result?: Json | null
           provider_state?: string | null
           relist_delay_seconds?: number
+          relist_entry_id?: string | null
           relist_imported_at?: string | null
           relist_publish_at?: string | null
           replaces_job_id?: number | null
@@ -4682,6 +4685,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_connection_id_relist_fkey"
+            columns: ["workspace_id", "connection_id", "relist_entry_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_connection_id_relist_fkey"
+            columns: ["workspace_id", "connection_id", "relist_entry_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_visible_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
             foreignKeyName: "marketplace_listing_jobs_workspace_id_draft_id_fkey"
@@ -10936,6 +10953,15 @@ export type Database = {
         }[]
       }
       list_size_references: { Args: { p_admin?: boolean }; Returns: Json }
+      marketplace_accept_relisting_import: {
+        Args: {
+          p_connection_id: string
+          p_external_id: string
+          p_observed_at: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
       marketplace_apply_vinted_import: {
         Args: {
           p_connection_id: string
@@ -10998,6 +11024,12 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_bind_relisting_entry: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: string
       }
       marketplace_browser_confirm_account: {
         Args: {
@@ -12245,6 +12277,27 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: number
+      }
+      marketplace_relink_relisting_entry: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: string
+      }
+      marketplace_relisting_import_allowed: {
+        Args: {
+          p_connection_id: string
+          p_external_id: string
+          p_pruning?: boolean
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_relisting_job_is_latest: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: boolean
       }
       marketplace_remember_listing_photo_source: {
         Args: {
