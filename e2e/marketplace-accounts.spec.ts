@@ -86,6 +86,52 @@ for (const width of [1440, 390]) {
     await expect(
       page.getByRole('dialog').getByRole('switch', { name: 'Neue Nachrichten', exact: true }),
     ).toBeVisible();
+    if (width === 1440) {
+      const messageSwitch = page.getByRole('dialog').getByRole('switch', {
+        name: 'Neue Nachrichten',
+        exact: true,
+      });
+      const paymentSwitch = page.getByRole('dialog').getByRole('switch', {
+        name: 'Zahlungen und Rückerstattungen',
+        exact: true,
+      });
+      await expect(paymentSwitch).toHaveAttribute('aria-checked', 'true');
+      await paymentSwitch.click();
+      await expect(paymentSwitch).toHaveAttribute('aria-checked', 'false');
+      await expect(messageSwitch).toBeEnabled();
+      await expect(messageSwitch).toHaveAttribute('aria-checked', 'true');
+      await messageSwitch.click();
+      await expect(messageSwitch).toHaveAttribute('aria-checked', 'false');
+      await expect(messageSwitch).toBeEnabled();
+      expect(
+        calls.filter((call) => call.name === 'marketplace_set_notification_category_settings'),
+      ).toEqual([
+        {
+          name: 'marketplace_set_notification_category_settings',
+          body: {
+            p_workspace_id: workspaceId,
+            p_connection_id: accountIds[0],
+            p_category: 'payments',
+            p_enabled: false,
+            p_expected_version: 0,
+          },
+        },
+        {
+          name: 'marketplace_set_notification_category_settings',
+          body: {
+            p_workspace_id: workspaceId,
+            p_connection_id: accountIds[0],
+            p_category: 'messages',
+            p_enabled: false,
+            p_expected_version: 1,
+          },
+        },
+      ]);
+      await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+      await page.getByRole('button', { name: 'Testkonto A einstellen', exact: true }).click();
+      await expect(paymentSwitch).toHaveAttribute('aria-checked', 'false');
+      await expect(messageSwitch).toHaveAttribute('aria-checked', 'false');
+    }
     await expect(page.getByRole('button', { name: 'Konto entfernen', exact: true })).toBeVisible();
     await page.addScriptTag({ content: axe.source });
     expect(
@@ -1892,7 +1938,21 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
     });
   }
   const favorites = { workspaceId, connectionId: accountIds[0], enabled: true, version: 3 };
-  const messages = { workspaceId, connectionId: accountIds[0], enabled: false, version: 5 };
+  const messages = {
+    workspaceId,
+    connectionId: accountIds[0],
+    enabled: false,
+    version: 5,
+    categories: {
+      messages: false,
+      offers: true,
+      orders: true,
+      shipping: true,
+      payments: true,
+      feedback: true,
+      other: true,
+    },
+  };
   const writes: { name: string; body: Record<string, unknown> }[] = [];
   for (const [kind, settings] of [
     ['favorite', favorites],
@@ -1901,7 +1961,10 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
     await page.route(`**/rest/v1/rpc/marketplace_read_${kind}_notification_settings`, (route) =>
       route.fulfill({ json: settings }),
     );
-    const name = `marketplace_set_${kind}_notification_settings`;
+    const name =
+      kind === 'message'
+        ? 'marketplace_set_notification_category_settings'
+        : 'marketplace_set_favorite_notification_settings';
     await page.route(`**/rest/v1/rpc/${name}`, (route) => {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       expect(body).toEqual({
@@ -1909,9 +1972,11 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
         p_connection_id: accountIds[0],
         p_enabled: expect.any(Boolean),
         p_expected_version: settings.version,
+        ...(kind === 'message' ? { p_category: 'messages' } : {}),
       });
       writes.push({ name, body });
       settings.enabled = body['p_enabled'] === true;
+      if (kind === 'message') messages.categories.messages = messages.enabled;
       settings.version++;
       return route.fulfill({ json: settings });
     });
@@ -1926,6 +1991,11 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
   const messageSwitch = dialog.getByRole('switch', { name: 'Neue Nachrichten', exact: true });
   await expect(favoriteSwitch).toHaveAttribute('aria-checked', 'true');
   await expect(messageSwitch).toHaveAttribute('aria-checked', 'false');
+  const paymentSwitch = dialog.getByRole('switch', {
+    name: 'Zahlungen und Rückerstattungen',
+    exact: true,
+  });
+  await expect(paymentSwitch).toHaveAttribute('aria-checked', 'true');
   await expect(dialog.getByText('Nachrichtenversand', { exact: true })).toHaveCount(0);
   await expect(dialog.getByText('Abrufdetails', { exact: true })).toHaveCount(0);
   await expect(dialog.getByText('Gespeichert:', { exact: false })).toHaveCount(0);
@@ -1934,7 +2004,9 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
   await favoriteSwitch.click();
   await expect(favoriteSwitch).toBeEnabled();
   await messageSwitch.click();
+  await expect(messageSwitch).toHaveAttribute('aria-checked', 'true');
   await expect(messageSwitch).toBeEnabled();
+  await expect(paymentSwitch).toHaveAttribute('aria-checked', 'true');
   await expect.poll(() => writes.length).toBe(2);
   expect(writes).toEqual([
     {
@@ -1947,12 +2019,13 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
       },
     },
     {
-      name: 'marketplace_set_message_notification_settings',
+      name: 'marketplace_set_notification_category_settings',
       body: {
         p_workspace_id: workspaceId,
         p_connection_id: accountIds[0],
         p_enabled: true,
         p_expected_version: 5,
+        p_category: 'messages',
       },
     },
   ]);
@@ -1960,6 +2033,7 @@ test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandbl
   await page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true }).click();
   await expect(favoriteSwitch).toHaveAttribute('aria-checked', 'false');
   await expect(messageSwitch).toHaveAttribute('aria-checked', 'true');
+  await expect(paymentSwitch).toHaveAttribute('aria-checked', 'true');
   expect(permissionCalls).toEqual([]);
   await page.addScriptTag({ content: axe.source });
   expect(

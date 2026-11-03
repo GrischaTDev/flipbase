@@ -1752,23 +1752,69 @@ test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge
   const root = fileURLToPath(new URL('../', import.meta.url));
   const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
   const sharedPrefix = 'supabase/functions/_shared/';
-  const resolveContractFile = (directory, modulePath) => {
+  const resolveContractFiles = (
+    directory,
+    modulePath,
+    fileExists = (file) => existsSync(join(root, file)),
+  ) => {
     const contractPath = posix.join(directory, modulePath);
-    if (/\.[cm]?ts$/u.test(contractPath)) return contractPath;
-    if (contractPath.endsWith('.mjs')) {
-      const sourcePath = contractPath.replace(/\.mjs$/u, '.mts');
-      if (existsSync(join(root, sourcePath))) return sourcePath;
+    let files;
+    if (/\.[cm]?ts$/u.test(contractPath)) {
+      files = [contractPath];
+    } else {
+      const javascriptExtensions = {
+        '.js': ['.ts', '.d.ts'],
+        '.mjs': ['.mts', '.d.mts'],
+        '.cjs': ['.cts', '.d.cts'],
+      };
+      const extension = posix.extname(contractPath);
+      const sourceExtensions = javascriptExtensions[extension];
+      if (sourceExtensions) {
+        const basePath = contractPath.slice(0, -extension.length);
+        const sourcePath = basePath + sourceExtensions[0];
+        files = fileExists(sourcePath)
+          ? [sourcePath]
+          : [contractPath, basePath + sourceExtensions[1]];
+      } else {
+        files = [fileExists(`${contractPath}.ts`) ? `${contractPath}.ts` : `${contractPath}.d.ts`];
+      }
     }
-    return existsSync(join(root, `${contractPath}.ts`))
-      ? `${contractPath}.ts`
-      : `${contractPath}.d.ts`;
+    for (const file of files) assert.ok(fileExists(file), `${file} fehlt als Vertragsquelle.`);
+    return files;
   };
+
+  // Reale JavaScriptmodule benötigen Laufzeit UND passende Typdeklaration im Baukontext.
+  for (const [runtimeExtension, sourceExtension, declarationExtension] of [
+    ['.js', '.ts', '.d.ts'],
+    ['.mjs', '.mts', '.d.mts'],
+    ['.cjs', '.cts', '.d.cts'],
+  ]) {
+    const basePath = `${sharedPrefix}fixture-contract`;
+    const runtimePath = basePath + runtimeExtension;
+    const declarationPath = basePath + declarationExtension;
+    const pair = new Set([runtimePath, declarationPath]);
+    const resolveFixture = (files) =>
+      resolveContractFiles(sharedPrefix, `fixture-contract${runtimeExtension}`, (file) =>
+        files.has(file),
+      );
+    assert.deepEqual(resolveFixture(pair), [runtimePath, declarationPath]);
+    for (const missing of pair) {
+      const remaining = new Set(pair);
+      remaining.delete(missing);
+      assert.throws(() => resolveFixture(remaining), {
+        message: `${missing} fehlt als Vertragsquelle.`,
+      });
+    }
+    assert.deepEqual(resolveFixture(new Set([basePath + sourceExtension])), [
+      basePath + sourceExtension,
+    ]);
+  }
   const pending = new Set();
   for (const file of await readdir(join(root, 'src'), { recursive: true })) {
     if (!file.endsWith('.ts') || file.endsWith('.spec.ts')) continue;
     const source = await readFile(join(root, 'src', file), 'utf8');
     for (const match of source.matchAll(/['"][^'"]*supabase\/functions\/_shared\/([^'"]+)['"]/gu)) {
-      pending.add(resolveContractFile(sharedPrefix, match[1]));
+      for (const contract of resolveContractFiles(sharedPrefix, match[1])) pending.add(contract);
     }
   }
   assert.ok(pending.size > 0, 'Die Prüfung muss tatsächliche Angular-Importe erfassen.');
@@ -1782,7 +1828,8 @@ test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge
     }
     const source = await readFile(join(root, file), 'utf8');
     for (const match of source.matchAll(/from ['"](\.\.?\/[^'"]+)['"]/gu)) {
-      pending.add(resolveContractFile(posix.dirname(file), match[1]));
+      for (const contract of resolveContractFiles(posix.dirname(file), match[1]))
+        pending.add(contract);
     }
   }
 });
