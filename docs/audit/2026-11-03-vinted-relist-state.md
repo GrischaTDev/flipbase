@@ -74,3 +74,55 @@ Karten-/Leistenhöhe, gesperrte Aktionen, herunterzählende Wartezeit und die
 tatsächlichen Ausführungszustände. Vollständige Protokolle und Sichtbelege
 bleiben privat außerhalb der Aufgaben-Arbeitskopie. Verbindlicher Vorabcheck
 und gegebenenfalls zusätzliche CI-Nachweise folgen am endgültigen Stand.
+
+## Noch offener echter Gesamtnachweis
+
+Ein begrenzter Lauf des tatsächlich korrigierten Formularlesers wurde innerhalb
+einer normalen Cloud-Sitzung mit technisch gesperrten Nichtleseanfragen
+ausgeführt. Der bisherige Kategorieabruf wurde überwunden; anschließend brach
+der Lauf mit dem festen Schritt `category_close` ab. Ein vollständiger Snapshot
+wurde nicht bestätigt. Keine Inserat-API-Mutation oder Formularübermittlung
+wurde zugelassen.
+
+Der Schritt entstand ausschließlich durch einen verworfenen Escape-Aufruf.
+Die bisherige Fehlerbehandlung konnte dabei einen früheren Öffnungs- oder
+Lesefehler überdecken. Dies ist mit echten synthetischen Browserfällen belegt
+und korrigiert: ursprüngliche Fehler behalten Vorrang, der Schließversuch bleibt
+verpflichtend und ein alleiniger Schließfehler bleibt ein Fehler. Kein blinder
+Escape-Wiederholungsversuch und keine ungeprüfte Annahme über das Popupverhalten.
+
+Die normale Sitzung wurde nach dem Leserabbruch als geschlossen bestätigt;
+ihr regulärer Ablaufzeitpunkt lag danach. Ein gewöhnlicher Sitzungsablauf ist
+damit nicht als Ursache belegt. Warum Seite beziehungsweise Sitzung endeten,
+bleibt offen. Eine kleine Folgeprobe trennt deshalb ursprünglichen Öffnungs-
+und Escapefehler, Sichtbarkeit, Seiten-/Browserzustand und Popupmetadaten.
+Sie wurde noch nicht ausgeführt.
+
+Die eigene Diagnoseansicht scheiterte anschließend am Versionswechsel auf die
+parallel veröffentlichte Anwendung 0.405.0. Der Computerzugriff wurde beendet,
+weil die aktive Windows-Browseradresse nicht hinreichend sicher bestimmt werden
+konnte. Keine weitere Browsersteuerung im betroffenen Durchlauf. Der echte
+Gesamtnachweis und die Veröffentlichung dieser Fehlerkorrektur bleiben offen;
+lokale Änderungen und private Nachweise werden für die Fortsetzung erhalten.
+
+## Lokaler Abschlussstand vor der Browserunterbrechung
+
+Auf dem zusammengeführten Stand mit Hauptzweig `6cf4268e` und korrigierter
+Popup-Fehlererhaltung sind `npm run preflight:plan` und `npm run preflight`
+unter Node 22 erfolgreich. Format, Lint, Typen und Suite-Audit bestehen;
+188 Skriptfälle, acht Orchestrierungsfälle, 40 Modellfälle und 791 Angularfälle
+sowie der Angular-Bau sind erfolgreich. Zwei Skript- und drei
+Orchestrierungsfälle wurden unter Windows regulär ausgelassen. Bekannte
+Warnungen zu Imports, Bundlegröße und CommonJS bleiben bestehen.
+
+Die Workerprüfungen bestätigen 798 erfolgreiche Fälle und acht reguläre
+Auslassungen. 157 gemeinsame Runtime-/Erweiterungsfälle und 92 native
+Browserverbraucher bestehen; die anschließend ergänzte Popup-Fehlererhaltung
+ist mit zehn gezielten echten Browserfällen geprüft. Vier vorhandene
+Oberflächenfälle decken Desktop/Touch und Hell/Dunkel ab. Ein zusätzlicher
+schmaler Dunkel-Fall beginnt mit unbekanntem Listenpreis und bestätigt auch
+dort vier Aktionsplätze sowie gleiche Höhen bis zur Ausführung.
+
+Diese Nachweise ersetzen weder den weiterhin offenen echten Formularleser
+noch die ausgewählten CI-/Imageprüfungen vor einer Veröffentlichung. Der
+Arbeitszweig bleibt unveröffentlicht für die Fortsetzung erhalten.
