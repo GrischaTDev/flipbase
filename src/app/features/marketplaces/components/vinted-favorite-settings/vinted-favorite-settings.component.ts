@@ -52,6 +52,7 @@ export class VintedFavoriteSettingsComponent {
           ? JSON.stringify([userId, account.workspaceId, account.connectionId])
           : null;
       untracked(() => {
+        if (this.key === key) return;
         this.key = key;
         this.revision++;
         this.settings.set(null);

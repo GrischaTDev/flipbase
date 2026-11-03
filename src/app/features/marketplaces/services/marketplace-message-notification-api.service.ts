@@ -1,16 +1,25 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
-import { parseMessageNotificationFeed } from '../models/marketplace-message-notifications';
-import type { MessageNotificationFeed } from '../models/marketplace-message-notifications';
+import {
+  parseMessageNotificationFeed,
+  parseMessageNotificationSettings,
+} from '../models/marketplace-message-notifications';
+import type {
+  MessageNotificationFeed,
+  MessageNotificationSettings,
+} from '../models/marketplace-message-notifications';
+import type { AccountScope } from '../models/marketplace.models';
 import { MarketplaceResponseError } from '../models/marketplace-response';
 export class MessageNotificationApiError extends Error {
-  constructor(readonly code: 'forbidden' | 'unavailable' | 'request_failed') {
+  constructor(readonly code: 'forbidden' | 'unavailable' | 'conflict' | 'request_failed') {
     super(
       code === 'forbidden'
         ? 'Du hast keinen Zugriff auf diese Nachrichtenmeldungen.'
         : code === 'unavailable'
           ? 'Nachrichtenmeldungen sind auf diesem Server noch nicht verfügbar.'
-          : 'Nachrichtenmeldungen konnten nicht aktualisiert werden. Versuche es erneut.',
+          : code === 'conflict'
+            ? 'Diese Einstellung wurde inzwischen geändert. Lade sie erneut.'
+            : 'Nachrichtenmeldungen konnten nicht aktualisiert werden. Versuche es erneut.',
     );
   }
 }
@@ -21,13 +30,42 @@ function response(result: { data: unknown; error: { code?: string } | null }): u
         ? 'forbidden'
         : result.error.code === '42883' || result.error.code === 'PGRST202'
           ? 'unavailable'
-          : 'request_failed',
+          : result.error.code === '40001'
+            ? 'conflict'
+            : 'request_failed',
     );
   return result.data;
 }
 @Injectable({ providedIn: 'root' })
 export class MarketplaceMessageNotificationApiService {
   private readonly client = inject(SupabaseService).client;
+  async readSettings(scope: AccountScope): Promise<MessageNotificationSettings> {
+    return parseMessageNotificationSettings(
+      response(
+        await this.client.rpc('marketplace_read_message_notification_settings', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+        }),
+      ),
+      scope,
+    );
+  }
+  async setSettings(
+    settings: MessageNotificationSettings,
+    enabled: boolean,
+  ): Promise<MessageNotificationSettings> {
+    return parseMessageNotificationSettings(
+      response(
+        await this.client.rpc('marketplace_set_message_notification_settings', {
+          p_workspace_id: settings.workspaceId,
+          p_connection_id: settings.connectionId,
+          p_enabled: enabled,
+          p_expected_version: settings.version,
+        }),
+      ),
+      settings,
+    );
+  }
   async read(workspaceId: string): Promise<MessageNotificationFeed> {
     return parseMessageNotificationFeed(
       response(

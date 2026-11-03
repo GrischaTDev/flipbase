@@ -16,10 +16,12 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import type { AccountScope } from '../../models/marketplace.models';
 import { MarketplaceFavoriteNotificationApiService } from '../../services/marketplace-favorite-notification-api.service';
+import { MarketplaceMessageNotificationApiService } from '../../services/marketplace-message-notification-api.service';
 import { MarketplaceSyncScheduleApiService } from '../../services/marketplace-sync-schedule-api.service';
 import { VintedListingClockService } from '../../services/vinted-listing-clock.service';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
+import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync-schedule.component';
 import { VintedCloudMessageSettingsComponent } from '../vinted-cloud-message-settings/vinted-cloud-message-settings.component';
 import { VintedAccountControlsComponent } from './vinted-account-controls.component';
@@ -49,6 +51,10 @@ beforeAll(async () => {
     {
       type: VintedFavoriteSettingsComponent,
       path: 'src/app/features/marketplaces/components/vinted-favorite-settings/vinted-favorite-settings.component.ts',
+    },
+    {
+      type: VintedMessageSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-message-settings/vinted-message-settings.component.ts',
     },
     {
       type: VintedSyncScheduleComponent,
@@ -110,6 +116,17 @@ beforeEach(() => {
         useValue: { currentWorkspace: signal({ id: account.workspaceId }) },
       },
       { provide: MarketplaceFavoriteNotificationApiService, useValue: favoriteApi },
+      {
+        provide: MarketplaceMessageNotificationApiService,
+        useValue: {
+          readSettings: vi.fn().mockImplementation(async (scope: AccountScope) => ({
+            ...scope,
+            enabled: true,
+            version: 0,
+          })),
+          setSettings: vi.fn(),
+        },
+      },
       { provide: MarketplaceSyncScheduleApiService, useValue: scheduleApi },
       { provide: VintedListingClockService, useValue: clock },
     ],
@@ -180,11 +197,11 @@ describe('Benachrichtigungseinstellungen bei lokalen Vinted-Konten', () => {
     expect(settingsButton(fixture)).not.toBeNull();
     settingsButton(fixture)?.click();
     await settle(fixture);
-    expect(fixture.nativeElement.textContent).toContain('Neue Favoriten in der Glocke anzeigen');
+    expect(fixture.nativeElement.textContent).toContain('Neue Favoriten');
     expect(fixture.nativeElement.textContent).not.toContain('Automatische Aktualisierung');
     expect(favoriteApi.readSettings).toHaveBeenCalledWith(account);
     const checkbox: HTMLButtonElement =
-      fixture.nativeElement.querySelector('button[role="checkbox"]');
+      fixture.nativeElement.querySelector('button[role="switch"]');
     expect(checkbox.getAttribute('aria-checked')).toBe('true');
     checkbox.click();
     await settle(fixture);
@@ -237,7 +254,7 @@ describe('Benachrichtigungseinstellungen bei lokalen Vinted-Konten', () => {
     settingsButton(fixture)?.click();
     await settle(fixture);
     expect(fixture.nativeElement.textContent).toContain('Automatische Aktualisierung');
-    expect(fixture.nativeElement.textContent).toContain('Neue Favoriten in der Glocke anzeigen');
+    expect(fixture.nativeElement.textContent).toContain('Neue Favoriten');
     expect(scheduleApi.read).toHaveBeenCalled();
   });
   it('lässt den lokalen Dialog bei einer Datenaktualisierung desselben Kontos offen', async () => {

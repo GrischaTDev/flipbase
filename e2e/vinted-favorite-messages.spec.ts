@@ -6,7 +6,7 @@ for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
   { width, cloud: false },
   { width, cloud: true },
 ])) {
-  test(`Favoritennachrichten (${cloud ? 'Cloud' : 'Extension'}) bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`, async ({
+  test(`Favoritennachrichten (${cloud ? 'Cloud' : 'Extension'}) bleiben bis zum Speichern aus und aktivieren ohne Zusatzdialog bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -14,6 +14,29 @@ for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
     await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
       route.fulfill({
         json: { executionMode: cloud ? 'cloud' : 'local', allowed: false, authorizationVersion: 0 },
+      }),
+    );
+    const approvals: Record<string, unknown>[] = [];
+    await page.route('**/rest/v1/rpc/marketplace_approve_cloud_messages', (route) => {
+      approvals.push(route.request().postDataJSON() as Record<string, unknown>);
+      return route.fulfill({
+        json: { executionMode: 'cloud', allowed: true, authorizationVersion: 1 },
+      });
+    });
+    await page.route('**/rest/v1/rpc/marketplace_read_local_extension', (route) =>
+      route.fulfill({
+        json: {
+          binding: cloud
+            ? null
+            : {
+                externalAccountId: '100',
+                expiresAt: new Date(Date.now() + 3600000).toISOString(),
+                lastSeenAt: null,
+                revoked: false,
+                messagesRead: true,
+                messagesSend: true,
+              },
+        },
       }),
     );
     let settings = {
@@ -36,6 +59,7 @@ for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
       settings = {
         ...settings,
         enabled: Boolean(body['p_enabled']),
+        active: Boolean(body['p_enabled']),
         config: body['p_config'],
         version: settings.version + 1,
       };
@@ -66,6 +90,7 @@ for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
     await view.getByRole('button', { name: 'Einstellungen speichern' }).click();
     await expect(view.getByRole('status').filter({ hasText: 'gespeichert' })).toBeVisible();
     expect(saves).toHaveLength(1);
+    expect(approvals).toHaveLength(0);
     expect(saves[0]['p_enabled']).toBe(false);
     expect(saves[0]['p_config']).toMatchObject({
       timezone: 'Europe/Berlin',
@@ -77,15 +102,20 @@ for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
     });
     await activation.click();
     await expect(activation).toHaveAttribute('aria-checked', 'true');
-    await view.getByRole('button', { name: 'Einstellungen speichern' }).click();
-    const confirmation = page.getByRole('dialog');
-    await expect(confirmation).toContainText(
-      cloud
-        ? 'Frühere Favorisierungen und bestehende Gespräche werden ausgelassen'
-        : 'Frühere Favorisierungen werden ausgelassen',
-    );
-    await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     expect(saves).toHaveLength(1);
+    expect(approvals).toHaveLength(0);
+    await view.getByRole('button', { name: 'Einstellungen speichern' }).click();
+    await expect(view.getByText('Aktiv', { exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(saves).toHaveLength(2);
+    expect(saves[1]['p_enabled']).toBe(true);
+    expect(approvals).toHaveLength(cloud ? 1 : 0);
+    if (cloud)
+      expect(approvals[0]).toMatchObject({
+        p_workspace_id: workspaceId,
+        p_connection_id: accountIds[0],
+        p_expected_external_account_id: '100',
+      });
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(

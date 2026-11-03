@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,8 +9,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideSettings, LucideLogIn } from '@lucide/angular';
-import { VintedCloudMessageSettingsComponent } from '../vinted-cloud-message-settings/vinted-cloud-message-settings.component';
+import { LucideSettings, LucideLogIn, LucidePlay, LucidePause } from '@lucide/angular';
+import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import type { BadgeTone } from '../../../../shared/components/badge/badge.component';
@@ -36,9 +35,8 @@ export interface VintedSyncHeaderState extends AccountScope {
 @Component({
   selector: 'app-vinted-sync-schedule',
   imports: [
-    DatePipe,
     VintedFavoriteSettingsComponent,
-    VintedCloudMessageSettingsComponent,
+    VintedMessageSettingsComponent,
     ButtonComponent,
     NoticeBannerComponent,
     CustomSelectComponent,
@@ -52,6 +50,8 @@ export interface VintedSyncHeaderState extends AccountScope {
 export class VintedSyncScheduleComponent {
   readonly settingsIcon = LucideSettings;
   readonly loginIcon = LucideLogIn;
+  readonly playIcon = LucidePlay;
+  readonly pauseIcon = LucidePause;
   readonly account = input.required<MarketplaceConnection>();
   readonly canManage = input(false);
   readonly compact = input(false);
@@ -102,33 +102,6 @@ export class VintedSyncScheduleComponent {
       };
     return null;
   });
-  readonly statusText = computed(() => {
-    const schedule = this.store.schedule();
-    if (schedule?.enabled && this.account().status !== 'connected') {
-      switch (this.account().status) {
-        case 'paused':
-          return 'Kontoverbindung pausiert';
-        case 'blocked':
-          return 'Prüfung erforderlich';
-        case 'needs_login':
-          return 'Anmeldung erforderlich';
-        default:
-          return 'Nicht verbunden';
-      }
-    }
-    return !schedule?.enabled
-      ? 'Pausiert'
-      : !this.store.availability().enabled
-        ? 'Dienst nicht verfügbar'
-        : schedule.pausedReason
-          ? 'Wartet'
-          : 'Aktiv';
-  });
-  readonly nextPlannedAt = computed(() =>
-    this.account().status === 'connected' && this.store.schedule()?.enabled
-      ? this.store.schedule()?.nextDueAt
-      : null,
-  );
   constructor() {
     effect(() => {
       const account = this.account();

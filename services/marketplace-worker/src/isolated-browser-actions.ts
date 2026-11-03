@@ -1224,7 +1224,9 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       if (
         Object.keys(event).length !== 5 ||
         typeof event.externalId !== 'string' ||
-        !/^(?:message|offer_request_message):[1-9][0-9]{0,31}$/.test(event.externalId) ||
+        !/^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$/.test(
+          event.externalId,
+        ) ||
         event.direction !== 'inbound' ||
         event.source !== 'conversation_snapshot' ||
         !Number.isFinite(Date.parse(text(event.occurredAt, 64)))

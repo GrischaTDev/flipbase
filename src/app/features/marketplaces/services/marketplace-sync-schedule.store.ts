@@ -36,7 +36,13 @@ export class MarketplaceSyncScheduleStore {
       !workspace.archived_at &&
       account?.workspaceId === workspace.id &&
       this.manageAllowed()
-      ? JSON.stringify([userId, workspace.id, account.connectionId, account.status])
+      ? JSON.stringify([
+          userId,
+          workspace.id,
+          account.connectionId,
+          account.externalAccountId,
+          account.status,
+        ])
       : null;
   });
   private readonly loadedContext = signal<string | null>(null);
@@ -64,7 +70,8 @@ export class MarketplaceSyncScheduleStore {
     this.current() && !this.denied() ? this.capability() : { enabled: false, allowedIntervals: [] },
   );
   readonly loading = computed(
-    () => this.contextKey() !== null && (!this.current() || this.fetching()),
+    () =>
+      this.contextKey() !== null && (!this.current() || (this.fetching() && !this.savedSchedule())),
   );
   readonly busy = computed(() => this.current() && this.writing());
   readonly error = computed(() => (this.current() ? this.loadError() : null));
@@ -97,6 +104,10 @@ export class MarketplaceSyncScheduleStore {
       this.account();
       const key = this.contextKey();
       untracked(() => {
+        if (key && key === this.loadedContext()) {
+          void this.reload(true);
+          return;
+        }
         this.revision++;
         this.loadedContext.set(key);
         this.savedSchedule.set(null);
@@ -110,7 +121,7 @@ export class MarketplaceSyncScheduleStore {
       });
     });
     const statusTimer = setInterval(() => {
-      if (this.current() && !this.loading() && !this.busy()) void this.reload(true);
+      if (this.current() && !this.fetching() && !this.busy()) void this.reload(true);
     }, 30_000);
     inject(DestroyRef).onDestroy(() => {
       clearInterval(statusTimer);
@@ -150,15 +161,14 @@ export class MarketplaceSyncScheduleStore {
   async reload(keepVisible = false): Promise<void> {
     const key = this.contextKey();
     const account = this.account();
-    if (!key || !account || !this.current() || this.busy()) return;
+    if (!key || !account || !this.current() || this.fetching() || this.busy()) return;
     const revision = ++this.revision;
     this.fetching.set(true);
-    this.loadError.set(null);
     if (!keepVisible) {
+      this.loadError.set(null);
       this.savedSchedule.set(null);
       this.capability.set({ enabled: false, allowedIntervals: [] });
     }
-    this.needsReload.set(false);
     this.denied.set(false);
     void this.refreshAvailability(key, revision);
     try {
@@ -168,6 +178,8 @@ export class MarketplaceSyncScheduleStore {
       });
       if (!this.isCurrent(key, revision)) return;
       this.savedSchedule.set(schedule);
+      this.loadError.set(null);
+      this.needsReload.set(false);
     } catch (error) {
       if (this.isCurrent(key, revision)) this.handleError(error);
     } finally {
@@ -179,7 +191,7 @@ export class MarketplaceSyncScheduleStore {
   }
 
   private async activateDefault(): Promise<void> {
-    if (this.schedule()?.authorizationVersion === 0 && this.canEnable())
+    if (!this.fetching() && this.schedule()?.authorizationVersion === 0 && this.canEnable())
       await this.setEnabled(true);
   }
 
@@ -209,6 +221,8 @@ export class MarketplaceSyncScheduleStore {
     const schedule = this.schedule();
     if (!key || !schedule) return;
     const revision = ++this.revision;
+    // Eine bewusste Änderung ersetzt einen noch laufenden stillen Abruf.
+    this.fetching.set(false);
     this.writing.set(true);
     this.loadError.set(null);
     try {

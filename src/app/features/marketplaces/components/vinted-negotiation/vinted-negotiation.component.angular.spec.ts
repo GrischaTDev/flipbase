@@ -14,6 +14,8 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
+import { VintedMessagingApiService } from '../../services/vinted-messaging-api.service';
+import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { createDefaultNegotiationConfig } from '../../models/vinted-negotiation';
 import { VintedNegotiationComponent } from './vinted-negotiation.component';
 const account = signal({
@@ -86,6 +88,28 @@ beforeEach(() => {
       { provide: AuthService, useValue: { currentUser: signal({ id: 'user' }) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: VintedNegotiationApiService, useValue: api },
+      {
+        provide: VintedMessagingApiService,
+        useValue: {
+          readPermission: vi
+            .fn()
+            .mockResolvedValue({ executionMode: 'cloud', allowed: false, authorizationVersion: 0 }),
+          approveCloud: vi
+            .fn()
+            .mockResolvedValue({ executionMode: 'cloud', allowed: true, authorizationVersion: 1 }),
+        },
+      },
+      {
+        provide: VintedLocalExtensionStore,
+        useValue: {
+          binding: signal({ messagesSend: false }),
+          loadConnection: vi.fn(),
+          messagesAllowed: vi.fn(() => false),
+          approveInbox: vi.fn(),
+          approveSend: vi.fn().mockResolvedValue(true),
+          error: signal(null),
+        },
+      },
     ],
   });
 });
@@ -95,6 +119,76 @@ describe('Verhandlungseinstellungen', () => {
     TestBed.overrideComponent(VintedNegotiationComponent, {
       set: { template: '', templateUrl: undefined, imports: [] },
     });
+  });
+  it('erteilt die Cloudversandfreigabe beim Speichern einer aktivierten Verhandlung', async () => {
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    const messaging = TestBed.inject(VintedMessagingApiService);
+    expect(messaging.approveCloud).not.toHaveBeenCalled();
+    component.form.controls.enabled.setValue(true);
+    await component.save();
+    expect(messaging.approveCloud).toHaveBeenCalledWith(expect.objectContaining(account()), '123');
+    expect(api.save).toHaveBeenCalledWith(settings, true, expect.anything());
+    expect(component.saved()).toBe(true);
+  });
+  it('erteilt die lokale Versandfreigabe auch für unabhängig aktivierte Kaufnachrichten', async () => {
+    account.set({ ...account(), executionMode: 'local' });
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    component.form.controls.purchaseEnabled.setValue(true);
+    await component.save();
+    const local = TestBed.inject(VintedLocalExtensionStore);
+    expect(local.loadConnection).toHaveBeenCalledOnce();
+    expect(local.approveInbox).toHaveBeenCalledOnce();
+    expect(local.approveSend).toHaveBeenCalledOnce();
+    expect(api.save).toHaveBeenCalledWith(
+      settings,
+      false,
+      expect.objectContaining({ purchaseEnabled: true }),
+    );
+  });
+  it('schaltet keine Verhandlung nach abgelehnter Versandfreigabe ein', async () => {
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    vi.mocked(TestBed.inject(VintedMessagingApiService).approveCloud).mockResolvedValue({
+      executionMode: 'cloud',
+      allowed: false,
+      authorizationVersion: 1,
+    });
+    component.form.controls.enabled.setValue(true);
+    await component.save();
+    expect(api.save).not.toHaveBeenCalled();
+    expect(component.error()).toContain('Nachrichtenfreigabe');
+  });
+  it('schaltet keine Kaufnachrichten nach fehlgeschlagener lokaler Freigabe ein', async () => {
+    account.set({ ...account(), executionMode: 'local' });
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    vi.mocked(TestBed.inject(VintedLocalExtensionStore).approveSend).mockResolvedValue(false);
+    component.form.controls.purchaseEnabled.setValue(true);
+    await component.save();
+    expect(api.save).not.toHaveBeenCalled();
+    expect(component.error()).toContain('Nachrichtenfreigabe');
+  });
+  it('verwirft eine Versandfreigabe nach geändertem Vinted-Konto vor dem Speichern', async () => {
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    const messaging = TestBed.inject(VintedMessagingApiService);
+    let finish: (permission: Awaited<ReturnType<typeof messaging.approveCloud>>) => void = () =>
+      undefined;
+    vi.mocked(messaging.approveCloud).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    component.form.controls.enabled.setValue(true);
+    const saving = component.save();
+    await settle();
+    expect(messaging.approveCloud).toHaveBeenCalledOnce();
+    account.set({ ...account(), externalAccountId: '456' });
+    finish({ executionMode: 'cloud', allowed: true, authorizationVersion: 1 });
+    await saving;
+    expect(api.save).not.toHaveBeenCalled();
   });
   it('bewahrt beim manuellen Verlaufabruf dirty Felder, Struktur, Konflikt und Einstellungsrevision', async () => {
     const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;

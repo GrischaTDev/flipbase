@@ -47,7 +47,11 @@
     [hasFooter]="false"
     (closed)="localSettingsOpen.set(false)"
   >
-    <app-vinted-favorite-settings [account]="account()" />
+    <section aria-label="Benachrichtigungen">
+      <h3 class="mb-1 text-[13px] font-semibold text-fb-text-primary">Benachrichtigungen</h3>
+      <app-vinted-favorite-settings [account]="account()" />
+      <app-vinted-message-settings [account]="account()" />
+    </section>
   </app-modal-shell>
 }
 <div class="mt-2 flex justify-end" aria-live="polite" aria-atomic="true">

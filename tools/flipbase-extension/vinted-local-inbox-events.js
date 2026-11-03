@@ -1,4 +1,24 @@
 (function exposeInboxEvents(root) {
+  const systemMessageTypes = ['status_message', 'action_message', 'payment_message'];
+  function systemIdentity(message, entity, occurredAt) {
+    const text = (value) => (typeof value === 'string' ? value.trim() : null);
+    return JSON.stringify({
+      type: message.entity_type,
+      occurredAt,
+      eventGroup: text(message.event_group),
+      eventType: text(message.event_type),
+      title: text(entity.title),
+      body: text(entity.body),
+      text: text(entity.text),
+      message: text(entity.message) ?? text(record(entity.message)?.body),
+      statusTitle: text(entity.status_title),
+      priceLabel: text(entity.price_label),
+      sender: identifier(entity.user_id ?? entity.sender_id),
+      photos: Array.isArray(entity.photos)
+        ? entity.photos.slice(0, 20).map((photo) => text(record(photo)?.url))
+        : [],
+    });
+  }
   function record(input) {
     return input !== null && typeof input === 'object' && !Array.isArray(input) ? input : null;
   }
@@ -38,7 +58,7 @@
     const instant = Date.parse(input);
     return Number.isFinite(instant) ? new Date(instant).toISOString() : null;
   }
-  function parse(input, accountId, observedAt) {
+  async function parse(input, accountId, observedAt) {
     const empty = { observedAt, events: [], complete: false, coveredConversationIds: [] };
     const ownId = identifier(accountId);
     const observation = timestamp(observedAt);
@@ -64,15 +84,28 @@
     for (const raw of messages.slice(0, 200)) {
       const message = record(raw);
       const type = message?.entity_type;
-      if (type !== 'message' && type !== 'offer_request_message') continue;
+      const system = systemMessageTypes.includes(type);
+      if (type !== 'message' && type !== 'offer_request_message' && !system) continue;
       const entity = record(message?.entity);
-      const messageId = identifier(type === 'message' ? entity?.id : message?.id);
-      const senderId = identifier(entity?.user_id);
+      const rawId = type === 'message' ? entity?.id : (message?.id ?? entity?.id);
+      let messageId = identifier(rawId);
+      const rawSender = entity?.user_id ?? (system ? entity?.sender_id : undefined);
+      const senderId = identifier(rawSender);
+      const platformSender = system && (rawSender == null || rawSender === 0);
       const occurredAt = timestamp(message?.created_at_ts);
+      if (system && message && entity && rawId == null && occurredAt) {
+        const digest = await root.crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(systemIdentity(message, entity, occurredAt)),
+        );
+        messageId =
+          'event:' +
+          [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      }
       if (
+        !entity ||
         !messageId ||
-        !senderId ||
-        (senderId !== ownId && senderId !== partnerId) ||
+        (!platformSender && (!senderId || (senderId !== ownId && senderId !== partnerId))) ||
         !occurredAt ||
         occurredAt > observation
       ) {
@@ -80,7 +113,7 @@
         continue;
       }
       const externalId = `${type}:${messageId}`;
-      const signature = `${senderId}:${occurredAt}`;
+      const signature = `${platformSender ? 'system' : senderId}:${occurredAt}`;
       if (known.has(externalId) && known.get(externalId) !== signature) {
         complete = false;
         conflicts.add(externalId);

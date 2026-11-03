@@ -788,9 +788,14 @@ describe('Persönliche eBay-Oberfläche', () => {
     await fixture.componentInstance.store.read(false);
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('img')?.getAttribute('src')).toBe(
+    expect(element.querySelector('tbody img')?.getAttribute('src')).toBe(
       'https://i.ebayimg.com/photo.jpg',
     );
+    expect(
+      element
+        .querySelector('app-page-header app-marketplace-platform-identity img')
+        ?.getAttribute('src'),
+    ).toBe('/images/platforms/ebay.svg');
     expect(
       element
         .querySelector('[aria-label="Inserat bearbeiten: Eigene Auktion"]')

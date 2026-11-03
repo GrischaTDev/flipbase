@@ -54,96 +54,48 @@
           </p>
         }
         @if (store.schedule(); as schedule) {
-          <app-custom-select
-            ariaLabel="Abrufabstand"
-            [options]="intervalOptions()"
-            [value]="schedule.intervalMinutes"
-            [disabled]="!store.availability().enabled || store.busy() || store.loading()"
-            (valueChange)="store.setIntervalMinutes($event)"
-          />
-          <p role="status" class="mt-2 text-xs text-fb-text-secondary">
-            @if (store.busy()) {
-              Einstellung wird gespeichert …
-            } @else if (!store.error() && !store.loading()) {
-              Gespeichert: alle {{ schedule.intervalMinutes }} Minuten.
-            }
-          </p>
-          <app-button
-            class="mt-3"
-            [disabled]="schedule.enabled ? !store.canDisable() : !store.canEnable()"
-            [loading]="store.busy()"
-            (clicked)="store.setEnabled(!schedule.enabled)"
-          >
-            {{ schedule.enabled ? 'Automatik pausieren' : 'Automatik fortsetzen' }}
-          </app-button>
+          <div class="flex items-center gap-2">
+            <app-custom-select
+              class="min-w-0 flex-1"
+              ariaLabel="Abrufabstand"
+              [options]="intervalOptions()"
+              [value]="schedule.intervalMinutes"
+              [disabled]="!store.availability().enabled || store.busy() || store.loading()"
+              (valueChange)="store.setIntervalMinutes($event)"
+            />
+            <app-button
+              class="shrink-0"
+              [icon]="schedule.enabled ? pauseIcon : playIcon"
+              [disabled]="schedule.enabled ? !store.canDisable() : !store.canEnable()"
+              [loading]="store.busy()"
+              (clicked)="store.setEnabled(!schedule.enabled)"
+            >
+              {{ schedule.enabled ? 'Pausieren' : 'Starten' }}
+            </app-button>
+          </div>
         }
       </div>
-      @if (account().executionMode === 'cloud') {
-        <app-vinted-cloud-message-settings [account]="account()" />
-      }
-      <app-vinted-favorite-settings [account]="account()" />
-      <div class="flex flex-wrap gap-2 border-t border-fb-line pt-4">
+      <section class="border-t border-fb-line pt-4" aria-label="Benachrichtigungen">
+        <h3 class="mb-1 text-[13px] font-semibold text-fb-text-primary">Benachrichtigungen</h3>
+        <app-vinted-favorite-settings [account]="account()" />
+        <app-vinted-message-settings [account]="account()" />
+      </section>
+      <div class="grid grid-cols-1 gap-2 border-t border-fb-line pt-4 sm:grid-cols-[3fr_2fr]">
         <app-button
+          [fullWidth]="true"
           [link]="'/marketplaces/vinted/connect/' + account().connectionId"
           [icon]="loginIcon"
           [disabled]="account().status === 'paused' || account().status === 'blocked'"
           (clicked)="settingsOpen.set(false)"
           >Vinted-Anmeldung öffnen</app-button
         >
-        <app-button link="/marketplaces/vinted/accounts" (clicked)="settingsOpen.set(false)"
+        <app-button
+          [fullWidth]="true"
+          link="/marketplaces/vinted/accounts"
+          (clicked)="settingsOpen.set(false)"
           >Kontenübersicht</app-button
         >
       </div>
-      <details class="border-t border-fb-line pt-3 text-[13px] text-fb-text-secondary">
-        <summary
-          class="cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-        >
-          Abrufdetails
-        </summary>
-        <p class="mt-2">
-          Die Automatik läuft auch bei geschlossener App. Der Abstand gilt für die verfügbaren
-          Kontodaten. Nachrichten werden nicht als gelesen markiert.
-        </p>
-        @if (store.schedule(); as schedule) {
-          <dl class="mt-3 space-y-2">
-            <div>
-              <dt>Status</dt>
-              <dd class="text-fb-text-primary">{{ statusText() }}</dd>
-            </div>
-            <div>
-              <dt>Nächster geplanter Abruf</dt>
-              <dd class="text-fb-text-primary">
-                {{
-                  nextPlannedAt() ? (nextPlannedAt() | date: 'dd.MM.yyyy, HH:mm') : 'Keiner geplant'
-                }}
-              </dd>
-            </div>
-            <div>
-              <dt>Letzter Versuch</dt>
-              <dd class="text-fb-text-primary">
-                {{
-                  schedule.lastAttemptAt
-                    ? (schedule.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm')
-                    : 'Noch keiner'
-                }}
-              </dd>
-            </div>
-            <div>
-              <dt>Letzter erfolgreicher Abruf</dt>
-              <dd class="text-fb-text-primary">
-                {{
-                  schedule.lastSuccessAt
-                    ? (schedule.lastSuccessAt | date: 'dd.MM.yyyy, HH:mm')
-                    : 'Noch keiner'
-                }}
-              </dd>
-            </div>
-          </dl>
-        }
-        <p class="mt-3">
-          Belegte Browser und Anbieterwartezeiten können den nächsten Abruf verzögern.
-        </p>
-      </details>
     </div>
   </app-modal-shell>
 }

@@ -51,6 +51,7 @@ const settings: FavoriteMessageSettings = {
 };
 let api: { read: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> };
 let dialog: { frage: ReturnType<typeof vi.fn> };
+let localBinding: ReturnType<typeof signal<{ messagesSend: boolean }>>;
 let restore: (() => void) | undefined;
 let favoriteTemplate: string;
 beforeAll(async () => {
@@ -91,12 +92,16 @@ beforeEach(() => {
     })),
   };
   dialog = { frage: vi.fn().mockResolvedValue(false) };
+  localBinding = signal({ messagesSend: true });
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       { provide: AuthService, useValue: { currentUser: user } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
-      { provide: MarketplaceAccountStore, useValue: { selectedConnection: account } },
+      {
+        provide: MarketplaceAccountStore,
+        useValue: { selectedConnection: account, canManage: signal(true) },
+      },
       { provide: VintedFavoriteMessageApiService, useValue: api },
       {
         provide: VintedMessagingApiService,
@@ -117,9 +122,12 @@ beforeEach(() => {
       {
         provide: VintedLocalExtensionStore,
         useValue: {
-          binding: signal({ messagesSend: true }),
+          binding: localBinding,
           loadConnection: vi.fn(),
-          messagesAllowed: () => true,
+          messagesAllowed: vi.fn(() => true),
+          approveInbox: vi.fn(),
+          approveSend: vi.fn().mockResolvedValue(true),
+          error: signal(null),
         },
       },
     ],
@@ -276,11 +284,10 @@ async function settle(
   fixture.detectChanges();
 }
 describe('Favorite message account and activation lifecycle', () => {
-  it('activates cloud rules with explicit account approval without loading the extension', async () => {
+  it('activates cloud rules on explicit save without an extra dialog or loading the extension', async () => {
     account.set({ ...connection, executionMode: 'cloud' });
     const fixture = await render();
     fixture.componentInstance.form.controls.enabled.setValue(true);
-    dialog.frage.mockResolvedValueOnce(true);
     await fixture.componentInstance.save();
     expect(TestBed.inject(VintedLocalExtensionStore).loadConnection).not.toHaveBeenCalled();
     expect(TestBed.inject(VintedMessagingApiService).approveCloud).toHaveBeenCalledWith(
@@ -288,7 +295,69 @@ describe('Favorite message account and activation lifecycle', () => {
       '123',
     );
     expect(api.save).toHaveBeenCalledWith(settings, true, expect.anything());
-    expect(dialog.frage.mock.calls[0][0].text).toContain('Cloud');
+    expect(dialog.frage).not.toHaveBeenCalled();
+  });
+  it('does not approve messaging while opening or editing inactive rules', async () => {
+    account.set({ ...connection, executionMode: 'cloud' });
+    const fixture = await render();
+    fixture.componentInstance.form.controls.enabled.setValue(true);
+    expect(TestBed.inject(VintedMessagingApiService).approveCloud).not.toHaveBeenCalled();
+    expect(TestBed.inject(VintedLocalExtensionStore).approveSend).not.toHaveBeenCalled();
+    expect(api.save).not.toHaveBeenCalled();
+  });
+  it('approves missing local inbox and send permissions when saving enabled rules', async () => {
+    const local = TestBed.inject(VintedLocalExtensionStore);
+    vi.mocked(local.messagesAllowed).mockReturnValue(false);
+    localBinding.set({ messagesSend: false });
+    const fixture = await render();
+    fixture.componentInstance.form.controls.enabled.setValue(true);
+    await fixture.componentInstance.save();
+    expect(local.approveInbox).toHaveBeenCalledOnce();
+    expect(local.approveSend).toHaveBeenCalledOnce();
+    expect(api.save).toHaveBeenCalledWith(settings, true, expect.anything());
+    expect(dialog.frage).not.toHaveBeenCalled();
+  });
+  it('does not enable rules after rejected cloud permission', async () => {
+    account.set({ ...connection, executionMode: 'cloud' });
+    vi.mocked(TestBed.inject(VintedMessagingApiService).approveCloud).mockResolvedValue({
+      executionMode: 'cloud',
+      allowed: false,
+      authorizationVersion: 1,
+    });
+    const fixture = await render();
+    fixture.componentInstance.form.controls.enabled.setValue(true);
+    await fixture.componentInstance.save();
+    expect(api.save).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.error()).toContain('Nachrichtenfreigabe');
+  });
+  it('does not enable rules after rejected local permission', async () => {
+    localBinding.set({ messagesSend: false });
+    vi.mocked(TestBed.inject(VintedLocalExtensionStore).approveSend).mockResolvedValue(false);
+    const fixture = await render();
+    fixture.componentInstance.form.controls.enabled.setValue(true);
+    await fixture.componentInstance.save();
+    expect(api.save).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.error()).toContain('Nachrichtenfreigabe');
+  });
+  it('drops pending cloud approval after provider identity changes within the same connection', async () => {
+    account.set({ ...connection, executionMode: 'cloud' });
+    const messaging = TestBed.inject(VintedMessagingApiService);
+    let finish: (permission: Awaited<ReturnType<typeof messaging.approveCloud>>) => void = () =>
+      undefined;
+    vi.mocked(messaging.approveCloud).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const fixture = await render();
+    fixture.componentInstance.form.controls.enabled.setValue(true);
+    const saving = fixture.componentInstance.save();
+    await settle(fixture);
+    expect(messaging.approveCloud).toHaveBeenCalledOnce();
+    account.set({ ...connection, executionMode: 'cloud', externalAccountId: '456' });
+    finish({ executionMode: 'cloud', allowed: true, authorizationVersion: 1 });
+    await saving;
+    expect(api.save).not.toHaveBeenCalled();
   });
   it('keeps old configurations without offers off and saves an optional fixed discount explicitly', async () => {
     const fixture = await render();
@@ -363,15 +432,12 @@ describe('Favorite message account and activation lifecycle', () => {
       expect.objectContaining({ offer: null }),
     );
   });
-  it('never activates while editing and asks before the first enabled save', async () => {
+  it('never activates while editing and activates directly on the first enabled save', async () => {
     const fixture = await render();
     fixture.componentInstance.form.controls.enabled.setValue(true);
     expect(api.save).not.toHaveBeenCalled();
     await fixture.componentInstance.save();
-    expect(dialog.frage).toHaveBeenCalledOnce();
-    expect(api.save).not.toHaveBeenCalled();
-    dialog.frage.mockResolvedValueOnce(true);
-    await fixture.componentInstance.save();
+    expect(dialog.frage).not.toHaveBeenCalled();
     expect(api.save).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.settings()?.enabled).toBe(true);
   });
@@ -395,17 +461,14 @@ describe('Favorite message account and activation lifecycle', () => {
     expect(fixture.componentInstance.settings()?.version).toBe(0);
     expect(fixture.componentInstance.settings()?.active).toBe(true);
   });
-  it('asks again after a renewed grant even when send permission is already approved', async () => {
+  it('uses the renewed grant on explicit save without another activation dialog', async () => {
     const activeSettings = { ...settings, enabled: true, active: true, version: 3 };
     api.read.mockResolvedValue(activeSettings);
     const fixture = await render();
     fixture.componentInstance.form.controls.templates.at(0).setValue('Geänderter Text');
     api.read.mockResolvedValue({ ...activeSettings, active: false });
     await fixture.componentInstance.save();
-    expect(dialog.frage).toHaveBeenCalledOnce();
-    expect(api.save).not.toHaveBeenCalled();
-    dialog.frage.mockResolvedValueOnce(true);
-    await fixture.componentInstance.save();
+    expect(dialog.frage).not.toHaveBeenCalled();
     expect(api.save).toHaveBeenCalledOnce();
   });
   it('does not reset edits after a refreshed account record with the same scope', async () => {

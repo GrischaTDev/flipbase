@@ -80,7 +80,12 @@ for (const width of [1440, 390]) {
       await evidence(page, 'vinted-account-grid-dark-1440');
     }
     await page.getByRole('button', { name: 'Testkonto A einstellen', exact: true }).click();
-    await expect(page.getByRole('dialog')).toContainText('Neue Favoriten in der Glocke anzeigen');
+    await expect(
+      page.getByRole('dialog').getByRole('switch', { name: 'Neue Favoriten', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('dialog').getByRole('switch', { name: 'Neue Nachrichten', exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Konto entfernen', exact: true })).toBeVisible();
     await page.addScriptTag({ content: axe.source });
     expect(
@@ -902,6 +907,8 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
   const importedOverview = { publicationsTotal: 1 };
   const calls = await mockMarketplace(page, true, false, false, false, [], importedOverview);
   await page.clock.install();
+  let delayedScheduleRead: { started: () => void; released: Promise<void> } | null = null;
+  let completedScheduleReads = 0;
   let scheduledSyncAvailable = true;
   const schedules = new Map(
     accountIds.map((connectionId) => [
@@ -947,6 +954,12 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
       const schedule = schedules.get(String(body['p_connection_id']));
       expect(schedule, 'Jede Antwort und Änderung bleibt beim angefragten Konto').toBeDefined();
       if (!schedule) return route.fulfill({ status: 403 });
+      if (name === 'marketplace_read_sync_schedule' && delayedScheduleRead) {
+        const delayed = delayedScheduleRead;
+        delayedScheduleRead = null;
+        delayed.started();
+        await delayed.released;
+      }
       if (name === 'marketplace_set_sync_schedule') {
         expect(body).toEqual({
           p_workspace_id: workspaceId,
@@ -961,7 +974,8 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
         schedule.authorizationVersion++;
         schedule.nextDueAt = schedule.enabled ? '2026-10-01T12:15:00Z' : null;
       }
-      return route.fulfill({ json: schedule });
+      await route.fulfill({ json: schedule });
+      if (name === 'marketplace_read_sync_schedule') completedScheduleReads++;
     });
   }
   const errors: string[] = [];
@@ -993,7 +1007,7 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     const settings = page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true });
     const dialog = page.getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true });
     const activate = dialog.getByRole('button', {
-      name: 'Automatik fortsetzen',
+      name: 'Starten',
       exact: true,
     });
     await expect(accountSelect).toContainText('Testkonto A');
@@ -1001,23 +1015,99 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await settings.press('Enter');
     await expect(dialog).toBeVisible();
     const pause = dialog.getByRole('button', {
-      name: 'Automatik pausieren',
+      name: 'Pausieren',
       exact: true,
     });
     await expect(pause).toBeEnabled();
     const interval = dialog.getByRole('combobox', { name: 'Abrufabstand', exact: true });
     await expect(interval).toContainText('Alle 15 Minuten');
-    await dialog.locator('summary').click();
-    await expect(dialog.getByText('Aktiv', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Keiner geplant', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Abrufdetails', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Nachrichtenversand', { exact: true })).toHaveCount(0);
     expect(writes()).toHaveLength(previousWrites + 1);
     expect(writes().at(-1)?.body).toMatchObject({ p_enabled: true, p_interval_minutes: 15 });
     await interval.press('Enter');
     await page.getByRole('option', { name: 'Alle 3 Minuten', exact: true }).click();
     await expect(interval).toContainText('Alle 3 Minuten');
-    await expect(dialog.getByText('Gespeichert: alle 3 Minuten.', { exact: true })).toBeVisible();
+    await expect(pause).toBeEnabled();
+    await expect(dialog.getByText('Gespeichert:', { exact: false })).toHaveCount(0);
     expect(writes()).toHaveLength(previousWrites + 2);
     expect(writes().at(-1)?.body['p_enabled']).toBe(true);
+    const favoriteSwitch = dialog.getByRole('switch', { name: 'Neue Favoriten', exact: true });
+    const messageSwitch = dialog.getByRole('switch', { name: 'Neue Nachrichten', exact: true });
+    await expect(favoriteSwitch).toBeEnabled();
+    await expect(messageSwitch).toBeEnabled();
+    await interval.focus();
+    await page.evaluate(() => document.fonts.ready);
+    const dialogBounds = await dialog.boundingBox();
+    expect(dialogBounds).not.toBeNull();
+    const stability = await dialog.evaluateHandle((element) => {
+      const controls = Array.from(
+        element.querySelectorAll('[role="combobox"], [role="switch"], app-button button'),
+      );
+      const changes: string[] = [];
+      const observer = new MutationObserver((records) => {
+        for (const record of records) {
+          if (record.type === 'attributes' && controls.includes(record.target as Element))
+            changes.push(record.attributeName ?? 'attribute');
+          if (
+            record.type === 'childList' &&
+            Array.from(record.removedNodes).some((node) =>
+              controls.some((control) => node === control || node.contains(control)),
+            )
+          )
+            changes.push('control removed');
+        }
+      });
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['disabled', 'aria-disabled'],
+      });
+      return { element, controls, changes, observer };
+    });
+    let signalPollStarted: () => void = () => undefined;
+    let releasePoll: () => void = () => undefined;
+    const pollStarted = new Promise<void>((resolve) => {
+      signalPollStarted = resolve;
+    });
+    const pollReleased = new Promise<void>((resolve) => {
+      releasePoll = resolve;
+    });
+    delayedScheduleRead = { started: signalPollStarted, released: pollReleased };
+    const readsBeforePoll = completedScheduleReads;
+    await page.clock.runFor(30_000);
+    await pollStarted;
+    for (const phase of ['laufender Abruf', 'bestätigter Abruf']) {
+      if (phase === 'bestätigter Abruf') {
+        releasePoll();
+        await expect.poll(() => completedScheduleReads).toBeGreaterThan(readsBeforePoll);
+      }
+      await expect(dialog, phase).toBeVisible();
+      await expect(interval, phase).toBeEnabled();
+      await expect(pause, phase).toBeEnabled();
+      await expect(favoriteSwitch, phase).toBeEnabled();
+      await expect(messageSwitch, phase).toBeEnabled();
+      await expect(interval, phase).toBeFocused();
+      await expect(
+        dialog.getByText('Einstellungen werden geladen …', { exact: true }),
+        phase,
+      ).toHaveCount(0);
+      expect(await dialog.boundingBox(), phase).toEqual(dialogBounds);
+      expect(
+        await stability.evaluate((state) => ({
+          connected:
+            state.element.isConnected &&
+            state.controls.every(
+              (control) => control.isConnected && state.element.contains(control),
+            ),
+          changes: state.changes,
+        })),
+        phase,
+      ).toEqual({ connected: true, changes: [] });
+    }
+    await stability.evaluate((state) => state.observer.disconnect());
+    await stability.dispose();
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(
@@ -1036,9 +1126,7 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await dialog.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(settings).toBeFocused();
-    await expect(
-      page.getByRole('button', { name: 'Automatik pausieren', exact: true }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Pausieren', exact: true })).toHaveCount(0);
     await evidence(page, `vinted-schedule-active-${width}`);
 
     importedOverview.publicationsTotal = 2;
@@ -1057,8 +1145,6 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await expect(dialog).toBeVisible();
     await expect(pause).toBeEnabled();
     await expect(interval).toContainText('Alle 3 Minuten');
-    await dialog.locator('summary').click();
-    await expect(dialog.getByText('Aktiv', { exact: true })).toBeVisible();
     expect(writes()).toHaveLength(previousWrites + 2);
     await dialog.press('Escape');
     await expect(dialog).toHaveCount(0);
@@ -1069,9 +1155,6 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await settings.click();
     await expect(dialog).toBeVisible();
     await expect(activate).toBeEnabled();
-    await dialog.locator('summary').click();
-    await expect(dialog.getByText('Pausiert', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Keiner geplant', { exact: true })).toBeVisible();
     expect(schedules.get(accountIds[0])?.enabled).toBe(true);
     expect(schedules.get(accountIds[1])?.enabled).toBe(false);
     expect(writes()).toHaveLength(previousWrites + 2);
@@ -1086,15 +1169,14 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await expect(accountSelect).toContainText('Testkonto A');
     await settings.click();
     await expect(dialog).toBeVisible();
-    await dialog.locator('summary').click();
-    await expect(dialog.getByText('Dienst nicht verfügbar', { exact: true })).toBeVisible();
+    await expect(interval).toBeDisabled();
     await expect(pause).toBeEnabled();
     await pause.focus();
     await expect(pause).toBeFocused();
     await pause.press('Enter');
-    await expect(dialog.getByText('Pausiert', { exact: true })).toBeVisible();
     await expect(activate).toBeDisabled();
-    await expect(dialog.getByText('Keiner geplant', { exact: true })).toBeVisible();
+    expect(schedules.get(accountIds[0])?.enabled).toBe(false);
+    expect(schedules.get(accountIds[0])?.nextDueAt).toBeNull();
     expect(
       writes()
         .slice(previousWrites)
@@ -1651,6 +1733,14 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await mockMarketplace(page, true);
     await page.goto(`/marketplaces/vinted/connect/${accountIds[0]}`);
+    await expect(page.locator('app-vinted-account-grid app-card')).toHaveCount(2);
+    await expect(page.locator('app-vinted-account-grid')).toContainText('Testkonto A');
+    await expect(page.locator('app-vinted-account-grid')).toContainText('Testkonto B');
+    expect(
+      await page
+        .locator('app-vinted-account-grid')
+        .evaluate((element) => element.closest('[role="dialog"]')),
+    ).toBeNull();
 
     for (const buttonName of ['Anmelden und Konto verbinden', 'Browser-Sitzung starten']) {
       if (buttonName === 'Browser-Sitzung starten')
@@ -1720,7 +1810,11 @@ for (const width of [1440, 390]) {
         element.getAnimations({ subtree: true }).map((animation) => animation.finished),
       );
     });
-    await expect(page.getByText('Dein Vinted-Konto ist verknüpft.', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Dein Konto ist mit Vinted verknüpft', { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('app-vinted-account-grid app-card')).toHaveCount(2);
+    await expect(page.getByRole('dialog').getByText('Konto:', { exact: true })).toHaveCount(0);
     expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
   });
 }
@@ -1760,7 +1854,7 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
       element.getAnimations({ subtree: true }).map((animation) => animation.finished),
     );
   });
-  await expect(dialog.getByText('Dein Vinted-Konto ist verknüpft.')).toBeVisible();
+  await expect(dialog.getByText('Dein Konto ist mit Vinted verknüpft')).toBeVisible();
   expect(calls.filter((call) => call.name === 'browser_verify')).toEqual([
     {
       name: 'browser_verify',
@@ -1780,36 +1874,93 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
   expect(violations).toEqual([]);
 });
 
-test('verwaltet Cloud-Nachrichtenversand in den Kontoeinstellungen statt unter dem Chat @marketplace-preview', async ({
+test('speichert Favoriten- und Nachrichtenmeldungen ohne zusätzlichen Versandblock in den Kontoeinstellungen @marketplace-preview', async ({
   page,
 }) => {
-  await mockMarketplace(page);
-  let allowed = true;
-  const revocations: unknown[] = [];
-  await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
-    route.fulfill({
-      json: { executionMode: 'cloud', allowed, authorizationVersion: allowed ? 7 : 8 },
-    }),
-  );
-  await page.route('**/rest/v1/rpc/marketplace_revoke_cloud_messages', (route) => {
-    revocations.push(route.request().postDataJSON());
-    allowed = false;
-    return route.fulfill({ json: { executionMode: 'cloud', allowed, authorizationVersion: 8 } });
-  });
-  await page.goto('/marketplaces/vinted/messages');
+  await mockMarketplace(page, false, false, false, false, []);
+  const permissionCalls: string[] = [];
+  for (const name of [
+    'marketplace_read_message_permission',
+    'marketplace_approve_cloud_messages',
+    'marketplace_revoke_cloud_messages',
+  ]) {
+    await page.route(`**/rest/v1/rpc/${name}`, (route) => {
+      permissionCalls.push(name);
+      return route.fulfill({
+        json: { executionMode: 'cloud', allowed: false, authorizationVersion: 0 },
+      });
+    });
+  }
+  const favorites = { workspaceId, connectionId: accountIds[0], enabled: true, version: 3 };
+  const messages = { workspaceId, connectionId: accountIds[0], enabled: false, version: 5 };
+  const writes: { name: string; body: Record<string, unknown> }[] = [];
+  for (const [kind, settings] of [
+    ['favorite', favorites],
+    ['message', messages],
+  ] as const) {
+    await page.route(`**/rest/v1/rpc/marketplace_read_${kind}_notification_settings`, (route) =>
+      route.fulfill({ json: settings }),
+    );
+    const name = `marketplace_set_${kind}_notification_settings`;
+    await page.route(`**/rest/v1/rpc/${name}`, (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      expect(body).toEqual({
+        p_workspace_id: workspaceId,
+        p_connection_id: accountIds[0],
+        p_enabled: expect.any(Boolean),
+        p_expected_version: settings.version,
+      });
+      writes.push({ name, body });
+      settings.enabled = body['p_enabled'] === true;
+      settings.version++;
+      return route.fulfill({ json: settings });
+    });
+  }
+  await page.goto('/marketplaces/vinted/overview');
   await expect(
     page.getByRole('button', { name: 'Cloud-Versandfreigabe widerrufen', exact: true }),
   ).toHaveCount(0);
   await page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true });
-  await expect(dialog).toContainText('Nachrichtenversand erlaubt');
-  await dialog
-    .getByRole('button', { name: 'Nachrichtenversand deaktivieren', exact: true })
-    .click();
-  await expect(dialog).toContainText('Nachrichtenversand nicht freigegeben');
-  expect(revocations).toEqual([
-    { p_workspace_id: workspaceId, p_connection_id: accountIds[0], p_authorization_version: 7 },
+  const favoriteSwitch = dialog.getByRole('switch', { name: 'Neue Favoriten', exact: true });
+  const messageSwitch = dialog.getByRole('switch', { name: 'Neue Nachrichten', exact: true });
+  await expect(favoriteSwitch).toHaveAttribute('aria-checked', 'true');
+  await expect(messageSwitch).toHaveAttribute('aria-checked', 'false');
+  await expect(dialog.getByText('Nachrichtenversand', { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText('Abrufdetails', { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText('Gespeichert:', { exact: false })).toHaveCount(0);
+  expect(permissionCalls).toEqual([]);
+  expect(writes).toEqual([]);
+  await favoriteSwitch.click();
+  await expect(favoriteSwitch).toBeEnabled();
+  await messageSwitch.click();
+  await expect(messageSwitch).toBeEnabled();
+  await expect.poll(() => writes.length).toBe(2);
+  expect(writes).toEqual([
+    {
+      name: 'marketplace_set_favorite_notification_settings',
+      body: {
+        p_workspace_id: workspaceId,
+        p_connection_id: accountIds[0],
+        p_enabled: false,
+        p_expected_version: 3,
+      },
+    },
+    {
+      name: 'marketplace_set_message_notification_settings',
+      body: {
+        p_workspace_id: workspaceId,
+        p_connection_id: accountIds[0],
+        p_enabled: true,
+        p_expected_version: 5,
+      },
+    },
   ]);
+  await dialog.press('Escape');
+  await page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true }).click();
+  await expect(favoriteSwitch).toHaveAttribute('aria-checked', 'false');
+  await expect(messageSwitch).toHaveAttribute('aria-checked', 'true');
+  expect(permissionCalls).toEqual([]);
   await page.addScriptTag({ content: axe.source });
   expect(
     await dialog.evaluate(

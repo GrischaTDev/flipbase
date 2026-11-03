@@ -434,9 +434,15 @@ export async function mockMarketplace(
       ].includes(name)
     )
       json = { workspaceId, items: [], unreadCount: 0 };
-    if (name === 'marketplace_read_favorite_notification_settings')
+    if (
+      name === 'marketplace_read_favorite_notification_settings' ||
+      name === 'marketplace_read_message_notification_settings'
+    )
       json = { workspaceId, connectionId: body['p_connection_id'], enabled: true, version: 0 };
-    if (name === 'marketplace_set_favorite_notification_settings')
+    if (
+      name === 'marketplace_set_favorite_notification_settings' ||
+      name === 'marketplace_set_message_notification_settings'
+    )
       json = {
         workspaceId,
         connectionId: body['p_connection_id'],

@@ -11,10 +11,11 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { LucideStore, LucidePlus } from '@lucide/angular';
+import { LucidePlus } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { MarketplacePlatformIdentityComponent } from '../../../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import type { MarketplaceOverviewAccount } from '../../models/marketplace-overview.models';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -29,6 +30,7 @@ import { overviewAccountKey } from '../../models/marketplace-overview-normalizat
   imports: [
     NgTemplateOutlet,
     PageHeaderComponent,
+    MarketplacePlatformIdentityComponent,
     ModalShellComponent,
     ButtonComponent,
     CardComponent,
@@ -51,7 +53,6 @@ export class KleinanzeigenWorkspaceComponent {
   private readonly actions = inject(KleinanzeigenActionStore);
   private refreshContext: string | null = null;
   readonly store = inject(MarketplaceOverviewStore);
-  readonly storeIcon = LucideStore;
   readonly addIcon = LucidePlus;
   readonly adding = signal(false);
   readonly managing = signal<MarketplaceOverviewAccount | null>(null);

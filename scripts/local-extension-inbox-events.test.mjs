@@ -49,8 +49,8 @@ test('nonempty inbox without verifiable partners cannot establish a baseline', a
     );
   }
 });
-test('incoming snapshot contract needs no browser, text or unread transition', () => {
-  const result = inbox.parse(fixture, '90', '2026-10-08T09:00:00.000Z');
+test('incoming snapshot contract needs no browser, text or unread transition', async () => {
+  const result = await inbox.parse(fixture, '90', '2026-10-08T09:00:00.000Z');
   assert.equal(result.events.length, 2);
   assert.equal(result.complete, true);
   assert.deepEqual(result.coveredConversationIds, ['700']);
@@ -86,4 +86,43 @@ test('extension imports changed unread snapshots with the same events and checks
   assert.deepEqual(batch.inboxEvents.coveredConversationIds, ['700']);
   assert.equal(paths.filter((path) => path.startsWith('/api/v2/inbox')).length, 2);
   assert.equal(batch.entries.find((entry) => entry.kind === 'conversation').body.unread, true);
+});
+
+test('extension imports an identified platform payment notice and awaits its stable event identity', async () => {
+  const snapshot = structuredClone(fixture);
+  snapshot.conversation.messages.push({
+    entity_type: 'payment_message',
+    created_at_ts: '2026-10-08T08:02:00Z',
+    entity: { title: 'Zahlung', body: 'Synthetische Postfachmeldung' },
+  });
+  const batch = await core.readInbox(
+    async (path) => {
+      if (path === '/api/v2/users/current') return { user: { id: 90, login: 'testkonto' } };
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [
+            {
+              id: 700,
+              unread: true,
+              opposite_user: { id: 91 },
+              updated_at: '2026-10-08T08:02:00Z',
+            },
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/700') return snapshot;
+      assert.fail('Unexpected provider request');
+    },
+    '90',
+    { nextPage: 1, versions: [], mode: 'latest' },
+    () => '2026-10-08T09:00:00.000Z',
+  );
+  assert.equal(batch.inboxEvents.complete, true);
+  assert.equal(batch.inboxEvents.events.length, 3);
+  assert.match(batch.inboxEvents.events[2].externalId, /^payment_message:event:[a-f0-9]{64}$/);
+  assert.equal(
+    batch.entries.find((entry) => entry.body.messageType === 'payment_message').body.text,
+    'Synthetische Postfachmeldung',
+  );
+  assert.ok(!JSON.stringify(batch.inboxEvents).includes('Synthetische Postfachmeldung'));
 });

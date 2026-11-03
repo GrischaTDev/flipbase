@@ -318,6 +318,13 @@ describe('SidebarComponent', () => {
     expect(vintedImg?.getAttribute('src')).toContain('vinted.svg');
     expect(ebayImg?.getAttribute('src')).toContain('ebay.svg');
     expect(kleinanzeigenImg?.getAttribute('src')).toContain('kleinanzeigen.svg');
+    for (const platform of ['vinted', 'ebay', 'kleinanzeigen']) {
+      TestBed.resetTestingModule();
+      const context = await renderAt(`/marketplaces/${platform}`);
+      const heading = context.element.querySelector('nav > p');
+      expect(heading?.querySelector('img')?.getAttribute('src')).toContain(`${platform}.svg`);
+      expect(heading?.querySelectorAll('img')).toHaveLength(1);
+    }
   });
 
   it('versieht die Administration mit einer Admin-Badge', async () => {
@@ -414,7 +421,7 @@ describe('SidebarComponent', () => {
       groups[1]
         ?.querySelector('a[href="/marketplaces/vinted/automatic-negotiation"]')
         ?.textContent?.trim(),
-    ).toBe('Automatische Verhandlung');
+    ).toBe('Verhandlung');
     for (const group of groups) {
       const label = group.querySelector('[id]');
       expect(label?.tagName).toBe('DIV');

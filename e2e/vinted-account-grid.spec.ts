@@ -59,7 +59,9 @@ for (const width of [1440, 390, 320]) {
       .getByRole('button', { name: 'Auf Cloud wechseln', exact: true })
       .click();
     await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
-    await expect(page.getByRole('dialog', { name: 'Vinted-Anmeldung', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('dialog', { name: 'Vinted-Anmeldung – Testkonto A', exact: true }),
+    ).toBeVisible();
     await page
       .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' })
       .fill('synthetic-user');

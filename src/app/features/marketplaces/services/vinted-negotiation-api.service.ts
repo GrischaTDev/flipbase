@@ -16,7 +16,7 @@ export class NegotiationApiError extends Error {
       code === '40001'
         ? 'Die Daten wurden inzwischen geändert. Aktualisiere die Ansicht und prüfe Deine Einstellungen.'
         : code === '42501'
-          ? 'Prüfe die Kontoverbindung und die bestehende Versandfreigabe in der Kontoverwaltung.'
+          ? 'Prüfe Deine Kontoverbindung und melde Dich bei Bedarf erneut an.'
           : code === '22023'
             ? 'Prüfe Deine Eingaben. Dieses Angebot ist möglicherweise nicht mehr verfügbar.'
             : 'Die Antwort konnte nicht bestätigt werden. Aktualisiere die Ansicht und versuche dieselbe Aktion erneut.',
