@@ -8,6 +8,8 @@
 
 **Integrationsprüfung:** Beide Seiten des Edge-Testkonflikts erhalten und um 2000 gemischte Systemkennungen ergänzt. 135 relevante Node-Fälle erfolgreich. Der zunächst gemeinsam mit Node gestartete neue HTTP-Edge-Test benötigt die vorgesehene Deno-Laufzeit; dort anschließend sechs Fälle erfolgreich einschließlich Typprüfung. Auto-Merges erhalten alle neuen Hauptzweigfunktionen; Broker und Vertrag unterscheiden sich von diesem Stand nur durch unsere zusätzlichen Ereignistypen. Privater Nachweis unter `.codex/reports/marketplace-ui` und `.codex/marketplace-inbox-postmerge-*.log`.
 
+**Zeitgrenze im Vorabcheck:** Der vollständige lokale Lauf fand einen inzwischen abgelaufenen Testvorgang vom 27.10.2026. Der bestehende Sieben-Tage-Filter blendete ihn am Nachmittag des 03.11. korrekt aus; der Test erwartete weiterhin einen aktuellen Fehler. Die fehlerhafte Testaktion verwendet jetzt denselben aktuellen Änderungszeitpunkt wie der bereits dynamische Inseratauftrag. Die alte Fehlergegenprobe von 2020 und sämtliche Erwartungen bleiben erhalten. Zwölf gezielte Storefälle anschließend erfolgreich; keine Änderung am Anwendungsverhalten.
+
 ## 2026-11-03 - Juna - Untere Kontoaktionen über die Dialogbreite strecken
 
 **Nachabnahme:** Auf Nutzerwunsch „Vinted-Anmeldung öffnen“ und „Kontenübersicht“ unten über die gesamte verfügbare Breite verteilt. Desktop zeigt beide Aktionen nebeneinander mit ausreichend Platz für ihre Beschriftungen; schmale Ansichten stapeln zwei jeweils vollständig breite Buttons. Vorhandene Shared-Button-Eingänge genutzt, keine inneren Controls überschrieben und keine weiteren Abläufe geändert. Denselben eigenen Zweig fortgesetzt; sauberer Stand und GitHub vorab geprüft, kein neuer Hauptzweigstand.
