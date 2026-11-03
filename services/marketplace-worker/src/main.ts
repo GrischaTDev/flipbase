@@ -38,6 +38,10 @@ import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
 import { IpRoyalCloudIpPurchase } from './iproyal-cloud-ip-purchase.ts';
 import { IpRoyalCloudIpRenewal } from './iproyal-cloud-ip-renewal.ts';
+import {
+  IpRoyalCloudIpMaintenance,
+  startMarketplaceDispatchAfterCloudIpRefresh,
+} from './iproyal-cloud-ip-maintenance.ts';
 import { SupabaseCloudIpPurchaseStore } from './supabase-cloud-ip-purchase-store.ts';
 import { SupabaseMarketplaceMessageStore } from './supabase-marketplace-message-store.ts';
 import { MarketplaceMessageRunner } from './marketplace-message-runner.ts';
@@ -299,17 +303,28 @@ async function main(): Promise<void> {
   if (messageStore) messageRunner = new MarketplaceMessageRunner(broker, messageStore);
   if (favoriteStore) favoriteRunner = new MarketplaceFavoriteMessageRunner(broker, favoriteStore);
   if (listingStore) listingRunner = new MarketplaceListingRunner(broker, listingStore);
+  const inventory =
+    cloudSetupStore &&
+    profiles instanceof ChromiumProfileProvisioner &&
+    config.ipRoyalApiToken &&
+    config.chromiumNetworkFile &&
+    networks
+      ? new IpRoyalCloudIpSync({
+          token: config.ipRoyalApiToken,
+          file: config.chromiumNetworkFile,
+          networks,
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  const refreshInventory = inventory
+    ? async () => {
+        await dispatcher?.heartbeat();
+        await inventory.refresh();
+        await dispatcher?.heartbeat();
+      }
+    : undefined;
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
-    const inventory =
-      config.ipRoyalApiToken && config.chromiumNetworkFile && networks
-        ? new IpRoyalCloudIpSync({
-            token: config.ipRoyalApiToken,
-            file: config.chromiumNetworkFile,
-            networks,
-            url: config.supabaseUrl,
-            serviceRoleKey: config.serviceRoleKey,
-          })
-        : undefined;
     const purchaseStore =
       config.ipRoyalAutoPurchaseEnabled && inventory
         ? new SupabaseCloudIpPurchaseStore({
@@ -341,13 +356,7 @@ async function main(): Promise<void> {
             await purchaseStore.operation('complete', request, userId);
           }
         : undefined,
-      refreshInventory: inventory
-        ? async () => {
-            await dispatcher?.heartbeat();
-            await inventory.refresh();
-            await dispatcher?.heartbeat();
-          }
-        : undefined,
+      refreshInventory,
     });
     await cloudSetups.recover(true);
   }
@@ -444,21 +453,11 @@ async function main(): Promise<void> {
           serviceRoleKey: config.serviceRoleKey,
         })
       : undefined;
-  let renewalDueAt = 0;
-  // Die Laufzeit einer IP beträgt 30 Tage; ein Abgleich alle zehn Minuten genügt.
-  const reconcileRenewal = async (): Promise<void> => {
-    if (!renewal || Date.now() < renewalDueAt) return;
-    renewalDueAt = Date.now() + 600_000;
-    try {
-      const result = await renewal.reconcile();
-      if (result.enabled || result.disabled || result.failed)
-        process.stderr.write(
-          `${JSON.stringify({ event: 'cloud_ip_renewal_reconciled', ...result })}\n`,
-        );
-    } catch {
-      process.stderr.write(`${JSON.stringify({ event: 'cloud_ip_renewal_unavailable' })}\n`);
-    }
-  };
+  const cloudIpMaintenance = new IpRoyalCloudIpMaintenance({
+    refreshInventory,
+    reconcileRenewal: renewal ? () => renewal.reconcile() : undefined,
+    report: (event) => process.stderr.write(`${JSON.stringify(event)}\n`),
+  });
   let reconciling = false;
   const interval = setInterval(() => {
     if (reconciling) return;
@@ -467,7 +466,7 @@ async function main(): Promise<void> {
       .reconcile()
       .then(() => cloudSetups?.recover())
       .catch(() => process.stderr.write('Browserbereinigung bleibt ausstehend!\n'))
-      .then(reconcileRenewal)
+      .then(() => cloudIpMaintenance.reconcile())
       .finally(() => {
         reconciling = false;
       });
@@ -486,7 +485,6 @@ async function main(): Promise<void> {
       throw new Error('Browser-Stopp fehlgeschlagen');
   };
   workerLifecycle.stop = stop;
-  dispatcher?.start();
   process.once(
     'SIGINT',
     () =>
@@ -501,6 +499,7 @@ async function main(): Promise<void> {
         process.exitCode = 1;
       }),
   );
+  await startMarketplaceDispatchAfterCloudIpRefresh(cloudIpMaintenance, dispatcher);
 }
 
 void main().catch(() => {

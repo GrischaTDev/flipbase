@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  BrowserTestSessionBusyError,
   BrowserTestSessionEndedError,
+  CloudNetworkUnavailableError,
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
   VintedAccountBusyError,
@@ -494,19 +496,15 @@ describe('Browser-Test-API', () => {
     await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(GoLoginApiLimitError);
   });
 
-  it('erklärt eine bereits laufende Anmeldung ohne interne Serverdetails zu übernehmen', async () => {
+  it.each([
+    ['browser_session_busy', BrowserTestSessionBusyError],
+    ['cloud_network_unavailable', CloudNetworkUnavailableError],
+  ])('erkennt %s ohne interne Serverdetails zu übernehmen', async (code, errorType) => {
     const request = vi
       .fn()
-      .mockResolvedValue(
-        Response.json(
-          { code: 'browser_session_busy', error: 'secret-server-detail' },
-          { status: 409 },
-        ),
-      );
+      .mockResolvedValue(Response.json({ code, error: 'secret-server-detail' }, { status: 409 }));
     vi.stubGlobal('fetch', request);
-    await expect(api.open(scope, 'user-test-token')).rejects.toThrow(
-      'Eine Browsersitzung läuft bereits',
-    );
+    await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(errorType);
     expect(request).toHaveBeenCalledTimes(1);
   });
 

@@ -109,3 +109,27 @@ test('database lock refusal becomes a blocked switch without exposing the databa
     (failure: unknown) => !(failure instanceof CloudSetupBlockedError),
   );
 });
+
+test('expired cloud IP refuses browser access with a safe actionable error', async () => {
+  const store = new SupabaseMarketplaceCloudSetupStore({
+    ...options,
+    fetch: async () =>
+      Response.json([
+        {
+          state: 'completed',
+          provider_profile_id: 'chromium_37100000-0000-4000-8000-000000000051',
+          marketplace_cloud_ips: {
+            network_id: 'iproyal-private-network',
+            enabled: true,
+            country_code: 'DE',
+            is_dedicated_isp: true,
+            verified_at: '2026-10-01T00:00:00Z',
+            expires_at: '2026-01-01T00:00:00Z',
+          },
+        },
+      ]),
+  });
+  await assert.rejects(store.assertNetwork(scope), {
+    message: 'Die Cloud-Verbindung dieses Kontos ist nicht verfügbar.',
+  });
+});

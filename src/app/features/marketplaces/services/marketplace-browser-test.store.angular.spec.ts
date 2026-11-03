@@ -1,6 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
@@ -36,6 +36,8 @@ let api: {
 let reloadConnections: ReturnType<typeof vi.fn>;
 let mutationError: ReturnType<typeof signal<string | null>>;
 let store: MarketplaceBrowserTestStore;
+
+afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
   Object.defineProperty(URL, 'createObjectURL', {
@@ -186,6 +188,45 @@ describe('Kontogebundener Browser-Testbereich', () => {
     expect(mutationError()).toBeNull();
     expect(store.error()).toBe('Die Browsersitzung konnte nicht bestätigt werden.');
     expect(api.identify).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'browser_session_busy',
+      'Der Browser ist gerade durch eine andere Aktion belegt oder wird beendet. Versuche es gleich erneut.',
+    ],
+    [
+      'cloud_network_unavailable',
+      'Die Cloud-Verbindung dieses Kontos ist nicht verfügbar. Prüfe die Cloud-IP und ihre Laufzeit.',
+    ],
+  ])('erklärt %s und lässt einen späteren Anmeldeversuch zu', async (code, message) => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ code, error: 'secret-server-detail' }, { status: 409 }),
+      );
+    vi.stubGlobal('fetch', request);
+    api.open.mockImplementationOnce((scope, token) =>
+      new MarketplaceBrowserTestApiService().open(scope, token),
+    );
+
+    await store.startManualLogin();
+
+    expect(store.error()).toBe(message);
+    expect(store.session()).toBeNull();
+    expect(store.canStart()).toBe(true);
+    expect(request).toHaveBeenCalledOnce();
+    expect(api.frame).not.toHaveBeenCalled();
+    expect(api.login).not.toHaveBeenCalled();
+    expect(api.identify).not.toHaveBeenCalled();
+    expect(api.close).not.toHaveBeenCalled();
+
+    await store.startManualLogin();
+
+    expect(store.error()).toBeNull();
+    expect(store.session()?.id).toBe(id);
+    expect(store.manualLogin()).toBe(true);
+    expect(api.open).toHaveBeenCalledTimes(2);
   });
 
   it('aktiviert Cloud erst nach gesondertem Abschluss und erhält die Konto-ID', async () => {
