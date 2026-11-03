@@ -24,7 +24,8 @@ import {
   vintedListingSourceContent,
   type VintedListingEditorSource,
 } from '../../models/vinted-listing-source';
-import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
+import { VintedRelistingSubmissionService } from '../../services/vinted-relisting-submission.service';
+import { VintedListingPhotoSourceService } from '../../services/vinted-listing-photo-source.service';
 import {
   emptyVintedListingPhotoOptions,
   type VintedListingPhotoOptions,
@@ -165,7 +166,14 @@ export class VintedListingEditorComponent {
   private sourcePrepared = false;
   private sourceDescriptionKnown = false;
   private sourceDescription = '';
-  private readonly operations = inject(VintedListingOperationStore);
+  private readonly relistingSubmission = inject(VintedRelistingSubmissionService);
+  private readonly photoSources = inject(VintedListingPhotoSourceService);
+  readonly photoScope = computed(() => {
+    const entry = this.source()?.entry;
+    return entry
+      ? { workspaceId: entry.workspaceId, connectionId: entry.connectionId, entryId: entry.id }
+      : null;
+  });
   readonly photoSizeOptions = [
     { value: 'none' as const, label: 'Keine Änderung' },
     { value: 1200, label: '1200 Pixel' },
@@ -518,6 +526,40 @@ export class VintedListingEditorComponent {
       untracked(() => void this.load(context));
     });
     effect(() => {
+      const source = this.source();
+      const snapshot = this.store.snapshot();
+      if (source?.mode !== 'relist' || !snapshot) return;
+      const entry = snapshot.publications.items.find(
+        (entry) =>
+          entry.id === source.entry.id &&
+          entry.connectionId === source.entry.connectionId &&
+          entry.workspaceId === source.entry.workspaceId,
+      );
+      untracked(() => {
+        const control = this.form.controls.description;
+        if (
+          !entry ||
+          this.loading() ||
+          this.preparingSource() ||
+          this.loadedContext !== this.context() ||
+          this.sourceDescriptionKnown ||
+          control.dirty ||
+          control.value !== this.sourceDescription
+        )
+          return;
+        const description =
+          this.store.cachedListingDescription(entry.connectionId, entry)?.description ??
+          entry.text ??
+          entry.listingContent?.description ??
+          null;
+        if (description === null) return;
+        control.setValue(description, { emitEvent: false });
+        this.sourceDescriptionKnown = true;
+        this.sourceDescription = description;
+        this.changed.update((value) => value + 1);
+      });
+    });
+    effect(() => {
       const scope = this.fieldSelectionScope();
       const selection = this.fieldSelection();
       if (selection && selection.scopeKey !== scope) untracked(() => this.closeFieldSelection());
@@ -542,8 +584,6 @@ export class VintedListingEditorComponent {
   async submitRelisting(): Promise<void> {
     if (this.preparingSource() || this.preparingPhotos() || this.saving() || this.publication())
       return;
-    const generation = this.generation;
-    const context = this.loadedContext;
     this.error.set(null);
     try {
       const scheduled = this.relistTiming() === 'scheduled';
@@ -562,105 +602,47 @@ export class VintedListingEditorComponent {
           : null,
       );
       const source = this.source();
-      if (source?.mode === 'relist' && !this.sourcePrepared) {
-        await this.operations.prepareRelisting(source.entry, async () => {
-          await this.prepareRelistingSource(source, generation, context);
-          if (!this.current(generation, context))
-            throw new Error('Die Artikelauswahl hat sich geändert.');
-          await this.openPublication();
+      if (source?.mode === 'relist') {
+        if (!this.canStartPublication()) return;
+        this.publicationAttempted.set(true);
+        const description = this.form.controls.description;
+        const descriptionKnown =
+          this.sourceDescriptionKnown ||
+          description.dirty ||
+          description.value !== this.sourceDescription;
+        const errors = this.fieldErrors();
+        if (errors['title'] || (descriptionKnown && errors['description']) || this.form.invalid) {
+          this.focusFirstIssue();
+          return;
+        }
+        const pending = this.relistingSubmission.start({
+          entry: source.entry,
+          account: this.store
+            .connections()
+            .find((account) => account.connectionId === source.entry.connectionId)!,
+          title: this.form.controls.title.value,
+          description: description.value,
+          descriptionKnown,
+          photoOptions: this.photoOptions(),
+          schedule: this.publicationSchedule(),
+          delaySeconds: this.relistTiming() === 'delay' ? this.relistMinutes() * 60 : 0,
+          requestId: this.requestId,
         });
-      } else {
-        await this.openPublication();
+        this.preparingSource.set(true);
+        this.closed.emit();
+        // Fortschritt und Fehler gehören ab jetzt dem appweiten Auftrag, auch nach Destroy.
+        await pending.catch(() => undefined);
+        return;
       }
+      await this.openPublication();
     } catch (error) {
-      if (this.current(generation, context))
-        this.error.set(
-          error instanceof Error ? error.message : 'Die Planung konnte nicht gespeichert werden.',
-        );
-    }
-  }
-  private async prepareRelistingSource(
-    source: VintedListingEditorSource,
-    generation: number,
-    context: string | null,
-  ): Promise<void> {
-    const assertCurrent = () => {
-      if (!this.current(generation, context))
-        throw new Error('Die Artikelauswahl hat sich geändert.');
-    };
-    this.preparingSource.set(true);
-    try {
-      if (source.entry.currency !== 'EUR')
-        throw new Error('Die Währung dieses Inserats wird nicht unterstützt.');
-      let content = source.entry.listingContent?.categoryId
-        ? vintedListingSourceContent(source.entry)
-        : null;
-      let photoUrls = source.entry.imageUrls?.length
-        ? source.entry.imageUrls
-        : source.entry.imageUrl
-          ? [source.entry.imageUrl]
-          : [];
-      if (!content) {
-        const current = await this.store.readListingContent(
-          source.entry.connectionId,
-          source.entry.id,
-        );
-        assertCurrent();
-        if (current.externalId !== source.entry.externalId)
-          throw new Error('Die Artikelzuordnung hat sich geändert.');
-        content = { ...current.content, aiPhoto: current.aiPhoto };
-        photoUrls = current.photoUrls;
-      }
-      const savedOriginals = await this.originals.read(
-        { workspaceId: source.entry.workspaceId, connectionId: source.entry.connectionId },
-        source.entry.externalId!,
+      this.error.set(
+        error instanceof Error ? error.message : 'Die Planung konnte nicht gespeichert werden.',
       );
-      assertCurrent();
-      const photos =
-        savedOriginals ??
-        photoUrls.map((previewUrl, index) => ({ previewUrl, fileName: `photo-${index + 1}.jpg` }));
-      const images: ListingImageDraft[] = [];
-      for (const photo of photos) {
-        const blob = await this.readPhoto(photo.previewUrl);
-        assertCurrent();
-        const file = new File([blob], photo.fileName, { type: blob.type });
-        const previewUrl = URL.createObjectURL(file);
-        this.photoUrls.add(previewUrl);
-        images.push({
-          key: crypto.randomUUID(),
-          storagePath: null,
-          file,
-          fileName: file.name,
-          previewUrl,
-        });
-      }
-      if (!images.length)
-        throw new Error('Die Originalfotos konnten nicht vollständig geladen werden.');
-      const description = this.form.controls.description;
-      const keepDescription =
-        this.sourceDescriptionKnown ||
-        description.dirty ||
-        description.value !== this.sourceDescription;
-      const desired = {
-        ...content,
-        title: this.form.controls.title.value,
-        description: keepDescription ? description.value : content.description,
-      };
-      this.referenceContent.set(content);
-      this.patch(desired, source.entry.connectionId);
-      this.images.set(images);
-      this.dirty.set(true);
-      this.sourcePrepared = true;
-    } finally {
-      if (this.current(generation, context)) this.preparingSource.set(false);
     }
-    assertCurrent();
   }
-  private async readPhoto(url: string): Promise<Blob> {
-    const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(30_000) });
-    if (!response.ok)
-      throw new Error('Ein Originalfoto konnte nicht geladen werden. Versuche es erneut.');
-    return response.blob();
+  private readPhoto(url: string): Promise<Blob> {
+    return this.photoSources.read(url, this.photoScope());
   }
   openSchedule(): void {
     if (this.canStartPublication()) this.planningPublication.set(true);

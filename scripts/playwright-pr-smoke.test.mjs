@@ -295,11 +295,11 @@ test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () 
   assert.ok(selected.some(([, title]) => !/@(?:pr|core)-smoke/u.test(title)));
 });
 
-test('direkt geänderte Galerie reduziert 31 Varianten auf zwölf unterschiedliche Nachweise', async () => {
+test('direkt geänderte Galerie reduziert 32 Varianten auf dreizehn unterschiedliche Nachweise', async () => {
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
-  assert.equal(complete.selected.length, 31);
-  assert.equal(selected.length, 12);
+  assert.equal(complete.selected.length, 32);
+  assert.equal(selected.length, 13);
   const completeKeys = new Set(keys(complete.selected));
   assert.ok(keys(selected).every((key) => completeKeys.has(key)));
   assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
@@ -309,11 +309,12 @@ test('direkt geänderte Galerie reduziert 31 Varianten auf zwölf unterschiedlic
     'Vinted-Mosaik und Zeit-Badges bei 390px dark',
     'Vinted-Mosaik und Zeit-Badges bei 1440px light',
     'Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browserabruf',
-    'Fehlende Beschreibung lädt nur das gewählte Inserat',
+    'Beschreibungen stammen beim Öffnen und Relisten aus dem gespeicherten Hintergrundstand',
     'Preis direkt ändern und nach einem Fehler erneut speichern bei 390px light',
     'Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei 1440px',
     'Relisten und Vorlage bewahren Originale und übernehmen vollständige Daten bei 1440px dark',
     'Inserat löschen wahrt Bestätigung und zeigt den Fortschritt bei 390px light',
+    'Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzögerten Veröffentlichung',
   ])
     assert.equal(selected.filter(([, actual]) => actual.includes(title)).length, 1, title);
   for (const width of [390, 1440])

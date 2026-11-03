@@ -10,6 +10,8 @@ import {
 } from './support/marketplace-account-fixture';
 import { listingCurrentContentFixture } from '../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
+import type { VintedListingDraft } from '../src/app/features/marketplaces/models/vinted-listing-draft';
+import type { VintedListingJob } from '../src/app/features/marketplaces/models/vinted-listing-job';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block', hasTouch: true });
 
@@ -648,20 +650,15 @@ test('Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browser
   await screenshot(page, 'vinted-listing-empty-loaded');
 });
 
-test('Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wiederöffnen im Sitzungscache @marketplace-preview @core-smoke', async ({
+test('Beschreibungen stammen beim Öffnen und Relisten aus dem gespeicherten Hintergrundstand @marketplace-preview @core-smoke', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  const title = 'Inserat mit separat geladener Beschreibung';
+  const title = 'Inserat mit gespeicherter Beschreibung';
   const errors = await prepareListing(page, { title, text: null, textState: 'not_loaded' });
   const reads: Record<string, unknown>[] = [];
-  let release!: () => void;
-  const responseReady = new Promise<void>((resolve) => {
-    release = resolve;
-  });
   await page.route('**/marketplace-browser/listings/edit/read', async (route) => {
     reads.push(route.request().postDataJSON() as Record<string, unknown>);
-    await responseReady;
     await route.fulfill({
       json: {
         fields: { title, description: 'Gezielt geladener Beschreibungstext.', price: '29.90' },
@@ -669,20 +666,54 @@ test('Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wied
       },
     });
   });
+  const imported = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/rpc/marketplace_read_snapshot') &&
+      response.request().postDataJSON().p_connection_id === accountIds[0],
+  );
   await page.goto(detailPath);
+  const snapshot = await (await imported).json();
   const detail = page.locator('app-vinted-listing-detail');
-  await expect(detail).toContainText('Beschreibung wird von Vinted geladen');
+  await expect(detail).not.toContainText('Beschreibung wird von Vinted geladen');
   await expect(detail.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeEnabled();
-  expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
-  release();
-  await expect(detail).toContainText('Gezielt geladener Beschreibungstext.');
-  await expect(detail).toContainText('Ihre dauerhafte Speicherung steht noch aus.');
+  await expect(detail.locator('app-listing-transfer-action')).toHaveCount(0);
+  expect(reads).toEqual([]);
+  await page.route('**/rest/v1/rpc/marketplace_read_snapshot', (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        publications: {
+          ...snapshot.publications,
+          items: snapshot.publications.items.map((item: { id: string }) =>
+            item.id === entryId
+              ? {
+                  ...item,
+                  text: 'Im Hintergrund gespeicherter Beschreibungstext.',
+                  textState: 'loaded',
+                }
+              : item,
+          ),
+        },
+      },
+    }),
+  );
+  await page.reload();
+  await detail.getByText('Beschreibung', { exact: true }).click();
+  await expect(
+    detail.getByText('Im Hintergrund gespeicherter Beschreibungstext.', { exact: true }),
+  ).toBeVisible();
   await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
   await page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }).click();
-  await expect(detail).toContainText('Gezielt geladener Beschreibungstext.');
-  await expect(detail).toContainText('Ihre dauerhafte Speicherung steht noch aus.');
+  await expect(detail).toContainText('Im Hintergrund gespeicherter Beschreibungstext.');
   await expect(detail).not.toContainText('Beschreibung wird von Vinted geladen');
-  expect(reads).toHaveLength(1);
+  await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
+  await page.getByRole('button', { name: `${title} relisten`, exact: true }).click();
+  await expect(
+    page
+      .locator('app-vinted-listing-editor')
+      .getByRole('textbox', { name: 'Beschreibung', exact: true }),
+  ).toHaveValue('Im Hintergrund gespeicherter Beschreibungstext.');
+  expect(reads).toHaveLength(0);
   await checkPage(page, errors);
   await screenshot(page, 'vinted-listing-description-cache-mobile');
 });
@@ -1064,10 +1095,18 @@ for (const width of [390, 1440])
         await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
           route.fulfill({
             contentType: 'image/jpeg',
-            headers: { 'access-control-allow-origin': '*' },
             body: photo,
           }),
         );
+        await page.route('**/marketplace-browser/listings/photo/read', (route) => {
+          expect(route.request().postDataJSON()).toEqual({
+            workspaceId,
+            connectionId: accountIds[0],
+            entryId,
+            photoUrl: listing.photoUrls[0],
+          });
+          return route.fulfill({ contentType: 'image/jpeg', body: photo });
+        });
         await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
           route.fulfill({
             json: {
@@ -1161,14 +1200,11 @@ for (const width of [390, 1440])
           .getByRole('button', { name: 'Relisten', exact: true })
           .click();
         await expect.poll(() => providerReads).toBe(1);
+        await expect(editor).toHaveCount(0);
         await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
         releaseProvider();
-        await expect(editor.locator('app-notice-banner')).toBeVisible();
-        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-          'Mein neuer Titel',
-        );
-        await page.keyboard.press('Escape');
-        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        await expect(page.locator('[data-action-overview-error]')).toBeVisible();
+        await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
         providerAvailable = true;
         await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
@@ -1287,7 +1323,6 @@ for (const width of [390, 1440])
         await page.route('https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg', (route) =>
           route.fulfill({
             contentType: 'image/jpeg',
-            headers: { 'access-control-allow-origin': '*' },
             body: original,
           }),
         );
@@ -1640,3 +1675,298 @@ for (const width of [390, 1440])
       await checkPage(page, errors);
     });
   }
+
+test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzögerten Veröffentlichung @marketplace-preview', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  const errors = await prepareListing(page, {
+    title: 'Meine Schuhe',
+    text: 'Sehr gut erhalten.',
+    textState: 'loaded',
+    imageUrls: ['https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg'],
+  });
+  await page.route('**/auth/v1/user', (route) =>
+    route.fulfill({
+      json: {
+        id: '25000000-0000-4000-8000-000000000001',
+        email: 'marketplace@example.test',
+        aud: 'authenticated',
+        role: 'authenticated',
+        app_metadata: {},
+        user_metadata: { flipbase_action_overview: true },
+        created_at: '2026-09-26T00:00:00Z',
+      },
+    }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        workspaceId,
+        connectionId: route.request().postDataJSON().p_connection_id,
+        actions: [],
+      },
+    }),
+  );
+  const original = Buffer.from(
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 160;
+      canvas.height = 200;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = '#b6d5e8';
+      context.fillRect(0, 0, 160, 200);
+      return canvas.toDataURL('image/jpeg').split(',')[1];
+    }),
+    'base64',
+  );
+  const metadata = Buffer.from('Exif\0\0Flipbase-Relist-Original-Bytes', 'utf8');
+  const segment = Buffer.alloc(metadata.length + 4);
+  segment[0] = 255;
+  segment[1] = 225;
+  segment.writeUInt16BE(metadata.length + 2, 2);
+  metadata.copy(segment, 4);
+  const photo = Buffer.concat([original.subarray(0, 2), segment, original.subarray(2)]);
+  const originalPath = `${workspaceId}/40/25000000-0000-4000-8000-000000000041.jpg`;
+  const uploadPath = `${workspaceId}/70/25000000-0000-4000-8000-000000000071.jpg`;
+  const createdAt = new Date().toISOString();
+  const source: VintedListingDraft = {
+    id: '40',
+    workspaceId,
+    connectionId: accountIds[0],
+    revision: 1,
+    content: { ...listingCurrentContentFixture().content, aiPhoto: false },
+    images: [
+      {
+        id: '41',
+        storagePath: originalPath,
+        fileName: 'camera-original.jpg',
+        mimeType: 'image/jpeg',
+        byteSize: photo.length,
+      },
+    ],
+    inventoryItemId: null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+  let draft: VintedListingDraft = { ...source, id: '70', relistExternalId: '98765', images: [] };
+  let job: VintedListingJob | null = null;
+  const providerCalls: string[] = [];
+  const uploadedPhotos: Buffer[] = [];
+  const creations: Record<string, unknown>[] = [];
+  const enqueues: Record<string, unknown>[] = [];
+  let releaseCreation!: () => void;
+  const blockedCreation = new Promise<void>((resolve) => {
+    releaseCreation = resolve;
+  });
+  await page.route('**/marketplace-browser/listings/**', (route) => {
+    providerCalls.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 500, json: { error: 'Ungeplanter Anbieterzugriff im Test' } });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.p_workspace_id).toBe(workspaceId);
+    return route.fulfill({
+      json: {
+        items:
+          body.p_connection_id === accountIds[0] && body.p_external_ids.includes('98765')
+            ? [{ externalId: '98765', draft: source }]
+            : [],
+      },
+    });
+  });
+  await page.route('**/storage/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const headers = { 'access-control-allow-origin': '*' };
+    if (request.method() === 'POST' && path.includes('/object/sign/'))
+      return route.fulfill({
+        headers,
+        json: (request.postDataJSON().paths as string[]).map((path) => ({
+          path,
+          signedURL: `/object/sign/marketplace-listing-media/${path}?token=original`,
+          error: null,
+        })),
+      });
+    if (request.method() === 'GET')
+      return route.fulfill({ headers, contentType: 'image/jpeg', body: photo });
+    expect(request.method()).toBe('POST');
+    expect(path).toBe(`/storage/v1/object/marketplace-listing-media/${uploadPath}`);
+    const bytes = request.postDataBuffer();
+    expect(bytes).not.toBeNull();
+    const upload = new Request('http://fixture.test/upload', {
+      method: 'POST',
+      headers: { 'content-type': request.headers()['content-type'] },
+      body: new Uint8Array(bytes!),
+    });
+    const form = await upload.formData();
+    const file = Array.from(form.values()).find((value) => typeof value !== 'string');
+    if (!file || typeof file === 'string') throw new Error('Privates Original fehlt im Upload.');
+    const uploaded = Buffer.from(await file.arrayBuffer());
+    expect(uploaded).toEqual(photo);
+    uploadedPhotos.push(uploaded);
+    return route.fulfill({ headers, json: { Key: `marketplace-listing-media/${uploadPath}` } });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_create_relisting_draft', async (route) => {
+    const body = route.request().postDataJSON();
+    creations.push(body);
+    expect(body).toMatchObject({
+      p_workspace_id: workspaceId,
+      p_connection_id: accountIds[0],
+      p_external_id: '98765',
+    });
+    draft = { ...draft, content: body.p_content };
+    await blockedCreation;
+    return route.fulfill({ json: draft });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_reserve_listing_image', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      p_draft_id: '70',
+      p_file_name: 'camera-original.jpg',
+      p_mime_type: 'image/jpeg',
+      p_byte_size: photo.length,
+    });
+    return route.fulfill({ json: { id: '71', storagePath: uploadPath } });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_commit_listing_image', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      p_draft_id: '70',
+      p_expected_revision: 1,
+      p_image_id: '71',
+    });
+    draft = {
+      ...draft,
+      images: [{ ...source.images[0], id: '71', storagePath: uploadPath }],
+      revision: 2,
+    };
+    return route.fulfill({ json: draft });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_set_listing_photo_options', (route) => {
+    const body = route.request().postDataJSON();
+    expect(body).toEqual({
+      p_draft_id: '70',
+      p_expected_revision: 2,
+      p_options: { resize: 1200, crops: {}, filter: 'soft', border: 'small' },
+    });
+    draft = { ...draft, photoOptions: body.p_options, revision: 3 };
+    return route.fulfill({ json: draft });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_read_listing_permission', (route) =>
+    route.fulfill({ json: { allowed: true, authorizationVersion: 1, executionMode: 'cloud' } }),
+  );
+  await page.route('**/functions/v1/vinted-brand-search', (route) =>
+    route.fulfill({ json: { brands: [{ id: 254956, name: 'Jako' }] } }),
+  );
+  await page.route('**/marketplace-browser/healthz', (route) =>
+    route.fulfill({
+      json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: true },
+    }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+    route.fulfill({ json: { items: job ? [job] : [] } }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_enqueue_relisting', (route) => {
+    const body = route.request().postDataJSON();
+    enqueues.push(body);
+    expect(body).toEqual({
+      p_draft_id: '70',
+      p_expected_revision: 3,
+      p_request_id: creations[0]['p_request_id'],
+      p_ai_photo: false,
+      p_delay_seconds: 300,
+    });
+    job = {
+      id: '80',
+      workspaceId,
+      connectionId: accountIds[0],
+      draftId: '70',
+      draftRevision: draft.revision,
+      relistExternalId: '98765',
+      relistDeletedAt: null,
+      relistDelaySeconds: 300,
+      itemTitle: draft.content.title,
+      externalAccountId: '100',
+      executionMode: 'cloud',
+      action: 'publish',
+      state: 'queued',
+      version: 1,
+      scheduledAt: null,
+      timeZone: null,
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: null,
+      externalId: null,
+      providerState: null,
+      verifiedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+      replacesJobId: null,
+    };
+    return route.fulfill({ json: job });
+  });
+  await page.goto('/marketplaces/vinted/listings');
+  const wardrobe = page.locator('app-vinted-listings');
+  const cover = wardrobe.locator('app-product-thumbnail img');
+  await expect(cover).toHaveAttribute('src', new RegExp(originalPath));
+  await wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }).click();
+  const editor = page.locator('app-vinted-listing-editor');
+  await expect(editor.getByRole('textbox', { name: 'Beschreibung', exact: true })).toHaveValue(
+    'Sehr gut erhalten.',
+  );
+  expect(providerCalls).toEqual([]);
+  expect(creations).toEqual([]);
+  await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Neu geprüfte Schuhe');
+  await editor
+    .getByRole('textbox', { name: 'Beschreibung', exact: true })
+    .fill('Vor dem Relisten angepasster Text.');
+  for (const [label, option] of [
+    ['Auflösung', '1200 Pixel'],
+    ['Filter', 'Weicher'],
+    ['Weißer Rahmen', 'Klein'],
+    ['Veröffentlichungszeitpunkt', 'Verzögert relisten'],
+    ['Wartezeit', '5 Min.'],
+  ]) {
+    await editor.getByRole('combobox', { name: label, exact: true }).click();
+    await page.getByRole('option', { name: option, exact: true }).click();
+  }
+  await expect(editor.locator('app-vinted-listing-photo-preview img')).toHaveJSProperty(
+    'naturalHeight',
+    1200,
+  );
+  await page
+    .getByRole('dialog', { name: 'Artikel relisten', exact: true })
+    .locator('footer')
+    .getByRole('button', { name: 'Relisten', exact: true })
+    .click();
+  await expect(editor).toHaveCount(0);
+  await expect.poll(() => creations.length).toBe(1);
+  expect(uploadedPhotos).toEqual([]);
+  expect(enqueues).toEqual([]);
+  await expect(wardrobe.locator('article[aria-busy="true"]')).toContainText(
+    'Relisting wird vorbereitet',
+  );
+  await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+  await page
+    .locator('app-vinted-action-overview-menu')
+    .getByRole('button', { name: /Laufende Aktionen/ })
+    .click();
+  await expect(page.getByText('Relisting · Meine Schuhe', { exact: true })).toBeVisible();
+  releaseCreation();
+  await expect.poll(() => enqueues.length).toBe(1);
+  const overview = page.locator('app-vinted-listing-action-overview');
+  await expect(overview).toContainText('Neu geprüfte Schuhe');
+  await expect(overview).toContainText('Anzeige wird veröffentlicht');
+  await expect(page.locator('[data-action-overview-error]')).toHaveCount(0);
+  expect(draft.content).toMatchObject({
+    title: 'Neu geprüfte Schuhe',
+    description: 'Vor dem Relisten angepasster Text.',
+  });
+  expect(uploadedPhotos).toHaveLength(1);
+  expect(uploadedPhotos[0]).toEqual(photo);
+  expect(uploadedPhotos[0].includes(metadata)).toBe(true);
+  expect(source.images[0].storagePath).toBe(originalPath);
+  await expect(cover).toHaveAttribute('src', new RegExp(originalPath));
+  expect(providerCalls).toEqual([]);
+  await checkPage(page, errors);
+});

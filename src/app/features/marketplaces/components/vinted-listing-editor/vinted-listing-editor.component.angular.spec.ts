@@ -9,6 +9,7 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
@@ -23,7 +24,12 @@ import type { VintedListingEditorSource } from '../../models/vinted-listing-sour
 import { parseMarketplacePage } from '../../models/marketplace-response';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { listingCurrentContentFixture } from '../../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
-import { prepareFlipbaseVintedListingContent } from '../../models/flipbase-vinted-listing-form';
+import { VintedRelistingSubmissionService } from '../../services/vinted-relisting-submission.service';
+import { VintedListingPhotoSourceService } from '../../services/vinted-listing-photo-source.service';
+import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
+import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
+import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
+import type { MarketplaceSnapshot } from '../../models/marketplace-read.models';
 
 let restoreBindings: (() => void) | undefined;
 beforeAll(async () => {
@@ -132,7 +138,13 @@ function publicationInput(f: ReturnType<typeof setup>) {
   f.component.openFieldSelection();
   f.component.selectFields(selection(), true);
 }
-function setup(query: Record<string, string> = {}, source?: VintedListingEditorSource) {
+function setup(
+  query: Record<string, string> = {},
+  source?: VintedListingEditorSource,
+  realRelisting = false,
+) {
+  const startRelisting = vi.fn().mockResolvedValue(undefined);
+  const snapshot = signal<MarketplaceSnapshot | null>(null);
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
   const readListingContent = vi.fn().mockRejectedValue(new Error('Anbieter nicht erreichbar'));
@@ -150,11 +162,64 @@ function setup(query: Record<string, string> = {}, source?: VintedListingEditorS
   TestBed.configureTestingModule({
     providers: [
       {
+        provide: MarketplaceApiService,
+        useValue: {
+          listConnections: vi
+            .fn()
+            .mockImplementation(async () => ({ connections: connections(), canManage: true })),
+        },
+      },
+      ...(realRelisting
+        ? []
+        : [{ provide: VintedRelistingSubmissionService, useValue: { start: startRelisting } }]),
+      {
+        provide: VintedListingPhotoSourceService,
+        useValue: {
+          read: vi.fn().mockResolvedValue(new Blob(['original'], { type: 'image/jpeg' })),
+        },
+      },
+      {
+        provide: VintedBrandSearchService,
+        useValue: { search: vi.fn().mockResolvedValue([{ id: 254956, name: 'Jako' }]) },
+      },
+      {
+        provide: MarketplaceBrowserTestApiService,
+        useValue: {
+          available: vi.fn().mockResolvedValue({
+            available: true,
+            readOnly: false,
+            listingPublishingEnabled: true,
+          }),
+        },
+      },
+      {
+        provide: VintedActionOverviewHeaderStore,
+        useValue: { refresh: vi.fn().mockResolvedValue(undefined) },
+      },
+      {
         provide: VintedListingOriginalPhotoService,
         useValue: { read: vi.fn().mockResolvedValue(null) },
       },
-      { provide: VintedListingJobService, useValue: { editPlan: vi.fn() } },
-      { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
+      {
+        provide: VintedListingJobService,
+        useValue: {
+          editPlan: vi.fn(),
+          readPermission: vi.fn().mockResolvedValue({ allowed: true, executionMode: 'cloud' }),
+          list: vi.fn().mockResolvedValue([]),
+          enqueue: vi.fn().mockResolvedValue({
+            connectionId: 'account-a',
+            externalAccountId: '123',
+            executionMode: 'cloud',
+          }),
+        },
+      },
+      {
+        provide: AuthService,
+        useValue: {
+          currentUser: signal({ id: 'user-a' }),
+          session: signal({ access_token: 'fixture-token' }),
+        },
+      },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       {
         provide: MarketplaceAccountStore,
@@ -162,6 +227,7 @@ function setup(query: Record<string, string> = {}, source?: VintedListingEditorS
           canManage: signal(true),
           selectedConnection: signal(null),
           connections,
+          snapshot,
           readListingContent,
           cachedListingDescription: vi.fn().mockReturnValue(null),
         },
@@ -229,6 +295,9 @@ function setup(query: Record<string, string> = {}, source?: VintedListingEditorS
   return {
     component,
     fixture,
+    startRelisting,
+    snapshot,
+    photoSources: TestBed.inject(VintedListingPhotoSourceService),
     readListingContent,
     create,
     save,
@@ -272,6 +341,53 @@ function localRelisting(
 }
 
 describe('Relisten aus der lokalen Lesekopie', () => {
+  it.each(['unberührt', 'geleert', 'bearbeitet'])(
+    'übernimmt nachträglich gespeicherten Text ausschließlich in eine unberührte unbekannte Beschreibung: %s',
+    async (state) => {
+      const source = localRelisting(null);
+      const f = setup({}, source);
+      await settle();
+      f.component.form.controls.title.setValue('Mein Titel bleibt');
+      if (state === 'geleert') f.component.form.controls.description.markAsDirty();
+      if (state === 'bearbeitet')
+        f.component.form.controls.description.setValue('Mein Text bleibt');
+      const emptyPage = { items: [], total: 0, nextCursor: null };
+      f.snapshot.set({
+        workspaceId: source.entry.workspaceId,
+        connectionId: source.entry.connectionId,
+        profile: null,
+        publications: {
+          items: [
+            { ...source.entry, text: 'Text aus dem Hintergrundabgleich', textState: 'loaded' },
+          ],
+          total: 1,
+          nextCursor: null,
+        },
+        conversations: emptyPage,
+        sales: emptyPage,
+        activity: emptyPage,
+      });
+      await settle();
+      expect(f.component.form.controls.description.value).toBe(
+        state === 'unberührt'
+          ? 'Text aus dem Hintergrundabgleich'
+          : state === 'geleert'
+            ? ''
+            : 'Mein Text bleibt',
+      );
+      expect(f.component.form.controls.title.value).toBe('Mein Titel bleibt');
+      expect(f.readListingContent).not.toHaveBeenCalled();
+      if (state === 'unberührt') {
+        await f.component.submitRelisting();
+        expect(f.startRelisting).toHaveBeenCalledWith(
+          expect.objectContaining({
+            descriptionKnown: true,
+            description: 'Text aus dem Hintergrundabgleich',
+          }),
+        );
+      }
+    },
+  );
   it('öffnet auch bei nicht erreichbarem Anbieter sofort mit lokalen Texten und Fotos, ohne Abruf oder Prüfung', async () => {
     const request = vi.fn();
     vi.stubGlobal('fetch', request);
@@ -294,51 +410,49 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     expect(f.save).not.toHaveBeenCalled();
   });
 
-  it('beginnt den Anbieterabruf erst mit Relisten, zeigt die Aktion und erhält währenddessen geänderte Texte', async () => {
+  it('schließt nach dem bestätigten Klick sofort und übergibt unveränderliche Formularwerte', async () => {
     const f = setup({}, localRelisting());
     await settle();
-    const open = vi.spyOn(f.component, 'openPublication').mockResolvedValue();
-    let finish!: (value: ReturnType<typeof listingCurrentContentFixture>) => void;
-    f.readListingContent.mockReturnValueOnce(
+    let finish!: () => void;
+    f.startRelisting.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const closed = vi.fn();
+    f.component.closed.subscribe(closed);
+    f.component.form.controls.title.setValue('Mein neuer Titel');
+    const task = f.component.submitRelisting();
+    expect(closed).toHaveBeenCalledOnce();
+    expect(f.startRelisting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Mein neuer Titel',
+        description: 'Lokal gespeicherter Text',
+        descriptionKnown: true,
+      }),
+    );
+    f.fixture!.destroy();
+    finish();
+    await task;
+    expect(f.readListingContent).not.toHaveBeenCalled();
+  });
+  it('führt den echten Hintergrundauftrag nach Destroy bis zur Auftragsannahme fort', async () => {
+    const source = localRelisting();
+    const f = setup(
+      {},
+      {
+        ...source,
+        entry: { ...source.entry, listingContent: listingCurrentContentFixture().content },
+      },
+      true,
+    );
+    await settle();
+    let finish!: (value: Blob) => void;
+    vi.mocked(f.photoSources.read).mockReturnValueOnce(
       new Promise((resolve) => {
         finish = resolve;
       }),
     );
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        blob: async () => new Blob(['original'], { type: 'image/jpeg' }),
-      }),
-    );
-    const preparing = f.component.submitRelisting();
-    expect(f.component.preparingSource()).toBe(true);
-    expect(TestBed.inject(VintedListingOperationStore).entries()[0]).toMatchObject({
-      kind: 'relist',
-      state: 'running',
-    });
-    f.component.form.controls.title.setValue('Während der Aktion geändert');
-    f.component.form.controls.description.setValue('Meine lokale Änderung');
-    finish(listingCurrentContentFixture());
-    await preparing;
-    expect(f.readListingContent).toHaveBeenCalledOnce();
-    expect(open).toHaveBeenCalledOnce();
-    expect(f.component.content()).toMatchObject({
-      ...prepareFlipbaseVintedListingContent(listingCurrentContentFixture().content),
-      title: 'Während der Aktion geändert',
-      description: 'Meine lokale Änderung',
-    });
-    expect(f.component.images()[0].file?.size).toBe(8);
-    expect(f.component.preparingSource()).toBe(false);
-    expect(TestBed.inject(VintedListingOperationStore).entries()).toEqual([]);
-    expect(TestBed.inject(VintedCategoryService).readSnapshot).not.toHaveBeenCalled();
-  });
-
-  it('verwendet bereits gespeicherte vollständige Artikeldaten auch für die Aktion ohne neuen Vinted-Abruf', async () => {
-    const source = localRelisting();
-    const stored = listingCurrentContentFixture().content;
-    const f = setup({}, { ...source, entry: { ...source.entry, listingContent: stored } });
-    await settle();
     vi.mocked(f.imageApi.upload).mockImplementation(async (current) => ({
       ...current,
       images: [
@@ -351,62 +465,51 @@ describe('Relisten aus der lokalen Lesekopie', () => {
         },
       ],
     }));
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        blob: async () => new Blob(['original'], { type: 'image/jpeg' }),
-      }),
-    );
-    await f.component.submitRelisting();
+    const closed = vi.fn(() => f.fixture!.destroy());
+    f.component.closed.subscribe(closed);
+    const task = f.component.submitRelisting();
+    expect(closed).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(f.photoSources.read).toHaveBeenCalledOnce());
+    finish(new Blob(['original'], { type: 'image/jpeg' }));
+    await task;
     expect(f.readListingContent).not.toHaveBeenCalled();
-    expect(f.component.error()).toBeNull();
-    expect(f.component.publication()?.draft.relistExternalId).toBe('98765');
-    expect(f.component.publication()?.draft.content.priceCents).toBe(3990);
     expect(TestBed.inject(VintedListingDraftService).createRelisting).toHaveBeenCalledOnce();
-    expect(f.imageApi.upload).toHaveBeenCalledOnce();
-    expect(f.component.content()).toMatchObject({
-      ...prepareFlipbaseVintedListingContent(stored),
-      title: source.entry.title,
-      description: source.entry.text,
-      priceCents: 3990,
-    });
-    expect(stored).toEqual(listingCurrentContentFixture().content);
+    expect(TestBed.inject(VintedListingJobService).enqueue).toHaveBeenCalledOnce();
+    expect(TestBed.inject(VintedListingOperationStore).entries()).toEqual([]);
   });
-
   it.each([false, true])(
-    'behandelt fehlenden lokalen Beschreibungstext nicht als unbeabsichtigtes Leeren (bewusst geleert: %s)',
+    'unterscheidet unbekannte und bewusst geleerte Beschreibung (bearbeitet: %s)',
     async (edited) => {
       const f = setup({}, localRelisting(null));
       await settle();
-      vi.spyOn(f.component, 'openPublication').mockResolvedValue();
-      f.readListingContent.mockResolvedValueOnce(listingCurrentContentFixture());
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-          ok: true,
-          blob: async () => new Blob(['original'], { type: 'image/jpeg' }),
-        }),
-      );
       if (edited) f.component.form.controls.description.markAsDirty();
       await f.component.submitRelisting();
-      expect(f.component.form.controls.description.value).toBe(
-        edited ? '' : listingCurrentContentFixture().content.description,
-      );
+      if (edited) expect(f.startRelisting).not.toHaveBeenCalled();
+      else
+        expect(f.startRelisting).toHaveBeenCalledWith(
+          expect.objectContaining({ description: '', descriptionKnown: false }),
+        );
     },
   );
-
-  it('behält bei einem Fehler nach der ausdrücklichen Aktion das Formular und meldet den Fehler in den laufenden Aktionen', async () => {
-    const f = setup({}, localRelisting());
+  it('behält Fehler des echten Auftrags nach Destroy in den laufenden Aktionen', async () => {
+    const source = localRelisting();
+    const f = setup(
+      {},
+      {
+        ...source,
+        entry: { ...source.entry, listingContent: listingCurrentContentFixture().content },
+      },
+      true,
+    );
     await settle();
+    vi.mocked(f.photoSources.read).mockRejectedValueOnce(new Error('Foto nicht erreichbar'));
+    f.component.closed.subscribe(() => f.fixture!.destroy());
     await f.component.submitRelisting();
-    expect(f.component.loadError()).toBeNull();
-    expect(f.component.error()).toBe('Anbieter nicht erreichbar');
-    expect(f.component.form.controls.title.value).toBe('Lokal gespeicherter Titel');
+    expect(f.component.error()).toBeNull();
     expect(TestBed.inject(VintedListingOperationStore).entries()[0]).toMatchObject({
       kind: 'relist',
       state: 'error',
-      message: 'Anbieter nicht erreichbar',
+      message: 'Foto nicht erreichbar',
     });
   });
 });

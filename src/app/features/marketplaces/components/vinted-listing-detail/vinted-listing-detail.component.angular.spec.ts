@@ -1,4 +1,3 @@
-import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { signal } from '@angular/core';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -124,7 +123,6 @@ beforeAll(async () => {
       path: 'src/app/features/marketplaces/components/vinted-listing-price-dialog/vinted-listing-price-dialog.component.ts',
     },
     { type: NumberInputComponent, path: shared + 'number-input/number-input.component.ts' },
-    ...listingTransferRendering,
     {
       type: ProductGalleryComponent,
       path: shared + 'product-gallery/product-gallery.component.ts',
@@ -187,7 +185,6 @@ describe('Reaktive Inseratdetails', () => {
       { ...entry('a'), price: 20.5, currency: 'EUR', publicationState: 'active' },
     ]);
     await settle();
-    component.loadingDescription.set(true);
     component.openPriceChange();
     expect(component.changingPrice()).toBe(true);
     expect(component.priceControl.value).toBe(20.5);
@@ -206,10 +203,9 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.changingPrice()).toBe(false);
     expect(component.entry()?.price).toBe(10);
   });
-  it('öffnet die Bearbeitung auch während des Beschreibungsabrufs', async () => {
+  it('öffnet die Bearbeitung unabhängig vom Beschreibungscache', async () => {
     const { component } = setup([entry('a')]);
     await settle();
-    component.loadingDescription.set(true);
     await component.edit();
     expect(component.editing()).toBe(true);
   });
@@ -230,25 +226,23 @@ describe('Reaktive Inseratdetails', () => {
     expect(store.saveListingPrice).toHaveBeenLastCalledWith(account.connectionId, 'a', 1800, 1000);
     expect(component.entry()?.price).toBe(10);
   });
-  it('beendet nach sofortigem Abbrechen auch den noch laufenden Beschreibungsabruf', async () => {
-    const { component, store } = setup([entry('a')]);
-    await settle();
-    component.description.set(null);
-    let resolve!: (value: { description: string; cacheState: string }) => void;
-    store.readListingDescription.mockReturnValueOnce(
-      new Promise((done) => {
-        resolve = done;
-      }),
+  it('öffnet unbekannte Beschreibungen ohne Vinted-Abruf und zeigt später den Hintergrundabgleich', async () => {
+    const unknown = { ...entry('a'), text: null, textState: 'not_loaded' as const };
+    const { component, store } = setup([unknown]);
+    store.cachedListingDescription.mockImplementation((_connectionId, item) =>
+      item.text === null ? null : { description: item.text, cacheState: 'stored' },
     );
-    const reading = component.loadDescription();
-    store.readListingContent.mockReturnValueOnce(new Promise(() => undefined));
-    void component.edit();
-    component.cancelEdit();
-    resolve({ description: 'Nachgeladener Text', cacheState: 'unconfirmed' });
-    await reading;
     await settle();
-    expect(component.loadingDescription()).toBe(false);
-    expect(component.description()?.description).toBe('Nachgeladener Text');
+    expect(component.description()).toBeNull();
+    expect(store.readListingDescription).not.toHaveBeenCalled();
+    expect(store.readListingContent).not.toHaveBeenCalled();
+    store.snapshot.update((snapshot) => ({
+      ...snapshot,
+      publications: { ...snapshot.publications, items: [entry('a', 'Im Hintergrund gespeichert')] },
+    }));
+    await settle();
+    expect(component.description()?.description).toBe('Im Hintergrund gespeichert');
+    expect(store.readListingDescription).not.toHaveBeenCalled();
   });
   it('startet nach Abbrechen keinen Fallbackabruf, der mit der Preisaktion kollidiert', async () => {
     const { component, store } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);

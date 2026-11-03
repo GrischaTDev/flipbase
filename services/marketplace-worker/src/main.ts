@@ -30,6 +30,7 @@ import { VintedListingCategoryAccess } from './vinted-listing-category-access.ts
 import { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
 import { SupabaseMarketplaceOperationStore } from './supabase-marketplace-operation-store.ts';
 import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
+import { VintedListingPhotoSource } from './vinted-listing-photo-source.ts';
 import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import { MarketplaceSyncDispatcher } from './marketplace-sync-dispatcher.ts';
 import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-sync-dispatch-store.ts';
@@ -403,6 +404,12 @@ async function main(): Promise<void> {
       ? new SupabaseVintedListingCache({
           url: config.supabaseUrl,
           serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined,
+    listingPhotos: isCloud
+      ? new VintedListingPhotoSource({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
         })
       : undefined,
     profileCache: isCloud

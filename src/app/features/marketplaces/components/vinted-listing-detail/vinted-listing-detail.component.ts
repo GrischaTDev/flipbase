@@ -1,4 +1,3 @@
-import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { CurrencyPipe } from '@angular/common';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { createVintedListingPriceEditor } from '../../services/vinted-listing-price-editor';
@@ -55,7 +54,6 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
   selector: 'app-vinted-listing-detail',
   imports: [
     VintedListingPriceDialogComponent,
-    ListingTransferActionComponent,
     CurrencyPipe,
     ReactiveFormsModule,
     ButtonComponent,
@@ -132,8 +130,6 @@ export class VintedListingDetailComponent {
   readonly selectedPhoto = signal<string | null>(null);
   readonly description = signal<VintedListingDescription | null>(null);
   readonly loading = signal(true);
-  readonly loadingDescription = signal(false);
-  readonly descriptionError = signal(false);
   readonly editing = signal(false);
   /** Der aktuelle Vinted-Stand wird nach dem Öffnen der Maske im Hintergrund gelesen. */
   readonly loadingCurrent = signal(false);
@@ -217,7 +213,6 @@ export class VintedListingDetailComponent {
     }),
   );
   private requestVersion = 0;
-  private descriptionVersion = 0;
   private requestKey = '';
   private routeKey = '';
   private selected = false;
@@ -285,13 +280,10 @@ export class VintedListingDetailComponent {
 
   private reset(): void {
     this.requestVersion++;
-    this.descriptionVersion++;
     this.loadedEntry.set(null);
     this.selectedPhoto.set(null);
     this.description.set(null);
     this.loading.set(true);
-    this.loadingDescription.set(false);
-    this.descriptionError.set(false);
     this.editing.set(false);
     this.priceEditor.reset();
     this.loadingCurrent.set(false);
@@ -358,7 +350,6 @@ export class VintedListingDetailComponent {
     if (!entry) return;
     const description = this.store.cachedListingDescription(this.connectionId(), entry);
     if (description) this.description.set(description);
-    else if (this.store.selectedConnection()?.status === 'connected') void this.loadDescription();
   }
   private async load(version: number, connectionId: string, entryId: string): Promise<void> {
     try {
@@ -367,25 +358,6 @@ export class VintedListingDetailComponent {
       if (this.isCurrent(version)) this.error.set('Das Inserat konnte nicht geladen werden.');
     } finally {
       if (this.isCurrent(version)) this.loading.set(false);
-    }
-  }
-  async loadDescription(): Promise<void> {
-    if (this.loadingDescription() || this.description() !== null || !this.entry()) return;
-    const version = this.descriptionVersion;
-    const isCurrent = () =>
-      version === this.descriptionVersion && this.isCurrent(this.requestVersion);
-    this.loadingDescription.set(true);
-    this.descriptionError.set(false);
-    try {
-      const description = await this.store.readListingDescription(
-        this.connectionId(),
-        this.entryId(),
-      );
-      if (isCurrent()) this.description.set(description);
-    } catch {
-      if (isCurrent()) this.descriptionError.set(true);
-    } finally {
-      if (isCurrent()) this.loadingDescription.set(false);
     }
   }
   /** Unberührte Felder übernehmen den gelesenen Stand; Eingaben des Nutzers bleiben erhalten. */

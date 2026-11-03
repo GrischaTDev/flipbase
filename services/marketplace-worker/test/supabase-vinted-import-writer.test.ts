@@ -225,6 +225,10 @@ test('publication cache remains bound to the active account and keeps exact and 
             occurredAt: null,
             publicationAge: age,
             publicationAgeCheckedAt: age.observedAt,
+            textState: 'loaded',
+            text: 'Gespeicherte Beschreibung',
+            descriptionReadAt: '2026-11-02T10:00:00Z',
+            descriptionSourceUpdatedAt: '2026-11-01T10:00:00Z',
           },
         },
       ]);
@@ -238,6 +242,9 @@ test('publication cache remains bound to the active account and keeps exact and 
       occurredAt: null,
       publicationAge: age,
       checkedAt: age.observedAt,
+      description: 'Gespeicherte Beschreibung',
+      descriptionReadAt: '2026-11-02T10:00:00Z',
+      descriptionSourceUpdatedAt: '2026-11-01T10:00:00Z',
     },
   ]);
   assert.equal(calls[1]?.url.pathname, '/rest/v1/rpc/marketplace_publication_versions');

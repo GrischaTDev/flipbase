@@ -1,4 +1,5 @@
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
+import type { VintedListingPhotoSource } from './vinted-listing-photo-source.ts';
 
 import type { VintedPublicationVersion } from './vinted-publication-age.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -109,6 +110,7 @@ interface BrowserApiOptions {
   };
   edits?: VintedEditAccess;
   listingReadAccess?: Pick<VintedEditAccess, 'entry'>;
+  listingPhotos?: Pick<VintedListingPhotoSource, 'read'>;
   listingCategories?: Pick<VintedListingCategoryAccess, 'read' | 'authorize'>;
   conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
@@ -314,6 +316,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly conversationAccess?: VintedEditAccess;
   private readonly operations?: BrowserApiOptions['operations'];
   private readonly listingCache?: BrowserApiOptions['listingCache'];
+  private readonly listingPhotos?: BrowserApiOptions['listingPhotos'];
   private readonly profileCache?: BrowserApiOptions['profileCache'];
   private readonly readOnly: boolean;
   private readonly listingPublishingEnabled?: boolean;
@@ -335,6 +338,7 @@ export class MarketplaceBrowserHttpApi {
     this.conversationAccess = options.conversationAccess;
     this.operations = options.operations;
     this.listingCache = options.listingCache;
+    this.listingPhotos = options.listingPhotos;
     this.profileCache = options.profileCache;
     this.scheduledSync = options.scheduledSync;
     this.readOnly = options.readOnly ?? false;
@@ -765,6 +769,30 @@ export class MarketplaceBrowserHttpApi {
             this.inFlight.delete(key);
           }
         }
+        return;
+      }
+      if (path === '/marketplace-browser/listings/photo/read') {
+        if (!this.listingPhotos) throw new RequestError(503);
+        const entryId = body['entryId'],
+          photoUrl = body['photoUrl'];
+        if (
+          Object.keys(body).length !== 4 ||
+          Object.keys(body).some(
+            (key) => !['workspaceId', 'connectionId', 'entryId', 'photoUrl'].includes(key),
+          ) ||
+          typeof entryId !== 'string' ||
+          !uuidPattern.test(entryId) ||
+          typeof photoUrl !== 'string' ||
+          photoUrl.length > 4096
+        )
+          throw new RequestError(400);
+        const photo = await this.listingPhotos.read(scope, entryId, photoUrl);
+        response.writeHead(200, {
+          ...responseHeaders,
+          'Content-Type': photo.mimeType,
+          'Content-Length': String(photo.bytes.byteLength),
+        });
+        response.end(photo.bytes);
         return;
       }
       if (path === '/marketplace-browser/listings/content/read') {
@@ -1503,6 +1531,7 @@ export class MarketplaceBrowserHttpApi {
         // Nur feste Kategorien protokollieren, keine Kennungen, Inhalte oder Anbieterantworten.
         const route = [
           'category/read',
+          'photo/read',
           'delete',
           'content/read',
           'content/save',

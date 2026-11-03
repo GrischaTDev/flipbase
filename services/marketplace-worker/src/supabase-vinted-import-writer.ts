@@ -91,6 +91,15 @@ export class SupabaseVintedImportWriter {
           occurredAt: timestamp(row['flipbase_published_at']),
           publicationAge: parseVintedPublicationAge(body['publicationAge']),
           checkedAt: timestamp(body['publicationAgeCheckedAt']),
+          ...(body['textState'] === 'loaded' &&
+          typeof body['text'] === 'string' &&
+          body['text'].length <= 2000
+            ? {
+                description: body['text'],
+                descriptionReadAt: timestamp(body['descriptionReadAt']),
+                descriptionSourceUpdatedAt: timestamp(body['descriptionSourceUpdatedAt']),
+              }
+            : {}),
         },
       ];
     });

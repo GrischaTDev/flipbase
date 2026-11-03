@@ -355,6 +355,238 @@ function importPage(overrides: (path: string) => unknown): Page {
   } as unknown as Page;
 }
 
+test('scheduled wardrobe import fills descriptions without navigating and reuses unchanged stored text', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-03T10:00:00Z') });
+  const paths: string[] = [];
+  const item = { id: 41, user_id: 123, title: 'Artikel', updated_at: '2026-11-02T08:00:00Z' };
+  const page = importPage((path) => {
+    paths.push(path);
+    if (path.startsWith('/api/v2/wardrobe/'))
+      return { items: [item], pagination: { total_pages: 1 } };
+    if (path === '/api/v2/item_upload/items/41')
+      return {
+        item: {
+          ...item,
+          updated_at: '2026-11-02T08:00:00.123Z',
+          description: 'Originaltext\r\nZweite Zeile',
+        },
+      };
+    return undefined;
+  });
+  const first = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        {
+          externalId: '41',
+          occurredAt: '2026-11-01T08:00:00Z',
+          publicationAge: null,
+          checkedAt: null,
+        },
+      ],
+    },
+  );
+  const entry = first.entries.find((entry) => entry.kind === 'publication')!;
+  assert.equal(entry.body.text, 'Originaltext\nZweite Zeile');
+  assert.equal(entry.body.textState, 'loaded');
+  assert.equal(entry.body.descriptionSourceUpdatedAt, '2026-11-02T08:00:00.000Z');
+  assert.equal(entry.body.descriptionReadAt, first.observedAt);
+  assert.deepEqual(
+    paths.filter((path) => path.includes('/item_upload/')),
+    ['/api/v2/item_upload/items/41'],
+  );
+  paths.length = 0;
+  const next = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        {
+          externalId: '41',
+          occurredAt: '2026-11-01T08:00:00Z',
+          publicationAge: null,
+          checkedAt: null,
+          description: entry.body.text as string,
+          descriptionReadAt: first.observedAt,
+          descriptionSourceUpdatedAt: entry.body.descriptionSourceUpdatedAt as string,
+        },
+      ],
+    },
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.includes('/item_upload/')),
+    [],
+  );
+  assert.equal(
+    next.entries.find((entry) => entry.kind === 'publication')?.body.text,
+    entry.body.text,
+  );
+});
+
+test('background description refresh follows provider changes, keeps known text on failure, and rejects another item or owner', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-03T10:00:00Z') });
+  for (const response of [
+    { item: { id: 41, user_id: 123, description: 'Geänderter Text' } },
+    { item: { id: 41, user_id: null, description: 'Geänderter Text' } },
+    { item: { id: 42, user_id: 123, description: 'Fremder Artikel' } },
+    { item: { id: 41, user_id: 456, description: 'Fremdes Konto' } },
+    { flipbaseRequestFailure: 'network' },
+  ]) {
+    const paths: string[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/wardrobe/'))
+          return {
+            items: [{ id: 41, user_id: 123, updated_at: '2026-11-03T09:00:00Z' }],
+            pagination: { total_pages: 1 },
+          };
+        if (path === '/api/v2/item_upload/items/41') return response;
+        return undefined;
+      }),
+      async () => undefined,
+      undefined,
+      [],
+      undefined,
+      {
+        previousPublications: [
+          {
+            externalId: '41',
+            occurredAt: '2026-11-01T08:00:00Z',
+            publicationAge: null,
+            checkedAt: null,
+            description: 'Gespeicherter Text',
+            descriptionReadAt: '2026-11-03T08:00:00Z',
+            descriptionSourceUpdatedAt: '2026-11-02T08:00:00Z',
+          },
+        ],
+      },
+    );
+    const fresh =
+      'item' in response &&
+      response.item?.id === 41 &&
+      (response.item.user_id == null || response.item.user_id === 123);
+    const body = snapshot.entries.find((entry) => entry.kind === 'publication')!.body;
+    assert.equal(body.text, fresh ? 'Geänderter Text' : 'Gespeicherter Text');
+    assert.equal(body.textState, 'loaded');
+    assert.equal(
+      body.descriptionSourceUpdatedAt,
+      fresh ? '2026-11-03T09:00:00.000Z' : '2026-11-02T08:00:00.000Z',
+    );
+    assert.deepEqual(
+      paths.filter((path) => path.includes('/item_upload/')),
+      ['/api/v2/item_upload/items/41'],
+    );
+  }
+});
+
+test('description fallback refreshes once a day without provider versions and accepts a direct complete list description', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-03T10:00:00Z') });
+  for (const scenario of ['recent', 'stale', 'listed'] as const) {
+    const paths: string[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/wardrobe/'))
+          return {
+            items: [
+              {
+                id: 41,
+                user_id: 123,
+                ...(scenario === 'listed' ? { description: 'Text aus der Liste' } : {}),
+              },
+            ],
+            pagination: { total_pages: 1 },
+          };
+        if (path === '/api/v2/item_upload/items/41')
+          return { item: { id: 41, user_id: 123, description: 'Aktueller Text' } };
+        return undefined;
+      }),
+      async () => undefined,
+      undefined,
+      [],
+      undefined,
+      {
+        previousPublications: [
+          {
+            externalId: '41',
+            occurredAt: '2026-11-01T08:00:00Z',
+            publicationAge: null,
+            checkedAt: null,
+            description: 'Gespeicherter Text',
+            descriptionReadAt:
+              scenario === 'stale' ? '2026-11-02T08:00:00Z' : '2026-11-03T08:00:00Z',
+          },
+        ],
+      },
+    );
+    assert.equal(
+      snapshot.entries.find((entry) => entry.kind === 'publication')?.body.text,
+      scenario === 'listed'
+        ? 'Text aus der Liste'
+        : scenario === 'stale'
+          ? 'Aktueller Text'
+          : 'Gespeicherter Text',
+    );
+    assert.equal(
+      paths.filter((path) => path.includes('/item_upload/')).length,
+      scenario === 'stale' ? 1 : 0,
+    );
+  }
+});
+
+test('background description filling stops on provider blocking and never turns a failed first read into an empty description', async () => {
+  for (const reason of [
+    'forbidden',
+    'rate_limited',
+    'network',
+    'timeout',
+    'provider_unavailable',
+  ]) {
+    const paths: string[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/wardrobe/'))
+          return {
+            items: [41, 42].map((id) => ({ id, user_id: 123 })),
+            pagination: { total_pages: 1 },
+          };
+        if (path.includes('/item_upload/')) return { flipbaseRequestFailure: reason };
+        return undefined;
+      }),
+      async () => undefined,
+      undefined,
+      [],
+      undefined,
+      {
+        previousPublications: [41, 42].map((id) => ({
+          externalId: String(id),
+          occurredAt: '2026-11-01T08:00:00Z',
+          publicationAge: null,
+          checkedAt: null,
+        })),
+      },
+    );
+    assert.deepEqual(
+      paths.filter((path) => path.includes('/item_upload/')),
+      ['/api/v2/item_upload/items/41'],
+    );
+    assert.ok(
+      snapshot.entries
+        .filter((entry) => entry.kind === 'publication')
+        .every((entry) => entry.body.text === null && entry.body.textState === 'not_loaded'),
+    );
+  }
+});
+
 test('explicitly opening a conversation reads unread details without opening other conversations', async () => {
   const paths: string[] = [];
   const page = importPage((path) => {
@@ -2344,6 +2576,10 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
                   `<link rel="canonical" href="https://www.vinted.de/items/${scenario === 'foreign' ? '42' : '41'}-artikel"><script type="application/json">{"user":{"id":123,"created_at":"2020-01-01T00:00:00Z"}}</script><div data-testid="item-attributes-upload_date"><div>Hochgeladen</div><div itemprop="upload_date"><span>${scenario === 'hour' ? '1 h' : '2 Tagen'}</span></div></div>`,
                   { headers: { 'Content-Type': 'text/html' } },
                 );
+        } else if (path === '/api/v2/item_upload/items/41') {
+          response = Response.json({
+            item: { id: 41, user_id: 123, description: 'Anbieterbeschreibung\r\nZweite Zeile' },
+          });
         } else {
           const body =
             path === '/api/v2/users/current'
@@ -2372,6 +2608,14 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
         async () => undefined,
       );
       const publication = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+      assert.equal(
+        publication.body.text,
+        scenario === 'rate_limited' ? null : 'Anbieterbeschreibung\nZweite Zeile',
+      );
+      assert.equal(
+        publication.body.textState,
+        scenario === 'rate_limited' ? 'not_loaded' : 'loaded',
+      );
       assert.equal(publication.body.occurredAt, null);
       assert.equal(publication.body.createdAt, null);
       assert.equal(
