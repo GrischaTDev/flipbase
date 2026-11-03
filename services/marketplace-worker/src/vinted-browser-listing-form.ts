@@ -65,9 +65,22 @@ async function readVisibleListingChoices(
   page: Page,
   field: VintedListingChoiceField,
   allowEmptyBrandChoices = false,
+  deadline?: number,
 ): Promise<VintedListingChoiceSnapshot | null> {
   try {
-    const collected = await page.evaluate(collectVintedListingChoices, field);
+    let collected = await page.evaluate(collectVintedListingChoices, field);
+    // Playwright zählt auch transparente Optionen als sichtbar. Der Collector
+    // muss denselben tatsächlich lesbaren Zustand innerhalb des Optionsbudgets sehen.
+    while (
+      Array.isArray(collected) &&
+      collected.length === 0 &&
+      !allowEmptyBrandChoices &&
+      deadline !== undefined &&
+      performance.now() < deadline
+    ) {
+      await page.waitForTimeout(Math.min(50, Math.max(1, deadline - performance.now())));
+      collected = await page.evaluate(collectVintedListingChoices, field);
+    }
     if (field === 'package' && Array.isArray(collected)) {
       if (collected.length === 0) throw new VintedListingReadError('package_options');
       if (collected.some((choice) => typeof choice.label === 'string' && !choice.label.trim()))
@@ -154,19 +167,20 @@ export async function openVintedListingChoices(
           : field === 'color'
             ? '[role="checkbox"][id^="color-"],[role="checkbox"][data-testid^="filter-grid-option-"]:has([data-testid^="color-"])'
             : `[role="${field === 'material' ? 'checkbox' : 'radio'}"][id^="${field}-"]`;
+  const optionsDeadline = performance.now() + openingTimeout;
   try {
     await page
       .locator(selector)
       .filter({ visible: true })
       .first()
       // Auch nach dem bedienbaren Markenfeld lädt Vinted die Optionen erst nach.
-      .waitFor({ state: 'visible', timeout: field === 'brand' ? 15_000 : 5000 });
+      .waitFor({ state: 'visible', timeout: Math.max(1, optionsDeadline - performance.now()) });
   } catch (error) {
     if (field === 'category')
       throw new Error('Die Vinted-Kategorie ist nicht verfügbar.', { cause: error });
     throw vintedListingChoiceReadError(field, 'options');
   }
-  let choices = await readVisibleListingChoices(page, field, canSearchBrand);
+  let choices = await readVisibleListingChoices(page, field, canSearchBrand, optionsDeadline);
   if (
     field === 'brand' &&
     brand &&
@@ -185,8 +199,10 @@ export async function openVintedListingChoices(
       throw new VintedListingReadError('brand_search');
     const search = page.locator(brandSearchSelector);
     if ((await search.count()) !== 1) throw new VintedListingReadError('brand_search');
+    let searchOptionsDeadline: number;
     try {
       await search.fill(brand.brandLabel, { timeout: 15_000 });
+      searchOptionsDeadline = performance.now() + 15_000;
       // Der gewünschte Treffer fehlte zuvor. Damit reicht kein alter Vorschlag als Suchbeleg.
       await page
         .locator(
@@ -194,11 +210,14 @@ export async function openVintedListingChoices(
         )
         .filter({ visible: true })
         .first()
-        .waitFor({ state: 'visible', timeout: 15_000 });
+        .waitFor({
+          state: 'visible',
+          timeout: Math.max(1, searchOptionsDeadline - performance.now()),
+        });
     } catch {
       throw new VintedListingReadError('brand_search');
     }
-    choices = await readVisibleListingChoices(page, field);
+    choices = await readVisibleListingChoices(page, field, false, searchOptionsDeadline);
   }
   if (!choices) throw new VintedListingReadError('brand_parse');
   return choices;
