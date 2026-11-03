@@ -80,15 +80,19 @@
         <app-vinted-favorite-settings [account]="account()" />
         <app-vinted-message-settings [account]="account()" />
       </section>
-      <div class="flex flex-wrap gap-2 border-t border-fb-line pt-4">
+      <div class="grid grid-cols-1 gap-2 border-t border-fb-line pt-4 sm:grid-cols-[3fr_2fr]">
         <app-button
+          [fullWidth]="true"
           [link]="'/marketplaces/vinted/connect/' + account().connectionId"
           [icon]="loginIcon"
           [disabled]="account().status === 'paused' || account().status === 'blocked'"
           (clicked)="settingsOpen.set(false)"
           >Vinted-Anmeldung öffnen</app-button
         >
-        <app-button link="/marketplaces/vinted/accounts" (clicked)="settingsOpen.set(false)"
+        <app-button
+          [fullWidth]="true"
+          link="/marketplaces/vinted/accounts"
+          (clicked)="settingsOpen.set(false)"
           >Kontenübersicht</app-button
         >
       </div>

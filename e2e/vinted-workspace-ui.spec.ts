@@ -455,6 +455,27 @@ for (const width of [1440, 390, 320]) {
         pauseButton.boundingBox(),
       ]);
       expect(Math.abs(intervalBounds!.y - pauseBounds!.y)).toBeLessThanOrEqual(2);
+      const login = dialog.getByRole('link', { name: 'Vinted-Anmeldung öffnen', exact: true });
+      const accounts = dialog.getByRole('link', { name: 'Kontenübersicht', exact: true });
+      const [loginBounds, accountsBounds] = await Promise.all([
+        login.boundingBox(),
+        accounts.boundingBox(),
+      ]);
+      const actionBounds = await login.evaluate((element) => {
+        const bounds = element.closest('app-button')!.parentElement!.getBoundingClientRect();
+        return { x: bounds.x, right: bounds.right, width: bounds.width };
+      });
+      expect(Math.abs(loginBounds!.x - actionBounds.x)).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(accountsBounds!.x + accountsBounds!.width - actionBounds.right),
+      ).toBeLessThanOrEqual(1);
+      if (width < 640) {
+        expect(Math.abs(loginBounds!.width - actionBounds.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(accountsBounds!.width - actionBounds.width)).toBeLessThanOrEqual(1);
+        expect(accountsBounds!.y).toBeGreaterThan(loginBounds!.y);
+      } else {
+        expect(Math.abs(loginBounds!.y - accountsBounds!.y)).toBeLessThanOrEqual(1);
+      }
       await screenshot(page, `vinted-settings-${width}-${theme}`);
       await expect(checkbox).toBeChecked();
       await checkbox.click();

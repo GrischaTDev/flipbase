@@ -8,6 +8,8 @@ Nutzerauftrag vom 03.11.2026. Zusammengehörige Änderungen bleiben auf
 2. **Kontoeinstellungen:** Abrufintervall und Starten/Pausieren mit passenden
    Icons nebeneinander; gespeicherten Abstand, Versand-Erklärung und Abrufdetails
    entfernen. Hintergrundaktualisierungen erhalten sichtbare Werte und Fokus.
+   Untere Kontoaktionen nutzen die gesamte Dialogbreite und stapeln sich auf
+   schmalen Bildschirmen.
 3. **Benachrichtigungen:** zwei beschriftete Schalter für neue Favoriten und neue
    Nachrichten; Auswahl kontoweise dauerhaft speichern. Eingehende System- und
    Transaktionsmeldungen aus dem Postfach einschließen, ohne daraus ungeprüft

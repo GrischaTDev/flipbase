@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-03 - Juna - Untere Kontoaktionen über die Dialogbreite strecken
+
+**Nachabnahme:** Auf Nutzerwunsch „Vinted-Anmeldung öffnen“ und „Kontenübersicht“ unten über die gesamte verfügbare Breite verteilt. Desktop zeigt beide Aktionen nebeneinander mit ausreichend Platz für ihre Beschriftungen; schmale Ansichten stapeln zwei jeweils vollständig breite Buttons. Vorhandene Shared-Button-Eingänge genutzt, keine inneren Controls überschrieben und keine weiteren Abläufe geändert. Denselben eigenen Zweig fortgesetzt; sauberer Stand und GitHub vorab geprüft, kein neuer Hauptzweigstand.
+
+**Prüfung:** Angular-Produktionsbau einschließlich Vorlagen und gezielte Format-/Lintprüfung unter Node 22.23.4 erfolgreich. Sechs bestehende Vinted-Browserfälle bei 320/390/1440 Pixel in Hell/Dunkel erfolgreich, einschließlich AXE, Kontowechsel, Speichern und Rückfokus. Ergänzte Messungen bestätigen die gesamte Aktionsbreite sowie Desktopreihe und mobiles Stapeln. Screenshots und Protokolle privat unter `.codex/tmp/marketplace-ui-validation/action-width-*`. Keine fachfremden Prüfungen wiederholt; kein Push, PR oder Merge.
+
 ## 2026-11-03 - Juna - Marktplatzköpfe und Vinted-Kontoeinstellungen vereinfachen
 
 **Auftrag und Grundlage:** Nutzerwünsche in [fünf zusammengehörige Schritte](implementation/marketplace-ui-refinements.md) aufgeteilt und mit drei Agenten auf demselben neuen `juna/marketplace-ui-refinements`-Zweig bearbeitet. Grundlage ist der frisch abgerufene Hauptstand `7a28e7b7`; erneuter GitHub-Abgleich ohne neuere Hauptzweigcommits. Fremde Erweiterungsänderungen und belegte Arbeitskopien bleiben unverändert. Keine neuen Abhängigkeiten.
