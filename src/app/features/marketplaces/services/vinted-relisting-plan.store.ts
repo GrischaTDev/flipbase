@@ -49,7 +49,11 @@ export class VintedRelistingPlanStore {
         void this.refresh();
       });
     });
-    const timer = setInterval(() => void this.refresh(), 5000);
+    const timer = setInterval(() => {
+      // Derselbe Takt aktualisiert den Countdown auch bei einem noch offenen Abruf.
+      this.plans.update((plans) => plans.map((plan) => ({ ...plan, label: this.label(plan.job) })));
+      void this.refresh();
+    }, 5000);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.generation++;
@@ -58,6 +62,19 @@ export class VintedRelistingPlanStore {
   }
   canEdit(job: VintedListingJob): boolean {
     return ['queued', 'paused', 'failed'].includes(job.state);
+  }
+  private label(job: VintedListingJob): string {
+    if (job.errorCode === 'editing') return 'Wird bearbeitet';
+    if (job.state === 'claimed') return 'Wird vorbereitet';
+    if (job.state === 'writing')
+      return job.relistDeletedAt ? 'Wird inseriert' : 'Inserat wird gelöscht';
+    if (job.state !== 'queued') return vintedListingJobLabel(job);
+    if (!job.scheduledAt) return 'Wartet auf den Start';
+    const remaining = Date.parse(job.scheduledAt) - Date.now();
+    if (remaining <= 0) return 'Wartet auf den Start';
+    if (remaining < 60_000) return 'Wird in weniger als einer Minute relistet';
+    const minutes = Math.ceil(remaining / 60_000);
+    return `Wird in ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'} relistet`;
   }
   async refresh(): Promise<void> {
     if (this.destroyed || this.refreshing || !this.binding()) return;
@@ -87,18 +104,7 @@ export class VintedRelistingPlanStore {
             ? previous.imageUrl
             : ((await this.images.thumbnailUrls([draft])).get(draft.id) ?? null);
         if (generation !== this.generation || this.destroyed) return;
-        const scheduled = job.scheduledAt && job.state === 'queued';
-        const label =
-          job.errorCode === 'editing'
-            ? 'Wird bearbeitet'
-            : scheduled
-              ? 'Veröffentlichung geplant für ' +
-                new Intl.DateTimeFormat('de-DE', {
-                  dateStyle: 'short',
-                  timeStyle: 'short',
-                  timeZone: job.timeZone ?? undefined,
-                }).format(new Date(job.scheduledAt!))
-              : vintedListingJobLabel(job);
+        const label = this.label(job);
         const plan = { job, draft, imageUrl, label };
         plans.push(plan);
       }

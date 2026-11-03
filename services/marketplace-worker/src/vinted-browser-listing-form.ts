@@ -17,6 +17,10 @@ import {
   collectVintedListingFormMetadata,
   parseVintedListingChoices,
 } from './vinted-listing-contracts.ts';
+import {
+  VintedListingControlError,
+  vintedListingFormControl,
+} from './vinted-listing-form-controls.ts';
 
 function assertListingForm(page: Page): void {
   const url = new URL(page.url());
@@ -106,11 +110,22 @@ export async function openVintedListingChoices(
     if (!choices) throw new VintedListingReadError('package_parse');
     return choices;
   }
-  const input = page.locator(`#${field}`);
+  let input = page.locator(`#${field}`);
+  const openingStartedAt = performance.now();
+  const openingTimeout = field === 'brand' ? 15_000 : 5000;
   try {
+    input = (await vintedListingFormControl(page, field))!.locator;
     // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
-    await input.click({ timeout: field === 'brand' ? 15_000 : 5000 });
+    await input.click({
+      timeout: Math.max(1, openingTimeout - (performance.now() - openingStartedAt)),
+    });
   } catch (error) {
+    if (error instanceof VintedListingControlError) {
+      const step = vintedListingReadSteps.find(
+        (candidate) => candidate === `${field}_open_${error.reason}`,
+      );
+      throw step ? new VintedListingReadError(step) : vintedListingChoiceReadError(field, 'open');
+    }
     throw await listingChoiceOpenError(page, input, field, error);
   }
   if (field === 'category') {
@@ -210,14 +225,21 @@ async function readPopup(
     authorize?: () => Promise<void>;
   } = {},
 ): Promise<VintedListingChoiceSnapshot> {
+  let result: VintedListingChoiceSnapshot;
   try {
     await options.authorize?.();
-    const result = await openVintedListingChoices(page, field, categoryPath, options);
+    result = await openVintedListingChoices(page, field, categoryPath, options);
     await options.authorize?.();
-    return result;
-  } finally {
-    await closeVintedListingChoices(page, field);
+  } catch (error) {
+    try {
+      await closeVintedListingChoices(page, field);
+    } catch {
+      // Das Aufräumen darf einen bereits belegten Lese- oder Rechtefehler nicht ersetzen.
+    }
+    throw error;
   }
+  await closeVintedListingChoices(page, field);
+  return result;
 }
 
 /** Liest Auswahl und Sperren. Öffnen/Schließen eines Popups speichert nichts bei Vinted. */
@@ -304,7 +326,10 @@ export async function readVintedListingCategoryFields(
   );
   await options.authorize?.();
   options.onReadField?.('condition');
-  await page.locator('#condition').waitFor({ state: 'visible', timeout: 5000 });
+  await (await vintedListingFormControl(page, 'condition'))!.locator.waitFor({
+    state: 'visible',
+    timeout: 5000,
+  });
   options.onReadField?.('metadata');
   const { presentFields, ...metadata } = await page.evaluate(collectVintedListingFormMetadata);
   const fields: VintedListingChoiceSnapshot[] = [];

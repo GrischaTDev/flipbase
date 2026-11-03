@@ -19,9 +19,13 @@ import { parseMarketplacePage } from '../../models/marketplace-response';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { parseVintedListingJob } from '../../models/vinted-listing-job';
 import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-plan';
+import { vintedListingSourceContent } from '../../models/vinted-listing-source';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  vi.useRealTimers();
+});
 
 function setup(connectionId: string) {
   const query = new BehaviorSubject(convertToParamMap({ connectionId }));
@@ -50,7 +54,12 @@ function setup(connectionId: string) {
     providers: [
       {
         provide: VintedRelistingPlanStore,
-        useValue: { plans: signal([]), error: signal(null), refresh: vi.fn() },
+        useValue: {
+          plans: signal([]),
+          error: signal(null),
+          refresh: vi.fn(),
+          canEdit: VintedRelistingPlanStore.prototype.canEdit,
+        },
       },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'price-user' }) } },
       MarketplaceListingStatisticsStore,
@@ -208,6 +217,7 @@ it('erhält Preisdialog und laufende Speicherung bei einer Hintergrundaktualisie
   expect(component.savingPrice()).toBe(true);
   expect(component.priceEditor.open()).toBe(false);
   expect(component.operations.isRunning(entry)).toBe(true);
+  expect(component.isPreparingRelisting(entry)).toBe(false);
   await component.priceEditor.save();
   expect(store.saveListingPrice).toHaveBeenCalledOnce();
   finish();
@@ -367,6 +377,199 @@ it('stellt die angenommene Aufnahme dar, auch wenn ein neuerer Entwurf nicht bea
   expect(f.plans.plans()[0]?.draft.content.priceCents).toBe(2000);
   expect(f.load).not.toHaveBeenCalled();
 });
+it('zählt auf dem vorhandenen Takt weiter und behauptet beim Termin noch keine Ausführung', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
+  const record = acceptedPlan();
+  const f = loadedPlanStore({
+    ...record,
+    job: { ...record.job, scheduledAt: '2026-11-03T12:05:00Z' },
+  });
+  await settlePlans();
+  expect(f.plans.plans()[0]?.label).toBe('Wird in 5 Minuten relistet');
+  // Eine verzögerte Backendantwort darf die bereits sichtbare Restzeit nicht einfrieren.
+  f.listPlans.mockImplementation(() => new Promise(() => undefined));
+  vi.advanceTimersByTime(180_000);
+  await settlePlans();
+  expect(f.plans.plans()[0]?.label).toBe('Wird in 2 Minuten relistet');
+  vi.advanceTimersByTime(120_000);
+  await settlePlans();
+  expect(f.plans.plans()[0]?.label).toBe('Wartet auf den Start');
+  expect(f.listPlans).toHaveBeenCalledTimes(2);
+});
+it.each([
+  ['claimed', null, 'Wird vorbereitet'],
+  ['writing', null, 'Inserat wird gelöscht'],
+  ['claimed', '2026-11-03T12:00:00Z', 'Wird vorbereitet'],
+  ['writing', '2026-11-03T12:00:00Z', 'Wird inseriert'],
+] as const)(
+  'zeigt tatsächliche Ausführung %s nach Löschung %s und sperrt die Planbearbeitung',
+  async (state, relistDeletedAt, label) => {
+    const record = acceptedPlan();
+    const f = loadedPlanStore({ ...record, job: { ...record.job, state, relistDeletedAt } });
+    await settlePlans();
+    expect(f.plans.plans()[0]?.label).toBe(label);
+    expect(f.plans.canEdit(f.plans.plans()[0]!.job)).toBe(false);
+  },
+);
+it('erhält Artikelstand und Position von Vorbereitung über Planung bis zur Ausführung kontogebunden', async () => {
+  const { component, store } = setup('');
+  const page = parseMarketplacePage(
+    {
+      items: ['vorher', 'quelle', 'nachher'].map((id, index) => ({
+        ...accountA,
+        id,
+        externalId: String(123 + index),
+        title: id,
+        price: 20,
+        currency: 'EUR',
+        publicationState: 'active',
+        brand: 'Marke',
+        size: 'M',
+      })),
+      total: 3,
+      nextCursor: null,
+    },
+    accountA,
+  );
+  const currentPage = signal(page);
+  vi.spyOn(component, 'page').mockImplementation(() => currentPage());
+  TestBed.tick();
+  const source = page.items[1]!;
+  expect(component.tableRows().map((row) => row.entry.id)).toEqual(['vorher', 'quelle', 'nachher']);
+  let finish!: () => void;
+  const preparing = component.operations.prepareRelisting(
+    source,
+    () => new Promise<void>((resolve) => (finish = resolve)),
+  );
+  expect(component.actionsVisible(source)).toBe(true);
+  expect(component.priceActionVisible(source)).toBe(true);
+  expect(component.canCreateFrom(source)).toBe(false);
+  expect(component.tableRows()[1]?.running).toBe(true);
+  expect(component.isPreparingRelisting(source)).toBe(true);
+  component.openEditor(source, 'template');
+  component.changePrice(source, new MouseEvent('click'));
+  expect(component.editorSource()).toBeNull();
+  expect(component.priceEditor.open()).toBe(false);
+  finish();
+  await preparing;
+  component.changePrice(source, new MouseEvent('click'));
+  component.priceEditor.control.setValue(25);
+  expect(component.priceEditor.open()).toBe(true);
+  const record = acceptedPlan();
+  const plan = {
+    ...record,
+    job: {
+      ...record.job,
+      workspaceId: source.workspaceId,
+      connectionId: source.connectionId,
+      relistExternalId: source.externalId!,
+    },
+    draft: { ...record.draft, connectionId: source.connectionId },
+    imageUrl: null,
+    label: 'Wird in 5 Minuten relistet',
+  };
+  component.plans.plans.set([plan]);
+  await component.savePrice();
+  expect(store.saveListingPrice).not.toHaveBeenCalled();
+  TestBed.tick();
+  expect(component.priceEditor.open()).toBe(false);
+  currentPage.set({ ...page, items: [page.items[0]!, page.items[2]!] });
+  TestBed.tick();
+  const rows = component.tableRows();
+  expect(rows.map((row) => row.entry.id)).toEqual(['vorher', 'quelle', 'nachher']);
+  expect(rows[1]?.entry).toMatchObject({
+    brand: 'Marke',
+    size: 'M',
+    title: plan.draft.content.title,
+  });
+  expect(rows[1]?.running).toBe(false);
+  expect(component.actionsBlocked(rows[1]!.entry)).toBe(true);
+  currentPage.set({
+    ...page,
+    items: [page.items[0]!, { ...source, id: 'reimported-source' }, page.items[2]!],
+  });
+  TestBed.tick();
+  expect(component.tableRows().map((row) => row.entry.id)).toEqual([
+    'vorher',
+    'reimported-source',
+    'nachher',
+  ]);
+  component.plans.plans.set([
+    { ...plan, job: { ...plan.job, state: 'writing' }, label: 'Wird inseriert' },
+  ]);
+  TestBed.tick();
+  expect(component.tableRows()[1]?.running).toBe(true);
+  expect(component.tableRows()[1]?.runningLabel).toBe('Wird inseriert');
+  store.selectedConnection.set(accountB);
+  expect(component.tableRows()).toEqual([]);
+  TestBed.tick();
+  expect(component.tableRows()).toEqual([]);
+});
+it('öffnet einen inzwischen gestarteten Plan auch bei einem verspäteten Bearbeitungsklick nicht', () => {
+  const { component } = setup('');
+  const record = acceptedPlan();
+  const entry = parseMarketplacePage(
+    {
+      items: [{ ...accountA, id: 'source', externalId: '123', title: 'Quelle' }],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0]!;
+  const plan = {
+    ...record,
+    job: { ...record.job, workspaceId: entry.workspaceId, connectionId: entry.connectionId },
+    imageUrl: null,
+    label: 'Geplant',
+  };
+  component.plans.plans.set([plan]);
+  component.editPlan(entry, plan);
+  expect(component.editingPlan()).toEqual(plan.job);
+  component.editingPlan.set(null);
+  component.plans.plans.set([{ ...plan, job: { ...plan.job, state: 'writing' } }]);
+  component.editPlan(entry, plan);
+  expect(component.editingPlan()).toBeNull();
+});
+it('hält den Preis-Aktionsplatz bei fehlendem Listenpreis sichtbar und verwendet vorhandene Details zum Relisten', () => {
+  const { component } = setup('');
+  const page = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: 'source',
+          externalId: '123',
+          title: 'Quelle',
+          price: null,
+          currency: 'EUR',
+          publicationState: 'active',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  );
+  const entry = {
+    ...page.items[0]!,
+    listingContent: {
+      ...emptyVintedListingContent(),
+      title: 'Quelle',
+      categoryId: 2738,
+      categoryLabel: 'Fußballschuhe',
+      priceCents: 2000,
+    },
+  };
+  vi.spyOn(component, 'page').mockReturnValue({ ...page, items: [entry] });
+  TestBed.tick();
+  expect(vintedListingSourceContent(entry).priceCents).toBe(2000);
+  expect(component.canCreateFrom(entry)).toBe(true);
+  expect(component.priceActionVisible(entry)).toBe(true);
+  expect(component.priceEditor.available(entry)).toBe(false);
+  component.changePrice(entry, new MouseEvent('click'));
+  expect(component.priceEditor.open()).toBe(false);
+});
 it('entfernt die bestätigte Karte erst nach erfolgreichem Laden der neuen Lesekopie', async () => {
   const record = acceptedPlan();
   const confirmed = {
@@ -398,19 +601,30 @@ it('blendet beim bestätigten Übergang alte und neue Cachekarte aus, bis die ne
     },
     accountA,
   );
-  vi.spyOn(component, 'page').mockReturnValue(old);
+  const currentPage = signal(old);
+  vi.spyOn(component, 'page').mockImplementation(() => currentPage());
   component.plans.plans.set([
     {
       ...record,
-      job: { ...record.job, state: 'confirmed', externalId: '456' },
+      job: {
+        ...record.job,
+        connectionId: accountA.connectionId,
+        state: 'confirmed',
+        externalId: '456',
+      },
       imageUrl: null,
       label: 'Veröffentlicht',
     },
   ]);
+  TestBed.tick();
   expect(component.entries()).toEqual([]);
+  expect(component.tableRows().map((row) => row.entry.externalId)).toEqual(['123']);
+  expect(component.tableRows()[0]?.plan?.job.state).toBe('confirmed');
   component.plans.plans.set([]);
-  vi.spyOn(component, 'page').mockReturnValue({ ...old, items: [old.items[1]!] });
+  currentPage.set({ ...old, items: [old.items[1]!] });
+  TestBed.tick();
   expect(component.entries().map((entry) => entry.externalId)).toEqual(['456']);
+  expect(component.tableRows().map((row) => row.entry.externalId)).toEqual(['456']);
   expect(store.selectedConnection().connectionId).toBe(accountA.connectionId);
 });
 

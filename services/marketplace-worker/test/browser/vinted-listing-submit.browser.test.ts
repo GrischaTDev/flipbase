@@ -337,6 +337,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
   const browser = await chromium.launch({ headless: true });
   try {
     for (const options of [
+      { modernControls: true },
       {},
       { photoMetadataAfterSelection: true },
       { photoMetadataAfterSelection: true, missingAiPhoto: true },

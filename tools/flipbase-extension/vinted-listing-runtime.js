@@ -424,15 +424,18 @@
     );
   }
 
-  function collectFormMetadata() {
-    const root = document.querySelector('#content');
-    if (
-      !root ||
-      !root.querySelector('input[name="title"]') ||
-      !root.querySelector('textarea[name="description"]')
-    )
-      throw new Error('Vinted-Formular unvollständig.');
-    const names = ['brand', 'size', 'condition', 'color', 'material'];
+  // Selbständig serialisierbar: dieselbe Feldbindung dient Metadaten und einzelnen Controls.
+  function collectFormMetadata(requestedField) {
+    const testIds = {
+      category: 'catalog-select-dropdown-input',
+      brand: 'brand-select-dropdown-input',
+      size: 'category-size-single-grid-input',
+      condition: 'category-condition-single-list-input',
+      color: 'color-select-dropdown-input',
+      material: 'category-material-multi-list-input',
+    };
+    const roots = document.querySelectorAll('#content');
+    const root = roots.length === 1 ? roots[0] : null;
     const visible = (element) => {
       if (!element.getClientRects().length || element.closest('[hidden],[aria-hidden="true"]'))
         return false;
@@ -443,10 +446,77 @@
       }
       return true;
     };
-    const presentFields = names.filter((name) => {
-      const element = root.querySelector(`#${name}`);
-      return element && visible(element);
-    });
+    const control = (field) => {
+      const absent = {
+        state: 'missing',
+        kind: null,
+        value: null,
+        testId: null,
+        visible: false,
+        scoped: !!root,
+      };
+      if (!Object.hasOwn(testIds, field) || roots.length > 1)
+        return { ...absent, state: 'invalid' };
+      const scope = root || document;
+      const inputs = [...scope.querySelectorAll('#' + field)];
+      const buttons = [...scope.querySelectorAll('[data-testid="' + testIds[field] + '"]')];
+      const elements = [...new Set([...inputs, ...buttons])];
+      if (elements.length === 0) return absent;
+      if (elements.length !== 1) return { ...absent, state: 'multiple' };
+      const element = elements[0];
+      if (
+        inputs.includes(element) &&
+        element instanceof HTMLInputElement &&
+        ['text', 'search'].includes(element.type) &&
+        (!element.name || element.name === field) &&
+        !buttons.includes(element)
+      )
+        return {
+          state: 'ready',
+          kind: 'input',
+          value: element.value.trim(),
+          testId: null,
+          visible: visible(element),
+          scoped: !!root,
+        };
+      if (
+        !root ||
+        !buttons.includes(element) ||
+        !(element instanceof HTMLButtonElement) ||
+        element.type !== 'button' ||
+        !element.id ||
+        [...document.querySelectorAll('[id]')].filter((node) => node.id === element.id).length !== 1
+      )
+        return { ...absent, state: 'invalid' };
+      const labels = [...(element.labels || [])].filter(
+        (label) =>
+          root.contains(label) && label.htmlFor === element.id && label.control === element,
+      );
+      if (labels.length !== 1 || !labels[0].textContent.trim())
+        return { ...absent, state: 'invalid' };
+      return {
+        state: 'ready',
+        kind: 'button',
+        value: element.innerText.replace(/\s+/g, ' ').trim(),
+        testId: testIds[field],
+        visible: visible(element),
+        scoped: true,
+      };
+    };
+    if (typeof requestedField === 'string') return control(requestedField);
+    if (
+      !root ||
+      !root.querySelector('input[name="title"]') ||
+      !root.querySelector('textarea[name="description"]')
+    )
+      throw new Error('Vinted-Formular unvollständig.');
+    const names = ['brand', 'size', 'condition', 'color', 'material'];
+    const controls = new Map(['category', ...names].map((name) => [name, control(name)]));
+    if ([...controls.values()].some((entry) => !['ready', 'missing'].includes(entry.state)))
+      throw new Error('Vinted-Formularfeld nicht eindeutig.');
+    const presentFields = names.filter(
+      (name) => controls.get(name).state === 'ready' && controls.get(name).visible,
+    );
     // Die sichtbare Sendungsgrößen-Kachel bleibt maßgeblich, auch bei ausgeblendetem Radio.
     if (
       [...root.querySelectorAll('input[id^="package_type_selector_"]')].some(
@@ -467,10 +537,53 @@
     ]);
     for (const element of root.querySelectorAll('input,textarea,select')) {
       if (!visible(element) || ['hidden', 'button', 'submit'].includes(element.type)) continue;
+      const nativeSelector = element.matches(
+        'input[name="title"],input[name="price"],textarea[name="description"],input[name="photos"][type="file"]',
+      )
+        ? element.tagName.toLowerCase() + '[name="' + element.name + '"]'
+        : null;
+      if (nativeSelector && root.querySelectorAll(nativeSelector).length === 1) continue;
+      if (
+        ['title', 'description', 'price', 'photos'].includes(element.name) ||
+        ['title', 'description', 'price', 'photos'].includes(element.id)
+      ) {
+        unknownFields.add(element.id || element.name);
+        continue;
+      }
+      const current = controls.get(element.name);
+      if (
+        element instanceof HTMLInputElement &&
+        !element.id &&
+        element.labels.length === 0 &&
+        !element.hasAttribute('aria-label') &&
+        !element.hasAttribute('aria-labelledby') &&
+        current?.state === 'ready' &&
+        current.kind === 'button' &&
+        root.querySelectorAll('input[name="' + element.name + '"]').length === 1
+      )
+        continue;
+      if (
+        controls.has(element.name) &&
+        (!(element instanceof HTMLInputElement) || element.id !== element.name)
+      ) {
+        unknownFields.add(element.name);
+        continue;
+      }
       const name = element.id || element.name;
       if (!allowed.has(name) && !/^package_type_selector_[1-9][0-9]*$/.test(name))
         unknownFields.add(name || 'unknown_field');
     }
+    for (const element of root.querySelectorAll('button[data-testid$="-input"]'))
+      if (
+        visible(element) &&
+        ![...controls.values()].some(
+          (entry) =>
+            entry.state === 'ready' &&
+            entry.kind === 'button' &&
+            entry.testId === element.dataset.testid,
+        )
+      )
+        unknownFields.add(element.dataset.testid || 'unknown_field');
     const photos = root.querySelector('input[name="photos"][type="file"]');
     const title = root.querySelector('input[name="title"]');
     const description = root.querySelector('textarea[name="description"]');
@@ -1355,6 +1468,7 @@
     parseCategoryFields,
     collectChoices,
     collectFormMetadata,
+    collectFormControl: collectFormMetadata,
     isResult,
     validateSubmission,
   });

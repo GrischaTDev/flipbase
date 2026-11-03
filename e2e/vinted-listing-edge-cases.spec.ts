@@ -90,6 +90,7 @@ interface ListingFixture {
   createdAt?: string | null;
   publicationState?: 'active' | 'reserved' | 'draft' | 'hidden' | 'ended' | 'unknown';
   imageUrls?: readonly string[];
+  price?: number | null;
 }
 
 async function prepareListing(page: Page, listing: ListingFixture) {
@@ -106,7 +107,7 @@ async function prepareListing(page: Page, listing: ListingFixture) {
     externalId: '98765',
     publicationState: 'active',
     ...listing,
-    price: 29.9,
+    price: listing.price === undefined ? 29.9 : listing.price,
     currency: 'EUR',
     imageUrl: listing.imageUrls ? (listing.imageUrls[0] ?? null) : images[0],
     imageUrls: listing.imageUrls ?? images,
@@ -1052,6 +1053,7 @@ for (const width of [390, 1440])
           text: 'Sehr gut erhalten.',
           textState: 'loaded',
           imageUrls: ['https://images1.vinted.net/tc/relistTest/f800/1788288106.jpg'],
+          price: null,
         });
         await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
         const original = Buffer.from(
@@ -1129,6 +1131,16 @@ for (const width of [390, 1440])
         );
         await page.goto('/marketplaces/vinted/listings');
         const wardrobe = page.locator('app-vinted-listings');
+        await expect(
+          wardrobe.getByRole('button', { name: 'Preis für Meine Schuhe ändern', exact: true }),
+        ).toBeDisabled();
+        const gridActionsBefore = await wardrobe
+          .locator('[data-listing-actions]')
+          .evaluate((bar) => {
+            const card = bar.closest('article')!.getBoundingClientRect();
+            const bounds = bar.getBoundingClientRect();
+            return { height: bounds.height, offset: bounds.y - card.y, cardHeight: card.height };
+          });
         if (width === 1440) {
           await wardrobe
             .getByRole('button', { name: 'Preis für Meine Schuhe ändern', exact: true })
@@ -1143,6 +1155,10 @@ for (const width of [390, 1440])
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
         const sourceActions = wardrobe.locator('[data-listing-row] td').last();
         await expect(sourceActions.getByRole('button')).toHaveCount(4);
+        const listActionsBefore = await sourceActions
+          .locator('[data-listing-actions]')
+          .boundingBox();
+        const listRowBefore = await wardrobe.locator('[data-listing-row]').boundingBox();
         const actionBounds = await sourceActions.boundingBox();
         for (const button of await sourceActions.getByRole('button').all()) {
           const bounds = await button.boundingBox();
@@ -1202,6 +1218,16 @@ for (const width of [390, 1440])
         await expect.poll(() => providerReads).toBe(1);
         await expect(editor).toHaveCount(0);
         await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+        await expect(sourceActions.getByRole('button')).toHaveCount(4);
+        for (const button of await sourceActions.getByRole('button').all())
+          await expect(button).toBeDisabled();
+        const preparingActions = await sourceActions
+          .locator('[data-listing-actions]')
+          .boundingBox();
+        expect(preparingActions!.height).toBe(listActionsBefore!.height);
+        expect((await wardrobe.locator('[data-listing-row]').boundingBox())!.height).toBe(
+          listRowBefore!.height,
+        );
         releaseProvider();
         await expect(page.locator('[data-action-overview-error]')).toBeVisible();
         await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
@@ -1381,7 +1407,7 @@ for (const width of [390, 1440])
           action: 'publish',
           state: 'queued',
           version: 1,
-          scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+          scheduledAt: new Date(Date.now() + 300000).toISOString(),
           timeZone: 'Europe/Berlin',
           latePolicy: 'pause_after_30_minutes',
           errorCode: null as string | null,
@@ -1477,6 +1503,7 @@ for (const width of [390, 1440])
               })
             : route.fulfill({ contentType: 'image/jpeg', body: photo }),
         );
+        await page.clock.install();
         const importedResponse = page.waitForResponse(
           (response) =>
             response.url().endsWith('/rpc/marketplace_read_snapshot') &&
@@ -1487,7 +1514,41 @@ for (const width of [390, 1440])
         const plan = wardrobe
           .locator('[data-relisting-plan]')
           .filter({ hasText: /Meine Schuhe|Neu geprüfte Schuhe/ });
-        await expect(plan).toContainText('Veröffentlichung geplant für');
+        await expect(plan).toContainText('Wird in 5 Minuten relistet');
+        await expect(plan.getByRole('button')).toHaveCount(4);
+        const planImageBox = await plan.locator('app-product-thumbnail').boundingBox();
+        const planStatusBox = await plan.getByRole('status').boundingBox();
+        expect(Math.abs(planStatusBox!.y - planImageBox!.y - 8)).toBeLessThan(2);
+        const plannedGridActions = await plan.locator('[data-listing-actions]').evaluate((bar) => {
+          const card = bar.closest('article')!.getBoundingClientRect();
+          const bounds = bar.getBoundingClientRect();
+          return { height: bounds.height, offset: bounds.y - card.y, cardHeight: card.height };
+        });
+        expect(plannedGridActions).toEqual(gridActionsBefore);
+        await expect(plan.locator('app-loading-indicator')).toHaveCount(0);
+        await screenshot(page, `vinted-relist-countdown-${width}-${theme}`, wardrobe);
+        await page.clock.fastForward(180000);
+        await expect(plan).toContainText('Wird in 2 Minuten relistet');
+        await page.clock.fastForward(120000);
+        await expect(plan).toContainText('Wartet auf den Start');
+        await expect(plan.locator('app-loading-indicator')).toHaveCount(0);
+        plannedJob = { ...plannedJob, state: 'writing' };
+        await page.clock.fastForward(5000);
+        await expect(plan).toContainText('Wird inseriert');
+        await expect(plan.locator('app-loading-indicator')).toBeVisible();
+        for (const button of await plan.getByRole('button').all())
+          await expect(button).toBeDisabled();
+        expect((await plan.locator('[data-listing-actions]').boundingBox())!.height).toBe(
+          gridActionsBefore.height,
+        );
+        await screenshot(page, `vinted-relist-running-${width}-${theme}`, wardrobe);
+        plannedJob = {
+          ...plannedJob,
+          state: 'queued',
+          scheduledAt: new Date((await page.evaluate(() => Date.now())) + 300000).toISOString(),
+        };
+        await page.clock.fastForward(5000);
+        await expect(plan).toContainText('Wird in 5 Minuten relistet');
         await expect(
           wardrobe.getByRole('heading', {
             name: 'Noch keine Artikel im Kleiderschrank',
@@ -1498,7 +1559,27 @@ for (const width of [390, 1440])
           wardrobe.getByRole('button', { name: 'Meine Schuhe relisten', exact: true }),
         ).toHaveCount(0);
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
-        await expect(plan).toContainText('Veröffentlichung geplant für');
+        await expect(plan).toContainText('Wird in 5 Minuten relistet');
+        await expect(wardrobe.locator('app-vinted-listings-table')).toBeVisible();
+        await expect(plan.locator('[data-listing-actions]')).toBeVisible();
+        expect((await plan.locator('[data-listing-actions]').boundingBox())!.height).toBe(
+          listActionsBefore!.height,
+        );
+        expect((await plan.boundingBox())!.height).toBe(listRowBefore!.height);
+        await test.info().attach('relist-action-layout', {
+          contentType: 'application/json',
+          body: JSON.stringify({
+            width,
+            theme,
+            gridBefore: gridActionsBefore,
+            gridPlanned: plannedGridActions,
+            listActionHeightBefore: listActionsBefore!.height,
+            listActionHeightPlanned: (await plan.locator('[data-listing-actions]').boundingBox())!
+              .height,
+            listRowHeightBefore: listRowBefore!.height,
+            listRowHeightPlanned: (await plan.boundingBox())!.height,
+          }),
+        });
         await expect(
           wardrobe.getByRole('heading', {
             name: 'Noch keine Artikel im Kleiderschrank',

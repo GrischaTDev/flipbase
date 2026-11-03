@@ -55,68 +55,29 @@
   @if (viewMode() === 'list') {
     <app-vinted-listings-table
       [rows]="tableRows()"
-      [plans]="plans.plans()"
       [periodLabel]="statistics.periodLabel()"
       [actionsTemplate]="listingActions"
-      [planEditable]="plans.canEdit"
-      (planEdited)="editingPlan.set($event)"
     />
   } @else {
     <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-      @for (plan of plans.plans(); track plan.job.id) {
+      @for (row of tableRows(); track row.entry.id) {
+        @let entry = row.entry;
         <article
-          data-relisting-plan
-          class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface"
-          [attr.aria-label]="plan.draft.content.title"
-        >
-          <div class="relative">
-            <app-product-thumbnail
-              class="block w-full"
-              [src]="plan.imageUrl"
-              [alt]="plan.draft.content.title"
-              size="listing"
-              [flush]="true"
-            />
-            <p
-              class="absolute inset-x-2 top-2 rounded-md bg-fb-surface px-2 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
-            >
-              {{ plan.label }}
-            </p>
-          </div>
-          <div class="min-w-0 flex-1 space-y-3 p-3">
-            <h2 class="truncate text-sm font-semibold text-fb-text-primary">
-              {{ plan.draft.content.title }}
-            </h2>
-            <p class="text-sm text-fb-text-secondary">
-              {{
-                (plan.draft.content.priceCents ?? 0) / 100
-                  | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-              }}
-            </p>
-          </div>
-          <div class="flex justify-end border-t border-fb-border-subtle bg-fb-subtle/50 p-2">
-            <app-button
-              variant="table-action"
-              size="slim"
-              [icon]="editIcon"
-              [iconOnly]="true"
-              title="Planung bearbeiten"
-              [ariaLabel]="'Planung für ' + plan.draft.content.title + ' bearbeiten'"
-              [disabled]="!plans.canEdit(plan.job)"
-              (clicked)="editingPlan.set(plan.job)"
-            />
-          </div>
-        </article>
-      }
-      @for (entry of entries(); track entry.id) {
-        <article
-          data-listing-row
-          [class.opacity-60]="operations.isRunning(entry)"
-          [attr.aria-busy]="operations.isRunning(entry) ? 'true' : null"
+          [attr.data-listing-row]="row.plan ? null : ''"
+          [attr.data-relisting-plan]="row.plan ? '' : null"
+          [class.opacity-60]="row.running || !!row.plan"
+          [attr.aria-busy]="row.running ? 'true' : null"
+          [attr.aria-label]="row.plan ? entry.title : null"
           class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface"
         >
           <a
-            [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
+            [routerLink]="
+              row.plan || row.running
+                ? null
+                : ['/marketplaces/vinted/listings', entry.connectionId, entry.id]
+            "
+            [attr.aria-disabled]="row.plan || row.running ? 'true' : null"
+            [attr.tabindex]="row.plan || row.running ? -1 : null"
             class="block min-w-0 flex-1 rounded-t-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
             [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
           >
@@ -131,12 +92,20 @@
               @if (entry.promoted) {
                 <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
               }
-              @if (operations.isRunning(entry)) {
+              @if (row.running || row.plan) {
                 <p
                   role="status"
-                  class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-fb-surface px-3 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
+                  class="absolute flex items-center justify-center gap-2 rounded-md bg-fb-surface px-2 py-1 text-xs font-medium text-fb-text-primary shadow-sm"
+                  [class]="
+                    row.plan || isPreparingRelisting(entry)
+                      ? 'inset-x-2 top-2'
+                      : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap'
+                  "
                 >
-                  {{ operations.runningLabel(entry) }}
+                  @if (row.running) {
+                    <app-loading-indicator />
+                  }
+                  {{ row.runningLabel }}
                 </p>
               }
             </div>
@@ -148,7 +117,9 @@
                 {{ entry.title }}
               </h2>
               @if (publicationBadge(entry.publicationState); as badge) {
-                <app-badge class="mt-2" [tone]="badge.tone">{{ badge.label }}</app-badge>
+                <app-badge class="mt-2" [class.invisible]="!!row.plan" [tone]="badge.tone">{{
+                  badge.label
+                }}</app-badge>
               }
               <div class="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
                 @if (entry.brand || entry.size) {
@@ -161,6 +132,7 @@
                 }
                 <app-vinted-listing-age
                   class="ml-auto shrink-0"
+                  [class.invisible]="!!row.plan"
                   [publishedAt]="entry.publishedAt"
                   [publicationAge]="entry.publicationAge"
                   [createdAt]="entry.createdAt"
@@ -197,11 +169,11 @@
           </a>
           <div
             class="flex flex-wrap items-center gap-2 border-t border-fb-border-subtle bg-fb-subtle/50 p-2"
-            [attr.inert]="operations.isRunning(entry) ? '' : null"
+            data-listing-actions
           >
             <ng-container
               [ngTemplateOutlet]="listingActions"
-              [ngTemplateOutletContext]="{ $implicit: entry }"
+              [ngTemplateOutletContext]="{ $implicit: entry, plan: row.plan }"
             />
           </div>
         </article>
@@ -212,14 +184,14 @@
       }
     </div>
   }
-  <ng-template #listingActions let-entry>
-    @if (priceEditor.available(entry)) {
+  <ng-template #listingActions let-entry let-plan="plan">
+    @if (priceActionVisible(entry)) {
       <app-button
         variant="table-action"
         tone="neutral"
         size="slim"
         [icon]="priceIcon"
-        [disabled]="savingPrice()"
+        [disabled]="savingPrice() || actionsBlocked(entry) || !priceEditor.available(entry)"
         [iconOnly]="true"
         title="Preis ändern"
         [ariaLabel]="'Preis für ' + entry.title + ' ändern'"
@@ -227,18 +199,23 @@
         (clicked)="changePrice(entry, $event)"
       />
     }
-    @if (canCreateFrom(entry)) {
-      @if (entry.publicationState === 'active') {
+    @if (actionsVisible(entry)) {
+      @if (plan || entry.publicationState === 'active') {
         <app-button
           variant="table-action"
           tone="neutral"
           size="slim"
-          [icon]="relistIcon"
+          [icon]="plan ? editIcon : relistIcon"
           [iconOnly]="true"
-          title="Relisten"
-          [ariaLabel]="entry.title + ' relisten'"
+          [disabled]="
+            plan ? !plans.canEdit(plan.job) || operations.isRunning(entry) : actionsBlocked(entry)
+          "
+          [title]="plan ? 'Planung bearbeiten' : 'Relisten'"
+          [ariaLabel]="
+            plan ? 'Planung für ' + entry.title + ' bearbeiten' : entry.title + ' relisten'
+          "
           ariaHaspopup="dialog"
-          (clicked)="editorSource.set({ entry, mode: 'relist' })"
+          (clicked)="plan ? editPlan(entry, plan) : openEditor(entry, 'relist')"
         />
       }
       <app-button
@@ -247,10 +224,11 @@
         size="slim"
         [icon]="templateIcon"
         [iconOnly]="true"
+        [disabled]="actionsBlocked(entry)"
         title="Als Vorlage für neues Inserat verwenden"
         [ariaLabel]="entry.title + ' als Vorlage für neues Inserat verwenden'"
         ariaHaspopup="dialog"
-        (clicked)="editorSource.set({ entry, mode: 'template' })"
+        (clicked)="openEditor(entry, 'template')"
       />
       <app-button
         variant="table-action"
@@ -258,6 +236,7 @@
         size="slim"
         [icon]="deleteIcon"
         [iconOnly]="true"
+        [disabled]="actionsBlocked(entry)"
         title="Inserat löschen"
         [ariaLabel]="entry.title + ' löschen'"
         ariaHaspopup="dialog"
@@ -272,7 +251,7 @@
       [busy]="savingPrice()"
       [error]="priceEditor.error()"
       (closed)="priceEditor.close()"
-      (saved)="priceEditor.save()"
+      (saved)="savePrice()"
     />
   }
   @if (publications.nextCursor) {
