@@ -154,6 +154,185 @@ test('SQL-Schemaänderungen wählen keine pauschale Frontend- oder PWA-Regressio
   assert.deepEqual(buildBrowserMatrix(plan), []);
 });
 
+const marketplaceRoot = 'src/app/features/marketplaces/';
+const pr547Paths = {
+  model: marketplaceRoot + 'models/marketplace-read.models.ts',
+  source: marketplaceRoot + 'models/vinted-listing-source.ts',
+  originals: marketplaceRoot + 'services/vinted-listing-original-photo.service.ts',
+  operations: marketplaceRoot + 'services/vinted-listing-operation.store.ts',
+  api: marketplaceRoot + 'services/marketplace-api.service.ts',
+  store: marketplaceRoot + 'services/marketplace-account.store.ts',
+  editor: marketplaceRoot + 'components/vinted-listing-editor/vinted-listing-editor.component.ts',
+  editorTest:
+    marketplaceRoot +
+    'components/vinted-listing-editor/vinted-listing-editor.component.angular.spec.ts',
+  preview:
+    marketplaceRoot + 'components/vinted-listing-editor/vinted-listing-photo-preview.component.ts',
+  listings: marketplaceRoot + 'components/vinted-listings/vinted-listings.component.ts',
+  menu:
+    marketplaceRoot +
+    'components/vinted-action-overview-menu/vinted-action-overview-menu.component.ts',
+};
+
+function relistingSelectionSources() {
+  return {
+    ...coreFixtures,
+    [pr547Paths.model]: 'export interface MarketplaceEntry { readonly listingContent?: string; }',
+    [pr547Paths.source]:
+      "import type { MarketplaceEntry } from './marketplace-read.models'; export const content = (entry: MarketplaceEntry) => entry.listingContent;",
+    [pr547Paths.originals]:
+      "import type { MarketplaceEntry } from '../models/marketplace-read.models'; export class OriginalPhotos {}",
+    [pr547Paths.operations]:
+      "import type { MarketplaceEntry } from '../models/marketplace-read.models'; export class Operations {}",
+    [pr547Paths.api]:
+      "import './vinted-listing-original-photo.service'; import type { MarketplaceEntry } from '../models/marketplace-read.models'; export class Api {}",
+    [pr547Paths.store]: "import './marketplace-api.service'; export class AccountStore {}",
+    [pr547Paths.editor]:
+      "import '../../models/vinted-listing-source'; import '../../services/vinted-listing-original-photo.service'; import '../../services/vinted-listing-operation.store'; import './vinted-listing-photo-preview.component'; export class Editor {}",
+    [pr547Paths.editorTest]: "import './vinted-listing-editor.component';",
+    [pr547Paths.preview]: 'export class Preview {}',
+    [pr547Paths.listings]:
+      "import '../vinted-listing-editor/vinted-listing-editor.component'; @Component({templateUrl:'./vinted-listings.component.html'}) export class Listings {}",
+    [pr547Paths.listings.replace(/\.ts$/u, '.html')]: '<button>Relisten</button>',
+    [pr547Paths.menu]:
+      "import '../../services/vinted-listing-operation.store'; @Component({templateUrl:'./vinted-action-overview-menu.component.html'}) export class Menu {}",
+    [pr547Paths.menu.replace(/\.ts$/u, '.html')]: '<button>Aktionen</button>',
+    [marketplaceRoot + 'components/vinted-account-content/vinted-account-content.component.ts']:
+      "import '../vinted-listings/vinted-listings.component'; export class AccountContent {}",
+    [marketplaceRoot + 'vinted-workspace.component.ts']:
+      "import './components/vinted-account-content/vinted-account-content.component'; export class Workspace {}",
+    [marketplaceRoot + 'components/vinted-profile/vinted-profile.component.ts']:
+      "import '../../services/marketplace-account.store'; export class Profile {}",
+    [marketplaceRoot + 'components/vinted-profile/vinted-profile.component.angular.spec.ts']:
+      "import './vinted-profile.component';",
+    [marketplaceRoot + 'components/vinted-messages/vinted-messages.component.ts']:
+      "import '../../services/marketplace-account.store'; export class Messages {}",
+    [marketplaceRoot + 'components/vinted-messages/vinted-messages.component.angular.spec.ts']:
+      "import './vinted-messages.component';",
+    'e2e/vinted-listing-edge-cases.spec.ts': 'test()',
+    'e2e/vinted-listing-drafts.spec.ts': 'test()',
+    'e2e/vinted-workspace-ui.spec.ts': 'test()',
+    'e2e/vinted-action-overview.spec.ts': 'test()',
+    'e2e/vinted-profile.spec.ts': 'test()',
+    'e2e/vinted-inbox-experience.spec.ts': 'test()',
+    'e2e/vinted-negotiation.spec.ts': 'test()',
+    'e2e/listing-studio.spec.ts': 'test()',
+  };
+}
+
+test('PR 547 behält Relist-, Entwurfs- und Aktionsfälle ohne fachfremde Marktplatzbrowser', () => {
+  const sources = relistingSelectionSources();
+  const changed = [
+    'e2e/vinted-listing-edge-cases.spec.ts',
+    pr547Paths.menu.replace(/\.ts$/u, '.html'),
+    pr547Paths.editorTest,
+    pr547Paths.editor,
+    pr547Paths.preview,
+    pr547Paths.listings.replace(/\.ts$/u, '.html'),
+    pr547Paths.model,
+    pr547Paths.source,
+    pr547Paths.operations,
+    pr547Paths.originals,
+  ];
+  const plan = selectAffectedTests(changed, sources);
+  assert.equal(plan.full, false);
+  assert.deepEqual(plan.coreBrowserFiles, []);
+  assert.deepEqual(selectedFeatureBrowserFiles(plan), [
+    'e2e/vinted-action-overview.spec.ts',
+    'e2e/vinted-listing-drafts.spec.ts',
+    'e2e/vinted-workspace-ui.spec.ts',
+  ]);
+  assert.deepEqual(plan.changedUiBrowserFiles, ['e2e/vinted-listing-edge-cases.spec.ts']);
+  assert.ok(plan.units.angular.includes(pr547Paths.editorTest));
+  assert.ok(
+    plan.units.angular.includes(
+      marketplaceRoot + 'components/vinted-profile/vinted-profile.component.angular.spec.ts',
+    ),
+  );
+  assert.equal(plan.pwa, false);
+});
+
+test('reine Lesetypen behalten abhängige Anwendungstests ohne neue Browserlaufzeit', () => {
+  const sources = relistingSelectionSources();
+  const plan = selectAffectedTests([pr547Paths.model], sources);
+  assert.ok(plan.units.angular.includes(pr547Paths.editorTest));
+  assert.ok(
+    plan.units.angular.includes(
+      marketplaceRoot + 'components/vinted-profile/vinted-profile.component.angular.spec.ts',
+    ),
+  );
+  assert.deepEqual(buildBrowserMatrix(plan), []);
+  assert.equal(plan.pwa, false);
+  const locallyExportedType = 'type Content = string; export type { Content };';
+  assert.deepEqual(
+    buildBrowserMatrix(
+      selectAffectedTests([pr547Paths.model], {
+        ...sources,
+        [pr547Paths.model]: locallyExportedType,
+      }),
+    ),
+    [],
+  );
+});
+
+test('explizite Typimporte und Typexporte erweitern nur den Unitgraph, gemischte Laufzeitimporte bleiben erhalten', () => {
+  const source = marketplaceRoot + 'models/vinted-listing-source';
+  const profile = marketplaceRoot + 'components/vinted-profile/vinted-profile.component';
+  for (const reference of [
+    "import type { Entry } from '../../models/vinted-listing-source';",
+    "import { type Entry } from '../../models/vinted-listing-source';",
+    "export type { Entry } from '../../models/vinted-listing-source';",
+    "export { type Entry } from '../../models/vinted-listing-source';",
+    "type Entry = import('../../models/vinted-listing-source').Entry;",
+  ]) {
+    const plan = selectAffectedTests([source + '.ts'], {
+      ...coreFixtures,
+      [source + '.ts']: 'export interface Entry {} export const value = 1;',
+      [profile + '.ts']: reference + ' export class Profile {}',
+      [profile + '.angular.spec.ts']: "import './vinted-profile.component';",
+      'e2e/vinted-listing-edge-cases.spec.ts': '',
+      'e2e/vinted-profile.spec.ts': '',
+    });
+    assert.ok(plan.units.angular.includes(profile + '.angular.spec.ts'), reference);
+    assert.deepEqual(
+      selectedFeatureBrowserFiles(plan),
+      ['e2e/vinted-listing-edge-cases.spec.ts'],
+      reference,
+    );
+  }
+  const runtime = selectAffectedTests([source + '.ts'], {
+    [source + '.ts']: 'export interface Entry {} export const value = 1;',
+    [profile + '.ts']:
+      "import { type Entry, value } from '../../models/vinted-listing-source'; export class Profile {}",
+    'e2e/vinted-listing-edge-cases.spec.ts': '',
+    'e2e/vinted-profile.spec.ts': '',
+  });
+  assert.deepEqual(selectedFeatureBrowserFiles(runtime), [
+    'e2e/vinted-listing-edge-cases.spec.ts',
+    'e2e/vinted-profile.spec.ts',
+  ]);
+});
+
+test('indirekte API-Sammler verbreitern Originalfotofehler nicht; direkte Sammler und unbekannte Laufzeit behalten den Schutzkern', () => {
+  const sources = relistingSelectionSources();
+  const photos = selectAffectedTests([pr547Paths.originals], sources);
+  assert.deepEqual(photos.coreBrowserFiles, []);
+  assert.ok(!selectedFeatureBrowserFiles(photos).includes('e2e/vinted-profile.spec.ts'));
+  assert.ok(!selectedFeatureBrowserFiles(photos).includes('e2e/listing-studio.spec.ts'));
+  for (const path of [
+    pr547Paths.api,
+    pr547Paths.store,
+    marketplaceRoot + 'services/new-runtime.service.ts',
+  ]) {
+    const plan = selectAffectedTests([path], { ...sources, [path]: 'export const runtime = 1;' });
+    assert.deepEqual(plan.coreBrowserFiles, Object.keys(coreFixtures).sort(), path);
+    assert.deepEqual(selectedFeatureBrowserFiles(plan), [], path);
+    assert.ok(plan.coreBrowserFiles.includes('e2e/login.spec.ts'), path);
+    assert.ok(plan.coreBrowserFiles.includes('e2e/local-supabase.spec.ts'), path);
+    assert.ok(plan.coreBrowserFiles.includes('e2e/vinted-kleinanzeigen-transfer.spec.ts'), path);
+  }
+});
+
 test('gemischte Fachdateien behalten vollständige UI-Auswahl ohne Datenbank und ohne Duplikate', () => {
   const profile =
     'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts';
@@ -687,6 +866,37 @@ test('die Browsermatrix enthält jeden gewählten Bereich und jede Teilgruppe ge
           );
         assert.deepEqual(buildBrowserMatrix(plan), expected);
       }
+    }
+  }
+});
+
+test('normale UI-Dateien erhalten je zwei Dateien eine verpflichtende Gruppe ohne leere oder doppelte Jobs', () => {
+  for (const full of [false, true]) {
+    for (const [count, groups] of [
+      [0, 0],
+      [1, 1],
+      [2, 1],
+      [3, 2],
+      [11, 6],
+    ]) {
+      const plan = {
+        full,
+        browserFiles: [],
+        changedBrowserFiles: [],
+        uiBrowserFiles: Array.from({ length: count }, (_, index) => `e2e/ui-${index}.spec.ts`),
+      };
+      const matrix = buildBrowserMatrix(plan);
+      assert.deepEqual(
+        matrix,
+        Array.from({ length: groups }, (_, index) => ({
+          project: 'ui',
+          shard: `${index + 1}/${groups}`,
+          database: false,
+        })),
+        `${count} UI-Dateien, full=${full}`,
+      );
+      assert.equal(new Set(matrix.map(({ shard }) => shard)).size, groups);
+      assert.equal(plan.uiBrowserFiles.length, count);
     }
   }
 });

@@ -62,13 +62,12 @@ export default defineConfig({
             name: 'chromium',
             use: { browserName: 'chromium' as const },
             testMatch: normal.map((file) => file.slice(4)),
-            // Breite Änderungen behalten alle zugeordneten Varianten. Gezielte
-            // Änderungen reduzieren ausschließlich bekannte Wiederholungsfamilien.
-            grepInvert: [...(plan.full ? [] : representativeBrowserGrepInvert)],
+            grepInvert: representativeBrowserGrepInvert,
           },
         ]
       : []),
-    // Direkt geänderte Dateien laufen vollständig, auch ohne Markierung.
+    // Neue und unmarkierte Fälle bleiben; bekannte Wiederholungsfamilien nutzen
+    // auch bei direkt geänderten Dateien ihre ausdrücklichen PR-Repräsentanten.
     ...(changed.length
       ? [
           {
@@ -76,6 +75,7 @@ export default defineConfig({
             use: { browserName: 'chromium' as const },
             testMatch: changed.map((file) => file.slice(4)),
             grep: /.*/,
+            grepInvert: representativeBrowserGrepInvert,
           },
         ]
       : []),

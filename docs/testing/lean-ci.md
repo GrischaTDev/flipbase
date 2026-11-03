@@ -20,6 +20,12 @@ zusätzliche Gerätematrix. Gemeinsame UI-Bausteine an repräsentativen betroffe
 Verbrauchern prüfen. Eine vollständige Matrix aller Seiten ist keine lokale
 Entwicklungspflicht. WCAG AA und vorhandene Fehlererwartungen bleiben verbindlich.
 
+Dies gilt auch bei direkt geänderten Browserdateien: Bekannte Parameterfamilien
+nutzen ausdrücklich registrierte Repräsentanten, während unterschiedliche
+Fehleraussagen sowie neue oder unbekannte Titel erhalten bleiben. Ein kleiner
+Relist-Fix darf keinen vollständigen Konto-, Profil- oder Nachrichtenrundgang
+auslösen. Explizite Typimporte erweitern den Browserumfang nicht.
+
 ## Vor dem PR
 
 Der [Vorabcheck in AGENTS.md](../../AGENTS.md#verbindlicher-vorabcheck-für-alle-ki-assistenten)
@@ -155,6 +161,14 @@ Retries einführen. Fehlgeschlagene Fälle zuerst anhand ihrer Aufzeichnungen
 gezielt untersuchen. Unveränderte Wiederholungen brauchen einen konkreten
 Infrastrukturverdacht und beschränken sich möglichst auf fehlgeschlagene Jobs.
 Keine Testbedingung lockern, um einen grünen Lauf zu erhalten.
+
+Die CI speichert außerdem einen kleinen JSON-Zeitbericht je Browsergruppe für
+drei Tage und nennt die langsamsten Fälle in der Laufzusammenfassung. Erfolgreiche
+Browserläufe bleiben dadurch nachmessbar; zusätzliche Testvarianten entstehen
+daraus nicht. Der Auswahljob installiert ausschließlich den exakt aus dem
+Projekt-Lockfile abgeleiteten TypeScript-Parser, ohne Anwendungshooks. Web- und
+Sniper-Image verwenden getrennte Docker-Caches. Produktionsbau, Image-Smoke,
+Digestbindung und Veröffentlichungsrechte bleiben unverändert.
 
 Nach dem Merge dürfen erfolgreiche PR-Prüfungen nur für denselben Git-Dateibaum
 und den passenden gebundenen Prüfumfang wiederverwendet werden. Fehlt dieser

@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { readSelectionFiles, selectAffectedTests, buildBrowserMatrix } from './affected-tests.mjs';
-import { coreBrowserTests, uiBrowserFiles } from './browser-test-selection.mjs';
+import {
+  coreBrowserTests,
+  representativeBrowserFamilies,
+  representativeBrowserGrepInvert,
+  uiBrowserFiles,
+} from './browser-test-selection.mjs';
 
 const executeFile = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -131,19 +136,21 @@ test('Galerie prüft Telefon und Desktop sowie Fokus und Fehler, ohne fachfremde
   );
 });
 
-test('Einkaufsübersicht prüft gezielt Telefon und Desktop in beiden Farbschemata', async () => {
+test('Einkaufsübersicht prüft Telefon hell und Desktop dunkel statt der vollständigen Matrix', async () => {
   const { selected, plan } = await listPlan([
     'src/app/features/purchases/purchases.component.html',
   ]);
   assert.equal(plan.full, false);
   assert.equal(plan.pwa, false);
-  assert.equal(selected.length, 4);
+  assert.equal(selected.length, 2);
   assert.ok(
     selected.every(
       ([file, title]) => file === 'purchase-profitability.spec.ts' && /(?:390|1440)px/u.test(title),
     ),
   );
   assert.deepEqual(plan.coreBrowserFiles, []);
+  assert.ok(selected.some(([, title]) => title.includes('390px im light-Theme')));
+  assert.ok(selected.some(([, title]) => title.includes('1440px im dark-Theme')));
 });
 
 test('Marktplatzänderung erhält Ausfälle, Kontotrennung, Produktgrenzen und passende Varianten', async () => {
@@ -219,6 +226,27 @@ test('UI-Fixtures benötigen keine Datenbank und erlauben keine echte Backend-Te
   );
 });
 
+test('Aktionsübersicht bleibt datenbankfrei und erhält Tabletwechsel und Speicherfehler', async () => {
+  const path = 'e2e/vinted-action-overview.spec.ts';
+  const { plan, selected } = await listPlan([path]);
+  const complete = await listTests('playwright.config.ts', [path]);
+  assert.deepEqual(plan.changedUiBrowserFiles, [path]);
+  assert.deepEqual(buildBrowserMatrix(plan), [
+    { project: 'changed-ui', shard: '1/1', database: false },
+  ]);
+  assert.equal(complete.selected.length, 17);
+  assert.equal(selected.length, 10);
+  for (const title of [
+    'Aktionsübersicht 390px > öffnet nur laufende Aktionen am Header-Icon in dark',
+    'Aktionsübersicht 1280px > öffnet nur laufende Aktionen am Header-Icon in light',
+    'Workspace-Auswahl 1440px > speichert das Ausblenden',
+    'Workspace-Auswahl 320px > speichert das Ausblenden',
+    'behält den Entwurf bei Speicherfehler und speichert auf erneuten Klick',
+    'bietet bei fehlgeschlagener erster Wiederherstellung nur erneutes Lesen an',
+  ])
+    assert.equal(selected.filter(([, actual]) => actual.includes(title)).length, 1, title);
+});
+
 test('gemeinsame Controls prüfen sechs echte Verbraucher ohne vollständige Seitenmatrix', async () => {
   const { selected, plan } = await listPlan([
     'src/app/shared/components/button/button.component.html',
@@ -267,23 +295,86 @@ test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () 
   assert.ok(selected.some(([, title]) => !/@(?:pr|core)-smoke/u.test(title)));
 });
 
-test('direkt geänderte Galerie erhält sämtliche Varianten und Fehlerfälle', async () => {
+test('direkt geänderte Galerie reduziert 31 Varianten auf zwölf unterschiedliche Nachweise', async () => {
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
-  assert.deepEqual(keys(selected), keys(complete.selected));
-  assert.equal(selected.length, 31);
+  assert.equal(complete.selected.length, 31);
+  assert.equal(selected.length, 12);
+  const completeKeys = new Set(keys(complete.selected));
+  assert.ok(keys(selected).every((key) => completeKeys.has(key)));
   assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
   assert.ok(selected.some(([, title]) => title.includes('Bildfehlerrahmen')));
+  for (const title of [
+    'Unvollständigen Vinted-Entwurf direkt im Formular ergänzen bei 390px light',
+    'Vinted-Mosaik und Zeit-Badges bei 390px dark',
+    'Vinted-Mosaik und Zeit-Badges bei 1440px light',
+    'Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browserabruf',
+    'Fehlende Beschreibung lädt nur das gewählte Inserat',
+    'Preis direkt ändern und nach einem Fehler erneut speichern bei 390px light',
+    'Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei 1440px',
+    'Relisten und Vorlage bewahren Originale und übernehmen vollständige Daten bei 1440px dark',
+    'Inserat löschen wahrt Bestätigung und zeigt den Fortschritt bei 390px light',
+  ])
+    assert.equal(selected.filter(([, actual]) => actual.includes(title)).length, 1, title);
   for (const width of [390, 1440])
-    for (const theme of ['light', 'dark'])
+    assert.equal(
+      selected.filter(([, title]) =>
+        title.includes(`Bildfehlerrahmen und langen Titel bei ${width}px`),
+      ).length,
+      1,
+    );
+});
+
+test('bekannte Variantenfamilien behalten jeden Risikofall und lassen unbekannte Titel ungekürzt', async () => {
+  const paths = [...new Set(representativeBrowserFamilies.map(({ file }) => `e2e/${file}`))];
+  const complete = await listTests('playwright.config.ts', paths);
+  const { selected } = await listPlan(paths);
+  const normalized = (title) => title.replaceAll(' > ', ' ');
+  const isExcluded = ([file, title]) =>
+    representativeBrowserGrepInvert.some((pattern) => pattern.test(`${file} ${normalized(title)}`));
+  assert.deepEqual(keys(selected), keys(complete.selected.filter((entry) => !isExcluded(entry))));
+  for (const { file, variants, representatives } of representativeBrowserFamilies) {
+    assert.ok(representatives.length > 0 && representatives.length <= 2, file);
+    assert.equal(new Set(variants).size, variants.length, file);
+    for (const title of variants)
       assert.equal(
-        selected.filter(([, title]) =>
-          title.includes(
-            `Inserat löschen wahrt Bestätigung und zeigt den Fortschritt bei ${width}px ${theme}`,
-          ),
+        complete.selected.filter(
+          ([actualFile, actual]) => actualFile === file && normalized(actual).endsWith(title),
         ).length,
         1,
+        `${file}: ${title}`,
       );
+    for (const title of representatives) {
+      assert.ok(variants.includes(title), title);
+      assert.equal(
+        selected.filter(
+          ([actualFile, actual]) => actualFile === file && normalized(actual).endsWith(title),
+        ).length,
+        1,
+        `${file}: ${title}`,
+      );
+    }
+  }
+  for (const [file, title] of [
+    ['vinted-listing-edge-cases.spec.ts', 'Neuer Speicherfehler bleibt bei 320px dark erkennbar'],
+    [
+      'vinted-listing-edge-cases.spec.ts',
+      'Vinted-Mosaik und Zeit-Badges bei 360px dark @marketplace-preview @core-smoke',
+    ],
+    [
+      'vinted-listing-edge-cases.spec.ts',
+      'Vinted-Mosaik und Zeit-Badges bei 320px light @marketplace-preview @core-smoke @ci-breakpoint',
+    ],
+    [
+      'vinted-listing-edge-cases.spec.ts',
+      'Neue Fehlerbeschreibung Vinted-Mosaik und Zeit-Badges bei 320px light @marketplace-preview @core-smoke',
+    ],
+    [
+      'new-feature.spec.ts',
+      'Kleinanzeigen-Konten bleiben bei 320px im dark-Theme bedienbar @core-smoke',
+    ],
+  ])
+    assert.equal(isExcluded([file, title]), false, `${file}: ${title}`);
 });
 
 test('gelöschte und umbenannte Browserdateien führen zu einer konservativen echten Auswahl', async () => {
@@ -493,4 +584,50 @@ test('Kernüberschneidung erzeugt keine leeren Fachprojekte oder Teilgruppen', a
     assert.equal(grouped.filter(([file]) => file === 'company-documents.spec.ts').length, 1);
     assert.ok(!complete.plan.coreBrowserFiles.includes('e2e/company-documents.spec.ts'));
   }
+});
+
+test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder duplizieren keinen Fall', async () => {
+  const feature = 'src/app/features/marketplaces/';
+  const paths = [
+    `${feature}models/marketplace-read.models.ts`,
+    `${feature}models/vinted-listing-source.ts`,
+    `${feature}services/vinted-listing-operation.store.ts`,
+    `${feature}services/vinted-listing-original-photo.service.ts`,
+    `${feature}components/vinted-listing-editor/vinted-listing-editor.component.ts`,
+    `${feature}components/vinted-listings/vinted-listings.component.html`,
+    `${feature}components/vinted-action-overview-menu/vinted-action-overview-menu.component.html`,
+    'e2e/vinted-listing-edge-cases.spec.ts',
+  ];
+  const complete = await listPlan(paths);
+  const matrix = buildBrowserMatrix(complete.plan);
+  assert.deepEqual(matrix, [
+    { project: 'ui', shard: '1/2', database: false },
+    { project: 'ui', shard: '2/2', database: false },
+    { project: 'changed-ui', shard: '1/1', database: false },
+  ]);
+  assert.ok(complete.selected.length > 0 && complete.selected.length <= 60);
+  assert.deepEqual([...new Set(complete.selected.map(([file]) => file))].sort(), [
+    'vinted-action-overview.spec.ts',
+    'vinted-listing-drafts.spec.ts',
+    'vinted-listing-edge-cases.spec.ts',
+    'vinted-workspace-ui.spec.ts',
+  ]);
+  assert.ok(
+    complete.selected.some(([, title]) =>
+      title.includes('Relisten und Vorlage bewahren Originale'),
+    ),
+  );
+  assert.ok(
+    complete.selected.some(([, title]) =>
+      title.includes('Serverfreigabe und unvollständige Angaben'),
+    ),
+  );
+  const grouped = [];
+  for (const { project, shard } of matrix) {
+    const { selected } = await listPlan(paths, [`--project=${project}`, `--shard=${shard}`]);
+    assert.ok(selected.length > 0, `${project} ${shard}`);
+    grouped.push(...selected);
+  }
+  assert.equal(new Set(keys(grouped)).size, grouped.length);
+  assert.deepEqual(keys(grouped), keys(complete.selected));
 });
