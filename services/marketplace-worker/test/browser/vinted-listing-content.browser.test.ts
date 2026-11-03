@@ -18,6 +18,9 @@ async function fixture(
     brandSearch?: boolean;
     missingAiPhoto?: boolean;
     missingBump?: boolean;
+    invalidMaterialChoice?: boolean;
+    hiddenCondition?: boolean;
+    categoryControl?: 'empty' | 'long' | 'duplicate' | 'non-input';
   } = {},
 ) {
   let writes = 0;
@@ -57,14 +60,14 @@ async function fixture(
       body: `<main id="content">
       <input name="photos" type="file" accept="image/jpeg,image/png"><input name="title" value="Meine Schuhe"><textarea name="description">Sehr gut erhalten.</textarea><input name="price" value="20,50 €">
       ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox" checked>'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
-      <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
+      ${options.categoryControl === 'non-input' ? '<span id="category">Fußballschuhe</span>' : `<input id="category" readonly value="${options.categoryControl === 'empty' ? '' : options.categoryControl === 'long' ? 'x'.repeat(201) : 'Fußballschuhe'}">`}${options.categoryControl === 'duplicate' ? '<input id="category" readonly value="Fußballschuhe">' : ''}<input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"${options.hiddenCondition ? ' hidden' : ''}><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
       ${options.unknown ? '<input name="isbn" id="isbn" value="Unbekanntes Merkmal">' : ''}
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div><div role="button" id="catalog-1904">Damen</div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden><input id="brand-search-input" data-testid="brand-search--input">${options.brandSearch ? '' : '<div role="radio" id="suggested-brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div>'}<div role="radio" id="brand-1" aria-checked="false" aria-disabled="true">Gesperrte Marke</div></div>
       <div id="size-options" hidden><div role="checkbox" data-testid="size-group-31-grid-option-607" aria-checked="true">38</div></div>
       <div id="condition-options" hidden><div role="radio" id="condition-2" aria-checked="true">Sehr gut</div></div>
       <div id="color-options" hidden><div role="checkbox" id="color-1" aria-checked="true">Blau</div><div role="checkbox" id="color-2" aria-checked="true">Gelb</div></div>
-      <div id="material-options" hidden><div role="checkbox" id="material-suggestion-298" aria-checked="false">Wildleder</div><div role="checkbox" id="material-149" aria-checked="true">Acryl</div><div role="checkbox" id="material-298" aria-checked="false">Wildleder</div></div>
+      <div id="material-options" hidden><div role="checkbox" id="material-suggestion-298" aria-checked="false">Wildleder</div><div role="checkbox" id="material-149"${options.invalidMaterialChoice ? '' : ' aria-checked="true"'}>Acryl</div><div role="checkbox" id="material-298" aria-checked="false">Wildleder</div></div>
       <span id="package-label">Mittel</span><label><input type="radio" id="package_type_selector_2" aria-labelledby="package-label" checked></label>
       <div data-testid="media-upload-grid"><div data-testid="image-wrapper-0"><img src="${options.unsafePhoto ? 'https://www.vinted.de/unsafe.png' : 'https://images1.vinted.net/tc/fixtureA/f800/1788288106.webp'}"></div><div data-testid="image-wrapper-1"><img src="https://images2.vinted.net/t/fixtureB/800x600/1788288107.webp"></div></div>
       <button id="save">Speichern</button>
@@ -222,6 +225,66 @@ test('takes the category from the listing itself and fails at the category step 
         (error) => error instanceof VintedListingReadError && error.step === 'category',
         item,
       );
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('keeps typed choice failures and the current field while reading complete content', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const [options, step] of [
+      [{ invalidMaterialChoice: true }, 'material_parse'],
+      [{ hiddenCondition: true }, 'condition'],
+    ] as const) {
+      const page = await browser.newPage();
+      const writes = await fixture(page, options);
+      await assert.rejects(
+        readVintedListingCurrentContent(page, '123', '98765', async () => undefined),
+        (error) => error instanceof VintedListingReadError && error.step === step,
+      );
+      assert.equal(page.isClosed(), true);
+      assert.equal(writes(), 0);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('an authorization failure takes priority over a typed listing field error', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const writes = await fixture(page);
+    let checks = 0;
+    await assert.rejects(
+      readVintedListingCurrentContent(page, '123', '98765', async () => {
+        if (++checks > 5) throw new VintedListingReadError('material_parse');
+      }),
+      (error) => error instanceof VintedListingReadError && error.step === 'authorize',
+    );
+    assert.ok(checks > 5);
+    assert.equal(page.isClosed(), true);
+    assert.equal(writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('rejects empty, excessive, duplicate and non-input category controls before reading choices', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const categoryControl of ['empty', 'long', 'duplicate', 'non-input'] as const) {
+      const page = await browser.newPage();
+      const writes = await fixture(page, { categoryControl });
+      await assert.rejects(
+        readVintedListingCurrentContent(page, '123', '98765', async () => undefined),
+        (error) => error instanceof VintedListingReadError && error.step === 'category',
+        categoryControl,
+      );
+      assert.equal(page.isClosed(), true);
+      assert.equal(writes(), 0);
     }
   } finally {
     await browser.close();

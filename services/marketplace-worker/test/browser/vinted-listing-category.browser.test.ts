@@ -28,6 +28,29 @@ test('waits for the requested category instead of accepting visible choices from
   }
 });
 
+test('selects and confirms the requested category through modern bound controls without writing', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await fixture(page, { modernControls: true, categoryLoadingDelayMs: 200 });
+    assert.equal(await page.locator('#category').count(), 0);
+    assert.equal(
+      await selectVintedListingNewCategory(page, '123', 1223, [5], form.authorize),
+      'Bomberjacken',
+    );
+    assert.equal(
+      await page.getByTestId('catalog-select-dropdown-input').innerText(),
+      'Bomberjacken',
+    );
+    assert.equal(await page.locator('input[name="category"]').inputValue(), '1223');
+    assert.equal(form.writes(), 0);
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('category read preserves the failing field through the isolated transport without saving', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

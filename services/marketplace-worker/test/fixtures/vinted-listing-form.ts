@@ -23,6 +23,7 @@ export async function createVintedListingFormFixture(
     brandLoadingDelayMs?: number;
     brandChoicesDelayMs?: number;
     nativePackage?: boolean;
+    modernControls?: boolean;
   } = {},
 ) {
   let writes = 0,
@@ -30,6 +31,23 @@ export async function createVintedListingFormFixture(
     savedBody: string | null = null,
     uploads = 0,
     saves = 0;
+  let formGeneration = 0;
+  const controlTestIds = {
+    category: 'catalog-select-dropdown-input',
+    brand: 'brand-select-dropdown-input',
+    size: 'category-size-single-grid-input',
+    condition: 'category-condition-single-list-input',
+    color: 'color-select-dropdown-input',
+    material: 'category-material-multi-list-input',
+  } as const;
+  const controlLabels = {
+    category: 'Kategorie',
+    brand: 'Marke',
+    size: 'Größe',
+    condition: 'Zustand',
+    color: 'Farbe',
+    material: 'Material',
+  } as const;
   const brandQueries: string[] = [];
   const uploadedFileNames: string[] = [];
   await page.route('**/*', (route) => {
@@ -88,13 +106,30 @@ export async function createVintedListingFormFixture(
       });
     if (path === '/items/456-fixture')
       return route.fulfill({ contentType: 'text/html', body: '<h1>Jacke</h1>' });
+    const prefix = `fixture-form-${++formGeneration}`;
+    const controlIds = Object.fromEntries(
+      Object.keys(controlTestIds).map((field) => [
+        field,
+        options.modernControls ? `${prefix}-${field}` : field,
+      ]),
+    );
+    const selectionControls = Object.entries(controlTestIds)
+      .map(([field, testId]) =>
+        options.modernControls
+          ? `<label for="${controlIds[field]}">${controlLabels[field as keyof typeof controlLabels]}</label><button type="button" id="${controlIds[field]}" data-testid="${testId}"></button><input name="${field}" value="">`
+          : `<input readonly id="${field}" name="${field}">`,
+      )
+      .join('');
+    const contentControls = options.modernControls
+      ? `<label for="${prefix}-title">Titel</label><input name="title" id="${prefix}-title" value="${options.cached ? 'Eigene Arbeit' : ''}"><label for="${prefix}-description">Beschreibung</label><textarea name="description" id="${prefix}-description"></textarea><label for="${prefix}-price">Preis</label><input name="price" id="${prefix}-price">`
+      : `<input name="title" id="title" value="${options.cached ? 'Eigene Arbeit' : ''}"><textarea name="description" id="description"></textarea><input name="price" id="price">`;
     return route.fulfill({
       contentType: 'text/html; charset=utf-8',
       body: `<div id="content">
       <input name="photos" data-testid="add-photos-input" type="file" multiple accept="image/jpeg,image/gif,image/png,image/webp">
       ${options.publishing ? '<div data-testid="media-upload-grid"></div><input type="checkbox" id="ai_photo"><input type="checkbox" id="bump">' : ''}
-      <input name="title" id="title" value="${options.cached ? 'Eigene Arbeit' : ''}"><textarea name="description" id="description"></textarea><input name="price" id="price">
-      <input readonly id="category" name="category"><input readonly id="brand" name="brand"><input readonly id="size" name="size"><input readonly id="condition" name="condition"><input readonly id="color" name="color"><input readonly id="material" name="material">
+      ${contentControls}
+      ${selectionControls}
       ${options.unknown ? '<input id="isbn" name="isbn">' : ''}
       <div hidden id="category-options"><button type="button" id="catalog-5">Herren</button>${options.categoryLoadingDelayMs ? '<div id="category-previous-leaves"><div role="radio" id="catalog-999" aria-checked="false">Vorherige Kategorie</div></div>' : ''}<div hidden id="category-leaves"><div role="radio" id="catalog-1223" aria-checked="false"><div class="web_ui__Cell__title">Bomberjacken</div></div></div></div>
       <div hidden id="brand-options"><div id="brand-popular"><div role="radio" id="empty-brand" aria-label="Keine Marke" aria-checked="false">Keine Marke</div></div>
@@ -115,14 +150,30 @@ export async function createVintedListingFormFixture(
       // Beim erneuten Laden kann das gespeicherte Portal erst hinter diesem Script stehen.
       document.addEventListener('DOMContentLoaded',()=>{
       const fields=['category','brand','size','condition','color','material'];
+      const controlIds=${JSON.stringify(controlIds)};
+      const modernControls=${!!options.modernControls};
+      const control=field=>document.getElementById(controlIds[field]);
+      const controlLabel=field=>modernControls?control(field).textContent:control(field).value;
       if(${!!options.brandSearchPortal}) document.body.append(document.querySelector('#brand-options'));
       let hasRequestedBrandChoices=false;
       const hide=()=>fields.forEach(field=>document.querySelector('#'+field+'-options').hidden=true);
       fields.forEach(field=>{
-        document.querySelector('#'+field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}if(field==='brand'&&${!!options.brandSearch}){document.querySelector('#brand-search-input').value='';document.querySelector('#brand-popular').hidden=${!!options.brandSearchStartsEmpty}||document.querySelector('#brand').value==='Jako';document.querySelector('#brand-results').hidden=document.querySelector('#brand').value!=='Jako';}if(field==='brand'&&${!!options.brandChoicesDelayMs}&&!hasRequestedBrandChoices){hasRequestedBrandChoices=true;document.querySelector('#brand-options').hidden=true;setTimeout(()=>document.querySelector('#brand-options').hidden=false,${options.brandChoicesDelayMs ?? 0});}};
+        control(field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}if(field==='brand'&&${!!options.brandSearch}){document.querySelector('#brand-search-input').value='';document.querySelector('#brand-popular').hidden=${!!options.brandSearchStartsEmpty}||controlLabel('brand')==='Jako';document.querySelector('#brand-results').hidden=controlLabel('brand')!=='Jako';}if(field==='brand'&&${!!options.brandChoicesDelayMs}&&!hasRequestedBrandChoices){hasRequestedBrandChoices=true;document.querySelector('#brand-options').hidden=true;setTimeout(()=>document.querySelector('#brand-options').hidden=false,${options.brandChoicesDelayMs ?? 0});}};
         document.querySelectorAll('#'+field+'-options [role=radio],#'+field+'-options [role=checkbox]').forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
-          const apply=()=>{node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;if(field==='category'&&${!!options.brandLoadingDelayMs}){document.querySelector('#brand').disabled=true;setTimeout(()=>document.querySelector('#brand').disabled=false,${options.brandLoadingDelayMs ?? 0});}if(!['color','material'].includes(field)) hide();};
+          const apply=()=>{
+            const checked=node.getAttribute('aria-checked')==='true';
+            const multiple=['color','material'].includes(field);
+            if(modernControls&&!multiple) document.querySelectorAll('#'+field+'-options [role=radio],#'+field+'-options [role=checkbox]').forEach(other=>other.setAttribute('aria-checked','false'));
+            node.setAttribute('aria-checked',modernControls&&!multiple?'true':String(!checked));
+            if(modernControls){
+              const selected=[...document.querySelectorAll('#'+field+'-options [aria-checked=true]')];
+              control(field).textContent=selected.map(option=>option.getAttribute('aria-label')||option.textContent).join(', ');
+              document.querySelector('input[name="'+field+'"]').value=selected.map(option=>(/([0-9]+)$/.exec(option.id||option.dataset.testid)||[])[1]||'').filter(Boolean).join(',');
+            }else control(field).value=node.getAttribute('aria-label')||node.textContent;
+            if(field==='category'&&${!!options.brandLoadingDelayMs}){control('brand').disabled=true;setTimeout(()=>control('brand').disabled=false,${options.brandLoadingDelayMs ?? 0});}
+            if(!multiple) hide();
+          };
           if(field==='category'&&${!!options.categoryLoadingDelayMs}) setTimeout(apply,${options.categoryLoadingDelayMs ?? 0});else if(field==='brand'&&${!!options.brandSearch}) setTimeout(apply,60);else apply();
         });
       });
@@ -134,7 +185,7 @@ export async function createVintedListingFormFixture(
       document.querySelector('#catalog-5').onclick=()=>{const showCategory=()=>{document.querySelector('#catalog-5').hidden=true;document.querySelector('#category-leaves').hidden=false;const previous=document.querySelector('#category-previous-leaves');if(previous)previous.hidden=true;};if(${!!options.categoryLoadingDelayMs}){const previous=document.querySelector('#category-previous-leaves');previous.hidden=false;setTimeout(showCategory,${options.categoryLoadingDelayMs ?? 0});}else showCategory();};
       document.onkeydown=event=>{if(event.key==='Escape') hide();};
       if(!${!!options.nativePackage}) [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
-      if(${!!options.nativePackage}) document.querySelector('#price').oninput=()=>document.querySelectorAll('[data-package-recommendation],[data-package-information]').forEach(element=>element.remove());
+      if(${!!options.nativePackage}) document.querySelector('[name="price"]').oninput=()=>document.querySelectorAll('[data-package-recommendation],[data-package-information]').forEach(element=>element.remove());
       document.querySelector('[data-testid="upload-form-save-button"]').onclick=async()=>{
         const clone=document.documentElement.cloneNode(true);
         document.querySelectorAll('input,textarea').forEach((source,index)=>{

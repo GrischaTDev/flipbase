@@ -246,6 +246,111 @@ test('prepares and rereads the observed native color and package controls withou
     await browser.close();
   }
 });
+
+test('prepares and verifies modern bound controls while companion values stay provider ids', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await fixture(page, {
+      modernControls: true,
+      colorGrid: true,
+      nativePackage: true,
+      brandSearch: 'matching',
+      brandSearchStartsEmpty: true,
+    });
+    const result = await prepareVintedListingFields(
+      page,
+      '123',
+      {
+        ...content,
+        brandId: 254956,
+        brandLabel: 'Jako',
+        sizeId: 5,
+        conditionId: 3,
+        attributes: { flipbaseListingForm: '1' },
+      },
+      snapshot.images,
+      [5],
+      form.authorize,
+    );
+    assert.deepEqual(result.unknownFields, []);
+    assert.equal(
+      await page.getByTestId('catalog-select-dropdown-input').innerText(),
+      'Bomberjacken',
+    );
+    assert.equal(await page.getByTestId('brand-select-dropdown-input').innerText(), 'Jako');
+    assert.equal(await page.locator('input[name="brand"]').inputValue(), '254956');
+    assert.equal(await page.locator('input[name="title"]').inputValue(), content.title);
+    assert.equal(form.writes(), 0);
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+for (const mutation of [
+  'foreign-id',
+  'wrapped-label',
+  'aria-label',
+  'aria-labelledby',
+  'wrong-native-tag',
+  'wrong-choice-tag',
+  'duplicate-companion',
+] as const) {
+  test(`preserves an independent ${mutation} field as unknown before preparing a publication`, async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      const form = await fixture(page, { modernControls: true });
+      await page.evaluate((change) => {
+        const root = document.querySelector('#content')!;
+        const input = root.querySelector('input[name="brand"]')!;
+        if (change === 'foreign-id') {
+          input.id = 'foreign-personal-field';
+          input.insertAdjacentHTML(
+            'beforebegin',
+            '<label for="foreign-personal-field">Zusätzliche Angabe</label>',
+          );
+        }
+        if (change === 'wrapped-label') {
+          const label = document.createElement('label');
+          label.textContent = 'Zusätzliche Angabe';
+          input.before(label);
+          label.append(input);
+        }
+        if (change === 'aria-label') input.setAttribute('aria-label', 'Zusätzliche Angabe');
+        if (change === 'aria-labelledby') {
+          input.insertAdjacentHTML(
+            'beforebegin',
+            '<span id="extra-label">Zusätzliche Angabe</span>',
+          );
+          input.setAttribute('aria-labelledby', 'extra-label');
+        }
+        if (change === 'wrong-native-tag')
+          root.insertAdjacentHTML(
+            'beforeend',
+            '<select name="price"><option value="extra">Zusätzliche Angabe</option></select>',
+          );
+        if (change === 'wrong-choice-tag')
+          root.insertAdjacentHTML(
+            'beforeend',
+            '<select name="brand" aria-label="Zusätzliche Angabe"><option value="extra">Andere Auswahl</option></select>',
+          );
+        if (change === 'duplicate-companion')
+          root.insertAdjacentHTML('beforeend', '<input name="brand" value="extra">');
+      }, mutation);
+      await assert.rejects(
+        prepareVintedListingFields(page, '123', content, snapshot.images, [5], form.authorize),
+      );
+      assert.equal(form.writes(), 0);
+      assert.equal(form.uploads(), 0);
+      assert.equal(form.saves(), 0);
+    } finally {
+      await browser.close();
+    }
+  });
+}
 test('finds an exact native brand outside popular choices and waits for asynchronous selection', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

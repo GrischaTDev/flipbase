@@ -15,6 +15,11 @@ import {
   readVintedListingCategoryFields,
   readVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
+import {
+  vintedListingControlValue,
+  vintedListingFormControl,
+  waitForVintedListingControlValue,
+} from './vinted-listing-form-controls.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Kategorie konnte nicht sicher ausgewählt werden.');
@@ -52,12 +57,6 @@ export async function selectVintedListingNewCategory(
     'input[name="title"]',
     'textarea[name="description"]',
     'input[name="price"]',
-    '#category',
-    '#brand',
-    '#size',
-    '#condition',
-    '#color',
-    '#material',
   ]) {
     const input = page.locator('#content ' + selector);
     if ((await input.count()) > 1) throw invalid();
@@ -67,6 +66,10 @@ export async function selectVintedListingNewCategory(
       !(options.allowRememberedChoices === true && selector.startsWith('#'))
     )
       throw invalid();
+  }
+  for (const field of ['category', 'brand', 'size', 'condition', 'color', 'material'] as const) {
+    const control = await vintedListingFormControl(page, field, true);
+    if (control && control.value && options.allowRememberedChoices !== true) throw invalid();
   }
   if ((await page.locator('#content [data-testid^="image-wrapper-"]').count()) > 0) throw invalid();
   const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath, {
@@ -78,7 +81,7 @@ export async function selectVintedListingNewCategory(
   await check();
   try {
     if (!target.selected) {
-      await page.locator('#category').click({ timeout: 5000 });
+      await (await vintedListingFormControl(page, 'category'))!.locator.click({ timeout: 5000 });
       for (const parentId of categoryPath) {
         await check();
         await page
@@ -114,19 +117,12 @@ export async function selectVintedListingNewCategory(
           enabled.push(choice);
       if (enabled.length === 0) throw invalid();
       await enabled[0]!.click({ timeout: 5000 });
-      await page.waitForFunction(
-        (label) => {
-          const category = document.querySelector('#content #category');
-          return category instanceof HTMLInputElement && category.value.trim() === label;
-        },
-        target.label,
-        { timeout: 5000 },
-      );
+      await waitForVintedListingControlValue(page, 'category', target.label);
     }
   } finally {
     await page.keyboard.press('Escape');
   }
-  const text = await page.locator('#content #category').inputValue();
+  const text = await vintedListingControlValue(page, 'category');
   if (!text.trim()) throw invalid();
   await check();
   await readVintedListingChoices(page, accountId, categoryId, 'category', categoryPath);
@@ -169,7 +165,7 @@ export async function readVintedListingNewCategory(
       if (
         page.url() !== 'https://www.vinted.de/items/new' ||
         (await readVintedAccountIdentity(page))?.id !== accountId ||
-        (await page.locator('#content #category').inputValue()) !== text
+        (await vintedListingControlValue(page, 'category')) !== text
       )
         throw invalid();
     };

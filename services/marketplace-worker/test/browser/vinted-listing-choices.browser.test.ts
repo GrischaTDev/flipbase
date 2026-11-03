@@ -4,13 +4,172 @@ import { chromium } from 'playwright';
 import {
   collectVintedListingChoices,
   parseVintedListingChoices,
+  collectVintedListingFormMetadata,
 } from '../../src/vinted-listing-contracts.ts';
+import {
+  vintedListingFormControl,
+  vintedListingControlValue,
+} from '../../src/vinted-listing-form-controls.ts';
 import {
   readVintedListingChoices,
   readVintedListingCategoryFields,
   openVintedListingChoices,
 } from '../../src/vinted-browser-listing-form.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
+import { createVintedListingFormFixture } from '../fixtures/vinted-listing-form.ts';
+
+test('bound modern choice buttons expose their labels while companion inputs carry provider ids', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const fields = {
+      category: 'catalog-select-dropdown-input',
+      brand: 'brand-select-dropdown-input',
+      size: 'category-size-single-grid-input',
+      condition: 'category-condition-single-list-input',
+      color: 'color-select-dropdown-input',
+      material: 'category-material-multi-list-input',
+    } as const;
+    const markup = `<main id="content"><input id="_r_title_" name="title"><textarea id="_r_description_" name="description"></textarea><input id="_r_price_" name="price">${Object.entries(
+      fields,
+    )
+      .map(
+        ([field, testId], index) =>
+          `<div><label for="_r_${index}_">Feld</label><button type="button" id="_r_${index}_" data-testid="${testId}">Gewählte Auswahl</button><input name="${field}" value="12345"></div>`,
+      )
+      .join('')}</main>`;
+    await page.setContent(markup);
+    for (const field of Object.keys(fields) as (keyof typeof fields)[])
+      assert.equal(await vintedListingControlValue(page, field), 'Gewählte Auswahl');
+    const metadata = await page.evaluate(collectVintedListingFormMetadata);
+    assert.deepEqual(metadata.presentFields, ['brand', 'size', 'condition', 'color', 'material']);
+    assert.deepEqual(metadata.unknownFields, []);
+    for (const mutation of ['unbound', 'multiple', 'wrong-tag', 'duplicate-id'] as const) {
+      await page.setContent(markup);
+      await page.evaluate((change) => {
+        const button = document.querySelector('[data-testid="catalog-select-dropdown-input"]')!;
+        if (change === 'unbound') document.querySelector('label')!.removeAttribute('for');
+        if (change === 'multiple') button.after(button.cloneNode(true));
+        if (change === 'wrong-tag')
+          button.outerHTML =
+            '<div id="_r_0_" data-testid="catalog-select-dropdown-input">Auswahl</div>';
+        if (change === 'duplicate-id')
+          button.insertAdjacentHTML('afterend', '<span id="_r_0_">Andere Bindung</span>');
+      }, mutation);
+      await assert.rejects(vintedListingFormControl(page, 'category'), /nicht eindeutig/);
+    }
+    await page.setContent(
+      markup +
+        '<button type="button" data-testid="unknown-select-dropdown-input">Unbekannt</button>',
+    );
+    // Ein unbekanntes Feld im Formular darf nicht als sicherer Standard verschwinden.
+    await page.evaluate(() =>
+      document
+        .querySelector('#content')!
+        .append(document.querySelector('[data-testid="unknown-select-dropdown-input"]')!),
+    );
+    assert.deepEqual((await page.evaluate(collectVintedListingFormMetadata)).unknownFields, [
+      'unknown-select-dropdown-input',
+    ]);
+    await page.setContent(
+      '<main id="content"><input name="title"><textarea name="description"></textarea><input name="color" value="3"></main>',
+    );
+    assert.deepEqual((await page.evaluate(collectVintedListingFormMetadata)).unknownFields, [
+      'color',
+    ]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a button with only the old input id is not a recognized modern control', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      '<main id="content"><label for="category">Kategorie</label><button type="button" id="category">Falsche Auswahl</button></main>',
+    );
+    await assert.rejects(vintedListingControlValue(page, 'category'), /nicht eindeutig/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a required modern control retains the bounded wait for an asynchronously attached field', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      '<main id="content"></main><script>setTimeout(() => document.querySelector("#content").innerHTML = `<label for="_r_delayed_">Kategorie</label><button type="button" id="_r_delayed_" data-testid="catalog-select-dropdown-input">Gewählte Kategorie</button>`, 150);</script>',
+    );
+    assert.equal(await vintedListingControlValue(page, 'category'), 'Gewählte Kategorie');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a failed popup cleanup preserves the original closed-page opening error', async (t) => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingFormFixture(page);
+    const locate = page.locator.bind(page);
+    t.mock.method(page, 'locator', (...args: Parameters<typeof page.locator>) => {
+      const locator = locate(...args);
+      if (args[0] === '#content input#category') {
+        const click = locator.click.bind(locator);
+        t.mock.method(locator, 'click', async (...clickArgs: Parameters<typeof locator.click>) => {
+          await page.close();
+          return click(...clickArgs);
+        });
+      }
+      return locator;
+    });
+    await assert.rejects(
+      readVintedListingChoices(page, '123', null, 'category', [], {
+        allowRememberedCategory: true,
+      }),
+      (error) => error instanceof VintedListingReadError && error.step === 'category_open_closed',
+    );
+    assert.equal(page.isClosed(), true);
+    assert.equal(form.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('popup cleanup preserves revoked authority and still rejects cleanup after a successful read', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const originalFailure of [true, false]) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { modernControls: true });
+      const revoked = new VintedListingReadError('authorize');
+      let checks = 0;
+      await assert.rejects(
+        readVintedListingCategoryFields(page, '123', 1223, [5], {
+          readCategoryId: async () => 1223,
+          authorize: async () => {
+            checks++;
+            if (checks === (originalFailure ? 3 : 4)) {
+              await page.close();
+              if (originalFailure) throw revoked;
+            }
+          },
+        }),
+        (error) =>
+          originalFailure
+            ? error === revoked
+            : error instanceof VintedListingReadError && error.step === 'brand_close',
+      );
+      assert.equal(checks, originalFailure ? 3 : 4);
+      assert.equal(page.isClosed(), true);
+      assert.equal(form.writes(), 0);
+    }
+  } finally {
+    await browser.close();
+  }
+});
 
 test('identifies opening, missing options and invalid values for every ordinary choice', async () => {
   const browser = await chromium.launch({ headless: true });

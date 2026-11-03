@@ -13,6 +13,7 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 interface ListingRuntime {
+  collectFormControl(field: VintedListingControlField): VintedListingFormControl;
   collectPhotoState(): VintedListingPhotoState;
   collectFormValues(
     options?: { allowMissingAiPhoto?: boolean } | void,
@@ -62,6 +63,15 @@ interface ListingRuntime {
     schema: VintedListingCategoryFields,
   ): readonly VintedListingValidationIssue[];
 }
+export type VintedListingControlField = Exclude<VintedListingChoiceField, 'package'>;
+export interface VintedListingFormControl {
+  state: 'ready' | 'missing' | 'multiple' | 'invalid';
+  kind: 'input' | 'button' | null;
+  value: string | null;
+  testId: string | null;
+  visible: boolean;
+  scoped: boolean;
+}
 export interface VintedListingPhotoState {
   valid: boolean;
   items: { index: number; url: string | null; ready: boolean }[];
@@ -87,5 +97,6 @@ export const parseVintedListingSnapshot = runtime.parseSnapshot;
 export const hasVintedActiveListingEvidence = runtime.hasActiveListingEvidence;
 export const collectVintedListingChoices = runtime.collectChoices;
 export const collectVintedListingFormMetadata = runtime.collectFormMetadata;
+export const collectVintedListingFormControl = runtime.collectFormControl;
 export const isVintedListingResult = runtime.isResult;
 export const validateVintedListingSubmission = runtime.validateSubmission;

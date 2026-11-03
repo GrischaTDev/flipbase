@@ -1,7 +1,7 @@
 <app-data-table
   ariaLabel="Kleiderschrank"
   [toolbarVisible]="false"
-  [hasRows]="rows().length > 0 || plans().length > 0"
+  [hasRows]="rows().length > 0"
   emptyTitle="Noch keine Artikel im Kleiderschrank"
 >
   <div
@@ -36,57 +36,25 @@
         </tr>
       </thead>
       <tbody class="bg-fb-surface">
-        @for (plan of plans(); track plan.job.id) {
-          <tr
-            data-relisting-plan
-            [attr.aria-label]="plan.draft.content.title"
-            class="border-t border-fb-border-subtle"
-          >
-            <td class="px-3 py-2">
-              <div class="flex min-w-0 items-center gap-3">
-                <app-product-thumbnail [src]="plan.imageUrl" alt="" size="md" fit="cover" />
-                <div class="min-w-0">
-                  <h2 class="truncate text-sm font-semibold text-fb-text-primary">
-                    {{ plan.draft.content.title }}
-                  </h2>
-                  <p class="mt-1 text-xs text-fb-text-secondary">{{ plan.label }}</p>
-                </div>
-              </div>
-            </td>
-            <td class="px-2 py-2 text-fb-text-secondary">—</td>
-            <td class="px-2 py-2 text-right text-fb-text-secondary">—</td>
-            <td class="px-2 py-2 text-right text-fb-text-secondary">—</td>
-            <td class="whitespace-nowrap px-2 py-2 text-right font-semibold text-fb-text-primary">
-              {{
-                (plan.draft.content.priceCents ?? 0) / 100
-                  | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-              }}
-            </td>
-            <td class="sticky right-0 bg-fb-surface px-3 py-2 text-right">
-              <app-button
-                variant="table-action"
-                size="slim"
-                [icon]="editIcon"
-                [iconOnly]="true"
-                title="Planung bearbeiten"
-                [ariaLabel]="'Planung für ' + plan.draft.content.title + ' bearbeiten'"
-                [disabled]="!planEditable()(plan.job)"
-                (clicked)="planEdited.emit(plan.job)"
-              />
-            </td>
-          </tr>
-        }
         @for (row of rows(); track row.entry.id) {
           @let entry = row.entry;
           <tr
-            data-listing-row
-            [class.opacity-60]="row.running"
+            [attr.data-listing-row]="row.plan ? null : ''"
+            [attr.data-relisting-plan]="row.plan ? '' : null"
+            [attr.aria-label]="row.plan ? entry.title : null"
+            [class.opacity-60]="row.running || !!row.plan"
             [attr.aria-busy]="row.running ? 'true' : null"
             class="border-t border-fb-border-subtle"
           >
             <td class="px-3 py-2">
               <a
-                [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
+                [routerLink]="
+                  row.plan || row.running
+                    ? null
+                    : ['/marketplaces/vinted/listings', entry.connectionId, entry.id]
+                "
+                [attr.aria-disabled]="row.plan || row.running ? 'true' : null"
+                [attr.tabindex]="row.plan || row.running ? -1 : null"
                 class="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-fb-primary"
                 [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
                 ><app-product-thumbnail [src]="entry.imageUrl" alt="" size="md" fit="cover" />
@@ -97,18 +65,24 @@
                   >
                     {{ entry.title }}
                   </h2>
-                  @if (row.running) {
-                    <p role="status" class="mt-1 text-xs text-fb-text-secondary">
-                      {{ row.runningLabel ?? 'Preis wird geändert' }}
-                    </p>
-                  } @else if (entry.brand || entry.size) {
-                    <p class="mt-1 truncate text-xs text-fb-text-secondary">
-                      {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
-                    </p>
-                  }
+                  <p
+                    [attr.role]="row.running || row.plan ? 'status' : null"
+                    class="mt-1 flex min-h-5 min-w-0 items-center gap-2 text-xs leading-5 text-fb-text-secondary"
+                  >
+                    @if (row.running) {
+                      <app-loading-indicator />
+                    }
+                    <span class="truncate">{{
+                      row.running || row.plan
+                        ? row.runningLabel
+                        : (entry.brand ?? '') + ' ' + (entry.size ?? '')
+                    }}</span>
+                  </p>
                   <div class="mt-1 flex flex-wrap gap-1">
                     @if (publicationBadge(entry.publicationState); as badge) {
-                      <app-badge [tone]="badge.tone">{{ badge.label }}</app-badge>
+                      <app-badge [class.invisible]="!!row.plan" [tone]="badge.tone">{{
+                        badge.label
+                      }}</app-badge>
                     }
                     @if (entry.promoted) {
                       <app-badge tone="info">Gepusht</app-badge>
@@ -126,6 +100,7 @@
             </td>
             <td class="px-2 py-2">
               <app-vinted-listing-age
+                [class.invisible]="!!row.plan"
                 [publishedAt]="entry.publishedAt"
                 [publicationAge]="entry.publicationAge"
                 [createdAt]="entry.createdAt"
@@ -163,13 +138,10 @@
               }}
             </td>
             <td class="sticky right-0 bg-fb-surface px-3 py-2">
-              <div
-                class="flex flex-wrap items-center justify-end gap-1"
-                [attr.inert]="row.running ? '' : null"
-              >
+              <div class="flex flex-wrap items-center justify-end gap-1" data-listing-actions>
                 <ng-container
                   [ngTemplateOutlet]="actionsTemplate()"
-                  [ngTemplateOutletContext]="{ $implicit: entry }"
+                  [ngTemplateOutletContext]="{ $implicit: entry, plan: row.plan }"
                 />
               </div>
             </td>

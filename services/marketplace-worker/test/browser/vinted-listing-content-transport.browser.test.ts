@@ -5,6 +5,7 @@ import { vintedBrowserActions } from '../../src/vinted-browser-actions.ts';
 import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
 import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
+import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
 test('the real isolated transport returns the current listing content and preserves user work', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -27,6 +28,63 @@ test('the real isolated transport returns the current listing content and preser
     assert.ok(authorizations > 5);
     assert.deepEqual(context.pages(), [original]);
     assert.equal(f.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('the real isolated content reader supports modern bound buttons and dynamic native text ids', async () => {
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext();
+    const original = await context.newPage();
+    const fixture = await createVintedListingEditFormFixture(
+      { route: context.route.bind(context) },
+      { modernControls: true },
+    );
+    await original.goto('https://www.vinted.de/items/98765/edit');
+    assert.equal(await original.locator('#category').count(), 0);
+    assert.equal(await original.locator('input[name="category"]').inputValue(), '2738');
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    const result = await actions.readListingContent!('123', '98765', async () => undefined);
+    assert.equal(result.content.categoryId, 2738);
+    assert.equal(result.content.categoryLabel, 'Fußballschuhe');
+    assert.equal(result.content.brandLabel, 'Jako');
+    assert.equal(result.content.sizeLabel, '38');
+    assert.deepEqual(result.schema.unknownFields, []);
+    assert.equal(result.content.title, 'Meine Schuhe');
+    assert.equal(result.content.priceCents, 2050);
+    assert.deepEqual(context.pages(), [original]);
+    assert.equal(fixture.writes(), 0);
+    assert.equal(fixture.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('the real isolated content reader preserves a typed choice failure and closes only its own page', async () => {
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext();
+    const original = await context.newPage();
+    const fixture = await createVintedListingEditFormFixture({
+      route: context.route.bind(context),
+    });
+    await context.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelector('#material-149')?.removeAttribute('aria-checked');
+      });
+    });
+    await original.goto('https://www.vinted.de/items/98765');
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    await assert.rejects(
+      actions.readListingContent!('123', '98765', async () => undefined),
+      (error) => error instanceof VintedListingReadError && error.step === 'material_parse',
+    );
+    assert.deepEqual(context.pages(), [original]);
+    assert.equal(fixture.writes(), 0);
   } finally {
     await browser.close();
   }

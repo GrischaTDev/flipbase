@@ -11,6 +11,7 @@ import {
 } from './vinted-browser-reader.ts';
 import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
 import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
+import { vintedListingControlValue } from './vinted-listing-form-controls.ts';
 import {
   collectVintedListingFormValues,
   collectVintedListingPhotoState,
@@ -164,7 +165,7 @@ export async function readOpenVintedListingContent(
   const readCategoryId = async () =>
     (await readVintedListingItemReference(page, externalId))?.categoryId ?? null;
   const item = await readVintedListingItemReference(page, externalId);
-  const categoryLabel = (await page.locator('#category').inputValue({ timeout: 5_000 })).trim();
+  const categoryLabel = await vintedListingControlValue(page, 'category');
   if (!item || !categoryLabel || categoryLabel.length > 200) throw invalid();
   const selectedCategory = { id: item.categoryId, label: categoryLabel };
   await check();
@@ -172,6 +173,7 @@ export async function readOpenVintedListingContent(
   const schema = parseVintedListingCategoryFields(
     await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
       authorize: check,
+      onReadField: onStep,
       readCategoryId,
       // Eine Marke außerhalb der Vorschlagsliste erscheint erst nach der Suche.
       ...(item.brandId === null
@@ -282,13 +284,15 @@ export async function readVintedListingCurrentContent(
       step = next;
     });
   } catch (error) {
+    // Ein Rechteverlust behält Vorrang vor einem späteren Fehler derselben Lesephase.
+    if (authorizationFailed) throw new VintedListingReadError('authorize');
     if (
       error instanceof VintedInteractionRequiredError ||
-      error instanceof VintedVerificationRequiredError
+      error instanceof VintedVerificationRequiredError ||
+      error instanceof VintedListingReadError
     )
       throw error;
-    // Ein Rechteverlust wird als eigener Schritt gemeldet, nicht als Fehler der Maske.
-    throw new VintedListingReadError(authorizationFailed ? 'authorize' : step);
+    throw new VintedListingReadError(step);
   } finally {
     await page.close();
   }

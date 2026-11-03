@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-03 - Juna - Fehlgeschlagenes Relisting und springende Aktionsleiste prüfen
+
+**Auftrag:** Nutzer meldet nach dem ausdrücklichen Inserieren einen gescheiterten Relist mit der Meldung zum nicht lesbaren Vinted-Inserat. Untere Aktionsleiste während Vorbereitung, Planung und Ausführung sichtbar und gleich hoch erhalten, ihre Aktionen sperren sowie die geplante Wartezeit herunterzählen und anschließend den tatsächlichen Ausführungsstand anzeigen. Kein zusätzliches Bestätigungsfenster verlangt. Eigener Zweig `juna/vinted-relist-state` vom frisch abgerufenen Hauptstand `63053fe0`; fremde Erweiterungsänderungen und parallele Kontodialog-Arbeit bleiben erhalten.
+
+**Befund:** Der produktive Abruf scheitert bei `content/read` im Schritt `category`, noch vor der Auftragsannahme. Kontoidentität und Artikelantwort sind gültig. Die eigene Vinted-Bearbeitungsmaske verwendet gelabelte Buttons mit festen Testkennungen und dynamischen IDs statt der im Leser erwarteten festen Kategorie-/Auswahlinputs. Auch Titel-/Beschreibungs-/Preisfelder besitzen dynamische IDs; der Metadatensammler muss ihre bereits bekannten Namen und Tag-Verträge beachten. Echte Maskenstruktur rein lesend geprüft, keine Zugangsdaten oder Inseratinhalte im Nachweis veröffentlicht. Details unter [Relist-Diagnose](audit/2026-11-03-vinted-relist-state.md).
+
+**Umsetzung und Prüfung:** Die Darstellung erhält dieselbe Karte und Aktionsleiste, sperrt Artikelaktionen und verwendet den bestehenden verbindlichen Planungstermin für den Countdown. Fällige Aufträge melden zunächst Warten; Vorbereitung, Löschen und Inserieren folgen dem tatsächlichen Auftragsstand. Die Leseranpassung berücksichtigt die belegten aktuellen Controls und bestehende alte Masken, ohne unbekannte oder mehrdeutige Felder freizugeben. Kein echtes Relisting, Löschen oder erneutes Veröffentlichen zur Diagnose auslösen. Tatsächliche Endprüfungen werden am abgeschlossenen Stand ergänzt.
+
 ## 2026-11-03 - Juna - Vinted-Kontoabgleich kompakter und mit bleibenden Bereichsstatus darstellen
 
 **Auftrag und Grundlage:** Das Modal „Kontodaten aktualisieren“ kompakter gestalten und die nach Abschluss zurückkehrenden Punkte bei Nachrichten und Verkäufen klären. Eigener Zweig `juna/vinted-account-refresh-dialog` in getrennter Arbeitskopie vom frisch abgerufenen `origin/master` (`63053fe0`); fremde Änderungen und der anderweitig belegte Hauptzweig bleiben erhalten. Gestaltungsvertrag und betroffene Verbraucher geprüft.

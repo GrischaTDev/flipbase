@@ -20,6 +20,10 @@ import {
   vintedListingChoiceReadError,
   type VintedListingReadStep,
 } from './vinted-listing-read-error.ts';
+import {
+  vintedListingControlValue,
+  waitForVintedListingControlValue,
+} from './vinted-listing-form-controls.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -150,14 +154,7 @@ export async function selectVintedListingField(
       }
       if (expected.field === 'brand') {
         try {
-          await page.waitForFunction(
-            (label) => {
-              const input = document.querySelector('#content #brand');
-              return input instanceof HTMLInputElement && input.value === label;
-            },
-            change.label,
-            { timeout: 5000 },
-          );
+          await waitForVintedListingControlValue(page, 'brand', change.label);
         } catch {
           throw new VintedListingReadError('brand_selected');
         }
@@ -230,7 +227,7 @@ export async function prepareVintedListingFields(
     reportPreparationStep('form');
     assertNewForm(page);
     reportPreparationStep('category');
-    if ((await page.locator('#content #category').inputValue()) !== categoryText) throw invalid();
+    if ((await vintedListingControlValue(page, 'category')) !== categoryText) throw invalid();
     reportPreparationStep(previousStep);
   };
   await check();

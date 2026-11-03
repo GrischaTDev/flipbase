@@ -65,6 +65,7 @@ export async function createVintedListingEditFormFixture(
      * Kennung und Kategorie, oder Fotos unter Adressen, die nicht zum Raster passen.
      */
     itemApi?: 'full' | 'reference' | 'foreign-photo-urls';
+    modernControls?: boolean;
   } = {},
 ) {
   let saves = 0,
@@ -73,6 +74,23 @@ export async function createVintedListingEditFormFixture(
     itemReads = 0,
     pendingSave = false,
     readsDuringSave = 0;
+  let formGeneration = 0;
+  const controlTestIds = {
+    category: 'catalog-select-dropdown-input',
+    brand: 'brand-select-dropdown-input',
+    size: 'category-size-single-grid-input',
+    condition: 'category-condition-single-list-input',
+    color: 'color-select-dropdown-input',
+    material: 'category-material-multi-list-input',
+  } as const;
+  const controlLabels = {
+    category: 'Kategorie',
+    brand: 'Marke',
+    size: 'Größe',
+    condition: 'Zustand',
+    color: 'Farbe',
+    material: 'Material',
+  } as const;
   let state: EditFormState = {
     title: 'Meine Schuhe',
     description: 'Sehr gut erhalten.',
@@ -184,13 +202,41 @@ export async function createVintedListingEditFormFixture(
     if (url.pathname !== '/items/98765/edit')
       return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<h1>Inserat</h1>' });
     if (pendingSave) readsDuringSave++;
+    const prefix = `fixture-edit-form-${++formGeneration}`;
+    const controlIds = Object.fromEntries(
+      Object.keys(controlTestIds).map((field) => [
+        field,
+        options.modernControls ? `${prefix}-${field}` : field,
+      ]),
+    );
+    const selectedIds = {
+      category: [2738],
+      brand: [state.brand],
+      size: [state.size],
+      condition: [state.condition],
+      color: state.colors,
+      material: state.materials,
+    };
+    const selectionControls = Object.entries(controlTestIds)
+      .map(([field, testId]) => {
+        const selected = selectedIds[field as keyof typeof selectedIds];
+        const text =
+          field === 'category' ? 'Fußballschuhe' : label(field as keyof typeof choices, selected);
+        return options.modernControls
+          ? `<label for="${controlIds[field]}">${controlLabels[field as keyof typeof controlLabels]}</label><button type="button" id="${controlIds[field]}" data-testid="${testId}">${text}</button><input name="${field}" value="${selected.filter((value) => value !== null).join(',')}">`
+          : `<input id="${field}" readonly value="${text}">`;
+      })
+      .join('');
+    const contentControls = options.modernControls
+      ? `<label for="${prefix}-title">Titel</label><input name="title" id="${prefix}-title" value="${state.title}"><label for="${prefix}-description">Beschreibung</label><textarea name="description" id="${prefix}-description">${state.description}</textarea><label for="${prefix}-price">Preis</label><input name="price" id="${prefix}-price" value="${state.price}">`
+      : `<input name="title" value="${state.title}"><textarea name="description">${state.description}</textarea><input name="price" value="${state.price}">`;
     return route.fulfill({
       contentType: 'text/html; charset=utf-8',
       body: `<main id="content">
       <input name="photos" type="file" accept="image/jpeg,image/png">
-      <input name="title" value="${state.title}"><textarea name="description">${state.description}</textarea><input name="price" value="${state.price}">
+      ${contentControls}
       ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox">'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
-      <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="${label('brand', [state.brand])}"><input id="size" readonly value="${label('size', [state.size])}"><input id="condition" readonly value="${label('condition', [state.condition])}"><input id="color" readonly value="${label('color', state.colors)}"><input id="material" readonly value="${label('material', state.materials)}">
+      ${selectionControls}
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${option('brand', 'radio', [state.brand])}</div>
       <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
@@ -242,20 +288,33 @@ export async function createVintedListingEditFormFixture(
         if(match) priceInput.value=match[1]+','+(match[2]||'').padEnd(2,'0')+' €';
       };
       const names=['category','brand','size','condition','color','material'];
+      const controlIds=${JSON.stringify(controlIds)};
+      const modernControls=${!!options.modernControls};
+      const control=name=>document.getElementById(controlIds[name]);
       const multiple=['color','material'];
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);
       const options=name=>[...document.querySelectorAll('#'+name+'-options [role]')];
       const selected=name=>options(name).filter(node=>node.getAttribute('aria-checked')==='true');
       const identifier=node=>Number(/([0-9]+)$/.exec(node.id||node.dataset.testid)[1]);
+      const reflect=name=>{
+        const selectedOptions=selected(name);
+        if(modernControls){
+          control(name).textContent=selectedOptions.map(entry=>entry.getAttribute('aria-label')||entry.textContent).join(', ');
+          document.querySelector('input[name="'+name+'"]').value=selectedOptions.map(identifier).join(',');
+        }else control(name).value=selectedOptions.map(entry=>entry.getAttribute('aria-label')).join(', ');
+      };
       names.forEach(name=>{
-        document.querySelector('#'+name).onclick=()=>{fetch('/fixture/list-open');hide();document.querySelector('#'+name+'-options').hidden=false;};
-        if(name==='category') return;
+        control(name).onclick=()=>{fetch('/fixture/list-open');hide();document.querySelector('#'+name+'-options').hidden=false;};
+        if(name==='category'){
+          if(modernControls) options(name).filter(node=>node.getAttribute('role')==='radio').forEach(node=>node.onclick=()=>{options(name).forEach(other=>other.setAttribute('aria-checked','false'));node.setAttribute('aria-checked','true');reflect(name);hide();});
+          return;
+        }
         options(name).forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
           const checked=node.getAttribute('aria-checked')==='true';
           if(!multiple.includes(name)) options(name).forEach(other=>other.setAttribute('aria-checked','false'));
           node.setAttribute('aria-checked',multiple.includes(name)?String(!checked):'true');
-          document.querySelector('#'+name).value=selected(name).map(entry=>entry.getAttribute('aria-label')).join(', ');
+          reflect(name);
           if(!multiple.includes(name)) hide();
         });
       });
