@@ -570,12 +570,12 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 960 });
     const fixture = await inboxFixture(page, false, true);
     const marks: Record<string, unknown>[] = [];
-    let read = false;
+    const readIds = new Set<string>();
     await page.route('**/rest/v1/rpc/marketplace_read_message_notifications', (route) =>
       route.fulfill({
         json: {
           workspaceId,
-          unreadCount: read ? 0 : 1,
+          unreadCount: 3 - readIds.size,
           items: [
             {
               id: '7',
@@ -585,20 +585,48 @@ for (const width of [1440, 390]) {
               senderName: 'Anna',
               eventKind: 'message',
               observedAt: new Date().toISOString(),
-              read,
+              read: readIds.has('7'),
+            },
+            {
+              id: '8',
+              connectionId,
+              conversationId,
+              accountName: 'Cloud-Testkonto',
+              senderName: 'Anna',
+              eventKind: 'status_message',
+              notificationKind: 'order_cancelled',
+              observedAt: new Date().toISOString(),
+              read: readIds.has('8'),
+            },
+            {
+              id: '9',
+              connectionId,
+              conversationId,
+              accountName: 'Cloud-Testkonto',
+              senderName: null,
+              eventKind: 'payment_message',
+              notificationKind: 'refund_completed',
+              observedAt: new Date().toISOString(),
+              read: readIds.has('9'),
             },
           ],
         },
       }),
     );
     await page.route('**/rest/v1/rpc/marketplace_mark_message_notifications', (route) => {
-      marks.push(route.request().postDataJSON());
-      read = true;
+      const action = route.request().postDataJSON();
+      marks.push(action);
+      if (typeof action['p_notification_id'] === 'string') readIds.add(action['p_notification_id']);
       return route.fulfill({ json: { ok: true } });
     });
     await page.goto('/marketplaces/vinted/messages');
     await page.getByRole('button', { name: 'Benachrichtigungen', exact: true }).click();
-    await page.getByRole('link').filter({ hasText: 'Neue Nachricht · Cloud-Testkonto' }).click();
+    const notifications = page.locator('#header-notification-menu');
+    await expect(notifications).toContainText('Bestellung storniert');
+    await expect(notifications).toContainText('Rückerstattung abgeschlossen');
+    await expect(notifications).toContainText('Vinted-Konto: Cloud-Testkonto.');
+    await expect(notifications).not.toContainText('Neue Postfachmeldung');
+    await page.getByRole('link').filter({ hasText: 'Neue Nachricht von Anna' }).click();
     await expect(page).toHaveURL(
       new RegExp(`connectionId=${connectionId}.*conversationId=${conversationId}`),
     );

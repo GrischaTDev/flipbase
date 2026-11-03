@@ -426,16 +426,18 @@ function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<s
     const ratingNum = rawRating !== null && rawRating <= 5 ? rawRating : null;
     const itemObj = record(item?.['item']) ?? record(item?.['transaction']);
     const itemTitle = string(itemObj?.['title']) ?? string(itemObj?.['item_title']);
+    const occurredAt =
+      negotiationProviderTime(item?.['created_at_ts'], fallbackDate) ??
+      negotiationProviderTime(item?.['created_at'], fallbackDate) ??
+      negotiationProviderTime(item?.['updated_at'], fallbackDate);
     list.push({
       id,
       authorName: authorName ?? (isAutomatic ? 'Vinted System' : null),
       authorImageUrl: image(record(author?.['photo'])?.['url']),
       rating: ratingNum,
       text: textStr,
-      occurredAt: date(
-        item?.['created_at_ts'],
-        date(item?.['created_at'] ?? item?.['updated_at'], fallbackDate),
-      ),
+      occurredAt: occurredAt ?? fallbackDate,
+      occurredAtVerified: occurredAt !== null,
       isAutomatic,
       itemTitle,
     });

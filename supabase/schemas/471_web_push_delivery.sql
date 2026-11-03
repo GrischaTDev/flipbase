@@ -50,11 +50,24 @@ $$;
 
 create function public.web_push_enqueue_event(p_source_key text,p_workspace_id uuid,p_category text,p_connection_id uuid,p_target jsonb,p_device_id uuid default null)
 returns uuid language plpgsql security definer set search_path = '' as $$
-declare v_id uuid:=extensions.gen_random_uuid(); v_inserted uuid; v_title text; v_body text;
+declare v_id uuid:=extensions.gen_random_uuid(); v_inserted uuid; v_title text; v_body text; v_kind text;
 begin
  if p_category='test' and (p_device_id is null or p_target<>'{"kind":"settings"}'::jsonb or p_connection_id is not null) then raise exception 'Push test target denied' using errcode='22023'; end if;
  v_title:='Flipbase';
  v_body:=case p_category when 'test' then 'Deine Testbenachrichtigung ist angekommen.' when 'message' then 'Du hast eine neue Nachricht.' when 'order' then 'Eine neue Bestellung ist eingegangen.' when 'favorite' then 'Deine Inserate haben neue Favoriten.' when 'connection' then 'Eine Kontoverbindung braucht deine Anmeldung.' end;
+ if p_category='message' and p_source_key ~ '^vinted-message:[1-9][0-9]{0,18}$' then
+  select coalesce(n.notification_kind,case split_part(n.external_event_id,':',1)
+    when 'message' then 'message' when 'offer_request_message' then 'offer_received' else 'other_status' end)
+    into v_kind from public.marketplace_message_notifications n
+    where n.id::text=substring(p_source_key from 16) and n.workspace_id=p_workspace_id and n.connection_id=p_connection_id
+      and p_target=jsonb_build_object('kind','vinted_message','connectionId',n.connection_id,'conversationId',n.conversation_id);
+  if found then
+   v_title:=public.marketplace_notification_title(v_kind);
+   v_body:=case v_kind when 'message' then 'Du hast eine neue Nachricht.'
+     when 'offer_received' then 'Du hast einen neuen Preisvorschlag erhalten.'
+     else 'Öffne dein Vinted-Postfach für Details.' end;
+  end if;
+ end if;
  insert into public.web_push_events(id,source_key,workspace_id,category,connection_id,payload)
  values(v_id,p_source_key,p_workspace_id,p_category,p_connection_id,jsonb_build_object('version',1,'eventId',v_id,'workspaceId',p_workspace_id,'category',p_category,'title',v_title,'body',v_body,'target',p_target))
  on conflict(source_key) do nothing returning id into v_inserted;
@@ -118,6 +131,15 @@ begin
  if not v_device.active or v_event.expires_at<=clock_timestamp()
  or exists(select 1 from public.web_push_generations where id=p_generation and revoked_at is not null)
  or not public.web_push_can_deliver(v_device.user_id,v_event.workspace_id,v_event.category,v_event.connection_id,v_device.session_id)
+ or (v_event.category='message' and v_event.source_key ~ '^vinted-message:[1-9][0-9]{0,18}$' and not exists (
+   select 1 from public.marketplace_message_notifications n
+   join public.marketplace_connections c on c.workspace_id=n.workspace_id and c.id=n.connection_id and c.external_account_id=n.external_account_id
+   where n.id::text=substring(v_event.source_key from 16) and n.workspace_id=v_event.workspace_id and n.connection_id=v_event.connection_id
+     and n.notified_at is not null and n.cleared_at is null
+     and public.marketplace_notification_enabled(n.workspace_id,n.connection_id,
+       public.marketplace_notification_category(coalesce(n.notification_kind,case split_part(n.external_event_id,':',1)
+         when 'message' then 'message' when 'offer_request_message' then 'offer_received' else 'other_status' end)),n.occurred_at)
+ ))
  or (v_event.category<>'test' and not exists(select 1 from public.web_push_preferences where device_id=p_generation and workspace_id=v_event.workspace_id and v_event.category=any(categories)))
  then
   update public.web_push_deliveries set status='expired',finished_at=clock_timestamp(),last_error_class='permission',lease_until=null,claim_token=null where id=p_delivery_id;

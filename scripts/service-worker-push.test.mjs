@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createWorker } from './service-worker-test-fixture.mjs';
 const payload = {
   version: 1,
@@ -10,6 +11,59 @@ const payload = {
   body: 'Private order contents',
   target: { kind: 'store_orders' },
 };
+
+test('Vinted notification catalog agrees across database, bell, and safe push titles', async () => {
+  const model = readFileSync(
+    new URL(
+      '../src/app/features/marketplaces/models/marketplace-message-notifications.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const catalogSource = model
+    .split('export const vintedNotificationTitles = {')[1]
+    .split('} as const')[0];
+  const catalog = Object.fromEntries(
+    [...catalogSource.matchAll(/^\s+([a-z_]+): '([^']+)'/gm)].map((match) => [match[1], match[2]]),
+  );
+  const sql = readFileSync(
+    new URL('../supabase/schemas/425_marketplace_message_notifications.sql', import.meta.url),
+    'utf8',
+  );
+  const titleFunction = sql
+    .split('function public.marketplace_notification_title(p_kind text)')[1]
+    .split('$$;')[0];
+  const databaseCatalog = Object.fromEntries(
+    [...titleFunction.matchAll(/when '([^']+)' then '([^']+)'/g)].map((match) => [
+      match[1],
+      match[2],
+    ]),
+  );
+  databaseCatalog.other_status = /else '([^']+)' end/.exec(titleFunction)[1];
+  assert.equal(Object.keys(catalog).length, 23);
+  assert.deepEqual(catalog, databaseCatalog);
+  for (const title of Object.values(catalog)) {
+    const worker = createWorker();
+    await worker.dispatch('push', {
+      data: {
+        text: () =>
+          JSON.stringify({
+            ...payload,
+            category: 'message',
+            title,
+            body: 'Private provider content must stay hidden',
+            target: {
+              kind: 'vinted_message',
+              connectionId: payload.workspaceId,
+              conversationId: payload.eventId,
+            },
+          }),
+      },
+    });
+    assert.equal(worker.messages[0].title, title);
+    assert.ok(!worker.messages[0].options.body.includes('Private provider'));
+  }
+});
 test('push shows only generic content and a stable event tag', async () => {
   const worker = createWorker();
   for (let index = 0; index < 2; index++)
@@ -168,6 +222,119 @@ test('validated categories have clear generic headings and opening actions', asy
     assert.equal(opened.pathname, '/push/open');
     assert.deepEqual(JSON.parse(opened.searchParams.get('context')), context);
   }
+});
+
+test('Vinted message statuses use only the fixed notification titles and safe local body', async () => {
+  for (const title of [
+    'Neue Nachricht',
+    'Neuer Preisvorschlag',
+    'Artikel verkauft',
+    'Artikel gekauft',
+    'Bestellung storniert',
+    'Transaktion abgebrochen',
+    'Artikel wieder eingestellt',
+    'Versandlabel verfügbar',
+    'Sendung verschickt',
+    'Sendung abholbereit',
+    'Sendung zugestellt',
+    'Bestellung abgeschlossen',
+    'Bestellung unterbrochen',
+    'Problem gemeldet',
+    'Rückerstattung eingeleitet',
+    'Rückerstattung abgeschlossen',
+    'Rückerstattung angenommen',
+    'Rücksendung verschickt',
+    'Neue Bewertung',
+    'Bewertung abgegeben',
+    'Supportchat beendet',
+    'Artikel nicht verfügbar',
+    'Status bei Vinted aktualisiert',
+  ]) {
+    const worker = createWorker();
+    const message = {
+      ...payload,
+      category: 'message',
+      title,
+      body: 'Private Nachricht mit Kontaktdaten',
+      target: {
+        kind: 'vinted_message',
+        connectionId: payload.workspaceId,
+        conversationId: payload.eventId,
+      },
+    };
+    await worker.dispatch('push', { data: { text: () => JSON.stringify(message) } });
+    const notification = worker.messages[0];
+    assert.equal(notification.title, title);
+    assert.equal(
+      notification.options.body,
+      title === 'Neue Nachricht'
+        ? 'Du hast eine neue Nachricht.'
+        : title === 'Neuer Preisvorschlag'
+          ? 'Du hast einen neuen Preisvorschlag erhalten.'
+          : 'Öffne dein Vinted-Postfach für Details.',
+    );
+    assert.equal(notification.options.actions[0].title, 'Nachricht öffnen');
+    assert.equal(notification.options.tag, `flipbase-event-${payload.eventId}`);
+    assert.deepEqual(JSON.parse(JSON.stringify(notification.options.data)), message);
+  }
+});
+
+test('legacy and untrusted message titles keep the safe generic notification', async () => {
+  for (const title of [
+    'Flipbase',
+    'Neue Marktplatznachricht',
+    'Privater Nachrichtentext',
+    'Neue Nachricht von Privatperson',
+    'Bestellung storniert · Privatperson',
+    'Bestellung storniert\u202e',
+    'constructor',
+    '__proto__',
+  ]) {
+    const worker = createWorker();
+    const message = {
+      ...payload,
+      category: 'message',
+      title,
+      target: {
+        kind: 'vinted_message',
+        connectionId: payload.workspaceId,
+        conversationId: payload.eventId,
+      },
+    };
+    await worker.dispatch('push', { data: { text: () => JSON.stringify(message) } });
+    const notification = worker.messages[0];
+    assert.equal(notification.title, 'Neue Marktplatznachricht');
+    assert.equal(notification.options.body, 'Du hast eine neue Nachricht.');
+    assert.deepEqual(JSON.parse(JSON.stringify(notification.options.data)), message);
+  }
+});
+
+test('message titles never loosen category, payload or navigation validation', async () => {
+  const message = {
+    ...payload,
+    category: 'message',
+    title: 'Bestellung storniert',
+    target: {
+      kind: 'vinted_message',
+      connectionId: payload.workspaceId,
+      conversationId: payload.eventId,
+    },
+  };
+  for (const invalid of [
+    { ...message, notificationKind: 'order_cancelled' },
+    { ...message, target: { ...message.target, url: 'https://evil.test' } },
+    { ...message, target: { ...message.target, conversationId: 'invalid' } },
+    { ...message, category: 'order' },
+  ]) {
+    const worker = createWorker();
+    await worker.dispatch('push', { data: { text: () => JSON.stringify(invalid) } });
+    assert.equal(worker.messages[0].title, 'Flipbase');
+    assert.equal(worker.messages[0].options.data, null);
+  }
+  const worker = createWorker();
+  const order = { ...payload, title: message.title };
+  await worker.dispatch('push', { data: { text: () => JSON.stringify(order) } });
+  assert.equal(worker.messages[0].title, 'Neue Bestellung');
 });
 
 test('browsers without notification actions still receive a clickable notification', async () => {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isMarketplaceInboxEventBatch } from './marketplace-local-extension-contracts.ts';
+import { marketplaceInboxEventMaxBytes } from './marketplace-inbox-notification-kinds.mjs';
 import { createLocalExtensionHandler } from '../marketplace-local-extension/handler.ts';
 const batch = {
   version: 1,
@@ -57,6 +58,74 @@ test('system event identifiers allow bounded provider ids or stable hashes only 
     );
 });
 
+test('optional notification kinds preserve old batches and reject source mismatches or unknown content', () => {
+  const accepts = (event: Record<string, unknown>) =>
+    isMarketplaceInboxEventBatch({ ...batch, events: [event] });
+  const event = batch.events[0]!;
+  assert.equal(accepts(event), true);
+  assert.equal(accepts({ ...event, notificationKind: 'message' }), true);
+  assert.equal(
+    accepts({
+      ...event,
+      externalId: 'offer_request_message:503',
+      notificationKind: 'offer_received',
+    }),
+    true,
+  );
+  for (const notificationKind of [
+    'sale_sold',
+    'purchase_created',
+    'order_cancelled',
+    'transaction_cancelled',
+    'item_relisted',
+    'shipping_label_ready',
+    'shipment_sent',
+    'ready_for_pickup',
+    'delivered',
+    'order_completed',
+    'order_suspended',
+    'issue_reported',
+    'refund_started',
+    'refund_completed',
+    'refund_accepted',
+    'return_shipped',
+    'feedback_received',
+    'feedback_sent',
+    'support_closed',
+    'item_unavailable',
+    'other_status',
+  ]) {
+    assert.equal(
+      accepts({ ...event, externalId: 'action_message:503', notificationKind }),
+      true,
+      notificationKind,
+    );
+    assert.equal(accepts({ ...event, notificationKind }), false, notificationKind);
+  }
+  for (const notificationKind of [
+    'unknown',
+    'constructor',
+    'x'.repeat(10000),
+    null,
+    undefined,
+    {},
+    'offer_received',
+  ])
+    assert.equal(accepts({ ...event, notificationKind }), false);
+  for (const externalId of [
+    'offer_request_message:503',
+    'status_message:503',
+    'action_message:503',
+    'payment_message:503',
+  ])
+    assert.equal(accepts({ ...event, externalId, notificationKind: 'message' }), false);
+  assert.equal(
+    accepts({ ...event, externalId: 'status_message:503', notificationKind: 'offer_received' }),
+    false,
+  );
+  assert.equal(accepts({ ...event, notificationKind: 'message', privateText: 'forbidden' }), false);
+});
+
 function capacityBatch(eventCount = 2000, conversationCount = 10) {
   const coveredConversationIds = Array.from(
     { length: conversationCount },
@@ -85,20 +154,26 @@ test('the full bounded batch also accepts stable identifiers for platform paymen
   maximum.events = maximum.events.map((event, index) => ({
     ...event,
     externalId: `payment_message:event:${index.toString(16).padStart(64, '0')}`,
+    notificationKind: 'transaction_cancelled',
   }));
-  assert.ok(new TextEncoder().encode(JSON.stringify(maximum)).byteLength <= 512 * 1024);
+  assert.equal(new TextEncoder().encode(JSON.stringify(maximum)).byteLength, 604457);
+  assert.ok(
+    new TextEncoder().encode(JSON.stringify(maximum)).byteLength <= marketplaceInboxEventMaxBytes,
+  );
   assert.equal(isMarketplaceInboxEventBatch(maximum), true);
 });
 
 test('the inbox batch rejects an eleventh conversation, a two thousand first event and oversized bytes', () => {
   assert.equal(isMarketplaceInboxEventBatch(capacityBatch(0, 11)), false);
   assert.equal(isMarketplaceInboxEventBatch(capacityBatch(2001)), false);
-  const oversized = { ...batch, observedAt: 'x'.repeat(512 * 1024) };
-  assert.ok(new TextEncoder().encode(JSON.stringify(oversized)).byteLength > 512 * 1024);
+  const oversized = { ...batch, observedAt: 'x'.repeat(marketplaceInboxEventMaxBytes) };
+  assert.ok(
+    new TextEncoder().encode(JSON.stringify(oversized)).byteLength > marketplaceInboxEventMaxBytes,
+  );
   assert.equal(isMarketplaceInboxEventBatch(oversized), false);
 });
 
-test('the HTTP importer forwards every maximum batch event and enforces the exact 512 KiB body boundary', async () => {
+test('the HTTP importer forwards every maximum batch event and enforces the exact 768 KiB body boundary', async () => {
   const maximum = capacityBatch();
   let imports = 0;
   const handler = createLocalExtensionHandler({
@@ -132,7 +207,8 @@ test('the HTTP importer forwards every maximum batch event and enforces the exac
       body: raw,
     });
   assert.equal((await handler(request(body))).status, 200);
-  const atLimit = body + ' '.repeat(512 * 1024 - new TextEncoder().encode(body).byteLength);
+  const atLimit =
+    body + ' '.repeat(marketplaceInboxEventMaxBytes - new TextEncoder().encode(body).byteLength);
   assert.equal((await handler(request(atLimit))).status, 200);
   assert.equal((await handler(request(atLimit + ' '))).status, 400);
   assert.equal(imports, 2);

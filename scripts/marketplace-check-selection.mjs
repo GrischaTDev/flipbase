@@ -16,7 +16,7 @@ const nativeBrowserSetupPath = /^scripts\/configure-worker-browser-sandbox(?:\.t
 const extensionPaths =
   /^(?:tools\/flipbase-extension\/|scripts\/(?:kleinanzeigen-|support\/kleinanzeigen-)|supabase\/functions\/(?:kleinanzeigen-|_shared\/(?:kleinanzeigen-|marketplace-local-extension)))/u;
 const sharedWorkerInputs =
-  /^(?:tools\/flipbase-extension\/vinted-(?:negotiation|listing)-runtime\.js|supabase\/functions\/_shared\/(?:marketplace-(?:message|inbox-event|negotiation|listing|profile)-contracts\.d\.ts|vinted-listing-photo-renderer\.mts|kleinanzeigen-listing-(?:validation\.mts|contracts\.ts)))$/u;
+  /^(?:tools\/flipbase-extension\/vinted-(?:(?:negotiation|listing)-runtime|local-inbox-events)\.js|supabase\/functions\/_shared\/(?:marketplace-(?:message|inbox-event|negotiation|listing|profile)-contracts\.d\.ts|marketplace-inbox-notification-kinds\.(?:mjs|d\.mts)|vinted-listing-photo-renderer\.mts|kleinanzeigen-listing-(?:validation\.mts|contracts\.ts)))$/u;
 const imageCheckPath = 'scripts/check-marketplace-images.sh';
 const deploymentPaths = /^deploy\/(?:.*chromium.*|docker-compose\.marketplace[^/]*)$/u;
 const sessionPilotInputs =

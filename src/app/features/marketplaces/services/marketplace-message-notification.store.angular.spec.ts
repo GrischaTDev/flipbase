@@ -77,7 +77,8 @@ describe('Kontogebundene Nachrichtenmeldungen außerhalb der Vinted-Ansicht', ()
   it('lädt gespeicherte Meldungen und den vollständigen Ungelesenzähler ohne geöffnete Vinted-Seite', async () => {
     const store = TestBed.inject(MarketplaceMessageNotificationStore);
     await settle();
-    expect(store.notifications()[0].message).toContain('mitglied');
+    expect(store.notifications()[0].title).toBe('Neue Nachricht von mitglied');
+    expect(store.notifications()[0].message).toContain('Mein Konto');
     expect(store.unreadCount()).toBe(67);
   });
   it('übernimmt Broadcast und Wiederverbinden ohne doppelte Meldungen', async () => {

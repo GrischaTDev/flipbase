@@ -5155,6 +5155,7 @@ export type Database = {
           first_observed_at: string
           id: number
           last_observed_at: string
+          system_events_since: string
           workspace_id: string
         }
         Insert: {
@@ -5163,6 +5164,7 @@ export type Database = {
           first_observed_at: string
           id?: never
           last_observed_at: string
+          system_events_since?: string
           workspace_id: string
         }
         Update: {
@@ -5171,6 +5173,7 @@ export type Database = {
           first_observed_at?: string
           id?: never
           last_observed_at?: string
+          system_events_since?: string
           workspace_id?: string
         }
         Relationships: [
@@ -5185,6 +5188,8 @@ export type Database = {
       }
       marketplace_message_notification_settings: {
         Row: {
+          categories: Json
+          category_enabled_since: Json
           connection_id: string
           enabled: boolean
           enabled_since: string | null
@@ -5193,6 +5198,8 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          categories?: Json
+          category_enabled_since?: Json
           connection_id: string
           enabled?: boolean
           enabled_since?: string | null
@@ -5201,6 +5208,8 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          categories?: Json
+          category_enabled_since?: Json
           connection_id?: string
           enabled?: boolean
           enabled_since?: string | null
@@ -5227,6 +5236,7 @@ export type Database = {
           external_conversation_id: string
           external_event_id: string
           id: number
+          notification_kind: string | null
           notified_at: string | null
           observed_at: string
           occurred_at: string
@@ -5241,6 +5251,7 @@ export type Database = {
           external_conversation_id: string
           external_event_id: string
           id?: never
+          notification_kind?: string | null
           notified_at?: string | null
           observed_at: string
           occurred_at: string
@@ -5255,6 +5266,7 @@ export type Database = {
           external_conversation_id?: string
           external_event_id?: string
           id?: never
+          notification_kind?: string | null
           notified_at?: string | null
           observed_at?: string
           occurred_at?: string
@@ -11495,6 +11507,10 @@ export type Database = {
         Args: { p_at: string; p_config: Json; p_price: number; p_seed: string }
         Returns: string
       }
+      marketplace_feedback_occurred_at: {
+        Args: { p_value: string }
+        Returns: string
+      }
       marketplace_finalize_favorite_import: {
         Args: {
           p_connection_id: string
@@ -12035,6 +12051,31 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_notification_categories: {
+        Args: { p_categories: Json; p_enabled: boolean }
+        Returns: Json
+      }
+      marketplace_notification_category: {
+        Args: { p_kind: string }
+        Returns: string
+      }
+      marketplace_notification_enabled: {
+        Args: {
+          p_category: string
+          p_connection_id: string
+          p_occurred_at?: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_notification_kind_valid: {
+        Args: { p_external_id: string; p_kind: string }
+        Returns: boolean
+      }
+      marketplace_notification_title: {
+        Args: { p_kind: string }
+        Returns: string
+      }
       marketplace_prepare_favorite_import: {
         Args: {
           p_connection_id: string
@@ -12381,6 +12422,16 @@ export type Database = {
       }
       marketplace_set_message_notification_settings: {
         Args: {
+          p_connection_id: string
+          p_enabled: boolean
+          p_expected_version: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_set_notification_category_settings: {
+        Args: {
+          p_category: string
           p_connection_id: string
           p_enabled: boolean
           p_expected_version: number

@@ -48,6 +48,7 @@ test('verified unread snapshot identifies both incoming proposal and text withou
         occurredAt: '2026-10-08T08:00:00.000Z',
         direction: 'inbound',
         source: 'conversation_snapshot',
+        notificationKind: 'offer_received',
       },
       {
         externalId: 'message:502',
@@ -55,6 +56,7 @@ test('verified unread snapshot identifies both incoming proposal and text withou
         occurredAt: '2026-10-08T08:01:00.000Z',
         direction: 'inbound',
         source: 'conversation_snapshot',
+        notificationKind: 'message',
       },
     ],
   });
@@ -153,6 +155,7 @@ test('cloud and extension include provider transaction and system messages witho
       'direction',
       'externalConversationId',
       'externalId',
+      'notificationKind',
       'occurredAt',
       'source',
     ]);
@@ -198,4 +201,112 @@ test('system notices keep explicit provider ids and reject own, foreign or inval
     assert.equal(result.complete, false);
     assert.deepEqual(await extension.parse(snapshot(invalid), '90', observedAt), result);
   }
+});
+
+test('verified platform events distinguish transaction stages while ordinary chat text remains a message', async () => {
+  const cases = [
+    ['sale', 'success', 'Verkauft', 'sale_sold'],
+    ['sale', 'success', 'Gekauft!', 'purchase_created'],
+    ['cancelation', 'manually', 'Bestellung storniert', 'order_cancelled'],
+    ['cancelation', 'reuploaded', 'Der Artikel wurde wieder eingestellt!', 'item_relisted'],
+    [
+      'shipment',
+      'shipment_completed',
+      'Der Käufer hat die Bestellung storniert.',
+      'order_cancelled',
+    ],
+    [
+      'shipment',
+      'shipment_completed',
+      'Die Transaktion wurde abgebrochen',
+      'transaction_cancelled',
+    ],
+    ['shipment', 'shipment_completed', 'Verschickt', 'shipment_sent'],
+    ['shipment', 'label_success', 'Verpacken und verschicken', 'shipping_label_ready'],
+    ['shipment', 'shipped_tracked', 'Sendung wurde an Käufer verschickt.', 'shipment_sent'],
+    [
+      'shipment',
+      'tracking_pending',
+      'Danke, dass du die Bestellung abgeschickt hast',
+      'shipment_sent',
+    ],
+    ['shipment', 'held_at_post_office', 'Angekommen!', 'ready_for_pickup'],
+    ['delivery', 'delivered', 'Prüfe deine Bestellung', 'delivered'],
+    ['', '', 'Geliefert', 'delivered'],
+    ['', '', 'Sendung zugestellt', 'delivered'],
+    ['completion', 'completed', 'Fertig!', 'order_completed'],
+    ['delivery', 'suspended_by_buyer', 'Bestellung unterbrochen', 'order_suspended'],
+    ['order_complaint', 'raised_issue', 'Problem nach der Lieferung', 'issue_reported'],
+    ['refund', 'refund_processing', 'Rückerstattung eingeleitet', 'refund_started'],
+    ['refund', 'refund_success', 'Rückerstattung abgeschlossen', 'refund_completed'],
+    ['refund', 'refund_success_wallet', 'Rückerstattung abgeschlossen', 'refund_completed'],
+    ['refund', 'refund_success_multiple_sources', 'Rückerstattung erfolgt', 'refund_completed'],
+    ['refund_offer', 'refund_offer_accepted', 'Problem gelöst', 'refund_accepted'],
+    ['return_shipment', 'return_shipment_completed', 'Zurückgeschickt', 'return_shipped'],
+    ['feedback', 'buyer_feedback_left', 'Du hast eine neue Bewertung!', 'feedback_received'],
+    ['feedback', 'seller_feedback_left', 'Bewertung abgegeben!', 'feedback_sent'],
+    [
+      'feedback',
+      'system_feedback_left',
+      'Du hast eine automatische Bewertung bekommen!',
+      'feedback_received',
+    ],
+    ['support_ticket', 'ticket_closed', 'Chat beendet', 'support_closed'],
+    ['sale', 'not_available', 'Artikel ist nicht verfügbar', 'item_unavailable'],
+    ['sale', 'success', 'Angebot angenommen', 'other_status'],
+    ['shipment', 'shipment_completed', 'Unbekannter Zustand', 'other_status'],
+    ['dsa_appeals', 'appeal_unavailable', 'action_message', 'other_status'],
+  ];
+  for (const [event_group, event_type, title, expected] of cases) {
+    const snapshot = {
+      conversation: {
+        ...fixture.conversation,
+        messages: [
+          {
+            entity_type: 'action_message',
+            event_group,
+            event_type,
+            created_at_ts: '2026-10-08T08:00:00Z',
+            entity: { title },
+          },
+        ],
+      },
+    };
+    const result = parse(snapshot);
+    assert.equal(
+      result.events[0]?.notificationKind,
+      expected,
+      `${event_group}/${event_type}/${title}`,
+    );
+    assert.deepEqual(await extension.parse(snapshot, '90', observedAt), result);
+  }
+  const ordinary = structuredClone(fixture);
+  Object.assign(message(ordinary, 1).entity, { body: 'Rückerstattung abgeschlossen' });
+  assert.deepEqual(
+    parse(ordinary).events.map((event) => event.notificationKind),
+    ['offer_received', 'message'],
+  );
+});
+
+test('notification classification preserves established provider event hashes', () => {
+  const snapshot = {
+    conversation: {
+      ...fixture.conversation,
+      messages: [
+        {
+          entity_type: 'action_message',
+          event_group: 'refund',
+          event_type: 'refund_processing',
+          created_at_ts: '2026-10-08T08:00:00Z',
+          entity: { title: 'Rückerstattung eingeleitet' },
+        },
+      ],
+    },
+  };
+  const event = parse(snapshot).events[0];
+  assert.equal(
+    event?.externalId,
+    'action_message:event:3ed29e7033ce30fa87f9452e468e37829c599f38675eee131a40090acd6d994a',
+  );
+  assert.equal(event?.notificationKind, 'refund_started');
 });

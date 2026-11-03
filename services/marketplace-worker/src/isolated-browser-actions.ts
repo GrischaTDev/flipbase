@@ -1,5 +1,9 @@
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
 import {
+  isMarketplaceInboxNotificationKind,
+  marketplaceInboxEventMaxBytes,
+} from '../../../supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs';
+import {
   isVintedNegotiationCommand,
   isVintedNegotiationOffer,
   isConfirmedNegotiationOffer,
@@ -1215,18 +1219,31 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       batch.events.length > 2000 ||
       !Array.isArray(batch.coveredConversationIds) ||
       batch.coveredConversationIds.length > 10 ||
-      Buffer.byteLength(JSON.stringify(batch)) > 512 * 1024
+      Buffer.byteLength(JSON.stringify(batch)) > marketplaceInboxEventMaxBytes
     )
       throw new Error('Ungültige Postfachereignisse');
     batch.coveredConversationIds.forEach(identifier);
     for (const entry of batch.events) {
       const event = commandRecord(entry);
       if (
-        Object.keys(event).length !== 5 ||
+        Object.keys(event).length !== (Object.hasOwn(event, 'notificationKind') ? 6 : 5) ||
+        Object.keys(event).some(
+          (key) =>
+            ![
+              'externalId',
+              'externalConversationId',
+              'occurredAt',
+              'direction',
+              'source',
+              'notificationKind',
+            ].includes(key),
+        ) ||
         typeof event.externalId !== 'string' ||
         !/^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$/.test(
           event.externalId,
         ) ||
+        (Object.hasOwn(event, 'notificationKind') &&
+          !isMarketplaceInboxNotificationKind(event.notificationKind, event.externalId)) ||
         event.direction !== 'inbound' ||
         event.source !== 'conversation_snapshot' ||
         !Number.isFinite(Date.parse(text(event.occurredAt, 64)))

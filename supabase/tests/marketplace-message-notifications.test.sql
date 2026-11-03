@@ -76,7 +76,10 @@ select is(public.marketplace_set_message_notification_settings('42500000-0000-40
 select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,2)->>'version','2','Unchanged setting keeps its revision');
 reset role;
 -- Nur die Test-Zeitgrenze zurücksetzen, damit die vorhandene synthetische Historie deterministisch bleibt.
-update public.marketplace_message_notification_settings set enabled_since='2026-09-30T12:09:00Z' where connection_id='42500000-0000-4000-8000-000000000021';
+update public.marketplace_message_notification_settings set enabled_since='2026-09-30T12:09:00Z',
+  category_enabled_since=(select jsonb_object_agg(key,to_jsonb(extract(epoch from '2026-09-30T12:09:00Z'::timestamptz)))
+    from jsonb_each(categories) where key<>'feedback')
+  where connection_id='42500000-0000-4000-8000-000000000021';
 set local role service_role;
 select is(pg_temp.apply(11,jsonb_build_array(pg_temp.event('message:508','700','2026-09-30T12:10:00.000Z'))),1,'New event after reactivation is notified');
 select is(pg_temp.apply(12,jsonb_build_array(pg_temp.event('message:509','700','2026-09-30T12:08:00.000Z'))),0,'Delayed history from the pause is not notified after reactivation');
@@ -95,11 +98,20 @@ create function pg_temp.capacity_batch(p_events int default 2000,p_covered int d
  'events',(select coalesce(jsonb_agg(pg_temp.event('offer_request_message:9'||lpad(n::text,31,'0'),'9'||lpad(((n-1)/200+1)::text,31,'0'),'2026-09-30T12:19:00.000Z')),'[]'::jsonb) from generate_series(1,p_events) n));
 $$;
 select is(octet_length(pg_temp.capacity_batch()::text),474474,'Maximum canonical batch including JSONB whitespace has a fixed bounded size');
-select cmp_ok(octet_length(pg_temp.capacity_batch()::text),'<',512*1024,'Maximum canonical batch stays below the explicit 512 KiB SQL limit');
+select cmp_ok(octet_length(pg_temp.capacity_batch()::text),'<',768*1024,'Maximum legacy batch stays below the explicit 768 KiB SQL limit');
 select is(public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.capacity_batch()),2000,'Ten complete conversations retain all two thousand message events');
 select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.capacity_batch(0,11))$$,'22023',null,'An eleventh covered conversation is rejected');
 select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.capacity_batch(2001))$$,'22023',null,'A two thousand first event is rejected');
-select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',jsonb_set(pg_temp.capacity_batch(0),'{observedAt}',to_jsonb(repeat('x',512*1024))))$$,'22023',null,'Oversized event bytes are rejected');
+select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',jsonb_set(pg_temp.capacity_batch(0),'{observedAt}',to_jsonb(repeat('x',768*1024))))$$,'22023',null,'Oversized event bytes are rejected');
+create function pg_temp.classified_capacity_batch() returns jsonb language sql as $$
+ select jsonb_set(pg_temp.capacity_batch(),'{events}',(select jsonb_agg(
+   pg_temp.event('payment_message:event:'||lpad(to_hex(n),64,'0'),'9'||lpad(((n-1)/200+1)::text,31,'0'),'2026-09-30T12:19:00.000Z')
+   || jsonb_build_object('notificationKind','transaction_cancelled')) from generate_series(1,2000) n));
+$$;
+select cmp_ok(octet_length(pg_temp.classified_capacity_batch()::text),'>',512*1024,'Classified 2000-event batch would exceed the previous SQL limit');
+select cmp_ok(octet_length(pg_temp.classified_capacity_batch()::text),'<',768*1024,'Classified 2000-event batch stays within the checked SQL limit');
+select lives_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.classified_capacity_batch())$$,'Ten full classified conversations pass through the real SQL boundary');
+select is((select count(*)::integer from public.marketplace_message_notifications where notification_kind='transaction_cancelled'),2000,'No classified source identifiers are truncated');
 select is((select count(*)::int from public.marketplace_message_notifications where length(external_event_id)=54),2000,'Rejected overflows preserve the complete accepted event set');
 reset role;
 update public.marketplace_connections set execution_mode='local' where id='42500000-0000-4000-8000-000000000021';

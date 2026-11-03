@@ -1,15 +1,17 @@
-<section class="block" aria-label="Nachrichtenmeldungen">
+<section class="block" aria-label="Vinted-Benachrichtigungen">
   @if (loading()) {
     <p role="status" class="text-[13px] text-fb-text-secondary">
-      Nachrichteneinstellung wird geladen …
+      Benachrichtigungen werden geladen …
     </p>
   }
   @if (settings()) {
-    <app-custom-checkbox
-      label="Neue Nachrichten"
-      presentation="switch"
-      [formControl]="enabledControl"
-    />
+    @for (category of categories; track category.key) {
+      <app-custom-checkbox
+        [label]="category.label"
+        presentation="switch"
+        [formControl]="categoryControls[category.key]"
+      />
+    }
   }
   @if (busy()) {
     <p role="status" class="mt-2 text-xs text-fb-text-secondary">Einstellung wird gespeichert …</p>

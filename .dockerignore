@@ -48,6 +48,8 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-local-listing-contracts.d.ts
 !supabase/functions/_shared/negotiation-config.ts
 !supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts
+!supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs
+!supabase/functions/_shared/marketplace-inbox-notification-kinds.d.mts
 !supabase/functions/_shared/marketplace-local-extension-bridge-contracts.ts
 !supabase/functions/_shared/ebay-contracts.ts
 !supabase/functions/_shared/ebay-message-contracts.ts
