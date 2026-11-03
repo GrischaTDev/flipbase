@@ -10,6 +10,28 @@ const payload = {
   target: { kind: 'store_orders' },
 };
 describe('Push payload boundary', () => {
+  it('retains legacy and differentiated message titles without adding fields to the payload', () => {
+    const message = {
+      ...payload,
+      category: 'message',
+      target: {
+        kind: 'vinted_message',
+        connectionId: payload.workspaceId,
+        conversationId: payload.eventId,
+      },
+    };
+    for (const title of [
+      'Flipbase',
+      'Neue Nachricht',
+      'Bestellung storniert',
+      'Rückerstattung abgeschlossen',
+    ])
+      expect(parsePushPayload({ ...message, title })).toEqual({ ...message, title });
+    expect(parsePushPayload({ ...message, notificationKind: 'order_cancelled' })).toBeNull();
+    expect(
+      parsePushPayload({ ...message, target: { ...message.target, url: 'https://evil.test' } }),
+    ).toBeNull();
+  });
   it('accepts favorites only with a valid Vinted connection and matching category', () => {
     const favorite = {
       ...payload,

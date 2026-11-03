@@ -16,7 +16,12 @@ import { CustomCheckboxComponent } from '../../../../shared/components/custom-ch
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { AccountScope } from '../../models/marketplace.models';
-import type { MessageNotificationSettings } from '../../models/marketplace-message-notifications';
+import {
+  messageNotificationCategorySettings,
+  vintedNotificationCategories,
+  type MessageNotificationSettings,
+  type VintedNotificationCategory,
+} from '../../models/marketplace-message-notifications';
 import { MarketplaceMessageNotificationApiService } from '../../services/marketplace-message-notification-api.service';
 
 @Component({
@@ -31,10 +36,17 @@ export class VintedMessageSettingsComponent {
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
-  readonly enabledControl = new FormControl(
-    { value: false, disabled: true },
-    { nonNullable: true },
-  );
+  readonly categories = vintedNotificationCategories;
+  readonly categoryControls = {
+    messages: this.createControl(),
+    offers: this.createControl(),
+    orders: this.createControl(),
+    shipping: this.createControl(),
+    payments: this.createControl(),
+    feedback: this.createControl(),
+    other: this.createControl(),
+  };
+  readonly enabledControl = this.categoryControls.messages;
   private readonly api = inject(MarketplaceMessageNotificationApiService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
@@ -65,13 +77,16 @@ export class VintedMessageSettingsComponent {
     effect(() => {
       const disabled = this.loading() || this.busy() || !!this.error() || !this.settings();
       untracked(() => {
-        if (disabled) this.enabledControl.disable({ emitEvent: false });
-        else this.enabledControl.enable({ emitEvent: false });
+        for (const { key } of this.categories) {
+          if (disabled) this.categoryControls[key].disable({ emitEvent: false });
+          else this.categoryControls[key].enable({ emitEvent: false });
+        }
       });
     });
-    this.enabledControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((enabled) => {
-      void this.save(enabled);
-    });
+    for (const { key } of this.categories)
+      this.categoryControls[key].valueChanges.pipe(takeUntilDestroyed()).subscribe((enabled) => {
+        void this.save(key, enabled);
+      });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.revision++;
@@ -88,7 +103,7 @@ export class VintedMessageSettingsComponent {
       const settings = await this.api.readSettings(this.account());
       if (!this.isCurrent(key, revision)) return;
       this.settings.set(settings);
-      this.enabledControl.setValue(settings.enabled, { emitEvent: false });
+      this.updateControls(settings);
     } catch (error) {
       if (this.isCurrent(key, revision)) this.error.set(this.errorText(error));
     } finally {
@@ -96,24 +111,34 @@ export class VintedMessageSettingsComponent {
     }
   }
 
-  private async save(enabled: boolean): Promise<void> {
+  private async save(category: VintedNotificationCategory, enabled: boolean): Promise<void> {
     const settings = this.settings();
     const key = this.key;
     if (!settings || !key || this.busy() || this.loading() || this.error()) return;
     const revision = ++this.revision;
     this.busy.set(true);
     try {
-      const saved = await this.api.setSettings(settings, enabled);
+      const saved = await this.api.setCategorySettings(settings, category, enabled);
       if (!this.isCurrent(key, revision)) return;
       this.settings.set(saved);
-      this.enabledControl.setValue(saved.enabled, { emitEvent: false });
+      this.updateControls(saved);
     } catch (error) {
       if (!this.isCurrent(key, revision)) return;
-      this.enabledControl.setValue(settings.enabled, { emitEvent: false });
+      this.updateControls(settings);
       this.error.set(this.errorText(error));
     } finally {
       if (this.isCurrent(key, revision)) this.busy.set(false);
     }
+  }
+
+  private createControl(): FormControl<boolean> {
+    return new FormControl({ value: false, disabled: true }, { nonNullable: true });
+  }
+
+  private updateControls(settings: MessageNotificationSettings): void {
+    const categories = messageNotificationCategorySettings(settings);
+    for (const { key } of this.categories)
+      this.categoryControls[key].setValue(categories[key], { emitEvent: false });
   }
 
   private isCurrent(key: string, revision: number): boolean {
@@ -130,6 +155,6 @@ export class VintedMessageSettingsComponent {
   private errorText(error: unknown): string {
     return error instanceof Error
       ? error.message
-      : 'Nachrichtenmeldungen konnten nicht gespeichert werden.';
+      : 'Benachrichtigungen konnten nicht gespeichert werden.';
   }
 }

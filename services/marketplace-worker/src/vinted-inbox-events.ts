@@ -1,8 +1,21 @@
 import type {
   MarketplaceInboxEvent,
   MarketplaceInboxEventBatch,
+  MarketplaceInboxNotificationKind,
 } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
 import { createHash } from 'node:crypto';
+import '../../../tools/flipbase-extension/vinted-local-inbox-events.js';
+
+const inboxRuntime = (
+  globalThis as unknown as {
+    FlipbaseVintedInboxEvents: {
+      notificationKind: (
+        message: Record<string, unknown>,
+        entity: Record<string, unknown>,
+      ) => MarketplaceInboxNotificationKind;
+    };
+  }
+).FlipbaseVintedInboxEvents;
 
 const systemMessageTypes = ['status_message', 'action_message', 'payment_message'];
 function systemIdentity(
@@ -109,7 +122,7 @@ export function parseVintedInboxEvents(
     const message = record(raw);
     const type = message?.['entity_type'];
     const system = typeof type === 'string' && systemMessageTypes.includes(type);
-    if (type !== 'message' && type !== 'offer_request_message' && !system) continue;
+    if (!message || (type !== 'message' && type !== 'offer_request_message' && !system)) continue;
     const entity = record(message?.['entity']);
     const rawId = type === 'message' ? entity?.['id'] : (message?.['id'] ?? entity?.['id']);
     let messageId = identifier(rawId);
@@ -149,6 +162,7 @@ export function parseVintedInboxEvents(
       occurredAt,
       direction: 'inbound',
       source: 'conversation_snapshot',
+      notificationKind: inboxRuntime.notificationKind(message, entity),
     });
   }
   return {

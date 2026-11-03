@@ -9,6 +9,10 @@ import type {
   MarketplaceNegotiationEvent,
 } from './marketplace-negotiation-contracts.d.ts';
 import type { MarketplaceInboxEventBatch } from './marketplace-inbox-event-contracts.d.ts';
+import {
+  isMarketplaceInboxNotificationKind,
+  marketplaceInboxEventMaxBytes,
+} from './marketplace-inbox-notification-kinds.mjs';
 
 export interface LocalExtensionEntry {
   readonly kind: 'profile' | 'publication';
@@ -160,7 +164,7 @@ export interface LocalExtensionBinding {
   readonly messagesRead?: boolean;
   readonly messagesSend?: boolean;
 }
-export const localExtensionMaxBytes = 512 * 1024;
+export const localExtensionMaxBytes = marketplaceInboxEventMaxBytes;
 const accountId = /^[1-9][0-9]{0,31}$/;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function record(input: unknown): input is Record<string, unknown> {
@@ -999,11 +1003,14 @@ export function isMarketplaceInboxEventBatch(
         'occurredAt',
         'direction',
         'source',
+        ...(Object.hasOwn(event, 'notificationKind') ? ['notificationKind'] : []),
       ]) ||
       typeof event['externalId'] !== 'string' ||
       !/^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$/.test(
         event['externalId'],
       ) ||
+      (Object.hasOwn(event, 'notificationKind') &&
+        !isMarketplaceInboxNotificationKind(event['notificationKind'], event['externalId'])) ||
       typeof event['externalConversationId'] !== 'string' ||
       !inboxEventIdentifier.test(event['externalConversationId']) ||
       !inboxEventTimestamp(event['occurredAt']) ||

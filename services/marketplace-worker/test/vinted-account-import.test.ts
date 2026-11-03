@@ -2532,6 +2532,52 @@ test('ordnet Feedbacks mit Kennzeichnung für automatische Bewertungen dem Profi
   assert.equal(second['authorName'], 'Vinted System');
 });
 
+test('distinguishes verified feedback provider times from the display fallback without inventing a source date', () => {
+  const observedAt = '2026-10-07T09:00:00.000Z';
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'fixture' },
+    { user: { id: 123 } },
+    [],
+    [],
+    [],
+    observedAt,
+    [],
+    [
+      { id: 901, created_at_ts: '2026-10-06T10:00:00+02:00' },
+      { id: 902, created_at: '2026-10-06T08:00:00Z' },
+      { id: 903, updated_at: '2026-10-06T08:00:00Z' },
+      { id: 904 },
+      { id: 905, created_at_ts: 'invalid', created_at: 'Gestern' },
+      { id: 906, created_at_ts: '2026-02-30T08:00:00Z' },
+      {
+        id: 907,
+        created_at_ts: 'invalid',
+        created_at: 'Gestern',
+        updated_at: '2026-10-06T08:00:00Z',
+      },
+      { id: 908, created_at_ts: '2027-01-01T08:00:00Z' },
+    ],
+  );
+  const feedbacks = snapshot.entries[0]?.body['feedbacks'] as Record<string, unknown>[];
+  assert.deepEqual(
+    feedbacks.map((feedback) => feedback['occurredAtVerified']),
+    [true, true, true, false, false, false, true, false],
+  );
+  assert.deepEqual(
+    feedbacks.map((feedback) => feedback['occurredAt']),
+    [
+      '2026-10-06T08:00:00.000Z',
+      '2026-10-06T08:00:00.000Z',
+      '2026-10-06T08:00:00.000Z',
+      observedAt,
+      observedAt,
+      observedAt,
+      '2026-10-06T08:00:00.000Z',
+      observedAt,
+    ],
+  );
+});
+
 for (const conversationCount of [0, 20, 80]) {
   test(`leere Gesprächsseite beendet Vinteds wachsende Seitenangabe bei ${conversationCount} Gesprächen`, async () => {
     const inboxPages: number[] = [];

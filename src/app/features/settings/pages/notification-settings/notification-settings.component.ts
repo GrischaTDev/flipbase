@@ -55,7 +55,7 @@ export class NotificationSettingsComponent {
     ['disabled', 'pending', 'revoke_pending', 'error'].includes(this.webPushService.deviceStatus()),
   );
   readonly pushCategories: { key: WebPushCategory; label: string }[] = [
-    { key: 'message', label: 'Neue Marktplatznachrichten' },
+    { key: 'message', label: 'Nachrichten und Statusmeldungen' },
     { key: 'order', label: 'Neue Bestellungen' },
     { key: 'favorite', label: 'Neue Favoriten für deine Vinted-Inserate' },
     { key: 'connection', label: 'Kontoverbindung braucht deine Anmeldung' },

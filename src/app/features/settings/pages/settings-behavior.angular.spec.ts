@@ -1665,11 +1665,14 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     },
   );
 
-  it('speichert nur ausdrücklich ausgewählte Serverkategorien', async () => {
+  it.each([
+    ['Neue Bestellungen', 'order'],
+    ['Nachrichten und Statusmeldungen', 'message'],
+  ])('speichert %s nur als ausdrücklich ausgewählte Serverkategorie', async (label, category) => {
     const { fixture, webPushService, toast } = await renderNotifications({ permission: 'granted' });
-    renderedCheckbox(fixture, 'Neue Bestellungen').click();
+    renderedCheckbox(fixture, label).click();
     await flushAsyncAction(fixture);
-    expect(webPushService.saveCategories).toHaveBeenCalledWith(['order']);
+    expect(webPushService.saveCategories).toHaveBeenCalledWith([category]);
     expect(webPushService.updateSettings).not.toHaveBeenCalled();
     expectOnlyToast(toast, 'success', 'Push-Kategorien wurden gespeichert.');
   });

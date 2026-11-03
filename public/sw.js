@@ -498,6 +498,31 @@ function validatedPush(candidate) {
       count === 2);
   return valid ? candidate : null;
 }
+const vintedMessageNotificationTitles = new Set([
+  'Neue Nachricht',
+  'Neuer Preisvorschlag',
+  'Artikel verkauft',
+  'Artikel gekauft',
+  'Bestellung storniert',
+  'Transaktion abgebrochen',
+  'Artikel wieder eingestellt',
+  'Versandlabel verfügbar',
+  'Sendung verschickt',
+  'Sendung abholbereit',
+  'Sendung zugestellt',
+  'Bestellung abgeschlossen',
+  'Bestellung unterbrochen',
+  'Problem gemeldet',
+  'Rückerstattung eingeleitet',
+  'Rückerstattung abgeschlossen',
+  'Rückerstattung angenommen',
+  'Rücksendung verschickt',
+  'Neue Bewertung',
+  'Bewertung abgegeben',
+  'Supportchat beendet',
+  'Artikel nicht verfügbar',
+  'Status bei Vinted aktualisiert',
+]);
 self.addEventListener('push', (event) =>
   event.waitUntil(
     (async () => {
@@ -508,8 +533,8 @@ self.addEventListener('push', (event) =>
       } catch {
         /* Ein kaputter Payload bekommt nur eine allgemeine sichtbare Meldung. */
       }
+      // Nachrichtenstatus zeigen nur feste Titel; private Nachrichtentexte bleiben verborgen.
       // Favoriten zeigen die serverseitig belegten Konto-/Artikeldetails.
-      // Nachrichten und Bestellungen enthalten weiterhin keine Kontaktdaten.
       const notificationContent = {
         message: {
           title: 'Neue Marktplatznachricht',
@@ -537,7 +562,19 @@ self.addEventListener('push', (event) =>
           action: 'Einstellungen öffnen',
         },
       };
-      const content = payload ? notificationContent[payload.category] : null;
+      let content = payload ? notificationContent[payload.category] : null;
+      if (payload?.category === 'message' && vintedMessageNotificationTitles.has(payload.title)) {
+        content = {
+          ...content,
+          title: payload.title,
+          body:
+            payload.title === 'Neue Nachricht'
+              ? 'Du hast eine neue Nachricht.'
+              : payload.title === 'Neuer Preisvorschlag'
+                ? 'Du hast einen neuen Preisvorschlag erhalten.'
+                : 'Öffne dein Vinted-Postfach für Details.',
+        };
+      }
       const favoriteDetails =
         payload?.category === 'favorite' &&
         /^(?:Artikel wurde favorisiert|\d+ Artikel wurden favorisiert) · .+/.test(payload.title);

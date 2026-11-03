@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { MarketplaceMessageNotificationApiService } from './marketplace-message-notification-api.service';
+import { messageNotificationCategorySettings } from '../models/marketplace-message-notifications';
 
 const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
 let api: MarketplaceMessageNotificationApiService;
@@ -52,7 +53,10 @@ describe('Nachrichtenmeldungen an der Servergrenze', () => {
   it('liest und ändert die kontogebundene Meldungseinstellung mit ihrer Fassung', async () => {
     const settings = { ...scope, enabled: true, version: 0 };
     rpc.mockResolvedValueOnce({ data: settings, error: null });
-    expect(await api.readSettings(scope)).toEqual(settings);
+    expect(await api.readSettings(scope)).toEqual({
+      ...settings,
+      categories: messageNotificationCategorySettings(settings),
+    });
     expect(rpc).toHaveBeenLastCalledWith('marketplace_read_message_notification_settings', {
       p_workspace_id: scope.workspaceId,
       p_connection_id: scope.connectionId,
@@ -67,6 +71,25 @@ describe('Nachrichtenmeldungen an der Servergrenze', () => {
     });
     rpc.mockResolvedValueOnce({ data: { ...settings, connectionId: 'foreign' }, error: null });
     await expect(api.readSettings(scope)).rejects.toThrow();
+  });
+  it('ändert nur die gewählte Kategorie mit bestätigter Kontobindung und Version', async () => {
+    const settings = { ...scope, enabled: true, version: 3 };
+    const saved = {
+      ...settings,
+      version: 4,
+      categories: { ...messageNotificationCategorySettings(settings), payments: false },
+    };
+    rpc.mockResolvedValueOnce({ data: saved, error: null });
+    expect(await api.setCategorySettings(settings, 'payments', false)).toEqual(saved);
+    expect(rpc).toHaveBeenLastCalledWith('marketplace_set_notification_category_settings', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_category: 'payments',
+      p_enabled: false,
+      p_expected_version: 3,
+    });
+    rpc.mockResolvedValueOnce({ data: { ...saved, connectionId: 'foreign' }, error: null });
+    await expect(api.setCategorySettings(settings, 'payments', false)).rejects.toThrow();
   });
   it('bestätigt Markieren nur bei bestätigtem Serverergebnis', async () => {
     rpc.mockResolvedValueOnce({ data: { ok: true }, error: null });

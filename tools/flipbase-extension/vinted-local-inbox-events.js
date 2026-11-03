@@ -1,5 +1,78 @@
 (function exposeInboxEvents(root) {
   const systemMessageTypes = ['status_message', 'action_message', 'payment_message'];
+  function notificationKind(message, entity) {
+    if (message.entity_type === 'message') return 'message';
+    if (message.entity_type === 'offer_request_message') return 'offer_received';
+    if (!systemMessageTypes.includes(message.entity_type)) return 'other_status';
+    const text = (value) => (typeof value === 'string' ? value.trim() : '');
+    const group = text(message.event_group);
+    const type = text(message.event_type);
+    const title = text(entity.title) || text(entity.status_title) || text(entity.body);
+    // Ausschließlich verifizierte Plattformmeldungen klassifizieren, niemals private Chattexte.
+    if (group === 'sale') {
+      if (type === 'not_available') return 'item_unavailable';
+      if (['success', 'success_preparing_shipment'].includes(type)) {
+        if (/^Verkauft(?:$|[! (])/u.test(title)) return 'sale_sold';
+        if (/^Gekauft(?:$|[! (])/u.test(title)) return 'purchase_created';
+      }
+    }
+    if (group === 'cancelation') {
+      if (type === 'reuploaded') return 'item_relisted';
+      if (type === 'manually') return 'order_cancelled';
+    }
+    if (group === 'shipment') {
+      if (type === 'label_success') return 'shipping_label_ready';
+      if (['shipped_tracked', 'tracking_pending'].includes(type)) return 'shipment_sent';
+      if (type === 'held_at_post_office') return 'ready_for_pickup';
+      if (type === 'shipment_completed') {
+        if (title === 'Der Käufer hat die Bestellung storniert.') return 'order_cancelled';
+        if (
+          ['Die Transaktion wurde abgebrochen', 'Du hast die Transaktion abgebrochen'].includes(
+            title,
+          )
+        )
+          return 'transaction_cancelled';
+        if (title === 'Verschickt') return 'shipment_sent';
+      }
+    }
+    if (group === 'delivery') {
+      if (type === 'delivered') return 'delivered';
+      if (type === 'suspended_by_buyer') return 'order_suspended';
+    }
+    if (group === 'completion' && type === 'completed') return 'order_completed';
+    if (group === 'order_complaint' && type === 'raised_issue') return 'issue_reported';
+    if (group === 'refund') {
+      if (type === 'refund_processing') return 'refund_started';
+      if (
+        ['refund_success', 'refund_success_wallet', 'refund_success_multiple_sources'].includes(
+          type,
+        )
+      )
+        return 'refund_completed';
+    }
+    if (group === 'refund_offer' && type === 'refund_offer_accepted') return 'refund_accepted';
+    if (group === 'return_shipment' && type === 'return_shipment_completed')
+      return 'return_shipped';
+    if (
+      group === 'feedback' &&
+      ['buyer_feedback_left', 'seller_feedback_left', 'system_feedback_left'].includes(type)
+    ) {
+      if (title === 'Bewertung abgegeben!') return 'feedback_sent';
+      if (
+        ['Du hast eine neue Bewertung!', 'Du hast eine automatische Bewertung bekommen!'].includes(
+          title,
+        )
+      )
+        return 'feedback_received';
+    }
+    if (group === 'support_ticket' && type === 'ticket_closed') return 'support_closed';
+    if (!group && !type) {
+      if (['Geliefert', 'Sendung zugestellt'].includes(title)) return 'delivered';
+      if (title === 'Angekommen!') return 'ready_for_pickup';
+      if (title === 'Sendung wurde an Käufer verschickt.') return 'shipment_sent';
+    }
+    return 'other_status';
+  }
   function systemIdentity(message, entity, occurredAt) {
     const text = (value) => (typeof value === 'string' ? value.trim() : null);
     return JSON.stringify({
@@ -128,6 +201,7 @@
         occurredAt,
         direction: 'inbound',
         source: 'conversation_snapshot',
+        notificationKind: notificationKind(message, entity),
       });
     }
     return {
@@ -137,7 +211,7 @@
       coveredConversationIds: complete ? [conversationId] : [],
     };
   }
-  const api = { parse };
+  const api = { parse, notificationKind };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.FlipbaseVintedInboxEvents = api;
 })(globalThis);

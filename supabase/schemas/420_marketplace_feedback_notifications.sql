@@ -1,4 +1,17 @@
 -- Neue übernommene Vinted-Bewertungen melden; historische Kennungen bleiben als Basis erhalten.
+create or replace function public.marketplace_feedback_occurred_at(p_value text)
+returns timestamptz language plpgsql stable set search_path = '' as $$
+declare v_at timestamptz;
+begin
+  if p_value is null or p_value !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$' then return null; end if;
+  v_at:=p_value::timestamptz;
+  return case when isfinite(v_at) then v_at end;
+exception when invalid_datetime_format or datetime_field_overflow then return null;
+end;
+$$;
+revoke all on function public.marketplace_feedback_occurred_at(text) from public,anon;
+grant execute on function public.marketplace_feedback_occurred_at(text) to authenticated,service_role;
+
 create table public.marketplace_feedback_notifications (
   id bigint generated always as identity primary key,
   workspace_id uuid not null,
@@ -35,6 +48,7 @@ declare v_has_baseline boolean := false; v_inserted integer;
 begin
   if new.kind <> 'profile' or jsonb_typeof(new.body->'feedbacks') is distinct from 'array'
     or not exists (select 1 from public.marketplace_connections c where c.workspace_id = new.workspace_id and c.id = new.connection_id and c.marketplace = 'vinted') then return new; end if;
+  perform pg_advisory_xact_lock(91731,1);
   if tg_op = 'UPDATE' then
     if old.kind <> 'profile' or new.workspace_id is distinct from old.workspace_id or new.connection_id is distinct from old.connection_id
       or new.observed_at <= old.observed_at or new.body->'feedbacks' is not distinct from old.body->'feedbacks' then return new; end if;
@@ -54,8 +68,13 @@ begin
       and feedback->>'authorName' !~ '[[:cntrl:]]' then feedback->>'authorName' end,
     case when jsonb_typeof(feedback->'rating') = 'number' and feedback->>'rating' ~ '^[0-5]$' then (feedback->>'rating')::integer end,
     case when jsonb_typeof(feedback->'isAutomatic') = 'boolean' then (feedback->>'isAutomatic')::boolean end,
-    new.observed_at,case when v_has_baseline then new.observed_at end
+    new.observed_at,case when v_has_baseline
+      and ((source.occurred_at is not null and feedback->'occurredAtVerified' is distinct from 'false'::jsonb) or not exists(select 1 from public.marketplace_message_notification_settings s
+        where s.workspace_id=new.workspace_id and s.connection_id=new.connection_id and coalesce((s.category_enabled_since->>'feedback')::numeric,0)>0))
+      and public.marketplace_notification_enabled(new.workspace_id,new.connection_id,'feedback',coalesce(source.occurred_at,new.observed_at))
+      then new.observed_at end
   from jsonb_array_elements(new.body->'feedbacks') feedback
+  cross join lateral (select public.marketplace_feedback_occurred_at(feedback->>'occurredAt') as occurred_at) source
   where jsonb_typeof(feedback->'id') = 'string' and char_length(btrim(feedback->>'id')) between 1 and 256
   on conflict (workspace_id,connection_id,external_feedback_id) do nothing;
   get diagnostics v_inserted = row_count;

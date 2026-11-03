@@ -234,7 +234,7 @@
       if (!core.isApiUrl(binding.apiUrl, binding.appOrigin))
         throw new Error('Die Serveradresse ist nicht erlaubt.');
       const serializedBody = JSON.stringify(body);
-      if (new TextEncoder().encode(serializedBody).length > 512 * 1024)
+      if (new TextEncoder().encode(serializedBody).length > 768 * 1024)
         throw new Error(
           'Die Daten überschreiten die maximale Größe dieses Lesepiloten. Es wurde nichts importiert.',
         );
