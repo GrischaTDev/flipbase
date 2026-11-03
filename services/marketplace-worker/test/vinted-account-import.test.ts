@@ -8,6 +8,8 @@ import {
   vintedFieldNames,
   VintedImportReadError,
   VintedImportRequestError,
+  type VintedAccountImport,
+  type VintedConversationVersion,
 } from '../src/vinted-account-import.ts';
 
 test('provider creation dates stay separate from publication time and never sort by import or edit time', () => {
@@ -336,12 +338,12 @@ test('unchanged unread timestamp still checks real message ids; oldest checked c
       occurredAt: null,
     })),
   );
-  assert.equal(paths.filter((path) => path.startsWith('/api/v2/conversations/')).length, 3);
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/conversations/')).length, 4);
   assert.equal(
     paths.find((path) => path.startsWith('/api/v2/conversations/')),
     '/api/v2/conversations/703',
   );
-  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['703', '700', '701']);
+  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['703', '700', '701', '702']);
 });
 
 function importPage(overrides: (path: string) => unknown): Page {
@@ -354,6 +356,426 @@ function importPage(overrides: (path: string) => unknown): Page {
         : { items: [], conversations: [], user_feedbacks: [], pagination: { total_pages: 1 } }),
   } as unknown as Page;
 }
+
+function cachedConversationVersions(snapshot: VintedAccountImport): VintedConversationVersion[] {
+  return snapshot.entries
+    .filter((entry) => entry.kind === 'conversation')
+    .map((entry) => ({
+      ...entry.body,
+      externalId: entry.externalId,
+    })) as unknown as VintedConversationVersion[];
+}
+
+test('background detail attempts rotate a ten-chat backlog and five regular slots without a failed chat starving the rest', async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const ids = Array.from({ length: 11 }, (_, index) => 700 + index);
+  const sourceUpdatedAt = '2026-10-08T08:01:00.000Z';
+  let detailIds: number[] = [];
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: ids.map((id) => ({
+          id,
+          unread: true,
+          opposite_user: { id: 91 },
+          updated_at: sourceUpdatedAt,
+        })),
+        pagination: { total_pages: 1 },
+      };
+    if (path.startsWith('/api/v2/conversations/')) {
+      const id = Number(path.split('/').at(-1));
+      detailIds.push(id);
+      if (id === 700) return { flipbaseRequestFailure: 'invalid_response' };
+      return {
+        conversation: { id, opposite_user: { id: 91 }, read_by_current_user: false, messages: [] },
+      };
+    }
+    return undefined;
+  });
+  const first = await readVintedAccountImport(page, async () => undefined);
+  assert.deepEqual(detailIds, ids.slice(0, 10));
+  const failed = first.entries.find((entry) => entry.externalId === '700');
+  assert.equal(failed?.body['detailCheckedAt'], null);
+  assert.equal(failed?.body['detailAttemptedAt'], new Date(now).toISOString());
+  assert.equal(
+    first.entries.find((entry) => entry.externalId === '710')?.body['detailAttemptedAt'],
+    undefined,
+  );
+
+  now += 15 * 60_000;
+  detailIds = [];
+  const second = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    cachedConversationVersions(first),
+  );
+  assert.equal(detailIds.length, 5);
+  assert.equal(detailIds[0], 710);
+  assert.equal(new Set([...ids.slice(0, 10), ...detailIds]).size, 11);
+  assert.equal(
+    second.entries.find((entry) => entry.externalId === '700')?.body['detailCheckedAt'],
+    null,
+  );
+});
+
+test('background detail start budget leaves later chats unattempted and preserves the next run', async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const reads: number[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [700, 701, 702].map((id) => ({ id, unread: false })),
+          pagination: { total_pages: 1 },
+        };
+      if (path.startsWith('/api/v2/conversations/')) {
+        const id = Number(path.split('/').at(-1));
+        reads.push(id);
+        now += 23_000;
+        return { conversation: { id, messages: [] } };
+      }
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(reads, [700, 701]);
+  assert.equal(
+    snapshot.entries.find((entry) => entry.externalId === '702')?.body['detailAttemptedAt'],
+    undefined,
+  );
+  assert.equal(snapshot.areas.messages.failure, undefined);
+});
+
+test('failed chats without a provider version still rotate attempts instead of starving unseen chats', async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  let reads: number[] = [];
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: Array.from({ length: 11 }, (_, index) => ({
+          id: 700 + index,
+          unread: false,
+        })),
+        pagination: { total_pages: 1 },
+      };
+    if (path.startsWith('/api/v2/conversations/')) {
+      reads.push(Number(path.split('/').at(-1)));
+      return { flipbaseRequestFailure: 'invalid_response' };
+    }
+    return undefined;
+  });
+  const first = await readVintedAccountImport(page, async () => undefined);
+  assert.deepEqual(
+    reads,
+    Array.from({ length: 10 }, (_, index) => 700 + index),
+  );
+  now += 15 * 60_000;
+  reads = [];
+  const second = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    cachedConversationVersions(first),
+  );
+  assert.equal(reads.length, 10);
+  assert.equal(reads[0], 710);
+  assert.ok(
+    second.entries.every(
+      (entry) => entry.kind !== 'conversation' || entry.body['detailCheckedAt'] === null,
+    ),
+  );
+});
+
+for (const pendingCount of [0, 5, 6, 11]) {
+  test(`background details use ${pendingCount > 5 ? 'ten backlog' : 'five regular'} slots with ${pendingCount} pending chats and fresh unread chats`, async (t) => {
+    const now = Date.now();
+    t.mock.method(Date, 'now', () => now);
+    const sourceUpdatedAt = '2026-10-08T08:01:00.000Z';
+    const freshIds = Array.from({ length: 7 }, (_, index) => 800 + index);
+    const pendingIds = Array.from({ length: pendingCount }, (_, index) => 700 + index);
+    const rows = [...freshIds, ...pendingIds].map((id) => ({
+      id,
+      unread: true,
+      opposite_user: { id: 91 },
+      updated_at: sourceUpdatedAt,
+    }));
+    const reads: number[] = [];
+    const previous: VintedConversationVersion[] = [...freshIds, ...pendingIds].flatMap((id) => {
+      if (pendingIds.includes(id) && id % 4 === 0) return [];
+      return [
+        {
+          externalId: String(id),
+          sourceUpdatedAt:
+            pendingIds.includes(id) && id % 4 === 1 ? '2026-10-08T08:00:00.000Z' : sourceUpdatedAt,
+          detailCheckedAt: new Date(
+            now - (pendingIds.includes(id) && id % 4 === 2 ? 25 * 60 * 60_000 : 60_000),
+          ).toISOString(),
+          saleTrackingVersion: pendingIds.includes(id) && id % 4 === 3 ? undefined : 2,
+          text: null,
+          occurredAt: null,
+        },
+      ];
+    });
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        if (path.startsWith('/api/v2/inbox'))
+          return { conversations: rows, pagination: { total_pages: 1 } };
+        if (path.startsWith('/api/v2/conversations/')) {
+          const id = Number(path.split('/').at(-1));
+          reads.push(id);
+          return {
+            conversation: {
+              id,
+              opposite_user: { id: 91 },
+              read_by_current_user: false,
+              messages: [],
+            },
+          };
+        }
+        return undefined;
+      }),
+      async () => undefined,
+      undefined,
+      previous,
+    );
+    assert.equal(reads.length, pendingCount > 5 ? 10 : 5);
+    assert.ok(pendingIds.slice(0, 2).every((id) => reads.includes(id)));
+    const firstFreshRead = reads.findIndex((id) => freshIds.includes(id));
+    if (firstFreshRead !== -1)
+      assert.ok(pendingIds.slice(0, 2).every((id) => reads.indexOf(id) < firstFreshRead));
+    assert.equal(new Set(reads).size, reads.length);
+    assert.equal(snapshot.inboxEvents?.coveredConversationIds.length, reads.length);
+  });
+}
+
+test('duplicate and unread-unsafe chats do not create catch-up capacity', async () => {
+  const sourceUpdatedAt = '2026-10-08T08:01:00.000Z';
+  const freshIds = [800, 801, 802, 803, 804, 805];
+  const pendingIds = [700, 701, 702, 703, 704];
+  const reads: number[] = [];
+  await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [
+            ...freshIds.map((id) => ({
+              id,
+              unread: true,
+              opposite_user: { id: 91 },
+              updated_at: sourceUpdatedAt,
+            })),
+            ...pendingIds.flatMap((id) => [
+              { id, unread: false },
+              { id, unread: false },
+            ]),
+            ...[900, 901, 902, 903, 904, 905].map((id) => ({ id, unread: true })),
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path.startsWith('/api/v2/conversations/')) {
+        const id = Number(path.split('/').at(-1));
+        reads.push(id);
+        return { conversation: { id, opposite_user: { id: 91 }, messages: [] } };
+      }
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    freshIds.map((id) => ({
+      externalId: String(id),
+      sourceUpdatedAt,
+      detailCheckedAt: new Date(Date.now() - 60_000).toISOString(),
+      saleTrackingVersion: 2,
+      text: null,
+      occurredAt: null,
+    })),
+  );
+  assert.deepEqual(reads, pendingIds);
+});
+
+test('an unread detail that consumes the budget still verifies unread status before accepting its data', async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [700, 701].map((id) => ({ id, unread: true, opposite_user: { id: 91 } })),
+          pagination: { total_pages: 1 },
+        };
+      if (path.startsWith('/api/v2/conversations/')) {
+        const id = Number(path.split('/').at(-1));
+        now += 46_000;
+        return {
+          conversation: {
+            id,
+            opposite_user: { id: 91 },
+            read_by_current_user: false,
+            messages: [],
+          },
+        };
+      }
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/api/v2/conversations/')),
+    ['/api/v2/conversations/700'],
+  );
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/inbox')).length, 2);
+  assert.equal(
+    snapshot.entries.find((entry) => entry.externalId === '700')?.body['detailCheckedAt'],
+    snapshot.observedAt,
+  );
+  assert.equal(
+    snapshot.entries.find((entry) => entry.externalId === '701')?.body['detailAttemptedAt'],
+    undefined,
+  );
+});
+
+test('cached detail attempt times follow the inbox source version without becoming success evidence', () => {
+  const sourceUpdatedAt = '2026-10-08T08:01:00.000Z';
+  const previous = {
+    externalId: '700',
+    sourceUpdatedAt,
+    detailCheckedAt: null,
+    detailAttemptedAt: '2026-10-08T08:02:00.000Z',
+    text: null,
+    occurredAt: null,
+  };
+  for (const updatedAt of [sourceUpdatedAt, '2026-10-08T08:03:00.000Z']) {
+    const snapshot = parseVintedAccountImport(
+      { id: '123', username: 'test' },
+      { user: { id: 123 } },
+      [],
+      [{ id: 700, updated_at: updatedAt }],
+      [],
+      '2026-10-08T09:00:00.000Z',
+      [previous],
+    );
+    const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+    assert.equal(
+      conversation?.body['detailAttemptedAt'],
+      updatedAt === sourceUpdatedAt ? previous.detailAttemptedAt : undefined,
+    );
+    assert.equal(conversation?.body['detailCheckedAt'], null);
+  }
+});
+
+for (const failure of ['forbidden', 'rate_limited'] as const) {
+  test(`a provider ${failure} stops later background details without marking skipped chats attempted`, async () => {
+    const paths: string[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/inbox'))
+          return {
+            conversations: [700, 701].map((id) => ({ id, unread: false })),
+            pagination: { total_pages: 1 },
+          };
+        if (path.startsWith('/api/v2/conversations/')) return { flipbaseRequestFailure: failure };
+        return undefined;
+      }),
+      async () => undefined,
+    );
+    assert.deepEqual(
+      paths.filter((path) => path.startsWith('/api/v2/conversations/')),
+      ['/api/v2/conversations/700'],
+    );
+    assert.ok(
+      snapshot.entries.find((entry) => entry.externalId === '700')?.body['detailAttemptedAt'],
+    );
+    assert.equal(
+      snapshot.entries.find((entry) => entry.externalId === '700')?.body['detailCheckedAt'],
+      null,
+    );
+    assert.equal(
+      snapshot.entries.find((entry) => entry.externalId === '701')?.body['detailAttemptedAt'],
+      undefined,
+    );
+    assert.equal(snapshot.areas.messages.failure, failure);
+  });
+}
+
+test('an explicit conversation read keeps its authorization checks without a background time limit', async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [{ id: 700, unread: false }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/700') return { conversation: { id: 700, messages: [] } };
+      return undefined;
+    }),
+    async () => {
+      now += 60_000;
+    },
+    undefined,
+    [],
+    { accountId: '123', externalId: '700' },
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/api/v2/conversations/')),
+    ['/api/v2/conversations/700'],
+  );
+  assert.equal(
+    snapshot.entries.find((entry) => entry.externalId === '700')?.body['detailCheckedAt'],
+    snapshot.observedAt,
+  );
+  assert.ok(
+    snapshot.entries.find((entry) => entry.externalId === '700')?.body['detailAttemptedAt'],
+  );
+});
+
+test('a failed unread countercheck after the detail budget expires still rejects the import', async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  let inboxReads = 0;
+  const paths: string[] = [];
+  await assert.rejects(
+    readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/inbox'))
+          return {
+            conversations: [{ id: 700, unread: ++inboxReads === 1, opposite_user: { id: 91 } }],
+            pagination: { total_pages: 1 },
+          };
+        if (path === '/api/v2/conversations/700') {
+          now += 46_000;
+          return {
+            conversation: {
+              id: 700,
+              opposite_user: { id: 91 },
+              read_by_current_user: false,
+              messages: [],
+            },
+          };
+        }
+        return undefined;
+      }),
+      async () => undefined,
+    ),
+    VintedImportReadError,
+  );
+  assert.equal(inboxReads, 2);
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/api/v2/conversations/')),
+    ['/api/v2/conversations/700'],
+  );
+});
 
 test('scheduled wardrobe import fills descriptions without navigating and reuses unchanged stored text', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-03T10:00:00Z') });
