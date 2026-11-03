@@ -22,7 +22,6 @@ test('Pushauswahl umfasst Sender, SQL, Functionpaket und den gesamten Releaseweg
     'docker/Dockerfile',
     '.dockerignore',
     'scripts/package-push-functions.mjs',
-    '.github/workflows/ci.yml',
   ])
     assert.equal(pathsSelectPush([path]), true, path);
   assert.equal(pathsSelectPush(['src/app/features/landing/landing.html']), false);
@@ -64,7 +63,6 @@ test('Migrationsweg waehlt Datenbankpruefungen aus, reine UI-Aenderungen nicht',
     'deploy/docker-compose.app.yml',
     'docker/Dockerfile',
     '.dockerignore',
-    'scripts/deploy-script.test.mjs',
     'scripts/release-migrations.test.mjs',
     'scripts/migration-backup.test.mjs',
   ]) {
@@ -141,6 +139,65 @@ test('AGENTS und reine Dokumentation wählen ausschließlich Dokumentationsprüf
   assert.equal(classifyChanges(null).documentation_only, false);
 });
 
+test('bekannte CI-Werkzeuge wählen Qualität statt Anwendungs-, Dienst- oder Releaseumfang', () => {
+  for (const path of [
+    '.github/workflows/ci.yml',
+    'playwright.affected.config.ts',
+    'playwright.ui.config.ts',
+    'scripts/affected-tests.mjs',
+    'scripts/affected-tests.test.mjs',
+    'scripts/browser-test-selection.mjs',
+    'scripts/browser-test-timings.mjs',
+    'scripts/install-test-selection-parser.mjs',
+    'scripts/ci-checks.mjs',
+    'scripts/ci-checks.test.mjs',
+    'scripts/ci-tooling-paths.mjs',
+    'scripts/detect-supabase-changes.mjs',
+    'scripts/detect-supabase-changes.test.mjs',
+    'scripts/deploy-script.test.mjs',
+    'scripts/preflight.mjs',
+    'scripts/required-checks.mjs',
+    'scripts/reuse-pr-checks.mjs',
+  ]) {
+    for (const paths of [[path], ['AGENTS.md', 'docs/AI-CHANGELOG.md', path]]) {
+      assert.deepEqual(
+        classifyChanges(paths),
+        {
+          application: false,
+          application_tests: false,
+          supabase: false,
+          sniper: false,
+          documentation_only: false,
+        },
+        JSON.stringify(paths),
+      );
+      assert.equal(pathsSelectPush(paths), false, JSON.stringify(paths));
+    }
+  }
+});
+
+test('CI-Werkzeuge verdecken bei gemischten Änderungen keinen Laufzeitumfang', () => {
+  const ciPaths = ['.github/workflows/ci.yml', 'scripts/ci-checks.test.mjs'];
+  for (const runtime of [
+    'src/app/app.ts',
+    'public/sw.js',
+    'supabase/schemas/470_web_push_devices.sql',
+    'supabase/functions/push-deliver/handler.ts',
+    'services/sniper/src/runtime/scheduler.ts',
+    'services/marketplace-worker/src/marketplace-browser-http-api.ts',
+    'tools/flipbase-extension/vinted-listing-runtime.js',
+    'deploy/deploy.sh',
+    'docker/Dockerfile',
+    '.dockerignore',
+    'package-lock.json',
+    '.github/workflows/marketplace-worker-image.yml',
+    'scripts/unknown-runner.mjs',
+  ]) {
+    assert.deepEqual(classifyChanges([...ciPaths, runtime]), classifyChanges([runtime]), runtime);
+    assert.equal(pathsSelectPush([...ciPaths, runtime]), pathsSelectPush([runtime]), runtime);
+  }
+});
+
 test('Regeländerungen verbergen keine gleichzeitig geänderten technischen Dateien', () => {
   for (const path of [
     'src/app/app.ts',
@@ -150,8 +207,6 @@ test('Regeländerungen verbergen keine gleichzeitig geänderten technischen Date
     'deploy/deploy.sh',
     'docker/Dockerfile',
     'package-lock.json',
-    '.github/workflows/ci.yml',
-    'scripts/detect-supabase-changes.mjs',
     'unknown/config.json',
   ]) {
     const paths = ['AGENTS.md', 'docs/AI-CHANGELOG.md', path];
@@ -187,6 +242,33 @@ test('AGENTS mit Änderungsprotokoll überspringt bei PR und Push die Veröffent
         'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\ndocumentation_only=true\n',
       );
     });
+  }
+});
+
+test('reine CI-Änderungen überspringen bei PR und Push alle Releaseflags, aber nicht Qualität', async () => {
+  for (const EVENT_NAME of ['pull_request', 'push']) {
+    for (const path of [
+      '.github/workflows/ci.yml',
+      'scripts/ci-checks.test.mjs',
+      'scripts/browser-test-timings.mjs',
+    ]) {
+      await withRepository(async (repository) => {
+        const base = await commitFile(repository, 'README.md', 'base\n', 'base');
+        const head = await commitFile(repository, path, 'changed\n', 'ci tool');
+        const result = await runDetector(repository, {
+          EVENT_NAME,
+          PR_BASE_SHA: base,
+          PUSH_BEFORE_SHA: base,
+          HEAD_SHA: head,
+        });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(
+          result.output,
+          'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\ndocumentation_only=false\n',
+          path,
+        );
+      });
+    }
   }
 });
 
@@ -442,8 +524,8 @@ test('unbekannte Pfade lösen die Anwendungsprüfung konservativ aus', async () 
   }
 });
 
-test('gemeinsame Abhängigkeiten und CI-Werkzeuge lösen alle betroffenen Prüfungen aus', async () => {
-  for (const path of ['package-lock.json', '.github/workflows/ci.yml']) {
+test('gemeinsame Laufzeitabhängigkeiten lösen alle betroffenen Prüfungen aus', async () => {
+  for (const path of ['package.json', 'package-lock.json']) {
     await withRepository(async (repository) => {
       const base = await commitFile(repository, 'README.md', 'base\n', 'base');
       const head = await commitFile(repository, path, 'changed\n', 'change');
@@ -464,7 +546,7 @@ test('gemeinsame Abhängigkeiten und CI-Werkzeuge lösen alle betroffenen Prüfu
   }
 });
 
-test('nur das getrennte Sniper-Paket darf Anwendungstests ohne Release-Verlust sparen', () => {
+test('getrennte Sniper- und CI-Änderungen sparen fachfremde Anwendungstests', () => {
   const bot = 'services/sniper/src/runtime/scheduler.ts';
   for (const [paths, expected] of [
     [[bot], false],
@@ -481,7 +563,7 @@ test('nur das getrennte Sniper-Paket darf Anwendungstests ohne Release-Verlust s
     [[bot, 'deploy/deploy.sh'], true],
     [[bot, 'docker/Dockerfile'], true],
     [[bot, 'package-lock.json'], true],
-    [[bot, '.github/workflows/ci.yml'], true],
+    [[bot, '.github/workflows/ci.yml'], false],
     [[bot, 'AGENTS.md'], false],
     [[bot, 'unknown/config.json'], true],
     [['services/sniper-other/src/config.ts'], true],

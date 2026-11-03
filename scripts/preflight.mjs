@@ -22,6 +22,7 @@ import { runMarketplaceChecks } from './run-marketplace-checks.mjs';
 import { assertMarketplaceImageRunner } from './marketplace-image-checks.mjs';
 import { executeCheckCommand, runCiCheck } from './ci-checks.mjs';
 import { checkLocalMigrations } from './check-local-migrations.mjs';
+import { isCiToolingPath } from './ci-tooling-paths.mjs';
 import ts from 'typescript';
 
 const exec = promisify(execFile);
@@ -58,6 +59,7 @@ export function preflightSelectionHash(plan) {
     changes: plan.changes,
     application: plan.application,
     marketplace: plan.marketplace,
+    workflowScriptTests: plan.workflowScriptTests,
   });
 }
 
@@ -69,7 +71,11 @@ const ciOnlyScriptTests = new Set([
 ]);
 
 /** Direkte Skriptänderungen prüfen ihre vorhandenen Regressionen ohne CI-Infrastruktur. */
-export async function selectLocalScriptTests(paths, repository = process.cwd()) {
+export async function selectLocalScriptTests(
+  paths,
+  repository = process.cwd(),
+  { includeInfrastructure = false } = {},
+) {
   if (!paths?.some((path) => !path.startsWith('docs/') && !path.endsWith('.md'))) return [];
   const listed = await git(repository, [
     'ls-files',
@@ -122,9 +128,51 @@ export async function selectLocalScriptTests(paths, repository = process.cwd()) 
     for (const consumer of reverse.get(path) ?? []) affected.add(consumer);
   return sorted(
     [...affected].filter(
-      (path) => path.endsWith('.test.mjs') && files.has(path) && !ciOnlyScriptTests.has(path),
+      (path) =>
+        path.endsWith('.test.mjs') &&
+        files.has(path) &&
+        (includeInfrastructure || !ciOnlyScriptTests.has(path)),
     ),
   );
+}
+
+const workflowInputPath =
+  /^(?:scripts\/|\.github\/|deploy\/|docker\/|package(?:-lock)?\.json|(?:angular|tsconfig[^/]*|vitest[^/]*|playwright[^/]*)\.(?:json|ts)|\.dockerignore)/u;
+
+/** Bekannte Werkzeuge prüfen ihre Verbraucher; unklare Bau-/Hoständerungen bleiben vollständig. */
+export async function selectWorkflowScriptTests(paths, repository = process.cwd()) {
+  if (paths === null) return null;
+  const inputs = paths.filter((path) => workflowInputPath.test(path));
+  if (inputs.some((path) => !isCiToolingPath(path))) return null;
+  const roots = paths.includes('.github/workflows/ci.yml')
+    ? [
+        ...paths,
+        'scripts/preflight.mjs',
+        'scripts/ci-checks.mjs',
+        'scripts/required-checks.mjs',
+        'scripts/reuse-pr-checks.mjs',
+      ]
+    : paths;
+  const tests = await selectLocalScriptTests(roots, repository, { includeInfrastructure: true });
+  if (inputs.length && !tests.length) {
+    // Ein neues oder entferntes Werkzeug darf keinen stillen Leerlauf erzeugen.
+    const { stdout } = await exec(
+      'git',
+      [
+        'ls-files',
+        '--cached',
+        '--others',
+        '--exclude-standard',
+        '--',
+        'scripts/ci-checks.test.mjs',
+        'scripts/preflight.test.mjs',
+      ],
+      { cwd: repository, encoding: 'utf8' },
+    );
+    const validators = sorted(stdout.split(/\r?\n/u).filter(Boolean));
+    return validators.length ? validators : null;
+  }
+  return tests;
 }
 
 export async function createPreflightPlan({
@@ -140,13 +188,25 @@ export async function createPreflightPlan({
       }
     : await localChangedPaths(repository, baseRef);
   const changes = { ...classifyChanges(comparison.paths), push: pathsSelectPush(comparison.paths) };
-  const [files, marketplace, localScriptTests] = await Promise.all([
+  const [files, marketplace, workflowScriptTests] = await Promise.all([
     readSelectionFiles(repository),
     selectMarketplaceChecks(comparison.paths, { repository }),
-    selectLocalScriptTests(comparison.paths, repository),
+    selectWorkflowScriptTests(comparison.paths, repository),
   ]);
+  const localScriptTests =
+    workflowScriptTests === null
+      ? await selectLocalScriptTests(comparison.paths, repository)
+      : workflowScriptTests.filter((path) => !ciOnlyScriptTests.has(path));
   const application = selectAffectedTests(comparison.paths, files);
-  const plan = { version: 1, ...comparison, changes, application, marketplace, localScriptTests };
+  const plan = {
+    version: 1,
+    ...comparison,
+    changes,
+    application,
+    marketplace,
+    localScriptTests,
+    workflowScriptTests,
+  };
   return { ...plan, selectionHash: preflightSelectionHash(plan) };
 }
 
@@ -169,6 +229,7 @@ export function githubPreflightOutputs(plan) {
     marketplace_required: plan.application.checks.marketplace,
     landing_required: plan.application.checks.landing,
     workflow_required: plan.application.checks.workflow ?? true,
+    workflow_script_tests: JSON.stringify(plan.workflowScriptTests ?? null),
     marketplace_check_plan: JSON.stringify(plan.marketplace),
     extension_required: plan.marketplace.extensionRequired,
     worker_browser_required: plan.marketplace.workerBrowserTests.length > 0,
@@ -205,7 +266,17 @@ export function preflightChecks(plan, { profile = 'local', native = false } = {}
   if (ci && (plan.application.checks.workflow ?? true)) {
     checks.push(
       { id: 'workflow-lint', title: 'Workflow-Syntax (Actionlint)', tools: ['actionlint'] },
-      { id: 'workflow', title: 'Workflow- und Deploymentverträge', tools: ['docker', 'pwsh'] },
+      {
+        id: 'workflow',
+        title: plan.workflowScriptTests
+          ? `Betroffene Workflowverträge (${plan.workflowScriptTests.length} Dateien)`
+          : 'Workflow- und Deploymentverträge',
+        tools: plan.workflowScriptTests
+          ? plan.workflowScriptTests.includes('scripts/deploy-script.test.mjs')
+            ? ['docker', 'pwsh']
+            : []
+          : ['docker', 'pwsh'],
+      },
     );
   } else if (paths.some((path) => /^\.github\/workflows\/[^/]+\.ya?ml$/u.test(path))) {
     checks.push({
@@ -451,7 +522,7 @@ export async function runPreflight(
       );
     } else if (['extension', 'worker-browser', 'images'].includes(check.id)) {
       await runMarketplaceChecks(check.id, plan.marketplace, { repository, environment });
-    } else await runCiCheck(check.id, options);
+    } else await runCiCheck(check.id, { ...options, workflowTests: plan.workflowScriptTests });
   }
   console.log(
     profile === 'local'
