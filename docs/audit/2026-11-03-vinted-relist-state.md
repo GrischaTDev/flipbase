@@ -133,8 +133,14 @@ Danach den eigenen Zweig auf den aktuellen Hauptstand `8e93e7dd` übernommen;
 ausschließlich den Changelogkonflikt unter Erhalt beider vollständiger
 Sitzungseinträge gelöst. Die neuen Hauptzweigänderungen betreffen den
 Kontoabgleichdialog; der geprüfte Workerleser bleibt unverändert. Erneuter
-Vorabcheck auf diesem zusammenhängenden Stand vor der Veröffentlichung.
+Vorabcheck unter Node 22 auf diesem zusammenhängenden Stand erfolgreich:
+Format, Lint, Typen, Suite-Audit, 188 Skriptfälle (zwei reguläre Auslassungen),
+acht Orchestrierungsfälle (drei reguläre Auslassungen), 40 Modell- und
+794 Angularfälle sowie Angular-Bau. Nach abschließender Ergänzung dieses
+Markdownnachweises Formatprüfung und Plan erneut erfolgreich.
 
-Der echte Formularleser ist nun bestätigt. Ausgewählte CI-/Imageprüfungen und
-Veröffentlichung bleiben bis zur Freigabe offen. Der Arbeitszweig bleibt
-unveröffentlicht erhalten.
+Der echte Formularleser ist nun bestätigt. Der Nutzer hat PR, Merge nach
+erfolgreichen Pflichtprüfungen und Worker-Rollout ausdrücklich freigegeben.
+Ausgewählte CI-/Imageprüfungen bleiben vor Merge erforderlich; nach dem Merge
+den unveränderlichen Release und den tatsächlich laufenden Worker prüfen.
+Keine produktive Veröffentlichung oder Löschung als Test dieses Rollouts.
