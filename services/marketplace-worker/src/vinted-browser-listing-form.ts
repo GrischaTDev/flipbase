@@ -128,6 +128,13 @@ export async function openVintedListingChoices(
   const openingTimeout = field === 'brand' ? 15_000 : 5000;
   try {
     input = (await vintedListingFormControl(page, field))!.locator;
+    // Verankerte Auswahllisten brauchen unter dem Kontrollfeld Platz im Viewport.
+    await input.evaluate(
+      (element) =>
+        element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+      undefined,
+      { timeout: Math.max(1, openingTimeout - (performance.now() - openingStartedAt)) },
+    );
     // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
     await input.click({
       timeout: Math.max(1, openingTimeout - (performance.now() - openingStartedAt)),

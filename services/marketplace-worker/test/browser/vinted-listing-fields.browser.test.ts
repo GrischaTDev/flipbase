@@ -12,6 +12,46 @@ import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listin
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
 
+test('centers a low modern color control before opening its anchored native grid', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 812 } });
+    let requests = 0;
+    page.on('request', () => requests++);
+    await page.setContent(`<style>body { margin:0; } #content { padding-top:760px; min-height:2400px; } label { position:absolute; top:730px; } button { display:block; width:560px; height:44px; } #color-options { position:fixed; left:70px; z-index:1; } [role=checkbox] { width:48px; height:92px; }</style>
+      <main id="content"><label for="_r_color_">Farbe</label><button type="button" id="_r_color_" data-testid="color-select-dropdown-input">Farbe auswählen</button><input name="color" value="">
+      </main><div id="color-options" hidden><div role="checkbox" data-testid="filter-grid-option-1" aria-checked="false"><span data-testid="color-1">Schwarz</span></div></div>
+      <script>
+        const control = document.querySelector('[data-testid="color-select-dropdown-input"]');
+        const popup = document.querySelector('#color-options');
+        control.onclick = () => { popup.style.top = (control.getBoundingClientRect().bottom + 14) + 'px'; popup.hidden = false; };
+        popup.querySelector('[role=checkbox]').onclick = event => { event.currentTarget.setAttribute('aria-checked', 'true'); control.textContent = 'Schwarz'; };
+        document.onkeydown = event => { if (event.key === 'Escape') popup.hidden = true; };
+      </script>`);
+    const control = page.getByTestId('color-select-dropdown-input');
+    assert.equal(await control.isVisible(), true);
+    assert.equal((await control.boundingBox())?.y, 760);
+    await selectVintedListingField(
+      page,
+      {
+        field: 'color',
+        sizeGroupId: null,
+        choices: [{ id: 1, label: 'Schwarz', selected: false, disabled: false, sizeGroupId: null }],
+      },
+      [1],
+      async () => undefined,
+    );
+    assert.equal(
+      await page.getByTestId('filter-grid-option-1').getAttribute('aria-checked'),
+      'true',
+    );
+    assert.equal(await page.locator('#color-options').isVisible(), false);
+    assert.equal(requests, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('keeps the package button name stable when recommendation and selected information move', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
