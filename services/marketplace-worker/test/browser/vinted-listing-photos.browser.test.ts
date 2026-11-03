@@ -5,6 +5,10 @@ import { test } from 'node:test';
 import { chromium, type Page } from 'playwright';
 import { uploadVintedListingPhotos } from '../../src/vinted-browser-listing-photos.ts';
 import type { MarketplaceListingSnapshot } from '../../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { MarketplaceBrowserHttpApi } from '../../src/marketplace-browser-http-api.ts';
+import { VintedListingPhotoSource } from '../../src/vinted-listing-photo-source.ts';
 
 const imageBytes = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=',
@@ -427,5 +431,179 @@ test('preview and upload share filters and frame sizes without changing the orig
     assert.deepEqual(Buffer.from(photo.bytes), original);
   } finally {
     await browser.close();
+  }
+});
+
+test('reads and edits a CDN photo without CORS through the authenticated same-origin endpoint', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const servers: Server[] = [];
+  const listen = async (server: Server) => {
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    return 'http://127.0.0.1:' + (server.address() as AddressInfo).port;
+  };
+  try {
+    const page = await browser.newPage();
+    const original = Buffer.from(
+      await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 80;
+        canvas.height = 120;
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#719fef';
+        ctx.fillRect(0, 0, 80, 120);
+        return canvas.toDataURL('image/jpeg').split(',')[1]!;
+      }),
+      'base64',
+    );
+    // Der Bildserver erlaubt bewusst weder Fetch-CORS noch Canvas-Zugriff.
+    const imageOrigin = await listen(
+      createServer((_request, response) => {
+        response.writeHead(200, { 'Content-Type': 'image/jpeg' });
+        response.end(original);
+      }),
+    );
+    const scope = {
+      workspaceId: '25600000-0000-4000-8000-000000000011',
+      connectionId: '25600000-0000-4000-8000-000000000021',
+      entryId: '25600000-0000-4000-8000-000000000041',
+    };
+    const photoUrl = 'https://images1.vinted.net/camera-original.jpg';
+    let providerDownloads = 0;
+    let browserActions = 0;
+    const photos = new VintedListingPhotoSource({
+      url: 'https://database.example',
+      publishableKey: 'public-key',
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        if (url.href === photoUrl) {
+          providerDownloads++;
+          assert.equal(new Headers(init?.headers).get('authorization'), null);
+          // Nur die Anbieter-Transportadresse wird zur echten lokalen HTTP-Fixture umgebogen.
+          return fetch(imageOrigin + '/original.jpg', init);
+        }
+        assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer fixture-token');
+        assert.equal(url.searchParams.get('workspace_id'), 'eq.' + scope.workspaceId);
+        if (url.pathname.endsWith('/marketplace_connections'))
+          return Response.json([
+            { external_account_id: '789', status: 'connected', execution_mode: 'cloud' },
+          ]);
+        assert.equal(url.searchParams.get('connection_id'), 'eq.' + scope.connectionId);
+        assert.equal(url.searchParams.get('id'), 'eq.' + scope.entryId);
+        return Response.json([
+          {
+            external_id: '12345',
+            ...(url.searchParams.get('select')?.includes('body')
+              ? { body: { imageUrls: [photoUrl] } }
+              : {}),
+          },
+        ]);
+      },
+    });
+    const api = new MarketplaceBrowserHttpApi({
+      broker: {
+        open: async () => {
+          browserActions++;
+          throw new Error('Keine Browsersitzung erlaubt');
+        },
+        run: async () => {
+          browserActions++;
+          throw new Error('Keine Browseraktion erlaubt');
+        },
+        close: async () => {
+          browserActions++;
+        },
+      },
+      users: {
+        userId: async (token) => {
+          if (token !== 'fixture-token') throw new Error('invalid');
+          return '25600000-0000-4000-8000-000000000001';
+        },
+      },
+      listingPhotos: photos,
+    });
+    const appOrigin = await listen(api.createServer());
+    await page.goto(appOrigin + '/marketplace-browser/healthz');
+    const blocked = await page.evaluate(async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      canvas.getContext('2d')!.drawImage(image, 0, 0);
+      let canvasBlocked = false,
+        fetchBlocked = false;
+      try {
+        canvas.toDataURL();
+      } catch (error) {
+        canvasBlocked = error instanceof DOMException && error.name === 'SecurityError';
+      }
+      try {
+        await fetch(url);
+      } catch {
+        fetchBlocked = true;
+      }
+      return { canvasBlocked, fetchBlocked, width: image.naturalWidth };
+    }, imageOrigin + '/original.jpg');
+    assert.deepEqual(blocked, { canvasBlocked: true, fetchBlocked: true, width: 80 });
+    const read = await page.evaluate(
+      async (body) => {
+        const response = await fetch('/marketplace-browser/listings/photo/read', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer fixture-token', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const blob = await response.blob();
+        const encoded = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(',')[1]!);
+          reader.readAsDataURL(blob);
+        });
+        return { status: response.status, mimeType: blob.type, encoded };
+      },
+      { ...scope, photoUrl },
+    );
+    assert.equal(read.status, 200);
+    assert.equal(read.mimeType, 'image/jpeg');
+    assert.deepEqual(Buffer.from(read.encoded, 'base64'), original);
+    for (const options of [
+      { resize: 1200, filter: 'none' },
+      { resize: null, filter: 'lighter' },
+    ] as const) {
+      const output: string = await page.evaluate(renderVintedListingPhoto, {
+        base64: read.encoded,
+        mimeType: read.mimeType,
+        crop: null,
+        ...options,
+      });
+      const dimensions: { width: number; height: number } = await page.evaluate(async (encoded) => {
+        const image = new Image();
+        image.src = 'data:image/jpeg;base64,' + encoded;
+        await image.decode();
+        return { width: image.naturalWidth, height: image.naturalHeight };
+      }, output);
+      assert.deepEqual(
+        dimensions,
+        options.resize ? { width: 800, height: 1200 } : { width: 80, height: 120 },
+      );
+    }
+    const unauthorized = await fetch(appOrigin + '/marketplace-browser/listings/photo/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...scope, photoUrl }),
+    });
+    assert.equal(unauthorized.status, 401);
+    assert.equal(providerDownloads, 1);
+    assert.equal(browserActions, 0);
+    assert.deepEqual(Buffer.from(read.encoded, 'base64'), original);
+  } finally {
+    await browser.close();
+    for (const server of servers) {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
   }
 });

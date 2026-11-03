@@ -192,6 +192,20 @@ function string(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+/** Vollständigen Anbietertext erhalten; fehlende oder ungültige Angaben bleiben unbekannt. */
+function publicationDescription(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    value.length > 2000 ||
+    Array.from(value).some((character) => {
+      const code = character.charCodeAt(0);
+      return code === 127 || (code < 32 && ![9, 10, 13].includes(code));
+    })
+  )
+    return null;
+  return value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+}
+
 function identifier(value: unknown): string | null {
   const id = typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value;
   return typeof id === 'string' && /^[1-9][0-9]{0,31}$/.test(id) ? id : null;
@@ -498,6 +512,7 @@ export function parseVintedAccountImport(
     publications.add(id);
     const createdAt = itemCreationTime(item!, observedAt);
     const money = price(item?.['price']);
+    const description = publicationDescription(item?.['description']);
     const photos = Array.isArray(item?.['photos']) ? item['photos'] : [];
     const firstPhoto = record(photos[0]);
     const imageUrls = photos
@@ -513,8 +528,8 @@ export function parseVintedAccountImport(
         publicationState: state,
         createdAt,
         occurredAt: null,
-        text: typeof item?.['description'] === 'string' ? item['description'] : null,
-        textState: typeof item?.['description'] === 'string' ? 'loaded' : 'not_loaded',
+        text: description,
+        textState: description === null ? 'not_loaded' : 'loaded',
         price: money.amount,
         currency: money.currency,
         status: string(item?.['status']),
@@ -1217,6 +1232,94 @@ export async function readVintedAccountImport(
       if (reads.blocked) break;
     }
   }
+  const descriptions = new Map<
+    string,
+    {
+      text: string;
+      textState: 'loaded';
+      descriptionReadAt: string | null;
+      descriptionSourceUpdatedAt: string | null;
+    }
+  >();
+  const descriptionCandidates: { id: string; updatedAt: string | null }[] = [];
+  for (const raw of items.values) {
+    const item = record(raw);
+    const id = identifier(item?.['id']);
+    if (
+      !item ||
+      !id ||
+      identifier(item['user_id']) !== identity.id ||
+      publicationState(item) === 'ended'
+    )
+      continue;
+    const updatedAt =
+      itemTimestamp(item['updated_at_ts'], observedAt) ??
+      itemTimestamp(item['updated_at'], observedAt);
+    const listedText = publicationDescription(item['description']);
+    if (listedText !== null) {
+      descriptions.set(id, {
+        text: listedText,
+        textState: 'loaded',
+        descriptionReadAt: observedAt,
+        descriptionSourceUpdatedAt: updatedAt,
+      });
+      continue;
+    }
+    const previous = previousPublications.get(id);
+    const cachedText = publicationDescription(previous?.description);
+    const readAt = itemTimestamp(previous?.descriptionReadAt, observedAt);
+    const cachedVersion = itemTimestamp(previous?.descriptionSourceUpdatedAt, observedAt);
+    if (cachedText !== null)
+      descriptions.set(id, {
+        text: cachedText,
+        textState: 'loaded',
+        descriptionReadAt: readAt,
+        descriptionSourceUpdatedAt: cachedVersion,
+      });
+    // Unveränderte Texte nicht mit jedem Intervall erneut laden. Ohne belastbare
+    // Änderungsversion einmal täglich abgleichen, damit externe Änderungen sichtbar bleiben.
+    const stale = !readAt || Date.parse(observedAt) - Date.parse(readAt) >= 24 * 60 * 60 * 1000;
+    if (cachedText === null || (updatedAt !== null ? cachedVersion !== updatedAt : stale))
+      descriptionCandidates.push({ id, updatedAt });
+  }
+  for (const candidate of descriptionCandidates) {
+    if (reads.blocked) break;
+    await atImportStage('publications', authorize);
+    try {
+      // Derselbe GET wie in Vinteds eigener Bearbeitungsmaske, ohne Seitennavigation.
+      const detail = record(
+        record(await vintedJson(page, `/api/v2/item_upload/items/${candidate.id}`, reads))?.[
+          'item'
+        ],
+      );
+      const text = publicationDescription(detail?.['description']);
+      if (
+        !detail ||
+        identifier(detail['id']) !== candidate.id ||
+        (detail['user_id'] != null && identifier(detail['user_id']) !== identity.id) ||
+        text === null
+      )
+        continue;
+      descriptions.set(candidate.id, {
+        text,
+        textState: 'loaded',
+        descriptionReadAt: observedAt,
+        descriptionSourceUpdatedAt:
+          candidate.updatedAt ??
+          itemTimestamp(detail['updated_at_ts'], observedAt) ??
+          itemTimestamp(detail['updated_at'], observedAt),
+      });
+    } catch (error) {
+      if (!(error instanceof VintedImportRequestError) || error.reason === 'unauthorized')
+        throw new VintedImportReadError('publications', error);
+      // Ein fehlgeschlagener Zusatzabruf darf den letzten bestätigten Text nicht löschen.
+      if (
+        reads.blocked ||
+        ['timeout', 'network', 'provider_unavailable', 'browser_context'].includes(error.reason)
+      )
+        break;
+    }
+  }
   await onStage?.('conversations');
   const conversations = await pages(
     page,
@@ -1383,6 +1486,9 @@ export async function readVintedAccountImport(
       areas,
     );
     for (const entry of snapshot.entries) {
+      const description =
+        entry.kind === 'publication' ? descriptions.get(entry.externalId) : undefined;
+      if (description) Object.assign(entry.body, description);
       const age = entry.kind === 'publication' ? publicationAges.get(entry.externalId) : undefined;
       if (age) {
         Object.assign(entry.body, age);
