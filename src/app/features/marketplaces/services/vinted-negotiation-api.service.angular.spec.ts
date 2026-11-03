@@ -49,7 +49,7 @@ describe('Verhandlungs-RPC', () => {
   it('zeigt Versionskonflikt und Freigabefehler ohne interne Servertexte', async () => {
     for (const [code, text] of [
       ['40001', 'inzwischen geändert'],
-      ['42501', 'Versandfreigabe'],
+      ['42501', 'Kontoverbindung'],
       ['22023', 'Eingaben'],
     ]) {
       rpc.mockResolvedValue({ data: null, error: { code, message: 'secret' } });

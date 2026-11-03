@@ -3,7 +3,9 @@ import { VintedMessagingApiService } from '../../services/vinted-messaging-api.s
 import type { AccountScope } from '../../models/marketplace.models';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
+import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { MarketplaceFavoriteNotificationApiService } from '../../services/marketplace-favorite-notification-api.service';
+import { MarketplaceMessageNotificationApiService } from '../../services/marketplace-message-notification-api.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -62,6 +64,10 @@ beforeAll(async () => {
       type: VintedFavoriteSettingsComponent,
       path: 'src/app/features/marketplaces/components/vinted-favorite-settings/vinted-favorite-settings.component.ts',
     },
+    {
+      type: VintedMessageSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-message-settings/vinted-message-settings.component.ts',
+    },
     { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
     {
       type: CustomSelectComponent,
@@ -106,6 +112,17 @@ beforeEach(() => {
     providers: [
       { provide: VintedMessagingApiService, useValue: messageApi },
       {
+        provide: MarketplaceMessageNotificationApiService,
+        useValue: {
+          readSettings: vi.fn().mockImplementation(async (scope: AccountScope) => ({
+            ...scope,
+            enabled: true,
+            version: 0,
+          })),
+          setSettings: vi.fn(),
+        },
+      },
+      {
         provide: MarketplaceFavoriteNotificationApiService,
         useValue: {
           readSettings: vi.fn().mockImplementation(async (scope: AccountScope) => ({
@@ -144,49 +161,23 @@ async function render(openSettings = false) {
   return fixture;
 }
 describe('Automatische Aktualisierung je Vinted-Konto', () => {
-  it('verwaltet den Cloud-Nachrichtenversand in den Kontoeinstellungen mit bestätigter Freigabeversion', async () => {
+  it('zeigt kompakte Aktualisierung mit Startsymbol und ohne erklärende Blöcke', async () => {
     const fixture = await render(true);
     const element = fixture.nativeElement as HTMLElement;
-    const section = element.querySelector<HTMLElement>(
-      '[role="dialog"] [aria-label="Cloud-Nachrichtenversand"]',
-    );
-    expect(section?.textContent).toContain('Nachrichtenversand erlaubt');
-    [...(section?.querySelectorAll('button') ?? [])]
-      .find((button) => button.textContent?.includes('deaktivieren'))
-      ?.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(messageApi.revokeCloud).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        workspaceId: account.workspaceId,
-        connectionId: account.connectionId,
-      }),
-      7,
-    );
-    expect(section?.textContent).toContain('Nachrichtenversand nicht freigegeben');
-    expect(section?.textContent).not.toContain('deaktivieren');
-  });
-
-  it('zeigt eine fehlgeschlagene Deaktivierung ohne vorgetäuschten Widerruf und lässt erneut laden', async () => {
-    messageApi.revokeCloud.mockRejectedValueOnce(new Error('network'));
-    const fixture = await render(true);
-    const element = fixture.nativeElement as HTMLElement;
-    const section = element.querySelector<HTMLElement>('[aria-label="Cloud-Nachrichtenversand"]');
-    [...(section?.querySelectorAll('button') ?? [])]
-      .find((button) => button.textContent?.includes('deaktivieren'))
-      ?.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(section?.textContent).toContain('Nachrichtenversand erlaubt');
-    expect(section?.querySelector('[role="alert"]')?.textContent).toContain(
-      'konnte nicht deaktiviert',
-    );
-    [...(section?.querySelectorAll('button') ?? [])]
-      .find((button) => button.textContent?.includes('Erneut versuchen'))
-      ?.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(section?.querySelector('[role="alert"]')).toBeNull();
+    const dialog = element.querySelector<HTMLElement>('[role="dialog"]')!;
+    const start = [...dialog.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Starten'),
+    )!;
+    expect(start.querySelector('svg')).not.toBeNull();
+    expect(
+      dialog.querySelector('[role="combobox"]')?.closest('app-custom-select')?.parentElement,
+    ).toBe(start.closest('app-button')?.parentElement);
+    expect(dialog.querySelector('[aria-label="Cloud-Nachrichtenversand"]')).toBeNull();
+    expect(dialog.querySelector('details')).toBeNull();
+    expect(dialog.textContent).not.toContain('Gespeichert:');
+    expect(messageApi.readPermission).not.toHaveBeenCalled();
+    expect(dialog.querySelector('[role="switch"][aria-label="Neue Favoriten"]')).not.toBeNull();
+    expect(dialog.querySelector('[role="switch"][aria-label="Neue Nachrichten"]')).not.toBeNull();
   });
 
   it('übernimmt eine verspätete Versandfreigabe nach Kontowechsel nicht in das neue Konto', async () => {
@@ -306,7 +297,8 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(dialog.querySelector('[role="alert"]')).toBeNull();
-    expect(dialog.textContent).toContain('Gespeichert: alle 15 Minuten');
+    expect(dialog.textContent).not.toContain('Gespeichert:');
+    expect(dialog.querySelector('[role="combobox"]')?.textContent).toContain('15 Minuten');
   });
 
   it('zeigt einen Pausierungsfehler nach Schließen des Dialogs weiterhin mit Wiederholen', async () => {
@@ -315,7 +307,7 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     const fixture = await render(true);
     const element = fixture.nativeElement as HTMLElement;
     [...element.querySelectorAll('[role="dialog"] button')]
-      .find((button) => button.textContent?.includes('Automatik pausieren'))!
+      .find((button) => button.textContent?.includes('Pausieren'))!
       .dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await fixture.whenStable();
     fixture.detectChanges();
@@ -350,7 +342,7 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
       account.connectionId,
     );
     expect(dialog?.querySelector('[role="combobox"]')).not.toBeNull();
-    expect(dialog?.querySelector('details')?.hasAttribute('open')).toBe(false);
+    expect(dialog?.querySelector('details')).toBeNull();
   });
   it('schließt Kontoeinstellungen beim Kontowechsel', async () => {
     const fixture = await render();
@@ -383,7 +375,7 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
   it('zeigt einen aktivierten Zeitplan bei pausierter, gesperrter oder ausgeloggter Verbindung nicht als aktiv', async () => {
     api.read.mockResolvedValue({ ...schedule, enabled: true, nextDueAt: '2026-10-01T12:15:00Z' });
     const fixture = await render(true);
-    expect(fixture.componentInstance.statusText()).toBe('Aktiv');
+    expect(fixture.componentInstance.headerStatus()).toBeNull();
     for (const status of ['paused', 'blocked', 'needs_login'] as const) {
       fixture.componentRef.setInput('account', { ...account, status });
       fixture.detectChanges();
@@ -392,13 +384,13 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
       fixture.detectChanges();
       fixture.componentInstance.settingsOpen.set(true);
       fixture.detectChanges();
-      expect(fixture.componentInstance.statusText()).not.toBe('Aktiv');
+      expect(fixture.componentInstance.headerStatus()).not.toBeNull();
       const element = fixture.nativeElement as HTMLElement;
       expect(element.textContent).not.toContain('Status: Aktiv');
       expect(element.textContent).not.toContain('01.10.2026,');
       expect(
         [...element.querySelectorAll('button')].find((button) =>
-          button.textContent?.includes('Automatik pausieren'),
+          button.textContent?.includes('Pausieren'),
         )?.disabled,
       ).toBe(false);
     }
@@ -407,18 +399,18 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     const fixture = await render(true);
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('15 Minuten');
-    expect(element.textContent).toContain('geschlossener App');
+    expect(element.textContent).not.toContain('geschlossener App');
     expect(api.set).not.toHaveBeenCalled();
     const button = [...element.querySelectorAll('button')].find((item) =>
-      item.textContent?.includes('Automatik fortsetzen'),
+      item.textContent?.includes('Starten'),
     )!;
     expect(button.disabled).toBe(false);
     button.click();
     for (let index = 0; index < 12; index++) await Promise.resolve();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(element.textContent).toContain('Nächster geplanter Abruf');
-    expect(element.textContent).toContain('Automatik pausieren');
+    expect(element.textContent).not.toContain('Nächster geplanter Abruf');
+    expect(element.textContent).toContain('Pausieren');
     expect(element.querySelector('select')).toBeNull();
   });
   it('zeigt bei einem fehlenden Zeitplan die bestätigte Standardautomatik ohne Aktivierungsklick', async () => {
@@ -431,7 +423,7 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
       15,
       0,
     );
-    expect(element.textContent).toContain('Automatik pausieren');
+    expect(element.textContent).toContain('Pausieren');
     expect(element.textContent).not.toContain('Stand neu laden');
   });
   it('öffnet Abstände in den Einstellungen und zeigt die gespeicherte Einstellung', async () => {
@@ -461,7 +453,7 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Wartezeit');
     const button = [...element.querySelectorAll('button')].find((item) =>
-      item.textContent?.includes('Automatik pausieren'),
+      item.textContent?.includes('Pausieren'),
     )!;
     expect(button.disabled).toBe(false);
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });

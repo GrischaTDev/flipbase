@@ -41,13 +41,32 @@ describe('Nachrichtenmeldungen an der Servergrenze', () => {
   });
   it('gibt verständliche Abruf-, Rechte- und Rolloutfehler ohne Serverdetails zurück', async () => {
     for (const [code, text] of [
-      ['40001', 'erneut'],
+      ['40001', 'inzwischen geändert'],
       ['42501', 'keinen Zugriff'],
       ['PGRST202', 'noch nicht verfügbar'],
     ]) {
       rpc.mockResolvedValueOnce({ data: null, error: { code, message: 'secret' } });
       await expect(api.read(scope.workspaceId)).rejects.toThrow(text);
     }
+  });
+  it('liest und ändert die kontogebundene Meldungseinstellung mit ihrer Fassung', async () => {
+    const settings = { ...scope, enabled: true, version: 0 };
+    rpc.mockResolvedValueOnce({ data: settings, error: null });
+    expect(await api.readSettings(scope)).toEqual(settings);
+    expect(rpc).toHaveBeenLastCalledWith('marketplace_read_message_notification_settings', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+    });
+    rpc.mockResolvedValueOnce({ data: { ...settings, enabled: false, version: 1 }, error: null });
+    expect(await api.setSettings(settings, false)).toMatchObject({ enabled: false, version: 1 });
+    expect(rpc).toHaveBeenLastCalledWith('marketplace_set_message_notification_settings', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_enabled: false,
+      p_expected_version: 0,
+    });
+    rpc.mockResolvedValueOnce({ data: { ...settings, connectionId: 'foreign' }, error: null });
+    await expect(api.readSettings(scope)).rejects.toThrow();
   });
   it('bestätigt Markieren nur bei bestätigtem Serverergebnis', async () => {
     rpc.mockResolvedValueOnce({ data: { ok: true }, error: null });

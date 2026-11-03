@@ -1,0 +1,25 @@
+<section class="block" aria-label="Nachrichtenmeldungen">
+  @if (loading()) {
+    <p role="status" class="text-[13px] text-fb-text-secondary">
+      Nachrichteneinstellung wird geladen …
+    </p>
+  }
+  @if (settings()) {
+    <app-custom-checkbox
+      label="Neue Nachrichten"
+      presentation="switch"
+      [formControl]="enabledControl"
+    />
+  }
+  @if (busy()) {
+    <p role="status" class="mt-2 text-xs text-fb-text-secondary">Einstellung wird gespeichert …</p>
+  }
+  @if (error(); as message) {
+    <app-notice-banner class="mt-2" announcement="alert">
+      {{ message }}
+      <app-button class="mt-2" [disabled]="loading() || busy()" (clicked)="reload()"
+        >Erneut versuchen</app-button
+      >
+    </app-notice-banner>
+  }
+</section>

@@ -587,6 +587,13 @@ test('isolated import preserves central authorizations, article cache and inbox 
           direction: 'inbound',
           source: 'conversation_snapshot',
         },
+        {
+          externalId: `payment_message:event:${'ab'.repeat(32)}`,
+          externalConversationId: '777',
+          occurredAt: '2026-10-07T23:59:30.000Z',
+          direction: 'inbound',
+          source: 'conversation_snapshot',
+        },
       ],
     },
     areas: {

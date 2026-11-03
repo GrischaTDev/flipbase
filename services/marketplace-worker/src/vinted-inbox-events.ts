@@ -2,6 +2,32 @@ import type {
   MarketplaceInboxEvent,
   MarketplaceInboxEventBatch,
 } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
+import { createHash } from 'node:crypto';
+
+const systemMessageTypes = ['status_message', 'action_message', 'payment_message'];
+function systemIdentity(
+  message: Record<string, unknown>,
+  entity: Record<string, unknown>,
+  occurredAt: string,
+): string {
+  const text = (value: unknown) => (typeof value === 'string' ? value.trim() : null);
+  return JSON.stringify({
+    type: message['entity_type'],
+    occurredAt,
+    eventGroup: text(message['event_group']),
+    eventType: text(message['event_type']),
+    title: text(entity['title']),
+    body: text(entity['body']),
+    text: text(entity['text']),
+    message: text(entity['message']) ?? text(record(entity['message'])?.['body']),
+    statusTitle: text(entity['status_title']),
+    priceLabel: text(entity['price_label']),
+    sender: identifier(entity['user_id'] ?? entity['sender_id']),
+    photos: Array.isArray(entity['photos'])
+      ? entity['photos'].slice(0, 20).map((photo) => text(record(photo)?.['url']))
+      : [],
+  });
+}
 
 function record(input: unknown): Record<string, unknown> | null {
   return input !== null && typeof input === 'object' && !Array.isArray(input)
@@ -82,15 +108,25 @@ export function parseVintedInboxEvents(
   for (const raw of messages.slice(0, 200)) {
     const message = record(raw);
     const type = message?.['entity_type'];
-    if (type !== 'message' && type !== 'offer_request_message') continue;
+    const system = typeof type === 'string' && systemMessageTypes.includes(type);
+    if (type !== 'message' && type !== 'offer_request_message' && !system) continue;
     const entity = record(message?.['entity']);
-    const messageId = identifier(type === 'message' ? entity?.['id'] : message?.['id']);
-    const senderId = identifier(entity?.['user_id']);
+    const rawId = type === 'message' ? entity?.['id'] : (message?.['id'] ?? entity?.['id']);
+    let messageId = identifier(rawId);
+    const rawSender = entity?.['user_id'] ?? (system ? entity?.['sender_id'] : undefined);
+    const senderId = identifier(rawSender);
+    const platformSender = system && (rawSender == null || rawSender === 0);
     const occurredAt = timestamp(message?.['created_at_ts']);
+    if (system && message && entity && rawId == null && occurredAt)
+      messageId =
+        'event:' +
+        createHash('sha256')
+          .update(systemIdentity(message, entity, occurredAt))
+          .digest('hex');
     if (
+      !entity ||
       !messageId ||
-      !senderId ||
-      (senderId !== ownId && senderId !== partnerId) ||
+      (!platformSender && (!senderId || (senderId !== ownId && senderId !== partnerId))) ||
       !occurredAt ||
       occurredAt > observation
     ) {
@@ -98,7 +134,7 @@ export function parseVintedInboxEvents(
       continue;
     }
     const externalId = `${type}:${messageId}`;
-    const signature = `${senderId}:${occurredAt}`;
+    const signature = `${platformSender ? 'system' : senderId}:${occurredAt}`;
     if (known.has(externalId) && known.get(externalId) !== signature) {
       complete = false;
       conflicts.add(externalId);

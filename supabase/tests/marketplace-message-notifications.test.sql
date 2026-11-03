@@ -55,6 +55,42 @@ select is(pg_temp.apply(5,jsonb_build_array(pg_temp.event('message:502'))),0,'Cl
 select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','91','{}')$$,'42501',null,'Foreign account identity is denied');
 select is(pg_temp.apply(6,jsonb_build_array(pg_temp.event('message:506','702','2026-09-30T11:00:00.000Z')),false,'[]'),0,'Later historical pages stay silent after the first reference');
 reset role;
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021')->>'enabled','true','Existing accounts keep message notifications enabled by default');
+select is(public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021')->>'version','0','Absent setting starts with version zero');
+select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',false,0)->>'enabled','false','Owner can disable future message notifications');
+select throws_ok($$select public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,0)$$,'40001',null,'Stale settings cannot overwrite a newer choice');
+select throws_ok($$update public.marketplace_message_notification_settings set enabled=true$$,'42501',null,'Browser cannot bypass the controlled settings write');
+select throws_ok($$select public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000012','42500000-0000-4000-8000-000000000021')$$,'42501',null,'Foreign workspace cannot read message settings');
+select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select throws_ok($$select public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,1)$$,'42501',null,'Ordinary members cannot change private inbox notifications');
+reset role;
+set local role service_role;
+select is(pg_temp.apply(8,jsonb_build_array(pg_temp.event('message:507','700','2026-09-30T12:07:00.000Z'))),0,'Disabled setting suppresses new inbox and push notifications');
+select ok(exists(select 1 from public.marketplace_message_notifications where external_event_id='message:507' and notified_at is null),'Disabled notifications still retain their event identity');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,1)->>'version','2','Reactivation advances the settings revision');
+select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,2)->>'version','2','Unchanged setting keeps its revision');
+reset role;
+-- Nur die Test-Zeitgrenze zurücksetzen, damit die vorhandene synthetische Historie deterministisch bleibt.
+update public.marketplace_message_notification_settings set enabled_since='2026-09-30T12:09:00Z' where connection_id='42500000-0000-4000-8000-000000000021';
+set local role service_role;
+select is(pg_temp.apply(11,jsonb_build_array(pg_temp.event('message:508','700','2026-09-30T12:10:00.000Z'))),1,'New event after reactivation is notified');
+select is(pg_temp.apply(12,jsonb_build_array(pg_temp.event('message:509','700','2026-09-30T12:08:00.000Z'))),0,'Delayed history from the pause is not notified after reactivation');
+select is(pg_temp.apply(13,jsonb_build_array(pg_temp.event('message:507','700','2026-09-30T12:07:00.000Z'))),0,'Previously observed paused event is never replayed');
+select is(pg_temp.apply(15,jsonb_build_array(
+  pg_temp.event('payment_message:701','700','2026-09-30T12:14:00.000Z'),
+  pg_temp.event('action_message:702','700','2026-09-30T12:14:00.000Z'),
+  pg_temp.event('status_message:event:'||repeat('a',64),'700','2026-09-30T12:14:00.000Z')
+)),3,'Purchase, action and status inbox events share the message notification setting');
+select is(pg_temp.apply(16,jsonb_build_array(pg_temp.event('status_message:event:'||repeat('a',64),'700','2026-09-30T12:14:00.000Z'))),0,'Stable synthetic system event identifiers remain idempotent');
+select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('payment_message:event:invalid')))$$,'22023',null,'Malformed system event references are rejected');
+select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('unknown_message:703')))$$,'22023',null,'Unverified provider event types stay excluded');
+reset role;
 update public.marketplace_connections set execution_mode='local' where id='42500000-0000-4000-8000-000000000021';
 insert into public.marketplace_local_extension_grants(workspace_id,connection_id,approved_by,token_hash,external_account_id,expires_at,messages_read) values
  ('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','42500000-0000-4000-8000-000000000001',repeat('a',64),'90',clock_timestamp()+interval '1 hour',true);

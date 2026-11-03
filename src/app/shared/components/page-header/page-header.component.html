@@ -15,6 +15,7 @@
   <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
     <div class="min-w-[min(100%,14rem)] flex-1 space-y-1">
       <div class="flex items-center gap-2 flex-wrap min-w-0">
+        <ng-content select="[header-icon]" />
         @if (icon(); as pageIcon) {
           <svg
             [lucideIcon]="pageIcon"

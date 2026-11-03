@@ -3,7 +3,6 @@ import type { AccountScope } from '../models/marketplace.models';
 import type { LocalMessageAttachment, LocalQueuedMessage } from '../models/marketplace-read.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedLocalExtensionStore } from './vinted-local-extension.store';
 import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
@@ -17,7 +16,6 @@ export class VintedMessagingStore {
   private readonly bridge = inject(VintedLocalExtensionBridge);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly dialog = inject(ConfirmDialogService);
   private readonly storedMessages = signal<readonly LocalQueuedMessage[]>([]);
   private readonly sending = signal(false);
   private readonly failure = signal<string | null>(null);
@@ -302,23 +300,12 @@ export class VintedMessagingStore {
       if (!isCurrent() || permission.executionMode !== 'cloud') return false;
       this.cloudPermission.set(permission);
       if (permission.allowed) return true;
-      const confirmed = await this.dialog.frage({
-        titel: 'Cloud-Nachrichtenversand erlauben?',
-        text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über das Cloud-Profil dieses Vinted-Kontos versenden. Du kannst den Nachrichtenversand in den Kontoeinstellungen deaktivieren.',
-        bestaetigenText: 'Versand erlauben',
-      });
-      if (!confirmed || !isCurrent()) return false;
       const approved = await this.api.approveCloud(scope, identity);
       if (isCurrent() && approved.executionMode === 'cloud') this.cloudPermission.set(approved);
       return isCurrent() && approved.executionMode === 'cloud' && approved.allowed;
     }
     if (!this.local.binding()?.messagesSend) {
-      const confirmed = await this.dialog.frage({
-        titel: 'Nachrichtenversand erlauben?',
-        text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über dieses Vinted-Browserprofil versenden. Die Freigabe gilt nur für das verbundene Konto bis zum Ende der bestehenden Freigabe.',
-        bestaetigenText: 'Versand erlauben',
-      });
-      if (!confirmed || !isCurrent()) return false;
+      if (!isCurrent()) return false;
       if (!(await this.local.approveSend()) || !isCurrent()) return false;
     }
     return isCurrent() && this.local.hasValidBinding() && this.local.canUseBrowserProfile();

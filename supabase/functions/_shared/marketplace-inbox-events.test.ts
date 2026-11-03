@@ -30,3 +30,28 @@ test('incoming batch is versioned, bounded and carries no private text or foreig
   ])
     assert.equal(isMarketplaceInboxEventBatch(invalid), false);
 });
+
+test('system event identifiers allow bounded provider ids or stable hashes only for known source kinds', () => {
+  for (const kind of ['status_message', 'action_message', 'payment_message']) {
+    for (const id of ['503', `event:${'ab'.repeat(32)}`])
+      assert.equal(
+        isMarketplaceInboxEventBatch({
+          ...batch,
+          events: [{ ...batch.events[0], externalId: `${kind}:${id}` }],
+        }),
+        true,
+      );
+  }
+  for (const externalId of [
+    'purchase:503',
+    'system_message:503',
+    `message:event:${'ab'.repeat(32)}`,
+    `payment_message:event:${'ab'.repeat(31)}`,
+    'status_message:0',
+    `action_message:event:${'AB'.repeat(32)}`,
+  ])
+    assert.equal(
+      isMarketplaceInboxEventBatch({ ...batch, events: [{ ...batch.events[0], externalId }] }),
+      false,
+    );
+});

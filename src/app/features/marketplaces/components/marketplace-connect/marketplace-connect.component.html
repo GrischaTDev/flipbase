@@ -1,10 +1,15 @@
+<app-vinted-account-grid />
 <app-modal-shell
   [title]="
     requestedConnection()?.displayName
       ? 'Vinted-Anmeldung – ' + requestedConnection()?.displayName
       : 'Vinted-Anmeldung'
   "
-  subtitle="Melde Dich an, um Dein Vinted-Konto zu verbinden"
+  [subtitle]="
+    requestedConnection()?.status === 'connected' && !reconnectRequested()
+      ? ''
+      : 'Melde Dich an, um Dein Vinted-Konto zu verbinden'
+  "
   [icon]="loginIcon"
   iconTone="brand"
   presentation="center"

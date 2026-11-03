@@ -27,6 +27,7 @@ import {
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceProfile } from '../../models/marketplace-read.models';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedListingClockService } from '../../services/vinted-listing-clock.service';
 
@@ -41,6 +42,7 @@ import { VintedListingClockService } from '../../services/vinted-listing-clock.s
     ProductThumbnailComponent,
     ModalShellComponent,
     VintedFavoriteSettingsComponent,
+    VintedMessageSettingsComponent,
   ],
   templateUrl: './vinted-account-controls.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -493,8 +493,10 @@
         }
       </section>
       <section aria-label="Benachrichtigungen">
+        <h3 class="mb-1 text-sm font-semibold text-fb-text-primary">Benachrichtigungen</h3>
         <fieldset [disabled]="accounts.loading() || !accounts.canManage()">
           <app-vinted-favorite-settings [account]="account" />
+          <app-vinted-message-settings [account]="account" />
         </fieldset>
       </section>
       <section class="space-y-3 border-t border-fb-line pt-4" aria-label="Kontoverwaltung">

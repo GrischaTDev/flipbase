@@ -84,6 +84,29 @@ describe('CustomCheckboxComponent', () => {
     button.click();
     expect(button.getAttribute('aria-checked')).toBe('true');
   });
+  it('bedient die gesamte Schalterzeile mit korrektem Zustand und Formularanbindung', async () => {
+    const fixture = createCheckbox();
+    fixture.componentRef.setInput('presentation', 'switch');
+    fixture.componentRef.setInput('label', 'Neue Nachrichten');
+    fixture.detectChanges();
+    const button = buttonOf(fixture);
+    const changed = vi.fn();
+    fixture.componentInstance.registerOnChange(changed);
+    expect(button.getAttribute('role')).toBe('switch');
+    expect(button.getAttribute('aria-checked')).toBe('false');
+    button.click();
+    fixture.detectChanges();
+    expect(changed).toHaveBeenCalledExactlyOnceWith(true);
+    expect(button.getAttribute('aria-checked')).toBe('true');
+    fixture.componentInstance.setDisabledState(true);
+    fixture.detectChanges();
+    button.click();
+    expect(changed).toHaveBeenCalledTimes(1);
+    const result = await axe.run(fixture.nativeElement as HTMLElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(result.violations).toEqual([]);
+  });
   it('verwendet Markengelb als Standardfarbe', () => {
     const fixture = createCheckbox();
 

@@ -3,12 +3,14 @@ import { SummaryMetricComponent } from '../../shared/components/summary-metric/s
 import { ActionStatusIndicatorComponent } from '../../shared/components/action-status-indicator/action-status-indicator.component';
 import { listingTransferRendering } from '../../../../e2e/support/listing-transfer-rendering';
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
+import { VintedMessageSettingsComponent } from './components/vinted-message-settings/vinted-message-settings.component';
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionApiService } from './services/vinted-local-extension-api.service';
 import { VintedMessagingApiService } from './services/vinted-messaging-api.service';
 import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
 import { MarketplaceFavoriteNotificationApiService } from './services/marketplace-favorite-notification-api.service';
+import { MarketplaceMessageNotificationApiService } from './services/marketplace-message-notification-api.service';
 import { ElementRef, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
@@ -209,6 +211,10 @@ beforeAll(async () => {
       path: 'src/app/features/marketplaces/components/vinted-favorite-settings/vinted-favorite-settings.component.ts',
     },
     {
+      type: VintedMessageSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-message-settings/vinted-message-settings.component.ts',
+    },
+    {
       type: VintedAccountControlsComponent,
       path: 'src/app/features/marketplaces/components/vinted-account-controls/vinted-account-controls.component.ts',
     },
@@ -369,6 +375,17 @@ beforeEach(() => {
       {
         provide: VintedLocalExtensionApiService,
         useValue: localApi,
+      },
+      {
+        provide: MarketplaceMessageNotificationApiService,
+        useValue: {
+          readSettings: vi.fn().mockImplementation(async (scope: AccountScope) => ({
+            ...scope,
+            enabled: true,
+            version: 0,
+          })),
+          setSettings: vi.fn(),
+        },
       },
       {
         provide: MarketplaceFavoriteNotificationApiService,
@@ -1002,6 +1019,12 @@ describe('Vinted-Bereich in Flipbase', () => {
     );
     expect(element.textContent).toContain('Melde Dich mit demselben Vinted-Konto erneut an.');
     expect(element.textContent).toContain('Anmelden und Konto verbinden');
+    const background = element.querySelector('app-vinted-account-grid');
+    expect(background?.querySelector('[aria-label="Vinted-Konten"]')).not.toBeNull();
+    expect(background?.querySelectorAll('app-card')).toHaveLength(2);
+    expect(background?.textContent).toContain('Testkonto A');
+    expect(background?.textContent).toContain('Testkonto B');
+    expect(background?.closest('[role="dialog"]')).toBeNull();
     expect(element.querySelector<HTMLInputElement>('input[type="password"]')?.value).toBe('');
     const accessibility = await axe.run(element, {
       rules: { 'color-contrast': { enabled: false } },
@@ -1211,9 +1234,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     harness.detectChanges();
     await harness.fixture.whenStable();
     harness.detectChanges();
-    expect(element.querySelector('[role="dialog"]')?.textContent).toContain(
-      'Neue Favoriten in der Glocke anzeigen',
-    );
+    expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Neue Favoriten');
     expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Konto entfernen');
   });
   it('behält Kontoeinstellungen beim Neuladen und schließt bei bestätigtem Rechteentzug', async () => {
@@ -1428,12 +1449,27 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { element } = await render(
       `/marketplaces/vinted/connect/${fixtureConnections[1].connectionId}`,
     );
-    expect(element.querySelector('app-marketplace-connect')?.textContent).toContain('Testkonto B');
-    expect(element.querySelector('app-marketplace-connect')?.textContent).not.toContain(
-      'Testkonto A',
-    );
+    const dialog = element.querySelector('app-marketplace-connect [role="dialog"]');
+    expect(dialog?.textContent).toContain('Testkonto B');
+    expect(dialog?.textContent).not.toContain('Testkonto A');
     expect(element.querySelector('app-marketplace-browser-test')).not.toBeNull();
     expect(element.textContent).toContain('Browserdienst ist auf dem Server nicht erreichbar');
+  });
+  it('zeigt eine verknüpfte Anmeldung einmal und erhält die Kontoübersicht im Hintergrund', async () => {
+    browserApi.available.mockResolvedValue({ available: true, readOnly: false });
+    const { element } = await render(
+      `/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}`,
+    );
+    const dialog = element.querySelector('app-marketplace-connect [role="dialog"]');
+    expect(dialog?.textContent).toContain('Dein Konto ist mit Vinted verknüpft');
+    expect(dialog?.querySelectorAll('app-action-status-indicator[state="success"]')).toHaveLength(
+      1,
+    );
+    expect(dialog?.textContent).not.toContain('Konto:');
+    expect(dialog?.textContent).not.toContain('Melde Dich an, um Dein Vinted-Konto zu verbinden');
+    expect(dialog?.querySelector('a[href="/marketplaces/vinted/profile"]')).not.toBeNull();
+    expect(dialog?.querySelector('input[type="password"]')).toBeNull();
+    expect(element.querySelectorAll('app-vinted-account-grid app-card')).toHaveLength(2);
   });
   it('öffnet bei einer fremden Konto-ID keinen Browser', async () => {
     const { element } = await render(

@@ -40,13 +40,13 @@ export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[
     items: [
       {
         path: '/marketplaces/vinted/automatic-negotiation',
-        label: 'Automatische Verhandlung',
-        icon: 'bot',
+        label: 'Verhandlung',
+        icon: 'handshake',
       },
       {
         path: '/marketplaces/vinted/favorite-messages',
         label: 'Favoritennachrichten',
-        icon: 'bot',
+        icon: 'messageCircle',
       },
     ],
   },

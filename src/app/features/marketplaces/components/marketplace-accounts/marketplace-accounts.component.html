@@ -22,11 +22,13 @@
           ? 'Vinted-Verknüpfung entfernen'
           : (currentDialog.mode === 'login' || currentDialog.mode === 'local_login') &&
               !currentDialog.newAccount
-            ? 'Vinted-Anmeldung'
+            ? 'Vinted-Anmeldung – ' + dialogConnection()?.displayName
             : 'Vinted-Konto hinzufügen'
     "
     [subtitle]="
-      currentDialog.mode === 'login' ? 'Melde Dich an, um Dein Vinted-Konto zu verbinden' : ''
+      currentDialog.mode === 'login' && dialogConnection()?.status !== 'connected'
+        ? 'Melde Dich an, um Dein Vinted-Konto zu verbinden'
+        : ''
     "
     [icon]="currentDialog.mode === 'login' ? loginIcon : null"
     [iconTone]="currentDialog.mode === 'login' ? 'brand' : 'info'"

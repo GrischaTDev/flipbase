@@ -1,4 +1,5 @@
 import { MarketplaceSyncProgressComponent } from '../marketplace-sync-progress/marketplace-sync-progress.component';
+import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { readFile } from 'node:fs/promises';
@@ -100,6 +101,10 @@ beforeEach(async () => {
   });
   const shared = 'src/app/shared/components';
   restoreRendering = await prepareMarketplaceRendering([
+    {
+      type: ActionStatusIndicatorComponent,
+      path: `${shared}/action-status-indicator/action-status-indicator.component.ts`,
+    },
     { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
     {
       type: ModalShellComponent,
@@ -158,7 +163,28 @@ it('distinguishes a stored account link from an unconfirmed provider session aft
   expect(root.textContent).toContain('Die Kontoverknüpfung ist gespeichert.');
   expect(root.textContent).toContain('Der aktuelle Vinted-Zugriff konnte nicht bestätigt werden.');
   expect(root.textContent).not.toContain('Dein Vinted-Konto ist verbunden.');
+  expect(root.querySelector('app-action-status-indicator')).toBeNull();
   expect(root.textContent).toContain('Anmeldung erneuern');
+});
+
+it('zeigt den verknüpften Status ohne doppelte Kontoleiste und bietet die erneute Anmeldung an', () => {
+  session.set(null);
+  error.set(null);
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  vi.spyOn(fixture.componentInstance, 'compact').mockReturnValue(true);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  expect(root.textContent).toContain('Dein Konto ist mit Vinted verknüpft');
+  expect(root.querySelectorAll('app-action-status-indicator')).toHaveLength(1);
+  expect(root.textContent).not.toContain('Konto:');
+  expect(root.querySelector('a[href="/marketplaces/vinted/profile"]')).not.toBeNull();
+  const reconnect = [...root.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
+    button.textContent?.includes('Anmeldung erneuern'),
+  );
+  reconnect?.click();
+  fixture.detectChanges();
+  expect(root.querySelector('app-action-status-indicator')).toBeNull();
+  expect(root.querySelector('input[type="password"]')).not.toBeNull();
 });
 
 it('keeps Cloud activation errors visible after a confirmed login', () => {

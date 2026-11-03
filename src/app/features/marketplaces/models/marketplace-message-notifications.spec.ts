@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   messageNotificationToInbox,
   parseMessageNotificationFeed,
+  parseMessageNotificationSettings,
   type MessageNotification,
 } from './marketplace-message-notifications';
 const item: MessageNotification = {
@@ -16,6 +17,19 @@ const item: MessageNotification = {
 };
 const feed = { workspaceId: 'workspace-a', items: [item], unreadCount: 67 };
 describe('Gespeicherte Nachrichteneingänge', () => {
+  it('prüft Einstellung, Konto und Version an der Antwortgrenze', () => {
+    const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
+    const settings = { ...scope, enabled: true, version: 0 };
+    expect(parseMessageNotificationSettings(settings, scope)).toEqual(settings);
+    for (const invalid of [
+      { ...settings, workspaceId: 'foreign' },
+      { ...settings, connectionId: 'foreign' },
+      { ...settings, enabled: 'true' },
+      { ...settings, version: -1 },
+      { ...settings, version: 1.5 },
+    ])
+      expect(() => parseMessageNotificationSettings(invalid, scope)).toThrow();
+  });
   it('führt zum richtigen Konto und Gespräch und erhält den vollständigen Zähler', () => {
     expect(parseMessageNotificationFeed(feed, 'workspace-a').unreadCount).toBe(67);
     expect(messageNotificationToInbox(item)).toMatchObject({
@@ -31,6 +45,20 @@ describe('Gespeicherte Nachrichteneingänge', () => {
         .message,
     ).toBe('Neuer Preisvorschlag.');
   });
+  it.each(['status_message', 'action_message', 'payment_message'] as const)(
+    'führt eine neue %s neutral ins Postfach, ohne den Gesprächspartner als Absender oder einen Verkauf zu behaupten',
+    (eventKind) => {
+      const system = { ...item, eventKind };
+      expect(
+        parseMessageNotificationFeed({ ...feed, items: [system] }, 'workspace-a').items,
+      ).toEqual([system]);
+      expect(messageNotificationToInbox(system)).toMatchObject({
+        title: 'Neue Postfachmeldung · Testkonto',
+        message: 'Neue Meldung im Vinted-Postfach.',
+        link: '/marketplaces/vinted/messages?connectionId=account-a&conversationId=conversation-a',
+      });
+    },
+  );
   it('verweigert fremden Scope, doppelte IDs, zu kleine Zähler und unbekannte Ereignisse', () => {
     for (const invalid of [
       { ...feed, workspaceId: 'foreign' },

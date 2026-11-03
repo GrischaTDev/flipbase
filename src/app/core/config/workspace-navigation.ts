@@ -11,6 +11,7 @@ export type WorkspaceNavigationIcon =
   | 'bot'
   | 'bookOpen'
   | 'messageCircle'
+  | 'handshake'
   | 'package'
   | 'image'
   | 'tag'

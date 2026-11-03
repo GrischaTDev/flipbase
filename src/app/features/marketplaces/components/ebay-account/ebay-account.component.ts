@@ -39,6 +39,7 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { MarketplacePlatformIdentityComponent } from '../../../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import type { EbayListing } from '../../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -60,6 +61,7 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
     BadgeComponent,
     DataTableComponent,
     PageHeaderComponent,
+    MarketplacePlatformIdentityComponent,
     EbayArticleMappingComponent,
     EbayTrafficOverviewComponent,
   ],

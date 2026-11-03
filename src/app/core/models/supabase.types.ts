@@ -5183,6 +5183,41 @@ export type Database = {
           },
         ]
       }
+      marketplace_message_notification_settings: {
+        Row: {
+          connection_id: string
+          enabled: boolean
+          enabled_since: string | null
+          id: number
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          enabled?: boolean
+          enabled_since?: string | null
+          id?: never
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          enabled?: boolean
+          enabled_since?: string | null
+          id?: never
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_message_notifications: {
         Row: {
           cleared_at: string | null
@@ -12093,6 +12128,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_read_message_notification_settings: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_message_notifications: {
         Args: { p_workspace_id: string }
         Returns: Json
@@ -12337,6 +12376,15 @@ export type Database = {
           p_draft_id: string
           p_expected_revision: number
           p_options: Json
+        }
+        Returns: Json
+      }
+      marketplace_set_message_notification_settings: {
+        Args: {
+          p_connection_id: string
+          p_enabled: boolean
+          p_expected_version: number
+          p_workspace_id: string
         }
         Returns: Json
       }

@@ -45,6 +45,7 @@ let api: {
   availability: ReturnType<typeof vi.fn>;
 };
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
   workspace = signal<{ id: string; archived_at?: string } | null>({ id: accountA.workspaceId });
   user = signal<{ id: string } | null>({ id: 'user-a' });
   api = {
@@ -69,7 +70,10 @@ beforeEach(() => {
   store.account.set(accountA);
   store.manageAllowed.set(true);
 });
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  vi.useRealTimers();
+});
 describe('Kontogebundene automatische Aktualisierung', () => {
   it('aktiviert einen fehlenden Zeitplan standardmäßig mit 15 Minuten', async () => {
     api.read.mockResolvedValue({ ...initial, authorizationVersion: 0 });
@@ -101,6 +105,112 @@ describe('Kontogebundene automatische Aktualisierung', () => {
     expect(store.schedule()?.authorizationVersion).toBe(2);
     expect(store.schedule()?.enabled).toBe(false);
     expect(api.set).not.toHaveBeenCalled();
+  });
+  it('behält beim regelmäßigen Statusabruf Werte und bedienbare Einstellungen ohne Ladewechsel', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    await settle();
+    const saved = store.schedule();
+    const availability = store.availability();
+    const read = deferred<MarketplaceSyncSchedule>();
+    api.read.mockReturnValueOnce(read.promise);
+
+    vi.advanceTimersByTime(30_000);
+    expect(store.loading()).toBe(false);
+    expect(store.schedule()).toBe(saved);
+    expect(store.availability()).toBe(availability);
+    expect(store.canDisable()).toBe(true);
+    await store.reload(true);
+    expect(api.read).toHaveBeenCalledTimes(2);
+
+    read.resolve({ ...initial, enabled: true, authorizationVersion: 2 });
+    await settle();
+    expect(store.schedule()?.authorizationVersion).toBe(2);
+    expect(store.loading()).toBe(false);
+  });
+  it('liest neue Kontoobjekte desselben Kontos ohne Zurücksetzen der sichtbaren Einstellung', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true, pausedReason: 'needs_login' });
+    await settle();
+    const saved = store.schedule();
+    const read = deferred<MarketplaceSyncSchedule>();
+    api.read.mockReturnValueOnce(read.promise);
+
+    store.account.set({ ...accountA, lastSyncedAt: '2026-11-03T10:00:00Z' });
+    await settle();
+    expect(store.schedule()).toBe(saved);
+    expect(store.loading()).toBe(false);
+    expect(store.canDisable()).toBe(true);
+
+    read.resolve({ ...initial, enabled: true, authorizationVersion: 2 });
+    await settle();
+    expect(store.schedule()?.pausedReason).toBeNull();
+    expect(store.schedule()?.authorizationVersion).toBe(2);
+  });
+  it('übernimmt eine bewusste Änderung statt einer verspäteten stillen Leseantwort', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    await settle();
+    const read = deferred<MarketplaceSyncSchedule>();
+    api.read.mockReturnValueOnce(read.promise);
+    const pending = store.reload(true);
+    api.set.mockResolvedValueOnce({ ...initial, authorizationVersion: 2 });
+
+    await store.setEnabled(false);
+    read.resolve({ ...initial, enabled: true });
+    await pending;
+    expect(store.schedule()?.enabled).toBe(false);
+    expect(store.schedule()?.authorizationVersion).toBe(2);
+    expect(store.loading()).toBe(false);
+
+    api.read.mockResolvedValueOnce({ ...initial, authorizationVersion: 3 });
+    await store.reload(true);
+    expect(store.schedule()?.authorizationVersion).toBe(3);
+  });
+  it('erhält eine laufende Änderung bei einer Aktualisierung desselben Kontoobjekts', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    await settle();
+    const write = deferred<MarketplaceSyncSchedule>();
+    api.set.mockReturnValueOnce(write.promise);
+    const pending = store.setEnabled(false);
+
+    store.account.set({ ...accountA, lastSyncedAt: '2026-11-03T10:00:00Z' });
+    await settle();
+    expect(store.busy()).toBe(true);
+    expect(api.read).toHaveBeenCalledTimes(1);
+    write.resolve({ ...initial, authorizationVersion: 2 });
+    await pending;
+    expect(store.busy()).toBe(false);
+    expect(store.schedule()?.enabled).toBe(false);
+    expect(store.schedule()?.authorizationVersion).toBe(2);
+  });
+  it('verbirgt alte Einstellungen bei einem Rechteentzug auch während eines stillen Abrufs', async () => {
+    await settle();
+    const read = deferred<MarketplaceSyncSchedule>();
+    api.read.mockReturnValueOnce(read.promise);
+    const pending = store.reload(true);
+
+    store.manageAllowed.set(false);
+    expect(store.schedule()).toBeNull();
+    expect(store.canEnable()).toBe(false);
+    await settle();
+    read.resolve({ ...initial, enabled: true });
+    await pending;
+    expect(store.schedule()).toBeNull();
+    expect(store.canDisable()).toBe(false);
+  });
+  it('lässt nach einem Schreibkonflikt die Bedienung bis zum bestätigten stillen Abruf gesperrt', async () => {
+    await settle();
+    api.set.mockRejectedValueOnce(new MarketplaceSyncScheduleError('conflict'));
+    await store.setEnabled(true);
+    const read = deferred<MarketplaceSyncSchedule>();
+    api.read.mockReturnValueOnce(read.promise);
+    const pending = store.reload(true);
+
+    expect(store.loading()).toBe(false);
+    expect(store.canEnable()).toBe(false);
+    expect(store.error()).toContain('geändert');
+    read.resolve({ ...initial, authorizationVersion: 4 });
+    await pending;
+    expect(store.canEnable()).toBe(true);
+    expect(store.error()).toBeNull();
   });
   it('speichert einen bestätigten kürzeren Abstand und erhält die Kontobindung', async () => {
     api.read.mockResolvedValue({ ...initial, enabled: true });

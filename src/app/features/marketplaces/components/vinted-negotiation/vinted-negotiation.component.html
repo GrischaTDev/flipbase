@@ -1,7 +1,7 @@
 <div class="min-w-0 space-y-4" data-negotiation-settings>
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h1 class="text-lg font-semibold">Automatische Verhandlung</h1>
+      <h1 class="text-lg font-semibold">Verhandlung</h1>
       <p class="mt-1 text-[13px] text-fb-text-secondary">
         Lege Preise und Nachrichten für dieses Konto fest.
       </p>
@@ -39,15 +39,14 @@
           <div class="flex flex-wrap gap-x-6 gap-y-3">
             <app-custom-checkbox
               formControlName="enabled"
-              label="Automatische Verhandlung aktivieren"
+              label="Verhandlung aktivieren"
             /><app-custom-checkbox
               formControlName="purchaseEnabled"
               label="Kaufnachrichten unabhängig aktivieren"
             />
           </div>
           <p class="text-[13px] text-fb-text-secondary">
-            Beide Schalter sind anfangs aus. Speichern schaltet die andere Automatik nicht ein. Zum
-            Aktivieren brauchst Du eine bestehende Versandfreigabe in der Kontoverwaltung.
+            Beide Schalter sind anfangs aus. Speichern schaltet die andere Automatik nicht ein.
             Änderungen verwerfen wartende automatische Aktionen. Frühere Angebote werden nicht
             automatisch verarbeitet.
           </p>

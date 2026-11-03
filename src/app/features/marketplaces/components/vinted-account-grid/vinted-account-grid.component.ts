@@ -40,6 +40,7 @@ import { presentVintedLocalReadiness } from '../../models/vinted-local-readiness
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
 import { MarketplaceAccountsComponent } from '../marketplace-accounts/marketplace-accounts.component';
+import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 
@@ -60,6 +61,7 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
     VintedSetupComponent,
     MarketplaceAccountsComponent,
     VintedFavoriteSettingsComponent,
+    VintedMessageSettingsComponent,
   ],
   templateUrl: './vinted-account-grid.component.html',
   providers: [VintedAccountPreviewsStore, MarketplaceCloudSetupStore],

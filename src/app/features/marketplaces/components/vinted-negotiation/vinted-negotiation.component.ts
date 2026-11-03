@@ -24,6 +24,8 @@ import { CustomSelectComponent } from '../../../../shared/components/custom-sele
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
+import { VintedMessagingApiService } from '../../services/vinted-messaging-api.service';
+import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import {
   calculateNegotiationPrices,
   createDefaultNegotiationConfig,
@@ -72,6 +74,8 @@ function bandForm(band?: VintedNegotiationConfig['priceBands'][number]) {
 export class VintedNegotiationComponent {
   readonly store = inject(MarketplaceAccountStore);
   private readonly api = inject(VintedNegotiationApiService);
+  private readonly messagingApi = inject(VintedMessagingApiService);
+  private readonly local = inject(VintedLocalExtensionStore);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   readonly settings = signal<NegotiationSettings | null>(null);
@@ -232,6 +236,7 @@ export class VintedNegotiationComponent {
           account.connectionId,
           account.externalAccountId,
           account.executionMode,
+          account.status,
         ])
       : null;
   });
@@ -370,9 +375,11 @@ export class VintedNegotiationComponent {
   }
   async save() {
     const settings = this.settings();
+    const account = this.store.selectedConnection();
     const context = this.context();
-    if (!settings || !context || this.busy() || this.loading()) return;
+    if (!settings || !account || !context || this.busy() || this.loading()) return;
     const config = this.config();
+    const enabled = this.form.controls.enabled.value;
     if (!isNegotiationConfig(config)) {
       this.error.set(
         'Prüfe Nachlass, aufsteigende Preisbereiche und Stufen (letzte Stufe 100), Texte und Wartezeiten.',
@@ -384,7 +391,36 @@ export class VintedNegotiationComponent {
     this.error.set(null);
     this.saved.set(false);
     try {
-      const saved = await this.api.save(settings, this.form.controls.enabled.value, config);
+      if (enabled || config.purchaseEnabled) {
+        if (account.executionMode === 'cloud') {
+          const permission = await this.messagingApi.readPermission(account);
+          if (!this.current(context, revision)) return;
+          if (permission.executionMode !== 'cloud')
+            throw new Error('Die Cloud-Nachrichtenfreigabe konnte nicht bestätigt werden.');
+          if (!permission.allowed) {
+            if (!account.externalAccountId)
+              throw new Error('Bestätige zuerst die Kontoverbindung.');
+            const approved = await this.messagingApi.approveCloud(
+              account,
+              account.externalAccountId,
+            );
+            if (!this.current(context, revision)) return;
+            if (!approved.allowed || approved.executionMode !== 'cloud')
+              throw new Error('Die Cloud-Nachrichtenfreigabe konnte nicht bestätigt werden.');
+          }
+        } else if (account.executionMode === 'local') {
+          await this.local.loadConnection(account);
+          if (!this.current(context, revision)) return;
+          if (!this.local.messagesAllowed()) await this.local.approveInbox();
+          if (!this.current(context, revision)) return;
+          if (!this.local.binding()?.messagesSend && !(await this.local.approveSend()))
+            throw new Error(
+              this.local.error() ?? 'Die Nachrichtenfreigabe konnte nicht bestätigt werden.',
+            );
+        }
+      }
+      if (!this.current(context, revision)) return;
+      const saved = await this.api.save(settings, enabled, config);
       if (!this.current(context, revision)) return;
       this.settings.set(saved);
       this.apply(saved.config, saved.enabled);
