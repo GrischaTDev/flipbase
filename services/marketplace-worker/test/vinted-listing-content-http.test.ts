@@ -8,6 +8,8 @@ import {
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
+import { SupabaseVintedListingCache } from '../src/supabase-vinted-listing-cache.ts';
+import { VintedListingPhotoSource } from '../src/vinted-listing-photo-source.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
 import {
   BrowserActionFailedError,
@@ -25,6 +27,81 @@ import {
 const workspaceId = '46700000-0000-4000-8000-000000000001',
   connectionId = '46700000-0000-4000-8000-000000000002',
   entryId = '46700000-0000-4000-8000-000000000005';
+
+test('bestätigt eine neue Vollbildvariante vor dem Fotoabruf durch die gespeicherte vollständige Quelle', async () => {
+  const cover = 'https://images1.vinted.net/tc/fixtureA/f310/1788288106.webp';
+  const full = listingCurrentContentFixture().photoUrls[0]!;
+  const storedBody: Record<string, unknown> = { imageUrls: [cover] };
+  let downloads = 0;
+  const bytes = new Uint8Array([255, 216, 255, 1, 255, 217]);
+  const cache = new SupabaseVintedListingCache({
+    url: 'https://database.example',
+    serviceRoleKey: 'server-only',
+    fetch: async (input, init) => {
+      assert.equal(
+        new URL(String(input)).pathname,
+        '/rest/v1/rpc/kleinanzeigen_cache_transfer_source',
+      );
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.p_workspace_id, workspaceId);
+      assert.equal(body.p_connection_id, connectionId);
+      assert.equal(body.p_entry_id, entryId);
+      storedBody['transferSource'] = body.p_source;
+      return Response.json({ entryId, fingerprint: 'a'.repeat(64) });
+    },
+  });
+  const photos = new VintedListingPhotoSource({
+    url: 'https://database.example',
+    publishableKey: 'public-key',
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      if (url.href === full) {
+        downloads++;
+        assert.equal(new Headers(init?.headers).get('authorization'), null);
+        return new Response(bytes, { headers: { 'Content-Type': 'image/jpeg' } });
+      }
+      assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer user-token');
+      assert.equal(url.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      if (url.pathname.endsWith('/marketplace_connections'))
+        return Response.json([
+          { external_account_id: '123', status: 'connected', execution_mode: 'cloud' },
+        ]);
+      assert.equal(url.searchParams.get('connection_id'), 'eq.' + connectionId);
+      assert.equal(url.searchParams.get('id'), 'eq.' + entryId);
+      return Response.json([
+        {
+          external_id: '98765',
+          ...(url.searchParams.get('select')?.includes('body') ? { body: storedBody } : {}),
+        },
+      ]);
+    },
+  });
+  const f = await fixture({ listingCache: cache, listingPhotos: photos });
+  try {
+    assert.equal(
+      (await f.photo(full)).ok,
+      false,
+      'Nicht gespeicherte Variante wird noch nicht geladen',
+    );
+    assert.equal(downloads, 0);
+    assert.equal((await f.request({ workspaceId, connectionId, entryId })).status, 200);
+    assert.deepEqual(
+      (storedBody['transferSource'] as { photoReferences: string[] }).photoReferences,
+      listingCurrentContentFixture().photoUrls,
+    );
+    const loaded = await f.photo(full);
+    assert.equal(loaded.status, 200);
+    assert.deepEqual(new Uint8Array(await loaded.arrayBuffer()), bytes);
+    assert.equal(downloads, 1);
+    assert.deepEqual(
+      storedBody['imageUrls'],
+      [cover],
+      'Cover und bestätigte Vollbildquelle bleiben getrennt',
+    );
+  } finally {
+    await f.close();
+  }
+});
 
 test('speichert einen einzelnen Preis mit serverseitig gebundenem Artikel und lehnt Zusatzfelder ab', async () => {
   const f = await fixture();
@@ -81,6 +158,8 @@ async function fixture(
     missing?: boolean;
     readAccessOnly?: boolean;
     cacheFailure?: boolean;
+    listingCache?: Pick<SupabaseVintedListingCache, 'save' | 'remove' | 'saveTransferSource'>;
+    listingPhotos?: VintedListingPhotoSource;
     readOnly?: boolean;
     foreignItem?: boolean;
     reassign?: boolean;
@@ -154,7 +233,8 @@ async function fixture(
     listingReadAccess: options.readAccessOnly
       ? { entry: async () => ({ externalId: '98765', accountId: '123' }) }
       : undefined,
-    listingCache: {
+    listingPhotos: options.listingPhotos,
+    listingCache: options.listingCache ?? {
       save: async () => true,
       remove: async (scope, id, externalId) => {
         targets.push(['removed-cache', scope.workspaceId, scope.connectionId, id, externalId]);
@@ -225,6 +305,12 @@ async function fixture(
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   return {
+    photo: (photoUrl: string) =>
+      fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/photo/read`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId, connectionId, entryId, photoUrl }),
+      }),
     remove: (body: unknown) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/delete`, {
         method: 'POST',

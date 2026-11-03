@@ -6,6 +6,9 @@ export interface VintedPublicationAge {
 }
 export interface VintedPublicationVersion {
   externalId: string;
+  description?: string;
+  descriptionReadAt?: string | null;
+  descriptionSourceUpdatedAt?: string | null;
   publicationState?: VintedPublicationState;
   createdAt?: string | null;
   occurredAt: string | null;

@@ -793,6 +793,18 @@ describe('Inseratbeschreibungen und Kennzahlen', () => {
       accountA,
     );
   }
+  it('liest bereits gespeicherte Originalquellen-Beschreibungen ohne Anbieterabruf', async () => {
+    await settle();
+    const item = publication().publications.items[0];
+    const content = listingCurrentContentFixture().content;
+    const stored = { ...item, listingContent: content };
+    expect(store.cachedListingDescription(accountA.connectionId, stored)).toEqual({
+      description: content.description,
+      cacheState: 'stored',
+    });
+    expect(browserApi.readListingData).not.toHaveBeenCalled();
+    expect(store.cachedListingDescription(accountB.connectionId, stored)).toBeNull();
+  });
   it.each(['Bekannter Text', ''])(
     'knownDescriptionStartsNoBrowser / emptyLoadedDescriptionStartsNoBrowser: %j',
     async (text) => {

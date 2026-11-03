@@ -11,6 +11,10 @@ import {
 import { renderVintedListingPhoto } from '../../../../../../supabase/functions/_shared/vinted-listing-photo-renderer.mjs';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
 import type { VintedListingPhotoOptions } from '../../models/vinted-listing-photo-options';
+import {
+  VintedListingPhotoSourceService,
+  type VintedListingPhotoScope,
+} from '../../services/vinted-listing-photo-source.service';
 
 /** Liest nur die Originalquelle; die kurzlebige Ausgabe wird nie in die Bildauswahl geschrieben. */
 @Component({
@@ -23,11 +27,14 @@ export class VintedListingPhotoPreviewComponent {
   readonly compact = input(false);
   readonly image = input<ListingImageDraft | null>(null);
   readonly options = input.required<VintedListingPhotoOptions>();
+  readonly photoScope = input<VintedListingPhotoScope | null>(null);
+  private readonly photos = inject(VintedListingPhotoSourceService);
   readonly preview = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
   private generation = 0;
   private source: File | string | null = null;
+  private sourceScope: string | null = null;
   private original: Promise<{ base64: string; mimeType: string }> | null = null;
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -35,7 +42,8 @@ export class VintedListingPhotoPreviewComponent {
     });
     effect(() => {
       const image = this.image(),
-        options = this.options();
+        options = this.options(),
+        photoScope = this.photoScope();
       untracked(() => {
         const generation = ++this.generation;
         this.preview.set(null);
@@ -52,7 +60,7 @@ export class VintedListingPhotoPreviewComponent {
           this.loading.set(false);
           return;
         }
-        if (image) void this.render(image, options, generation);
+        if (image) void this.render(image, options, generation, photoScope);
       });
     });
   }
@@ -60,6 +68,7 @@ export class VintedListingPhotoPreviewComponent {
     image: ListingImageDraft,
     options: VintedListingPhotoOptions,
     generation: number,
+    photoScope: VintedListingPhotoScope | null,
   ): Promise<void> {
     try {
       const source =
@@ -67,9 +76,11 @@ export class VintedListingPhotoPreviewComponent {
         (image.crop ? null : image.file) ??
         image.originalPreviewUrl ??
         image.previewUrl;
-      if (source !== this.source || !this.original) {
+      const scopeKey = JSON.stringify(photoScope);
+      if (source !== this.source || this.sourceScope !== scopeKey || !this.original) {
         this.source = source;
-        this.original = this.readOriginal(source);
+        this.sourceScope = scopeKey;
+        this.original = this.readOriginal(source, photoScope);
       }
       const original = await this.original;
       if (generation !== this.generation) return;
@@ -90,15 +101,11 @@ export class VintedListingPhotoPreviewComponent {
       if (generation === this.generation) this.loading.set(false);
     }
   }
-  private async readOriginal(source: File | string): Promise<{ base64: string; mimeType: string }> {
-    const blob =
-      typeof source === 'string'
-        ? await (async () => {
-            const response = await fetch(source);
-            if (!response.ok) throw new Error('Original nicht verfügbar.');
-            return response.blob();
-          })()
-        : source;
+  private async readOriginal(
+    source: File | string,
+    photoScope: VintedListingPhotoScope | null,
+  ): Promise<{ base64: string; mimeType: string }> {
+    const blob = await this.photos.read(source, photoScope);
     if (!blob.size || blob.size > 50 * 1024 * 1024) throw new Error('Ungültige Bildgröße.');
     const data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();

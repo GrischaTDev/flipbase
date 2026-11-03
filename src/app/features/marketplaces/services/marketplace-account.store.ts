@@ -1511,12 +1511,16 @@ export class MarketplaceAccountStore {
   }
   private rememberStoredDescription(entry: MarketplaceEntry): VintedListingDescription | null {
     const cached = this.descriptions.get(entry.id);
-    if (entry.textState !== 'loaded' && entry.text === null) return cached ?? null;
+    const storedDescription =
+      entry.textState === 'loaded' || entry.text !== null
+        ? (entry.text ?? '')
+        : entry.listingContent?.description;
+    if (storedDescription === undefined) return cached ?? null;
     // Kennzahlenzeit belegt keine Textfassung: Listenimporte können alten Text übernehmen.
     const value: VintedListingDescription =
       cached && cached.cacheState !== 'stored'
         ? cached
-        : { description: entry.text ?? '', cacheState: 'stored' };
+        : { description: storedDescription, cacheState: 'stored' };
     this.cacheDescription(entry.id, value);
     return value;
   }

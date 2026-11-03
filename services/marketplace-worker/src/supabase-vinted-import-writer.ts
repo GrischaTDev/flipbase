@@ -91,6 +91,15 @@ export class SupabaseVintedImportWriter {
           occurredAt: timestamp(row['flipbase_published_at']),
           publicationAge: parseVintedPublicationAge(body['publicationAge']),
           checkedAt: timestamp(body['publicationAgeCheckedAt']),
+          ...(body['textState'] === 'loaded' &&
+          typeof body['text'] === 'string' &&
+          body['text'].length <= 2000
+            ? {
+                description: body['text'],
+                descriptionReadAt: timestamp(body['descriptionReadAt']),
+                descriptionSourceUpdatedAt: timestamp(body['descriptionSourceUpdatedAt']),
+              }
+            : {}),
         },
       ];
     });
@@ -129,6 +138,12 @@ export class SupabaseVintedImportWriter {
           externalId: row['external_id'],
           sourceUpdatedAt: body['sourceUpdatedAt'],
           detailCheckedAt: body['detailCheckedAt'],
+          ...(body['detailAttemptedAt'] === null ||
+          (typeof body['detailAttemptedAt'] === 'string' &&
+            body['detailAttemptedAt'].length <= 64 &&
+            Number.isFinite(Date.parse(body['detailAttemptedAt'])))
+            ? { detailAttemptedAt: body['detailAttemptedAt'] }
+            : {}),
           text: typeof body['text'] === 'string' ? body['text'] : null,
           occurredAt: typeof body['occurredAt'] === 'string' ? body['occurredAt'] : null,
           itemId: typeof body['itemId'] === 'string' ? body['itemId'] : null,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BrowserSessionCommands } from '../src/browser-session-commands.ts';
+import { SupabaseVintedImportWriter } from '../src/supabase-vinted-import-writer.ts';
 import {
   browserActionError,
   executeBrowserAction,
@@ -9,6 +10,7 @@ import {
 } from '../src/isolated-browser-actions.ts';
 import {
   parseVintedAccountImport,
+  readVintedAccountImport,
   type VintedAccountImport,
 } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
@@ -840,6 +842,130 @@ test('isolated import passes validated publication ages through the real command
   }
 });
 
+test('cached descriptions from the import writer reach the next isolated import unchanged', async () => {
+  const sessionId = '44444444-4444-4444-8444-444444444444';
+  const scope = {
+    workspaceId: '11111111-1111-4111-8111-111111111111',
+    connectionId: '22222222-2222-4222-8222-222222222222',
+    userId: '33333333-3333-4333-8333-333333333333',
+    userAccessToken: '',
+    syncRead: {
+      operationId: '55555555-5555-4555-8555-555555555555',
+      runnerId: '66666666-6666-4666-8666-666666666666',
+      workerEpoch: 1,
+      sessionId,
+      expiresAt: '2099-11-03T08:06:30.000Z',
+      absoluteExpiresAt: '2099-11-03T08:20:00.000Z',
+    },
+  };
+  const cached = [
+    {
+      text: '  Originaltext\r\nmit\tZeilen und Leerzeichen  ',
+      descriptionReadAt: '2026-11-03T08:00:00.000Z',
+      descriptionSourceUpdatedAt: '2026-11-02T10:00:00.000Z',
+    },
+    { text: '', descriptionReadAt: null, descriptionSourceUpdatedAt: null },
+    { text: 'a'.repeat(2000), descriptionReadAt: null, descriptionSourceUpdatedAt: null },
+  ];
+  let requests = 0;
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://database.test',
+    publishableKey: 'fixture-publishable-key',
+    serviceRoleKey: 'fixture-service-role-key',
+    fetch: async (input) => {
+      requests++;
+      const path = new URL(String(input)).pathname;
+      if (path === '/rest/v1/rpc/marketplace_sync_check')
+        return Response.json({ active: true, sessionId });
+      assert.equal(path, '/rest/v1/rpc/marketplace_publication_versions');
+      return Response.json(
+        cached.map((entry, index) => ({
+          external_id: String(41 + index),
+          flipbase_published_at: null,
+          body: { textState: 'loaded', ...entry },
+        })),
+      );
+    },
+  });
+  const publications = await writer.publicationVersions(scope, sessionId);
+  assert.equal(requests, 2);
+  assert.deepEqual(
+    publications.map((entry) => ({
+      text: entry.description,
+      descriptionReadAt: entry.descriptionReadAt,
+      descriptionSourceUpdatedAt: entry.descriptionSourceUpdatedAt,
+    })),
+    cached,
+  );
+  const snapshot = {
+    identity: { id: '123', username: 'fixture' },
+    observedAt: '2026-11-03T08:05:00.000Z',
+    entries: [],
+    areas: Object.fromEntries(
+      ['profile', 'publications', 'conversations', 'messages', 'sales', 'feedback'].map((area) => [
+        area,
+        { status: 'complete' },
+      ]),
+    ),
+  } as unknown as VintedAccountImport;
+  let imports = 0;
+  const commands = new BrowserSessionCommands({
+    version: () => 'fixture',
+    importAccount: async (_authorize, _onStage, _previous, _requested, received) => {
+      imports++;
+      assert.deepEqual(received, publications);
+      return snapshot;
+    },
+  });
+  const browser = isolatedBrowserActions({ request: (input) => commands.request(input) });
+  assert.deepEqual(
+    await browser.importAccount?.(async () => undefined, undefined, [], undefined, publications),
+    snapshot,
+  );
+  assert.equal(imports, 1);
+});
+
+test('isolated import rejects malformed cached descriptions and metadata before any provider read', async () => {
+  const publication = {
+    externalId: '41',
+    occurredAt: null,
+    publicationAge: null,
+    checkedAt: null,
+    description: 'Bestätigter Text',
+    descriptionReadAt: null,
+    descriptionSourceUpdatedAt: null,
+  };
+  for (const changes of [
+    { description: null },
+    { description: 123 },
+    { description: {} },
+    { description: 'a'.repeat(2001) },
+    { description: '\u0000' },
+    { description: '\u001b' },
+    { description: '\u007f' },
+    { descriptionReadAt: false },
+    { descriptionReadAt: 'not-a-date' },
+    { descriptionReadAt: '2026-11-03T08:00:00Z'.padEnd(65, ' ') },
+    { descriptionSourceUpdatedAt: false },
+    { descriptionSourceUpdatedAt: 'not-a-date' },
+    { descriptionSourceUpdatedAt: {} },
+    { descriptionSourceUpdatedAt: '2026-11-03T08:00:00Z'.padEnd(65, ' ') },
+    { unexpectedDescriptionField: 'not part of the contract' },
+  ]) {
+    await assert.rejects(
+      executeBrowserAction(
+        {
+          version: () => 'fixture',
+          importAccount: async () => assert.fail('invalid cached fields reached the provider'),
+        },
+        { name: 'importAccount', arguments: [[], null, [{ ...publication, ...changes }]] },
+        async () => undefined,
+        async () => undefined,
+      ),
+    );
+  }
+});
+
 test('isolated import keeps pending chat activity with a null detail check through the browser action boundary', async () => {
   const previous = {
     externalId: '51',
@@ -876,6 +1002,198 @@ test('isolated import keeps pending chat activity with a null detail check throu
   assert.equal(conversation?.body['text'], 'Passt, danke!');
   assert.equal(conversation?.body['occurredAt'], '2026-10-03T08:00:00.000Z');
   assert.equal(conversation?.body['detailCheckedAt'], null);
+});
+
+test('attempted conversation versions survive the real writer and isolated command channel without becoming checked', async () => {
+  const scope = {
+    workspaceId: '11111111-1111-4111-8111-111111111111',
+    connectionId: '22222222-2222-4222-8222-222222222222',
+    userId: '33333333-3333-4333-8333-333333333333',
+    userAccessToken: '',
+    syncRead: {
+      operationId: '55555555-5555-4555-8555-555555555555',
+      runnerId: '66666666-6666-4666-8666-666666666666',
+      workerEpoch: 1,
+      sessionId: '44444444-4444-4444-8444-444444444444',
+      expiresAt: '2099-11-03T08:06:30.000Z',
+      absoluteExpiresAt: '2099-11-03T08:20:00.000Z',
+    },
+  };
+  const sourceUpdatedAt = '2026-11-03T08:00:00.000Z';
+  const attemptedAt = '2026-11-03T08:01:00.000Z';
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://database.test',
+    publishableKey: 'fixture-publishable-key',
+    serviceRoleKey: 'fixture-service-role-key',
+    fetch: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith('marketplace_sync_check'))
+        return Response.json({ active: true, sessionId: scope.syncRead.sessionId });
+      assert.equal(path, '/rest/v1/marketplace_account_entries');
+      return Response.json(
+        [attemptedAt, null].map((detailAttemptedAt, index) => ({
+          external_id: String(51 + index),
+          body: { sourceUpdatedAt, detailCheckedAt: null, detailAttemptedAt },
+        })),
+      );
+    },
+  });
+  const previous = await writer.conversationVersions(scope, scope.syncRead.sessionId);
+  assert.deepEqual(
+    previous.map((version) => version.detailAttemptedAt),
+    [attemptedAt, null],
+  );
+  const commands = new BrowserSessionCommands({
+    version: () => 'fixture',
+    importAccount: async (_authorize, _onStage, received) => {
+      assert.deepEqual(received, previous);
+      return parseVintedAccountImport(
+        { id: '123', username: 'fixture' },
+        { user: { id: 123 } },
+        [],
+        [
+          { id: 51, updated_at: sourceUpdatedAt },
+          { id: 52, updated_at: sourceUpdatedAt },
+        ],
+        [],
+        '2026-11-03T08:02:00.000Z',
+        received,
+      );
+    },
+  });
+  const browser = isolatedBrowserActions({ request: (input) => commands.request(input) });
+  const snapshot = await browser.importAccount?.(async () => undefined, undefined, previous);
+  const conversation = snapshot?.entries.find((entry) => entry.externalId === '51');
+  assert.equal(conversation?.body['detailAttemptedAt'], attemptedAt);
+  assert.equal(conversation?.body['detailCheckedAt'], null);
+});
+
+test('ten bounded conversation details and two thousand events pass the actual isolated inbox result boundary', async () => {
+  const ids = Array.from(
+    { length: 10 },
+    (_, index) => '9'.repeat(30) + String(index).padStart(2, '0'),
+  );
+  const page = {
+    url: () => 'https://www.vinted.de/',
+    evaluate: async (_script: unknown, path: string) => {
+      if (path.includes('/users/current')) return { user: { id: 123, login: 'fixture' } };
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: ids.map((id) => ({ id, unread: false, opposite_user: { id: 91 } })),
+          pagination: { total_pages: 1 },
+        };
+      if (path.startsWith('/api/v2/conversations/'))
+        return {
+          conversation: {
+            id: path.split('/').at(-1),
+            opposite_user: { id: 91 },
+            messages: Array.from({ length: 200 }, (_, index) => ({
+              entity_type: 'offer_request_message',
+              id:
+                '8'.repeat(28) +
+                String(ids.indexOf(path.split('/').at(-1) ?? '') * 200 + index).padStart(4, '0'),
+              entity: { user_id: 91, body: 'Hallo' },
+              created_at_ts: '2026-10-08T08:01:00.000Z',
+            })),
+          },
+        };
+      return { items: [], user_feedbacks: [], pagination: { total_pages: 1 } };
+    },
+  } as unknown as Parameters<typeof readVintedAccountImport>[0];
+  const commands = new BrowserSessionCommands({
+    version: () => 'fixture',
+    importAccount: (authorize, onStage) => readVintedAccountImport(page, authorize, onStage),
+  });
+  const browser = isolatedBrowserActions({ request: (input) => commands.request(input) });
+  const snapshot = await browser.importAccount?.(async () => undefined);
+  assert.deepEqual(snapshot?.inboxEvents?.coveredConversationIds, ids.map(String));
+  assert.equal(snapshot?.inboxEvents?.events.length, 2000);
+  assert.ok(
+    snapshot?.inboxEvents?.events.every(
+      (event) =>
+        event.externalConversationId.length === 32 &&
+        /^offer_request_message:[0-9]{32}$/.test(event.externalId),
+    ),
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(snapshot?.inboxEvents)) < 512 * 1024);
+});
+
+test('the inbox result boundary rejects eleven conversations, excess events and oversized batches', () => {
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'fixture' },
+    { user: { id: 123 } },
+    [],
+    [],
+    [],
+    '2026-11-03T08:00:00.000Z',
+  );
+  const event = {
+    externalId: 'message:1',
+    externalConversationId: '700',
+    occurredAt: snapshot.observedAt,
+    direction: 'inbound',
+    source: 'conversation_snapshot',
+  };
+  const batch = {
+    version: 1,
+    observedAt: snapshot.observedAt,
+    events: [],
+    complete: true,
+    coveredConversationIds: ['700'],
+  };
+  const longTimestamp = '2026-11-03T08:00:00.' + '0'.repeat(43) + 'Z';
+  assert.equal(longTimestamp.length, 64);
+  assert.ok(Number.isFinite(Date.parse(longTimestamp)));
+  for (const changes of [
+    { coveredConversationIds: Array.from({ length: 11 }, (_, index) => String(700 + index)) },
+    { events: Array.from({ length: 2001 }, () => event) },
+    {
+      events: Array.from({ length: 2000 }, () => ({
+        ...event,
+        externalId: 'offer_request_message:' + '9'.repeat(32),
+        externalConversationId: '9'.repeat(32),
+        occurredAt: longTimestamp,
+      })),
+    },
+  ])
+    assert.throws(
+      () =>
+        validateBrowserResult('importAccount', {
+          ...snapshot,
+          inboxEvents: { ...batch, ...changes },
+        }),
+      /Ungültige Postfachereignisse/,
+    );
+});
+
+test('the conversation attempt transport rejects malformed timestamps and unknown fields before a provider call', async () => {
+  const previous = {
+    externalId: '51',
+    sourceUpdatedAt: '2026-11-03T08:00:00.000Z',
+    detailCheckedAt: null,
+    text: null,
+    occurredAt: null,
+  };
+  for (const changes of [
+    { detailAttemptedAt: 123 },
+    { detailAttemptedAt: false },
+    { detailAttemptedAt: {} },
+    { detailAttemptedAt: 'not-a-date' },
+    { detailAttemptedAt: '2026-11-03T08:00:00Z'.padEnd(65, ' ') },
+    { unknownAttemptField: 'not part of the contract' },
+  ]) {
+    await assert.rejects(
+      executeBrowserAction(
+        {
+          version: () => 'fixture',
+          importAccount: async () => assert.fail('invalid attempt reached provider'),
+        },
+        { name: 'importAccount', arguments: [[{ ...previous, ...changes }], null, []] },
+        async () => undefined,
+        async () => undefined,
+      ),
+    );
+  }
 });
 
 test('Löschbefehle transportieren nur zwei gebundene IDs und akzeptieren keine erfundene Bestätigung', async () => {

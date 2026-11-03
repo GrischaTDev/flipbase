@@ -978,9 +978,9 @@ export function isMarketplaceInboxEventBatch(
     !inboxEventTimestamp(input['observedAt']) ||
     typeof input['complete'] !== 'boolean' ||
     !Array.isArray(input['events']) ||
-    input['events'].length > 600 ||
+    input['events'].length > 2000 ||
     !Array.isArray(input['coveredConversationIds']) ||
-    input['coveredConversationIds'].length > 3
+    input['coveredConversationIds'].length > 10
   )
     return false;
   const covered = input['coveredConversationIds'];
@@ -1016,5 +1016,5 @@ export function isMarketplaceInboxEventBatch(
     if (seen.has(key)) return false;
     seen.add(key);
   }
-  return true;
+  return new TextEncoder().encode(JSON.stringify(input)).byteLength <= localExtensionMaxBytes;
 }

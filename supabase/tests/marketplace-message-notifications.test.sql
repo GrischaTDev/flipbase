@@ -55,7 +55,6 @@ select is(pg_temp.apply(5,jsonb_build_array(pg_temp.event('message:502'))),0,'Cl
 select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','91','{}')$$,'42501',null,'Foreign account identity is denied');
 select is(pg_temp.apply(6,jsonb_build_array(pg_temp.event('message:506','702','2026-09-30T11:00:00.000Z')),false,'[]'),0,'Later historical pages stay silent after the first reference');
 reset role;
-reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select is(public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021')->>'enabled','true','Existing accounts keep message notifications enabled by default');
@@ -90,6 +89,18 @@ select is(pg_temp.apply(15,jsonb_build_array(
 select is(pg_temp.apply(16,jsonb_build_array(pg_temp.event('status_message:event:'||repeat('a',64),'700','2026-09-30T12:14:00.000Z'))),0,'Stable synthetic system event identifiers remain idempotent');
 select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('payment_message:event:invalid')))$$,'22023',null,'Malformed system event references are rejected');
 select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('unknown_message:703')))$$,'22023',null,'Unverified provider event types stay excluded');
+create function pg_temp.capacity_batch(p_events int default 2000,p_covered int default 10) returns jsonb language sql as $$
+ select jsonb_build_object('version',1,'observedAt','2026-09-30T12:20:00.000Z','complete',true,
+ 'coveredConversationIds',(select coalesce(jsonb_agg('9'||lpad(n::text,31,'0')),'[]'::jsonb) from generate_series(1,p_covered) n),
+ 'events',(select coalesce(jsonb_agg(pg_temp.event('offer_request_message:9'||lpad(n::text,31,'0'),'9'||lpad(((n-1)/200+1)::text,31,'0'),'2026-09-30T12:19:00.000Z')),'[]'::jsonb) from generate_series(1,p_events) n));
+$$;
+select is(octet_length(pg_temp.capacity_batch()::text),474474,'Maximum canonical batch including JSONB whitespace has a fixed bounded size');
+select cmp_ok(octet_length(pg_temp.capacity_batch()::text),'<',512*1024,'Maximum canonical batch stays below the explicit 512 KiB SQL limit');
+select is(public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.capacity_batch()),2000,'Ten complete conversations retain all two thousand message events');
+select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.capacity_batch(0,11))$$,'22023',null,'An eleventh covered conversation is rejected');
+select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',pg_temp.capacity_batch(2001))$$,'22023',null,'A two thousand first event is rejected');
+select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','90',jsonb_set(pg_temp.capacity_batch(0),'{observedAt}',to_jsonb(repeat('x',512*1024))))$$,'22023',null,'Oversized event bytes are rejected');
+select is((select count(*)::int from public.marketplace_message_notifications where length(external_event_id)=54),2000,'Rejected overflows preserve the complete accepted event set');
 reset role;
 update public.marketplace_connections set execution_mode='local' where id='42500000-0000-4000-8000-000000000021';
 insert into public.marketplace_local_extension_grants(workspace_id,connection_id,approved_by,token_hash,external_account_id,expires_at,messages_read) values
@@ -99,9 +110,18 @@ create function pg_temp.local_batch() returns jsonb language sql as $$
  'entries','[{"kind":"conversation","externalId":"703","sortAt":"2026-09-30T12:07:00Z","body":{"title":"Test","text":null,"occurredAt":"2026-09-30T12:07:00Z","sourceUpdatedAt":"2026-09-30T12:07:00Z","detailCheckedAt":null,"unread":true,"imageUrl":null}}]'::jsonb,
  'inboxEvents',jsonb_build_object('version',2,'observedAt',to_char(current_timestamp at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'events','[]'::jsonb,'complete',true,'coveredConversationIds','[]'::jsonb));
 $$;
+create function pg_temp.local_capacity_batch(p_events int default 2000,p_covered int default 10) returns jsonb language sql as $$
+ with input as (select jsonb_set(pg_temp.local_batch(),'{observedAt}',to_jsonb(to_char((current_timestamp at time zone 'utc')+interval '1 millisecond','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))) as batch)
+ select jsonb_set(batch,'{inboxEvents}',jsonb_set(pg_temp.capacity_batch(p_events,p_covered),'{observedAt}',batch->'observedAt')) from input;
+$$;
 set local role service_role;
 select throws_ok($$select public.marketplace_import_local_inbox('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',repeat('a',64),pg_temp.local_batch())$$,'22023',null,'Invalid event contract rolls back local import');
 select ok(not exists(select 1 from public.marketplace_account_entries where external_id='703'),'Failed event import leaves no conversation writes');
+select throws_ok($$select public.marketplace_import_local_inbox('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',repeat('a',64),pg_temp.local_capacity_batch(2001))$$,'22023','Ungültige Nachrichteneingänge','Event count overflow rolls back the complete local import');
+select throws_ok($$select public.marketplace_import_local_inbox('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',repeat('a',64),pg_temp.local_capacity_batch(0,11))$$,'22023','Ungültige Nachrichteneingänge','Conversation count overflow rolls back the complete local import');
+select throws_ok($$select public.marketplace_import_local_inbox('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',repeat('a',64),jsonb_set(pg_temp.local_capacity_batch(1),'{inboxEvents,events,0,externalId}',to_jsonb(repeat('x',512*1024))))$$,'22023','Ungültiger Inboximport','Byte overflow is rejected before any local import writes');
+select ok(not exists(select 1 from public.marketplace_account_entries where external_id='703'),'Every capacity failure leaves no conversation writes');
 select lives_ok($$select public.marketplace_import_local_inbox('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',repeat('a',64),jsonb_set(pg_temp.local_batch(),'{inboxEvents,version}','1'))$$,'Version one shares the existing atomic local import');
+select lives_ok($$select public.marketplace_import_local_inbox('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',repeat('a',64),pg_temp.local_capacity_batch())$$,'The complete local import accepts ten conversations and two thousand events');
 select * from finish();
 rollback;

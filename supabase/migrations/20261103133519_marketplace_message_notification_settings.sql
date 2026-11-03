@@ -1,5 +1,6 @@
 -- Kontoweise Nachrichten-Benachrichtigung und belegte Kauf-/Statusmeldungen im Postfach.
 -- Betroffen: marketplace_message_notification_settings und marketplace_message_notifications.
+-- Erhält die freigegebene Kapazität von 2000 Ereignissen, 10 Gesprächen und 512 KiB.
 -- migration unit 1: schema_changes
 -- transaction mode: transactional
 -- boundary reason: default
@@ -49,13 +50,13 @@ declare v_observed timestamptz; v_reference public.marketplace_message_notificat
 begin
   perform pg_advisory_xact_lock(91731,1);
   if not exists(select 1 from public.marketplace_connections c where c.workspace_id=p_workspace_id and c.id=p_connection_id and c.marketplace='vinted' and c.status='connected' and c.external_account_id=p_external_account_id) then raise exception 'Kontoidentität stimmt nicht überein' using errcode='42501'; end if;
-  if jsonb_typeof(p_batch) is distinct from 'object' or octet_length(p_batch::text)>204800
+  if jsonb_typeof(p_batch) is distinct from 'object' or octet_length(p_batch::text)>524288
     or (select count(*) from jsonb_object_keys(p_batch))<>5
     or exists(select 1 from jsonb_object_keys(p_batch) field where field<>all(array['version','observedAt','events','complete','coveredConversationIds']))
     or p_batch->'version' is distinct from '1'::jsonb or jsonb_typeof(p_batch->'complete') is distinct from 'boolean'
     or jsonb_typeof(p_batch->'observedAt') is distinct from 'string' or p_batch->>'observedAt' !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$'
-    or jsonb_typeof(p_batch->'events') is distinct from 'array' or jsonb_array_length(p_batch->'events')>600
-    or jsonb_typeof(p_batch->'coveredConversationIds') is distinct from 'array' or jsonb_array_length(p_batch->'coveredConversationIds')>3 then raise exception 'Ungültige Nachrichteneingänge' using errcode='22023'; end if;
+    or jsonb_typeof(p_batch->'events') is distinct from 'array' or jsonb_array_length(p_batch->'events')>2000
+    or jsonb_typeof(p_batch->'coveredConversationIds') is distinct from 'array' or jsonb_array_length(p_batch->'coveredConversationIds')>10 then raise exception 'Ungültige Nachrichteneingänge' using errcode='22023'; end if;
   if exists(select 1 from jsonb_array_elements(p_batch->'coveredConversationIds') entry where jsonb_typeof(entry)<>'string' or entry#>>'{}' !~ '^[1-9][0-9]{0,31}$')
     or (select count(*) from jsonb_array_elements(p_batch->'coveredConversationIds'))<>(select count(distinct entry) from jsonb_array_elements(p_batch->'coveredConversationIds') entry)
     or (select count(*) from jsonb_array_elements(p_batch->'events'))<>(select count(distinct (entry->>'externalConversationId',entry->>'externalId')) from jsonb_array_elements(p_batch->'events') entry) then raise exception 'Mehrdeutige Nachrichteneingänge' using errcode='22023'; end if;

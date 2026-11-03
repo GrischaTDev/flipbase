@@ -23,6 +23,10 @@ import { parseVintedInboxEvents } from './vinted-inbox-events.ts';
 import type { MarketplaceInboxEventBatch } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
 import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
 import { readVintedSale } from './vinted-sales.ts';
+import {
+  isVintedConversationSaleTransaction,
+  vintedConversationSaleRead,
+} from './vinted-conversation-sale-read.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
 
@@ -84,6 +88,7 @@ export interface VintedConversationVersion {
   externalId: string;
   sourceUpdatedAt: string;
   detailCheckedAt: string | null;
+  detailAttemptedAt?: string | null;
   text: string | null;
   occurredAt: string | null;
   itemId?: string | null;
@@ -190,6 +195,20 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function string(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/** Vollständigen Anbietertext erhalten; fehlende oder ungültige Angaben bleiben unbekannt. */
+function publicationDescription(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    value.length > 2000 ||
+    Array.from(value).some((character) => {
+      const code = character.charCodeAt(0);
+      return code === 127 || (code < 32 && ![9, 10, 13].includes(code));
+    })
+  )
+    return null;
+  return value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
 
 function identifier(value: unknown): string | null {
@@ -498,6 +517,7 @@ export function parseVintedAccountImport(
     publications.add(id);
     const createdAt = itemCreationTime(item!, observedAt);
     const money = price(item?.['price']);
+    const description = publicationDescription(item?.['description']);
     const photos = Array.isArray(item?.['photos']) ? item['photos'] : [];
     const firstPhoto = record(photos[0]);
     const imageUrls = photos
@@ -513,8 +533,8 @@ export function parseVintedAccountImport(
         publicationState: state,
         createdAt,
         occurredAt: null,
-        text: typeof item?.['description'] === 'string' ? item['description'] : null,
-        textState: typeof item?.['description'] === 'string' ? 'loaded' : 'not_loaded',
+        text: description,
+        textState: description === null ? 'not_loaded' : 'loaded',
         price: money.amount,
         currency: money.currency,
         status: string(item?.['status']),
@@ -541,8 +561,15 @@ export function parseVintedAccountImport(
     if (!id || conversations.has(id)) continue;
     conversations.add(id);
     const other = record(conversation?.['opposite_user']);
-    const sourceUpdatedAt = date(conversation?.['updated_at'], observedAt);
+    const sourceVersion = date(conversation?.['updated_at'], '');
+    const sourceUpdatedAt = sourceVersion || observedAt;
     const previous = previousById.get(id);
+    const detailAttemptedAt =
+      (!sourceVersion || previous?.sourceUpdatedAt === sourceVersion) &&
+      typeof previous?.detailAttemptedAt === 'string' &&
+      Number.isFinite(Date.parse(previous.detailAttemptedAt))
+        ? previous.detailAttemptedAt
+        : undefined;
     const reusable =
       previous?.sourceUpdatedAt === sourceUpdatedAt &&
       Number.isFinite(Date.parse(previous.detailCheckedAt ?? ''));
@@ -563,6 +590,7 @@ export function parseVintedAccountImport(
         occurredAt: keepActivity ? (previous?.occurredAt ?? null) : sourceUpdatedAt,
         sourceUpdatedAt,
         detailCheckedAt: reusable ? previous.detailCheckedAt : null,
+        ...(detailAttemptedAt === undefined ? {} : { detailAttemptedAt }),
         unread: typeof conversation?.['unread'] === 'boolean' ? conversation['unread'] : null,
         imageUrl: image(record(other?.['photo'])?.['url']),
         partnerId: identifier(other?.['id']),
@@ -604,6 +632,8 @@ export function parseVintedAccountImport(
       conversationEntry.body['detailCheckedAt'] = observedAt;
       if (detail?.['saleTrackingChecked'] === true)
         conversationEntry.body['saleTrackingVersion'] = 2;
+      else if (detail?.['saleTrackingChecked'] === false)
+        delete conversationEntry.body['saleTrackingVersion'];
       for (const [field, value] of Object.entries(parseConversationItem(conversation))) {
         if (value !== null) conversationEntry.body[field] = value;
       }
@@ -1217,6 +1247,94 @@ export async function readVintedAccountImport(
       if (reads.blocked) break;
     }
   }
+  const descriptions = new Map<
+    string,
+    {
+      text: string;
+      textState: 'loaded';
+      descriptionReadAt: string | null;
+      descriptionSourceUpdatedAt: string | null;
+    }
+  >();
+  const descriptionCandidates: { id: string; updatedAt: string | null }[] = [];
+  for (const raw of items.values) {
+    const item = record(raw);
+    const id = identifier(item?.['id']);
+    if (
+      !item ||
+      !id ||
+      identifier(item['user_id']) !== identity.id ||
+      publicationState(item) === 'ended'
+    )
+      continue;
+    const updatedAt =
+      itemTimestamp(item['updated_at_ts'], observedAt) ??
+      itemTimestamp(item['updated_at'], observedAt);
+    const listedText = publicationDescription(item['description']);
+    if (listedText !== null) {
+      descriptions.set(id, {
+        text: listedText,
+        textState: 'loaded',
+        descriptionReadAt: observedAt,
+        descriptionSourceUpdatedAt: updatedAt,
+      });
+      continue;
+    }
+    const previous = previousPublications.get(id);
+    const cachedText = publicationDescription(previous?.description);
+    const readAt = itemTimestamp(previous?.descriptionReadAt, observedAt);
+    const cachedVersion = itemTimestamp(previous?.descriptionSourceUpdatedAt, observedAt);
+    if (cachedText !== null)
+      descriptions.set(id, {
+        text: cachedText,
+        textState: 'loaded',
+        descriptionReadAt: readAt,
+        descriptionSourceUpdatedAt: cachedVersion,
+      });
+    // Unveränderte Texte nicht mit jedem Intervall erneut laden. Ohne belastbare
+    // Änderungsversion einmal täglich abgleichen, damit externe Änderungen sichtbar bleiben.
+    const stale = !readAt || Date.parse(observedAt) - Date.parse(readAt) >= 24 * 60 * 60 * 1000;
+    if (cachedText === null || (updatedAt !== null ? cachedVersion !== updatedAt : stale))
+      descriptionCandidates.push({ id, updatedAt });
+  }
+  for (const candidate of descriptionCandidates) {
+    if (reads.blocked) break;
+    await atImportStage('publications', authorize);
+    try {
+      // Derselbe GET wie in Vinteds eigener Bearbeitungsmaske, ohne Seitennavigation.
+      const detail = record(
+        record(await vintedJson(page, `/api/v2/item_upload/items/${candidate.id}`, reads))?.[
+          'item'
+        ],
+      );
+      const text = publicationDescription(detail?.['description']);
+      if (
+        !detail ||
+        identifier(detail['id']) !== candidate.id ||
+        (detail['user_id'] != null && identifier(detail['user_id']) !== identity.id) ||
+        text === null
+      )
+        continue;
+      descriptions.set(candidate.id, {
+        text,
+        textState: 'loaded',
+        descriptionReadAt: observedAt,
+        descriptionSourceUpdatedAt:
+          candidate.updatedAt ??
+          itemTimestamp(detail['updated_at_ts'], observedAt) ??
+          itemTimestamp(detail['updated_at'], observedAt),
+      });
+    } catch (error) {
+      if (!(error instanceof VintedImportRequestError) || error.reason === 'unauthorized')
+        throw new VintedImportReadError('publications', error);
+      // Ein fehlgeschlagener Zusatzabruf darf den letzten bestätigten Text nicht löschen.
+      if (
+        reads.blocked ||
+        ['timeout', 'network', 'provider_unavailable', 'browser_context'].includes(error.reason)
+      )
+        break;
+    }
+  }
   await onStage?.('conversations');
   const conversations = await pages(
     page,
@@ -1244,6 +1362,11 @@ export async function readVintedAccountImport(
   const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   const details: unknown[] = [];
   const eventBatches: MarketplaceInboxEventBatch[] = [];
+  const detailAttempts = new Map<string, string>();
+  const detailPhaseStartedAt = Date.now();
+  const canReadBackgroundDetail = () =>
+    !reads.blocked &&
+    (requestedConversation !== undefined || Date.now() - detailPhaseStartedAt < 45_000);
   let detailReads = 0;
   if (
     requestedConversation &&
@@ -1253,49 +1376,67 @@ export async function readVintedAccountImport(
     )
   )
     throw new VintedImportReadError('messages', new VintedImportRequestError('invalid_response'));
+  const candidateIds = new Set<string>();
   const candidates = conversations.values
-    .map((raw, index) => {
-      const previous = previousById.get(identifier(record(raw)?.['id']) ?? '');
-      const unchanged =
-        previous?.sourceUpdatedAt === date(record(raw)?.['updated_at'], '') &&
-        !isUnavailableItemText(previous?.text);
-      return {
-        raw,
-        index,
-        priority: unchanged ? 1 : 0,
-        checkedAt: Date.parse(previous?.detailCheckedAt ?? '') || 0,
+    .flatMap((raw, index) => {
+      const conversation = record(raw);
+      const id = identifier(conversation?.['id']);
+      const wasUnread = conversation?.['unread'] === true;
+      const partnerId = identifier(record(conversation?.['opposite_user'])?.['id']);
+      if (
+        !id ||
+        candidateIds.has(id) ||
+        (!requestedConversation && conversation?.['unread'] !== false && (!wasUnread || !partnerId))
+      )
+        return [];
+      candidateIds.add(id);
+      const previous = previousById.get(id);
+      const sourceUpdatedAt = date(conversation?.['updated_at'], '');
+      const sameSource = !!sourceUpdatedAt && previous?.sourceUpdatedAt === sourceUpdatedAt;
+      const now = Date.now();
+      const pastTime = (value: string | null | undefined) => {
+        const timestamp = Date.parse(value ?? '');
+        return Number.isFinite(timestamp) && timestamp <= now ? timestamp : 0;
       };
+      const checkedAt = sameSource ? pastTime(previous?.detailCheckedAt) : 0;
+      // Ohne Anbieterversion zählt nur der Versuch für die Rotation, niemals eine Cachebestätigung.
+      const attemptedAt =
+        sameSource || !sourceUpdatedAt ? pastTime(previous?.detailAttemptedAt) : 0;
+      const unavailablePreview = isUnavailableItemText(previous?.text);
+      const freshlyChecked =
+        sameSource &&
+        previous?.saleTrackingVersion === 2 &&
+        !unavailablePreview &&
+        checkedAt > 0 &&
+        now - checkedAt < 24 * 60 * 60 * 1000;
+      return [
+        {
+          id,
+          index,
+          wasUnread,
+          partnerId,
+          previous,
+          skipForCache: !wasUnread && freshlyChecked,
+          // Ungelesene Chats werden weiter gegengeprüft; eine frische Prüfung ist kein Rückstand.
+          needsCatchUp: !freshlyChecked,
+          // Fehlversuche derselben Version rotieren mit den alten Prüfungen, ohne Erfolg zu belegen.
+          priority: attemptedAt || (checkedAt && !unavailablePreview) ? 1 : 0,
+          checkedAt: Math.max(checkedAt, attemptedAt),
+        },
+      ];
     })
     .sort((left, right) => left.priority - right.priority || left.checkedAt - right.checkedAt);
-  for (const { index, raw } of candidates) {
-    const id = identifier(record(raw)?.['id']);
+  const detailReadLimit =
+    candidates.filter((candidate) => candidate.needsCatchUp).length > 5 ? 10 : 5;
+  for (const { id, index, wasUnread, partnerId, previous, skipForCache } of candidates) {
     if (requestedConversation && id !== requestedConversation.externalId) continue;
-    const wasUnread = record(raw)?.['unread'] === true;
-    const partnerId = identifier(record(record(raw)?.['opposite_user'])?.['id']);
-    if (
-      !requestedConversation &&
-      (detailReads >= 3 || (record(raw)?.['unread'] !== false && (!wasUnread || !partnerId)))
-    )
-      continue;
-    if (!id) continue;
-    const previous = previousById.get(id);
-    const sourceUpdatedAt = date(record(raw)?.['updated_at'], '');
-    const checkedAt = previous ? Date.parse(previous.detailCheckedAt ?? '') : NaN;
-    if (
-      !requestedConversation &&
-      !wasUnread &&
-      previous &&
-      previous.saleTrackingVersion === 2 &&
-      sourceUpdatedAt &&
-      previous.sourceUpdatedAt === sourceUpdatedAt &&
-      !isUnavailableItemText(previous.text) &&
-      Number.isFinite(checkedAt) &&
-      checkedAt <= Date.now() &&
-      Date.now() - checkedAt < 24 * 60 * 60 * 1000
-    )
-      continue;
+    if (!requestedConversation && (detailReads >= detailReadLimit || !canReadBackgroundDetail()))
+      break;
+    if (!requestedConversation && skipForCache) continue;
     await atImportStage('messages', authorize);
+    if (!requestedConversation && !canReadBackgroundDetail()) break;
     detailReads++;
+    detailAttempts.set(id, new Date(Date.now()).toISOString());
     let conversation: unknown;
     try {
       conversation = await vintedJson(page, `/api/v2/conversations/${id}`, reads);
@@ -1334,28 +1475,44 @@ export async function readVintedAccountImport(
       }
     }
     eventBatches.push(parseVintedInboxEvents(conversation, identity.id, observedAt));
-    const transactionId = identifier(record(relation?.['transaction'])?.['id']);
+    const saleRead = vintedConversationSaleRead(
+      relation,
+      identity.id,
+      observedAt,
+      previous?.saleTransactionId && previous.saleSellerId
+        ? { transactionId: previous.saleTransactionId, sellerId: previous.saleSellerId }
+        : undefined,
+    );
+    const transactionId = saleRead.transactionId;
     let transaction: unknown = null;
-    const needsTransaction =
-      transactionId &&
-      (identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id ||
-        record(relation?.['transaction'])?.['current_user_side'] === 'seller' ||
-        record(relation?.['transaction'])?.['user_side'] === 'seller' ||
-        readVintedSale(relation, null, identity.id, observedAt) !== null);
-    if (!requestedConversation && needsTransaction) {
+    if (!requestedConversation && transactionId && canReadBackgroundDetail()) {
       await atImportStage('transaction', authorize);
-      try {
-        transaction = await vintedJson(page, `/api/v2/transactions/${transactionId}`, reads);
-        if (identifier(record(record(transaction)?.['transaction'])?.['id']) !== transactionId)
-          throw new VintedImportRequestError('invalid_response');
-      } catch (error) {
-        areas.sales = sourceFailure('transaction', error, true);
-      }
+      if (canReadBackgroundDetail())
+        try {
+          const response = await vintedJson(page, `/api/v2/transactions/${transactionId}`, reads);
+          if (
+            !isVintedConversationSaleTransaction(
+              record(response)?.['transaction'],
+              transactionId,
+              identity.id,
+            )
+          )
+            throw new VintedImportRequestError('invalid_response');
+          transaction = response;
+        } catch (error) {
+          areas.sales = sourceFailure('transaction', error, true);
+        }
     }
     details.push({
       ...record(conversation),
       transaction,
-      saleTrackingChecked: !requestedConversation && (!needsTransaction || transaction !== null),
+      saleTrackingChecked: requestedConversation
+        ? transactionId || (previous?.saleTransactionId && previous.saleSellerId === identity.id)
+          ? false
+          : undefined
+        : transactionId
+          ? transaction !== null
+          : saleRead.canConfirmWithoutTransaction,
     });
   }
   const feedbacks = requestedConversation
@@ -1383,6 +1540,12 @@ export async function readVintedAccountImport(
       areas,
     );
     for (const entry of snapshot.entries) {
+      const detailAttemptedAt =
+        entry.kind === 'conversation' ? detailAttempts.get(entry.externalId) : undefined;
+      if (detailAttemptedAt !== undefined) entry.body['detailAttemptedAt'] = detailAttemptedAt;
+      const description =
+        entry.kind === 'publication' ? descriptions.get(entry.externalId) : undefined;
+      if (description) Object.assign(entry.body, description);
       const age = entry.kind === 'publication' ? publicationAges.get(entry.externalId) : undefined;
       if (age) {
         Object.assign(entry.body, age);
