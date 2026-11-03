@@ -97,6 +97,16 @@ describe('Kontoweise Favoriteneinstellung', () => {
     expect(fixture.nativeElement.querySelector('app-custom-checkbox')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Nicht verfügbar');
   });
+  it('erhält den Schalter ohne neuen Abruf bei aktualisiertem Kontoobjekt', async () => {
+    const fixture = await render();
+    const control = fixture.nativeElement.querySelector('[role="switch"]');
+    fixture.componentRef.setInput('account', { ...scope });
+    fixture.detectChanges();
+    await settle(fixture);
+    expect(api.readSettings).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.querySelector('[role="switch"]')).toBe(control);
+    expect(fixture.componentInstance.loading()).toBe(false);
+  });
   it('verwirft eine verspätete Antwort nach einem Kontowechsel', async () => {
     let finish: (settings: typeof scope & { enabled: boolean; version: number }) => void = () =>
       undefined;

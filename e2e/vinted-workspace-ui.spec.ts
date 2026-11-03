@@ -306,6 +306,25 @@ for (const width of [1440, 390, 320]) {
         setting.version++;
         return route.fulfill({ json: setting });
       });
+      const messageSettings = new Map(
+        accountIds.map((connectionId) => [
+          connectionId,
+          { workspaceId, connectionId, enabled: true, version: 0 },
+        ]),
+      );
+      await page.route('**/rest/v1/rpc/marketplace_read_message_notification_settings', (route) =>
+        route.fulfill({
+          json: messageSettings.get(route.request().postDataJSON()['p_connection_id']),
+        }),
+      );
+      await page.route('**/rest/v1/rpc/marketplace_set_message_notification_settings', (route) => {
+        const body = route.request().postDataJSON();
+        const setting = messageSettings.get(body['p_connection_id'])!;
+        expect(body['p_expected_version']).toBe(setting.version);
+        setting.enabled = body['p_enabled'];
+        setting.version++;
+        return route.fulfill({ json: setting });
+      });
       const listing = {
         entryId: 'publication-1',
         title: 'Vintage-Schal · Testartikel',
@@ -390,7 +409,7 @@ for (const width of [1440, 390, 320]) {
         'Entwürfe',
         'Verlauf',
         'Profil',
-        'Automatische Verhandlung',
+        'Verhandlung',
         'Favoritennachrichten',
       ]);
       await expect(nav.getByRole('link', { name: 'Alle Marktplätze', exact: true })).toHaveCount(0);
@@ -418,9 +437,46 @@ for (const width of [1440, 390, 320]) {
       });
       await settingsButton.click();
       const dialog = page.getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true });
-      const checkbox = dialog.getByRole('checkbox', {
-        name: 'Neue Favoriten in der Glocke anzeigen',
+      const checkbox = dialog.getByRole('switch', {
+        name: 'Neue Favoriten',
       });
+      const messageSwitch = dialog.getByRole('switch', { name: 'Neue Nachrichten', exact: true });
+      await expect(messageSwitch).toBeChecked();
+      await messageSwitch.click();
+      await expect(messageSwitch).not.toBeChecked();
+      await expect(dialog).not.toContainText('Ohne Ton');
+      await expect(dialog).not.toContainText('Gespeichert:');
+      await expect(dialog).not.toContainText('Abrufdetails');
+      await expect(dialog).not.toContainText('Nachrichtenversand');
+      const pauseButton = dialog.getByRole('button', { name: 'Pausieren', exact: true });
+      const interval = dialog.getByRole('combobox', { name: 'Abrufabstand', exact: true });
+      const [intervalBounds, pauseBounds] = await Promise.all([
+        interval.boundingBox(),
+        pauseButton.boundingBox(),
+      ]);
+      expect(Math.abs(intervalBounds!.y - pauseBounds!.y)).toBeLessThanOrEqual(2);
+      const login = dialog.getByRole('link', { name: 'Vinted-Anmeldung öffnen', exact: true });
+      const accounts = dialog.getByRole('link', { name: 'Kontenübersicht', exact: true });
+      const [loginBounds, accountsBounds] = await Promise.all([
+        login.boundingBox(),
+        accounts.boundingBox(),
+      ]);
+      const actionBounds = await login.evaluate((element) => {
+        const bounds = element.closest('app-button')!.parentElement!.getBoundingClientRect();
+        return { x: bounds.x, right: bounds.right, width: bounds.width };
+      });
+      expect(Math.abs(loginBounds!.x - actionBounds.x)).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(accountsBounds!.x + accountsBounds!.width - actionBounds.right),
+      ).toBeLessThanOrEqual(1);
+      if (width < 640) {
+        expect(Math.abs(loginBounds!.width - actionBounds.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(accountsBounds!.width - actionBounds.width)).toBeLessThanOrEqual(1);
+        expect(accountsBounds!.y).toBeGreaterThan(loginBounds!.y);
+      } else {
+        expect(Math.abs(loginBounds!.y - accountsBounds!.y)).toBeLessThanOrEqual(1);
+      }
+      await screenshot(page, `vinted-settings-${width}-${theme}`);
       await expect(checkbox).toBeChecked();
       await checkbox.click();
       await expect(checkbox).not.toBeChecked();
@@ -429,11 +485,13 @@ for (const width of [1440, 390, 320]) {
       await expect(settingsButton).toBeFocused();
       await settingsButton.click();
       await expect(checkbox).not.toBeChecked();
+      await expect(messageSwitch).not.toBeChecked();
       await dialog.press('Escape');
       await account.click();
       await page.getByRole('option', { name: /Testkonto B/ }).click();
       await settingsButton.click();
       await expect(checkbox).toBeChecked();
+      await expect(messageSwitch).toBeChecked();
       await dialog.press('Escape');
       await account.click();
       await page.getByRole('option', { name: /Testkonto A/ }).click();

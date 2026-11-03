@@ -19,6 +19,7 @@ import { LucideLink2 } from '@lucide/angular';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
+import { VintedAccountGridComponent } from '../vinted-account-grid/vinted-account-grid.component';
 
 @Component({
   selector: 'app-marketplace-connect',
@@ -27,6 +28,7 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
     ModalShellComponent,
     NoticeBannerComponent,
     MarketplaceBrowserTestComponent,
+    VintedAccountGridComponent,
   ],
   templateUrl: './marketplace-connect.component.html',
   providers: [MarketplaceCloudSetupStore],

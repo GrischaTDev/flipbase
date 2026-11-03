@@ -10,6 +10,12 @@
             : ''
       "
     >
+      <app-marketplace-platform-identity
+        header-icon
+        platform="ebay"
+        [iconOnly]="true"
+        aria-hidden="true"
+      />
       @if (page() === 'connection' && !store.connection()) {
         <div header-actions>
           <app-button

@@ -32,6 +32,31 @@ test('incoming batch is versioned, bounded and carries no private text or foreig
     assert.equal(isMarketplaceInboxEventBatch(invalid), false);
 });
 
+test('system event identifiers allow bounded provider ids or stable hashes only for known source kinds', () => {
+  for (const kind of ['status_message', 'action_message', 'payment_message']) {
+    for (const id of ['503', `event:${'ab'.repeat(32)}`])
+      assert.equal(
+        isMarketplaceInboxEventBatch({
+          ...batch,
+          events: [{ ...batch.events[0], externalId: `${kind}:${id}` }],
+        }),
+        true,
+      );
+  }
+  for (const externalId of [
+    'purchase:503',
+    'system_message:503',
+    `message:event:${'ab'.repeat(32)}`,
+    `payment_message:event:${'ab'.repeat(31)}`,
+    'status_message:0',
+    `action_message:event:${'AB'.repeat(32)}`,
+  ])
+    assert.equal(
+      isMarketplaceInboxEventBatch({ ...batch, events: [{ ...batch.events[0], externalId }] }),
+      false,
+    );
+});
+
 function capacityBatch(eventCount = 2000, conversationCount = 10) {
   const coveredConversationIds = Array.from(
     { length: conversationCount },
@@ -52,6 +77,16 @@ test('ten complete conversation snapshots retain all two thousand maximum-size e
   const maximum = capacityBatch();
   assert.equal(new Set(maximum.events.map((event) => event.externalConversationId)).size, 10);
   assert.equal(new TextEncoder().encode(JSON.stringify(maximum)).byteLength, 454457);
+  assert.equal(isMarketplaceInboxEventBatch(maximum), true);
+});
+
+test('the full bounded batch also accepts stable identifiers for platform payment notices', () => {
+  const maximum = capacityBatch();
+  maximum.events = maximum.events.map((event, index) => ({
+    ...event,
+    externalId: `payment_message:event:${index.toString(16).padStart(64, '0')}`,
+  }));
+  assert.ok(new TextEncoder().encode(JSON.stringify(maximum)).byteLength <= 512 * 1024);
   assert.equal(isMarketplaceInboxEventBatch(maximum), true);
 });
 

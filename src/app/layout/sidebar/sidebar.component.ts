@@ -20,6 +20,7 @@ import {
   LucideShoppingBag as ShoppingBag,
   LucideBookOpen as BookOpen,
   LucideMessageCircle as MessageCircle,
+  LucideHandshake as Handshake,
   LucidePackage as Package,
   LucideSearch as Search,
   LucideCalculator as Calculator,
@@ -61,6 +62,7 @@ import { MarketplaceSettingsService } from '../../core/services/marketplace-sett
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { marketplacePlatformAppearance } from '../../shared/models/marketplace-platform';
 import {
   isVintedWorkspaceRoute,
@@ -87,6 +89,7 @@ const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   bot: Bot,
   bookOpen: BookOpen,
   messageCircle: MessageCircle,
+  handshake: Handshake,
   package: Package,
   image: ImageIcon,
   tag: Tag,
@@ -110,6 +113,7 @@ const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
     NgOptimizedImage,
     NgTemplateOutlet,
     BadgeComponent,
+    MarketplacePlatformIdentityComponent,
   ],
   templateUrl: './sidebar.component.html',
   host: { class: 'contents' },

@@ -31,6 +31,7 @@ import { VintedLocalRuntimeStore } from '../../services/vinted-local-runtime.sto
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { MarketplaceAccountsComponent } from '../marketplace-accounts/marketplace-accounts.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
+import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { VintedAccountGridComponent } from './vinted-account-grid.component';
 
 class AccountManagementStub {
@@ -50,9 +51,16 @@ Component({
 class FavoriteSettingsStub {}
 Component({
   selector: 'app-vinted-favorite-settings',
-  template: '<h3>Benachrichtigungen</h3>',
+  template: '',
   inputs: ['account'],
 })(FavoriteSettingsStub);
+
+class MessageSettingsStub {}
+Component({
+  selector: 'app-vinted-message-settings',
+  template: '',
+  inputs: ['account'],
+})(MessageSettingsStub);
 
 const account = { ...createMarketplaceFixtures().connections[0], executionMode: 'local' as const };
 const accountList = signal<readonly MarketplaceConnection[]>([account]);
@@ -161,8 +169,14 @@ beforeEach(() => {
     ],
   });
   TestBed.overrideComponent(VintedAccountGridComponent, {
-    remove: { imports: [MarketplaceAccountsComponent, VintedFavoriteSettingsComponent] },
-    add: { imports: [AccountManagementStub, FavoriteSettingsStub] },
+    remove: {
+      imports: [
+        MarketplaceAccountsComponent,
+        VintedFavoriteSettingsComponent,
+        VintedMessageSettingsComponent,
+      ],
+    },
+    add: { imports: [AccountManagementStub, FavoriteSettingsStub, MessageSettingsStub] },
   });
   TestBed.overrideComponent(VintedAccountGridComponent, {
     set: {

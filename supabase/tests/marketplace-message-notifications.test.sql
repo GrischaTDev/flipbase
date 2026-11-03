@@ -54,10 +54,45 @@ set local role service_role;
 select is(pg_temp.apply(5,jsonb_build_array(pg_temp.event('message:502'))),0,'Cleared event never returns on repeated provider response');
 select throws_ok($$select public.marketplace_record_message_event_batch('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021','91','{}')$$,'42501',null,'Foreign account identity is denied');
 select is(pg_temp.apply(6,jsonb_build_array(pg_temp.event('message:506','702','2026-09-30T11:00:00.000Z')),false,'[]'),0,'Later historical pages stay silent after the first reference');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021')->>'enabled','true','Existing accounts keep message notifications enabled by default');
+select is(public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021')->>'version','0','Absent setting starts with version zero');
+select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',false,0)->>'enabled','false','Owner can disable future message notifications');
+select throws_ok($$select public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,0)$$,'40001',null,'Stale settings cannot overwrite a newer choice');
+select throws_ok($$update public.marketplace_message_notification_settings set enabled=true$$,'42501',null,'Browser cannot bypass the controlled settings write');
+select throws_ok($$select public.marketplace_read_message_notification_settings('42500000-0000-4000-8000-000000000012','42500000-0000-4000-8000-000000000021')$$,'42501',null,'Foreign workspace cannot read message settings');
+select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select throws_ok($$select public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,1)$$,'42501',null,'Ordinary members cannot change private inbox notifications');
+reset role;
+set local role service_role;
+select is(pg_temp.apply(8,jsonb_build_array(pg_temp.event('message:507','700','2026-09-30T12:07:00.000Z'))),0,'Disabled setting suppresses new inbox and push notifications');
+select ok(exists(select 1 from public.marketplace_message_notifications where external_event_id='message:507' and notified_at is null),'Disabled notifications still retain their event identity');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"42500000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,1)->>'version','2','Reactivation advances the settings revision');
+select is(public.marketplace_set_message_notification_settings('42500000-0000-4000-8000-000000000011','42500000-0000-4000-8000-000000000021',true,2)->>'version','2','Unchanged setting keeps its revision');
+reset role;
+-- Nur die Test-Zeitgrenze zurücksetzen, damit die vorhandene synthetische Historie deterministisch bleibt.
+update public.marketplace_message_notification_settings set enabled_since='2026-09-30T12:09:00Z' where connection_id='42500000-0000-4000-8000-000000000021';
+set local role service_role;
+select is(pg_temp.apply(11,jsonb_build_array(pg_temp.event('message:508','700','2026-09-30T12:10:00.000Z'))),1,'New event after reactivation is notified');
+select is(pg_temp.apply(12,jsonb_build_array(pg_temp.event('message:509','700','2026-09-30T12:08:00.000Z'))),0,'Delayed history from the pause is not notified after reactivation');
+select is(pg_temp.apply(13,jsonb_build_array(pg_temp.event('message:507','700','2026-09-30T12:07:00.000Z'))),0,'Previously observed paused event is never replayed');
+select is(pg_temp.apply(15,jsonb_build_array(
+  pg_temp.event('payment_message:701','700','2026-09-30T12:14:00.000Z'),
+  pg_temp.event('action_message:702','700','2026-09-30T12:14:00.000Z'),
+  pg_temp.event('status_message:event:'||repeat('a',64),'700','2026-09-30T12:14:00.000Z')
+)),3,'Purchase, action and status inbox events share the message notification setting');
+select is(pg_temp.apply(16,jsonb_build_array(pg_temp.event('status_message:event:'||repeat('a',64),'700','2026-09-30T12:14:00.000Z'))),0,'Stable synthetic system event identifiers remain idempotent');
+select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('payment_message:event:invalid')))$$,'22023',null,'Malformed system event references are rejected');
+select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('unknown_message:703')))$$,'22023',null,'Unverified provider event types stay excluded');
 create function pg_temp.capacity_batch(p_events int default 2000,p_covered int default 10) returns jsonb language sql as $$
- select jsonb_build_object('version',1,'observedAt','2026-09-30T12:10:00.000Z','complete',true,
+ select jsonb_build_object('version',1,'observedAt','2026-09-30T12:20:00.000Z','complete',true,
  'coveredConversationIds',(select coalesce(jsonb_agg('9'||lpad(n::text,31,'0')),'[]'::jsonb) from generate_series(1,p_covered) n),
- 'events',(select coalesce(jsonb_agg(pg_temp.event('offer_request_message:9'||lpad(n::text,31,'0'),'9'||lpad(((n-1)/200+1)::text,31,'0'),'2026-09-30T12:09:00.000Z')),'[]'::jsonb) from generate_series(1,p_events) n));
+ 'events',(select coalesce(jsonb_agg(pg_temp.event('offer_request_message:9'||lpad(n::text,31,'0'),'9'||lpad(((n-1)/200+1)::text,31,'0'),'2026-09-30T12:19:00.000Z')),'[]'::jsonb) from generate_series(1,p_events) n));
 $$;
 select is(octet_length(pg_temp.capacity_batch()::text),474474,'Maximum canonical batch including JSONB whitespace has a fixed bounded size');
 select cmp_ok(octet_length(pg_temp.capacity_batch()::text),'<',512*1024,'Maximum canonical batch stays below the explicit 512 KiB SQL limit');

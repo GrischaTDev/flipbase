@@ -1,5 +1,13 @@
 @if (!showingDraftWorkspace()) {
-  <app-page-header [title]="pageTitle()" [icon]="pageIcon()">
+  <app-page-header [title]="pageTitle()" [icon]="pageTitle() === 'Vinted' ? null : pageIcon()">
+    @if (pageTitle() === 'Vinted') {
+      <app-marketplace-platform-identity
+        header-icon
+        platform="vinted"
+        [iconOnly]="true"
+        aria-hidden="true"
+      />
+    }
     @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
       <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
     } @else if (!showingAccounts() && store.selectedConnection(); as account) {

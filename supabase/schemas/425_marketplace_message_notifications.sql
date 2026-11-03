@@ -26,7 +26,7 @@ create table public.marketplace_message_notifications (
   connection_id uuid not null,
   external_account_id text not null check (external_account_id ~ '^[1-9][0-9]{0,31}$'),
   external_conversation_id text not null check (external_conversation_id ~ '^[1-9][0-9]{0,31}$'),
-  external_event_id text not null check (external_event_id ~ '^(message|offer_request_message):[1-9][0-9]{0,31}$'),
+  external_event_id text not null check (external_event_id ~ '^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$'),
   conversation_id uuid,
   occurred_at timestamptz not null check (isfinite(occurred_at)),
   observed_at timestamptz not null check (isfinite(observed_at) and occurred_at <= observed_at),
@@ -55,6 +55,7 @@ create policy "Worker deletes message notifications" on public.marketplace_messa
 create or replace function public.marketplace_record_message_event_batch(p_workspace_id uuid,p_connection_id uuid,p_external_account_id text,p_batch jsonb)
 returns integer language plpgsql volatile security invoker set search_path = '' as $$
 declare v_observed timestamptz; v_reference public.marketplace_message_notification_baselines; v_had_reference boolean; v_event jsonb; v_count integer; v_visible integer;
+  v_setting public.marketplace_message_notification_settings;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if not exists(select 1 from public.marketplace_connections c where c.workspace_id=p_workspace_id and c.id=p_connection_id and c.marketplace='vinted' and c.status='connected' and c.external_account_id=p_external_account_id) then raise exception 'Kontoidentität stimmt nicht überein' using errcode='42501'; end if;
@@ -74,7 +75,7 @@ begin
     for v_event in select value from jsonb_array_elements(p_batch->'events') loop
       if jsonb_typeof(v_event)<>'object' or (select count(*) from jsonb_object_keys(v_event))<>5
         or exists(select 1 from jsonb_object_keys(v_event) field where field<>all(array['externalId','externalConversationId','occurredAt','direction','source']))
-        or jsonb_typeof(v_event->'externalId') is distinct from 'string' or v_event->>'externalId' !~ '^(message|offer_request_message):[1-9][0-9]{0,31}$'
+        or jsonb_typeof(v_event->'externalId') is distinct from 'string' or v_event->>'externalId' !~ '^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$'
         or jsonb_typeof(v_event->'externalConversationId') is distinct from 'string' or v_event->>'externalConversationId' !~ '^[1-9][0-9]{0,31}$'
         or v_event->>'direction' is distinct from 'inbound' or v_event->>'source' is distinct from 'conversation_snapshot'
         or jsonb_typeof(v_event->'occurredAt') is distinct from 'string' or v_event->>'occurredAt' !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$'
@@ -84,6 +85,7 @@ begin
   select * into v_reference from public.marketplace_message_notification_baselines where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=p_external_account_id for update;
   v_had_reference:=found;
   if v_had_reference and v_observed<v_reference.last_observed_at then raise exception 'Veralteter Eingangsstand' using errcode='22023'; end if;
+  select * into v_setting from public.marketplace_message_notification_settings where workspace_id=p_workspace_id and connection_id=p_connection_id;
   -- Ein begrenzter, aber vollständig belegter Verlauf setzt den Zeitbezug. Ältere Folgeseiten bleiben still.
   if not v_had_reference and ((p_batch->>'complete')::boolean or jsonb_array_length(p_batch->'coveredConversationIds')>0) then
     insert into public.marketplace_message_notification_baselines(workspace_id,connection_id,external_account_id,first_observed_at,last_observed_at) values(p_workspace_id,p_connection_id,p_external_account_id,v_observed,v_observed) returning * into v_reference;
@@ -93,7 +95,9 @@ begin
   with added as (
     insert into public.marketplace_message_notifications(workspace_id,connection_id,external_account_id,external_conversation_id,external_event_id,conversation_id,occurred_at,observed_at,notified_at)
     select p_workspace_id,p_connection_id,p_external_account_id,entry->>'externalConversationId',entry->>'externalId',c.id,(entry->>'occurredAt')::timestamptz,v_observed,
-      case when v_had_reference and (entry->>'occurredAt')::timestamptz>v_reference.first_observed_at then v_observed end
+      case when v_had_reference and coalesce(v_setting.enabled,true)
+        and (entry->>'occurredAt')::timestamptz>v_reference.first_observed_at
+        and (v_setting.enabled_since is null or (entry->>'occurredAt')::timestamptz>v_setting.enabled_since) then v_observed end
     from jsonb_array_elements(p_batch->'events') entry left join public.marketplace_account_entries c on c.workspace_id=p_workspace_id and c.connection_id=p_connection_id and c.kind='conversation' and c.external_id=entry->>'externalConversationId'
     on conflict(workspace_id,connection_id,external_account_id,external_conversation_id,external_event_id) do nothing returning notified_at,conversation_id
   ) select count(*) filter(where notified_at is not null),count(*) filter(where notified_at is not null and conversation_id is not null) into v_count,v_visible from added;

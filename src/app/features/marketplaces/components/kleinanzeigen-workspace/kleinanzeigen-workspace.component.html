@@ -1,5 +1,11 @@
 <div class="min-w-0 space-y-5">
-  <app-page-header [title]="pageTitle" [icon]="storeIcon">
+  <app-page-header [title]="pageTitle">
+    <app-marketplace-platform-identity
+      header-icon
+      platform="kleinanzeigen"
+      [iconOnly]="true"
+      aria-hidden="true"
+    />
     <div header-actions class="flex flex-wrap gap-2">
       <app-button href="https://www.kleinanzeigen.de/m-nachrichten.html" target="_blank"
         >Postfach</app-button

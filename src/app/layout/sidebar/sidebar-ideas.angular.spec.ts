@@ -35,7 +35,12 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       readFile(
         url.includes('badge.component.')
           ? resolve('src/app/shared/components/badge', url.split('/').at(-1) ?? '')
-          : new URL(url, import.meta.url),
+          : url.includes('marketplace-platform-identity.component.')
+            ? resolve(
+                'src/app/shared/components/marketplace-platform-identity',
+                url.split('/').at(-1) ?? '',
+              )
+            : new URL(url, import.meta.url),
         'utf8',
       ),
     );

@@ -15,6 +15,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { presentVintedLocalReadiness } from './models/vinted-local-readiness';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
@@ -34,6 +35,7 @@ import { VintedLocalRuntimeStore } from './services/vinted-local-runtime.store';
     VintedSetupComponent,
     NoticeBannerComponent,
     PageHeaderComponent,
+    MarketplacePlatformIdentityComponent,
     MarketplaceSyncProgressComponent,
     VintedAccountControlsComponent,
   ],

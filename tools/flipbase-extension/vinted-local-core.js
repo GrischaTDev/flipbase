@@ -687,7 +687,7 @@
           );
       }
       if (eventParser) {
-        const events = eventParser.parse(detail, expectedId, observedAt);
+        const events = await eventParser.parse(detail, expectedId, observedAt);
         eventBatches.push(events);
       }
       const relation = detail.conversation.transaction;

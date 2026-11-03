@@ -22,7 +22,6 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
@@ -119,7 +118,6 @@ export class VintedFavoriteMessagesComponent {
   private readonly api = inject(VintedFavoriteMessageApiService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly dialog = inject(ConfirmDialogService);
   readonly settings = signal<FavoriteMessageSettings | null>(null);
   readonly loading = signal(false);
   readonly busy = signal(false);
@@ -193,8 +191,19 @@ export class VintedFavoriteMessagesComponent {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
       const context =
-        account && user && workspace?.id === account.workspaceId && !workspace.archived_at
-          ? JSON.stringify([user.id, account.workspaceId, account.connectionId])
+        account &&
+        user &&
+        this.store.canManage() &&
+        workspace?.id === account.workspaceId &&
+        !workspace.archived_at
+          ? JSON.stringify([
+              user.id,
+              account.workspaceId,
+              account.connectionId,
+              account.externalAccountId,
+              account.executionMode,
+              account.status,
+            ])
           : null;
       untracked(() => {
         if (this.context === context) return;
@@ -315,45 +324,28 @@ export class VintedFavoriteMessagesComponent {
     this.error.set(null);
     this.saved.set(false);
     try {
-      const currentSettings = values.enabled ? await this.api.read(settings) : settings;
-      if (!this.isCurrent(context, revision)) return;
       if (values.enabled && account.executionMode === 'cloud') {
         const permission = await this.messagingApi.readPermission(account);
         if (!this.isCurrent(context, revision)) return;
-        if (!currentSettings.active || !permission.allowed) {
-          const confirmed = await this.dialog.frage({
-            titel: 'Favoritennachrichten aktivieren?',
-            text: 'Flipbase sendet Deine Vorlagen automatisch über die Cloud an neue Interessenten dieses Kontos. Frühere Favorisierungen und bestehende Gespräche werden ausgelassen. Die Kontoverbindung und Automatik müssen aktiv sein.',
-            bestaetigenText: 'Aktivieren',
-          });
-          if (!confirmed || !this.isCurrent(context, revision)) return;
-          if (!permission.allowed) {
-            if (!account.externalAccountId)
-              throw new Error('Bestätige zuerst die Kontoverbindung.');
-            const approved = await this.messagingApi.approveCloud(
-              account,
-              account.externalAccountId,
-            );
-            if (!approved.allowed || approved.executionMode !== 'cloud')
-              throw new Error('Die Cloud-Nachrichtenfreigabe konnte nicht bestätigt werden.');
-          }
+        if (permission.executionMode !== 'cloud')
+          throw new Error('Die Cloud-Nachrichtenfreigabe konnte nicht bestätigt werden.');
+        if (!permission.allowed) {
+          if (!account.externalAccountId) throw new Error('Bestätige zuerst die Kontoverbindung.');
+          const approved = await this.messagingApi.approveCloud(account, account.externalAccountId);
+          if (!this.isCurrent(context, revision)) return;
+          if (!approved.allowed || approved.executionMode !== 'cloud')
+            throw new Error('Die Cloud-Nachrichtenfreigabe konnte nicht bestätigt werden.');
         }
-      } else if (
-        values.enabled &&
-        (!currentSettings.active || !this.local.binding()?.messagesSend)
-      ) {
-        const confirmed = await this.dialog.frage({
-          titel: 'Favoritennachrichten aktivieren?',
-          text: 'Flipbase sendet Deine Vorlagen automatisch an neue Interessenten dieses Kontos. Frühere Favorisierungen werden ausgelassen. Dein Browser muss laufen.',
-          bestaetigenText: 'Aktivieren',
-        });
-        if (!this.isCurrent(context, revision) || !confirmed) return;
+      } else if (values.enabled && account.executionMode === 'local') {
         await this.local.loadConnection(account);
         if (!this.isCurrent(context, revision)) return;
         if (!this.local.messagesAllowed()) await this.local.approveInbox();
         if (!this.isCurrent(context, revision)) return;
         if (!this.local.binding()?.messagesSend && !(await this.local.approveSend()))
-          throw new Error(this.local.error() ?? 'Erteile zuerst die lokale Nachrichtenfreigabe.');
+          throw new Error(
+            this.local.error() ??
+              'Die Nachrichtenfreigabe konnte nicht bestätigt werden. Prüfe Deine Kontoverbindung.',
+          );
       }
       if (!this.isCurrent(context, revision)) return;
       const saved = await this.api.save(settings, values.enabled, config);
@@ -406,9 +398,17 @@ export class VintedFavoriteMessagesComponent {
       !this.destroyed &&
       this.context === context &&
       this.revision === revision &&
+      this.store.canManage() &&
+      !this.workspace.currentWorkspace()?.archived_at &&
       this.workspace.currentWorkspace()?.id === account?.workspaceId &&
-      JSON.stringify([this.auth.currentUser()?.id, account?.workspaceId, account?.connectionId]) ===
-        context
+      JSON.stringify([
+        this.auth.currentUser()?.id,
+        account?.workspaceId,
+        account?.connectionId,
+        account?.externalAccountId,
+        account?.executionMode,
+        account?.status,
+      ]) === context
     );
   }
   private errorText(error: unknown): string {

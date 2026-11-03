@@ -94,14 +94,14 @@ describe('Vinted-Versandzustand', () => {
     });
     store = TestBed.inject(VintedMessagingStore);
   });
-  it('fragt getrennt nach Versandfreigabe und zeigt danach nur wartend', async () => {
+  it('erlaubt den lokalen Versand beim bewussten Senden ohne weiteren Dialog und zeigt danach nur wartend', async () => {
     await store.load(scope, conversationId);
     expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(true);
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm).not.toHaveBeenCalled();
     expect(approve).toHaveBeenCalledOnce();
     expect(store.messages()[0].state).toBe('queued');
   });
-  it('fragt für Cloud nach eigener Freigabe und weckt keine Erweiterung', async () => {
+  it('erlaubt Cloudversand beim bewussten Senden ohne weiteren Dialog und weckt keine Erweiterung', async () => {
     account.set({
       ...scope,
       executionMode: 'cloud',
@@ -111,7 +111,7 @@ describe('Vinted-Versandzustand', () => {
     canUseBrowserProfile.mockReturnValue(false);
     await store.load(scope, conversationId);
     expect(await store.send(scope, conversationId, 'Cloudnachricht', null)).toBe(true);
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm).not.toHaveBeenCalled();
     expect(api.approveCloud).toHaveBeenCalledWith(scope, '123');
     expect(approve).not.toHaveBeenCalled();
     expect(TestBed.inject(VintedLocalExtensionBridge).request).not.toHaveBeenCalled();
@@ -178,8 +178,44 @@ describe('Vinted-Versandzustand', () => {
     expect(api.approveCloud).not.toHaveBeenCalled();
     expect(api.enqueue).not.toHaveBeenCalled();
   });
-  it('legt nach abgelehnter Freigabe keinen Auftrag an', async () => {
-    confirm.mockResolvedValue(false);
+  it('legt nach fehlgeschlagener lokaler Freigabe keinen Auftrag an', async () => {
+    approve.mockResolvedValue(false);
+    await store.load(scope, conversationId);
+    expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(false);
+    expect(api.enqueue).not.toHaveBeenCalled();
+  });
+  it('erteilt beim Öffnen eines Gesprächs keine Versandfreigabe', async () => {
+    await store.load(scope, conversationId);
+    expect(approve).not.toHaveBeenCalled();
+    expect(api.approveCloud).not.toHaveBeenCalled();
+    expect(api.enqueue).not.toHaveBeenCalled();
+  });
+  it('erteilt eine fehlende Versandfreigabe auch für ein bewusst gesendetes Bild', async () => {
+    const attachment = { name: 'photo.png', mimeType: 'image/png' as const, base64: 'aGVsbG8=' };
+    await store.load(scope, conversationId);
+    expect(await store.send(scope, conversationId, '', attachment)).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(approve).toHaveBeenCalledOnce();
+    expect(api.enqueue).toHaveBeenCalledWith(
+      scope,
+      conversationId,
+      expect.any(String),
+      '',
+      attachment,
+    );
+  });
+  it('legt nach abgelehnter Cloudfreigabe keinen Auftrag an', async () => {
+    account.set({
+      ...scope,
+      executionMode: 'cloud',
+      status: 'connected',
+      externalAccountId: '123',
+    });
+    api.approveCloud.mockResolvedValue({
+      executionMode: 'cloud',
+      allowed: false,
+      authorizationVersion: 1,
+    });
     await store.load(scope, conversationId);
     expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(false);
     expect(api.enqueue).not.toHaveBeenCalled();
@@ -215,13 +251,13 @@ describe('Vinted-Versandzustand', () => {
   });
   it('sendet nach Kontowechsel während der Freigabe nicht', async () => {
     await store.load(scope, conversationId);
-    confirm.mockImplementation(async () => {
+    approve.mockImplementation(async () => {
       account.set({ ...scope, connectionId: 'other' });
       return true;
     });
     expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(false);
     expect(api.enqueue).not.toHaveBeenCalled();
-    expect(approve).not.toHaveBeenCalled();
+    expect(approve).toHaveBeenCalledOnce();
   });
   it('verwirft einen verspäteten Verlauf nach Abmeldung', async () => {
     let finish: ((messages: unknown[]) => void) | undefined;
@@ -324,7 +360,7 @@ describe('Vinted-Versandzustand', () => {
     api.retry.mockResolvedValue({ ...failedMessage, id: 'retry-message', state: 'queued' });
     await store.load(scope, conversationId);
     expect(await store.retry(scope, conversationId, failedMessage.id, false)).toBe(true);
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm).not.toHaveBeenCalled();
     expect(approve).toHaveBeenCalledOnce();
     expect(api.retry).toHaveBeenCalledOnce();
   });

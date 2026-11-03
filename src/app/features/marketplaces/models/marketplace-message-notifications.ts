@@ -1,5 +1,10 @@
 import type { AppNotification } from '../../../core/models/webhook.models';
 import { MarketplaceResponseError } from './marketplace-response';
+import type { AccountScope } from './marketplace.models';
+export interface MessageNotificationSettings extends AccountScope {
+  readonly enabled: boolean;
+  readonly version: number;
+}
 export interface MessageNotification {
   readonly id: string;
   readonly connectionId: string;
@@ -8,7 +13,8 @@ export interface MessageNotification {
   readonly read: boolean;
   readonly senderName: string | null;
   readonly conversationId: string;
-  readonly eventKind: 'message' | 'offer_request_message';
+  readonly eventKind:
+    'message' | 'offer_request_message' | 'status_message' | 'action_message' | 'payment_message';
 }
 export interface MessageNotificationFeed {
   readonly workspaceId: string;
@@ -35,6 +41,19 @@ function boolean(value: unknown): boolean {
   return value;
 }
 
+export function parseMessageNotificationSettings(
+  value: unknown,
+  scope: AccountScope,
+): MessageNotificationSettings {
+  const settings = record(value);
+  if (
+    settings['workspaceId'] !== scope.workspaceId ||
+    settings['connectionId'] !== scope.connectionId
+  )
+    throw new MarketplaceResponseError();
+  return { ...scope, enabled: boolean(settings['enabled']), version: counter(settings['version']) };
+}
+
 export function parseMessageNotificationFeed(
   value: unknown,
   workspaceId: string,
@@ -52,7 +71,11 @@ export function parseMessageNotificationFeed(
     const eventKind = item['eventKind'];
     if (
       !Number.isFinite(Date.parse(observedAt)) ||
-      (eventKind !== 'message' && eventKind !== 'offer_request_message')
+      (eventKind !== 'message' &&
+        eventKind !== 'offer_request_message' &&
+        eventKind !== 'status_message' &&
+        eventKind !== 'action_message' &&
+        eventKind !== 'payment_message')
     )
       throw new MarketplaceResponseError();
     return {
@@ -76,14 +99,22 @@ export function parseMessageNotificationFeed(
 }
 export function messageNotificationToInbox(item: MessageNotification): AppNotification {
   const isOffer = item.eventKind === 'offer_request_message';
+  const isSystem = ['status_message', 'action_message', 'payment_message'].includes(item.eventKind);
   const message = isOffer ? 'Neuer Preisvorschlag' : 'Nachricht';
   return {
     id: 'marketplace-message:' + item.id,
     type: 'alert',
-    title: (isOffer ? 'Neuer Preisvorschlag · ' : 'Neue Nachricht · ') + item.accountName,
-    message: item.senderName
-      ? message + ' von ' + item.senderName + '.'
-      : (isOffer ? message : 'Neue Nachricht') + '.',
+    title:
+      (isSystem
+        ? 'Neue Postfachmeldung · '
+        : isOffer
+          ? 'Neuer Preisvorschlag · '
+          : 'Neue Nachricht · ') + item.accountName,
+    message: isSystem
+      ? 'Neue Meldung im Vinted-Postfach.'
+      : item.senderName
+        ? message + ' von ' + item.senderName + '.'
+        : (isOffer ? message : 'Neue Nachricht') + '.',
     timestamp: item.observedAt,
     read: item.read,
     link:

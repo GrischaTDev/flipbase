@@ -321,7 +321,9 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     };
     readListingJobs.mockResolvedValue([base, failed, oldFailure]);
     read.mockResolvedValue({
-      actions: [{ ...action, id: 'negotiation:failed', state: 'failed' }],
+      actions: [
+        { ...action, id: 'negotiation:failed', state: 'failed', updatedAt: base.updatedAt },
+      ],
     });
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();

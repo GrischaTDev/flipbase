@@ -59,7 +59,9 @@
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-4">
     @if (kleinanzeigenContext()) {
-      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Kleinanzeigen</p>
+      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">
+        <app-marketplace-platform-identity platform="kleinanzeigen" />
+      </p>
       <ul class="space-y-0.5" data-kleinanzeigen-navigation>
         @for (item of kleinanzeigenNavigation; track item.path) {
           <li>
@@ -71,7 +73,9 @@
         }
       </ul>
     } @else if (ebayContext()) {
-      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">eBay</p>
+      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">
+        <app-marketplace-platform-identity platform="ebay" />
+      </p>
       <ul class="space-y-0.5" data-ebay-navigation>
         @for (item of ebayNavigation; track item.path) {
           <li>
@@ -83,7 +87,9 @@
         }
       </ul>
     } @else if (vintedContext()) {
-      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Vinted</p>
+      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">
+        <app-marketplace-platform-identity platform="vinted" />
+      </p>
       <ul class="space-y-0.5">
         <li>
           <ng-container

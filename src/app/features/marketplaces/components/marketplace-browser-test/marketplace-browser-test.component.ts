@@ -14,7 +14,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideArrowRight, LucideExternalLink } from '@lucide/angular';
+import { LucideArrowRight, LucideExternalLink, LucideRefreshCw } from '@lucide/angular';
+import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { MarketplaceSyncProgressComponent } from '../marketplace-sync-progress/marketplace-sync-progress.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -41,6 +42,7 @@ interface BrowserPointerGesture {
   selector: 'app-marketplace-browser-test',
   imports: [
     NgTemplateOutlet,
+    ActionStatusIndicatorComponent,
     MarketplaceSyncProgressComponent,
     ButtonComponent,
     CardComponent,
@@ -71,6 +73,7 @@ export class MarketplaceBrowserTestComponent {
   readonly activeTab = signal<'credentials' | 'browser'>('credentials');
   readonly loginIcon = LucideArrowRight;
   readonly browserIcon = LucideExternalLink;
+  readonly reconnectIcon = LucideRefreshCw;
   readonly previewActive = output<boolean>();
   readonly isPreviewActive = computed(
     () =>
