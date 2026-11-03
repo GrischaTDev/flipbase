@@ -75,37 +75,43 @@ tatsächlichen Ausführungszustände. Vollständige Protokolle und Sichtbelege
 bleiben privat außerhalb der Aufgaben-Arbeitskopie. Verbindlicher Vorabcheck
 und gegebenenfalls zusätzliche CI-Nachweise folgen am endgültigen Stand.
 
-## Noch offener echter Gesamtnachweis
+## Echter Gesamtnachweis
 
-Ein begrenzter Lauf des tatsächlich korrigierten Formularlesers wurde innerhalb
-einer normalen Cloud-Sitzung mit technisch gesperrten Nichtleseanfragen
-ausgeführt. Der bisherige Kategorieabruf wurde überwunden; anschließend brach
-der Lauf mit dem festen Schritt `category_close` ab. Ein vollständiger Snapshot
-wurde nicht bestätigt. Keine Inserat-API-Mutation oder Formularübermittlung
-wurde zugelassen.
+Der tatsächlich korrigierte Formularleser ist am 3. November um 16:36:51 UTC
+innerhalb einer normalen Cloud-Sitzung vollständig durchgelaufen. Konto- und
+Inseratbindung stimmen; Kategorie, Titel, Beschreibung, Preis und vier Fotos
+sind gültig. Marke, Größe, Zustand, Farbe, Material und Paketgröße wurden
+einschließlich Auswahlmöglichkeiten gelesen. Native Vorher-/Nachherprüfung
+und abschließender Snapshotparser bestehen. Die eigene Prüfseite wurde
+geschlossen, die ursprüngliche Seite erhalten.
 
-Der Schritt entstand ausschließlich durch einen verworfenen Escape-Aufruf.
-Die bisherige Fehlerbehandlung konnte dabei einen früheren Öffnungs- oder
-Lesefehler überdecken. Dies ist mit echten synthetischen Browserfällen belegt
-und korrigiert: ursprüngliche Fehler behalten Vorrang, der Schließversuch bleibt
-verpflichtend und ein alleiniger Schließfehler bleibt ein Fehler. Kein blinder
-Escape-Wiederholungsversuch und keine ungeprüfte Annahme über das Popupverhalten.
+Die Diagnose erlaubt neben normalen Leseanfragen ausschließlich drei beim
+unveränderten Editorstart beobachtete Lookup-POSTs: Kategorieempfehlungen,
+Attributempfehlungen und Attribute. Alle drei antworteten mit HTTP 200. Andere
+Nichtleseanfragen und Formularübermittlungen bleiben gesperrt; keine
+Inseratmutation wurde zugelassen oder erkannt. POST wird dabei ausdrücklich
+nicht pauschal als Speicherung oder als GET ausgewiesen. Die serverinterne
+Implementierung dieser normalen UI-Lookups ist damit nicht vollständig geprüft.
 
-Die normale Sitzung wurde nach dem Leserabbruch als geschlossen bestätigt;
-ihr regulärer Ablaufzeitpunkt lag danach. Ein gewöhnlicher Sitzungsablauf ist
-damit nicht als Ursache belegt. Warum Seite beziehungsweise Sitzung endeten,
-bleibt offen. Eine kleine Folgeprobe trennt deshalb ursprünglichen Öffnungs-
-und Escapefehler, Sichtbarkeit, Seiten-/Browserzustand und Popupmetadaten.
-Sie wurde noch nicht ausgeführt.
+Ein früherer Prüflauf hatte sämtliche POSTs blockiert und damit bereits beim
+Editorstart einen kritischen Fehlerdialog erzeugt. Die gezielte Folgeprobe
+bestätigt einen funktionierenden Escape-Aufruf; ein allgemeiner Fehler beim
+Schließen des Kategoriepopups ist nicht belegt. Der ursprüngliche Schritt
+`category_close` konnte einen früheren Fehler überdecken. Diese unabhängig
+belegte Fehlererhaltung ist korrigiert: ursprüngliche Fehler behalten Vorrang,
+das Schließen bleibt verpflichtend und ein alleiniger Schließfehler bleibt ein
+Fehler. Kein blinder Escape-Wiederholungsversuch. Warum die frühere Sitzung
+vor ihrem regulären Ablauf endete, bleibt offen; ein Leerlaufablauf wurde nicht
+belegt und ist für den erfolgreichen Gesamtnachweis nicht erforderlich.
 
-Die eigene Diagnoseansicht scheiterte anschließend am Versionswechsel auf die
-parallel veröffentlichte Anwendung 0.405.0. Der Computerzugriff wurde beendet,
-weil die aktive Windows-Browseradresse nicht hinreichend sicher bestimmt werden
-konnte. Keine weitere Browsersteuerung im betroffenen Durchlauf. Der echte
-Gesamtnachweis und die Veröffentlichung dieser Fehlerkorrektur bleiben offen;
-lokale Änderungen und private Nachweise werden für die Fortsetzung erhalten.
+Die erfolgreiche Prüfsitzung anschließend über die normale Oberfläche beendet
+und den geschlossenen Zustand samt beendetem Anbieter bestätigt. Konto- und
+Abrufplankonfigurationen sind unverändert; alle drei Pläne bleiben aktiv ohne
+Pause oder Fehler. Nach dem Sitzungsende läuft bereits wieder ein regulärer
+Hintergrundabruf. Kein tatsächliches Löschen, Veröffentlichen oder vollständiger
+produktiver Relist zur Prüfung ausgelöst.
 
-## Lokaler Abschlussstand vor der Browserunterbrechung
+## Lokaler Prüfnachweis
 
 Auf dem zusammengeführten Stand mit Hauptzweig `6cf4268e` und korrigierter
 Popup-Fehlererhaltung sind `npm run preflight:plan` und `npm run preflight`
@@ -123,6 +129,12 @@ Oberflächenfälle decken Desktop/Touch und Hell/Dunkel ab. Ein zusätzlicher
 schmaler Dunkel-Fall beginnt mit unbekanntem Listenpreis und bestätigt auch
 dort vier Aktionsplätze sowie gleiche Höhen bis zur Ausführung.
 
-Diese Nachweise ersetzen weder den weiterhin offenen echten Formularleser
-noch die ausgewählten CI-/Imageprüfungen vor einer Veröffentlichung. Der
-Arbeitszweig bleibt unveröffentlicht für die Fortsetzung erhalten.
+Danach den eigenen Zweig auf den aktuellen Hauptstand `8e93e7dd` übernommen;
+ausschließlich den Changelogkonflikt unter Erhalt beider vollständiger
+Sitzungseinträge gelöst. Die neuen Hauptzweigänderungen betreffen den
+Kontoabgleichdialog; der geprüfte Workerleser bleibt unverändert. Erneuter
+Vorabcheck auf diesem zusammenhängenden Stand vor der Veröffentlichung.
+
+Der echte Formularleser ist nun bestätigt. Ausgewählte CI-/Imageprüfungen und
+Veröffentlichung bleiben bis zur Freigabe offen. Der Arbeitszweig bleibt
+unveröffentlicht erhalten.
