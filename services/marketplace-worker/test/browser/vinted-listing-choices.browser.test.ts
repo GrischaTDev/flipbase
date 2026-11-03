@@ -171,6 +171,91 @@ test('popup cleanup preserves revoked authority and still rejects cleanup after 
   }
 });
 
+test('waits for collector-visible popup options through an opacity transition', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    for (const field of ['size', 'condition', 'color', 'material', 'category', 'brand'] as const) {
+      const role = ['size', 'color', 'material'].includes(field) ? 'checkbox' : 'radio';
+      const identifier =
+        field === 'size'
+          ? 'data-testid="size-group-14-grid-option-208"'
+          : `id="${field === 'category' ? 'catalog' : field}-2"`;
+      await page.setContent(`<input id="${field}">
+        <div id="options" style="opacity:0"><div role="${role}" ${identifier} aria-checked="true">Auswahl</div></div>
+        <script>document.querySelector('#${field}').onclick = () => setTimeout(() => document.querySelector('#options').style.opacity = '1', 200);</script>`);
+      assert.equal(await page.locator(`[role="${role}"]`).isVisible(), true);
+      assert.deepEqual(await page.evaluate(collectVintedListingChoices, field), []);
+      const result = await openVintedListingChoices(page, field);
+      assert.equal(result.choices.length, 1);
+      assert.equal(result.choices[0]?.selected, true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('still refuses popup options that remain transparent for the existing options budget', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      '<input id="size"><div style="opacity:0"><div role="checkbox" data-testid="size-group-14-grid-option-208" aria-checked="true">M</div></div>',
+    );
+    assert.equal(await page.getByRole('checkbox').isVisible(), true);
+    await assert.rejects(
+      openVintedListingChoices(page, 'size'),
+      (error) => error instanceof VintedListingReadError && error.step === 'size_parse',
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test('does not wait for an invalid nonempty popup response to become valid', async (t) => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      '<input id="size"><div role="checkbox" data-testid="size-group-14-grid-option-208">M</div>',
+    );
+    const collected = await page.evaluate(collectVintedListingChoices, 'size' as const);
+    assert.ok(Array.isArray(collected));
+    assert.equal(collected.length, 1);
+    assert.equal(collected[0]?.selected, null);
+    let waits = 0;
+    t.mock.method(page, 'waitForTimeout', async () => {
+      waits++;
+    });
+    await assert.rejects(
+      openVintedListingChoices(page, 'size'),
+      (error) => error instanceof VintedListingReadError && error.step === 'size_parse',
+    );
+    assert.equal(waits, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('keeps an empty brand search start and waits for the requested result to become collector-visible', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<input id="brand"><input id="brand-search-input" data-testid="brand-search--input">
+      <script>document.querySelector('#brand-search-input').oninput = () => {
+        const option = document.createElement('div'); option.id = 'brand-53'; option.setAttribute('role', 'radio'); option.setAttribute('aria-checked', 'true'); option.textContent = 'Nike'; option.style.opacity = '0'; document.body.append(option);
+        setTimeout(() => option.style.opacity = '1', 200);
+      };</script>`);
+    const result = await openVintedListingChoices(page, 'brand', [], {
+      brand: { brandId: 53, brandLabel: 'Nike' },
+    });
+    assert.equal(result.choices[0]?.id, 53);
+    assert.equal(result.choices[0]?.selected, true);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('identifies opening, missing options and invalid values for every ordinary choice', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
