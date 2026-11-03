@@ -13,6 +13,12 @@
 
 **Veröffentlichungsfreigabe:** Nutzer beauftragt die fehlenden Diagnoseregeln als getrennte Regelergänzung und anschließend PR, Merge nach erfolgreichen Pflichtprüfungen sowie Worker-Rollout dieses Fixes. Erneuter lokaler Node-22-Vorabcheck auf Hauptstand `8e93e7dd` erfolgreich: Format, Lint, Typen, Suite-Audit, 188 Skriptfälle (zwei reguläre Auslassungen), acht Orchestrierungsfälle (drei Auslassungen), 40 Modell- und 794 Angularfälle sowie Angular-Bau. Der echte vollständige Formularabruf ist bestätigt; normale Sitzung geordnet beendet, drei Abrufpläne und Kontoeinstellungen unverändert. Weitere ausgewählte CI-/Imageprüfungen bleiben vor Merge verbindlich. Keine zusätzliche Freigabefrage für die bereits beauftragte Veröffentlichung.
 
+## 2026-11-03 - Juna - Fehlerdiagnose früh am vollständigen Ablauf ausrichten
+
+**Änderung:** Drei Diagnoseregeln ergänzen: den kleinsten vollständigen Ablauf vor dem Ausbau von Diagnosehilfen prüfen, künstliche Zugriffssperren auf selbst erzeugte Fehler untersuchen und nach spätestens 20 Minuten ohne Erkenntnis mit dokumentierter Zwischenbilanz die Methode wechseln. Die Arbeit läuft im freigegebenen Umfang weiter. Bestehende Prüfregeln bündeln den breiteren Vorabcheck am zusammenhängenden Korrekturstand; Schreibfreigaben und Pflichtprüfungen bleiben erhalten.
+
+**Grundlage und Prüfung:** Eigener Regelzweig vom frisch abgerufenen `origin/master` (`8e93e7dd`), getrennte Arbeitskopie unter Erhalt fremder Änderungen. Node 22.23.4: Plan, Format und Lint erfolgreich. Der Standardvorabcheck scheitert an der Windows-Befehlsgrenze für 382 Markdown-Dateien mit 21.520 Argumentzeichen (Exitcode 1). Exakt dieselbe Markdown-Prüfung direkt mit Node und Prettier ohne Shell erfolgreich (Exitcode 0); den regulären Linux-CI-Nachweis vor Merge beibehalten. Reiner Regelumfang, keine Anwendungstests und kein Anwendungsbau.
+
 ## 2026-11-03 - Juna - Vinted-Kontoabgleich kompakter und mit bleibenden Bereichsstatus darstellen
 
 **Auftrag und Grundlage:** Das Modal „Kontodaten aktualisieren“ kompakter gestalten und die nach Abschluss zurückkehrenden Punkte bei Nachrichten und Verkäufen klären. Eigener Zweig `juna/vinted-account-refresh-dialog` in getrennter Arbeitskopie vom frisch abgerufenen `origin/master` (`63053fe0`); fremde Änderungen und der anderweitig belegte Hauptzweig bleiben erhalten. Gestaltungsvertrag und betroffene Verbraucher geprüft.
