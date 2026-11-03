@@ -3,6 +3,7 @@ import { appendFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import { isCiToolingPath } from './ci-tooling-paths.mjs';
 
 const execFileAsync = promisify(execFile);
 const zeroSha = '0000000000000000000000000000000000000000';
@@ -141,21 +142,22 @@ export function pathsSelectPush(paths) {
     paths === null ||
     paths.some(
       (path) =>
-        sharedValidationPaths.has(path) ||
-        path.startsWith('services/push-worker/') ||
-        path.startsWith('supabase/functions/push-') ||
-        path.startsWith('supabase/functions/ebay-order-observer/') ||
-        path.startsWith('supabase/functions/_shared/') ||
-        /^supabase\/schemas\/47[012]_web_push_/u.test(path) ||
-        [
-          'deploy/deploy.sh',
-          'deploy/Caddyfile',
-          'docker/Dockerfile',
-          '.dockerignore',
-          'scripts/package-push-functions.mjs',
-        ].includes(path) ||
-        path.startsWith('deploy/docker-compose.push') ||
-        path.startsWith('deploy/push-main/'),
+        !isCiToolingPath(path) &&
+        (sharedValidationPaths.has(path) ||
+          path.startsWith('services/push-worker/') ||
+          path.startsWith('supabase/functions/push-') ||
+          path.startsWith('supabase/functions/ebay-order-observer/') ||
+          path.startsWith('supabase/functions/_shared/') ||
+          /^supabase\/schemas\/47[012]_web_push_/u.test(path) ||
+          [
+            'deploy/deploy.sh',
+            'deploy/Caddyfile',
+            'docker/Dockerfile',
+            '.dockerignore',
+            'scripts/package-push-functions.mjs',
+          ].includes(path) ||
+          path.startsWith('deploy/docker-compose.push') ||
+          path.startsWith('deploy/push-main/')),
     )
   );
 }
@@ -171,24 +173,25 @@ export function classifyChanges(paths) {
     };
   }
 
+  const runtimePaths = paths.filter((path) => !isCiToolingPath(path));
   return {
     // Über die Release-Auswahl laufen auch SQL-Paket und Versionsprüfung. Reine
     // Worker-Änderungen verändern weder Web-Abbild noch SQL-Paket und lösen sie nicht aus.
-    application: paths.some((path) => !isDocumentationOnly(path) && !isWorkerOnly(path)),
+    application: runtimePaths.some((path) => !isDocumentationOnly(path) && !isWorkerOnly(path)),
     // Nur eigenständige Dienstpakete sind sicher vom Frontend abgrenzbar.
     // Unbekannte oder gemischte Änderungen bleiben im vollständigen Prüfumfang.
-    application_tests: paths.some(
+    application_tests: runtimePaths.some(
       (path) =>
         !isDocumentationOnly(path) && !path.startsWith('services/sniper/') && !isWorkerOnly(path),
     ),
-    supabase: paths.some(
+    supabase: runtimePaths.some(
       (path) =>
         selectsPath(path, 'supabase/') ||
         migrationDeploymentPaths.has(path) ||
         path === 'scripts/db-test-fixture.test.mjs' ||
         path === 'scripts/prepare-db-tests.mjs',
     ),
-    sniper: paths.some((path) => selectsPath(path, 'services/sniper/')),
+    sniper: runtimePaths.some((path) => selectsPath(path, 'services/sniper/')),
     // Ein unbekannter Vergleich oder ein leerer Diff darf den Qualitätsjob nicht ersetzen.
     documentation_only: paths.length > 0 && paths.every(isDocumentationOnly),
   };

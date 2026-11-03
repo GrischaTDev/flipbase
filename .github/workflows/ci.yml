@@ -49,6 +49,7 @@ jobs:
       receipt_name: ${{ steps.reuse.outputs.receipt_name }}
       test_plan: ${{ steps.preflight.outputs.test_plan }}
       workflow_required: ${{ steps.preflight.outputs.workflow_required }}
+      workflow_script_tests: ${{ steps.preflight.outputs.workflow_script_tests }}
       unit_required: ${{ steps.preflight.outputs.unit_required }}
       unit_matrix: ${{ steps.preflight.outputs.unit_matrix }}
       browser_required: ${{ steps.preflight.outputs.browser_required }}
@@ -159,6 +160,8 @@ jobs:
 
       - name: Check affected workflow contracts
         if: ${{ needs.changes.outputs.workflow_required == 'true' }}
+        env:
+          AFFECTED_WORKFLOW_TESTS: ${{ needs.changes.outputs.workflow_script_tests }}
         run: node scripts/ci-checks.mjs workflow
 
       - name: Set up Deno for marketplace functions

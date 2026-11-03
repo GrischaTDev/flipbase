@@ -65,9 +65,10 @@ behalten ihren ausdrücklich zugeordneten Schutzumfang.
   Angular-Dateien; nur benötigte Suiten erhalten einen Job. Lokal prüfen
   generische Controls ihre eigenen Unitverträge, in CI zusätzlich alle
   abhängigen Komponenten. Bei breiten CI-Plänen werden Tests auf Teilgruppen verteilt.
-- **Scripts:** Änderungen wählen passende Geschwistertests lokal. Die vollständigen
-  Workflowverträge laufen bei einschlägigen Script-, Workflow-, Deployment-,
-  Konfigurations- und Lockfileänderungen in CI.
+- **Scripts:** Änderungen wählen ihre passenden Geschwistertests und tatsächlichen
+  Import-/Dateiverbraucher auch in CI. Gelesene Workflowdateien zählen als
+  Abhängigkeiten. Nicht zuordenbare Änderungen behalten den vollständigen
+  Workflow-Vertragslauf; passende Hostverträge bleiben CI-Nachweis.
 - **Fachbrowser:** `featureSpecs` und konkrete Marketplacebereiche wählen
   bestehende betroffene Abläufe. Ein kleiner allgemeiner Kern sichert breite
   Änderungen ab; die umfassende Layoutregression ist keine Standardzugabe.
@@ -90,7 +91,17 @@ behalten ihren ausdrücklich zugeordneten Schutzumfang.
 | Worker-Formularcode             | Zugehörige native Anbieterfixtures und notwendige Dienst-/Imageprüfungen            |
 | Session-`.dockerignore`         | Session-Imageprüfung wegen des veränderten Baukontexts                              |
 
-Globale oder unbekannte Abhängigkeiten wählen schnelle Anwendungstests
+Die ausdrückliche Liste `scripts/ci-tooling-paths.mjs` grenzt bekannte reine
+Prüfwerkzeuge vor sämtlichen Laufzeit- und Releaseauswahlen ab. `ci.yml`,
+Auswahl-/Nachweisscripte und deren Tests wählen ihre Verträge, aber keine
+unveränderten Anwendungsfälle, Dienste, Images oder Veröffentlichungen.
+AGENTS und Dokumentation wählen ebenfalls keine Laufzeitprüfungen. Eine
+zusätzliche echte Fach-, Docker- oder Deploymentänderung behält ihren Umfang.
+Neue unbekannte Dateien werden nicht durch eine ganze Verzeichnisausnahme
+verschluckt. Geänderte Bau- oder Deploymentbefehle im Workflow benötigen einen
+ausdrücklich gewählten Nachweis dieses Ablaufs.
+
+Globale oder unbekannte Laufzeitabhängigkeiten wählen schnelle Anwendungstests
 konservativ breit. Jeder geänderte unbekannte gemeinsame Pfad wird einzeln
 bewertet; eine zusätzliche Featureänderung darf den Rückfall nicht verdecken.
 Rechte, Kontentrennung, Migrationen, Originalerhalt und Anbieter-Schreibgrenzen
@@ -165,8 +176,9 @@ Ein fehlgeschlagener ausgewählter Pflichtjob verhindert die Freigabe.
 
 `scripts/marketplace-check-selection.mjs` verfolgt lokale Imports vorhandener
 nativer Workerbrowserdateien transitiv. Direkt geänderte Fixtures und Tests
-wählen ihre Verbraucher; globale Paket-/Prüfänderungen wählen alle relevanten
-nativen Fälle. Anbieter-Schreibprüfungen bleiben synthetisch und erhalten ihre
+wählen ihre Verbraucher; globale Paket- und tatsächliche Imageprüfänderungen
+wählen alle relevanten nativen Fälle. Bekannte reine CI-Werkzeuge wählen keine
+Marketplace-Jobs oder Marketplace-Veröffentlichung. Anbieter-Schreibprüfungen bleiben synthetisch und erhalten ihre
 Konten-, Gebühren-, Kontingent-, Originalbild- und Wiederholungsschutzgrenzen.
 
 Die Kleinanzeigen-Erweiterung läuft in ihrem eigenen CI-Job und wird nicht in

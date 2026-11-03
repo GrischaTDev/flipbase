@@ -20,6 +20,43 @@ const projectLock = JSON.parse(
   await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'),
 );
 
+test('Pushrelease liefert Functions, Ratelimit und Digest vor der kompatiblen App', async () => {
+  const [deploy, image, proxy, workflow] = await Promise.all([
+    readFile(new URL('../deploy/deploy.sh', import.meta.url), 'utf8'),
+    readFile(new URL('../docker/Dockerfile', import.meta.url), 'utf8'),
+    readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8'),
+    readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
+  ]);
+  assert.match(deploy, /PUSH_REFERENCE/u);
+  assert.match(deploy, /prepare_push_runtime/u);
+  assert.ok(
+    deploy.indexOf('apply-release-migrations.sh" "$temporary/migrations"') <
+      deploy.indexOf('activate_push_runtime "$release_container"'),
+  );
+  assert.ok(
+    deploy.indexOf('activate_push_runtime "$release_container"') <
+      deploy.indexOf('docker compose up -d --pull never web'),
+  );
+  assert.match(image, /release-push-functions \/opt\/flipbase\/push-functions/u);
+  assert.match(proxy, /reverse_proxy flipbase-push-gateway:4177/u);
+  assert.match(proxy, /header_up X-Forwarded-For \{remote_host\}/u);
+  assert.ok(proxy.indexOf('handle @push_requests') < proxy.indexOf('handle @supabase_api'));
+  assert.match(
+    workflow,
+    /if: \$\{\{ needs\.changes\.outputs\.push == 'true' \}\}\s+run: node scripts\/ci-checks\.mjs push/u,
+  );
+  assert.ok(
+    getCheckCommands('push').some(
+      ({ command, args }) =>
+        command === 'npm' &&
+        JSON.stringify(args) ===
+          JSON.stringify(['ci', '--prefix', 'services/push-worker', '--ignore-scripts']),
+    ),
+  );
+  assert.match(workflow, /push_digest:/u);
+  assert.match(workflow, /Gate publication on successful checks/u);
+});
+
 test('übergibt Pfade und Metadaten wörtlich statt als Shellcode', async (t) => {
   const repository = await mkdtemp(join(tmpdir(), 'ci-command-'));
   t.after(() => rm(repository, { recursive: true, force: true }));
@@ -139,6 +176,43 @@ test('getrennte Qualitäts- und Workflowgruppe entfernen geerbte Datenbankverbin
       assert.equal(environment.KEEP_VALUE, 'yes');
     }
   }
+});
+
+test('ausgewählte Workflowverträge laufen als einzelne Nodeargumente und erhalten echte Fehlercodes', async () => {
+  const targets = ['scripts/preflight.test.mjs', 'scripts/ci-checks.test.mjs'];
+  assert.deepEqual(getCheckCommands('workflow', { workflowTests: targets }), [
+    { name: 'Test selected workflow contracts', command: 'node', args: ['--test', ...targets] },
+  ]);
+  const calls = [];
+  await assert.rejects(
+    runCiCheck('workflow', {
+      environment: { AFFECTED_WORKFLOW_TESTS: JSON.stringify(targets), PGHOST: 'external.invalid' },
+      spawnProcess(command, args, options) {
+        calls.push({ command, args, environment: options.env });
+        const child = new EventEmitter();
+        queueMicrotask(() => child.emit('exit', 19, null));
+        return child;
+      },
+    }),
+    (error) => error.exitCode === 19,
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].command, process.execPath);
+  assert.deepEqual(calls[0].args, ['--test', ...targets]);
+  assert.equal(calls[0].environment.PGHOST, undefined);
+  for (const workflowTests of [
+    [],
+    ['../outside.test.mjs'],
+    ['scripts/../outside.test.mjs'],
+    ['--eval'],
+    ['scripts/a.test.mjs;echo'],
+    ['scripts/a.test.mjs', 'scripts/a.test.mjs'],
+  ])
+    assert.throws(() => getCheckCommands('workflow', { workflowTests }), /Ungültige Auswahl/u);
+  assert.deepEqual(getCheckCommands('workflow', { workflowTests: null })[0].args, [
+    'run',
+    'test:workflow',
+  ]);
 });
 
 test('Pfadvarianten werden eindeutig zusammengeführt und bewusste Befehlspfade haben Vorrang', async () => {
@@ -357,6 +431,18 @@ test('CI verwendet den Minimalparser, getrennte Imagecaches und Laufzeitberichte
   const changes = workflow.split('  changes:')[1].split('  documentation:')[0];
   assert.ok(changes.includes('run: node scripts/install-test-selection-parser.mjs'));
   assert.ok(!changes.includes('npm ci'));
+  assert.ok(
+    changes.includes('workflow_script_tests: ${{ steps.preflight.outputs.workflow_script_tests }}'),
+  );
+  const workflowContracts = workflow
+    .split('      - name: Check affected workflow contracts')[1]
+    .split('      - name: Set up Deno for marketplace functions')[0];
+  assert.ok(
+    workflowContracts.includes(
+      'AFFECTED_WORKFLOW_TESTS: ${{ needs.changes.outputs.workflow_script_tests }}',
+    ),
+  );
+  assert.ok(workflowContracts.includes('run: node scripts/ci-checks.mjs workflow'));
   const appBuild = workflow
     .split('      - name: Build production image')[1]
     .split('      - name: Smoke test production image')[0];

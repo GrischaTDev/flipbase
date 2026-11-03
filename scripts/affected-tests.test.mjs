@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isCiToolingPath } from './ci-tooling-paths.mjs';
 import {
   selectAffectedTests,
   buildUnitMatrix,
@@ -470,6 +471,92 @@ test('Workflowverträge folgen technischen Werkzeugänderungen statt jeder Fachk
   }
 });
 
+test('bekannte CI-Werkzeuge prüfen ihre Verträge statt unveränderte Anwendungsfälle', () => {
+  const toolingPaths = [
+    '.github/workflows/ci.yml',
+    'playwright.config.ts',
+    'playwright.affected.config.ts',
+    'playwright.ui.config.ts',
+    'playwright.pr.config.ts',
+    'playwright.nightly.config.ts',
+    'scripts/deploy-script.test.mjs',
+    'scripts/browser-test-selection.mjs',
+    'scripts/browser-test-timings.mjs',
+    'scripts/ci-tooling-paths.mjs',
+    'scripts/install-test-selection-parser.mjs',
+    'scripts/playwright-pr-smoke.test.mjs',
+    'scripts/run-affected-tests.mjs',
+    ...[
+      'affected-tests',
+      'ci-checks',
+      'detect-supabase-changes',
+      'marketplace-check-selection',
+      'preflight',
+      'required-checks',
+      'reuse-pr-checks',
+    ].flatMap((name) => [`scripts/${name}.mjs`, `scripts/${name}.test.mjs`]),
+  ];
+  const sources = { ...files, ...coreFixtures };
+  for (const path of toolingPaths) {
+    assert.equal(isCiToolingPath(path), true, path);
+    const plan = selectAffectedTests([path], sources);
+    assert.equal(plan.full, false, path);
+    assert.deepEqual(buildUnitMatrix(plan), [], path);
+    assert.deepEqual(buildBrowserMatrix(plan), [], path);
+    assert.equal(plan.checks.workflow, true, path);
+    assert.equal(plan.checks.marketplace, false, path);
+    assert.equal(plan.checks.push, false, path);
+    assert.equal(plan.pwa, false, path);
+  }
+  // Tatsächlicher Umfang von PR #548: Auch Dokumente verbreitern ihn nicht.
+  const combined = selectAffectedTests(
+    [
+      '.github/workflows/ci.yml',
+      'AGENTS.md',
+      'docs/AI-CHANGELOG.md',
+      'docs/testing/affected-test-selection.md',
+      'docs/testing/development-ci-review-2026-11-02.md',
+      'docs/testing/lean-ci.md',
+      'playwright.affected.config.ts',
+      'playwright.ui.config.ts',
+      'scripts/affected-tests.mjs',
+      'scripts/affected-tests.test.mjs',
+      'scripts/browser-test-selection.mjs',
+      'scripts/ci-checks.test.mjs',
+      'scripts/playwright-pr-smoke.test.mjs',
+      'scripts/browser-test-timings.mjs',
+      'scripts/install-test-selection-parser.mjs',
+    ],
+    sources,
+  );
+  assert.equal(combined.full, false);
+  assert.deepEqual(buildUnitMatrix(combined), []);
+  assert.deepEqual(buildBrowserMatrix(combined), []);
+});
+
+test('CI-Dateien verbergen weder echte Fachänderungen noch unbekannte Laufzeitpfade', () => {
+  const featurePath = 'src/app/features/purchases/purchases.ts';
+  const feature = selectAffectedTests([featurePath], files);
+  const mixed = selectAffectedTests(['scripts/ci-checks.test.mjs', featurePath], files);
+  assert.deepEqual(mixed.units, feature.units);
+  assert.deepEqual(buildBrowserMatrix(mixed), buildBrowserMatrix(feature));
+  for (const path of [
+    'scripts/new-unregistered-runner.mjs',
+    '.github/workflows/new-unregistered.yml',
+    'unknown/config.json',
+    'docker/Dockerfile',
+    'package-lock.json',
+  ]) {
+    assert.equal(isCiToolingPath(path), false, path);
+    const plan = selectAffectedTests(['scripts/ci-tooling-paths.mjs', path], {
+      ...files,
+      ...coreFixtures,
+    });
+    assert.equal(plan.full, true, path);
+    assert.equal(plan.coreBrowserFiles.length, 8, path);
+  }
+});
+
 test('Einkaufsübersicht wählt keine eigenständige Artikelanlage aus', () => {
   const plan = selectAffectedTests(['src/app/features/purchases/purchases.component.html'], {
     ...files,
@@ -532,7 +619,6 @@ test('unbekannte Änderungen, globale Konfiguration und fehlender Diff wählen u
   for (const [paths, pwa] of [
     [null, true],
     [['package-lock.json'], true],
-    [['.github/workflows/ci.yml'], false],
     [['src/app/core/guards/auth.guard.ts'], true],
     [['unknown/config.json'], false],
   ]) {
