@@ -128,7 +128,8 @@ export class MarketplaceSyncRunner {
     try {
       sessionId = await this.broker.open(scope);
       const currentSessionId = sessionId;
-      failedStage = 'access';
+      // Cache- und Übergabefehler belegen keinen Widerruf der geprüften Zugriffsfreigabe.
+      failedStage = 'parse';
       const previousConversations =
         (await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [];
       const previousPublications =

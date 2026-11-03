@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
-import type { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
+import { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
 import {
   VintedImportReadError,
   VintedImportRequestError,
@@ -21,6 +21,99 @@ const scope = {
 };
 const operationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const sessionId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+
+for (const failure of [
+  'conversation_cache',
+  'publication_cache',
+  'initial_parser',
+  'revoked_session',
+  'pre_persist_access',
+] as const) {
+  test(`keeps technical import failures separate from revoked access: ${failure}`, async () => {
+    const dispatched = {
+      ...scope,
+      userAccessToken: '',
+      syncRead: {
+        operationId,
+        runnerId: operationId,
+        workerEpoch: 2,
+        sessionId,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+      },
+    };
+    let outcome: Record<string, unknown> | undefined;
+    let runs = 0;
+    let writes = 0;
+    let closes = 0;
+    const events: MarketplaceOperationEvent[] = [];
+    const operations = new SupabaseMarketplaceOperationStore({
+      url: 'https://db.example.test',
+      publishableKey: 'public-key',
+      serviceRoleKey: 'server-key',
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path.endsWith('marketplace_sync_check'))
+          return Response.json({ active: true, sessionId });
+        if (path.endsWith('marketplace_sync_finish')) {
+          outcome = JSON.parse(String(init?.body))['p_outcome'];
+          return Response.json(true);
+        }
+        assert.fail(`Unexpected operation request: ${path}`);
+      },
+    });
+    const runner = new MarketplaceSyncRunner(
+      {
+        open: async () => sessionId,
+        run: async (_scope, _id, operation) => {
+          runs++;
+          if (failure === 'revoked_session' || (failure === 'pre_persist_access' && runs === 2))
+            throw new MarketplaceBrowserSessionEndedError('expired');
+          return operation({
+            version: () => 'fixture',
+            importAccount: async () => {
+              if (failure === 'initial_parser') throw new Error('private parser detail');
+              return {
+                identity: { id: '123', username: 'test' },
+                observedAt: '2026-11-03T10:00:00Z',
+                entries: [],
+                areas,
+              };
+            },
+          });
+        },
+        close: async () => {
+          closes++;
+        },
+      },
+      {
+        conversationVersions: async () => {
+          if (failure === 'conversation_cache') throw new Error('private cache RPC detail');
+          return [];
+        },
+        publicationVersions: async () => {
+          if (failure === 'publication_cache') throw new Error('private cache RPC detail');
+          return [];
+        },
+        write: async () => {
+          writes++;
+          return { profile: 0, publication: 0, conversation: 0, message: 0, sale: 0 };
+        },
+      },
+      operations,
+      { record: (event) => events.push(event) },
+    );
+    await runner.runDispatched(dispatched);
+    const accessRevoked = failure === 'revoked_session' || failure === 'pre_persist_access';
+    assert.equal(outcome?.['state'], 'failed');
+    assert.equal(outcome?.['errorCode'], accessRevoked ? 'access' : 'parse');
+    assert.equal(outcome?.['pausedReason'], accessRevoked ? 'access_revoked' : 'network');
+    assert.equal(writes, 0);
+    assert.equal(closes, 1);
+    assert.equal(events.at(-1)?.errorCode, accessRevoked ? 'access' : 'parse');
+    assert.equal(JSON.stringify(outcome).includes('private'), false);
+  });
+}
 
 for (const isDispatched of [false, true])
   for (const reason of ['unauthorized', 'forbidden', 'rate_limited'] as const) {
