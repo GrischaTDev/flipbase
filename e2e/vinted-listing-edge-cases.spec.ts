@@ -1516,6 +1516,9 @@ for (const width of [390, 1440])
           .filter({ hasText: /Meine Schuhe|Neu geprüfte Schuhe/ });
         await expect(plan).toContainText('Wird in 5 Minuten relistet');
         await expect(plan.getByRole('button')).toHaveCount(4);
+        const planImageBox = await plan.locator('app-product-thumbnail').boundingBox();
+        const planStatusBox = await plan.getByRole('status').boundingBox();
+        expect(Math.abs(planStatusBox!.y - planImageBox!.y - 8)).toBeLessThan(2);
         const plannedGridActions = await plan.locator('[data-listing-actions]').evaluate((bar) => {
           const card = bar.closest('article')!.getBoundingClientRect();
           const bounds = bar.getBoundingClientRect();

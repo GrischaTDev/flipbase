@@ -143,6 +143,18 @@ export class VintedListingsComponent {
         )
     );
   }
+  isPreparingRelisting(entry: MarketplaceEntry): boolean {
+    return this.operations
+      .entries()
+      .some(
+        (action) =>
+          action.kind === 'relist' &&
+          action.state === 'running' &&
+          action.workspaceId === entry.workspaceId &&
+          action.connectionId === entry.connectionId &&
+          action.entryId === entry.id,
+      );
+  }
   openEditor(entry: MarketplaceEntry, mode: 'relist' | 'template'): void {
     if (this.canCreateFrom(entry)) this.editorSource.set({ entry, mode });
   }

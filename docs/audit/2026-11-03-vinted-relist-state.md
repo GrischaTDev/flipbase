@@ -144,3 +144,21 @@ erfolgreichen Pflichtprüfungen und Worker-Rollout ausdrücklich freigegeben.
 Ausgewählte CI-/Imageprüfungen bleiben vor Merge erforderlich; nach dem Merge
 den unveränderlichen Release und den tatsächlich laufenden Worker prüfen.
 Keine produktive Veröffentlichung oder Löschung als Test dieses Rollouts.
+
+## Bestehende Preisaktion in der CI
+
+Der erste PR-Lauf bestätigt alle übrigen ausgewählten Bereiche einschließlich
+nativer Workerbrowser und Image-Isolation. Der bestehende Preisdialogfall bei
+390 Pixeln und hellem Design findet jedoch einen Darstellungsfehler: Die neue
+obere Relistanzeige war auch auf laufende Preisaktionen angewandt worden. Die
+unveränderte Erwartung einer mittigen Bildanzeige scheitert in der CI mit
+86 Pixeln Abstand und lokal mit demselben Fehlerbild bei 94 Pixeln.
+
+Die obere Position gilt nun ausdrücklich nur für einen Relistplan oder eine
+typisierte laufende Relistvorbereitung mit passender Konto-/Artikelbindung.
+Preis- und Löschaktionen behalten ihre bisherige Bildmitte. Derselbe vorhandene
+Preisfall ist lokal anschließend erfolgreich; der vorhandene Relistfall bei
+390 Pixeln und dunklem Design bestätigt weiterhin Countdown, Leistenhöhen und
+die obere Position. Beide Browserfälle sowie zwei passende Komponentenfälle
+und gezielte Format-/Lintprüfung erfolgreich. Keine Erwartung abgeschwächt;
+der finale Vorabcheck und die erforderliche CI folgen auf diesem Korrekturstand.

@@ -217,6 +217,7 @@ it('erhält Preisdialog und laufende Speicherung bei einer Hintergrundaktualisie
   expect(component.savingPrice()).toBe(true);
   expect(component.priceEditor.open()).toBe(false);
   expect(component.operations.isRunning(entry)).toBe(true);
+  expect(component.isPreparingRelisting(entry)).toBe(false);
   await component.priceEditor.save();
   expect(store.saveListingPrice).toHaveBeenCalledOnce();
   finish();
@@ -445,6 +446,7 @@ it('erhält Artikelstand und Position von Vorbereitung über Planung bis zur Aus
   expect(component.priceActionVisible(source)).toBe(true);
   expect(component.canCreateFrom(source)).toBe(false);
   expect(component.tableRows()[1]?.running).toBe(true);
+  expect(component.isPreparingRelisting(source)).toBe(true);
   component.openEditor(source, 'template');
   component.changePrice(source, new MouseEvent('click'));
   expect(component.editorSource()).toBeNull();
