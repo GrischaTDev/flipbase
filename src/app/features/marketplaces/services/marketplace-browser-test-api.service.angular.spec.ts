@@ -86,6 +86,39 @@ it('sendet nur bisherigen und neuen Centpreis und wertet Konflikte sowie unbest�
   request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
   await expect(api.saveListingPrice(scope, id, 2050, 1000, 'token')).rejects.toThrow('bestätigt');
 });
+it('ordnet die bestätigte Relist-Sperre allen Inserat-Schreibaktionen mit derselben festen Meldung zu', async () => {
+  const request = vi
+    .fn()
+    .mockImplementation(() =>
+      Response.json(
+        { code: 'vinted_listing_relisting_locked', error: 'private server detail' },
+        { status: 409 },
+      ),
+    );
+  vi.stubGlobal('fetch', request);
+  const content = listingCurrentContentFixture().content;
+  for (const action of [
+    () => api.saveListingPrice(scope, id, 1200, 1300, 'token'),
+    () =>
+      api.saveListingEdit(
+        scope,
+        id,
+        { title: 'Jacke', description: 'Text', price: '12,00' },
+        'token',
+      ),
+    () => api.saveListingContent(scope, id, content, content, 'token'),
+    () => api.deleteListing(scope, id, 'token'),
+  ])
+    await expect(action()).rejects.toThrow(
+      'Dieses Inserat wird gerade relistet. Warte, bis der Auftrag abgeschlossen ist.',
+    );
+  request.mockImplementation(() =>
+    Response.json({ code: 'vinted_listing_relisting_locked' }, { status: 500 }),
+  );
+  await expect(api.saveListingPrice(scope, id, 1200, 1300, 'token')).rejects.toBeInstanceOf(
+    VintedEditUnconfirmedError,
+  );
+});
 it('treats publication as unavailable on old, disabled or read-only runtimes', async () => {
   const request = vi.fn();
   vi.stubGlobal('fetch', request);

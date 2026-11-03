@@ -107,6 +107,7 @@ select throws_ok($$select public.marketplace_cloud_listing_finish('46500000-0000
 update cloud_listing_context set job=public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',job->>'id',(claim->>'claimToken')::uuid,'46500000-0000-4000-8000-000000000051',1,result);
 select is((select job->>'state' from cloud_listing_context),'queued','Bestätigte Löschung hinterlässt einen wartenden Auftrag');
 select ok((select job->>'relistDeletedAt' is not null from cloud_listing_context),'Löschbeleg bleibt dauerhaft am Entwurf erhalten');
+select is((select body->>'publicationState' from public.marketplace_account_entries where external_id='54321' and connection_id='46500000-0000-4000-8000-000000000021'),'active','Echter Löschbeleg erhält Inhalt und Karte bis zur bestätigten Neuverknüpfung');
 select lives_ok($$select public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1,(select result from cloud_listing_context))$$,'Wiederholte Löschbestätigung verändert den Termin nicht');
 reset role;
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
@@ -169,6 +170,8 @@ select throws_ok($$select public.marketplace_edit_relisting_plan((select job->>'
 reset role;
 update public.marketplace_listing_jobs set state='cancelled',error_code='test_fixture_reset',lease_expires_at=null where workspace_id='46500000-0000-4000-8000-000000000011' and state in ('queued','paused','claimed','writing');
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where workspace_id='46500000-0000-4000-8000-000000000011' and state in ('active','stopping');
+-- Abgebrochene gelöschte Relists bleiben fachlich sichtbar; unabhängige Fixtures daher ausdrücklich entfernen.
+delete from public.marketplace_listing_jobs where workspace_id='46500000-0000-4000-8000-000000000011' and snapshot ? 'relistExternalId';
 delete from public.marketplace_worker_runtime where worker_id='46500000-0000-4000-8000-000000000051';
 insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id) values('46500000-0000-4000-8000-000000000021','46500000-0000-4000-8000-000000000011','Cloud','cloud','connected','46501') on conflict(id) do nothing;
 insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','cloud-listing-profile') on conflict(workspace_id,connection_id) do nothing;
@@ -184,7 +187,7 @@ insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing
 
 reset role;
 update public.marketplace_listing_drafts set relist_external_id='98765' where id=(select (draft->>'id')::bigint from cloud_listing_context);
-insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','publication','98765','{"title":"Original","publicationState":"active"}');
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','publication','98765','{"title":"Original","publicationState":"active","metrics":{"views":222,"favorites":9}}');
 set local role authenticated;
 update cloud_listing_context set job=public.marketplace_enqueue_relisting(draft->>'id',1,'46500000-0000-4000-8000-000000000073',false,null,null,180);
 select is((select job->>'scheduledAt' from cloud_listing_context),null,'Relative Planung legt noch keinen Termin vor der Löschung fest');
@@ -222,6 +225,8 @@ update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('4
 select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1);
 update cloud_listing_context set result=jsonb_build_object('outcome','confirmed','action','publish','externalId','76543','externalAccountId','46501','providerState','active','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 update cloud_listing_context set job=public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',job->>'id',(claim->>'claimToken')::uuid,'46500000-0000-4000-8000-000000000051',1,result);
+select is((select id::text from public.marketplace_account_entries where connection_id='46500000-0000-4000-8000-000000000021' and external_id='76543'),(select job->>'relistEntryId' from cloud_listing_context),'Auch ohne vorgezogenen Neuimport bleibt die ursprüngliche Flipbase-UUID erhalten');
+select is((select body->'metrics'->>'views' from public.marketplace_account_entries where connection_id='46500000-0000-4000-8000-000000000021' and external_id='76543'),null::text,'Ohne neue Messung werden alte Aufrufe nicht als neue übernommen');
 set local role authenticated;
 select is(jsonb_array_length(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'),1,'Neue Anbieterkennung verweist nach dem Relist auf gespeicherte Originale');
 select is(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'->0->'draft'->'images',public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['98765'])->'items'->0->'draft'->'images','Alt und Neu zeigen die unmodifizierte Bildsicherung');
@@ -247,13 +252,10 @@ reset role;
 select is((select count(*) from public.marketplace_operations where connection_id='46500000-0000-4000-8000-000000000021'),2::bigint,'Fehlgeschlagene Abgleiche werden beim nächsten Poll nicht sofort erneut beauftragt');
 select ok(not has_function_privilege('authenticated','public.marketplace_request_relisting_import(public.marketplace_listing_jobs)','EXECUTE'),'Abgleichhelper kann nicht direkt vom Client mit fremden Auftragsdaten aufgerufen werden');
 select ok(not has_function_privilege('authenticated','public.marketplace_listing_job_draft_document(public.marketplace_listing_jobs)','EXECUTE'),'Private Aufnahme kann nicht direkt mit fremden Auftragsdaten gelesen werden');
-insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','publication','76543','{"title":"Neu","publicationState":"active"}');
+update public.marketplace_account_entries set body='{"title":"Neu","publicationState":"active"}',observed_at=clock_timestamp()
+where connection_id='46500000-0000-4000-8000-000000000021' and external_id='76543';
 set local role authenticated;
-select is(jsonb_array_length(public.marketplace_read_relisting_plans('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021')->'items'),1,'Alte Lesekopie wird auch bei bereits sichtbarer neuer Anzeige noch ausgeblendet');
-reset role;
-delete from public.marketplace_account_entries where connection_id='46500000-0000-4000-8000-000000000021' and external_id='98765';
-set local role authenticated;
-select is(jsonb_array_length(public.marketplace_read_relisting_plans('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021')->'items'),0,'Erst der vollständige Austausch der Lesekopie entfernt die bestätigte Karte');
+select is(jsonb_array_length(public.marketplace_read_relisting_plans('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021')->'items'),0,'Eine neue Anbieterlesekopie beendet den Planübergang auf derselben Karte');
 reset role;
 delete from public.marketplace_account_entries where connection_id='46500000-0000-4000-8000-000000000021' and external_id='76543';
 set local role authenticated;

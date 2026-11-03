@@ -206,11 +206,15 @@ function setup(
           editPlan: vi.fn(),
           readPermission: vi.fn().mockResolvedValue({ allowed: true, executionMode: 'cloud' }),
           list: vi.fn().mockResolvedValue([]),
-          enqueue: vi.fn().mockResolvedValue({
-            connectionId: 'account-a',
-            externalAccountId: '123',
-            executionMode: 'cloud',
-          }),
+          enqueue: vi
+            .fn()
+            .mockImplementation(async (current: VintedListingDraft): Promise<VintedListingJob> => ({
+              ...queuedJob(current.revision),
+              workspaceId: current.workspaceId,
+              connectionId: current.connectionId,
+              draftId: current.id,
+              relistExternalId: current.relistExternalId,
+            })),
         },
       },
       {
@@ -475,7 +479,20 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     expect(f.readListingContent).not.toHaveBeenCalled();
     expect(TestBed.inject(VintedListingDraftService).createRelisting).toHaveBeenCalledOnce();
     expect(TestBed.inject(VintedListingJobService).enqueue).toHaveBeenCalledOnce();
-    expect(TestBed.inject(VintedListingOperationStore).entries()).toEqual([]);
+    const operations = TestBed.inject(VintedListingOperationStore);
+    expect(operations.entries()).toEqual([]);
+    const accepted = operations.acceptedRelistings();
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0].userId).toBe('user-a');
+    expect(accepted[0].record.job).toMatchObject({
+      workspaceId: source.entry.workspaceId,
+      connectionId: source.entry.connectionId,
+      relistExternalId: source.entry.externalId,
+      draftId: accepted[0].record.draft.id,
+      draftRevision: accepted[0].record.draft.revision,
+      state: 'queued',
+    });
+    expect(accepted[0].record.draft.images).toHaveLength(1);
   });
   it.each([false, true])(
     'unterscheidet unbekannte und bewusst geleerte Beschreibung (bearbeitet: %s)',

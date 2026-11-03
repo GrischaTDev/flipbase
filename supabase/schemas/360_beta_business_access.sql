@@ -6183,11 +6183,10 @@ begin
 end;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.marketplace_apply_vinted_import(p_workspace_id uuid, p_connection_id uuid, p_session_id uuid, p_user_id uuid, p_snapshot jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
- SET search_path TO ''
-AS $function$
+create or replace function public.marketplace_apply_vinted_import(
+  p_workspace_id uuid, p_connection_id uuid, p_session_id uuid, p_user_id uuid, p_snapshot jsonb
+)
+returns jsonb language plpgsql volatile security invoker set search_path = '' as $$
 declare
   v_connection public.marketplace_connections;
   v_session public.marketplace_browser_sessions;
@@ -6207,7 +6206,7 @@ begin
   -- Gleiche Sperrreihenfolge wie die bestehenden Browser-RPCs: Konto, dann Sitzung.
   select * into v_connection from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
-  if not found or v_connection.status <> 'connected' then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+  if not found or v_connection.execution_mode <> 'cloud' or v_connection.status <> 'connected' then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select * into v_session from public.marketplace_browser_sessions
     where public_id = p_session_id and workspace_id = p_workspace_id and connection_id = p_connection_id
       and started_by = p_user_id for update;
@@ -6323,17 +6322,22 @@ begin
         ) merged
       ),'[]'::jsonb));
     end if;
+    if v_kind='publication' and not public.marketplace_relisting_import_allowed(p_workspace_id,p_connection_id,v_entry->>'externalId') then continue; end if;
     insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,parent_id,body,sort_at,observed_at)
       values(p_workspace_id,p_connection_id,v_kind,v_entry->>'externalId',v_parent_id,v_body,(v_entry->>'sortAt')::timestamptz,v_observed_at)
       on conflict (workspace_id,connection_id,kind,external_id) do update
         set parent_id = excluded.parent_id,body = excluded.body,sort_at = excluded.sort_at,observed_at = excluded.observed_at
         where public.marketplace_account_entries.observed_at <= excluded.observed_at;
-    if found then v_counts := jsonb_set(v_counts,array[v_kind],to_jsonb((v_counts->>v_kind)::int + 1)); end if;
+    if found then
+      v_counts := jsonb_set(v_counts,array[v_kind],to_jsonb((v_counts->>v_kind)::int + 1));
+      if v_kind='publication' then perform public.marketplace_accept_relisting_import(p_workspace_id,p_connection_id,v_entry->>'externalId',v_observed_at); end if;
+    end if;
   end loop;
 
   -- Nur nachweislich vollständige Listen dürfen fehlende alte Einträge entfernen.
   delete from public.marketplace_account_entries a where a.workspace_id = p_workspace_id and a.connection_id = p_connection_id
     and a.observed_at < v_observed_at and a.kind in ('publication','conversation')
+    and (a.kind<>'publication' or public.marketplace_relisting_import_allowed(p_workspace_id,p_connection_id,a.external_id,true))
     and not exists (select 1 from public.marketplace_account_entries child where child.parent_id = a.id and child.observed_at >= v_observed_at)
     and p_snapshot->'areas'->(case a.kind when 'publication' then 'publications' else 'conversations' end)->>'status' = 'complete'
     and not exists (select 1 from jsonb_array_elements(p_snapshot->'entries') e where e->>'kind' = a.kind and e->>'externalId' = a.external_id);
@@ -6342,7 +6346,7 @@ begin
     raise exception 'Ungültige Verkaufsbereinigung' using errcode = '22023';
   end if;
   delete from public.marketplace_account_entries a where a.workspace_id = p_workspace_id and a.connection_id = p_connection_id
-    and a.kind = 'sale' and a.observed_at < v_observed_at and a.external_id in (select jsonb_array_elements_text(coalesce(p_snapshot->'rejectedSaleIds','[]')))
+    and a.kind = 'sale' and a.body->>'saleState' is null and a.observed_at < v_observed_at and a.external_id in (select jsonb_array_elements_text(coalesce(p_snapshot->'rejectedSaleIds','[]')))
     and not exists (select 1 from jsonb_array_elements(p_snapshot->'entries') e where e->>'kind' = 'sale' and e->>'externalId' = a.external_id);
 
   foreach v_area in array array['profile','publications','conversations','messages','sales','feedback'] loop
@@ -6359,10 +6363,16 @@ begin
   end if;
   if v_session.expires_at <= clock_timestamp() then raise exception 'Sitzung während des Imports abgelaufen' using errcode = '42501'; end if;
   perform public.marketplace_finalize_favorite_import(p_workspace_id,p_connection_id,v_observed_at,p_snapshot->'areas'->'publications'->>'status' <> 'failed');
+  if p_snapshot ? 'favoriteEvents' and public.marketplace_cloud_favorite_settings_valid(p_workspace_id,p_connection_id) then
+    perform public.marketplace_record_favorite_events(p_workspace_id,p_connection_id,v_connection.external_account_id,'cloud',p_snapshot->'favoriteEvents');
+  end if;
+  if p_snapshot ? 'inboxEvents' then
+    if (p_snapshot->'inboxEvents'->>'observedAt')::timestamptz is distinct from v_observed_at then raise exception 'Ungültiger Eingangsstand' using errcode='22023'; end if;
+    perform public.marketplace_record_message_event_batch(p_workspace_id,p_connection_id,v_connection.external_account_id,p_snapshot->'inboxEvents');
+  end if;
   return v_counts;
 end;
-$function$
-;
+$$;
 CREATE OR REPLACE FUNCTION public.marketplace_apply_vinted_sync_import(p_operation_id uuid, p_runner_id uuid, p_worker_epoch bigint, p_session_id uuid, p_snapshot jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql

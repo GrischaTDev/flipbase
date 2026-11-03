@@ -2037,7 +2037,7 @@ test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzö
   await expect.poll(() => enqueues.length).toBe(1);
   const overview = page.locator('app-vinted-listing-action-overview');
   await expect(overview).toContainText('Neu geprüfte Schuhe');
-  await expect(overview).toContainText('Anzeige wird veröffentlicht');
+  await expect(overview).toContainText('Wird vorbereitet');
   await expect(page.locator('[data-action-overview-error]')).toHaveCount(0);
   expect(draft.content).toMatchObject({
     title: 'Neu geprüfte Schuhe',

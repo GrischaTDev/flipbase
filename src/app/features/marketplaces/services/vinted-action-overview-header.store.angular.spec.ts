@@ -15,6 +15,9 @@ import {
 } from './vinted-action-overview-header.store';
 import { VintedListingJobService } from './vinted-listing-job.service';
 import type { VintedListingJob } from '../models/vinted-listing-job';
+import { VintedListingDraftService } from './vinted-listing-draft.service';
+import { VintedListingActionOverviewComponent } from '../components/vinted-listing-action-overview/vinted-listing-action-overview.component';
+import { VintedListingOperationStore } from './vinted-listing-operation.store';
 
 const accounts = createMarketplaceFixtures().connections;
 const action: VintedAction = {
@@ -69,6 +72,7 @@ beforeEach(() => {
       { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: enabled } },
       { provide: MarketplaceApiService, useValue: { listConnections: list } },
       { provide: VintedActionOverviewApiService, useValue: { read } },
+      { provide: VintedListingDraftService, useValue: {} },
       {
         provide: VintedListingJobService,
         useValue: {
@@ -85,6 +89,82 @@ afterEach(() => {
   localStorage.clear();
 });
 describe('Appweite laufende Vinted-Aktionen', () => {
+  it('zeigt in der echten Auftragsübersicht Vorbereitung, bestätigte Planung und Inserieren getrennt', async () => {
+    const now = Date.now();
+    const job: VintedListingJob = {
+      id: '30',
+      workspaceId: accounts[0].workspaceId,
+      connectionId: accounts[0].connectionId,
+      draftId: '20',
+      draftRevision: 1,
+      executionMode: 'cloud',
+      externalAccountId: '123',
+      action: 'publish',
+      state: 'queued',
+      version: 1,
+      scheduledAt: new Date(now + 299000).toISOString(),
+      timeZone: 'Europe/Berlin',
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: null,
+      externalId: null,
+      providerState: null,
+      verifiedAt: null,
+      createdAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString(),
+      replacesJobId: null,
+      relistExternalId: '456',
+      relistDeletedAt: null,
+    };
+    const entries = signal([{ job, accountName: 'Konto' }]);
+    const component = TestBed.runInInjectionContext(
+      () => new VintedListingActionOverviewComponent(),
+    );
+    vi.spyOn(component, 'entries').mockImplementation(() => entries());
+    expect(component.rows()[0]).toMatchObject({
+      label: 'Wird vorbereitet',
+      indicator: 'running',
+      planned: false,
+    });
+    entries.set([{ job: { ...job, state: 'writing' }, accountName: 'Konto' }]);
+    expect(component.rows()[0]?.label).toBe('Wird vorbereitet');
+    entries.set([
+      { job: { ...job, relistDeletedAt: new Date(now).toISOString() }, accountName: 'Konto' },
+    ]);
+    expect(component.rows()[0]).toMatchObject({
+      label: 'Wird in 5 Minuten relistet',
+      indicator: 'paused',
+      planned: true,
+    });
+    entries.set([
+      {
+        job: { ...job, state: 'writing', relistDeletedAt: new Date(now).toISOString() },
+        accountName: 'Konto',
+      },
+    ]);
+    expect(component.rows()[0]).toMatchObject({
+      label: 'Wird inseriert',
+      indicator: 'running',
+      planned: false,
+    });
+    entries.set([{ job: { ...job, state: 'failed' }, accountName: 'Konto' }]);
+    expect(component.rows()[0]).toMatchObject({ label: 'Fehlgeschlagen', indicator: 'error' });
+    const overview = TestBed.inject(VintedActionOverviewHeaderStore);
+    vi.spyOn(overview, 'context').mockReturnValue('scope');
+    vi.spyOn(overview, 'refresh').mockResolvedValue(undefined);
+    const cancel = vi
+      .fn()
+      .mockImplementation(async (value: VintedListingJob) => ({ ...value, state: 'cancelled' }));
+    Object.assign(TestBed.inject(VintedListingJobService), { cancel });
+    const release = vi.spyOn(TestBed.inject(VintedListingOperationStore), 'releaseRelisting');
+    entries.set([{ job, accountName: 'Konto' }]);
+    await component.cancel(job);
+    expect(release).toHaveBeenCalledOnce();
+    release.mockClear();
+    const deleted = { ...job, relistDeletedAt: new Date(now).toISOString() };
+    entries.set([{ job: deleted, accountName: 'Konto' }]);
+    await component.cancel(deleted);
+    expect(release).not.toHaveBeenCalled();
+  });
   it('zeigt den beobachteten Abschluss automatisch und zählt ihn nicht weiter als laufend', async () => {
     vi.useFakeTimers();
     try {

@@ -3,6 +3,7 @@ import {
   parseVintedListingJob,
   parseVintedListingPermission,
   vintedListingJobLabel,
+  vintedRelistingJobLabel,
 } from './vinted-listing-job';
 
 const job = {
@@ -27,6 +28,41 @@ const job = {
   createdAt: '2026-10-09T12:00:00+00:00',
   updatedAt: '2026-10-09T12:00:00+00:00',
 };
+
+it('übernimmt die servergebundene Relist-Entry-ID und liest ältere Aufträge ohne Bindung weiter', () => {
+  const relistEntryId = '46300000-0000-4000-8000-000000000099';
+  expect(parseVintedListingJob({ ...job, relistEntryId }, job.workspaceId).relistEntryId).toBe(
+    relistEntryId,
+  );
+  expect(parseVintedListingJob(job, job.workspaceId).relistEntryId).toBeNull();
+  for (const invalid of ['', 'relisting-30', 12])
+    expect(() =>
+      parseVintedListingJob({ ...job, relistEntryId: invalid }, job.workspaceId),
+    ).toThrow();
+});
+
+it('bezeichnet Relist-Vorbereitung, bestätigte Wartezeit und tatsächliches Inserieren eindeutig', () => {
+  const now = Date.parse('2026-11-03T12:00:00Z');
+  const relist = {
+    ...parseVintedListingJob(job, job.workspaceId),
+    relistExternalId: '123',
+    relistDeletedAt: null,
+    relistDelaySeconds: 300,
+    scheduledAt: '2026-11-03T12:05:00Z',
+  };
+  for (const state of ['queued', 'claimed', 'writing'] as const)
+    expect(vintedRelistingJobLabel({ ...relist, state }, now)).toBe('Wird vorbereitet');
+  expect(vintedRelistingJobLabel({ ...relist, relistDeletedAt: '2026-11-03T11:59:00Z' }, now)).toBe(
+    'Wird in 5 Minuten relistet',
+  );
+  expect(
+    vintedRelistingJobLabel(
+      { ...relist, relistDeletedAt: '2026-11-03T11:59:00Z', state: 'writing' },
+      now,
+    ),
+  ).toBe('Wird inseriert');
+  expect(vintedRelistingJobLabel({ ...relist, state: 'failed' }, now)).toBe('Fehlgeschlagen');
+});
 
 describe('Vinted-Inserataufträge', () => {
   it('erhält große Kennungen und bezeichnet Annahme nicht als Veröffentlichung', () => {

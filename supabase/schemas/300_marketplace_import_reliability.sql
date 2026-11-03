@@ -27,6 +27,27 @@ create policy "Worker inserts source progress" on public.marketplace_account_syn
 create policy "Worker updates source progress" on public.marketplace_account_sync_sources for update to service_role using (true) with check (true);
 create policy "Worker deletes source progress" on public.marketplace_account_sync_sources for delete to service_role using (true);
 
+-- Relist-Aufträge sperren ihre alte Anbieterkennung unabhängig vom Importweg.
+-- Die PL/pgSQL-Funktion wird erst nach Anlage der Auftragstabelle ausgeführt.
+create or replace function public.marketplace_relisting_import_allowed(p_workspace_id uuid,p_connection_id uuid,p_external_id text,p_pruning boolean default false)
+returns boolean language plpgsql stable security invoker set search_path='' as $$
+begin
+  return not exists(
+    select 1 from public.marketplace_listing_jobs job
+    join public.marketplace_connections account on account.workspace_id=job.workspace_id and account.id=job.connection_id
+      and account.marketplace='vinted' and account.external_account_id=job.external_account_id
+    join public.marketplace_listing_drafts draft on draft.workspace_id=job.workspace_id and draft.id=job.draft_id
+    where job.workspace_id=p_workspace_id and job.connection_id=p_connection_id and job.snapshot ? 'relistExternalId'
+      and ((job.snapshot->>'relistExternalId'=p_external_id and (job.state='confirmed' or (
+        (job.state in ('queued','paused','claimed','writing','outcome_unknown','failed') or (job.state='cancelled' and draft.relist_deleted_at is not null))
+        and public.marketplace_relisting_job_is_latest(job))))
+        or (p_pruning and job.state='confirmed' and job.external_id=p_external_id and job.relist_imported_at is null and public.marketplace_relisting_job_is_latest(job)))
+  );
+end;
+$$;
+revoke all on function public.marketplace_relisting_import_allowed(uuid,uuid,text,boolean) from public,anon,authenticated;
+grant execute on function public.marketplace_relisting_import_allowed(uuid,uuid,text,boolean) to service_role;
+
 create or replace function public.marketplace_apply_vinted_import(
   p_workspace_id uuid, p_connection_id uuid, p_session_id uuid, p_user_id uuid, p_snapshot jsonb
 )
@@ -45,6 +66,7 @@ declare
   v_old_feedback jsonb;
   v_counts jsonb := '{"profile":0,"publication":0,"conversation":0,"message":0,"sale":0}';
 begin
+  if not public.workspace_access_is_valid(p_workspace_id) then raise exception 'Beta-Zugang ist abgelaufen oder gesperrt' using errcode='42501'; end if;
   perform pg_advisory_xact_lock(91731, 1);
   -- Gleiche Sperrreihenfolge wie die bestehenden Browser-RPCs: Konto, dann Sitzung.
   select * into v_connection from public.marketplace_connections
@@ -165,17 +187,22 @@ begin
         ) merged
       ),'[]'::jsonb));
     end if;
+    if v_kind='publication' and not public.marketplace_relisting_import_allowed(p_workspace_id,p_connection_id,v_entry->>'externalId') then continue; end if;
     insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,parent_id,body,sort_at,observed_at)
       values(p_workspace_id,p_connection_id,v_kind,v_entry->>'externalId',v_parent_id,v_body,(v_entry->>'sortAt')::timestamptz,v_observed_at)
       on conflict (workspace_id,connection_id,kind,external_id) do update
         set parent_id = excluded.parent_id,body = excluded.body,sort_at = excluded.sort_at,observed_at = excluded.observed_at
         where public.marketplace_account_entries.observed_at <= excluded.observed_at;
-    if found then v_counts := jsonb_set(v_counts,array[v_kind],to_jsonb((v_counts->>v_kind)::int + 1)); end if;
+    if found then
+      v_counts := jsonb_set(v_counts,array[v_kind],to_jsonb((v_counts->>v_kind)::int + 1));
+      if v_kind='publication' then perform public.marketplace_accept_relisting_import(p_workspace_id,p_connection_id,v_entry->>'externalId',v_observed_at); end if;
+    end if;
   end loop;
 
   -- Nur nachweislich vollständige Listen dürfen fehlende alte Einträge entfernen.
   delete from public.marketplace_account_entries a where a.workspace_id = p_workspace_id and a.connection_id = p_connection_id
     and a.observed_at < v_observed_at and a.kind in ('publication','conversation')
+    and (a.kind<>'publication' or public.marketplace_relisting_import_allowed(p_workspace_id,p_connection_id,a.external_id,true))
     and not exists (select 1 from public.marketplace_account_entries child where child.parent_id = a.id and child.observed_at >= v_observed_at)
     and p_snapshot->'areas'->(case a.kind when 'publication' then 'publications' else 'conversations' end)->>'status' = 'complete'
     and not exists (select 1 from jsonb_array_elements(p_snapshot->'entries') e where e->>'kind' = a.kind and e->>'externalId' = a.external_id);

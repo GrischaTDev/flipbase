@@ -4,12 +4,13 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
-import type { VintedListingJob } from '../../models/vinted-listing-job';
+import { vintedRelistingJobLabel, type VintedListingJob } from '../../models/vinted-listing-job';
 import {
   VintedActionOverviewHeaderStore,
   vintedListingDismissKey,
   type VintedListingActionEntry,
 } from '../../services/vinted-action-overview-header.store';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import {
@@ -33,6 +34,7 @@ export class VintedListingActionOverviewComponent {
   private readonly jobsApi = inject(VintedListingJobService);
   private readonly draftsApi = inject(VintedListingDraftService);
   private readonly overview = inject(VintedActionOverviewHeaderStore);
+  private readonly operations = inject(VintedListingOperationStore);
   readonly busy = signal<string | null>(null);
   readonly loadingPlan = signal<string | null>(null);
   readonly error = signal<string | null>(null);
@@ -51,7 +53,10 @@ export class VintedListingActionOverviewComponent {
           ? ('success' as const)
           : job.state === 'failed' || job.state === 'outcome_unknown'
             ? ('error' as const)
-            : job.state === 'paused' || (!!job.scheduledAt && job.state === 'queued')
+            : job.state === 'paused' ||
+                (!!job.scheduledAt &&
+                  job.state === 'queued' &&
+                  (!job.relistExternalId || !!job.relistDeletedAt))
               ? ('paused' as const)
               : ('running' as const),
       dismissible: job.state === 'failed' || job.state === 'outcome_unknown',
@@ -64,7 +69,10 @@ export class VintedListingActionOverviewComponent {
         timeZoneName: 'short',
         timeZone: job.timeZone ?? 'Europe/Berlin',
       }).format(new Date(job.scheduledAt ?? job.updatedAt)),
-      planned: !!job.scheduledAt && ['queued', 'paused'].includes(job.state),
+      planned:
+        !!job.scheduledAt &&
+        (!job.relistExternalId || !!job.relistDeletedAt) &&
+        ['queued', 'paused'].includes(job.state),
       cancellable: ['queued', 'paused'].includes(job.state),
     })),
   );
@@ -92,10 +100,15 @@ export class VintedListingActionOverviewComponent {
     )
       return;
     const context = this.overview.context();
+    const pendingUserId = this.operations
+      .acceptedRelistings()
+      .find((item) => item.record.job.id === job.id)?.userId;
     this.busy.set(job.id);
     this.error.set(null);
     try {
-      await this.jobsApi.cancel(job);
+      const cancelled = await this.jobsApi.cancel(job);
+      if (cancelled.state === 'cancelled' && !cancelled.relistDeletedAt)
+        this.operations.releaseRelisting(cancelled, pendingUserId);
       if (context === this.overview.context()) await this.overview.refresh();
     } catch {
       if (context === this.overview.context())
@@ -111,6 +124,7 @@ export class VintedListingActionOverviewComponent {
       !this.current(job) ||
       !job.scheduledAt ||
       !job.timeZone ||
+      (!!job.relistExternalId && !job.relistDeletedAt) ||
       !['queued', 'paused'].includes(job.state) ||
       this.busy() ||
       this.loadingPlan() ||
@@ -173,6 +187,7 @@ export class VintedListingActionOverviewComponent {
 
 /** Eine kurze Statuszeile; Fehlerdetails bleiben im Auftrag (error_code) für die Kontrolle erhalten. */
 function compactListingLabel(job: VintedListingJob): string {
+  if (job.relistExternalId) return vintedRelistingJobLabel(job, Date.now());
   const draft = job.action === 'vinted_draft';
   switch (job.state) {
     case 'queued':

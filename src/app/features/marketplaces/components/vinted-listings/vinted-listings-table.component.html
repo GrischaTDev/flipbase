@@ -80,9 +80,11 @@
                   </p>
                   <div class="mt-1 flex flex-wrap gap-1">
                     @if (publicationBadge(entry.publicationState); as badge) {
-                      <app-badge [class.invisible]="!!row.plan" [tone]="badge.tone">{{
-                        badge.label
-                      }}</app-badge>
+                      <app-badge
+                        [class.invisible]="!!row.plan && row.plan.job.state !== 'confirmed'"
+                        [tone]="badge.tone"
+                        >{{ badge.label }}</app-badge
+                      >
                     }
                     @if (entry.promoted) {
                       <app-badge tone="info">Gepusht</app-badge>
@@ -100,7 +102,7 @@
             </td>
             <td class="px-2 py-2">
               <app-vinted-listing-age
-                [class.invisible]="!!row.plan"
+                [class.invisible]="!!row.plan && row.plan.job.state !== 'confirmed'"
                 [publishedAt]="entry.publishedAt"
                 [publicationAge]="entry.publicationAge"
                 [createdAt]="entry.createdAt"

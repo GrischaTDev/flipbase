@@ -80,8 +80,8 @@ declare
 begin
   if new.kind <> 'publication' or new.body->>'publicationState'='draft' then return new; end if;
   if tg_op = 'UPDATE' then
-    if new.observed_at <= old.observed_at then return new; end if;
-    if old.body->>'publicationState' is distinct from 'draft' then v_first_seen_at := old.observed_at; end if;
+    if old.external_id=new.external_id and new.observed_at <= old.observed_at then return new; end if;
+    if old.external_id=new.external_id and old.body->>'publicationState' is distinct from 'draft' then v_first_seen_at := old.observed_at; end if;
   end if;
   -- Fehlende Angaben eines Abrufs überschreiben keine bekannten Stammdaten.
   insert into public.marketplace_listing_statistic_items as i(workspace_id,connection_id,external_id,title,image_url,price,currency,first_seen_at,last_seen_at)
@@ -95,7 +95,7 @@ begin
       last_seen_at = greatest(i.last_seen_at,excluded.last_seen_at),
       removed_at = null
     returning i.id into v_item_id;
-  if tg_op = 'UPDATE' and old.body->>'publicationState' is distinct from 'draft' then
+  if tg_op = 'UPDATE' and old.external_id=new.external_id and old.body->>'publicationState' is distinct from 'draft' then
     -- Beim ersten neuen Abruf bleibt auch die bereits gespeicherte Ausgangsbasis erhalten.
     insert into public.marketplace_listing_metric_observations(workspace_id,connection_id,entry_id,observed_at,views,favorites,statistic_item_id)
       values(old.workspace_id,old.connection_id,old.id,old.observed_at,public.marketplace_known_metric_count(old.body,'views'),public.marketplace_known_metric_count(old.body,'favorites'),v_item_id)
@@ -153,11 +153,14 @@ begin
     select e.id, e.observed_at, latest.views, latest.favorites,
       baseline.observed_at as baseline_at, baseline.views as previous_views, baseline.favorites as previous_favorites
     from public.marketplace_account_entries e
+    left join public.marketplace_listing_statistic_items item on item.workspace_id=e.workspace_id and item.connection_id=e.connection_id and item.external_id=e.external_id
     left join public.marketplace_listing_metric_observations latest on latest.entry_id=e.id and latest.observed_at=e.observed_at
+      and latest.statistic_item_id=item.id
       and latest.workspace_id=p_workspace_id and latest.connection_id=p_connection_id
     left join lateral (
       select o.* from public.marketplace_listing_metric_observations o
       where o.workspace_id=p_workspace_id and o.connection_id=p_connection_id and o.entry_id=e.id
+        and o.statistic_item_id=item.id
         and o.observed_at < e.observed_at
         -- Standard vergleicht zwei aufeinanderfolgende Abrufe, auch bei verzögertem Zeitplan.
         and (p_period_minutes=5 or o.observed_at <= e.observed_at - make_interval(mins=>p_period_minutes))

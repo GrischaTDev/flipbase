@@ -19,6 +19,7 @@ export interface VintedListingPermission {
   readonly executionMode: VintedListingExecutionMode;
 }
 export interface VintedListingJob {
+  readonly relistEntryId?: string | null;
   readonly relistDeletedAt?: string | null;
   readonly relistDelaySeconds?: number;
   readonly relistExternalId?: string | null;
@@ -95,6 +96,13 @@ export function parseVintedListingJob(
   const data = record(value);
   const id = listingIdentifier(data['id']);
   const relistExternalId = data['relistExternalId'];
+  const relistEntryId = data['relistEntryId'];
+  if (
+    relistEntryId != null &&
+    (typeof relistEntryId !== 'string' ||
+      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(relistEntryId))
+  )
+    return invalid();
   if (
     relistExternalId != null &&
     (typeof relistExternalId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(relistExternalId))
@@ -173,6 +181,7 @@ export function parseVintedListingJob(
   return {
     id,
     workspaceId,
+    relistEntryId: typeof relistEntryId === 'string' ? relistEntryId : null,
     relistDeletedAt: data['relistDeletedAt'] == null ? null : timestamp(data['relistDeletedAt']),
     relistDelaySeconds:
       data['relistDelaySeconds'] == null ? 0 : integer(data['relistDelaySeconds'], 0),
@@ -221,4 +230,19 @@ export function vintedListingJobLabel(job: VintedListingJob): string {
     case 'cancelled':
       return 'Abgebrochen';
   }
+}
+
+/** Tatsächlicher Relist-Zustand; die Wartezeit beginnt erst mit belegter Löschung. */
+export function vintedRelistingJobLabel(job: VintedListingJob, now: number): string {
+  if (job.errorCode === 'editing') return 'Wird bearbeitet';
+  if (job.state === 'claimed') return 'Wird vorbereitet';
+  if (job.state === 'writing') return job.relistDeletedAt ? 'Wird inseriert' : 'Wird vorbereitet';
+  if (job.state !== 'queued') return vintedListingJobLabel(job);
+  if (!job.relistDeletedAt) return 'Wird vorbereitet';
+  if (!job.scheduledAt) return 'Wartet auf den Start';
+  const remaining = Date.parse(job.scheduledAt) - now;
+  if (remaining <= 0) return 'Wartet auf den Start';
+  if (remaining < 60_000) return 'Wird in weniger als einer Minute relistet';
+  const minutes = Math.ceil(remaining / 60_000);
+  return `Wird in ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'} relistet`;
 }

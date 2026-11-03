@@ -3,8 +3,9 @@ import { AuthService } from '../../../core/services/auth.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedListingJobService } from './vinted-listing-job.service';
 import { VintedListingImageService } from './vinted-listing-image.service';
-import { vintedListingJobLabel, type VintedListingJob } from '../models/vinted-listing-job';
+import { vintedRelistingJobLabel, type VintedListingJob } from '../models/vinted-listing-job';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
+import { VintedListingOperationStore } from './vinted-listing-operation.store';
 
 export interface VintedRelistingPlan {
   readonly job: VintedListingJob;
@@ -18,6 +19,7 @@ export class VintedRelistingPlanStore {
   private readonly auth = inject(AuthService);
   private readonly jobs = inject(VintedListingJobService);
   private readonly images = inject(VintedListingImageService);
+  private readonly operations = inject(VintedListingOperationStore);
   readonly plans = signal<readonly VintedRelistingPlan[]>([]);
   readonly error = signal<string | null>(null);
   private readonly binding = computed(() => {
@@ -49,6 +51,23 @@ export class VintedRelistingPlanStore {
         void this.refresh();
       });
     });
+    effect(() => {
+      const pending = this.pendingPlans();
+      if (!pending.length) return;
+      untracked(() => {
+        this.plans.update((plans) => [
+          ...plans,
+          ...pending
+            .filter((item) => !plans.some((plan) => plan.job.id === item.record.job.id))
+            .map((item) => ({
+              ...item.record,
+              imageUrl: item.imageUrl,
+              label: this.label(item.record.job),
+            })),
+        ]);
+        void this.refresh();
+      });
+    });
     const timer = setInterval(() => {
       // Derselbe Takt aktualisiert den Countdown auch bei einem noch offenen Abruf.
       this.plans.update((plans) => plans.map((plan) => ({ ...plan, label: this.label(plan.job) })));
@@ -61,20 +80,25 @@ export class VintedRelistingPlanStore {
     });
   }
   canEdit(job: VintedListingJob): boolean {
-    return ['queued', 'paused', 'failed'].includes(job.state);
+    return (
+      job.state === 'failed' ||
+      (!!job.relistDeletedAt && ['queued', 'paused', 'cancelled'].includes(job.state))
+    );
   }
   private label(job: VintedListingJob): string {
-    if (job.errorCode === 'editing') return 'Wird bearbeitet';
-    if (job.state === 'claimed') return 'Wird vorbereitet';
-    if (job.state === 'writing')
-      return job.relistDeletedAt ? 'Wird inseriert' : 'Inserat wird gelöscht';
-    if (job.state !== 'queued') return vintedListingJobLabel(job);
-    if (!job.scheduledAt) return 'Wartet auf den Start';
-    const remaining = Date.parse(job.scheduledAt) - Date.now();
-    if (remaining <= 0) return 'Wartet auf den Start';
-    if (remaining < 60_000) return 'Wird in weniger als einer Minute relistet';
-    const minutes = Math.ceil(remaining / 60_000);
-    return `Wird in ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'} relistet`;
+    return vintedRelistingJobLabel(job, Date.now());
+  }
+  private pendingPlans() {
+    const account = this.accounts.selectedConnection();
+    return this.binding()
+      ? this.operations
+          .acceptedRelistings()
+          .filter(
+            (item) =>
+              item.record.job.workspaceId === account?.workspaceId &&
+              item.record.job.connectionId === account.connectionId,
+          )
+      : [];
   }
   async refresh(): Promise<void> {
     if (this.destroyed || this.refreshing || !this.binding()) return;
@@ -110,8 +134,18 @@ export class VintedRelistingPlanStore {
       }
       // Erst die Lesekopie übernehmen, dann die bisher sichtbare Karte entfernen.
       if (!snapshotLoaded) plans.push(...missing);
+      plans.push(
+        ...this.pendingPlans()
+          .filter((item) => !plans.some((plan) => plan.job.id === item.record.job.id))
+          .map((item) => ({
+            ...item.record,
+            imageUrl: item.imageUrl,
+            label: this.label(item.record.job),
+          })),
+      );
       if (generation !== this.generation) return;
       this.plans.set(plans);
+      records.forEach(({ job }) => this.operations.releaseRelisting(job));
       this.error.set(null);
       this.cache.clear();
       plans.forEach((plan) => this.cache.set(plan.job.id, plan));

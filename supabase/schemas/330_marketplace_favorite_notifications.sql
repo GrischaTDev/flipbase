@@ -137,7 +137,7 @@ declare v_context jsonb; v_setting public.marketplace_favorite_notification_sett
 begin
   v_context := nullif(current_setting('flipbase.favorite_notification_import',true),'')::jsonb;
   if old.kind <> 'publication' or new.kind <> 'publication' or new.observed_at <= old.observed_at
-    or new.workspace_id is distinct from old.workspace_id or new.connection_id is distinct from old.connection_id
+    or new.workspace_id is distinct from old.workspace_id or new.connection_id is distinct from old.connection_id or new.external_id is distinct from old.external_id
     or v_context is null or v_context->>'workspaceId' <> new.workspace_id::text
     or v_context->>'connectionId' <> new.connection_id::text
     or (v_context->>'observedAt')::timestamptz <> new.observed_at then return new; end if;

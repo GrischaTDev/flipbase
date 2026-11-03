@@ -20,6 +20,7 @@ import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { parseVintedListingJob } from '../../models/vinted-listing-job';
 import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-plan';
 import { vintedListingSourceContent } from '../../models/vinted-listing-source';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
 afterEach(() => {
@@ -266,6 +267,10 @@ function pendingPlans() {
   const listPlans = vi.fn().mockReturnValueOnce(first).mockResolvedValue([]);
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal({ id: accountA.workspaceId }) },
+      },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'plan-user' }) } },
       {
         provide: MarketplaceAccountStore,
@@ -334,6 +339,7 @@ function acceptedPlan(): VintedRelistingPlanRecord {
       createdAt: draft.createdAt,
       updatedAt: draft.updatedAt,
       relistExternalId: '123',
+      relistDeletedAt: '2026-11-03T11:55:00Z',
       itemTitle: draft.content.title,
     },
     draft.workspaceId,
@@ -341,6 +347,7 @@ function acceptedPlan(): VintedRelistingPlanRecord {
   return { job, draft };
 }
 function loadedPlanStore(record = acceptedPlan()) {
+  const selectedConnection = signal({ ...accountA, connectionId: record.job.connectionId! });
   const listPlans = vi.fn().mockResolvedValue([record]);
   const reloadImportedSnapshot = vi.fn().mockResolvedValue(true);
   const load = vi.fn().mockResolvedValue({
@@ -354,12 +361,16 @@ function loadedPlanStore(record = acceptedPlan()) {
       {
         provide: MarketplaceAccountStore,
         useValue: {
-          selectedConnection: signal({ ...accountA, connectionId: record.job.connectionId! }),
+          selectedConnection,
           canManage: signal(true),
           reloadImportedSnapshot,
         },
       },
       { provide: VintedListingJobService, useValue: { listPlans } },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal({ id: accountA.workspaceId }) },
+      },
       { provide: VintedListingDraftService, useValue: { load } },
       {
         provide: VintedListingImageService,
@@ -368,14 +379,78 @@ function loadedPlanStore(record = acceptedPlan()) {
     ],
   });
   const plans = TestBed.runInInjectionContext(() => new VintedRelistingPlanStore());
-  return { plans, listPlans, load, reloadImportedSnapshot };
+  return { plans, listPlans, load, reloadImportedSnapshot, selectedConnection };
 }
+it('hält die bestätigte Jobannahme über verspätete und fehlgeschlagene erste Planabrufe bis zum Serverplan gesperrt', async () => {
+  const record = acceptedPlan();
+  const f = loadedPlanStore(record);
+  f.listPlans.mockResolvedValue([]);
+  await settlePlans();
+  const source = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          connectionId: record.job.connectionId!,
+          id: '46300000-0000-4000-8000-000000000099',
+          externalId: '123',
+          title: 'Quelle',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    { ...accountA, connectionId: record.job.connectionId! },
+  ).items[0]!;
+  const operations = TestBed.inject(VintedListingOperationStore);
+  operations.acceptRelisting(source, record.job, record.draft, 'plan-user');
+  await settlePlans();
+  expect(f.plans.plans()[0]?.job.id).toBe(record.job.id);
+  expect(f.listPlans).toHaveBeenCalledTimes(2);
+  f.listPlans.mockRejectedValue(new Error('offline'));
+  await f.plans.refresh();
+  expect(f.plans.plans()).toHaveLength(1);
+  expect(operations.acceptedRelistings()).toHaveLength(1);
+  f.selectedConnection.set(accountB);
+  await settlePlans();
+  expect(f.plans.plans()).toEqual([]);
+  f.listPlans.mockResolvedValue([{ ...record, job: { ...record.job, state: 'failed' } }]);
+  f.selectedConnection.set({ ...accountA, connectionId: record.job.connectionId! });
+  await settlePlans();
+  expect(f.plans.plans()[0]?.job.state).toBe('failed');
+  expect(operations.acceptedRelistings()).toEqual([]);
+});
 it('stellt die angenommene Aufnahme dar, auch wenn ein neuerer Entwurf nicht beauftragt wurde', async () => {
   const f = loadedPlanStore();
   await settlePlans();
   expect(f.plans.plans()[0]?.draft.content.title).toBe('Beauftragte Jacke');
   expect(f.plans.plans()[0]?.draft.content.priceCents).toBe(2000);
   expect(f.load).not.toHaveBeenCalled();
+});
+it('zeigt vor dem Löschbeleg nur Vorbereitung und erfindet keine relative Restzeit', async () => {
+  const record = acceptedPlan();
+  const f = loadedPlanStore({
+    ...record,
+    job: {
+      ...record.job,
+      scheduledAt: null,
+      timeZone: null,
+      relistDelaySeconds: 300,
+      relistDeletedAt: null,
+    },
+  });
+  await settlePlans();
+  expect(f.plans.plans()[0]?.label).toBe('Wird vorbereitet');
+  expect(f.plans.canEdit(f.plans.plans()[0]!.job)).toBe(false);
+  expect(f.plans.canEdit({ ...f.plans.plans()[0]!.job, state: 'failed' })).toBe(true);
+  expect(f.plans.canEdit({ ...f.plans.plans()[0]!.job, state: 'cancelled' })).toBe(false);
+  expect(
+    f.plans.canEdit({
+      ...f.plans.plans()[0]!.job,
+      state: 'cancelled',
+      relistDeletedAt: '2026-11-03T12:00:00Z',
+    }),
+  ).toBe(true);
 });
 it('zählt auf dem vorhandenen Takt weiter und behauptet beim Termin noch keine Ausführung', async () => {
   vi.useFakeTimers();
@@ -399,7 +474,7 @@ it('zählt auf dem vorhandenen Takt weiter und behauptet beim Termin noch keine 
 });
 it.each([
   ['claimed', null, 'Wird vorbereitet'],
-  ['writing', null, 'Inserat wird gelöscht'],
+  ['writing', null, 'Wird vorbereitet'],
   ['claimed', '2026-11-03T12:00:00Z', 'Wird vorbereitet'],
   ['writing', '2026-11-03T12:00:00Z', 'Wird inseriert'],
 ] as const)(
@@ -412,6 +487,148 @@ it.each([
     expect(f.plans.canEdit(f.plans.plans()[0]!.job)).toBe(false);
   },
 );
+it('bindet dieselbe Karte vor Löschung, bei Fehlern und bis zum neuen importierten Inserat dauerhaft an die Entry-ID', () => {
+  const { component } = setup('');
+  const stableId = '46300000-0000-4000-8000-000000000099';
+  const page = parseMarketplacePage(
+    {
+      items: [
+        { ...accountA, id: 'before', externalId: '122', title: 'Vorher' },
+        {
+          ...accountA,
+          id: stableId,
+          externalId: '123',
+          title: 'Quelle',
+          metrics: { views: 80, favorites: 9, observedAt: '2026-11-03T12:00:00Z' },
+          publishedAt: '2026-10-01T12:00:00Z',
+        },
+        { ...accountA, id: 'after', externalId: '124', title: 'Nachher' },
+      ],
+      total: 3,
+      nextCursor: null,
+    },
+    accountA,
+  );
+  const currentPage = signal(page);
+  vi.spyOn(component, 'page').mockImplementation(() => currentPage());
+  const record = acceptedPlan();
+  const plan = {
+    ...record,
+    job: {
+      ...record.job,
+      connectionId: accountA.connectionId,
+      relistEntryId: stableId,
+      state: 'claimed' as const,
+      scheduledAt: null,
+      timeZone: null,
+      relistDeletedAt: null,
+    },
+    imageUrl: null,
+    label: 'Wird vorbereitet',
+  };
+  component.plans.plans.set([plan]);
+  TestBed.tick();
+  expect(component.tableRows().map((row) => row.entry.id)).toEqual(['before', stableId, 'after']);
+  expect(component.actionsBlocked(component.tableRows()[1]!.entry)).toBe(true);
+  component.plans.plans.set([
+    { ...plan, job: { ...plan.job, state: 'failed' }, label: 'Fehlgeschlagen' },
+  ]);
+  currentPage.set({ ...page, items: [page.items[0]!, page.items[2]!] });
+  TestBed.tick();
+  expect(component.tableRows().map((row) => row.entry.id)).toEqual(['before', stableId, 'after']);
+  expect(component.actionsBlocked(component.tableRows()[1]!.entry)).toBe(true);
+  const imported = {
+    ...page.items[1]!,
+    id: 'temporary-new-cache-entry',
+    externalId: '456',
+    metrics: { views: 2, favorites: 1, observedAt: '2026-11-03T13:00:00Z' },
+    publishedAt: '2026-11-03T13:00:00Z',
+    createdAt: '2026-11-03T13:00:00Z',
+  };
+  component.plans.plans.set([
+    {
+      ...plan,
+      job: {
+        ...plan.job,
+        state: 'confirmed',
+        externalId: '456',
+        relistDeletedAt: '2026-11-03T12:55:00Z',
+      },
+      label: 'Veröffentlicht',
+    },
+  ]);
+  currentPage.set({ ...page, items: [...page.items, imported] });
+  TestBed.tick();
+  expect(component.tableRows().map((row) => row.entry.id)).toEqual(['before', stableId, 'after']);
+  expect(component.tableRows()[1]?.entry).toMatchObject({
+    externalId: '456',
+    metrics: imported.metrics,
+    publishedAt: imported.publishedAt,
+  });
+  expect(component.actionsBlocked(component.tableRows()[1]!.entry)).toBe(true);
+  currentPage.set({
+    ...page,
+    items: [page.items[0]!, { ...imported, id: stableId }, page.items[2]!],
+  });
+  component.plans.plans.set([]);
+  TestBed.tick();
+  expect(component.tableRows().map((row) => row.entry.id)).toEqual(['before', stableId, 'after']);
+  expect(component.tableRows()[1]?.entry.metrics).toEqual(imported.metrics);
+});
+
+it('verwendet die servergebundene Entry-ID auch ohne flüchtige Quellkarte', () => {
+  const { component } = setup('');
+  const record = acceptedPlan();
+  const stableId = '46300000-0000-4000-8000-000000000099';
+  component.plans.plans.set([
+    {
+      ...record,
+      job: {
+        ...record.job,
+        connectionId: accountA.connectionId,
+        relistEntryId: stableId,
+        state: 'failed',
+      },
+      imageUrl: null,
+      label: 'Fehlgeschlagen',
+    },
+  ]);
+  TestBed.tick();
+  expect(component.tableRows()[0]?.entry.id).toBe(stableId);
+  expect(component.actionsBlocked(component.tableRows()[0]!.entry)).toBe(true);
+});
+it('sperrt die angenommene Übergabe schon vor dem nächsten Component-Takt gegen normale Aktionen', () => {
+  const { component } = setup('');
+  const record = acceptedPlan();
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: '46300000-0000-4000-8000-000000000099',
+          externalId: '123',
+          title: 'Quelle',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0]!;
+  const job = { ...record.job, connectionId: entry.connectionId, relistEntryId: entry.id };
+  component.operations.acceptRelisting(
+    entry,
+    job,
+    { ...record.draft, connectionId: entry.connectionId },
+    'price-user',
+  );
+  expect(component.plans.plans()).toEqual([]);
+  expect(component.actionsBlocked(entry)).toBe(true);
+  component.openEditor(entry, 'template');
+  component.changePrice(entry, new MouseEvent('click'));
+  expect(component.editorSource()).toBeNull();
+  expect(component.priceEditor.open()).toBe(false);
+});
 it('erhält Artikelstand und Position von Vorbereitung über Planung bis zur Ausführung kontogebunden', async () => {
   const { component, store } = setup('');
   const page = parseMarketplacePage(
@@ -618,7 +835,7 @@ it('blendet beim bestätigten Übergang alte und neue Cachekarte aus, bis die ne
   ]);
   TestBed.tick();
   expect(component.entries()).toEqual([]);
-  expect(component.tableRows().map((row) => row.entry.externalId)).toEqual(['123']);
+  expect(component.tableRows().map((row) => row.entry.externalId)).toEqual(['456']);
   expect(component.tableRows()[0]?.plan?.job.state).toBe('confirmed');
   component.plans.plans.set([]);
   currentPage.set({ ...old, items: [old.items[1]!] });
