@@ -69,6 +69,20 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 - **Vor größeren Änderungen an geteilten Dateien** dort nachsehen, wer zuletzt
   daran war.
 
+## Fehlerdiagnose
+
+- **Den kleinsten vollständigen betroffenen Ablauf früh prüfen**, bevor
+  Diagnosehilfen ausgebaut werden. Einzelne erfolgreiche Teilschritte ersetzen
+  diesen Funktionsnachweis nicht.
+- **Künstliche Zugriffssperren auf selbst erzeugte Fehler prüfen.** Die
+  HTTP-Methode allein belegt keine Speicherung; Zweck und tatsächliche Wirkung
+  des konkreten Endpunkts prüfen. Bestehende Schreibfreigaben bleiben verbindlich.
+- **Spätestens nach 20 Minuten ohne neue Erkenntnis die Methode wechseln.**
+  Belegten Befund, verbleibende Erkenntnislücke und konkreten Methodenwechsel
+  festhalten, statt ähnliche Varianten anzuhängen. Im bereits freigegebenen
+  Umfang mit der anderen Methode weiterarbeiten; dafür ist keine neue Freigabe
+  nötig.
+
 ## Arbeitsbeginn und neue Zweige
 
 - **Vor jeder neuen Aufgabe den lokalen Stand mit GitHub abgleichen.** Zuerst
@@ -142,7 +156,9 @@ Diese Schritte führt die arbeitende KI **vor jedem PR, auch einem Entwurfs-PR,
 und vor jedem weiteren Push auf einen offenen PR selbst aus**. Der lokale
 Vorabcheck liefert den Entwicklungsnachweis; GitHub prüft den ausgewählten
 Freigabeumfang vor dem Merge. Eine vollständige CI lokal nachzubauen ist keine
-Voraussetzung für einen PR.
+Voraussetzung für einen PR. Während der Entwicklung gezielt prüfen; den breiteren
+Pflichtcheck am zusammenhängenden Korrekturstand ausführen. Bestandene Prüfungen
+unveränderter Teile nach den folgenden Regeln weiterverwenden.
 
 1. **Geänderte Dateien automatisch formatieren.** Mit den installierten
    Projektabhängigkeiten gezielt die eigenen, von Prettier unterstützten Dateien
@@ -244,7 +260,7 @@ oder Regeländerung löst dadurch keine vollständige Anwendungstestsuite aus.
   zugehörigen Auswahlscripte, verbindlichen Soll-Listen und Suite-Prüfungen lokal
   ausführen. Ein einzeln bestandener Test belegt nicht, dass ihn die CI korrekt
   auswählt.
-- **Den betroffenen Ablauf früh bestätigen.** Bestehende passende Browserfälle
+- **Browsernachweise passend zum Ablauf wählen.** Bestehende passende Browserfälle
   oder eine gezielte Bedienprüfung nutzen, wenn nur der Browser die Änderung
   sinnvoll nachweist. Kein neuer Browsertest allein wegen einer geänderten Datei.
   Tests gegen eine ruhende Vorschau ausführen; keinen parallelen Bau starten,
