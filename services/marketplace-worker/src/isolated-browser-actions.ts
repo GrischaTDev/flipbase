@@ -515,6 +515,7 @@ export async function executeBrowserAction(
                 'externalId',
                 'sourceUpdatedAt',
                 'detailCheckedAt',
+                'detailAttemptedAt',
                 'text',
                 'occurredAt',
                 'itemId',
@@ -536,7 +537,17 @@ export async function executeBrowserAction(
           version.saleTrackingVersion !== 2
         )
           throw new Error('Ungültiger Verkaufsprüfstand');
+        const detailAttemptedAt = version.detailAttemptedAt;
+        if (
+          detailAttemptedAt !== undefined &&
+          detailAttemptedAt !== null &&
+          (typeof detailAttemptedAt !== 'string' ||
+            detailAttemptedAt.length > 64 ||
+            !Number.isFinite(Date.parse(detailAttemptedAt)))
+        )
+          throw new Error('Ungültiger Gesprächscache');
         return {
+          ...(detailAttemptedAt === undefined ? {} : { detailAttemptedAt }),
           ...(version.saleTrackingVersion === 1 || version.saleTrackingVersion === 2
             ? { saleTrackingVersion: version.saleTrackingVersion as 1 | 2 }
             : {}),
@@ -1201,10 +1212,10 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       typeof batch.complete !== 'boolean' ||
       !Number.isFinite(Date.parse(text(batch.observedAt, 64))) ||
       !Array.isArray(batch.events) ||
-      batch.events.length > 600 ||
+      batch.events.length > 2000 ||
       !Array.isArray(batch.coveredConversationIds) ||
-      batch.coveredConversationIds.length > 3 ||
-      Buffer.byteLength(JSON.stringify(batch)) > 200 * 1024
+      batch.coveredConversationIds.length > 10 ||
+      Buffer.byteLength(JSON.stringify(batch)) > 512 * 1024
     )
       throw new Error('Ungültige Postfachereignisse');
     batch.coveredConversationIds.forEach(identifier);

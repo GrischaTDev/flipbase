@@ -138,6 +138,12 @@ export class SupabaseVintedImportWriter {
           externalId: row['external_id'],
           sourceUpdatedAt: body['sourceUpdatedAt'],
           detailCheckedAt: body['detailCheckedAt'],
+          ...(body['detailAttemptedAt'] === null ||
+          (typeof body['detailAttemptedAt'] === 'string' &&
+            body['detailAttemptedAt'].length <= 64 &&
+            Number.isFinite(Date.parse(body['detailAttemptedAt'])))
+            ? { detailAttemptedAt: body['detailAttemptedAt'] }
+            : {}),
           text: typeof body['text'] === 'string' ? body['text'] : null,
           occurredAt: typeof body['occurredAt'] === 'string' ? body['occurredAt'] : null,
           itemId: typeof body['itemId'] === 'string' ? body['itemId'] : null,
