@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { IpRoyalCloudIpSync } from '../src/iproyal-cloud-ip-sync.ts';
 import { ChromiumNetworkProfiles } from '../src/chromium-network-profiles.ts';
+import { IpRoyalCloudIpMaintenance } from '../src/iproyal-cloud-ip-maintenance.ts';
 
 const ip = '8.8.8.8';
 const fingerprint = createHash('sha256').update(ip).digest('hex');
@@ -258,6 +259,40 @@ test('preserves an existing manual network and disabled setting while refreshing
     await rm(item.root, { recursive: true, force: true });
   }
 });
+test('periodic maintenance recognizes provider renewal of the same expired IP without reopening account permissions', async () => {
+  const item = await fixture(true);
+  try {
+    assert.ok(item.rows[0]);
+    item.rows[0]['expires_at'] = '2026-10-04T00:00:00.000Z';
+    item.rows[0]['enabled'] = false;
+    const before = await readFile(item.file, 'utf8');
+    const service = new IpRoyalCloudIpMaintenance({
+      refreshInventory: () => item.service.refresh(),
+      report: () => assert.fail('renewed purchased IP should refresh successfully'),
+    });
+    await service.reconcile();
+    assert.equal(item.rows[0]['expires_at'], '2099-01-31T00:00:00.000Z');
+    assert.equal(item.rows[0]['network_id'], 'iproyal-pilot-a');
+    assert.equal(item.rows[0]['order_reference'], '123');
+    assert.equal(item.rows[0]['enabled'], false);
+    assert.equal(await readFile(item.file, 'utf8'), before);
+    assert.equal(
+      item.requests.some((request) =>
+        /marketplace_(cloud_setups|sync_schedules)/.test(request.url.pathname),
+      ),
+      false,
+    );
+    assert.equal(
+      item.requests.some(
+        (request) => request.url.hostname === 'apid.iproyal.com' && request.method !== 'GET',
+      ),
+      false,
+    );
+  } finally {
+    await rm(item.root, { recursive: true, force: true });
+  }
+});
+
 test('missing provider orders expire inventory without deleting bindings or credentials', async () => {
   const item = await fixture(true);
   try {

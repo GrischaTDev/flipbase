@@ -3,7 +3,9 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
+  BrowserTestSessionBusyError,
   BrowserTestSessionEndedError,
+  CloudNetworkUnavailableError,
   GoLoginApiLimitError,
   GoLoginProfileLimitError,
   VintedLoginPendingError,
@@ -749,7 +751,10 @@ export class MarketplaceBrowserTestStore {
     this.errorState.set({
       key,
       message:
-        error instanceof GoLoginApiLimitError || error instanceof GoLoginProfileLimitError
+        error instanceof BrowserTestSessionBusyError ||
+        error instanceof CloudNetworkUnavailableError ||
+        error instanceof GoLoginApiLimitError ||
+        error instanceof GoLoginProfileLimitError
           ? error.message
           : 'Die Browsersitzung konnte nicht bestätigt werden.',
     });

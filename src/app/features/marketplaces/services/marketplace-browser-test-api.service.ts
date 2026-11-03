@@ -145,6 +145,22 @@ export class BrowserTestSessionEndedError extends Error {
   }
 }
 
+export class BrowserTestSessionBusyError extends Error {
+  constructor() {
+    super(
+      'Der Browser ist gerade durch eine andere Aktion belegt oder wird beendet. Versuche es gleich erneut.',
+    );
+  }
+}
+
+export class CloudNetworkUnavailableError extends Error {
+  constructor() {
+    super(
+      'Die Cloud-Verbindung dieses Kontos ist nicht verfügbar. Prüfe die Cloud-IP und ihre Laufzeit.',
+    );
+  }
+}
+
 export class GoLoginApiLimitError extends Error {
   constructor() {
     super(
@@ -295,9 +311,14 @@ export class MarketplaceBrowserTestApiService {
           'code' in body &&
           body.code === 'browser_session_busy'
         )
-          throw new Error(
-            'Eine Browsersitzung läuft bereits oder wird beendet. Setze Deine offene Anmeldung fort oder warte auf den Abschluss der laufenden Sitzung.',
-          );
+          throw new BrowserTestSessionBusyError();
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'cloud_network_unavailable'
+        )
+          throw new CloudNetworkUnavailableError();
       }
       if (response.status === 503) {
         const body: unknown = await response.json().catch(() => null);

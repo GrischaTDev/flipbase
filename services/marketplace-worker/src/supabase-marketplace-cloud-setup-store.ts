@@ -46,6 +46,13 @@ export class CloudSetupBlockedError extends Error {
   }
 }
 
+/** Die Kontoverbindung bleibt gesperrt, solange ihre Cloud-IP nicht gültig ist. */
+export class CloudNetworkUnavailableError extends Error {
+  constructor() {
+    super('Die Cloud-Verbindung dieses Kontos ist nicht verfügbar.');
+  }
+}
+
 /** Öffentliche Benutzerprüfung und private Workerübergänge bleiben getrennte Anfragen. */
 export class SupabaseMarketplaceCloudSetupStore {
   private readonly options: StoreOptions;
@@ -169,7 +176,7 @@ export class SupabaseMarketplaceCloudSetupStore {
         p_workspace_id: scope.workspaceId,
         p_connection_id: scope.connectionId,
       });
-      if (valid !== true) throw invalid();
+      if (valid !== true) throw new CloudNetworkUnavailableError();
       return null;
     }
     const row = rows[0];
@@ -193,7 +200,7 @@ export class SupabaseMarketplaceCloudSetupStore {
       typeof ip['expires_at'] !== 'string' ||
       !(Date.parse(ip['expires_at']) > Date.now())
     )
-      throw invalid();
+      throw new CloudNetworkUnavailableError();
     return { profileId: row['provider_profile_id'], networkId: ip['network_id'] };
   }
   async rows(table: string, filters: Record<string, string>): Promise<unknown[]> {

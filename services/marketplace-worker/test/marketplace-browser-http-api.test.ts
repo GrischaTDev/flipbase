@@ -17,6 +17,7 @@ import {
   parseVintedAccountImport,
 } from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
+import { CloudNetworkUnavailableError } from '../src/supabase-marketplace-cloud-setup-store.ts';
 import {
   VintedInteractionRequiredError,
   VintedLoginPendingError,
@@ -161,6 +162,7 @@ async function setup(
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
+  let opens = 0;
   let runs = 0;
   let closes = 0;
   const browser: BrowserInfo = {
@@ -206,6 +208,7 @@ async function setup(
   };
   const broker = {
     open: async (scope: BrowserSessionScope) => {
+      opens++;
       owner = scope;
       return sessionId;
     },
@@ -275,7 +278,15 @@ async function setup(
     new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
-  return { request, close, url, inputs, runs: () => runs, closes: () => closes };
+  return {
+    request,
+    close,
+    url,
+    inputs,
+    runs: () => runs,
+    closes: () => closes,
+    opens: () => opens,
+  };
 }
 
 test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speichern', async () => {
@@ -1044,6 +1055,23 @@ test('prepares the bound browser profile before opening and hides provider error
     assert.equal((await response.text()).includes('provider-token-must-stay-private'), false);
   } finally {
     await failed.close();
+  }
+});
+
+test('unavailable cloud network returns only a fixed code before opening a browser', async () => {
+  const api = await setup(undefined, undefined, false, undefined, async () => {
+    throw new CloudNetworkUnavailableError();
+  });
+  try {
+    const response = await api.request('/marketplace-browser/sessions', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+    });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { code: 'cloud_network_unavailable' });
+    assert.equal(api.opens(), 0);
+  } finally {
+    await api.close();
   }
 });
 

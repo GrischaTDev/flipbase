@@ -38,7 +38,10 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-profile-contracts.d.ts';
 import type { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import type { CloudSetupRequest } from './marketplace-cloud-setup-contracts.d.ts';
-import { CloudSetupBlockedError } from './supabase-marketplace-cloud-setup-store.ts';
+import {
+  CloudNetworkUnavailableError,
+  CloudSetupBlockedError,
+} from './supabase-marketplace-cloud-setup-store.ts';
 import type { VintedListingCategoryAccess } from './vinted-listing-category-access.ts';
 import {
   parseVintedListingCategoryFields,
@@ -1589,6 +1592,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (error instanceof MarketplaceBrowserSessionBusyError) {
         json(response, 409, { code: 'browser_session_busy' });
+        return;
+      }
+      if (error instanceof CloudNetworkUnavailableError) {
+        json(response, 409, { code: 'cloud_network_unavailable' });
         return;
       }
       const status =
