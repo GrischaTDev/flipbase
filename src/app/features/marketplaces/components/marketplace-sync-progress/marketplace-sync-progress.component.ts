@@ -37,6 +37,20 @@ const STAGE_LABELS: Record<string, string> = {
   cleanup: 'Verbindung beenden',
 };
 
+type StepStatus =
+  'complete' | 'active' | 'failed' | 'incomplete' | 'partial' | 'pending' | 'skipped' | 'open';
+
+const STEP_STATUS_LABELS: Record<StepStatus, string> = {
+  complete: 'Abgeschlossen',
+  active: 'Läuft',
+  failed: 'Fehlgeschlagen',
+  incomplete: 'Nicht vollständig',
+  partial: 'Teilweise',
+  pending: 'Ausstehend',
+  skipped: 'Nicht ausgeführt',
+  open: 'Noch offen',
+};
+
 const ERROR_EXPLANATIONS: Record<string, { summary: string; detail: string }> = {
   identity: {
     summary: 'Sitzung nicht mehr aktiv (HTTP 401)',
@@ -91,8 +105,8 @@ export interface SyncDiagnosticInfo {
   selector: 'app-marketplace-sync-progress',
   imports: [ModalShellComponent, ButtonComponent, NoticeBannerComponent],
   templateUrl: './marketplace-sync-progress.component.html',
-  styleUrl: './marketplace-sync-progress.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
 })
 export class MarketplaceSyncProgressComponent {
   readonly progress = input<MarketplaceSyncProgress | null>(null);
@@ -118,6 +132,13 @@ export class MarketplaceSyncProgressComponent {
     );
   });
 
+  readonly stepResults = computed(() =>
+    steps.map((step, index) => {
+      const status = this.stepStatus(index);
+      return { ...step, status, statusLabel: STEP_STATUS_LABELS[status] };
+    }),
+  );
+
   readonly diagnosticInfo = computed<SyncDiagnosticInfo>(() => {
     const currentProgress = this.progress();
     const hasError = this.error() !== null || currentProgress?.state === 'failed';
@@ -141,30 +162,27 @@ export class MarketplaceSyncProgressComponent {
   });
 
   completed(index: number): boolean {
+    return this.stepStatus(index) === 'complete';
+  }
+
+  private stepStatus(index: number): StepStatus {
     const progress = this.progress();
     const step = steps[index];
-    if (!step) return false;
+    if (!step) return 'pending';
+    const current = index === this.currentIndex();
+    if (current && progress?.state === 'failed') return 'failed';
+    if (current && (progress?.state === 'running' || progress?.state === 'queued')) return 'active';
+    const terminal = progress?.state === 'succeeded' || progress?.state === 'failed';
+    if (progress?.state !== 'succeeded' && index >= this.currentIndex()) {
+      return terminal ? 'skipped' : 'pending';
+    }
+    if (step.id === 'cleanup' && progress?.errorCode === 'cleanup') return 'open';
     const results = progress?.sourceResults;
-    if (
-      results &&
-      stepSources[step.id]?.some(
-        (source) => results[source].status !== 'complete' || !!results[source].failure,
-      )
-    )
-      return false;
-    return (
-      progress?.state === 'succeeded' ||
-      (progress?.state === 'running' && index < this.currentIndex())
-    );
-  }
-
-  active(index: number): boolean {
-    const state = this.progress()?.state;
-    return (state === 'running' || state === 'queued') && index === this.currentIndex();
-  }
-
-  failed(index: number): boolean {
-    return this.progress()?.state === 'failed' && index === this.currentIndex();
+    const sources = stepSources[step.id]?.map((source) => results?.[source]);
+    if (sources?.some((result) => result?.status === 'failed' || result?.failure))
+      return 'incomplete';
+    if (sources?.some((result) => result?.status === 'partial')) return 'partial';
+    return 'complete';
   }
 
   toggleDiagnostics(): void {

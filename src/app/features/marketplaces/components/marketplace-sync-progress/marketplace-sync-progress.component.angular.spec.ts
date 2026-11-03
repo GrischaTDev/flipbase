@@ -103,6 +103,10 @@ describe('MarketplaceSyncProgressComponent', () => {
     expect(component.completed(2)).toBe(false);
     expect(component.completed(3)).toBe(false);
     expect(component.completed(4)).toBe(true);
+    const rows = element.querySelectorAll('ol > li');
+    expect(rows[2].textContent).toContain('Nicht vollständig');
+    expect(rows[3].textContent).toContain('Teilweise');
+    expect(rows[4].textContent).toContain('Abgeschlossen');
   });
 
   it('behandelt ungelesene Nachrichten als unvollständig ohne Abruffehler zu behaupten', () => {
@@ -127,6 +131,68 @@ describe('MarketplaceSyncProgressComponent', () => {
     expect(element.textContent).not.toContain('nicht vollständig aktualisiert');
     expect(component.completed(3)).toBe(false);
     expect(component.completed(4)).toBe(true);
+    expect(element.querySelectorAll('ol > li')[3].textContent).toContain('Teilweise');
+  });
+
+  it('behält bestätigte Schritte bei einem späteren Abbruch und kennzeichnet ausstehende Schritte', () => {
+    fixture.componentRef.setInput('progress', {
+      id: 'op-interrupted',
+      state: 'failed',
+      stage: 'sales',
+      errorCode: 'sales',
+    });
+    fixture.detectChanges();
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('ol > li');
+    expect(rows[1].textContent).toContain('Abgeschlossen');
+    expect(rows[4].textContent).toContain('Fehlgeschlagen');
+    expect(rows[5].textContent).toContain('Nicht ausgeführt');
+  });
+
+  it('bestätigt bei einem erfolgreichen Import keine noch offene Browserbereinigung', () => {
+    fixture.componentRef.setInput('progress', {
+      id: 'op-cleanup',
+      state: 'succeeded',
+      stage: 'cleanup',
+      errorCode: 'cleanup',
+    });
+    fixture.detectChanges();
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('ol > li');
+    expect(rows[5].textContent).toContain('Abgeschlossen');
+    expect(rows[6].textContent).toContain('Noch offen');
+  });
+
+  it('zeigt nach laufenden Schritten den dauerhaften Teilstatus für Nachrichten und Verkäufe', () => {
+    const progress = {
+      id: 'op-transition',
+      state: 'running',
+      stage: 'conversations',
+      errorCode: null,
+    };
+    fixture.componentRef.setInput('progress', progress);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('ol > li')[3].textContent).toContain('Läuft');
+    expect(element.querySelectorAll('ol > li')[4].textContent).toContain('Ausstehend');
+
+    fixture.componentRef.setInput('progress', {
+      ...progress,
+      state: 'succeeded',
+      stage: 'cleanup',
+      sourceResults: {
+        profile: { status: 'complete' },
+        publications: { status: 'complete' },
+        conversations: { status: 'complete' },
+        messages: { status: 'partial' },
+        sales: { status: 'partial' },
+        feedback: { status: 'complete' },
+      },
+    });
+    fixture.detectChanges();
+    const rows = element.querySelectorAll('ol > li');
+    expect(rows[3].textContent).toContain('Teilweise');
+    expect(rows[4].textContent).toContain('Teilweise');
+    expect(element.querySelector('[aria-label="Läuft"]')).toBeNull();
+    expect(element.querySelector('app-notice-banner')).toBeNull();
   });
 
   it('zeigt keine Diagnose-Details im regulären fehlerfreien Zustand', () => {

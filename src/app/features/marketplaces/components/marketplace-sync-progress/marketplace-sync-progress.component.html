@@ -1,11 +1,10 @@
 <app-modal-shell
   title="Kontodaten aktualisieren"
-  subtitle="Flipbase zeigt die bestätigten Schritte des Datenabrufs."
-  size="md"
+  size="sm"
   [hasFooter]="false"
   (closed)="closed.emit()"
 >
-  <p role="status" aria-live="polite" class="mb-5 text-sm text-fb-text-secondary">
+  <p role="status" aria-live="polite" class="text-[13px] leading-5 text-fb-text-secondary">
     @if (error() && !progress()?.id) {
       Die Aktualisierung konnte nicht gestartet werden.
     } @else {
@@ -38,7 +37,7 @@
     }
   </p>
   @if (warningSources().length) {
-    <app-notice-banner class="mb-5" announcement="alert">
+    <app-notice-banner announcement="alert">
       <p>
         Einige Bereiche wurden nicht vollständig aktualisiert; bisherige Daten bleiben erhalten:
       </p>
@@ -50,33 +49,55 @@
     </app-notice-banner>
   }
   @if (!error() || progress()?.id) {
-    <ol class="space-y-3" aria-label="Schritte der Aktualisierung">
-      @for (step of steps; track step.id; let index = $index) {
-        <li class="flex items-center gap-3 rounded-xl border border-fb-line px-3 py-2.5">
+    <ol class="divide-y divide-fb-line" aria-label="Schritte der Aktualisierung">
+      @for (step of stepResults(); track step.id) {
+        <li class="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0">
           <span
-            class="flex size-7 shrink-0 items-center justify-center rounded-full"
-            [class.bg-fb-success-surface]="completed(index)"
-            [class.text-fb-success]="completed(index)"
-            [class.bg-fb-brand-surface]="active(index)"
-            [class.bg-fb-critical-surface]="failed(index)"
-            [class.text-fb-critical]="failed(index)"
-            [class.bg-fb-surface-secondary]="!completed(index) && !active(index) && !failed(index)"
+            class="flex size-6 shrink-0 items-center justify-center rounded-full text-xs"
+            [class.bg-fb-success-surface]="step.status === 'complete'"
+            [class.text-fb-success]="step.status === 'complete'"
+            [class.bg-fb-brand-surface]="step.status === 'active'"
+            [class.bg-fb-critical-surface]="
+              step.status === 'failed' || step.status === 'incomplete'
+            "
+            [class.text-fb-critical]="step.status === 'failed' || step.status === 'incomplete'"
+            [class.bg-fb-surface-secondary]="
+              step.status === 'pending' ||
+              step.status === 'skipped' ||
+              step.status === 'partial' ||
+              step.status === 'open'
+            "
+            [class.text-fb-text-secondary]="
+              step.status === 'pending' ||
+              step.status === 'skipped' ||
+              step.status === 'partial' ||
+              step.status === 'open'
+            "
           >
-            @if (completed(index)) {
+            @if (step.status === 'complete') {
               <span role="img" aria-label="Abgeschlossen">✓</span>
-            } @else if (active(index)) {
+            } @else if (step.status === 'active') {
               <span
                 class="size-4 animate-spin rounded-full border-2 border-fb-primary border-t-transparent motion-reduce:animate-none"
                 aria-label="Läuft"
                 role="img"
               ></span>
-            } @else if (failed(index)) {
-              <span role="img" aria-label="Fehlgeschlagen">!</span>
+            } @else if (step.status === 'failed' || step.status === 'incomplete') {
+              <span aria-hidden="true">!</span>
+            } @else if (step.status === 'partial' || step.status === 'open') {
+              <span aria-hidden="true">−</span>
             } @else {
-              <span class="size-2 rounded-full bg-fb-text-muted" aria-hidden="true"></span>
+              <span class="size-1.5 rounded-full bg-fb-text-muted" aria-hidden="true"></span>
             }
           </span>
-          <span class="text-sm text-fb-text-primary">{{ step.label }}</span>
+          <span class="min-w-0 flex-1 text-[13px] leading-5 text-fb-text-primary">{{
+            step.label
+          }}</span>
+          <span
+            class="max-w-24 text-right text-[11px] leading-4 text-fb-text-secondary"
+            [class.font-medium]="step.status === 'active'"
+            >{{ step.statusLabel }}</span
+          >
         </li>
       }
     </ol>
@@ -102,21 +123,15 @@
   }
   @if (diagnosticInfo().hasError) {
     <div class="mt-5 border-t border-fb-line pt-3">
-      <button
-        type="button"
-        class="flex w-full items-center justify-between text-xs font-medium text-fb-text-secondary hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-        [attr.aria-expanded]="showDiagnostics()"
-        aria-controls="sync-diagnostics-panel"
-        (click)="toggleDiagnostics()"
+      <app-button
+        variant="ghost"
+        size="slim"
+        [ariaExpanded]="showDiagnostics()"
+        ariaControls="sync-diagnostics-panel"
+        (clicked)="toggleDiagnostics()"
       >
-        <span class="flex items-center gap-1.5">
-          <span aria-hidden="true">⚙</span>
-          <span>Diagnose-Details {{ showDiagnostics() ? 'ausblenden' : 'anzeigen' }}</span>
-        </span>
-        <span class="text-xs text-fb-text-muted" aria-hidden="true">{{
-          showDiagnostics() ? '▲' : '▼'
-        }}</span>
-      </button>
+        Diagnose-Details {{ showDiagnostics() ? 'ausblenden' : 'anzeigen' }}
+      </app-button>
       @if (showDiagnostics()) {
         <div
           id="sync-diagnostics-panel"
@@ -160,22 +175,18 @@
               <code class="truncate text-fb-text-primary">{{
                 diagnosticInfo().serverCommand
               }}</code>
-              <button
-                type="button"
-                class="shrink-0 rounded px-2 py-0.5 font-sans text-[11px] font-medium text-fb-primary hover:bg-fb-primary/10 transition-colors focus-visible:outline-2 focus-visible:outline-fb-primary"
-                (click)="copyCommand()"
+              <app-button
+                class="shrink-0 font-sans"
+                variant="ghost"
+                size="slim"
+                (clicked)="copyCommand()"
               >
                 {{ copiedCommand() ? 'Kopiert!' : 'Kopieren' }}
-              </button>
+              </app-button>
             </div>
           </div>
         </div>
       }
     </div>
-  }
-  @if (progress()?.id && (progress()?.state === 'queued' || progress()?.state === 'running')) {
-    <p class="mt-5 text-xs text-fb-text-muted">
-      Du kannst dieses Fenster schließen. Der angenommene Auftrag läuft im Hintergrund weiter.
-    </p>
   }
 </app-modal-shell>
