@@ -358,3 +358,37 @@ alle 84 betroffenen Selektor-/Auflistungsverträge und das betroffene Lint. Die
 echten Playwright-Listen bestätigen nichtleere Teilgruppen sowie vollständige
 Abdeckung ohne doppelte Fälle. Unveränderte Browserabläufe werden für diese
 organisatorische Aufteilung nicht erneut durchgespielt.
+
+## Verbleibende Pauschalauswahl nach PR #548
+
+PR #548 bestand alle ausgewählten Prüfungen in 10:07 Minuten und wurde mit
+`59ff5320` gemergt. Der erfolgreiche Produktionslauf dauerte jedoch 22:38 Minuten;
+allein die zusätzliche Marketplace-Imageveröffentlichung benötigte 14:05 Minuten.
+Die Feature-Browserkürzung hatte weitere pauschale Infrastrukturregeln noch nicht
+beseitigt.
+
+Reine Planproben belegen die Ursache: AGENTS oder Docs allein wählen keine
+Anwendungsprüfungen; `ci.yml` oder `ci-checks.test.mjs` allein dagegen sämtliche
+566 Anwendungstestdateien sowie Browserkern, Datenbank, Dienste und Marketplace-
+Images. `browser-test-timings.mjs` allein zieht durch den unbekannten Scriptpfad
+ebenfalls die breite Anwendungsauswahl. Die gemeinsamen Listen
+`sharedValidationPaths`, `selectionPaths` und `globalPath` wirkten zu pauschal.
+
+Die Folgekorrektur grenzt bekannte Prüfwerkzeuge zentral vor allen Laufzeit-
+und Releaseflags ab. Script-/Workflowverträge folgen auch in CI ihren Imports
+und gelesenen Dateien; unbekannte technische Eingaben behalten den vollständigen
+Vertragslauf. Der statische CI-Releasevertrag ist unverändert von echten Nginx-
+Containerprüfungen getrennt. Reale Docker-, Deployment-, Lockfile-, SQL- und
+Anwendungsänderungen sowie gemischte Pfadlisten behalten ihren tatsächlichen
+Umfang. Geänderte Bau-/Deploymentbefehle im Workflow brauchen weiterhin einen
+gezielten Integrationsnachweis.
+
+Der neue tatsächliche Plan enthält keine Anwendungstests, Browserausführung,
+Dienst-/Imagejobs oder Veröffentlichung. Qualität, Syntax und zehn lokale
+beziehungsweise zwölf CI-Scriptvertragsdateien bleiben. Der Vorabcheck bestand
+Qualität/Syntax und zunächst 213 von 216 Scriptfällen, mit einer veralteten
+Auswahlerwartung und zwei planmäßigen Linux-SSH-Auslassungen. Nach Korrektur
+besteht die betroffene Klassifizierungssuite mit 24/24 Fällen; unveränderte
+Prüfungen wurden nicht wiederholt. Ein frischer Parser-only-Bootstrap bestätigt
+den aktuellen echten Plan ohne zusätzliche Paketabhängigkeit. Eine neue
+GitHub-Gesamtdauer ist vor der Freigabe dieses Folge-PR noch nicht gemessen.

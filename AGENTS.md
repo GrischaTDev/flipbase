@@ -232,6 +232,14 @@ oder Regeländerung löst dadurch keine vollständige Anwendungstestsuite aus.
   Daraus folgt keine vollständige Browserregression für jeden solchen PR.
   Den vollständigen Lauf bewusst vor Beta-Meilensteinen oder zur Diagnose
   starten; kein täglicher oder wöchentlicher Automatismus.
+- **Prüfwerkzeuge sind keine Anwendungsänderung.** Ausschließlich bekannte
+  CI-Auswahl-, Ausführungs- und Nachweisdateien prüfen ihre betroffenen
+  Script-/Workflowverträge und Syntax. Sie lösen keine unveränderten
+  Anwendungs-, Dienst-, Browser- oder Imagejobs und keine Veröffentlichung aus.
+  Die ausdrückliche Abgrenzung steht in `scripts/ci-tooling-paths.mjs`; keine
+  ganzen Verzeichnisse ausnehmen. Gemischte Änderungen behalten ihren echten
+  Laufzeitumfang. Geänderte Bau- oder Deploymentbefehle zusätzlich gezielt im
+  betroffenen Ablauf nachweisen; daraus keine Vollprüfung aller Dienste ableiten.
 - **Testregistrierung mitprüfen:** Bei neuen oder verschobenen Tests auch die
   zugehörigen Auswahlscripte, verbindlichen Soll-Listen und Suite-Prüfungen lokal
   ausführen. Ein einzeln bestandener Test belegt nicht, dass ihn die CI korrekt

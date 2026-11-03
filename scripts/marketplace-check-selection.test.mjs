@@ -256,28 +256,98 @@ test('bestehende Session-Kontextignore wählt genau das tatsächlich betroffene 
   assert.equal(builds[0][1].at(-1), dirname(path));
 });
 
-test('zentrale Auswahl und Befehle wählen sämtliche Marketplaceprüfbereiche', () => {
-  const files = { [browserTest]: '' };
-  for (const path of [
-    '.github/workflows/marketplace-worker-image.yml',
-    '.github/workflows/marketplace-image-publish.yml',
-    'scripts/marketplace-release.mjs',
+test('reine CI-Werkzeuge lösen weder Anbieterbrowser noch Imageveröffentlichung aus', () => {
+  const files = {
+    [browserTest]: "import '../../../../scripts/preflight.mjs';",
+    'services/marketplace-worker/test/browser/vinted-login.browser.test.ts':
+      "import '../../../../scripts/ci-tooling-paths.mjs';",
+  };
+  const paths = [
+    '.github/workflows/ci.yml',
+    'playwright.affected.config.ts',
+    'playwright.ui.config.ts',
     'scripts/preflight.mjs',
     'scripts/preflight.test.mjs',
     'scripts/ci-checks.mjs',
     'scripts/ci-checks.test.mjs',
-  ]) {
+    'scripts/affected-tests.mjs',
+    'scripts/browser-test-selection.mjs',
+    'scripts/browser-test-timings.mjs',
+    'scripts/install-test-selection-parser.mjs',
+    'scripts/marketplace-check-selection.mjs',
+    'scripts/marketplace-check-selection.test.mjs',
+    'scripts/ci-tooling-paths.mjs',
+  ];
+  for (const changed of [...paths.map((path) => [path]), paths])
     assert.deepEqual(
-      select([path], files),
+      select(changed, files),
       {
-        extensionRequired: true,
-        workerBrowserTests: [browserTest],
-        workerImageRequired: true,
-        sessionImageRequired: true,
+        extensionRequired: false,
+        workerBrowserTests: [],
+        workerImageRequired: false,
+        sessionImageRequired: false,
       },
-      path,
+      changed.join(', '),
     );
+});
+
+test('gemischte CI- und Laufzeitänderungen erhalten exakt den echten Marketplaceumfang', () => {
+  const workerSource = 'services/marketplace-worker/src/vinted-browser-listing-photos.ts';
+  const files = { [browserTest]: "import '../../src/vinted-browser-listing-photos.ts';" };
+  const infrastructure = [
+    '.github/workflows/ci.yml',
+    'scripts/ci-tooling-paths.mjs',
+    'scripts/ci-checks.test.mjs',
+  ];
+  for (const path of [
+    workerSource,
+    'tools/flipbase-extension/kleinanzeigen-publication-runtime.js',
+    'services/marketplace-worker/Dockerfile',
+    'services/marketplace-worker/Dockerfile.chromium-session',
+    'services/marketplace-worker/runtime/chromium-session.ts',
+    'services/marketplace-worker/.dockerignore',
+    'services/marketplace-worker/package-lock.json',
+    '.github/workflows/marketplace-worker-image.yml',
+    'scripts/marketplace-release.mjs',
+    'package-lock.json',
+  ])
+    assert.deepEqual(select([...infrastructure, path], files), select([path], files), path);
+  assert.deepEqual(select([...infrastructure, workerSource], files).workerBrowserTests, [
+    browserTest,
+  ]);
+  assert.equal(
+    select([...infrastructure, 'services/marketplace-worker/Dockerfile'], files)
+      .workerImageRequired,
+    true,
+  );
+  assert.equal(
+    select([...infrastructure, 'services/marketplace-worker/runtime/chromium-session.ts'], files)
+      .sessionImageRequired,
+    true,
+  );
+  assert.equal(select([...infrastructure, 'package-lock.json'], files).extensionRequired, true);
+});
+
+test('zentrale Imageworkflows und nicht freigestellte Hostwerkzeuge behalten sämtliche Marketplaceprüfbereiche', () => {
+  const files = { [browserTest]: '' };
+  const complete = {
+    extensionRequired: true,
+    workerBrowserTests: [browserTest],
+    workerImageRequired: true,
+    sessionImageRequired: true,
+  };
+  for (const path of [
+    '.github/workflows/marketplace-worker-image.yml',
+    '.github/workflows/marketplace-image-publish.yml',
+    'scripts/marketplace-release.mjs',
+    'scripts/marketplace-image-checks.mjs',
+    'scripts/marketplace-image-permissions.mjs',
+    'package.json',
+    'package-lock.json',
+  ]) {
+    assert.deepEqual(select([path], files), complete, path);
   }
+  assert.deepEqual(select(null, files), complete, 'Fehlender Vergleich bleibt konservativ.');
 });
 
 async function withRunnerFixture(run) {

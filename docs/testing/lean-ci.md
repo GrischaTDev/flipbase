@@ -1,6 +1,6 @@
 # Schlanke CI für Flipbase
 
-Stand: 2. November 2026. Entwicklung und Freigabe haben unterschiedliche
+Stand: 3. November 2026. Entwicklung und Freigabe haben unterschiedliche
 Prüfumfänge. Lokal zählt ein schneller Nachweis der Änderung; GitHub führt vor
 dem Merge die ausgewählten Integrations- und Freigabeprüfungen aus. Historische
 Messberichte und Testzahlen sind keine aktuelle Testvorgabe.
@@ -80,6 +80,17 @@ CI-Nachweise getrennt im PR nennen.
 
 Die Auswahl folgt den geänderten Dateien und ihren tatsächlichen Abhängigkeiten.
 Die [Auswahldokumentation](affected-test-selection.md) beschreibt die Grenzen.
+
+Bekannte reine CI-Werkzeuge sind ausdrücklich in `scripts/ci-tooling-paths.mjs`
+registriert. Dazu gehören die zentrale CI-Datei, Auswahl-/Nachweisscripte und
+die üblichen Playwright-Konfigurationen. Ihre Änderung benötigt Qualität,
+passende Script-/Workflowverträge und Syntaxprüfung; sie verändert keinen
+ausgelieferten Anwendungs- oder Dienststand und löst deshalb weder dessen
+Tests und Images noch eine Veröffentlichung aus. Das gilt auch für Änderungen
+an den Tests dieser Werkzeuge. Neue unbekannte Pfade bleiben konservativ.
+Gemischte Änderungen ergänzen die tatsächlich betroffenen Laufzeitprüfungen.
+Wer einen wirklichen Bau- oder Deploymentbefehl im Workflow ändert, muss dessen
+geänderten Ablauf gezielt nachweisen.
 
 | Bereich                                | Auswahl                                                                                                                       |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |

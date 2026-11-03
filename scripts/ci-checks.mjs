@@ -380,8 +380,28 @@ const checks = {
   ],
 };
 
-export function getCheckCommands(name) {
+export function getCheckCommands(name, { workflowTests } = {}) {
   if (!Object.hasOwn(checks, name)) throw new Error(`Unbekannter Prüfbereich: ${name}`);
+  if (name === 'workflow' && workflowTests !== undefined && workflowTests !== null) {
+    if (
+      !Array.isArray(workflowTests) ||
+      !workflowTests.length ||
+      workflowTests.some(
+        (path) =>
+          typeof path !== 'string' ||
+          !/^scripts\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.test\.mjs$/u.test(path),
+      ) ||
+      new Set(workflowTests).size !== workflowTests.length
+    )
+      throw new Error('Ungültige Auswahl der Workflowverträge.');
+    return [
+      {
+        name: 'Test selected workflow contracts',
+        command: 'node',
+        args: ['--test', ...workflowTests],
+      },
+    ];
+  }
   return structuredClone(checks[name]);
 }
 
@@ -443,7 +463,14 @@ export async function executeCheckCommand(
 }
 
 export async function runCiCheck(name, options = {}) {
-  const commands = getCheckCommands(name);
+  const selected =
+    name === 'workflow' ? (options.environment ?? process.env).AFFECTED_WORKFLOW_TESTS : undefined;
+  const workflowTests = Object.hasOwn(options, 'workflowTests')
+    ? options.workflowTests
+    : selected === undefined
+      ? undefined
+      : JSON.parse(selected);
+  const commands = getCheckCommands(name, { workflowTests });
   if (['quality', 'quality-light', 'workflow'].includes(name)) {
     // Release-Fixtures dürfen nur in der isolierten PostgreSQL-Gruppe aktiv werden.
     const environment = Object.fromEntries(

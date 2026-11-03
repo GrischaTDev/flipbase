@@ -27,6 +27,7 @@ import {
   preflightSelectionHash,
   runPreflight,
   selectLocalScriptTests,
+  selectWorkflowScriptTests,
 } from './preflight.mjs';
 
 const exec = promisify(execFile);
@@ -128,6 +129,10 @@ test('ein Wiederverwendungsnachweis bindet auch native Browser, Extension, Image
     );
   assert.notEqual(
     preflightSelectionHash({ ...original, changes: { ...original.changes, push: true } }),
+    hash,
+  );
+  assert.notEqual(
+    preflightSelectionHash({ ...original, workflowScriptTests: ['scripts/ci-checks.test.mjs'] }),
     hash,
   );
   assert.equal(
@@ -502,4 +507,62 @@ test('Deployment- und Linuxhostverträge bleiben vollständig CI-pflichtig ohne 
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   for (const path of infrastructure)
     assert.ok(manifest.scripts['test:workflow'].includes(path), `${path} fehlt in der Pflicht-CI`);
+});
+
+test('reine Timingwerkzeuge wählen dieselben betroffenen Scriptverträge lokal und in GitHub', async (t) => {
+  const { repository, git, write } = await fixture(t);
+  await write('scripts/browser-test-timings.mjs', 'export const duration = 1;');
+  await write('scripts/ci-checks.test.mjs', "import './browser-test-timings.mjs';");
+  await write('scripts/unrelated.test.mjs', 'export const unrelated = true;');
+  await git('add', '.');
+  await git('commit', '--quiet', '-m', 'tooling fixtures');
+  const base = await git('rev-parse', 'HEAD');
+  await write('scripts/browser-test-timings.mjs', 'export const duration = 2;');
+  const plan = await createPreflightPlan({ repository, baseRef: base });
+  assert.deepEqual(plan.workflowScriptTests, ['scripts/ci-checks.test.mjs']);
+  assert.deepEqual(plan.localScriptTests, plan.workflowScriptTests);
+  const output = githubPreflightOutputs(plan);
+  assert.deepEqual(JSON.parse(output.workflow_script_tests), plan.workflowScriptTests);
+  assert.equal(output.application_tests, false);
+  assert.equal(output.unit_required, false);
+  assert.equal(output.browser_required, false);
+  const workflow = preflightChecks(plan, { profile: 'ci' }).find(({ id }) => id === 'workflow');
+  assert.deepEqual(workflow.tools, []);
+  assert.match(workflow.title, /1 Dateien/u);
+});
+
+test('unzugeordnete Werkzeuge ergeben Validatoren oder konservative Vollauswahl statt Leergrün', async (t) => {
+  const { repository, write } = await fixture(t);
+  await write('scripts/preflight.test.mjs', 'export const validator = true;');
+  assert.deepEqual(
+    await selectWorkflowScriptTests(['scripts/install-test-selection-parser.mjs'], repository),
+    ['scripts/preflight.test.mjs'],
+  );
+  assert.equal(await selectWorkflowScriptTests(['scripts/unknown.mjs'], repository), null);
+  assert.equal(await selectWorkflowScriptTests(['docker/Dockerfile'], repository), null);
+  assert.equal(await selectWorkflowScriptTests(null, repository), null);
+});
+
+test('ci.yml erhält seine statischen Sicherheitsverträge ohne unveränderte Host- und Nginxfälle', async () => {
+  const tests = await selectWorkflowScriptTests(['.github/workflows/ci.yml']);
+  for (const required of [
+    'scripts/ci-checks.test.mjs',
+    'scripts/required-checks.test.mjs',
+    'scripts/reuse-pr-checks.test.mjs',
+  ])
+    assert.ok(tests.includes(required), `${required} fehlt`);
+  assert.equal(tests.includes('scripts/deploy-script.test.mjs'), false);
+  const deployment = await selectWorkflowScriptTests(['deploy/deploy.sh']);
+  assert.equal(deployment, null);
+  const directHost = await selectWorkflowScriptTests(['scripts/deploy-script.test.mjs']);
+  assert.ok(directHost.includes('scripts/deploy-script.test.mjs'));
+  const plan = {
+    ...technicalPlan(),
+    workflowScriptTests: directHost,
+    application: { ...technicalPlan().application, checks: { workflow: true } },
+  };
+  assert.deepEqual(
+    preflightChecks(plan, { profile: 'ci' }).find(({ id }) => id === 'workflow').tools,
+    ['docker', 'pwsh'],
+  );
 });

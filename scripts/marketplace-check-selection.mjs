@@ -5,6 +5,7 @@ import { posix, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { detectChangedPaths } from './detect-supabase-changes.mjs';
+import { isCiToolingPath } from './ci-tooling-paths.mjs';
 
 const exec = promisify(execFile);
 
@@ -32,6 +33,7 @@ function isNativeBrowserTest(path) {
 /** Importgraph mit gelöschten Pfaden, damit Entfernen einer Abhängigkeit Tests nicht abwählt. */
 function nativeBrowserTests(paths, files) {
   const tests = Object.keys(files).filter(isNativeBrowserTest).sort();
+  if (paths?.length === 0) return [];
   if (
     paths === null ||
     paths.some(
@@ -75,12 +77,15 @@ function nativeBrowserTests(paths, files) {
 
 /** Reine Auswahlfunktion für CI, lokalen Vorabcheck und Gegenbeispiele. */
 export function selectMarketplaceChecksFromFiles(paths, files) {
+  // CI-Auswahl und Berichte verändern keine Anbieter-Laufzeit. Gemischte
+  // Änderungen behalten sämtliche tatsächlich betroffenen Image-/Browserinputs.
+  const runtimePaths = paths === null ? null : paths.filter((path) => !isCiToolingPath(path));
   const full =
-    paths === null ||
-    paths.some(
+    runtimePaths === null ||
+    runtimePaths.some(
       (path) => selectionPaths.test(path) || path === imageCheckPath || path === '.dockerignore',
     );
-  const selected = paths ?? [];
+  const selected = runtimePaths ?? [];
   const workerImageRequired =
     full ||
     selected.some(
@@ -103,7 +108,7 @@ export function selectMarketplaceChecksFromFiles(paths, files) {
     );
   return {
     extensionRequired: full || selected.some((path) => extensionPaths.test(path)),
-    workerBrowserTests: nativeBrowserTests(paths, files),
+    workerBrowserTests: nativeBrowserTests(runtimePaths, files),
     workerImageRequired,
     sessionImageRequired,
   };

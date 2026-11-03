@@ -5,6 +5,7 @@ import { posix, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { isCiToolingPath } from './ci-tooling-paths.mjs';
 import {
   coreBrowserFiles as coreFiles,
   layoutBrowserFiles as layoutFiles,
@@ -73,7 +74,7 @@ const featureSpecs = {
 };
 
 const globalPath =
-  /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|playwright\.[^/]*|\.github\/workflows\/ci\.yml|scripts\/(?:affected-tests|run-affected-tests|detect-supabase-changes|reuse-pr-checks|required-checks|playwright-pr-smoke|browser-test-selection)[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/core\/guards\/)/u;
+  /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/core\/guards\/)/u;
 const sharedUiPath =
   /^src\/app\/(?:layout\/|shared\/components\/(?:badge|button|card|confirm-dialog|custom-checkbox|custom-search-input|custom-select|data-table|date-picker|entry-page-layout|form-field|loading-indicator|modal-shell|notice-banner|number-input|page-header|route-tabs|search-multi-select|section-navigation|split-pane|summary-metric|table-action-button|table-action-menu|table-column-menu|table-column-picker|table-sort-header|text-field|toast|two-column-layout)\/)/u;
 const runtimePath =
@@ -232,9 +233,10 @@ function reverseDependencies(files, changedPaths, runtimeOnly = false) {
 /** Ermittelt tatsächlich abhängige Tests; keine Browserausführung bei leerer Auswahl. */
 export function selectAffectedTests(paths, files) {
   const changed = paths ?? [];
+  const runtimeChanged = changed.filter((file) => !isCiToolingPath(file));
   const reverse = reverseDependencies(files, changed);
   const runtimeReverse = reverseDependencies(files, changed, true);
-  const browserChanges = changed.filter(
+  const browserChanges = runtimeChanged.filter(
     (file) => !sharedUiPath.test(file) && !isTypeOnlySource(file, files[file]),
   );
   const globalRoots = new Set(['src/main.ts', 'src/app/app.config.ts', 'e2e/global-setup.ts']);
@@ -245,7 +247,7 @@ export function selectAffectedTests(paths, files) {
     if (file.endsWith('.routes.ts') || file.endsWith('.spec.ts')) continue;
     for (const consumer of runtimeReverse.get(file) ?? []) globalConsumers.add(consumer);
   }
-  const applicationPaths = changed.filter(
+  const applicationPaths = runtimeChanged.filter(
     (file) =>
       !isDocument(file) &&
       !isLanding(file) &&
@@ -267,13 +269,13 @@ export function selectAffectedTests(paths, files) {
           !file.startsWith('src/app/features/marketplaces/') &&
           !Object.hasOwn(featureSpecs, file.split('/')[3])),
     );
-  const affected = new Set(changed);
+  const affected = new Set(runtimeChanged);
   for (const file of affected)
     for (const consumer of reverse.get(file) ?? []) affected.add(consumer);
   // Lokal reichen bei generischen Controls deren eigene Verträge; die CI
   // prüft zusätzlich sämtliche abhängigen Komponenten. Fachliche Shared-
   // Bausteine wie die Produktgalerie behalten ihre konkreten Verbraucher.
-  const localAffected = new Set(changed.filter((file) => !sharedUiPath.test(file)));
+  const localAffected = new Set(runtimeChanged.filter((file) => !sharedUiPath.test(file)));
   for (const file of localAffected)
     for (const consumer of reverse.get(file) ?? []) localAffected.add(consumer);
   const sharedDirectories = changed.filter((file) => sharedUiPath.test(file)).map(posix.dirname);

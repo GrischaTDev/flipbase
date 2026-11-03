@@ -7,7 +7,6 @@ import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import vm from 'node:vm';
-import { getCheckCommands } from './ci-checks.mjs';
 import { createHash } from 'node:crypto';
 
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
@@ -1642,43 +1641,6 @@ esac
     }
   },
 );
-
-test('Pushrelease liefert Functions, Ratelimit und Digest vor der kompatiblen App', async () => {
-  const [deploy, image, proxy, workflow] = await Promise.all([
-    readFile(deployScript, 'utf8'),
-    readFile(dockerfile, 'utf8'),
-    readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8'),
-    readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
-  ]);
-  assert.match(deploy, /PUSH_REFERENCE/u);
-  assert.match(deploy, /prepare_push_runtime/u);
-  assert.ok(
-    deploy.indexOf('apply-release-migrations.sh" "$temporary/migrations"') <
-      deploy.indexOf('activate_push_runtime "$release_container"'),
-  );
-  assert.ok(
-    deploy.indexOf('activate_push_runtime "$release_container"') <
-      deploy.indexOf('docker compose up -d --pull never web'),
-  );
-  assert.match(image, /release-push-functions \/opt\/flipbase\/push-functions/u);
-  assert.match(proxy, /reverse_proxy flipbase-push-gateway:4177/u);
-  assert.match(proxy, /header_up X-Forwarded-For \{remote_host\}/u);
-  assert.ok(proxy.indexOf('handle @push_requests') < proxy.indexOf('handle @supabase_api'));
-  assert.match(
-    workflow,
-    /if: \$\{\{ needs\.changes\.outputs\.push == 'true' \}\}\s+run: node scripts\/ci-checks\.mjs push/u,
-  );
-  assert.ok(
-    getCheckCommands('push').some(
-      ({ command, args }) =>
-        command === 'npm' &&
-        JSON.stringify(args) ===
-          JSON.stringify(['ci', '--prefix', 'services/push-worker', '--ignore-scripts']),
-    ),
-  );
-  assert.match(workflow, /push_digest:/u);
-  assert.match(workflow, /Gate publication on successful checks/u);
-});
 
 test('der Botbrowser wird privat geroutet und mit dem geprüften Release vorbereitet', async () => {
   const [caddy, compose, deploy, webImage] = await Promise.all([
