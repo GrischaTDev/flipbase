@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BrowserSessionCommands } from '../src/browser-session-commands.ts';
+import { SupabaseVintedImportWriter } from '../src/supabase-vinted-import-writer.ts';
 import {
   browserActionError,
   executeBrowserAction,
@@ -826,6 +827,130 @@ test('isolated import passes validated publication ages through the real command
           importAccount: async () => assert.fail('invalid cache reached browser'),
         },
         { name: 'importAccount', arguments: [[], null, [{ ...publications[0], ...values }]] },
+        async () => undefined,
+        async () => undefined,
+      ),
+    );
+  }
+});
+
+test('cached descriptions from the import writer reach the next isolated import unchanged', async () => {
+  const sessionId = '44444444-4444-4444-8444-444444444444';
+  const scope = {
+    workspaceId: '11111111-1111-4111-8111-111111111111',
+    connectionId: '22222222-2222-4222-8222-222222222222',
+    userId: '33333333-3333-4333-8333-333333333333',
+    userAccessToken: '',
+    syncRead: {
+      operationId: '55555555-5555-4555-8555-555555555555',
+      runnerId: '66666666-6666-4666-8666-666666666666',
+      workerEpoch: 1,
+      sessionId,
+      expiresAt: '2099-11-03T08:06:30.000Z',
+      absoluteExpiresAt: '2099-11-03T08:20:00.000Z',
+    },
+  };
+  const cached = [
+    {
+      text: '  Originaltext\r\nmit\tZeilen und Leerzeichen  ',
+      descriptionReadAt: '2026-11-03T08:00:00.000Z',
+      descriptionSourceUpdatedAt: '2026-11-02T10:00:00.000Z',
+    },
+    { text: '', descriptionReadAt: null, descriptionSourceUpdatedAt: null },
+    { text: 'a'.repeat(2000), descriptionReadAt: null, descriptionSourceUpdatedAt: null },
+  ];
+  let requests = 0;
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://database.test',
+    publishableKey: 'fixture-publishable-key',
+    serviceRoleKey: 'fixture-service-role-key',
+    fetch: async (input) => {
+      requests++;
+      const path = new URL(String(input)).pathname;
+      if (path === '/rest/v1/rpc/marketplace_sync_check')
+        return Response.json({ active: true, sessionId });
+      assert.equal(path, '/rest/v1/rpc/marketplace_publication_versions');
+      return Response.json(
+        cached.map((entry, index) => ({
+          external_id: String(41 + index),
+          flipbase_published_at: null,
+          body: { textState: 'loaded', ...entry },
+        })),
+      );
+    },
+  });
+  const publications = await writer.publicationVersions(scope, sessionId);
+  assert.equal(requests, 2);
+  assert.deepEqual(
+    publications.map((entry) => ({
+      text: entry.description,
+      descriptionReadAt: entry.descriptionReadAt,
+      descriptionSourceUpdatedAt: entry.descriptionSourceUpdatedAt,
+    })),
+    cached,
+  );
+  const snapshot = {
+    identity: { id: '123', username: 'fixture' },
+    observedAt: '2026-11-03T08:05:00.000Z',
+    entries: [],
+    areas: Object.fromEntries(
+      ['profile', 'publications', 'conversations', 'messages', 'sales', 'feedback'].map((area) => [
+        area,
+        { status: 'complete' },
+      ]),
+    ),
+  } as unknown as VintedAccountImport;
+  let imports = 0;
+  const commands = new BrowserSessionCommands({
+    version: () => 'fixture',
+    importAccount: async (_authorize, _onStage, _previous, _requested, received) => {
+      imports++;
+      assert.deepEqual(received, publications);
+      return snapshot;
+    },
+  });
+  const browser = isolatedBrowserActions({ request: (input) => commands.request(input) });
+  assert.deepEqual(
+    await browser.importAccount?.(async () => undefined, undefined, [], undefined, publications),
+    snapshot,
+  );
+  assert.equal(imports, 1);
+});
+
+test('isolated import rejects malformed cached descriptions and metadata before any provider read', async () => {
+  const publication = {
+    externalId: '41',
+    occurredAt: null,
+    publicationAge: null,
+    checkedAt: null,
+    description: 'Bestätigter Text',
+    descriptionReadAt: null,
+    descriptionSourceUpdatedAt: null,
+  };
+  for (const changes of [
+    { description: null },
+    { description: 123 },
+    { description: {} },
+    { description: 'a'.repeat(2001) },
+    { description: '\u0000' },
+    { description: '\u001b' },
+    { description: '\u007f' },
+    { descriptionReadAt: false },
+    { descriptionReadAt: 'not-a-date' },
+    { descriptionReadAt: '2026-11-03T08:00:00Z'.padEnd(65, ' ') },
+    { descriptionSourceUpdatedAt: false },
+    { descriptionSourceUpdatedAt: 'not-a-date' },
+    { descriptionSourceUpdatedAt: {} },
+    { descriptionSourceUpdatedAt: '2026-11-03T08:00:00Z'.padEnd(65, ' ') },
+    { unexpectedDescriptionField: 'not part of the contract' },
+  ]) {
+    await assert.rejects(
+      executeBrowserAction(
+        {
+          version: () => 'fixture',
+          importAccount: async () => assert.fail('invalid cached fields reached the provider'),
+        },
+        { name: 'importAccount', arguments: [[], null, [{ ...publication, ...changes }]] },
         async () => undefined,
         async () => undefined,
       ),

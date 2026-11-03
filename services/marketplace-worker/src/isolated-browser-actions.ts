@@ -594,6 +594,9 @@ export async function executeBrowserAction(
                 'occurredAt',
                 'publicationAge',
                 'checkedAt',
+                'description',
+                'descriptionReadAt',
+                'descriptionSourceUpdatedAt',
               ].includes(key),
           )
         )
@@ -610,6 +613,16 @@ export async function executeBrowserAction(
         const publicationState = parseVintedPublicationState(version.publicationState);
         if (version.publicationState !== undefined && publicationState !== version.publicationState)
           throw new Error('Ungültiger Inseratcache');
+        const description =
+          version.description === undefined ? undefined : text(version.description, 2000);
+        if (
+          description !== undefined &&
+          Array.from(description).some((character) => {
+            const code = character.charCodeAt(0);
+            return code === 127 || (code < 32 && ![9, 10, 13].includes(code));
+          })
+        )
+          throw new Error('Ungültiger Inseratcache');
         return {
           externalId: identifier(version.externalId),
           ...(version.publicationState !== undefined ? { publicationState } : {}),
@@ -617,6 +630,13 @@ export async function executeBrowserAction(
           occurredAt: timestamp(version.occurredAt),
           publicationAge,
           checkedAt: timestamp(version.checkedAt),
+          ...(description !== undefined ? { description } : {}),
+          ...(version.descriptionReadAt !== undefined
+            ? { descriptionReadAt: timestamp(version.descriptionReadAt) }
+            : {}),
+          ...(version.descriptionSourceUpdatedAt !== undefined
+            ? { descriptionSourceUpdatedAt: timestamp(version.descriptionSourceUpdatedAt) }
+            : {}),
         };
       });
       return required(browser.importAccount)(
