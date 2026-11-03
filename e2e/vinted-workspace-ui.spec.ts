@@ -309,7 +309,21 @@ for (const width of [1440, 390, 320]) {
       const messageSettings = new Map(
         accountIds.map((connectionId) => [
           connectionId,
-          { workspaceId, connectionId, enabled: true, version: 0 },
+          {
+            workspaceId,
+            connectionId,
+            enabled: true,
+            version: 0,
+            categories: {
+              messages: true,
+              offers: true,
+              orders: true,
+              shipping: true,
+              payments: true,
+              feedback: true,
+              other: true,
+            },
+          },
         ]),
       );
       await page.route('**/rest/v1/rpc/marketplace_read_message_notification_settings', (route) =>
@@ -317,11 +331,15 @@ for (const width of [1440, 390, 320]) {
           json: messageSettings.get(route.request().postDataJSON()['p_connection_id']),
         }),
       );
-      await page.route('**/rest/v1/rpc/marketplace_set_message_notification_settings', (route) => {
+      await page.route('**/rest/v1/rpc/marketplace_set_notification_category_settings', (route) => {
         const body = route.request().postDataJSON();
+        expect(body['p_workspace_id']).toBe(workspaceId);
         const setting = messageSettings.get(body['p_connection_id'])!;
         expect(body['p_expected_version']).toBe(setting.version);
-        setting.enabled = body['p_enabled'];
+        const category = body['p_category'] as keyof typeof setting.categories;
+        expect(Object.keys(setting.categories)).toContain(category);
+        setting.categories[category] = body['p_enabled'];
+        setting.enabled = setting.categories.messages;
         setting.version++;
         return route.fulfill({ json: setting });
       });
@@ -441,9 +459,29 @@ for (const width of [1440, 390, 320]) {
         name: 'Neue Favoriten',
       });
       const messageSwitch = dialog.getByRole('switch', { name: 'Neue Nachrichten', exact: true });
+      for (const label of [
+        'Preisvorschläge',
+        'Bestellungen und Verkäufe',
+        'Versand und Zustellung',
+        'Zahlungen und Rückerstattungen',
+        'Neue Bewertungen',
+        'Weitere Statusmeldungen',
+      ])
+        await expect(dialog.getByRole('switch', { name: label, exact: true })).toBeChecked();
       await expect(messageSwitch).toBeChecked();
       await messageSwitch.click();
       await expect(messageSwitch).not.toBeChecked();
+      const paymentSwitch = dialog.getByRole('switch', {
+        name: 'Zahlungen und Rückerstattungen',
+        exact: true,
+      });
+      await expect(paymentSwitch).toBeEnabled();
+      await expect(paymentSwitch).toBeChecked();
+      await paymentSwitch.click();
+      await expect(paymentSwitch).not.toBeChecked();
+      await expect(
+        dialog.getByRole('switch', { name: 'Bestellungen und Verkäufe', exact: true }),
+      ).toBeChecked();
       await expect(dialog).not.toContainText('Ohne Ton');
       await expect(dialog).not.toContainText('Gespeichert:');
       await expect(dialog).not.toContainText('Abrufdetails');
@@ -486,12 +524,14 @@ for (const width of [1440, 390, 320]) {
       await settingsButton.click();
       await expect(checkbox).not.toBeChecked();
       await expect(messageSwitch).not.toBeChecked();
+      await expect(paymentSwitch).not.toBeChecked();
       await dialog.press('Escape');
       await account.click();
       await page.getByRole('option', { name: /Testkonto B/ }).click();
       await settingsButton.click();
       await expect(checkbox).toBeChecked();
       await expect(messageSwitch).toBeChecked();
+      await expect(paymentSwitch).toBeChecked();
       await dialog.press('Escape');
       await account.click();
       await page.getByRole('option', { name: /Testkonto A/ }).click();

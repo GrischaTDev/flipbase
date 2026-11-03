@@ -445,7 +445,7 @@ test('oversized streamed payloads are bounded without content-length trust', asy
           action: 'import',
           workspaceId,
           connectionId,
-          snapshot: { ...snapshot(), padding: 'x'.repeat(524288) },
+          snapshot: { ...snapshot(), padding: 'x'.repeat(768 * 1024) },
         }),
       )
     ).status,

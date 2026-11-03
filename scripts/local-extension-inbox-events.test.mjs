@@ -1,5 +1,9 @@
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import ts from 'typescript';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 const require = createRequire(import.meta.url);
@@ -14,6 +18,81 @@ const fixture = JSON.parse(
     'utf8',
   ),
 );
+
+test('compiled worker inbox classification loads the shared extension runtime from the deployed app/dist layout', async () => {
+  const docker = readFileSync(
+    new URL('../services/marketplace-worker/Dockerfile', import.meta.url),
+    'utf8',
+  );
+  const session = readFileSync(
+    new URL('../services/marketplace-worker/Dockerfile.chromium-session', import.meta.url),
+    'utf8',
+  );
+  assert.ok(
+    docker.includes(
+      'COPY tools/flipbase-extension/vinted-local-inbox-events.js /tools/flipbase-extension/',
+    ),
+  );
+  assert.ok(
+    docker.includes(
+      'COPY supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs /supabase/functions/_shared/',
+    ),
+  );
+  assert.ok(
+    session.includes(
+      'COPY --from=extension vinted-local-inbox-events.js /tools/flipbase-extension/',
+    ),
+  );
+  assert.ok(
+    session.includes(
+      'COPY --from=shared marketplace-inbox-notification-kinds.mjs /supabase/functions/_shared/',
+    ),
+  );
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'flipbase-inbox-layout-'));
+  try {
+    const app = join(fixtureRoot, 'runtime', 'app');
+    const dist = join(app, 'dist');
+    mkdirSync(dist, { recursive: true });
+    writeFileSync(join(app, 'package.json'), '{"type":"module"}');
+    const wrapperPath = join(dist, 'vinted-inbox-events.js');
+    const source = readFileSync(
+      new URL('../services/marketplace-worker/src/vinted-inbox-events.ts', import.meta.url),
+      'utf8',
+    );
+    writeFileSync(
+      wrapperPath,
+      ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+      }).outputText,
+    );
+    const runtimePath = fileURLToPath(
+      new URL(
+        '../../../tools/flipbase-extension/vinted-local-inbox-events.js',
+        pathToFileURL(wrapperPath),
+      ),
+    );
+    assert.equal(
+      runtimePath,
+      join(fixtureRoot, 'tools', 'flipbase-extension', 'vinted-local-inbox-events.js'),
+    );
+    mkdirSync(dirname(runtimePath), { recursive: true });
+    writeFileSync(
+      runtimePath,
+      readFileSync(
+        new URL('../tools/flipbase-extension/vinted-local-inbox-events.js', import.meta.url),
+      ),
+    );
+    const deployed = await import(pathToFileURL(wrapperPath).href);
+    const batch = deployed.parseVintedInboxEvents(fixture, '90', '2026-10-08T09:00:00.000Z');
+    assert.deepEqual(
+      batch.events.map((event) => event.notificationKind),
+      ['offer_received', 'message'],
+    );
+  } finally {
+    assert.ok(fixtureRoot.startsWith(join(tmpdir(), 'flipbase-inbox-layout-')));
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
 test('nonempty inbox without verifiable partners cannot establish a baseline', async () => {
   for (const isEmpty of [false, true]) {
     const paths = [];

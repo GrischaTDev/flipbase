@@ -1115,7 +1115,10 @@ test('ten bounded conversation details and two thousand events pass the actual i
         /^offer_request_message:[0-9]{32}$/.test(event.externalId),
     ),
   );
-  assert.ok(Buffer.byteLength(JSON.stringify(snapshot?.inboxEvents)) < 512 * 1024);
+  assert.ok(
+    snapshot?.inboxEvents?.events.every((event) => event.notificationKind === 'offer_received'),
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(snapshot?.inboxEvents)) < 768 * 1024);
 });
 
 test('the inbox result boundary rejects eleven conversations, excess events and oversized batches', () => {
@@ -1150,7 +1153,7 @@ test('the inbox result boundary rejects eleven conversations, excess events and 
     {
       events: Array.from({ length: 2000 }, () => ({
         ...event,
-        externalId: 'offer_request_message:' + '9'.repeat(32),
+        externalId: 'offer_request_message:' + '9'.repeat(768),
         externalConversationId: '9'.repeat(32),
         occurredAt: longTimestamp,
       })),
@@ -1164,6 +1167,65 @@ test('the inbox result boundary rejects eleven conversations, excess events and 
         }),
       /Ungültige Postfachereignisse/,
     );
+});
+
+test('the isolated inbox boundary preserves legacy events and enforces optional notification kind source bindings', () => {
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'fixture' },
+    { user: { id: 123 } },
+    [],
+    [],
+    [],
+    '2026-11-03T08:00:00.000Z',
+  );
+  const event = {
+    externalId: 'message:1',
+    externalConversationId: '700',
+    occurredAt: snapshot.observedAt,
+    direction: 'inbound',
+    source: 'conversation_snapshot',
+  };
+  const check = (events: unknown[]) =>
+    validateBrowserResult('importAccount', {
+      ...snapshot,
+      inboxEvents: {
+        version: 1,
+        observedAt: snapshot.observedAt,
+        events,
+        complete: true,
+        coveredConversationIds: ['700'],
+      },
+    });
+  assert.doesNotThrow(() => check([event]));
+  assert.doesNotThrow(() => check([{ ...event, notificationKind: 'message' }]));
+  assert.doesNotThrow(() =>
+    check([
+      { ...event, externalId: 'offer_request_message:1', notificationKind: 'offer_received' },
+    ]),
+  );
+  assert.doesNotThrow(() =>
+    check(
+      Array.from({ length: 2000 }, (_, index) => ({
+        ...event,
+        externalConversationId: '9'.repeat(32),
+        externalId: `payment_message:event:${index.toString(16).padStart(64, '0')}`,
+        notificationKind: 'transaction_cancelled',
+      })),
+    ),
+  );
+  for (const changes of [
+    { notificationKind: 'refund_completed' },
+    { notificationKind: 'unknown' },
+    { notificationKind: 'constructor' },
+    { notificationKind: 'x'.repeat(10000) },
+    { notificationKind: null },
+    { notificationKind: undefined },
+    { notificationKind: 'message', privateText: 'forbidden' },
+    { externalId: 'offer_request_message:1', notificationKind: 'message' },
+    { externalId: 'status_message:1', notificationKind: 'message' },
+    { externalId: 'action_message:1', notificationKind: 'offer_received' },
+  ])
+    assert.throws(() => check([{ ...event, ...changes }]), /Ungültiges Postfachereignis/);
 });
 
 test('the conversation attempt transport rejects malformed timestamps and unknown fields before a provider call', async () => {

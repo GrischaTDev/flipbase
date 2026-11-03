@@ -7,6 +7,7 @@ import {
 import type {
   MessageNotificationFeed,
   MessageNotificationSettings,
+  VintedNotificationCategory,
 } from '../models/marketplace-message-notifications';
 import type { AccountScope } from '../models/marketplace.models';
 import { MarketplaceResponseError } from '../models/marketplace-response';
@@ -14,12 +15,12 @@ export class MessageNotificationApiError extends Error {
   constructor(readonly code: 'forbidden' | 'unavailable' | 'conflict' | 'request_failed') {
     super(
       code === 'forbidden'
-        ? 'Du hast keinen Zugriff auf diese Nachrichtenmeldungen.'
+        ? 'Du hast keinen Zugriff auf diese Vinted-Benachrichtigungen.'
         : code === 'unavailable'
-          ? 'Nachrichtenmeldungen sind auf diesem Server noch nicht verfügbar.'
+          ? 'Vinted-Benachrichtigungen sind auf diesem Server noch nicht verfügbar.'
           : code === 'conflict'
             ? 'Diese Einstellung wurde inzwischen geändert. Lade sie erneut.'
-            : 'Nachrichtenmeldungen konnten nicht aktualisiert werden. Versuche es erneut.',
+            : 'Vinted-Benachrichtigungen konnten nicht aktualisiert werden. Versuche es erneut.',
     );
   }
 }
@@ -59,6 +60,24 @@ export class MarketplaceMessageNotificationApiService {
         await this.client.rpc('marketplace_set_message_notification_settings', {
           p_workspace_id: settings.workspaceId,
           p_connection_id: settings.connectionId,
+          p_enabled: enabled,
+          p_expected_version: settings.version,
+        }),
+      ),
+      settings,
+    );
+  }
+  async setCategorySettings(
+    settings: MessageNotificationSettings,
+    category: VintedNotificationCategory,
+    enabled: boolean,
+  ): Promise<MessageNotificationSettings> {
+    return parseMessageNotificationSettings(
+      response(
+        await this.client.rpc('marketplace_set_notification_category_settings', {
+          p_workspace_id: settings.workspaceId,
+          p_connection_id: settings.connectionId,
+          p_category: category,
           p_enabled: enabled,
           p_expected_version: settings.version,
         }),

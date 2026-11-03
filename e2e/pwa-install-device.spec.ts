@@ -322,6 +322,9 @@ test('places device settings before webhooks and exposes the bell settings link 
   await page.goto('/settings/notifications');
   const settings = page.locator('app-notification-settings');
   await expect(settings.getByRole('heading').first()).toHaveText('Push-Benachrichtigungen');
+  await expect(
+    settings.getByRole('checkbox', { name: 'Nachrichten und Statusmeldungen', exact: true }),
+  ).toBeVisible();
   const help = settings.getByRole('button', { name: 'Infos zu Push-Benachrichtigungen' });
   await expect(settings.locator('#push-help')).toHaveCount(0);
   await help.click();

@@ -819,7 +819,13 @@ test('Worker Docker context explicitly includes each shared contract copied into
   const ignored = readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8').split(/\r?\n/);
   const deniedAt = ignored.indexOf('supabase/functions/_shared/*');
   assert.ok(deniedAt >= 0);
-  const contracts = docker.match(/supabase\/functions\/_shared\/[a-z-]+\.(?:d\.ts|mts|ts)/g);
+  const sourceCopies = docker
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('COPY ') && !line.startsWith('COPY --from='))
+    .join('\n');
+  const contracts = sourceCopies.match(
+    /supabase\/functions\/_shared\/[a-z-]+\.(?:d\.(?:mts|ts)|mjs|mts|ts)/g,
+  );
   assert.ok(contracts?.length);
   for (const contract of contracts)
     assert.ok(

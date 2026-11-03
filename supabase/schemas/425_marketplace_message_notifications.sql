@@ -1,4 +1,47 @@
 -- Belegte Nachrichteneingänge dauerhaft merken; die Glocke ändert keinen Provider-Lesestatus.
+create or replace function public.marketplace_notification_kind_valid(p_external_id text,p_kind text)
+returns boolean language sql immutable set search_path = '' as $$
+  select p_kind is not null and case split_part(p_external_id,':',1)
+    when 'message' then p_kind='message'
+    when 'offer_request_message' then p_kind='offer_received'
+    when 'status_message' then p_kind=any(array['sale_sold','purchase_created','order_cancelled','transaction_cancelled','item_relisted','shipping_label_ready','shipment_sent','ready_for_pickup','delivered','order_completed','order_suspended','issue_reported','refund_started','refund_completed','refund_accepted','return_shipped','feedback_received','feedback_sent','support_closed','item_unavailable','other_status'])
+    when 'action_message' then p_kind=any(array['sale_sold','purchase_created','order_cancelled','transaction_cancelled','item_relisted','shipping_label_ready','shipment_sent','ready_for_pickup','delivered','order_completed','order_suspended','issue_reported','refund_started','refund_completed','refund_accepted','return_shipped','feedback_received','feedback_sent','support_closed','item_unavailable','other_status'])
+    when 'payment_message' then p_kind=any(array['sale_sold','purchase_created','order_cancelled','transaction_cancelled','item_relisted','shipping_label_ready','shipment_sent','ready_for_pickup','delivered','order_completed','order_suspended','issue_reported','refund_started','refund_completed','refund_accepted','return_shipped','feedback_received','feedback_sent','support_closed','item_unavailable','other_status'])
+    else false end;
+$$;
+revoke all on function public.marketplace_notification_kind_valid(text,text) from public,anon;
+grant execute on function public.marketplace_notification_kind_valid(text,text) to authenticated,service_role;
+
+create or replace function public.marketplace_notification_title(p_kind text)
+returns text language sql immutable set search_path = '' as $$
+  select case p_kind
+    when 'message' then 'Neue Nachricht'
+    when 'offer_received' then 'Neuer Preisvorschlag'
+    when 'sale_sold' then 'Artikel verkauft'
+    when 'purchase_created' then 'Artikel gekauft'
+    when 'order_cancelled' then 'Bestellung storniert'
+    when 'transaction_cancelled' then 'Transaktion abgebrochen'
+    when 'item_relisted' then 'Artikel wieder eingestellt'
+    when 'shipping_label_ready' then 'Versandlabel verfügbar'
+    when 'shipment_sent' then 'Sendung verschickt'
+    when 'ready_for_pickup' then 'Sendung abholbereit'
+    when 'delivered' then 'Sendung zugestellt'
+    when 'order_completed' then 'Bestellung abgeschlossen'
+    when 'order_suspended' then 'Bestellung unterbrochen'
+    when 'issue_reported' then 'Problem gemeldet'
+    when 'refund_started' then 'Rückerstattung eingeleitet'
+    when 'refund_completed' then 'Rückerstattung abgeschlossen'
+    when 'refund_accepted' then 'Rückerstattung angenommen'
+    when 'return_shipped' then 'Rücksendung verschickt'
+    when 'feedback_received' then 'Neue Bewertung'
+    when 'feedback_sent' then 'Bewertung abgegeben'
+    when 'support_closed' then 'Supportchat beendet'
+    when 'item_unavailable' then 'Artikel nicht verfügbar'
+    else 'Status bei Vinted aktualisiert' end;
+$$;
+revoke all on function public.marketplace_notification_title(text) from public,anon;
+grant execute on function public.marketplace_notification_title(text) to authenticated,service_role;
+
 create table public.marketplace_message_notification_baselines (
   id bigint generated always as identity primary key,
   workspace_id uuid not null,
@@ -6,6 +49,7 @@ create table public.marketplace_message_notification_baselines (
   external_account_id text not null check (external_account_id ~ '^[1-9][0-9]{0,31}$'),
   first_observed_at timestamptz not null check (isfinite(first_observed_at)),
   last_observed_at timestamptz not null check (isfinite(last_observed_at) and last_observed_at >= first_observed_at),
+  system_events_since timestamptz not null default date_trunc('second',clock_timestamp()) check (isfinite(system_events_since)),
   unique (workspace_id,connection_id,external_account_id),
   foreign key (workspace_id,connection_id) references public.marketplace_connections(workspace_id,id) on delete cascade
 );
@@ -27,6 +71,7 @@ create table public.marketplace_message_notifications (
   external_account_id text not null check (external_account_id ~ '^[1-9][0-9]{0,31}$'),
   external_conversation_id text not null check (external_conversation_id ~ '^[1-9][0-9]{0,31}$'),
   external_event_id text not null check (external_event_id ~ '^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$'),
+  notification_kind text check (notification_kind is null or public.marketplace_notification_kind_valid(external_event_id,notification_kind)),
   conversation_id uuid,
   occurred_at timestamptz not null check (isfinite(occurred_at)),
   observed_at timestamptz not null check (isfinite(observed_at) and occurred_at <= observed_at),
@@ -55,11 +100,10 @@ create policy "Worker deletes message notifications" on public.marketplace_messa
 create or replace function public.marketplace_record_message_event_batch(p_workspace_id uuid,p_connection_id uuid,p_external_account_id text,p_batch jsonb)
 returns integer language plpgsql volatile security invoker set search_path = '' as $$
 declare v_observed timestamptz; v_reference public.marketplace_message_notification_baselines; v_had_reference boolean; v_event jsonb; v_count integer; v_visible integer;
-  v_setting public.marketplace_message_notification_settings;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if not exists(select 1 from public.marketplace_connections c where c.workspace_id=p_workspace_id and c.id=p_connection_id and c.marketplace='vinted' and c.status='connected' and c.external_account_id=p_external_account_id) then raise exception 'Kontoidentität stimmt nicht überein' using errcode='42501'; end if;
-  if jsonb_typeof(p_batch) is distinct from 'object' or octet_length(p_batch::text)>524288
+  if jsonb_typeof(p_batch) is distinct from 'object' or octet_length(p_batch::text)>786432
     or (select count(*) from jsonb_object_keys(p_batch))<>5
     or exists(select 1 from jsonb_object_keys(p_batch) field where field<>all(array['version','observedAt','events','complete','coveredConversationIds']))
     or p_batch->'version' is distinct from '1'::jsonb or jsonb_typeof(p_batch->'complete') is distinct from 'boolean'
@@ -73,8 +117,10 @@ begin
     v_observed:=(p_batch->>'observedAt')::timestamptz;
     if not isfinite(v_observed) or v_observed>clock_timestamp()+interval '30 seconds' then raise exception 'Ungültige Eingangszeit' using errcode='22023'; end if;
     for v_event in select value from jsonb_array_elements(p_batch->'events') loop
-      if jsonb_typeof(v_event)<>'object' or (select count(*) from jsonb_object_keys(v_event))<>5
-        or exists(select 1 from jsonb_object_keys(v_event) field where field<>all(array['externalId','externalConversationId','occurredAt','direction','source']))
+      if jsonb_typeof(v_event)<>'object' or (select count(*) from jsonb_object_keys(v_event)) not in (5,6)
+        or exists(select 1 from jsonb_object_keys(v_event) field where field<>all(array['externalId','externalConversationId','occurredAt','direction','source','notificationKind']))
+        or (v_event ? 'notificationKind' and (jsonb_typeof(v_event->'notificationKind') is distinct from 'string'
+          or not public.marketplace_notification_kind_valid(v_event->>'externalId',v_event->>'notificationKind')))
         or jsonb_typeof(v_event->'externalId') is distinct from 'string' or v_event->>'externalId' !~ '^((message|offer_request_message):[1-9][0-9]{0,31}|(status_message|action_message|payment_message):([1-9][0-9]{0,31}|event:[0-9a-f]{64}))$'
         or jsonb_typeof(v_event->'externalConversationId') is distinct from 'string' or v_event->>'externalConversationId' !~ '^[1-9][0-9]{0,31}$'
         or v_event->>'direction' is distinct from 'inbound' or v_event->>'source' is distinct from 'conversation_snapshot'
@@ -85,20 +131,28 @@ begin
   select * into v_reference from public.marketplace_message_notification_baselines where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=p_external_account_id for update;
   v_had_reference:=found;
   if v_had_reference and v_observed<v_reference.last_observed_at then raise exception 'Veralteter Eingangsstand' using errcode='22023'; end if;
-  select * into v_setting from public.marketplace_message_notification_settings where workspace_id=p_workspace_id and connection_id=p_connection_id;
   -- Ein begrenzter, aber vollständig belegter Verlauf setzt den Zeitbezug. Ältere Folgeseiten bleiben still.
   if not v_had_reference and ((p_batch->>'complete')::boolean or jsonb_array_length(p_batch->'coveredConversationIds')>0) then
-    insert into public.marketplace_message_notification_baselines(workspace_id,connection_id,external_account_id,first_observed_at,last_observed_at) values(p_workspace_id,p_connection_id,p_external_account_id,v_observed,v_observed) returning * into v_reference;
+    insert into public.marketplace_message_notification_baselines(workspace_id,connection_id,external_account_id,first_observed_at,last_observed_at,system_events_since) values(p_workspace_id,p_connection_id,p_external_account_id,v_observed,v_observed,v_observed) returning * into v_reference;
   elsif v_had_reference then
     update public.marketplace_message_notification_baselines set last_observed_at=v_observed where id=v_reference.id;
   end if;
-  with added as (
-    insert into public.marketplace_message_notifications(workspace_id,connection_id,external_account_id,external_conversation_id,external_event_id,conversation_id,occurred_at,observed_at,notified_at)
-    select p_workspace_id,p_connection_id,p_external_account_id,entry->>'externalConversationId',entry->>'externalId',c.id,(entry->>'occurredAt')::timestamptz,v_observed,
-      case when v_had_reference and coalesce(v_setting.enabled,true)
+  with canonical as (
+    select entry,coalesce(entry->>'notificationKind',case split_part(entry->>'externalId',':',1)
+      when 'message' then 'message' when 'offer_request_message' then 'offer_received' else 'other_status' end) as kind
+    from jsonb_array_elements(p_batch->'events') entry
+  ), added as (
+    insert into public.marketplace_message_notifications(workspace_id,connection_id,external_account_id,external_conversation_id,external_event_id,notification_kind,conversation_id,occurred_at,observed_at,notified_at)
+    select p_workspace_id,p_connection_id,p_external_account_id,entry->>'externalConversationId',entry->>'externalId',canonical.kind,c.id,(entry->>'occurredAt')::timestamptz,v_observed,
+      case when v_had_reference
         and (entry->>'occurredAt')::timestamptz>v_reference.first_observed_at
-        and (v_setting.enabled_since is null or (entry->>'occurredAt')::timestamptz>v_setting.enabled_since) then v_observed end
-    from jsonb_array_elements(p_batch->'events') entry left join public.marketplace_account_entries c on c.workspace_id=p_workspace_id and c.connection_id=p_connection_id and c.kind='conversation' and c.external_id=entry->>'externalConversationId'
+        and (canonical.kind in ('message','offer_received') or (entry->>'occurredAt')::timestamptz>=v_reference.system_events_since)
+        -- Cloudbewertungen besitzt bereits die Profilquelle; lokale Konten erhalten sie im Chat.
+        and (canonical.kind<>'feedback_received' or exists(select 1 from public.marketplace_connections feedback_connection
+          where feedback_connection.workspace_id=p_workspace_id and feedback_connection.id=p_connection_id and feedback_connection.execution_mode='local'))
+        and public.marketplace_notification_enabled(p_workspace_id,p_connection_id,public.marketplace_notification_category(canonical.kind),(entry->>'occurredAt')::timestamptz)
+        then v_observed end
+    from canonical left join public.marketplace_account_entries c on c.workspace_id=p_workspace_id and c.connection_id=p_connection_id and c.kind='conversation' and c.external_id=entry->>'externalConversationId'
     on conflict(workspace_id,connection_id,external_account_id,external_conversation_id,external_event_id) do nothing returning notified_at,conversation_id
   ) select count(*) filter(where notified_at is not null),count(*) filter(where notified_at is not null and conversation_id is not null) into v_count,v_visible from added;
   if v_visible>0 then perform realtime.send('{}'::jsonb,'message_notifications_changed','workspace:' || p_workspace_id::text || ':marketplace_message_notifications',true); end if;
@@ -133,7 +187,7 @@ begin
     join public.marketplace_account_entries e on e.workspace_id=n.workspace_id and e.connection_id=n.connection_id and e.id=n.conversation_id and e.kind='conversation'
     where n.workspace_id=p_workspace_id and n.notified_at is not null and n.cleared_at is null order by n.notified_at desc,n.id desc limit 50
   ) select coalesce(jsonb_agg(jsonb_build_object('id',n.id::text,'connectionId',n.connection_id,'conversationId',n.conversation_id,'accountName',n.display_name,'senderName',n.sender_name,
-    'eventKind',split_part(n.external_event_id,':',1),'observedAt',n.notified_at,'read',n.read) order by n.notified_at desc,n.id desc),'[]'::jsonb) into v_items from latest n;
+    'eventKind',split_part(n.external_event_id,':',1),'notificationKind',n.notification_kind,'observedAt',n.notified_at,'read',n.read) order by n.notified_at desc,n.id desc),'[]'::jsonb) into v_items from latest n;
   return jsonb_build_object('workspaceId',p_workspace_id,'items',v_items,'unreadCount',v_unread);
 end;
 $$;

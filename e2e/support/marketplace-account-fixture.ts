@@ -101,6 +101,25 @@ export async function mockMarketplace(
     string,
     { vinted: boolean; ebay: boolean; kleinanzeigen: boolean }
   >();
+  const notificationCategories = {
+    messages: true,
+    offers: true,
+    orders: true,
+    shipping: true,
+    payments: true,
+    feedback: true,
+    other: true,
+  };
+  const messageNotificationSettings = new Map<
+    string,
+    {
+      workspaceId: string;
+      connectionId: string;
+      enabled: boolean;
+      version: number;
+      categories: typeof notificationCategories;
+    }
+  >();
   const syncOperationId = '25000000-0000-4000-8000-000000000091';
   await page.route('**/marketplace-browser/connections/sync/start', (route) => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -434,21 +453,70 @@ export async function mockMarketplace(
       ].includes(name)
     )
       json = { workspaceId, items: [], unreadCount: 0 };
-    if (
-      name === 'marketplace_read_favorite_notification_settings' ||
-      name === 'marketplace_read_message_notification_settings'
-    )
+    if (name === 'marketplace_read_favorite_notification_settings')
       json = { workspaceId, connectionId: body['p_connection_id'], enabled: true, version: 0 };
-    if (
-      name === 'marketplace_set_favorite_notification_settings' ||
-      name === 'marketplace_set_message_notification_settings'
-    )
+    if (name === 'marketplace_set_favorite_notification_settings')
       json = {
         workspaceId,
         connectionId: body['p_connection_id'],
         enabled: body['p_enabled'],
         version: 1,
       };
+    if (
+      name === 'marketplace_read_message_notification_settings' ||
+      name === 'marketplace_set_message_notification_settings' ||
+      name === 'marketplace_set_notification_category_settings'
+    ) {
+      const connectionId = body['p_connection_id'];
+      if (
+        body['p_workspace_id'] !== workspaceId ||
+        typeof connectionId !== 'string' ||
+        !accounts.some((account) => account.connectionId === connectionId)
+      )
+        return route.fulfill({ status: 403, json: { code: '42501' } });
+      let setting = messageNotificationSettings.get(connectionId);
+      if (!setting) {
+        setting = {
+          workspaceId,
+          connectionId,
+          enabled: true,
+          version: 0,
+          categories: { ...notificationCategories },
+        };
+        messageNotificationSettings.set(connectionId, setting);
+      }
+      if (name !== 'marketplace_read_message_notification_settings') {
+        const category = body['p_category'];
+        const enabled = body['p_enabled'];
+        const expectedVersion = body['p_expected_version'];
+        if (
+          typeof enabled !== 'boolean' ||
+          typeof expectedVersion !== 'number' ||
+          !Number.isSafeInteger(expectedVersion) ||
+          expectedVersion < 0 ||
+          (name === 'marketplace_set_notification_category_settings' &&
+            (typeof category !== 'string' || !Object.hasOwn(notificationCategories, category)))
+        )
+          return route.fulfill({ status: 400, json: { code: '22023' } });
+        if (expectedVersion !== setting.version)
+          return route.fulfill({ status: 409, json: { code: '40001' } });
+        const changedCategories =
+          name === 'marketplace_set_notification_category_settings'
+            ? [category as keyof typeof notificationCategories]
+            : (
+                Object.keys(notificationCategories) as (keyof typeof notificationCategories)[]
+              ).filter((key) => key !== 'feedback');
+        if (
+          setting.version === 0 ||
+          changedCategories.some((key) => setting.categories[key] !== enabled)
+        ) {
+          for (const key of changedCategories) setting.categories[key] = enabled;
+          setting.enabled = setting.categories.messages;
+          setting.version++;
+        }
+      }
+      json = setting;
+    }
     if (
       [
         'marketplace_mark_favorite_notifications',

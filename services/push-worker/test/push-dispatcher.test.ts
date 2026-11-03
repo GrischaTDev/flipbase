@@ -286,6 +286,28 @@ test('Payload erlaubt nur strukturierte interne Ziele', () => {
     assert.equal(validatePayload({ ...payload, target }), false);
   assert.equal(validatePayload({ ...payload, category: 'order' }), false);
 });
+
+test('Nachrichten behalten alte und differenzierte Titel im unveränderten Payloadvertrag', () => {
+  const message = {
+    ...payload,
+    category: 'message',
+    target: {
+      kind: 'vinted_message',
+      connectionId: payload.workspaceId,
+      conversationId: payload.eventId,
+    },
+  };
+  for (const title of [
+    'Flipbase',
+    'Neue Nachricht',
+    'Bestellung storniert',
+    'Rückerstattung abgeschlossen',
+  ])
+    assert.equal(validatePayload({ ...message, title }), true);
+  assert.equal(validatePayload({ ...message, notificationKind: 'order_cancelled' }), false);
+  assert.equal(validatePayload({ ...message, target: { ...message.target, url: '/evil' } }), false);
+  assert.equal(validatePayload({ ...message, category: 'order' }), false);
+});
 test('Ereignisablauf deaktiviert kein noch gueltiges Subscription', async () => {
   const { store, finished } = fixture({
     claim: async () => [{ id: '1', binding_generation: 'g', claim_token: 'a' }],
