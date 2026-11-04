@@ -105,10 +105,41 @@ describe('Revenue-Chart-Konfiguration', () => {
       label: `${index + 1}.08.`,
     }));
     const options = createRevenueChartConfiguration(many, 'light', true);
-    expect(options.xaxis.tickAmount).toBe(6);
-    expect(options.responsive[0]?.options?.xaxis?.tickAmount).toBe(2);
+    expect(options.xaxis.tickAmount).toBe(30);
+    expect(
+      many.map((point) => options.xaxis.labels?.formatter?.(point.label)).filter(Boolean),
+    ).toEqual(['1.08.', '6.08.', '11.08.', '16.08.', '21.08.', '26.08.', '31.08.']);
+    expect(
+      many
+        .map((point) => options.responsive[0]?.options?.xaxis?.labels?.formatter?.(point.label))
+        .filter(Boolean),
+    ).toEqual(['1.08.', '16.08.', '31.08.']);
     expect(options.series[0].data).toHaveLength(31);
     expect(options.xaxis.categories).toHaveLength(31);
+  });
+  it('zeigt alle zwölf Monatsnamen und erhält Dezember auch auf schmalen Flächen', () => {
+    const labels = [
+      'Jan',
+      'Feb',
+      'März',
+      'Apr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Dez',
+    ];
+    const months = labels.map((label) => ({ ...points[0], label }));
+    const options = createRevenueChartConfiguration(months, 'light', true);
+    expect(months.map((point) => options.xaxis.labels?.formatter?.(point.label))).toEqual(labels);
+    expect(
+      months
+        .map((point) => options.responsive[0]?.options?.xaxis?.labels?.formatter?.(point.label))
+        .filter(Boolean),
+    ).toEqual(['Jan', 'Jul', 'Dez']);
   });
   it.each([{ values: [] }, { values: [points[0]] }])(
     'verarbeitet leere oder einzelne Datenpunkte',

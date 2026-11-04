@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Vollständige Monats- und Jahresachsen in der Übersicht
+
+**Auftrag und Umsetzung:** Die Diagrammachse bei „Dieser Monat“ bis zum letzten
+Kalendertag und bei „Dieses Jahr“ bis Dezember anzeigen. Bisher nutzten
+Diagrammpunkte und Kennzahlen dasselbe Ende am heutigen Tag. Die Anzeige erhält
+nun ein eigenes Kalenderende; Kennzahlen, Buchungsauswahl und gleich lange
+Vorperiodenvergleiche bleiben auf dem bisherigen Stand bis heute. Zusätzliche
+leere Zeitpunkte nutzen die vorhandene Darstellung. „Heute“ und „7 Tage“ behalten
+ihre Zeiträume. Monatslängen, Schaltjahre und Jahreswechsel werden berücksichtigt.
+Die Achsenbeschriftung erhält den ersten und letzten Zeitraumwert auch bei
+verdichteter Darstellung; auf breiten Jahresdiagrammen stehen alle zwölf Monate.
+
+**Prüfung:** Neun Regressionserwartungen scheiterten zunächst am alten Stand;
+nach der Korrektur alle 38 Berichtsfälle erfolgreich. Die neuen Gegenproben
+sichern vollständige Kalenderachsen sowie den Ausschluss zukünftiger Buchungen
+aus Kennzahlen und Diagrammbeträgen. Den vorhandenen Browserfall um den letzten
+Monatstag, Dezember sowie die unveränderten Heute-/7-Tage-Grenzen erweitert.
+Weitere Prüfprotokolle liegen privat unter `tmp/dashboard-period-checks/`.
+Für den Browsernachweis wird eine eigene Supabase-Testinstanz mit vollständigem
+Migrationsstand verwendet; fremde Arbeitskopien und Entwicklungsdaten bleiben
+erhalten. Eigenständiger Zweig auf frisch abgerufenem `origin/master`; die
+beiden vorherigen Aufgaben bleiben unverändert separat vorbereitet.
+
 ## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
 
 **Befund:** Der neue beige Schal-Auftrag 27 brach produktiv im Schritt `values` ab.

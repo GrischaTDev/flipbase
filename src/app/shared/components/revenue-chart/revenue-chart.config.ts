@@ -68,6 +68,16 @@ export function buildRevenueSeries(points: readonly DashboardTimePoint[]): ApexA
   }));
 }
 
+function createDateLabelFormatter(points: readonly DashboardTimePoint[], maximumLabels: number) {
+  const step = Math.max(1, Math.ceil((points.length - 1) / (maximumLabels - 1)));
+  const visibleLabels = new Set(
+    points
+      .filter((_, index) => index % step === 0 || index === points.length - 1)
+      .map((point) => point.label),
+  );
+  return (label: string) => (visibleLabels.has(label) ? label : '');
+}
+
 export interface RevenueChartConfiguration {
   chart: ApexChart;
   series: ApexAxisChartSeries;
@@ -138,8 +148,10 @@ export function createRevenueChartConfiguration(
       type: 'category',
       categories: points.map((point) => point.label),
       tickPlacement: 'between',
-      tickAmount: points.length > 1 ? Math.min(points.length - 1, 6) : undefined,
+      // Randkategorien erhalten; nur die Beschriftung wird bei vielen Punkten verdichtet.
+      tickAmount: points.length > 1 ? points.length - 1 : undefined,
       labels: {
+        formatter: createDateLabelFormatter(points, points.length <= 12 ? 12 : 7),
         rotate: 0,
         hideOverlappingLabels: true,
         style: { fontSize: '12px', colors: palette.ticks },
@@ -167,7 +179,7 @@ export function createRevenueChartConfiguration(
       {
         breakpoint: 640,
         options: {
-          xaxis: { tickAmount: points.length > 1 ? Math.min(points.length - 1, 2) : undefined },
+          xaxis: { labels: { formatter: createDateLabelFormatter(points, 3) } },
         },
       },
     ],
