@@ -224,6 +224,9 @@ export function vintedListingJobLabel(job: VintedListingJob): string {
           ? 'Vinted prüft Dein Inserat'
           : 'Veröffentlicht';
     case 'failed':
+      if (job.errorCode === 'category_unavailable')
+        return 'Vinted-Kategorie konnte nicht geladen werden';
+      if (job.errorCode === 'provider_unavailable') return 'Vorbereitung bei Vinted fehlgeschlagen';
       return 'Fehlgeschlagen';
     case 'outcome_unknown':
       return 'Ergebnis unklar';

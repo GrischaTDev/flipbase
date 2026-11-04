@@ -291,9 +291,14 @@
                   @if (categorySource(); as source) {
                     <app-category-picker
                       label="Kategorie"
+                      helpText="Suche die passende Vinted-Kategorie."
                       [source]="source"
                       formControlName="categoryId"
                     />
+                  } @else {
+                    <p class="text-sm text-fb-text-secondary">
+                      Wähle zuerst ein Zielkonto, um dessen Kategorien auszuwählen.
+                    </p>
                   }
                   @if (categoryError()) {
                     <p role="alert" class="text-sm text-fb-critical">{{ categoryError() }}</p>

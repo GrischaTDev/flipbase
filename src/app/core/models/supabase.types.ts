@@ -5195,7 +5195,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -5236,7 +5236,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
+            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: true
             referencedRelation: "marketplace_connections"
@@ -5306,7 +5306,7 @@ export type Database = {
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
-            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -8694,6 +8694,38 @@ export type Database = {
           requested_at?: string | null
         }
         Relationships: []
+      }
+      vinted_selling_category_snapshots: {
+        Row: {
+          categories: Json
+          connection_id: string
+          external_account_id: string
+          observed_at: string
+          workspace_id: string
+        }
+        Insert: {
+          categories: Json
+          connection_id: string
+          external_account_id: string
+          observed_at: string
+          workspace_id: string
+        }
+        Update: {
+          categories?: Json
+          connection_id?: string
+          external_account_id?: string
+          observed_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_selling_category_snapsho_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
       }
       web_push_connection_incidents: {
         Row: {
@@ -12447,6 +12479,16 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_save_vinted_selling_tree: {
+        Args: {
+          p_categories: Json
+          p_connection_id: string
+          p_external_account_id: string
+          p_observed_at: string
+          p_workspace_id: string
+        }
+        Returns: undefined
       }
       marketplace_set_favorite_notification_settings: {
         Args: {

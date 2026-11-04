@@ -172,7 +172,11 @@ export class MarketplaceListingRunner {
         result = {
           outcome: beginAttempted ? 'outcome_unknown' : 'failed',
           errorCode:
-            beginAttempted && !beginConfirmed ? 'begin_unconfirmed' : 'provider_unavailable',
+            beginAttempted && !beginConfirmed
+              ? 'begin_unconfirmed'
+              : !beginAttempted && ['category_path'].includes(preflightStage)
+                ? 'category_unavailable'
+                : 'provider_unavailable',
         };
         if (!sessionId) recovery = true;
       }

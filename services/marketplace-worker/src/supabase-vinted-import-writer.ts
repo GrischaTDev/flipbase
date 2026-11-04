@@ -1,3 +1,4 @@
+import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import type { VintedAccountImport, VintedConversationVersion } from './vinted-account-import.ts';
 
@@ -173,6 +174,9 @@ export class SupabaseVintedImportWriter {
     snapshot: VintedAccountImport,
   ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>> {
     await this.assertActive(scope, sessionId);
+    const { sellingCategories, ...accountSnapshot } = snapshot;
+    const categories =
+      sellingCategories === undefined ? undefined : parseVintedSellingTree(sellingCategories);
     // Zugriff, Identität, Einträge und Abrufstände werden in derselben Transaktion geprüft.
     const result = record(
       await this.json(
@@ -191,14 +195,14 @@ export class SupabaseVintedImportWriter {
                     p_runner_id: scope.syncRead.runnerId,
                     p_worker_epoch: scope.syncRead.workerEpoch,
                     p_session_id: sessionId,
-                    p_snapshot: snapshot,
+                    p_snapshot: accountSnapshot,
                   }
                 : {
                     p_workspace_id: scope.workspaceId,
                     p_connection_id: scope.connectionId,
                     p_session_id: sessionId,
                     p_user_id: scope.userId,
-                    p_snapshot: snapshot,
+                    p_snapshot: accountSnapshot,
                   },
             ),
             signal: AbortSignal.timeout(30_000),
@@ -212,6 +216,25 @@ export class SupabaseVintedImportWriter {
       if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)
         throw new Error('Vinted-Daten konnten nicht bestätigt werden');
       counts[kind] = value;
+    }
+    if (categories) {
+      await this.assertActive(scope, sessionId);
+      const response = await this.request(
+        new URL('/rest/v1/rpc/marketplace_save_vinted_selling_tree', this.baseUrl),
+        {
+          method: 'POST',
+          headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            p_workspace_id: scope.workspaceId,
+            p_connection_id: scope.connectionId,
+            p_external_account_id: snapshot.identity.id,
+            p_observed_at: snapshot.observedAt,
+            p_categories: categories,
+          }),
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+      if (!response.ok) throw new Error('Vinted-Verkaufsbaum konnte nicht gespeichert werden');
     }
     return counts;
   }

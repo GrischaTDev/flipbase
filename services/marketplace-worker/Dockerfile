@@ -8,6 +8,7 @@ COPY supabase/functions/_shared/marketplace-message-contracts.d.ts supabase/func
 COPY tools/flipbase-extension/vinted-negotiation-runtime.js /app/tools/flipbase-extension/
 COPY tools/flipbase-extension/vinted-local-inbox-events.js /app/tools/flipbase-extension/
 COPY supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs supabase/functions/_shared/marketplace-inbox-notification-kinds.d.mts /app/supabase/functions/_shared/
+COPY supabase/functions/_shared/vinted-selling-tree.mjs supabase/functions/_shared/vinted-selling-tree.d.mts /app/supabase/functions/_shared/
 COPY supabase/functions/_shared/marketplace-listing-contracts.d.ts supabase/functions/_shared/vinted-listing-photo-renderer.mts /app/supabase/functions/_shared/
 COPY supabase/functions/_shared/marketplace-profile-contracts.d.ts /app/supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-listing-runtime.js /app/tools/flipbase-extension/
@@ -30,6 +31,7 @@ COPY --from=build /app/services/marketplace-worker/dist/supabase/functions/_shar
 COPY tools/flipbase-extension/vinted-negotiation-runtime.js /tools/flipbase-extension/
 COPY tools/flipbase-extension/vinted-local-inbox-events.js /tools/flipbase-extension/
 COPY supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs /supabase/functions/_shared/
+COPY supabase/functions/_shared/vinted-selling-tree.mjs /supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-listing-runtime.js /tools/flipbase-extension/
 USER node
 EXPOSE 4179

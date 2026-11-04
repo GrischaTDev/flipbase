@@ -1,3 +1,4 @@
+import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
 import {
   isMarketplaceInboxNotificationKind,
@@ -225,7 +226,7 @@ export async function executeBrowserAction(
     login: [1],
     verify: [1],
     readListingEdit: [2],
-    readListingCategory: [3],
+    readListingCategory: [3, 4],
     readListingContent: [2],
     deleteListing: [2],
     updateListingContent: [4, 5],
@@ -273,6 +274,7 @@ export async function executeBrowserAction(
           categoryId,
           parents,
           authorize,
+          argumentsList.length === 4 ? text(argumentsList[3], 2000) : undefined,
         ),
         categoryId,
       );
@@ -988,9 +990,13 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
       (await run('readListingEdit', [itemId, accountId])) as Awaited<
         ReturnType<NonNullable<BrowserInfo['readListingEdit']>>
       >,
-    readListingCategory: async (accountId, categoryId, parents, authorize) =>
+    readListingCategory: async (accountId, categoryId, parents, authorize, categoryLabel) =>
       parseVintedListingCategoryFields(
-        await run('readListingCategory', [accountId, categoryId, parents], authorize),
+        await run(
+          'readListingCategory',
+          [accountId, categoryId, parents, ...(categoryLabel ? [categoryLabel] : [])],
+          authorize,
+        ),
         categoryId,
       ),
     readListingContent: async (accountId, externalId, authorize) => {
@@ -1188,6 +1194,8 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
   }
   if (name === 'identify') return input === null ? null : identity(input);
   const snapshot = commandRecord(input);
+  if (snapshot.sellingCategories !== undefined)
+    snapshot.sellingCategories = parseVintedSellingTree(snapshot.sellingCategories);
   if (
     Object.keys(snapshot).some(
       (key) =>
@@ -1201,6 +1209,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
           'browserReadFailures',
           'inboxEvents',
           'publicationFieldNames',
+          'sellingCategories',
         ].includes(key),
     ) ||
     !Array.isArray(snapshot.entries) ||

@@ -44,7 +44,7 @@ export async function vintedListingFormControl(
     result.kind !== 'button' ||
     !result.scoped ||
     typeof result.testId !== 'string' ||
-    !/^(?:(?:catalog|brand|color)-select-dropdown-input|category-(?:size-single-grid|condition-single-list|material-multi-list)-input)$/.test(
+    !/^(?:(?:catalog|brand|color)-select-dropdown-input|category-(?:size-single-grid|condition-single-list|accessory_department-single-list|material-multi-list)-input)$/.test(
       result.testId,
     )
   )

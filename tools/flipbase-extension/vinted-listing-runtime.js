@@ -2,7 +2,8 @@
 (function exposeListingRuntime(root) {
   'use strict';
   const patterns = {
-    category: /^catalog-(?:suggestion-)?([1-9][0-9]*)$/,
+    category: /^catalog-(?:(?:suggestion-)?([1-9][0-9]*)|search-([1-9][0-9]*)-result)$/,
+    accessory_department: /^accessory_department-([1-9][0-9]*)$/,
     brand: /^(?:suggested-)?brand-([1-9][0-9]*)$/,
     size: /^size-group-([1-9][0-9]*)-grid-option-([1-9][0-9]*)$/,
     condition: /^condition-([1-9][0-9]*)$/,
@@ -11,6 +12,24 @@
     material: /^material-(?:suggestion-)?([1-9][0-9]*)$/,
     package: /^package_type_selector_([1-9][0-9]*)$/,
   };
+  // Ausschließlich das am Verkaufsformular belegte zusätzliche Merkmal übernehmen.
+  function validAttributes(attributes) {
+    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) return false;
+    const keys = Object.keys(attributes);
+    if (keys.length === 0) return true;
+    return (
+      keys.length === 2 &&
+      keys.includes('accessory_department') &&
+      keys.includes('accessory_department_label') &&
+      typeof attributes.accessory_department === 'string' &&
+      /^[1-9][0-9]*$/.test(attributes.accessory_department) &&
+      Number.isSafeInteger(Number(attributes.accessory_department)) &&
+      typeof attributes.accessory_department_label === 'string' &&
+      attributes.accessory_department_label.trim().length > 0 &&
+      attributes.accessory_department_label.length <= 2000 &&
+      !/[\x00-\x1f\x7f]/.test(attributes.accessory_department_label)
+    );
+  }
   function invalid() {
     throw new Error('Die Vinted-Auswahl konnte nicht eindeutig gelesen werden.');
   }
@@ -49,7 +68,9 @@
       if (!emptyBrand && !match) invalid();
       const sizeGroupId = field === 'size' ? numeric(match[1]) : null;
       if (sizeGroupId !== null) groups.add(sizeGroupId);
-      const id = emptyBrand ? null : numeric(match[field === 'size' ? 2 : 1]);
+      const id = emptyBrand
+        ? null
+        : numeric(field === 'category' ? (match[1] ?? match[2]) : match[field === 'size' ? 2 : 1]);
       const label = value.label.trim();
       const existing = choices.get(id);
       if (existing && (existing.label !== label || existing.sizeGroupId !== sizeGroupId)) invalid();
@@ -103,7 +124,7 @@
       ]) ||
       input.categoryId !== expectedCategoryId ||
       !Array.isArray(input.fields) ||
-      input.fields.length > 6 ||
+      input.fields.length > 7 ||
       !stringList(input.unknownFields, 50, (value) => safeText(value, 2000)) ||
       !stringList(
         input.acceptedPhotoMimeTypes,
@@ -124,7 +145,15 @@
     for (const field of input.fields) {
       if (
         !exact(field, ['field', 'choices', 'sizeGroupId']) ||
-        !['brand', 'size', 'condition', 'color', 'material', 'package'].includes(field.field) ||
+        ![
+          'brand',
+          'size',
+          'condition',
+          'color',
+          'material',
+          'package',
+          'accessory_department',
+        ].includes(field.field) ||
         seen.has(field.field) ||
         !Array.isArray(field.choices) ||
         field.choices.length > 10000 ||
@@ -177,6 +206,7 @@
   function collectChoices(field) {
     const selectors = {
       category: '[role="radio"][id^="catalog-"]',
+      accessory_department: '[role="radio"][id^="accessory_department-"]',
       brand:
         '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand',
       size: '[role="checkbox"][data-testid^="size-group-"]',
@@ -428,6 +458,7 @@
   function collectFormMetadata(requestedField) {
     const testIds = {
       category: 'catalog-select-dropdown-input',
+      accessory_department: 'category-accessory_department-single-list-input',
       brand: 'brand-select-dropdown-input',
       size: 'category-size-single-grid-input',
       condition: 'category-condition-single-list-input',
@@ -509,7 +540,7 @@
       !root.querySelector('textarea[name="description"]')
     )
       throw new Error('Vinted-Formular unvollständig.');
-    const names = ['brand', 'size', 'condition', 'color', 'material'];
+    const names = ['accessory_department', 'brand', 'size', 'condition', 'color', 'material'];
     const controls = new Map(['category', ...names].map((name) => [name, control(name)]));
     if ([...controls.values()].some((entry) => !['ready', 'missing'].includes(entry.state)))
       throw new Error('Vinted-Formularfeld nicht eindeutig.');
@@ -677,7 +708,7 @@
     else if (!positive(content.priceCents)) add('price', 'invalid');
     if (content.currency !== 'EUR') add('currency', 'invalid');
     if (!record(content.attributes)) add('attributes', 'invalid');
-    else if (Object.keys(content.attributes).length) add('attributes', 'unsupported');
+    else if (!validAttributes(content.attributes)) add('attributes', 'unsupported');
     for (const field of schema.unknownFields) add(field, 'unsupported');
 
     for (const [field, id, label] of [
@@ -685,6 +716,13 @@
       ['size', content.sizeId, content.sizeLabel],
       ['condition', content.conditionId, content.conditionLabel],
       ['package', content.packageSizeId, ''],
+      [
+        'accessory_department',
+        content.attributes?.accessory_department
+          ? Number(content.attributes.accessory_department)
+          : null,
+        content.attributes?.accessory_department_label ?? '',
+      ],
     ]) {
       const choices = fields.get(field);
       if (!choices) {
@@ -1133,6 +1171,7 @@
         size: [content.sizeId],
         condition: [content.conditionId],
         package: [content.packageSizeId],
+        accessory_department: [Number(content.attributes.accessory_department)],
         color: content.colorIds,
         material: content.materialIds,
       }[field.field];
@@ -1297,7 +1336,7 @@
       !positive(content.priceCents) ||
       content.currency !== 'EUR' ||
       !positive(content.categoryId) ||
-      !exact(content.attributes, [])
+      !validAttributes(content.attributes)
     )
       invalid();
     const schema = parseCategoryFields(input.schema, content.categoryId);
@@ -1316,6 +1355,13 @@
       ['size', content.sizeId, content.sizeLabel],
       ['condition', content.conditionId, content.conditionLabel],
       ['package', content.packageSizeId, null],
+      [
+        'accessory_department',
+        content.attributes.accessory_department
+          ? Number(content.attributes.accessory_department)
+          : null,
+        content.attributes.accessory_department_label ?? '',
+      ],
     ]) {
       const choice = selected(field)[0];
       if (
@@ -1360,7 +1406,7 @@
         materialIds: [...content.materialIds],
         materialLabels: [...content.materialLabels],
         packageSizeId: content.packageSizeId,
-        attributes: {},
+        attributes: { ...content.attributes },
       },
       aiPhoto: input.aiPhoto,
       bump: input.bump,
@@ -1430,7 +1476,7 @@
       !input.attributes ||
       typeof input.attributes !== 'object' ||
       Array.isArray(input.attributes) ||
-      Object.keys(input.attributes).length !== 0
+      !validAttributes(input.attributes)
     )
       invalid();
     return {
@@ -1451,7 +1497,7 @@
       materialIds: [...input.materialIds],
       materialLabels: [...input.materialLabels],
       packageSizeId: input.packageSizeId,
-      attributes: {},
+      attributes: { ...input.attributes },
     };
   }
   root.FlipbaseVintedListingRuntime = Object.freeze({

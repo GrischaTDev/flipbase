@@ -1,3 +1,4 @@
+import { readVintedSellingTree } from './vinted-browser-selling-tree.ts';
 import type { Page } from 'playwright';
 import { setTimeout } from 'node:timers/promises';
 import type {
@@ -94,7 +95,7 @@ export function vintedBrowserActions(
     };
   return {
     readListingCategory: afterSessionRenewal(
-      async (accountId, categoryId, categoryPath, authorize) => {
+      async (accountId, categoryId, categoryPath, authorize, categoryLabel) => {
         try {
           await authorize();
         } catch {
@@ -108,7 +109,14 @@ export function vintedBrowserActions(
         } catch {
           throw new VintedListingReadError('reserve');
         }
-        return readVintedListingNewCategory(page, accountId, categoryId, categoryPath, authorize);
+        return readVintedListingNewCategory(
+          page,
+          accountId,
+          categoryId,
+          categoryPath,
+          authorize,
+          categoryLabel,
+        );
       },
     ),
     readListingContent: afterSessionRenewal(async (accountId, externalId, authorize) => {
@@ -229,21 +237,39 @@ export function vintedBrowserActions(
     type: (value) => desktop?.type(value) ?? currentPage().keyboard.insertText(value),
     press: (key) => desktop?.press(key) ?? currentPage().keyboard.press(key),
     identify: () => readVintedAccountIdentity(currentPage()),
-    importAccount: (
+    importAccount: async (
       authorize,
       onStage,
       previousConversations,
       requestedConversation,
       previousPublications,
-    ) =>
-      readVintedAccountImport(
+    ) => {
+      const snapshot = await readVintedAccountImport(
         currentPage(),
         authorize,
         onStage,
         previousConversations,
         requestedConversation,
         { previousPublications },
-      ),
+      );
+      if (!requestedConversation) {
+        const context = connection.contexts?.()[0];
+        if (context) {
+          try {
+            snapshot.sellingCategories = await readVintedSellingTree(
+              await context.newPage(),
+              snapshot.identity.id,
+              authorize,
+            );
+          } catch {
+            // Der bisherige atomare Snapshot bleibt erhalten; der Kontoimport bleibt unabhängig.
+            await authorize();
+            process.stderr.write('Vinted-Verkaufsbaum konnte nicht aktualisiert werden!\n');
+          }
+        }
+      }
+      return snapshot;
+    },
     login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
     verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
     readListingEdit: afterSessionRenewal((itemId, accountId) =>

@@ -134,3 +134,51 @@ describe('Vinted listing field selection', () => {
     ).toThrow();
   });
 });
+
+it('changes the target group only through offered choices and preserves the local form marker', () => {
+  const departmentSchema = {
+    ...schema,
+    fields: [
+      {
+        field: 'accessory_department' as const,
+        sizeGroupId: null,
+        choices: [
+          { id: 575, label: 'Herren', selected: true, disabled: false, sizeGroupId: null },
+          { id: 576, label: 'Damen', selected: false, disabled: false, sizeGroupId: null },
+        ],
+      },
+    ],
+  };
+  const identifiers = {
+    sizeId: null,
+    conditionId: null,
+    packageSizeId: null,
+    colorIds: [],
+    materialIds: [],
+    accessoryDepartmentId: 576,
+  };
+  const selection = buildVintedListingFieldSelection(departmentSchema, identifiers);
+  const updated = applyVintedListingFieldSelection(
+    {
+      ...emptyVintedListingContent(),
+      categoryId: schema.categoryId,
+      attributes: {
+        flipbaseListingForm: '1',
+        accessory_department: '575',
+        accessory_department_label: 'Herren',
+      },
+    },
+    selection,
+  );
+  expect(updated.attributes).toEqual({
+    flipbaseListingForm: '1',
+    accessory_department: '576',
+    accessory_department_label: 'Damen',
+  });
+  expect(() =>
+    buildVintedListingFieldSelection(departmentSchema, {
+      ...identifiers,
+      accessoryDepartmentId: 999,
+    }),
+  ).toThrow();
+});

@@ -22,7 +22,14 @@ export interface VintedListingContent {
 }
 
 export type VintedListingChoiceField =
-  'category' | 'brand' | 'size' | 'condition' | 'color' | 'material' | 'package';
+  | 'category'
+  | 'brand'
+  | 'size'
+  | 'condition'
+  | 'color'
+  | 'material'
+  | 'package'
+  | 'accessory_department';
 
 export interface VintedListingChoice {
   /** null ist ausschließlich die ausdrückliche Auswahl „Keine Marke“. */

@@ -44,6 +44,8 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-negotiation-contracts.d.ts
 !supabase/functions/_shared/marketplace-listing-contracts.d.ts
 !supabase/functions/_shared/vinted-listing-photo-renderer.mts
+!supabase/functions/_shared/vinted-selling-tree.mjs
+!supabase/functions/_shared/vinted-selling-tree.d.mts
 !supabase/functions/_shared/marketplace-profile-contracts.d.ts
 !supabase/functions/_shared/marketplace-local-listing-contracts.d.ts
 !supabase/functions/_shared/negotiation-config.ts

@@ -31,6 +31,7 @@ it.each(['€', 'Preis unbekannt', '1.23,45 €', '12,345 €', '-2 €', '0'])(
 
 it('zeigt die aktuelle Vinted-Auswahl und lässt gesperrte Werte weg', () => {
   expect(vintedListingEditSelection(current)).toEqual({
+    accessory_department: '',
     brand: '254956',
     size: '607',
     condition: '2',

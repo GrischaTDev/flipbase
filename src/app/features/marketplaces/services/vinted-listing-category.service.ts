@@ -1,3 +1,10 @@
+import { SupabaseService } from '../../../core/services/supabase.service';
+import {
+  parseVintedSellingTree,
+  type VintedSellingTreeNode,
+} from '../../../../../supabase/functions/_shared/vinted-selling-tree.mjs';
+import { vintedListingCategorySource } from '../models/vinted-listing-category-source';
+import type { CategoryPickerSource } from '../../../core/models/category-picker-source';
 import { Injectable, inject } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -8,6 +15,7 @@ import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api
 /** Verwendet den Kontozustand des geöffneten Editors statt einer globalen Kontoauswahl. */
 @Injectable()
 export class VintedListingCategoryService {
+  private readonly database = inject(SupabaseService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
@@ -21,12 +29,17 @@ export class VintedListingCategoryService {
   async read(
     connectionId: string,
     categoryId: number,
-    options: { fresh?: boolean } = {},
+    options: { fresh?: boolean; categoryLabel?: string } = {},
   ): Promise<VintedListingCategoryFields> {
     const current = this.binding(connectionId);
     const token = this.auth.session()?.access_token;
     if (!token) throw new Error('Melde Dich erneut an, um die Vinted-Auswahl zu laden.');
-    const key = JSON.stringify([current, categoryId, options.fresh === true]);
+    const key = JSON.stringify([
+      current,
+      categoryId,
+      options.categoryLabel,
+      options.fresh === true,
+    ]);
     const cached = this.snapshots.get(key);
     if (!options.fresh && cached && Date.now() - cached.at < 300_000) return cached.fields;
     let request = this.requests.get(key);
@@ -35,6 +48,7 @@ export class VintedListingCategoryService {
         { workspaceId: current.workspaceId, connectionId },
         categoryId,
         token,
+        ...(options.categoryLabel ? [options.categoryLabel] : []),
       );
       this.requests.set(key, request);
     }
@@ -49,6 +63,52 @@ export class VintedListingCategoryService {
     this.snapshots.set(key, { at: Date.now(), fields });
     if (this.snapshots.size > 12) this.snapshots.delete(this.snapshots.keys().next().value!);
     return fields;
+  }
+  async readSnapshot(
+    connectionId: string,
+  ): Promise<{ categories: VintedSellingTreeNode[]; observedAt: string }> {
+    const current = this.binding(connectionId);
+    const { data, error } = await this.database.client
+      .from('vinted_selling_category_snapshots')
+      .select('external_account_id,categories,observed_at')
+      .eq('workspace_id', current.workspaceId)
+      .eq('connection_id', connectionId)
+      .eq('external_account_id', current.externalAccountId)
+      .maybeSingle();
+    if (JSON.stringify(this.binding(connectionId)) !== JSON.stringify(current))
+      throw new Error('Die Kontoverbindung wurde geändert.');
+    if (error || !data || data.external_account_id !== current.externalAccountId)
+      throw new Error(
+        'Für dieses Konto fehlt der Verkaufsbaum. Aktualisiere das Konto und lade die Kategorien erneut.',
+      );
+    return { categories: parseVintedSellingTree(data.categories), observedAt: data.observed_at };
+  }
+  source(
+    connectionId: string,
+    remember: (category: VintedSellingTreeNode) => void,
+  ): CategoryPickerSource {
+    let binding: string | undefined;
+    let pending: Promise<CategoryPickerSource> | undefined;
+    const load = () => {
+      const currentBinding = JSON.stringify(this.binding(connectionId));
+      binding ??= currentBinding;
+      if (currentBinding !== binding)
+        throw new Error('Die Kontoverbindung wurde geändert. Lade die Kategorien erneut.');
+      return (pending ??= this.readSnapshot(connectionId)
+        .then((snapshot) => {
+          snapshot.categories.forEach(remember);
+          return vintedListingCategorySource(snapshot.categories);
+        })
+        .catch((error) => {
+          pending = undefined;
+          throw error;
+        }));
+    };
+    return {
+      getById: async (id) => (await load()).getById(id),
+      loadChildren: async (id) => (await load()).loadChildren(id),
+      search: async (term) => (await load()).search(term),
+    };
   }
   private binding(connectionId: string) {
     const workspace = this.workspace.currentWorkspace(),
