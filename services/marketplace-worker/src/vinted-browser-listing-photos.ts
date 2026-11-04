@@ -5,6 +5,7 @@ import type { MarketplaceListingSnapshot } from '../../../supabase/functions/_sh
 import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
+  vintedListingFormSelector,
   collectVintedListingPhotoState as collectPhotoState,
   type VintedListingPhotoState as PhotoState,
 } from './vinted-listing-contracts.ts';
@@ -78,7 +79,8 @@ export async function uploadVintedListingPhotos(
   };
   await check();
   const input = page.locator(
-    '#content input[name="photos"][type="file"][data-testid="add-photos-input"]',
+    vintedListingFormSelector +
+      ' input[name="photos"][type="file"][data-testid="add-photos-input"]',
   );
   if ((await input.count()) !== 1 || !(await input.isEnabled())) throw invalid();
   const acceptedMimeTypes =

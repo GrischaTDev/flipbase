@@ -49,9 +49,6 @@
   @if (statistics.error(); as error) {
     <p class="mb-3 text-xs text-fb-text-secondary" role="status">{{ error }}</p>
   }
-  @if (priceNotice(); as notice) {
-    <p class="mb-3 text-sm text-fb-success" role="status">{{ notice }}</p>
-  }
   @if (viewMode() === 'list') {
     <app-vinted-listings-table
       [rows]="tableRows()"

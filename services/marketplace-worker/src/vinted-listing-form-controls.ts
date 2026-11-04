@@ -1,5 +1,6 @@
 import type { Locator, Page } from 'playwright';
 import {
+  vintedListingFormSelector,
   collectVintedListingFormControl,
   type VintedListingControlField,
 } from './vinted-listing-contracts.ts';
@@ -34,7 +35,9 @@ export async function vintedListingFormControl(
     throw new VintedListingControlError('failed');
   if (result.kind === 'input')
     return {
-      locator: page.locator((result.scoped ? '#content ' : '') + 'input#' + field),
+      locator: page.locator(
+        (result.scoped ? vintedListingFormSelector + ' ' : '') + 'input#' + field,
+      ),
       value: result.value,
     };
   if (
@@ -48,7 +51,7 @@ export async function vintedListingFormControl(
     throw new VintedListingControlError('failed');
   return {
     locator: page
-      .locator('#content')
+      .locator(vintedListingFormSelector)
       .getByTestId(result.testId)
       .and(page.locator('button[type="button"]')),
     value: result.value,

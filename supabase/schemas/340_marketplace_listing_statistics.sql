@@ -43,6 +43,8 @@ create table public.marketplace_listing_metric_observations (
 );
 comment on table public.marketplace_listing_metric_observations is 'Bekannte Inseratkennzahlen je akzeptiertem Abruf; fehlende Kennzahlen bleiben unbekannt und werden nicht als null Aufrufe interpretiert.';
 create index marketplace_listing_metric_observations_account on public.marketplace_listing_metric_observations(workspace_id, connection_id, entry_id, observed_at desc);
+-- Die Relist-Serie muss vor dem Limit feststehen, damit keine gesamte Historie sortiert wird.
+create index marketplace_listing_metric_observations_series on public.marketplace_listing_metric_observations(workspace_id, connection_id, entry_id, statistic_item_id, observed_at desc);
 -- Der Verweis wird beim Löschen eines Inserats auf null gesetzt; ohne Index wäre das ein Tabellendurchlauf je Inserat.
 create index marketplace_listing_metric_observations_entry on public.marketplace_listing_metric_observations(entry_id) where entry_id is not null;
 alter table public.marketplace_listing_metric_observations enable row level security;

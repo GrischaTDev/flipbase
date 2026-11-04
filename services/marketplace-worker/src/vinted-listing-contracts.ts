@@ -12,6 +12,9 @@ import type {
   VintedListingValidationIssue,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
+// Vinteds neue Bearbeitungsseite verwendet main ohne ID; verschachteltes altes #content bleibt eindeutig.
+export const vintedListingFormSelector = ':is(#content, main:not(:has(#content)))';
+
 interface ListingRuntime {
   collectFormControl(field: VintedListingControlField): VintedListingFormControl;
   collectPhotoState(): VintedListingPhotoState;

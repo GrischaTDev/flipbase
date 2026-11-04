@@ -297,6 +297,24 @@ test('optional AI metadata requires explicit opt-in and never permits ambiguous 
     });
     assert.equal(optional?.ai_photo, false);
     assert.equal(optional?.bump, false);
+    // Der alte Bereich kann bereits innerhalb des neuen Hauptbereichs liegen.
+    await page.evaluate(() => {
+      const content = document.querySelector('#content');
+      if (!content) throw new Error('Fixture content missing');
+      const main = document.createElement('main');
+      content.replaceWith(main);
+      main.append(content);
+    });
+    assert.deepEqual(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      optional,
+    );
+    await page.evaluate(() => document.body.append(document.createElement('main')));
+    assert.equal(
+      await page.evaluate(collectVintedListingFormValues, { allowMissingAiPhoto: true }),
+      null,
+    );
+    await page.evaluate(() => document.body.lastElementChild?.remove());
     await page.evaluate(() => {
       const bump = document.querySelector('#bump')!;
       bump.parentElement!.append(bump.cloneNode());
@@ -337,6 +355,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
   const browser = await chromium.launch({ headless: true });
   try {
     for (const options of [
+      { modernControls: true, savedMain: true },
       { modernControls: true },
       {},
       { photoMetadataAfterSelection: true },

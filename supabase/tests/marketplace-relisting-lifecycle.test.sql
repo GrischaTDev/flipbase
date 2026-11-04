@@ -87,6 +87,21 @@ select is((select state from public.marketplace_listing_jobs where id=(select (j
 select is((select external_id from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),'46910','Zuordnungskollision erhält die alte Karte unverändert');
 reset role;
 delete from public.marketplace_listing_jobs where id=(select foreign_job_id from relist_context);
+-- Ein unbekanntes Ergebnis kann erst nach Import und manueller Preisänderung bestätigt werden.
+savepoint late_confirmation;
+update public.marketplace_listing_jobs set state='outcome_unknown' where id=(select (job->>'id')::bigint from relist_context);
+update public.marketplace_account_entries set body=jsonb_set(body,'{price}','69.90')
+where connection_id='46900000-0000-4000-8000-000000000021' and external_id='46911';
+set local role service_role;
+update relist_context set job=public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(relist_context.job->>'id')::bigint),
+  jsonb_build_object('outcome','confirmed','action','publish','externalId','46911','externalAccountId','46901','providerState','active','verifiedAt',to_char(statement_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')));
+select body->>'price' as price, external_id as external_id
+from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041' \gset late_
+select count(*) as cards from public.marketplace_account_entries where kind='publication' and connection_id='46900000-0000-4000-8000-000000000021' \gset late_
+rollback to savepoint late_confirmation;
+select is(:'late_price'::numeric,69.90::numeric,'Verspätete Bestätigung erhält den nachträglich geänderten Preis der aktiven Anzeige');
+select is(:'late_external_id'::text,'46911'::text,'Nachträgliche Bestätigung behält die ursprüngliche Flipbase-UUID');
+select is(:'late_cards'::integer,1,'Nachträgliche Bestätigung führt beide Karten zusammen');
 -- Die neue ID kann vor der Publishbestätigung bereits als Anbieterentwurf im Cache liegen.
 update public.marketplace_account_entries set body=jsonb_set(body,'{publicationState}','"draft"')
 where connection_id='46900000-0000-4000-8000-000000000021' and external_id='46911';

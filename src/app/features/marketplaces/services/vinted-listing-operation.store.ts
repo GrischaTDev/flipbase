@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
 import type { VintedListingJob } from '../models/vinted-listing-job';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
@@ -23,6 +24,7 @@ export interface VintedListingOperation {
 export class VintedListingOperationStore {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
+  private readonly toast = inject(ToastService);
   private readonly actions = signal<readonly VintedListingOperation[]>([]);
   private readonly accepted = signal<
     readonly { userId: string; record: VintedRelistingPlanRecord; imageUrl: string | null }[]
@@ -165,7 +167,7 @@ export class VintedListingOperationStore {
       this.finish(
         key,
         'success',
-        kind === 'delete' ? 'Das Inserat wurde gelöscht.' : 'Der neue Preis wurde bestätigt.',
+        kind === 'delete' ? 'Inserat erfolgreich gelöscht' : 'Preis erfolgreich geändert',
       );
     } catch (error) {
       this.finish(
@@ -178,6 +180,12 @@ export class VintedListingOperationStore {
   }
 
   private finish(key: string, state: 'success' | 'error', message: string): void {
+    if (state === 'success') {
+      const completed = this.entries().find((action) => action.key === key);
+      if (completed) this.toast.success(message, completed.title);
+      this.actions.update((actions) => actions.filter((action) => action.key !== key));
+      return;
+    }
     this.actions.update((actions) =>
       actions.map((action) => (action.key === key ? { ...action, state, message } : action)),
     );

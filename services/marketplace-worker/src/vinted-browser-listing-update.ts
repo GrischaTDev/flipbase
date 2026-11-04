@@ -25,6 +25,7 @@ import {
   type VintedListingPhotoArrangement,
 } from './vinted-browser-listing-photo-order.ts';
 import {
+  vintedListingFormSelector,
   collectVintedListingFormMetadata,
   collectVintedListingFormValues,
   validateVintedListingSubmission,
@@ -173,7 +174,7 @@ export async function updateVintedListingContent(
   const open = async () => {
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
     await page
-      .locator('#content input[name="title"]')
+      .locator(vintedListingFormSelector + ' input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
   };
   const identify = async () => {
@@ -210,7 +211,7 @@ export async function updateVintedListingContent(
     ] as const) {
       if (!changed.has(name)) continue;
       await check();
-      const input = page.locator('#content ' + selector);
+      const input = page.locator(vintedListingFormSelector + ' ' + selector);
       if (name === 'price') {
         await fillVintedListingPrice(input, value);
         continue;
@@ -222,7 +223,9 @@ export async function updateVintedListingContent(
     if (changed.has('title') || changed.has('description') || changed.has('price')) await wait(200);
   };
   const enabledSaveButton = async () => {
-    const save = page.locator('#content').getByRole('button', { name: 'Speichern', exact: true });
+    const save = page
+      .locator(vintedListingFormSelector)
+      .getByRole('button', { name: 'Speichern', exact: true });
     if ((await save.count()) !== 1 || !(await save.isVisible()) || !(await save.isEnabled()))
       throw invalid();
     return save;

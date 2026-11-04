@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 import type { MarketplaceListingReference } from '../models/marketplace-overview.models';
 
 export interface KleinanzeigenAction {
@@ -20,6 +21,7 @@ export interface KleinanzeigenAction {
 export class KleinanzeigenActionStore {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
+  private readonly toast = inject(ToastService);
   private readonly actions = signal<readonly KleinanzeigenAction[]>([]);
   readonly entries = computed(() => {
     const userId = this.auth.currentUser()?.id;
@@ -60,18 +62,17 @@ export class KleinanzeigenActionStore {
       : 'Wird inseriert …';
   }
   reconcile(reference: MarketplaceListingReference): void {
-    this.actions.update((actions) =>
-      actions.map((action) =>
+    for (const action of this.actions()) {
+      if (
         ['paused', 'error'].includes(action.state) &&
         action.operation === 'relist' &&
         action.userId === this.auth.currentUser()?.id &&
         action.reference.workspaceId === reference.workspaceId &&
         action.reference.connectionId === reference.connectionId &&
         action.reference.externalId === reference.externalId
-          ? { ...action, state: 'success', message: 'Neu inseriert' }
-          : action,
-      ),
-    );
+      )
+        this.finish(action.key, 'success', 'Neu inseriert');
+    }
   }
   begin(
     reference: MarketplaceListingReference,
@@ -115,6 +116,12 @@ export class KleinanzeigenActionStore {
     message: string,
     requiresExtensionUpdate = false,
   ): void {
+    if (state === 'success') {
+      const completed = this.entries().find((action) => action.key === key);
+      if (completed) this.toast.success(message, completed.title);
+      this.actions.update((actions) => actions.filter((action) => action.key !== key));
+      return;
+    }
     this.actions.update((actions) =>
       actions.map((action) =>
         action.key === key ? { ...action, state, message, requiresExtensionUpdate } : action,

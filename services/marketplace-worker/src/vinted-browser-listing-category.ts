@@ -7,6 +7,7 @@ import {
 } from './vinted-browser-reader.ts';
 import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
 import {
+  vintedListingFormSelector,
   parseVintedListingCategoryFields,
   parseVintedListingChoices,
   collectVintedListingChoices,
@@ -58,7 +59,7 @@ export async function selectVintedListingNewCategory(
     'textarea[name="description"]',
     'input[name="price"]',
   ]) {
-    const input = page.locator('#content ' + selector);
+    const input = page.locator(vintedListingFormSelector + ' ' + selector);
     if ((await input.count()) > 1) throw invalid();
     if (
       (await input.count()) === 1 &&
@@ -71,7 +72,10 @@ export async function selectVintedListingNewCategory(
     const control = await vintedListingFormControl(page, field, true);
     if (control && control.value && options.allowRememberedChoices !== true) throw invalid();
   }
-  if ((await page.locator('#content [data-testid^="image-wrapper-"]').count()) > 0) throw invalid();
+  if (
+    (await page.locator(vintedListingFormSelector + ' [data-testid^="image-wrapper-"]').count()) > 0
+  )
+    throw invalid();
   const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath, {
     allowRememberedCategory: options.allowRememberedChoices === true,
     targetCategoryId: categoryId,
@@ -149,7 +153,7 @@ export async function readVintedListingNewCategory(
     });
     step = 'form';
     await page
-      .locator('#content input[name="title"]')
+      .locator(vintedListingFormSelector + ' input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     step = 'category';
     const text = await selectVintedListingNewCategory(

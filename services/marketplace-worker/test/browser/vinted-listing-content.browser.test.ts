@@ -18,6 +18,7 @@ async function fixture(
     brandSearch?: boolean;
     missingAiPhoto?: boolean;
     missingBump?: boolean;
+    mainWithoutId?: boolean;
     invalidMaterialChoice?: boolean;
     hiddenCondition?: boolean;
     categoryControl?: 'empty' | 'long' | 'duplicate' | 'non-input';
@@ -57,7 +58,7 @@ async function fixture(
       });
     return route.fulfill({
       contentType: 'text/html; charset=utf-8',
-      body: `<main id="content">
+      body: `<main${options.mainWithoutId ? '' : ' id="content"'}>
       <input name="photos" type="file" accept="image/jpeg,image/png"><input name="title" value="Meine Schuhe"><textarea name="description">Sehr gut erhalten.</textarea><input name="price" value="20,50 €">
       ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox" checked>'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
       ${options.categoryControl === 'non-input' ? '<span id="category">Fußballschuhe</span>' : `<input id="category" readonly value="${options.categoryControl === 'empty' ? '' : options.categoryControl === 'long' ? 'x'.repeat(201) : 'Fußballschuhe'}">`}${options.categoryControl === 'duplicate' ? '<input id="category" readonly value="Fußballschuhe">' : ''}<input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"${options.hiddenCondition ? ' hidden' : ''}><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
@@ -129,11 +130,11 @@ test('reads the complete selected content and ordered photos from an own fresh t
     await browser.close();
   }
 });
-test('reads existing listings without the optional AI control and keeps the push control required', async () => {
+test('reads existing listings in the current main region without the optional AI control and keeps the push control required', async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    const writes = await fixture(page, { missingAiPhoto: true });
+    const writes = await fixture(page, { missingAiPhoto: true, mainWithoutId: true });
     const result = await readVintedListingCurrentContent(page, '123', '98765', () =>
       Promise.resolve(),
     );

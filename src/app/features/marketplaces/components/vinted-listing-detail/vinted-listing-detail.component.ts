@@ -31,6 +31,7 @@ import {
   type SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ProductGalleryComponent } from '../../../../shared/components/product-gallery/product-gallery.component';
 import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -82,6 +83,7 @@ export class VintedListingDetailComponent {
   private readonly destroy = inject(DestroyRef);
   private readonly builder = inject(FormBuilder);
   private readonly injector = inject(Injector);
+  private readonly toast = inject(ToastService);
   private readonly priceReturnLink = viewChild('priceReturnLink', {
     read: ElementRef<HTMLElement>,
   });
@@ -142,7 +144,6 @@ export class VintedListingDetailComponent {
     busy: this.busy,
     blocked: () => this.editing(),
     priceRead: (price) => this.loadedEntry.update((entry) => (entry ? { ...entry, price } : entry)),
-    confirmed: () => this.notice.set('Der neue Preis wurde bei Vinted bestätigt.'),
     closed: () => this.restorePriceFocus(),
   });
   readonly changingPrice = this.priceEditor.open;
@@ -501,7 +502,8 @@ export class VintedListingDetailComponent {
             : entry,
         );
         this.description.set({ description: basic.description, cacheState: 'unconfirmed' });
-        this.notice.set('Die Änderung wurde bei Vinted bestätigt.');
+        this.notice.set(null);
+        this.toast.success('Inserat erfolgreich geändert');
         return;
       }
       const content = applyVintedListingEdit(current, fields, {
@@ -544,7 +546,8 @@ export class VintedListingDetailComponent {
       this.arrangedPhotos.set(null);
       this.selectedPhoto.set(photos?.desired[0] ?? this.selectedPhoto());
       this.description.set({ description: content.description, cacheState: 'unconfirmed' });
-      this.notice.set('Die Änderung wurde bei Vinted bestätigt.');
+      this.notice.set(null);
+      this.toast.success('Inserat erfolgreich geändert');
     } catch (error) {
       if (this.isCurrent(version))
         this.error.set(

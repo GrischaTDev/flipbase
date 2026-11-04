@@ -66,7 +66,10 @@ for (const width of [390, 1440])
       await detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('18,00');
       expect(saves).toEqual([]);
       await detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
-      await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
+      await expect(page.locator('app-toast-container')).toContainText(
+        'Inserat erfolgreich geändert',
+      );
+      await expect(detail).not.toContainText('Die Änderung wurde bei Vinted bestätigt.');
       expect(saves).toEqual([
         {
           workspaceId,
@@ -338,24 +341,37 @@ for (const width of [320, 390, 834, 1440]) {
           },
         }),
       );
-      await page.route('**/rest/v1/rpc/marketplace_read_listing_metric_changes', (route) =>
-        route.fulfill({
+      const comparisons = [
+        { minutes: 5, label: 'Letzter Abruf', views: 12, favorites: 3 },
+        { minutes: 60, label: 'Stunde', views: 20, favorites: 4 },
+        { minutes: 1440, label: 'Tag', views: 35, favorites: 6 },
+        { minutes: 10080, label: 'Woche', views: 55, favorites: 9 },
+      ];
+      await page.route('**/rest/v1/rpc/marketplace_read_listing_metric_changes', (route) => {
+        const request = route.request().postDataJSON() as { p_period_minutes: number };
+        const comparison = comparisons.find(
+          (period) => period.minutes === request.p_period_minutes,
+        );
+        if (!comparison) throw new Error('Unexpected statistics period');
+        return route.fulfill({
           json: {
             workspaceId,
             connectionId: accountIds[0],
-            periodMinutes: 5,
+            periodMinutes: comparison.minutes,
             items: [
               {
                 entryId,
                 observedAt: '2026-10-15T12:00:00Z',
-                baselineAt: '2026-10-15T11:55:00Z',
-                views: 12,
-                favorites: 3,
+                baselineAt: new Date(
+                  Date.parse('2026-10-15T12:00:00Z') - comparison.minutes * 60_000,
+                ).toISOString(),
+                views: comparison.views,
+                favorites: comparison.favorites,
               },
             ],
           },
-        }),
-      );
+        });
+      });
       if ((width === 1440 && theme === 'light') || (width === 390 && theme === 'dark')) {
         // Eine lokale Kopie mit gleichem Titel ändert den Anbieterstatus des Originals nicht.
         await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', (route) =>
@@ -445,6 +461,21 @@ for (const width of [320, 390, 834, 1440]) {
       await expect(cards.first().locator('app-vinted-listing-metrics').first()).toBeVisible();
       await expect(cards.first().getByText('Gepusht', { exact: true })).toBeVisible();
       await expect(cards.first().locator('[data-metric-increase="favorites"]')).toContainText('+3');
+      const periodSelect = page.getByRole('combobox', { name: 'Zeitraum für Inseratänderungen' });
+      for (const comparison of [...comparisons.slice(1), ...comparisons.slice(0, 1)]) {
+        await periodSelect.click();
+        await page.getByRole('option', { name: new RegExp('^' + comparison.label) }).click();
+        await expect(cards.first().locator('[data-metric-increase="views"]')).toContainText(
+          '+' + comparison.views,
+        );
+        await expect(cards.first().locator('[data-metric-increase="favorites"]')).toContainText(
+          '+' + comparison.favorites,
+        );
+      }
+      await expect(cards.first().locator('[data-metric-increase="views"]')).toHaveCSS(
+        'color',
+        theme === 'dark' ? 'rgb(134, 223, 187)' : 'rgb(8, 103, 77)',
+      );
       const listBounds = (await cards.first().boundingBox())!;
       const statusBounds = (await cards
         .first()
@@ -485,6 +516,8 @@ for (const width of [320, 390, 834, 1440]) {
         .toBeCloseTo(gridWidth, 0);
       await expect(page.locator('app-vinted-listing-age')).toHaveCount(wardrobeEntries.length);
       await checkPublicationStates();
+      await expect(cards.first().locator('[data-metric-increase="views"]')).toContainText('+12');
+      await expect(cards.first().locator('[data-metric-increase="favorites"]')).toContainText('+3');
       await expect(
         page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
       ).toHaveCount(0);
@@ -834,6 +867,10 @@ for (const width of [390, 1440])
         await page.keyboard.press('Escape');
         finishSave();
         await expect(detail).toContainText('24,50');
+        await expect(page.locator('app-toast-container')).toContainText(
+          'Preis erfolgreich geändert',
+        );
+        await expect(detail).not.toContainText('Der neue Preis wurde bei Vinted bestätigt.');
         expect(saves).toEqual(
           [1, 2].map(() => ({
             workspaceId,
@@ -845,6 +882,9 @@ for (const width of [390, 1440])
         );
         expect(reads).toBe(0);
         await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
+        await expect(page.locator('app-vinted-listings')).not.toContainText(
+          'Der neue Preis wurde bei Vinted bestätigt.',
+        );
         await expect(
           page.getByRole('link', { name: 'Inserat Jacke für Preisänderung öffnen', exact: true }),
         ).toContainText('24,50');
@@ -1013,7 +1053,8 @@ for (const width of [1440, 390]) {
     await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
     await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Neue Schuhe');
     await save.click();
-    await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
+    await expect(page.locator('app-toast-container')).toContainText('Inserat erfolgreich geändert');
+    await expect(detail).not.toContainText('Die Änderung wurde bei Vinted bestätigt.');
     await expect(detail.getByRole('heading', { name: 'Neue Schuhe' })).toBeVisible();
     const base = listingCurrentContentFixture().content;
     expect(saves).toHaveLength(2);

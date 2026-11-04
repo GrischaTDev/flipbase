@@ -13,6 +13,7 @@ import { VintedListingReadError, type VintedListingReadStep } from './vinted-lis
 import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import { vintedListingControlValue } from './vinted-listing-form-controls.ts';
 import {
+  vintedListingFormSelector,
   collectVintedListingFormValues,
   collectVintedListingPhotoState,
   parseVintedListingCategoryFields,
@@ -268,7 +269,7 @@ export async function readVintedListingCurrentContent(
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
     step = 'form';
     await page
-      .locator('#content input[name="title"]')
+      .locator(vintedListingFormSelector + ' input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     const check = async () => {
       const current = step;

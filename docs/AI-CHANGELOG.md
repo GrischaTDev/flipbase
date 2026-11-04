@@ -1,5 +1,100 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Änderungszahlen, alte Fehlermeldungen und Relisting-Bestätigung korrigieren
+
+**Auftrag und Grundlage:** Nutzer beauftragt die drei Fehlerkorrekturen einschließlich
+Supabase und bestätigt die nachträgliche Preisänderung der Nike-Pufferjacke auf
+69,90 Euro. Eigener Zweig `juna/wardrobe-error-diagnosis` vom frisch abgeglichenen
+Hauptstand `5d55dd52f`; fremde Arbeitskopien bleiben unverändert.
+
+**Änderungszahlen:** Der produktive RPC bricht unter normalen Benutzerrechten nach
+acht Sekunden ab; die vorherige Abfrage liefert dieselben zwölf Artikel in rund
+30 ms. Der Serienfilter aus PR #560 erzwingt im beobachteten Plan Bitmap-Scans,
+Sortierung und wiederholte Rechteprüfungen. Ein passender geordneter Index nimmt
+die Statistikserie vor dem Messzeitpunkt auf. Kontorechte und Trennung zwischen
+alten und neuen Inseraten bleiben erhalten. Der Volumentest umfasst 120.000
+Messpunkte aus zwei Serien je Artikel; er besteht auch ohne den Index und ist
+deshalb kein lokaler Rot-Grün-Nachweis des produktiven Zeitfehlers.
+
+**Fehlende grüne Pluszahlen:** Auch der nachgemeldete Ausfall beim Wechsel zwischen
+letztem Abruf, Stunde, Tag und Woche verwendet denselben RPC. Produktiven
+Stundenvergleich unter berechtigter Benutzerrolle erneut mit Acht-Sekunden-Abbruch
+bestätigt. Die gespeicherte Historie ist vorhanden: administrative Kontrollabfragen
+liefern für beide betroffenen Konten weiterhin Tages-/Wochenzuwächse. Keine
+zusätzliche Anzeigeabweichung gefunden; der vorbereitete Index betrifft alle vier
+Zeiträume. Bestehenden Browserfall um den Zeitraumwechsel und grüne Aufruf-/
+Favoritenzuwächse in Liste und Raster erweitert. Beide registrierten Repräsentanten
+(390 Pixel/Dunkel, 1440 Pixel/Hell) einschließlich aller vier Zeiträume, tatsächlicher
+grüner Textfarbe und AXE erfolgreich. Bestehende Datenbankfälle bestätigen bereits
+die vier Berechnungen auf dem migrierten Stand; keine weitere Laufzeitänderung nötig.
+
+**Alte Meldungen:** Die 19 Fehler vom 28.–30. Oktober gehören zu einem Entwurf mit
+späterem Erfolg am 31. Oktober. Die Übersicht berücksichtigt jetzt zuerst den
+neuesten Auftrag je Workspace, Konto und Entwurf, danach Status und Alter.
+Annahmezeit und numerische Auftragskennung bestimmen die Reihenfolge; spätere
+Statusänderungen alter Versuche verdrängen keinen neuen Versuch. Bestätigte oder
+abgebrochene Nachfolger unterdrücken alte Fehler, andere Konten bleiben getrennt.
+
+**Unbekanntes Relisting-Ergebnis:** Die Veröffentlichung war erfolgt; das erneute
+Lesen des gespeicherten Formulars scheiterte an `#content`. In der tatsächlichen
+Vinted-Bearbeitungsseite fehlt diese ID, während der Hauptbereich und die Felder
+vorhanden sind. Worker und gemeinsamer Erweiterungsleser unterstützen jetzt auch
+`main` ohne ID. Verschachteltes altes `#content` bleibt eindeutig; mehrdeutige
+Bereiche werden abgewiesen. Konto-, URL-, Inhalts- und Schreibfreigaben bleiben
+erhalten. Der aktuelle Formularfall scheitert vor der Korrektur und besteht danach.
+
+**Bestehenden Artikel repariert:** Nach Sicherung, gesperrter Vorprüfung und
+zurückgerolltem Probelauf den belegten Auftrag über die vorhandene Abschlussfunktion
+bestätigt. Die ursprüngliche Flipbase-UUID trägt jetzt die neue Vinted-ID; der
+zusätzliche Import ist zusammengeführt, 69,90 Euro und Fotos bleiben erhalten.
+Die erste belegte Anbieterbeobachtung bestimmt den Veröffentlichungszeitpunkt.
+Ein anschließender Kontoimport ist akzeptiert und bestätigt genau eine Karte;
+alte und neue Statistikserien bleiben getrennt erhalten. Keine erneute
+Vinted-Veröffentlichung oder -Löschung ausgelöst. Für künftige verspätete
+Bestätigungen überschreibt der alte Auftrag nur einen Anbieterentwurf, nicht die
+inzwischen geänderten Werte eines aktiven Inserats.
+
+**Erfolgsmeldungen:** Auf weiteren Nutzerwunsch ersetzt der vorhandene Vier-Sekunden-
+Toast die dauerhaften Preis-/Bearbeitungsbestätigungen und erfolgreichen Zeilen in
+„Aktionen“. Beobachtete Vinted-Abschlüsse sowie lokale Preis-, Lösch- und
+Kleinanzeigen-Aktionen melden ihren Erfolg einmalig. Historische Erfolge beim
+Laden und verspätete Antworten aus einem fremden Nutzer-/Workspacekontext bleiben
+still; Anbieter-Verarbeitung wird nicht als abgeschlossene Veröffentlichung gemeldet.
+
+**Migration und Prüfung:** Index und Funktionskorrektur gemeinsam als Migration
+erzeugt, auf einer isolierten Datenbank mit allen 273 unveränderten vorherigen
+Migrationen angewandt. 254 SQL-Prüfungen erfolgreich; der neue Preisfall scheitert
+zuvor gezielt. Neu erzeugte öffentliche Supabase-Typen bytegleich. 45 betroffene
+native Browserfälle, 16 Übersichts-Komponentenfälle und Worker-Typprüfung erfolgreich.
+Node-22-Vorabcheck: Migrationen, Format, Lint, Typen, Suite-Audit, 188 Skriptfälle
+(zwei reguläre Auslassungen), acht Orchestrierungsfälle (drei Auslassungen) und
+57 Modellfälle erfolgreich. Im parallelen Angular-Lauf 780 erfolgreiche Fälle,
+ein Test- und ein Setup-Zeitlimit; beide betroffenen Dateien anschließend
+unverändert mit einem Worker und allen 69 Fällen erfolgreich. Damit sind die
+832 ausgewählten Angularfälle abgedeckt. Produktionsbau einschließlich Vorlagen
+und PWA-Artefakten erfolgreich; bestehende Template-, Budget- und CommonJS-Warnungen.
+Nach der Toast-Ergänzung alle 49 ausgewählten Angular-Dateien mit 851 Fällen und
+zwei Workern erfolgreich. Drei gezielte Browserfälle bestätigen einmaligen Toast,
+Vier-Sekunden-Ausblendung, stilles Neuladen sowie Preis-/Inseratänderung ohne
+Erfolgsbanner einschließlich bestehender AXE-Prüfungen. Produktionsbau erneut
+erfolgreich. Der erste Browseransatz scheitert vor dem Anwendungsstart an der
+Produktions-CSP gegen lokale Testantworten; die unveränderten Fixtures bestehen
+anschließend in der regulären Entwicklungsvorschau. Keine Sicherheitsregel geändert.
+Im ersten PR-Lauf erwarten zwei bestehende Entwurfs-Browserfälle einen durch neuere
+Versuche überholten geplanten Auftrag. Die Testkennungen bilden nun die beabsichtigte
+Reihenfolge ab; die alte Erfolgszeilen-Erwartung prüft stattdessen den kurz sichtbaren
+Toast. Beide Fälle einschließlich Terminänderung, laufender Zeilenhöhe und AXE lokal
+erfolgreich. Keine zusätzliche Änderung der Anwendungslogik.
+Im Folgelauf bestehen sämtliche UI-, Qualitäts-, Datenbank- und Anwendungstests.
+Von 162 nativen Formularfällen verfehlt eine Fehler-Simulation wegen ihres fest
+eingetragenen alten `#content`-Selektors den beabsichtigten Seitenschluss. Sie nutzt
+nun den gemeinsamen Formularselektor; beide zugehörigen Fehlerfälle lokal erfolgreich.
+Private Prüfdatenbanken und Hilfscontainer entfernt; Diagnoseprotokolle und Reparatursicherung außerhalb des
+Repositories. Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen Prüfungen
+ausdrücklich freigegeben; ausgewählte CI-Prüfungen und Veröffentlichung stehen noch
+aus. Die verbundene Lissie-Instanz enthält kein Flipbase-Projekt;
+deshalb dort kein Befund oder Änderungsbericht zuordenbar.
+
 ## 2026-11-03 - Juna - Kleiderschrank-Artikel während des gesamten Relistings erhalten
 
 **Auftrag und Grundlage:** Nutzer bestätigt den vollständigen Ablauf: derselbe Flipbase-Artikel bleibt während Vorbereitung, Löschlücke und Wartezeit erhalten und geschützt, erhält nach bestätigter Neuveröffentlichung die neue Vinted-Verknüpfung samt neuer Kennzahlen/Onlinealter und erzeugt keinen zusätzlichen sichtbaren normalen Entwurf. Die bereits geprüfte Farbklickkorrektur gehört zum selben Fehlerfix. Eigene saubere Fortsetzung auf `juna/vinted-relisting-lifecycle` vom frisch abgeglichenen `origin/master` bei `fe281b8b`; fremde Erweiterungsänderungen und deren Arbeitskopie unangetastet. Die Nutzerfreigabe für Umsetzung und anschließende geprüfte PR-Veröffentlichung bleibt bestehen; keine echten Inserate als Test löschen oder veröffentlichen.

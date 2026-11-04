@@ -12,7 +12,6 @@ export function createVintedListingPriceEditor(options: {
   busy: WritableSignal<boolean>;
   blocked?: () => boolean;
   priceRead: (price: number) => void;
-  confirmed: () => void;
   closed: () => void;
 }) {
   const operations = inject(VintedListingOperationStore);
@@ -107,7 +106,6 @@ export function createVintedListingPriceEditor(options: {
         if (!current()) return;
         options.priceRead(cents / 100);
         open.set(false);
-        options.confirmed();
       } catch (failure) {
         if (!current()) return;
         if (failure instanceof VintedListingPriceChangedError) {
