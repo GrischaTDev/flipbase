@@ -475,8 +475,8 @@ describe('DashboardReportService', () => {
   it.each([
     ['today', 1],
     ['last_7_days', 7],
-    ['month', 28],
-    ['year', 8],
+    ['month', 31],
+    ['year', 12],
   ] as const)('liefert für %s die passende Punktzahl', (range, expectedPoints) => {
     const result = report(range, { purchases: [receipt], sales: [sale] });
 
@@ -489,6 +489,45 @@ describe('DashboardReportService', () => {
       expect(result.revenue).toBe(19.98);
     }
   });
+
+  it.each([
+    [new Date(2026, 0, 1), 31, '2026-01-31'],
+    [new Date(2026, 1, 4), 28, '2026-02-28'],
+    [new Date(2028, 1, 4), 29, '2028-02-29'],
+    [new Date(2026, 8, 17), 30, '2026-09-30'],
+    [new Date(2026, 11, 31), 31, '2026-12-31'],
+  ] as const)('zeigt am %s den vollständigen Kalendermonat', (date, count, lastDate) => {
+    const result = report('month', {}, date);
+    expect(result.points).toHaveLength(count);
+    expect(result.points[0].date).toBe(`${lastDate.slice(0, 7)}-01`);
+    expect(result.points.at(-1)?.date).toBe(lastDate);
+  });
+
+  it.each([new Date(2026, 0, 1), new Date(2026, 8, 17), new Date(2026, 11, 31)])(
+    'zeigt am %s alle zwölf Monate bis Dezember',
+    (date) => {
+      const result = report('year', {}, date);
+      expect(result.points.map((point) => point.date)).toEqual(
+        Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, '0')}-01`),
+      );
+    },
+  );
+
+  it.each(['month', 'year'] as const)(
+    'erweitert in der %s-Ansicht nur die Achse und zählt keine zukünftigen Buchungen',
+    (range) => {
+      const futureDate = range === 'month' ? '2026-08-31' : '2026-12-20';
+      const result = report(range, {
+        purchases: [receipt, { ...receipt, id: 'future-purchase', purchase_date: futureDate }],
+        sales: [sale, { ...sale, id: 'future-sale', sale_date: futureDate }],
+      });
+      expect(result.purchaseSpend).toBe(24.95);
+      expect(result.revenue).toBe(19.98);
+      expect(result.rows.map((row) => row.saleId)).toEqual([sale.id]);
+      expect(result.points.reduce((sum, point) => sum + point.revenue, 0)).toBe(19.98);
+      expect(result.points.at(-1)).toMatchObject({ revenue: 0, expenses: 0 });
+    },
+  );
 
   it('nimmt einen retournierten Verkauf nach seinem Retourendatum nicht mehr in Umsatz und Gewinn auf', () => {
     const result = report('last_7_days', {
