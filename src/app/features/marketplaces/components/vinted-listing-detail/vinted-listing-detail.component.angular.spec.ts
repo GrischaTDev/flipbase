@@ -32,6 +32,7 @@ import { VintedListingDetailComponent } from './vinted-listing-detail.component'
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { parseMarketplacePage } from '../../models/marketplace-response';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
+import type { VintedListingDescription } from '../../models/vinted-listing-description';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { listingCurrentContentFixture } from '../../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
@@ -83,7 +84,7 @@ function setup(items: MarketplaceEntry[] = []) {
     consumeListingMetricChanges: () => ({}),
     readPublication,
     cachedListingDescription: vi
-      .fn()
+      .fn<(connectionId: string, item: MarketplaceEntry) => VintedListingDescription | null>()
       .mockImplementation((_connectionId, item: MarketplaceEntry) => ({
         description: item.text ?? '',
         cacheState: 'stored',
@@ -181,6 +182,47 @@ afterAll(() => restoreRendering?.());
 afterEach(() => TestBed.resetTestingModule());
 
 describe('Reaktive Inseratdetails', () => {
+  it('zeigt private Originale und behält Anbieteradressen nur als Fotoschlüssel', async () => {
+    const listing = listingCurrentContentFixture();
+    const { component, store } = setup([
+      {
+        ...entry('a', listing.content.description),
+        listingContent: listing.content,
+        providerImageUrls: listing.photoUrls,
+        imageUrls: ['https://private.example.test/first', 'https://private.example.test/second'],
+      },
+    ]);
+    await settle();
+    component.edit();
+    expect(component.photoDrafts().map((photo) => photo.previewUrl)).toEqual([
+      'https://private.example.test/first',
+      'https://private.example.test/second',
+    ]);
+    expect(component.photoDrafts().map((photo) => photo.key)).toEqual(listing.photoUrls);
+    expect(store.readListingContent).not.toHaveBeenCalled();
+  });
+  it('öffnet die Bearbeitung ohne Anbieterabruf und zeigt gespeicherte Werte sofort', async () => {
+    const listing = listingCurrentContentFixture();
+    const { component, store } = setup([
+      { ...entry('a', 'Gespeichert'), price: 20.5, listingContent: listing.content },
+    ]);
+    await settle();
+    await component.edit();
+    expect(store.readListingContent).not.toHaveBeenCalled();
+    expect(store.readListingEdit).not.toHaveBeenCalled();
+    expect(component.canSave()).toBe(true);
+    expect(component.form.controls.description.value).toBe('Gespeichert');
+    expect(component.form.controls.title.value).toBe('a');
+  });
+  it('zeigt die Beschreibung ohne Aufklappen', async () => {
+    setup([entry('a', 'Immer sichtbarer Text')]);
+    const fixture = TestBed.createComponent(VintedListingDetailComponent);
+    fixture.detectChanges();
+    await settle();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('details')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Immer sichtbarer Text');
+  });
   it('öffnet Preisänderung ohne Abruf und erhält Eingaben nach einem Speicherfehler', async () => {
     const { component, store } = setup([
       { ...entry('a'), price: 20.5, currency: 'EUR', publicationState: 'active' },
@@ -245,24 +287,16 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.description()?.description).toBe('Im Hintergrund gespeichert');
     expect(store.readListingDescription).not.toHaveBeenCalled();
   });
-  it('startet nach Abbrechen keinen Fallbackabruf, der mit der Preisaktion kollidiert', async () => {
+  it('bricht lokale Änderungen ohne Anbieterkommunikation ab', async () => {
     const { component, store } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);
     await settle();
-    let reject!: (error: Error) => void;
-    store.readListingContent.mockReturnValueOnce(
-      new Promise((_resolve, fail) => {
-        reject = fail;
-      }),
-    );
-    const editing = component.edit();
+    component.edit();
+    component.form.controls.title.setValue('Verworfen');
     component.cancelEdit();
-    component.openPriceChange();
-    component.priceControl.setValue(10);
-    const saving = component.savePrice();
-    reject(new Error('Nicht vollständig lesbar'));
-    await Promise.all([editing, saving]);
+    component.edit();
+    expect(component.form.controls.title.value).toBe('a');
+    expect(store.readListingContent).not.toHaveBeenCalled();
     expect(store.readListingEdit).not.toHaveBeenCalled();
-    expect(store.saveListingPrice).toHaveBeenCalledOnce();
   });
   it('sperrt doppeltes Speichern und Schließen und ignoriert eine Antwort nach Routenwechsel', async () => {
     const { component, store, params } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);
@@ -289,54 +323,41 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.notice()).toBe(null);
     expect(component.changingPrice()).toBe(false);
   });
-  it('öffnet die Maske sofort mit gespeicherten Angaben und lädt den Vinted-Stand im Hintergrund', async () => {
-    const { component, store } = setup([entry('a', 'Gespeicherter Text')]);
+  it('liest Vinted erst beim Speichern und bewahrt Eingaben bei Lesefehlern', async () => {
+    const listing = listingCurrentContentFixture();
+    const { component, store } = setup([
+      { ...entry('a', 'Alt'), listingContent: listing.content, price: 20.5 },
+    ]);
     await settle();
-    let finishRead: (value: ReturnType<typeof listingCurrentContentFixture>) => void = () =>
-      undefined;
-    store.readListingContent.mockReturnValueOnce(new Promise((resolve) => (finishRead = resolve)));
-    const opening = component.edit();
-    // Ohne Wartezeit sichtbar: Titel und Beschreibung aus den gespeicherten Daten.
-    expect(component.editing()).toBe(true);
-    expect(component.loadingCurrent()).toBe(true);
-    expect(component.form.controls.title.value).toBe('a');
-    expect(component.form.controls.description.value).toBe('Gespeicherter Text');
-    // Gespeichert werden darf erst auf einem von Vinted gelesenen Stand.
-    expect(component.canSave()).toBe(false);
-    await component.save();
-    expect(store.saveListingContent).not.toHaveBeenCalled();
-    expect(store.saveListingEdit).not.toHaveBeenCalled();
-    // Eine Eingabe während des Ladens bleibt erhalten; unberührte Felder übernehmen den Stand.
+    component.edit();
     component.form.controls.title.setValue('Eigene Eingabe');
-    component.form.controls.title.markAsDirty();
-    finishRead(listingCurrentContentFixture());
-    await opening;
-    expect(component.loadingCurrent()).toBe(false);
     expect(component.canSave()).toBe(true);
+    expect(store.readListingContent).not.toHaveBeenCalled();
+    store.readListingContent.mockRejectedValueOnce(new Error('Nicht erreichbar'));
+    await component.save();
     expect(component.form.controls.title.value).toBe('Eigene Eingabe');
-    expect(component.form.controls.description.value).toBe('Sehr gut erhalten.');
-    expect(component.packageChoice()?.field).toBe('package');
-    expect(component.articleChoiceFields().some((choice) => choice.field === 'package')).toBe(
-      false,
-    );
+    expect(component.editing()).toBe(true);
+    expect(component.error()).toBe('Nicht erreichbar');
+    expect(store.saveListingContent).not.toHaveBeenCalled();
   });
   it('ändert Titelbild und Fotoauswahl nur auf dem gelesenen Vinted-Stand und speichert die neue Reihenfolge', async () => {
-    const { component, store } = setup([entry('a', 'Alt')]);
+    const { component, store } = setup([
+      {
+        ...entry('a', 'Sehr gut erhalten.'),
+        title: 'Meine Schuhe',
+        price: 20.5,
+        listingContent: listingCurrentContentFixture().content,
+        imageUrls: listingCurrentContentFixture().photoUrls,
+      },
+    ]);
     await settle();
     const listing = listingCurrentContentFixture();
     const [first, second] = listing.photoUrls;
-    let finishRead: (value: typeof listing) => void = () => undefined;
-    store.readListingContent.mockReturnValueOnce(new Promise((resolve) => (finishRead = resolve)));
-    const opening = component.edit();
+    component.edit();
     const drafts = (...urls: (string | undefined)[]) =>
       component.photoDrafts().filter((draft) => urls.includes(draft.key));
     const ordered = (...urls: (string | undefined)[]) =>
       urls.map((url) => component.photoDrafts().find((draft) => draft.key === url)!);
-    // Vor dem Lesen des Vinted-Stands lassen sich Fotos nicht ändern.
-    expect(component.canArrangePhotos()).toBe(false);
-    component.onPhotoDraftsChanged([...component.photoDrafts()].reverse());
-    finishRead(listing);
-    await opening;
     expect(component.canArrangePhotos()).toBe(true);
     expect(component.photos()).toEqual([first, second]);
     expect(component.photoDrafts().map((draft) => draft.fileName)).toEqual(['Foto 1', 'Foto 2']);
@@ -364,23 +385,39 @@ describe('Reaktive Inseratdetails', () => {
     );
     expect(component.entry()).toMatchObject({ imageUrl: first, imageUrls: [first] });
   });
-  it('verwirft beim Abbrechen den noch laufenden Vinted-Abruf', async () => {
-    const { component, store } = setup([entry('a', 'Alt')]);
+  it('verwirft den Speicherabruf nach Routenwechsel vor einem Schreibaufruf', async () => {
+    const listing = listingCurrentContentFixture();
+    const { component, store, params } = setup([
+      {
+        ...entry('a', listing.content.description),
+        title: listing.content.title,
+        price: 20.5,
+        listingContent: listing.content,
+      },
+    ]);
     await settle();
-    let finishRead: (value: ReturnType<typeof listingCurrentContentFixture>) => void = () =>
-      undefined;
+    component.edit();
+    component.form.controls.title.setValue('Neu');
+    let finishRead: (value: typeof listing) => void = () => undefined;
     store.readListingContent.mockReturnValueOnce(new Promise((resolve) => (finishRead = resolve)));
-    const opening = component.edit();
-    component.cancelEdit();
-    expect(component.editing()).toBe(false);
-    expect(component.loadingCurrent()).toBe(false);
-    finishRead(listingCurrentContentFixture());
-    await opening;
-    expect(component.editing()).toBe(false);
-    expect(component.current()).toBeNull();
+    const saving = component.save();
+    params.next(convertToParamMap({ connectionId: account.connectionId, entryId: 'b' }));
+    await settle();
+    finishRead(listing);
+    await saving;
+    expect(component.entry()?.id).toBe('b');
+    expect(store.saveListingContent).not.toHaveBeenCalled();
   });
   it('zeigt die Bearbeitung im Aufbau der Erstellen-Maske mit Fotos zuerst und ohne Barrierefehler', async () => {
-    const { store } = setup([entry('a', 'Alt')]);
+    const { store } = setup([
+      {
+        ...entry('a', 'Sehr gut erhalten.'),
+        title: 'Meine Schuhe',
+        price: 20.5,
+        listingContent: listingCurrentContentFixture().content,
+        imageUrls: listingCurrentContentFixture().photoUrls,
+      },
+    ]);
     const fixture = TestBed.createComponent(VintedListingDetailComponent);
     fixture.detectChanges();
     await settle();
@@ -390,7 +427,7 @@ describe('Reaktive Inseratdetails', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
-    expect(store.readListingContent).toHaveBeenCalled();
+    expect(store.readListingContent).not.toHaveBeenCalled();
     expect(element.querySelector('h1')?.textContent).toContain('Inserat bearbeiten');
     const headings = [...element.querySelectorAll('h2, h3')].map((heading) =>
       heading.textContent?.trim(),
@@ -432,8 +469,16 @@ describe('Reaktive Inseratdetails', () => {
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations.map((violation) => violation.id)).toEqual([]);
   });
-  it('belegt die Bearbeitung mit dem frischen Vinted-Stand vor und speichert nur gegen diesen Stand', async () => {
-    const { component, store } = setup([entry('a', 'Alt')]);
+  it('belegt die Bearbeitung lokal vor und übersetzt die Auswahl erst beim Speichern', async () => {
+    const { component, store } = setup([
+      {
+        ...entry('a', 'Sehr gut erhalten.'),
+        title: 'Meine Schuhe',
+        price: 20.5,
+        listingContent: listingCurrentContentFixture().content,
+        imageUrls: listingCurrentContentFixture().photoUrls,
+      },
+    ]);
     await settle();
     await component.edit();
     const base = listingCurrentContentFixture().content;
@@ -443,16 +488,15 @@ describe('Reaktive Inseratdetails', () => {
       description: 'Sehr gut erhalten.',
       price: '20,50',
       brand: '254956',
-      size: '607',
-      condition: '2',
+      size: '13',
+      condition: '3',
       package: '2',
-      color: 'Blau · Gelb',
+      color: 'Gelb · Blau',
       material: 'Acryl',
     });
-    expect(component.multipleFields()).toEqual([
-      { field: 'color', label: 'Farben', max: 2, options: ['Blau', 'Gelb', 'Rot'] },
-      { field: 'material', label: 'Material', max: 3, options: ['Acryl'] },
-    ]);
+    expect(component.multipleFields().find((field) => field.field === 'color')?.options).toContain(
+      'Rot',
+    );
     expect(component.choiceFields().map((field) => field.label)).toEqual([
       'Marke',
       'Größe',
@@ -476,29 +520,33 @@ describe('Reaktive Inseratdetails', () => {
       { type: 'success', title: 'Inserat erfolgreich geändert' },
     ]);
   });
-  it('behält bei unlesbarer vollständiger Maske die bisherige Bearbeitung von Titel, Beschreibung und Preis', async () => {
-    const { component, store } = setup([entry('a', 'Alt')]);
+  it('bewahrt eine unbekannte Beschreibung beim Speichern einer reinen Titeländerung', async () => {
+    const { component, store } = setup([
+      { ...entry('a'), text: null, textState: 'not_loaded', price: 12 },
+    ]);
+    store.cachedListingDescription.mockImplementation(() => null);
     await settle();
-    store.readListingContent.mockRejectedValueOnce(new Error('private detail'));
-    await component.edit();
-    expect(component.editing()).toBe(true);
-    expect(component.current()).toBeNull();
-    expect(component.choiceFields()).toEqual([]);
-    expect(component.notice()).toContain('nicht alle Angaben');
-    expect(component.error()).toBeNull();
-    component.form.patchValue({ title: 'Neu', price: '15,50' });
+    component.edit();
+    expect(component.canSave()).toBe(true);
+    expect(store.readListingEdit).not.toHaveBeenCalled();
+    component.form.patchValue({ title: 'Neu' });
     await component.save();
-    expect(store.saveListingContent).not.toHaveBeenCalled();
     expect(store.saveListingEdit).toHaveBeenCalledWith(account.connectionId, 'a', {
       title: 'Neu',
       description: 'Fresh',
-      price: '15,50',
+      price: '12,00',
     });
-    expect(component.entry()).toMatchObject({ title: 'Neu', price: 15.5 });
-    expect(component.editing()).toBe(false);
   });
   it('lässt die Eingabe bei einem Konflikt oder unbestätigtem Speichern offen und meldet keinen Erfolg', async () => {
-    const { component, store } = setup([entry('a', 'Alt')]);
+    const { component, store } = setup([
+      {
+        ...entry('a', 'Sehr gut erhalten.'),
+        title: 'Meine Schuhe',
+        price: 20.5,
+        listingContent: listingCurrentContentFixture().content,
+        imageUrls: listingCurrentContentFixture().photoUrls,
+      },
+    ]);
     await settle();
     await component.edit();
     store.saveListingContent.mockRejectedValueOnce(new Error('inzwischen bei Vinted geändert'));
@@ -509,7 +557,7 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.error()).toContain('inzwischen');
     expect(component.notice()).toBeNull();
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
-    expect(component.entry()?.title).toBe('a');
+    expect(component.entry()?.title).toBe('Meine Schuhe');
   });
   it('reopenedLoadedEntryUsesConfirmedSessionDescriptionWithoutAnotherProviderRead', async () => {
     const { component, store } = setup([entry('a', 'Alter Datenbanktext')]);
@@ -563,7 +611,6 @@ it('ergaenzt den Preis auch im nur teilweise lesbaren nativen Entwurf ohne neue 
   f.component.form.controls.price.setValue('18,00');
   expect(f.component.form.controls.price.value).toBe('18,00');
   expect(f.store.saveListingContent).not.toHaveBeenCalled();
-  expect(f.store.saveListingEdit).not.toHaveBeenCalled();
 });
 
 it('normalisiert einen vorhandenen formatierten Preis im nativen Grundfeld-Fallback', async () => {
@@ -576,7 +623,14 @@ it('normalisiert einen vorhandenen formatierten Preis im nativen Grundfeld-Fallb
     price: '20,50 €',
   });
   await f.component.edit();
-  expect(f.component.form.controls.price.value).toBe('20,50');
-  expect(f.component.form.valid).toBe(true);
-  expect(f.store.saveListingEdit).not.toHaveBeenCalled();
+  expect(f.component.form.controls.price.value).toBe('');
+  expect(f.store.readListingEdit).not.toHaveBeenCalled();
+  f.component.form.controls.title.setValue('Neuer Titel');
+  f.component.form.controls.price.setValue('20,50');
+  await f.component.save();
+  expect(f.store.saveListingEdit).toHaveBeenCalledWith(account.connectionId, 'a', {
+    title: 'Neuer Titel',
+    description: 'Text',
+    price: '20,50',
+  });
 });

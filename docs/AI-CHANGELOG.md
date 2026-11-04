@@ -23,6 +23,40 @@ Auflösung wiederhergestellt; kein Relisting oder anderer Anbieter-Schreibauftra
 ausgelöst. Eigener Zweig vom aktuellen Hauptstand `1b0c3aa8`. Lissie bietet kein
 Flipbase-Projekt an; deshalb ist dort kein passender Änderungsbericht möglich.
 
+## 2026-11-04 - Juna - Vinted-Inserate ohne Anbieterabruf öffnen und bearbeiten
+
+**Auftrag:** Inseratdetails und Bearbeitung im Kleiderschrank sofort aus den in
+Flipbase gespeicherten Angaben öffnen. Beschreibung dauerhaft anzeigen;
+Vinted erst beim Speichern oder ausdrücklich ausgelösten Aktualisieren kontaktieren.
+
+**Änderung:** Beschreibung ohne Aufklappschalter. Die Bearbeitung verwendet den
+lokalen Inhalt und die vorhandene Flipbase-Auswahl. Erst Speichern liest den
+aktuellen Anbieterstand und übersetzt geänderte Auswahlen in echte Vinted-Kennungen.
+Unveränderte Felder behalten zwischenzeitliche Anbieteränderungen; widersprüchliche
+Änderungen und uneindeutige Auswahlen bleiben als Fehler mit erhaltener Eingabe offen.
+Auch bei unvollständigen gespeicherten Angaben beginnt der Grundfeldabruf erst beim
+Speichern. Anbieterfoto-Adressen bleiben neben den privaten Originalvorschauen
+erhalten, damit Fotoänderungen weiterhin gegen die richtige Reihenfolge geprüft werden.
+Hintergrundaktualisierungen liefern weiterhin neue Daten für die Detailansicht.
+
+**Prüfung:** Ausgangsfehler, private Fotovorschauen und kombinierte Größenauswahl
+zunächst rot belegt, danach erfolgreich geprüft. Node 22.22.3: Format, Lint,
+Typen, Suite-Audit, 146 ausgewählte Skriptfälle, acht Orchestrierungsfälle und
+220 Modellfälle bestanden. Im Vorabcheck 77 von 78 Angular-Testdateien erfolgreich;
+der Workspace-Aufbau überschritt unter Parallelbelastung sein Zehn-Sekunden-Limit.
+Workspace und Detailansicht anschließend mit einem Worker erfolgreich (72 Fälle),
+die zehn Fotofälle und sechs neuen Modellfälle am Endstand erneut erfolgreich.
+Bau einschließlich Angular-Vorlagen erfolgreich; vorhandene Bauwarnungen bleiben.
+Vier bestehende Browserfälle erfolgreich: 390px-Entwurf, leere Beschreibung,
+Hintergrundaktualisierung sowie vollständiges Bearbeiten/Speichern mit Konflikt,
+Foto-Reihenfolge und AXE bei 1440px. Datenbankfreie Playwright-Fixtures gegen
+lokale Vorschau; Browser-Plugin nicht verfügbar. Ausgewählte CI-Integrationsprüfungen,
+PR und Veröffentlichung bleiben offen.
+
+**Integration:** Hauptstand `7ff677d5` aus PR #562 übernommen. Den einzigen Konflikt
+im Änderungsprotokoll unter Erhalt beider Einträge aufgelöst. Die bestehende
+Relisting-Fotoreparatur und ihr zusätzlicher Browserfall bleiben enthalten.
+
 ## 2026-11-04 - Juna - Änderungszahlen, alte Fehlermeldungen und Relisting-Bestätigung korrigieren
 
 **Auftrag und Grundlage:** Nutzer beauftragt die drei Fehlerkorrekturen einschließlich

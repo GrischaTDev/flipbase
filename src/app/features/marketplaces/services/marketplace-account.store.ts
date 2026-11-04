@@ -1153,6 +1153,7 @@ export class MarketplaceAccountStore {
                 entry.id === entryId
                   ? {
                       ...entry,
+                      listingContent: content,
                       title: content.title,
                       text: content.description,
                       textState: 'loaded',
@@ -1161,7 +1162,11 @@ export class MarketplaceAccountStore {
                       size: content.sizeLabel || null,
                       status: content.conditionLabel || entry.status,
                       ...(photos
-                        ? { imageUrl: photos.desired[0] ?? null, imageUrls: [...photos.desired] }
+                        ? {
+                            providerImageUrls: [...photos.desired],
+                            imageUrl: photos.desired[0] ?? null,
+                            imageUrls: [...photos.desired],
+                          }
                         : {}),
                     }
                   : entry,

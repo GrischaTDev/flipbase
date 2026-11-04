@@ -61,8 +61,6 @@
               @if (canArrangePhotos()) {
                 Neue Fotos und das Zuschneiden folgen; bisher lassen sich die vorhandenen Fotos
                 verschieben und entfernen.
-              } @else if (loadingCurrent()) {
-                Fotos lassen sich ändern, sobald der Stand von Vinted geladen ist.
               } @else {
                 Die Fotos bleiben bei Vinted unverändert.
               }
@@ -106,7 +104,7 @@
                     size="md"
                   />
                 </div>
-              } @else if (!loadingCurrent()) {
+              } @else {
                 <p class="text-sm text-fb-text-secondary">
                   Die Paketgröße bleibt bei Vinted unverändert.
                 </p>
@@ -152,8 +150,7 @@
                   </div>
                 }
                 <p class="text-xs text-fb-text-muted">
-                  Die Kategorie bleibt bei Vinted unverändert. Zur Auswahl stehen nur Werte, die
-                  Vinted für diese Kategorie anbietet.
+                  Die Kategorie bleibt bei Vinted unverändert.
                 </p>
               } @else {
                 <dl class="divide-y divide-fb-line text-sm">
@@ -170,16 +167,9 @@
                     <dd class="text-right text-fb-text-primary">{{ item.status ?? '—' }}</dd>
                   </div>
                 </dl>
-                @if (loadingCurrent()) {
-                  <p role="status" class="text-sm text-fb-text-secondary">
-                    Die Auswahl für Marke, Größe, Zustand, Farben und Material wird von Vinted
-                    geladen …
-                  </p>
-                } @else {
-                  <p class="text-sm text-fb-text-secondary">
-                    Diese Angaben bleiben bei Vinted unverändert.
-                  </p>
-                }
+                <p class="text-sm text-fb-text-secondary">
+                  Diese Angaben bleiben bei Vinted unverändert.
+                </p>
               }
             </div>
           </app-card>
@@ -231,16 +221,10 @@
       </dl>
       @if (description(); as loaded) {
         @if (loaded.description) {
-          <details class="mt-5">
-            <summary
-              class="cursor-pointer rounded text-sm font-semibold text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-            >
-              Beschreibung
-            </summary>
-            <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
-              {{ loaded.description }}
-            </p>
-          </details>
+          <h3 class="mt-5 text-sm font-semibold text-fb-text-primary">Beschreibung</h3>
+          <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
+            {{ loaded.description }}
+          </p>
         } @else {
           <p class="mt-2 text-sm text-fb-text-secondary">Keine Beschreibung vorhanden.</p>
         }

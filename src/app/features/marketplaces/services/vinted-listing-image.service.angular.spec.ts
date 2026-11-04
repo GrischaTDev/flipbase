@@ -272,6 +272,7 @@ describe('Gesicherte Inseratoriginale', () => {
     const entries = await f.service.entries(scope, page.items);
     expect(entries[0].imageUrl).toBe('https://private.example.test/original');
     expect(entries[0].imageUrls).toEqual(['https://private.example.test/original']);
+    expect(entries[0].providerImageUrls).toEqual(['https://vinted.example/bordered.jpg']);
     expect(page.items[0].imageUrl).toBe('https://vinted.example/bordered.jpg');
   });
 });
