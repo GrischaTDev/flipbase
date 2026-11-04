@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Laufende Aktionen dezent grau darstellen
+
+**Auftrag und Umsetzung:** Die gelben Hintergründe der Konto- und
+Inseratsaktionen in „Laufende Aktionen“ durch die vorhandene dezente graue
+Oberflächenfarbe ersetzen. Beide Farbschemata verwenden ihre bestehende zentrale
+Farbdefinition; Anordnung und Bedienung bleiben erhalten.
+
+**Prüfung:** Die vorhandenen Browserfälle prüfen beide Farbschemata auf Desktop
+und Touch einschließlich Tastaturbedienung und AXE. Berechnete Hintergrundfarben,
+Screenshots und Vorabcheck werden unter `tmp/running-actions-checks/` protokolliert.
+Die neue Arbeit liegt auf einem eigenen Zweig vom frisch abgerufenen
+`origin/master`; die vorherigen Aufgaben bleiben separat erhalten.
+
 ## 2026-11-04 - Juna - Löschdialog nach vollständigem Seitenaufbau öffnen
 
 **Befund:** Relisting-Auftrag 28 für den beigen Burberry-Schal blieb bei

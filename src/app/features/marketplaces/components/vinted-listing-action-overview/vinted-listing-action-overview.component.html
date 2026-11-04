@@ -6,7 +6,7 @@
     @for (row of rows(); track row.job.id) {
       <li
         [attr.data-listing-state]="row.job.state"
-        class="flex min-w-0 items-center gap-2.5 rounded-lg bg-fb-brand-surface px-2 py-2"
+        class="flex min-w-0 items-center gap-2.5 rounded-lg bg-fb-surface-hover px-2 py-2"
       >
         <app-action-status-indicator [state]="row.indicator" />
         <div class="min-w-0 flex-1">
