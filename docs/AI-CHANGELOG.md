@@ -1,5 +1,85 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Laufende Aktionen dezent grau darstellen
+
+**Auftrag und Umsetzung:** Die gelben Hintergründe der Konto- und
+Inseratsaktionen in „Laufende Aktionen“ durch die vorhandene dezente graue
+Oberflächenfarbe ersetzen. Beide Farbschemata verwenden ihre bestehende zentrale
+Farbdefinition; Anordnung und Bedienung bleiben erhalten.
+
+**Prüfung:** Die vorhandenen Browserfälle prüfen beide Farbschemata auf Desktop
+und Touch einschließlich Tastaturbedienung und AXE. Berechnete Hintergrundfarben,
+Screenshots und Vorabcheck werden unter `tmp/running-actions-checks/` protokolliert.
+Die neue Arbeit liegt auf einem eigenen Zweig vom frisch abgerufenen
+`origin/master`; die vorherigen Aufgaben bleiben separat erhalten.
+
+**CI-Nachprüfung:** Der mobile Preisdialog maß beim Umschalten ins Raster noch
+die alte Tabellenzeile. Die CI-Aufzeichnung zeigt deren Thumbnail mit `size="md"`
+unmittelbar vor der Messung der Rasterkarte; die bereits entfernte Tabellenzeile
+lieferte dann kein Rechteck. Der vorhandene Test wartet jetzt ausdrücklich auf
+das `article` der Rasterkarte. Sichtbarkeit, Zentrierung und weitere Erwartungen
+bleiben vollständig erhalten. Der gezielte Nachweis umfasst auch Linux mit
+Node 22.23.4 und Chromium aus Playwright 1.62.1.
+
+## 2026-11-04 - Juna - Gespeichertes Relisting unabhängig von der Bearbeitungsmaske prüfen
+
+**Produktiver Abschluss:** Der vom Nutzer gestartete beige Schal wurde nach dem
+Löschdialog-Fix mit unveränderten Angaben und der ursprünglichen Pause von fünf
+Minuten fortgesetzt. Vinted veröffentlichte `10669733335` für 37,90 Euro. Das
+Gegenlesen der sofort geöffneten Bearbeitungsmaske scheiterte jedoch noch bei
+`saved_form`. Der eigene aktive Kleiderschrank lieferte genau diese neue Anzeige;
+Titel, vollständige Beschreibung, Kategorie 5555, Zielgruppe Damen (576), Material
+Wolle (46), Paketgröße 1 und alle drei Fotos wurden direkt bei Vinted bestätigt.
+Das alte Inserat lieferte 404. Auftrag 29 wurde über die vorhandene Abschluss-RPC
+bestätigt, die neue ID mit der bestehenden Karte
+`392a6cbd-e28a-4079-9778-27fe83549d88` verknüpft und regulär importiert.
+
+**Automatische Bestätigung:** Die bereits durch die echte Veröffentlichungsantwort
+bekannte Kennung wird zuerst über Vinteds gespeicherte Artikeldaten geprüft.
+Texte, Preis, Kategorie, Marke, Größe, Zielgruppe, Zustand, Farben, Material,
+Paketgröße sowie die genaue Anzahl und Reihenfolge der bestätigten Foto-Kennungen
+müssen passen. Der Aktiv-Nachweis bleibt separat erforderlich. Nicht verfügbare
+Artikeldaten werden begrenzt erneut gelesen; der bestehende Formularweg bleibt
+für nicht belegbare API-Daten und KI-Fotos erhalten. Formular- und Profilnavigation
+warten vor der Bedienung auf den vollständigen Seitenaufbau.
+
+**Regression:** Die neue Browserprüfung scheitert mit dem bisherigen Stand, wenn
+die Bearbeitungsseite nicht verfügbar ist. Der korrigierte Weg prüft dieselbe echte
+Neuanlage ohne weitere Schreibaktion; verzögert verfügbare Daten sowie falscher
+Preis, Größe, Zielgruppe, Fotos und fehlender Aktiv-Status sind abgedeckt.
+Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Alle 16 Veröffentlichungs-Browserfälle und der zusätzliche Größenfall
+sind erfolgreich. Der neue Test scheitert mit dem bisherigen Stand. Format, Lint,
+Typen, Suite-Audit und 146 ausgewählte Skriptprüfungen des lokalen Vorabchecks
+sowie Worker-Typprüfung und Worker-Bau sind erfolgreich.
+
+## 2026-11-04 - Juna - Löschdialog nach vollständigem Seitenaufbau öffnen
+
+**Befund:** Relisting-Auftrag 28 für den beigen Burberry-Schal blieb bei
+`relisting_delete_confirm_unconfirmed`. Das Original ist bei Vinted weiterhin
+aktiv. Der vollständige native Ablauf reproduziert den Abbruch: Bei lediglich
+`interactive` geladener Artikelseite bleibt der erste Löschklick wirkungslos und
+der Bestätigungsdialog erscheint nicht. Sämtliche Kontoprüfungen lieferten 200.
+Die einzelne Dialogprüfung konnte diesen zeitlichen Zusammenhang nicht zeigen.
+
+**Korrektur:** Die Artikelnavigation wartet vor Kontoprüfung und Löschknopf auf
+`load`. Eine vollständige Wiederholung mit den echten Fotos erreicht damit den
+bedienbaren Bestätigungsknopf. Der Diagnoseaufruf betätigte diesen Knopf nur als
+Aktionsprüfung und löschte nichts. Ein Regressionstest verzögert den Seitenaufbau
+und aktiviert den Knopf erst beim Ladeereignis; er scheitert mit dem alten Code
+und besteht mit der Korrektur.
+
+**Auftragsabgleich:** Nach wiederholtem Nachweis des weiterhin aktiven Originals
+wurde Auftrag 28 über die bestehende Abschluss-RPC von unklarem Ergebnis auf
+fehlgeschlagene Löschbestätigung berichtigt. Kennungen und Bindung des ursprünglichen
+Versuchs blieben erhalten. Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Alle 15 Veröffentlichungs-Browserfälle sind erfolgreich, einschließlich
+Löschen, gestaffeltem Relisting, nativer Bestätigung und verzögerter Paketwahl.
+Worker-Typprüfung und Worker-Bau sind erfolgreich. Die produktive Fortsetzung
+des bereits vom Nutzer gestarteten beigen Auftrags folgt nach der Auslieferung.
+
 ## 2026-11-04 - Juna - Vollständige Monats- und Jahresachsen in der Übersicht
 
 **Auftrag und Umsetzung:** Die Diagrammachse bei „Dieser Monat“ bis zum letzten
@@ -22,6 +102,9 @@ Für den Browsernachweis wird eine eigene Supabase-Testinstanz mit vollständige
 Migrationsstand verwendet; fremde Arbeitskopien und Entwicklungsdaten bleiben
 erhalten. Eigenständiger Zweig auf frisch abgerufenem `origin/master`; die
 beiden vorherigen Aufgaben bleiben unverändert separat vorbereitet.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
 
 ## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
 
