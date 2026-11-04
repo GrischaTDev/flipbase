@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
+
+**Befund:** Der neue beige Schal-Auftrag 27 brach produktiv im Schritt `values` ab.
+Die echte Vinted-Neuanlagemaske zeigt die Paketwahl erst nach Fotos; die bisherige
+Vorbereitung versuchte bereits davor, „Klein“ zuzuordnen. Der schwarze Altauftrag
+26 enthält zusätzlich noch keine Zielgruppe.
+
+**Änderung:** Nur die noch fehlende Paketwahl wird bis nach dem Fotoupload
+verschoben. Vor Löschen oder Veröffentlichen werden die echte Auswahl zugeordnet,
+ausgewählt und sämtliche Angaben erneut geprüft. Eine weiterhin fehlende oder
+gesperrte Paketgröße verhindert die Veröffentlichung. Der strenge allgemeine
+Validator bleibt erhalten.
+
+**Live-Prüfung:** Beide echten Schal-Masken wurden mit den gespeicherten Fotos bis
+direkt vor die Löschung vorbereitet und vollständig gegengelesen. Eine nur für die
+Diagnose geladene Modulkopie stoppte den Löschschritt; kein Inserat wurde gelöscht
+oder neu veröffentlicht. Der schwarze Entwurf 13 wurde über die vorhandene RPC
+mit Versionsprüfung um die frisch aus dem Original gelesene Zielgruppe Herren
+(575) ergänzt. Der alte fehlgeschlagene Auftrag bleibt als Verlauf erhalten.
+Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Der neue Fall scheitert mit dem unveränderten Hauptzweig und besteht
+mit der Korrektur für native und lokale Angaben sowie fehlende und gesperrte
+Paketwahl. 42 Browserfälle und 15 Zuordnungstests sind erfolgreich. Worker-Typen
+und Worker-Bau sind geprüft; die vollständige Vorbereitung beider echten Schals
+ist bis direkt vor dem gesperrten Löschschritt bestätigt.
+
 ## 2026-11-04 - Juna - Kontobezogene Verkaufsbäume und Relisting-Merkmale
 
 **Auftrag:** Die vier bestätigten Größenfehler korrigieren, Vinted-Verkaufsbäume je
