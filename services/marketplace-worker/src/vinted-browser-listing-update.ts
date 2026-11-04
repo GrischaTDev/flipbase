@@ -1,3 +1,5 @@
+import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
+import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import type {
@@ -91,6 +93,10 @@ function wanted(
   field: VintedListingChoiceField,
 ): readonly (number | null)[] {
   switch (field) {
+    case 'accessory_department':
+      return content.attributes['accessory_department']
+        ? [Number(content.attributes['accessory_department'])]
+        : [];
     case 'brand':
       return content.brandId === null && !content.brandLabel ? [] : [content.brandId];
     case 'size':
@@ -107,7 +113,15 @@ function wanted(
       throw invalid();
   }
 }
-const choiceFields = ['brand', 'size', 'condition', 'package', 'color', 'material'] as const;
+const choiceFields = [
+  'brand',
+  'size',
+  'condition',
+  'package',
+  'color',
+  'material',
+  'accessory_department',
+] as const;
 
 function sameChoice(
   left: VintedListingContent,
@@ -266,6 +280,16 @@ export async function updateVintedListingContent(
     // Die Abfrage nennt die Marke nur als Kennung; eine frei eingetragene bleibt die des Ausgangsstands.
     brandLabel: item.brandId === null && base.brandId !== null ? '' : base.brandLabel,
     sizeId: item.sizeId,
+    attributes: {
+      ...Object.fromEntries(
+        Object.entries(base.attributes).filter(
+          ([key]) => !['accessory_department', 'accessory_department_label'].includes(key),
+        ),
+      ),
+      ...(item.accessoryDepartmentId === null
+        ? {}
+        : { accessory_department: String(item.accessoryDepartmentId) }),
+    },
     conditionId: item.conditionId,
     colorIds: [...item.colorIds],
     materialIds: [...item.materialIds],
@@ -394,15 +418,27 @@ export async function updateVintedListingContent(
     if (photos && !sameVintedListingPhotos(current.photoUrls, photos.base)) return 'conflict';
     const desiredPhotos = photos?.desired ?? current.photoUrls;
     const photosChanged = !sameVintedListingPhotos(current.photoUrls, desiredPhotos);
-    if (
-      desired.categoryId !== current.content.categoryId ||
-      desired.categoryLabel !== current.content.categoryLabel ||
-      current.bump
-    )
-      throw invalid();
+    if (current.bump) throw invalid();
+    const categoryChanged = desired.categoryId !== current.content.categoryId;
+    let schema = current.schema;
+    if (categoryChanged) {
+      if (desired.categoryId === null) throw invalid();
+      step = 'fields';
+      await selectVintedListingNewCategory(page, accountId, desired.categoryId, [], check, {
+        existingExternalId: externalId,
+        categoryLabel: desired.categoryLabel,
+      });
+      schema = await readVintedListingCategoryFields(page, accountId, desired.categoryId, [], {
+        authorize: check,
+        brand: desired,
+      });
+    }
     const changed = new Set<string>(
-      choiceFields.filter((field) => !sameChoice(current.content, desired, field)),
+      choiceFields.filter(
+        (field) => categoryChanged || !sameChoice(current.content, desired, field),
+      ),
     );
+    if (categoryChanged) changed.add('category');
     if (desired.title !== current.content.title) changed.add('title');
     if (desired.description !== current.content.description) changed.add('description');
     if (desired.priceCents !== current.content.priceCents) changed.add('price');
@@ -413,7 +449,7 @@ export async function updateVintedListingContent(
     }));
     // Unveränderte Angaben und unbekannte Zusatzfelder hat Vinted schon akzeptiert; geprüft wird die Änderung.
     if (
-      validateVintedListingSubmission(desired, acceptedPhotos, current.schema).some(
+      validateVintedListingSubmission(desired, acceptedPhotos, schema).some(
         (issue) => fatal.includes(issue.field) || changed.has(issue.field),
       )
     )
@@ -430,7 +466,7 @@ export async function updateVintedListingContent(
     step = 'text';
     await fillTexts(changed);
     step = 'fields';
-    for (const field of current.schema.fields)
+    for (const field of schema.fields)
       if (changed.has(field.field))
         await selectVintedListingField(page, field, wanted(desired, field.field), check);
     await check();
@@ -443,6 +479,7 @@ export async function updateVintedListingContent(
       (next) => {
         detail = next;
       },
+      categoryChanged ? desired : undefined,
     );
     detail = 'inhalt';
     if (!sameContent(prepared.content, desired)) throw invalid();

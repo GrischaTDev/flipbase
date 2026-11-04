@@ -51,9 +51,7 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { VintedListingMediaComponent } from './vinted-listing-media.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
-import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
 import type { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
-import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -206,7 +204,11 @@ export class VintedListingEditorComponent {
   private readonly api = inject(VintedListingDraftService);
   private readonly imageApi = inject(VintedListingImageService);
   private readonly originals = inject(VintedListingOriginalPhotoService);
-  private readonly categoryApi = inject(VintedCategoryService);
+  private readonly liveCategoryApi = inject(VintedListingCategoryService);
+  private readonly sellingCategories = new Map<
+    number,
+    { id: number; title: string; path: string }
+  >();
   private readonly dialog = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
@@ -309,11 +311,14 @@ export class VintedListingEditorComponent {
     vintedListingAccountIssue(this.selectedAccount(), this.workspaceId()),
   );
   readonly categorySource = computed(() => {
-    try {
-      return this.categories().length ? vintedListingCategorySource(this.categories()) : null;
-    } catch {
-      return null;
-    }
+    const connectionId = this.selectedAccount()?.connectionId;
+    this.sellingCategories.clear();
+    return connectionId
+      ? this.liveCategoryApi.source(connectionId, (category) => {
+          if (this.form.controls.connectionId.value === connectionId)
+            this.sellingCategories.set(category.id, category);
+        })
+      : null;
   });
   readonly priceError = computed(() => {
     this.changed();
@@ -415,7 +420,12 @@ export class VintedListingEditorComponent {
     });
     const errors = validateVintedListingEditor(this.content(), photos, this.categorySchema());
     const categoryId = this.currentCategoryId();
-    const category = this.categories().find((value) => value.id === categoryId);
+    const category =
+      this.categories().find((value) => value.id === categoryId) ??
+      (categoryId === null ? undefined : this.sellingCategories.get(categoryId)) ??
+      (this.categories().length > 0 && categoryId === this.referenceContent().categoryId
+        ? this.referenceContent()
+        : undefined);
     if (!this.relisting() && categoryId !== null && !category)
       return {
         ...errors,
@@ -792,6 +802,7 @@ export class VintedListingEditorComponent {
           ]),
         ],
         values: {
+          attributes: content.attributes,
           sizeId: content.sizeId,
           sizeLabel: content.sizeLabel,
           conditionId: content.conditionId,
@@ -944,7 +955,10 @@ export class VintedListingEditorComponent {
       event.returnValue = '';
     }
   }
+  private categoryConnectionId: string | null = null;
   private markChanged(): void {
+    if (!this.relisting() && this.form.controls.connectionId.value !== this.categoryConnectionId)
+      void this.reloadCategories();
     if (!this.loading() && !this.loadError()) {
       const selection = this.selectedBrand();
       if (
@@ -961,6 +975,8 @@ export class VintedListingEditorComponent {
             ...fields,
             fields: fields.fields.filter((field) => {
               switch (field) {
+                case 'accessory_department':
+                  return true;
                 case 'size':
                   return fields.values.sizeLabel === this.form.controls.size.value;
                 case 'condition':
@@ -1171,22 +1187,36 @@ export class VintedListingEditorComponent {
     await this.reloadCategories();
   }
   async reloadCategories(): Promise<void> {
-    if (!this.canSelectBrand() || this.categoryLoading()) return;
+    if (!this.canSelectBrand()) return;
+    const connectionId = this.form.controls.connectionId.value;
+    this.categoryConnectionId = connectionId;
     const generation = this.generation,
       context = this.loadedContext;
     this.categoryLoading.set(true);
     this.categoryError.set(null);
     this.categories.set([]);
     try {
-      const snapshot = await this.categoryApi.readSnapshot();
-      if (this.current(generation, context)) this.categories.set(snapshot.categories);
+      if (!connectionId) return;
+      const snapshot = await this.liveCategoryApi.readSnapshot(connectionId);
+      if (
+        this.current(generation, context) &&
+        this.form.controls.connectionId.value === connectionId
+      )
+        this.categories.set(snapshot.categories);
     } catch {
-      if (this.current(generation, context))
+      if (
+        this.current(generation, context) &&
+        this.form.controls.connectionId.value === connectionId
+      )
         this.categoryError.set(
           'Die Vinted-Kategorien konnten nicht geladen werden. Deine Eingaben bleiben erhalten.',
         );
     } finally {
-      if (this.current(generation, context)) this.categoryLoading.set(false);
+      if (
+        this.current(generation, context) &&
+        this.form.controls.connectionId.value === connectionId
+      )
+        this.categoryLoading.set(false);
     }
   }
   readonly photoOptions = computed<VintedListingPhotoOptions>(() => ({
@@ -1328,6 +1358,7 @@ export class VintedListingEditorComponent {
       priceCents,
       categoryId,
       categoryLabel:
+        (categoryId === null ? undefined : this.sellingCategories.get(categoryId)?.path) ??
         this.categories().find((category) => category.id === categoryId)?.path ??
         (categorySame ? previous.categoryLabel : ''),
       brandLabel: values.brand,

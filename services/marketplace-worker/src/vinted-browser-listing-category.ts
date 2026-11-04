@@ -15,6 +15,7 @@ import {
 import {
   readVintedListingCategoryFields,
   readVintedListingChoices,
+  openVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
 import {
   vintedListingControlValue,
@@ -32,7 +33,11 @@ export async function selectVintedListingNewCategory(
   categoryId: number,
   categoryPath: readonly number[],
   authorize: () => Promise<void>,
-  options: { allowRememberedChoices?: boolean } = {},
+  options: {
+    allowRememberedChoices?: boolean;
+    categoryLabel?: string;
+    existingExternalId?: string;
+  } = {},
 ): Promise<string> {
   if (
     !/^[1-9][0-9]{0,31}$/.test(accountId) ||
@@ -47,63 +52,78 @@ export async function selectVintedListingNewCategory(
     throw invalid();
   const check = async () => {
     const url = new URL(page.url());
-    if (url.origin !== 'https://www.vinted.de' || url.pathname !== '/items/new') throw invalid();
+    if (options.existingExternalId && !/^[1-9][0-9]{0,31}$/.test(options.existingExternalId))
+      throw invalid();
+    const expectedPath = options.existingExternalId
+      ? `/items/${options.existingExternalId}/edit`
+      : '/items/new';
+    if (url.origin !== 'https://www.vinted.de' || url.pathname !== expectedPath) throw invalid();
     await authorize();
     if ((await readVintedAccountIdentity(page))?.id !== accountId) throw invalid();
     const current = new URL(page.url());
     if (current.origin !== url.origin || current.pathname !== url.pathname) throw invalid();
   };
   await check();
-  for (const selector of [
-    'input[name="title"]',
-    'textarea[name="description"]',
-    'input[name="price"]',
-  ]) {
-    const input = page.locator(vintedListingFormSelector + ' ' + selector);
-    if ((await input.count()) > 1) throw invalid();
+  if (!options.existingExternalId) {
+    for (const selector of [
+      'input[name="title"]',
+      'textarea[name="description"]',
+      'input[name="price"]',
+    ]) {
+      const input = page.locator(vintedListingFormSelector + ' ' + selector);
+      if ((await input.count()) > 1) throw invalid();
+      if (
+        (await input.count()) === 1 &&
+        (await input.inputValue()).trim() &&
+        !(options.allowRememberedChoices === true && selector.startsWith('#'))
+      )
+        throw invalid();
+    }
+    for (const field of [
+      'category',
+      'accessory_department',
+      'brand',
+      'size',
+      'condition',
+      'color',
+      'material',
+    ] as const) {
+      const control = await vintedListingFormControl(page, field, true);
+      if (control && control.value && options.allowRememberedChoices !== true) throw invalid();
+    }
     if (
-      (await input.count()) === 1 &&
-      (await input.inputValue()).trim() &&
-      !(options.allowRememberedChoices === true && selector.startsWith('#'))
+      (await page.locator(vintedListingFormSelector + ' [data-testid^="image-wrapper-"]').count()) >
+      0
     )
       throw invalid();
   }
-  for (const field of ['category', 'brand', 'size', 'condition', 'color', 'material'] as const) {
-    const control = await vintedListingFormControl(page, field, true);
-    if (control && control.value && options.allowRememberedChoices !== true) throw invalid();
-  }
-  if (
-    (await page.locator(vintedListingFormSelector + ' [data-testid^="image-wrapper-"]').count()) > 0
-  )
-    throw invalid();
   const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath, {
-    allowRememberedCategory: options.allowRememberedChoices === true,
+    allowRememberedCategory:
+      options.allowRememberedChoices === true || !!options.existingExternalId,
     targetCategoryId: categoryId,
+    categoryLabel: options.categoryLabel,
   });
   const target = category.choices.find((choice) => choice.id === categoryId);
   if (!target || target.disabled) throw invalid();
   await check();
   try {
     if (!target.selected) {
-      await (await vintedListingFormControl(page, 'category'))!.locator.click({ timeout: 5000 });
-      for (const parentId of categoryPath) {
-        await check();
-        await page
-          .getByRole('button')
-          .and(page.locator('#catalog-' + parentId))
-          .click({ timeout: 5000 });
-      }
+      await openVintedListingChoices(page, 'category', categoryPath, {
+        targetCategoryId: categoryId,
+        categoryLabel: options.categoryLabel,
+        authorize: check,
+      });
       await check();
       await page
         .locator(
-          `[role="radio"]#catalog-${categoryId},[role="radio"]#catalog-suggestion-${categoryId}`,
+          `[role="radio"]#catalog-${categoryId},[role="radio"]#catalog-suggestion-${categoryId},[role="radio"]#catalog-search-${categoryId}-result`,
         )
         .filter({ visible: true })
         .first()
         .waitFor({ state: 'visible', timeout: 5000 });
       const candidates = await page
         .locator(
-          `[role="radio"]#catalog-${categoryId},[role="radio"]#catalog-suggestion-${categoryId}`,
+          `[role="radio"]#catalog-${categoryId},[role="radio"]#catalog-suggestion-${categoryId},[role="radio"]#catalog-search-${categoryId}-result`,
         )
         .filter({ visible: true })
         .all();
@@ -141,6 +161,7 @@ export async function readVintedListingNewCategory(
   categoryId: number,
   categoryPath: readonly number[],
   authorize: () => Promise<void>,
+  categoryLabel?: string,
 ): Promise<VintedListingCategoryFields> {
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
   let step: VintedListingReadStep = 'authorize';
@@ -162,7 +183,7 @@ export async function readVintedListingNewCategory(
       categoryId,
       categoryPath,
       authorize,
-      { allowRememberedChoices: true },
+      { allowRememberedChoices: true, categoryLabel },
     );
     const check = async () => {
       await authorize();

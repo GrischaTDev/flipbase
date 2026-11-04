@@ -102,6 +102,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     categoryId: number,
     categoryPath: readonly number[],
     authorize: () => Promise<void>,
+    categoryLabel?: string,
   ): Promise<
     import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCategoryFields
   >;

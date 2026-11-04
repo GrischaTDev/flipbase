@@ -160,3 +160,26 @@ describe('Vinted-Inserataufträge', () => {
     }
   });
 });
+
+it('names known category and provider preparation failures', () => {
+  expect(
+    vintedRelistingJobLabel(
+      {
+        ...parseVintedListingJob(job, job.workspaceId),
+        state: 'failed',
+        errorCode: 'category_unavailable',
+      },
+      0,
+    ),
+  ).toBe('Vinted-Kategorie konnte nicht geladen werden');
+  expect(
+    vintedRelistingJobLabel(
+      {
+        ...parseVintedListingJob(job, job.workspaceId),
+        state: 'failed',
+        errorCode: 'provider_unavailable',
+      },
+      0,
+    ),
+  ).toBe('Vorbereitung bei Vinted fehlgeschlagen');
+});

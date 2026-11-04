@@ -20,6 +20,7 @@ import {
 import {
   VintedListingControlError,
   vintedListingFormControl,
+  vintedListingControlValue,
 } from './vinted-listing-form-controls.ts';
 
 function assertListingForm(page: Page): void {
@@ -111,6 +112,8 @@ export async function openVintedListingChoices(
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
     targetCategoryId?: number;
+    categoryLabel?: string;
+    authorize?: () => Promise<void>;
   } = {},
 ): Promise<VintedListingChoiceSnapshot> {
   if (
@@ -151,10 +154,27 @@ export async function openVintedListingChoices(
   if (field === 'category') {
     for (const parentId of categoryPath) {
       // Kategoriegruppen öffnen; Endkategorien niemals zur bloßen Prüfung auswählen.
+      await options.authorize?.();
       await page
         .getByRole('button')
         .and(page.locator(`#catalog-${parentId}`))
         .click({ timeout: 5000 });
+    }
+    if (categoryPath.length === 0 && options.targetCategoryId !== undefined) {
+      const label = options.categoryLabel ?? (await vintedListingControlValue(page, 'category'));
+      if (label.trim()) {
+        if (
+          label.length > 2000 ||
+          [...label].some(
+            (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+          )
+        )
+          throw new VintedListingReadError('category');
+        const search = page.locator('input#catalog-search-input');
+        await options.authorize?.();
+        if ((await search.count()) === 1)
+          await search.fill(label.split(' > ').at(-1) ?? label, { timeout: 5000 });
+      }
     }
   }
   const brand = options.brand;
@@ -167,7 +187,7 @@ export async function openVintedListingChoices(
       : field === 'category'
         ? options.targetCategoryId === undefined
           ? '[role="radio"][id^="catalog-"]'
-          : `[role="radio"]#catalog-${options.targetCategoryId},[role="radio"]#catalog-suggestion-${options.targetCategoryId}`
+          : `[role="radio"]#catalog-${options.targetCategoryId},[role="radio"]#catalog-suggestion-${options.targetCategoryId},[role="radio"]#catalog-search-${options.targetCategoryId}-result`
         : field === 'brand'
           ? '[role="radio"][id^="brand-"],[role="radio"][id^="suggested-brand-"],[role="radio"]#empty-brand' +
             (canSearchBrand ? ',' + brandSearchSelector : '')
@@ -248,6 +268,7 @@ async function readPopup(
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
     targetCategoryId?: number;
+    categoryLabel?: string;
     authorize?: () => Promise<void>;
   } = {},
 ): Promise<VintedListingChoiceSnapshot> {
@@ -278,6 +299,7 @@ export async function readVintedListingChoices(
   options: {
     allowRememberedCategory?: boolean;
     targetCategoryId?: number;
+    categoryLabel?: string;
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
     /**
      * Beim Bearbeiten öffnet Vinted die Kategorieauswahl ganz oben im Katalog und markiert die
@@ -303,6 +325,7 @@ export async function readVintedListingChoices(
     ? undefined
     : await readPopup(page, 'category', categoryPath, {
         targetCategoryId: options.targetCategoryId ?? expectedCategoryId ?? undefined,
+        categoryLabel: options.categoryLabel,
       });
   const categoryId = options.readCategoryId
     ? await options.readCategoryId()

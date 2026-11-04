@@ -273,9 +273,10 @@ test('passes the verified category navigation path to preparation before Begin',
   assert.deepEqual(f.results, [confirmed]);
 });
 
-test('a missing category path fails before provider preparation or Begin', async () => {
+test('an unreadable category cache reports its cause before provider preparation or Begin', async () => {
   const f = fixture({ categoryThrows: true });
   await f.runner.run(claim);
+  assert.deepEqual(f.results, [{ outcome: 'failed', errorCode: 'category_unavailable' }]);
   assert.ok(!f.calls.includes('preflight'));
   assert.ok(!f.calls.includes('begin'));
   assert.equal(f.results[0]?.outcome, 'failed');

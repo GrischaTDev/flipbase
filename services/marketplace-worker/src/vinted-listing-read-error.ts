@@ -1,6 +1,12 @@
 import type { VintedListingChoiceField } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
-const ordinaryChoiceFields = ['size', 'condition', 'color', 'material'] as const;
+const ordinaryChoiceFields = [
+  'size',
+  'condition',
+  'color',
+  'material',
+  'accessory_department',
+] as const;
 const ordinaryChoicePhases = ['open', 'options', 'parse', 'match', 'choice', 'close'] as const;
 export const vintedListingOpenFailures = [
   'missing',
@@ -42,6 +48,7 @@ export const vintedListingReadSteps = [
   ...ordinaryChoiceFields.flatMap((field) =>
     ordinaryChoicePhases.map((phase) => `${field}_${phase}` as const),
   ),
+  'accessory_department',
   'size',
   'condition',
   'color',

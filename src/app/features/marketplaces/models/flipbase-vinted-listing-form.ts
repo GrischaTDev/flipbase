@@ -64,7 +64,8 @@ const range = (start: number, end: number, step = 1) =>
 export function flipbaseVintedListingFields(
   categoryId: number,
   categoryPath: string,
-  brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>,
+  brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'> &
+    Partial<Pick<VintedListingContent, 'attributes'>>,
 ): VintedListingCategoryFields {
   // Ein unbestätigter Markenname bleibt im Entwurf, darf aber keine ungültige Auswahl erzeugen.
   const selectedBrand = brand && validVintedListingBrand(brand) ? brand : null;
@@ -132,6 +133,25 @@ export function flipbaseVintedListingFields(
   return {
     categoryId,
     fields: [
+      ...(/modeaccessoires/.test(path) || brand?.attributes?.['accessory_department']
+        ? [
+            {
+              field: 'accessory_department' as const,
+              sizeGroupId: null,
+              choices: [
+                { id: 576, label: 'Damen' },
+                { id: 575, label: 'Herren' },
+                { id: 573, label: 'Mädchen' },
+                { id: 572, label: 'Jungs' },
+              ].map((choice) => ({
+                ...choice,
+                selected: String(choice.id) === brand?.attributes?.['accessory_department'],
+                disabled: false,
+                sizeGroupId: null,
+              })),
+            },
+          ]
+        : []),
       ...(sizes.length ? [field('size', sizes)] : []),
       field('condition', [
         'Neu mit Etikett',

@@ -230,6 +230,37 @@ function setup() {
 afterEach(() => TestBed.resetTestingModule());
 
 describe('Appweiter Relist-Auftrag', () => {
+  it('ergänzt neue Anbietermerkmale auch bei einem bereits gespeicherten alten Artikelstand', async () => {
+    const f = setup();
+    const source = listingCurrentContentFixture();
+    f.read.mockResolvedValue({
+      ...source,
+      content: {
+        ...source.content,
+        categoryId: 5555,
+        categoryLabel: 'Tücher & Schals',
+        sizeId: null,
+        sizeLabel: '',
+        attributes: { accessory_department: '575', accessory_department_label: 'Herren' },
+      },
+    });
+    await f.service.start(f.input);
+    expect(f.create).toHaveBeenCalledWith(
+      'workspace-a',
+      expect.objectContaining({
+        categoryId: 5555,
+        attributes: {
+          accessory_department: '575',
+          accessory_department_label: 'Herren',
+          flipbaseListingForm: '1',
+        },
+      }),
+      'account-a',
+      f.input.requestId,
+      '98765',
+    );
+    expect(f.jobs.enqueue).toHaveBeenCalledOnce();
+  });
   it('setzt einen bereits vorhandenen privaten Teilstand ohne doppelte oder veraltete Fotos fort', async () => {
     const f = setup();
     const image = {
@@ -274,13 +305,13 @@ describe('Appweiter Relist-Auftrag', () => {
     changedInput.title = 'Spätere Änderung';
     finish(f.photo);
     await task;
-    expect(f.read).not.toHaveBeenCalled();
+    expect(f.read).toHaveBeenCalledOnce();
     expect(f.create).toHaveBeenCalledWith(
       'workspace-a',
       expect.objectContaining({
         title: 'Geänderter Titel',
         description: 'Geänderter Text',
-        priceCents: 3990,
+        priceCents: 2050,
       }),
       'account-a',
       f.input.requestId,

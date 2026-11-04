@@ -1,3 +1,5 @@
+import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
+import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -98,7 +100,7 @@ async function settle() {
   for (let index = 0; index < 12; index++) await Promise.resolve();
   TestBed.tick();
 }
-function publicationInput(f: ReturnType<typeof setup>) {
+async function publicationInput(f: ReturnType<typeof setup>) {
   const image = {
     id: '2',
     storagePath: 'workspace-a/1/2.jpg',
@@ -135,6 +137,7 @@ function publicationInput(f: ReturnType<typeof setup>) {
     size: 'M',
     condition: 'Sehr gut',
   });
+  await settle();
   f.component.openFieldSelection();
   f.component.selectFields(selection(), true);
 }
@@ -148,6 +151,11 @@ function setup(
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
   const readListingContent = vi.fn().mockRejectedValue(new Error('Anbieter nicht erreichbar'));
+  const readRelistingContent = vi.fn().mockResolvedValue({
+    ...listingCurrentContentFixture(),
+    aiPhoto: false,
+    photoUrls: listingCurrentContentFixture().photoUrls.slice(0, 1),
+  });
   const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
     ...draft,
     content,
@@ -161,6 +169,19 @@ function setup(
   }));
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedListingCategoryService,
+        useValue: {
+          read: vi.fn(),
+          readSnapshot: vi.fn(() => TestBed.inject(VintedCategoryService).readSnapshot()),
+          source: vi.fn(() =>
+            vintedListingCategorySource([
+              { id: 1223, parentId: null, title: 'Jacken' },
+              { id: 2738, parentId: null, title: 'Schuhe' },
+            ]),
+          ),
+        },
+      },
       {
         provide: MarketplaceApiService,
         useValue: {
@@ -185,6 +206,7 @@ function setup(
       {
         provide: MarketplaceBrowserTestApiService,
         useValue: {
+          readListingContent: readRelistingContent,
           available: vi.fn().mockResolvedValue({
             available: true,
             readOnly: false,
@@ -303,6 +325,7 @@ function setup(
     snapshot,
     photoSources: TestBed.inject(VintedListingPhotoSourceService),
     readListingContent,
+    readRelistingContent,
     create,
     save,
     workspace,
@@ -477,6 +500,7 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     finish(new Blob(['original'], { type: 'image/jpeg' }));
     await task;
     expect(f.readListingContent).not.toHaveBeenCalled();
+    expect(f.readRelistingContent).toHaveBeenCalledOnce();
     expect(TestBed.inject(VintedListingDraftService).createRelisting).toHaveBeenCalledOnce();
     expect(TestBed.inject(VintedListingJobService).enqueue).toHaveBeenCalledOnce();
     const operations = TestBed.inject(VintedListingOperationStore);
@@ -531,10 +555,53 @@ describe('Relisten aus der lokalen Lesekopie', () => {
   });
 });
 describe('Vinted-Inserateditor', () => {
+  it('übernimmt keine verspäteten Kategoriekennungen eines zuvor ausgewählten Kontos', async () => {
+    const { component, connections } = setup();
+    await settle();
+    connections.set([account, { ...account, connectionId: 'account-b' }]);
+    component.form.controls.connectionId.setValue('account-a');
+    component.categorySource();
+    const rememberPrevious = vi
+      .mocked(TestBed.inject(VintedListingCategoryService).source)
+      .mock.calls.at(-1)?.[1];
+    component.form.controls.connectionId.setValue('account-b');
+    component.categorySource();
+    await settle();
+    rememberPrevious?.({
+      id: 5555,
+      parentId: null,
+      title: 'Alter Schalzweig',
+      path: 'Alter Schalzweig',
+      isLeaf: true,
+    });
+    component.form.controls.categoryId.setValue('5555');
+    expect(component.content().categoryLabel).toBe('');
+  });
+  it('übernimmt nach einem Kontowechsel keinen verspäteten Kategoriefehler des alten Kontos', async () => {
+    const { component, connections } = setup();
+    await settle();
+    connections.set([account, { ...account, connectionId: 'account-b' }]);
+    component.form.controls.connectionId.setValue('account-a');
+    let rejectPrevious: (error: Error) => void = () => undefined;
+    vi.mocked(TestBed.inject(VintedListingCategoryService).readSnapshot).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectPrevious = reject;
+        }),
+    );
+    const previous = component.reloadCategories();
+    component.form.controls.connectionId.setValue('account-b');
+    await component.reloadCategories();
+    rejectPrevious(new Error('Altes Konto nicht mehr erreichbar'));
+    await previous;
+    expect(component.categoryError()).toBeNull();
+    expect(component.categories()).not.toHaveLength(0);
+    expect(component.categoryLoading()).toBe(false);
+  });
   it('sperrt die Prüfungsschaltfläche während eines langsamen Kategorienabrufs', async () => {
     const f = setup();
     await settle();
-    publicationInput(f);
+    await publicationInput(f);
     expect(f.component.canStartPublication()).toBe(true);
     f.component.categoryLoading.set(true);
     expect(f.component.canStartPublication()).toBe(false);
@@ -546,7 +613,7 @@ describe('Vinted-Inserateditor', () => {
     async (state) => {
       const f = setup();
       await settle();
-      publicationInput(f);
+      await publicationInput(f);
       await f.component.save();
       expect(f.component.canPreparePublication()).toBe(true);
       f.component.categories.set([]);
@@ -563,6 +630,8 @@ describe('Vinted-Inserateditor', () => {
   it('zeigt bei einer gespeicherten Oberkategorie die erforderliche Unterkategorie bereits im Editor an', async () => {
     const f = setup();
     await settle();
+    f.component.form.controls.connectionId.setValue('account-a');
+    await settle();
     f.component.categories.set([
       { id: 5, parentId: null, title: 'Damen', path: 'Damen' },
       { id: 16, parentId: 5, title: 'Schuhe', path: 'Damen > Schuhe' },
@@ -577,7 +646,7 @@ describe('Vinted-Inserateditor', () => {
   it('sichert auch einen unveränderten alten Entwurf vor der Prüfung mit eigenen Auswahlkennungen', async () => {
     const f = setup();
     await settle();
-    publicationInput(f);
+    await publicationInput(f);
     await f.component.save();
     f.component.draft.update((current) =>
       current
@@ -601,6 +670,7 @@ describe('Vinted-Inserateditor', () => {
     await settle();
     expect(component.visibleFieldErrors()).toEqual({});
     component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    await settle();
     expect(component.canStartPublication()).toBe(true);
     await component.save();
     expect(component.status()).toBe('Entwurf gespeichert');
@@ -613,6 +683,7 @@ describe('Vinted-Inserateditor', () => {
     const { component } = setup();
     await settle();
     component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    await settle();
     expect(component.canSave()).toBe(true);
     expect(component.canStartPublication()).toBe(true);
     await component.save();
@@ -650,7 +721,7 @@ describe('Vinted-Inserateditor', () => {
     const f = setup();
     const { component, create } = f;
     await settle();
-    publicationInput(f);
+    await publicationInput(f);
     expect(component.canPreparePublication()).toBe(false);
     expect(component.canStartPublication()).toBe(true);
     const opening = component.openPublication();
@@ -671,7 +742,7 @@ describe('Vinted-Inserateditor', () => {
     const f = setup();
     const { component, connections } = f;
     await settle();
-    publicationInput(f);
+    await publicationInput(f);
     await component.save();
     component.openPublication();
     const accepted = queuedJob(component.draft()!.revision);
@@ -689,7 +760,12 @@ describe('Vinted-Inserateditor', () => {
   it('verwendet eigene Textgrenzen, erhält überlange Entwürfe und bleibt bei Kontowechseln unabhängig', async () => {
     const { component, connections } = setup();
     await settle();
-    component.form.patchValue({ categoryId: '1223', title: 'a'.repeat(101) });
+    component.form.patchValue({
+      categoryId: '1223',
+      connectionId: 'account-a',
+      title: 'a'.repeat(101),
+    });
+    await settle();
     expect(component.fieldErrors()['title']).toContain('100 Zeichen');
     expect(component.textLimitHelp('title')).toBe('101 von 100 Zeichen.');
     await component.save();
@@ -708,7 +784,7 @@ describe('Vinted-Inserateditor', () => {
   it('bewahrt alle Fotos eines größeren alten Entwurfs, sperrt aber dessen Veröffentlichung', async () => {
     const f = setup();
     await settle();
-    publicationInput(f);
+    await publicationInput(f);
     const image = f.component.images()[0];
     f.component.images.set(
       Array.from({ length: 21 }, (_, index) => ({ ...image, key: String(index + 1) })),
@@ -732,6 +808,7 @@ describe('Vinted-Inserateditor', () => {
       categoryId: '1223',
       connectionId: 'account-a',
     });
+    await settle();
     component.openFieldSelection();
     component.selectFields(selection());
     await component.save();
@@ -755,6 +832,7 @@ describe('Vinted-Inserateditor', () => {
     const { component } = setup();
     await settle();
     component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    await settle();
     component.openFieldSelection();
     component.selectFields(selection());
     component.form.controls.size.setValue('XL');
@@ -781,6 +859,7 @@ describe('Vinted-Inserateditor', () => {
       const { component, workspace, connections } = setup();
       await settle();
       component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+      await settle();
       component.openFieldSelection();
       if (change === 'workspace') workspace.set({ id: 'workspace-b', archived_at: null });
       if (change === 'connection') component.form.controls.connectionId.setValue('account-b');
@@ -803,6 +882,7 @@ describe('Vinted-Inserateditor', () => {
     component.openFieldSelection();
     expect(component.fieldSelection()?.categoryId).toBe(1223);
     component.form.controls.connectionId.setValue('account-a');
+    await settle();
     for (const patch of [
       { executionMode: 'local' },
       { status: 'paused' },
@@ -835,6 +915,7 @@ describe('Vinted-Inserateditor', () => {
       packageSizeId: 2,
     });
     component.form.controls.connectionId.setValue('account-a');
+    await settle();
     component.openFieldSelection();
     component.saving.set(true);
     component.selectFields(selection());
@@ -1112,7 +1193,7 @@ describe('Vinted-Inserateditor', () => {
 it('erhält alle übrigen Artikeldaten bei Text- und Bildoptionen ohne vorzeitiges Speichern', async () => {
   const f = setup();
   await settle();
-  publicationInput(f);
+  await publicationInput(f);
   const before = f.component.form.getRawValue();
   f.component.form.controls.title.setValue('Neuer Titel');
   f.component.form.controls.description.setValue('Neue Beschreibung');
@@ -1150,7 +1231,7 @@ it('hält eine vergangene feste Uhrzeit vor der Speicherung zurück', async () =
 it('hält bei gewählter Ausgabegröße die Originaldateien im Editor unverändert', async () => {
   const f = setup();
   await settle();
-  publicationInput(f);
+  await publicationInput(f);
   const originals = f.component.images();
   const files = originals.map((image) => image.file);
   vi.spyOn(f.component, 'openPublication').mockResolvedValue();
@@ -1164,7 +1245,7 @@ it('hält bei gewählter Ausgabegröße die Originaldateien im Editor unverände
 it('speichert beim Zuschneiden und Vergrößern die Originaldatei und nur Ausgabeparameter', async () => {
   const f = setup();
   await settle();
-  publicationInput(f);
+  await publicationInput(f);
   const original = new File(['camera-original-Exif'], 'original.jpg', { type: 'image/jpeg' });
   const cropped = new File(['cropped-output'], 'crop.jpg', { type: 'image/jpeg' });
   const crop = { x: 0.25, y: 0, width: 0.5, height: 1, rotation: 0 as const };
@@ -1189,7 +1270,7 @@ it('speichert beim Zuschneiden und Vergrößern die Originaldatei und nur Ausgab
 it('sperrt Formularelemente ohne Wertverlust oder zusätzliche Inhaltsänderung', async () => {
   const f = setup();
   await settle();
-  publicationInput(f);
+  await publicationInput(f);
   const values = f.component.form.getRawValue();
   const changed = vi.fn();
   const subscription = f.component.form.valueChanges.subscribe(changed);

@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { parseVintedListingContent } from '../models/vinted-listing-content';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { VintedBrandSearchService } from '../../platform-admin/services/vinted-brand-search.service';
@@ -9,7 +10,6 @@ import {
   flipbaseVintedListingReviewContent,
   prepareFlipbaseVintedListingContent,
 } from '../models/flipbase-vinted-listing-form';
-import { vintedListingSourceContent } from '../models/vinted-listing-source';
 import {
   parseVintedListingPhotoOptions,
   type VintedListingPhotoOptions,
@@ -120,30 +120,24 @@ export class VintedRelistingSubmissionService {
     current();
     if (entry.currency !== 'EUR')
       throw new Error('Die Währung dieses Inserats wird nicht unterstützt.');
-    let sourceContent = entry.listingContent?.categoryId ? vintedListingSourceContent(entry) : null;
-    let photoUrls = entry.imageUrls?.length
-      ? entry.imageUrls
-      : entry.imageUrl
-        ? [entry.imageUrl]
-        : [];
-    if (!sourceContent) {
-      const token = this.auth.session()?.access_token;
-      if (!token) throw new Error('Melde Dich erneut bei Flipbase an.');
-      const source = await this.browser.readListingContent(
-        { workspaceId: entry.workspaceId, connectionId: entry.connectionId },
-        entry.id,
-        account.externalAccountId!,
-        token,
-      );
-      current();
-      if (
-        source.externalId !== entry.externalId ||
-        source.externalAccountId !== account.externalAccountId
-      )
-        throw new Error('Die Artikelzuordnung hat sich geändert.');
-      sourceContent = { ...source.content, aiPhoto: source.aiPhoto };
-      photoUrls = source.photoUrls;
-    }
+    // Vor einem Relisting die vollständigen aktuellen Anbietermerkmale lesen.
+    // Ältere lokale Stände kennen neu eingeführte Pflichtfelder noch nicht.
+    const token = this.auth.session()?.access_token;
+    if (!token) throw new Error('Melde Dich erneut bei Flipbase an.');
+    const source = await this.browser.readListingContent(
+      { workspaceId: entry.workspaceId, connectionId: entry.connectionId },
+      entry.id,
+      account.externalAccountId!,
+      token,
+    );
+    current();
+    if (
+      source.externalId !== entry.externalId ||
+      source.externalAccountId !== account.externalAccountId
+    )
+      throw new Error('Die Artikelzuordnung hat sich geändert.');
+    const sourceContent = parseVintedListingContent({ ...source.content, aiPhoto: source.aiPhoto });
+    const photoUrls = source.photoUrls;
     const content = prepareFlipbaseVintedListingContent({
       ...sourceContent,
       title: submission.title,

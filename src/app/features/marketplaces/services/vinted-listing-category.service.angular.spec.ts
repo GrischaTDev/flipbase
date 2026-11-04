@@ -1,3 +1,4 @@
+import { SupabaseService } from '../../../core/services/supabase.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -35,6 +36,7 @@ function setup() {
   const read = vi.fn().mockResolvedValue(fields);
   TestBed.configureTestingModule({
     providers: [
+      { provide: SupabaseService, useValue: { client: {} } },
       VintedListingCategoryService,
       {
         provide: AuthService,
@@ -124,4 +126,116 @@ describe('Vinted category service', () => {
       await expect(pending).rejects.toThrow();
     },
   );
+});
+
+const modern = [
+  { id: 5496, parentId: null, title: 'Modeaccessoires', path: 'Modeaccessoires', isLeaf: false },
+  { id: 5555, parentId: 5496, title: 'Schals', path: 'Modeaccessoires > Schals', isLeaf: true },
+];
+const legacy = [
+  { id: 1, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
+  { id: 89, parentId: 1, title: 'Schals', path: 'Damen > Schals', isLeaf: true },
+];
+function setupSellingTree() {
+  let identity = '123';
+  const read = vi.fn(async (filters: Record<string, string>) => ({
+    data: {
+      external_account_id: filters['external_account_id'],
+      categories: filters['connection_id'] === 'modern' ? modern : legacy,
+      observed_at: '2026-11-04T12:00:00Z',
+    },
+    error: null,
+  }));
+  const from = vi.fn(() => {
+    const filters: Record<string, string> = {};
+    const query = {
+      select: () => query,
+      eq: (key: string, value: string) => {
+        filters[key] = value;
+        return query;
+      },
+      maybeSingle: () => read(filters),
+    };
+    return query;
+  });
+  const provider = vi.fn();
+  TestBed.configureTestingModule({
+    providers: [
+      VintedListingCategoryService,
+      { provide: SupabaseService, useValue: { client: { from } } },
+      {
+        provide: AuthService,
+        useValue: {
+          currentUser: () => ({ id: 'user' }),
+          session: () => ({ access_token: 'fixture' }),
+        },
+      },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: () => ({ id: 'workspace', archived_at: null }) },
+      },
+      {
+        provide: MarketplaceAccountStore,
+        useValue: {
+          canManage: () => true,
+          connections: () =>
+            ['modern', 'legacy'].map((connectionId) => ({
+              connectionId,
+              workspaceId: 'workspace',
+              externalAccountId: connectionId === 'modern' ? identity : '456',
+              status: 'connected',
+              executionMode: 'cloud',
+            })),
+        },
+      },
+      { provide: MarketplaceBrowserTestApiService, useValue: { readListingCategory: provider } },
+    ],
+  });
+  return {
+    service: TestBed.inject(VintedListingCategoryService),
+    read,
+    from,
+    provider,
+    rebind: () => {
+      identity = '789';
+    },
+  };
+}
+it('navigates and searches each account tree from the database without a browser request', async () => {
+  const f = setupSellingTree();
+  const source = f.service.source('modern', () => undefined);
+  expect((await source.loadChildren(null)).map((node) => node.id)).toEqual(['5496']);
+  expect((await source.loadChildren('5496')).map((node) => node.id)).toEqual(['5555']);
+  expect((await source.search('Schals')).categories.map((node) => node.id)).toEqual(['5555']);
+  expect(await source.getById('89')).toBeNull();
+  expect(f.read).toHaveBeenCalledTimes(1);
+  const other = f.service.source('legacy', () => undefined);
+  expect((await other.search('Schals')).categories.map((node) => node.id)).toEqual(['89']);
+  expect(await other.getById('5555')).toBeNull();
+  expect(f.provider).not.toHaveBeenCalled();
+  expect(f.read).toHaveBeenCalledWith({
+    workspace_id: 'workspace',
+    connection_id: 'modern',
+    external_account_id: '123',
+  });
+});
+it('rejects a cached source after its Vinted identity changes', async () => {
+  const f = setupSellingTree();
+  const source = f.service.source('modern', () => undefined);
+  await source.loadChildren(null);
+  f.rebind();
+  await expect(source.search('Schals')).rejects.toThrow('Kontoverbindung');
+  expect(f.read).toHaveBeenCalledTimes(1);
+});
+it('rejects a partial tree instead of showing an incomplete category picker', async () => {
+  const f = setupSellingTree();
+  f.read.mockResolvedValueOnce({
+    data: {
+      external_account_id: '123',
+      categories: modern.slice(1),
+      observed_at: '2026-11-04T12:00:00Z',
+    },
+    error: null,
+  });
+  await expect(f.service.readSnapshot('modern')).rejects.toThrow('unvollständig');
 });

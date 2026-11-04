@@ -711,10 +711,17 @@ export class MarketplaceBrowserHttpApi {
         const source = this.listingCategories;
         if (!source) throw new RequestError(503);
         const categoryId = body['categoryId'];
+        const categoryLabel = body['categoryLabel'];
         if (
-          Object.keys(body).length !== 3 ||
+          (categoryLabel !== undefined &&
+            (typeof categoryLabel !== 'string' ||
+              !categoryLabel.trim() ||
+              categoryLabel.length > 2000 ||
+              [...categoryLabel].some(
+                (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+              ))) ||
           Object.keys(body).some(
-            (key) => !['workspaceId', 'connectionId', 'categoryId'].includes(key),
+            (key) => !['workspaceId', 'connectionId', 'categoryId', 'categoryLabel'].includes(key),
           ) ||
           typeof categoryId !== 'number' ||
           !Number.isSafeInteger(categoryId) ||
@@ -747,6 +754,7 @@ export class MarketplaceBrowserHttpApi {
                     categoryId,
                     target.categoryPath,
                     authorize,
+                    typeof categoryLabel === 'string' ? categoryLabel : undefined,
                   ),
                   categoryId,
                 );

@@ -1299,24 +1299,23 @@ for (const width of [390, 1440])
           });
           return route.fulfill({ contentType: 'image/jpeg', body: photo });
         });
-        await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+        await page.route('**/rest/v1/vinted_selling_category_snapshots*', (route) =>
           route.fulfill({
             json: {
-              id: 1,
-              refreshed_at: '2026-11-02T00:00:00Z',
-              requested_at: null,
-              last_attempt_at: null,
-              category_count: 1,
-              last_error: null,
+              external_account_id: new URL(route.request().url()).searchParams
+                .get('external_account_id')
+                ?.slice(3),
+              observed_at: '2026-11-04T12:00:00Z',
+              categories: [
+                {
+                  id: 2738,
+                  parentId: null,
+                  title: 'Fußballschuhe',
+                  path: 'Fußballschuhe',
+                  isLeaf: true,
+                },
+              ],
             },
-          }),
-        );
-        await page.route('**/rest/v1/vinted_categories*', (route) =>
-          route.fulfill({
-            json:
-              Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
-                ? []
-                : [{ id: 2738, parent_id: null, title: 'Fußballschuhe', path: 'Fußballschuhe' }],
           }),
         );
         await page.goto('/marketplaces/vinted/listings');
@@ -2032,8 +2031,47 @@ test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzö
   const blockedCreation = new Promise<void>((resolve) => {
     releaseCreation = resolve;
   });
+  const currentListing = listingCurrentContentFixture();
   await page.route('**/marketplace-browser/listings/**', (route) => {
-    providerCalls.push(new URL(route.request().url()).pathname);
+    const path = new URL(route.request().url()).pathname;
+    providerCalls.push(path);
+    if (path.endsWith('/content/read'))
+      return route.fulfill({
+        json: {
+          listing: {
+            ...currentListing,
+            externalAccountId: '100',
+            aiPhoto: false,
+            content: {
+              ...currentListing.content,
+              attributes: {
+                accessory_department: '575',
+                accessory_department_label: 'Herren',
+              },
+            },
+            schema: {
+              ...currentListing.schema,
+              aiPhoto: false,
+              fields: [
+                ...currentListing.schema.fields,
+                {
+                  field: 'accessory_department',
+                  sizeGroupId: null,
+                  choices: [
+                    {
+                      id: 575,
+                      label: 'Herren',
+                      selected: true,
+                      disabled: false,
+                      sizeGroupId: null,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      });
     return route.fulfill({ status: 500, json: { error: 'Ungeplanter Anbieterzugriff im Test' } });
   });
   await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) => {
@@ -2232,12 +2270,17 @@ test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzö
   expect(draft.content).toMatchObject({
     title: 'Neu geprüfte Schuhe',
     description: 'Vor dem Relisten angepasster Text.',
+    attributes: {
+      accessory_department: '575',
+      accessory_department_label: 'Herren',
+      flipbaseListingForm: '1',
+    },
   });
   expect(uploadedPhotos).toHaveLength(1);
   expect(uploadedPhotos[0]).toEqual(photo);
   expect(uploadedPhotos[0].includes(metadata)).toBe(true);
   expect(source.images[0].storagePath).toBe(originalPath);
   await expect(cover).toHaveAttribute('src', new RegExp(originalPath));
-  expect(providerCalls).toEqual([]);
+  expect(providerCalls).toEqual(['/marketplace-browser/listings/content/read']);
   await checkPage(page, errors);
 });

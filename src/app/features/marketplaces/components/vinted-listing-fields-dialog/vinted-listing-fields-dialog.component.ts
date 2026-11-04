@@ -34,9 +34,10 @@ import {
 } from '../../models/vinted-listing-field-selection';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 
-type SingleField = 'size' | 'condition' | 'package';
+type SingleField = 'accessory_department' | 'size' | 'condition' | 'package';
 type MultipleField = 'color' | 'material';
 const singles = [
+  { name: 'accessory_department', control: 'accessoryDepartmentId', label: 'Zielgruppe' },
   { name: 'size', control: 'sizeId', label: 'Größe' },
   { name: 'condition', control: 'conditionId', label: 'Zustand' },
   { name: 'package', control: 'packageSizeId', label: 'Paketgröße' },
@@ -79,6 +80,7 @@ export class VintedListingFieldsDialogComponent {
   readonly error = signal<string | null>(null);
   readonly initialContent = signal<VintedListingContent | null>(null);
   readonly form = new FormGroup({
+    accessoryDepartmentId: new FormControl<number | null>(null),
     sizeId: new FormControl<number | null>(null),
     conditionId: new FormControl<number | null>(null),
     packageSizeId: new FormControl<number | null>(null),
@@ -265,6 +267,8 @@ export class VintedListingFieldsDialogComponent {
     const content = this.initialContent();
     if (!content) return '';
     switch (field) {
+      case 'accessory_department':
+        return content.attributes['accessory_department_label'] ?? '';
       case 'size':
         return content.sizeLabel;
       case 'condition':
@@ -293,7 +297,13 @@ export class VintedListingFieldsDialogComponent {
         .join(', ');
     }
     const control =
-      field === 'size' ? 'sizeId' : field === 'condition' ? 'conditionId' : 'packageSizeId';
+      field === 'accessory_department'
+        ? 'accessoryDepartmentId'
+        : field === 'size'
+          ? 'sizeId'
+          : field === 'condition'
+            ? 'conditionId'
+            : 'packageSizeId';
     return this.form.controls[control].value === null ? this.previousLabel(field) : '';
   }
   apply(changedField?: SingleField | MultipleField): void {
@@ -318,7 +328,7 @@ export class VintedListingFieldsDialogComponent {
           : this.section() === 'shipping'
             ? ['package']
             : this.section() === 'details'
-              ? ['size', 'condition', 'color', 'material']
+              ? ['accessory_department', 'size', 'condition', 'color', 'material']
               : selection.fields;
         this.selected.emit({
           ...selection,
@@ -381,6 +391,13 @@ export class VintedListingFieldsDialogComponent {
     };
     this.form.reset(
       {
+        accessoryDepartmentId: content
+          ? known(
+              'accessory_department',
+              Number(content.attributes['accessory_department']) || null,
+              content.attributes['accessory_department_label'] ?? '',
+            )
+          : null,
         sizeId: content ? known('size', content.sizeId, content.sizeLabel) : null,
         conditionId: content
           ? known('condition', content.conditionId, content.conditionLabel)

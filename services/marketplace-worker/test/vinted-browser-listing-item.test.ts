@@ -36,6 +36,7 @@ test('reads the saved state of an own listing from the item query', async () => 
     categoryId: 2738,
     brandId: 254956,
     sizeId: 607,
+    accessoryDepartmentId: null,
     conditionId: 2,
     colorIds: [1],
     materialIds: [149, 150],
@@ -91,4 +92,25 @@ test('maps grid photos to their ids only with matching count, order and address'
   assert.equal(mapVintedListingPhotoIds([second, photo], photos), null);
   assert.equal(mapVintedListingPhotoIds([photo], photos), null);
   assert.equal(mapVintedListingPhotoIds([photo, photo], photos), null);
+});
+
+test('retains the native accessory department and rejects ambiguous target groups', async () => {
+  const scarf = {
+    ...item,
+    catalog_id: 5555,
+    item_attributes: [
+      { code: 'accessory_department', ids: [575] },
+      { code: 'size', ids: [207] },
+    ],
+  };
+  const saved = await readVintedListingItem(page(scarf), '98765');
+  assert.equal(saved?.accessoryDepartmentId, 575);
+  assert.equal(saved?.sizeId, 207);
+  assert.equal(
+    await readVintedListingItem(
+      page({ ...scarf, item_attributes: [{ code: 'accessory_department', ids: [575, 576] }] }),
+      '98765',
+    ),
+    null,
+  );
 });

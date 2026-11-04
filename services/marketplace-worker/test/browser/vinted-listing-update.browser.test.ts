@@ -391,3 +391,29 @@ test('speichert den neuen Preis im normalen Formular trotz erneuter Darstellung 
     await browser.close();
   }
 });
+
+test('changes an explicitly chosen category and confirms the persisted category ID', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const fixture = await createVintedListingEditFormFixture(page, {
+      modernControls: true,
+      categoryChange: true,
+    });
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, categoryId: 2739, categoryLabel: 'Wanderschuhe' },
+        allow,
+      ),
+      'confirmed',
+    );
+    assert.equal(fixture.saves(), 1);
+    assert.equal(fixture.state().categoryId, 2739);
+  } finally {
+    await browser.close();
+  }
+});

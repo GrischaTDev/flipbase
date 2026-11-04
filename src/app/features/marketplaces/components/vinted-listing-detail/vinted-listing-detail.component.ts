@@ -1,3 +1,8 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
+import { emptyVintedListingContent } from '../../models/vinted-listing-content';
+import { applyVintedListingEdit } from '../../models/vinted-listing-edit-form';
 import { CurrencyPipe } from '@angular/common';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { createVintedListingPriceEditor } from '../../services/vinted-listing-price-editor';
@@ -59,6 +64,7 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
   imports: [
     VintedListingPriceDialogComponent,
     CurrencyPipe,
+    CategoryPickerComponent,
     ReactiveFormsModule,
     ButtonComponent,
     BadgeComponent,
@@ -74,6 +80,7 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
     TextFieldComponent,
     VintedListingMetricsComponent,
   ],
+  providers: [VintedListingCategoryService],
   templateUrl: './vinted-listing-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -87,6 +94,21 @@ export class VintedListingDetailComponent {
   private readonly builder = inject(FormBuilder);
   private readonly injector = inject(Injector);
   private readonly toast = inject(ToastService);
+  private readonly categoryApi = inject(VintedListingCategoryService);
+  readonly categoryLoading = signal(false);
+  private readonly categoryEdit = signal<VintedListingEditSnapshot | null>(null);
+  readonly editingSnapshot = computed(() => this.categoryEdit() ?? this.current());
+  private readonly sellingCategories = new Map<
+    number,
+    { id: number; title: string; path: string }
+  >();
+  readonly categorySource = computed(() => {
+    const connectionId = this.connectionId();
+    this.sellingCategories.clear();
+    return this.categoryApi.source(connectionId, (category) => {
+      if (this.connectionId() === connectionId) this.sellingCategories.set(category.id, category);
+    });
+  });
   private readonly priceReturnLink = viewChild('priceReturnLink', {
     read: ElementRef<HTMLElement>,
   });
@@ -163,6 +185,8 @@ export class VintedListingDetailComponent {
     title: ['', [Validators.required, Validators.maxLength(120)]],
     description: ['', [Validators.maxLength(2000)]],
     price: ['', [Validators.required, Validators.pattern(/^\d{1,6}(?:[,.]\d{1,2})?$/)]],
+    categoryId: [''],
+    accessory_department: [''],
     brand: [''],
     size: [''],
     condition: [''],
@@ -177,6 +201,7 @@ export class VintedListingDetailComponent {
   readonly choiceFields = computed(() =>
     (
       [
+        ['accessory_department', 'Zielgruppe'],
         ['brand', 'Marke'],
         ['size', 'Größe'],
         ['condition', 'Zustand'],
@@ -194,7 +219,14 @@ export class VintedListingDetailComponent {
   readonly packageChoice = computed(
     () => this.choiceFields().find((choice) => choice.field === 'package') ?? null,
   );
-  readonly canSave = computed(() => this.editing() && this.entry() !== null);
+  readonly canSave = computed(
+    () =>
+      this.editing() &&
+      this.entry() !== null &&
+      !this.categoryLoading() &&
+      this.form.controls.categoryId.value ===
+        String(this.editingSnapshot()?.content.categoryId ?? ''),
+  );
   readonly editStatus = computed(() => (this.busy() ? 'Wird bei Vinted gespeichert …' : ''));
   readonly multipleFields = computed(() =>
     (
@@ -214,6 +246,9 @@ export class VintedListingDetailComponent {
   private destroyed = false;
 
   constructor() {
+    this.form.controls.categoryId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
+      void this.changeCategory(id);
+    });
     this.destroy.onDestroy(() => {
       this.destroyed = true;
       this.requestVersion++;
@@ -290,11 +325,11 @@ export class VintedListingDetailComponent {
     this.arrangedPhotos.set(null);
   }
   private options(field: VintedListingEditField): SelectOption[] {
-    const current = this.current();
+    const current = this.editingSnapshot();
     if (!current) return [];
     const options = vintedListingEditOptions(current.schema, field);
     // Ein bei Vinted leeres Merkmal darf leer bleiben; ein gesetztes wird nicht stillschweigend entfernt.
-    return options.length && !vintedListingEditSelection(current)[field].length
+    return options.length && !vintedListingEditSelection(current)[field]?.length
       ? [{ value: '', label: 'Nicht angegeben' }, ...options]
       : [...options];
   }
@@ -310,7 +345,7 @@ export class VintedListingDetailComponent {
     this.arrangedPhotos.set(unchanged ? null : next);
   }
   private multipleOptions(field: 'color' | 'material'): readonly SelectOption[] {
-    const current = this.current();
+    const current = this.editingSnapshot();
     return current ? vintedListingEditOptions(current.schema, field) : [];
   }
   /** Gewählte Kennungen als Bezeichnungen für die Auswahlbox. */
@@ -384,26 +419,102 @@ export class VintedListingDetailComponent {
     this.notice.set(null);
     const current = storedVintedListingEdit(entry, this.description()?.description ?? null);
     this.current.set(current);
+    this.categoryEdit.set(null);
+    this.categoryLoading.set(false);
     this.arrangedPhotos.set(null);
     const selection = current ? vintedListingEditSelection(current) : null;
-    this.form.reset({
-      title: entry.title,
-      description: this.description()?.description ?? entry.listingContent?.description ?? '',
-      price:
-        current?.content.priceCents !== null && current?.content.priceCents !== undefined
-          ? vintedListingPriceText(current.content.priceCents)
-          : entry.price === null
-            ? ''
-            : vintedListingPriceText(Math.round(entry.price * 100)),
-      brand: selection?.brand ?? '',
-      size: selection?.size ?? '',
-      condition: selection?.condition ?? '',
-      package: selection?.package ?? '',
-      color: selection ? this.labelsOf('color', selection.color) : '',
-      material: selection ? this.labelsOf('material', selection.material) : '',
-    });
+    this.form.reset(
+      {
+        title: entry.title,
+        description: this.description()?.description ?? entry.listingContent?.description ?? '',
+        price:
+          current?.content.priceCents !== null && current?.content.priceCents !== undefined
+            ? vintedListingPriceText(current.content.priceCents)
+            : entry.price === null
+              ? ''
+              : vintedListingPriceText(Math.round(entry.price * 100)),
+        categoryId: String(current?.content.categoryId ?? ''),
+        accessory_department: selection?.accessory_department ?? '',
+        brand: selection?.brand ?? '',
+        size: selection?.size ?? '',
+        condition: selection?.condition ?? '',
+        package: selection?.package ?? '',
+        color: selection ? this.labelsOf('color', selection.color) : '',
+        material: selection ? this.labelsOf('material', selection.material) : '',
+      },
+      { emitEvent: false },
+    );
     this.initialFields = this.form.getRawValue();
     this.editing.set(true);
+  }
+  private async changeCategory(id: string): Promise<void> {
+    if (!this.editing() || this.busy()) return;
+    const current = this.current();
+    if (!current) return;
+    if (id === String(current.content.categoryId)) {
+      const initial = this.initialFields;
+      if (initial)
+        this.form.patchValue(
+          {
+            accessory_department: initial.accessory_department,
+            brand: initial.brand,
+            size: initial.size,
+            condition: initial.condition,
+            package: initial.package,
+            color: initial.color,
+            material: initial.material,
+          },
+          { emitEvent: false },
+        );
+      this.categoryEdit.set(null);
+      this.categoryLoading.set(false);
+      this.error.set(null);
+      return;
+    }
+    const version = this.requestVersion;
+    const category = this.sellingCategories.get(Number(id));
+    this.categoryLoading.set(true);
+    this.error.set(null);
+    try {
+      if (!category) throw new Error('Suche die gewünschte Kategorie und wähle sie aus.');
+      const schema = await this.categoryApi.read(this.connectionId(), category.id, {
+        categoryLabel: category.title,
+        fresh: true,
+      });
+      if (!this.isCurrent(version) || this.form.controls.categoryId.value !== id) return;
+      this.categoryEdit.set({
+        ...current,
+        schema,
+        content: {
+          ...emptyVintedListingContent(),
+          title: current.content.title,
+          description: current.content.description,
+          priceCents: current.content.priceCents,
+          categoryId: category.id,
+          categoryLabel: category.path,
+        },
+      });
+      this.form.patchValue(
+        {
+          accessory_department: '',
+          brand: '',
+          size: '',
+          condition: '',
+          package: '',
+          color: '',
+          material: '',
+        },
+        { emitEvent: false },
+      );
+    } catch (error) {
+      if (this.isCurrent(version) && this.form.controls.categoryId.value === id)
+        this.error.set(
+          error instanceof Error ? error.message : 'Die Kategorie konnte nicht geladen werden.',
+        );
+    } finally {
+      if (this.isCurrent(version) && this.form.controls.categoryId.value === id)
+        this.categoryLoading.set(false);
+    }
   }
   async save(): Promise<void> {
     if (this.form.invalid || this.busy() || !this.canSave()) {
@@ -451,7 +562,40 @@ export class VintedListingDetailComponent {
       }
       const fresh = await this.store.readListingContent(this.connectionId(), this.entryId());
       if (!this.isCurrent(version)) return;
-      const content = applyStoredVintedListingEdit(current, fresh, fields);
+      const categoryEdit = this.categoryEdit();
+      let content;
+      if (categoryEdit && categoryEdit.content.categoryId !== current.content.categoryId) {
+        const initial = this.initialFields;
+        if (!initial) throw new Error('Lade das Inserat erneut.');
+        const merged = applyStoredVintedListingEdit(current, fresh, {
+          ...initial,
+          title: fields.title,
+          description: fields.description,
+          price: fields.price,
+        });
+        const many = (field: 'color' | 'material') =>
+          fields[field]
+            .split(' · ')
+            .filter(Boolean)
+            .map((label) => {
+              const options = vintedListingEditOptions(categoryEdit.schema, field).filter(
+                (choice) => choice.label === label,
+              );
+              if (options.length !== 1) throw new Error('Die Auswahl ist nicht eindeutig.');
+              return options[0].value;
+            });
+        content = applyVintedListingEdit(
+          { ...fresh, ...categoryEdit },
+          {
+            title: merged.title,
+            description: merged.description,
+            price: vintedListingPriceText(merged.priceCents ?? 0),
+          },
+          { ...fields, color: many('color'), material: many('material') },
+        );
+      } else {
+        content = applyStoredVintedListingEdit(current, fresh, fields);
+      }
       const arranged = this.arrangedPhotos();
       const photos = arranged ? { base: current.photoUrls, desired: arranged } : undefined;
       await this.store.saveListingContent(

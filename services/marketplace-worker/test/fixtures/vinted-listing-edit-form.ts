@@ -1,6 +1,7 @@
 import type { Page } from 'playwright';
 
 interface EditFormState {
+  categoryId?: number;
   title: string;
   description: string;
   price: string;
@@ -49,6 +50,7 @@ const choices = {
 export async function createVintedListingEditFormFixture(
   page: Pick<Page, 'route'>,
   options: {
+    categoryChange?: boolean;
     foreign?: boolean;
     missingAiPhoto?: boolean;
     missingBump?: boolean;
@@ -133,7 +135,9 @@ export async function createVintedListingEditFormFixture(
     if (url.pathname === '/api/v2/item_upload/items/98765') {
       itemReads++;
       if (options.itemApi === 'reference')
-        return route.fulfill({ json: { item: { id: 98765, catalog_id: 2738 }, code: 0 } });
+        return route.fulfill({
+          json: { item: { id: 98765, catalog_id: state.categoryId ?? 2738 }, code: 0 },
+        });
       // Aufbau wie am 12.10.2026 an Vinteds Schnittstelle gemessen (nur Feldnamen und Typen).
       const price = /^([0-9]+)(?:[,.]([0-9]{1,2}))?/.exec(state.price.split('€').join('').trim());
       const brand = choices.brand.find(([id]) => id === state.brand);
@@ -142,7 +146,7 @@ export async function createVintedListingEditFormFixture(
           code: 0,
           item: {
             id: 98765,
-            catalog_id: 2738,
+            catalog_id: state.categoryId ?? 2738,
             title: state.title,
             description: state.description,
             price: {
@@ -210,7 +214,7 @@ export async function createVintedListingEditFormFixture(
       ]),
     );
     const selectedIds = {
-      category: [2738],
+      category: [state.categoryId ?? 2738],
       brand: [state.brand],
       size: [state.size],
       condition: [state.condition],
@@ -221,7 +225,11 @@ export async function createVintedListingEditFormFixture(
       .map(([field, testId]) => {
         const selected = selectedIds[field as keyof typeof selectedIds];
         const text =
-          field === 'category' ? 'Fußballschuhe' : label(field as keyof typeof choices, selected);
+          field === 'category'
+            ? state.categoryId === 2739
+              ? 'Wanderschuhe'
+              : 'Fußballschuhe'
+            : label(field as keyof typeof choices, selected);
         return options.modernControls
           ? `<label for="${controlIds[field]}">${controlLabels[field as keyof typeof controlLabels]}</label><button type="button" id="${controlIds[field]}" data-testid="${testId}">${text}</button><input name="${field}" value="${selected.filter((value) => value !== null).join(',')}">`
           : `<input id="${field}" readonly value="${text}">`;
@@ -237,7 +245,7 @@ export async function createVintedListingEditFormFixture(
       ${contentControls}
       ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox">'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
       ${selectionControls}
-      <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
+      <div id="category-options" hidden>${options.categoryChange ? `<input id="catalog-search-input"><div role="radio" id="catalog-search-2739-result" aria-label="Wanderschuhe" aria-checked="${state.categoryId === 2739}">Wanderschuhe</div>` : ''}<div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${option('brand', 'radio', [state.brand])}</div>
       <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
       <div id="condition-options" hidden>${option('condition', 'radio', [state.condition])}</div>
@@ -295,7 +303,7 @@ export async function createVintedListingEditFormFixture(
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);
       const options=name=>[...document.querySelectorAll('#'+name+'-options [role]')];
       const selected=name=>options(name).filter(node=>node.getAttribute('aria-checked')==='true');
-      const identifier=node=>Number(/([0-9]+)$/.exec(node.id||node.dataset.testid)[1]);
+      const identifier=node=>Number(/([0-9]+)(?:-result)?$/.exec(node.id||node.dataset.testid)[1]);
       const reflect=name=>{
         const selectedOptions=selected(name);
         if(modernControls){
@@ -323,6 +331,7 @@ export async function createVintedListingEditFormFixture(
       document.querySelector('#save').onclick=async()=>{
         const one=name=>selected(name).map(identifier)[0]??null;
         await fetch('/fixture/save',{method:'POST',body:JSON.stringify({
+          ${options.categoryChange ? "categoryId:one('category')," : ''}
           title:document.querySelector('[name=title]').value,description:document.querySelector('[name=description]').value,price:document.querySelector('[name=price]').value,
           brand:one('brand'),size:one('size'),condition:one('condition'),colors:selected('color').map(identifier),materials:selected('material').map(identifier),
           packageSize:[2,3].find(id=>document.querySelector('#package_type_selector_'+id).checked)??null,photos})});

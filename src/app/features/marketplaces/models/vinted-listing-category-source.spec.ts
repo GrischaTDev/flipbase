@@ -18,3 +18,14 @@ describe('Kategorien für neue Vinted-Inserate', () => {
     expect((await source.search('Schuhe')).categories).toMatchObject([{ id: '17', isLeaf: true }]);
   });
 });
+
+it('navigates the complete account tree locally and never substitutes another variant', async () => {
+  const source = vintedListingCategorySource([
+    { id: 5496, parentId: null, title: 'Modeaccessoires' },
+    { id: 5555, parentId: 5496, title: 'Tücher & Schals' },
+  ]);
+  expect((await source.loadChildren(null)).map((category) => category.id)).toEqual(['5496']);
+  expect((await source.loadChildren('5496')).map((category) => category.id)).toEqual(['5555']);
+  expect((await source.getById('5555'))?.fullName).toBe('Modeaccessoires > Tücher & Schals');
+  expect(await source.getById('89')).toBeNull();
+});

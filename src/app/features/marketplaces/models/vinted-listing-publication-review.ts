@@ -29,6 +29,7 @@ const fieldLabels: Readonly<Record<string, string>> = {
   photos: 'Fotos',
   ai_photo: 'Kennzeichnung für KI-Fotos',
   attributes: 'Weitere Artikelangaben',
+  accessory_department: 'Zielgruppe',
   form: 'Vinted-Formular',
 };
 export function vintedListingValidationMessage(

@@ -8,6 +8,7 @@ import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 async function fixture(
   page: Page,
   options: {
+    accessory?: boolean;
     foreign?: boolean;
     unknown?: boolean;
     changed?: boolean;
@@ -75,6 +76,10 @@ async function fixture(
       <button id="save">Speichern</button>
       </main><script>
       const names=['category','brand','size','condition','color','material'];
+      if (${!!options.accessory}) {
+        document.querySelector('main').insertAdjacentHTML('beforeend', '<input id="accessory_department" name="accessory_department" readonly value="Herren" data-testid="category-accessory_department-single-list-input"><div id="accessory_department-options" hidden><div role="radio" id="accessory_department-575" aria-checked="true"><div class="web_ui__Cell__title">Herren</div></div><div role="radio" id="accessory_department-576" aria-checked="false">Damen</div></div>');
+        names.push('accessory_department');
+      }
       ${options.categoryTestId ? 'document.querySelector("#category").setAttribute("data-testid", "catalog-select-dropdown-input");' : ''}
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);
       names.forEach(name=>document.querySelector('#'+name).onclick=()=>{hide();document.querySelector('#'+name+'-options').hidden=false;${options.changed ? "if(name==='material')document.querySelector('[name=price]').value='21,00 €';" : ''}});
@@ -328,6 +333,28 @@ test('finds the brand of the listing through the search when the suggestions do 
     assert.equal(result.content.brandLabel, 'Jako');
     // Der Materialvorschlag über der Liste zählt nicht als zweite Auswahl.
     assert.deepEqual(result.content.materialIds, [149]);
+    assert.equal(writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('retains the selected native accessory department when reading relisting source content', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const writes = await fixture(page, { accessory: true, categoryTestId: true });
+    const result = await readVintedListingCurrentContent(
+      page,
+      '123',
+      '98765',
+      async () => undefined,
+    );
+    assert.deepEqual(result.content.attributes, {
+      accessory_department: '575',
+      accessory_department_label: 'Herren',
+    });
+    assert.equal(result.schema.unknownFields.length, 0);
     assert.equal(writes(), 0);
   } finally {
     await browser.close();

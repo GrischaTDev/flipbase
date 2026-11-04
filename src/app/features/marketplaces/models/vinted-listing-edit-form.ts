@@ -6,7 +6,7 @@ import type {
 } from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
 
 export type VintedListingEditField =
-  'brand' | 'size' | 'condition' | 'package' | 'color' | 'material';
+  'accessory_department' | 'brand' | 'size' | 'condition' | 'package' | 'color' | 'material';
 
 export type VintedListingEditSnapshot = Pick<
   VintedListingCurrentContent,
@@ -15,6 +15,7 @@ export type VintedListingEditSnapshot = Pick<
 
 /** Auswahl im Bearbeitungsformular; leere Zeichenkette heißt „bei Vinted nichts gewählt“. */
 export interface VintedListingEditSelection {
+  readonly accessory_department?: string;
   readonly brand: string;
   readonly size: string;
   readonly condition: string;
@@ -78,6 +79,7 @@ export function vintedListingEditSelection(
       .filter((choice) => choice.selected)
       .map(optionValue);
   return {
+    accessory_department: selected('accessory_department')[0] ?? '',
     brand: selected('brand')[0] ?? '',
     size: selected('size')[0] ?? '',
     condition: selected('condition')[0] ?? '',
@@ -138,6 +140,10 @@ export function applyVintedListingEdit(
   };
   const single = (field: VintedListingEditField, value: string) =>
     value ? pick(field, [value], 1)[0] : undefined;
+  const department =
+    selection.accessory_department === undefined
+      ? undefined
+      : single('accessory_department', selection.accessory_department);
   const brand = single('brand', selection.brand),
     size = single('size', selection.size),
     condition = single('condition', selection.condition),
@@ -160,6 +166,14 @@ export function applyVintedListingEdit(
     materialIds: materials.map((choice) => choice.id as number),
     materialLabels: materials.map((choice) => choice.label),
     packageSizeId: packageSize?.id ?? null,
-    attributes: {},
+    attributes:
+      selection.accessory_department === undefined
+        ? current.content.attributes
+        : department?.id
+          ? {
+              accessory_department: String(department.id),
+              accessory_department_label: department.label,
+            }
+          : {},
   };
 }
