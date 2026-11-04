@@ -12,6 +12,14 @@
     </app-card>
   }
 
+  @if (correctionSale()) {
+    <app-text-field
+      label="Korrekturgrund"
+      [value]="correctionReason()"
+      (valueChange)="correctionReason.set($event)"
+      [required]="true"
+    />
+  }
   <app-two-column-layout ratio="2-1" data-testid="sale-entry-workspace">
     <div main class="space-y-4" data-testid="sale-entry-main">
       <app-card title="Verkaufspositionen" padding="md" rounded="xl">
@@ -77,7 +85,17 @@
                                 Bestellposition: {{ draft.lines[index].title }}
                               </p>
                             }
-                            @if (!legacyReconciliation() && !istBearbeitung()) {
+                            @if (isFreeLine(line)) {
+                              <app-text-field
+                                label="Beschreibung"
+                                [value]="freeTitle(line)"
+                                (valueChange)="setFreeTitle(line, $event)"
+                                [required]="true"
+                                [ariaInvalid]="
+                                  validationAttempted() && line.controls.target.invalid
+                                "
+                              />
+                            } @else if (!legacyReconciliation() && !istBearbeitung()) {
                               <app-button
                                 data-sale-article-label
                                 variant="plain"
@@ -212,6 +230,9 @@
 
         @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
           <div class="flex items-center gap-2 border-t border-fb-line pt-3">
+            <app-button [disabled]="isSubmitting()" (clicked)="addFreeLine()"
+              >Freie Position</app-button
+            >
             <app-button
               data-add-sale-products
               class="min-w-0 flex-1"

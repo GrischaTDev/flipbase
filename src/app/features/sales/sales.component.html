@@ -233,6 +233,9 @@
                             >
                           }
                         </div>
+                        @if (sale.voided_at) {
+                          <app-badge tone="neutral">Korrigiert</app-badge>
+                        }
                         @if (sale.returned_at || ret) {
                           <app-badge tone="critical" [mono]="true"> Retourniert </app-badge>
                         }
@@ -366,6 +369,9 @@
                 >
                   {{ saleTitle(sale) }}
                 </h3>
+                @if (sale.voided_at) {
+                  <app-badge tone="neutral">Korrigiert</app-badge>
+                }
                 @if (sale.returned_at || ret) {
                   <app-badge tone="critical" [mono]="true">Retourniert</app-badge>
                 }
@@ -457,7 +463,7 @@
       (closed)="closeReturnModal()"
     >
       <p class="text-[11px] text-fb-text-muted mb-4">
-        {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf:
+        {{ sale ? saleTitle(sale) : 'Artikel' }} (Verkauf:
         {{ sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
       </p>
 
@@ -539,104 +545,117 @@
           </div>
         </div>
 
-        <!-- 3. Restock Decision -->
-        <div class="space-y-1.5">
-          <span
-            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-          >
-            Wiedereinlagerung in den Warenbestand
-          </span>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label
-              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-              [class.bg-emerald-500/15]="returnForm.get('restockAction')?.value === 'restock_ready'"
-              [class.border-emerald-500/40]="
-                returnForm.get('restockAction')?.value === 'restock_ready'
-              "
-              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
-              [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+        @if (!isFreeSale(selectedSaleForReturn())) {
+          <!-- 3. Restock Decision -->
+          <div class="space-y-1.5">
+            <span
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
-              <input
-                type="radio"
-                formControlName="restockAction"
-                value="restock_ready"
-                class="mt-0.5 cursor-pointer text-indigo-600"
-              />
-              <div>
-                <strong class="block text-xs text-fb-text-primary">Wieder verkaufsbereit</strong>
-                <span class="text-[10px] text-fb-text-muted"
-                  >Artikel zurück in Bestand (ready)</span
-                >
-              </div>
-            </label>
+              Wiedereinlagerung in den Warenbestand
+            </span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-emerald-500/15]="
+                  returnForm.get('restockAction')?.value === 'restock_ready'
+                "
+                [class.border-emerald-500/40]="
+                  returnForm.get('restockAction')?.value === 'restock_ready'
+                "
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+                [class.border-fb-border]="
+                  returnForm.get('restockAction')?.value !== 'restock_ready'
+                "
+              >
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="restock_ready"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
+                <div>
+                  <strong class="block text-xs text-fb-text-primary">Wieder verkaufsbereit</strong>
+                  <span class="text-[10px] text-fb-text-muted"
+                    >Artikel zurück in Bestand (ready)</span
+                  >
+                </div>
+              </label>
 
-            <label
-              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-              [class.bg-amber-500/15]="returnForm.get('restockAction')?.value === 'restock_repair'"
-              [class.border-amber-500/40]="
-                returnForm.get('restockAction')?.value === 'restock_repair'
-              "
-              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
-              [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'restock_repair'"
-            >
-              <input
-                type="radio"
-                formControlName="restockAction"
-                value="restock_repair"
-                class="mt-0.5 cursor-pointer text-indigo-600"
-              />
-              <div>
-                <strong class="block text-xs text-fb-text-primary">Reparatur / Aufbereitung</strong>
-                <span class="text-[10px] text-fb-text-muted">In Werkstatt übergeben (repair)</span>
-              </div>
-            </label>
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-amber-500/15]="
+                  returnForm.get('restockAction')?.value === 'restock_repair'
+                "
+                [class.border-amber-500/40]="
+                  returnForm.get('restockAction')?.value === 'restock_repair'
+                "
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
+                [class.border-fb-border]="
+                  returnForm.get('restockAction')?.value !== 'restock_repair'
+                "
+              >
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="restock_repair"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
+                <div>
+                  <strong class="block text-xs text-fb-text-primary"
+                    >Reparatur / Aufbereitung</strong
+                  >
+                  <span class="text-[10px] text-fb-text-muted"
+                    >In Werkstatt übergeben (repair)</span
+                  >
+                </div>
+              </label>
 
-            <label
-              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-              [class.bg-rose-500/15]="returnForm.get('restockAction')?.value === 'write_off'"
-              [class.border-rose-500/40]="returnForm.get('restockAction')?.value === 'write_off'"
-              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
-              [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'write_off'"
-            >
-              <input
-                type="radio"
-                formControlName="restockAction"
-                value="write_off"
-                class="mt-0.5 cursor-pointer text-indigo-600"
-              />
-              <div>
-                <strong class="block text-xs text-fb-text-primary">Als Defekt abschreiben</strong>
-                <span class="text-[10px] text-fb-text-muted">Totalverlust / Bruchschaden</span>
-              </div>
-            </label>
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-rose-500/15]="returnForm.get('restockAction')?.value === 'write_off'"
+                [class.border-rose-500/40]="returnForm.get('restockAction')?.value === 'write_off'"
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
+                [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'write_off'"
+              >
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="write_off"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
+                <div>
+                  <strong class="block text-xs text-fb-text-primary">Als Defekt abschreiben</strong>
+                  <span class="text-[10px] text-fb-text-muted">Totalverlust / Bruchschaden</span>
+                </div>
+              </label>
 
-            <label
-              class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-              [class.bg-indigo-500/15]="
-                returnForm.get('restockAction')?.value === 'keep_with_buyer'
-              "
-              [class.border-indigo-500/40]="
-                returnForm.get('restockAction')?.value === 'keep_with_buyer'
-              "
-              [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
-              [class.border-fb-border]="
-                returnForm.get('restockAction')?.value !== 'keep_with_buyer'
-              "
-            >
-              <input
-                type="radio"
-                formControlName="restockAction"
-                value="keep_with_buyer"
-                class="mt-0.5 cursor-pointer text-indigo-600"
-              />
-              <div>
-                <strong class="block text-xs text-fb-text-primary">Bleibt beim Käufer</strong>
-                <span class="text-[10px] text-fb-text-muted">Preisnachlass / Kulanz</span>
-              </div>
-            </label>
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-indigo-500/15]="
+                  returnForm.get('restockAction')?.value === 'keep_with_buyer'
+                "
+                [class.border-indigo-500/40]="
+                  returnForm.get('restockAction')?.value === 'keep_with_buyer'
+                "
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
+                [class.border-fb-border]="
+                  returnForm.get('restockAction')?.value !== 'keep_with_buyer'
+                "
+              >
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="keep_with_buyer"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
+                <div>
+                  <strong class="block text-xs text-fb-text-primary">Bleibt beim Käufer</strong>
+                  <span class="text-[10px] text-fb-text-muted">Preisnachlass / Kulanz</span>
+                </div>
+              </label>
+            </div>
           </div>
-        </div>
-
+        }
         <!-- 4. Notes -->
         <div>
           <app-text-field
@@ -702,6 +721,28 @@
     >
       {{ invoiceActionLabel(sale) }}
     </app-button>
+    @if (canCorrectFreeSale(sale)) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [icon]="historyIcon"
+        (clicked)="correctFreeSale(sale)"
+        >Verkauf korrigieren</app-button
+      >
+    }
+    @if (sale.correction?.document) {
+      <app-button
+        variant="list-row"
+        density="compact"
+        [fullWidth]="true"
+        contentAlign="start"
+        [icon]="receiptIcon"
+        (clicked)="openCorrectionDocument(sale)"
+        >Korrekturbeleg anzeigen</app-button
+      >
+    }
     @if (ret) {
       <app-button
         variant="list-row"
@@ -712,7 +753,8 @@
         (clicked)="openCreditNoteForSale(sale)"
         >Gutschrift anzeigen</app-button
       >
-    } @else if (!sale.returned_at) {
+    }
+    @if (!sale.returned_at && !sale.voided_at) {
       <app-button
         variant="list-row"
         density="compact"

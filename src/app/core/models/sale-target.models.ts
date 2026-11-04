@@ -1,3 +1,4 @@
+import type { Sale } from './flipbase.models';
 /**
  * Vorbelegung für den gemeinsamen Verkaufsdialog. Die Union trennt
  * Mengenartikel und einzeln nachverfolgbare Inventarartikel strikt, damit
@@ -23,6 +24,7 @@ export interface LegacySaleReconciliation {
 
 /** Route-State-Vertrag zwischen Inventar und dem Verkaufsdialog (Aufgabe 6). */
 export interface SaleTargetRouteState {
+  readonly correctionSale?: Sale;
   readonly saleTarget: SaleTarget;
   readonly legacyReconciliation?: LegacySaleReconciliation;
   readonly returnUrl?: string;

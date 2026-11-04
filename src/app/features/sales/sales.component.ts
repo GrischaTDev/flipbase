@@ -480,13 +480,34 @@ export class SalesComponent {
     );
   }
 
+  canCorrectFreeSale(sale: Sale): boolean {
+    return (
+      !sale.voided_at &&
+      !sale.refund_amount &&
+      !!sale.lines?.length &&
+      sale.lines.every((line) => line.position_kind === 'free')
+    );
+  }
+  correctFreeSale(sale: Sale): void {
+    if (this.canCorrectFreeSale(sale))
+      void this.router.navigate(['/sales/new'], { state: { correctionSale: sale } });
+  }
+  private refundBookingKey = crypto.randomUUID();
+  isFreeSale(sale: Sale | null): boolean {
+    return !!sale?.lines?.length && sale.lines.every((line) => line.position_kind === 'free');
+  }
+  openCorrectionDocument(sale: Sale): void {
+    const document = sale.correction?.document;
+    if (document && typeof document === 'object') this.activeInvoice.set(document as Invoice);
+  }
   openReturnModal(sale: Sale): void {
+    this.refundBookingKey = crypto.randomUUID();
     this.selectedSaleForReturn.set(sale);
     this.returnForm.patchValue({
       reason: 'buyer_remorse',
-      refundAmount: sale.sale_price,
+      refundAmount: sale.sale_price - (sale.refund_amount ?? 0),
       isFullRefund: true,
-      restockAction: 'restock_ready',
+      restockAction: this.isFreeSale(sale) ? 'keep_with_buyer' : 'restock_ready',
       notes: '',
     });
     this.isReturnModalOpen.set(true);
@@ -509,7 +530,7 @@ export class SalesComponent {
     this.returnForm.patchValue({ isFullRefund: isFull });
     const sale = this.selectedSaleForReturn();
     if (isFull && sale) {
-      this.returnForm.patchValue({ refundAmount: sale.sale_price });
+      this.returnForm.patchValue({ refundAmount: sale.sale_price - (sale.refund_amount ?? 0) });
     }
   }
 
@@ -526,6 +547,7 @@ export class SalesComponent {
     try {
       ergebnis = await this.returnService.processReturn({
         sale,
+        bookingKey: this.refundBookingKey,
         item: sale.inventory_item,
         reason: val.reason,
         refundAmount: val.refundAmount,

@@ -59,7 +59,13 @@ const featureSpecs = {
     'purchase-workspace',
   ],
   research: [],
-  sales: ['inventory-sale', 'sales-variant-picker', 'article-stock-removal', 'company-documents'],
+  sales: [
+    'free-sales',
+    'inventory-sale',
+    'sales-variant-picker',
+    'article-stock-removal',
+    'company-documents',
+  ],
   sellers: ['purchase-entry', 'purchase-workspace'],
   settings: [
     'company-settings',

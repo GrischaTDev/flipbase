@@ -52,13 +52,15 @@ export class TaxEngineService {
     const items = this.inventoryService.items();
     const defaultMode = this.currentTaxMode();
 
-    return sales.flatMap((sale) => {
-      const item =
-        sale.inventory_item ||
-        items.find((i) => i.id === sale.inventory_item_id) ||
-        ({} as InventoryItem);
-      return this.calculateSaleLineTaxes(sale, item, defaultMode);
-    });
+    return sales
+      .filter((sale) => !sale.voided_at)
+      .flatMap((sale) => {
+        const item =
+          sale.inventory_item ||
+          items.find((i) => i.id === sale.inventory_item_id) ||
+          ({} as InventoryItem);
+        return this.calculateSaleLineTaxes(sale, item, defaultMode);
+      });
   });
 
   /**

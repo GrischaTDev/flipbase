@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Freie Verkäufe mit Belegen, Erstattungen und Korrekturen
+
+**Auftrag:** Ersten Schritt der Entkopplung von Handel und Bestand umsetzen;
+bisherige Bestandsabläufe erhalten.
+
+**Änderung:** Freie Verkaufspositionen ohne Lagerziel und ohne erfundene Kosten,
+stabile Buchungskennungen für manuelle Verkäufe und Erstattungen, atomarer
+Korrekturweg mit erhaltenem Original und dauerhaftem Belegbezug. Titel aus
+Verkaufspositionen in CSV und Gutschriften; Korrekturbelege zeigen Art und Grund.
+Korrigierte Originale werden nicht doppelt ausgewertet. RLS und ausdrückliche
+Rechte schützen die neuen Tabellen. Schema, erzeugte Migration und Clienttypen
+gehören zusammen.
+
+**Absicherung:** Getrennte lokale Supabase ausschließlich mit synthetischen
+Daten; Wiederholungen und konkurrierende Buchungen, Korrekturen und Erstattungen
+sowie bestehende Bestands-/Belegfälle geprüft. Neuer Browserablauf in drei Breiten
+und Hell/Dunkel einschließlich Touch und AXE. Bestehende Einzelstück-, Varianten-
+und Unternehmensbelegabläufe bleiben geprüft. Details und Grenzen stehen im
+[Umsetzungsbericht](implementation/2026-11-04-free-sales.md).
+
+**Abgrenzung:** Eigene Arbeitskopie und eigener Zweig vom aktuellen Hauptstand;
+fremde Erweiterungsarbeit und Nutzerdaten unverändert. Einkaufsbezug und
+Shop-Aktivierung folgen separat. Noch keine Veröffentlichung.
+
 ## 2026-11-04 - Juna - Gültige Vinted-Eingabefelder beim Relisting wieder erkennen
 
 **Ursache:** Beide gemeldeten Inserate (Burberry-Schal und Nike-Pullover) zeigen

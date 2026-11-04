@@ -414,6 +414,7 @@ export interface SaleCostEntry {
 }
 
 export interface Sale {
+  correction?: { document: unknown; replacement_sale_id: string; reason: string } | null;
   record_number?: string | null;
   numbering_series_id?: number | null;
   numbering_version?: number | null;
@@ -573,6 +574,7 @@ export interface TaxCostAllocation {
 }
 
 export interface SaleLine {
+  position_kind?: 'stock' | 'free';
   inventory_item?: InventoryItem;
   lot_allocations?: SaleLineLotAllocation[];
   id: string;

@@ -916,6 +916,9 @@ begin
       into v_items from public.invoice_items as item where item.invoice_id = v_invoice.id;
     return jsonb_build_object('invoice', to_jsonb(v_invoice), 'items', v_items, 'created', false);
   end if;
+  if p_sale_id is not null and exists(select 1 from public.sales where workspace_id = p_workspace_id and id = p_sale_id and voided_at is not null) then
+    raise exception using errcode = '22023', message = 'Für aufgehobene Verkäufe kann keine neue Rechnung erstellt werden.';
+  end if;
   if coalesce(jsonb_typeof(p_invoice), 'null') <> 'object'
     or nullif(btrim(p_invoice ->> 'invoice_number'), '') is null
     or nullif(btrim(p_invoice ->> 'order_number'), '') is null
@@ -1250,6 +1253,14 @@ create or replace function public.record_sale(p_workspace_id uuid, p_sale jsonb,
 AS $function$
 declare
   v_input_line jsonb;
+  v_booking_key uuid;
+  v_request jsonb;
+  v_result jsonb;
+  v_previous_request jsonb;
+  v_correction_id uuid;
+  v_original public.sales;
+  v_original_invoice public.invoices;
+  v_correction_document jsonb;
   v_sale public.sales;
   v_sale_line public.sale_lines;
   v_stock_lot public.stock_lots;
@@ -1297,6 +1308,37 @@ begin
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  v_booking_key := nullif(p_sale ->> 'booking_key', '')::uuid;
+  v_request := pg_catalog.jsonb_build_object('sale', p_sale, 'lines', p_lines);
+  if v_booking_key is not null then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_workspace_id::text || v_booking_key::text, 0));
+    select request, result into v_previous_request, v_result from public.sale_booking_requests
+      where workspace_id = p_workspace_id and booking_key = v_booking_key;
+    if found then
+      if v_previous_request is distinct from v_request then
+        raise exception using errcode = '22023', message = 'Die Buchungskennung gehört zu anderen Verkaufsdaten.';
+      end if;
+      return v_result;
+    end if;
+  elsif exists (select 1 from pg_catalog.jsonb_array_elements(p_lines) line where line ->> 'position_kind' = 'free') then
+    raise exception using errcode = '22023', message = 'Die Buchungskennung fehlt.';
+  end if;
+  v_correction_id := nullif(p_sale ->> 'correction_sale_id', '')::uuid;
+  if v_correction_id is not null then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_workspace_id::text || v_correction_id::text, 0));
+    select * into v_original from public.sales where workspace_id = p_workspace_id and id = v_correction_id for update;
+    if not found or v_original.voided_at is not null or coalesce(v_original.refund_amount, 0) <> 0
+      or not exists (select 1 from public.sale_lines where sale_id = v_correction_id)
+      or exists (select 1 from public.sale_lines where sale_id = v_correction_id and position_kind <> 'free')
+      or exists (select 1 from public.returns where sale_id = v_correction_id)
+      or nullif(pg_catalog.btrim(p_sale ->> 'correction_reason'), '') is null then
+      raise exception using errcode = '22023', message = 'Dieser Verkauf kann nicht über die freie Korrektur ersetzt werden.';
+    end if;
+    if exists (select 1 from pg_catalog.jsonb_array_elements(p_lines) line where coalesce(line ->> 'position_kind', 'stock') <> 'free') then
+      raise exception using errcode = '22023', message = 'Eine freie Korrektur benötigt freie Ersatzpositionen.';
+    end if;
   end if;
 
   if p_workspace_id is null
@@ -1387,6 +1429,7 @@ begin
     from jsonb_array_elements(p_lines) as element(value)
   loop
     if jsonb_typeof(v_input_line) <> 'object'
+      or coalesce(v_input_line ->> 'position_kind', 'stock') not in ('stock', 'free')
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
@@ -1395,7 +1438,7 @@ begin
       or num_nonnulls(
         nullif(trim(v_input_line ->> 'catalog_product_id'), ''),
         nullif(trim(v_input_line ->> 'inventory_item_id'), '')
-      ) <> 1
+      ) <> (case when v_input_line ->> 'position_kind' = 'free' then 0 else 1 end)
       or (
         nullif(trim(v_input_line ->> 'catalog_product_id'), '') is not null
         and jsonb_typeof(v_input_line -> 'catalog_product_id') <> 'string'
@@ -1631,6 +1674,7 @@ begin
     from jsonb_array_elements(p_lines) as element(value)
   loop
     if jsonb_typeof(v_input_line) <> 'object'
+      or coalesce(v_input_line ->> 'position_kind', 'stock') not in ('stock', 'free')
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
@@ -1639,7 +1683,7 @@ begin
       or num_nonnulls(
         nullif(v_input_line ->> 'catalog_product_id', ''),
         nullif(v_input_line ->> 'inventory_item_id', '')
-      ) <> 1 then
+      ) <> (case when v_input_line ->> 'position_kind' = 'free' then 0 else 1 end) then
       raise exception using errcode = '22023', message = 'Eine Verkaufsposition ist ungültig.';
     end if;
 
@@ -1652,7 +1696,16 @@ begin
     v_line_tax_costs := array[]::numeric[];
     v_tax_unknown := false;
 
-    if v_catalog_product_id is not null then
+    if v_input_line ->> 'position_kind' = 'free' then
+      if jsonb_typeof(v_input_line -> 'title_snapshot') is distinct from 'string' or nullif(pg_catalog.btrim(v_input_line ->> 'title_snapshot'), '') is null then
+        raise exception using errcode = '22023', message = 'Die Verkaufsbeschreibung fehlt.';
+      end if;
+      insert into public.sale_lines (workspace_id, sale_id, position_kind, title_snapshot, quantity,
+        unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
+      values (p_workspace_id, v_sale.id, 'free', pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+        v_quantity, v_unit_sale_price, v_line_total, null, coalesce((select tax_mode from public.sale_lines where sale_id = v_correction_id order by id limit 1), v_workspace.tax_mode))
+      returning * into v_sale_line;
+    elsif v_catalog_product_id is not null then
       select * into v_catalog_product
       from public.catalog_products
       where id = v_catalog_product_id
@@ -2029,7 +2082,7 @@ begin
   )
   returning id into v_business_event_id;
 
-  return jsonb_build_object(
+  v_result := jsonb_build_object(
     'sale', to_jsonb(v_sale),
     'business_event_id', v_business_event_id,
     -- Eingabereihenfolge für unveränderliche externe Positionsnachweise.
@@ -2064,6 +2117,37 @@ begin
       where stock_lot.id = any(v_stock_lot_ids)
     ), '[]'::jsonb)
   );
+  if v_correction_id is not null then
+    update public.sales set voided_at = pg_catalog.clock_timestamp(), voided_by = (select auth.uid()),
+      void_reason = pg_catalog.btrim(p_sale ->> 'correction_reason')
+      where workspace_id = p_workspace_id and id = v_correction_id;
+    select * into v_original_invoice from public.invoices where workspace_id = p_workspace_id and sale_id = v_correction_id;
+    if found then
+      v_correction_document := pg_catalog.jsonb_build_object(
+        'documentType', 'correction', 'id', v_correction_id, 'invoiceNumber', v_original.record_number || '-K',
+        'orderNumber', v_original_invoice.order_number, 'invoiceDate', current_date, 'deliveryDate', current_date,
+        'seller', v_original_invoice.seller, 'buyer', v_original_invoice.buyer,
+        'subtotal', -v_original_invoice.subtotal, 'shippingCost', -v_original_invoice.shipping_cost,
+        'total', -v_original_invoice.total, 'taxMode', v_original_invoice.tax_mode,
+        'taxClause', v_original_invoice.tax_clause, 'paymentMethod', 'Erfassungskorrektur', 'paymentStatus', 'paid',
+        'notes', 'Korrektur zu Rechnung ' || v_original_invoice.invoice_number || ': ' || (p_sale ->> 'correction_reason'),
+        'sourceType', 'sale', 'sourceId', v_correction_id,
+        'items', (select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('title', title, 'sku', sku,
+          'quantity', quantity, 'unitPrice', -unit_price, 'totalPrice', -total_price))
+          from public.invoice_items where invoice_id = v_original_invoice.id));
+    end if;
+    insert into public.business_events (workspace_id, entity_type, entity_id, event_type, actor_id, changes)
+    values (p_workspace_id, 'sale', v_correction_id, 'sale_corrected', (select auth.uid()),
+      pg_catalog.jsonb_build_object('reason', p_sale ->> 'correction_reason', 'replacement_sale_id', v_sale.id, 'before', pg_catalog.to_jsonb(v_original), 'correction_document', v_correction_document));
+    insert into public.sale_corrections (workspace_id, original_sale_id, replacement_sale_id, reason, document)
+    values (p_workspace_id, v_correction_id, v_sale.id, pg_catalog.btrim(p_sale ->> 'correction_reason'), v_correction_document);
+  end if;
+  if v_booking_key is not null then
+    insert into public.sale_booking_requests (workspace_id, booking_key, request, result)
+    values (p_workspace_id, v_booking_key, v_request, v_result);
+  end if;
+  return v_result;
+
 end;
 $function$
 ;
@@ -2968,7 +3052,9 @@ begin
       where workspace_id = p_workspace_id
         and sale_id = p_sale_id
     loop
-    if v_sale_line.catalog_product_id is not null then
+    if v_sale_line.position_kind = 'free' then
+      continue;
+    elsif v_sale_line.catalog_product_id is not null then
       for v_allocation in
         select *
         from public.sale_line_lot_allocations

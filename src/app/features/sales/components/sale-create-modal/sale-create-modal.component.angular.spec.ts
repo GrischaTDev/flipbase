@@ -204,6 +204,32 @@ describe('SaleCreateModalComponent', () => {
     }
 
     describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
+      it('bucht eine freie Position ohne Bestandsziel und lässt Kosten unbekannt', async () => {
+        const { komponente, salesService } = erstelleKomponente();
+        komponente.setFreeTitle(komponente.lines.at(0), 'Pullover');
+        expect(komponente.availableQuantity(komponente.lines.at(0))).toBeNull();
+        await komponente.onSubmit();
+        expect(salesService.recordSale).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lines: [
+              expect.objectContaining({
+                positionKind: 'free',
+                titleSnapshot: 'Pullover',
+                quantity: 2,
+                unitSalePrice: 9.99,
+              }),
+            ],
+          }),
+        );
+      });
+      it('verwirft eine freie Beschreibung aus Leerzeichen', async () => {
+        const { komponente, salesService } = erstelleKomponente();
+        Object.assign(komponente, { focusFirstInvalidField: vi.fn() });
+        komponente.setFreeTitle(komponente.lines.at(0), '   ');
+        await komponente.onSubmit();
+        expect(salesService.recordSale).not.toHaveBeenCalled();
+      });
+
       it('entfernt auch die letzte ausgewählte Verkaufsposition in den leeren Zustand', () => {
         const { komponente } = erstelleKomponente();
 

@@ -6914,6 +6914,90 @@ export type Database = {
           },
         ]
       }
+      sale_booking_requests: {
+        Row: {
+          booking_key: string
+          created_at: string
+          request: Json
+          result: Json
+          workspace_id: string
+        }
+        Insert: {
+          booking_key: string
+          created_at?: string
+          request: Json
+          result: Json
+          workspace_id: string
+        }
+        Update: {
+          booking_key?: string
+          created_at?: string
+          request?: Json
+          result?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_booking_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_corrections: {
+        Row: {
+          created_at: string
+          document: Json | null
+          id: string
+          original_sale_id: string
+          reason: string
+          replacement_sale_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          document?: Json | null
+          id?: string
+          original_sale_id: string
+          reason: string
+          replacement_sale_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          document?: Json | null
+          id?: string
+          original_sale_id?: string
+          reason?: string
+          replacement_sale_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_corrections_original_sale_id_fkey"
+            columns: ["original_sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_corrections_replacement_sale_id_fkey"
+            columns: ["replacement_sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_corrections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_cost_entries: {
         Row: {
           amount: number
@@ -7061,6 +7145,7 @@ export type Database = {
           id: string
           inventory_item_id: string | null
           line_total: number
+          position_kind: string
           quantity: number
           sale_id: string
           tax_cost_allocations: Json | null
@@ -7077,6 +7162,7 @@ export type Database = {
           id?: string
           inventory_item_id?: string | null
           line_total: number
+          position_kind?: string
           quantity: number
           sale_id: string
           tax_cost_allocations?: Json | null
@@ -7093,6 +7179,7 @@ export type Database = {
           id?: string
           inventory_item_id?: string | null
           line_total?: number
+          position_kind?: string
           quantity?: number
           sale_id?: string
           tax_cost_allocations?: Json | null
@@ -12790,6 +12877,10 @@ export type Database = {
       }
       record_sale: {
         Args: { p_lines: Json; p_sale: Json; p_workspace_id: string }
+        Returns: Json
+      }
+      record_sale_refund: {
+        Args: { p_refund: Json; p_workspace_id: string }
         Returns: Json
       }
       record_sale_return: {

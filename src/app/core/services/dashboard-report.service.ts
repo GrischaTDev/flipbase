@@ -611,6 +611,7 @@ export class DashboardReportService {
   }
 
   private isSaleActiveAt(sale: Sale, end: Date): boolean {
+    if (sale.voided_at) return false;
     const returnedAt = sale.returned_at ? this.calendarDate(sale.returned_at) : null;
     if (!returnedAt || returnedAt > end) return true;
     const refund = this.number(sale.refund_amount);

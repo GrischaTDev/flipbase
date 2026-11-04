@@ -422,6 +422,7 @@ create table public.sale_lines (
     sale_id uuid not null references public.sales(id) on delete restrict,
     catalog_product_id uuid references public.catalog_products(id) on delete restrict,
     inventory_item_id uuid references public.inventory_items(id) on delete restrict,
+    position_kind text not null default 'stock' check (position_kind in ('stock', 'free')),
     title_snapshot text not null,
     quantity integer not null check (quantity > 0),
     unit_sale_price numeric(12,2) not null check (unit_sale_price >= 0),
@@ -429,7 +430,7 @@ create table public.sale_lines (
     cost_of_goods_sold numeric(12,2) check (cost_of_goods_sold >= 0),
     tax_mode text not null check (tax_mode in ('diff_25a', 'kleinunternehmer_19', 'regular_19')),
     created_at timestamptz not null default now(),
-    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1),
+    check ((position_kind = 'stock' and num_nonnulls(catalog_product_id, inventory_item_id) = 1) or (position_kind = 'free' and num_nonnulls(catalog_product_id, inventory_item_id) = 0 and length(btrim(title_snapshot)) > 0)),
     unique (workspace_id, id),
     tax_purchase_cost numeric(12,2) check (tax_purchase_cost >= 0 and tax_purchase_cost < 'Infinity'::numeric),
     tax_cost_allocations jsonb

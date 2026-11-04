@@ -27,6 +27,7 @@ export interface InvoiceParty {
 }
 
 export interface Invoice {
+  documentType?: 'invoice' | 'correction';
   id: string;
   invoiceNumber: string; // e.g. 'RE-2026-0042'
   orderNumber: string;
