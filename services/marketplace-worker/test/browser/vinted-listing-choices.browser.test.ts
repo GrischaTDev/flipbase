@@ -83,6 +83,37 @@ test('bound modern choice buttons expose their labels while companion inputs car
   }
 });
 
+test('input ids and dropdown test ids may identify the same control but not separate controls', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const fields = {
+      category: 'catalog-select-dropdown-input',
+      brand: 'brand-select-dropdown-input',
+      size: 'category-size-single-grid-input',
+      condition: 'category-condition-single-list-input',
+      color: 'color-select-dropdown-input',
+      material: 'category-material-multi-list-input',
+    } as const;
+    for (const field of Object.keys(fields) as (keyof typeof fields)[]) {
+      const input = `<input id="${field}" name="${field}" data-testid="${fields[field]}" readonly value="Gewählte Auswahl">`;
+      await page.setContent(`<main id="content">${input}</main>`);
+      const control = await vintedListingFormControl(page, field);
+      assert.equal(control?.value, 'Gewählte Auswahl');
+      assert.equal(await control?.locator.getAttribute('id'), field);
+      for (const duplicate of [
+        `<input id="${field}" readonly value="Andere Auswahl">`,
+        `<button type="button" data-testid="${fields[field]}">Andere Auswahl</button>`,
+      ]) {
+        await page.setContent(`<main id="content">${input}${duplicate}</main>`);
+        await assert.rejects(vintedListingFormControl(page, field), /nicht eindeutig/);
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('a button with only the old input id is not a recognized modern control', async () => {
   const browser = await chromium.launch();
   try {

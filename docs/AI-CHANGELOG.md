@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Gültige Vinted-Eingabefelder beim Relisting wieder erkennen
+
+**Ursache:** Beide gemeldeten Inserate (Burberry-Schal und Nike-Pullover) zeigen
+ein `input#category` mit `data-testid="catalog-select-dropdown-input"`. Die neue
+Schaltflächenerkennung hatte diese Kennung ausschließlich Schaltflächen zugeordnet
+und dadurch das gültige Eingabefeld verworfen. Der produktive Abbruch erfolgt bei
+`content/read`, Schritt `category`, bevor ein Veröffentlichungsauftrag entsteht.
+Der lesende Item-Endpunkt liefert auch im tatsächlichen Cloud-Browser gültige
+Artikeldaten; eine defekte Anmeldung oder die neue Schalkategorie ist nicht belegt.
+
+**Korrektur:** Ein eindeutig identifiziertes, korrekt benanntes Text-/Suchfeld
+darf zusätzlich die bekannte Dropdown-Kennung tragen. Moderne Schaltflächen,
+ihre Labelbindung und die Ablehnung unterschiedlicher konkurrierender Controls
+bleiben erhalten. Ein neuer vollständiger Formularlesetest mit der beobachteten
+Struktur scheitert vor der Korrektur. Weitere Browserfälle prüfen alle sechs
+Auswahlfelder und getrennte doppelte Eingaben beziehungsweise Schaltflächen.
+
+**Prüfung:** Regression vor der Korrektur rot, danach alle 70 betroffenen
+Browserfälle und 15 Listing-Skriptfälle erfolgreich. Format, ESLint,
+Worker-Typprüfung, Worker-Bau und `git diff --check` bestanden.
+
+**Abgrenzung:** Echte Inserate ausschließlich gelesen, nichts gespeichert,
+veröffentlicht oder gelöscht. Eigene Cloud-Prüfsitzung regulär beendet. Eigener
+Zweig vom Hauptstand `08fcad1d6`; fremde Arbeitskopien unverändert. Lissie listet
+kein Flipbase-Projekt, daher dort keine passende Regelprüfung oder Meldung möglich.
+
 ## 2026-11-04 - Juna - Relisting-Vorschau nach Anzeige gespeicherter Originalfotos reparieren
 
 **Ursache:** Im offenen Relisting-Dialog scheitert der Abruf eines privaten

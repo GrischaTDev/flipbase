@@ -21,6 +21,7 @@ async function fixture(
     mainWithoutId?: boolean;
     invalidMaterialChoice?: boolean;
     hiddenCondition?: boolean;
+    categoryTestId?: boolean;
     categoryControl?: 'empty' | 'long' | 'duplicate' | 'non-input';
   } = {},
 ) {
@@ -74,6 +75,7 @@ async function fixture(
       <button id="save">Speichern</button>
       </main><script>
       const names=['category','brand','size','condition','color','material'];
+      ${options.categoryTestId ? 'document.querySelector("#category").setAttribute("data-testid", "catalog-select-dropdown-input");' : ''}
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);
       names.forEach(name=>document.querySelector('#'+name).onclick=()=>{hide();document.querySelector('#'+name+'-options').hidden=false;${options.changed ? "if(name==='material')document.querySelector('[name=price]').value='21,00 €';" : ''}});
       document.onkeydown=event=>{if(event.key==='Escape')hide();};
@@ -130,6 +132,25 @@ test('reads the complete selected content and ordered photos from an own fresh t
     await browser.close();
   }
 });
+test('reads existing listings whose category input also carries the dropdown test id', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const writes = await fixture(page, { categoryTestId: true });
+    const result = await readVintedListingCurrentContent(page, '123', '98765', () =>
+      Promise.resolve(),
+    );
+    assert.equal(result.content.categoryId, 2738);
+    assert.equal(result.content.categoryLabel, 'Fußballschuhe');
+    assert.equal(result.content.brandId, 254956);
+    assert.equal(result.photoUrls.length, 2);
+    assert.equal(page.isClosed(), true);
+    assert.equal(writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('reads existing listings in the current main region without the optional AI control and keeps the push control required', async () => {
   const browser = await chromium.launch();
   try {
