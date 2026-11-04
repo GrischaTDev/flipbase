@@ -15,6 +15,7 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
   try {
     for (const mode of [
       'confirmed',
+      'hydrated',
       'staged',
       'publish',
       'foreign',
@@ -31,6 +32,13 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
       );
       let deletes = 0;
       let removed = false;
+      await context.route('**/fixture/deletion-hydration', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.fulfill({
+          contentType: 'image/svg+xml',
+          body: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+        });
+      });
       await context.route('**/api/v2/item_upload/items/98765', async (route) => {
         if (route.request().headers()['accept'] !== 'application/json')
           return route.fulfill({ contentType: 'text/html', body: '<html></html>' });
@@ -52,7 +60,7 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
         assert.equal(form.saves(), 0, 'Kein neues Inserat vor der Löschung');
         assert.equal(form.uploads(), 1, 'Das vollständige Foto wurde vor der Löschung vorbereitet');
         deletes++;
-        removed = mode === 'confirmed' || mode === 'staged';
+        removed = mode === 'confirmed' || mode === 'hydrated' || mode === 'staged';
         await route.fulfill({ json: { ok: true } });
       });
       await context.route('https://www.vinted.de/items/98765', async (route) =>
@@ -64,7 +72,16 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
             <button data-testid="item-edit-button">Angebot bearbeiten</button>
             <button data-testid="item-delete-button" onclick="document.querySelector('[data-testid=item-delete-modal]').hidden=false">Löschen</button></main>
             <div hidden data-testid="item-delete-modal"><h2>Artikel löschen?</h2>
-            <button data-testid="item-delete-confirmation-button" onclick="fetch('/fixture/delete/98765', {method:'DELETE'}).then(()=>{location.href='/member/123'})">Löschen</button></div>`,
+            <button data-testid="item-delete-confirmation-button" onclick="fetch('/fixture/delete/98765', {method:'DELETE'}).then(()=>{location.href='/member/123'})">Löschen</button></div>
+            ${
+              mode === 'hydrated'
+                ? `<img src="/fixture/deletion-hydration" alt=""><script>
+              const button=document.querySelector('[data-testid="item-delete-button"]');
+              button.onclick=null;
+              window.addEventListener('load',()=>{button.onclick=()=>{document.querySelector('[data-testid="item-delete-modal"]').hidden=false;};});
+            </script>`
+                : ''
+            }`,
         }),
       );
       await page.goto('about:blank');
@@ -94,15 +111,20 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
       );
       assert.equal(
         deletes,
-        mode === 'confirmed' || mode === 'unconfirmed' || mode === 'staged' ? 1 : 0,
+        mode === 'confirmed' || mode === 'hydrated' || mode === 'unconfirmed' || mode === 'staged'
+          ? 1
+          : 0,
         JSON.stringify(result),
       );
-      assert.equal(form.saves(), mode === 'confirmed' || mode === 'publish' ? 1 : 0);
+      assert.equal(
+        form.saves(),
+        mode === 'confirmed' || mode === 'hydrated' || mode === 'publish' ? 1 : 0,
+      );
       assert.equal(
         result.outcome,
         mode === 'staged'
           ? 'relisting_deleted'
-          : mode === 'confirmed' || mode === 'publish'
+          : mode === 'confirmed' || mode === 'hydrated' || mode === 'publish'
             ? 'confirmed'
             : mode === 'unconfirmed'
               ? 'outcome_unknown'
@@ -825,6 +847,170 @@ test('preflight failures preserve a fixed step through isolated transport withou
     assert.equal(form.uploads(), 0);
     assert.equal(form.saves(), 0);
     assert.deepEqual(context.pages(), [original]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('defers package choices until photos exist and never saves without the complete choice', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const mode of ['native', 'local', 'missing', 'disabled'] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, {
+        publishing: true,
+        nativePackage: true,
+      });
+      await page.addInitScript((mode) => {
+        document.addEventListener('DOMContentLoaded', () => {
+          if (location.pathname !== '/items/new') return;
+          const cells = [...document.querySelectorAll<HTMLElement>('[id^="package-size-"]')];
+          cells.forEach((cell) => cell.remove());
+          document.querySelector('input[name="photos"]')?.addEventListener('change', () => {
+            if (mode === 'missing') return;
+            setTimeout(() => {
+              if (mode === 'disabled')
+                cells.forEach((cell) => {
+                  const radio = cell.querySelector('input');
+                  if (radio) radio.disabled = true;
+                });
+              cells.forEach((cell) => document.querySelector('#content')?.append(cell));
+            }, 75);
+          });
+        });
+      }, mode);
+      await page.goto('about:blank');
+      let begins = 0;
+      let result: Awaited<ReturnType<typeof submitVintedListing>> | undefined;
+      try {
+        result = await submitVintedListing(
+          page,
+          '123',
+          'publish',
+          {
+            ...listingClaimFixture.snapshot,
+            content: {
+              ...listingClaimFixture.snapshot.content,
+              attributes: mode === 'local' ? { flipbaseListingForm: '1' } : {},
+            },
+          },
+          async () => {
+            begins++;
+          },
+          async () => undefined,
+          async (id) => ({
+            id,
+            fileName: 'jacke.jpg',
+            mimeType: 'image/jpeg',
+            bytes: new Uint8Array(123),
+          }),
+          [5],
+          { saveTimeoutMs: 400 },
+        );
+      } catch (error) {
+        if (mode !== 'missing' && mode !== 'disabled') throw error;
+      }
+      assert.equal(
+        begins,
+        1,
+        'Die vor dem Upload fehlende Paketwahl darf die Vorbereitung nicht abbrechen',
+      );
+      assert.equal(form.uploads(), 1);
+      assert.equal(form.saves(), mode === 'native' || mode === 'local' ? 1 : 0);
+      if (mode === 'native' || mode === 'local')
+        assert.equal(result?.outcome, 'confirmed', JSON.stringify(result));
+      assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('confirms the captured new item from native saved values when its edit page is unavailable', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const mode of [
+      'matching',
+      'eventual',
+      'price',
+      'size',
+      'department',
+      'photos',
+      'inactive',
+    ] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, {
+        publishing: true,
+        active: mode !== 'inactive',
+      });
+      let editReads = 0,
+        itemReads = 0;
+      await page.route('**/items/456/edit', async (route) => {
+        editReads++;
+        await route.abort();
+      });
+      await page.route('**/api/v2/item_upload/items/456', async (route) => {
+        itemReads++;
+        if (form.saves() !== 1 || (mode === 'eventual' && itemReads < 3))
+          return route.fulfill({ status: 404, json: { code: 100 } });
+        await route.fulfill({
+          json: {
+            item: {
+              id: 456,
+              title: 'Jacke',
+              description: 'Gebraucht',
+              price: { amount: mode === 'price' ? '11.00' : '12.00', currency_code: 'EUR' },
+              catalog_id: 1223,
+              brand_id: null,
+              package_size_id: 2,
+              color1_id: null,
+              color2_id: null,
+              item_attributes: [
+                { code: 'size', ids: [mode === 'size' ? 209 : 208] },
+                { code: 'condition', ids: [2] },
+                ...(mode === 'department' ? [{ code: 'accessory_department', ids: [576] }] : []),
+              ],
+              photos: [
+                {
+                  id: 12345,
+                  url:
+                    'https://images1.vinted.net/tc/' +
+                    (mode === 'photos' ? 'foreignAsset' : 'fixtureAsset') +
+                    '/f800/1788288106.webp',
+                },
+              ],
+            },
+          },
+        });
+      });
+      await page.goto('about:blank');
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        listingClaimFixture.snapshot,
+        async () => undefined,
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+        { saveTimeoutMs: 400 },
+      );
+      assert.equal(form.saves(), 1);
+      assert.equal(form.uploads(), 1);
+      if (mode === 'matching' || mode === 'eventual') {
+        assert.equal(result.outcome, 'confirmed', JSON.stringify(result));
+        assert.equal(editReads, 0);
+        assert.equal(itemReads, mode === 'eventual' ? 3 : 1);
+      } else {
+        assert.equal(result.outcome, 'outcome_unknown');
+      }
+      assert.equal(page.isClosed(), true);
+    }
   } finally {
     await browser.close();
   }

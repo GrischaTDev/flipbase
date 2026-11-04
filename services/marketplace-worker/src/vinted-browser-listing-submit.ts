@@ -8,7 +8,10 @@ import type {
   MarketplaceListingSnapshot,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
-import { prepareVintedListingFields } from './vinted-browser-listing-fields.ts';
+import {
+  prepareVintedListingFields,
+  selectVintedListingField,
+} from './vinted-browser-listing-fields.ts';
 import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import { uploadVintedListingPhotos } from './vinted-browser-listing-photos.ts';
 import {
@@ -33,6 +36,7 @@ import {
   parseVintedListingSnapshot,
   vintedListingFormMatches,
   vintedListingPhotosMatch,
+  validateVintedListingSubmission,
 } from './vinted-listing-contracts.ts';
 
 /** Verwendet ausschließlich eine neue, reservierte about:blank-Seite und schließt sie danach. */
@@ -65,6 +69,7 @@ export async function submitVintedListing(
       throw new Error('Inseratversuch ungültig.');
     const workspaceId = input.images[0]?.storagePath.split('/')[0] ?? '';
     let snapshot = parseVintedListingSnapshot(input, workspaceId, input.connectionId);
+    const originalContent = snapshot.content;
     step = 'authorize';
     await authorize();
     step = 'navigate';
@@ -114,7 +119,9 @@ export async function submitVintedListing(
     );
     snapshot = {
       ...snapshot,
-      content: resolveFlipbaseVintedListingContent(snapshot.content, prepared),
+      content: resolveFlipbaseVintedListingContent(snapshot.content, prepared, {
+        deferPackage: true,
+      }),
     };
     // Ohne Fotos fehlen die Foto-Zusatzfelder bei Vinted noch. Bezahlte Extras bleiben gesperrt;
     // die vollständigen Werte werden nach dem Upload geprüft.
@@ -154,7 +161,15 @@ export async function submitVintedListing(
       throw new VintedListingReadError('metadata');
     }
     await check();
-    const schema = await readVintedListingCategoryFields(
+    const deferredPackage = !prepared.fields.some((field) => field.field === 'package');
+    if (deferredPackage) {
+      step = 'package';
+      await page
+        .locator(vintedListingFormSelector + ' input[id^="package_type_selector_"]')
+        .first()
+        .waitFor({ state: 'attached', timeout: 5000 });
+    }
+    let schema = await readVintedListingCategoryFields(
       page,
       accountId,
       snapshot.content.categoryId!,
@@ -162,6 +177,29 @@ export async function submitVintedListing(
       { brand: snapshot.content },
     );
     await check();
+    if (deferredPackage) {
+      // Erst die echte Auswahl nach dem Upload zuordnen, auswählen und erneut gegenlesen.
+      snapshot = {
+        ...snapshot,
+        content: resolveFlipbaseVintedListingContent(originalContent, schema),
+      };
+      const parcel = schema.fields.find((field) => field.field === 'package');
+      if (
+        !parcel ||
+        validateVintedListingSubmission(snapshot.content, snapshot.images, schema).length
+      )
+        return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
+      step = 'package';
+      await selectVintedListingField(page, parcel, [snapshot.content.packageSizeId], check);
+      schema = await readVintedListingCategoryFields(
+        page,
+        accountId,
+        snapshot.content.categoryId!,
+        categoryPath,
+        { brand: snapshot.content },
+      );
+      await check();
+    }
     if (
       !vintedListingFormMatches(
         snapshot.content,

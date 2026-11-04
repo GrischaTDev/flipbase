@@ -137,6 +137,29 @@ describe('Eigenes Inseratformular', () => {
     expect(local.materialIds).not.toEqual([44]);
     expect(local.attributes).not.toEqual(resolved.attributes);
   });
+  it('verschiebt nur ausdrücklich die vor dem Fotoupload fehlende Paketzuordnung', () => {
+    const local = prepareFlipbaseVintedListingContent({
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      sizeLabel: 'M',
+      conditionLabel: 'Sehr gut',
+      packageSizeId: 2,
+    });
+    const schema = listingCategoryFixture();
+    const initial = {
+      ...schema,
+      fields: schema.fields.filter((field) => field.field !== 'package'),
+    };
+    expect(() => resolveFlipbaseVintedListingContent(local, initial)).toThrow(/Paketgröße/);
+    expect(
+      resolveFlipbaseVintedListingContent(local, initial, { deferPackage: true }),
+    ).toMatchObject({
+      packageSizeId: 2,
+      sizeId: 208,
+      conditionId: 2,
+    });
+    expect(resolveFlipbaseVintedListingContent(local, schema)).toMatchObject({ packageSizeId: 2 });
+  });
   it('weist fehlende, gesperrte, doppeldeutige oder kategoriefremde Zuordnungen zurück', () => {
     const local = prepareFlipbaseVintedListingContent({
       ...emptyVintedListingContent(),

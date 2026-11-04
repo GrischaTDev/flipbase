@@ -9,6 +9,7 @@ const packages = ['Klein', 'Mittel', 'Groß'];
 export function resolveFlipbaseVintedListingContent(
   content: VintedListingContent,
   schema: VintedListingCategoryFields,
+  options: { deferPackage?: boolean } = {},
 ): VintedListingContent {
   if (content.attributes[marker] !== '1') return content;
   if (schema.categoryId !== content.categoryId)
@@ -56,7 +57,9 @@ export function resolveFlipbaseVintedListingContent(
   const packageLabel = content.packageSizeId === null ? null : packages[content.packageSizeId - 1];
   if (content.packageSizeId !== null && !packageLabel)
     throw new Error('Prüfe die Paketgröße im Inserat.');
-  const parcel = packageLabel ? choose('package', packageLabel) : null;
+  const deferredPackage =
+    options.deferPackage && !schema.fields.some((field) => field.field === 'package');
+  const parcel = packageLabel && !deferredPackage ? choose('package', packageLabel) : null;
   const attributes = Object.fromEntries(
     Object.entries(content.attributes).filter(([key]) => key !== marker),
   );
@@ -70,7 +73,7 @@ export function resolveFlipbaseVintedListingContent(
     colorLabels: color.map((choice) => choice.label),
     materialIds: material.map((choice) => choice.id!),
     materialLabels: material.map((choice) => choice.label),
-    packageSizeId: parcel?.id ?? null,
+    packageSizeId: deferredPackage ? content.packageSizeId : (parcel?.id ?? null),
     attributes,
   };
 }

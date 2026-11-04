@@ -40,7 +40,8 @@ export async function deleteVintedListing(
       return { status: 'failed', step };
     await authorize();
     await page.goto('https://www.vinted.de/items/' + itemId, {
-      waitUntil: 'domcontentloaded',
+      // Das sichtbare SSR-Markup reagiert vor dem vollständigen Laden noch nicht auf Löschen.
+      waitUntil: 'load',
       timeout: 15_000,
     });
     const check = async (allowProfile = false) => {

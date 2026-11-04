@@ -1,4 +1,6 @@
 import type { Page } from 'playwright';
+import { setTimeout as wait } from 'node:timers/promises';
+import { readVintedListingItem, mapVintedListingPhotoIds } from './vinted-browser-listing-item.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   vintedListingFormSelector,
@@ -48,8 +50,55 @@ export async function verifyVintedListingSavedContent(
     await authorize();
   };
   await check(false);
+  // Die bekannte Neuanlage ist bereits gespeichert, bevor ihre Bearbeitungsmaske verfügbar ist.
+  // Die Kennung stammt weiterhin zwingend aus der echten Veröffentlichungsantwort.
+  if (
+    !snapshot.aiPhoto &&
+    !snapshot.bump &&
+    (snapshot.content.brandId !== null || snapshot.content.brandLabel === 'Keine Marke')
+  ) {
+    let item: Awaited<ReturnType<typeof readVintedListingItem>> = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      item = await readVintedListingItem(page, externalId);
+      await check(false);
+      if (item) break;
+      if (attempt < 2) await wait(300);
+    }
+    if (item) {
+      const content = snapshot.content;
+      const sameIds = (actual: readonly number[], expected: readonly number[]) =>
+        actual.length === expected.length && expected.every((id) => actual.includes(id));
+      onStep('form_match');
+      if (
+        item.title !== content.title ||
+        item.description !== content.description ||
+        item.priceCents !== content.priceCents ||
+        item.categoryId !== content.categoryId ||
+        item.brandId !== content.brandId ||
+        item.sizeId !== content.sizeId ||
+        item.conditionId !== content.conditionId ||
+        item.accessoryDepartmentId !==
+          (content.attributes.accessory_department
+            ? Number(content.attributes.accessory_department)
+            : null) ||
+        item.packageSizeId !== content.packageSizeId ||
+        !sameIds(item.colorIds, content.colorIds) ||
+        !sameIds(item.materialIds, content.materialIds)
+      )
+        return false;
+      onStep('photos_match');
+      return (
+        uploaded.length === snapshot.images.length &&
+        uploaded.every((photo, index) => photo.sourceImageId === snapshot.images[index]?.id) &&
+        mapVintedListingPhotoIds(
+          uploaded.map((photo) => photo.previewUrl),
+          item.photos,
+        ) !== null
+      );
+    }
+  }
   onStep('navigation');
-  await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+  await page.goto(target, { waitUntil: 'load', timeout: 15_000 });
   onStep('form');
   await page
     .locator(vintedListingFormSelector + ' input[name="title"]')
@@ -123,7 +172,7 @@ export async function readVintedListingActiveState(
   await check();
   onStep('navigation');
   await page.goto('https://www.vinted.de/member/' + accountId, {
-    waitUntil: 'domcontentloaded',
+    waitUntil: 'load',
     timeout: 15_000,
   });
   onStep('filter');
