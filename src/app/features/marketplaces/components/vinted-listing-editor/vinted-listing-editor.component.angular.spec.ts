@@ -148,13 +148,11 @@ function setup(
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
   const readListingContent = vi.fn().mockRejectedValue(new Error('Anbieter nicht erreichbar'));
-  const readRelistingContent = vi
-    .fn()
-    .mockResolvedValue({
-      ...listingCurrentContentFixture(),
-      aiPhoto: false,
-      photoUrls: listingCurrentContentFixture().photoUrls.slice(0, 1),
-    });
+  const readRelistingContent = vi.fn().mockResolvedValue({
+    ...listingCurrentContentFixture(),
+    aiPhoto: false,
+    photoUrls: listingCurrentContentFixture().photoUrls.slice(0, 1),
+  });
   const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
     ...draft,
     content,
