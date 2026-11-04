@@ -24,6 +24,59 @@ und Unternehmensbelegabläufe bleiben geprüft. Details und Grenzen stehen im
 fremde Erweiterungsarbeit und Nutzerdaten unverändert. Einkaufsbezug und
 Shop-Aktivierung folgen separat. Noch keine Veröffentlichung.
 
+## 2026-11-04 - Juna - Löschdialog nach vollständigem Seitenaufbau öffnen
+
+**Befund:** Relisting-Auftrag 28 für den beigen Burberry-Schal blieb bei
+`relisting_delete_confirm_unconfirmed`. Das Original ist bei Vinted weiterhin
+aktiv. Der vollständige native Ablauf reproduziert den Abbruch: Bei lediglich
+`interactive` geladener Artikelseite bleibt der erste Löschklick wirkungslos und
+der Bestätigungsdialog erscheint nicht. Sämtliche Kontoprüfungen lieferten 200.
+Die einzelne Dialogprüfung konnte diesen zeitlichen Zusammenhang nicht zeigen.
+
+**Korrektur:** Die Artikelnavigation wartet vor Kontoprüfung und Löschknopf auf
+`load`. Eine vollständige Wiederholung mit den echten Fotos erreicht damit den
+bedienbaren Bestätigungsknopf. Der Diagnoseaufruf betätigte diesen Knopf nur als
+Aktionsprüfung und löschte nichts. Ein Regressionstest verzögert den Seitenaufbau
+und aktiviert den Knopf erst beim Ladeereignis; er scheitert mit dem alten Code
+und besteht mit der Korrektur.
+
+**Auftragsabgleich:** Nach wiederholtem Nachweis des weiterhin aktiven Originals
+wurde Auftrag 28 über die bestehende Abschluss-RPC von unklarem Ergebnis auf
+fehlgeschlagene Löschbestätigung berichtigt. Kennungen und Bindung des ursprünglichen
+Versuchs blieben erhalten. Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Alle 15 Veröffentlichungs-Browserfälle sind erfolgreich, einschließlich
+Löschen, gestaffeltem Relisting, nativer Bestätigung und verzögerter Paketwahl.
+Worker-Typprüfung und Worker-Bau sind erfolgreich. Die produktive Fortsetzung
+des bereits vom Nutzer gestarteten beigen Auftrags folgt nach der Auslieferung.
+
+## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
+
+**Befund:** Der neue beige Schal-Auftrag 27 brach produktiv im Schritt `values` ab.
+Die echte Vinted-Neuanlagemaske zeigt die Paketwahl erst nach Fotos; die bisherige
+Vorbereitung versuchte bereits davor, „Klein“ zuzuordnen. Der schwarze Altauftrag
+26 enthält zusätzlich noch keine Zielgruppe.
+
+**Änderung:** Nur die noch fehlende Paketwahl wird bis nach dem Fotoupload
+verschoben. Vor Löschen oder Veröffentlichen werden die echte Auswahl zugeordnet,
+ausgewählt und sämtliche Angaben erneut geprüft. Eine weiterhin fehlende oder
+gesperrte Paketgröße verhindert die Veröffentlichung. Der strenge allgemeine
+Validator bleibt erhalten.
+
+**Live-Prüfung:** Beide echten Schal-Masken wurden mit den gespeicherten Fotos bis
+direkt vor die Löschung vorbereitet und vollständig gegengelesen. Eine nur für die
+Diagnose geladene Modulkopie stoppte den Löschschritt; kein Inserat wurde gelöscht
+oder neu veröffentlicht. Der schwarze Entwurf 13 wurde über die vorhandene RPC
+mit Versionsprüfung um die frisch aus dem Original gelesene Zielgruppe Herren
+(575) ergänzt. Der alte fehlgeschlagene Auftrag bleibt als Verlauf erhalten.
+Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Der neue Fall scheitert mit dem unveränderten Hauptzweig und besteht
+mit der Korrektur für native und lokale Angaben sowie fehlende und gesperrte
+Paketwahl. 42 Browserfälle und 15 Zuordnungstests sind erfolgreich. Worker-Typen
+und Worker-Bau sind geprüft; die vollständige Vorbereitung beider echten Schals
+ist bis direkt vor dem gesperrten Löschschritt bestätigt.
+
 ## 2026-11-04 - Juna - Kontobezogene Verkaufsbäume und Relisting-Merkmale
 
 **Auftrag:** Die vier bestätigten Größenfehler korrigieren, Vinted-Verkaufsbäume je
