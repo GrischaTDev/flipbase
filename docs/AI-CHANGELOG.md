@@ -85,6 +85,10 @@ Versuche überholten geplanten Auftrag. Die Testkennungen bilden nun die beabsic
 Reihenfolge ab; die alte Erfolgszeilen-Erwartung prüft stattdessen den kurz sichtbaren
 Toast. Beide Fälle einschließlich Terminänderung, laufender Zeilenhöhe und AXE lokal
 erfolgreich. Keine zusätzliche Änderung der Anwendungslogik.
+Im Folgelauf bestehen sämtliche UI-, Qualitäts-, Datenbank- und Anwendungstests.
+Von 162 nativen Formularfällen verfehlt eine Fehler-Simulation wegen ihres fest
+eingetragenen alten `#content`-Selektors den beabsichtigten Seitenschluss. Sie nutzt
+nun den gemeinsamen Formularselektor; beide zugehörigen Fehlerfälle lokal erfolgreich.
 Private Prüfdatenbanken und Hilfscontainer entfernt; Diagnoseprotokolle und Reparatursicherung außerhalb des
 Repositories. Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen Prüfungen
 ausdrücklich freigegeben; ausgewählte CI-Prüfungen und Veröffentlichung stehen noch

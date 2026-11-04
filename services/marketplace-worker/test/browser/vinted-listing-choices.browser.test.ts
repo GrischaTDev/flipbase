@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
 import {
+  vintedListingFormSelector,
   collectVintedListingChoices,
   parseVintedListingChoices,
   collectVintedListingFormMetadata,
@@ -116,7 +117,7 @@ test('a failed popup cleanup preserves the original closed-page opening error', 
     const locate = page.locator.bind(page);
     t.mock.method(page, 'locator', (...args: Parameters<typeof page.locator>) => {
       const locator = locate(...args);
-      if (args[0] === '#content input#category') {
+      if (args[0] === vintedListingFormSelector + ' input#category') {
         const click = locator.click.bind(locator);
         t.mock.method(locator, 'click', async (...clickArgs: Parameters<typeof locator.click>) => {
           await page.close();
