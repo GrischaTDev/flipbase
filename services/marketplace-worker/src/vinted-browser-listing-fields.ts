@@ -40,6 +40,12 @@ function wanted(
   field: VintedListingChoiceField,
 ): readonly (number | null)[] {
   switch (field) {
+    case 'accessory_department':
+      return [
+        content.attributes['accessory_department']
+          ? Number(content.attributes['accessory_department'])
+          : null,
+      ];
     case 'brand':
       return [content.brandId];
     case 'size':
@@ -217,7 +223,7 @@ export async function prepareVintedListingFields(
     content.categoryId!,
     categoryPath,
     authorize,
-    options,
+    { ...options, categoryLabel: content.categoryLabel },
   );
   const check = async () => {
     const previousStep = preparationStep;

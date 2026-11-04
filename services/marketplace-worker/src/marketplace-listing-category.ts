@@ -70,6 +70,8 @@ export async function loadMarketplaceListingCategoryPath(
       });
       if (response.status !== 200 || response.redirected) throw invalid();
       const values: unknown = await response.json();
+      if (Array.isArray(values) && values.length === 0 && table === 'vinted_categories')
+        return null;
       if (!Array.isArray(values) || values.length !== 1) throw invalid();
       return values[0];
     };
@@ -90,12 +92,11 @@ export async function loadMarketplaceListingCategoryPath(
     for (;;) {
       if (seen.has(current) || seen.size >= 31) throw invalid();
       seen.add(current);
-      const node = record(await read('vinted_categories', current), [
-        'id',
-        'parent_id',
-        'is_leaf',
-        'updated_at',
-      ]);
+      const value = await read('vinted_categories', current);
+      // Der Suchkatalog enthält nicht alle Kategorien des Verkaufsformulars.
+      // Nur ein fehlendes Blatt darf dort über die native Suche ermittelt werden.
+      if (value === null && current === targetId) break;
+      const node = record(value, ['id', 'parent_id', 'is_leaf', 'updated_at']);
       if (categoryId(node['id']) !== current || node['is_leaf'] !== (current === targetId))
         throw invalid();
       stamps.add(timestamp(node['updated_at']));

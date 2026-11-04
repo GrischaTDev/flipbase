@@ -160,6 +160,6 @@ export function applyVintedListingEdit(
     materialIds: materials.map((choice) => choice.id as number),
     materialLabels: materials.map((choice) => choice.label),
     packageSizeId: packageSize?.id ?? null,
-    attributes: {},
+    attributes: current.content.attributes,
   };
 }

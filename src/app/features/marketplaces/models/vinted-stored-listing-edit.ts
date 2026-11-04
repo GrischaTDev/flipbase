@@ -39,7 +39,7 @@ export function storedVintedListingEdit(
     schema: {
       ...schema,
       fields: fields.map((field) => {
-        if (field.field === 'category') return field;
+        if (field.field === 'category' || field.field === 'accessory_department') return field;
         const labels = selected[field.field];
         const choices = field.choices.map((choice) => ({
           ...choice,

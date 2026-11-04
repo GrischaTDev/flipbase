@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Relisting mit neuen Vinted-Verkaufskategorien reparieren
+
+**Befund:** Der erneute Schal-Auftrag bricht vor jedem Anbieter-Schreibzugriff
+beim Kategoriepfad ab. Die Verkaufskategorie `5555` (Tücher & Schals unter
+Modeaccessoires) fehlt auch nach regulärer Auffrischung im Suchkatalog. Das native
+Verkaufsformular bietet sie über die Kategoriesuche an und verlangt zusätzlich
+das Merkmal Zielgruppe. Der vorherige Fix hatte ausschließlich das Einlesen geprüft.
+
+**Korrektur:** Fehlt ausschließlich das Zielblatt in einem konsistenten,
+autorisierten Cache, ermittelt die native Suche die Kategorie anhand ihrer
+exakten Kennung. Ungültige Antworten, fehlende Eltern und Rechteverlust bleiben
+Fehler. Die beobachtete Zielgruppe wird gelesen, im Auftrag erhalten, ausgewählt
+und bei der Erfolgsbestätigung mitgeprüft. Vor dem tatsächlichen Relisting werden
+aktuelle Anbieterangaben gelesen, damit alte gespeicherte Stände neue Pflichtfelder
+nicht verlieren. Das Öffnen gespeicherter Anzeigen bleibt unverändert.
+Bekannte Kategorie- und Vorbereitungsfehler erhalten aussagekräftigere Meldungen.
+
+**Prüfung:** Regression für das fehlende Zielblatt zunächst rot; ergänzte
+Browserfälle prüfen vollständige Vorbereitung, Zielgruppe, falsche Kategoriekennung
+und Erfolgsvergleich ohne Upload oder Veröffentlichung. Die betroffenen Browserprüfungen,
+29 Worker-Auftragsprüfungen, 45 Modelltests, 15 Relist-Service-Tests und 15 gemeinsame
+Formularvertragstests sind erfolgreich. Format, ESLint, Anwendungstypprüfung,
+Worker-Typprüfung/-Bau, Angular-Produktionsbau und `git diff --check` bestanden.
+
+**Abgrenzung:** Produktive Inserate weder gespeichert noch gelöscht oder neu
+veröffentlicht. Eigener Zweig vom Hauptstand `718ca1db`; fremde Arbeitskopien
+unverändert. Lissie bietet kein Flipbase-Projekt, daher dort keine passende
+Regelprüfung oder Änderungsmeldung möglich.
+
 ## 2026-11-04 - Juna - Gültige Vinted-Eingabefelder beim Relisting wieder erkennen
 
 **Ursache:** Beide gemeldeten Inserate (Burberry-Schal und Nike-Pullover) zeigen

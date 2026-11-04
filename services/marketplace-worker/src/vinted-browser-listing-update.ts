@@ -91,6 +91,10 @@ function wanted(
   field: VintedListingChoiceField,
 ): readonly (number | null)[] {
   switch (field) {
+    case 'accessory_department':
+      return content.attributes['accessory_department']
+        ? [Number(content.attributes['accessory_department'])]
+        : [];
     case 'brand':
       return content.brandId === null && !content.brandLabel ? [] : [content.brandId];
     case 'size':
@@ -107,7 +111,15 @@ function wanted(
       throw invalid();
   }
 }
-const choiceFields = ['brand', 'size', 'condition', 'package', 'color', 'material'] as const;
+const choiceFields = [
+  'brand',
+  'size',
+  'condition',
+  'package',
+  'color',
+  'material',
+  'accessory_department',
+] as const;
 
 function sameChoice(
   left: VintedListingContent,

@@ -68,7 +68,7 @@ export function buildVintedListingFieldSelection(
   let packageLabel = '';
   for (const snapshot of parsed.fields) {
     const { field, choices } = snapshot;
-    if (field === 'category' || field === 'brand') continue;
+    if (field === 'category' || field === 'brand' || field === 'accessory_department') continue;
     fields.push(field);
     switch (field) {
       case 'size': {

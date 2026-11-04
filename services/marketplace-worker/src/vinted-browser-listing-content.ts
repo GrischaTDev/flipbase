@@ -201,6 +201,7 @@ export async function readOpenVintedListingContent(
   const condition = selected('condition')[0];
   const colors = selected('color');
   const materials = selected('material');
+  const department = selected('accessory_department')[0];
   const result: VintedListingCurrentContent = {
     externalId,
     externalAccountId: accountId,
@@ -222,7 +223,12 @@ export async function readOpenVintedListingContent(
       materialIds: materials.map((choice) => choice.id as number),
       materialLabels: materials.map((choice) => choice.label),
       packageSizeId: selected('package')[0]?.id ?? null,
-      attributes: {},
+      attributes: department?.id
+        ? {
+            accessory_department: String(department.id),
+            accessory_department_label: department.label,
+          }
+        : {},
     },
     aiPhoto: before.ai_photo,
     bump: before.bump,
