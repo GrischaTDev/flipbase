@@ -133,6 +133,24 @@ Paketwahl. 42 Browserfälle und 15 Zuordnungstests sind erfolgreich. Worker-Type
 und Worker-Bau sind geprüft; die vollständige Vorbereitung beider echten Schals
 ist bis direkt vor dem gesperrten Löschschritt bestätigt.
 
+## 2026-11-04 - Juna - Kontoaktualisierungen ohne Erfolgstoast abschließen
+
+**Auftrag und Umsetzung:** Nur die wiederkehrende Erfolgsmeldung für
+Kontoaktualisierungen entfernt. Laufende Kontoabgleiche und Fehler bleiben in der
+Aktionsübersicht sichtbar; andere Aktions- und Veröffentlichungserfolge behalten
+ihre Meldungen. Automatische und manuelle Kontoabgleiche enden gleichermaßen still.
+Vom frisch abgerufenen `origin/master` in einer eigenen Arbeitskopie begonnen;
+die fremden Änderungen in der Hauptarbeitskopie bleiben erhalten.
+
+**Prüfung:** Zwei Regressionserwartungen reproduzierten vor der Korrektur die
+unerwünschten Toasts. Danach bestanden alle 18 Fälle des betroffenen Stores.
+Der bestehende Browserfall prüft zusätzlich laufenden Kontoabgleich, stillen
+Abschluss und Neuladen. Prüfplan, Vorabcheck und Browsernachweise werden privat
+unter `tmp/account-refresh-checks/` protokolliert. Keine produktive Kontoaktion.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
+
 ## 2026-11-04 - Juna - Kontobezogene Verkaufsbäume und Relisting-Merkmale
 
 **Auftrag:** Die vier bestätigten Größenfehler korrigieren, Vinted-Verkaufsbäume je
