@@ -154,7 +154,6 @@ export class SidebarComponent {
   readonly isOperator = this.operatorService.operator;
   readonly dashboardItem = DASHBOARD_NAVIGATION;
   readonly navigationGroups = computed(() => {
-    const isOperator = this.isOperator();
     const settings = this.marketplaceSettingsService.settings();
 
     return WORKSPACE_NAVIGATION_GROUPS.map((group) => {
@@ -164,7 +163,7 @@ export class SidebarComponent {
 
       const activeItems = group.items.filter((item) => {
         if (item.path === '/marketplaces/vinted') {
-          return settings.vinted && isOperator;
+          return settings.vinted;
         }
         if (item.path === '/vinted-bot') {
           return settings.vinted;

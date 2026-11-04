@@ -22,6 +22,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideRefreshCw, LucideSettings, LucidePlus, LucideTrash2 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -69,6 +70,7 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
   host: { class: 'block min-w-0 @container' },
 })
 export class VintedAccountGridComponent {
+  readonly operator = inject(PlatformOperatorService).operator;
   readonly managementOnly = input(false);
   readonly managedConnectionId = input<string | null>(null);
   readonly addAccount = input(false);

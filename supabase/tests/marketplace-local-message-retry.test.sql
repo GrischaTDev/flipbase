@@ -5,7 +5,6 @@ select no_plan();
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
  ('36100000-0000-4000-8000-000000000001','authenticated','authenticated','message-owner@example.test','{}','{}'),
  ('36100000-0000-4000-8000-000000000002','authenticated','authenticated','message-other@example.test','{}','{}');
-insert into public.platform_operators(user_id) values('36100000-0000-4000-8000-000000000001');
 insert into public.workspaces(id,name) values('36100000-0000-4000-8000-000000000011','Message A');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('36100000-0000-4000-8000-000000000011','36100000-0000-4000-8000-000000000001','owner');

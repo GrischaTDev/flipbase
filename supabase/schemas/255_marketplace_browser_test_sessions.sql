@@ -21,13 +21,13 @@ revoke all on public.marketplace_browser_test_sessions from public, anon, authen
 grant select on public.marketplace_browser_test_sessions to authenticated;
 grant all on public.marketplace_browser_test_sessions to service_role;
 create policy "Operators read their browser tests" on public.marketplace_browser_test_sessions
-for select to authenticated using (started_by = (select auth.uid()) and public.marketplace_can_manage(workspace_id));
+for select to authenticated using (started_by = (select auth.uid()) and public.marketplace_can_manage_cloud(workspace_id));
 
 create or replace function public.marketplace_test_session_start(p_workspace_id uuid, p_connection_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_status text; v_session public.marketplace_browser_test_sessions;
 begin
-  if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+  if not public.marketplace_can_manage_cloud(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   -- Die Verbindungssperre serialisiert konkurrierende Starts desselben Kontos.
   select status into v_status from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
@@ -53,7 +53,7 @@ create or replace function public.marketplace_test_session_status(p_workspace_id
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare v_session public.marketplace_browser_test_sessions; v_state text;
 begin
-  if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+  if not public.marketplace_can_manage_cloud(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select * into v_session from public.marketplace_browser_test_sessions
     where id = p_session_id and workspace_id = p_workspace_id and connection_id = p_connection_id
       and started_by = (select auth.uid());
@@ -72,7 +72,7 @@ create or replace function public.marketplace_test_session_action(p_workspace_id
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_session public.marketplace_browser_test_sessions; v_status text; v_accepted boolean := false;
 begin
-  if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+  if not public.marketplace_can_manage_cloud(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if p_action is null or p_action not in ('ping', 'interrupt', 'revoke') then
     raise exception 'Unbekannte Testaktion' using errcode = '22023'; end if;
   select status into v_status from public.marketplace_connections

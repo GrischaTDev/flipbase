@@ -92,7 +92,7 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 declare v_setup public.marketplace_cloud_setups; v_connection public.marketplace_connections; v_ip_id bigint; v_generation bigint; v_revoked_at timestamptz;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_local_extension_user_valid((select auth.uid())) then
+  if not public.marketplace_can_manage_cloud(p_workspace_id) or not public.marketplace_local_extension_user_valid((select auth.uid())) then
     raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   if p_request_id is null or (p_connection_id is null and
     (p_display_name is null or char_length(btrim(p_display_name)) not between 1 and 120 or p_display_name ~ '[[:cntrl:]]')) then
@@ -149,7 +149,7 @@ create or replace function public.marketplace_cloud_setup_read(p_workspace_id uu
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare v_setup public.marketplace_cloud_setups;
 begin
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_local_extension_user_valid((select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+  if not public.marketplace_can_manage_cloud(p_workspace_id) or not public.marketplace_local_extension_user_valid((select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   select * into v_setup from public.marketplace_cloud_setups where workspace_id=p_workspace_id and public_id=p_setup_id and requested_by=(select auth.uid());
   if not found then raise exception 'Einrichtungszugriff verweigert' using errcode='42501'; end if;
   return public.marketplace_cloud_setup_public(v_setup);

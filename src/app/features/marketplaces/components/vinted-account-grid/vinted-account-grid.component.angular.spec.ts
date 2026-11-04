@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import axe from 'axe-core';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
 import { AuthService } from '../../../../core/services/auth.service';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -65,6 +66,7 @@ Component({
 const account = { ...createMarketplaceFixtures().connections[0], executionMode: 'local' as const };
 const accountList = signal<readonly MarketplaceConnection[]>([account]);
 const canManage = signal(true);
+const operator = signal(true);
 const selected = signal<MarketplaceConnection | null>(null);
 const workspace = signal({ id: account.workspaceId });
 const readiness = signal<VintedLocalReadiness | null>(null);
@@ -146,6 +148,7 @@ beforeEach(() => {
   accounts.busy.set(false);
   runtime.checking.set(false);
   cloud.canSetup.set(true);
+  operator.set(true);
   cloud.busy.set(false);
   readiness.set({
     ...account,
@@ -157,6 +160,7 @@ beforeEach(() => {
     providers: [
       provideRouter([]),
       { provide: MarketplaceAccountStore, useValue: accounts },
+      { provide: PlatformOperatorService, useValue: { operator } },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'user-a' }) } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: VintedLocalRuntimeStore, useValue: runtime },
@@ -224,6 +228,14 @@ function primaryAction(element: HTMLElement): HTMLElement | null {
   );
 }
 describe('Kompakte Vinted-Konten', () => {
+  it('zeigt Beta-Nutzern den Cloud-Hinweis und behält die lokale Kontoanlage', async () => {
+    operator.set(false);
+    cloud.canSetup.set(false);
+    const { element } = await render();
+    expect(element.textContent).toContain('Cloud-Konten sind in der Beta noch nicht verfügbar.');
+    expect(element.textContent).toContain('Konto hinzufügen');
+    expect(element.querySelector('app-button')?.textContent).toContain('Konto hinzufügen');
+  });
   it('zeigt einen Status und eine Synchronisierungsaktion innerhalb der Karte ohne Kennzahlen oder Platzhalter', async () => {
     const { element } = await render();
     expect(element.querySelector('app-card dl')).toBeNull();

@@ -161,7 +161,7 @@ for (const outcome of [
         assert.equal(new Headers(init?.headers).get('apikey'), 'public');
         if (url.pathname === '/auth/v1/user')
           return Response.json({ id: outcome === 'foreign-user' ? 'other-user' : scope.userId });
-        if (url.pathname.endsWith('marketplace_can_manage'))
+        if (url.pathname.endsWith('marketplace_can_manage_cloud'))
           return Response.json(outcome !== 'no-permission');
         assert.equal(url.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
         assert.equal(url.searchParams.get('execution_mode'), 'eq.cloud');

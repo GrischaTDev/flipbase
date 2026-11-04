@@ -147,7 +147,7 @@ select throws_ok($$select pg_temp.settings()$$,'42501',null,'Normales Mitglied d
 select throws_ok($$select pg_temp.set_enabled(false,3)$$,'42501',null,'Normales Mitglied darf Einstellung nicht ändern');
 select throws_ok($$select public.marketplace_mark_favorite_notifications('33000000-0000-4000-8000-000000000011',null,true)$$,'42501',null,'Normales Mitglied darf Historie nicht löschen');
 select set_config('request.jwt.claims','{"sub":"33000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-select throws_ok($$select pg_temp.feed()$$,'42501',null,'Workspace-Admin ohne Betreiberrecht darf Feed nicht lesen');
+select lives_ok($$select pg_temp.feed()$$,'Workspace-Admin ohne Betreiberrecht darf eigenen Feed lesen');
 select set_config('request.jwt.claims','{"sub":"33000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select throws_ok($$select public.marketplace_read_favorite_notifications('33000000-0000-4000-8000-000000000012')$$,'42501',null,'Fremder Workspace ist gesperrt');
 select throws_ok($$select public.marketplace_mark_favorite_notifications('33000000-0000-4000-8000-000000000012',null,true)$$,'42501',null,'Fremder Workspace darf auch nicht geleert werden');
@@ -157,11 +157,11 @@ select ok(not has_function_privilege('authenticated','public.marketplace_prepare
 select ok(not has_table_privilege('authenticated','public.marketplace_favorite_notification_events','insert'),'Client darf keine Einzelereignisse erfinden');
 select ok(not has_table_privilege('authenticated','public.marketplace_favorite_notification_settings','update'),'Client darf weder Einstellungen noch Basisfassung direkt manipulieren');
 select throws_ok($$update public.marketplace_favorite_notifications set workspace_id='33000000-0000-4000-8000-000000000012'$$,'22023',null,'Workspacebindung der Meldung bleibt unveränderbar');
-delete from public.platform_operators where user_id='33000000-0000-4000-8000-000000000001';
+update public.workspace_members set role='member' where workspace_id='33000000-0000-4000-8000-000000000011' and user_id='33000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select throws_ok($$select pg_temp.feed()$$,'42501',null,'Rechteverlust sperrt bestehende Details und Zähler');
 reset role;
-insert into public.platform_operators(user_id) values ('33000000-0000-4000-8000-000000000001');
+update public.workspace_members set role='owner' where workspace_id='33000000-0000-4000-8000-000000000011' and user_id='33000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select is(public.marketplace_mark_favorite_notifications('33000000-0000-4000-8000-000000000011',pg_temp.feed()->'items'->0->>'id',true)->>'ok','true','Einzelne Meldung lässt sich löschen');
 select is(jsonb_array_length(pg_temp.feed()->'items'),50,'Einzellöschung lässt die übrige Historie bestehen');

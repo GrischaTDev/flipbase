@@ -69,7 +69,11 @@ export class SupabaseMarketplaceCloudSetupStore {
     this.request = options.fetch ?? fetch;
   }
   async availability(workspaceId: string, token: string): Promise<boolean> {
-    const result = await this.rpc('marketplace_can_manage', { p_workspace_id: workspaceId }, token);
+    const result = await this.rpc(
+      'marketplace_can_manage_cloud',
+      { p_workspace_id: workspaceId },
+      token,
+    );
     if (typeof result !== 'boolean') throw invalid();
     return result;
   }

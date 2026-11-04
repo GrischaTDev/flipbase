@@ -124,7 +124,7 @@ begin
   select * into v_permission from public.marketplace_listing_permissions where id=p_permission_id and approved_by=p_user_id and revoked_at is null;
   if not found or (p_version is not null and v_permission.authorization_version<>p_version)
     or not public.marketplace_local_extension_user_valid(p_user_id)
-    or not public.marketplace_sync_authorization_valid(v_permission.workspace_id,p_user_id) then return false; end if;
+    or not public.marketplace_workspace_authorization_valid(v_permission.workspace_id,p_user_id) then return false; end if;
   select * into v_connection from public.marketplace_connections where workspace_id=v_permission.workspace_id and id=v_permission.connection_id
     and marketplace='vinted' and status='connected' and execution_mode=v_permission.execution_mode and external_account_id=v_permission.external_account_id;
   if not found then return false; end if;
@@ -133,7 +133,8 @@ begin
       and approved_by=p_user_id and external_account_id=v_permission.external_account_id and grant_generation=v_permission.local_grant_generation
       and revoked_at is null and expires_at>clock_timestamp());
   end if;
-  return exists(select 1 from public.marketplace_browser_profiles where id=v_permission.browser_profile_id and workspace_id=v_permission.workspace_id
+  return public.marketplace_sync_authorization_valid(v_permission.workspace_id,p_user_id)
+    and exists(select 1 from public.marketplace_browser_profiles where id=v_permission.browser_profile_id and workspace_id=v_permission.workspace_id
     and connection_id=v_permission.connection_id and provider_profile_id=v_permission.provider_profile_id)
     and public.marketplace_cloud_network_valid(v_permission.workspace_id,v_permission.connection_id);
 end;
@@ -161,9 +162,10 @@ declare v_connection public.marketplace_connections; v_profile public.marketplac
 begin
   perform pg_advisory_xact_lock(91731,1);
   perform public.marketplace_lock_listing_workspace(p_workspace_id);
-  if not public.marketplace_local_extension_user_valid((select auth.uid())) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert.' using errcode='42501'; end if;
+  if not public.marketplace_local_extension_user_valid((select auth.uid())) or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert.' using errcode='42501'; end if;
   select * into v_connection from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted' for update;
   if not found or v_connection.status<>'connected' or p_expected_external_account_id is null or v_connection.external_account_id is distinct from p_expected_external_account_id then raise exception 'Kontozugriff verweigert.' using errcode='42501'; end if;
+  if v_connection.execution_mode='cloud' and not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert.' using errcode='42501'; end if;
   if v_connection.execution_mode='local' then
     select grant_generation into v_generation from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id
       and approved_by=(select auth.uid()) and external_account_id=p_expected_external_account_id and revoked_at is null and expires_at>clock_timestamp() for share;
@@ -489,7 +491,7 @@ returns void language plpgsql volatile security invoker set search_path='' as $$
 begin
   if p_job.state<>'confirmed' or p_job.action<>'publish' or p_job.execution_mode<>'cloud' or not (p_job.snapshot ? 'relistExternalId')
     or not public.marketplace_relisting_job_is_latest(p_job)
-    or p_job.relist_imported_at is not null or not public.marketplace_sync_authorization_valid(p_job.workspace_id,p_job.requested_by)
+    or p_job.relist_imported_at is not null or not public.marketplace_workspace_authorization_valid(p_job.workspace_id,p_job.requested_by)
     or not exists(select 1 from public.marketplace_connections where id=p_job.connection_id and workspace_id=p_job.workspace_id
       and external_account_id=p_job.external_account_id and execution_mode='cloud' and status='connected') then return; end if;
   if exists(select 1 from public.marketplace_operations where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id

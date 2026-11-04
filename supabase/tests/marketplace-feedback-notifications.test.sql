@@ -74,7 +74,7 @@ select throws_ok($$select pg_temp.feed()$$,'42501',null,'Betreiber ohne Workspac
 select is((select count(*)::int from public.marketplace_feedback_notifications),0,'RLS sperrt direkten Tabellenzugriff normaler Mitglieder');
 select is((select count(*)::int from realtime.messages where topic=(select realtime.topic())),0,'Privater Kanal sperrt normale Mitglieder');
 select set_config('request.jwt.claims','{"sub":"42000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-select throws_ok($$select pg_temp.feed()$$,'42501',null,'Workspace-Admin ohne Betreiberfreigabe bleibt gesperrt');
+select lives_ok($$select pg_temp.feed()$$,'Workspace-Admin ohne Betreiberfreigabe darf eigenen Bewertungsfeed lesen');
 set local role anon;
 select throws_ok($$select pg_temp.feed()$$,'42501',null,'Anonyme Aufrufe sind gesperrt');
 
