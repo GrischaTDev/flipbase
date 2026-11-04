@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Löschdialog nach vollständigem Seitenaufbau öffnen
+
+**Befund:** Relisting-Auftrag 28 für den beigen Burberry-Schal blieb bei
+`relisting_delete_confirm_unconfirmed`. Das Original ist bei Vinted weiterhin
+aktiv. Der vollständige native Ablauf reproduziert den Abbruch: Bei lediglich
+`interactive` geladener Artikelseite bleibt der erste Löschklick wirkungslos und
+der Bestätigungsdialog erscheint nicht. Sämtliche Kontoprüfungen lieferten 200.
+Die einzelne Dialogprüfung konnte diesen zeitlichen Zusammenhang nicht zeigen.
+
+**Korrektur:** Die Artikelnavigation wartet vor Kontoprüfung und Löschknopf auf
+`load`. Eine vollständige Wiederholung mit den echten Fotos erreicht damit den
+bedienbaren Bestätigungsknopf. Der Diagnoseaufruf betätigte diesen Knopf nur als
+Aktionsprüfung und löschte nichts. Ein Regressionstest verzögert den Seitenaufbau
+und aktiviert den Knopf erst beim Ladeereignis; er scheitert mit dem alten Code
+und besteht mit der Korrektur.
+
+**Auftragsabgleich:** Nach wiederholtem Nachweis des weiterhin aktiven Originals
+wurde Auftrag 28 über die bestehende Abschluss-RPC von unklarem Ergebnis auf
+fehlgeschlagene Löschbestätigung berichtigt. Kennungen und Bindung des ursprünglichen
+Versuchs blieben erhalten. Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Alle 15 Veröffentlichungs-Browserfälle sind erfolgreich, einschließlich
+Löschen, gestaffeltem Relisting, nativer Bestätigung und verzögerter Paketwahl.
+Worker-Typprüfung und Worker-Bau sind erfolgreich. Die produktive Fortsetzung
+des bereits vom Nutzer gestarteten beigen Auftrags folgt nach der Auslieferung.
+
 ## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
 
 **Befund:** Der neue beige Schal-Auftrag 27 brach produktiv im Schritt `values` ab.

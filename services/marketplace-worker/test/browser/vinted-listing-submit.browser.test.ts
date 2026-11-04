@@ -15,6 +15,7 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
   try {
     for (const mode of [
       'confirmed',
+      'hydrated',
       'staged',
       'publish',
       'foreign',
@@ -31,6 +32,13 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
       );
       let deletes = 0;
       let removed = false;
+      await context.route('**/fixture/deletion-hydration', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.fulfill({
+          contentType: 'image/svg+xml',
+          body: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+        });
+      });
       await context.route('**/api/v2/item_upload/items/98765', async (route) => {
         if (route.request().headers()['accept'] !== 'application/json')
           return route.fulfill({ contentType: 'text/html', body: '<html></html>' });
@@ -52,7 +60,7 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
         assert.equal(form.saves(), 0, 'Kein neues Inserat vor der Löschung');
         assert.equal(form.uploads(), 1, 'Das vollständige Foto wurde vor der Löschung vorbereitet');
         deletes++;
-        removed = mode === 'confirmed' || mode === 'staged';
+        removed = mode === 'confirmed' || mode === 'hydrated' || mode === 'staged';
         await route.fulfill({ json: { ok: true } });
       });
       await context.route('https://www.vinted.de/items/98765', async (route) =>
@@ -64,7 +72,16 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
             <button data-testid="item-edit-button">Angebot bearbeiten</button>
             <button data-testid="item-delete-button" onclick="document.querySelector('[data-testid=item-delete-modal]').hidden=false">Löschen</button></main>
             <div hidden data-testid="item-delete-modal"><h2>Artikel löschen?</h2>
-            <button data-testid="item-delete-confirmation-button" onclick="fetch('/fixture/delete/98765', {method:'DELETE'}).then(()=>{location.href='/member/123'})">Löschen</button></div>`,
+            <button data-testid="item-delete-confirmation-button" onclick="fetch('/fixture/delete/98765', {method:'DELETE'}).then(()=>{location.href='/member/123'})">Löschen</button></div>
+            ${
+              mode === 'hydrated'
+                ? `<img src="/fixture/deletion-hydration" alt=""><script>
+              const button=document.querySelector('[data-testid="item-delete-button"]');
+              button.onclick=null;
+              window.addEventListener('load',()=>{button.onclick=()=>{document.querySelector('[data-testid="item-delete-modal"]').hidden=false;};});
+            </script>`
+                : ''
+            }`,
         }),
       );
       await page.goto('about:blank');
@@ -94,15 +111,20 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
       );
       assert.equal(
         deletes,
-        mode === 'confirmed' || mode === 'unconfirmed' || mode === 'staged' ? 1 : 0,
+        mode === 'confirmed' || mode === 'hydrated' || mode === 'unconfirmed' || mode === 'staged'
+          ? 1
+          : 0,
         JSON.stringify(result),
       );
-      assert.equal(form.saves(), mode === 'confirmed' || mode === 'publish' ? 1 : 0);
+      assert.equal(
+        form.saves(),
+        mode === 'confirmed' || mode === 'hydrated' || mode === 'publish' ? 1 : 0,
+      );
       assert.equal(
         result.outcome,
         mode === 'staged'
           ? 'relisting_deleted'
-          : mode === 'confirmed' || mode === 'publish'
+          : mode === 'confirmed' || mode === 'hydrated' || mode === 'publish'
             ? 'confirmed'
             : mode === 'unconfirmed'
               ? 'outcome_unknown'
