@@ -8,6 +8,11 @@ import type {
 export type VintedListingEditField =
   'brand' | 'size' | 'condition' | 'package' | 'color' | 'material';
 
+export type VintedListingEditSnapshot = Pick<
+  VintedListingCurrentContent,
+  'content' | 'schema' | 'photoUrls'
+>;
+
 /** Auswahl im Bearbeitungsformular; leere Zeichenkette heißt „bei Vinted nichts gewählt“. */
 export interface VintedListingEditSelection {
   readonly brand: string;
@@ -66,7 +71,7 @@ export function packageSizeLabel(label: string): string {
 }
 
 export function vintedListingEditSelection(
-  current: VintedListingCurrentContent,
+  current: VintedListingEditSnapshot,
 ): VintedListingEditSelection {
   const selected = (field: VintedListingEditField) =>
     choices(current.schema, field)

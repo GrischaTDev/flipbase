@@ -86,6 +86,7 @@ for (const width of [390, 1440])
   }
 
 interface ListingFixture {
+  storedContent?: VintedListingDraft['content'];
   title: string;
   text: string | null;
   textState: 'loaded' | 'not_loaded';
@@ -105,6 +106,42 @@ async function prepareListing(page: Page, listing: ListingFixture) {
   await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
     route.fulfill({ json: { items: [] } }),
   );
+  if (listing.storedContent) {
+    const source: VintedListingDraft = {
+      id: '5',
+      workspaceId,
+      connectionId: accountIds[0],
+      revision: 1,
+      content: listing.storedContent,
+      images: (listing.imageUrls ?? images).map((_, index) => ({
+        id: String(index + 1),
+        storagePath: workspaceId + '/5/' + (index + 1) + '.jpg',
+        fileName: 'Original.jpg',
+        mimeType: 'image/jpeg',
+        byteSize: 123,
+      })),
+      inventoryItemId: null,
+      createdAt: '2026-11-04T00:00:00Z',
+      updatedAt: '2026-11-04T00:00:00Z',
+    };
+    await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) =>
+      route.fulfill({ json: { items: [{ externalId: '98765', draft: source }] } }),
+    );
+    await page.route('**/storage/v1/**', (route) => {
+      if (route.request().method() === 'POST')
+        return route.fulfill({
+          json: (route.request().postDataJSON().paths as string[]).map((path) => ({
+            path,
+            signedURL: '/object/sign/marketplace-listing-media/' + path + '?token=fixture',
+            error: null,
+          })),
+        });
+      return route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#fcc601"/></svg>',
+      });
+    });
+  }
   const entry = {
     id: entryId,
     externalId: '98765',
@@ -556,7 +593,7 @@ for (const width of [320, 390, 834, 1440]) {
           .boundingBox();
         expect(galleryBounds!.width).toBeGreaterThan(information!.width * 1.8);
       }
-      await page.locator('app-vinted-listing-detail summary').click();
+      await expect(page.locator('app-vinted-listing-detail details')).toHaveCount(0);
       await expect(page.getByText(listing.text, { exact: true })).toBeVisible();
       const opener = gallery.getByRole('button', { name: 'Foto 5 von 20 öffnen' });
       if (width < 1024) await opener.tap();
@@ -732,7 +769,7 @@ test('Beschreibungen stammen beim Öffnen und Relisten aus dem gespeicherten Hin
     }),
   );
   await page.reload();
-  await detail.getByText('Beschreibung', { exact: true }).click();
+  await expect(detail.locator('details')).toHaveCount(0);
   await expect(
     detail.getByText('Im Hintergrund gespeicherter Beschreibungstext.', { exact: true }),
   ).toBeVisible();
@@ -968,6 +1005,9 @@ for (const width of [1440, 390]) {
       title: 'Meine Schuhe',
       text: 'Sehr gut erhalten.',
       textState: 'loaded',
+      price: 20.5,
+      storedContent: listingCurrentContentFixture().content,
+      imageUrls: listingCurrentContentFixture().photoUrls,
     });
     const listing = { ...listingCurrentContentFixture(), externalAccountId: '100' };
     const reads: unknown[] = [],
@@ -984,7 +1024,7 @@ for (const width of [1440, 390]) {
     const detail = page.locator('app-vinted-listing-detail');
     await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
     await expect(detail.getByRole('heading', { name: 'Inserat bearbeiten' })).toBeVisible();
-    expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
+    expect(reads).toEqual([]);
     await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Meine Schuhe');
     await expect(detail.getByLabel('Verkaufspreis')).toHaveValue('20,50');
     // Farben sind eine Auswahlbox wie bei der Artikel-Erstellung, keine Checkbox-Liste.
@@ -1049,7 +1089,9 @@ for (const width of [1440, 390]) {
     expect(violations).toEqual([]);
     await screenshot(page, `vinted-listing-edit-${width}`);
     const save = detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true });
+    expect(reads).toEqual([]);
     await save.click();
+    expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
     await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
     await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Neue Schuhe');
     await save.click();

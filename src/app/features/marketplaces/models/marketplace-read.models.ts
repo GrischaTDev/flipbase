@@ -32,6 +32,8 @@ export interface MarketplaceEntry extends AccountScope {
   readonly status: string | null;
   readonly imageUrl: string | null;
   readonly imageUrls?: readonly string[];
+  /** Gespeicherte Anbieterfotos vor dem Ersetzen der Vorschau durch private Originale. */
+  readonly providerImageUrls?: readonly string[];
   /** Bereits in Flipbase gespeicherte Artikeldetails, zusammen mit den Originalfotos gelesen. */
   readonly listingContent?: VintedListingContent;
   readonly metrics: MarketplaceMetrics;

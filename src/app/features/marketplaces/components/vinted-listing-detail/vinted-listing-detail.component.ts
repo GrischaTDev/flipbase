@@ -36,16 +36,19 @@ import { ProductGalleryComponent } from '../../../../shared/components/product-g
 import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
-import type { VintedListingCurrentContent } from '../../models/vinted-listing-category-fields';
 import type { VintedListingDescription } from '../../models/vinted-listing-description';
 import {
-  applyVintedListingEdit,
   parseVintedListingReadPriceCents,
   vintedListingEditOptions,
   vintedListingEditSelection,
   vintedListingPriceText,
   type VintedListingEditField,
+  type VintedListingEditSnapshot,
 } from '../../models/vinted-listing-edit-form';
+import {
+  storedVintedListingEdit,
+  applyStoredVintedListingEdit,
+} from '../../models/vinted-stored-listing-edit';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
@@ -110,33 +113,33 @@ export class VintedListingDetailComponent {
   private readonly arrangedPhotos = signal<readonly string[] | null>(null);
   readonly photos = computed(() => {
     const entry = this.entry();
-    // Maßgeblich für Änderungen sind die Fotos, die Vinted beim Lesen der Maske geliefert hat.
+    // Änderungen verwenden die gespeicherten Anbieteradressen, nicht private Originaladressen.
     const current = this.editing() ? this.current() : null;
     if (current) return this.arrangedPhotos() ?? current.photoUrls;
     return entry?.imageUrls?.length ? entry.imageUrls : entry?.imageUrl ? [entry.imageUrl] : [];
   });
-  /** Fotos lassen sich erst auf dem gelesenen Vinted-Stand ändern. */
+  /** Die gespeicherte Fotoreihenfolge wird beim Speichern vom Anbieter erneut geprüft. */
   readonly canArrangePhotos = computed(
     () => this.editing() && this.current() !== null && !this.busy(),
   );
   /** Vorhandene Fotos für den gemeinsamen Bildeditor; der Schlüssel ist die Vinted-Adresse. */
   readonly photoDrafts = computed<readonly ProductImageDraft[]>(() =>
-    this.photos().map((url, index) => ({
-      key: url,
-      media: null,
-      file: null,
-      fileName: 'Foto ' + (index + 1),
-      previewUrl: url,
-    })),
+    this.photos().map((url, index) => {
+      const entry = this.entry();
+      const originalIndex = entry?.providerImageUrls?.indexOf(url) ?? -1;
+      return {
+        key: url,
+        media: null,
+        file: null,
+        fileName: 'Foto ' + (index + 1),
+        previewUrl: originalIndex < 0 ? url : (entry?.imageUrls?.[originalIndex] ?? url),
+      };
+    }),
   );
   readonly selectedPhoto = signal<string | null>(null);
   readonly description = signal<VintedListingDescription | null>(null);
   readonly loading = signal(true);
   readonly editing = signal(false);
-  /** Der aktuelle Vinted-Stand wird nach dem Öffnen der Maske im Hintergrund gelesen. */
-  readonly loadingCurrent = signal(false);
-  /** Ohne vollständigen Stand: Titel, Beschreibung und Preis sind von Vinted bestätigt gelesen. */
-  private readonly basicReady = signal(false);
   readonly busy = signal(false);
   private readonly priceEditor = createVintedListingPriceEditor({
     store: this.store,
@@ -168,8 +171,9 @@ export class VintedListingDetailComponent {
     color: [''],
     material: [''],
   });
-  /** Frisch gelesener Vinted-Stand, auf dem die laufende Bearbeitung beruht. */
-  readonly current = signal<VintedListingCurrentContent | null>(null);
+  /** Gespeicherte Angaben und lokale Auswahlwerte der laufenden Bearbeitung. */
+  readonly current = signal<VintedListingEditSnapshot | null>(null);
+  private initialFields: ReturnType<typeof this.form.getRawValue> | null = null;
   readonly choiceFields = computed(() =>
     (
       [
@@ -190,18 +194,8 @@ export class VintedListingDetailComponent {
   readonly packageChoice = computed(
     () => this.choiceFields().find((choice) => choice.field === 'package') ?? null,
   );
-  /** Gespeichert werden darf erst auf einem von Vinted gelesenen Stand. */
-  readonly canSave = computed(
-    () =>
-      this.editing() && !this.loadingCurrent() && (this.current() !== null || this.basicReady()),
-  );
-  readonly editStatus = computed(() =>
-    this.loadingCurrent()
-      ? 'Aktueller Stand wird von Vinted geladen …'
-      : this.busy()
-        ? 'Wird bei Vinted gespeichert …'
-        : '',
-  );
+  readonly canSave = computed(() => this.editing() && this.entry() !== null);
+  readonly editStatus = computed(() => (this.busy() ? 'Wird bei Vinted gespeichert …' : ''));
   readonly multipleFields = computed(() =>
     (
       [
@@ -287,13 +281,12 @@ export class VintedListingDetailComponent {
     this.loading.set(true);
     this.editing.set(false);
     this.priceEditor.reset();
-    this.loadingCurrent.set(false);
-    this.basicReady.set(false);
     this.busy.set(false);
     this.error.set(null);
     this.notice.set(null);
     this.form.reset();
     this.current.set(null);
+    this.initialFields = null;
     this.arrangedPhotos.set(null);
   }
   private options(field: VintedListingEditField): SelectOption[] {
@@ -327,13 +320,6 @@ export class VintedListingDetailComponent {
       .flatMap((value) => options.find((option) => option.value === value)?.label ?? [])
       .join(' · ');
   }
-  /** Bezeichnungen der Auswahlbox zurück in Vinteds Kennungen; Unbekanntes entfällt. */
-  private valuesOf(field: 'color' | 'material', labels: string): string[] {
-    const options = this.multipleOptions(field);
-    return labels
-      .split(' · ')
-      .flatMap((label) => options.find((option) => option.label === label)?.value ?? []);
-  }
   private isCurrent(version: number): boolean {
     return (
       !this.destroyed &&
@@ -361,21 +347,12 @@ export class VintedListingDetailComponent {
       if (this.isCurrent(version)) this.loading.set(false);
     }
   }
-  /** Unberührte Felder übernehmen den gelesenen Stand; Eingaben des Nutzers bleiben erhalten. */
-  private fillUntouched(values: Partial<ReturnType<typeof this.form.getRawValue>>): void {
-    for (const [name, value] of Object.entries(values) as [
-      keyof typeof this.form.controls,
-      string,
-    ][]) {
-      const control = this.form.controls[name];
-      if (control.pristine) control.setValue(value);
-    }
-  }
   cancelEdit(): void {
     if (this.busy()) return;
     this.requestVersion++;
     this.editing.set(false);
-    this.loadingCurrent.set(false);
+    this.current.set(null);
+    this.initialFields = null;
     this.error.set(null);
     this.arrangedPhotos.set(null);
   }
@@ -399,80 +376,34 @@ export class VintedListingDetailComponent {
   async savePrice(): Promise<void> {
     await this.priceEditor.save();
   }
-  /**
-   * Öffnet die Maske sofort mit den gespeicherten Angaben. Der aktuelle Vinted-Stand mit allen
-   * Auswahlfeldern wird im Hintergrund gelesen; gespeichert werden kann erst danach.
-   */
-  async edit(): Promise<void> {
+  /** Öffnet ausschließlich den gespeicherten Stand; der Anbieter wird erst beim Speichern gelesen. */
+  edit(): void {
     const entry = this.entry();
     if (this.busy() || this.editing() || this.changingPrice() || !entry) return;
-    const version = this.requestVersion;
     this.error.set(null);
     this.notice.set(null);
-    this.current.set(null);
-    this.basicReady.set(false);
+    const current = storedVintedListingEdit(entry, this.description()?.description ?? null);
+    this.current.set(current);
+    this.arrangedPhotos.set(null);
+    const selection = current ? vintedListingEditSelection(current) : null;
     this.form.reset({
       title: entry.title,
-      description: this.description()?.description ?? '',
-      price: entry.price === null ? '' : vintedListingPriceText(Math.round(entry.price * 100)),
-      brand: '',
-      size: '',
-      condition: '',
-      package: '',
-      color: '',
-      material: '',
+      description: this.description()?.description ?? entry.listingContent?.description ?? '',
+      price:
+        current?.content.priceCents !== null && current?.content.priceCents !== undefined
+          ? vintedListingPriceText(current.content.priceCents)
+          : entry.price === null
+            ? ''
+            : vintedListingPriceText(Math.round(entry.price * 100)),
+      brand: selection?.brand ?? '',
+      size: selection?.size ?? '',
+      condition: selection?.condition ?? '',
+      package: selection?.package ?? '',
+      color: selection ? this.labelsOf('color', selection.color) : '',
+      material: selection ? this.labelsOf('material', selection.material) : '',
     });
+    this.initialFields = this.form.getRawValue();
     this.editing.set(true);
-    this.loadingCurrent.set(true);
-    try {
-      let current: VintedListingCurrentContent;
-      try {
-        current = await this.store.readListingContent(this.connectionId(), this.entryId());
-      } catch {
-        if (!this.isCurrent(version) || !this.editing()) return;
-        // Kann die vollständige Maske nicht sicher gelesen werden, bleibt die bisherige
-        // Bearbeitung von Titel, Beschreibung und Preis erhalten.
-        const fields = await this.store.readListingEdit(this.connectionId(), this.entryId());
-        if (!this.isCurrent(version) || !this.editing()) return;
-        const priceCents = parseVintedListingReadPriceCents(fields.price);
-        this.fillUntouched({
-          ...fields,
-          price: priceCents === null ? '' : vintedListingPriceText(priceCents),
-        });
-        this.basicReady.set(true);
-        this.notice.set(
-          'Vinted hat nicht alle Angaben dieses Inserats geliefert. Du kannst Titel, Beschreibung und Preis ändern; alles andere bleibt unverändert.',
-        );
-        return;
-      }
-      if (!this.isCurrent(version) || !this.editing()) return;
-      const selection = vintedListingEditSelection(current);
-      this.arrangedPhotos.set(null);
-      this.selectedPhoto.set(current.photoUrls[0] ?? null);
-      this.current.set(current);
-      this.fillUntouched({
-        color: this.labelsOf('color', selection.color),
-        material: this.labelsOf('material', selection.material),
-        title: current.content.title,
-        description: current.content.description,
-        price: vintedListingPriceText(current.content.priceCents ?? 0),
-        brand: selection.brand,
-        size: selection.size,
-        condition: selection.condition,
-        package: selection.package,
-      });
-    } catch (error) {
-      if (this.isCurrent(version)) {
-        this.editing.set(false);
-        this.error.set(
-          error instanceof Error
-            ? error.message
-            : 'Das Bearbeitungsformular konnte nicht geöffnet werden.',
-        );
-      }
-    } finally {
-      if (this.isCurrent(version)) this.loadingCurrent.set(false);
-    }
   }
   async save(): Promise<void> {
     if (this.form.invalid || this.busy() || !this.canSave()) {
@@ -486,7 +417,19 @@ export class VintedListingDetailComponent {
       const current = this.current();
       const fields = this.form.getRawValue();
       if (!current) {
-        const basic = { title: fields.title, description: fields.description, price: fields.price };
+        const fresh = await this.store.readListingEdit(this.connectionId(), this.entryId());
+        if (!this.isCurrent(version)) return;
+        const initial = this.initialFields;
+        const priceCents = parseVintedListingReadPriceCents(fresh.price);
+        const basic = {
+          title: fields.title === initial?.title ? fresh.title : fields.title,
+          description:
+            fields.description === initial?.description ? fresh.description : fields.description,
+          price:
+            fields.price === initial?.price && priceCents !== null
+              ? vintedListingPriceText(priceCents)
+              : fields.price,
+        };
         await this.store.saveListingEdit(this.connectionId(), this.entryId(), basic);
         if (!this.isCurrent(version)) return;
         this.editing.set(false);
@@ -506,20 +449,15 @@ export class VintedListingDetailComponent {
         this.toast.success('Inserat erfolgreich geändert');
         return;
       }
-      const content = applyVintedListingEdit(current, fields, {
-        brand: fields.brand ?? '',
-        size: fields.size ?? '',
-        condition: fields.condition ?? '',
-        package: fields.package ?? '',
-        color: this.valuesOf('color', fields.color),
-        material: this.valuesOf('material', fields.material),
-      });
+      const fresh = await this.store.readListingContent(this.connectionId(), this.entryId());
+      if (!this.isCurrent(version)) return;
+      const content = applyStoredVintedListingEdit(current, fresh, fields);
       const arranged = this.arrangedPhotos();
       const photos = arranged ? { base: current.photoUrls, desired: arranged } : undefined;
       await this.store.saveListingContent(
         this.connectionId(),
         this.entryId(),
-        current.content,
+        fresh.content,
         content,
         ...(photos ? [photos] : []),
       );
@@ -530,6 +468,7 @@ export class VintedListingDetailComponent {
         entry
           ? {
               ...entry,
+              listingContent: content,
               title: content.title,
               text: content.description,
               textState: 'loaded',
@@ -538,7 +477,11 @@ export class VintedListingDetailComponent {
               size: content.sizeLabel || null,
               status: content.conditionLabel || entry.status,
               ...(photos
-                ? { imageUrl: photos.desired[0] ?? null, imageUrls: [...photos.desired] }
+                ? {
+                    providerImageUrls: [...photos.desired],
+                    imageUrl: photos.desired[0] ?? null,
+                    imageUrls: [...photos.desired],
+                  }
                 : {}),
             }
           : entry,
