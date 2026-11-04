@@ -141,6 +141,32 @@ Löschen, gestaffeltem Relisting, nativer Bestätigung und verzögerter Paketwah
 Worker-Typprüfung und Worker-Bau sind erfolgreich. Die produktive Fortsetzung
 des bereits vom Nutzer gestarteten beigen Auftrags folgt nach der Auslieferung.
 
+## 2026-11-04 - Juna - Vollständige Monats- und Jahresachsen in der Übersicht
+
+**Auftrag und Umsetzung:** Die Diagrammachse bei „Dieser Monat“ bis zum letzten
+Kalendertag und bei „Dieses Jahr“ bis Dezember anzeigen. Bisher nutzten
+Diagrammpunkte und Kennzahlen dasselbe Ende am heutigen Tag. Die Anzeige erhält
+nun ein eigenes Kalenderende; Kennzahlen, Buchungsauswahl und gleich lange
+Vorperiodenvergleiche bleiben auf dem bisherigen Stand bis heute. Zusätzliche
+leere Zeitpunkte nutzen die vorhandene Darstellung. „Heute“ und „7 Tage“ behalten
+ihre Zeiträume. Monatslängen, Schaltjahre und Jahreswechsel werden berücksichtigt.
+Die Achsenbeschriftung erhält den ersten und letzten Zeitraumwert auch bei
+verdichteter Darstellung; auf breiten Jahresdiagrammen stehen alle zwölf Monate.
+
+**Prüfung:** Neun Regressionserwartungen scheiterten zunächst am alten Stand;
+nach der Korrektur alle 38 Berichtsfälle erfolgreich. Die neuen Gegenproben
+sichern vollständige Kalenderachsen sowie den Ausschluss zukünftiger Buchungen
+aus Kennzahlen und Diagrammbeträgen. Den vorhandenen Browserfall um den letzten
+Monatstag, Dezember sowie die unveränderten Heute-/7-Tage-Grenzen erweitert.
+Weitere Prüfprotokolle liegen privat unter `tmp/dashboard-period-checks/`.
+Für den Browsernachweis wird eine eigene Supabase-Testinstanz mit vollständigem
+Migrationsstand verwendet; fremde Arbeitskopien und Entwicklungsdaten bleiben
+erhalten. Eigenständiger Zweig auf frisch abgerufenem `origin/master`; die
+beiden vorherigen Aufgaben bleiben unverändert separat vorbereitet.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
+
 ## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
 
 **Befund:** Der neue beige Schal-Auftrag 27 brach produktiv im Schritt `values` ab.
@@ -167,6 +193,24 @@ mit der Korrektur für native und lokale Angaben sowie fehlende und gesperrte
 Paketwahl. 42 Browserfälle und 15 Zuordnungstests sind erfolgreich. Worker-Typen
 und Worker-Bau sind geprüft; die vollständige Vorbereitung beider echten Schals
 ist bis direkt vor dem gesperrten Löschschritt bestätigt.
+
+## 2026-11-04 - Juna - Kontoaktualisierungen ohne Erfolgstoast abschließen
+
+**Auftrag und Umsetzung:** Nur die wiederkehrende Erfolgsmeldung für
+Kontoaktualisierungen entfernt. Laufende Kontoabgleiche und Fehler bleiben in der
+Aktionsübersicht sichtbar; andere Aktions- und Veröffentlichungserfolge behalten
+ihre Meldungen. Automatische und manuelle Kontoabgleiche enden gleichermaßen still.
+Vom frisch abgerufenen `origin/master` in einer eigenen Arbeitskopie begonnen;
+die fremden Änderungen in der Hauptarbeitskopie bleiben erhalten.
+
+**Prüfung:** Zwei Regressionserwartungen reproduzierten vor der Korrektur die
+unerwünschten Toasts. Danach bestanden alle 18 Fälle des betroffenen Stores.
+Der bestehende Browserfall prüft zusätzlich laufenden Kontoabgleich, stillen
+Abschluss und Neuladen. Prüfplan, Vorabcheck und Browsernachweise werden privat
+unter `tmp/account-refresh-checks/` protokolliert. Keine produktive Kontoaktion.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
 
 ## 2026-11-04 - Juna - Kontobezogene Verkaufsbäume und Relisting-Merkmale
 

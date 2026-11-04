@@ -233,7 +233,7 @@ test('behält den Entwurf bei Speicherfehler und speichert auf erneuten Klick @m
   await expect(checkbox).toBeChecked();
 });
 
-test('zeigt Abschlüsse einmalig als kurze Toasts und behält das aktivierte Icon @marketplace-preview', async ({
+test('meldet Aktionsabschlüsse per Toast und beendet Kontoabgleiche still @marketplace-preview', async ({
   page,
 }) => {
   const fixture = await mockActionOverview(page);
@@ -258,11 +258,21 @@ test('zeigt Abschlüsse einmalig als kurze Toasts und behält das aktivierte Ico
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
   ).toBeVisible();
+  fixture.startAccountSync();
+  await expect(overview.getByText('Kontodaten werden aktualisiert', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+  fixture.finishActions();
+  await expect(
+    page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
+  await expect(toasts).not.toContainText('Kontodaten aktualisiert');
   await page.reload();
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
   ).toBeVisible();
   await expect(toasts).not.toContainText('Angebot angenommen');
+  await expect(toasts).not.toContainText('Kontodaten aktualisiert');
 });
 
 test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatstatus @marketplace-preview', async ({
