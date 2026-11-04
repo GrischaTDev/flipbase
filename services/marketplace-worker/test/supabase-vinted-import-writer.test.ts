@@ -413,3 +413,44 @@ test('pending unavailable revisions retain prior chat activity across the persis
   assert.equal(second?.sortAt, activityAt);
   assert.equal(second?.body['detailCheckedAt'], null);
 });
+
+test('persists a selling tree only after the authorized account import and keeps it out of the import contract', async () => {
+  const categories = [
+    { id: 5496, parentId: null, title: 'Modeaccessoires', path: 'Modeaccessoires', isLeaf: false },
+    { id: 5555, parentId: 5496, title: 'Schals', path: 'Modeaccessoires > Schals', isLeaf: true },
+  ];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: sessionId,
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      writes.push({ path, body });
+      return path.endsWith('marketplace_save_vinted_selling_tree')
+        ? new Response(null, { status: 204 })
+        : Response.json(counts);
+    },
+  });
+  assert.deepEqual(
+    await writer.write(scope, sessionId, { ...snapshot, sellingCategories: categories }),
+    counts,
+  );
+  assert.equal(writes.length, 2);
+  assert.deepEqual(writes[0]?.body.p_snapshot, snapshot);
+  assert.deepEqual(writes[1]?.body, {
+    p_workspace_id: scope.workspaceId,
+    p_connection_id: scope.connectionId,
+    p_external_account_id: '123',
+    p_observed_at: snapshot.observedAt,
+    p_categories: categories,
+  });
+});

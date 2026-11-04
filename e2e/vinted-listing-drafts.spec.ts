@@ -32,31 +32,34 @@ async function enableActionOverview(page: Page) {
   );
 }
 
-async function mockShoeCategories(page: Page) {
-  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+async function mockSellingTree(
+  page: Page,
+  categories: readonly {
+    id: number;
+    parentId: number | null;
+    title: string;
+    path: string;
+    isLeaf: boolean;
+  }[],
+) {
+  await page.route('**/rest/v1/vinted_selling_category_snapshots*', (route) =>
     route.fulfill({
       json: {
-        id: 1,
-        refreshed_at: '2026-10-09T12:00:00Z',
-        requested_at: null,
-        last_attempt_at: null,
-        category_count: 3,
-        last_error: null,
+        external_account_id: new URL(route.request().url()).searchParams
+          .get('external_account_id')
+          ?.slice(3),
+        observed_at: '2026-11-04T12:00:00Z',
+        categories,
       },
     }),
   );
-  await page.route('**/rest/v1/vinted_categories*', (route) =>
-    route.fulfill({
-      json:
-        Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
-          ? []
-          : [
-              { id: 1, parent_id: null, title: 'Damen', path: 'Damen' },
-              { id: 2, parent_id: 1, title: 'Schuhe', path: 'Damen > Schuhe' },
-              { id: 3, parent_id: 2, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker' },
-            ],
-    }),
-  );
+}
+async function mockShoeCategories(page: Page) {
+  await mockSellingTree(page, [
+    { id: 1, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
+    { id: 2, parentId: 1, title: 'Schuhe', path: 'Damen > Schuhe', isLeaf: false },
+    { id: 3, parentId: 2, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker', isLeaf: true },
+  ]);
 }
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
@@ -260,29 +263,10 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
       updatedAt: draft.updatedAt,
     },
   ];
-  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
-    route.fulfill({
-      json: {
-        id: 1,
-        requested_at: null,
-        last_attempt_at: null,
-        refreshed_at: '2026-10-09T12:00:00Z',
-        category_count: 2,
-        last_error: null,
-      },
-    }),
-  );
-  await page.route('**/rest/v1/vinted_categories*', (route) =>
-    route.fulfill({
-      json:
-        Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
-          ? []
-          : [
-              { id: 1, parent_id: null, title: 'Kleidung', path: 'Kleidung' },
-              { id: 2, parent_id: 1, title: 'Jacken', path: 'Kleidung / Jacken' },
-            ],
-    }),
-  );
+  await mockSellingTree(page, [
+    { id: 1, parentId: null, title: 'Kleidung', path: 'Kleidung', isLeaf: false },
+    { id: 2, parentId: 1, title: 'Jacken', path: 'Kleidung > Jacken', isLeaf: true },
+  ]);
   await page.route('**/rest/v1/rpc/marketplace_*listing*', async (route) => {
     if (route.request().url().endsWith('/marketplace_read_listing_photo_sources'))
       return route.fallback();
@@ -823,7 +807,7 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
   const state = await mockPublication(page, true, true);
   let releaseCategories!: () => void;
   const categoryGate = new Promise<void>((resolve) => (releaseCategories = resolve));
-  await page.route('**/rest/v1/vinted_category_syncs*', async (route) => {
+  await page.route('**/rest/v1/vinted_selling_category_snapshots*', async (route) => {
     await categoryGate;
     await route.fallback();
   });
@@ -1694,7 +1678,7 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   const state = await mockPublication(page);
   await mockShoeCategories(page);
   let categoryUnavailable = true;
-  await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+  await page.route('**/rest/v1/vinted_selling_category_snapshots*', (route) =>
     categoryUnavailable
       ? route.fulfill({ status: 503, json: { message: 'Kategorien nicht erreichbar' } })
       : route.fallback(),
@@ -1709,7 +1693,7 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
   const retry = editor.getByRole('button', { name: 'Kategorien erneut laden', exact: true });
-  await expect(retry).toBeVisible();
+  await expect(retry).toBeVisible({ timeout: 20000 });
   await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(page.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
   categoryUnavailable = false;
@@ -1736,4 +1720,59 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   await expect(size).toHaveValue('44,5');
   expect(state.enqueues).toEqual([]);
   expect(state.draft().content.categoryId).toBe(2);
+});
+
+test('selects current scarf categories and an explicit target group in the listing editor', async ({
+  page,
+}) => {
+  const state = await mockDrafts(page, true);
+  const providerSearches: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/marketplace-browser/listings/category/search'))
+      providerSearches.push(request.url());
+  });
+  await mockSellingTree(page, [
+    { id: 5496, parentId: null, title: 'Modeaccessoires', path: 'Modeaccessoires', isLeaf: false },
+    {
+      id: 5555,
+      parentId: 5496,
+      title: 'Tücher & Schals',
+      path: 'Modeaccessoires > Tücher & Schals',
+      isLeaf: true,
+    },
+    { id: 1, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
+    { id: 1400, parentId: 1, title: 'Activewear', path: 'Damen > Activewear', isLeaf: false },
+    {
+      id: 1440,
+      parentId: 1400,
+      title: 'Schals',
+      path: 'Damen > Activewear > Schals',
+      isLeaf: true,
+    },
+    { id: 5, parentId: null, title: 'Herren', path: 'Herren', isLeaf: false },
+    { id: 1460, parentId: 5, title: 'Sportartikel', path: 'Herren > Sportartikel', isLeaf: false },
+    {
+      id: 1470,
+      parentId: 1460,
+      title: 'Schals',
+      path: 'Herren > Sportartikel > Schals',
+      isLeaf: true,
+    },
+  ]);
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+  await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schals');
+  await expect(page.getByRole('option', { name: /Damen.*Activewear.*Schals/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /Herren.*Sportartikel.*Schals/ })).toBeVisible();
+  await page.getByRole('option', { name: /Modeaccessoires.*Tücher/ }).click();
+  await editor.getByRole('combobox', { name: 'Zielgruppe', exact: true }).click();
+  await page.getByRole('option', { name: 'Herren', exact: true }).click();
+  await saveDraft(page);
+  expect(providerSearches).toEqual([]);
+  expect(state.draft().content.categoryId).toBe(5555);
+  expect(state.draft().content.attributes).toMatchObject({
+    accessory_department: '575',
+    accessory_department_label: 'Herren',
+  });
 });

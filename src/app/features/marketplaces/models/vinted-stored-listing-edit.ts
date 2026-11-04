@@ -21,6 +21,9 @@ export function storedVintedListingEdit(
   if (content.categoryId === null) return null;
   const schema = flipbaseVintedListingFields(content.categoryId, content.categoryLabel, content);
   const selected: Record<VintedListingEditField, readonly string[]> = {
+    accessory_department: content.attributes['accessory_department_label']
+      ? [content.attributes['accessory_department_label']]
+      : [],
     brand: [content.brandLabel || 'Keine Marke'],
     size: content.sizeLabel ? [content.sizeLabel] : [],
     condition: content.conditionLabel ? [content.conditionLabel] : [],
@@ -39,7 +42,7 @@ export function storedVintedListingEdit(
     schema: {
       ...schema,
       fields: fields.map((field) => {
-        if (field.field === 'category' || field.field === 'accessory_department') return field;
+        if (field.field === 'category') return field;
         const labels = selected[field.field];
         const choices = field.choices.map((choice) => ({
           ...choice,
@@ -62,7 +65,10 @@ export function storedVintedListingEdit(
   };
 }
 
-type EditFields = Record<VintedListingEditField | 'title' | 'description' | 'price', string>;
+type EditFields = Record<
+  Exclude<VintedListingEditField, 'accessory_department'> | 'title' | 'description' | 'price',
+  string
+> & { accessory_department?: string };
 const conflict = () =>
   new Error(
     'Das Inserat wurde inzwischen bei Vinted geändert. Aktualisiere die Daten vor dem erneuten Speichern.',
@@ -93,20 +99,31 @@ export function applyStoredVintedListingEdit(
     });
   const equal = (left: readonly string[], right: readonly string[]) =>
     left.length === right.length && left.every((label) => right.includes(label));
-  for (const field of ['brand', 'size', 'condition', 'package', 'color', 'material'] as const) {
+  for (const field of [
+    'accessory_department',
+    'brand',
+    'size',
+    'condition',
+    'package',
+    'color',
+    'material',
+  ] as const) {
     const multiple = field === 'color' || field === 'material';
-    const previous = before[field];
+    if (field === 'accessory_department' && fields[field] === undefined) continue;
+    const previous = before[field] ?? '';
+    const desiredField = fields[field] ?? '';
     const previousLabels = labels(
       stored,
       field,
       typeof previous === 'string' ? (previous ? [previous] : []) : previous,
     );
     const desiredLabels = multiple
-      ? fields[field].split(' · ').filter(Boolean)
-      : labels(stored, field, fields[field] ? [fields[field]] : []);
+      ? desiredField.split(' · ').filter(Boolean)
+      : labels(stored, field, desiredField ? [desiredField] : []);
     if (equal(previousLabels, desiredLabels)) continue;
-    const fresh = selection[field];
+    const fresh = selection[field] ?? '';
     if (
+      !(field === 'accessory_department' && previousLabels.length === 0) &&
       !equal(
         previousLabels,
         labels(current, field, typeof fresh === 'string' ? (fresh ? [fresh] : []) : fresh),

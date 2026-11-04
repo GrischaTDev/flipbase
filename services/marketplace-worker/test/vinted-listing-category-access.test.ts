@@ -16,7 +16,6 @@ function fixture() {
     const url = new URL(String(input));
     const headers = new Headers(init?.headers);
     seen.push({ url, headers, method: init?.method ?? 'GET' });
-    const stamp = '2026-10-10T00:00:00Z';
     if (url.pathname.endsWith('/marketplace_connections'))
       return Promise.resolve(
         Response.json(
@@ -28,16 +27,20 @@ function fixture() {
       );
     if (url.pathname.endsWith('/marketplace_account_entries'))
       return Promise.resolve(Response.json([{ external_id: account }]));
-    if (url.pathname.endsWith('/vinted_category_syncs'))
-      return Promise.resolve(Response.json([{ refreshed_at: stamp, category_count: 2 }]));
-    if (url.pathname.endsWith('/vinted_categories')) {
-      const id = Number(url.searchParams.get('id')?.slice(3));
+    if (url.pathname.endsWith('/vinted_selling_category_snapshots'))
       return Promise.resolve(
         Response.json([
-          { id, parent_id: id === 1223 ? 5 : null, is_leaf: id === 1223, updated_at: stamp },
+          {
+            workspace_id: scope.workspaceId,
+            connection_id: scope.connectionId,
+            external_account_id: account,
+            categories: [
+              { id: 5, parentId: null, title: 'Herren', path: 'Herren', isLeaf: false },
+              { id: 1223, parentId: 5, title: 'Jacken', path: 'Herren > Jacken', isLeaf: true },
+            ],
+          },
         ]),
       );
-    }
     return Promise.reject(new Error('Unexpected request'));
   };
   return {
@@ -93,7 +96,7 @@ test('changed account identity invalidates both the category target and later au
   const f = fixture();
   await assert.rejects(
     f.access.read(scope, 1223, () => {
-      if (f.seen.some((entry) => entry.url.pathname.endsWith('/vinted_categories')))
+      if (f.seen.some((entry) => entry.url.pathname.endsWith('/vinted_selling_category_snapshots')))
         f.changeAccount();
       return Promise.resolve();
     }),

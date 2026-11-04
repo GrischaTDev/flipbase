@@ -1299,24 +1299,23 @@ for (const width of [390, 1440])
           });
           return route.fulfill({ contentType: 'image/jpeg', body: photo });
         });
-        await page.route('**/rest/v1/vinted_category_syncs*', (route) =>
+        await page.route('**/rest/v1/vinted_selling_category_snapshots*', (route) =>
           route.fulfill({
             json: {
-              id: 1,
-              refreshed_at: '2026-11-02T00:00:00Z',
-              requested_at: null,
-              last_attempt_at: null,
-              category_count: 1,
-              last_error: null,
+              external_account_id: new URL(route.request().url()).searchParams
+                .get('external_account_id')
+                ?.slice(3),
+              observed_at: '2026-11-04T12:00:00Z',
+              categories: [
+                {
+                  id: 2738,
+                  parentId: null,
+                  title: 'Fußballschuhe',
+                  path: 'Fußballschuhe',
+                  isLeaf: true,
+                },
+              ],
             },
-          }),
-        );
-        await page.route('**/rest/v1/vinted_categories*', (route) =>
-          route.fulfill({
-            json:
-              Number(new URL(route.request().url()).searchParams.get('offset') ?? 0) > 0
-                ? []
-                : [{ id: 2738, parent_id: null, title: 'Fußballschuhe', path: 'Fußballschuhe' }],
           }),
         );
         await page.goto('/marketplaces/vinted/listings');

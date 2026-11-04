@@ -160,6 +160,11 @@ export class SupabaseMarketplaceListingStore {
         },
         claim.snapshot.content.categoryId!,
         () => this.check(claim),
+        {
+          workspaceId: claim.scope.workspaceId,
+          connectionId: claim.scope.connectionId,
+          accountId: claim.accountId,
+        },
       );
     } catch {
       throw new Error('Der Vinted-Kategoriepfad konnte nicht geladen werden.');

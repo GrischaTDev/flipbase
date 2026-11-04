@@ -10,6 +10,7 @@ import {
 } from './vinted-listing-content';
 
 const fieldKeys = {
+  accessory_department: ['attributes'],
   size: ['sizeId', 'sizeLabel'],
   condition: ['conditionId', 'conditionLabel'],
   color: ['colorIds', 'colorLabels'],
@@ -28,7 +29,7 @@ export interface VintedListingFieldSelection {
 export type VintedListingFieldIdentifiers = Pick<
   VintedListingContent,
   'sizeId' | 'conditionId' | 'colorIds' | 'materialIds' | 'packageSizeId'
->;
+> & { readonly accessoryDepartmentId?: number | null };
 function invalid(): never {
   throw new Error(
     'Die Vinted-Auswahl passt nicht mehr zu diesem Entwurf. Lade die Angaben erneut.',
@@ -54,6 +55,7 @@ export function buildVintedListingFieldSelection(
   const values: {
     -readonly [Key in keyof VintedListingFieldValues]: VintedListingFieldValues[Key];
   } = {
+    attributes: {},
     sizeId: null,
     sizeLabel: '',
     conditionId: null,
@@ -68,9 +70,19 @@ export function buildVintedListingFieldSelection(
   let packageLabel = '';
   for (const snapshot of parsed.fields) {
     const { field, choices } = snapshot;
-    if (field === 'category' || field === 'brand' || field === 'accessory_department') continue;
+    if (field === 'category' || field === 'brand') continue;
     fields.push(field);
     switch (field) {
+      case 'accessory_department': {
+        const choice =
+          identifiers.accessoryDepartmentId == null
+            ? null
+            : choose(choices, identifiers.accessoryDepartmentId);
+        values.attributes = choice?.id
+          ? { accessory_department: String(choice.id), accessory_department_label: choice.label }
+          : {};
+        break;
+      }
       case 'size': {
         const choice = identifiers.sizeId === null ? null : choose(choices, identifiers.sizeId);
         values.sizeId = choice?.id ?? null;
@@ -135,5 +147,15 @@ export function applyVintedListingFieldSelection(
   const patch = Object.fromEntries(
     selection.fields.flatMap((field) => fieldKeys[field].map((key) => [key, parsed[key]])),
   );
+  if (selection.fields.includes('accessory_department')) {
+    patch['attributes'] = {
+      ...Object.fromEntries(
+        Object.entries(content.attributes).filter(
+          ([key]) => !['accessory_department', 'accessory_department_label'].includes(key),
+        ),
+      ),
+      ...parsed.attributes,
+    };
+  }
   return parseVintedListingContent({ ...content, ...patch });
 }

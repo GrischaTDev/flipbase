@@ -14,6 +14,7 @@ export interface VintedListingItem {
   categoryId: number;
   brandId: number | null;
   sizeId: number | null;
+  accessoryDepartmentId: number | null;
   conditionId: number | null;
   colorIds: readonly number[];
   materialIds: readonly number[];
@@ -118,19 +119,27 @@ export async function readVintedListingItem(
     !Array.isArray(attributes)
   )
     return null;
-  const ids: Record<'size' | 'condition' | 'material', number[]> = {
+  const ids: Record<'size' | 'condition' | 'material' | 'accessory_department', number[]> = {
     size: [],
+    accessory_department: [],
     condition: [],
     material: [],
   };
   for (const entry of attributes as unknown[]) {
     if (!entry || typeof entry !== 'object' || !('code' in entry) || !('ids' in entry)) return null;
     const { code, ids: values } = entry;
-    if (code !== 'size' && code !== 'condition' && code !== 'material') continue;
+    if (
+      code !== 'size' &&
+      code !== 'condition' &&
+      code !== 'material' &&
+      code !== 'accessory_department'
+    )
+      continue;
     if (!Array.isArray(values) || !(values as unknown[]).every(positive)) return null;
     ids[code].push(...(values as number[]));
   }
-  if (ids.size.length > 1 || ids.condition.length > 1) return null;
+  if (ids.size.length > 1 || ids.condition.length > 1 || ids.accessory_department.length > 1)
+    return null;
   return {
     title,
     // Ein Textfeld der Maske kennt nur einfache Zeilenumbrüche; so bleiben beide Stände vergleichbar.
@@ -139,6 +148,7 @@ export async function readVintedListingItem(
     categoryId,
     brandId,
     sizeId: ids.size[0] ?? null,
+    accessoryDepartmentId: ids.accessory_department[0] ?? null,
     conditionId: ids.condition[0] ?? null,
     colorIds: colors.filter((id): id is number => typeof id === 'number'),
     materialIds: ids.material,

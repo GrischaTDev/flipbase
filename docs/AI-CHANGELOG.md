@@ -1,5 +1,103 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Kontobezogene Verkaufsbäume und Relisting-Merkmale
+
+**Auftrag:** Die vier bestätigten Größenfehler korrigieren, Vinted-Verkaufsbäume je
+Konto speichern und Größe sowie Zielgruppe beim Relisting erhalten.
+
+**Produktive Größenkorrektur:** Über regulär reservierte Cloudprofile wurden
+Puma `10368633507` und Nike `10368633605` auf S (`207`), JAKO Twist `10417082256`
+auf EU 36 (`2232`) und JAKO Stepover `10417082372` auf EU 38 (`2236`) gespeichert.
+Alle vier Kennungen wurden anschließend erneut bei Vinted gelesen. Bei den beiden
+S-Artikeln lieferte der unmittelbare Abruf zunächst 404; eine neue Sitzung
+bestätigte die gespeicherte Änderung. Alle eigenen Browsersitzungen wurden geschlossen.
+
+**Umsetzung:** Atomarer Verkaufsbaum je Workspace, Verbindung und externer Konto-ID;
+Auffrischung beim Kontoimport. Der Suchkatalog bleibt getrennt. Kategorieauswahl
+und Veröffentlichung lesen den kontobezogenen Datenbankstand. Ein Kontowechsel
+verwirft den bisherigen Baum. Die native Zielgruppe bleibt beim Einlesen und
+Gegenlesen erhalten; alte Damen-/Herren-Schalzweige verlangen kein zusätzliches
+Zielgruppenfeld. Die vier alten Größenkennungen sind als Regressionsfälle erfasst.
+
+**Datenbank:** Schema und Migration wurden in einer eigenen lokalen Datenbank
+geprüft. Supabase CLI 2.114.0 lief wegen eines Windows-Absturzes als Linux-Werkzeug.
+Der vollständige Schemaabgleich zeigte unabhängige Altunterschiede; die neue
+Migration wurde deshalb mit isolierten, identischen Abhängigkeiten erzeugt.
+Der Generator lässt explizite Rechteentzüge aus. Rechte und Tabellenkommentar
+wurden automatisch aus der deklarativen Quelle in das erzeugte SQL übernommen.
+Ein Testlauf unter den produktiven Standardrechten belegte zunächst vier Fehler;
+die vervollständigte Migration besteht alle zwölf Zugriff-/Snapshotprüfungen.
+Typen wurden aus dem vollständigen aktuellen deklarativen Schema neu erzeugt.
+**Prüfung:** Der lokale Vorabcheck wurde gegen den aktuellen Zielzweig ausgeführt:
+880 Node-, 216 DOM- und 2.608 Angular-Prüfungen bestanden. Nach einem Zeitlimit
+beim parallelen Angular-Start lief dessen vollständige Auswahl mit vier Prozessen
+erfolgreich; bereits bestandene Teile wurden weiterverwendet. Die zusätzlich
+ausgewählten Extension-Verträge bestanden ebenfalls. Format, Lint, Typen,
+Worker-Bau, Angular-Produktionsbau und Migrationspaket sind geprüft. 51 gezielte
+native Browsertests, die zwölf Datenbankprüfungen und drei UI-Fälle belegen
+Kategoriebaum, Zielgruppe, Größenauflösung und Fehlerwiederholung. Die UI nutzt
+hier kontrollierte Antworten; kein produktives Inserat wurde zum Test neu gelistet.
+Die Imageprüfung bleibt dem vorgeschriebenen GitHub-Runner vorbehalten.
+Kontowechsel verwerfen auch verspätete Kategorieantworten. Die neue RPC-Antwort
+ohne JSON-Inhalt wird korrekt als Erfolg behandelt. Worker und Cloudbrowser
+enthalten den gemeinsamen Kategorieparser. Lissie führt kein Flipbase-Projekt.
+
+## 2026-11-04 - Juna - Gespeicherte Kategorien der drei Vinted-Konten prüfen
+
+**Auftrag:** Bestehende Anzeigen auf veraltete Kategorien und mögliche Ursachen
+der Relisting-Abbrüche prüfen; keine Inserate oder Aufträge ändern.
+
+**Lesender Datenbankbefund:** Im Workspace Wiehen Store liegen 26 Veröffentlichungen:
+Flipbase 12, Maike Vintage 3, Wiehen Store 11. Bei 18 Karten fehlt `transferSource`,
+bei acht enthält diese Quelle Kategoriebezeichnungen, aber keine Kategorie-IDs.
+Ein vollständiger Abgleich der Anbieterkennungen ist allein aus den Karten nicht
+möglich. Die Abfragen liefen mit `begin read only` und anschließendem Rollback.
+
+Der fehlgeschlagene Relisting-Auftrag 26 und Entwurf 13 des schwarzen Burberry-Schals
+enthalten die zuvor live bestätigte Verkaufskategorie `5555`, aber keine
+`accessory_department`-Angabe. Der zentrale Suchkatalog enthält weder `5555` noch
+deren Hauptkategorie `5496`. Der nicht gelöschte Schal-Entwurf 1 von Maike Vintage
+verwendet dagegen `89` (Damen > Accessoires > Tücher & Schals); die Gültigkeit im
+Verkaufsbaum ist noch gesondert zu prüfen. Nicht alle Anbieterfehler lassen sich
+als Kategoriefehler einstufen: Derselbe Sneaker-Entwurf mit `2632` hatte zunächst
+Fehler und später einen bestätigten Auftrag.
+
+**Cloud-Abgleich abgeschlossen:** Auf ausdrücklichen Nutzerwunsch wurden alle
+26 aktuellen Inserate über ihre drei vorhandenen Cloudprofile gelesen. Reguläre
+Datenbank-Sitzungsreservierung, Konto-/Profilbindung, Browser-Identitätsprüfung
+und profilspezifischer Proxy blieben aktiv; die Profile wurden nacheinander
+geöffnet und nach bestätigtem Containerende geschlossen. Der laufende Worker
+blieb aktiv. Keine Inserate, Entwürfe oder Veröffentlichungsaufträge geändert.
+
+Alle 26 Kategorie-IDs sind gültige Endkategorien im jeweiligen Verkaufsbaum.
+Vinted liefert unterschiedliche Bäume: Flipbase und Wiehen Store jeweils 2.874
+identische Kategorien, Maike Vintage 2.937. Bei Maike sind `89` und `87` weiterhin
+gültig, während `5496`/`5555` dort fehlen. Der bestehende Maike-Schal-Entwurf mit
+`89` ist damit nicht veraltet. Zentral gespeicherte Bäume brauchen eine Zuordnung
+zur tatsächlich am Konto verfügbaren Variante, keinen globalen Austausch.
+
+Die Kategorie-Schemata aller 16 verwendeten Kategorien wurden kontobezogen
+geprüft. Vier gespeicherte Größen-IDs fehlen in der aktuellen Auswahl; bei allen
+vier zeigt auch die native Bearbeitungsmaske keine ausgewählte Größe mehr:
+Flipbase Puma-Ferrari-Jacke `10368633507` und Nike-Golfstrickpullover `10368633605`
+haben `2435` statt aktuell `207` für S. Wiehen Store JAKO Twist `10417082256`
+hat `605` statt `2232` für EU 36, JAKO Stepover `10417082372` hat `607` statt
+`2236` für EU 38. Diese Zuordnungen ergeben sich aus vorhandener Größenangabe
+und aktueller Auswahl; keine Korrektur gespeichert. Der erste Zusatzfeldvergleich
+mit bereits gesetzten Werten lieferte keine Felddefinitionen und wurde deshalb
+nicht als Abnahmenachweis verwendet; der abschließende Vergleich verlangt
+nichtleere Schemata aus der reinen Kategorieanfrage.
+
+Beide Burberry-Schals verwenden bei Vinted `5555`: Beige hat Zielgruppe Damen
+`576`, Schwarz Herren `575`. Die Zielgruppe fehlt also im gespeicherten
+Flipbase-Relisting-Auftrag, nicht im Original. Der zuvor ebenfalls betroffene
+Nike-Pullover `10425720028` verwendet die gültige Kategorie `1813` ohne auffällige
+Größenkennung. Marken-/Versandregeln und ein tatsächlicher Veröffentlichungslauf
+waren nicht Teil dieser rein lesenden Prüfung. JSON-Nachweise und CSV mit allen
+26 Anzeigen liegen im sitzungsbezogenen lokalen Verzeichnis `vinted-category-audit`.
+Lissie führt weiterhin kein Flipbase-Projekt, daher dort keine zuordenbare
+Regelprüfung oder Meldung.
+
 ## 2026-11-04 - Juna - Relisting mit neuen Vinted-Verkaufskategorien reparieren
 
 **Befund:** Der erneute Schal-Auftrag bricht vor jedem Anbieter-Schreibzugriff
@@ -28,6 +126,39 @@ der Anbieter-Fixtures bestehen alle 67 Editor-/Relist-Service-Tests und der
 vollständige UI-Relist-Ablauf einschließlich unveränderter Originalfotos. Gelesene
 Inhalte werden vor dem Entwurf kanonisch geparst, damit eine andere Feldreihenfolge
 keine unnötige zweite Speicherung auslöst.
+
+**Nutzerentscheidung zur weiteren Umsetzung:** Kategorieauswahl beim Erstellen und
+Bearbeiten muss vollständig aus einem zentral gepflegten Datenbankstand erfolgen,
+mit Originalkennungen und derselben Hierarchie wie im Vinted-Verkaufsformular.
+Die lokal ergänzte Live-Kategoriesuche widerspricht diesem Ablauf und darf so
+nicht integriert werden. Der vorhandene Import liest den Suchbaum der Startseite;
+der standardmäßige Aktualisierungsabstand beträgt bereits 24 Stunden. Für den
+Verkaufsbaum sind zusätzlich Kategorieabhängigkeiten und Pflichtmerkmale wie die
+Zielgruppe zu erfassen. Die UI-Erweiterung bleibt uncommittet und der PR offen.
+
+**Reine Quellenprüfung nach erneuter Browserverbindung:** Das angemeldete
+Verkaufsformular lädt `GET /api/v2/item_upload/catalogs`. Ein lesender Abruf mit
+den tatsächlich beobachteten nativen Sitzungsheadern liefert HTTP 200 und einen
+vollständigen verschachtelten JSON-Baum: 9 Hauptkategorien, 2.874 eindeutige
+Kategoriekennungen, 2.462 Endkategorien, maximal 5 Ebenen. Jeder Knoten enthält
+`id`, `title`, `path`, `catalogs`, `restricted_to_status_id`, `badge` und `photo`.
+`5496` (Modeaccessoires) enthält `5555` (Tücher & Schals). Der Suchbaum aus
+`catalogTree` ist deshalb keine ausreichende Quelle für die Verkaufsmaske.
+
+Die native Anfrage `POST /api/v2/item_upload/attributes` mit
+`{"attributes":[{"code":"category","value":[5555]}]}` liefert HTTP 200 und
+die Felder `accessory_department`, `brand`, `condition`, `color`, `material`.
+Konfigurationen enthalten Pflichtstatus, Auswahlart/-limit und Optionskennungen.
+Die Zielgruppe enthält Damen `576`, Herren `575`, Mädchen `573`, Jungs `572`;
+Material ist optional und erlaubt höchstens drei Werte. Marken kommen separat
+über `GET /api/v2/item_upload/brands?category_id=5555`, Farben über
+`GET /api/v2/item_upload/colors`. Weitere beobachtete Abhängigkeiten betreffen
+Paketgrößen und ausgewählte Merkmale. Der Kategorienbaum ist vollständig gelesen;
+die Merkmalsabhängigkeiten sind exemplarisch für Schals geprüft, noch nicht für
+sämtliche Kategorien und Auswahlkombinationen. Ein einfacher Abruf ohne native
+Sitzungsheader liefert 403; ein unabhängiger nächtlicher Abruf ist noch nicht
+nachgewiesen. Keine weitere Umsetzung, Veröffentlichung oder produktive
+Datenänderung; ausschließlich Kategorien in einem leeren Verkaufsformular gewählt.
 
 **Abgrenzung:** Produktive Inserate weder gespeichert noch gelöscht oder neu
 veröffentlicht. Eigener Zweig vom Hauptstand `718ca1db`; fremde Arbeitskopien

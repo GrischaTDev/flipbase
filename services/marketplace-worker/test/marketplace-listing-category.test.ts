@@ -1,67 +1,36 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadMarketplaceListingCategoryPath } from '../src/marketplace-listing-category.ts';
-
-test('permits native category discovery only for an absent leaf in a consistent authorized cache', async () => {
-  let checks = 0;
-  const request: typeof fetch = async (input) =>
-    Response.json(
-      String(input).includes('/vinted_category_syncs')
-        ? [{ refreshed_at: '2026-11-04T14:18:52Z', category_count: 2952 }]
-        : [],
-    );
-  assert.deepEqual(
-    await loadMarketplaceListingCategoryPath(
-      {
-        url: 'https://database.example',
-        serviceRoleKey: 'fixture',
-        request,
-      },
-      5555,
-      async () => {
-        checks++;
-        return true;
-      },
-    ),
+const account = {
+  workspaceId: '46600000-0000-4000-8000-000000000001',
+  connectionId: '46600000-0000-4000-8000-000000000002',
+  accountId: '123',
+};
+test('an absent category never falls back to the global search tree or another account', async () => {
+  for (const categories of [
     [],
-  );
-  assert.ok(checks >= 4);
-  await assert.rejects(
-    loadMarketplaceListingCategoryPath(
-      {
-        url: 'https://database.example',
-        serviceRoleKey: 'fixture',
-        request,
-      },
-      5555,
-      async () => false,
-    ),
-  );
-});
-
-test('does not turn failed requests or missing ancestors into native category discovery', async () => {
-  for (const failure of ['http', 'ancestor']) {
-    const request: typeof fetch = async (input) => {
-      const url = new URL(String(input));
-      if (url.pathname.endsWith('/vinted_category_syncs'))
-        return Response.json([{ refreshed_at: '2026-11-04T14:18:52Z', category_count: 2952 }]);
-      if (failure === 'http') return new Response('', { status: 503 });
-      return Response.json(
-        url.searchParams.get('id') === 'eq.5555'
-          ? [{ id: 5555, parent_id: 5496, is_leaf: true, updated_at: '2026-11-04T14:18:52Z' }]
-          : [],
-      );
-    };
+    [
+      { id: 1, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
+      { id: 89, parentId: 1, title: 'Schals', path: 'Damen > Schals', isLeaf: true },
+    ],
+  ]) {
+    const request: typeof fetch = async () =>
+      Response.json([
+        {
+          workspace_id: account.workspaceId,
+          connection_id: account.connectionId,
+          external_account_id: '123',
+          categories,
+        },
+      ]);
     await assert.rejects(
       loadMarketplaceListingCategoryPath(
-        {
-          url: 'https://database.example',
-          serviceRoleKey: 'fixture',
-          request,
-        },
+        { url: 'https://database.example', serviceRoleKey: 'fixture', request },
         5555,
         async () => true,
+        account,
       ),
+      /Kategoriepfad/,
     );
   }
 });

@@ -48,6 +48,7 @@ export interface VintedImportEntry {
 }
 
 export interface VintedAccountImport {
+  sellingCategories?: import('../../../supabase/functions/_shared/vinted-selling-tree.mjs').VintedSellingTreeNode[];
   identity: VintedAccountIdentity;
   observedAt: string;
   entries: VintedImportEntry[];

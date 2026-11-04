@@ -1,121 +1,85 @@
+import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 interface ListingCategoryOptions {
   readonly url: string;
   readonly serviceRoleKey: string;
   readonly request: typeof fetch;
 }
-function invalid(): Error {
-  return new Error('Der Vinted-Kategoriepfad konnte nicht geladen werden.');
-}
-function record(input: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw invalid();
-  const value = input as Record<string, unknown>;
-  if (Object.keys(value).length !== keys.length || keys.some((key) => !Object.hasOwn(value, key)))
-    throw invalid();
-  return value;
-}
-function categoryId(input: unknown): number {
-  if (typeof input !== 'number' || !Number.isInteger(input) || input < 1 || input > 2147483647)
-    throw invalid();
-  return input;
-}
-function timestamp(input: unknown): string {
-  if (
-    typeof input !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T/.test(input) ||
-    !Number.isFinite(Date.parse(input))
-  )
-    throw invalid();
-  return new Date(input).toISOString();
+interface ListingCategoryAccount {
+  readonly workspaceId: string;
+  readonly connectionId: string;
+  readonly accountId: string;
 }
 
-/** Der Cache liefert nur Navigationskennungen; das aktuelle Anbieterformular bleibt maßgeblich. */
+/** Liest ausschließlich den atomaren Verkaufsbaum des für diesen Auftrag bestätigten Kontos. */
 export async function loadMarketplaceListingCategoryPath(
   options: ListingCategoryOptions,
   targetId: number,
   authorize: () => Promise<boolean>,
+  account: ListingCategoryAccount,
 ): Promise<readonly number[]> {
   try {
-    categoryId(targetId);
-    const origin = new URL(options.url);
     if (
-      !['http:', 'https:'].includes(origin.protocol) ||
-      origin.username ||
-      origin.password ||
-      !options.serviceRoleKey.trim()
+      !Number.isInteger(targetId) ||
+      targetId < 1 ||
+      targetId > 2147483647 ||
+      !options.serviceRoleKey.trim() ||
+      !/^[1-9][0-9]{0,31}$/.test(account.accountId)
     )
-      throw invalid();
-    const read = async (
-      table: 'vinted_categories' | 'vinted_category_syncs',
-      id: number,
-    ): Promise<unknown> => {
-      if (!(await authorize())) throw invalid();
-      const url = new URL('/rest/v1/' + table, origin);
-      url.searchParams.set(
-        'select',
-        table === 'vinted_categories'
-          ? 'id,parent_id,is_leaf,updated_at'
-          : 'refreshed_at,category_count',
-      );
-      url.searchParams.set('id', 'eq.' + id);
-      url.searchParams.set('limit', '2');
-      const response = await options.request(url, {
-        method: 'GET',
-        redirect: 'error',
-        signal: AbortSignal.timeout(10_000),
-        headers: {
-          apikey: options.serviceRoleKey,
-          Authorization: 'Bearer ' + options.serviceRoleKey,
-          'Accept-Profile': 'public',
-        },
-      });
-      if (response.status !== 200 || response.redirected) throw invalid();
-      const values: unknown = await response.json();
-      if (Array.isArray(values) && values.length === 0 && table === 'vinted_categories')
-        return null;
-      if (!Array.isArray(values) || values.length !== 1) throw invalid();
-      return values[0];
-    };
-    const status = async () => {
-      const value = record(await read('vinted_category_syncs', 1), [
-        'refreshed_at',
-        'category_count',
-      ]);
-      const count = categoryId(value['category_count']);
-      if (count > 10_000) throw invalid();
-      return { refreshedAt: timestamp(value['refreshed_at']), count };
-    };
-    const before = await status();
+      throw new Error();
+    for (const id of [account.workspaceId, account.connectionId])
+      if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error();
+    const url = new URL('/rest/v1/vinted_selling_category_snapshots', options.url);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
+      throw new Error();
+    url.searchParams.set('select', 'workspace_id,connection_id,external_account_id,categories');
+    for (const [key, value] of Object.entries({
+      workspace_id: account.workspaceId,
+      connection_id: account.connectionId,
+      external_account_id: account.accountId,
+    }))
+      url.searchParams.set(key, 'eq.' + value);
+    url.searchParams.set('limit', '2');
+    if (!(await authorize())) throw new Error();
+    const response = await options.request(url, {
+      method: 'GET',
+      redirect: 'error',
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        apikey: options.serviceRoleKey,
+        Authorization: 'Bearer ' + options.serviceRoleKey,
+        'Accept-Profile': 'public',
+      },
+    });
+    if (response.status !== 200 || response.redirected) throw new Error();
+    const rows: unknown = await response.json();
+    if (!Array.isArray(rows) || rows.length !== 1) throw new Error();
+    const row: unknown = rows[0];
+    if (
+      !row ||
+      typeof row !== 'object' ||
+      !('workspace_id' in row) ||
+      row.workspace_id !== account.workspaceId ||
+      !('connection_id' in row) ||
+      row.connection_id !== account.connectionId ||
+      !('external_account_id' in row) ||
+      row.external_account_id !== account.accountId ||
+      !('categories' in row)
+    )
+      throw new Error();
+    const categories = parseVintedSellingTree(row.categories);
+    let current = categories.find((category) => category.id === targetId);
+    if (!current?.isLeaf) throw new Error();
     const ancestors: number[] = [];
-    const seen = new Set<number>();
-    let current = targetId;
-    const stamps = new Set<string>();
-    for (;;) {
-      if (seen.has(current) || seen.size >= 31) throw invalid();
-      seen.add(current);
-      const value = await read('vinted_categories', current);
-      // Der Suchkatalog enthält nicht alle Kategorien des Verkaufsformulars.
-      // Nur ein fehlendes Blatt darf dort über die native Suche ermittelt werden.
-      if (value === null && current === targetId) break;
-      const node = record(value, ['id', 'parent_id', 'is_leaf', 'updated_at']);
-      if (categoryId(node['id']) !== current || node['is_leaf'] !== (current === targetId))
-        throw invalid();
-      stamps.add(timestamp(node['updated_at']));
-      // Die bestehende Auffrischung schreibt in Blöcken. Keine Eltern aus verschiedenen Läufen mischen.
-      if (stamps.size !== 1) throw invalid();
-      if (node['parent_id'] === null) break;
-      current = categoryId(node['parent_id']);
-      ancestors.push(current);
+    while (current.parentId !== null) {
+      ancestors.unshift(current.parentId);
+      current = categories.find((category) => category.id === current?.parentId);
+      if (!current) throw new Error();
     }
-    const after = await status();
-    if (
-      before.refreshedAt !== after.refreshedAt ||
-      before.count !== after.count ||
-      seen.size > after.count ||
-      !(await authorize())
-    )
-      throw invalid();
-    return Object.freeze(ancestors.reverse());
+    if (!(await authorize())) throw new Error();
+    return Object.freeze(ancestors);
   } catch {
-    throw invalid();
+    throw new Error(
+      'Der kontobezogene Vinted-Kategoriepfad konnte nicht geladen werden. Aktualisiere das Konto.',
+    );
   }
 }

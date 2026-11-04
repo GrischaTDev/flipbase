@@ -114,10 +114,17 @@
           <app-card title="Artikelangaben">
             <div class="space-y-4">
               @if (current(); as loaded) {
-                <p class="text-sm text-fb-text-primary">
-                  <span class="font-semibold">Kategorie:</span>
-                  {{ loaded.content.categoryLabel || 'Nicht angegeben' }}
-                </p>
+                <app-category-picker
+                  label="Kategorie"
+                  [source]="categorySource()"
+                  formControlName="categoryId"
+                  helpText="Suche die passende Vinted-Kategorie."
+                />
+                @if (categoryLoading()) {
+                  <p role="status" class="text-sm text-fb-text-secondary">
+                    Kategorieangaben werden geladen …
+                  </p>
+                }
                 <div class="grid gap-4">
                   @for (choice of articleChoiceFields(); track choice.field) {
                     <div class="space-y-1.5">
@@ -149,9 +156,6 @@
                     }
                   </div>
                 }
-                <p class="text-xs text-fb-text-muted">
-                  Die Kategorie bleibt bei Vinted unverändert.
-                </p>
               } @else {
                 <dl class="divide-y divide-fb-line text-sm">
                   <div class="flex justify-between gap-3 py-2">

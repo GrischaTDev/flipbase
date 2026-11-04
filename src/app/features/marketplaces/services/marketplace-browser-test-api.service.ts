@@ -718,12 +718,18 @@ export class MarketplaceBrowserTestApiService {
     scope: AccountScope,
     categoryId: number,
     accessToken: string,
+    categoryLabel?: string,
   ): Promise<VintedListingCategoryFields> {
     if (!Number.isSafeInteger(categoryId) || categoryId < 1 || categoryId > 2147483647)
       throw new Error('Wähle eine gültige Vinted-Kategorie aus.');
     const response = await this.post(
       '/marketplace-browser/listings/category/read',
-      { workspaceId: scope.workspaceId, connectionId: scope.connectionId, categoryId },
+      {
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        categoryId,
+        ...(categoryLabel ? { categoryLabel } : {}),
+      },
       accessToken,
     );
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();

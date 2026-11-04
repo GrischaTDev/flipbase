@@ -172,7 +172,8 @@ export async function openVintedListingChoices(
           throw new VintedListingReadError('category');
         const search = page.locator('input#catalog-search-input');
         await options.authorize?.();
-        if ((await search.count()) === 1) await search.fill(label, { timeout: 5000 });
+        if ((await search.count()) === 1)
+          await search.fill(label.split(' > ').at(-1) ?? label, { timeout: 5000 });
       }
     }
   }

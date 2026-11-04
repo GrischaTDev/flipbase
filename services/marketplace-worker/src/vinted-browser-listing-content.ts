@@ -1,3 +1,4 @@
+import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import type { Page } from 'playwright';
 import type {
   VintedListingChoice,
@@ -150,6 +151,7 @@ export async function readOpenVintedListingContent(
   check: () => Promise<void>,
   /** Meldet den jeweils begonnenen Schritt, damit ein Abbruch eingeordnet werden kann. */
   onStep: (step: VintedListingReadStep) => void = () => undefined,
+  preparedContent?: Pick<VintedListingContent, 'categoryId' | 'brandId' | 'brandLabel'>,
 ): Promise<VintedListingCurrentContent> {
   onStep('values');
   const before = await page.evaluate(collectVintedListingFormValues, {
@@ -168,18 +170,26 @@ export async function readOpenVintedListingContent(
   const item = await readVintedListingItemReference(page, externalId);
   const categoryLabel = await vintedListingControlValue(page, 'category');
   if (!item || !categoryLabel || categoryLabel.length > 200) throw invalid();
-  const selectedCategory = { id: item.categoryId, label: categoryLabel };
+  const selectedCategory = {
+    id: preparedContent?.categoryId ?? item.categoryId,
+    label: categoryLabel,
+  };
   await check();
   onStep('fields');
   const schema = parseVintedListingCategoryFields(
     await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
       authorize: check,
       onReadField: onStep,
-      readCategoryId,
+      ...(preparedContent ? {} : { readCategoryId }),
       // Eine Marke außerhalb der Vorschlagsliste erscheint erst nach der Suche.
-      ...(item.brandId === null
+      ...((preparedContent ?? item).brandId === null
         ? {}
-        : { brand: { brandId: item.brandId, brandLabel: item.brandLabel } }),
+        : {
+            brand: {
+              brandId: (preparedContent ?? item).brandId,
+              brandLabel: (preparedContent ?? item).brandLabel,
+            },
+          }),
     }),
     selectedCategory.id,
   );

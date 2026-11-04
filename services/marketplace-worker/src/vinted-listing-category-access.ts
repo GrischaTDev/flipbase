@@ -40,6 +40,11 @@ export class VintedListingCategoryAccess {
       },
       categoryId,
       check,
+      {
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        accountId: target.accountId,
+      },
     );
     await check();
     return { accountId: target.accountId, categoryPath };

@@ -221,3 +221,51 @@ describe('Eigenes Inseratformular', () => {
     });
   });
 });
+
+it.each([
+  ['S', 2435, 207],
+  ['EU 36', 605, 2232],
+  ['EU 38', 607, 2236],
+] as const)(
+  'maps the audited stale size %s to the current provider ID',
+  (label, oldId, currentId) => {
+    const content = {
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      categoryLabel: 'Herren > Kleidung',
+      sizeId: oldId,
+      sizeLabel: label,
+      attributes: {
+        flipbaseListingForm: '1',
+        accessory_department: '575',
+        accessory_department_label: 'Herren',
+      },
+    };
+    const schema = listingCategoryFixture();
+    const resolved = resolveFlipbaseVintedListingContent(content, {
+      ...schema,
+      fields: schema.fields.map((field) =>
+        field.field === 'size'
+          ? {
+              ...field,
+              choices: [
+                { id: currentId, label, selected: false, disabled: false, sizeGroupId: 14 },
+              ],
+            }
+          : field,
+      ),
+    });
+    expect(resolved.sizeId).toBe(currentId);
+    expect(resolved.attributes).toEqual({
+      accessory_department: '575',
+      accessory_department_label: 'Herren',
+    });
+  },
+);
+
+it('keeps the old account-specific scarf categories distinct from modern target-group fields', () => {
+  const legacy = flipbaseVintedListingFields(89, 'Damen > Accessoires > Tücher & Schals');
+  const modern = flipbaseVintedListingFields(5555, 'Modeaccessoires > Tücher & Schals');
+  expect(legacy.fields.some((field) => field.field === 'accessory_department')).toBe(false);
+  expect(modern.fields.some((field) => field.field === 'accessory_department')).toBe(true);
+});

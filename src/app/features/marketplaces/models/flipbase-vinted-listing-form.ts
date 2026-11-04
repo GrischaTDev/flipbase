@@ -133,21 +133,22 @@ export function flipbaseVintedListingFields(
   return {
     categoryId,
     fields: [
-      ...(brand?.attributes?.['accessory_department'] &&
-      brand.attributes['accessory_department_label']
+      ...(/modeaccessoires/.test(path) || brand?.attributes?.['accessory_department']
         ? [
             {
               field: 'accessory_department' as const,
               sizeGroupId: null,
               choices: [
-                {
-                  id: Number(brand.attributes['accessory_department']),
-                  label: brand.attributes['accessory_department_label'],
-                  selected: true,
-                  disabled: false,
-                  sizeGroupId: null,
-                },
-              ],
+                { id: 576, label: 'Damen' },
+                { id: 575, label: 'Herren' },
+                { id: 573, label: 'Mädchen' },
+                { id: 572, label: 'Jungs' },
+              ].map((choice) => ({
+                ...choice,
+                selected: String(choice.id) === brand?.attributes?.['accessory_department'],
+                disabled: false,
+                sizeGroupId: null,
+              })),
             },
           ]
         : []),

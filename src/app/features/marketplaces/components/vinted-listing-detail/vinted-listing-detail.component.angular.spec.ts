@@ -1,3 +1,7 @@
+import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
+import type { VintedSellingTreeNode } from '../../../../../../supabase/functions/_shared/vinted-selling-tree.mjs';
+import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { signal } from '@angular/core';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -100,6 +104,34 @@ function setup(items: MarketplaceEntry[] = []) {
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedListingCategoryService,
+        useValue: {
+          source: vi.fn(
+            (_connectionId: string, remember: (node: VintedSellingTreeNode) => void) => {
+              const categories = [
+                {
+                  id: 5496,
+                  parentId: null,
+                  title: 'Modeaccessoires',
+                  path: 'Modeaccessoires',
+                  isLeaf: false,
+                },
+                {
+                  id: 5555,
+                  parentId: 5496,
+                  title: 'Tücher & Schals',
+                  path: 'Modeaccessoires > Tücher & Schals',
+                  isLeaf: true,
+                },
+              ];
+              categories.forEach(remember);
+              return vintedListingCategorySource(categories);
+            },
+          ),
+          read: vi.fn(),
+        },
+      },
       { provide: AuthService, useValue: { currentUser: signal({ id: 'price-user' }) } },
       {
         provide: WorkspaceService,
@@ -120,6 +152,10 @@ let restoreRendering: (() => void) | undefined;
 beforeAll(async () => {
   const shared = 'src/app/shared/components/';
   restoreRendering = await prepareMarketplaceRendering([
+    {
+      type: CategoryPickerComponent,
+      path: shared + 'category-picker/category-picker.component.ts',
+    },
     {
       type: VintedListingPriceDialogComponent,
       path: 'src/app/features/marketplaces/components/vinted-listing-price-dialog/vinted-listing-price-dialog.component.ts',
@@ -464,7 +500,7 @@ describe('Reaktive Inseratdetails', () => {
     expect(element.querySelector('[role="checkbox"]')).toBeNull();
     expect(element.textContent).toContain('Blau');
     expect(element.textContent).toContain('Gelb');
-    expect(element.textContent).toContain('Kategorie:');
+    expect(element.textContent).toContain('Kategorie');
     expect(element.textContent).not.toContain('Zurück zu Inseraten');
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations.map((violation) => violation.id)).toEqual([]);
@@ -484,6 +520,8 @@ describe('Reaktive Inseratdetails', () => {
     const base = listingCurrentContentFixture().content;
     expect(component.editing()).toBe(true);
     expect(component.form.getRawValue()).toEqual({
+      categoryId: '2738',
+      accessory_department: '',
       title: 'Meine Schuhe',
       description: 'Sehr gut erhalten.',
       price: '20,50',
@@ -633,4 +671,60 @@ it('normalisiert einen vorhandenen formatierten Preis im nativen Grundfeld-Fallb
     description: 'Text',
     price: '20,50',
   });
+});
+
+it('loads the selected selling category and saves its explicit target group against fresh content', async () => {
+  const listing = listingCurrentContentFixture();
+  const { component, store } = setup([
+    {
+      ...entry('a', listing.content.description),
+      title: listing.content.title,
+      price: 20.5,
+      listingContent: listing.content,
+    },
+  ]);
+  const categoryApi = TestBed.inject(VintedListingCategoryService);
+  vi.mocked(categoryApi.read).mockResolvedValue({
+    ...listing.schema,
+    categoryId: 5555,
+    fields: [
+      ...listing.schema.fields.filter((field) => field.field !== 'size'),
+      {
+        field: 'accessory_department',
+        sizeGroupId: null,
+        choices: [
+          { id: 575, label: 'Herren', selected: false, disabled: false, sizeGroupId: null },
+          { id: 576, label: 'Damen', selected: false, disabled: false, sizeGroupId: null },
+        ],
+      },
+    ],
+  });
+  await settle();
+  component.edit();
+  await component.categorySource().search('Schals');
+  component.form.controls.categoryId.setValue('5555');
+  await settle();
+  expect(categoryApi.read).toHaveBeenCalledWith(account.connectionId, 5555, {
+    categoryLabel: 'Tücher & Schals',
+    fresh: true,
+  });
+  expect(component.form.controls.size.value).toBe('');
+  component.form.patchValue({
+    accessory_department: '576',
+    brand: '254956',
+    condition: '2',
+    package: '2',
+    color: 'Blau',
+    material: 'Acryl',
+  });
+  await component.save();
+  expect(store.saveListingContent).toHaveBeenCalledWith(
+    account.connectionId,
+    'a',
+    listing.content,
+    expect.objectContaining({
+      categoryId: 5555,
+      attributes: { accessory_department: '576', accessory_department_label: 'Damen' },
+    }),
+  );
 });
