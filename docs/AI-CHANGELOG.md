@@ -1,5 +1,44 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Relisting nach fehlgeschlagener Nachprüfung sicher zuordnen
+
+**Befund:** Beim Jordan-Inserat lieferte Vinted eine erfolgreiche Veröffentlichung,
+aber die sofortige Nachprüfung endete bei `saved_form`. Das bisherige Fehlerergebnis
+verwarf die neue Kennung; der Kontoimport konnte die Anzeige deshalb nicht dem
+ursprünglichen Artikel zuordnen. Worker und tatsächlich gestarteter Cloud-Browser
+enthielten bereits den letzten veröffentlichten Prüfcode. Die neue Anzeige
+`10670233652` wurde im eigenen Konto mit Preis, Kategorie, Größe und zehn Fotos
+gegengeprüft. Auftrag 30 ist über die vorhandene Abschlussfunktion bestätigt;
+die ursprüngliche Karte `20c14685-644c-4122-8976-9f527ab33ffa` blieb erhalten,
+die doppelte Importkarte wurde regulär zusammengeführt.
+
+**Änderung:** Ein ungeklärtes Ergebnis behält die direkt beobachtete
+Erstellungskennung und das gebundene Konto. Die zentrale Speicherung verwirft
+oder ersetzt diesen Beleg nicht und fordert einen lesenden Kontoabgleich an.
+Ein frischer aktiver Neuimport bestätigt fehlgeschlagene Leseprüfungen anhand
+dieser exakten Kennung und führt beide Karten in derselben Transaktion zusammen.
+Echte Inhalts- oder Fotowidersprüche bleiben ungeklärt, erhalten aber dieselbe
+Artikelzuordnung. Fehlende Belege werden nicht anhand von Titeln erraten.
+
+**Prüfung:** Native Browserfälle sichern genau einen Veröffentlichungsaufruf und
+den Erhalt der Kennung trotz fehlender Nachprüfung. Vertrags-, isolierte
+Transport- und Runnerfälle prüfen Konto- und Aktionsbindung. Datenbankfälle prüfen
+den vollständigen Weg vom Erstellungsbeleg über den echten Import zur bestätigten
+einzelnen Karte, Preisänderungen und die negativen Fälle. Die Migration wurde mit
+dem Supabase-Abgleich aus den alten und neuen Funktionsdefinitionen erzeugt;
+die neu erzeugten Datenbanktypen ändern keine Signaturen. Der lokale
+Vorabcheck einschließlich 811 Angular- und 52 Node-Fällen sowie Bau ist bestanden;
+247 Datenbank-, 40 Worker- und 16 native Browserfälle plus der konkrete
+Maskenfehler bestehen. Zusätzliche CI-Pflichtprüfungen folgen vor Merge. In Lissie ist Flipbase weiterhin nicht
+als Projekt verfügbar; ein Bericht in einem fremden Projekt wurde nicht angelegt.
+
+**Integration:** Der parallel freigegebene Rechte-PR #572 ersetzt ebenfalls die
+Importanforderung. Nach dessen Merge wurde der eigene Zweig auf den aktuellen
+Hauptzweig gesetzt und die noch unveröffentlichte Migration erneut aus dem
+aktuellen Schema erzeugt. Sie bewahrt die neue Workspace-Berechtigungsprüfung
+und die Relisting-Erstellungsbelege gemeinsam. Alle 247 gezielten Datenbankfälle
+bestehen auch nach dieser gemeinsamen Migration.
+
 ## 2026-11-04 - Juna - Laufende Aktionen dezent grau darstellen
 
 **Auftrag und Umsetzung:** Die gelben Hintergründe der Konto- und

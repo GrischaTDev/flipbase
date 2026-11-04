@@ -113,7 +113,12 @@ create or replace function public.marketplace_relink_relisting_entry(p_job publi
 returns uuid language plpgsql volatile security invoker set search_path='' as $$
 declare v_source public.marketplace_account_entries; v_target public.marketplace_account_entries; v_body jsonb; v_entry_id uuid;
 begin
-  if p_job.state<>'confirmed' or p_job.action<>'publish' or not (p_job.snapshot ? 'relistExternalId') or p_job.connection_id is null
+  if p_job.state not in ('confirmed','outcome_unknown') or p_job.external_id is null
+    or (p_job.state='outcome_unknown' and (p_job.provider_result->>'externalId' is distinct from p_job.external_id
+      or p_job.provider_result->>'externalAccountId' is distinct from p_job.external_account_id
+      or not exists(select 1 from public.marketplace_listing_drafts draft where draft.id=p_job.draft_id and draft.workspace_id=p_job.workspace_id
+        and draft.relist_deleted_at is not null and draft.relist_deleted_account_id=p_job.external_account_id)))
+    or p_job.action<>'publish' or not (p_job.snapshot ? 'relistExternalId') or p_job.connection_id is null
     or not public.marketplace_relisting_job_is_latest(p_job)
     or not exists(select 1 from public.marketplace_connections account where account.workspace_id=p_job.workspace_id and account.id=p_job.connection_id
       and account.marketplace='vinted' and account.external_account_id=p_job.external_account_id) then return p_job.relist_entry_id; end if;
@@ -122,6 +127,8 @@ begin
   select * into v_source from public.marketplace_account_entries where id=v_entry_id for update;
   select * into v_target from public.marketplace_account_entries where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id
     and kind='publication' and external_id=p_job.external_id for update;
+  -- Ein Erstellungsbeleg allein erzeugt keine synthetische aktive Anzeige.
+  if p_job.state='outcome_unknown' and (v_target.id is null or v_target.observed_at<p_job.started_at) then return v_entry_id; end if;
   if v_target.id is not null and (v_source.id is distinct from v_target.id or p_job.relist_entry_id is null) and (
     exists(select 1 from public.marketplace_listing_jobs other where other.id<>p_job.id and other.relist_entry_id=v_target.id)
     or exists(select 1 from public.marketplace_account_entries child where child.parent_id=v_target.id)
@@ -179,15 +186,33 @@ grant execute on function public.marketplace_relink_relisting_entry(public.marke
 -- Das repariert auch bestätigte ältere Aufträge ohne gespeicherte UUID zur Laufzeit.
 create or replace function public.marketplace_accept_relisting_import(p_workspace_id uuid,p_connection_id uuid,p_external_id text,p_observed_at timestamptz)
 returns void language plpgsql volatile security invoker set search_path='' as $$
-declare v_job public.marketplace_listing_jobs; v_entry_id uuid;
+declare v_job public.marketplace_listing_jobs; v_entry public.marketplace_account_entries; v_entry_id uuid;
 begin
+  select * into v_entry from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_connection_id
+    and kind='publication' and external_id=p_external_id and observed_at=p_observed_at;
+  if not found or p_observed_at>clock_timestamp()+interval '5 minutes' then return; end if;
   for v_job in select job.* from public.marketplace_listing_jobs job
     join public.marketplace_connections account on account.workspace_id=job.workspace_id and account.id=job.connection_id and account.external_account_id=job.external_account_id
     where job.workspace_id=p_workspace_id and job.connection_id=p_connection_id and job.external_id=p_external_id
-      and job.state='confirmed' and job.snapshot ? 'relistExternalId' and job.relist_imported_at is null and p_observed_at>job.finished_at
+      and job.state in ('confirmed','outcome_unknown') and job.snapshot ? 'relistExternalId' and job.relist_imported_at is null and p_observed_at>job.finished_at
       and public.marketplace_relisting_job_is_latest(job) for update of job loop
+    if v_job.state='outcome_unknown' then
+      if v_job.provider_result->>'externalId' is distinct from p_external_id
+        or v_job.provider_result->>'externalAccountId' is distinct from v_job.external_account_id
+        or not exists(select 1 from public.marketplace_listing_drafts draft where draft.id=v_job.draft_id and draft.workspace_id=v_job.workspace_id
+          and draft.relist_deleted_at is not null and draft.relist_deleted_account_id=v_job.external_account_id) then continue; end if;
+      -- Die neue Kennung stammt aus der echten Erstellungsantwort, der Aktivbeleg aus dem eigenen Konto.
+      -- Inhalts- oder Fotowidersprüche bleiben ungeklärt; sie erzeugen trotzdem keine zweite Karte.
+      if v_entry.body->>'publicationState'='active' and v_job.error_code in (
+        'provider_unconfirmed_save_navigation','provider_unconfirmed_saved_navigation','provider_unconfirmed_saved_form',
+        'provider_unconfirmed_active_navigation','provider_unconfirmed_active_filter','provider_unconfirmed_active_loading','provider_unconfirmed_active_evidence') then
+        perform public.marketplace_listing_finish_job(v_job,jsonb_build_object('outcome','confirmed','action','publish','externalId',p_external_id,
+          'externalAccountId',v_job.external_account_id,'providerState','active','verifiedAt',to_char(p_observed_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')));
+        select * into v_job from public.marketplace_listing_jobs where id=v_job.id;
+      end if;
+    end if;
     v_entry_id:=public.marketplace_relink_relisting_entry(v_job);
-    if v_entry_id is not null then
+    if v_entry_id is not null and (v_job.state='confirmed' or v_entry.body->>'publicationState'='active') then
       update public.marketplace_listing_jobs set relist_imported_at=p_observed_at where id=v_job.id;
     end if;
   end loop;
@@ -198,7 +223,7 @@ grant execute on function public.marketplace_accept_relisting_import(uuid,uuid,t
 
 create or replace function public.marketplace_listing_finish_job(p_job public.marketplace_listing_jobs,p_result jsonb)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_outcome text; v_external_id text; v_provider_state text; v_verified_at timestamptz; v_error text; v_job public.marketplace_listing_jobs;
+declare v_outcome text; v_external_id text; v_provider_state text; v_verified_at timestamptz; v_error text; v_job public.marketplace_listing_jobs; v_result jsonb:=p_result;
 begin
   if p_result is null or jsonb_typeof(p_result)<>'object' then raise exception 'Ungültiges Inseratergebnis.' using errcode='22023'; end if;
   v_outcome:=p_result->>'outcome';
@@ -213,22 +238,34 @@ begin
       or v_verified_at>clock_timestamp()+interval '5 minutes' or (p_job.started_at is not null and v_verified_at<p_job.started_at-interval '5 minutes') then raise exception 'Bestätigungszeit gehört nicht zum Versuch.' using errcode='22023'; end if;
     v_external_id:=p_result->>'externalId'; v_provider_state:=p_result->>'providerState';
   elsif v_outcome in ('failed','outcome_unknown') then
-    if (select count(*) from jsonb_object_keys(p_result))<>2 or jsonb_typeof(p_result->'errorCode') is distinct from 'string' or coalesce(p_result->>'errorCode','') !~ '^[a-z_]{1,80}$' then raise exception 'Ungültiges Inseratergebnis.' using errcode='22023'; end if;
+    if (select count(*) from jsonb_object_keys(p_result)) not in (2,4) or jsonb_typeof(p_result->'errorCode') is distinct from 'string' or coalesce(p_result->>'errorCode','') !~ '^[a-z_]{1,80}$' then raise exception 'Ungültiges Inseratergebnis.' using errcode='22023'; end if;
     v_error:=p_result->>'errorCode';
+    if (select count(*) from jsonb_object_keys(p_result))=4 then
+      if v_outcome<>'outcome_unknown' or p_job.action<>'publish' or p_job.started_at is null or p_job.state not in ('writing','outcome_unknown')
+        or jsonb_typeof(p_result->'externalId') is distinct from 'string' or coalesce(p_result->>'externalId','') !~ '^[1-9][0-9]{0,31}$'
+        or jsonb_typeof(p_result->'externalAccountId') is distinct from 'string' or p_result->>'externalAccountId' is distinct from p_job.external_account_id
+        then raise exception 'Ungültiger Erstellungsbeleg.' using errcode='22023'; end if;
+      v_external_id:=p_result->>'externalId';
+    elsif v_outcome='outcome_unknown' and p_job.external_id is not null then
+      v_external_id:=p_job.external_id;
+      v_result:=p_result||jsonb_build_object('externalId',v_external_id,'externalAccountId',p_job.external_account_id);
+    end if;
   else raise exception 'Ungültiges Inseratergebnis.' using errcode='22023'; end if;
-  if p_job.provider_result=p_result then return public.marketplace_listing_job_document(p_job); end if;
+  if v_external_id=p_job.snapshot->>'relistExternalId' then raise exception 'Das neue Inserat verwendet die alte Anbieterkennung.' using errcode='22023'; end if;
+  if p_job.external_id is not null and v_external_id is distinct from p_job.external_id then raise exception 'Erstellungsbeleg darf nicht ersetzt werden.' using errcode='23505'; end if;
+  if p_job.provider_result=v_result then return public.marketplace_listing_job_document(p_job); end if;
   if p_job.state='cancelled' and v_outcome='failed' and p_job.started_at is null then return public.marketplace_listing_job_document(p_job); end if;
   if p_job.state in ('confirmed','failed','cancelled') then raise exception 'Inseratergebnis bereits erfasst.' using errcode='23505'; end if;
   if v_outcome='confirmed' and (p_job.started_at is null or p_job.state not in ('writing','outcome_unknown')) then raise exception 'Inseratversuch wurde nicht begonnen.' using errcode='42501'; end if;
   if v_outcome<>'confirmed' and p_job.state not in ('claimed','writing','outcome_unknown') then raise exception 'Inseratversuch ungültig.' using errcode='42501'; end if;
   update public.marketplace_listing_jobs set state=v_outcome,external_id=v_external_id,provider_state=v_provider_state,verified_at=v_verified_at,error_code=v_error,
-    provider_result=p_result,finished_at=clock_timestamp(),lease_expires_at=null where id=p_job.id returning * into v_job;
-  if v_outcome='confirmed' and v_job.snapshot ? 'relistExternalId' then
+    provider_result=v_result,finished_at=clock_timestamp(),lease_expires_at=null where id=p_job.id returning * into v_job;
+  if v_external_id is not null and v_job.snapshot ? 'relistExternalId' then
     perform public.marketplace_relink_relisting_entry(v_job);
     select * into v_job from public.marketplace_listing_jobs where id=v_job.id;
   end if;
   if v_outcome='confirmed' and v_job.action='publish' then perform public.marketplace_remember_listing_photo_source(v_job,v_external_id); end if;
-  if v_outcome='confirmed' then perform public.marketplace_request_relisting_import(v_job); end if;
+  if v_external_id is not null then perform public.marketplace_request_relisting_import(v_job); end if;
   return public.marketplace_listing_job_document(v_job);
 end;
 $$;

@@ -87,6 +87,62 @@ select is((select state from public.marketplace_listing_jobs where id=(select (j
 select is((select external_id from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),'46910','Zuordnungskollision erhält die alte Karte unverändert');
 reset role;
 delete from public.marketplace_listing_jobs where id=(select foreign_job_id from relist_context);
+-- Native Erstellungskennung bleibt trotz nicht verfügbarer Nachprüfung erhalten.
+savepoint creation_receipt;
+delete from public.marketplace_account_entries where connection_id='46900000-0000-4000-8000-000000000021' and external_id='46911';
+set local role service_role;
+select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_form","externalId":"46911","externalAccountId":"46901"}');
+select is((select external_id from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'46911','Unklare Nachprüfung behält die echte neue Vinted-ID');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Erstellungskennung allein bestätigt keinen Erfolg');
+select ok(exists(select 1 from public.marketplace_operations where connection_id='46900000-0000-4000-8000-000000000021' and state='queued'),'Erstellungsbeleg fordert einen lesenden Kontoabgleich an');
+select is((select external_id from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),'46910','Ohne eigenen Neuimport bleibt die ursprüngliche Karte erhalten');
+select throws_ok($$select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_form","externalId":"46912","externalAccountId":"46901"}')$$,'23505',null,'Eine andere neue ID darf den Erstellungsbeleg nicht ersetzen');
+select throws_ok($$select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_form","externalId":"46911","externalAccountId":"46902"}')$$,'22023',null,'Fremdes Konto liefert keinen Erstellungsbeleg');
+select throws_ok($$select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_form","externalId":"46910","externalAccountId":"46901"}')$$,'22023',null,'Alte Quellkennung ist keine Neuanlage');
+select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_navigation"}');
+select is((select external_id from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'46911','Späterer Lesefehler ohne eigene Kennung verwirft den belegten Erstellungsbeleg nicht');
+select lives_ok($$select pg_temp.relist_import(jsonb_build_array(jsonb_build_object('kind','publication','externalId','46911','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Neu angeboten','price',69.90,'publicationState','active'))))$$,'Eigener aktiver Neuimport löst den unklaren Auftrag atomar auf');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'confirmed','Eigener Aktivbeleg bestätigt die bekannte Neuanlage automatisch');
+select is((select external_id from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),'46911','Automatischer Abgleich verknüpft die ursprüngliche Flipbase-UUID');
+select is((select count(*) from public.marketplace_account_entries where connection_id='46900000-0000-4000-8000-000000000021' and kind='publication'),1::bigint,'Automatischer Abgleich hinterlässt genau eine Karte');
+select is((select (body->>'price')::numeric from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),69.90::numeric,'Nachträglich geänderter Anbieterpreis bleibt bei der Verknüpfung erhalten');
+select ok((select relist_imported_at is not null and error_code is null from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'Auftrag endet ohne Warnung und ohne weiteren Importbedarf');
+rollback to savepoint creation_receipt;
+
+savepoint receipt_mismatch;
+set local role service_role;
+select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_photos_match","externalId":"46911","externalAccountId":"46901"}');
+select pg_temp.relist_import(jsonb_build_array(jsonb_build_object('kind','publication','externalId','46911','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Neu angeboten','publicationState','active'))));
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Echter Fotowiderspruch wird durch eine aktive Anzeige nicht zum Erfolg');
+select is((select count(*) from public.marketplace_account_entries where connection_id='46900000-0000-4000-8000-000000000021' and kind='publication'),1::bigint,'Bekannte Neuanlage erzeugt auch bei Fotowiderspruch keine zweite Karte');
+rollback to savepoint receipt_mismatch;
+
+savepoint receipt_draft;
+set local role service_role;
+select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_saved_form","externalId":"46911","externalAccountId":"46901"}');
+select pg_temp.relist_import(jsonb_build_array(jsonb_build_object('kind','publication','externalId','46911','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Neu angeboten','publicationState','draft'))));
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Ein Anbieterentwurf beweist keine aktive Veröffentlichung');
+select is((select count(*) from public.marketplace_account_entries where connection_id='46900000-0000-4000-8000-000000000021' and kind='publication'),1::bigint,'Bekannter Anbieterentwurf bleibt derselben Karte zugeordnet');
+select ok((select relist_imported_at is null from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'Entwurf beendet den ausstehenden Aktivabgleich nicht');
+rollback to savepoint receipt_draft;
+
+savepoint missing_receipt;
+set local role service_role;
+select public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(select (job->>'id')::bigint from relist_context)),
+  '{"outcome":"outcome_unknown","errorCode":"provider_unconfirmed_save_response"}');
+select pg_temp.relist_import(jsonb_build_array(jsonb_build_object('kind','publication','externalId','46911','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Neu angeboten','publicationState','active'))));
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Ohne Erstellungskennung wird keine Anzeige anhand ihres Titels erraten');
+select is((select external_id from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),'46910','Ohne Beleg bleibt die ursprüngliche Zuordnung unberührt');
+rollback to savepoint missing_receipt;
+reset role;
+
 -- Ein unbekanntes Ergebnis kann erst nach Import und manueller Preisänderung bestätigt werden.
 savepoint late_confirmation;
 update public.marketplace_listing_jobs set state='outcome_unknown' where id=(select (job->>'id')::bigint from relist_context);

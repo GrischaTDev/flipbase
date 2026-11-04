@@ -250,9 +250,11 @@ export async function submitVintedListing(
     }
     // Nur feste Prüfschritte speichern; Anbieterantworten und Artikeldaten bleiben im Browser.
     let confirmationStep = 'save_response';
+    let createdExternalId: string | null = null;
     const unconfirmed = (): MarketplaceListingResult => ({
       outcome: 'outcome_unknown',
       errorCode: 'provider_unconfirmed_' + confirmationStep,
+      ...(createdExternalId ? { externalId: createdExternalId, externalAccountId: accountId } : {}),
     });
     try {
       // Die echte Formularantwort beobachten, keinen eigenen API-Schreibaufruf auslösen.
@@ -274,7 +276,13 @@ export async function submitVintedListing(
       const observer = await observeVintedListingCreation(page, timeout);
       let externalId: string | null;
       try {
-        [externalId] = await Promise.all([observer.result, button.click({ timeout: 5000 })]);
+        [externalId] = await Promise.all([
+          observer.result.then((id) => {
+            createdExternalId = id;
+            return id;
+          }),
+          button.click({ timeout: 5000 }),
+        ]);
       } finally {
         await observer.close();
       }

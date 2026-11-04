@@ -447,3 +447,24 @@ test('refuses labels that contradict the actual provider IDs and paid options', 
     ),
   );
 });
+
+test('retains a native creation receipt only for an unknown publish result from the bound account', () => {
+  const receipt = {
+    outcome: 'outcome_unknown',
+    errorCode: 'provider_unconfirmed_saved_form',
+    externalId: '456',
+    externalAccountId: '789',
+  };
+  assert.equal(isVintedListingResult(receipt, 'publish', '789'), true);
+  for (const invalid of [
+    { ...receipt, outcome: 'failed' },
+    { ...receipt, externalId: 456 },
+    { ...receipt, externalId: '0456' },
+    { ...receipt, externalAccountId: '790' },
+    { ...receipt, verifiedAt: '2026-11-05T00:00:00.000Z' },
+    { outcome: 'outcome_unknown', errorCode: receipt.errorCode, externalId: '456' },
+  ])
+    assert.equal(isVintedListingResult(invalid, 'publish', '789'), false);
+  assert.equal(isVintedListingResult(receipt, 'update', '789'), false);
+  assert.equal(isVintedListingResult(receipt, 'vinted_draft', '789'), false);
+});

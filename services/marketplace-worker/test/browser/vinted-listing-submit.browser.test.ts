@@ -219,7 +219,13 @@ test('a missing or invalid creation response and a foreign landing never confirm
       );
       assert.deepEqual(
         result,
-        { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed_' + code },
+        {
+          outcome: 'outcome_unknown',
+          errorCode: 'provider_unconfirmed_' + code,
+          ...(['save_navigation', 'saved_url'].includes(code)
+            ? { externalId: '456', externalAccountId: '123' }
+            : {}),
+        },
         JSON.stringify(options),
       );
       assert.equal(begins, 1);
@@ -241,11 +247,19 @@ test('an unconfirmed publication identifies the failed verification without retr
       [{ savedPhotoChanged: true }, 'provider_unconfirmed_saved_photos_match'],
       [{ active: false }, 'provider_unconfirmed_active_evidence'],
       [{ savedFormUnavailable: true }, 'provider_unconfirmed_saved_navigation'],
+      [{ savedFormMissingTitle: true }, 'provider_unconfirmed_saved_form'],
     ] as const) {
       const page = await browser.newPage();
       const form = await createVintedListingFormFixture(page, { publishing: true, ...options });
       if ('savedFormUnavailable' in options)
         await page.route('**/items/456/edit', (route) => route.abort());
+      if ('savedFormMissingTitle' in options)
+        await page.addInitScript(() => {
+          document.addEventListener('DOMContentLoaded', () => {
+            if (location.pathname === '/items/456/edit')
+              document.querySelector('input[name="title"]')?.remove();
+          });
+        });
       if ('savedPhotoChanged' in options)
         await page.addInitScript(() => {
           document.addEventListener('DOMContentLoaded', () => {
@@ -274,7 +288,12 @@ test('an unconfirmed publication identifies the failed verification without retr
         [5],
         { saveTimeoutMs: 400 },
       );
-      assert.deepEqual(result, { outcome: 'outcome_unknown', errorCode: code });
+      assert.deepEqual(result, {
+        outcome: 'outcome_unknown',
+        errorCode: code,
+        externalId: '456',
+        externalAccountId: '123',
+      });
       assert.equal(begins, 1);
       assert.equal(form.uploads(), 1);
       assert.equal(form.saves(), 1);
