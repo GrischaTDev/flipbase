@@ -38,6 +38,11 @@ gesperrt. Nichtbetreiber sehen oben bei den Vinted-Konten „Cloud-Konten sind i
 der Beta noch nicht verfügbar.“ Die lokale Kontoanlage bleibt verfügbar;
 Cloud-Auswahl und Wechsel sind ohne serverseitige Freigabe gesperrt.
 
+**Weiterer Einstieg:** Auch die Plattformauswahl in der Marktplatzübersicht zeigt
+Vinted ohne Betreiberrolle. Drei Gegenproben scheiterten mit dem alten Filter,
+darunter die bestehenden Abläufe zur Kontoauswahl und Inseraterstellung. Der
+Beta-Browserfall beginnt zusätzlich bei dieser Plattformauswahl.
+
 **Datenbank und Nachweis:** Zwei neue Prüffunktionen mit expliziten Rechten;
 keine Tabellenänderung. Migration mit Supabase CLI 2.114.0 aus zwei eigenen,
 datenfreien Ausgangskopien erzeugt und vollständig transaktional auf eine dritte

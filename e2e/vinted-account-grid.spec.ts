@@ -21,6 +21,16 @@ for (const width of [1440, 390]) {
           route.fulfill({ json: { canSetup: false } }),
         );
         await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        await page.goto('/marketplaces/overview');
+        await page
+          .locator('app-marketplace-overview')
+          .getByRole('button', { name: 'Inserat erstellen', exact: true })
+          .click();
+        const platformPicker = page.getByRole('dialog', { name: 'Inserat erstellen', exact: true });
+        await expect(
+          platformPicker.getByRole('button', { name: 'Vinted', exact: true }),
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
         await page.goto('/marketplaces/vinted/accounts');
         const grid = page.locator('app-vinted-account-grid');
         await expect(grid).toBeVisible();
