@@ -206,7 +206,8 @@ export class VintedActionOverviewHeaderStore {
             !previousActions.some((previousAction) => previousAction.id === action.id)
           )
             return false;
-          this.toast.success(describeVintedAction(action), account.displayName);
+          if (action.kind !== 'sync')
+            this.toast.success(describeVintedAction(action), account.displayName);
           return false;
         });
         return actions.length

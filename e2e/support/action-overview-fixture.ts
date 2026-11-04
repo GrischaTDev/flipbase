@@ -223,6 +223,17 @@ export async function mockActionOverview(page: Page, enabled = true) {
     queueOffer: () => {
       actions[0] = { ...actions[0], state: 'queued' };
     },
+    startAccountSync: () => {
+      const sync = {
+        ...actions[0],
+        id: `sync:${actions[0].sourceId}`,
+        source: 'sync',
+        kind: 'sync',
+        isAutomated: true,
+        state: 'running' as const,
+      };
+      actions.splice(0, actions.length, sync);
+    },
     finishActions: () => {
       for (let index = 0; index < actions.length; index++)
         actions[index] = { ...actions[index], state: 'succeeded' };
