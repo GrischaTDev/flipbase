@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Laufende Aktionen dezent grau darstellen
+
+**Auftrag und Umsetzung:** Die gelben Hintergründe der Konto- und
+Inseratsaktionen in „Laufende Aktionen“ durch die vorhandene dezente graue
+Oberflächenfarbe ersetzen. Beide Farbschemata verwenden ihre bestehende zentrale
+Farbdefinition; Anordnung und Bedienung bleiben erhalten.
+
+**Prüfung:** Die vorhandenen Browserfälle prüfen beide Farbschemata auf Desktop
+und Touch einschließlich Tastaturbedienung und AXE. Berechnete Hintergrundfarben,
+Screenshots und Vorabcheck werden unter `tmp/running-actions-checks/` protokolliert.
+Die neue Arbeit liegt auf einem eigenen Zweig vom frisch abgerufenen
+`origin/master`; die vorherigen Aufgaben bleiben separat erhalten.
+
+**CI-Nachprüfung:** Der mobile Preisdialog maß beim Umschalten ins Raster noch
+die alte Tabellenzeile. Die CI-Aufzeichnung zeigt deren Thumbnail mit `size="md"`
+unmittelbar vor der Messung der Rasterkarte; die bereits entfernte Tabellenzeile
+lieferte dann kein Rechteck. Der vorhandene Test wartet jetzt ausdrücklich auf
+das `article` der Rasterkarte. Sichtbarkeit, Zentrierung und weitere Erwartungen
+bleiben vollständig erhalten. Der gezielte Nachweis umfasst auch Linux mit
+Node 22.23.4 und Chromium aus Playwright 1.62.1.
+
 ## 2026-11-04 - Juna - Gespeichertes Relisting unabhängig von der Bearbeitungsmaske prüfen
 
 **Produktiver Abschluss:** Der vom Nutzer gestartete beige Schal wurde nach dem

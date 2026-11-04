@@ -1066,7 +1066,8 @@ for (const width of [390, 1440])
         ).toBeVisible();
         await screenshot(page, `vinted-price-running-list-${width}-${theme}`, wardrobe);
         await wardrobe.getByRole('button', { name: 'Rasteransicht', exact: true }).click();
-        const busyCard = wardrobe.locator('[data-listing-row][aria-busy="true"]');
+        // Die Tabellenzeile bleibt bis zum Rendern der Rasterkarte kurz im DOM.
+        const busyCard = wardrobe.locator('article[data-listing-row][aria-busy="true"]');
         await expect(busyCard.locator('app-product-thumbnail')).toBeVisible();
         await expect(busyCard.getByRole('status')).toBeVisible();
         const imageBox = await busyCard.locator('app-product-thumbnail').boundingBox();
