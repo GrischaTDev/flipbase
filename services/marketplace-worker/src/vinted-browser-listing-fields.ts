@@ -187,6 +187,22 @@ function priceMatches(text: string, cents: number): boolean {
   );
 }
 
+/** Vinted blendet die Paketwahl teilweise erst nach dem Fotoupload ein. */
+function preparationIssues(
+  content: VintedListingContent,
+  photos: readonly VintedListingPhotoMetadata[],
+  schema: VintedListingCategoryFields,
+) {
+  const deferredPackage =
+    !schema.fields.some((field) => field.field === 'package') &&
+    content.packageSizeId !== null &&
+    Number.isSafeInteger(content.packageSizeId) &&
+    content.packageSizeId > 0;
+  return validateVintedListingSubmission(content, photos, schema).filter(
+    (issue) => !(deferredPackage && issue.field === 'package' && issue.code === 'unsupported'),
+  );
+}
+
 /** Bereitet eine leere Neuanlagemaske vor; ruft weder Upload noch Speichern auf. */
 export async function prepareVintedListingFields(
   page: Page,
@@ -248,8 +264,8 @@ export async function prepareVintedListingFields(
     { brand: content, onReadField: reportPreparationStep },
   );
   reportPreparationStep('values');
-  content = resolveFlipbaseVintedListingContent(content, schema);
-  if (validateVintedListingSubmission(content, photos, schema).length > 0) throw invalid();
+  content = resolveFlipbaseVintedListingContent(content, schema, { deferPackage: true });
+  if (preparationIssues(content, photos, schema).length > 0) throw invalid();
   await check();
   await page.locator(vintedListingFormSelector + ' input[name="title"]').fill(content.title);
   await check();
@@ -275,7 +291,7 @@ export async function prepareVintedListingFields(
   );
   reportPreparationStep('changed');
   if (
-    validateVintedListingSubmission(content, photos, final).length > 0 ||
+    preparationIssues(content, photos, final).length > 0 ||
     final.fields.some((field) => !selectedMatches(field, wanted(content, field.field))) ||
     (await page.locator(vintedListingFormSelector + ' input[name="title"]').inputValue()) !==
       content.title ||
