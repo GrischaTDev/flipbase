@@ -60,6 +60,7 @@ describe('Lesbare Vinted-Originalfotos', () => {
     await f.service.read('https://api.example/storage/v1/object/sign/private.jpg?token=fixture');
     expect(f.request.mock.calls[0][0]).toContain('/storage/v1/object/sign/private.jpg');
     expect(f.request.mock.calls[0][1].credentials).toBe('omit');
+    expect(f.request.mock.calls[0][1].cache).toBe('no-store');
     expect(f.request.mock.calls[0][1]).not.toHaveProperty('headers');
   });
 });

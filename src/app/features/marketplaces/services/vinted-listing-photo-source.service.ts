@@ -38,7 +38,11 @@ export class VintedListingPhotoSourceService {
               headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
               body: JSON.stringify({ ...scope, photoUrl: source }),
             }
-          : { credentials: 'omit' as const }),
+          : {
+              credentials: 'omit' as const,
+              // Bereits angezeigte Fotos können ohne CORS-Header im HTTP-Cache liegen.
+              cache: 'no-store' as const,
+            }),
         signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error('Originalfoto nicht verfügbar.');

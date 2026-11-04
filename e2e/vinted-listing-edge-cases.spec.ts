@@ -2,6 +2,8 @@ import axe from 'axe-core';
 import { expect, test, type Page, type Locator } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createServer, type Server } from 'node:http';
+import { build } from 'esbuild';
 import {
   accountIds,
   emptyPage,
@@ -22,6 +24,111 @@ const images = [
   'https://images.example.test/listing-broken.svg',
 ];
 const detailPath = `/marketplaces/vinted/listings/${accountIds[0]}/${entryId}`;
+
+test('Bildbearbeitung liest bereits angezeigte private Originalfotos mit echtem Browsercache @marketplace-preview', async ({
+  page,
+}) => {
+  const servers: Server[] = [];
+  const listen = async (server: Server) => {
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Bildserver fehlt.');
+    return `http://127.0.0.1:${address.port}`;
+  };
+  try {
+    const original = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 80;
+      canvas.height = 120;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Canvas fehlt.');
+      context.fillStyle = '#b6d5e8';
+      context.fillRect(0, 0, 80, 120);
+      return canvas.toDataURL('image/jpeg').split(',')[1];
+    });
+    const requests: (string | undefined)[] = [];
+    const photoOrigin = await listen(
+      createServer((request, response) => {
+        requests.push(request.headers.origin);
+        // Der produktive Speicher unterscheidet nach Origin, setzt aber kein Vary.
+        response.writeHead(200, {
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'private, max-age=3600',
+          ...(request.headers.origin
+            ? { 'Access-Control-Allow-Origin': request.headers.origin }
+            : {}),
+        });
+        response.end(Buffer.from(original, 'base64'));
+      }),
+    );
+    const bundle = await build({
+      entryPoints: ['e2e/support/vinted-photo-source-browser.ts'],
+      bundle: true,
+      write: false,
+      format: 'iife',
+      globalName: 'photoSourceFixture',
+    });
+    const photoUrl = photoOrigin + '/storage/v1/object/sign/private/original.jpg?token=fixture';
+    const appOrigin = await listen(
+      createServer((request, response) => {
+        if (request.url === '/fixture.js') {
+          response.writeHead(200, { 'Content-Type': 'text/javascript' });
+          response.end(bundle.outputFiles[0].text);
+        } else {
+          response.writeHead(200, { 'Content-Type': 'text/html' });
+          response.end(`<img src="${photoUrl}" alt="Original"><script src="/fixture.js"></script>`);
+        }
+      }),
+    );
+    // Keine Route-Mocks: Sie deaktivieren den HTTP-Cache und verdecken diese Regression.
+    await page.goto(appOrigin);
+    await expect(page.getByRole('img', { name: 'Original' })).toHaveJSProperty(
+      'naturalHeight',
+      120,
+    );
+    expect(requests).toEqual([undefined]);
+    const result = await page.evaluate(async (source) => {
+      const fixture = (
+        window as unknown as {
+          photoSourceFixture: typeof import('./support/vinted-photo-source-browser');
+        }
+      ).photoSourceFixture;
+      const original = await fixture.readOriginal(source);
+      const previews = [];
+      for (const options of [
+        { resize: 1200, filter: 'none', border: 'none' },
+        { resize: null, filter: 'darker', border: 'none' },
+        { resize: 1600, filter: 'lighter', border: 'small' },
+      ] as const) {
+        const base64 = await fixture.renderVintedListingPhoto({
+          ...original,
+          ...options,
+          crop: null,
+        });
+        const image = new Image();
+        image.src = 'data:image/jpeg;base64,' + base64;
+        await image.decode();
+        previews.push({ height: image.naturalHeight, changed: base64 !== original.base64 });
+      }
+      return { original, previews };
+    }, photoUrl);
+    expect(result.original).toEqual({ base64: original, mimeType: 'image/jpeg' });
+    expect(result.previews).toEqual([
+      { height: 1200, changed: true },
+      { height: 120, changed: true },
+      { height: 1600, changed: true },
+    ]);
+    expect(requests).toEqual([undefined, appOrigin]);
+  } finally {
+    for (const server of servers) {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  }
+});
 
 for (const width of [390, 1440])
   for (const theme of ['light', 'dark'] as const) {
