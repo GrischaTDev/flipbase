@@ -214,7 +214,7 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
   const signedImageBatches: string[][] = [];
   const jobs = [
     {
-      id: '1',
+      id: '3',
       workspaceId,
       connectionId: planned ? accountIds[0] : null,
       draftId: draft.id,
@@ -238,13 +238,13 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
   ];
   jobs.push({
     ...jobs[0],
-    id: '2',
+    id: '1',
     state: 'confirmed',
     externalId: '999',
     providerState: 'processing',
     verifiedAt: draft.updatedAt,
   });
-  jobs.push({ ...jobs[0], id: '3', state: 'outcome_unknown' });
+  jobs.push({ ...jobs[0], id: '2', state: 'outcome_unknown' });
   const jobCancels: Record<string, unknown>[] = [];
   const reschedules: Record<string, unknown>[] = [];
   const reserved = new Map<string, (typeof draft.images)[number]>();
@@ -880,6 +880,7 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
   const listings = overview.locator('app-vinted-listing-action-overview');
   await expect(overview.getByRole('alert')).toHaveCount(0);
   await expect(listings.getByText('Veröffentlichung geplant', { exact: true })).toBeVisible();
+  await expect(listings.locator('[data-listing-state="outcome_unknown"]')).toHaveCount(0);
   Object.assign(state.jobs[0], { state: 'claimed', version: 2 });
   await expect(listings.locator('[data-listing-state="claimed"]')).toBeVisible({
     timeout: 15_000,
@@ -887,6 +888,13 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
   await expect(
     listings.locator('[data-listing-state="claimed"] app-loading-indicator'),
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      listings
+        .locator('[data-listing-state="claimed"]')
+        .evaluate((row) => row.getBoundingClientRect().height),
+    )
+    .toBeLessThan(80);
   Object.assign(state.jobs[0], {
     state: 'confirmed',
     version: 3,
@@ -894,39 +902,28 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
     providerState: 'active',
     verifiedAt: '2026-10-10T00:00:00Z',
   });
-  await expect(listings.getByText('Anzeige veröffentlicht', { exact: true })).toBeVisible({
+  const toasts = page.locator('app-toast-container');
+  await expect(toasts).toContainText('Veröffentlicht', {
     timeout: 15_000,
   });
-  await expect(
-    listings
-      .getByRole('listitem')
-      .filter({ has: page.getByText('Anzeige veröffentlicht', { exact: true }) })
-      .locator('app-action-status-indicator svg'),
-  ).toBeVisible();
+  await expect(listings.locator('[data-listing-state="confirmed"]')).toHaveCount(0);
   await expect(
     overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }),
   ).toHaveCount(0);
   await expect(listings.getByRole('link', { name: 'Bei Vinted ansehen' })).toHaveCount(0);
   await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
-  await expect
-    .poll(() =>
-      listings
-        .getByRole('listitem')
-        .filter({ has: page.getByText('Anzeige veröffentlicht', { exact: true }) })
-        .evaluate((row) => row.getBoundingClientRect().height),
-    )
-    .toBeLessThan(80);
   await page.evaluate(axe.source);
   expect(
     await page.evaluate(
       async () =>
         (
           await (window as unknown as { axe: typeof axe }).axe.run(
-            document.querySelector('app-vinted-listing-action-overview') as HTMLElement,
+            document.querySelector('#header-action-overview') as HTMLElement,
           )
         ).violations,
     ),
   ).toEqual([]);
+  await expect(toasts).not.toContainText('Veröffentlicht', { timeout: 6_000 });
   expect(state.jobCancels).toEqual([]);
   expect(state.reschedules).toEqual([]);
   expect(state.uploads()).toBe(0);
@@ -1148,7 +1145,7 @@ for (const width of [1440, 390])
       await expect(dialog).not.toBeVisible();
       await expect.poll(() => state.reschedules.length).toBe(1);
       expect(state.reschedules[0]).toMatchObject({
-        p_job_id: '1',
+        p_job_id: '3',
         p_expected_version: 1,
         p_expected_revision: 1,
         p_scheduled_at: '2026-10-25T00:30:00.000Z',

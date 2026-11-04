@@ -80,6 +80,11 @@ Erfolgsbanner einschließlich bestehender AXE-Prüfungen. Produktionsbau erneut
 erfolgreich. Der erste Browseransatz scheitert vor dem Anwendungsstart an der
 Produktions-CSP gegen lokale Testantworten; die unveränderten Fixtures bestehen
 anschließend in der regulären Entwicklungsvorschau. Keine Sicherheitsregel geändert.
+Im ersten PR-Lauf erwarten zwei bestehende Entwurfs-Browserfälle einen durch neuere
+Versuche überholten geplanten Auftrag. Die Testkennungen bilden nun die beabsichtigte
+Reihenfolge ab; die alte Erfolgszeilen-Erwartung prüft stattdessen den kurz sichtbaren
+Toast. Beide Fälle einschließlich Terminänderung, laufender Zeilenhöhe und AXE lokal
+erfolgreich. Keine zusätzliche Änderung der Anwendungslogik.
 Private Prüfdatenbanken und Hilfscontainer entfernt; Diagnoseprotokolle und Reparatursicherung außerhalb des
 Repositories. Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen Prüfungen
 ausdrücklich freigegeben; ausgewählte CI-Prüfungen und Veröffentlichung stehen noch
