@@ -459,8 +459,8 @@
         return { ...absent, state: 'invalid' };
       const scope = root || document;
       const inputs = [...scope.querySelectorAll('#' + field)];
-      const buttons = [...scope.querySelectorAll('[data-testid="' + testIds[field] + '"]')];
-      const elements = [...new Set([...inputs, ...buttons])];
+      const taggedControls = [...scope.querySelectorAll('[data-testid="' + testIds[field] + '"]')];
+      const elements = [...new Set([...inputs, ...taggedControls])];
       if (elements.length === 0) return absent;
       if (elements.length !== 1) return { ...absent, state: 'multiple' };
       const element = elements[0];
@@ -468,8 +468,7 @@
         inputs.includes(element) &&
         element instanceof HTMLInputElement &&
         ['text', 'search'].includes(element.type) &&
-        (!element.name || element.name === field) &&
-        !buttons.includes(element)
+        (!element.name || element.name === field)
       )
         return {
           state: 'ready',
@@ -481,7 +480,7 @@
         };
       if (
         !root ||
-        !buttons.includes(element) ||
+        !taggedControls.includes(element) ||
         !(element instanceof HTMLButtonElement) ||
         element.type !== 'button' ||
         !element.id ||
