@@ -12,7 +12,10 @@ import {
   openVintedListingChoices,
   closeVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
-import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
+import {
+  vintedListingFormSelector,
+  validateVintedListingSubmission,
+} from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
 import {
@@ -242,13 +245,15 @@ export async function prepareVintedListingFields(
   content = resolveFlipbaseVintedListingContent(content, schema);
   if (validateVintedListingSubmission(content, photos, schema).length > 0) throw invalid();
   await check();
-  await page.locator('#content input[name="title"]').fill(content.title);
+  await page.locator(vintedListingFormSelector + ' input[name="title"]').fill(content.title);
   await check();
-  await page.locator('#content textarea[name="description"]').fill(content.description);
+  await page
+    .locator(vintedListingFormSelector + ' textarea[name="description"]')
+    .fill(content.description);
   await check();
   const price = content.priceCents!;
   await page
-    .locator('#content input[name="price"]')
+    .locator(vintedListingFormSelector + ' input[name="price"]')
     .fill(Math.floor(price / 100) + ',' + String(price % 100).padStart(2, '0'));
   for (const field of schema.fields) {
     reportPreparationStep(field.field);
@@ -266,10 +271,15 @@ export async function prepareVintedListingFields(
   if (
     validateVintedListingSubmission(content, photos, final).length > 0 ||
     final.fields.some((field) => !selectedMatches(field, wanted(content, field.field))) ||
-    (await page.locator('#content input[name="title"]').inputValue()) !== content.title ||
-    (await page.locator('#content textarea[name="description"]').inputValue()) !==
-      content.description ||
-    !priceMatches(await page.locator('#content input[name="price"]').inputValue(), price)
+    (await page.locator(vintedListingFormSelector + ' input[name="title"]').inputValue()) !==
+      content.title ||
+    (await page
+      .locator(vintedListingFormSelector + ' textarea[name="description"]')
+      .inputValue()) !== content.description ||
+    !priceMatches(
+      await page.locator(vintedListingFormSelector + ' input[name="price"]').inputValue(),
+      price,
+    )
   )
     throw invalid();
   await check();

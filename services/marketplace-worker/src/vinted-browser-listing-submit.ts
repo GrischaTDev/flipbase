@@ -26,6 +26,7 @@ import {
   type VintedListingReadStep,
 } from './vinted-listing-read-error.ts';
 import {
+  vintedListingFormSelector,
   collectVintedListingFormValues,
   collectVintedListingFormMetadata,
   collectVintedListingPhotoState,
@@ -73,7 +74,7 @@ export async function submitVintedListing(
     });
     step = 'form';
     await page
-      .locator('#content input[name="title"]')
+      .locator(vintedListingFormSelector + ' input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     // Vorbereitung und Fotoupload prüfen das Konto selbst; Freigabe und exakte URL bleiben hier.
     const authorizeNewForm = async () => {
@@ -120,7 +121,7 @@ export async function submitVintedListing(
     step = 'metadata';
     const initial = await page.evaluate(collectVintedListingFormMetadata);
     const uniquePhotoOptions = await page.evaluate(() => {
-      const roots = document.querySelectorAll('#content');
+      const roots = document.querySelectorAll(':is(#content, main:not(:has(#content)))');
       return (
         roots.length === 1 &&
         ['ai_photo', 'bump'].every(
@@ -145,7 +146,7 @@ export async function submitVintedListing(
     );
     await check();
     step = 'metadata';
-    const aiPhoto = page.locator('#content input#ai_photo[type="checkbox"]');
+    const aiPhoto = page.locator(vintedListingFormSelector + ' input#ai_photo[type="checkbox"]');
     const aiPhotoCount = await aiPhoto.count();
     if (aiPhotoCount === 1) {
       await aiPhoto.setChecked(snapshot.aiPhoto, { timeout: 5000 });
@@ -176,7 +177,9 @@ export async function submitVintedListing(
       )
     )
       return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
-    const button = page.locator('#content [data-testid="upload-form-save-button"]');
+    const button = page.locator(
+      vintedListingFormSelector + ' [data-testid="upload-form-save-button"]',
+    );
     if ((await button.count()) !== 1 || !(await button.isVisible()) || !(await button.isEnabled()))
       return { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' };
     await check();

@@ -20,6 +20,7 @@ import { ImageCropperModalComponent } from '../../../../shared/components/image-
 import { ProductMediaEditorComponent } from '../../../../shared/components/product-media-editor/product-media-editor.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { ProductGalleryComponent } from '../../../../shared/components/product-gallery/product-gallery.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -470,7 +471,10 @@ describe('Reaktive Inseratdetails', () => {
     });
     expect(component.editing()).toBe(false);
     expect(component.entry()).toMatchObject({ title: 'Neue Schuhe', price: 18, brand: 'Jako' });
-    expect(component.notice()).toContain('bestätigt');
+    expect(component.notice()).toBeNull();
+    expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+      { type: 'success', title: 'Inserat erfolgreich geändert' },
+    ]);
   });
   it('behält bei unlesbarer vollständiger Maske die bisherige Bearbeitung von Titel, Beschreibung und Preis', async () => {
     const { component, store } = setup([entry('a', 'Alt')]);
@@ -504,6 +508,7 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.form.controls.title.value).toBe('Neue Schuhe');
     expect(component.error()).toContain('inzwischen');
     expect(component.notice()).toBeNull();
+    expect(TestBed.inject(ToastService).toasts()).toEqual([]);
     expect(component.entry()?.title).toBe('a');
   });
   it('reopenedLoadedEntryUsesConfirmedSessionDescriptionWithoutAnotherProviderRead', async () => {

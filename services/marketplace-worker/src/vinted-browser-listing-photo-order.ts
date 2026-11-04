@@ -1,6 +1,9 @@
 import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
-import { collectVintedListingPhotoState } from './vinted-listing-contracts.ts';
+import {
+  vintedListingFormSelector,
+  collectVintedListingPhotoState,
+} from './vinted-listing-contracts.ts';
 
 /**
  * Gewünschte Fotos eines bestehenden Inserats: `base` ist der Stand, auf dem die Änderung beruht,
@@ -92,10 +95,10 @@ async function dragPhoto(
   dropAt: number,
 ): Promise<void> {
   const source = await page
-    .locator(`#content [data-testid="image-wrapper-${from}"]`)
+    .locator(`${vintedListingFormSelector} [data-testid="image-wrapper-${from}"]`)
     .boundingBox({ timeout: 5_000 });
   const destination = await page
-    .locator(`#content [data-testid="image-wrapper-${target}"]`)
+    .locator(`${vintedListingFormSelector} [data-testid="image-wrapper-${target}"]`)
     .boundingBox({ timeout: 5_000 });
   if (!source || !destination) throw invalid();
   const start = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
@@ -151,7 +154,7 @@ export async function arrangeVintedListingPhotos(
     if (desired.includes(expected[index]!)) continue;
     await check();
     const remove = page.locator(
-      `#content [data-testid="media-select-grid-delete-button-${index}"]`,
+      `${vintedListingFormSelector} [data-testid="media-select-grid-delete-button-${index}"]`,
     );
     if ((await remove.count()) !== 1 || !(await remove.isEnabled())) throw invalid();
     await remove.click({ timeout: 5_000 });

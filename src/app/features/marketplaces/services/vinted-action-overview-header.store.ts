@@ -3,8 +3,9 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { AppDisplayPreferencesService } from '../../../core/services/app-display-preferences.service';
 import type { AccountScope } from '../models/marketplace.models';
-import type { VintedAction } from '../models/vinted-action-overview';
-import type { VintedListingJob } from '../models/vinted-listing-job';
+import { ToastService } from '../../../shared/components/toast/toast.service';
+import { describeVintedAction, type VintedAction } from '../models/vinted-action-overview';
+import { vintedListingJobLabel, type VintedListingJob } from '../models/vinted-listing-job';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
 import { VintedListingJobService } from './vinted-listing-job.service';
@@ -29,6 +30,7 @@ export class VintedActionOverviewHeaderStore {
   private readonly accounts = inject(MarketplaceApiService);
   private readonly api = inject(VintedActionOverviewApiService);
   private readonly listingApi = inject(VintedListingJobService);
+  private readonly toast = inject(ToastService);
   readonly enabled = this.preferences.actionOverviewEnabled;
   readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
@@ -46,7 +48,6 @@ export class VintedActionOverviewHeaderStore {
   private readonly reading = signal<string | null>(null);
   private activeRead: { context: string; repeat: boolean } | null = null;
   private destroyed = false;
-  private readonly completionTimes = new Map<string, number>();
   /** Weggeklickte Fehlermeldungen; nur eine Ansichtshilfe je Browser, kein Auftragsstatus. */
   private readonly dismissed = signal<ReadonlySet<string>>(readDismissedActions());
   private readonly listingSubscriptions = computed(() => {
@@ -114,7 +115,6 @@ export class VintedActionOverviewHeaderStore {
         this.activeRead = null;
         this.reading.set(null);
         this.snapshot.set(null);
-        this.completionTimes.clear();
         void this.refresh();
       });
     });
@@ -198,11 +198,7 @@ export class VintedActionOverviewHeaderStore {
           previous.find((group) => group.scope.connectionId === account.connectionId)?.actions ??
           [];
         const actions = result.value.actions.filter((action) => {
-          const completionKey = `${account.connectionId}:${action.id}`;
-          if (action.state === 'running') {
-            this.completionTimes.delete(completionKey);
-            return true;
-          }
+          if (action.state === 'running') return true;
           if (action.state === 'failed' || action.state === 'outcome_unknown')
             return recentFailure(action.updatedAt);
           if (
@@ -210,9 +206,8 @@ export class VintedActionOverviewHeaderStore {
             !previousActions.some((previousAction) => previousAction.id === action.id)
           )
             return false;
-          const completedAt = this.completionTimes.get(completionKey) ?? Date.now();
-          this.completionTimes.set(completionKey, completedAt);
-          return Date.now() - completedAt < 60_000;
+          this.toast.success(describeVintedAction(action), account.displayName);
+          return false;
         });
         return actions.length
           ? [
@@ -230,8 +225,8 @@ export class VintedActionOverviewHeaderStore {
       );
       const previousListings =
         this.snapshot()?.context === context ? this.snapshot()!.listings : [];
-      const listings = (
-        listingResult.failed ? previousListings.map((entry) => entry.job) : listingResult.jobs
+      const listings = latestListingAttempts(
+        listingResult.failed ? previousListings.map((entry) => entry.job) : listingResult.jobs,
       )
         .filter((job) => job.connectionId !== null && availableAccounts.has(job.connectionId))
         .filter((job) => {
@@ -239,12 +234,15 @@ export class VintedActionOverviewHeaderStore {
           if (job.state === 'failed' || job.state === 'outcome_unknown')
             return recentFailure(job.updatedAt);
           if (job.state !== 'confirmed') return true;
-          // Erfolge nur kurz zeigen, wenn ihr Übergang in dieser Sitzung beobachtet wurde.
-          const completionKey = `listing:${job.id}`;
+          // Alte Erfolge beim Laden bleiben still; nur beobachtete Abschlüsse melden.
           if (!previousListings.some((entry) => entry.job.id === job.id)) return false;
-          const completedAt = this.completionTimes.get(completionKey) ?? Date.now();
-          this.completionTimes.set(completionKey, completedAt);
-          return Date.now() - completedAt < 60_000;
+          const description = [availableAccounts.get(job.connectionId ?? ''), job.itemTitle]
+            .filter(Boolean)
+            .join(' · ');
+          if (job.providerState === 'processing')
+            this.toast.info(vintedListingJobLabel(job), description);
+          else this.toast.success(vintedListingJobLabel(job), description);
+          return false;
         })
         .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
         .slice(0, 20)
@@ -298,6 +296,26 @@ const failureWindowMs = 7 * 24 * 60 * 60 * 1000;
 
 function recentFailure(updatedAt: string): boolean {
   return Date.now() - Date.parse(updatedAt) < failureWindowMs;
+}
+
+function latestListingAttempts(jobs: readonly VintedListingJob[]): VintedListingJob[] {
+  const latest = new Map<string, VintedListingJob>();
+  // Auch ein späterer Erfolg oder Abbruch ersetzt die alten Fehlversuche des Entwurfs.
+  // updatedAt kann sich nachträglich ändern und bestimmt deshalb nicht die Reihenfolge.
+  for (const job of [...jobs].sort(
+    (left, right) =>
+      Date.parse(right.createdAt) - Date.parse(left.createdAt) ||
+      right.id.localeCompare(left.id, 'en', { numeric: true }),
+  )) {
+    const key = JSON.stringify([
+      job.workspaceId,
+      job.connectionId,
+      job.externalAccountId,
+      job.draftId,
+    ]);
+    if (!latest.has(key)) latest.set(key, job);
+  }
+  return [...latest.values()];
 }
 
 function readDismissedActions(): ReadonlySet<string> {

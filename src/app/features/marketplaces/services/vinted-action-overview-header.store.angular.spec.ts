@@ -18,6 +18,7 @@ import type { VintedListingJob } from '../models/vinted-listing-job';
 import { VintedListingDraftService } from './vinted-listing-draft.service';
 import { VintedListingActionOverviewComponent } from '../components/vinted-listing-action-overview/vinted-listing-action-overview.component';
 import { VintedListingOperationStore } from './vinted-listing-operation.store';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 
 const accounts = createMarketplaceFixtures().connections;
 const action: VintedAction = {
@@ -165,25 +166,31 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     await component.cancel(deleted);
     expect(release).not.toHaveBeenCalled();
   });
-  it('zeigt den beobachteten Abschluss automatisch und zählt ihn nicht weiter als laufend', async () => {
+  it('meldet beobachtete Abschlüsse einmalig als kurze Toasts und entfernt sie aus den Aktionen', async () => {
     vi.useFakeTimers();
     try {
       enabled.set(true);
       const store = TestBed.inject(VintedActionOverviewHeaderStore);
       await settle();
+      const toast = TestBed.inject(ToastService);
+      expect(toast.toasts()).toEqual([]);
       read.mockResolvedValue({ actions: [{ ...action, state: 'succeeded' }] });
       await vi.advanceTimersByTimeAsync(5_000);
       await settle();
       expect(store.count()).toBe(0);
-      expect(
-        store
-          .groups()
-          .flatMap((group) => group.actions)
-          .map((entry) => entry.state),
-      ).toEqual(['succeeded', 'succeeded']);
-      await vi.advanceTimersByTimeAsync(65_000);
+      expect(store.groups()).toEqual([]);
+      expect(toast.toasts().map(({ title }) => title)).toEqual([
+        'Angebot angenommen',
+        'Angebot angenommen',
+      ]);
+      await store.refresh();
+      expect(toast.toasts()).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(4_000);
+      expect(toast.toasts()).toEqual([]);
+      await vi.advanceTimersByTimeAsync(5_000);
       await settle();
       expect(store.groups()).toEqual([]);
+      expect(toast.toasts()).toEqual([]);
     } finally {
       vi.useRealTimers();
     }
@@ -247,7 +254,10 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     ]);
     onChange?.();
     await settle();
-    expect(store.listings()[0].job.state).toBe('confirmed');
+    expect(store.listings()).toEqual([]);
+    expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+      { type: 'success', title: 'Veröffentlicht' },
+    ]);
     expect(store.count()).toBe(2);
     read.mockResolvedValue({ actions: [] });
     readListingJobs.mockResolvedValue([
@@ -323,7 +333,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     expect(store.groups()[0].actions[0].state).toBe('running');
     expect(store.error()).toContain('nicht aktualisiert');
   });
-  it('zeigt den Abschluss noch kurz an und entfernt ausgebaute Konten vollständig', async () => {
+  it('meldet den Abschluss nur für weiterhin verfügbare Konten', async () => {
     enabled.set(true);
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();
@@ -331,10 +341,10 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     read.mockResolvedValueOnce({ actions: [{ ...action, state: 'succeeded' }] });
     await store.refresh();
     expect(store.count()).toBe(0);
-    expect(store.groups().map((group) => group.scope.connectionId)).toEqual([
-      accounts[0].connectionId,
+    expect(store.groups()).toEqual([]);
+    expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+      { type: 'success', title: 'Angebot angenommen', description: accounts[0].displayName },
     ]);
-    expect(store.groups()[0].actions[0].state).toBe('succeeded');
   });
   it('liest ohne Verwaltungsrecht keine Kontodetails', async () => {
     enabled.set(true);
@@ -389,6 +399,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     const failed = {
       ...base,
       id: 'eeee5555-5555-4555-8555-555555555555',
+      draftId: 'failed-draft',
       state: 'outcome_unknown' as const,
       externalId: null,
       providerState: null,
@@ -397,6 +408,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     const oldFailure = {
       ...failed,
       id: 'ffff6666-6666-4666-8666-666666666666',
+      draftId: 'old-draft',
       updatedAt: '2020-01-01T00:00:00Z',
     };
     readListingJobs.mockResolvedValue([base, failed, oldFailure]);
@@ -444,4 +456,57 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       accounts[1].connectionId,
     ]);
   });
+  it.each(['confirmed', 'cancelled', 'failed'] as const)(
+    'zeigt nur den neuesten Versuch je Entwurf, auch wenn dieser %s ist',
+    async (state) => {
+      enabled.set(true);
+      const now = Date.now();
+      const older: VintedListingJob = {
+        id: '9',
+        workspaceId: accounts[0].workspaceId,
+        connectionId: accounts[0].connectionId,
+        externalAccountId: '123',
+        draftId: '11',
+        draftRevision: 1,
+        executionMode: 'cloud',
+        action: 'publish',
+        state: 'failed',
+        version: 3,
+        scheduledAt: null,
+        timeZone: null,
+        latePolicy: 'pause_after_30_minutes',
+        errorCode: 'provider_unavailable',
+        externalId: null,
+        providerState: null,
+        verifiedAt: null,
+        createdAt: new Date(now - 60000).toISOString(),
+        updatedAt: new Date(now).toISOString(),
+        replacesJobId: null,
+      };
+      const latest = {
+        ...older,
+        id: '10',
+        state,
+        updatedAt: new Date(now - 30000).toISOString(),
+      };
+      const otherAccount = {
+        ...older,
+        id: '11',
+        connectionId: accounts[1].connectionId,
+      };
+      // Gleiche Annahmezeit: die numerische Auftragskennung entscheidet, nicht updatedAt.
+      readListingJobs.mockResolvedValue([older, otherAccount, latest]);
+      const store = TestBed.inject(VintedActionOverviewHeaderStore);
+      await settle();
+      expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+      expect(store.listings().map(({ job }) => job.id)).toEqual(
+        state === 'failed' ? [otherAccount.id, latest.id] : [otherAccount.id],
+      );
+      if (state === 'failed') {
+        store.dismiss(vintedListingDismissKey(latest));
+        await store.refresh();
+        expect(store.listings().map(({ job }) => job.id)).toEqual([otherAccount.id]);
+      }
+    },
+  );
 });

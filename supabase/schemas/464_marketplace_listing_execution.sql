@@ -136,8 +136,9 @@ begin
     'imageUrl',v_source.body->'imageUrl','imageUrls',coalesce(v_source.body->'imageUrls','[]'::jsonb),
     'metrics',jsonb_build_object('views',null,'favorites',null,'observedAt',p_job.finished_at)));
   -- Ein späterer Publishbeleg überstimmt den vorher gelesenen Anbieterentwurf.
-  -- Kennzahlen und Fotos bleiben aus der echten neuen Anzeige; die bestätigten Kernwerte gewinnen.
-  if v_target.observed_at<=p_job.verified_at then
+  -- Eine schon aktive Anzeige kann inzwischen manuell geändert worden sein.
+  -- Nur ein älterer Anbieterentwurf erhält die bestätigten Kernwerte des Auftrags.
+  if v_target.observed_at<=p_job.verified_at and v_target.body->>'publicationState'='draft' then
     v_body:=v_body||jsonb_build_object('title',p_job.snapshot->'content'->>'title','text',p_job.snapshot->'content'->>'description','textState','loaded',
       'price',(p_job.snapshot->'content'->>'priceCents')::numeric/100,'currency',p_job.snapshot->'content'->>'currency',
       'brand',p_job.snapshot->'content'->>'brandLabel','size',p_job.snapshot->'content'->>'sizeLabel',

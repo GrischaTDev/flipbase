@@ -1,6 +1,9 @@
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
-import { hasVintedActiveListingEvidence } from './vinted-listing-contracts.ts';
+import {
+  vintedListingFormSelector,
+  hasVintedActiveListingEvidence,
+} from './vinted-listing-contracts.ts';
 import {
   collectVintedListingFormValues,
   collectVintedListingPhotoState,
@@ -48,7 +51,9 @@ export async function verifyVintedListingSavedContent(
   onStep('navigation');
   await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
   onStep('form');
-  await page.locator('#content input[name="title"]').waitFor({ state: 'visible', timeout: 15_000 });
+  await page
+    .locator(vintedListingFormSelector + ' input[name="title"]')
+    .waitFor({ state: 'visible', timeout: 15_000 });
   await check(true);
   const schema = await readVintedListingCategoryFields(
     page,

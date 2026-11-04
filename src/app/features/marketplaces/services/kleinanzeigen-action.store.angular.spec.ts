@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { KleinanzeigenActionStore } from './kleinanzeigen-action.store';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 
 describe('Kleinanzeigen-Fortschritt', () => {
   const auth = { currentUser: signal<{ id: string } | null>({ id: 'owner' }) };
@@ -69,7 +70,8 @@ describe('Kleinanzeigen-Fortschritt', () => {
     store.finish(key, 'success', 'Neu inseriert');
     expect(store.entries()).toEqual([]);
     workspace.currentWorkspace.set({ id: 'workspace', archived_at: null });
-    expect(store.entries()[0].state).toBe('success');
+    expect(store.entries()).toEqual([]);
+    expect(TestBed.inject(ToastService).toasts()).toEqual([]);
     workspace.currentWorkspace.set({ id: 'workspace', archived_at: '2026-11-01' });
     expect(store.entries()).toEqual([]);
   });
@@ -80,11 +82,17 @@ describe('Kleinanzeigen-Fortschritt', () => {
     store.reconcile({ ...reference, connectionId: 'foreign' });
     expect(store.entries()[0].state).toBe('paused');
     store.reconcile(reference);
-    expect(store.entries()[0]).toMatchObject({ state: 'success', message: 'Neu inseriert' });
+    expect(store.entries()).toEqual([]);
+    expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+      { type: 'success', title: 'Neu inseriert', description: 'Sneaker' },
+    ]);
+    store.reconcile(reference);
+    expect(TestBed.inject(ToastService).toasts()).toHaveLength(1);
     const interrupted = store.begin(reference, 'Sneaker', 'Privat');
     store.finish(interrupted, 'error', 'Ansicht gewechselt');
     store.reconcile(reference);
-    expect(store.entries()[0]).toMatchObject({ state: 'success', message: 'Neu inseriert' });
+    expect(store.entries()).toEqual([]);
+    expect(TestBed.inject(ToastService).toasts()).toHaveLength(2);
   });
   it('unterscheidet den Löschfortschritt vom erneuten Inserieren', () => {
     const store = TestBed.inject(KleinanzeigenActionStore);

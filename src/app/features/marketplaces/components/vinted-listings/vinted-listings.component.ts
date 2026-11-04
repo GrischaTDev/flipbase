@@ -298,7 +298,6 @@ export class VintedListingsComponent {
   }
   readonly priceEntry = signal<MarketplaceEntry | null>(null);
   readonly savingPrice = signal(false);
-  readonly priceNotice = signal<string | null>(null);
   private readonly injector = inject(Injector);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
   private readonly priceContext = computed(() => {
@@ -318,7 +317,6 @@ export class VintedListingsComponent {
     entry: () => this.priceEntry(),
     busy: this.savingPrice,
     priceRead: (price) => this.priceEntry.update((entry) => (entry ? { ...entry, price } : entry)),
-    confirmed: () => this.priceNotice.set('Der neue Preis wurde bei Vinted bestätigt.'),
     closed: () => {
       afterNextRender(
         () => {
@@ -377,7 +375,6 @@ export class VintedListingsComponent {
         this.priceEditor.reset();
         this.priceEntry.set(null);
         this.savingPrice.set(false);
-        this.priceNotice.set(null);
       });
     });
     effect(() => {
@@ -429,7 +426,6 @@ export class VintedListingsComponent {
       return;
     this.priceTrigger = event.target instanceof Element ? event.target.closest('button') : null;
     this.priceEntry.set(entry);
-    this.priceNotice.set(null);
     this.priceEditor.show();
   }
   async savePrice(): Promise<void> {

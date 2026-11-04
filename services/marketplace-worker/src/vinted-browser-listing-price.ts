@@ -6,7 +6,10 @@ import {
   type VintedListingEditFields,
 } from './vinted-browser-listing-edit.ts';
 import { parseVintedListingPriceCents } from './vinted-browser-listing-content.ts';
-import { collectVintedListingFormValues } from './vinted-listing-contracts.ts';
+import {
+  vintedListingFormSelector,
+  collectVintedListingFormValues,
+} from './vinted-listing-contracts.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
 import { readVintedListingItem } from './vinted-browser-listing-item.ts';
 import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
@@ -55,7 +58,7 @@ export async function updateVintedListingPrice(
     const target = 'https://www.vinted.de/items/' + itemId + '/edit';
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
     await page
-      .locator('#content input[name="price"]')
+      .locator(vintedListingFormSelector + ' input[name="price"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     const check = async () => {
       await checkAuthorization();
@@ -74,7 +77,7 @@ export async function updateVintedListingPrice(
     if (priceCents === currentPriceCents) return { status: 'confirmed', fields };
     if (currentPriceCents !== expectedPriceCents)
       return { status: 'conflict', priceCents: currentPriceCents };
-    const input = page.locator('#content input[name="price"]');
+    const input = page.locator(vintedListingFormSelector + ' input[name="price"]');
     step = 'text';
     await fillVintedListingPrice(input, price);
     await check();
@@ -91,7 +94,9 @@ export async function updateVintedListingPrice(
       parseVintedListingPriceCents(prepared.price) !== priceCents
     )
       throw new Error('Der neue Preis wurde nicht in das Vinted-Formular übernommen.');
-    const save = page.locator('#content').getByRole('button', { name: 'Speichern', exact: true });
+    const save = page
+      .locator(vintedListingFormSelector)
+      .getByRole('button', { name: 'Speichern', exact: true });
     if ((await save.count()) !== 1 || !(await save.isEnabled()))
       throw new Error('Speichern nicht verfügbar.');
     await check();

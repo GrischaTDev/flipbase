@@ -434,7 +434,7 @@
       color: 'color-select-dropdown-input',
       material: 'category-material-multi-list-input',
     };
-    const roots = document.querySelectorAll('#content');
+    const roots = document.querySelectorAll(':is(#content, main:not(:has(#content)))');
     const root = roots.length === 1 ? roots[0] : null;
     const visible = (element) => {
       if (!element.getClientRects().length || element.closest('[hidden],[aria-hidden="true"]'))
@@ -1009,7 +1009,7 @@
   })();
   // Serialisierbar: ausschließlich das native Fotogitter innerhalb der Inseratmaske.
   function collectPhotoState() {
-    const roots = document.querySelectorAll('#content');
+    const roots = document.querySelectorAll(':is(#content, main:not(:has(#content)))');
     const grids =
       roots.length === 1 ? roots[0].querySelectorAll('[data-testid="media-upload-grid"]') : [];
     if (grids.length !== 1) return { valid: false, items: [] };
@@ -1066,7 +1066,7 @@
     };
   }
   function collectFormValues(options) {
-    const roots = document.querySelectorAll('#content');
+    const roots = document.querySelectorAll(':is(#content, main:not(:has(#content)))');
     if (roots.length !== 1) return null;
     const root = roots[0],
       values = {};

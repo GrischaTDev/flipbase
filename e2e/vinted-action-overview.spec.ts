@@ -233,7 +233,7 @@ test('behält den Entwurf bei Speicherfehler und speichert auf erneuten Klick @m
   await expect(checkbox).toBeChecked();
 });
 
-test('zeigt Abschlüsse automatisch mit grünem Haken und behält das aktivierte Icon @marketplace-preview', async ({
+test('zeigt Abschlüsse einmalig als kurze Toasts und behält das aktivierte Icon @marketplace-preview', async ({
   page,
 }) => {
   const fixture = await mockActionOverview(page);
@@ -245,25 +245,24 @@ test('zeigt Abschlüsse automatisch mit grünem Haken und behält das aktivierte
   await expect(
     overview.getByRole('button', { name: 'Aktionsübersicht aktualisieren' }),
   ).toHaveCount(0);
-  // Laufende und vorher unbestätigte Vorgänge zeigen ihren beobachteten Abschluss kurz an.
-  await expect(overview.locator('[data-action-state="succeeded"]')).toHaveCount(2, {
+  // Nur beobachtete Abschlüsse werden einmalig gemeldet, ohne dauerhafte Erfolgszeilen.
+  const toasts = page.locator('app-toast-container');
+  await expect(toasts).toContainText('Angebot angenommen', {
     timeout: 15_000,
   });
-  await expect(
-    overview.locator('[data-action-state="succeeded"] app-action-status-indicator svg').first(),
-  ).toBeVisible();
+  await expect(overview.locator('[data-action-state="succeeded"]')).toHaveCount(0);
   await expect(overview.locator('[data-action-state="running"]')).toHaveCount(0);
   await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
   await checkAccessibility(page, '#header-action-overview');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  const completedCheck = overview
-    .locator('[data-action-state="succeeded"] app-action-status-indicator svg')
-    .first();
-  await expect(completedCheck).toHaveCSS('animation-name', 'none');
-  await expect(completedCheck).toHaveCSS('stroke-dashoffset', '0px');
+  await expect(toasts).not.toContainText('Angebot angenommen', { timeout: 6_000 });
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
   ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
+  ).toBeVisible();
+  await expect(toasts).not.toContainText('Angebot angenommen');
 });
 
 test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatstatus @marketplace-preview', async ({

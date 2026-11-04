@@ -8,6 +8,7 @@ export async function createVintedListingFormFixture(
     hiddenPackage?: boolean;
     publishing?: boolean;
     savedPrice?: string;
+    savedMain?: boolean;
     active?: boolean;
     noSaveNavigation?: boolean;
     saveRedirect?: 'profile' | 'foreign_profile' | 'other_item';
@@ -81,6 +82,10 @@ export async function createVintedListingFormFixture(
     if (path === '/api/v2/item_upload/items' && route.request().method() === 'POST') {
       saves++;
       savedBody = route.request().postData()!;
+      if (options.savedMain)
+        savedBody = savedBody
+          .replace('<div id="content">', '<main>')
+          .replace('</div><script>', '</main><script>');
       if (options.savedPrice)
         savedBody = savedBody.replace('value="12,00"', 'value="' + options.savedPrice + '"');
       if (options.lostSaveResponse) return route.abort();

@@ -21,6 +21,7 @@ import { parseVintedListingJob } from '../../models/vinted-listing-job';
 import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-plan';
 import { vintedListingSourceContent } from '../../models/vinted-listing-source';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
 afterEach(() => {
@@ -179,7 +180,7 @@ it('schließt den Preisdialog sofort und zeigt einen Fehler in den laufenden Akt
     title: 'Schal',
     message: 'Nicht bestätigt',
   });
-  expect(component.priceNotice()).toBe(null);
+  expect(TestBed.inject(ToastService).toasts()).toEqual([]);
   component.changePrice(entry, new MouseEvent('click'));
   component.priceEditor.control.setValue(25);
   await component.priceEditor.save();
@@ -190,7 +191,10 @@ it('schließt den Preisdialog sofort und zeigt einen Fehler in den laufenden Akt
     2500,
   );
   expect(component.priceEditor.open()).toBe(false);
-  expect(component.priceNotice()).toContain('bestätigt');
+  expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+    { type: 'success', title: 'Preis erfolgreich geändert', description: 'Schal' },
+  ]);
+  expect(component.operations.entries().some((action) => action.state === 'success')).toBe(false);
 });
 
 it('erhält Preisdialog und laufende Speicherung bei einer Hintergrundaktualisierung desselben Kontos', async () => {
@@ -223,7 +227,10 @@ it('erhält Preisdialog und laufende Speicherung bei einer Hintergrundaktualisie
   expect(store.saveListingPrice).toHaveBeenCalledOnce();
   finish();
   await saving;
-  expect(component.priceNotice()).toContain('bestätigt');
+  expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+    { type: 'success', title: 'Preis erfolgreich geändert' },
+  ]);
+  expect(component.operations.entries()).toEqual([]);
 });
 
 it('schließt bei einem Kontowechsel den Preisdialog und verwirft verspätete Antworten', async () => {
@@ -252,7 +259,10 @@ it('schließt bei einem Kontowechsel den Preisdialog und verwirft verspätete An
   await saving;
   expect(component.priceEditor.open()).toBe(false);
   expect(component.priceEntry()).toBe(null);
-  expect(component.priceNotice()).toBe(null);
+  // Der appweite Abschluss bleibt auch beim Wechsel der Artikelansicht sichtbar.
+  expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+    { type: 'success', title: 'Preis erfolgreich geändert' },
+  ]);
 });
 
 async function settlePlans() {
@@ -879,4 +889,11 @@ it('führt eine Löschung nur nach Bestätigung aus und behält ihren Fehler in 
     state: 'error',
     message: 'Nicht bestätigt',
   });
+  const retry = component.deleteListing(entry);
+  confirm.antworte(true);
+  await retry;
+  expect(TestBed.inject(ToastService).toasts()).toMatchObject([
+    { type: 'success', title: 'Inserat erfolgreich gelöscht', description: 'Schal' },
+  ]);
+  expect(component.operations.entries().some((action) => action.state === 'success')).toBe(false);
 });
