@@ -29,6 +29,7 @@ import { WebPushService, WebPushSettings } from '../../../core/services/web-push
 import { WebhookService } from '../../../core/services/webhook.service';
 import { WorkspaceMemberService } from '../../../core/services/workspace-member.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { WorkspaceShopService } from '../../../core/services/workspace-shop.service';
 import { CompanyProfileService } from '../../../core/services/company-profile.service';
 import { CompanyBankAccount } from '../../../core/models/company-store.models';
 import { companyProfileFixture } from '../../../../test-support/company-document.fixture';
@@ -1714,6 +1715,16 @@ async function renderStore(
     providers: [
       provideRouter([]),
       ToastService,
+      {
+        provide: WorkspaceShopService,
+        useValue: {
+          active: signal(true),
+          entitled: signal(true),
+          saving: signal(false),
+          error: signal(null),
+          setEnabled: vi.fn(async () => true),
+        },
+      },
       { provide: WorkspaceService, useValue: { currentWorkspace } },
       { provide: StoreService, useValue: storeService },
       { provide: CompanyProfileService, useValue: company },

@@ -203,7 +203,7 @@ declare
   line_with_history uuid := gen_random_uuid();
   item_with_history uuid := gen_random_uuid();
 begin
-  insert into public.workspaces (id, name) values (workspace_one, 'schema test one'), (workspace_two, 'schema test two');
+  insert into public.workspaces (shop_enabled, id, name) values (true, workspace_one, 'schema test one'), (true, workspace_two, 'schema test two');
   insert into public.purchases (id, workspace_id, type, title) values (purchase_one, workspace_one, 'single', 'test purchase');
   insert into public.catalog_products (id, workspace_id, title, tracking_mode) values
     (product_one, workspace_one, 'test product', 'quantity'),

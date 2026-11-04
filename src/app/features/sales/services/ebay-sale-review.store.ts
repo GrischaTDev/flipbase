@@ -100,6 +100,7 @@ export class EbaySaleReviewStore {
     this.booking.set({ status: 'unrecorded', saleId: null });
   }
   private resolveTarget(target: EbaySaleTarget, title: string): SaleTarget {
+    if ('free' in target) throw new Error('Freie Positionen benötigen keinen Bestandsartikel.');
     if ('inventoryItemId' in target)
       return {
         kind: 'inventory_item',

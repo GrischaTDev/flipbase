@@ -21,7 +21,9 @@
       (clicked)="orderedRequested.emit()"
       >Als bestellt markieren</app-button
     >
-  } @else if (receivingStatus() !== 'received' && !hasOpenPrices()) {
+  } @else if (
+    inventoryEnabled() && !freeOnly() && receivingStatus() !== 'received' && !hasOpenPrices()
+  ) {
     <app-button
       size="slim"
       variant="primary"
@@ -31,7 +33,13 @@
       >Wareneingang erfassen</app-button
     >
   }
-  @if (receivingStatus() === 'received' && contentStatus() === 'unknown' && !hasOpenPrices()) {
+  @if (
+    inventoryEnabled() &&
+    !freeOnly() &&
+    receivingStatus() === 'received' &&
+    contentStatus() === 'unknown' &&
+    !hasOpenPrices()
+  ) {
     <app-button
       size="slim"
       variant="primary"
@@ -41,7 +49,11 @@
       >Inhalt erfassen</app-button
     >
   }
-  @if (contentStatus() === 'known' && receivingStatus() === 'received' && !hasOpenPrices()) {
+  @if (
+    (freeOnly() ||
+      (inventoryEnabled() && contentStatus() === 'known' && receivingStatus() === 'received')) &&
+    !hasOpenPrices()
+  ) {
     <app-button
       size="slim"
       variant="primary"

@@ -22,7 +22,10 @@
       helpText="Beschreibe kurz und verständlich, was berichtigt wird."
     />
 
-    @if (purchase().type === 'mystery_pack') {
+    @if (
+      (purchase().pricing_mode ?? (purchase().type === 'mystery_pack' ? 'total' : 'individual')) ===
+      'total'
+    ) {
       <div>
         <label
           for="correctedPurchasePrice"

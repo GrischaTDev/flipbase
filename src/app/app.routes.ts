@@ -1,4 +1,5 @@
 import { inject } from '@angular/core';
+import { workspaceShopGuard } from './core/guards/workspace-shop.guard';
 import { Router, Routes } from '@angular/router';
 import { unsavedEntryGuard } from './shared/guards/unsaved-entry.guard';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
@@ -202,6 +203,7 @@ export const routes: Routes = [
       },
       {
         path: 'inventory/:id',
+        canActivate: [workspaceShopGuard],
         loadComponent: () =>
           import('./features/inventory/pages/item-detail/item-detail.component').then(
             (m) => m.ItemDetailComponent,
@@ -210,11 +212,13 @@ export const routes: Routes = [
       { path: 'inventory', pathMatch: 'full', redirectTo: '/catalog?view=stock' },
       {
         path: 'catalog',
+        canActivate: [workspaceShopGuard],
         loadComponent: () =>
           import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
       },
       {
         path: 'catalog/new',
+        canActivate: [workspaceShopGuard],
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/catalog/pages/product-detail/product-detail.component').then(
@@ -228,6 +232,7 @@ export const routes: Routes = [
       },
       {
         path: 'catalog/:id',
+        canActivate: [workspaceShopGuard],
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/catalog/pages/product-detail/product-detail.component').then(

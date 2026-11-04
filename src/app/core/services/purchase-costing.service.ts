@@ -30,6 +30,7 @@ type PurchaseItemCondition =
   'new' | 'like_new' | 'very_good' | 'used' | 'heavily_used' | 'defective';
 
 export interface CorrectPurchaseLineInput {
+  readonly position_kind?: 'stock' | 'free';
   readonly is_package?: boolean;
   readonly id: string;
   readonly catalog_product_id: string | null;

@@ -45,7 +45,12 @@ import { EbayListingPerformanceComponent } from '../ebay-listing-performance/eba
 
 describe('Persönliche eBay-Oberfläche', () => {
   let resetBindings: (() => void) | undefined;
-  const workspace = signal<{ id: string; archived_at: null } | null>({
+  const workspace = signal<{
+    id: string;
+    archived_at: null;
+    shop_enabled?: boolean;
+    shop_entitled?: boolean;
+  } | null>({
     id: 'workspace-a',
     archived_at: null,
   });
@@ -878,6 +883,21 @@ describe('Persönliche eBay-Oberfläche', () => {
         '[aria-label="Mit Bestand verknüpfen: Eigene Auktion"]',
       ),
     ).not.toBeNull();
+  });
+  it('erhält eBay-Inserate ohne Einstieg in die Bestandszuordnung bei ausgeschaltetem Shop', async () => {
+    workspace.set({
+      id: 'workspace-a',
+      archived_at: null,
+      shop_enabled: false,
+      shop_entitled: true,
+    });
+    api.loadStatus.mockResolvedValueOnce({ configured: true, importAvailable: true, connection });
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Eigene Auktion');
+    expect(
+      element.querySelector('[aria-label="Mit Bestand verknüpfen: Eigene Auktion"]'),
+    ).toBeNull();
   });
   it('bietet während fehlender Serverkonfiguration keinen scheinbaren Login an', async () => {
     api.loadStatus.mockResolvedValueOnce({ configured: false, connection: null });

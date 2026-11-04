@@ -6,8 +6,8 @@ select no_plan();
 insert into auth.users(id,aud,role,email) values
  ('a4710000-0000-4000-8000-000000000001','authenticated','authenticated','stock-reversal@example.test'),
  ('a4710000-0000-4000-8000-000000000002','authenticated','authenticated','stock-reversal-other@example.test');
-insert into public.workspaces(id,name,tax_mode) values
- ('a4710000-0000-4000-8000-000000000010','Gegenbuchung','kleinunternehmer_19');
+insert into public.workspaces(shop_enabled, id,name,tax_mode) values
+ (true, 'a4710000-0000-4000-8000-000000000010','Gegenbuchung','kleinunternehmer_19');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('a4710000-0000-4000-8000-000000000010','a4710000-0000-4000-8000-000000000001','owner');
 select set_config('request.jwt.claim.sub','a4710000-0000-4000-8000-000000000001',true);

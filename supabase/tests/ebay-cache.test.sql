@@ -7,7 +7,7 @@ select has_table('public','ebay_cached_listings','Dauerhafte Inserate');
 select has_table('public','ebay_cache_scans','Abgleich unabhängig von Push');
 create function pg_temp.ident(p_kind integer) returns uuid language sql immutable as $$select ('47400000-0000-4000-8000-'||lpad(p_kind::text,12,'0'))::uuid;$$;
 insert into auth.users(id,email) values(pg_temp.ident(1),'cache-owner@example.test'),(pg_temp.ident(2),'cache-other@example.test');
-insert into public.workspaces(id,name) values(pg_temp.ident(3),'Cache');
+insert into public.workspaces(shop_enabled, id,name) values(true, pg_temp.ident(3),'Cache');
 insert into public.workspace_members(workspace_id,user_id,role) values(pg_temp.ident(3),pg_temp.ident(1),'owner'),(pg_temp.ident(3),pg_temp.ident(2),'admin');
 insert into public.ebay_connections(id,workspace_id,user_id,environment,status,external_account_id,authorization_version) values(pg_temp.ident(4),pg_temp.ident(3),pg_temp.ident(1),'production','connected','cache-seller',1);
 insert into public.ebay_credentials(id,encrypted_tokens) values(pg_temp.ident(4),'fixture');

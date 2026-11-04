@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Einfache Einkäufe und schaltbare Bestandsführung
+
+**Auftrag:** Schritte 2 und 3 auf dem freien Verkaufsablauf aufbauen: freie
+Einkäufe, optionaler Einkaufsbezug und Shop-Aktivierung. Freie Erfassung bleibt
+auch mit aktivem Shop verfügbar; historische Daten und Abwicklung bleiben erhalten.
+
+**Umsetzung:** Ausdrückliche Erfassungsart je Einkaufsposition, finanzieller
+Abschluss ohne Lageranlage, direkte Herkunft freier Verkaufspositionen ohne
+geschätzten Wareneinsatz. Getrennte Shop-Freigabe und Aktivierung mit Version,
+Journal und serverseitigen Grenzen. Alte Retouren und Kostenkorrekturen behalten
+einen begrenzten, gegen direkte Aufrufe geschützten Abwicklungsweg.
+
+**Prüfung:** `npm run preflight:plan` und `npm run preflight` mit Node 22
+sind erfolgreich: Format, Lint, Typen, Suite-Audit, 179 Skriptprüfungen,
+8 Orchestratorprüfungen, 4.070 Anwendungstests und Angular-Bau. Die endgültige
+Migration wurde mit Seed neu eingespielt; 143 SQL-Suiten mit 5.374 TAP-Prüfungen
+bestehen. Alle 34 betroffenen Funktionskörper entsprechen dem Schemaquelltext.
+15 Edge-Tests und 25 betroffene Browserfälle sind geprüft; die letzten neun Fälle
+nach der eBay-/Zuordnungsanpassung erneut. Enthalten sind drei Breiten,
+Hell/Dunkel, Touch und AXE sowie historische Kostenkorrektur und anschließende
+Retoure bei pausiertem Shop. Bekannte nicht blockierende Bauwarnungen bleiben.
+Ausgewählte CI-Freigabeprüfungen stehen vor dem Merge noch aus.
+
+**Arbeitsstand:** Noch nicht veröffentlichter gemeinsamer Aufgabenbranch mit
+integriertem `origin/master`. Fremde Erweiterungsarbeit und Nutzerdaten bleiben
+unangetastet; Prüfung ausschließlich in der eigenen Arbeitskopie und isolierten
+lokalen Datenbank mit synthetischen Daten. Verhalten, Migration und Grenzen im
+[Umsetzungsbericht](implementation/2026-11-04-optional-shop.md).
+
 ## 2026-11-04 - Juna - Freie Verkäufe mit Belegen, Erstattungen und Korrekturen
 
 **Auftrag:** Ersten Schritt der Entkopplung von Handel und Bestand umsetzen;

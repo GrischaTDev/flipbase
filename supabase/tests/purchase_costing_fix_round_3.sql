@@ -12,8 +12,8 @@ insert into auth.users (
   'costing-fix-round-3@example.test', 'unused', '{}'::jsonb, '{}'::jsonb, now(), now()
 );
 
-insert into public.workspaces (id, name) values
-  ('95000000-0000-4000-8000-000000000011', 'Kostenkorrektur Fixrunde 3');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '95000000-0000-4000-8000-000000000011', 'Kostenkorrektur Fixrunde 3');
 
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('95000000-0000-4000-8000-000000000011', '95000000-0000-4000-8000-000000000001', 'owner');

@@ -10,6 +10,9 @@ export interface UserProfile {
 export type TaxMode = 'diff_25a' | 'kleinunternehmer_19' | 'regular_19';
 
 export interface Workspace {
+  shop_enabled?: boolean;
+  shop_entitled?: boolean;
+  shop_version?: number;
   id: string;
   name: string;
   currency?: string;
@@ -517,6 +520,7 @@ export interface CatalogProductMedia {
 }
 
 export interface PurchaseLine {
+  position_kind?: 'stock' | 'free';
   is_package?: boolean;
   id: string;
   workspace_id: string;
@@ -574,6 +578,7 @@ export interface TaxCostAllocation {
 }
 
 export interface SaleLine {
+  purchase_id?: string | null;
   position_kind?: 'stock' | 'free';
   inventory_item?: InventoryItem;
   lot_allocations?: SaleLineLotAllocation[];

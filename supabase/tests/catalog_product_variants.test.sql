@@ -13,9 +13,9 @@ select ok(
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 values ('bf140000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'variants@example.test', '{}', '{}');
-insert into public.workspaces (id, name) values
-  ('bf140000-0000-4000-8000-000000000011', 'Varianten A'),
-  ('bf140000-0000-4000-8000-000000000012', 'Varianten B');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, 'bf140000-0000-4000-8000-000000000011', 'Varianten A'),
+  (true, 'bf140000-0000-4000-8000-000000000012', 'Varianten B');
 insert into public.workspace_members (workspace_id, user_id, role)
 values ('bf140000-0000-4000-8000-000000000011', 'bf140000-0000-4000-8000-000000000001', 'owner');
 insert into public.catalog_products (id, workspace_id, title, size, color, material) values

@@ -1,10 +1,11 @@
 import '@angular/compiler';
-import { Component, ɵresolveComponentResources } from '@angular/core';
+import { Component, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { BottomNavComponent } from './bottom-nav.component';
+import { WorkspaceShopService } from '../../core/services/workspace-shop.service';
 
 class TestPageComponent {}
 Component({ selector: 'app-test-page', template: '' })(TestPageComponent);
@@ -17,7 +18,10 @@ describe('Mobile Vinted-Navigation', () => {
   it('zeigt eBay-Schnellziele und markiert den Editor unter Inseraten', async () => {
     TestBed.configureTestingModule({
       imports: [BottomNavComponent],
-      providers: [provideRouter([{ path: '**', component: TestPageComponent }])],
+      providers: [
+        provideRouter([{ path: '**', component: TestPageComponent }]),
+        { provide: WorkspaceShopService, useValue: { active: signal(true) } },
+      ],
     });
     const fixture = TestBed.createComponent(BottomNavComponent);
     const router = TestBed.inject(Router);
@@ -58,7 +62,10 @@ describe('Mobile Vinted-Navigation', () => {
   it('wechselt zwischen Vinted und Flipbase und markiert auch Inseratdetails', async () => {
     TestBed.configureTestingModule({
       imports: [BottomNavComponent],
-      providers: [provideRouter([{ path: '**', component: TestPageComponent }])],
+      providers: [
+        provideRouter([{ path: '**', component: TestPageComponent }]),
+        { provide: WorkspaceShopService, useValue: { active: signal(true) } },
+      ],
     });
     const fixture = TestBed.createComponent(BottomNavComponent);
     const router = TestBed.inject(Router);

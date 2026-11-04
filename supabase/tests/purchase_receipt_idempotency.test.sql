@@ -13,9 +13,9 @@ select ok(not has_table_privilege('anon','public.purchase_receipt_requests','sel
 
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data)
 values ('ba100000-0000-4000-8000-000000000001','authenticated','authenticated','receipt-contract@example.test','{}','{}');
-insert into public.workspaces(id,name) values
-('ba100000-0000-4000-8000-000000000011','Wareneingang'),
-('ba100000-0000-4000-8000-000000000012','Fremder Wareneingang');
+insert into public.workspaces(shop_enabled, id,name) values
+(true, 'ba100000-0000-4000-8000-000000000011','Wareneingang'),
+(true, 'ba100000-0000-4000-8000-000000000012','Fremder Wareneingang');
 insert into public.workspace_members(workspace_id,user_id,role)
 values ('ba100000-0000-4000-8000-000000000011','ba100000-0000-4000-8000-000000000001','owner');
 insert into public.catalog_products(id,workspace_id,title)

@@ -77,6 +77,16 @@ async function sessionHarness(
       workspaceTokens.set(id, accessToken);
       return reply(response, 200, id);
     }
+    if (url.pathname === '/rest/v1/rpc/set_workspace_shop_enabled') {
+      if (workspaceTokens.get(body.p_workspace_id) !== accessToken)
+        return reply(response, 403, { message: 'Fremde Workspace-Sitzung.' });
+      return reply(response, 200, {
+        workspace_id: body.p_workspace_id,
+        shop_enabled: body.p_enabled,
+        shop_entitled: true,
+        shop_version: 1,
+      });
+    }
     if (url.pathname === '/rest/v1/suppliers') return reply(response, 201, null);
     if (url.pathname.startsWith('/fixture/workspace/'))
       return reply(response, 200, {

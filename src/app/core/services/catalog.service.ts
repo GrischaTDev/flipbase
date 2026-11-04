@@ -1,3 +1,4 @@
+import { isWorkspaceShopActive } from '../models/workspace-shop.models';
 import { Injectable, inject, signal } from '@angular/core';
 import {
   CatalogProduct,
@@ -118,6 +119,13 @@ export class CatalogService {
   async loadProducts(workspaceId: string): Promise<void> {
     const requestId = ++this.loadRequestId;
     this.requestedWorkspaceId = workspaceId;
+    if (!isWorkspaceShopActive(this.workspace.currentWorkspace())) {
+      this.products.set([]);
+      this.loadedWorkspaceId.set(null);
+      this.isLoading.set(false);
+      this.loadError.set(null);
+      return;
+    }
     if (this.loadedWorkspaceId() !== workspaceId) {
       this.products.set([]);
       this.loadedWorkspaceId.set(null);
@@ -130,7 +138,11 @@ export class CatalogService {
         .select('*, catalog_product_media(storage_path, is_primary, sort_order, created_at, id)')
         .eq('workspace_id', workspaceId)
         .order('title', { ascending: true });
-      if (requestId !== this.loadRequestId) return;
+      if (
+        requestId !== this.loadRequestId ||
+        !isWorkspaceShopActive(this.workspace.currentWorkspace())
+      )
+        return;
       if (error) {
         this.loadError.set(this.syncStatus.melde('Laden der Artikelstammdaten', error));
         return;

@@ -1028,6 +1028,18 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.querySelector('[table-filter-panel]')).toBeNull();
   });
 
+  it('zeigt einen frei abgeschlossenen Einkauf ohne Wareneingang nicht als Entwurf', () => {
+    purchaseState.set([{ ...purchases[0], entry_status: 'finalized', receiving_status: 'draft' }]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    expect(component.purchaseRows()[0].purchaseStatus).toBe('Abgeschlossen');
+    component.activeStatus.set('draft');
+    expect(component.filteredPurchases()).toEqual([]);
+    component.activeStatus.set('all');
+    expect(component.filteredPurchases()).toHaveLength(1);
+  });
+
   it('zeigt den Filterhinweis für Status und Suche, aber nicht für reine Tabellenanpassungen', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();

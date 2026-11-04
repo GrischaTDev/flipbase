@@ -778,6 +778,71 @@ describe('SaleCreateModalComponent', () => {
     }
   });
 
+  it('unterscheidet zuordenbare Einkäufe mit Belegnummer und Beschreibung und schließt Entwürfe sowie fremde Einkäufe aus', () => {
+    const rows = signal([
+      {
+        id: 'p1',
+        workspace_id: 'workspace-1',
+        entry_status: 'finalized',
+        record_number: 'B-01',
+        title: 'Einkauf',
+        notes: 'Kleidungspaket',
+      },
+      {
+        id: 'p2',
+        workspace_id: 'workspace-1',
+        entry_status: 'finalized',
+        record_number: 'B-02',
+        title: 'Einkauf',
+        notes: 'Kleidungspaket',
+      },
+      {
+        id: 'draft',
+        workspace_id: 'workspace-1',
+        entry_status: 'draft',
+        record_number: 'B-03',
+        title: 'Entwurf',
+      },
+      {
+        id: 'foreign',
+        workspace_id: 'workspace-2',
+        entry_status: 'finalized',
+        record_number: 'B-04',
+        title: 'Fremd',
+      },
+    ]);
+    TestBed.configureTestingModule({
+      providers: [
+        ...saleSourceProviders(),
+        {
+          provide: PurchaseService,
+          useValue: {
+            purchases: rows,
+            loadedWorkspaceId: signal('workspace-1'),
+            isLoading: signal(false),
+            loadError: signal(null),
+            loadPurchases: vi.fn(),
+          },
+        },
+        { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+        { provide: InventoryService, useValue: { items: signal([]) } },
+        { provide: StockService, useValue: { positions: signal([]) } },
+        { provide: ToastService, useValue: new ToastService() },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+      ],
+    });
+    try {
+      const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+      expect(component.purchaseOptions()).toEqual([
+        { value: '', label: 'Nicht zugeordnet' },
+        { value: 'p1', label: 'B-01 · Kleidungspaket' },
+        { value: 'p2', label: 'B-02 · Kleidungspaket' },
+      ]);
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
   describe('Historische Verkaufskorrektur', () => {
     interface AngularInputMetadata {
       inputs: Record<string, unknown>;

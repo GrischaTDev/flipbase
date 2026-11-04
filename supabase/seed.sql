@@ -34,6 +34,8 @@ begin
   from public.workspace_members as member
   where member.user_id = v_user_id
   limit 1;
+  -- Die Beispieldaten bilden ausdrücklich den bestehenden Lagerablauf ab.
+  update public.workspaces set shop_enabled=true where id=v_workspace_id;
 
   -- Die Geschäftsfunktionen prüfen die Anmeldung über auth.uid().
   perform set_config(

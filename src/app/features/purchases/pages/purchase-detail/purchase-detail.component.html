@@ -31,7 +31,7 @@
             >Änderungen speichern</app-button
           >
         } @else {
-          @if (p.receiving_status !== 'draft') {
+          @if (p.receiving_status !== 'draft' || p.entry_status === 'finalized') {
             <app-button
               data-purchase-print-link
               [link]="'/purchases/' + p.id + '/print'"
@@ -43,6 +43,8 @@
             </app-button>
           }
           <app-purchase-lifecycle-actions
+            [freeOnly]="isFreePurchase(p)"
+            [inventoryEnabled]="inventoryEnabled()"
             [entryStatus]="p.entry_status ?? 'draft'"
             [receivingStatus]="p.receiving_status ?? 'draft'"
             [shipmentStatus]="p.shipment_status ?? 'not_shipped'"

@@ -53,7 +53,13 @@ export function summarizePurchaseProfitability(
   context: PurchasePresentationContext,
   totalCost: number | null,
 ): PurchaseProfitability {
-  const states = [context.salesState, context.inventoryState, context.stockState];
+  const freeOnly =
+    purchase.purchase_lines?.length &&
+    purchase.purchase_lines.every((line) => line.position_kind === 'free');
+  const states =
+    freeOnly || context.inventoryEnabled === false
+      ? [context.salesState]
+      : [context.salesState, context.inventoryState, context.stockState];
   if (states.includes('error')) return unavailable('error');
   if (states.includes('loading')) return unavailable('loading');
 
@@ -190,6 +196,8 @@ function purchaseQuantities(
   items: ReadonlyMap<string, InventoryItem>,
   lots: ReadonlyMap<string, StockLot>,
 ): Map<string, number> {
+  if (line.position_kind === 'free')
+    return new Map([[line.purchase_id ?? unknownPurchase, line.quantity]]);
   if (line.inventory_item_id) {
     const item =
       line.inventory_item ??

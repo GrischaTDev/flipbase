@@ -1,3 +1,4 @@
+import { isWorkspaceShopActive } from '../models/workspace-shop.models';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
@@ -220,6 +221,13 @@ export class InventoryService {
     // schützt zusätzlich schon den Start eines veralteten Requests.
     if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
     const requestId = ++this.loadRequestId;
+    if (!isWorkspaceShopActive(this.workspaceService.currentWorkspace())) {
+      this.items.set([]);
+      this.loadedWorkspaceId.set(null);
+      this.isLoading.set(false);
+      this.loadError.set(null);
+      return;
+    }
     this.isLoading.set(true);
     this.loadError.set(null);
     if (!retainExisting || this.loadedWorkspaceId() !== workspaceId) {
@@ -280,6 +288,7 @@ export class InventoryService {
   private isCurrentLoad(requestId: number, workspaceId: string): boolean {
     return (
       requestId === this.loadRequestId &&
+      isWorkspaceShopActive(this.workspaceService.currentWorkspace()) &&
       this.workspaceService.currentWorkspace()?.id === workspaceId
     );
   }

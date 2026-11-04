@@ -71,17 +71,20 @@ export function parseEbayVariationAspects(
 function target(value: unknown): EbaySaleTarget {
   const row = record(value);
   if (Object.keys(row).length !== 1) return invalid();
+  if (row['free'] === true) return { free: true };
   if ('inventoryItemId' in row) return { inventoryItemId: uuid(row['inventoryItemId']) };
   if ('catalogProductId' in row) return { catalogProductId: uuid(row['catalogProductId']) };
   return invalid();
 }
 export function parseEbayArticleMapping(value: unknown): EbayArticleMapping {
   const row = record(value);
+  const mappedTarget = target(row['target']);
+  if ('free' in mappedTarget) return invalid();
   return {
     id: uuid(row['id']),
     listingId: identifier(row['listingId']),
     variationId: row['variationId'] === null ? null : identifier(row['variationId']),
-    target: target(row['target']),
+    target: mappedTarget,
   };
 }
 export function parseEbayOrderBooking(value: unknown): EbayOrderBooking {

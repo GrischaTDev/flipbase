@@ -10,9 +10,9 @@ select ok(not has_table_privilege('authenticated', 'public.sniper_listings', 'de
 
 insert into auth.users (id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values ('84000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'audit-snapshot@example.test', 'unused', '{}', '{}', now(), now());
-insert into public.workspaces (id, name) values
-  ('84000000-0000-4000-8000-000000000002', 'Audit owner'),
-  ('84000000-0000-4000-8000-000000000003', 'Fremder Workspace');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '84000000-0000-4000-8000-000000000002', 'Audit owner'),
+  (true, '84000000-0000-4000-8000-000000000003', 'Fremder Workspace');
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('84000000-0000-4000-8000-000000000002', '84000000-0000-4000-8000-000000000001', 'owner');
 insert into public.inventory_items (id, workspace_id, title, status) values

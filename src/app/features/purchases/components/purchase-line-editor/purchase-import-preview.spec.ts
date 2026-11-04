@@ -140,3 +140,21 @@ describe('previewPurchaseImport', () => {
     expect(rows[1]?.errors).toContain('Zustand ist ungültig.');
   });
 });
+
+it('übernimmt freie CSV-Positionen mit Menge und Preis ohne Artikelzuordnung', () => {
+  const [row] = previewPurchaseImport(
+    'title,quantity,unit_purchase_price\n10 kg Kleidung,2,150',
+    [],
+    'workspace-1',
+    'free',
+  );
+  expect(row).toMatchObject({
+    title: '10 kg Kleidung',
+    quantity: 2,
+    unitPrice: 150,
+    total: 300,
+    productId: null,
+    assignmentError: null,
+    errors: [],
+  });
+});

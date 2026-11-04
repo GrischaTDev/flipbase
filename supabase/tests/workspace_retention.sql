@@ -11,9 +11,9 @@ select ok(not has_function_privilege('service_role','public.archive_workspace(uu
 
 insert into auth.users (id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values ('86000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'retention@example.test', 'unused', '{}', '{}', now(), now());
-insert into public.workspaces (id, name) values
- ('86000000-0000-4000-8000-000000000002', 'Archiv'),
- ('86000000-0000-4000-8000-000000000003', 'Aktiv');
+insert into public.workspaces (shop_enabled, id, name) values
+ (true, '86000000-0000-4000-8000-000000000002', 'Archiv'),
+ (true, '86000000-0000-4000-8000-000000000003', 'Aktiv');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('86000000-0000-4000-8000-000000000002','86000000-0000-4000-8000-000000000001','owner'),
  ('86000000-0000-4000-8000-000000000003','86000000-0000-4000-8000-000000000001','owner');
@@ -201,7 +201,7 @@ select lives_ok($$select public.restore_workspace('86000000-0000-4000-8000-00000
 select lives_ok($$update public.inventory_items set title='Wieder aktiv' where id='86000000-0000-4000-8000-000000000004'$$,'Wiederherstellung erlaubt Änderungen');
 reset role;
 select is((select count(*)::int from public.business_events where workspace_id='86000000-0000-4000-8000-000000000002' and event_type='workspace_restored'),1,'Genau ein Wiederherstellungseintrag');
-insert into public.workspaces(id,name) values ('86000000-0000-4000-8000-000000000020','Leer mit Journal'),('86000000-0000-4000-8000-000000000021','Wirklich leer');
+insert into public.workspaces(shop_enabled, id,name) values (true, '86000000-0000-4000-8000-000000000020','Leer mit Journal'),(true, '86000000-0000-4000-8000-000000000021','Wirklich leer');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('86000000-0000-4000-8000-000000000020','86000000-0000-4000-8000-000000000001','owner'),
  ('86000000-0000-4000-8000-000000000021','86000000-0000-4000-8000-000000000001','owner');
@@ -212,9 +212,9 @@ select public.archive_workspace('86000000-0000-4000-8000-000000000020');
 select public.restore_workspace('86000000-0000-4000-8000-000000000020');
 select throws_ok($$delete from public.workspaces where id='86000000-0000-4000-8000-000000000020'$$,'P0001','Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.','Journal allein verhindert Löschen auch nach Wiederherstellung');
 reset role;
-insert into public.workspaces(id,name) values
- ('86000000-0000-4000-8000-000000000030','Nur eigene Kategorien'),
- ('86000000-0000-4000-8000-000000000040','Nur Ausgaben');
+insert into public.workspaces(shop_enabled, id,name) values
+ (true, '86000000-0000-4000-8000-000000000030','Nur eigene Kategorien'),
+ (true, '86000000-0000-4000-8000-000000000040','Nur Ausgaben');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('86000000-0000-4000-8000-000000000030','86000000-0000-4000-8000-000000000001','owner'),
  ('86000000-0000-4000-8000-000000000040','86000000-0000-4000-8000-000000000001','owner');

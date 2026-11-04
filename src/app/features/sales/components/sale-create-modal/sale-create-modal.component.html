@@ -88,6 +88,7 @@
                             @if (isFreeLine(line)) {
                               <app-text-field
                                 label="Beschreibung"
+                                [disabled]="!!externalDraft()"
                                 [value]="freeTitle(line)"
                                 (valueChange)="setFreeTitle(line, $event)"
                                 [required]="true"
@@ -95,7 +96,18 @@
                                   validationAttempted() && line.controls.target.invalid
                                 "
                               />
-                            } @else if (!legacyReconciliation() && !istBearbeitung()) {
+                              @if (!externalDraft()) {
+                                <app-custom-select
+                                  label="Einkauf"
+                                  ariaLabel="Einkauf zuordnen"
+                                  [options]="purchaseOptions()"
+                                  [value]="purchaseReferences().get(line) || ''"
+                                  (valueChange)="setPurchaseReference(line, $event)"
+                                />
+                              }
+                            } @else if (
+                              !legacyReconciliation() && !istBearbeitung() && shopActive()
+                            ) {
                               <app-button
                                 data-sale-article-label
                                 variant="plain"
@@ -119,6 +131,22 @@
                               <p data-sale-article-label class="break-words font-medium">
                                 {{ articleTitle(line) }}
                               </p>
+                            }
+                            @if (externalDraft() && !isFreeLine(line)) {
+                              <app-button
+                                variant="plain"
+                                [disabled]="isSubmitting()"
+                                (clicked)="setExternalLineFree(line)"
+                                >Ohne Bestand erfassen</app-button
+                              >
+                            }
+                            @if (externalDraft() && isFreeLine(line) && shopActive()) {
+                              <app-button
+                                variant="plain"
+                                [disabled]="isSubmitting()"
+                                (clicked)="openArticlePicker(index)"
+                                >Bestandsartikel wählen</app-button
+                              >
                             }
                             @if (articleVariantLabel(line); as variant) {
                               <p data-sale-article-variant class="mt-1 text-xs text-fb-text-muted">
@@ -241,17 +269,19 @@
             <app-button [disabled]="isSubmitting()" (clicked)="addFreeLine()"
               >Freie Position</app-button
             >
-            <app-button
-              data-add-sale-products
-              class="min-w-0 flex-1"
-              variant="ghost"
-              size="search"
-              [fullWidth]="true"
-              [icon]="searchIcon"
-              [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
-              (clicked)="openArticlePicker()"
-              >Artikel suchen oder hinzufügen</app-button
-            >
+            @if (shopActive()) {
+              <app-button
+                data-add-sale-products
+                class="min-w-0 flex-1"
+                variant="ghost"
+                size="search"
+                [fullWidth]="true"
+                [icon]="searchIcon"
+                [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
+                (clicked)="openArticlePicker()"
+                >Artikel suchen oder hinzufügen</app-button
+              >
+            }
           </div>
         }
       </app-card>

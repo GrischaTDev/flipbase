@@ -57,9 +57,9 @@ insert into public.product_categories (id, parent_id, name, full_name, level, is
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('c5100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'brands-a@example.test', '{}', '{}'),
   ('c5100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'brands-b@example.test', '{}', '{}');
-insert into public.workspaces (id, name) values
-  ('c5100000-0000-4000-8000-000000000011', 'Marken A'),
-  ('c5100000-0000-4000-8000-000000000012', 'Marken B');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, 'c5100000-0000-4000-8000-000000000011', 'Marken A'),
+  (true, 'c5100000-0000-4000-8000-000000000012', 'Marken B');
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('c5100000-0000-4000-8000-000000000011', 'c5100000-0000-4000-8000-000000000001', 'owner'),
   ('c5100000-0000-4000-8000-000000000012', 'c5100000-0000-4000-8000-000000000002', 'owner');
@@ -156,7 +156,7 @@ update public.product_categories set full_name = 'Testbereich > Unterbereich', n
 set constraints all immediate;
 alter table public.inventory_items disable trigger "10_sync_category_brand_text";
 alter table public.catalog_products disable trigger "10_sync_category_brand_text";
-insert into public.workspaces (id, name) values ('c5100000-0000-4000-8000-000000000013', 'Altbestand');
+insert into public.workspaces (shop_enabled, id, name) values (true, 'c5100000-0000-4000-8000-000000000013', 'Altbestand');
 insert into public.workspace_members (workspace_id, user_id, role)
 values ('c5100000-0000-4000-8000-000000000013', 'c5100000-0000-4000-8000-000000000001', 'owner');
 insert into public.inventory_items (id, workspace_id, title, brand, category) values

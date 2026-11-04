@@ -231,6 +231,7 @@ declare
   v_quantity integer; v_cents bigint; v_base bigint; v_remainder integer; v_count integer;
   v_draft public.ebay_sale_drafts; v_total bigint := 0; v_id uuid; v_index integer := 0; v_sale_date date;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   v_connection := public.ebay_lock_import_connection((select auth.uid()),p_workspace_id,p_connection_id);
   select * into v_snapshot from public.ebay_order_snapshots where id = p_snapshot_id and workspace_id = p_workspace_id
     and connection_id = p_connection_id and user_id = (select auth.uid())
@@ -311,7 +312,7 @@ begin
     then raise exception 'Gespeicherten Entwurf bitte erneut prüfen' using errcode='22023'; end if;
     perform public.ebay_release_sale_reservations(v_draft.id);
   end if;
-  v_result := public.record_sale(p_workspace_id,jsonb_build_object('platform','ebay','sale_date',v_sale_date,
+  v_result := public.record_sale(p_workspace_id,jsonb_build_object('booking_key',v_snapshot.id,'platform','ebay','sale_date',v_sale_date,
     'external_order_id',v_source->>'orderId','shipping_revenue',round((v_source->>'shippingRevenueCents')::numeric/100,2),
     'platform_fee',round((p_costs->>'platformFeeCents')::numeric/100,2),'shipping_cost',round((p_costs->>'shippingCostCents')::numeric/100,2),
     'shipping_mode',p_costs->>'shippingMode','cost_entries',v_costs),v_lines);

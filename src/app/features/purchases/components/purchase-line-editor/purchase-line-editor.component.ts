@@ -50,8 +50,11 @@ import { previewPurchaseImport, PurchaseImportPreviewRow } from './purchase-impo
 import { canonicalGtin, normalizeGtin } from '../../../../shared/utils/gtin';
 import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
 import { ProductVariantCreateFormComponent } from '../../../catalog/components/product-variant-create-form/product-variant-create-form.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { isWorkspaceShopActive } from '../../../../core/models/workspace-shop.models';
 
 export interface PurchaseLineDraft {
+  readonly positionKind?: 'stock' | 'free';
   readonly isPackage?: boolean;
   /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
   readonly draftId?: string;
@@ -82,6 +85,7 @@ export function isPricedPurchaseLineDraft(
 }
 
 interface PurchaseLineControls {
+  positionKind: FormControl<'stock' | 'free'>;
   isPackage: FormControl<boolean>;
   draftId: FormControl<string>;
   catalogProductId: FormControl<string | null>;
@@ -115,12 +119,16 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
     NumberInputComponent,
     TextFieldComponent,
     ProductVariantCreateFormComponent,
+    CustomCheckboxComponent,
   ],
   templateUrl: './purchase-line-editor.component.html',
   host: { class: 'block min-w-0' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseLineEditorComponent {
+  shopActive(): boolean {
+    return isWorkspaceShopActive(this.workspaceService.currentWorkspace());
+  }
   readonly catalogService = inject(CatalogService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -133,9 +141,13 @@ export class PurchaseLineEditorComponent {
   readonly detailId = signal<string | null>(null);
   readonly detailCreatingVariant = signal(false);
   readonly importPreview = signal<readonly PurchaseImportPreviewRow[]>([]);
+  readonly importMode = signal<'stock' | 'free'>('stock');
+  private importText = '';
   private importWorkspaceId: string | null = null;
   readonly importBlocked = computed(() =>
-    this.importPreview().some((row) => row.errors.length > 0 || !row.productId),
+    this.importPreview().some(
+      (row) => row.errors.length > 0 || (this.importMode() === 'stock' && !row.productId),
+    ),
   );
   readonly productOptions = computed<SelectOption<string>[]>(() =>
     this.availableProducts()
@@ -220,6 +232,7 @@ export class PurchaseLineEditorComponent {
     });
     effect(() => {
       const workspaceId = this.activeWorkspaceId();
+      this.shopActive();
       if (!workspaceId) {
         this.lastRequestedWorkspaceId = null;
         this.catalogContextError.set('Kein aktiver Workspace ausgewählt.');
@@ -237,6 +250,14 @@ export class PurchaseLineEditorComponent {
   openPicker(): void {
     this.pickerSearch.set('');
     this.pickerOpen.set(true);
+  }
+
+  addFreeLine(): void {
+    if (this.lineRows.length >= 1000) return;
+    const row = this.createLine('individual');
+    row.controls.positionKind.setValue('free');
+    this.lineRows.push(row);
+    this.emitDrafts();
   }
 
   addProducts(products: readonly CatalogProduct[]): void {
@@ -422,17 +443,20 @@ export class PurchaseLineEditorComponent {
     if (!(target instanceof HTMLInputElement) || !target.files?.[0]) return;
     this.importError.set(null);
     this.importPreview.set([]);
+    this.importMode.set(this.shopActive() ? 'stock' : 'free');
     const workspaceId = this.activeWorkspaceId();
     try {
-      if (!workspaceId || this.catalogSelectionDisabled())
-        throw new Error('Bitte zuerst den Artikelstamm laden.');
+      if (!workspaceId) throw new Error('Bitte zuerst den Artikelstamm laden.');
       if (target.files[0].size > 2 * 1024 * 1024)
         throw new Error('CSV darf höchstens 2 MB groß sein.');
       const text = await target.files[0].text();
+      this.importText = text;
       if (workspaceId !== this.activeWorkspaceId())
         throw new Error('Workspace wurde gewechselt. Bitte die Datei erneut auswählen.');
       this.importWorkspaceId = workspaceId;
-      this.importPreview.set(previewPurchaseImport(text, this.availableProducts(), workspaceId));
+      this.importPreview.set(
+        previewPurchaseImport(text, this.availableProducts(), workspaceId, this.importMode()),
+      );
     } catch (error: unknown) {
       this.importError.set(
         error instanceof Error ? error.message : 'CSV konnte nicht gelesen werden.',
@@ -458,9 +482,26 @@ export class PurchaseLineEditorComponent {
     );
   }
 
+  setImportMode(free: boolean): void {
+    const workspace = this.activeWorkspaceId();
+    if (!workspace || this.importWorkspaceId !== workspace) return;
+    this.importMode.set(free ? 'free' : 'stock');
+    this.importPreview.set(
+      previewPurchaseImport(
+        this.importText,
+        this.availableProducts(),
+        workspace,
+        this.importMode(),
+      ),
+    );
+  }
+
   confirmImport(): void {
     const preview = this.importPreview();
-    if (this.importWorkspaceId !== this.activeWorkspaceId() || this.catalogSelectionDisabled()) {
+    if (
+      this.importWorkspaceId !== this.activeWorkspaceId() ||
+      (this.importMode() === 'stock' && this.catalogSelectionDisabled())
+    ) {
       this.importError.set('Workspace wurde gewechselt. Bitte die Datei erneut auswählen.');
       return;
     }
@@ -471,19 +512,20 @@ export class PurchaseLineEditorComponent {
     }
     for (const entry of preview) {
       const product = this.availableProducts().find((product) => product.id === entry.productId);
-      if (!product || entry.quantity === null) return;
+      if ((this.importMode() === 'stock' && !product) || entry.quantity === null) return;
     }
     for (const entry of preview) {
       const product = this.availableProducts().find((product) => product.id === entry.productId);
-      if (!product || entry.quantity === null) continue;
-      const row = this.createLine('quantity');
+      if ((this.importMode() === 'stock' && !product) || entry.quantity === null) continue;
+      const row = this.createLine(this.importMode() === 'free' ? 'individual' : 'quantity');
       row.patchValue(
         {
-          catalogProductId: product.id,
-          titleSnapshot: product.title,
-          ean: product.ean ?? null,
+          positionKind: this.importMode(),
+          catalogProductId: this.importMode() === 'free' ? null : product!.id,
+          titleSnapshot: this.importMode() === 'free' ? entry.title : product!.title,
+          ean: this.importMode() === 'free' ? entry.ean : (product!.ean ?? null),
           orderedQuantity: entry.quantity,
-          condition: entry.condition ?? product.condition ?? 'used',
+          condition: entry.condition ?? product?.condition ?? 'used',
           unitPurchasePrice: entry.unitPrice,
           lineTotal: entry.total,
           priceMode: entry.unitPrice === null ? this.emptyPriceMode() : 'priced',
@@ -710,6 +752,7 @@ export class PurchaseLineEditorComponent {
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {
     const isMysteryPurchase = this.isMysteryPurchase();
     const row = new FormGroup<PurchaseLineControls>({
+      positionKind: new FormControl<'stock' | 'free'>('stock', { nonNullable: true }),
       isPackage: new FormControl(false, { nonNullable: true }),
       draftId: new FormControl(`draft-${crypto.randomUUID()}`, { nonNullable: true }),
       catalogProductId: new FormControl<string | null>(null, {

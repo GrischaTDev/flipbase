@@ -38,6 +38,7 @@ export interface CreateSalePayload {
 }
 
 export interface RecordSaleLineInput {
+  readonly purchaseId?: string | null;
   readonly positionKind?: 'stock' | 'free';
   readonly catalogProductId?: string;
   readonly inventoryItemId?: string;
@@ -329,6 +330,7 @@ export class SalesService {
           buyer_notes: input.buyerNotes ?? null,
         },
         p_lines: input.lines.map((line) => ({
+          purchase_id: line.purchaseId ?? null,
           position_kind: line.positionKind ?? 'stock',
           catalog_product_id: line.catalogProductId ?? null,
           inventory_item_id: line.inventoryItemId ?? null,

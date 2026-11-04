@@ -38,10 +38,10 @@ insert into auth.users (
     now(), now()
   );
 
-insert into public.workspaces (id, name)
+insert into public.workspaces (shop_enabled, id, name)
 values
-  (:'legacy_workspace_id'::uuid, 'legacy costing main'),
-  (:'foreign_workspace_id'::uuid, 'legacy costing foreign');
+  (true, :'legacy_workspace_id'::uuid, 'legacy costing main'),
+  (true, :'foreign_workspace_id'::uuid, 'legacy costing foreign');
 
 insert into public.workspace_members (workspace_id, user_id, role)
 values

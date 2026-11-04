@@ -6,8 +6,8 @@ select no_plan();
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('a8100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'draft-audit@example.test', '{}', '{}'),
   ('a8100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'draft-outsider@example.test', '{}', '{}');
-insert into public.workspaces (id, name) values
-  ('a8100000-0000-4000-8000-000000000011', 'Entwurfschronik');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, 'a8100000-0000-4000-8000-000000000011', 'Entwurfschronik');
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('a8100000-0000-4000-8000-000000000011', 'a8100000-0000-4000-8000-000000000001', 'owner');
 insert into public.suppliers (id, workspace_id, name) values

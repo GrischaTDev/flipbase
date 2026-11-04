@@ -1,10 +1,10 @@
 @let productImages = catalogService.imageUrls();
 <section class="space-y-3" aria-labelledby="purchase-line-editor-title">
   <h2 id="purchase-line-editor-title" class="text-sm font-semibold">Artikel</h2>
-  @if (catalogService.isLoading()) {
+  @if (shopActive() && catalogService.isLoading()) {
     <p class="text-[13px] text-fb-text-muted" role="status">Artikelstamm wird geladen…</p>
   }
-  @if (catalogLoadError(); as error) {
+  @if (shopActive() && catalogLoadError(); as error) {
     <div role="alert" class="space-y-2 text-[13px]">
       <p>Artikelstamm konnte nicht geladen werden: {{ error }}</p>
       <app-button (clicked)="loadCatalogProducts(true)">Erneut versuchen</app-button>
@@ -46,21 +46,29 @@
                   [src]="productImages[row.controls.catalogProductId.value || ''] || null"
                 />
                 <div class="min-w-0">
-                  <app-button
-                    data-purchase-line-title
-                    variant="plain"
-                    [fullWidth]="true"
-                    contentAlign="start"
-                    [title]="row.controls.titleSnapshot.value"
-                    [ariaLabel]="row.controls.titleSnapshot.value + ' – Details'"
-                    (clicked)="openDetails(id)"
-                    ><span class="w-full break-words text-left">{{
-                      displayProductTitle(
-                        row.controls.titleSnapshot.value,
-                        productForId(row.controls.catalogProductId.value)
-                      ) || 'Produkt zuordnen'
-                    }}</span></app-button
-                  >
+                  @if (row.controls.positionKind.value === 'free') {
+                    <app-text-field
+                      label="Beschreibung"
+                      [required]="true"
+                      formControlName="titleSnapshot"
+                    />
+                  } @else {
+                    <app-button
+                      data-purchase-line-title
+                      variant="plain"
+                      [fullWidth]="true"
+                      contentAlign="start"
+                      [title]="row.controls.titleSnapshot.value"
+                      [ariaLabel]="row.controls.titleSnapshot.value + ' – Details'"
+                      (clicked)="openDetails(id)"
+                      ><span class="w-full break-words text-left">{{
+                        displayProductTitle(
+                          row.controls.titleSnapshot.value,
+                          productForId(row.controls.catalogProductId.value)
+                        ) || 'Produkt zuordnen'
+                      }}</span></app-button
+                    >
+                  }
                   @if (productForId(row.controls.catalogProductId.value); as product) {
                     @if (variantLabel(product); as label) {
                       <p data-purchase-line-variant class="mt-1 text-xs text-fb-text-muted">
@@ -164,34 +172,48 @@
     </p>
   }
   <div class="flex items-center gap-2 border-t border-fb-line pt-3">
-    <app-button
-      data-add-products
-      class="min-w-0 flex-1"
-      variant="ghost"
-      size="search"
-      [fullWidth]="true"
-      [icon]="searchIcon"
-      [disabled]="catalogSelectionDisabled()"
-      (clicked)="openPicker()"
-      >Artikel suchen oder hinzufügen</app-button
+    <app-button variant="ghost" [icon]="plusIcon" (clicked)="addFreeLine()"
+      >Freie Position</app-button
     >
-    <app-button
-      variant="ghost"
-      [iconOnly]="true"
-      [icon]="importIcon"
-      ariaLabel="Liste importieren"
-      title="Liste importieren"
-      (clicked)="csvInput.click()"
-    />
-    <app-button
-      variant="ghost"
-      [iconOnly]="true"
-      [icon]="scannerIcon"
-      ariaLabel="Barcode scannen"
-      title="Barcode scannen"
-      [ariaExpanded]="scannerOpen()"
-      (clicked)="scannerOpen.set(!scannerOpen())"
-    />
+    @if (!shopActive()) {
+      <app-button
+        variant="ghost"
+        [iconOnly]="true"
+        [icon]="importIcon"
+        ariaLabel="Liste importieren"
+        (clicked)="csvInput.click()"
+      />
+    }
+    @if (shopActive()) {
+      <app-button
+        data-add-products
+        class="min-w-0 flex-1"
+        variant="ghost"
+        size="search"
+        [fullWidth]="true"
+        [icon]="searchIcon"
+        [disabled]="catalogSelectionDisabled()"
+        (clicked)="openPicker()"
+        >Artikel suchen oder hinzufügen</app-button
+      >
+      <app-button
+        variant="ghost"
+        [iconOnly]="true"
+        [icon]="importIcon"
+        ariaLabel="Liste importieren"
+        title="Liste importieren"
+        (clicked)="csvInput.click()"
+      />
+      <app-button
+        variant="ghost"
+        [iconOnly]="true"
+        [icon]="scannerIcon"
+        ariaLabel="Barcode scannen"
+        title="Barcode scannen"
+        [ariaExpanded]="scannerOpen()"
+        (clicked)="scannerOpen.set(!scannerOpen())"
+      />
+    }
     <!-- Der Browser-Dateidialog benötigt ein verborgenes natives Dateifeld. -->
     <input
       #csvInput
@@ -393,6 +415,13 @@
 }
 @if (importPreview().length) {
   <app-modal-shell title="CSV-Vorschau" size="xl" (closed)="importPreview.set([])">
+    @if (shopActive()) {
+      <app-custom-checkbox
+        label="Ohne Bestand erfassen"
+        [checked]="importMode() === 'free'"
+        (checkedChange)="setImportMode($event)"
+      />
+    }
     <p class="text-[13px] text-fb-text-muted">
       Jede CSV-Zeile bleibt eine eigene Position. Prüfe Menge, Preis und Produktzuordnung vor der
       Übernahme.
@@ -426,6 +455,7 @@
           <app-custom-select
             [ariaLabel]="'Produkt für CSV-Zeile ' + row.rowNumber"
             [options]="productOptions()"
+            [disabled]="importMode() === 'free'"
             [value]="row.productId"
             placeholder="Produkt bewusst zuordnen"
             (valueChange)="assignImportProduct(row.rowNumber, $event)"

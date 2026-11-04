@@ -95,7 +95,7 @@ function assignments(value: unknown): value is readonly EbayOrderAssignment[] {
       ids.has(row.lineItemId) ||
       Object.keys(row).length !== 2 ||
       Object.keys(target).length !== 1 ||
-      !(uuid(target.inventoryItemId) || uuid(target.catalogProductId))
+      !(uuid(target.inventoryItemId) || uuid(target.catalogProductId) || target.free === true)
     )
       return false;
     ids.add(row.lineItemId);

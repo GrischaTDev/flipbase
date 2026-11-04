@@ -16,9 +16,9 @@ insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) v
  ('33000000-0000-4000-8000-000000000001','authenticated','authenticated','ebay-import-one@example.test','{}','{}'),
  ('33000000-0000-4000-8000-000000000002','authenticated','authenticated','ebay-import-two@example.test','{}','{}'),
  ('33000000-0000-4000-8000-000000000003','authenticated','authenticated','ebay-import-other@example.test','{}','{}');
-insert into public.workspaces(id,name) values
- ('33000000-0000-4000-8000-000000000011','eBay import A'),
- ('33000000-0000-4000-8000-000000000012','eBay import B');
+insert into public.workspaces(shop_enabled, id,name) values
+ (true, '33000000-0000-4000-8000-000000000011','eBay import A'),
+ (true, '33000000-0000-4000-8000-000000000012','eBay import B');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000001','member'),
  ('33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000002','owner'),
@@ -132,7 +132,7 @@ select is((select count(*)::int from public.ebay_order_snapshots where workspace
 select is((select count(*)::int from public.ebay_article_mappings where workspace_id='33000000-0000-4000-8000-000000000011'),0,'Kontolöschung entfernt Zuordnungen');
 select is((select count(*)::int from public.ebay_order_bookings where workspace_id='33000000-0000-4000-8000-000000000011'),1,'Kontolöschung erhält Geschäftsbeleg');
 reset role;
-insert into public.workspaces(id,name) values ('33000000-0000-4000-8000-000000000013','Nur manueller Quellenbeleg');
+insert into public.workspaces(shop_enabled, id,name) values (true, '33000000-0000-4000-8000-000000000013','Nur manueller Quellenbeleg');
 insert into public.ebay_order_bookings(workspace_id,environment,source_key,status,reason) values ('33000000-0000-4000-8000-000000000013','production',repeat('8',64),'recorded_elsewhere','Vorher manuell erfasst');
 select throws_ok($$delete from public.workspaces where id='33000000-0000-4000-8000-000000000013'$$,'P0001',null,'Auch ein manueller Quellenbeleg verhindert die Workspace-Löschung');
 select * from finish();

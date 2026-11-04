@@ -6,9 +6,9 @@ select no_plan();
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('e1700000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'documents-owner@example.test', '{}', '{}'),
   ('e1700000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'documents-outsider@example.test', '{}', '{}');
-insert into public.workspaces (id, name, tax_mode) values
-  ('e1700000-0000-4000-8000-000000000011', 'Belege eigener Workspace', 'diff_25a'),
-  ('e1700000-0000-4000-8000-000000000012', 'Belege fremder Workspace', 'diff_25a');
+insert into public.workspaces (shop_enabled, id, name, tax_mode) values
+  (true, 'e1700000-0000-4000-8000-000000000011', 'Belege eigener Workspace', 'diff_25a'),
+  (true, 'e1700000-0000-4000-8000-000000000012', 'Belege fremder Workspace', 'diff_25a');
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('e1700000-0000-4000-8000-000000000011', 'e1700000-0000-4000-8000-000000000001', 'owner'),
   ('e1700000-0000-4000-8000-000000000012', 'e1700000-0000-4000-8000-000000000002', 'owner');

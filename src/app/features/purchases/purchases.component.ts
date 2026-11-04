@@ -1,3 +1,4 @@
+import { isWorkspaceShopActive } from '../../core/models/workspace-shop.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -227,6 +228,7 @@ export class PurchasesComponent {
       if (status === 'archived') return archived && this.matchesSeller(purchase);
       if (archived || !this.matchesSeller(purchase)) return false;
       if (status === 'all') return true;
+      if (status === 'draft' && purchase.entry_status === 'finalized') return false;
       if (status === 'received')
         return (
           purchase.receiving_status === 'received' ||
@@ -264,6 +266,7 @@ export class PurchasesComponent {
         ? ('loaded' as const)
         : ('loading' as const);
     const context = {
+      inventoryEnabled: isWorkspaceShopActive(this.workspaceService.currentWorkspace()),
       inventoryItems: inventoryState === 'loaded' ? this.inventoryService.items() : [],
       stockLots: this.stockService.lots(),
       stockMovements: this.stockService.movements(),

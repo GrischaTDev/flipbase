@@ -19,6 +19,7 @@ import type {
 import { getPurchaseStatusPresentation } from './purchase-status-presentation';
 
 export interface PurchasePresentationContext {
+  readonly inventoryEnabled?: boolean;
   readonly inventoryItems: readonly InventoryItem[];
   readonly stockLots: readonly StockLot[];
   readonly stockMovements: readonly StockMovement[];
@@ -126,7 +127,8 @@ function recordedSales(
     const matchesLot =
       (sale.lot_allocations ?? []).some((allocation) => lotIds.has(allocation.stock_lot_id)) ||
       (sale.stock_movements ?? []).some((movement) => lotIds.has(movement.stock_lot_id));
-    if (!matchesItem && !matchesLot) continue;
+    const matchesPurchase = (sale.lines ?? []).some((line) => line.purchase_id === purchase.id);
+    if (!matchesItem && !matchesLot && !matchesPurchase) continue;
     const status: RecordedSalePresentation['status'] = sale.voided_at
       ? 'voided'
       : sale.returned_at
@@ -205,8 +207,11 @@ function summarizeQuantities(
     legacyItems.length;
 
   const needsInventory =
-    legacyItems.length > 0 || lines.some((line) => line.line_kind === 'individual');
-  const needsStock = lines.some((line) => line.line_kind === 'quantity');
+    context.inventoryEnabled !== false &&
+    (legacyItems.length > 0 ||
+      lines.some((line) => line.position_kind !== 'free' && line.line_kind === 'individual'));
+  const needsStock =
+    context.inventoryEnabled !== false && lines.some((line) => line.line_kind === 'quantity');
   const requiredStates = [
     ...(needsInventory ? [context.inventoryState] : []),
     ...(needsStock ? [context.stockState] : []),
@@ -305,28 +310,39 @@ export function mapPurchaseDetailRows(
     const lineItems = getLineItems(line, items);
     const lineLots = lots.filter((lot) => lot.purchase_line_id === line.id);
     const inventoryItemId = lineItems.length === 1 ? lineItems[0].id : null;
-    const inventoryItemLinks = lineItems.map((item, index) => ({
-      id: item.id,
-      label: `Artikel ${index + 1}`,
-    }));
+    const inventoryItemLinks =
+      context.inventoryEnabled === false
+        ? []
+        : lineItems.map((item, index) => ({
+            id: item.id,
+            label: `Artikel ${index + 1}`,
+          }));
     const quantityState =
-      line.line_kind === 'individual' ? context.inventoryState : context.stockState;
-    const quantities =
-      quantityState !== 'loaded'
-        ? { availableUnits: null, soldUnits: null, quantityState }
+      line.position_kind === 'free' || context.inventoryEnabled === false
+        ? 'loaded'
         : line.line_kind === 'individual'
-          ? {
-              availableUnits: lineItems.filter(isAvailableIndividual).length,
-              soldUnits: lineItems.filter(isRecordedSale).length,
-              quantityState,
-            }
-          : {
-              availableUnits: lineLots.reduce((sum, lot) => sum + lot.remaining_quantity, 0),
-              soldUnits: getLotSoldUnits(lineLots, context.stockMovements),
-              quantityState,
-            };
+          ? context.inventoryState
+          : context.stockState;
+    const quantities =
+      line.position_kind === 'free' || context.inventoryEnabled === false
+        ? { availableUnits: null, soldUnits: null, quantityState }
+        : quantityState !== 'loaded'
+          ? { availableUnits: null, soldUnits: null, quantityState }
+          : line.line_kind === 'individual'
+            ? {
+                availableUnits: lineItems.filter(isAvailableIndividual).length,
+                soldUnits: lineItems.filter(isRecordedSale).length,
+                quantityState,
+              }
+            : {
+                availableUnits: lineLots.reduce((sum, lot) => sum + lot.remaining_quantity, 0),
+                soldUnits: getLotSoldUnits(lineLots, context.stockMovements),
+                quantityState,
+              };
     const sales = recordedSales(purchase, lineItems, lineLots, context);
     const captureRemaining =
+      line.position_kind !== 'free' &&
+      context.inventoryEnabled !== false &&
       line.line_kind === 'individual'
         ? Math.max(0, line.ordered_quantity - Math.max(line.received_quantity, lineItems.length))
         : 0;

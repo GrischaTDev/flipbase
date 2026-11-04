@@ -395,7 +395,7 @@
                           />
                         }
                       }
-                      @if (store.importAvailable()) {
+                      @if (store.importAvailable() && shopActive()) {
                         <app-button
                           variant="table-action"
                           [icon]="connectIcon"
@@ -499,7 +499,7 @@
           }
         </div>
       </app-data-table>
-      @if (selectedListing(); as listing) {
+      @if (shopActive() && selectedListing(); as listing) {
         @if (store.connection(); as connection) {
           <section
             #mappingPanel

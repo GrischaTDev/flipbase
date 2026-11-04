@@ -115,6 +115,7 @@ function purchaseLinesEqual(
       line.catalogProductId === other.catalogProductId &&
       line.titleSnapshot === other.titleSnapshot &&
       line.ean === other.ean &&
+      (line.positionKind ?? 'stock') === (other.positionKind ?? 'stock') &&
       line.lineKind === other.lineKind &&
       !!line.isPackage === !!other.isPackage &&
       line.orderedQuantity === other.orderedQuantity &&
@@ -798,6 +799,7 @@ export class PurchaseEntryFormComponent {
         catalogProductId: line.catalog_product_id ?? null,
         titleSnapshot: line.title_snapshot,
         ean: line.ean_snapshot ?? null,
+        positionKind: line.position_kind ?? 'stock',
         lineKind: line.line_kind,
         isPackage: line.is_package ?? false,
         orderedQuantity: line.ordered_quantity,
@@ -1357,6 +1359,7 @@ export class PurchaseEntryFormComponent {
               persisted.catalog_product_id === line.catalogProductId &&
               persisted.title_snapshot === line.titleSnapshot.trim() &&
               (persisted.ean_snapshot ?? null) === (line.ean ?? null) &&
+              (persisted.position_kind ?? 'stock') === (line.positionKind ?? 'stock') &&
               persisted.line_kind === line.lineKind &&
               persisted.ordered_quantity === line.orderedQuantity &&
               persisted.unit_purchase_price === line.unitPurchasePrice &&

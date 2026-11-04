@@ -19,8 +19,8 @@ insert into auth.users (
   now()
 );
 
-insert into public.workspaces (id, name)
-values ('9c000000-0000-4000-8000-000000000011', 'Mehrfacher Einzel-Wareneingang');
+insert into public.workspaces (shop_enabled, id, name)
+values (true, '9c000000-0000-4000-8000-000000000011', 'Mehrfacher Einzel-Wareneingang');
 
 insert into public.workspace_members (workspace_id, user_id, role)
 values (

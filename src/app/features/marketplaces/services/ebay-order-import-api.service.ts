@@ -138,6 +138,8 @@ export class EbayOrderImportApiService {
     variationId: string | null,
     target: EbaySaleTarget,
   ): Promise<EbayArticleMapping> {
+    if ('free' in target)
+      throw new Error('Für eine dauerhafte Artikelzuordnung wähle einen Bestandsartikel.');
     // Der Generator stellt nullable Funktionsargumente als string dar; SQL erlaubt ausdrücklich null.
     const args = {
       p_workspace_id: scope.workspaceId,

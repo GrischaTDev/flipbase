@@ -8,7 +8,7 @@ declare
 begin
  insert into auth.users(id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
  values(u,'authenticated','authenticated',u::text||'@example.test','unused','{}','{}',now(),now());
- insert into public.workspaces(id,name) values(w,'Freie Verkäufe Test');
+ insert into public.workspaces(shop_enabled, id,name) values(true, w,'Freie Verkäufe Test');
  insert into public.workspace_members(workspace_id,user_id,role) values(w,u,'owner');
  perform set_config('request.jwt.claim.sub',u::text,true);
  request := jsonb_build_object('booking_key',k,'platform','direct','sale_date','2026-11-04');

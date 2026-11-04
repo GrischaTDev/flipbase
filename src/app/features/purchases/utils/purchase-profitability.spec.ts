@@ -65,6 +65,69 @@ const context = (
 });
 
 describe('Ergebnis je Einkauf', () => {
+  it('berücksichtigt freie Herkunft, Erstattung und Korrektur ohne geladene Lagerdaten', () => {
+    const free = {
+      ...line('free', 60),
+      position_kind: 'free' as const,
+      purchase_id: purchase.id,
+      inventory_item_id: null,
+      inventory_item: undefined,
+      cost_of_goods_sold: null,
+    };
+    const old = sale({ id: 'old', voided_at: '2026-11-04', lines: [free] });
+    const replacement = sale({
+      id: 'replacement',
+      lines: [free],
+      refund_amount: 10,
+      platform_fee: 2,
+    });
+    const state = context([old, replacement], {
+      inventoryEnabled: false,
+      inventoryState: 'error',
+      stockState: 'loading',
+    });
+    expect(summarizePurchaseProfitability(purchase, state, 300)).toMatchObject({
+      state: 'loaded',
+      revenue: 50,
+      sellingCosts: 2,
+      result: -252,
+      hasSales: true,
+    });
+  });
+  it('verteilt Kosten und Erstattung zwischen freier Herkunft und nicht zugeordneten Positionen', () => {
+    const free = {
+      ...line('free', 60),
+      position_kind: 'free' as const,
+      purchase_id: purchase.id,
+      inventory_item_id: null,
+      inventory_item: undefined,
+      cost_of_goods_sold: null,
+    };
+    const unassigned = {
+      ...free,
+      id: 'unassigned',
+      purchase_id: null,
+      line_total: 40,
+      unit_sale_price: 40,
+    };
+    const state = context(
+      [
+        sale({
+          lines: [free, unassigned],
+          shipping_revenue: 10,
+          refund_amount: 20,
+          platform_fee: 5,
+        }),
+      ],
+      { inventoryEnabled: false },
+    );
+    expect(summarizePurchaseProfitability(purchase, state, 300)).toMatchObject({
+      revenue: 54,
+      sellingCosts: 3,
+      result: -249,
+    });
+  });
+
   it('zieht die gesamten Einkaufskosten genau einmal von beiden Verkäufen ab', () => {
     expect(summarizePurchaseProfitability(purchase, context([sale()]), 300)).toMatchObject({
       revenue: 400,

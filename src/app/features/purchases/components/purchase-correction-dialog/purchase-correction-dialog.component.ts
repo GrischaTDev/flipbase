@@ -26,6 +26,7 @@ import {
 import { PurchaseLinePriceMode } from '../../../../core/models/purchase-costing.models';
 
 type LineForm = FormGroup<{
+  positionKind: FormControl<'stock' | 'free'>;
   id: FormControl<string>;
   catalogProductId: FormControl<string | null>;
   title: FormControl<string>;
@@ -118,11 +119,16 @@ export class PurchaseCorrectionDialogComponent {
         workspaceId: purchase.workspace_id,
         purchaseId: purchase.id,
         reason: raw.reason.trim(),
-        purchasePrice: purchase.type === 'mystery_pack' ? raw.purchasePrice : null,
+        purchasePrice:
+          (purchase.pricing_mode ?? (purchase.type === 'mystery_pack' ? 'total' : 'individual')) ===
+          'total'
+            ? raw.purchasePrice
+            : null,
         lines: raw.lines.map((line) => ({
           id: line.id,
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.title.trim(),
+          position_kind: line.positionKind,
           line_kind: line.lineKind,
           is_package:
             purchase.purchase_lines?.find((original) => original.id === line.id)?.is_package ??
@@ -163,7 +169,11 @@ export class PurchaseCorrectionDialogComponent {
 
   private populate(purchase: Purchase): void {
     this.form.controls.purchasePrice.setValue(purchase.purchase_price);
-    if (purchase.type === 'mystery_pack') this.form.controls.purchasePrice.enable();
+    if (
+      (purchase.pricing_mode ?? (purchase.type === 'mystery_pack' ? 'total' : 'individual')) ===
+      'total'
+    )
+      this.form.controls.purchasePrice.enable();
     else this.form.controls.purchasePrice.disable();
 
     this.lineRows.clear();
@@ -177,6 +187,9 @@ export class PurchaseCorrectionDialogComponent {
           title: new FormControl(line.title_snapshot, {
             nonNullable: true,
             validators: [Validators.required],
+          }),
+          positionKind: new FormControl<'stock' | 'free'>(line.position_kind ?? 'stock', {
+            nonNullable: true,
           }),
           lineKind: new FormControl(line.line_kind, { nonNullable: true }),
           quantity: new FormControl(line.ordered_quantity, {

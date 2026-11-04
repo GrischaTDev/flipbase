@@ -19,7 +19,7 @@ insert into auth.users (
   now()
 );
 
-insert into public.workspaces (id, name) values (
+insert into public.workspaces (shop_enabled, id, name) values (true,
   '99000000-0000-4000-8000-000000000011',
   'Einkaufsmengengrenze Fixrunde 2'
 );

@@ -6,9 +6,9 @@ select plan(8);
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
   ('23100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'listing-image-owner@example.test', '{}', '{}'),
   ('23100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'listing-image-outsider@example.test', '{}', '{}');
-insert into public.workspaces (id, name) values
-  ('23100000-0000-4000-8000-000000000011', 'Eigene Inseratbilder'),
-  ('23100000-0000-4000-8000-000000000012', 'Fremde Inseratbilder');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '23100000-0000-4000-8000-000000000011', 'Eigene Inseratbilder'),
+  (true, '23100000-0000-4000-8000-000000000012', 'Fremde Inseratbilder');
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('23100000-0000-4000-8000-000000000011', '23100000-0000-4000-8000-000000000001', 'owner'),
   ('23100000-0000-4000-8000-000000000012', '23100000-0000-4000-8000-000000000002', 'owner');

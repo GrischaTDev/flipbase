@@ -20,6 +20,7 @@ export function previewPurchaseImport(
   text: string,
   products: readonly CatalogProduct[],
   workspaceId: string,
+  positionKind: 'stock' | 'free' = 'stock',
 ): readonly PurchaseImportPreviewRow[] {
   const parsed = parseCsv(text);
   if (!parsed.headers.includes('title')) throw new Error('CSV benötigt die Spalte „title“.');
@@ -93,13 +94,15 @@ export function previewPurchaseImport(
         ? matches[0].id
         : null;
     const assignmentError =
-      matches.length === 0
-        ? 'Produkt zuordnen.'
-        : matches.length > 1
-          ? 'Mehrere Produkte passen. Bitte zuordnen.'
-          : productId
-            ? null
-            : 'Produktzustand weicht ab oder fehlt. Bitte bewusst zuordnen.';
+      positionKind === 'free'
+        ? null
+        : matches.length === 0
+          ? 'Produkt zuordnen.'
+          : matches.length > 1
+            ? 'Mehrere Produkte passen. Bitte zuordnen.'
+            : productId
+              ? null
+              : 'Produktzustand weicht ab oder fehlt. Bitte bewusst zuordnen.';
     if (assignmentError) errors.push(assignmentError);
     return {
       rowNumber: index + 2,
