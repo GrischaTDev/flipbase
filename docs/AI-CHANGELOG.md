@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-04 - Juna - Relisting-Vorschau nach Anzeige gespeicherter Originalfotos reparieren
+
+**Ursache:** Im offenen Relisting-Dialog scheitert der Abruf eines privaten
+Storagefotos mit `MissingAllowOriginHeader`; der signierte Link ist noch gültig.
+Der produktive Bildspeicher antwortet ohne Origin ohne CORS-Header, mit Origin
+mit Freigabe, jeweils ohne `Vary: Origin`. Ein bereits im Kleiderschrank angezeigtes
+Foto kann deshalb als ungeeignete Antwort aus dem Browsercache wiederverwendet
+werden. Der frühere Schutz für direkte Vinted-CDN-Fotos ist unverändert vorhanden.
+
+**Korrektur und Absicherung:** Der Originalabruf für die Bildbearbeitung verwendet
+keine zwischengespeicherte Bildantwort. Originalbytes, private Links und der
+authentifizierte Vinted-Fotoweg bleiben erhalten. Ein zusätzlicher Browsertest
+verwendet zwei echte HTTP-Ursprünge und den tatsächlichen Fotoservice samt Renderer.
+Er lädt erst das Bild als normale Vorschau und danach die Bytes für Auflösung,
+Filter und Rahmen. Ohne Korrektur schlägt er fehl, mit Korrektur besteht er.
+Die bisherigen Route-Mocks deaktivieren den HTTP-Cache und konnten diesen Fall
+nicht erkennen. Der bestehende vollständige Relisting-Ablauf bleibt separat geprüft.
+
+**Abgrenzung:** Produktiver Dialog nur zur Diagnose bedient, ursprüngliche
+Auflösung wiederhergestellt; kein Relisting oder anderer Anbieter-Schreibauftrag
+ausgelöst. Eigener Zweig vom aktuellen Hauptstand `1b0c3aa8`. Lissie bietet kein
+Flipbase-Projekt an; deshalb ist dort kein passender Änderungsbericht möglich.
+
 ## 2026-11-04 - Juna - Änderungszahlen, alte Fehlermeldungen und Relisting-Bestätigung korrigieren
 
 **Auftrag und Grundlage:** Nutzer beauftragt die drei Fehlerkorrekturen einschließlich
