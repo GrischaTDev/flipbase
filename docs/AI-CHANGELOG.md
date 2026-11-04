@@ -42,6 +42,12 @@ Kontowechsel verwerfen auch verspätete Kategorieantworten. Die neue RPC-Antwort
 ohne JSON-Inhalt wird korrekt als Erfolg behandelt. Worker und Cloudbrowser
 enthalten den gemeinsamen Kategorieparser. Lissie führt kein Flipbase-Projekt.
 
+**CI-Nachlauf:** Der bisherige Foto-/Vorlagentest suchte ohne Zielkonto nach einer
+globalen Kategorieauswahl. Der Editor erklärt nun die notwendige Kontowahl;
+die Fixture prüft zuerst das Speichern ohne Konto und danach die ausdrückliche
+Kontowahl samt lokalem Baum. Desktop/Mobil und Hell/Dunkel sowie die 54
+Editortests wurden erneut geprüft, ebenso Typen und Produktionsbau.
+
 ## 2026-11-04 - Juna - Gespeicherte Kategorien der drei Vinted-Konten prüfen
 
 **Auftrag:** Bestehende Anzeigen auf veraltete Kategorien und mögliche Ursachen

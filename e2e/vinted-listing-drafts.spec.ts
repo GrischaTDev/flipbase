@@ -156,7 +156,12 @@ async function checkListingSurface(page: Page, selector: string) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
-async function mockDrafts(page: Page, planned = false, accountName?: string) {
+async function mockDrafts(
+  page: Page,
+  planned = false,
+  accountName?: string,
+  connectedAccount = planned,
+) {
   const pixel = Buffer.from(
     await page.evaluate(() => {
       const canvas = document.createElement('canvas');
@@ -177,10 +182,10 @@ async function mockDrafts(page: Page, planned = false, accountName?: string) {
     false,
     false,
     false,
-    planned ? [] : undefined,
+    connectedAccount ? [] : undefined,
     undefined,
     false,
-    planned ? 1 : 0,
+    connectedAccount ? 1 : 0,
     accountName
       ? {
           origin: process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351',
@@ -1150,13 +1155,15 @@ for (const width of [1440, 390])
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
-      const state = await mockDrafts(page);
+      const state = await mockDrafts(page, false, undefined, true);
       if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto('/marketplaces/vinted/listings/new');
       const editor = page.locator('app-vinted-listing-editor');
       await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toBeVisible();
+      await editor.getByRole('combobox', { name: 'Zielkonto für diesen Entwurf' }).click();
+      await page.getByRole('option', { name: 'Noch kein Konto auswählen', exact: true }).click();
       expect(state.creates).toHaveLength(0);
       await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Meine Jacke');
       await editor
@@ -1174,6 +1181,11 @@ for (const width of [1440, 390])
       await expect.poll(() => state.draft().content.priceCents).toBe(4550);
       expect(state.creates).toHaveLength(1);
       expect(state.creates[0]['p_connection_id']).toBeNull();
+      await expect(
+        editor.getByText('Wähle zuerst ein Zielkonto, um dessen Kategorien auszuwählen.'),
+      ).toBeVisible();
+      await editor.getByRole('combobox', { name: 'Zielkonto für diesen Entwurf' }).click();
+      await page.getByRole('option', { name: 'Testkonto A', exact: true }).click();
       await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
       await expect(page.getByRole('option', { name: /Kleidung/ })).toBeVisible();
       expect(
