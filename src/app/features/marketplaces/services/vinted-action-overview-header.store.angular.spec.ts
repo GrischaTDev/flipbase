@@ -195,6 +195,31 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       vi.useRealTimers();
     }
   });
+  it.each([false, true])(
+    'schließt Kontoabgleiche ohne Toast ab (automatisch: %s)',
+    async (isAutomated) => {
+      enabled.set(true);
+      const syncAction: VintedAction = {
+        ...action,
+        id: 'sync:job',
+        source: 'sync',
+        kind: 'sync',
+        isAutomated,
+      };
+      read.mockResolvedValue({ actions: [syncAction] });
+      const store = TestBed.inject(VintedActionOverviewHeaderStore);
+      await settle();
+      expect(store.count()).toBe(2);
+      expect(store.hasRunning()).toBe(true);
+      read.mockResolvedValue({ actions: [{ ...syncAction, state: 'succeeded' }] });
+      await store.refresh();
+      expect(store.count()).toBe(0);
+      expect(store.groups()).toEqual([]);
+      expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+      await store.refresh();
+      expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+    },
+  );
   it('liest nach Rückkehr ins Fenster den aktuellen Stand ohne manuellen Button', async () => {
     enabled.set(true);
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
