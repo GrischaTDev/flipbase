@@ -53,6 +53,39 @@ und Unternehmensbelegabläufe bleiben geprüft. Details und Grenzen stehen im
 fremde Erweiterungsarbeit und Nutzerdaten unverändert. Einkaufsbezug und
 Shop-Aktivierung folgen separat. Noch keine Veröffentlichung.
 
+## 2026-11-04 - Juna - Gespeichertes Relisting unabhängig von der Bearbeitungsmaske prüfen
+
+**Produktiver Abschluss:** Der vom Nutzer gestartete beige Schal wurde nach dem
+Löschdialog-Fix mit unveränderten Angaben und der ursprünglichen Pause von fünf
+Minuten fortgesetzt. Vinted veröffentlichte `10669733335` für 37,90 Euro. Das
+Gegenlesen der sofort geöffneten Bearbeitungsmaske scheiterte jedoch noch bei
+`saved_form`. Der eigene aktive Kleiderschrank lieferte genau diese neue Anzeige;
+Titel, vollständige Beschreibung, Kategorie 5555, Zielgruppe Damen (576), Material
+Wolle (46), Paketgröße 1 und alle drei Fotos wurden direkt bei Vinted bestätigt.
+Das alte Inserat lieferte 404. Auftrag 29 wurde über die vorhandene Abschluss-RPC
+bestätigt, die neue ID mit der bestehenden Karte
+`392a6cbd-e28a-4079-9778-27fe83549d88` verknüpft und regulär importiert.
+
+**Automatische Bestätigung:** Die bereits durch die echte Veröffentlichungsantwort
+bekannte Kennung wird zuerst über Vinteds gespeicherte Artikeldaten geprüft.
+Texte, Preis, Kategorie, Marke, Größe, Zielgruppe, Zustand, Farben, Material,
+Paketgröße sowie die genaue Anzahl und Reihenfolge der bestätigten Foto-Kennungen
+müssen passen. Der Aktiv-Nachweis bleibt separat erforderlich. Nicht verfügbare
+Artikeldaten werden begrenzt erneut gelesen; der bestehende Formularweg bleibt
+für nicht belegbare API-Daten und KI-Fotos erhalten. Formular- und Profilnavigation
+warten vor der Bedienung auf den vollständigen Seitenaufbau.
+
+**Regression:** Die neue Browserprüfung scheitert mit dem bisherigen Stand, wenn
+die Bearbeitungsseite nicht verfügbar ist. Der korrigierte Weg prüft dieselbe echte
+Neuanlage ohne weitere Schreibaktion; verzögert verfügbare Daten sowie falscher
+Preis, Größe, Zielgruppe, Fotos und fehlender Aktiv-Status sind abgedeckt.
+Lissie führt weiterhin kein Flipbase-Projekt.
+
+**Prüfung:** Alle 16 Veröffentlichungs-Browserfälle und der zusätzliche Größenfall
+sind erfolgreich. Der neue Test scheitert mit dem bisherigen Stand. Format, Lint,
+Typen, Suite-Audit und 146 ausgewählte Skriptprüfungen des lokalen Vorabchecks
+sowie Worker-Typprüfung und Worker-Bau sind erfolgreich.
+
 ## 2026-11-04 - Juna - Löschdialog nach vollständigem Seitenaufbau öffnen
 
 **Befund:** Relisting-Auftrag 28 für den beigen Burberry-Schal blieb bei
