@@ -23,6 +23,11 @@ und Erfolgsvergleich ohne Upload oder Veröffentlichung. Die betroffenen Browser
 29 Worker-Auftragsprüfungen, 45 Modelltests, 15 Relist-Service-Tests und 15 gemeinsame
 Formularvertragstests sind erfolgreich. Format, ESLint, Anwendungstypprüfung,
 Worker-Typprüfung/-Bau, Angular-Produktionsbau und `git diff --check` bestanden.
+Die erweiterten CI-Fälle erfordern den neuen Leseabruf ausdrücklich. Nach Ergänzung
+der Anbieter-Fixtures bestehen alle 67 Editor-/Relist-Service-Tests und der
+vollständige UI-Relist-Ablauf einschließlich unveränderter Originalfotos. Gelesene
+Inhalte werden vor dem Entwurf kanonisch geparst, damit eine andere Feldreihenfolge
+keine unnötige zweite Speicherung auslöst.
 
 **Abgrenzung:** Produktive Inserate weder gespeichert noch gelöscht oder neu
 veröffentlicht. Eigener Zweig vom Hauptstand `718ca1db`; fremde Arbeitskopien

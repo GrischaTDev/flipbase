@@ -148,6 +148,13 @@ function setup(
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
   const readListingContent = vi.fn().mockRejectedValue(new Error('Anbieter nicht erreichbar'));
+  const readRelistingContent = vi
+    .fn()
+    .mockResolvedValue({
+      ...listingCurrentContentFixture(),
+      aiPhoto: false,
+      photoUrls: listingCurrentContentFixture().photoUrls.slice(0, 1),
+    });
   const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
     ...draft,
     content,
@@ -185,6 +192,7 @@ function setup(
       {
         provide: MarketplaceBrowserTestApiService,
         useValue: {
+          readListingContent: readRelistingContent,
           available: vi.fn().mockResolvedValue({
             available: true,
             readOnly: false,
@@ -303,6 +311,7 @@ function setup(
     snapshot,
     photoSources: TestBed.inject(VintedListingPhotoSourceService),
     readListingContent,
+    readRelistingContent,
     create,
     save,
     workspace,
@@ -477,6 +486,7 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     finish(new Blob(['original'], { type: 'image/jpeg' }));
     await task;
     expect(f.readListingContent).not.toHaveBeenCalled();
+    expect(f.readRelistingContent).toHaveBeenCalledOnce();
     expect(TestBed.inject(VintedListingDraftService).createRelisting).toHaveBeenCalledOnce();
     expect(TestBed.inject(VintedListingJobService).enqueue).toHaveBeenCalledOnce();
     const operations = TestBed.inject(VintedListingOperationStore);

@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { parseVintedListingContent } from '../models/vinted-listing-content';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { VintedBrandSearchService } from '../../platform-admin/services/vinted-brand-search.service';
@@ -135,7 +136,7 @@ export class VintedRelistingSubmissionService {
       source.externalAccountId !== account.externalAccountId
     )
       throw new Error('Die Artikelzuordnung hat sich geändert.');
-    const sourceContent = { ...source.content, aiPhoto: source.aiPhoto };
+    const sourceContent = parseVintedListingContent({ ...source.content, aiPhoto: source.aiPhoto });
     const photoUrls = source.photoUrls;
     const content = prepareFlipbaseVintedListingContent({
       ...sourceContent,
