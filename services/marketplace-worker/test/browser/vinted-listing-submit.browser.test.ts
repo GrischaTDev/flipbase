@@ -829,3 +829,77 @@ test('preflight failures preserve a fixed step through isolated transport withou
     await browser.close();
   }
 });
+
+test('defers package choices until photos exist and never saves without the complete choice', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const mode of ['native', 'local', 'missing', 'disabled'] as const) {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, {
+        publishing: true,
+        nativePackage: true,
+      });
+      await page.addInitScript((mode) => {
+        document.addEventListener('DOMContentLoaded', () => {
+          if (location.pathname !== '/items/new') return;
+          const cells = [...document.querySelectorAll<HTMLElement>('[id^="package-size-"]')];
+          cells.forEach((cell) => cell.remove());
+          document.querySelector('input[name="photos"]')?.addEventListener('change', () => {
+            if (mode === 'missing') return;
+            setTimeout(() => {
+              if (mode === 'disabled')
+                cells.forEach((cell) => {
+                  const radio = cell.querySelector('input');
+                  if (radio) radio.disabled = true;
+                });
+              cells.forEach((cell) => document.querySelector('#content')?.append(cell));
+            }, 75);
+          });
+        });
+      }, mode);
+      await page.goto('about:blank');
+      let begins = 0;
+      let result: Awaited<ReturnType<typeof submitVintedListing>> | undefined;
+      try {
+        result = await submitVintedListing(
+          page,
+          '123',
+          'publish',
+          {
+            ...listingClaimFixture.snapshot,
+            content: {
+              ...listingClaimFixture.snapshot.content,
+              attributes: mode === 'local' ? { flipbaseListingForm: '1' } : {},
+            },
+          },
+          async () => {
+            begins++;
+          },
+          async () => undefined,
+          async (id) => ({
+            id,
+            fileName: 'jacke.jpg',
+            mimeType: 'image/jpeg',
+            bytes: new Uint8Array(123),
+          }),
+          [5],
+          { saveTimeoutMs: 400 },
+        );
+      } catch (error) {
+        if (mode !== 'missing' && mode !== 'disabled') throw error;
+      }
+      assert.equal(
+        begins,
+        1,
+        'Die vor dem Upload fehlende Paketwahl darf die Vorbereitung nicht abbrechen',
+      );
+      assert.equal(form.uploads(), 1);
+      assert.equal(form.saves(), mode === 'native' || mode === 'local' ? 1 : 0);
+      if (mode === 'native' || mode === 'local')
+        assert.equal(result?.outcome, 'confirmed', JSON.stringify(result));
+      assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
