@@ -34,6 +34,12 @@ for (const width of [1440, 390]) {
         await page.goto('/marketplaces/vinted/accounts');
         const grid = page.locator('app-vinted-account-grid');
         await expect(grid).toBeVisible();
+        for (const kind of ['favorite', 'feedback', 'message'])
+          await expect
+            .poll(() =>
+              calls.some((call) => call.name === `marketplace_read_${kind}_notifications`),
+            )
+            .toBe(true);
         await expect(
           grid.getByText('Cloud-Konten sind in der Beta noch nicht verfügbar.', { exact: true }),
         ).toBeVisible();

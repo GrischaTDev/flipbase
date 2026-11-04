@@ -42,6 +42,10 @@ Cloud-Auswahl und Wechsel sind ohne serverseitige Freigabe gesperrt.
 Vinted ohne Betreiberrolle. Drei Gegenproben scheiterten mit dem alten Filter,
 darunter die bestehenden Abläufe zur Kontoauswahl und Inseraterstellung. Der
 Beta-Browserfall beginnt zusätzlich bei dieser Plattformauswahl.
+Auch die drei Benachrichtigungsdienste laden lokale Kontoereignisse ohne
+Betreiberrolle. Neue Gegenproben reproduzieren die alten Filtersperren; sofortiges
+Verwerfen bei Archivierung, Workspacewechsel und serverseitigem Rechteentzug
+bleibt abgesichert. Der Beta-Browserfall prüft das Laden aller drei Feeds.
 
 **Datenbank und Nachweis:** Zwei neue Prüffunktionen mit expliziten Rechten;
 keine Tabellenänderung. Migration mit Supabase CLI 2.114.0 aus zwei eigenen,

@@ -79,6 +79,14 @@ describe('Kontogebundene Favoritenmeldungen außerhalb der Vinted-Ansicht', () =
     expect(store.notifications()[0].message).toBe('Schal');
     expect(store.unreadCount()).toBe(67);
   });
+  it('lädt Meldungen für den aktiven Workspace auch ohne Betreiberrolle', async () => {
+    operator.operator.set(false);
+    const store = TestBed.inject(MarketplaceFavoriteNotificationStore);
+    await settle();
+    expect(api.read).toHaveBeenCalledWith('workspace-a');
+    expect(store.notifications()).toHaveLength(1);
+    expect(store.unreadCount()).toBe(67);
+  });
   it('übernimmt Broadcast und Wiederverbinden ohne doppelte Meldungen', async () => {
     const store = TestBed.inject(MarketplaceFavoriteNotificationStore);
     await settle();
@@ -113,10 +121,10 @@ describe('Kontogebundene Favoritenmeldungen außerhalb der Vinted-Ansicht', () =
     expect(store.unreadCount()).toBe(67);
     expect(cleanup).toHaveBeenCalled();
   });
-  it('entfernt Feed und Kanal bei verlorenem Betreiberzugriff sofort', async () => {
+  it('entfernt Feed und Kanal bei archiviertem Workspace sofort', async () => {
     const store = TestBed.inject(MarketplaceFavoriteNotificationStore);
     await settle();
-    operator.operator.set(false);
+    workspace.currentWorkspace.set({ id: 'workspace-a', archived_at: '2026-11-05T00:00:00Z' });
     expect(store.notifications()).toEqual([]);
     expect(store.unreadCount()).toBe(0);
     await settle();
