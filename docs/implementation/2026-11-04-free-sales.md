@@ -24,6 +24,9 @@ Warenrückgaben. Eine Vollerstattung freier Positionen berührt keinen Bestand.
 Gemischte Verkäufe behandeln ausschließlich ihre tatsächlichen Bestandspositionen
 über den bisherigen Rückgabeweg. Die Oberfläche verwendet auch für Erstattungen
 eine stabile Buchungskennung. Gutschriften behalten Nummer und Unternehmenssnapshot.
+Bei mehreren Erstattungen ist jede Gutschrift einzeln über die Verkaufsaktionen
+zugänglich, auch nach einem Neuladen. Teilweise erstattete Verkäufe und der noch
+erstattbare Restbetrag sind entsprechend gekennzeichnet.
 
 ## Korrektur
 
@@ -33,6 +36,7 @@ kennzeichnet das Original als korrigiert, bucht einen neuen Verkauf mit eigener
 Nummer und speichert Bezug und Historieneintrag. Existiert eine Rechnung, wird
 zusätzlich ein negativer Korrekturbeleg aus deren eingefrorenem Inhalt gespeichert.
 Dieser ist über das Original zugänglich und enthält den Korrekturgrund.
+Der Änderungsverlauf zeigt die Korrektur ebenfalls mit ihrer Begründung.
 Korrigierte Originale zählen nicht erneut in Erlöse, Gewinn oder Steuerberechnung.
 CSV-Ausgaben kennzeichnen den Status und Korrekturgrund.
 

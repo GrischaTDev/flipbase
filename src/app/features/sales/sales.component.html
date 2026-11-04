@@ -237,7 +237,9 @@
                           <app-badge tone="neutral">Korrigiert</app-badge>
                         }
                         @if (sale.returned_at || ret) {
-                          <app-badge tone="critical" [mono]="true"> Retourniert </app-badge>
+                          <app-badge tone="critical" [mono]="true">{{
+                            sale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
+                          }}</app-badge>
                         }
                       </div>
                     </td>
@@ -373,7 +375,9 @@
                   <app-badge tone="neutral">Korrigiert</app-badge>
                 }
                 @if (sale.returned_at || ret) {
-                  <app-badge tone="critical" [mono]="true">Retourniert</app-badge>
+                  <app-badge tone="critical" [mono]="true">{{
+                    sale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
+                  }}</app-badge>
                 }
               </div>
               <div class="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-fb-text-muted">
@@ -510,7 +514,7 @@
                 [class.border-fb-border]="!returnForm.get('isFullRefund')?.value"
               >
                 Vollerstattung ({{
-                  sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  remainingRefundAmount(sale) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
                 }})
               </button>
 
@@ -708,6 +712,7 @@
 </div>
 
 <ng-template #saleActions let-sale let-ret="ret">
+  @let creditNotes = creditNotesForSale(sale.id);
   <app-table-action-menu [label]="'Aktionen für ' + saleTitle(sale)">
     <app-button
       variant="list-row"
@@ -743,15 +748,19 @@
         >Korrekturbeleg anzeigen</app-button
       >
     }
-    @if (ret) {
+    @for (creditNote of creditNotes; track creditNote.id) {
       <app-button
         variant="list-row"
         density="compact"
         [fullWidth]="true"
         contentAlign="start"
         [icon]="receiptIcon"
-        (clicked)="openCreditNoteForSale(sale)"
-        >Gutschrift anzeigen</app-button
+        (clicked)="openCreditNoteForSale(sale, creditNote.id)"
+        >{{
+          creditNotes.length > 1
+            ? 'Gutschrift ' + creditNote.credit_note_number + ' anzeigen'
+            : 'Gutschrift anzeigen'
+        }}</app-button
       >
     }
     @if (!sale.returned_at && !sale.voided_at) {

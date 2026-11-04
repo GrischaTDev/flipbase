@@ -20,6 +20,19 @@ function createEvent(eventType: string, changes: Json = {}, actorId: string | nu
 }
 
 describe('timelineSentence', () => {
+  it('zeigt den Korrekturgrund eines ersetzten Verkaufs ohne technischen Beleginhalt', () => {
+    const event = createEvent('sale_corrected', {
+      reason: 'Preis berichtigt',
+      replacement_sale_id: 'replacement-1',
+      correction_document: { invoiceNumber: 'V-1-K', total: -25 },
+    });
+    expect(timelineSentence(event, 'Grischa Tänzer', 'actor-1')).toBe(
+      'Du hast diesen Verkauf korrigiert.',
+    );
+    expect(timelineChanges(event)).toEqual([
+      { label: 'Korrekturgrund', from: null, to: 'Preis berichtigt' },
+    ]);
+  });
   it('spricht den angemeldeten Verursacher direkt an', () => {
     const sentence = timelineSentence(createEvent('purchase_ordered'), 'Grischa Tänzer', 'actor-1');
     expect(sentence).toBe('Du hast diesen Einkauf als bestellt markiert.');

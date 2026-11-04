@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
+import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { describe, expect, it, vi } from 'vitest';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
 import { SaleCreateComponent } from '../../pages/sale-create/sale-create.component';
@@ -23,7 +24,14 @@ function createStockSubject() {
     isSubmitting: signal(false),
     isPersisted: signal(false),
     externalDraft: signal(null),
-    lines: { controls: [{ id: 'line-1' }] },
+    legacyReconciliation: signal(null),
+    lines: new FormArray([
+      new FormGroup({
+        target: new FormControl('catalog:product-1', { nonNullable: true }),
+        quantity: new FormControl(1, { nonNullable: true }),
+        unitSalePrice: new FormControl(10, { nonNullable: true }),
+      }),
+    ]),
     updateQuantityValidator,
   });
   return { component, currentWorkspace, stockService, updateQuantityValidator };
@@ -36,7 +44,7 @@ describe('Verkaufserfassung: Bestand laden', () => {
     await component.loadStockPositions();
 
     expect(stockService.loadPositions).toHaveBeenCalledWith('workspace-1');
-    expect(updateQuantityValidator).toHaveBeenCalledWith({ id: 'line-1' });
+    expect(updateQuantityValidator).toHaveBeenCalledWith(component.lines.at(0));
     expect(component.isLoadingStock()).toBe(false);
     expect(component.stockLoadError()).toBeNull();
   });
@@ -68,6 +76,20 @@ describe('Verkaufserfassung: Bestand laden', () => {
     expect(stockService.loadPositions).toHaveBeenCalledTimes(2);
     expect(component.stockLoadError()).toBeNull();
     expect(component.canSave()).toBe(true);
+  });
+
+  it('lässt freie Positionen trotz ausstehendem oder fehlgeschlagenem Bestandsabruf speichern', () => {
+    const { component } = createStockSubject();
+    component.lines.at(0).controls.target.setValue('free:Pullover');
+    component.isLoadingStock.set(true);
+    component.stockLoadError.set('Bestand nicht erreichbar');
+    Object.assign(component, {
+      selectionLoading: signal(true),
+      selectionError: signal('Artikel nicht erreichbar'),
+    });
+    expect(component.canSave()).toBe(true);
+    component.lines.at(0).controls.target.setValue('catalog:product-1');
+    expect(component.canSave()).toBe(false);
   });
 
   it('beendet den Ladezustand auch bei einer geworfenen Ausnahme', async () => {

@@ -132,7 +132,11 @@
                                   role="alert"
                                   class="mt-1 text-xs text-fb-critical"
                                 >
-                                  Bitte wähle einen verfügbaren Artikel aus.
+                                  {{
+                                    isFreeLine(line)
+                                      ? 'Bitte gib eine Beschreibung ein.'
+                                      : 'Bitte wähle einen verfügbaren Artikel aus.'
+                                  }}
                                 </p>
                               }
                               @if (validationAttempted() && line.controls.quantity.invalid) {
@@ -141,7 +145,11 @@
                                   role="alert"
                                   class="mt-1 text-xs text-fb-critical"
                                 >
-                                  Bitte prüfe die Menge und den verfügbaren Bestand.
+                                  {{
+                                    isFreeLine(line)
+                                      ? 'Bitte prüfe die Menge.'
+                                      : 'Bitte prüfe die Menge und den verfügbaren Bestand.'
+                                  }}
                                 </p>
                               }
                               @if (validationAttempted() && line.controls.unitSalePrice.invalid) {

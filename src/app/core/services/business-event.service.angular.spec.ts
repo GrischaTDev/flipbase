@@ -122,6 +122,7 @@ describe('BusinessEventService', () => {
       'Altdaten des Einkaufs übernommen',
     );
     expect(mapBusinessEventLabel('sale_recorded')).toBe('Verkauf erfasst');
+    expect(mapBusinessEventLabel('sale_corrected')).toBe('Verkauf korrigiert');
     expect(mapBusinessEventLabel('article_stock_removed')).toBe('Stück aus Bestand entfernt');
     expect(mapBusinessEventLabel('stock_removal_recorded')).toBe('Bestandsabgang gebucht');
     expect(mapBusinessEventLabel('sale_refund_updated')).toBe('Erstattung aktualisiert');

@@ -41,12 +41,16 @@ for (const view of [
         expect(profile.error).toBeNull();
         await page.goto('/sales/new');
         await page.getByRole('button', { name: 'Freie Position', exact: true }).click();
-        await page
-          .getByRole('textbox', { name: 'Beschreibung', exact: true })
-          .fill('Freier Pullover');
         await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).fill('25');
         await page.getByRole('combobox', { name: 'Verkaufsplattform' }).click();
         await page.getByRole('option', { name: 'Direktverkauf', exact: true }).click();
+        await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
+        await expect(
+          page.getByText('Bitte gib eine Beschreibung ein.', { exact: true }),
+        ).toBeVisible();
+        await page
+          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .fill('Freier Pullover');
         await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
         await expect(page).toHaveURL(/\/sales$/);
         await page
@@ -95,6 +99,23 @@ for (const view of [
         await expect(
           page.getByText('Wiedereinlagerung in den Warenbestand', { exact: true }),
         ).toHaveCount(0);
+        await page.getByRole('radio', { name: 'Teilerstattung', exact: true }).click();
+        await page
+          .getByRole('spinbutton', { name: 'Erstattungsbetrag in Euro', exact: true })
+          .fill('5');
+        await page
+          .getByRole('button', { name: 'Gutschrift erstellen & Erstattung buchen', exact: true })
+          .click();
+        await expect(page.locator('app-invoice-modal')).toContainText('Pullover korrigiert');
+        await page.getByRole('button', { name: 'Beleg schließen', exact: true }).click();
+        await expect(
+          page.getByText('Teilweise erstattet', { exact: true }).filter({ visible: true }),
+        ).toBeVisible();
+        await page
+          .getByRole('button', { name: 'Aktionen für Pullover korrigiert', exact: true })
+          .click();
+        await page.getByRole('button', { name: 'Retoure erfassen', exact: true }).click();
+        await expect(page.getByRole('radio', { name: /Vollerstattung/ })).toContainText('15,00');
         await page
           .getByRole('button', { name: 'Gutschrift erstellen & Erstattung buchen', exact: true })
           .click();
@@ -107,6 +128,30 @@ for (const view of [
           .single();
         expect(refunded.data?.refund_amount).toBe(20);
         expect(refunded.data?.returned_at).toBeTruthy();
+        const notes = await workspace.client
+          .from('returns')
+          .select('credit_note_number,refund_amount')
+          .eq('sale_id', replacement!.id);
+        expect(notes.error).toBeNull();
+        expect(notes.data).toHaveLength(2);
+        expect(notes.data!.map((note) => note.refund_amount).sort((a, b) => a - b)).toEqual([
+          5, 15,
+        ]);
+        await page.reload();
+        for (const note of notes.data!) {
+          await page
+            .getByRole('button', { name: 'Aktionen für Pullover korrigiert', exact: true })
+            .click();
+          await page
+            .getByRole('button', {
+              name: `Gutschrift ${note.credit_note_number} anzeigen`,
+              exact: true,
+            })
+            .click();
+          await expect(page.locator('app-invoice-modal')).toContainText(note.credit_note_number);
+          await expect(page.locator('app-invoice-modal')).toContainText(`${note.refund_amount},00`);
+          await page.getByRole('button', { name: 'Beleg schließen', exact: true }).click();
+        }
         for (const table of ['inventory_items', 'stock_lots', 'stock_movements']) {
           const result = await workspace.client
             .from(table)

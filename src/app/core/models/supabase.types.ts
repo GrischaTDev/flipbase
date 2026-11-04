@@ -5195,7 +5195,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
+            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -5236,7 +5236,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: true
             referencedRelation: "marketplace_connections"
@@ -5306,7 +5306,7 @@ export type Database = {
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
-            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"

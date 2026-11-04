@@ -443,8 +443,14 @@ export class SalesComponent {
     }
   }
 
-  openCreditNoteForSale(sale: Sale): void {
-    const ret = this.returnService.returns().find((r) => r.sale_id === sale.id);
+  creditNotesForSale(saleId: string): ReturnRecord[] {
+    return this.returnService.returns().filter((entry) => entry.sale_id === saleId);
+  }
+
+  openCreditNoteForSale(sale: Sale, returnId?: string): void {
+    const ret = this.creditNotesForSale(sale.id).find(
+      (entry) => !returnId || entry.id === returnId,
+    );
     if (ret && ret.creditNoteInvoice) {
       this.activeInvoice.set(ret.creditNoteInvoice);
     } else if (ret) {
@@ -505,7 +511,7 @@ export class SalesComponent {
     this.selectedSaleForReturn.set(sale);
     this.returnForm.patchValue({
       reason: 'buyer_remorse',
-      refundAmount: sale.sale_price - (sale.refund_amount ?? 0),
+      refundAmount: this.remainingRefundAmount(sale),
       isFullRefund: true,
       restockAction: this.isFreeSale(sale) ? 'keep_with_buyer' : 'restock_ready',
       notes: '',
@@ -516,6 +522,10 @@ export class SalesComponent {
   closeReturnModal(): void {
     this.isReturnModalOpen.set(false);
     this.selectedSaleForReturn.set(null);
+  }
+
+  remainingRefundAmount(sale: Sale | null): number {
+    return Math.max(0, Number(((sale?.sale_price ?? 0) - (sale?.refund_amount ?? 0)).toFixed(2)));
   }
 
   openRecordHistory(sale: Sale): void {
@@ -530,7 +540,7 @@ export class SalesComponent {
     this.returnForm.patchValue({ isFullRefund: isFull });
     const sale = this.selectedSaleForReturn();
     if (isFull && sale) {
-      this.returnForm.patchValue({ refundAmount: sale.sale_price - (sale.refund_amount ?? 0) });
+      this.returnForm.patchValue({ refundAmount: this.remainingRefundAmount(sale) });
     }
   }
 
