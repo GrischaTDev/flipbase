@@ -30,7 +30,7 @@ test('edits a saved purchase in place and retains discounted totals after reload
   await dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }).click();
   await page.getByRole('option', { name: 'Rabatt', exact: true }).click();
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
   await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
 
   await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toHaveCount(

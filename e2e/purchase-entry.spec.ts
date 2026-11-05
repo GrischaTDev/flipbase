@@ -135,7 +135,7 @@ test('applies cost adjustments only when the management dialog is saved', async 
   await dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }).click();
   await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
 
   await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue('Kostenentwurf');
   await expect(page.getByRole('button', { name: 'Entwurf speichern' })).toBeEnabled();
