@@ -65,7 +65,9 @@ export function flipbaseVintedListingFields(
   categoryId: number,
   categoryPath: string,
   brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'> &
-    Partial<Pick<VintedListingContent, 'attributes'>>,
+    Partial<
+      Pick<VintedListingContent, 'attributes' | 'sizeLabel' | 'colorLabels' | 'materialLabels'>
+    >,
 ): VintedListingCategoryFields {
   // Ein unbestätigter Markenname bleibt im Entwurf, darf aber keine ungültige Auswahl erzeugen.
   const selectedBrand = brand && validVintedListingBrand(brand) ? brand : null;
@@ -116,13 +118,25 @@ export function flipbaseVintedListingFields(
   // Einzelne ältere Entwürfe enthalten nur den Blattnamen.
   if (!sizes.length && /bomber|jacke|hose|kleid|shirt|pullover/.test(path))
     sizes.push('XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL');
+  // Gespeicherte Angaben echter Inserate (z. B. „W32“) sind nicht vollständig in den eigenen
+  // Listen enthalten. Sie bleiben gültig; Vinted ordnet sie erst beim Veröffentlichen zu.
+  const stored: Partial<Record<VintedListingChoiceSnapshot['field'], readonly string[]>> = {
+    // Kombinierte Angaben wie „M / L“ bleiben offen, statt eine von beiden Größen zu raten.
+    size:
+      brand?.sizeLabel?.trim() && !brand.sizeLabel.includes('/') ? [brand.sizeLabel.trim()] : [],
+    color: brand?.colorLabels ?? [],
+    material: brand?.materialLabels ?? [],
+  };
   const field = (
     name: VintedListingChoiceSnapshot['field'],
-    labels: readonly string[],
+    known: readonly string[],
   ): VintedListingChoiceSnapshot => ({
     field: name,
     sizeGroupId: name === 'size' ? 1 : null,
-    choices: labels.map((label, index) => ({
+    choices: [
+      ...known,
+      ...(stored[name] ?? []).filter((label) => label.trim() && !known.includes(label)),
+    ].map((label, index) => ({
       id: index + 1,
       label,
       selected: false,
@@ -196,7 +210,13 @@ export function prepareFlipbaseVintedListingContent(
     schema.fields
       .find((entry) => entry.field === field)
       ?.choices.find((choice) => choice.label === label)?.id ?? null;
-  const sizes = schema.fields.find((field) => field.field === 'size')?.choices ?? [];
+  const allSizes = schema.fields.find((field) => field.field === 'size')?.choices ?? [];
+  // Zuerst nur die eigene Liste auswerten, damit „M / 38 / 10“ weiterhin als „M“ gilt.
+  const known = flipbaseVintedListingFields(content.categoryId, content.categoryLabel, {
+    ...content,
+    sizeLabel: '',
+  }).fields.find((field) => field.field === 'size')?.choices.length;
+  const sizes = allSizes.slice(0, known ?? 0);
   const normalizeSize = (label: string) =>
     label
       .trim()
@@ -211,7 +231,11 @@ export function prepareFlipbaseVintedListingContent(
   // Eine kombinierte Konfektionsangabe wie „M / 38 / 10“ enthält die ausdrückliche Buchstabengröße.
   // Zwei unterschiedliche Buchstabengrößen oder Zahlenbereiche werden nicht geraten.
   const letters = matching.filter((choice) => /^\d*[a-z]+$/i.test(choice.label));
-  const size = exact ?? (letters.length === 1 ? letters[0] : undefined);
+  const size =
+    exact ??
+    (letters.length === 1
+      ? letters[0]
+      : allSizes.find((choice) => choice.label === content.sizeLabel.trim()));
   return {
     ...content,
     sizeId: size?.id ?? null,

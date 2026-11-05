@@ -49,7 +49,7 @@ describe('Eigenes Inseratformular', () => {
       expect(errors['brand']).toBeDefined();
     },
   );
-  it('übernimmt kombinierte Altgrößen und EU-Schreibweisen eindeutig und erhält unbekannte Größen als Hinweis', () => {
+  it('übernimmt kombinierte Altgrößen und EU-Schreibweisen eindeutig und erhält gespeicherte Sondergrößen', () => {
     const base = {
       ...emptyVintedListingContent(),
       categoryId: 1223,
@@ -67,7 +67,7 @@ describe('Eigenes Inseratformular', () => {
     ).toBe('38,5');
     expect(
       prepareFlipbaseVintedListingContent({ ...base, sizeLabel: 'Alte Sondergröße' }),
-    ).toMatchObject({ sizeId: null, sizeLabel: 'Alte Sondergröße' });
+    ).toMatchObject({ sizeId: expect.any(Number), sizeLabel: 'Alte Sondergröße' });
     expect(prepareFlipbaseVintedListingContent({ ...base, sizeLabel: 'M / L' }).sizeId).toBeNull();
     expect(
       prepareFlipbaseVintedListingContent({
@@ -76,6 +76,33 @@ describe('Eigenes Inseratformular', () => {
         sizeLabel: '176/182',
       }),
     ).toMatchObject({ sizeId: null, sizeLabel: '176/182' });
+  });
+  it('lässt gespeicherte Jeansgrößen wie W32 beim Relisten nicht als fehlend gelten', () => {
+    const content = prepareFlipbaseVintedListingContent({
+      ...emptyVintedListingContent(),
+      title: 'Levi’s 501',
+      description: 'Gut erhalten.',
+      priceCents: 2500,
+      categoryId: 257,
+      categoryLabel: 'Herren > Kleidung > Jeans',
+      brandId: 10,
+      brandLabel: 'Levi’s',
+      sizeId: 1641,
+      sizeLabel: 'W32',
+      conditionLabel: 'Sehr gut',
+      colorLabels: ['Blau'],
+      materialLabels: ['Cord'],
+    });
+    expect(content).toMatchObject({ sizeLabel: 'W32', materialLabels: ['Cord'] });
+    expect(content.sizeId).not.toBeNull();
+    expect(content.materialIds).toHaveLength(1);
+    const errors = validateVintedListingEditor(
+      content,
+      [{ mimeType: 'image/jpeg', byteSize: 123 }],
+      flipbaseVintedListingFields(257, content.categoryLabel, content),
+    );
+    expect(errors['size']).toBeUndefined();
+    expect(errors['material']).toBeUndefined();
   });
   it('verwendet bei Mützen, Handschuhen, Gürteln und BHs vor allgemeinen Kleidungsgrößen das eigene Größenprofil', () => {
     for (const [path, expected] of [

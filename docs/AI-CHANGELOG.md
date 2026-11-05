@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Bearbeiten direkt aus dem Kleiderschrank und gespeicherte Größen erhalten
+
+**Anlass:** Bearbeiten war nur über die Detailansicht erreichbar. Eine Jeans mit
+gespeicherter Größe ließ sich nicht relisten („Größe fehlt“), und ihre
+Bearbeitung zeigte nur gesperrte Marke/Größe/Zustand.
+
+**Analyse:** Die gesperrte Ansicht erscheint, solange zum Inserat keine
+gespeicherte Kategorie (`listingContent.categoryId`) vorliegt; der neue
+Detailabgleich ergänzt Altbestände nur mit höchstens drei Abrufen je
+Kontoabgleich. „Größe fehlt“ entsteht, weil Flipbase Größen gegen eine eigene,
+fest geschriebene Liste prüft und unbekannte Angaben wie „W32“ leert. Der
+Verkaufsbaum je Konto ist gespeichert, die Merkmale je Kategorie (Größengruppen,
+Zustände, Farben, Materialien) dagegen nicht.
+
+**Umsetzung:** Neuer Knopf „Inserat bearbeiten“ in der Aktionsleiste öffnet die
+Bearbeitung direkt (`?edit=1`, danach aus der Adresse entfernt);
+Planungszeilen unverändert. Aktionsspalte für fünf Knöpfe verbreitert.
+Gespeicherte einfache Größen, Farben und Materialien gelten in der eigenen
+Auswahl weiter; Vinted ordnet sie wie bisher beim Veröffentlichen anhand der
+Bezeichnung zu. Mehrdeutige Kombinationen wie „M / L“ bleiben offen.
+
+**Prüfung:** Neuer W32-Fall zuerst rot reproduziert, danach grün. Komponenten-
+fälle für Knopf und direktes Öffnen ergänzt. `npm run preflight` mit Node 22
+erfolgreich (Format, Lint, Typen, 26 Node-, 232 Angular-Fälle, Bau). Die
+ausgewählten Browserfälle (Knopfzahl 5) bleiben dem CI-Nachweis vorbehalten.
+Keine Anbieterdaten verändert.
+
 ## 2026-11-05 - Juna - Vollständige Inseratbearbeitung aus dem Datenbankstand wiederherstellen
 
 **Anlass:** Beim Bearbeiten importierter Vinted-Inserate fehlten Kategorie,
