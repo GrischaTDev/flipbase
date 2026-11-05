@@ -15,7 +15,7 @@ import {
 import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import type { MarketplaceListingSnapshot } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import type { VintedUploadedListingPhoto } from './vinted-browser-listing-photos.ts';
-import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
+import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
 
 type SavedReadStep = VintedListingReadStep | 'navigation' | 'form_match' | 'photos_match';
 
@@ -166,10 +166,13 @@ export async function readVintedListingActiveState(
       new URL(page.url()).origin !== 'https://www.vinted.de' ||
       (await readVintedAccountIdentity(page))?.id !== accountId
     )
-      throw invalid();
+      throw new VintedListingReadError('identity');
     await authorize();
   };
-  await check();
+  // Eine frische reservierte Seite enthält noch keine Kontoanzeige. Nach der
+  // Navigation ist die Identitätsprüfung zwingend, bevor der Aktiv-Filter benutzt wird.
+  if (page.url() === 'about:blank') await authorize();
+  else await check();
   onStep('navigation');
   await page.goto('https://www.vinted.de/member/' + accountId, {
     waitUntil: 'load',

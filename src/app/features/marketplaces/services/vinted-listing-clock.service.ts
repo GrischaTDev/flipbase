@@ -4,8 +4,11 @@ import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class VintedListingClockService {
   readonly now = signal(Date.now());
+  refresh(): void {
+    this.now.set(Date.now());
+  }
   constructor() {
-    const refresh = () => this.now.set(Date.now());
+    const refresh = () => this.refresh();
     const interval = setInterval(refresh, 60_000);
     document.addEventListener('visibilitychange', refresh);
     inject(DestroyRef).onDestroy(() => {

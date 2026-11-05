@@ -295,16 +295,17 @@ test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () 
   assert.ok(selected.some(([, title]) => !/@(?:pr|core)-smoke/u.test(title)));
 });
 
-test('direkt geänderte Galerie reduziert 33 Varianten auf vierzehn unterschiedliche Nachweise', async () => {
+test('direkt geänderte Galerie reduziert 34 Varianten auf fünfzehn unterschiedliche Nachweise', async () => {
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
-  assert.equal(complete.selected.length, 33);
-  assert.equal(selected.length, 14);
+  assert.equal(complete.selected.length, 34);
+  assert.equal(selected.length, 15);
   const completeKeys = new Set(keys(complete.selected));
   assert.ok(keys(selected).every((key) => completeKeys.has(key)));
   assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
   assert.ok(selected.some(([, title]) => title.includes('Bildfehlerrahmen')));
   for (const title of [
+    'Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast',
     'Bildbearbeitung liest bereits angezeigte private Originalfotos mit echtem Browsercache',
     'Unvollständigen Vinted-Entwurf direkt im Formular ergänzen bei 390px light',
     'Vinted-Mosaik und Zeit-Badges bei 390px dark',

@@ -25,6 +25,222 @@ const images = [
 ];
 const detailPath = `/marketplaces/vinted/listings/${accountIds[0]}/${entryId}`;
 
+test('Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast @marketplace-preview', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const title = 'EA7 Emporio Armani Jogginganzug';
+  const runtimeErrors = await prepareListing(page, {
+    title,
+    text: 'Originalbeschreibung',
+    textState: 'loaded',
+    imageUrls: [images[0]],
+  });
+  await page.route('**/auth/v1/user', (route) =>
+    route.fulfill({
+      json: {
+        id: '25000000-0000-4000-8000-000000000001',
+        email: 'marketplace@example.test',
+        aud: 'authenticated',
+        role: 'authenticated',
+        app_metadata: {},
+        user_metadata: { flipbase_action_overview: true },
+        created_at: '2026-09-26T00:00:00Z',
+      },
+    }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        workspaceId,
+        connectionId: route.request().postDataJSON().p_connection_id,
+        actions: [],
+      },
+    }),
+  );
+  await page.clock.install();
+  const createdAt = new Date().toISOString();
+  const originalEntryId = '25000000-0000-4000-8000-000000000099';
+  const draft: VintedListingDraft = {
+    id: '20',
+    workspaceId,
+    connectionId: accountIds[0],
+    relistExternalId: '98765',
+    revision: 1,
+    content: {
+      ...emptyVintedListingContent(),
+      title,
+      description: 'Originalbeschreibung',
+      priceCents: 6490,
+    },
+    images: [],
+    inventoryItemId: null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+  let job: VintedListingJob = {
+    id: '30',
+    workspaceId,
+    connectionId: accountIds[0],
+    draftId: '20',
+    draftRevision: 1,
+    externalAccountId: '100',
+    executionMode: 'cloud',
+    action: 'publish',
+    state: 'writing',
+    version: 1,
+    relistEntryId: originalEntryId,
+    relistExternalId: '98765',
+    relistDeletedAt: createdAt,
+    relistDelaySeconds: 0,
+    itemTitle: title,
+    scheduledAt: null,
+    timeZone: null,
+    latePolicy: 'pause_after_30_minutes',
+    errorCode: null,
+    externalId: null,
+    providerState: null,
+    verifiedAt: null,
+    replacesJobId: null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+  let planVisible = true;
+  let holdSnapshot = false;
+  let snapshotReads = 0;
+  let publicationTime: string | null = null;
+  let releaseSnapshot: () => void = () => undefined;
+  const snapshotReady = new Promise<void>((resolve) => {
+    releaseSnapshot = resolve;
+  });
+  await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
+    route.fulfill({ json: { items: planVisible ? [{ job, draft }] : [] } }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>
+    route.fulfill({ json: { items: [job] } }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_snapshot', async (route) => {
+    snapshotReads++;
+    if (holdSnapshot) await snapshotReady;
+    const scope = { workspaceId, connectionId: route.request().postDataJSON().p_connection_id };
+    return route.fulfill({
+      json: {
+        ...scope,
+        profile: null,
+        publications: {
+          items: [
+            {
+              ...scope,
+              id: originalEntryId,
+              externalId: publicationTime ? '45678' : '98765',
+              title,
+              text: 'Originalbeschreibung',
+              textState: 'loaded',
+              price: 64.9,
+              currency: 'EUR',
+              publicationState: 'active',
+              occurredAt: publicationTime,
+              imageUrl: images[0],
+              imageUrls: [images[0]],
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+        },
+        conversations: emptyPage(),
+        sales: emptyPage(),
+        activity: emptyPage(),
+      },
+    });
+  });
+  await page.goto('/marketplaces/vinted/listings');
+  const wardrobe = page.locator('app-vinted-listings');
+  const plan = wardrobe.locator('[data-relisting-plan]');
+  await expect(plan).toContainText('Wird inseriert');
+  job = {
+    ...job,
+    state: 'outcome_unknown',
+    version: 2,
+    externalId: '45678',
+    errorCode: 'provider_unconfirmed_active_evidence',
+    updatedAt: await page.evaluate(() => new Date().toISOString()),
+  };
+  await page.clock.fastForward(6000);
+  await expect(plan).toContainText('Veröffentlichung wird geprüft');
+  await expect(plan).toHaveAttribute('aria-busy', 'true');
+  await expect(wardrobe).not.toContainText('Ergebnis unklar');
+  await expect(page.locator('[data-action-overview-error]')).toHaveCount(0);
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(1);
+  await page.evaluate(() => {
+    const observed: { title: string; wardrobe: string; cards: number }[] = [];
+    (window as unknown as { relistingToasts: typeof observed }).relistingToasts = observed;
+    const seen = new Set<Element>();
+    new MutationObserver(() => {
+      for (const toast of document.querySelectorAll('app-toast-container [role="status"]')) {
+        if (!toast.textContent?.includes('Veröffentlicht') || seen.has(toast)) continue;
+        seen.add(toast);
+        const wardrobe = document.querySelector('app-vinted-listings');
+        observed.push({
+          title: toast.textContent,
+          wardrobe: wardrobe?.textContent ?? '',
+          cards:
+            wardrobe?.querySelectorAll('[data-listing-row], [data-relisting-plan]').length ?? 0,
+        });
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+  holdSnapshot = true;
+  const readsBeforeConfirmation = snapshotReads;
+  publicationTime = await page.evaluate(() => new Date().toISOString());
+  job = {
+    ...job,
+    state: 'confirmed',
+    version: 3,
+    errorCode: null,
+    providerState: 'active',
+    verifiedAt: publicationTime,
+    updatedAt: publicationTime,
+  };
+  planVisible = false;
+  await page.clock.fastForward(6000);
+  await expect.poll(() => snapshotReads).toBeGreaterThan(readsBeforeConfirmation);
+  await expect(plan).toContainText('Veröffentlichung wird geprüft');
+  await expect(page.locator('app-toast-container')).not.toContainText('Veröffentlicht');
+  releaseSnapshot();
+  // Der fehlgeschlagene parallele Leseversuch wird im nächsten Takt wiederholt.
+  await page.clock.fastForward(6000);
+  await expect(wardrobe.locator('[data-listing-row]')).toHaveCount(1);
+  await expect(plan).toHaveCount(0);
+  await expect(wardrobe.locator('app-vinted-listing-age')).toHaveText('Neu');
+  await expect(wardrobe).not.toContainText('Alter unbekannt');
+  await expect(wardrobe.locator(`a[href*="${originalEntryId}"]`).first()).toBeVisible();
+  await expect(page.locator('app-toast-container')).toContainText('Veröffentlicht');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { relistingToasts: unknown[] }).relistingToasts.length,
+      ),
+    )
+    .toBe(1);
+  const observed = await page.evaluate(
+    () =>
+      (window as unknown as { relistingToasts: { wardrobe: string; cards: number }[] })
+        .relistingToasts,
+  );
+  expect(observed[0].cards).toBe(1);
+  expect(observed[0].wardrobe).toContain('Neu');
+  expect(observed[0].wardrobe).not.toContain('Alter unbekannt');
+  await page.clock.fastForward(10000);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { relistingToasts: unknown[] }).relistingToasts.length,
+    ),
+  ).toBe(1);
+  await screenshot(page, 'vinted-relisting-confirmed-together', wardrobe);
+  await checkPage(page, runtimeErrors);
+});
+
 test('Bildbearbeitung liest bereits angezeigte private Originalfotos mit echtem Browsercache @marketplace-preview', async ({
   page,
 }) => {

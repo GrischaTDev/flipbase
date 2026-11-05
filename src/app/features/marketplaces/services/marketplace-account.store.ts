@@ -27,6 +27,7 @@ import type {
   MarketplacePage,
   MarketplaceSnapshot,
 } from '../models/marketplace-read.models';
+import { VintedListingClockService } from './vinted-listing-clock.service';
 import { MarketplaceResponseError } from '../models/marketplace-response';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import {
@@ -60,6 +61,7 @@ function errorMessage(error: unknown): string {
 export class MarketplaceAccountStore {
   private readonly api = inject(MarketplaceApiService);
   private readonly browserApi = inject(MarketplaceBrowserTestApiService);
+  private readonly listingClock = inject(VintedListingClockService);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly contextKey = computed(() => {
@@ -1536,6 +1538,7 @@ export class MarketplaceAccountStore {
     this.metricChanges.set({});
   }
   private acceptSnapshot(snapshot: MarketplaceSnapshot): void {
+    this.listingClock.refresh();
     this.observeListingMetrics(snapshot.publications.items);
     for (const entry of snapshot.publications.items) this.rememberStoredDescription(entry);
     this.accountSnapshot.set(snapshot);

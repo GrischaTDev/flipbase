@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
@@ -18,6 +18,8 @@ import { VintedListingsComponent } from './vinted-listings.component';
 import { parseMarketplacePage } from '../../models/marketplace-response';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { parseVintedListingJob } from '../../models/vinted-listing-job';
+import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import type { MarketplaceConnection } from '../../models/marketplace.models';
 import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-plan';
 import { vintedListingSourceContent } from '../../models/vinted-listing-source';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
@@ -286,7 +288,10 @@ function pendingPlans() {
         provide: MarketplaceAccountStore,
         useValue: { selectedConnection, canManage: signal(true) },
       },
-      { provide: VintedListingJobService, useValue: { listPlans } },
+      {
+        provide: VintedListingJobService,
+        useValue: { listPlans, listen: vi.fn(() => () => undefined) },
+      },
       { provide: VintedListingDraftService, useValue: {} },
       { provide: VintedListingImageService, useValue: {} },
     ],
@@ -357,7 +362,13 @@ function acceptedPlan(): VintedRelistingPlanRecord {
   return { job, draft };
 }
 function loadedPlanStore(record = acceptedPlan()) {
-  const selectedConnection = signal({ ...accountA, connectionId: record.job.connectionId! });
+  const storedEntries = signal<readonly MarketplaceEntry[]>([]);
+  const snapshot = computed(() => ({ publications: { items: storedEntries() } }));
+  const selectedConnection = signal<MarketplaceConnection>({
+    ...accountA,
+    connectionId: record.job.connectionId!,
+    externalAccountId: record.job.externalAccountId,
+  });
   const listPlans = vi.fn().mockResolvedValue([record]);
   const reloadImportedSnapshot = vi.fn().mockResolvedValue(true);
   const load = vi.fn().mockResolvedValue({
@@ -374,9 +385,13 @@ function loadedPlanStore(record = acceptedPlan()) {
           selectedConnection,
           canManage: signal(true),
           reloadImportedSnapshot,
+          snapshot,
         },
       },
-      { provide: VintedListingJobService, useValue: { listPlans } },
+      {
+        provide: VintedListingJobService,
+        useValue: { listPlans, listen: vi.fn(() => () => undefined) },
+      },
       {
         provide: WorkspaceService,
         useValue: { currentWorkspace: signal({ id: accountA.workspaceId }) },
@@ -389,7 +404,7 @@ function loadedPlanStore(record = acceptedPlan()) {
     ],
   });
   const plans = TestBed.runInInjectionContext(() => new VintedRelistingPlanStore());
-  return { plans, listPlans, load, reloadImportedSnapshot, selectedConnection };
+  return { plans, listPlans, load, reloadImportedSnapshot, selectedConnection, storedEntries };
 }
 it('hält die bestätigte Jobannahme über verspätete und fehlgeschlagene erste Planabrufe bis zum Serverplan gesperrt', async () => {
   const record = acceptedPlan();
@@ -896,4 +911,100 @@ it('führt eine Löschung nur nach Bestätigung aus und behält ihren Fehler in 
     { type: 'success', title: 'Inserat erfolgreich gelöscht', description: 'Schal' },
   ]);
   expect(component.operations.entries().some((action) => action.state === 'success')).toBe(false);
+});
+
+it('übernimmt die neue gebundene Karte vor dem Abschluss und verwirft ältere Planantworten', async () => {
+  const initial = acceptedPlan();
+  const originalId = '46900000-0000-4000-8000-000000000041';
+  const record = {
+    ...initial,
+    job: { ...initial.job, relistEntryId: originalId, state: 'writing' as const, version: 2 },
+  };
+  const f = loadedPlanStore(record);
+  await settlePlans();
+  const operations = TestBed.inject(VintedListingOperationStore);
+  const publishedAt = new Date().toISOString();
+  const confirmed = {
+    ...record.job,
+    state: 'confirmed' as const,
+    version: 3,
+    externalId: '10672542627',
+    providerState: 'active' as const,
+    verifiedAt: publishedAt,
+    updatedAt: publishedAt,
+  };
+  const imported = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          connectionId: record.job.connectionId,
+          id: originalId,
+          externalId: confirmed.externalId,
+          title: 'EA7',
+          publicationState: 'active',
+          occurredAt: publishedAt,
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    { ...accountA, connectionId: record.job.connectionId ?? '' },
+  ).items;
+  let finishSnapshot: (() => void) | undefined;
+  f.reloadImportedSnapshot.mockImplementationOnce(async () => {
+    await new Promise<void>((resolve) => {
+      finishSnapshot = resolve;
+    });
+    f.storedEntries.set(imported);
+    return true;
+  });
+  const completion = operations.synchronizeRelisting(confirmed);
+  await settlePlans();
+  expect(f.plans.plans()[0]?.job.state).toBe('writing');
+  finishSnapshot?.();
+  expect(await completion).toBe(true);
+  expect(f.storedEntries()).toHaveLength(1);
+  expect(f.storedEntries()[0]?.id).toBe(originalId);
+  expect(f.storedEntries()[0]?.publishedAt).toBe(publishedAt);
+  expect(f.plans.plans()[0]?.job.state).toBe('confirmed');
+  await f.plans.refresh();
+  expect(f.plans.plans()[0]?.job.state).toBe('confirmed');
+});
+
+it('hält den Abschluss bei fehlender neuer Karte zurück und verwendet nach Kontowechsel keine späte Antwort', async () => {
+  const record = acceptedPlan();
+  const f = loadedPlanStore(record);
+  await settlePlans();
+  const operations = TestBed.inject(VintedListingOperationStore);
+  const confirmed = {
+    ...record.job,
+    state: 'confirmed' as const,
+    version: 2,
+    externalId: '10672542627',
+    providerState: 'active' as const,
+    verifiedAt: new Date().toISOString(),
+  };
+  expect(await operations.synchronizeRelisting(confirmed)).toBe(false);
+  expect(f.plans.plans()[0]?.job.state).toBe('queued');
+  const reads = f.reloadImportedSnapshot.mock.calls.length;
+  expect(await operations.synchronizeRelisting({ ...confirmed, externalAccountId: '999' })).toBe(
+    false,
+  );
+  expect(f.reloadImportedSnapshot).toHaveBeenCalledTimes(reads);
+  let finish: ((ready: boolean) => void) | undefined;
+  f.reloadImportedSnapshot.mockImplementationOnce(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const completion = operations.synchronizeRelisting(confirmed);
+  await settlePlans();
+  f.listPlans.mockResolvedValue([]);
+  f.selectedConnection.set({ ...accountB, externalAccountId: '456' });
+  await settlePlans();
+  finish?.(true);
+  expect(await completion).toBe(true);
+  expect(f.plans.plans()).toEqual([]);
 });
