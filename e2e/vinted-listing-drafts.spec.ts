@@ -1668,7 +1668,7 @@ for (const width of [1440, 390]) {
         await brand.fill('Nike');
         await page.getByRole('option', { name: 'Nike', exact: true }).click();
         await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-        expect(state.draft().content.packageSizeId).toBe(2);
+        await expect.poll(() => state.draft().content.packageSizeId).toBe(2);
         expect(state.draft().content.brandId).toBe(53);
         await expect.poll(() => state.enqueues.length).toBe(1);
         await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');

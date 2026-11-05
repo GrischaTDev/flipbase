@@ -171,6 +171,10 @@ function setupSellingTree() {
   TestBed.configureTestingModule({
     providers: [
       VintedListingCategoryService,
+      {
+        provide: VintedCategoryFieldStore,
+        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+      },
       { provide: SupabaseService, useValue: { client: { from } } },
       {
         provide: AuthService,

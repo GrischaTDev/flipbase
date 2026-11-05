@@ -10,8 +10,9 @@ import { MarketplaceAccountStore } from './marketplace-account.store';
 /**
  * Echte Vinted-Auswahlwerte je Konto und Kategorie aus der Datenbank.
  * Der Worker speichert sie bei jedem Inserat- oder Kategorieabruf; hier wird nur gelesen.
+ * Wird im Vinted-Arbeitsbereich bereitgestellt, weil die Kontoliste nur dort existiert.
  */
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class VintedCategoryFieldStore {
   private readonly database = inject(SupabaseService);
   private readonly workspace = inject(WorkspaceService);

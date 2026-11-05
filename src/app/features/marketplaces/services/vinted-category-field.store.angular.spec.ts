@@ -30,6 +30,7 @@ function setup(data: unknown = { fields: schema }) {
   ]);
   TestBed.configureTestingModule({
     providers: [
+      VintedCategoryFieldStore,
       { provide: SupabaseService, useValue: { client: { from } } },
       {
         provide: WorkspaceService,
