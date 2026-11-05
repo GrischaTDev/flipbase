@@ -133,6 +133,12 @@ export type MarketplaceListingResult =
       readonly verifiedAt: string;
     }
   | {
+      readonly outcome: 'outcome_unknown';
+      readonly errorCode: string;
+      readonly externalId: string;
+      readonly externalAccountId: string;
+    }
+  | {
       readonly outcome: 'failed' | 'outcome_unknown';
       readonly errorCode: string;
     };

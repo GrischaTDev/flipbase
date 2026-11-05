@@ -226,7 +226,7 @@ returns boolean language sql stable security invoker set search_path='' as $$
     and newer.external_account_id=p_job.external_account_id and newer.snapshot ? 'relistExternalId' and newer.id>p_job.id
     and ((p_job.relist_entry_id is not null and newer.relist_entry_id=p_job.relist_entry_id)
       or newer.snapshot->>'relistExternalId'=p_job.snapshot->>'relistExternalId'
-      or (p_job.state='confirmed' and (p_job.relist_entry_id is null or newer.relist_entry_id is null) and newer.snapshot->>'relistExternalId'=p_job.external_id)));
+      or (p_job.external_id is not null and (p_job.relist_entry_id is null or newer.relist_entry_id is null) and newer.snapshot->>'relistExternalId'=p_job.external_id)));
 $$;
 revoke all on function public.marketplace_relisting_job_is_latest(public.marketplace_listing_jobs) from public,anon,authenticated;
 grant execute on function public.marketplace_relisting_job_is_latest(public.marketplace_listing_jobs) to service_role;
@@ -240,7 +240,7 @@ begin
       and account.marketplace='vinted' and account.external_account_id=p_job.external_account_id) then return null; end if;
   select id into v_entry_id from public.marketplace_account_entries
     where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id and kind='publication'
-      and (external_id=p_job.snapshot->>'relistExternalId' or (p_job.state='confirmed' and external_id=p_job.external_id))
+      and (external_id=p_job.snapshot->>'relistExternalId' or (p_job.state in ('confirmed','outcome_unknown') and external_id=p_job.external_id))
       and (p_job.relist_entry_id is null or id=p_job.relist_entry_id)
     order by (external_id=p_job.snapshot->>'relistExternalId') desc limit 1 for update;
   if v_entry_id is not null and p_job.relist_entry_id is null then
@@ -489,7 +489,10 @@ revoke all on function public.marketplace_listing_job_draft_document(public.mark
 create or replace function public.marketplace_request_relisting_import(p_job public.marketplace_listing_jobs)
 returns void language plpgsql volatile security invoker set search_path='' as $$
 begin
-  if p_job.state<>'confirmed' or p_job.action<>'publish' or p_job.execution_mode<>'cloud' or not (p_job.snapshot ? 'relistExternalId')
+  if p_job.state not in ('confirmed','outcome_unknown') or p_job.external_id is null
+    or (p_job.state='outcome_unknown' and (p_job.provider_result->>'externalId' is distinct from p_job.external_id
+      or p_job.provider_result->>'externalAccountId' is distinct from p_job.external_account_id))
+    or p_job.action<>'publish' or p_job.execution_mode<>'cloud' or not (p_job.snapshot ? 'relistExternalId')
     or not public.marketplace_relisting_job_is_latest(p_job)
     or p_job.relist_imported_at is not null or not public.marketplace_workspace_authorization_valid(p_job.workspace_id,p_job.requested_by)
     or not exists(select 1 from public.marketplace_connections where id=p_job.connection_id and workspace_id=p_job.workspace_id
@@ -517,7 +520,7 @@ begin
     perform public.marketplace_bind_relisting_entry(v_job);
   end loop;
   for v_job in select * from public.marketplace_listing_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=v_account
-      and state='confirmed' and snapshot ? 'relistExternalId' and relist_imported_at is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
+      and state in ('confirmed','outcome_unknown') and external_id is not null and snapshot ? 'relistExternalId' and relist_imported_at is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
     perform public.marketplace_relink_relisting_entry(v_job);
   end loop;
   update public.marketplace_listing_jobs job set relist_imported_at=clock_timestamp()
@@ -526,7 +529,7 @@ begin
       and exists(select 1 from public.marketplace_account_entries entry where entry.workspace_id=p_workspace_id and entry.connection_id=p_connection_id and entry.kind='publication' and entry.external_id=job.external_id and entry.observed_at>job.finished_at)
       and not exists(select 1 from public.marketplace_account_entries entry where entry.workspace_id=p_workspace_id and entry.connection_id=p_connection_id and entry.kind='publication' and entry.external_id=job.snapshot->>'relistExternalId');
   for v_job in select * from public.marketplace_listing_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and external_account_id=v_account
-      and state='confirmed' and snapshot ? 'relistExternalId' and relist_imported_at is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
+      and state in ('confirmed','outcome_unknown') and external_id is not null and snapshot ? 'relistExternalId' and relist_imported_at is null and public.marketplace_relisting_job_is_latest(marketplace_listing_jobs) loop
     perform public.marketplace_request_relisting_import(v_job);
   end loop;
   select coalesce(jsonb_agg(public.marketplace_listing_job_document(job)||jsonb_build_object('job',public.marketplace_listing_job_document(job),'draft',public.marketplace_listing_job_draft_document(job)) order by job.created_at desc),'[]'::jsonb) into v_items
