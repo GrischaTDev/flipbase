@@ -195,7 +195,7 @@ create or replace function public.marketplace_mark_message_notifications(p_works
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   if p_clear is null or (p_notification_id is not null and p_notification_id !~ '^[1-9][0-9]{0,18}$') then raise exception 'Ungültige Meldungsaktion' using errcode='22023'; end if;
   update public.marketplace_message_notifications n set read=true,cleared_at=case when p_clear then clock_timestamp() else cleared_at end where n.workspace_id=p_workspace_id and n.notified_at is not null and n.cleared_at is null and (p_clear or not n.read) and (p_notification_id is null or n.id::text=p_notification_id)
     and exists(select 1 from public.marketplace_connections c where c.workspace_id=n.workspace_id and c.id=n.connection_id and c.external_account_id=n.external_account_id);
@@ -212,7 +212,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_entry public.marketplace_account_entries; v_version text; v_account text;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   if p_read_version is null or p_read_version !~ '^[a-f0-9]{32}$' or p_observed_at is null or not isfinite(p_observed_at) or p_observed_at>clock_timestamp() then raise exception 'Ungültiger Lesebeleg' using errcode='22023'; end if;
   select e.* into v_entry from public.marketplace_account_entries e join public.marketplace_connections c on c.workspace_id=e.workspace_id and c.id=e.connection_id and c.marketplace='vinted' and c.status='connected'
     where e.workspace_id=p_workspace_id and e.connection_id=p_connection_id and e.id=p_conversation_id and e.kind='conversation' for update of e;

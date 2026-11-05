@@ -114,7 +114,12 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     expect(names).toEqual(['Warenwirtschaft', 'Marktplätze', 'Finanzen', 'Tools']);
     expect(links).toEqual([
       ['/purchases', '/sales', '/catalog'],
-      ['/marketplaces/overview', '/marketplaces/ebay', '/marketplaces/kleinanzeigen'],
+      [
+        '/marketplaces/overview',
+        '/marketplaces/vinted',
+        '/marketplaces/ebay',
+        '/marketplaces/kleinanzeigen',
+      ],
       ['/expenses', '/accounting', '/analytics'],
       [
         '/vinted-bot',

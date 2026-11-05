@@ -13,7 +13,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { LucidePlus, LucideRefreshCw, LucideSettings, LucideStore } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import {
   MarketplaceSettingsService,
   type MarketplaceId,
@@ -64,7 +63,6 @@ export class MarketplaceOverviewComponent {
   readonly settings = inject(MarketplaceSettingsService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly operator = inject(PlatformOperatorService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? null);
@@ -112,9 +110,7 @@ export class MarketplaceOverviewComponent {
   readonly platformLabel = marketplacePlatformLabel;
   readonly enabledPlatforms = computed<readonly MarketplaceId[]>(() => {
     const settings = this.settings.settings();
-    return (['vinted', 'ebay', 'kleinanzeigen'] as const).filter(
-      (platform) => settings[platform] && (platform !== 'vinted' || this.operator.operator()),
-    );
+    return (['vinted', 'ebay', 'kleinanzeigen'] as const).filter((platform) => settings[platform]);
   });
   constructor() {
     effect(() => {

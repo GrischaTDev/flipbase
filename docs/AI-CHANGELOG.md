@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Freie Erfassung und Shop-Schalter zur Freigabe vorbereiten
+
+**Auftrag:** Den geprüften Aufgabenstand über einen PR veröffentlichen, erst nach
+erfolgreichen Pflichtprüfungen mit Merge-Commit übernehmen und danach den eigenen
+Branch sowie die Aufgaben-Arbeitskopie entfernen.
+
+**Abgleich:** Neuere Hauptzweigänderungen werden integriert; Vinted-Zugriffsregeln,
+Schemaeinträge und die freie Erfassung bleiben gemeinsam erhalten. Der lokale
+Vorabcheck wird vor dem Push am zusammengeführten Stand ausgeführt. Ausgewählte
+CI-Nachweise und der Abschluss werden im PR festgehalten. Fremde Arbeitskopien
+und ihre ungesicherten Änderungen bleiben unangetastet.
+
 ## 2026-11-04 - Juna - Einfache Einkäufe und schaltbare Bestandsführung
 
 **Auftrag:** Schritte 2 und 3 auf dem freien Verkaufsablauf aufbauen: freie
@@ -52,6 +64,127 @@ und Unternehmensbelegabläufe bleiben geprüft. Details und Grenzen stehen im
 **Abgrenzung:** Eigene Arbeitskopie und eigener Zweig vom aktuellen Hauptstand;
 fremde Erweiterungsarbeit und Nutzerdaten unverändert. Einkaufsbezug und
 Shop-Aktivierung folgen separat. Noch keine Veröffentlichung.
+
+## 2026-11-05 - Juna - Relisting nach fehlgeschlagener Nachprüfung sicher zuordnen
+
+**Befund:** Beim Jordan-Inserat lieferte Vinted eine erfolgreiche Veröffentlichung,
+aber die sofortige Nachprüfung endete bei `saved_form`. Das bisherige Fehlerergebnis
+verwarf die neue Kennung; der Kontoimport konnte die Anzeige deshalb nicht dem
+ursprünglichen Artikel zuordnen. Worker und tatsächlich gestarteter Cloud-Browser
+enthielten bereits den letzten veröffentlichten Prüfcode. Die neue Anzeige
+`10670233652` wurde im eigenen Konto mit Preis, Kategorie, Größe und zehn Fotos
+gegengeprüft. Auftrag 30 ist über die vorhandene Abschlussfunktion bestätigt;
+die ursprüngliche Karte `20c14685-644c-4122-8976-9f527ab33ffa` blieb erhalten,
+die doppelte Importkarte wurde regulär zusammengeführt.
+
+**Änderung:** Ein ungeklärtes Ergebnis behält die direkt beobachtete
+Erstellungskennung und das gebundene Konto. Die zentrale Speicherung verwirft
+oder ersetzt diesen Beleg nicht und fordert einen lesenden Kontoabgleich an.
+Ein frischer aktiver Neuimport bestätigt fehlgeschlagene Leseprüfungen anhand
+dieser exakten Kennung und führt beide Karten in derselben Transaktion zusammen.
+Echte Inhalts- oder Fotowidersprüche bleiben ungeklärt, erhalten aber dieselbe
+Artikelzuordnung. Fehlende Belege werden nicht anhand von Titeln erraten.
+
+**Prüfung:** Native Browserfälle sichern genau einen Veröffentlichungsaufruf und
+den Erhalt der Kennung trotz fehlender Nachprüfung. Vertrags-, isolierte
+Transport- und Runnerfälle prüfen Konto- und Aktionsbindung. Datenbankfälle prüfen
+den vollständigen Weg vom Erstellungsbeleg über den echten Import zur bestätigten
+einzelnen Karte, Preisänderungen und die negativen Fälle. Die Migration wurde mit
+dem Supabase-Abgleich aus den alten und neuen Funktionsdefinitionen erzeugt;
+die neu erzeugten Datenbanktypen ändern keine Signaturen. Der lokale
+Vorabcheck einschließlich 811 Angular- und 52 Node-Fällen sowie Bau ist bestanden;
+247 Datenbank-, 40 Worker- und 16 native Browserfälle plus der konkrete
+Maskenfehler bestehen. Zusätzliche CI-Pflichtprüfungen folgen vor Merge. In Lissie ist Flipbase weiterhin nicht
+als Projekt verfügbar; ein Bericht in einem fremden Projekt wurde nicht angelegt.
+
+**Integration:** Der parallel freigegebene Rechte-PR #572 ersetzt ebenfalls die
+Importanforderung. Nach dessen Merge wurde der eigene Zweig auf den aktuellen
+Hauptzweig gesetzt und die noch unveröffentlichte Migration erneut aus dem
+aktuellen Schema erzeugt. Sie bewahrt die neue Workspace-Berechtigungsprüfung
+und die Relisting-Erstellungsbelege gemeinsam. Alle 247 gezielten Datenbankfälle
+bestehen auch nach dieser gemeinsamen Migration.
+
+## 2026-11-04 - Juna - Laufende Aktionen dezent grau darstellen
+
+**Auftrag und Umsetzung:** Die gelben Hintergründe der Konto- und
+Inseratsaktionen in „Laufende Aktionen“ durch die vorhandene dezente graue
+Oberflächenfarbe ersetzen. Beide Farbschemata verwenden ihre bestehende zentrale
+Farbdefinition; Anordnung und Bedienung bleiben erhalten.
+
+**Prüfung:** Die vorhandenen Browserfälle prüfen beide Farbschemata auf Desktop
+und Touch einschließlich Tastaturbedienung und AXE. Berechnete Hintergrundfarben,
+Screenshots und Vorabcheck werden unter `tmp/running-actions-checks/` protokolliert.
+Die neue Arbeit liegt auf einem eigenen Zweig vom frisch abgerufenen
+`origin/master`; die vorherigen Aufgaben bleiben separat erhalten.
+
+**CI-Nachprüfung:** Der mobile Preisdialog maß beim Umschalten ins Raster noch
+die alte Tabellenzeile. Die CI-Aufzeichnung zeigt deren Thumbnail mit `size="md"`
+unmittelbar vor der Messung der Rasterkarte; die bereits entfernte Tabellenzeile
+lieferte dann kein Rechteck. Der vorhandene Test wartet jetzt ausdrücklich auf
+das `article` der Rasterkarte. Sichtbarkeit, Zentrierung und weitere Erwartungen
+bleiben vollständig erhalten. Der gezielte Nachweis umfasst auch Linux mit
+Node 22.23.4 und Chromium aus Playwright 1.62.1.
+
+## 2026-11-04 - Juna - Vinted lokal für die Beta öffnen und Cloud gesondert sperren
+
+**Auftrag und Umsetzung:** Vinted ist in der Navigation und über direkte Routen
+auch ohne Plattformbetreiberrolle erreichbar. Kontoverwaltung benötigt weiterhin
+Owner-/Adminrechte in einem aktiven, nicht archivierten Workspace. Lokale
+Extension-Freigaben, Importe, Nachrichten, Benachrichtigungen und Inserataufträge
+prüfen diese Rechte ohne Betreiberpflicht. Die allgemeine Kontoanlage erstellt
+ausdrücklich lokale Verbindungen. Cloud-Anlage, Cloud-Sitzungen, Cloud-Abrufe,
+Cloud-Schreibfreigaben und Proxy-Käufe behalten die separate Betreiberprüfung.
+Die Worker-Verfügbarkeitsprüfung verwendet dieselbe Cloud-Grenze. Fremde
+Workspaces, anonyme Sitzungen und abgelaufene Beta-Zugänge bleiben gesperrt.
+
+**Oberfläche:** Admin-Kennzeichnung bei Vinted entfernt; Administration bleibt
+gesperrt. Nichtbetreiber sehen oben bei den Vinted-Konten „Cloud-Konten sind in
+der Beta noch nicht verfügbar.“ Die lokale Kontoanlage bleibt verfügbar;
+Cloud-Auswahl und Wechsel sind ohne serverseitige Freigabe gesperrt.
+
+**Weiterer Einstieg:** Auch die Plattformauswahl in der Marktplatzübersicht zeigt
+Vinted ohne Betreiberrolle. Drei Gegenproben scheiterten mit dem alten Filter,
+darunter die bestehenden Abläufe zur Kontoauswahl und Inseraterstellung. Der
+Beta-Browserfall beginnt zusätzlich bei dieser Plattformauswahl.
+Auch die drei Benachrichtigungsdienste laden lokale Kontoereignisse ohne
+Betreiberrolle. Neue Gegenproben reproduzieren die alten Filtersperren; sofortiges
+Verwerfen bei Archivierung, Workspacewechsel und serverseitigem Rechteentzug
+bleibt abgesichert. Der Beta-Browserfall prüft das Laden aller drei Feeds.
+
+**Datenbank und Nachweis:** Zwei neue Prüffunktionen mit expliziten Rechten;
+keine Tabellenänderung. Migration mit Supabase CLI 2.114.0 aus zwei eigenen,
+datenfreien Ausgangskopien erzeugt und vollständig transaktional auf eine dritte
+frische Kopie angewendet. Abschließender Schemaabgleich ohne Differenz. Typen aus
+diesem migrierten Stand neu erzeugt; dabei auch drei bereits abweichende
+automatische Fremdschlüsselnamen aktualisiert. 2.039 Marketplace-SQL-Fälle
+bestanden, einschließlich 23 neuer Beta-Gegenproben. Vier bestehende lokale
+Suites laufen nun ausdrücklich ohne Betreiberrolle, einschließlich
+Nachrichtenversand und Inseratausführung. Die bewusst veränderten alten
+Betreibererwartungen wurden auf lokale beziehungsweise Cloud-Rechte umgestellt;
+echter Workspace-Rechteverlust bleibt geprüft. 53 betroffene Workerfälle und
+die ersten 49 Oberflächen-/Guardfälle bestanden. Weitere Vorabcheck- und
+Browsernachweise liegen privat unter `tmp/beta-access-checks/`.
+
+**Ergänzende Prüfung:** Gesamter Worker mit 812 erfolgreichen und acht regulär
+ausgelassenen Fällen, Worker-Typen und Bau sowie 455 Edge-Fälle erfolgreich.
+Die Datenbank-Sicherheitsprüfung meldet keine Befunde. Vier neue Browserfälle
+bestätigen Beta-Zugang, Cloud-Hinweis, gesperrte Cloud-Auswahl und die lokale
+Kontoanlage bis zur Extension-Seite bei 1440/390 Pixeln, hell/dunkel und mit
+Touch, einschließlich AXE. Screenshots visuell kontrolliert. Ein alter
+Mobilfall traf in der Produktionsvorschau auf den Updatefehler wegen der
+testweise gesperrten Service Worker; weitere Browserfälle verwenden deshalb
+die vorhandene ruhende Entwicklungsvorschau entsprechend der CI. Die
+PWA-Lebenszyklusmatrix bleibt ein eigener CI-Nachweis.
+
+**Grenzen:** Keine produktiven Daten oder Cloud-/Proxy-Buchungen verändert. Die
+gemeinsame Entwicklungsdatenbank wurde nur gelesen; eigene Datenbanken dienen
+der Prüfung. Der umfangreiche CI-Nachweis einschließlich Image-/Hostisolation
+auf dem GitHub-Wegwerfrunner bleibt vor dem Merge erforderlich. Schritt eins
+liegt unverändert auf seinem eigenen Zweig; kein Push, PR oder Merge ohne die
+Projektfreigabe.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
 
 ## 2026-11-04 - Juna - Gespeichertes Relisting unabhängig von der Bearbeitungsmaske prüfen
 
@@ -112,6 +245,32 @@ Löschen, gestaffeltem Relisting, nativer Bestätigung und verzögerter Paketwah
 Worker-Typprüfung und Worker-Bau sind erfolgreich. Die produktive Fortsetzung
 des bereits vom Nutzer gestarteten beigen Auftrags folgt nach der Auslieferung.
 
+## 2026-11-04 - Juna - Vollständige Monats- und Jahresachsen in der Übersicht
+
+**Auftrag und Umsetzung:** Die Diagrammachse bei „Dieser Monat“ bis zum letzten
+Kalendertag und bei „Dieses Jahr“ bis Dezember anzeigen. Bisher nutzten
+Diagrammpunkte und Kennzahlen dasselbe Ende am heutigen Tag. Die Anzeige erhält
+nun ein eigenes Kalenderende; Kennzahlen, Buchungsauswahl und gleich lange
+Vorperiodenvergleiche bleiben auf dem bisherigen Stand bis heute. Zusätzliche
+leere Zeitpunkte nutzen die vorhandene Darstellung. „Heute“ und „7 Tage“ behalten
+ihre Zeiträume. Monatslängen, Schaltjahre und Jahreswechsel werden berücksichtigt.
+Die Achsenbeschriftung erhält den ersten und letzten Zeitraumwert auch bei
+verdichteter Darstellung; auf breiten Jahresdiagrammen stehen alle zwölf Monate.
+
+**Prüfung:** Neun Regressionserwartungen scheiterten zunächst am alten Stand;
+nach der Korrektur alle 38 Berichtsfälle erfolgreich. Die neuen Gegenproben
+sichern vollständige Kalenderachsen sowie den Ausschluss zukünftiger Buchungen
+aus Kennzahlen und Diagrammbeträgen. Den vorhandenen Browserfall um den letzten
+Monatstag, Dezember sowie die unveränderten Heute-/7-Tage-Grenzen erweitert.
+Weitere Prüfprotokolle liegen privat unter `tmp/dashboard-period-checks/`.
+Für den Browsernachweis wird eine eigene Supabase-Testinstanz mit vollständigem
+Migrationsstand verwendet; fremde Arbeitskopien und Entwicklungsdaten bleiben
+erhalten. Eigenständiger Zweig auf frisch abgerufenem `origin/master`; die
+beiden vorherigen Aufgaben bleiben unverändert separat vorbereitet.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
+
 ## 2026-11-04 - Juna - Relisting-Vorbereitung mit später Paketwahl korrigieren
 
 **Befund:** Der neue beige Schal-Auftrag 27 brach produktiv im Schritt `values` ab.
@@ -138,6 +297,24 @@ mit der Korrektur für native und lokale Angaben sowie fehlende und gesperrte
 Paketwahl. 42 Browserfälle und 15 Zuordnungstests sind erfolgreich. Worker-Typen
 und Worker-Bau sind geprüft; die vollständige Vorbereitung beider echten Schals
 ist bis direkt vor dem gesperrten Löschschritt bestätigt.
+
+## 2026-11-04 - Juna - Kontoaktualisierungen ohne Erfolgstoast abschließen
+
+**Auftrag und Umsetzung:** Nur die wiederkehrende Erfolgsmeldung für
+Kontoaktualisierungen entfernt. Laufende Kontoabgleiche und Fehler bleiben in der
+Aktionsübersicht sichtbar; andere Aktions- und Veröffentlichungserfolge behalten
+ihre Meldungen. Automatische und manuelle Kontoabgleiche enden gleichermaßen still.
+Vom frisch abgerufenen `origin/master` in einer eigenen Arbeitskopie begonnen;
+die fremden Änderungen in der Hauptarbeitskopie bleiben erhalten.
+
+**Prüfung:** Zwei Regressionserwartungen reproduzierten vor der Korrektur die
+unerwünschten Toasts. Danach bestanden alle 18 Fälle des betroffenen Stores.
+Der bestehende Browserfall prüft zusätzlich laufenden Kontoabgleich, stillen
+Abschluss und Neuladen. Prüfplan, Vorabcheck und Browsernachweise werden privat
+unter `tmp/account-refresh-checks/` protokolliert. Keine produktive Kontoaktion.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
 
 ## 2026-11-04 - Juna - Kontobezogene Verkaufsbäume und Relisting-Merkmale
 

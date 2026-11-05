@@ -11292,6 +11292,10 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_can_manage_cloud: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
       marketplace_cancel_listing_job: {
         Args: { p_expected_version: number; p_job_id: string }
         Returns: Json
@@ -12816,6 +12820,10 @@ export type Database = {
       }
       marketplace_worker_release: {
         Args: { p_worker_epoch: number; p_worker_id: string }
+        Returns: boolean
+      }
+      marketplace_workspace_authorization_valid: {
+        Args: { p_user_id: string; p_workspace_id: string }
         Returns: boolean
       }
       migrate_legacy_category_brand_texts: { Args: never; Returns: undefined }

@@ -45,7 +45,7 @@ select throws_ok($$select public.marketplace_test_session_status('25500000-0000-
 select is((public.marketplace_test_session_action('25500000-0000-4000-8000-000000000011','25500000-0000-4000-8000-000000000021',(select value->>'id' from session_a)::uuid,'ping')->>'accepted')::boolean, true, 'Eigene Interaktion erlaubt');
 
 select set_config('request.jwt.claims','{"sub":"25500000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-select is(public.marketplace_can_manage('25500000-0000-4000-8000-000000000011'), false, 'Workspace-Admin ohne Betreiberrolle ist ausgeschlossen');
+select is(public.marketplace_can_manage_cloud('25500000-0000-4000-8000-000000000011'), false, 'Workspace-Admin ohne Betreiberrolle bleibt von Cloud-Sitzungen ausgeschlossen');
 select is((select count(*)::integer from public.marketplace_browser_test_sessions where workspace_id = '25500000-0000-4000-8000-000000000011'), 0, 'Zweiter Admin sieht fremde Testsitzung nicht direkt');
 select throws_ok($$select public.marketplace_test_session_status('25500000-0000-4000-8000-000000000011','25500000-0000-4000-8000-000000000021',(select value->>'id' from session_a)::uuid)$$, '42501', null, 'Zweiter Admin liest fremde Testsitzung nicht');
 select throws_ok($$select public.marketplace_test_session_action('25500000-0000-4000-8000-000000000011','25500000-0000-4000-8000-000000000021',(select value->>'id' from session_a)::uuid,'revoke')$$, '42501', null, 'Zweiter Admin widerruft fremde Testsitzung nicht');

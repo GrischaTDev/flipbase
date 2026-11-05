@@ -110,7 +110,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 begin
   perform pg_advisory_xact_lock(91731,1);
   if not public.marketplace_can_manage(p_workspace_id)
-    or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+    or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if p_clear is null then raise exception 'Ungültige Meldungsaktion' using errcode = '22023'; end if;
   -- Kennungen aufbewahren, damit geleerte Meldungen beim nächsten Abruf nicht zurückkehren.
   update public.marketplace_feedback_notifications set read = true,cleared_at = case when p_clear then clock_timestamp() else cleared_at end

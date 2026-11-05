@@ -179,7 +179,7 @@ create policy "Worker deletes negotiation jobs" on public.marketplace_negotiatio
 
 create or replace function public.marketplace_negotiation_authorized(p_workspace_id uuid,p_connection_id uuid,p_user_id uuid,p_mode text,p_account_id text,p_grant_generation bigint,p_authorization_version bigint)
 returns boolean language sql volatile security invoker set search_path='' as $$
-  select public.marketplace_sync_authorization_valid(p_workspace_id,p_user_id)
+  select public.marketplace_workspace_authorization_valid(p_workspace_id,p_user_id)
     and public.marketplace_local_extension_user_valid(p_user_id)
     and exists(select 1 from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted' and status='connected' and execution_mode=p_mode and external_account_id=p_account_id)
     and case p_mode when 'cloud' then public.marketplace_cloud_message_permission_valid(p_workspace_id,p_connection_id,p_user_id,p_authorization_version)
@@ -246,7 +246,7 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 declare v_connection public.marketplace_connections; v_settings public.marketplace_negotiation_settings; v_grant public.marketplace_local_extension_grants; v_permission public.marketplace_cloud_message_permissions;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) or not public.marketplace_local_extension_user_valid((select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) or not public.marketplace_local_extension_user_valid((select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   if p_expected_version is null or p_expected_version<0 or p_enabled is null or not public.marketplace_negotiation_config_valid(p_config) then raise exception 'Ungültige Verhandlungseinstellung' using errcode='22023'; end if;
   select * into v_connection from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted' for update;
   if not found then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;

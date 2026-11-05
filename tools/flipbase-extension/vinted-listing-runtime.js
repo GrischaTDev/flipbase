@@ -362,7 +362,13 @@
       );
     if (input.outcome === 'failed' || input.outcome === 'outcome_unknown') {
       return (
-        Object.keys(input).length === 2 &&
+        (Object.keys(input).length === 2 ||
+          (input.outcome === 'outcome_unknown' &&
+            action === 'publish' &&
+            Object.keys(input).length === 4 &&
+            typeof input.externalId === 'string' &&
+            /^[1-9][0-9]{0,31}$/.test(input.externalId) &&
+            input.externalAccountId === accountId)) &&
         typeof input.errorCode === 'string' &&
         /^[a-z_]{1,80}$/.test(input.errorCode)
       );

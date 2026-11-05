@@ -34,6 +34,19 @@ const options = {
   runtime: { workerId: '37100000-0000-4000-8000-000000000041', workerEpoch: 1 },
 };
 
+test('cloud availability uses the separate server permission for operators', async () => {
+  const store = new SupabaseMarketplaceCloudSetupStore({
+    ...options,
+    fetch: async (url, request) => {
+      assert.equal(new URL(String(url)).pathname, '/rest/v1/rpc/marketplace_can_manage_cloud');
+      assert.equal(new Headers(request?.headers).get('authorization'), 'Bearer user-token');
+      assert.deepEqual(JSON.parse(String(request?.body)), { p_workspace_id: scope.workspaceId });
+      return Response.json(false);
+    },
+  });
+  assert.equal(await store.availability(scope.workspaceId, scope.userAccessToken), false);
+});
+
 test('private setup is read only after user authorization and bound to current worker', async () => {
   const calls: string[] = [];
   const store = new SupabaseMarketplaceCloudSetupStore({

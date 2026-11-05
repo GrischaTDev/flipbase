@@ -178,3 +178,35 @@ test('photo payloads cannot acknowledge ordinary authority pauses and proof with
     /nicht gebunden/,
   );
 });
+
+test('isolated transport retains an unconfirmed creation receipt after Begin and rejects a foreign account', async () => {
+  for (const account of ['123', '999']) {
+    const receipt = {
+      outcome: 'outcome_unknown' as const,
+      errorCode: 'provider_unconfirmed_saved_form',
+      externalId: '456',
+      externalAccountId: account,
+    };
+    const commands = new BrowserSessionCommands({
+      version: () => 'fixture',
+      submitListing: async (_account, _action, _snapshot, beforeWrite) => {
+        await beforeWrite();
+        return receipt;
+      },
+    });
+    const browser = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    const submitListing = browser.submitListing;
+    assert.ok(submitListing);
+    const result = submitListing(
+      '123',
+      'publish',
+      listingClaimFixture.snapshot,
+      () => Promise.resolve(),
+      () => Promise.resolve(),
+      () => Promise.reject(new Error('not used')),
+      [5],
+    );
+    if (account === '123') assert.deepEqual(await result, receipt);
+    else await assert.rejects(result);
+  }
+});

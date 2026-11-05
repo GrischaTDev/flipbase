@@ -303,7 +303,7 @@ create or replace function public.marketplace_can_manage(p_workspace_id uuid)
  SET search_path TO ''
 AS $function$
   select (select auth.uid()) is not null
-    and (select public.is_platform_operator())
+    and coalesce((select auth.jwt())->>'is_anonymous', 'false') = 'false'
     and public.can_administer_workspace(p_workspace_id)
     and exists (select 1 from public.workspaces w where w.id = p_workspace_id and w.archived_at is null);
 $function$

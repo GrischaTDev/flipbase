@@ -49,7 +49,7 @@ select is((public.marketplace_browser_session_check('25600000-0000-4000-8000-000
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000022',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Sitzung kann nicht zu anderem Konto wechseln');
 
 select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-select is(public.marketplace_can_manage('25600000-0000-4000-8000-000000000011'), false, 'Workspace-Admin ohne Betreiberrolle ist ausgeschlossen');
+select is(public.marketplace_can_manage_cloud('25600000-0000-4000-8000-000000000011'), false, 'Workspace-Admin ohne Betreiberrolle bleibt von Cloud-Sitzungen ausgeschlossen');
 select throws_ok($$select public.marketplace_browser_session_check('25600000-0000-4000-8000-000000000011','25600000-0000-4000-8000-000000000021',(select value->>'id' from browser_a)::uuid)$$, '42501', null, 'Zweiter Admin darf fremde Browsersitzung nicht lesen');
 
 select set_config('request.jwt.claims','{"sub":"25600000-0000-4000-8000-000000000002","role":"authenticated"}',true);

@@ -408,3 +408,17 @@ test('mixed internal permissions are rejected before opening a browser', async (
   );
   assert.deepEqual(f.calls, []);
 });
+
+test('persists the exact creation receipt after failed readback without retrying publication', async () => {
+  const receipt: MarketplaceListingResult = {
+    outcome: 'outcome_unknown',
+    errorCode: 'provider_unconfirmed_saved_form',
+    externalId: '999',
+    externalAccountId: '123',
+  };
+  const f = fixture({ result: receipt });
+  await f.runner.run(claim);
+  assert.deepEqual(f.results, [receipt]);
+  assert.equal(f.calls.filter((call) => call === 'provider').length, 1);
+  assert.equal(f.calls.filter((call) => call === 'begin').length, 1);
+});

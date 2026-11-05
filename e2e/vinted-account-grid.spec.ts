@@ -6,6 +6,89 @@ import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
+for (const width of [1440, 390]) {
+  test.describe(`Vinted-Beta ${width}px`, () => {
+    test.use({ viewport: { width, height: 1000 }, hasTouch: width < 640 });
+    for (const theme of ['light', 'dark']) {
+      test(`erlaubt lokale Konten und sperrt Cloud für Beta in ${theme} @marketplace-preview`, async ({
+        page,
+      }, testInfo) => {
+        const calls = await mockMarketplace(page, false, false, false, false, [], undefined, true);
+        await page.route('**/rest/v1/rpc/is_platform_operator', (route) =>
+          route.fulfill({ json: false }),
+        );
+        await page.route('**/marketplace-browser/cloud-setups/availability', (route) =>
+          route.fulfill({ json: { canSetup: false } }),
+        );
+        await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        await page.goto('/marketplaces/overview');
+        await page
+          .locator('app-marketplace-overview')
+          .getByRole('button', { name: 'Inserat erstellen', exact: true })
+          .click();
+        const platformPicker = page.getByRole('dialog', { name: 'Inserat erstellen', exact: true });
+        await expect(
+          platformPicker.getByRole('button', { name: 'Vinted', exact: true }),
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await page.goto('/marketplaces/vinted/accounts');
+        const grid = page.locator('app-vinted-account-grid');
+        await expect(grid).toBeVisible();
+        for (const kind of ['favorite', 'feedback', 'message'])
+          await expect
+            .poll(() =>
+              calls.some((call) => call.name === `marketplace_read_${kind}_notifications`),
+            )
+            .toBe(true);
+        await expect(
+          grid.getByText('Cloud-Konten sind in der Beta noch nicht verfügbar.', { exact: true }),
+        ).toBeVisible();
+        for (const button of await grid
+          .getByRole('button', { name: 'Auf Cloud wechseln', exact: true })
+          .all())
+          await expect(button).toBeDisabled();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        await page.addScriptTag({ content: axe.source });
+        expect(
+          await page.evaluate(
+            async () =>
+              (
+                await (window as unknown as { axe: typeof axe }).axe.run(
+                  'app-vinted-account-grid',
+                  { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } },
+                )
+              ).violations,
+          ),
+        ).toEqual([]);
+        await page.screenshot({ path: testInfo.outputPath('beta-accounts.png'), fullPage: true });
+        const add = grid.getByRole('button', { name: 'Konto hinzufügen', exact: true });
+        if (width < 640) await add.tap();
+        else await add.click();
+        const dialog = page.getByRole('dialog', { name: 'Vinted-Konto hinzufügen', exact: true });
+        await dialog.getByRole('combobox', { name: 'Verbindung', exact: true }).click();
+        await expect(page.getByRole('option', { name: 'Cloudbrowser', exact: true })).toHaveCount(
+          0,
+        );
+        await page.getByRole('option', { name: 'Lokale Erweiterung', exact: true }).click();
+        await dialog.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Beta lokal');
+        await dialog
+          .getByRole('button', { name: 'Weiter zur lokalen Verbindung', exact: true })
+          .click();
+        await expect
+          .poll(() => calls.filter((call) => call.name === 'marketplace_create_connection').length)
+          .toBe(1);
+        await expect(page).toHaveURL(
+          /\/marketplaces\/vinted\/local-connect\/25000000-0000-4000-8000-000000000024$/,
+        );
+        await expect(page.locator('app-vinted-local-connect')).toBeVisible();
+        expect(calls.some((call) => call.name === 'browser_cloud_setup_begin')).toBe(false);
+      });
+    }
+  });
+}
+
 for (const width of [1440, 320]) {
   test(`zehn Konten bleiben kompakt und erreichbar bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,

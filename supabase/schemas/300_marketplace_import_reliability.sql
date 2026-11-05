@@ -41,7 +41,7 @@ begin
       and ((job.snapshot->>'relistExternalId'=p_external_id and (job.state='confirmed' or (
         (job.state in ('queued','paused','claimed','writing','outcome_unknown','failed') or (job.state='cancelled' and draft.relist_deleted_at is not null))
         and public.marketplace_relisting_job_is_latest(job))))
-        or (p_pruning and job.state='confirmed' and job.external_id=p_external_id and job.relist_imported_at is null and public.marketplace_relisting_job_is_latest(job)))
+        or (p_pruning and job.state in ('confirmed','outcome_unknown') and job.external_id=p_external_id and job.relist_imported_at is null and public.marketplace_relisting_job_is_latest(job)))
   );
 end;
 $$;

@@ -41,7 +41,7 @@ describe('Kontoverwaltung in der Marktplatzübersicht', () => {
       providers: [
         { provide: AuthService, useValue: { currentUser } },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: PlatformOperatorService, useValue: { operator: signal(true) } },
+        { provide: PlatformOperatorService, useValue: { operator: signal(false) } },
         { provide: Router, useValue: { navigate } },
         {
           provide: ActivatedRoute,
@@ -59,6 +59,10 @@ describe('Kontoverwaltung in der Marktplatzübersicht', () => {
     });
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('bietet Vinted in der Plattformauswahl auch ohne Betreiberrolle an', () => {
+    const component = TestBed.runInInjectionContext(() => new MarketplaceOverviewComponent());
+    expect(component.enabledPlatforms()).toContain('vinted');
+  });
   it('öffnet Vinted im Modal der Übersicht statt zur Kontenseite zu navigieren', async () => {
     const component = TestBed.runInInjectionContext(() => new MarketplaceOverviewComponent());
     await component.manageAccount(account);

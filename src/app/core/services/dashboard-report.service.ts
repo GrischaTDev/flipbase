@@ -166,7 +166,7 @@ export class DashboardReportService {
       comparison: this.comparison(range, previousWindow, previous),
       openCosts: this.sortedOpenCosts(openCosts),
       salesWithoutPurchase,
-      points: this.points(window, current, platform === 'all'),
+      points: this.points(this.chartWindowFor(range, window), current, platform === 'all'),
       rows: current.sales.map(({ row }) => row).sort((a, b) => b.date.localeCompare(a.date)),
     };
   }
@@ -513,6 +513,15 @@ export class DashboardReportService {
       return { start: new Date(end.getFullYear(), end.getMonth(), 1), end, bucket: 'day' };
     }
     return { start: new Date(end.getFullYear(), 0, 1), end, bucket: 'month' };
+  }
+
+  /** Vollständige Kalenderachse; die Kennzahlen bleiben auf den bisherigen Buchungszeitraum begrenzt. */
+  private chartWindowFor(range: DashboardRange, window: DateWindow): DateWindow {
+    const { end } = window;
+    if (range === 'month')
+      return { ...window, end: new Date(end.getFullYear(), end.getMonth() + 1, 0) };
+    if (range === 'year') return { ...window, end: new Date(end.getFullYear(), 11, 31) };
+    return window;
   }
 
   /**

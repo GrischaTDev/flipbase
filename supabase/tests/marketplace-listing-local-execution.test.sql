@@ -4,7 +4,6 @@ create extension if not exists pgtap with schema extensions;
 set local search_path=public,extensions;
 select no_plan();
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values('46400000-0000-4000-8000-000000000001','authenticated','authenticated','listing-execution@example.test','{}','{}');
-insert into public.platform_operators(user_id) values('46400000-0000-4000-8000-000000000001');
 insert into public.workspaces(id,name) values('46400000-0000-4000-8000-000000000011','Lokale Inseratausführung');
 insert into public.workspace_members(workspace_id,user_id,role) values('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000001','owner');
 insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id) values('46400000-0000-4000-8000-000000000021','46400000-0000-4000-8000-000000000011','Konto','local','connected','46401');
