@@ -183,3 +183,30 @@ it('names known category and provider preparation failures', () => {
     ),
   ).toBe('Vorbereitung bei Vinted fehlgeschlagen');
 });
+
+it('zeigt bei bekannter neuer Kennung die laufende Nachprüfung zeitlich begrenzt neutral an', () => {
+  const now = Date.parse('2026-11-05T08:29:00Z');
+  const pending = {
+    ...parseVintedListingJob(job, job.workspaceId),
+    executionMode: 'cloud' as const,
+    state: 'outcome_unknown' as const,
+    externalId: '46302',
+    relistExternalId: '46303',
+    errorCode: 'provider_unconfirmed_saved_form',
+    updatedAt: new Date(now - 15_000).toISOString(),
+  };
+  expect(vintedRelistingJobLabel(pending, now)).toBe('Veröffentlichung wird geprüft …');
+  for (const changed of [
+    { externalId: null },
+    { externalId: '46303' },
+    { state: 'failed' as const },
+    { errorCode: 'provider_unconfirmed_saved_form_match' },
+    { errorCode: 'provider_unconfirmed_saved_photos_match' },
+    { errorCode: 'authorization_revoked' },
+    { updatedAt: new Date(now - 120_000).toISOString() },
+    { updatedAt: new Date(now + 60_001).toISOString() },
+  ])
+    expect(vintedRelistingJobLabel({ ...pending, ...changed }, now)).not.toBe(
+      'Veröffentlichung wird geprüft …',
+    );
+});

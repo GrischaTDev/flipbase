@@ -535,3 +535,63 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     },
   );
 });
+
+it('meldet bestätigtes Relisting erst nach Übernahme der sichtbaren Karte einmalig erfolgreich', async () => {
+  const now = new Date().toISOString();
+  const pending: VintedListingJob = {
+    id: '32',
+    workspaceId: accounts[0].workspaceId,
+    connectionId: accounts[0].connectionId,
+    draftId: '17',
+    draftRevision: 1,
+    executionMode: 'cloud',
+    externalAccountId: '123',
+    action: 'publish',
+    state: 'outcome_unknown',
+    version: 2,
+    scheduledAt: null,
+    timeZone: null,
+    latePolicy: 'pause_after_30_minutes',
+    errorCode: 'provider_unconfirmed_saved_form',
+    externalId: '10672542627',
+    providerState: null,
+    verifiedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    replacesJobId: null,
+    relistExternalId: '12345',
+    relistEntryId: 'original-card',
+  };
+  let finishView: ((ready: boolean) => void) | undefined;
+  const viewReady = new Promise<boolean>((resolve) => {
+    finishView = resolve;
+  });
+  const synchronizeRelisting = vi.fn(() => viewReady);
+  TestBed.overrideProvider(VintedListingOperationStore, { useValue: { synchronizeRelisting } });
+  enabled.set(true);
+  read.mockResolvedValue({ actions: [] });
+  readListingJobs.mockResolvedValue([pending]);
+  const store = TestBed.inject(VintedActionOverviewHeaderStore);
+  await settle();
+  const toast = TestBed.inject(ToastService);
+  expect(store.count()).toBe(1);
+  expect(store.hasRunning()).toBe(true);
+  const confirmed = {
+    ...pending,
+    state: 'confirmed' as const,
+    version: 3,
+    errorCode: null,
+    providerState: 'active' as const,
+    verifiedAt: now,
+  };
+  readListingJobs.mockResolvedValue([confirmed]);
+  const refresh = store.refresh();
+  await settle();
+  expect(toast.toasts()).toHaveLength(0);
+  finishView?.(true);
+  await refresh;
+  expect(synchronizeRelisting).toHaveBeenCalledWith(confirmed);
+  expect(toast.toasts()).toHaveLength(1);
+  await store.refresh();
+  expect(toast.toasts()).toHaveLength(1);
+});

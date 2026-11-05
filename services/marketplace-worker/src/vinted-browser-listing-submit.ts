@@ -296,8 +296,12 @@ export async function submitVintedListing(
         savedUrl.origin !== 'https://www.vinted.de' ||
         savedUrl.search ||
         savedUrl.hash ||
-        (savedUrl.pathname !== '/member/' + accountId && landedId !== externalId) ||
-        !(await verifyVintedListingSavedContent(
+        (savedUrl.pathname !== '/member/' + accountId && landedId !== externalId)
+      )
+        return unconfirmed();
+      let verificationPage = page;
+      try {
+        const contentMatches = await verifyVintedListingSavedContent(
           page,
           accountId,
           externalId,
@@ -308,19 +312,32 @@ export async function submitVintedListing(
           (step) => {
             confirmationStep = 'saved_' + step;
           },
-        )) ||
-        !(await readVintedListingActiveState(
-          page,
-          accountId,
-          externalId,
-          snapshot.content.title,
-          authorize,
-          (step) => {
-            confirmationStep = 'active_' + step;
-          },
-        ))
-      )
-        return unconfirmed();
+        );
+        if (!contentMatches) return unconfirmed();
+      } catch (error) {
+        // Ein fehlendes Formular ist kein Inhaltswiderspruch. Die bekannte neue ID
+        // direkt im eigenen Aktiv-Filter prüfen, bevor der Gesamtabruf einspringt.
+        if (!['saved_navigation', 'saved_form'].includes(confirmationStep)) throw error;
+        await authorize();
+        verificationPage = await page.context().newPage();
+      }
+      try {
+        if (
+          !(await readVintedListingActiveState(
+            verificationPage,
+            accountId,
+            externalId,
+            snapshot.content.title,
+            authorize,
+            (step) => {
+              confirmationStep = 'active_' + step;
+            },
+          ))
+        )
+          return unconfirmed();
+      } finally {
+        if (verificationPage !== page) await verificationPage.close();
+      }
       return {
         outcome: 'confirmed',
         action: 'publish',

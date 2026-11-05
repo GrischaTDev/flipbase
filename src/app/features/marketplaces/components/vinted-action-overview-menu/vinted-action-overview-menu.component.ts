@@ -18,6 +18,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { isVintedListingConfirmationPending } from '../../models/vinted-listing-job';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
@@ -79,7 +80,13 @@ export class VintedActionOverviewMenuComponent {
         .some((group) =>
           group.actions.some((action) => ['failed', 'outcome_unknown'].includes(action.state)),
         ) ||
-      this.store.listings().some(({ job }) => ['failed', 'outcome_unknown'].includes(job.state)),
+      this.store
+        .listings()
+        .some(
+          ({ job }) =>
+            ['failed', 'outcome_unknown'].includes(job.state) &&
+            !isVintedListingConfirmationPending(job),
+        ),
   );
   readonly label = computed(() => `Laufende Aktionen (${this.count()})`);
   readonly queueIcon = LucideListTodo;
