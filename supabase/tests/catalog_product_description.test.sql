@@ -9,9 +9,9 @@ select col_is_null('public', 'catalog_products', 'description', 'Bestehende Arti
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 values ('bd130000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'catalog-update@example.test', '{}', '{}');
-insert into public.workspaces (id, name) values
-  ('bd130000-0000-4000-8000-000000000011', 'Artikel A'),
-  ('bd130000-0000-4000-8000-000000000012', 'Artikel B');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, 'bd130000-0000-4000-8000-000000000011', 'Artikel A'),
+  (true, 'bd130000-0000-4000-8000-000000000012', 'Artikel B');
 insert into public.workspace_members (workspace_id, user_id, role)
 values ('bd130000-0000-4000-8000-000000000011', 'bd130000-0000-4000-8000-000000000001', 'owner');
 insert into public.catalog_products (id, workspace_id, title) values

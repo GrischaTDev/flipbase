@@ -113,6 +113,7 @@ declare v_id uuid;
 begin
   if jsonb_typeof(p_target) is distinct from 'object' then raise exception 'Ungültiger Artikel' using errcode = '22023'; end if;
   if (select count(*) from jsonb_object_keys(p_target)) <> 1 then raise exception 'Ungültiger Artikel' using errcode = '22023'; end if;
+  if p_target->'free'='true'::jsonb then return jsonb_build_object('position_kind','free'); end if;
   if p_target ? 'catalogProductId' then
     v_id := (p_target->>'catalogProductId')::uuid;
     if not exists (select 1 from public.catalog_products where id = v_id and workspace_id = p_workspace_id
@@ -133,11 +134,13 @@ create or replace function public.ebay_set_article_mapping(p_workspace_id uuid, 
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_connection public.ebay_connections; v_target jsonb; v_mapping public.ebay_article_mappings;
 begin
+  perform public.assert_workspace_shop(p_workspace_id);
   v_connection := public.ebay_lock_import_connection((select auth.uid()),p_workspace_id,p_connection_id);
   if p_listing_id is null or char_length(trim(p_listing_id)) not between 1 and 256
     or (p_variation_id is not null and char_length(trim(p_variation_id)) not between 1 and 256)
   then raise exception 'Ungültiges Inserat' using errcode = '22023'; end if;
   v_target := public.ebay_import_target(p_workspace_id,p_target);
+  if v_target ? 'position_kind' then raise exception 'Dauerhafte Artikelzuordnungen benötigen einen Bestandsartikel' using errcode='22023'; end if;
   insert into public.ebay_article_mappings(workspace_id,environment,external_account_id,listing_id,variation_id,inventory_item_id,catalog_product_id,updated_by)
     values (p_workspace_id,v_connection.environment,v_connection.external_account_id,p_listing_id,p_variation_id,
       (v_target->>'inventory_item_id')::uuid,(v_target->>'catalog_product_id')::uuid,(select auth.uid()))
@@ -154,6 +157,7 @@ create or replace function public.ebay_remove_article_mapping(p_workspace_id uui
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare v_connection public.ebay_connections;
 begin
+  perform public.assert_workspace_shop(p_workspace_id);
   v_connection := public.ebay_lock_import_connection((select auth.uid()),p_workspace_id,p_connection_id);
   delete from public.ebay_article_mappings where id = p_mapping_id and workspace_id = p_workspace_id
     and environment = v_connection.environment and external_account_id = v_connection.external_account_id;

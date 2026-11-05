@@ -1,3 +1,4 @@
+import { WorkspaceShopService } from '../../core/services/workspace-shop.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -153,10 +154,13 @@ export class SidebarComponent {
   // Der Punkt bleibt verborgen, solange die bestehende Operator-Prüfung kein Ja liefert.
   readonly isOperator = this.operatorService.operator;
   readonly dashboardItem = DASHBOARD_NAVIGATION;
+  readonly shop = inject(WorkspaceShopService);
   readonly navigationGroups = computed(() => {
     const settings = this.marketplaceSettingsService.settings();
 
     return WORKSPACE_NAVIGATION_GROUPS.map((group) => {
+      if (group.id === 'merchandise' && !this.shop.active())
+        return { ...group, items: group.items.filter((item) => item.path !== '/catalog') };
       if (group.id !== 'marketplaces' && group.id !== 'tools') {
         return group;
       }

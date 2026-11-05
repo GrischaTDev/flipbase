@@ -34,7 +34,9 @@ export interface EbayOrderSource {
   readonly blockers: readonly string[];
 }
 export type EbaySaleTarget =
-  { readonly inventoryItemId: string } | { readonly catalogProductId: string };
+  | { readonly inventoryItemId: string }
+  | { readonly catalogProductId: string }
+  | { readonly free: true };
 export interface EbayOrderAssignment {
   readonly lineItemId: string;
   readonly target: EbaySaleTarget;
@@ -43,7 +45,7 @@ export interface EbayArticleMapping {
   readonly id: string;
   readonly listingId: string;
   readonly variationId: string | null;
-  readonly target: EbaySaleTarget;
+  readonly target: Exclude<EbaySaleTarget, { readonly free: true }>;
 }
 export type EbayOrderBooking =
   | { readonly status: 'unrecorded'; readonly saleId: null }

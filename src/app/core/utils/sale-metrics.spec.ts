@@ -307,3 +307,26 @@ describe('calculateStoredSaleMetrics', () => {
     });
   });
 });
+
+describe('korrigierte freie Verkäufe', () => {
+  it('zählt den aufgehobenen Originalbetrag nicht erneut als Umsatz oder Kosten', () => {
+    const sale = {
+      id: 'old',
+      workspace_id: 'w',
+      sale_price: 50,
+      sale_date: '2026-11-04',
+      platform: 'direct',
+      platform_fee: 2,
+      shipping_cost: 3,
+      packaging_cost: 0,
+      other_costs: 0,
+      voided_at: '2026-11-04T12:00:00Z',
+    } as Sale;
+    expect(calculateStoredSaleMetrics(sale)).toMatchObject({
+      revenue: 0,
+      sellingCosts: 0,
+      resultAfterDirectCosts: 0,
+    });
+    expect(sale.sale_price).toBe(50);
+  });
+});

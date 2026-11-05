@@ -24,6 +24,8 @@ describe('Offline purchase review mapping', () => {
     validateOfflineContent(content);
     expect(offlinePurchaseLines(content)[0]).toMatchObject({
       catalogProductId: null,
+      positionKind: 'free',
+      lineKind: 'individual',
       unitPurchasePrice: 0.07,
       lineTotal: 0.21,
       priceMode: 'priced',
@@ -35,7 +37,12 @@ describe('Offline purchase review mapping', () => {
   });
   it('keeps unknown price and explicit assignments through later offline edits', () => {
     const initial = offlinePurchaseLines(content);
-    initial[0] = { ...initial[0], catalogProductId: '22222222-2222-4222-8222-222222222222' };
+    initial[0] = {
+      ...initial[0],
+      positionKind: 'stock',
+      lineKind: 'quantity',
+      catalogProductId: '22222222-2222-4222-8222-222222222222',
+    };
     expect(
       offlinePurchaseLines(
         { ...content, lines: [{ ...content.lines[0], unitPriceCents: null }] },
@@ -43,9 +50,24 @@ describe('Offline purchase review mapping', () => {
       )[0],
     ).toMatchObject({
       catalogProductId: initial[0].catalogProductId,
+      positionKind: 'stock',
+      lineKind: 'quantity',
       unitPurchasePrice: null,
       lineTotal: null,
       priceMode: 'open',
+    });
+  });
+  it('erhält die Bestandsabsicht älterer bereits geprüfter Offlinepositionen', () => {
+    const legacy = {
+      ...offlinePurchaseLines(content)[0],
+      positionKind: undefined,
+      lineKind: 'quantity' as const,
+      catalogProductId: '22222222-2222-4222-8222-222222222222',
+    };
+    expect(offlinePurchaseLines(content, [legacy])[0]).toMatchObject({
+      positionKind: 'stock',
+      lineKind: 'quantity',
+      catalogProductId: legacy.catalogProductId,
     });
   });
   it('rejects impossible dates, fractional cents, duplicate lines and oversized drafts', () => {

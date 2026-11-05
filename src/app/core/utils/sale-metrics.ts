@@ -57,6 +57,15 @@ export function calculateStoredSaleMetrics(
   sale: Sale,
   records: CostBasisRecords = {},
 ): SaleMetrics {
+  if (sale.voided_at)
+    return calculateSaleMetrics({
+      itemRevenue: 0,
+      buyerShippingRevenue: 0,
+      costOfGoodsSold: 0,
+      platformFees: 0,
+      sellerShippingCost: 0,
+      extraCosts: [],
+    });
   const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
   const buyerShippingRevenue = Number(sale.shipping_revenue ?? 0);
   const grossFallback = Number(sale.sale_price_total ?? sale.sale_price ?? 0);

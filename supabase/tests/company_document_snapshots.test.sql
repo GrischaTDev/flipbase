@@ -9,9 +9,9 @@ select ok(not has_function_privilege('service_role', 'public.capture_return_comp
 
 insert into auth.users(id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values ('c2900000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'documents@example.test', 'unused', '{}', '{}', now(), now());
-insert into public.workspaces(id, name, tax_mode) values
-  ('c2900000-0000-4000-8000-000000000011', 'Interner Name', 'regular_19'),
-  ('c2900000-0000-4000-8000-000000000012', 'Fremder Workspace', 'diff_25a');
+insert into public.workspaces(shop_enabled, id, name, tax_mode) values
+  (true, 'c2900000-0000-4000-8000-000000000011', 'Interner Name', 'regular_19'),
+  (true, 'c2900000-0000-4000-8000-000000000012', 'Fremder Workspace', 'diff_25a');
 insert into public.workspace_members(workspace_id, user_id, role)
 values ('c2900000-0000-4000-8000-000000000011', 'c2900000-0000-4000-8000-000000000001', 'owner');
 insert into public.workspace_company_profiles(workspace_id)

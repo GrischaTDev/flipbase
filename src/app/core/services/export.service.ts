@@ -24,11 +24,17 @@ export class ExportService {
       'Haltedauer (Tage)',
       'Bestell-ID',
       'Notizen',
+      'Status',
+      'Korrekturgrund',
     ];
 
     const rows = sales.map((s) => [
       s.sale_date,
-      this.escapeCsv(s.inventory_item?.title || 'Unbekannter Artikel'),
+      this.escapeCsv(
+        s.lines?.map((line) => line.title_snapshot).join(', ') ||
+          s.inventory_item?.title ||
+          'Unbekannter Artikel',
+      ),
       this.escapeCsv(s.platform),
       (s.sale_price_total ?? s.sale_price).toFixed(2),
       (s.shipping_revenue ?? 0).toFixed(2),
@@ -41,6 +47,8 @@ export class ExportService {
       s.holding_duration_days || 0,
       this.escapeCsv(s.external_order_id || ''),
       this.escapeCsv(s.buyer_notes || ''),
+      s.voided_at ? 'Korrigiert' : 'Gebucht',
+      this.escapeCsv(s.void_reason || ''),
     ]);
 
     return [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');

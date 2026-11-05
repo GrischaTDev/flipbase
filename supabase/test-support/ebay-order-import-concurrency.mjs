@@ -136,7 +136,7 @@ export async function runEbayImportConcurrency() {
     query(`begin;
       insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
       ${users.map((id) => `('${id}','authenticated','authenticated','${id}@example.test','{}','{}')`).join(',')};
-      insert into public.workspaces(id,name) values ('${workspace}','eBay Paralleltest');
+      insert into public.workspaces(id,name,shop_enabled) values ('${workspace}','eBay Paralleltest',true);
       insert into public.workspace_members(workspace_id,user_id,role) values ${users.map((id) => `('${workspace}','${id}','member')`).join(',')};
       insert into public.ebay_connections(id,workspace_id,user_id,environment,status,external_account_id,authorization_version) values
       ${connections.map((id, index) => `('${id}','${workspace}','${users[index]}','production','connected','test-${workspace}',1)`).join(',')};

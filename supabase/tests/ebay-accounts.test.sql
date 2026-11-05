@@ -19,9 +19,9 @@ insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) v
  ('32000000-0000-4000-8000-000000000001','authenticated','authenticated','ebay-one@example.test','{}','{}'),
  ('32000000-0000-4000-8000-000000000002','authenticated','authenticated','ebay-two@example.test','{}','{}'),
  ('32000000-0000-4000-8000-000000000003','authenticated','authenticated','ebay-other@example.test','{}','{}');
-insert into public.workspaces(id,name) values
- ('32000000-0000-4000-8000-000000000011','eBay Workspace A'),
- ('32000000-0000-4000-8000-000000000012','eBay Workspace B');
+insert into public.workspaces(shop_enabled, id,name) values
+ (true, '32000000-0000-4000-8000-000000000011','eBay Workspace A'),
+ (true, '32000000-0000-4000-8000-000000000012','eBay Workspace B');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('32000000-0000-4000-8000-000000000011','32000000-0000-4000-8000-000000000001','member'),
  ('32000000-0000-4000-8000-000000000011','32000000-0000-4000-8000-000000000002','owner'),

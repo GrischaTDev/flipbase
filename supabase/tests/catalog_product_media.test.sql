@@ -45,10 +45,10 @@ select ok(not has_function_privilege('authenticated','public.protect_workspace_m
 insert into auth.users (id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
  ('ba400000-0000-4000-8000-000000000001','authenticated','authenticated','media-a@example.test','{}','{}'),
  ('ba400000-0000-4000-8000-000000000002','authenticated','authenticated','media-b@example.test','{}','{}');
-insert into public.workspaces (id,name) values
- ('ba400000-0000-4000-8000-000000000011','Medien A'),
- ('ba400000-0000-4000-8000-000000000012','Medien B'),
- ('ba400000-0000-4000-8000-000000000013','Zweiter Workspace von A');
+insert into public.workspaces (shop_enabled, id,name) values
+ (true, 'ba400000-0000-4000-8000-000000000011','Medien A'),
+ (true, 'ba400000-0000-4000-8000-000000000012','Medien B'),
+ (true, 'ba400000-0000-4000-8000-000000000013','Zweiter Workspace von A');
 insert into public.workspace_members (workspace_id,user_id,role) values
  ('ba400000-0000-4000-8000-000000000011','ba400000-0000-4000-8000-000000000001','owner'),
  ('ba400000-0000-4000-8000-000000000012','ba400000-0000-4000-8000-000000000002','owner'),

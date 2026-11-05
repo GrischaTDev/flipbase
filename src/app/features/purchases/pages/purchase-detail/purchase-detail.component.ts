@@ -1,3 +1,5 @@
+import { isWorkspaceShopActive } from '../../../../core/models/workspace-shop.models';
+import { isFreePurchase } from '../../utils/purchase-positions';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -132,6 +134,10 @@ import { PurchaseProductReturnService } from '../../services/purchase-product-re
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
+  readonly isFreePurchase = isFreePurchase;
+  readonly inventoryEnabled = computed(() =>
+    isWorkspaceShopActive(this.workspaceService.currentWorkspace()),
+  );
   private readonly productReturn = inject(PurchaseProductReturnService);
   readonly getPurchaseStatusPresentation = getPurchaseStatusPresentation;
   /**
@@ -591,6 +597,7 @@ export class PurchaseDetailComponent {
         sales: this.salesService.sales(),
         inventoryState,
         stockState,
+        inventoryEnabled: isWorkspaceShopActive(this.workspaceService.currentWorkspace()),
         salesState,
       },
     );

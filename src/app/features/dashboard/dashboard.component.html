@@ -240,60 +240,64 @@
         }
       </app-card>
     </section>
-    <section aria-labelledby="inventory-overview-heading" class="min-w-0">
-      <app-card variant="overview" padding="lg" contentLayout="fill" class="h-full">
-        <div class="overview-header flex items-center justify-between gap-2">
-          <h2 id="inventory-overview-heading" class="text-lg font-semibold">Bestand im Blick</h2>
-          <app-button
-            variant="plain"
-            link="/catalog"
-            [queryParams]="{ view: 'stock' }"
-            [icon]="viewAllIcon"
-            [iconOnly]="true"
-            ariaLabel="Bestand ansehen"
-          />
-        </div>
-        @if (!ready()) {
-          <p class="py-6 text-sm text-fb-text-muted">
-            {{ loadError() ? 'Bestand nicht verfügbar.' : 'Bestand wird geladen …' }}
-          </p>
-        } @else {
-          <p class="mt-2 mb-5 text-[28px] leading-tight font-semibold tracking-tight tabular-nums">
-            {{ stock().units }} Stück
-          </p>
-          <dl
-            class="stock-list grid min-h-40 flex-1 content-between gap-5 pb-2 text-[13px]"
-            aria-label="Lagerdauer ab Einkaufsdatum, ersatzweise Wareneingang"
-          >
-            @for (age of stockAges(); track age.label; let first = $first) {
-              <div class="grid grid-cols-[6.5rem_minmax(0,1fr)_2.5rem] items-center gap-3">
-                <dt class="text-fb-text-secondary">{{ age.label }}</dt>
-                <dd class="contents">
-                  <span class="h-4 overflow-hidden rounded-full bg-fb-subtle" aria-hidden="true"
-                    ><span
-                      class="block h-full rounded-full"
-                      [class]="first ? 'bg-fb-primary' : 'bg-gray-400 dark:bg-gray-500'"
-                      [style.width.%]="age.share"
-                    ></span
-                  ></span>
-                  <span class="text-right tabular-nums">{{ age.units }}</span>
-                </dd>
-              </div>
+    @if (shopActive()) {
+      <section aria-labelledby="inventory-overview-heading" class="min-w-0">
+        <app-card variant="overview" padding="lg" contentLayout="fill" class="h-full">
+          <div class="overview-header flex items-center justify-between gap-2">
+            <h2 id="inventory-overview-heading" class="text-lg font-semibold">Bestand im Blick</h2>
+            <app-button
+              variant="plain"
+              link="/catalog"
+              [queryParams]="{ view: 'stock' }"
+              [icon]="viewAllIcon"
+              [iconOnly]="true"
+              ariaLabel="Bestand ansehen"
+            />
+          </div>
+          @if (!ready()) {
+            <p class="py-6 text-sm text-fb-text-muted">
+              {{ loadError() ? 'Bestand nicht verfügbar.' : 'Bestand wird geladen …' }}
+            </p>
+          } @else {
+            <p
+              class="mt-2 mb-5 text-[28px] leading-tight font-semibold tracking-tight tabular-nums"
+            >
+              {{ stock().units }} Stück
+            </p>
+            <dl
+              class="stock-list grid min-h-40 flex-1 content-between gap-5 pb-2 text-[13px]"
+              aria-label="Lagerdauer ab Einkaufsdatum, ersatzweise Wareneingang"
+            >
+              @for (age of stockAges(); track age.label; let first = $first) {
+                <div class="grid grid-cols-[6.5rem_minmax(0,1fr)_2.5rem] items-center gap-3">
+                  <dt class="text-fb-text-secondary">{{ age.label }}</dt>
+                  <dd class="contents">
+                    <span class="h-4 overflow-hidden rounded-full bg-fb-subtle" aria-hidden="true"
+                      ><span
+                        class="block h-full rounded-full"
+                        [class]="first ? 'bg-fb-primary' : 'bg-gray-400 dark:bg-gray-500'"
+                        [style.width.%]="age.share"
+                      ></span
+                    ></span>
+                    <span class="text-right tabular-nums">{{ age.units }}</span>
+                  </dd>
+                </div>
+              }
+            </dl>
+            @if (stock().unknownAge > 0) {
+              <p class="mt-4 text-xs text-fb-text-muted">
+                Lagerdauer für {{ stock().unknownAge }} Stück nicht bekannt.
+              </p>
             }
-          </dl>
-          @if (stock().unknownAge > 0) {
-            <p class="mt-4 text-xs text-fb-text-muted">
-              Lagerdauer für {{ stock().unknownAge }} Stück nicht bekannt.
-            </p>
+            @if (report().inventoryItemsWithoutCost > 0) {
+              <p class="mt-3 text-xs text-fb-text-muted">
+                {{ report().inventoryItemsWithoutCost }} Stück ohne Kostenangabe.
+              </p>
+            }
           }
-          @if (report().inventoryItemsWithoutCost > 0) {
-            <p class="mt-3 text-xs text-fb-text-muted">
-              {{ report().inventoryItemsWithoutCost }} Stück ohne Kostenangabe.
-            </p>
-          }
-        }
-      </app-card>
-    </section>
+        </app-card>
+      </section>
+    }
   </div>
 </div>
 @if (listingDialogOpen()) {

@@ -6,9 +6,9 @@ select no_plan();
 insert into auth.users(id, email) values
 ('98000000-0000-4000-8000-000000000001', 'security-a@example.test'),
 ('98000000-0000-4000-8000-000000000002', 'security-b@example.test');
-insert into public.workspaces(id, name) values
-('98000000-0000-4000-8000-000000000003', 'Security A'),
-('98000000-0000-4000-8000-000000000004', 'Security B');
+insert into public.workspaces(shop_enabled, id, name) values
+(true, '98000000-0000-4000-8000-000000000003', 'Security A'),
+(true, '98000000-0000-4000-8000-000000000004', 'Security B');
 insert into public.workspace_members(workspace_id, user_id, role) values
 ('98000000-0000-4000-8000-000000000003', '98000000-0000-4000-8000-000000000001', 'owner'),
 ('98000000-0000-4000-8000-000000000004', '98000000-0000-4000-8000-000000000002', 'owner');

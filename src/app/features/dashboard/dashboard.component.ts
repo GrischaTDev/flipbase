@@ -1,5 +1,6 @@
 import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { isWorkspaceShopActive } from '../../core/models/workspace-shop.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -104,11 +105,11 @@ export class DashboardComponent {
     return [{ value: 'all', label: 'Alle Plattformen' }, ...options];
   });
   readonly report = computed(() => this.reports.createReport(this.range(), this.platform()));
+  readonly shopActive = computed(() => isWorkspaceShopActive(this.workspace.currentWorkspace()));
   readonly loadError = computed(
     () =>
       this.salesService.loadError() ||
-      this.inventory.loadError() ||
-      this.stockService.loadError() ||
+      (this.shopActive() && (this.inventory.loadError() || this.stockService.loadError())) ||
       this.purchases.loadError() ||
       this.expenses.loadError(),
   );
@@ -118,9 +119,11 @@ export class DashboardComponent {
       !!id &&
       !this.loadError() &&
       !this.expenses.isLoading() &&
-      [this.salesService, this.inventory, this.stockService, this.purchases].every(
-        (source) => !source.isLoading() && source.loadedWorkspaceId() === id,
-      )
+      [
+        this.salesService,
+        this.purchases,
+        ...(this.shopActive() ? [this.inventory, this.stockService] : []),
+      ].every((source) => !source.isLoading() && source.loadedWorkspaceId() === id)
     );
   });
   readonly stock = computed(() => {

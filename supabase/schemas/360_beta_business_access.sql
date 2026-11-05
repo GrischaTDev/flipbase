@@ -875,6 +875,10 @@ begin
         lot.purchase_id = p_purchase_id
         or linked_line.purchase_id = p_purchase_id
       )
+  ) or exists (
+    select 1 from public.sale_lines as sale_line
+    where sale_line.workspace_id=p_workspace_id and sale_line.purchase_id=p_purchase_id
+      and sale_line.position_kind='free'
   ) then
     return 'recorded';
   end if;
@@ -915,6 +919,9 @@ begin
     select coalesce(jsonb_agg(to_jsonb(item) order by item.id), '[]'::jsonb)
       into v_items from public.invoice_items as item where item.invoice_id = v_invoice.id;
     return jsonb_build_object('invoice', to_jsonb(v_invoice), 'items', v_items, 'created', false);
+  end if;
+  if p_sale_id is not null and exists(select 1 from public.sales where workspace_id = p_workspace_id and id = p_sale_id and voided_at is not null) then
+    raise exception using errcode = '22023', message = 'Für aufgehobene Verkäufe kann keine neue Rechnung erstellt werden.';
   end if;
   if coalesce(jsonb_typeof(p_invoice), 'null') <> 'object'
     or nullif(btrim(p_invoice ->> 'invoice_number'), '') is null
@@ -1042,6 +1049,7 @@ declare
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -1250,6 +1258,14 @@ create or replace function public.record_sale(p_workspace_id uuid, p_sale jsonb,
 AS $function$
 declare
   v_input_line jsonb;
+  v_booking_key uuid;
+  v_request jsonb;
+  v_result jsonb;
+  v_previous_request jsonb;
+  v_correction_id uuid;
+  v_original public.sales;
+  v_original_invoice public.invoices;
+  v_correction_document jsonb;
   v_sale public.sales;
   v_sale_line public.sale_lines;
   v_stock_lot public.stock_lots;
@@ -1294,9 +1310,41 @@ declare
   v_sale_state text;
   v_business_event_id uuid;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  v_booking_key := nullif(p_sale ->> 'booking_key', '')::uuid;
+  v_request := pg_catalog.jsonb_build_object('sale', p_sale, 'lines', p_lines);
+  if v_booking_key is not null then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_workspace_id::text || v_booking_key::text, 0));
+    select request, result into v_previous_request, v_result from public.sale_booking_requests
+      where workspace_id = p_workspace_id and booking_key = v_booking_key;
+    if found then
+      if v_previous_request is distinct from v_request then
+        raise exception using errcode = '22023', message = 'Die Buchungskennung gehört zu anderen Verkaufsdaten.';
+      end if;
+      return v_result;
+    end if;
+  elsif exists (select 1 from pg_catalog.jsonb_array_elements(p_lines) line where line ->> 'position_kind' = 'free') then
+    raise exception using errcode = '22023', message = 'Die Buchungskennung fehlt.';
+  end if;
+  v_correction_id := nullif(p_sale ->> 'correction_sale_id', '')::uuid;
+  if v_correction_id is not null then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_workspace_id::text || v_correction_id::text, 0));
+    select * into v_original from public.sales where workspace_id = p_workspace_id and id = v_correction_id for update;
+    if not found or v_original.voided_at is not null or coalesce(v_original.refund_amount, 0) <> 0
+      or not exists (select 1 from public.sale_lines where sale_id = v_correction_id)
+      or exists (select 1 from public.sale_lines where sale_id = v_correction_id and position_kind <> 'free')
+      or exists (select 1 from public.returns where sale_id = v_correction_id)
+      or nullif(pg_catalog.btrim(p_sale ->> 'correction_reason'), '') is null then
+      raise exception using errcode = '22023', message = 'Dieser Verkauf kann nicht über die freie Korrektur ersetzt werden.';
+    end if;
+    if exists (select 1 from pg_catalog.jsonb_array_elements(p_lines) line where coalesce(line ->> 'position_kind', 'stock') <> 'free') then
+      raise exception using errcode = '22023', message = 'Eine freie Korrektur benötigt freie Ersatzpositionen.';
+    end if;
   end if;
 
   if p_workspace_id is null
@@ -1387,6 +1435,7 @@ begin
     from jsonb_array_elements(p_lines) as element(value)
   loop
     if jsonb_typeof(v_input_line) <> 'object'
+      or coalesce(v_input_line ->> 'position_kind', 'stock') not in ('stock', 'free')
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
@@ -1395,7 +1444,7 @@ begin
       or num_nonnulls(
         nullif(trim(v_input_line ->> 'catalog_product_id'), ''),
         nullif(trim(v_input_line ->> 'inventory_item_id'), '')
-      ) <> 1
+      ) <> (case when v_input_line ->> 'position_kind' = 'free' then 0 else 1 end)
       or (
         nullif(trim(v_input_line ->> 'catalog_product_id'), '') is not null
         and jsonb_typeof(v_input_line -> 'catalog_product_id') <> 'string'
@@ -1631,6 +1680,7 @@ begin
     from jsonb_array_elements(p_lines) as element(value)
   loop
     if jsonb_typeof(v_input_line) <> 'object'
+      or coalesce(v_input_line ->> 'position_kind', 'stock') not in ('stock', 'free')
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
@@ -1639,7 +1689,7 @@ begin
       or num_nonnulls(
         nullif(v_input_line ->> 'catalog_product_id', ''),
         nullif(v_input_line ->> 'inventory_item_id', '')
-      ) <> 1 then
+      ) <> (case when v_input_line ->> 'position_kind' = 'free' then 0 else 1 end) then
       raise exception using errcode = '22023', message = 'Eine Verkaufsposition ist ungültig.';
     end if;
 
@@ -1652,7 +1702,16 @@ begin
     v_line_tax_costs := array[]::numeric[];
     v_tax_unknown := false;
 
-    if v_catalog_product_id is not null then
+    if v_input_line ->> 'position_kind' = 'free' then
+      if jsonb_typeof(v_input_line -> 'title_snapshot') is distinct from 'string' or nullif(pg_catalog.btrim(v_input_line ->> 'title_snapshot'), '') is null then
+        raise exception using errcode = '22023', message = 'Die Verkaufsbeschreibung fehlt.';
+      end if;
+      insert into public.sale_lines (workspace_id, sale_id, position_kind, purchase_id, title_snapshot, quantity,
+        unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
+      values (p_workspace_id, v_sale.id, 'free', nullif(v_input_line ->> 'purchase_id', '')::uuid, pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+        v_quantity, v_unit_sale_price, v_line_total, null, coalesce((select tax_mode from public.sale_lines where sale_id = v_correction_id order by id limit 1), v_workspace.tax_mode))
+      returning * into v_sale_line;
+    elsif v_catalog_product_id is not null then
       select * into v_catalog_product
       from public.catalog_products
       where id = v_catalog_product_id
@@ -2029,7 +2088,7 @@ begin
   )
   returning id into v_business_event_id;
 
-  return jsonb_build_object(
+  v_result := jsonb_build_object(
     'sale', to_jsonb(v_sale),
     'business_event_id', v_business_event_id,
     -- Eingabereihenfolge für unveränderliche externe Positionsnachweise.
@@ -2064,6 +2123,37 @@ begin
       where stock_lot.id = any(v_stock_lot_ids)
     ), '[]'::jsonb)
   );
+  if v_correction_id is not null then
+    update public.sales set voided_at = pg_catalog.clock_timestamp(), voided_by = (select auth.uid()),
+      void_reason = pg_catalog.btrim(p_sale ->> 'correction_reason')
+      where workspace_id = p_workspace_id and id = v_correction_id;
+    select * into v_original_invoice from public.invoices where workspace_id = p_workspace_id and sale_id = v_correction_id;
+    if found then
+      v_correction_document := pg_catalog.jsonb_build_object(
+        'documentType', 'correction', 'id', v_correction_id, 'invoiceNumber', v_original.record_number || '-K',
+        'orderNumber', v_original_invoice.order_number, 'invoiceDate', current_date, 'deliveryDate', current_date,
+        'seller', v_original_invoice.seller, 'buyer', v_original_invoice.buyer,
+        'subtotal', -v_original_invoice.subtotal, 'shippingCost', -v_original_invoice.shipping_cost,
+        'total', -v_original_invoice.total, 'taxMode', v_original_invoice.tax_mode,
+        'taxClause', v_original_invoice.tax_clause, 'paymentMethod', 'Erfassungskorrektur', 'paymentStatus', 'paid',
+        'notes', 'Korrektur zu Rechnung ' || v_original_invoice.invoice_number || ': ' || (p_sale ->> 'correction_reason'),
+        'sourceType', 'sale', 'sourceId', v_correction_id,
+        'items', (select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('title', title, 'sku', sku,
+          'quantity', quantity, 'unitPrice', -unit_price, 'totalPrice', -total_price))
+          from public.invoice_items where invoice_id = v_original_invoice.id));
+    end if;
+    insert into public.business_events (workspace_id, entity_type, entity_id, event_type, actor_id, changes)
+    values (p_workspace_id, 'sale', v_correction_id, 'sale_corrected', (select auth.uid()),
+      pg_catalog.jsonb_build_object('reason', p_sale ->> 'correction_reason', 'replacement_sale_id', v_sale.id, 'before', pg_catalog.to_jsonb(v_original), 'correction_document', v_correction_document));
+    insert into public.sale_corrections (workspace_id, original_sale_id, replacement_sale_id, reason, document)
+    values (p_workspace_id, v_correction_id, v_sale.id, pg_catalog.btrim(p_sale ->> 'correction_reason'), v_correction_document);
+  end if;
+  if v_booking_key is not null then
+    insert into public.sale_booking_requests (workspace_id, booking_key, request, result)
+    values (p_workspace_id, v_booking_key, v_request, v_result);
+  end if;
+  return v_result;
+
 end;
 $function$
 ;
@@ -2097,6 +2187,7 @@ declare
   v_catalog_product_id uuid;
   v_seller_details jsonb := public.normalize_purchase_seller_details(p_purchase);
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -2388,6 +2479,7 @@ begin
     end if;
 
     insert into public.purchase_lines (
+      position_kind,
       is_package,
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       ean_snapshot,
@@ -2395,6 +2487,7 @@ begin
       line_total, allocated_additional_cost, price_mode, condition_snapshot,
       estimated_market_value
     ) values (
+      coalesce(v_line ->> 'position_kind', 'stock'),
       coalesce((v_line ->> 'is_package')::boolean, false),
       p_workspace_id,
       v_purchase.id,
@@ -2554,6 +2647,7 @@ declare
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -2662,12 +2756,14 @@ begin
     end if;
 
     insert into public.purchase_lines (
+      position_kind,
       is_package,
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       ean_snapshot,
       line_kind, ordered_quantity, received_quantity, unit_purchase_price,
       line_total, allocated_additional_cost
     ) values (
+      coalesce(v_line ->> 'position_kind', 'stock'),
       coalesce((v_line ->> 'is_package')::boolean, false),
       p_workspace_id,
       p_purchase_id,
@@ -2968,7 +3064,9 @@ begin
       where workspace_id = p_workspace_id
         and sale_id = p_sale_id
     loop
-    if v_sale_line.catalog_product_id is not null then
+    if v_sale_line.position_kind = 'free' then
+      continue;
+    elsif v_sale_line.catalog_product_id is not null then
       for v_allocation in
         select *
         from public.sale_line_lot_allocations
@@ -3465,6 +3563,7 @@ declare
   v_seller_details jsonb := public.normalize_purchase_seller_details(p_purchase);
   v_seller_details_before jsonb;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -3795,6 +3894,7 @@ begin
               then nullif(pg_catalog.btrim(v_line ->> 'ean_snapshot'), '')
             else v_existing_line.ean_snapshot
           end,
+          position_kind = coalesce(v_line ->> 'position_kind', 'stock'),
           line_kind = v_line ->> 'line_kind',
           ordered_quantity = (v_line ->> 'ordered_quantity')::integer,
           price_mode = coalesce(nullif(v_line ->> 'price_mode', ''), 'priced'),
@@ -3828,14 +3928,16 @@ begin
       returning id into v_line_id;
     else
       insert into public.purchase_lines (
-        is_package,
+        position_kind,
+      is_package,
         workspace_id, purchase_id, catalog_product_id, title_snapshot,
         ean_snapshot,
         line_kind, ordered_quantity, received_quantity, unit_purchase_price,
         line_total, allocated_additional_cost, price_mode, condition_snapshot,
         estimated_market_value
       ) values (
-        coalesce((v_line ->> 'is_package')::boolean, false),
+        coalesce(v_line ->> 'position_kind', 'stock'),
+      coalesce((v_line ->> 'is_package')::boolean, false),
         p_workspace_id,
         p_purchase_id,
         v_catalog_product_id,
@@ -4104,6 +4206,7 @@ declare
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -4706,6 +4809,7 @@ declare
   v_response jsonb;
   v_archived_at timestamptz;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -5132,6 +5236,7 @@ declare
   v_purchase_id uuid;
   v_archived_at timestamptz;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if v_actor_id is null or p_workspace_id is null or not public.can_access_workspace(p_workspace_id) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
   end if;
@@ -5446,6 +5551,7 @@ declare
   v_purchase public.purchases;
   v_audit_before jsonb;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if (select auth.uid()) is null
     or not (select public.can_access_workspace(p_workspace_id)) then
     raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
@@ -5516,6 +5622,8 @@ begin
 
   v_audit_before := public.purchase_draft_audit_snapshot(p_workspace_id, p_purchase_id);
 
+  insert into public.shop_history_operations values(pg_catalog.txid_current(),p_workspace_id,'purchase_draft_delete',p_purchase_id);
+
   delete from public.purchase_costs as cost
   where cost.workspace_id = p_workspace_id and cost.purchase_id = p_purchase_id;
 
@@ -5535,6 +5643,7 @@ begin
       'costs', pg_catalog.jsonb_build_object('before', v_audit_before -> 'costs', 'after', null)
     )
   );
+  delete from public.shop_history_operations where transaction_id=pg_catalog.txid_current() and workspace_id=p_workspace_id and operation='purchase_draft_delete' and entity_id=p_purchase_id;
 end;
 $function$
 ;
@@ -6738,6 +6847,10 @@ begin
         lot.purchase_id = p_purchase_id
         or linked_line.purchase_id = p_purchase_id
       )
+    union
+    select sale_line.id from public.sale_lines as sale_line
+    where sale_line.workspace_id=p_workspace_id and sale_line.purchase_id=p_purchase_id
+      and sale_line.position_kind='free'
   ) as affected;
 
   if coalesce(pg_catalog.cardinality(v_sale_line_ids), 0) = 0 then
@@ -6948,7 +7061,7 @@ begin
         'condition_snapshot', 'estimated_market_value'
       ])
       or v_input_line - 'is_package' - array[
-        'id', 'catalog_product_id', 'title_snapshot', 'line_kind',
+        'id', 'catalog_product_id', 'title_snapshot', 'position_kind', 'line_kind',
         'ordered_quantity', 'price_mode', 'unit_purchase_price', 'line_total',
         'condition_snapshot', 'estimated_market_value'
       ]::text[] <> '{}'::jsonb
@@ -7094,7 +7207,8 @@ begin
         and id = v_line_id;
     else
       insert into public.purchase_lines (
-        is_package,
+        position_kind,
+      is_package,
         id,
         workspace_id,
         purchase_id,
@@ -7114,7 +7228,8 @@ begin
         created_at,
         updated_at
       ) values (
-        coalesce((v_input_line ->> 'is_package')::boolean, false),
+        coalesce(v_input_line ->> 'position_kind', 'stock'),
+      coalesce((v_input_line ->> 'is_package')::boolean, false),
         v_line_id,
         p_workspace_id,
         p_purchase_id,
@@ -7323,7 +7438,7 @@ begin
     from pg_catalog.jsonb_array_elements_text(nullif(v_line_plan -> 'unitTaxPurchaseCents', 'null'::jsonb))
       with ordinality as unit_share(value, ordinality);
 
-    if v_line.is_package then
+    if v_line.is_package or v_line.position_kind = 'free' then
       -- Der bezahlte Paketpreis bleibt an der Position, ohne verkäuflichen Platzhalter.
       null;
     elsif v_line.line_kind = 'individual' then
@@ -7624,7 +7739,7 @@ begin
     update public.purchase_lines
     set allocated_additional_cost = (v_line_plan ->> 'additionalCents')::bigint::numeric / 100,
         allocated_total_cost = (v_line_plan ->> 'totalCents')::bigint::numeric / 100,
-        received_quantity = ordered_quantity,
+        received_quantity = case when position_kind = 'free' then received_quantity else ordered_quantity end,
         updated_at = v_changed_at
     where workspace_id = p_workspace_id
       and id = v_line.id;
@@ -7649,7 +7764,8 @@ begin
         )
       end
   where sale_line.workspace_id = p_workspace_id
-    and sale_line.id = any(v_sale_line_ids);
+    and sale_line.id = any(v_sale_line_ids)
+    and sale_line.position_kind <> 'free';
 
   update public.purchases
   set purchase_price = pg_catalog.round(v_goods_cents::numeric / 100, 2),
@@ -8064,6 +8180,7 @@ declare
   v_latest_received_at timestamptz;
   v_next_received_at timestamptz;
 begin
+  perform public.lock_workspace_shop(p_workspace_id);
   if exists(select 1 from public.workspace_licenses as access_license where access_license.workspace_id=p_workspace_id) and not public.workspace_access_is_valid(p_workspace_id) then raise exception 'Beta-Zugang ist abgelaufen oder gesperrt' using errcode='42501'; end if;
   if v_actor_id is null
     or p_workspace_id is null
@@ -8108,13 +8225,16 @@ begin
       message = 'Offene Einkaufspreise müssen vor dem Abschluss ergänzt werden.';
   end if;
 
-  if v_purchase.request_id is not null and v_purchase.shipment_status <> 'arrived' then
+  if v_purchase.request_id is not null and v_purchase.shipment_status <> 'arrived'
+    and exists(select 1 from public.purchase_lines where purchase_id = p_purchase_id and position_kind = 'stock') then
     raise exception using
       errcode = '22023',
       message = 'Vor dem Abschluss muss die Ankunft bestätigt sein.';
   end if;
 
-  if v_purchase.content_status = 'unknown' then
+  if v_purchase.content_status = 'unknown' and not exists(
+    select 1 from public.purchase_lines where purchase_id=p_purchase_id group by purchase_id having bool_and(position_kind='free')
+  ) then
     raise exception using
       errcode = '22023',
       message = 'Der Inhalt muss vor dem Abschluss vollständig erfasst sein.';
@@ -8287,7 +8407,7 @@ begin
       and line.purchase_id = p_purchase_id
       and (
         (
-          line.line_kind = 'individual' and not line.is_package
+          line.line_kind = 'individual' and not line.is_package and line.position_kind = 'stock'
           and line.received_quantity <> (
             select pg_catalog.count(*)::integer
             from public.inventory_items as item
@@ -8378,7 +8498,7 @@ begin
     from pg_catalog.jsonb_array_elements_text(nullif(v_line_plan -> 'unitTaxPurchaseCents', 'null'::jsonb))
       with ordinality as unit_share(value, ordinality);
 
-    if v_line.is_package then
+    if v_line.is_package or v_line.position_kind = 'free' then
       -- Der bezahlte Paketpreis bleibt an der Position, ohne verkäuflichen Platzhalter.
       null;
     elsif v_line.line_kind = 'individual' then
@@ -8679,7 +8799,7 @@ begin
     set allocated_additional_cost =
           v_line_additional_shares[v_line_position]::numeric / 100,
         allocated_total_cost = v_line_total_shares[v_line_position]::numeric / 100,
-        received_quantity = ordered_quantity,
+        received_quantity = case when position_kind = 'free' then received_quantity else ordered_quantity end,
         updated_at = v_finalized_at
     where workspace_id = p_workspace_id
       and id = v_line.id;
@@ -8745,10 +8865,10 @@ begin
     where line.workspace_id = p_workspace_id
       and line.purchase_id = p_purchase_id
       and (
-        line.received_quantity <> line.ordered_quantity
+        (line.position_kind = 'stock' and line.received_quantity <> line.ordered_quantity)
         or line.allocated_additional_cost > line.allocated_total_cost
         or (
-          line.line_kind = 'individual' and not line.is_package
+          line.line_kind = 'individual' and not line.is_package and line.position_kind = 'stock'
           and (
             line.ordered_quantity <> (
               select pg_catalog.count(*)::integer
@@ -8845,7 +8965,7 @@ begin
     + coalesce((
       select pg_catalog.sum(line.allocated_total_cost * 100)
       from public.purchase_lines as line
-      where line.workspace_id = p_workspace_id and line.purchase_id = p_purchase_id and line.is_package
+      where line.workspace_id = p_workspace_id and line.purchase_id = p_purchase_id and (line.is_package or line.position_kind = 'free')
     ), 0)
   )::bigint
   into v_inventory_cents;

@@ -4,7 +4,7 @@ set local search_path = public, extensions;
 select no_plan();
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data)
 values ('ba500000-0000-4000-8000-000000000001','authenticated','authenticated','gallery-layout@example.test','{}','{}');
-insert into public.workspaces(id,name) values ('ba500000-0000-4000-8000-000000000011','Layout'),('ba500000-0000-4000-8000-000000000012','Fremd');
+insert into public.workspaces(shop_enabled, id,name) values (true, 'ba500000-0000-4000-8000-000000000011','Layout'),(true, 'ba500000-0000-4000-8000-000000000012','Fremd');
 insert into public.workspace_members(workspace_id,user_id,role) values ('ba500000-0000-4000-8000-000000000011','ba500000-0000-4000-8000-000000000001','owner');
 insert into public.catalog_products(id,workspace_id,title,seo_title,seo_description,url_handle)
 values ('ba500000-0000-4000-8000-000000000021','ba500000-0000-4000-8000-000000000011','Titel','Suchname','Beschreibung','suchname'),('ba500000-0000-4000-8000-000000000022','ba500000-0000-4000-8000-000000000012','Fremd',null,null,null);

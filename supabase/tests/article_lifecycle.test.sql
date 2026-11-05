@@ -19,9 +19,9 @@ select ok((select relrowsecurity from pg_class where oid='public.article_media_c
 insert into auth.users(id, aud, role, email) values
   ('a2400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'article-member@example.test'),
   ('a2400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'article-other@example.test');
-insert into public.workspaces(id, name) values
-  ('a2400000-0000-4000-8000-000000000010', 'Artikeltest'),
-  ('a2400000-0000-4000-8000-000000000011', 'Fremder Artikeltest');
+insert into public.workspaces(shop_enabled, id, name) values
+  (true, 'a2400000-0000-4000-8000-000000000010', 'Artikeltest'),
+  (true, 'a2400000-0000-4000-8000-000000000011', 'Fremder Artikeltest');
 insert into public.workspace_members(workspace_id, user_id, role) values
   ('a2400000-0000-4000-8000-000000000010', 'a2400000-0000-4000-8000-000000000001', 'owner');
 insert into public.catalog_products(id, workspace_id, title) values

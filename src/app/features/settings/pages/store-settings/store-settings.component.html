@@ -1,4 +1,18 @@
 <app-card padding="lg">
+  <app-custom-checkbox
+    presentation="row"
+    size="lg"
+    label="Shop-System aktivieren"
+    [checked]="shop.active()"
+    [disabled]="shop.saving() || !shop.entitled()"
+    (checkedChange)="onShopChanged($event)"
+    ariaLabel="Shop-System aktivieren"
+  />
+  @if (shop.error(); as error) {
+    <p class="mt-2 text-sm text-fb-critical" role="alert">{{ error }}</p>
+  }
+</app-card>
+<app-card padding="lg">
   <form
     [formGroup]="paymentForm"
     (ngSubmit)="onSavePaymentConfig()"

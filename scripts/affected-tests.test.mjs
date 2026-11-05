@@ -1391,3 +1391,17 @@ test('betroffene Fachdateien ersetzen ihre Kern-/Layoutüberschneidung vollstän
   assert.deepEqual(plan.coreBrowserFiles, []);
   assert.deepEqual(plan.layoutBrowserFiles, []);
 });
+
+test('freie Einkäufe und Shop-Einstellungen wählen ihren gemeinsamen Bedienablauf', () => {
+  const sources = {
+    'src/app/features/purchases/components/purchase-entry-form/purchase-entry-form.component.ts':
+      'export class Purchases {}',
+    'src/app/features/settings/pages/store-settings/store-settings.component.ts':
+      'export class StoreSettings {}',
+    'e2e/optional-shop.spec.ts': "test('free purchase and toggle', () => {});",
+  };
+  for (const path of Object.keys(sources).filter((path) => path.startsWith('src/'))) {
+    const plan = selectAffectedTests([path], sources);
+    assert.ok(selectedFeatureBrowserFiles(plan).includes('e2e/optional-shop.spec.ts'));
+  }
+});

@@ -179,6 +179,7 @@ declare v_order public.ebay_cached_orders; v_draft public.ebay_sale_drafts; v_as
   v_remaining integer; v_take integer; v_complete boolean; v_targets_valid boolean:=true; v_state text; v_booking public.ebay_order_bookings;
 begin
   select * into strict v_order from public.ebay_cached_orders where id=p_cache_id;
+  perform public.lock_workspace_shop(v_order.workspace_id);
   perform pg_advisory_xact_lock(hashtextextended(v_order.workspace_id::text||':'||v_order.environment||':'||v_order.source_key,0));
   select * into v_draft from public.ebay_sale_drafts where workspace_id=v_order.workspace_id and environment=v_order.environment and source_key=v_order.source_key for update;
   select * into v_booking from public.ebay_order_bookings where workspace_id=v_order.workspace_id and environment=v_order.environment and source_key=v_order.source_key;
@@ -218,10 +219,14 @@ begin
     select coalesce(jsonb_agg(a),'[]'::jsonb) into v_assignments from jsonb_array_elements(coalesce(v_draft.assignments,'[]'::jsonb)) a
       where exists(select 1 from jsonb_array_elements(v_order.source->'lines') l where l->>'lineItemId'=a->>'lineItemId');
     if v_assignments is null or v_assignments='[]'::jsonb then
+      if not public.workspace_shop_active(v_order.workspace_id) then
+        select jsonb_agg(jsonb_build_object('lineItemId',l->>'lineItemId','target',jsonb_build_object('free',true))) into v_assignments from jsonb_array_elements(v_order.source->'lines') l;
+      else
       select coalesce(jsonb_agg(jsonb_build_object('lineItemId',l->>'lineItemId','target',case when m.inventory_item_id is not null then jsonb_build_object('inventoryItemId',m.inventory_item_id) else jsonb_build_object('catalogProductId',m.catalog_product_id) end)),'[]'::jsonb)
         into v_assignments from jsonb_array_elements(v_order.source->'lines') l join public.ebay_article_mappings m on m.workspace_id=v_order.workspace_id
         and m.environment=v_order.environment and m.external_account_id=v_order.external_account_id and m.listing_id=l->>'listingId' and m.variation_id is not distinct from l->>'variationId'
         and (m.variation_id is not null or l->'variationAspects'='[]'::jsonb);
+      end if;
     end if;
   end if;
   if jsonb_typeof(v_assignments) is distinct from 'array' or jsonb_array_length(v_assignments)>200
@@ -239,6 +244,7 @@ begin
       v_targets_valid:=false;
     end;
   end loop;
+  if not public.workspace_shop_active(v_order.workspace_id) and exists(select 1 from jsonb_array_elements(v_assignments) a where a#>>'{target,free}' is distinct from 'true') then v_targets_valid:=false; end if;
   v_complete:=jsonb_array_length(v_assignments)=jsonb_array_length(v_order.source->'lines') and jsonb_array_length(v_assignments)>0;
   -- Neu eingelesene Gebühren werden angezeigt; persönlich bestätigte Kosten bleiben erhalten.
   v_costs:=coalesce(p_costs,case when v_draft.costs_origin='personal' then v_draft.costs end,jsonb_build_object('platformFeeCents',v_order.source->'platformFeeCents','shippingCostCents',null,'shippingMode',null,'additionalCosts','[]'::jsonb));
@@ -282,6 +288,7 @@ begin
       begin
         for v_group in select a->'target' target,sum((l->>'quantity')::integer)::integer quantity from jsonb_array_elements(v_assignments) a
           join jsonb_array_elements(v_order.source->'lines') l on l->>'lineItemId'=a->>'lineItemId' group by a->'target' order by (a->'target')::text loop
+          if v_group.target->'free'='true'::jsonb then continue; end if;
           if v_group.quantity is null or v_group.quantity<=0 then raise exception 'Ungültige Menge' using errcode='22023'; end if;
           if v_group.target?'inventoryItemId' then
             select * into strict v_item from public.inventory_items where id=(v_group.target->>'inventoryItemId')::uuid and workspace_id=v_order.workspace_id;

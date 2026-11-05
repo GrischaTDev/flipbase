@@ -24,9 +24,9 @@ insert into auth.users (
     '{}'::jsonb, now(), now()
   );
 
-insert into public.workspaces (id, name) values
-  (:'owner_workspace_id'::uuid, 'RLS owner workspace'),
-  (:'foreign_workspace_id'::uuid, 'RLS foreign workspace');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, :'owner_workspace_id'::uuid, 'RLS owner workspace'),
+  (true, :'foreign_workspace_id'::uuid, 'RLS foreign workspace');
 
 insert into public.workspace_members (workspace_id, user_id, role) values
   (:'owner_workspace_id'::uuid, :'owner_user_id'::uuid, 'owner'),

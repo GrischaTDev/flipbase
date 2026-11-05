@@ -6,9 +6,9 @@ insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) v
  ('47500000-0000-4000-8000-000000000001','authenticated','authenticated','ebay-import-one@example.test','{}','{}'),
  ('47500000-0000-4000-8000-000000000002','authenticated','authenticated','ebay-import-two@example.test','{}','{}'),
  ('47500000-0000-4000-8000-000000000003','authenticated','authenticated','ebay-import-other@example.test','{}','{}');
-insert into public.workspaces(id,name) values
- ('47500000-0000-4000-8000-000000000011','eBay import A'),
- ('47500000-0000-4000-8000-000000000012','eBay import B');
+insert into public.workspaces(shop_enabled, id,name) values
+ (true, '47500000-0000-4000-8000-000000000011','eBay import A'),
+ (true, '47500000-0000-4000-8000-000000000012','eBay import B');
 insert into public.workspace_members(workspace_id,user_id,role) values
  ('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000001','member'),
  ('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000002','owner'),
@@ -336,6 +336,33 @@ reset role;
 select ok((select state not in ('dismissed','linked_existing','booked') from public.ebay_sale_drafts where order_id='existing'),'Altzuordnung ist nach ausdrücklichem Speichern wieder bearbeitbar');
 select is((select sum(r.quantity)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='existing' and r.released_at is null),3,'Aufgehobene Altzuordnung reserviert erst nach ausdrücklichem Speichern');
 rollback to savepoint unlink_review;
+-- Abschalten bewahrt Zuordnungen, beendet Reservierungen und verlangt freie Übernahme.
+savepoint optional_shop;
+select pg_temp.add_order('shop-off-existing', jsonb_build_object('lines', (select jsonb_build_array((source->'lines'->0)||'{"quantity":1}') from import_test)));
+select is((select sum(r.quantity)::int from public.ebay_sale_reservations r join public.ebay_sale_drafts d on d.id=r.draft_id where d.order_id='shop-off-existing' and r.released_at is null),1,'Bestandsentwurf reserviert vor Abschalten');
+select set_config('request.jwt.claims','{"sub":"47500000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+set local role authenticated;
+select public.set_workspace_shop_enabled('47500000-0000-4000-8000-000000000011',false,0);
+reset role;
+select is((select count(*)::int from public.ebay_sale_reservations where released_at is null),0,'Abschalten gibt offene Reservierungen frei');
+select ok((select requires_explicit_preparation and assignments#>>'{0,target,catalogProductId}' is not null from public.ebay_sale_drafts where order_id='shop-off-existing'),'Abschalten erhält alte Zuordnung zur ausdrücklichen Prüfung');
+update public.ebay_cached_orders set observed_at=clock_timestamp() where order_id='shop-off-existing';
+select is((select count(*)::int from public.ebay_sale_reservations where released_at is null),0,'Hintergrundabruf reserviert ausgeschalteten Bestand nicht erneut');
+select set_config('request.jwt.claims','{"sub":"47500000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+set local role authenticated;
+select throws_ok($test$select public.ebay_set_article_mapping('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021','off-mapping',null,'{"catalogProductId":"47500000-0000-4000-8000-000000000041"}')$test$,'42501',null,'Ausgeschalteter Shop sperrt neue dauerhafte Bestandszuordnungen');
+reset role;
+select pg_temp.add_order('shop-off-new',jsonb_build_object('lines',(select jsonb_build_array((source->'lines'->0)||'{"quantity":1}') from import_test)));
+select is((select assignments#>>'{0,target,free}' from public.ebay_sale_drafts where order_id='shop-off-new'),'true','Neue Bestellung beginnt ohne Bestandszwang');
+update import_test set ready_id=pg_temp.stage('shop-off-existing'),assignments='[{"lineItemId":"line-1","target":{"free":true}}]';
+set local role authenticated;
+select throws_ok($test$select public.ebay_record_order_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs) from import_test$test$,'22023',null,'Alte Zuordnung wird nicht stillschweigend frei gebucht');
+select public.ebay_save_sale_draft('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs) from import_test;
+update import_test set result=public.ebay_record_order_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs);
+select is((select public.ebay_record_order_sale('47500000-0000-4000-8000-000000000011','47500000-0000-4000-8000-000000000021',ready_id,assignments,costs)->>'saleId' from import_test),(select result->>'saleId' from import_test),'Wiederholte freie Buchung liefert denselben Verkauf');
+reset role;
+select ok((select bool_and(position_kind='free' and inventory_item_id is null and catalog_product_id is null and cost_of_goods_sold is null) from public.sale_lines where sale_id=(select (result->>'saleId')::uuid from import_test)),'Quellgebundene freie Übernahme erzeugt keinen Bestand oder erfundenen Wareneinsatz');
+rollback to savepoint optional_shop;
 select pg_temp.add_order('account-delete'  ,jsonb_build_object('lines',(select jsonb_build_array((source->'lines'->0)||'{"quantity":1}') from import_test)));
 select is((select sum(quantity)::int from public.ebay_sale_reservations where released_at is null),1,'Löschfall hat eine eigene offene Reservierung');
 set local role service_role;

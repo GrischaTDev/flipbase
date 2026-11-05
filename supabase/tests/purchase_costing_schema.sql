@@ -313,10 +313,10 @@ select is(
   'Costing-Write-RPCs sind ausschließlich für authenticated ausführbar'
 );
 
-insert into public.workspaces (id, name)
+insert into public.workspaces (shop_enabled, id, name)
 values
-  ('91000000-0000-4000-8000-000000000001', 'Kosten-Workspace eins'),
-  ('91000000-0000-4000-8000-000000000002', 'Kosten-Workspace zwei');
+  (true, '91000000-0000-4000-8000-000000000001', 'Kosten-Workspace eins'),
+  (true, '91000000-0000-4000-8000-000000000002', 'Kosten-Workspace zwei');
 
 insert into public.purchases (id, workspace_id, type, title)
 values
@@ -691,9 +691,9 @@ insert into auth.users (
   ('92000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'event-member@example.test', 'unused', '{}'::jsonb, '{}'::jsonb, now(), now()),
   ('92000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated', 'event-outsider@example.test', 'unused', '{}'::jsonb, '{}'::jsonb, now(), now());
 
-insert into public.workspaces (id, name) values
-  ('92000000-0000-4000-8000-000000000011', 'Ereignis-Workspace eins'),
-  ('92000000-0000-4000-8000-000000000012', 'Ereignis-Workspace zwei');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '92000000-0000-4000-8000-000000000011', 'Ereignis-Workspace eins'),
+  (true, '92000000-0000-4000-8000-000000000012', 'Ereignis-Workspace zwei');
 
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('92000000-0000-4000-8000-000000000011', '92000000-0000-4000-8000-000000000001', 'owner'),

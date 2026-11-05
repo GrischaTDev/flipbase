@@ -204,6 +204,32 @@ describe('SaleCreateModalComponent', () => {
     }
 
     describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
+      it('bucht eine freie Position ohne Bestandsziel und lässt Kosten unbekannt', async () => {
+        const { komponente, salesService } = erstelleKomponente();
+        komponente.setFreeTitle(komponente.lines.at(0), 'Pullover');
+        expect(komponente.availableQuantity(komponente.lines.at(0))).toBeNull();
+        await komponente.onSubmit();
+        expect(salesService.recordSale).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lines: [
+              expect.objectContaining({
+                positionKind: 'free',
+                titleSnapshot: 'Pullover',
+                quantity: 2,
+                unitSalePrice: 9.99,
+              }),
+            ],
+          }),
+        );
+      });
+      it('verwirft eine freie Beschreibung aus Leerzeichen', async () => {
+        const { komponente, salesService } = erstelleKomponente();
+        Object.assign(komponente, { focusFirstInvalidField: vi.fn() });
+        komponente.setFreeTitle(komponente.lines.at(0), '   ');
+        await komponente.onSubmit();
+        expect(salesService.recordSale).not.toHaveBeenCalled();
+      });
+
       it('entfernt auch die letzte ausgewählte Verkaufsposition in den leeren Zustand', () => {
         const { komponente } = erstelleKomponente();
 
@@ -749,6 +775,71 @@ describe('SaleCreateModalComponent', () => {
           ): RecordSaleInput;
         }
       ).validatedLegacyInput({ kind: 'legacy_sold_unverified', inventoryItemId }, input);
+    }
+  });
+
+  it('unterscheidet zuordenbare Einkäufe mit Belegnummer und Beschreibung und schließt Entwürfe sowie fremde Einkäufe aus', () => {
+    const rows = signal([
+      {
+        id: 'p1',
+        workspace_id: 'workspace-1',
+        entry_status: 'finalized',
+        record_number: 'B-01',
+        title: 'Einkauf',
+        notes: 'Kleidungspaket',
+      },
+      {
+        id: 'p2',
+        workspace_id: 'workspace-1',
+        entry_status: 'finalized',
+        record_number: 'B-02',
+        title: 'Einkauf',
+        notes: 'Kleidungspaket',
+      },
+      {
+        id: 'draft',
+        workspace_id: 'workspace-1',
+        entry_status: 'draft',
+        record_number: 'B-03',
+        title: 'Entwurf',
+      },
+      {
+        id: 'foreign',
+        workspace_id: 'workspace-2',
+        entry_status: 'finalized',
+        record_number: 'B-04',
+        title: 'Fremd',
+      },
+    ]);
+    TestBed.configureTestingModule({
+      providers: [
+        ...saleSourceProviders(),
+        {
+          provide: PurchaseService,
+          useValue: {
+            purchases: rows,
+            loadedWorkspaceId: signal('workspace-1'),
+            isLoading: signal(false),
+            loadError: signal(null),
+            loadPurchases: vi.fn(),
+          },
+        },
+        { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+        { provide: InventoryService, useValue: { items: signal([]) } },
+        { provide: StockService, useValue: { positions: signal([]) } },
+        { provide: ToastService, useValue: new ToastService() },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+      ],
+    });
+    try {
+      const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+      expect(component.purchaseOptions()).toEqual([
+        { value: '', label: 'Nicht zugeordnet' },
+        { value: 'p1', label: 'B-01 · Kleidungspaket' },
+        { value: 'p2', label: 'B-02 · Kleidungspaket' },
+      ]);
+    } finally {
+      TestBed.resetTestingModule();
     }
   });
 

@@ -27,13 +27,13 @@ insert into auth.users (
   now()
 );
 
-insert into public.workspaces (id, name) values
-  (:'business_workspace_id'::uuid, 'Business dependencies'),
-  (:'purchase_workspace_id'::uuid, 'Purchase only'),
-  (:'sale_workspace_id'::uuid, 'Sale only'),
-  (:'invoice_workspace_id'::uuid, 'Invoice only'),
-  (:'event_workspace_id'::uuid, 'Event only'),
-  (:'empty_workspace_id'::uuid, 'Empty workspace');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, :'business_workspace_id'::uuid, 'Business dependencies'),
+  (true, :'purchase_workspace_id'::uuid, 'Purchase only'),
+  (true, :'sale_workspace_id'::uuid, 'Sale only'),
+  (true, :'invoice_workspace_id'::uuid, 'Invoice only'),
+  (true, :'event_workspace_id'::uuid, 'Event only'),
+  (true, :'empty_workspace_id'::uuid, 'Empty workspace');
 
 insert into public.workspace_members (workspace_id, user_id, role)
 select id, :'user_id'::uuid, 'owner'

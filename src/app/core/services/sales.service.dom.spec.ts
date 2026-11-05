@@ -48,6 +48,49 @@ function createService(response: { data: unknown; error: unknown }): {
 }
 
 describe('SalesService', () => {
+  it('bucht und erstattet freie Positionen ohne nachträglichen Bestandsabruf', async () => {
+    const freeLine = {
+      id: 'free-line',
+      sale_id: sale.id,
+      position_kind: 'free',
+      title_snapshot: 'Pullover',
+      quantity: 2,
+      unit_sale_price: 9.99,
+      line_total: 19.98,
+      cost_of_goods_sold: null,
+      tax_mode: 'diff_25a',
+    };
+    const { service, stockService, rpc } = createService({
+      data: { sale, sale_lines: [freeLine], lot_allocations: [], stock_movements: [] },
+      error: null,
+    });
+    stockService.loadPositions.mockRejectedValue(new Error('Bestand nicht erreichbar'));
+    const booking = await service.recordSale({
+      bookingKey: 'booking-key',
+      platform: sale.platform,
+      saleDate: sale.sale_date,
+      lines: [
+        { positionKind: 'free', titleSnapshot: 'Pullover', quantity: 2, unitSalePrice: 9.99 },
+      ],
+    });
+    expect(booking.error).toBeNull();
+    expect(booking.data?.sale.net_profit).toBeNull();
+    const refund = await service.recordReturn({
+      bookingKey: 'refund-key',
+      saleId: sale.id,
+      refundAmount: 5,
+      restock: false,
+      reason: 'other',
+    });
+    expect(refund.error).toBeNull();
+    expect(stockService.loadPositions).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenLastCalledWith(
+      'record_sale_refund',
+      expect.objectContaining({
+        p_refund: expect.objectContaining({ booking_key: 'refund-key', amount: 5 }),
+      }),
+    );
+  });
   it('aktualisiert externe Verkäufe ohne zweite Buchung nur im aktiven Workspace', async () => {
     const service = Object.create(SalesService.prototype) as SalesService;
     const loadSales = vi.fn(async () => undefined);

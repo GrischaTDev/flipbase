@@ -28,7 +28,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h2 class="text-base font-bold text-fb-text-primary">
-              Rechnung {{ invoice().invoiceNumber }}
+              {{ documentLabel() }} {{ invoice().invoiceNumber }}
             </h2>
             <span
               class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-primary border border-fb-border"
@@ -49,25 +49,26 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <!-- Send Email Button -->
-        <app-button
-          type="button"
-          (clicked)="sendEmail()"
-          [disabled]="isSendingEmail()"
-          variant="secondary"
-          title="Kaufbestätigung & Rechnung für den E-Mail-Versand vorbereiten"
-        >
-          @if (isSendingEmail()) {
-            <div
-              class="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"
-            ></div>
-            <span>Wird vorbereitet...</span>
-          } @else {
-            <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-            <span>E-Mail vorbereiten</span>
-          }
-        </app-button>
-
+        @if (invoice().total >= 0) {
+          <!-- Send Email Button -->
+          <app-button
+            type="button"
+            (clicked)="sendEmail()"
+            [disabled]="isSendingEmail()"
+            variant="secondary"
+            title="Kaufbestätigung & Rechnung für den E-Mail-Versand vorbereiten"
+          >
+            @if (isSendingEmail()) {
+              <div
+                class="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"
+              ></div>
+              <span>Wird vorbereitet...</span>
+            } @else {
+              <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+              <span>E-Mail vorbereiten</span>
+            }
+          </app-button>
+        }
         <!-- Print / PDF Button -->
         <app-button type="button" (clicked)="printInvoice()" variant="primary" [icon]="printerIcon">
           <span>Drucken / Als PDF speichern</span>
@@ -164,7 +165,9 @@
 
           <!-- Rechnungs-Metadaten -->
           <div class="text-right text-xs space-y-1.5 self-end">
-            <h1 class="text-2xl font-black tracking-tight text-slate-900 uppercase">RECHNUNG</h1>
+            <h1 class="text-2xl font-black tracking-tight text-slate-900 uppercase">
+              {{ documentLabel() }}
+            </h1>
             <div class="space-y-1 pt-1">
               <div>
                 <span class="text-slate-500">Rechnungsnummer:</span>
@@ -312,6 +315,9 @@
           {{ invoice().seller.company || invoice().seller.name }} • Inhaber:
           {{ invoice().seller.name }} • {{ invoice().seller.street }},
           {{ invoice().seller.postalCode }} {{ invoice().seller.city }}
+          @if (invoice().notes && invoice().total < 0) {
+            <p class="text-sm text-slate-900">{{ invoice().notes }}</p>
+          }
         </div>
       </div>
     </div>

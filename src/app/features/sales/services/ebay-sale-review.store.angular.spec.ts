@@ -294,6 +294,34 @@ describe('eBay-Bestellprüfung', () => {
     expect(store.reviewChanged()).toBe(true);
     expect(api.bookOrder).toHaveBeenCalledOnce();
   });
+  it('übernimmt freie Quellpositionen ohne Bestandsauflösung und bewahrt Centgruppen', async () => {
+    api.prepareOrder.mockResolvedValueOnce({
+      ...review,
+      assignments: [{ lineItemId: 'line-1', target: { free: true } }],
+    });
+    await store.load(scope, 'order-1');
+    expect(
+      store
+        .draft()
+        ?.lines.map((line) => [line.positionKind, line.target, line.quantity, line.unitSalePrice]),
+    ).toEqual([
+      ['free', null, 2, 3.33],
+      ['free', null, 1, 3.34],
+    ]);
+    const freeInput: RecordSaleInput = {
+      ...input,
+      lines: input.lines.map((line) => ({
+        positionKind: 'free',
+        titleSnapshot: 'Artikel',
+        quantity: line.quantity,
+        unitSalePrice: line.unitSalePrice,
+      })),
+    };
+    expect(await store.submit(freeInput)).toEqual({ status: 'saved' });
+    expect(api.bookOrder.mock.calls[0][0].assignments).toEqual([
+      { lineItemId: 'line-1', target: { free: true } },
+    ]);
+  });
   it('submits one assignment per source line and explicit exact costs', async () => {
     await store.load(scope, 'order-1');
     expect(await store.submit(input)).toEqual({ status: 'saved' });

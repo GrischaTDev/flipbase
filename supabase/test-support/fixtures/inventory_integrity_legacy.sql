@@ -32,10 +32,10 @@ insert into auth.users (
     '{}'::jsonb, '{}'::jsonb, now(), now()
   );
 
-insert into public.workspaces (id, name)
+insert into public.workspaces (shop_enabled, id, name)
 values
-  (:'main_workspace_id'::uuid, 'inventory sale integrity main'),
-  (:'foreign_workspace_id'::uuid, 'inventory sale integrity foreign');
+  (true, :'main_workspace_id'::uuid, 'inventory sale integrity main'),
+  (true, :'foreign_workspace_id'::uuid, 'inventory sale integrity foreign');
 
 insert into public.workspace_members (workspace_id, user_id, role)
 values

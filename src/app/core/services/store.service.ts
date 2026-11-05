@@ -1,3 +1,4 @@
+import { isWorkspaceShopActive } from '../models/workspace-shop.models';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
@@ -247,7 +248,7 @@ export class StoreService {
         const ws = this.workspaceService?.currentWorkspace();
         const workspaceId = ws?.id ?? '';
         void this.loadFromSupabase(workspaceId);
-        if (workspaceId) {
+        if (workspaceId && isWorkspaceShopActive(ws)) {
           void this.catalogService?.loadProducts(workspaceId);
           void this.stockService?.loadPositions(workspaceId);
         }

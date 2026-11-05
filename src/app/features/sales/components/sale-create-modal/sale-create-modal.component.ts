@@ -53,6 +53,7 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
+import { isWorkspaceShopActive } from '../../../../core/models/workspace-shop.models';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { calculateSaleMetrics } from '../../../../core/utils/sale-metrics';
 import {
@@ -111,12 +112,42 @@ type ShippingFormMode = ShippingMode | 'unknown';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleCreateModalComponent {
+  readonly purchaseReferences = signal<ReadonlyMap<SaleLineForm, string>>(new Map());
+  readonly purchaseOptions = computed(() => [
+    { value: '', label: 'Nicht zugeordnet' },
+    ...(this.purchaseService?.purchases() ?? [])
+      .filter(
+        (purchase) =>
+          purchase.entry_status === 'finalized' &&
+          purchase.workspace_id === this.workspaceService?.currentWorkspace()?.id,
+      )
+      .map((purchase) => ({
+        value: purchase.id,
+        label: [
+          purchase.record_number,
+          purchase.notes?.trim() || purchase.purchase_lines?.[0]?.title_snapshot || purchase.title,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      })),
+  ]);
+
+  shopActive(): boolean {
+    return isWorkspaceShopActive(this.workspaceService?.currentWorkspace());
+  }
+  setPurchaseReference(line: SaleLineForm, value: string | null): void {
+    this.purchaseReferences.update((current) => new Map(current).set(line, value ?? ''));
+    this.form.markAsDirty();
+  }
   readonly salesLabels = SALES_LABELS;
   readonly salesHelp = SALES_HELP;
   readonly saleTarget = input<SaleTarget | null>(null);
   readonly legacyReconciliation = input<LegacySaleReconciliation | null>(null);
   readonly preselectedItemId = input<string | null>(null);
   readonly sale = input<Sale | null>(null);
+  readonly correctionSale = input<Sale | null>(null);
+  readonly correctionReason = signal('');
+  private readonly bookingKey = crypto.randomUUID();
   readonly showActions = input(true);
   readonly externalDraft = input<ExternalSaleEntryDraft | null>(null);
   readonly externalSubmit = input<ExternalSaleEntrySubmit | null>(null);
@@ -416,7 +447,7 @@ export class SaleCreateModalComponent {
     this.formValue();
     return (
       this.istBearbeitung() ||
-      !!this.externalDraft() ||
+      (!!this.externalDraft() && this.lines.controls.some((line) => !this.isFreeLine(line))) ||
       ['ebay', 'stockx'].includes(this.form.controls.platform.value)
     );
   });
@@ -493,6 +524,42 @@ export class SaleCreateModalComponent {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     this.destroyRef.onDestroy(() => this.stockLoadRequestId++);
     effect(() => {
+      const original = this.correctionSale?.();
+      if (!original) return;
+      untracked(() => {
+        this.lines.clear();
+        for (const source of original.lines ?? []) {
+          const line = this.createLineForm();
+          line.setValue({
+            target: 'free:' + source.title_snapshot,
+            quantity: source.quantity,
+            unitSalePrice: source.unit_sale_price,
+          });
+          this.lines.push(line);
+          if (source.purchase_id)
+            this.purchaseReferences.update((current) =>
+              new Map(current).set(line, source.purchase_id!),
+            );
+        }
+        this.additionalCosts.clear();
+        for (const cost of original.cost_entries ?? [])
+          this.additionalCosts.push(
+            this.createAdditionalCostForm({ ...cost, description: cost.description ?? '' }),
+          );
+        this.form.patchValue({
+          platform: original.platform,
+          saleDate: original.sale_date,
+          platformFee: original.platform_fee,
+          shippingCost: original.shipping_cost,
+          shippingMode: original.shipping_mode ?? 'seller_arranged',
+          shippingRevenue: original.shipping_revenue ?? 0,
+          externalOrderId: original.external_order_id ?? '',
+          buyerNotes: original.buyer_notes ?? '',
+        });
+      });
+    });
+
+    effect(() => {
       const workspaceId = this.workspaceService?.currentWorkspace()?.id;
       if (!workspaceId) return;
       // Die Erfassung muss auch direkt nach dem Anmelden funktionieren.
@@ -542,20 +609,29 @@ export class SaleCreateModalComponent {
     });
   }
 
+  private requiresStock(): boolean {
+    return (
+      !!this.externalDraft() ||
+      !!this.legacyReconciliation() ||
+      this.lines.controls.some((line) => !!line.controls.target.value && !this.isFreeLine(line))
+    );
+  }
+
   canSave(): boolean {
     const external = this.externalDraft();
     return (
       !this.isSubmitting() &&
       !this.isPersisted() &&
-      !this.isLoadingStock() &&
-      !this.stockLoadError() &&
+      (!this.workspaceService?.currentWorkspace() || this.shopActive() || !this.requiresStock()) &&
+      (!this.requiresStock() || (!this.isLoadingStock() && !this.stockLoadError())) &&
       (!external ||
         (!!this.externalSubmit() &&
           !this.externalOutcomeBlocked() &&
           this.form.valid &&
           this.hasConfirmedExternalCosts() &&
           this.externalSourceMatches(external))) &&
-      (!this.workspaceService?.currentWorkspace() ||
+      (!this.requiresStock() ||
+        !this.workspaceService?.currentWorkspace() ||
         (!this.selectionLoading() && !this.selectionError()))
     );
   }
@@ -664,6 +740,7 @@ export class SaleCreateModalComponent {
   }
 
   articleTitle(line: SaleLineForm): string {
+    if (this.isFreeLine(line)) return this.freeTitle(line);
     const index = this.lines.controls.indexOf(line);
     const recorded = this.sale()?.lines?.[index];
     if (recorded) return recorded.title_snapshot;
@@ -715,6 +792,11 @@ export class SaleCreateModalComponent {
     if (this.istBearbeitung() || this.legacyReconciliation()) return;
     const entries = new Map(this.saleArticleEntries().map((entry) => [entry.id, entry]));
     for (const line of this.lines.controls) {
+      if (this.isFreeLine(line)) {
+        line.controls.target.setErrors(this.freeTitle(line).trim() ? null : { required: true });
+        this.updateQuantityValidator(line);
+        continue;
+      }
       const entry = entries.get(line.controls.target.value);
       const otherErrors = { ...line.controls.target.errors };
       delete otherErrors['unavailable'];
@@ -727,6 +809,39 @@ export class SaleCreateModalComponent {
     }
   }
 
+  isFreeLine(line: SaleLineForm): boolean {
+    return line.controls.target.value.startsWith('free:');
+  }
+  freeTitle(line: SaleLineForm): string {
+    return this.isFreeLine(line) ? line.controls.target.value.slice(5) : '';
+  }
+  setFreeTitle(line: SaleLineForm, title: string): void {
+    line.controls.target.setValue('free:' + title);
+    line.controls.target.setErrors(title.trim() ? null : { required: true });
+    this.form.markAsDirty();
+  }
+  addFreeLine(): void {
+    if (this.externalDraft() || this.isSubmitting()) return;
+    let line = this.lines.controls.find((entry) => !entry.controls.target.value);
+    if (!line) {
+      this.addLine();
+      line = this.lines.at(this.lines.length - 1);
+    }
+    line.controls.target.setValue('free:');
+    this.updateQuantityValidator(line);
+    this.form.markAsDirty();
+  }
+
+  setExternalLineFree(line: SaleLineForm): void {
+    const draft = this.externalDraft();
+    const index = this.lines.controls.indexOf(line);
+    const source = draft?.lines[index];
+    if (!draft || !source || this.isSubmitting()) return;
+    this.lines.controls.forEach((group, position) => {
+      if (draft.lines[position].sourceLineId === source.sourceLineId)
+        this.setFreeTitle(group, draft.lines[position].title);
+    });
+  }
   addLine(): void {
     if (this.externalDraft()) return;
     this.lines.push(this.createLineForm());
@@ -778,6 +893,7 @@ export class SaleCreateModalComponent {
     return this.parseTarget(line.controls.target.value);
   }
   availableQuantity(line: SaleLineForm): number | null {
+    if (this.isFreeLine(line)) return null;
     if (this.istBearbeitung()) return line.controls.quantity.value;
     if (this.legacyReconciliation()) return 1;
     const target = this.targetForLine(line);
@@ -793,6 +909,10 @@ export class SaleCreateModalComponent {
 
   async onSubmit(): Promise<void> {
     if (this.isPersisted() || this.isSubmitting()) return;
+    if (this.correctionSale?.() && !(this.correctionReason?.().trim() ?? '')) {
+      this.errorMessage.set('Bitte gib einen Korrekturgrund ein.');
+      return;
+    }
     if ((this.externalDraft() || this.workspaceService?.currentWorkspace()) && !this.canSave())
       return;
     if (this.workspaceService?.currentWorkspace()) this.validateSaleTargets();
@@ -922,6 +1042,7 @@ export class SaleCreateModalComponent {
         amount: cost.amount,
       })),
       lines: this.lines.controls.map((line, index) => ({
+        positionKind: this.isFreeLine(line) ? 'free' : 'stock',
         sourceLineId: draft.lines[index].sourceLineId,
         target: this.targetForLine(line),
       })),
@@ -938,6 +1059,9 @@ export class SaleCreateModalComponent {
       amount: cost.amount,
     }));
     return {
+      bookingKey: this.bookingKey,
+      correctionSaleId: this.correctionSale?.()?.id,
+      correctionReason: this.correctionReason?.().trim() ?? '',
       platform: raw.platform,
       saleDate: raw.saleDate,
       platformFee: raw.platformFee ?? 0,
@@ -955,6 +1079,14 @@ export class SaleCreateModalComponent {
       externalOrderId: raw.externalOrderId.trim() || null,
       buyerNotes: raw.buyerNotes.trim() || null,
       lines: this.lines.controls.map((line) => {
+        if (this.isFreeLine(line))
+          return {
+            positionKind: 'free' as const,
+            purchaseId: this.purchaseReferences?.().get(line) || null,
+            titleSnapshot: this.freeTitle(line).trim(),
+            quantity: line.controls.quantity.value,
+            unitSalePrice: line.controls.unitSalePrice.value,
+          };
         const target = this.targetForLine(line);
         if (!target) throw new Error('Bitte wähle für jede Position einen Artikel.');
         const value = line.getRawValue();
@@ -1132,9 +1264,9 @@ export class SaleCreateModalComponent {
         !Number.isSafeInteger(source.quantity) ||
         source.quantity < 1 ||
         source.unitSalePrice <= 0 ||
-        !this.targetForLine(line) ||
-        available === null ||
-        available < value.quantity
+        (this.isFreeLine(line)
+          ? this.freeTitle(line) !== source.title
+          : !this.targetForLine(line) || available === null || available < value.quantity)
       )
         return false;
       const previous = targets.get(source.sourceLineId);
@@ -1165,9 +1297,11 @@ export class SaleCreateModalComponent {
         {
           target: selected.has(source.sourceLineId)
             ? (selected.get(source.sourceLineId) ?? '')
-            : source.target
-              ? this.targetValue(source.target)
-              : '',
+            : source.positionKind === 'free'
+              ? 'free:' + source.title
+              : source.target
+                ? this.targetValue(source.target)
+                : '',
           quantity: source.quantity,
           unitSalePrice: source.unitSalePrice,
         },

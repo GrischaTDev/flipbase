@@ -4,9 +4,9 @@ set local search_path = public, extensions;
 select no_plan();
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 values ('d1300000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'tax-costs@example.test', '{}', '{}');
-insert into public.workspaces (id, name, tax_mode) values
-('d1300000-0000-4000-8000-000000000011', 'Tax costs', 'diff_25a'),
-('d1300000-0000-4000-8000-000000000012', 'Other workspace', 'diff_25a');
+insert into public.workspaces (shop_enabled, id, name, tax_mode) values
+(true, 'd1300000-0000-4000-8000-000000000011', 'Tax costs', 'diff_25a'),
+(true, 'd1300000-0000-4000-8000-000000000012', 'Other workspace', 'diff_25a');
 insert into public.workspace_members (workspace_id, user_id, role)
 values ('d1300000-0000-4000-8000-000000000011', 'd1300000-0000-4000-8000-000000000001', 'owner');
 select set_config('request.jwt.claim.sub', 'd1300000-0000-4000-8000-000000000001', true);

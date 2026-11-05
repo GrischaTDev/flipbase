@@ -12,6 +12,8 @@ import { LucideTrash2 } from '@lucide/angular';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseLifecycleActionsComponent {
+  readonly freeOnly = input(false);
+  readonly inventoryEnabled = input(true);
   readonly deleteIcon = LucideTrash2;
   readonly entryStatus = input.required<PurchaseEntryStatus>();
   readonly receivingStatus = input<

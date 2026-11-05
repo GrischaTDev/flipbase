@@ -9,13 +9,15 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { PurchaseDetailComponent } from './purchase-detail.component';
 
 describe('PurchaseDetailComponent', () => {
-  it('zeigt Druckaktionen erst nach dem Entwurf und entfernt den Prüfbeleg', () => {
+  it('zeigt Druckaktionen nach Wareneingang oder freiem Abschluss und entfernt den Prüfbeleg', () => {
     const template = readFileSync(
       'src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html',
       'utf8',
     );
 
-    expect(template).toContain("@if (p.receiving_status !== 'draft')");
+    expect(template).toContain(
+      "@if (p.receiving_status !== 'draft' || p.entry_status === 'finalized')",
+    );
     expect(template).toContain('data-purchase-print-link');
     expect(template).not.toContain('data-purchase-audit-print-link');
     expect(template).not.toContain('Prüfbeleg');

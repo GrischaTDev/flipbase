@@ -65,8 +65,8 @@ begin
     now()
   );
 
-  insert into public.workspaces (id, name)
-  values (v_workspace_id, 'inventory sales transaction test');
+  insert into public.workspaces (shop_enabled, id, name)
+  values (true, v_workspace_id, 'inventory sales transaction test');
 
   insert into public.workspace_members (workspace_id, user_id, role)
   values (v_workspace_id, v_user_id, 'owner');

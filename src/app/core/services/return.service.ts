@@ -159,6 +159,7 @@ export class ReturnService {
    * Processes a return / refund, updates inventory stock accordingly, and generates a credit note.
    */
   async processReturn(payload: {
+    bookingKey?: string;
     sale: Sale;
     item?: InventoryItem;
     reason: ReturnReason;
@@ -191,6 +192,7 @@ export class ReturnService {
       };
     }
     const booking = await this.salesService.recordReturn({
+      bookingKey: payload.bookingKey,
       saleId: payload.sale.id,
       refundAmount: payload.refundAmount,
       restock,
@@ -319,7 +321,7 @@ export class ReturnService {
       items: [
         {
           sku: sale.inventory_item_id || 'ART-RET',
-          title: `GUTSCHRIFT zu ${originalReference}: ${sale.inventory_item?.title || 'Artikel'}`,
+          title: `GUTSCHRIFT zu ${originalReference}: ${sale.lines?.map((line) => line.title_snapshot).join(', ') || sale.inventory_item?.title || 'Artikel'}`,
           condition: sale.inventory_item?.condition || 'Gebraucht',
           quantity: 1,
           unitPrice: -returnRecord.refund_amount,

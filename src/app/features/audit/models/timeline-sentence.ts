@@ -24,6 +24,7 @@ const PREDICATES: Readonly<Record<string, string>> = {
   purchase_tracking_removed: 'die Sendungsnummer entfernt',
   purchase_costing_legacy_migrated: 'Altdaten dieses Einkaufs übernommen',
   sale_recorded: 'diesen Verkauf erfasst',
+  sale_corrected: 'diesen Verkauf korrigiert',
   sale_finalized: 'diesen Verkauf abgeschlossen',
   sale_voided: 'diesen Verkauf storniert',
   sale_refund_updated: 'die Erstattung aktualisiert',
@@ -85,6 +86,14 @@ export function timelineSentence(
 }
 
 export function timelineChanges(event: BusinessEvent): readonly RecordChange[] {
+  if (event.eventType === 'sale_corrected') {
+    const changes = event.changes;
+    const reason =
+      changes && typeof changes === 'object' && !Array.isArray(changes) ? changes['reason'] : null;
+    return typeof reason === 'string' && reason.trim()
+      ? [{ label: 'Korrekturgrund', from: null, to: reason }]
+      : [];
+  }
   if (
     event.eventType === 'purchase_document_added' ||
     event.eventType === 'purchase_document_removed'

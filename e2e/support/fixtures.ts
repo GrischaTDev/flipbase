@@ -11,9 +11,10 @@ export interface TestWorkspace {
 
 /** Jeder Test bekommt automatisch einen frischen, leeren Workspace im Testkonto. */
 export const test = base.extend<
-  { workspace: TestWorkspace; accountSession: Session },
+  { workspace: TestWorkspace; accountSession: Session; shopEnabled: boolean },
   { workerSession: () => Promise<Session> }
 >({
+  shopEnabled: [true, { option: true }],
   workerSession: [
     // Playwright verlangt ein Destrukturierungsmuster auch ohne Fixture-Abhängigkeiten.
     // eslint-disable-next-line no-empty-pattern
@@ -30,13 +31,22 @@ export const test = base.extend<
     await use(sessionStorageState(accountSession));
   },
   workspace: [
-    async ({ page, accountSession }, use) => {
+    async ({ page, accountSession, shopEnabled }, use) => {
       const client = createUserClient(accountSession.access_token);
       const { data, error } = await client.rpc('create_workspace', {
         p_name: `E2E ${randomUUID().slice(0, 8)}`,
       });
       if (error || typeof data !== 'string') {
         throw new Error(`Test-Workspace fehlt: ${error?.message ?? 'keine Kennung zurückgegeben'}`);
+      }
+      if (shopEnabled) {
+        const activation = await client.rpc('set_workspace_shop_enabled', {
+          p_workspace_id: data,
+          p_enabled: true,
+          p_expected_version: 0,
+        });
+        if (activation.error)
+          throw new Error(`Shop-Testaufbau fehlgeschlagen: ${activation.error.message}`);
       }
       const { error: supplierError } = await client.from('suppliers').insert({
         workspace_id: data,

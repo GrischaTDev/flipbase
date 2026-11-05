@@ -7,16 +7,16 @@ insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_d
   ('23000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'listing-owner@example.test', '{}', '{}'),
   ('23000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'listing-outsider@example.test', '{}', '{}');
 
-insert into public.workspaces (id, name) values
-  ('23000000-0000-4000-8000-000000000011', 'Inserate eigener Workspace'),
-  ('23000000-0000-4000-8000-000000000012', 'Inserate fremder Workspace');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '23000000-0000-4000-8000-000000000011', 'Inserate eigener Workspace'),
+  (true, '23000000-0000-4000-8000-000000000012', 'Inserate fremder Workspace');
 
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('23000000-0000-4000-8000-000000000011', '23000000-0000-4000-8000-000000000001', 'owner'),
   ('23000000-0000-4000-8000-000000000012', '23000000-0000-4000-8000-000000000002', 'owner');
 
-insert into public.workspaces (id, name) values
-  ('23000000-0000-4000-8000-000000000013', 'Archivierter Inserate-Workspace');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '23000000-0000-4000-8000-000000000013', 'Archivierter Inserate-Workspace');
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('23000000-0000-4000-8000-000000000013', '23000000-0000-4000-8000-000000000001', 'owner');
 

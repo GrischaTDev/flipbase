@@ -35,6 +35,7 @@ export const PURCHASE_SELLER_DETAILS_CONFLICT_MESSAGE =
   'Der Einkauf wurde zwischenzeitlich geändert. Bitte neu laden.';
 
 export interface CreatePurchaseLineInput {
+  readonly positionKind?: 'stock' | 'free';
   readonly isPackage?: boolean;
   readonly draftId?: string;
   readonly catalogProductId: string | null;
@@ -762,6 +763,7 @@ export class PurchaseService {
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.titleSnapshot,
           ean_snapshot: line.ean ?? null,
+          position_kind: line.positionKind ?? 'stock',
           line_kind: line.lineKind,
           is_package: line.isPackage ?? false,
           ordered_quantity: line.orderedQuantity,
@@ -920,6 +922,7 @@ export class PurchaseService {
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.titleSnapshot,
           ean_snapshot: line.ean ?? null,
+          position_kind: line.positionKind ?? 'stock',
           line_kind: line.lineKind,
           is_package: line.isPackage ?? false,
           ordered_quantity: line.orderedQuantity,
@@ -1041,6 +1044,7 @@ export class PurchaseService {
       catalog_product_id: line.catalogProductId,
       title_snapshot: line.titleSnapshot,
       ean_snapshot: line.ean ?? null,
+      position_kind: line.positionKind ?? 'stock',
       line_kind: line.lineKind,
       is_package: line.isPackage ?? false,
       ordered_quantity: line.orderedQuantity,
@@ -1170,7 +1174,11 @@ export class PurchaseService {
       if (line.lineKind === 'quantity' && !line.catalogProductId) {
         return { data: [], error: new Error('Mengenartikel benötigen einen Artikelstamm.') };
       }
-      if (line.lineKind === 'individual' && line.orderedQuantity !== 1) {
+      if (
+        line.positionKind !== 'free' &&
+        line.lineKind === 'individual' &&
+        line.orderedQuantity !== 1
+      ) {
         return { data: [], error: new Error('Einzelartikel haben immer die Menge eins.') };
       }
       if (

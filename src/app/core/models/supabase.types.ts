@@ -6333,6 +6333,7 @@ export type Database = {
           line_kind: string
           line_total: number | null
           ordered_quantity: number
+          position_kind: string
           price_mode: string
           purchase_id: string
           received_quantity: number
@@ -6354,6 +6355,7 @@ export type Database = {
           line_kind: string
           line_total?: number | null
           ordered_quantity: number
+          position_kind?: string
           price_mode?: string
           purchase_id: string
           received_quantity?: number
@@ -6375,6 +6377,7 @@ export type Database = {
           line_kind?: string
           line_total?: number | null
           ordered_quantity?: number
+          position_kind?: string
           price_mode?: string
           purchase_id?: string
           received_quantity?: number
@@ -6914,6 +6917,90 @@ export type Database = {
           },
         ]
       }
+      sale_booking_requests: {
+        Row: {
+          booking_key: string
+          created_at: string
+          request: Json
+          result: Json
+          workspace_id: string
+        }
+        Insert: {
+          booking_key: string
+          created_at?: string
+          request: Json
+          result: Json
+          workspace_id: string
+        }
+        Update: {
+          booking_key?: string
+          created_at?: string
+          request?: Json
+          result?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_booking_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_corrections: {
+        Row: {
+          created_at: string
+          document: Json | null
+          id: string
+          original_sale_id: string
+          reason: string
+          replacement_sale_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          document?: Json | null
+          id?: string
+          original_sale_id: string
+          reason: string
+          replacement_sale_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          document?: Json | null
+          id?: string
+          original_sale_id?: string
+          reason?: string
+          replacement_sale_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_corrections_original_sale_id_fkey"
+            columns: ["original_sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_corrections_replacement_sale_id_fkey"
+            columns: ["replacement_sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_corrections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_cost_entries: {
         Row: {
           amount: number
@@ -7061,6 +7148,8 @@ export type Database = {
           id: string
           inventory_item_id: string | null
           line_total: number
+          position_kind: string
+          purchase_id: string | null
           quantity: number
           sale_id: string
           tax_cost_allocations: Json | null
@@ -7077,6 +7166,8 @@ export type Database = {
           id?: string
           inventory_item_id?: string | null
           line_total: number
+          position_kind?: string
+          purchase_id?: string | null
           quantity: number
           sale_id: string
           tax_cost_allocations?: Json | null
@@ -7093,6 +7184,8 @@ export type Database = {
           id?: string
           inventory_item_id?: string | null
           line_total?: number
+          position_kind?: string
+          purchase_id?: string | null
           quantity?: number
           sale_id?: string
           tax_cost_allocations?: Json | null
@@ -7122,6 +7215,13 @@ export type Database = {
             columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_lines_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
           {
@@ -7429,6 +7529,35 @@ export type Database = {
           },
           {
             foreignKeyName: "shipping_orders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_history_operations: {
+        Row: {
+          entity_id: string
+          operation: string
+          transaction_id: number
+          workspace_id: string
+        }
+        Insert: {
+          entity_id: string
+          operation: string
+          transaction_id: number
+          workspace_id: string
+        }
+        Update: {
+          entity_id?: string
+          operation?: string
+          transaction_id?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_history_operations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -9283,6 +9412,9 @@ export type Database = {
           name: string
           numbering_timezone: string
           setup_completed_at: string | null
+          shop_enabled: boolean
+          shop_entitled: boolean
+          shop_version: number
           tax_mode: string
           updated_at: string
         }
@@ -9296,6 +9428,9 @@ export type Database = {
           name: string
           numbering_timezone?: string
           setup_completed_at?: string | null
+          shop_enabled?: boolean
+          shop_entitled?: boolean
+          shop_version?: number
           tax_mode?: string
           updated_at?: string
         }
@@ -9309,6 +9444,9 @@ export type Database = {
           name?: string
           numbering_timezone?: string
           setup_completed_at?: string | null
+          shop_enabled?: boolean
+          shop_entitled?: boolean
+          shop_version?: number
           tax_mode?: string
           updated_at?: string
         }
@@ -9501,6 +9639,9 @@ export type Database = {
           name: string
           numbering_timezone: string
           setup_completed_at: string | null
+          shop_enabled: boolean
+          shop_entitled: boolean
+          shop_version: number
           tax_mode: string
           updated_at: string
         }
@@ -9510,6 +9651,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      assert_workspace_shop: {
+        Args: { p_workspace_id: string }
+        Returns: undefined
       }
       begin_beta_registration: {
         Args: { p_request_id: string; p_token_hash: string }
@@ -9729,6 +9874,17 @@ export type Database = {
         Returns: Json
       }
       correct_purchase_costing: {
+        Args: {
+          p_costs: Json
+          p_lines: Json
+          p_purchase_id: string
+          p_purchase_price: number
+          p_reason: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      correct_purchase_costing_with_inventory: {
         Args: {
           p_costs: Json
           p_lines: Json
@@ -10284,6 +10440,10 @@ export type Database = {
         Returns: string
       }
       get_workspace_company_settings: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      get_workspace_shop_state: {
         Args: { p_workspace_id: string }
         Returns: Json
       }
@@ -10985,6 +11145,10 @@ export type Database = {
         }[]
       }
       list_size_references: { Args: { p_admin?: boolean }; Returns: Json }
+      lock_workspace_shop: {
+        Args: { p_workspace_id: string }
+        Returns: undefined
+      }
       marketplace_accept_relisting_import: {
         Args: {
           p_connection_id: string
@@ -12842,7 +13006,24 @@ export type Database = {
         Args: { p_lines: Json; p_sale: Json; p_workspace_id: string }
         Returns: Json
       }
+      record_sale_refund: {
+        Args: { p_refund: Json; p_workspace_id: string }
+        Returns: Json
+      }
       record_sale_return: {
+        Args: {
+          p_buyer_name: string
+          p_notes: string
+          p_reason: string
+          p_refund_amount: number
+          p_restock: boolean
+          p_restock_action: string
+          p_sale_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      record_sale_return_with_inventory: {
         Args: {
           p_buyer_name: string
           p_notes: string
@@ -13009,6 +13190,10 @@ export type Database = {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
       }
+      reopen_purchase_costing_with_inventory: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       replace_and_delete_brand: {
         Args: {
           p_brand_id: string
@@ -13062,6 +13247,9 @@ export type Database = {
           name: string
           numbering_timezone: string
           setup_completed_at: string | null
+          shop_enabled: boolean
+          shop_entitled: boolean
+          shop_version: number
           tax_mode: string
           updated_at: string
         }
@@ -13379,6 +13567,9 @@ export type Database = {
           name: string
           numbering_timezone: string
           setup_completed_at: string | null
+          shop_enabled: boolean
+          shop_entitled: boolean
+          shop_version: number
           tax_mode: string
           updated_at: string
         }
@@ -13391,6 +13582,18 @@ export type Database = {
       }
       set_workspace_company_logo: {
         Args: { p_logo_path: string; p_workspace_id: string }
+        Returns: Json
+      }
+      set_workspace_shop_enabled: {
+        Args: {
+          p_enabled: boolean
+          p_expected_version: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      set_workspace_shop_entitlement: {
+        Args: { p_entitled: boolean; p_workspace_id: string }
         Returns: Json
       }
       sniper_can_access_feed_topic: {
@@ -13770,6 +13973,10 @@ export type Database = {
         Returns: boolean
       }
       workspace_has_business_data: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      workspace_shop_active: {
         Args: { p_workspace_id: string }
         Returns: boolean
       }

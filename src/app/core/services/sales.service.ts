@@ -38,6 +38,8 @@ export interface CreateSalePayload {
 }
 
 export interface RecordSaleLineInput {
+  readonly purchaseId?: string | null;
+  readonly positionKind?: 'stock' | 'free';
   readonly catalogProductId?: string;
   readonly inventoryItemId?: string;
   readonly titleSnapshot?: string;
@@ -52,6 +54,9 @@ export interface RecordSaleCostInput {
 }
 
 export interface RecordSaleInput {
+  readonly bookingKey?: string;
+  readonly correctionSaleId?: string;
+  readonly correctionReason?: string;
   readonly platform: string;
   readonly saleDate: string;
   readonly platformFee?: number;
@@ -87,6 +92,7 @@ interface LegacySaleRpcClient {
 }
 
 export interface RecordReturnInput {
+  readonly bookingKey?: string;
   readonly saleId: string;
   readonly refundAmount: number;
   readonly restock: boolean;
@@ -179,6 +185,7 @@ export class SalesService {
             lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*, stock_lot:stock_lots!sale_line_lot_allocations_stock_lot_id_fkey(*, purchase:purchases!stock_lots_purchase_id_fkey(*))),
             stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)
           ),
+          correction:sale_corrections!sale_corrections_original_sale_id_fkey(*),
           cost_entries:sale_cost_entries!sale_cost_entries_sale_id_fkey(*)
         `,
         )
@@ -235,8 +242,8 @@ export class SalesService {
     return {
       ...raw,
       cost_basis_status: saleCostBasisStatus(raw, records),
-      sale_price: grossRevenue,
-      sale_price_total: grossRevenue,
+      sale_price: raw.voided_at ? raw.sale_price : grossRevenue,
+      sale_price_total: raw.voided_at ? raw.sale_price_total : grossRevenue,
       net_profit: metrics.resultAfterDirectCosts,
       selling_costs: metrics.sellingCosts,
       margin_percent: metrics.marginPercent,
@@ -304,6 +311,9 @@ export class SalesService {
       const { data, error } = await this.supabase.client.rpc('record_sale', {
         p_workspace_id: workspaceId,
         p_sale: {
+          booking_key: input.bookingKey ?? null,
+          correction_sale_id: input.correctionSaleId ?? null,
+          correction_reason: input.correctionReason ?? null,
           platform: input.platform,
           sale_date: input.saleDate,
           platform_fee: input.platformFee ?? 0,
@@ -320,6 +330,8 @@ export class SalesService {
           buyer_notes: input.buyerNotes ?? null,
         },
         p_lines: input.lines.map((line) => ({
+          purchase_id: line.purchaseId ?? null,
+          position_kind: line.positionKind ?? 'stock',
           catalog_product_id: line.catalogProductId ?? null,
           inventory_item_id: line.inventoryItemId ?? null,
           title_snapshot: line.titleSnapshot ?? null,
@@ -338,7 +350,9 @@ export class SalesService {
         result.sale,
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
-      await this.refreshAffectedState(workspaceId);
+      if (input.lines.some((line) => line.positionKind !== 'free'))
+        await this.refreshAffectedState(workspaceId);
+      if (input.correctionSaleId) await this.loadSales(workspaceId);
       const refreshedResult = this.refreshRecordedSale(result);
       return { data: refreshedResult, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
@@ -415,7 +429,7 @@ export class SalesService {
       return this.mutationFailure('Retoure buchen', new Error('Kein aktiver Workspace'));
 
     try {
-      const { data, error } = await this.supabase.client.rpc('record_sale_return', {
+      const parameters = {
         p_workspace_id: workspaceId,
         p_sale_id: input.saleId,
         p_refund_amount: input.refundAmount,
@@ -425,7 +439,22 @@ export class SalesService {
         p_restock_action:
           input.restockAction ?? (input.restock ? 'restock_ready' : 'keep_with_buyer'),
         p_buyer_name: input.buyerName ?? '',
-      });
+      };
+      const { data, error } = input.bookingKey
+        ? await this.supabase.client.rpc('record_sale_refund', {
+            p_workspace_id: workspaceId,
+            p_refund: {
+              booking_key: input.bookingKey,
+              sale_id: input.saleId,
+              amount: input.refundAmount,
+              restock: input.restock,
+              reason: input.reason,
+              notes: input.notes ?? '',
+              restock_action: parameters.p_restock_action,
+              buyer_name: input.buyerName ?? '',
+            },
+          })
+        : await this.supabase.client.rpc('record_sale_return', parameters);
       if (error || !data || typeof data !== 'object') {
         return this.mutationFailure(
           'Retoure buchen',
@@ -441,7 +470,8 @@ export class SalesService {
         stock_movements: this.arrayValue<StockMovement>(response['stock_movements']),
       });
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
-      await this.refreshAffectedState(workspaceId);
+      if (!sale.lines?.length || sale.lines.some((line) => line.position_kind !== 'free'))
+        await this.refreshAffectedState(workspaceId);
       return {
         data: {
           sale,

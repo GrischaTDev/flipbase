@@ -1,3 +1,4 @@
+import { isWorkspaceShopActive } from '../../../../core/models/workspace-shop.models';
 import { EbayArticleMappingStore } from '../../services/ebay-article-mapping.store';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { CatalogService } from '../../../../core/services/catalog.service';
@@ -101,6 +102,7 @@ export class EbayAccountComponent {
   private readonly catalog = inject(CatalogService);
   private readonly media = inject(MediaService);
   readonly workspace = inject(WorkspaceService);
+  readonly shopActive = computed(() => isWorkspaceShopActive(this.workspace.currentWorkspace()));
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -248,6 +250,7 @@ export class EbayAccountComponent {
     );
   }
   openMapping(listing: EbayListing, event: MouseEvent): void {
+    if (!this.shopActive()) return;
     this.mappingTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     this.selectedListing.set(listing);
     afterNextRender(
@@ -281,6 +284,7 @@ export class EbayAccountComponent {
   }
   private targetTitle(target: EbaySaleTarget | null): string | null {
     if (!target) return null;
+    if ('free' in target) return 'Freie Position';
     return 'inventoryItemId' in target
       ? (this.inventory.items().find((item) => item.id === target.inventoryItemId)?.title ??
           'Verknüpftes Einzelstück')
@@ -307,6 +311,7 @@ export class EbayAccountComponent {
     if (sourceImage) return sourceImage;
     const target = this.mappingTarget(line?.listingId, line?.variationId);
     if (!target) return null;
+    if ('free' in target) return null;
     if ('catalogProductId' in target)
       return this.catalog.imageUrls()[target.catalogProductId] ?? null;
     const item = this.inventory.items().find((item) => item.id === target.inventoryItemId);

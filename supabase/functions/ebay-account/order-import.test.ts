@@ -462,3 +462,23 @@ test('existing-sale association requires explicit confirmation and a current per
   f.snapshot.authorization_version = 0;
   assert.equal((await handler(f.request('order_save_draft', f.input))).status, 409);
 });
+
+test('accepts explicit free source assignments and rejects mixed or false free targets', async () => {
+  const f = await fixture();
+  const handler = createEbayOrderImportHandler(f.store, config, f.fetcher);
+  for (const target of [{ free: false }, { free: true, catalogProductId: userId }]) {
+    const response = await handler(
+      f.request('order_book', { ...f.input, assignments: [{ lineItemId: 'line-1', target }] }),
+    );
+    assert.equal(response.status, 400);
+  }
+  assert.equal(f.counts().books, 0);
+  const response = await handler(
+    f.request('order_book', {
+      ...f.input,
+      assignments: [{ lineItemId: 'line-1', target: { free: true } }],
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(f.counts().books, 1);
+});

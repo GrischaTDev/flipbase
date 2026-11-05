@@ -9,7 +9,7 @@ insert into auth.users(id,aud,role,email) values
 ('97000000-0000-4000-8000-000000000001','authenticated','authenticated','archive-owner@example.test'),
 ('97000000-0000-4000-8000-000000000002','authenticated','authenticated','archive-member@example.test'),
 ('97000000-0000-4000-8000-000000000003','authenticated','authenticated','archive-other@example.test');
-insert into public.workspaces(id,name) values ('97000000-0000-4000-8000-000000000010','Archiv');
+insert into public.workspaces(shop_enabled, id,name) values (true, '97000000-0000-4000-8000-000000000010','Archiv');
 insert into public.workspace_members(workspace_id,user_id,role) values
 ('97000000-0000-4000-8000-000000000010','97000000-0000-4000-8000-000000000001','owner'),
 ('97000000-0000-4000-8000-000000000010','97000000-0000-4000-8000-000000000002','member');

@@ -129,9 +129,9 @@ insert into auth.users (
     'costing-outsider@example.test', 'unused', '{}'::jsonb, '{}'::jsonb, now(), now()
   );
 
-insert into public.workspaces (id, name) values
-  ('93000000-0000-4000-8000-000000000011', 'Kostenfinalisierung'),
-  ('93000000-0000-4000-8000-000000000012', 'Fremde Kostenfinalisierung');
+insert into public.workspaces (shop_enabled, id, name) values
+  (true, '93000000-0000-4000-8000-000000000011', 'Kostenfinalisierung'),
+  (true, '93000000-0000-4000-8000-000000000012', 'Fremde Kostenfinalisierung');
 
 insert into public.workspace_members (workspace_id, user_id, role) values
   ('93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000001', 'owner'),

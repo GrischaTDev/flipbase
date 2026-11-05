@@ -78,6 +78,14 @@ export class InvoiceModalComponent {
     this.logoUnavailable.set(true);
   }
 
+  documentLabel(): string {
+    return this.invoice().documentType === 'correction'
+      ? 'Korrekturbeleg'
+      : this.invoice().total < 0
+        ? 'Gutschrift'
+        : 'Rechnung';
+  }
+
   printInvoice(): void {
     window.print();
   }

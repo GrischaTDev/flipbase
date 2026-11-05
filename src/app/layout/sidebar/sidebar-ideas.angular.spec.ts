@@ -12,6 +12,7 @@ import { TRANSLATIONS_DE, TRANSLATIONS_EN } from '../../core/i18n/translations';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { SidebarComponent } from './sidebar.component';
+import { WorkspaceShopService } from '../../core/services/workspace-shop.service';
 
 class TestPageComponent {}
 Component({ selector: 'app-test-page', template: '' })(TestPageComponent);
@@ -49,10 +50,12 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   async function renderAt(url: string, navigateBeforeCreation = false) {
+    const shopActive = signal(true);
     await TestBed.configureTestingModule({
       imports: [SidebarComponent],
       providers: [
         provideRouter(routes),
+        { provide: WorkspaceShopService, useValue: { active: shopActive } },
         provideTranslateService({ lang: 'de' }),
         {
           provide: PlatformOperatorService,
@@ -85,9 +88,21 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     const element = fixture.nativeElement as HTMLElement;
     const toggle = element.querySelector<HTMLButtonElement>(toggleSelector)!;
     const list = element.querySelector<HTMLUListElement>(listSelector)!;
-    return { element, fixture, router, toggle, list };
+    return { element, fixture, router, toggle, list, shopActive };
   }
 
+  it('blendet Bestand beim Umschalten aus und erhält Einkäufe, Verkäufe und Ideen', async () => {
+    const { element, fixture, shopActive, list } = await renderAt('/dashboard');
+    shopActive.set(false);
+    fixture.detectChanges();
+    expect(element.querySelector('a[href="/catalog"]')).toBeNull();
+    expect(element.querySelector('a[href="/purchases"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/sales"]')).not.toBeNull();
+    expect(list.querySelector('a[href="/shop"]')).not.toBeNull();
+    shopActive.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('a[href="/catalog"]')).not.toBeNull();
+  });
   it('zeigt die vereinbarten Gruppen und ordnet jeden Arbeitslink zu', async () => {
     const { element } = await renderAt('/dashboard');
     const groups = Array.from(element.querySelectorAll('[data-navigation-group]'));

@@ -50,6 +50,7 @@ const featureSpecs = {
   onboarding: ['beta-registration', 'company-settings'],
   'platform-admin': ['beta-registration', 'sniper-administration', 'beta-access-lifecycle'],
   purchases: [
+    'optional-shop',
     'purchase-profitability',
     'purchase-tax-costs',
     'purchase-editable-draft',
@@ -59,9 +60,16 @@ const featureSpecs = {
     'purchase-workspace',
   ],
   research: [],
-  sales: ['inventory-sale', 'sales-variant-picker', 'article-stock-removal', 'company-documents'],
+  sales: [
+    'free-sales',
+    'inventory-sale',
+    'sales-variant-picker',
+    'article-stock-removal',
+    'company-documents',
+  ],
   sellers: ['purchase-entry', 'purchase-workspace'],
   settings: [
+    'optional-shop',
     'company-settings',
     'company-documents',
     'company-shop-shipping',

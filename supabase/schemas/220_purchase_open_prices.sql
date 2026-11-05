@@ -151,7 +151,9 @@ begin
       message = 'Der Einkauf wurde nicht gefunden.';
   end if;
 
-  if v_purchase.content_status = 'unknown' then
+  if v_purchase.content_status = 'unknown' and not exists(
+    select 1 from public.purchase_lines where purchase_id=p_purchase_id group by purchase_id having bool_and(position_kind='free')
+  ) then
     raise exception using
       errcode = '22023',
       message = 'Der Inhalt muss vor dem Abschluss vollständig erfasst sein.';

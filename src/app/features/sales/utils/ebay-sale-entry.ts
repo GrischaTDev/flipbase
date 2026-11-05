@@ -51,7 +51,9 @@ export function buildEbaySaleEntryDraft(
         title: line.title,
         quantity: group.quantity,
         unitSalePrice: group.unitCents / 100,
-        target: mapping ? resolveTarget(mapping.target, line.title) : null,
+        positionKind: mapping && 'free' in mapping.target ? ('free' as const) : ('stock' as const),
+        target:
+          mapping && !('free' in mapping.target) ? resolveTarget(mapping.target, line.title) : null,
       }));
     });
     return {
@@ -119,17 +121,20 @@ export function buildEbayOrderBookRequest(
     const source = draft.lines[index];
     const catalog = typeof line.catalogProductId === 'string' && line.catalogProductId.length > 0;
     const inventory = typeof line.inventoryItemId === 'string' && line.inventoryItemId.length > 0;
+    const free = line.positionKind === 'free';
     if (
       line.quantity !== source.quantity ||
       line.unitSalePrice !== source.unitSalePrice ||
-      catalog === inventory
+      (free ? catalog || inventory : catalog === inventory)
     )
       throw new Error(
         'Prüfe die Artikelzuordnung. Mengen und Preise bleiben an die Bestellung gebunden.',
       );
-    const target: EbaySaleTarget = catalog
-      ? { catalogProductId: line.catalogProductId as string }
-      : { inventoryItemId: line.inventoryItemId as string };
+    const target: EbaySaleTarget = free
+      ? { free: true }
+      : catalog
+        ? { catalogProductId: line.catalogProductId as string }
+        : { inventoryItemId: line.inventoryItemId as string };
     const previous = assignments.get(source.sourceLineId);
     if (previous && JSON.stringify(previous) !== JSON.stringify(target))
       throw new Error('Die Preisgruppen einer Bestellposition müssen denselben Artikel verwenden.');
@@ -181,11 +186,14 @@ export function buildEbayOrderDraftRequest(
   for (const line of editor.lines) {
     if (!review.source.lines.some((source) => source.lineItemId === line.sourceLineId))
       throw new Error('Die Bestellzuordnung ist veraltet. Prüfe die Bestellung erneut.');
-    const target = line.target
-      ? line.target.kind === 'inventory_item'
-        ? { inventoryItemId: line.target.inventoryItemId }
-        : { catalogProductId: line.target.catalogProductId }
-      : null;
+    const target =
+      line.positionKind === 'free'
+        ? ({ free: true } as const)
+        : line.target
+          ? line.target.kind === 'inventory_item'
+            ? { inventoryItemId: line.target.inventoryItemId }
+            : { catalogProductId: line.target.catalogProductId }
+          : null;
     if (
       assignments.has(line.sourceLineId) &&
       JSON.stringify(assignments.get(line.sourceLineId)) !== JSON.stringify(target)

@@ -68,6 +68,13 @@ describe('CatalogService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
+      workspace: {
+        currentWorkspace: () => ({
+          id: product.workspace_id,
+          shop_enabled: true,
+          shop_entitled: true,
+        }),
+      },
       supabase: {
         client: {
           from: () => ({
@@ -198,6 +205,13 @@ describe('CatalogService', () => {
       isLoading: signal(false),
       loadError: signal(null),
       loadRequestId: 0,
+      workspace: {
+        currentWorkspace: () => ({
+          id: product.workspace_id,
+          shop_enabled: true,
+          shop_entitled: true,
+        }),
+      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -376,6 +390,13 @@ describe('CatalogService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId: signal<string | null>(null),
       loadRequestId: 0,
+      workspace: {
+        currentWorkspace: () => ({
+          id: product.workspace_id,
+          shop_enabled: true,
+          shop_entitled: true,
+        }),
+      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -410,6 +431,13 @@ describe('CatalogService', () => {
       loadError: signal<Error | null>(null),
       loadedWorkspaceId,
       loadRequestId: 0,
+      workspace: {
+        currentWorkspace: () => ({
+          id: product.workspace_id,
+          shop_enabled: true,
+          shop_entitled: true,
+        }),
+      },
       syncStatus: new SyncStatusService(),
       supabase: {
         client: {
@@ -663,4 +691,29 @@ it('aktualisiert das Hauptbild nur im passenden Workspace und kann es leeren', (
   workspace.set({ id: 'foreign' });
   service.updateProductPrimaryMedia(product.id, product.workspace_id, 'stale.png');
   expect(service.products()[0]?.primary_media_path).toBeNull();
+});
+
+it('überspringt Katalogabfragen bei ausgeschaltetem Shop und verwirft veraltete Listen', async () => {
+  const from = vi.fn();
+  const service = Object.create(CatalogService.prototype) as CatalogService;
+  Object.assign(service, {
+    products: signal([product]),
+    loadedWorkspaceId: signal(product.workspace_id),
+    isLoading: signal(false),
+    loadError: signal(null),
+    loadRequestId: 0,
+    workspace: {
+      currentWorkspace: () => ({
+        id: product.workspace_id,
+        shop_enabled: false,
+        shop_entitled: true,
+      }),
+    },
+    supabase: { client: { from } },
+  });
+  await service.loadProducts(product.workspace_id);
+  expect(from).not.toHaveBeenCalled();
+  expect(service.products()).toEqual([]);
+  expect(service.loadedWorkspaceId()).toBeNull();
+  expect(service.isLoading()).toBe(false);
 });

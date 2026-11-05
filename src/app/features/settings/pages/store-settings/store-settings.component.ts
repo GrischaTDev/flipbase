@@ -6,6 +6,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { LucideCreditCard, LucideDynamicIcon, LucideLandmark, LucideSave } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
+import { WorkspaceShopService } from '../../../../core/services/workspace-shop.service';
 import { CompanyProfileService } from '../../../../core/services/company-profile.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -29,6 +30,12 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
   host: { class: 'block' },
 })
 export class StoreSettingsComponent {
+  readonly shop = inject(WorkspaceShopService);
+
+  async onShopChanged(enabled: boolean): Promise<void> {
+    if (await this.shop.setEnabled(enabled))
+      this.toast.success(enabled ? 'Shop-System wurde aktiviert.' : 'Shop-System wurde pausiert.');
+  }
   readonly storeService = inject(StoreService);
   readonly company = inject(CompanyProfileService);
   private readonly workspaceService = inject(WorkspaceService);

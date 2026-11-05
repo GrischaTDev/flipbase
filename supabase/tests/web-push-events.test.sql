@@ -10,7 +10,7 @@ select is((select count(*) from pg_policies where schemaname='public' and tablen
 create function pg_temp.ident(p_kind integer,p_index integer default 1) returns uuid language sql immutable as $$select ('47200000-0000-4000-8000-'||lpad((p_kind*100+p_index)::text,12,'0'))::uuid;$$;
 insert into auth.users(id,email) select pg_temp.ident(1,number),'push-source-'||number||'@example.test' from generate_series(1,3) number;
 insert into auth.sessions(id,user_id,created_at,updated_at) select pg_temp.ident(2,number),pg_temp.ident(1,number),now(),now() from generate_series(1,3) number;
-insert into public.workspaces(id,name) values(pg_temp.ident(3),'Sources');
+insert into public.workspaces(shop_enabled, id,name) values(true, pg_temp.ident(3),'Sources');
 insert into public.workspace_members(workspace_id,user_id,role) values(pg_temp.ident(3),pg_temp.ident(1,1),'owner'),(pg_temp.ident(3),pg_temp.ident(1,2),'member'),(pg_temp.ident(3),pg_temp.ident(1,3),'admin');
 insert into public.platform_operators(user_id) values(pg_temp.ident(1,1)),(pg_temp.ident(1,2));
 insert into public.marketplace_connections(id,workspace_id,display_name,status,external_account_id) values(pg_temp.ident(4),pg_temp.ident(3),'Vinted','connected','472');

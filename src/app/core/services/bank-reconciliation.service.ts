@@ -664,7 +664,7 @@ export class BankReconciliationService {
       }
 
       // Check Sales records (e.g. eBay Payout, Kleinanzeigen direct transfer)
-      const sales = this.salesService.sales();
+      const sales = this.salesService.sales().filter((sale) => !sale.voided_at);
       for (const sale of sales) {
         const extOrder = (sale.external_order_id || '').toLowerCase();
         const isExactSalePrice = Math.abs(sale.sale_price - absAmount) < 0.02;

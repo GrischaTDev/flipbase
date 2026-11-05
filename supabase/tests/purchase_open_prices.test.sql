@@ -19,8 +19,8 @@ values (
   '{}',
   '{}'
 );
-insert into public.workspaces(id, name)
-values ('22000000-0000-4000-8000-000000000011', 'Offene Einkaufspreise');
+insert into public.workspaces(shop_enabled, id, name)
+values (true, '22000000-0000-4000-8000-000000000011', 'Offene Einkaufspreise');
 insert into public.workspace_members(workspace_id, user_id, role)
 values (
   '22000000-0000-4000-8000-000000000011',

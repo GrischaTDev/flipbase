@@ -1,5 +1,84 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Freie Erfassung und Shop-Schalter zur Freigabe vorbereiten
+
+**Auftrag:** Den geprüften Aufgabenstand über einen PR veröffentlichen, erst nach
+erfolgreichen Pflichtprüfungen mit Merge-Commit übernehmen und danach den eigenen
+Branch sowie die Aufgaben-Arbeitskopie entfernen.
+
+**Abgleich:** Neuere Hauptzweigänderungen werden integriert; Vinted-Zugriffsregeln,
+Schemaeinträge und die freie Erfassung bleiben gemeinsam erhalten. Der lokale
+Vorabcheck wird vor dem Push am zusammengeführten Stand ausgeführt. Ausgewählte
+CI-Nachweise und der Abschluss werden im PR festgehalten. Fremde Arbeitskopien
+und ihre ungesicherten Änderungen bleiben unangetastet.
+
+**CI-Nacharbeit:** Der erste PR-Lauf bestätigt 144 SQL-Suiten mit 5.418
+Prüfungen. Die anschließende eBay-Nebenläufigkeitsvorbereitung muss den Shop im
+neuen Test-Arbeitsbereich ausdrücklich aktivieren; die bestehende
+Marktplatz-Browserfixture liefert nun auch den Shop-Zustand. Beide
+Vorbereitungen werden vor dem erneuten Push gezielt geprüft. Fachliche
+Prüferwartungen und Zugriffsgrenzen bleiben erhalten.
+
+**Freigabebudget:** Die korrigierte Revision besteht alle 19 Browsergruppen,
+Datenbank- und Anwendungstests sowie PWA. Zwei Qualitätsläufer erreichen nach
+erfolgreichen Vorprüfungen beim abschließenden Bau das Zehn-Minuten-Limit.
+Nur die vollständige Kombination aus Workflow-, Marktplatz-, Push- und
+Datenbankprüfungen erhält deshalb 15 Minuten Gesamtzeit. Alle Prüfschritte,
+Erwartungen und Freigabebedingungen bleiben unverändert.
+
+## 2026-11-04 - Juna - Einfache Einkäufe und schaltbare Bestandsführung
+
+**Auftrag:** Schritte 2 und 3 auf dem freien Verkaufsablauf aufbauen: freie
+Einkäufe, optionaler Einkaufsbezug und Shop-Aktivierung. Freie Erfassung bleibt
+auch mit aktivem Shop verfügbar; historische Daten und Abwicklung bleiben erhalten.
+
+**Umsetzung:** Ausdrückliche Erfassungsart je Einkaufsposition, finanzieller
+Abschluss ohne Lageranlage, direkte Herkunft freier Verkaufspositionen ohne
+geschätzten Wareneinsatz. Getrennte Shop-Freigabe und Aktivierung mit Version,
+Journal und serverseitigen Grenzen. Alte Retouren und Kostenkorrekturen behalten
+einen begrenzten, gegen direkte Aufrufe geschützten Abwicklungsweg.
+
+**Prüfung:** `npm run preflight:plan` und `npm run preflight` mit Node 22
+sind erfolgreich: Format, Lint, Typen, Suite-Audit, 179 Skriptprüfungen,
+8 Orchestratorprüfungen, 4.070 Anwendungstests und Angular-Bau. Die endgültige
+Migration wurde mit Seed neu eingespielt; 143 SQL-Suiten mit 5.374 TAP-Prüfungen
+bestehen. Alle 34 betroffenen Funktionskörper entsprechen dem Schemaquelltext.
+15 Edge-Tests und 25 betroffene Browserfälle sind geprüft; die letzten neun Fälle
+nach der eBay-/Zuordnungsanpassung erneut. Enthalten sind drei Breiten,
+Hell/Dunkel, Touch und AXE sowie historische Kostenkorrektur und anschließende
+Retoure bei pausiertem Shop. Bekannte nicht blockierende Bauwarnungen bleiben.
+Ausgewählte CI-Freigabeprüfungen stehen vor dem Merge noch aus.
+
+**Arbeitsstand:** Noch nicht veröffentlichter gemeinsamer Aufgabenbranch mit
+integriertem `origin/master`. Fremde Erweiterungsarbeit und Nutzerdaten bleiben
+unangetastet; Prüfung ausschließlich in der eigenen Arbeitskopie und isolierten
+lokalen Datenbank mit synthetischen Daten. Verhalten, Migration und Grenzen im
+[Umsetzungsbericht](implementation/2026-11-04-optional-shop.md).
+
+## 2026-11-04 - Juna - Freie Verkäufe mit Belegen, Erstattungen und Korrekturen
+
+**Auftrag:** Ersten Schritt der Entkopplung von Handel und Bestand umsetzen;
+bisherige Bestandsabläufe erhalten.
+
+**Änderung:** Freie Verkaufspositionen ohne Lagerziel und ohne erfundene Kosten,
+stabile Buchungskennungen für manuelle Verkäufe und Erstattungen, atomarer
+Korrekturweg mit erhaltenem Original und dauerhaftem Belegbezug. Titel aus
+Verkaufspositionen in CSV und Gutschriften; Korrekturbelege zeigen Art und Grund.
+Korrigierte Originale werden nicht doppelt ausgewertet. RLS und ausdrückliche
+Rechte schützen die neuen Tabellen. Schema, erzeugte Migration und Clienttypen
+gehören zusammen.
+
+**Absicherung:** Getrennte lokale Supabase ausschließlich mit synthetischen
+Daten; Wiederholungen und konkurrierende Buchungen, Korrekturen und Erstattungen
+sowie bestehende Bestands-/Belegfälle geprüft. Neuer Browserablauf in drei Breiten
+und Hell/Dunkel einschließlich Touch und AXE. Bestehende Einzelstück-, Varianten-
+und Unternehmensbelegabläufe bleiben geprüft. Details und Grenzen stehen im
+[Umsetzungsbericht](implementation/2026-11-04-free-sales.md).
+
+**Abgrenzung:** Eigene Arbeitskopie und eigener Zweig vom aktuellen Hauptstand;
+fremde Erweiterungsarbeit und Nutzerdaten unverändert. Einkaufsbezug und
+Shop-Aktivierung folgen separat. Noch keine Veröffentlichung.
+
 ## 2026-11-05 - Juna - Relisting nach fehlgeschlagener Nachprüfung sicher zuordnen
 
 **Befund:** Beim Jordan-Inserat lieferte Vinted eine erfolgreiche Veröffentlichung,

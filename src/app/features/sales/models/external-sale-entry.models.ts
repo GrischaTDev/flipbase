@@ -4,6 +4,7 @@ import type { SaleTarget } from '../../../core/models/sale-target.models';
 import type { RecordSaleInput } from '../../../core/services/sales.service';
 
 export interface ExternalSaleEntryLine {
+  readonly positionKind?: 'stock' | 'free';
   readonly sourceLineId: string;
   readonly title: string;
   readonly quantity: number;
@@ -46,5 +47,9 @@ export interface ExternalSaleEntryEditorSnapshot {
     readonly description: string | null;
     readonly amount: number;
   }[];
-  readonly lines: readonly { readonly sourceLineId: string; readonly target: SaleTarget | null }[];
+  readonly lines: readonly {
+    readonly sourceLineId: string;
+    readonly target: SaleTarget | null;
+    readonly positionKind?: 'stock' | 'free';
+  }[];
 }

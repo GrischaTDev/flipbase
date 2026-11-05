@@ -4,6 +4,15 @@ import { provideRouter, Router } from '@angular/router';
 import { routes } from './app.routes';
 
 describe('Alte Bestandslinks', () => {
+  it('konfiguriert alle Routen ohne Guards an Weiterleitungen', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
+    try {
+      expect(() => TestBed.inject(Router)).not.toThrow();
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
   it.each(['offline', 'offline/purchases'])(
     'führt den alten %s-Link ohne lokale Parameter zu den normalen Einkäufen',
     async (path) => {

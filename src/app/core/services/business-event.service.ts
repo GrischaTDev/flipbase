@@ -53,6 +53,7 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   stock_removal_recorded: 'Bestandsabgang gebucht',
   sale_finalized: 'Verkauf abgeschlossen',
   sale_recorded: 'Verkauf erfasst',
+  sale_corrected: 'Verkauf korrigiert',
   sale_refund_updated: 'Erstattung aktualisiert',
   sale_return_recorded: 'Retoure erfasst',
   sale_voided: 'Verkauf storniert',

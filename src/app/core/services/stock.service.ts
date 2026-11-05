@@ -1,3 +1,4 @@
+import { isWorkspaceShopActive } from '../models/workspace-shop.models';
 import { Injectable, inject, signal } from '@angular/core';
 import { PurchaseLine, StockLot, StockMovement, StockPosition } from '../models/flipbase.models';
 import { MutationResult } from '../models/mutation-result.model';
@@ -42,6 +43,15 @@ export class StockService {
 
   async loadPositions(workspaceId: string): Promise<void> {
     const requestId = ++this.loadRequestId;
+    if (!isWorkspaceShopActive(this.workspaceService.currentWorkspace())) {
+      this.positions.set([]);
+      this.lots.set([]);
+      this.movements.set([]);
+      this.loadedWorkspaceId.set(null);
+      this.isLoading.set(false);
+      this.loadError.set(null);
+      return;
+    }
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
@@ -197,6 +207,7 @@ export class StockService {
   private isCurrentLoad(requestId: number, workspaceId: string): boolean {
     return (
       requestId === this.loadRequestId &&
+      isWorkspaceShopActive(this.workspaceService.currentWorkspace()) &&
       this.workspaceService.currentWorkspace()?.id === workspaceId
     );
   }
