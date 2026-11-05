@@ -126,6 +126,18 @@
                   </p>
                 }
                 <div class="grid gap-4">
+                  @if (workspaceId(); as workspaceId) {
+                    <app-vinted-listing-brand-dialog
+                      [inline]="true"
+                      [scopeKey]="brandScope()"
+                      [workspaceId]="workspaceId"
+                      [initialLabel]="brandLabel()"
+                      [fieldError]="brandPending() ? 'Wähle eine Marke aus der Suche.' : null"
+                      [disabled]="busy() || categoryLoading()"
+                      (edited)="editBrand($event)"
+                      (selected)="selectBrand($event)"
+                    />
+                  }
                   @for (choice of articleChoiceFields(); track choice.field) {
                     <div class="space-y-1.5">
                       <p class="text-[13px] font-semibold text-fb-text-primary">

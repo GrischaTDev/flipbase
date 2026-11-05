@@ -553,8 +553,11 @@ describe('Reaktive Inseratdetails', () => {
       .click();
     fixture.detectChanges();
     expect(element.querySelector('app-modal-shell')).toBeNull();
-    // Farben und Material sind Auswahlboxen, keine Checkbox-Listen.
-    expect(element.querySelectorAll('app-attribute-picker')).toHaveLength(2);
+    // Marke ist eine Suche; Farben und Material sind Auswahlboxen, keine Checkbox-Listen.
+    expect(element.querySelectorAll('app-attribute-picker')).toHaveLength(3);
+    expect(element.querySelector('app-vinted-listing-brand-dialog')?.textContent).toContain(
+      'Marke',
+    );
     expect(element.querySelector('[role="checkbox"]')).toBeNull();
     expect(element.textContent).toContain('Blau');
     expect(element.textContent).toContain('Gelb');
@@ -615,6 +618,33 @@ describe('Reaktive Inseratdetails', () => {
     expect(TestBed.inject(ToastService).toasts()).toMatchObject([
       { type: 'success', title: 'Inserat erfolgreich geändert' },
     ]);
+  });
+  it('speichert eine über die Suche gewählte Marke, die Vinted nicht vorschlägt', async () => {
+    const { component, store } = setup([
+      {
+        ...entry('a', 'Sehr gut erhalten.'),
+        title: 'Meine Schuhe',
+        price: 20.5,
+        listingContent: listingCurrentContentFixture().content,
+        imageUrls: listingCurrentContentFixture().photoUrls,
+      },
+    ]);
+    await settle();
+    await component.edit();
+    const base = listingCurrentContentFixture().content;
+    expect(component.brandLabel()).toBe('Jako');
+    component.editBrand('Levi');
+    expect(component.canSave()).toBe(false);
+    component.selectBrand({ brandId: 4242, brandLabel: 'Levi’s' });
+    expect(component.canSave()).toBe(true);
+    expect(component.brandLabel()).toBe('Levi’s');
+    await component.save();
+    expect(store.saveListingContent).toHaveBeenCalledWith(account.connectionId, 'a', base, {
+      ...base,
+      brandId: 4242,
+      brandLabel: 'Levi’s',
+    });
+    expect(component.entry()).toMatchObject({ brand: 'Levi’s' });
   });
   it('bewahrt eine unbekannte Beschreibung beim Speichern einer reinen Titeländerung', async () => {
     const { component, store } = setup([

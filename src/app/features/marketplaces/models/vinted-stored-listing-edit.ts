@@ -8,11 +8,13 @@ import { vintedListingSourceContent } from './vinted-listing-source';
 import {
   applyVintedListingEdit,
   packageSizeLabel,
+  vintedListingBrandValue,
   vintedListingEditSelection,
   vintedListingPriceCents,
   vintedListingPriceText,
   type VintedListingEditField,
   type VintedListingEditSnapshot,
+  withVintedListingBrand,
 } from './vinted-listing-edit-form';
 
 /** Eigene Auswahlwerte für die gespeicherte Anzeige; Anbieterkennungen erst beim Speichern lesen. */
@@ -86,11 +88,26 @@ const conflict = () =>
 /** Übernimmt nur geänderte Felder und übersetzt eigene Auswahlen in die frisch gelesenen Anbieterwerte. */
 export function applyStoredVintedListingEdit(
   stored: VintedListingEditSnapshot,
-  current: VintedListingCurrentContent,
+  live: VintedListingCurrentContent,
   fields: EditFields,
 ) {
-  if (stored.content.categoryId !== current.content.categoryId) throw conflict();
+  if (stored.content.categoryId !== live.content.categoryId) throw conflict();
   const before = vintedListingEditSelection(stored);
+  // Eine per Suche gewählte Marke fehlt in Vinteds Formularauswahl; der Worker sucht sie beim Speichern.
+  const searchedBrand =
+    fields.brand && fields.brand !== before.brand
+      ? stored.schema.fields
+          .find((group) => group.field === 'brand')
+          ?.choices.find(
+            (choice) => vintedListingBrandValue({ brandId: choice.id }) === fields.brand,
+          )
+      : undefined;
+  const current = searchedBrand
+    ? withVintedListingBrand(live, {
+        brandId: searchedBrand.id,
+        brandLabel: searchedBrand.label,
+      })
+    : live;
   const selection = { ...vintedListingEditSelection(current) };
   const labels = (
     snapshot: VintedListingEditSnapshot,
@@ -154,7 +171,10 @@ export function applyStoredVintedListingEdit(
             (field === 'size'
               ? normalize(option.label) === normalize(label) ||
                 option.label.split('/').some((part) => normalize(part) === normalize(label))
-              : (field === 'package' ? packageSizeLabel(option.label) : option.label) === label) &&
+              : field === 'brand' && searchedBrand
+                ? option.id === searchedBrand.id
+                : (field === 'package' ? packageSizeLabel(option.label) : option.label) ===
+                  label) &&
             (!option.disabled || option.selected),
         );
       const choice = choices?.length === 1 ? choices[0] : undefined;
