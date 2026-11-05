@@ -5,9 +5,14 @@ import { AppDisplayPreferencesService } from '../../../core/services/app-display
 import type { AccountScope } from '../models/marketplace.models';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { describeVintedAction, type VintedAction } from '../models/vinted-action-overview';
-import { vintedListingJobLabel, type VintedListingJob } from '../models/vinted-listing-job';
+import {
+  isVintedListingConfirmationPending,
+  vintedListingJobLabel,
+  type VintedListingJob,
+} from '../models/vinted-listing-job';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import { VintedActionOverviewApiService } from './vinted-action-overview-api.service';
+import { VintedListingOperationStore } from './vinted-listing-operation.store';
 import { VintedListingJobService } from './vinted-listing-job.service';
 
 export interface VintedListingActionEntry {
@@ -31,6 +36,7 @@ export class VintedActionOverviewHeaderStore {
   private readonly api = inject(VintedActionOverviewApiService);
   private readonly listingApi = inject(VintedListingJobService);
   private readonly toast = inject(ToastService);
+  private readonly listingOperations = inject(VintedListingOperationStore);
   readonly enabled = this.preferences.actionOverviewEnabled;
   readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
@@ -92,8 +98,10 @@ export class VintedActionOverviewHeaderStore {
           count + group.actions.filter((action) => action.state === 'running').length,
         0,
       ) +
-      this.listings().filter(({ job }) =>
-        ['queued', 'paused', 'claimed', 'writing'].includes(job.state),
+      this.listings().filter(
+        ({ job }) =>
+          ['queued', 'paused', 'claimed', 'writing'].includes(job.state) ||
+          isVintedListingConfirmationPending(job),
       ).length,
   );
   readonly hasRunning = computed(
@@ -101,6 +109,7 @@ export class VintedActionOverviewHeaderStore {
       this.groups().some((group) => group.actions.some((action) => action.state === 'running')) ||
       this.listings().some(
         ({ job }) =>
+          isVintedListingConfirmationPending(job) ||
           job.state === 'claimed' ||
           job.state === 'writing' ||
           (job.state === 'queued' && !job.scheduledAt),
@@ -254,6 +263,25 @@ export class VintedActionOverviewHeaderStore {
       );
       const previousListings =
         this.snapshot()?.context === context ? this.snapshot()!.listings : [];
+      const confirmedViews = new Map<string, boolean>();
+      if (!listingResult.failed) {
+        const completed = listingResult.jobs.filter(
+          (job) =>
+            job.state === 'confirmed' &&
+            job.relistExternalId &&
+            job.connectionId !== null &&
+            availableAccounts.has(job.connectionId) &&
+            previousListings.some((entry) => entry.job.id === job.id),
+        );
+        const ready = await Promise.all(
+          completed.map(
+            async (job) =>
+              [job.id, await this.listingOperations.synchronizeRelisting(job)] as const,
+          ),
+        );
+        if (!isCurrent()) return;
+        ready.forEach(([id, loaded]) => confirmedViews.set(id, loaded));
+      }
       const listings = latestListingAttempts(
         listingResult.failed ? previousListings.map((entry) => entry.job) : listingResult.jobs,
       )
@@ -265,6 +293,10 @@ export class VintedActionOverviewHeaderStore {
           if (job.state !== 'confirmed') return true;
           // Alte Erfolge beim Laden bleiben still; nur beobachtete Abschlüsse melden.
           if (!previousListings.some((entry) => entry.job.id === job.id)) return false;
+          if (confirmedViews.get(job.id) === false) {
+            hasError = true;
+            return true;
+          }
           const description = [availableAccounts.get(job.connectionId ?? ''), job.itemTitle]
             .filter(Boolean)
             .join(' · ');

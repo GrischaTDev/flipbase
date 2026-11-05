@@ -15,6 +15,7 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
   try {
     for (const mode of [
       'confirmed',
+      'delayed_confirmation',
       'hydrated',
       'staged',
       'publish',
@@ -30,6 +31,8 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
         { route: context.route.bind(context), goto: page.goto.bind(page) },
         { publishing: true },
       );
+      if (mode === 'delayed_confirmation')
+        await context.route('**/items/456/edit', (route) => route.abort());
       let deletes = 0;
       let removed = false;
       await context.route('**/fixture/deletion-hydration', async (route) => {
@@ -60,7 +63,11 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
         assert.equal(form.saves(), 0, 'Kein neues Inserat vor der Löschung');
         assert.equal(form.uploads(), 1, 'Das vollständige Foto wurde vor der Löschung vorbereitet');
         deletes++;
-        removed = mode === 'confirmed' || mode === 'hydrated' || mode === 'staged';
+        removed =
+          mode === 'delayed_confirmation' ||
+          mode === 'confirmed' ||
+          mode === 'hydrated' ||
+          mode === 'staged';
         await route.fulfill({ json: { ok: true } });
       });
       await context.route('https://www.vinted.de/items/98765', async (route) =>
@@ -111,20 +118,32 @@ test('Relisten veröffentlicht erst nach bestätigter Löschung; fremde und unkl
       );
       assert.equal(
         deletes,
-        mode === 'confirmed' || mode === 'hydrated' || mode === 'unconfirmed' || mode === 'staged'
+        mode === 'delayed_confirmation' ||
+          mode === 'confirmed' ||
+          mode === 'hydrated' ||
+          mode === 'unconfirmed' ||
+          mode === 'staged'
           ? 1
           : 0,
         JSON.stringify(result),
       );
       assert.equal(
         form.saves(),
-        mode === 'confirmed' || mode === 'hydrated' || mode === 'publish' ? 1 : 0,
+        mode === 'delayed_confirmation' ||
+          mode === 'confirmed' ||
+          mode === 'hydrated' ||
+          mode === 'publish'
+          ? 1
+          : 0,
       );
       assert.equal(
         result.outcome,
         mode === 'staged'
           ? 'relisting_deleted'
-          : mode === 'confirmed' || mode === 'hydrated' || mode === 'publish'
+          : mode === 'delayed_confirmation' ||
+              mode === 'confirmed' ||
+              mode === 'hydrated' ||
+              mode === 'publish'
             ? 'confirmed'
             : mode === 'unconfirmed'
               ? 'outcome_unknown'
@@ -246,11 +265,15 @@ test('an unconfirmed publication identifies the failed verification without retr
       [{ savedPrice: '11,00' }, 'provider_unconfirmed_saved_form_match'],
       [{ savedPhotoChanged: true }, 'provider_unconfirmed_saved_photos_match'],
       [{ active: false }, 'provider_unconfirmed_active_evidence'],
-      [{ savedFormUnavailable: true }, 'provider_unconfirmed_saved_navigation'],
-      [{ savedFormMissingTitle: true }, 'provider_unconfirmed_saved_form'],
+      [{ savedFormUnavailable: true, active: false }, 'provider_unconfirmed_active_evidence'],
+      [{ savedFormMissingTitle: true, active: false }, 'provider_unconfirmed_active_evidence'],
     ] as const) {
-      const page = await browser.newPage();
-      const form = await createVintedListingFormFixture(page, { publishing: true, ...options });
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const form = await createVintedListingFormFixture(
+        { route: context.route.bind(context), goto: page.goto.bind(page) },
+        { publishing: true, ...options },
+      );
       if ('savedFormUnavailable' in options)
         await page.route('**/items/456/edit', (route) => route.abort());
       if ('savedFormMissingTitle' in options)
@@ -298,6 +321,7 @@ test('an unconfirmed publication identifies the failed verification without retr
       assert.equal(form.uploads(), 1);
       assert.equal(form.saves(), 1);
       assert.equal(page.isClosed(), true);
+      await context.close();
     }
   } finally {
     await browser.close();
@@ -581,70 +605,74 @@ test('does not save or confirm when photo metadata stays absent after upload', a
   }
 });
 
-test('publishes ten original photos in order with bounded account lookups between uploads', async () => {
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const page = await browser.newPage();
-    const form = await createVintedListingFormFixture(page, { publishing: true });
-    const original = listingClaimFixture.snapshot.images[0];
-    assert.ok(original);
-    const images = Array.from({ length: 10 }, (_, index) => ({
-      ...original,
-      id: (BigInt(original.id) + BigInt(index)).toString(),
-      storagePath: `20000000-0000-4000-8000-000000000001/12/20000000-0000-4000-8000-${String(index + 9).padStart(12, '0')}.jpg`,
-      fileName: `photo-${index + 1}.jpg`,
-    }));
-    let accountLookups = 0;
-    const lookupsAtUpload: number[] = [];
-    page.on('request', (request) => {
-      const path = new URL(request.url()).pathname;
-      if (path === '/api/v2/users/current') accountLookups++;
-      if (path === '/fixture/photo') lookupsAtUpload.push(accountLookups);
-    });
-    await page.goto('about:blank');
-    let begins = 0;
-    const result = await submitVintedListing(
-      page,
-      '123',
-      'publish',
-      { ...listingClaimFixture.snapshot, images },
-      async () => {
-        begins++;
-        assert.equal(form.uploads(), 0);
-      },
-      async () => undefined,
-      async (id) => {
-        const image = images.find((image) => image.id === id);
-        assert.ok(image);
-        return {
-          id,
-          fileName: image.fileName,
-          mimeType: image.mimeType,
-          bytes: new Uint8Array(image.byteSize),
-        };
-      },
-      [5],
-      { saveTimeoutMs: 400 },
-    );
-    assert.equal(result.outcome, 'confirmed');
-    assert.equal(begins, 1);
-    assert.equal(form.uploads(), 10);
-    assert.equal(form.saves(), 1);
-    assert.deepEqual(
-      form.uploadedFileNames(),
-      images.map((image) => image.fileName),
-    );
-    assert.equal(lookupsAtUpload.length, 10);
-    for (let index = 1; index < lookupsAtUpload.length; index++) {
-      const current = lookupsAtUpload[index],
-        previous = lookupsAtUpload[index - 1];
-      assert.ok(current !== undefined && previous !== undefined);
-      assert.ok(current - previous <= 5, `Account lookups between uploads: ${current - previous}`);
+for (const photoCount of [10, 13])
+  test(`publishes ${photoCount} original photos in order with bounded account lookups between uploads`, async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      const form = await createVintedListingFormFixture(page, { publishing: true });
+      const original = listingClaimFixture.snapshot.images[0];
+      assert.ok(original);
+      const images = Array.from({ length: photoCount }, (_, index) => ({
+        ...original,
+        id: (BigInt(original.id) + BigInt(index)).toString(),
+        storagePath: `20000000-0000-4000-8000-000000000001/12/20000000-0000-4000-8000-${String(index + 9).padStart(12, '0')}.jpg`,
+        fileName: `photo-${index + 1}.jpg`,
+      }));
+      let accountLookups = 0;
+      const lookupsAtUpload: number[] = [];
+      page.on('request', (request) => {
+        const path = new URL(request.url()).pathname;
+        if (path === '/api/v2/users/current') accountLookups++;
+        if (path === '/fixture/photo') lookupsAtUpload.push(accountLookups);
+      });
+      await page.goto('about:blank');
+      let begins = 0;
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        { ...listingClaimFixture.snapshot, images },
+        async () => {
+          begins++;
+          assert.equal(form.uploads(), 0);
+        },
+        async () => undefined,
+        async (id) => {
+          const image = images.find((image) => image.id === id);
+          assert.ok(image);
+          return {
+            id,
+            fileName: image.fileName,
+            mimeType: image.mimeType,
+            bytes: new Uint8Array(image.byteSize),
+          };
+        },
+        [5],
+        { saveTimeoutMs: 400 },
+      );
+      assert.equal(result.outcome, 'confirmed');
+      assert.equal(begins, 1);
+      assert.equal(form.uploads(), photoCount);
+      assert.equal(form.saves(), 1);
+      assert.deepEqual(
+        form.uploadedFileNames(),
+        images.map((image) => image.fileName),
+      );
+      assert.equal(lookupsAtUpload.length, photoCount);
+      for (let index = 1; index < lookupsAtUpload.length; index++) {
+        const current = lookupsAtUpload[index],
+          previous = lookupsAtUpload[index - 1];
+        assert.ok(current !== undefined && previous !== undefined);
+        assert.ok(
+          current - previous <= 5,
+          `Account lookups between uploads: ${current - previous}`,
+        );
+      }
+    } finally {
+      await browser.close();
     }
-  } finally {
-    await browser.close();
-  }
-});
+  });
 
 test('query or hash changes during preparation stop before article texts are entered', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -1029,6 +1057,68 @@ test('confirms the captured new item from native saved values when its edit page
         assert.equal(result.outcome, 'outcome_unknown');
       }
       assert.equal(page.isClosed(), true);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('confirms the captured new listing directly when the saved editor is unavailable', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const mode of ['navigation_unavailable', 'form_unavailable', 'foreign_account'] as const) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const form = await createVintedListingFormFixture(
+        { route: context.route.bind(context), goto: page.goto.bind(page) },
+        { publishing: true },
+      );
+      if (mode === 'form_unavailable') {
+        await page.route('**/items/456/edit', (route) =>
+          route.fulfill({
+            contentType: 'text/html',
+            body: '<main id="content"><a href="/settings/profile">Profil bearbeiten</a></main>',
+          }),
+        );
+      } else
+        await page.route('**/items/456/edit', (route) => {
+          if (mode === 'foreign_account') form.changeAccount();
+          return route.abort();
+        });
+      let profileReads = 0;
+      context.on('request', (request) => {
+        if (new URL(request.url()).pathname === '/member/123') profileReads++;
+      });
+      await page.goto('about:blank');
+      const result = await submitVintedListing(
+        page,
+        '123',
+        'publish',
+        listingClaimFixture.snapshot,
+        async () => undefined,
+        async () => undefined,
+        async (id) => ({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+        [5],
+        { saveTimeoutMs: 400 },
+      );
+      assert.equal(
+        result.outcome,
+        mode === 'foreign_account' ? 'outcome_unknown' : 'confirmed',
+        JSON.stringify(result),
+      );
+      if (mode === 'foreign_account' && result.outcome === 'outcome_unknown')
+        assert.ok(result.errorCode.endsWith('_identity'));
+      assert.equal(profileReads, 1, 'Gezielter Aktivbeleg statt vollständigem Kontoabruf');
+      assert.equal(form.saves(), 1);
+      assert.equal(form.uploads(), 1);
+      assert.equal(page.isClosed(), true);
+      assert.equal(context.pages().length, 0, 'Beide reservierten Prüfseiten werden geschlossen');
+      await context.close();
     }
   } finally {
     await browser.close();

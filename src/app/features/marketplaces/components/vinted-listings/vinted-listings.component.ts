@@ -2,7 +2,10 @@ import {
   VintedRelistingPlanStore,
   type VintedRelistingPlan,
 } from '../../services/vinted-relisting-plan.store';
-import type { VintedListingJob } from '../../models/vinted-listing-job';
+import {
+  isVintedListingConfirmationPending,
+  type VintedListingJob,
+} from '../../models/vinted-listing-job';
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import {
   VintedListingsTableComponent,
@@ -238,7 +241,8 @@ export class VintedListingsComponent {
     const running =
       this.operations.isRunning(entry) ||
       plan?.job.state === 'claimed' ||
-      plan?.job.state === 'writing';
+      plan?.job.state === 'writing' ||
+      (!!plan && isVintedListingConfirmationPending(plan.job));
     return {
       entry,
       plan,

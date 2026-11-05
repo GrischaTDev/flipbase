@@ -16,7 +16,11 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
-import { vintedListingJobLabel, type VintedListingJob } from '../../models/vinted-listing-job';
+import {
+  isVintedListingConfirmationPending,
+  vintedListingJobLabel,
+  type VintedListingJob,
+} from '../../models/vinted-listing-job';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
 import {
   VintedListingScheduleDialogComponent,
@@ -346,6 +350,8 @@ export class VintedListingJobPanelComponent {
     );
   }
   private reason(job: VintedListingJob): string {
+    if (isVintedListingConfirmationPending(job))
+      return 'Die neue Vinted-Kennung ist bekannt. Die Veröffentlichung wird automatisch geprüft.';
     if (job.errorCode?.startsWith('relisting_delete_'))
       return job.state === 'outcome_unknown'
         ? 'Die Löschung des bisherigen Inserats wurde nicht bestätigt. Es wurde kein neues Inserat veröffentlicht. Prüfe den ursprünglichen Artikel bei Vinted.'

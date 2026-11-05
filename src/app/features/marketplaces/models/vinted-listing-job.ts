@@ -207,7 +207,36 @@ export function parseVintedListingJob(
     replacesJobId: data['replacesJobId'] === null ? null : listingIdentifier(data['replacesJobId']),
   };
 }
-export function vintedListingJobLabel(job: VintedListingJob): string {
+/** Die native Erstellungskennung ist bekannt; ein begrenzter Nachabgleich läuft noch. */
+export function isVintedListingConfirmationPending(
+  job: VintedListingJob,
+  now = Date.now(),
+): boolean {
+  const updatedAt = Date.parse(job.updatedAt);
+  return (
+    job.state === 'outcome_unknown' &&
+    job.action === 'publish' &&
+    job.executionMode === 'cloud' &&
+    job.externalId !== null &&
+    job.externalId !== job.relistExternalId &&
+    [
+      'provider_unconfirmed_save_navigation',
+      'provider_unconfirmed_saved_navigation',
+      'provider_unconfirmed_saved_form',
+      'provider_unconfirmed_active_navigation',
+      'provider_unconfirmed_active_filter',
+      'provider_unconfirmed_active_loading',
+      'provider_unconfirmed_active_evidence',
+    ].includes(job.errorCode ?? '') &&
+    Number.isFinite(now) &&
+    Number.isFinite(updatedAt) &&
+    updatedAt <= now + 60_000 &&
+    now - updatedAt < 120_000
+  );
+}
+
+export function vintedListingJobLabel(job: VintedListingJob, now = Date.now()): string {
+  if (isVintedListingConfirmationPending(job, now)) return 'Veröffentlichung wird geprüft …';
   switch (job.state) {
     case 'queued':
       return job.action === 'publish' ? 'Veröffentlichung beauftragt' : 'Vinted-Entwurf beauftragt';
@@ -240,7 +269,7 @@ export function vintedRelistingJobLabel(job: VintedListingJob, now: number): str
   if (job.errorCode === 'editing') return 'Wird bearbeitet';
   if (job.state === 'claimed') return 'Wird vorbereitet';
   if (job.state === 'writing') return job.relistDeletedAt ? 'Wird inseriert' : 'Wird vorbereitet';
-  if (job.state !== 'queued') return vintedListingJobLabel(job);
+  if (job.state !== 'queued') return vintedListingJobLabel(job, now);
   if (!job.relistDeletedAt) return 'Wird vorbereitet';
   if (!job.scheduledAt) return 'Wartet auf den Start';
   const remaining = Date.parse(job.scheduledAt) - now;

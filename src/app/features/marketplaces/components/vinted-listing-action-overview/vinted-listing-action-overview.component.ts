@@ -4,7 +4,11 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
-import { vintedRelistingJobLabel, type VintedListingJob } from '../../models/vinted-listing-job';
+import {
+  isVintedListingConfirmationPending,
+  vintedRelistingJobLabel,
+  type VintedListingJob,
+} from '../../models/vinted-listing-job';
 import {
   VintedActionOverviewHeaderStore,
   vintedListingDismissKey,
@@ -51,7 +55,8 @@ export class VintedListingActionOverviewComponent {
       indicator:
         job.state === 'confirmed' && job.providerState !== 'processing'
           ? ('success' as const)
-          : job.state === 'failed' || job.state === 'outcome_unknown'
+          : job.state === 'failed' ||
+              (job.state === 'outcome_unknown' && !isVintedListingConfirmationPending(job))
             ? ('error' as const)
             : job.state === 'paused' ||
                 (!!job.scheduledAt &&
@@ -59,7 +64,9 @@ export class VintedListingActionOverviewComponent {
                   (!job.relistExternalId || !!job.relistDeletedAt))
               ? ('paused' as const)
               : ('running' as const),
-      dismissible: job.state === 'failed' || job.state === 'outcome_unknown',
+      dismissible:
+        job.state === 'failed' ||
+        (job.state === 'outcome_unknown' && !isVintedListingConfirmationPending(job)),
       time: new Intl.DateTimeFormat('de-DE', {
         year: 'numeric',
         month: '2-digit',
@@ -187,6 +194,7 @@ export class VintedListingActionOverviewComponent {
 
 /** Eine kurze Statuszeile; Fehlerdetails bleiben im Auftrag (error_code) für die Kontrolle erhalten. */
 function compactListingLabel(job: VintedListingJob): string {
+  if (isVintedListingConfirmationPending(job)) return 'Veröffentlichung wird geprüft …';
   if (job.relistExternalId) return vintedRelistingJobLabel(job, Date.now());
   const draft = job.action === 'vinted_draft';
   switch (job.state) {

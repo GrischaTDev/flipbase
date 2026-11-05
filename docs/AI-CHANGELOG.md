@@ -19,6 +19,41 @@ Reservierung; der Entwurf wird beim Abschließen entfernt.
 RLS gegen eine lokale Datenbank geprüft; Abläufe im Browser mit und ohne Shop
 durchgespielt. Vorabcheck und CI-Nachweise stehen im PR.
 
+## 2026-11-05 - Juna - Relisting direkt bestätigen und Kartenübernahme abstimmen
+
+**Anlass:** Beim EA7-Trainingsanzug folgten auf „Ergebnis unklar“ automatisch
+Bestätigung und Verknüpfung. Das Alter wechselte anschließend von unbekannt zu
+neu. Der zusätzliche Kontoabruf las auch Profil, Gespräche und Verkäufe. Eine
+frische Veröffentlichungszeit konnte außerdem nach dem letzten Takt der
+60-Sekunden-Anzeigeuhr liegen und wurde deshalb kurz als Zukunft verworfen.
+
+**Umsetzung:** Eine belegte neue Erstellungskennung mit vorübergehend fehlendem
+Lesebeleg erscheint für höchstens zwei Minuten als „Veröffentlichung wird
+geprüft …“. Fehlende Kennungen, Inhalts-/Fotoabweichungen und Identitätsfehler
+bleiben Warnungen. Ist die gespeicherte Bearbeitungsmaske vorübergehend nicht
+lesbar, wird die konkrete neue Kennung direkt im Aktiv-Filter des zugehörigen
+Kontos geprüft. Der vorhandene Kontoabruf bleibt die Hintergrundabsicherung.
+Es wird kein weiterer Veröffentlichungsversuch ausgelöst.
+
+Geöffnete Kleiderschränke reagieren auf Auftragsmeldungen. Die Aktionsübersicht
+wartet vor ihrem einmaligen Erfolgstoast auf die passende Karte samt
+Veröffentlichungszeit unter ihrer ursprünglichen internen Kennung. Verspätete
+Antworten eines anderen Kontos oder einer älteren Auftragsversion werden nicht
+übernommen. Neue gespeicherte Daten synchronisieren die gemeinsame Anzeigeuhr.
+
+**Prüfung:** Regressionen für Prüfstatus, veraltete Uhr und verfrühten Toast
+zuerst mit dem bisherigen Verhalten reproduziert. Native Browserfälle prüfen
+Löschen, erneutes Einstellen, direkten Aktiv-Beleg trotz fehlender Maske,
+Identitätswechsel und echte Inhalts-/Fotoabweichungen. Ein zusätzlicher Fall
+veröffentlicht wie beim EA7-Artikel 13 Originalfotos in richtiger Reihenfolge.
+Der gerenderte Browserfall verzögert die Datenantwort absichtlich und prüft genau
+eine ursprüngliche Karte, sofort „Neu“ und genau einen anschließenden Toast.
+Die Testuhr läuft dabei kontrolliert in kleinen Takten, damit der vier Sekunden
+sichtbare Toast auf einem schnelleren CI-Läufer nicht vor seiner Prüfung verschwindet.
+Der lokale Vorabcheck und die vollständigen Datenbank-, Browser- und
+Imageprüfungen bilden die Freigabe für den vollständigen Änderungsstand.
+In Lissie ist Flipbase weiterhin nicht als Projekt verfügbar.
+
 ## 2026-11-05 - Juna - Vinted-Benachrichtigungen: „Artikel nicht verfügbar“ still, Gesprächszeile sichtbar
 
 **Auftrag:** Die Vinted-Meldung „Artikel nicht verfügbar“, die nach einem

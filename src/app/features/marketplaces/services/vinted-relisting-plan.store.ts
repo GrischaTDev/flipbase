@@ -36,20 +36,54 @@ export class VintedRelistingPlanStore {
         ])
       : null;
   });
+  private readonly subscriptionKey = computed(() => {
+    const binding = this.binding();
+    return binding
+      ? JSON.stringify([binding, [...new Set(this.plans().map(({ job }) => job.draftId))].sort()])
+      : null;
+  });
   private generation = 0;
   private destroyed = false;
   private refreshing = false;
   private thumbnailsLoadedAt = 0;
   private readonly cache = new Map<string, VintedRelistingPlan>();
   constructor() {
-    effect(() => {
-      this.binding();
+    effect((onCleanup) => {
+      const binding = this.binding();
       untracked(() => {
         this.generation++;
         this.plans.set([]);
         this.cache.clear();
         void this.refresh();
       });
+      const { account, userId } = untracked(() => ({
+        account: this.accounts.selectedConnection(),
+        userId: this.auth.currentUser()?.id,
+      }));
+      if (binding && account && userId)
+        onCleanup(
+          this.operations.registerRelistingView(
+            { userId, workspaceId: account.workspaceId, connectionId: account.connectionId },
+            (job) => this.synchronizeConfirmedRelisting(job, binding),
+          ),
+        );
+    });
+    effect((onCleanup) => {
+      const key = this.subscriptionKey();
+      if (!key) return;
+      const { account, binding, draftIds } = untracked(() => ({
+        account: this.accounts.selectedConnection(),
+        binding: this.binding(),
+        draftIds: [...new Set(this.plans().map(({ job }) => job.draftId))].sort(),
+      }));
+      if (!account || !binding) return;
+      const refresh = () => {
+        if (binding === this.binding()) void this.refresh();
+      };
+      const cleanups = draftIds.map((draftId) =>
+        this.jobs.listen(account.workspaceId, draftId, refresh, refresh),
+      );
+      onCleanup(() => cleanups.forEach((cleanup) => cleanup()));
     });
     effect(() => {
       const pending = this.pendingPlans();
@@ -79,6 +113,47 @@ export class VintedRelistingPlanStore {
       clearInterval(timer);
     });
   }
+  private async synchronizeConfirmedRelisting(
+    job: VintedListingJob,
+    binding: string,
+  ): Promise<boolean> {
+    if (this.destroyed || this.binding() !== binding) return true;
+    if (this.accounts.selectedConnection()?.externalAccountId !== job.externalAccountId)
+      return false;
+    const hasConfirmedEntry = () =>
+      this.accounts
+        .snapshot()
+        ?.publications.items.some(
+          (entry) =>
+            entry.workspaceId === job.workspaceId &&
+            entry.connectionId === job.connectionId &&
+            entry.externalId === job.externalId &&
+            (!job.relistEntryId || entry.id === job.relistEntryId) &&
+            (job.providerState !== 'active' ||
+              (entry.publishedAt !== null &&
+                Number.isFinite(Date.parse(entry.publishedAt ?? '')) &&
+                Date.parse(entry.publishedAt ?? '') <= Date.now())),
+        );
+    if (!hasConfirmedEntry()) {
+      if (!job.connectionId) return false;
+      const loaded = await this.accounts.reloadImportedSnapshot({
+        workspaceId: job.workspaceId,
+        connectionId: job.connectionId,
+      });
+      if (this.destroyed || this.binding() !== binding) return true;
+      if (!loaded || !hasConfirmedEntry()) return false;
+    }
+    const update = (plan: VintedRelistingPlan): VintedRelistingPlan => {
+      if (plan.job.id !== job.id || plan.job.version > job.version) return plan;
+      const confirmed = { ...plan, job, label: this.label(job) };
+      this.cache.set(job.id, confirmed);
+      return confirmed;
+    };
+    this.plans.update((plans) => plans.map(update));
+    this.operations.releaseRelisting(job);
+    return true;
+  }
+
   canEdit(job: VintedListingJob): boolean {
     return (
       job.state === 'failed' ||
@@ -128,8 +203,10 @@ export class VintedRelistingPlanStore {
             ? previous.imageUrl
             : ((await this.images.thumbnailUrls([draft])).get(draft.id) ?? null);
         if (generation !== this.generation || this.destroyed) return;
-        const label = this.label(job);
-        const plan = { job, draft, imageUrl, label };
+        const latest = this.cache.get(job.id)?.job;
+        const currentJob = latest && latest.version > job.version ? latest : job;
+        const label = this.label(currentJob);
+        const plan = { job: currentJob, draft, imageUrl, label };
         plans.push(plan);
       }
       // Erst die Lesekopie übernehmen, dann die bisher sichtbare Karte entfernen.

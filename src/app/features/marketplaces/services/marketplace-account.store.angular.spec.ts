@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
+import { VintedListingClockService } from './vinted-listing-clock.service';
+import { vintedListingAge } from '../models/vinted-listing-age';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
@@ -1477,4 +1479,45 @@ describe('Kontogebundene Marktplatzansicht', () => {
     expect(store.snapshot()?.activity.items).toHaveLength(61);
     expect(api.readPage).toHaveBeenCalledWith(scope, 'activity', 'event-49');
   });
+});
+
+it('synchronisiert die Altersuhr vor der Übernahme eines gerade bestätigten Relistings', async () => {
+  await settle();
+  const time = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-05T08:28:59Z'));
+  try {
+    const clock = TestBed.inject(VintedListingClockService);
+    clock.now.set(Date.parse('2026-11-05T08:28:59Z'));
+    const publishedAt = '2026-11-05T08:29:00.395Z';
+    expect(vintedListingAge(publishedAt, clock.now()).compact).toBe('Alter unbekannt');
+    const currentTime = Date.parse('2026-11-05T08:29:15Z');
+    time.mockReturnValue(currentTime);
+    const latest = parseMarketplaceSnapshot(
+      {
+        ...snapshot(accountA),
+        publications: {
+          items: [
+            {
+              ...accountA,
+              id: 'stable-entry',
+              externalId: '46302',
+              title: 'EA7',
+              publicationState: 'active',
+              occurredAt: publishedAt,
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+        },
+      },
+      accountA,
+    );
+    api.readSnapshot.mockResolvedValue(latest);
+    expect(await store.reloadImportedSnapshot(accountA)).toBe(true);
+    expect(clock.now()).toBe(currentTime);
+    expect(
+      vintedListingAge(store.snapshot()?.publications.items[0]?.publishedAt, clock.now()).compact,
+    ).toBe('Neu');
+  } finally {
+    time.mockRestore();
+  }
 });

@@ -29,6 +29,47 @@ export class VintedListingOperationStore {
   private readonly accepted = signal<
     readonly { userId: string; record: VintedRelistingPlanRecord; imageUrl: string | null }[]
   >([]);
+  private readonly relistingViews = new Set<{
+    readonly scope: Pick<VintedListingOperation, 'userId' | 'workspaceId' | 'connectionId'>;
+    readonly update: (job: VintedListingJob) => Promise<boolean>;
+  }>();
+
+  registerRelistingView(
+    scope: Pick<VintedListingOperation, 'userId' | 'workspaceId' | 'connectionId'>,
+    update: (job: VintedListingJob) => Promise<boolean>,
+  ): () => void {
+    const view = { scope, update };
+    this.relistingViews.add(view);
+    return () => {
+      this.relistingViews.delete(view);
+    };
+  }
+
+  /** Der Erfolgstoast folgt erst, wenn offene Ansichten den bestätigten Artikel übernommen haben. */
+  async synchronizeRelisting(job: VintedListingJob): Promise<boolean> {
+    if (!job.relistExternalId) return true;
+    const userId = this.auth.currentUser()?.id;
+    const workspace = this.workspace.currentWorkspace();
+    if (
+      !userId ||
+      !workspace ||
+      workspace.archived_at ||
+      workspace.id !== job.workspaceId ||
+      job.state !== 'confirmed' ||
+      !job.externalId ||
+      job.externalId === job.relistExternalId
+    )
+      return false;
+    const views = [...this.relistingViews].filter(
+      ({ scope }) =>
+        scope.userId === userId &&
+        scope.workspaceId === job.workspaceId &&
+        scope.connectionId === job.connectionId,
+    );
+    const ready = await Promise.all(views.map((view) => view.update(job)));
+    return ready.every(Boolean);
+  }
+
   readonly acceptedRelistings = computed(() => {
     const user = this.auth.currentUser();
     const workspace = this.workspace.currentWorkspace();
