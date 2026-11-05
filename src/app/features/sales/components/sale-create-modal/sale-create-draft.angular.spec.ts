@@ -6,10 +6,13 @@ import type { SaleDraft } from '../../models/sale-draft.models';
 import { SaleDraftService } from '../../services/sale-draft.service';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
 
-type DraftSubject = SaleCreateModalComponent & {
+type DraftSubject = SaleCreateModalComponent;
+/** Zugriff auf private Hilfsmethoden, die die Seite über Eingänge auslöst. */
+interface DraftInternals {
   applyDraft(draft: SaleDraft): void;
   removeBookedDraft(): Promise<void>;
-};
+}
+const internals = (component: DraftSubject) => component as unknown as DraftInternals;
 
 function createDraftSubject() {
   const draftService = {
@@ -90,7 +93,7 @@ describe('Verkaufsentwürfe in der Verkaufserfassung', () => {
     const snapshot = source.draftSnapshot();
 
     const target = createDraftSubject().component;
-    target.applyDraft({
+    internals(target).applyDraft({
       id: 'draft-7',
       workspaceId: 'workspace-1',
       title: 'Pullover und 1 weitere',
@@ -140,13 +143,13 @@ describe('Verkaufsentwürfe in der Verkaufserfassung', () => {
   it('löscht den Entwurf nach dem Buchen und meldet einen Löschfehler ohne die Buchung zu verwerfen', async () => {
     const { component, draftService, toast } = createDraftSubject();
     component.draftId.set('draft-3');
-    await component.removeBookedDraft();
+    await internals(component).removeBookedDraft();
     expect(draftService.remove).toHaveBeenCalledWith('workspace-1', 'draft-3');
     expect(component.draftId()).toBeNull();
 
     component.draftId.set('draft-4');
     draftService.remove.mockRejectedValueOnce(new Error('offline'));
-    await component.removeBookedDraft();
+    await internals(component).removeBookedDraft();
     expect(toast.warning).toHaveBeenCalledOnce();
   });
 });
