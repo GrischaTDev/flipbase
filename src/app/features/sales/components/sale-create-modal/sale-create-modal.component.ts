@@ -70,6 +70,8 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
+import type { SaleDraft, SaleDraftSnapshot } from '../../models/sale-draft.models';
+import { SaleDraftService } from '../../services/sale-draft.service';
 import type {
   ExternalSaleEntryDraft,
   ExternalSaleEntryEditorSnapshot,
@@ -151,6 +153,10 @@ export class SaleCreateModalComponent {
   readonly showActions = input(true);
   readonly externalDraft = input<ExternalSaleEntryDraft | null>(null);
   readonly externalSubmit = input<ExternalSaleEntrySubmit | null>(null);
+  /** Gespeicherter Verkaufsentwurf, der in die Erfassung geladen wird. */
+  readonly draft = input<SaleDraft | null>(null);
+  readonly draftId = signal<string | null>(null);
+  readonly isSavingDraft = signal(false);
   private previousExternalDraft: ExternalSaleEntryDraft | null = null;
   private readonly externalOutcomeBlocked = signal(false);
   readonly closed = output<void>();
@@ -161,7 +167,87 @@ export class SaleCreateModalComponent {
   }
 
   isSaving(): boolean {
-    return this.isSubmitting();
+    return this.isSubmitting() || !!this.isSavingDraft?.();
+  }
+
+  /** Entwürfe gibt es nur für neue, frei erfasste Verkäufe. */
+  canSaveDraft(): boolean {
+    return (
+      !!this.workspaceService?.currentWorkspace() &&
+      !this.sale() &&
+      !this.correctionSale?.() &&
+      !this.externalDraft() &&
+      !this.legacyReconciliation() &&
+      !this.isPersisted() &&
+      !this.isSaving() &&
+      this.lines.controls.some((line) => !!line.controls.target.value)
+    );
+  }
+
+  draftSnapshot(): SaleDraftSnapshot {
+    const raw = this.form.getRawValue();
+    const references = this.purchaseReferences();
+    return {
+      version: 1,
+      lines: this.lines.controls
+        .filter((line) => !!line.controls.target.value)
+        .map((line) => ({
+          target: line.controls.target.value,
+          quantity: line.controls.quantity.value,
+          unitSalePrice: line.controls.unitSalePrice.value,
+          purchaseId: references.get(line) || null,
+        })),
+      platform: raw.platform,
+      saleDate: raw.saleDate,
+      platformFee: raw.platformFee,
+      shippingCost: raw.shippingCost,
+      shippingRevenue: raw.shippingRevenue,
+      shippingMode: raw.shippingMode,
+      additionalCosts: raw.additionalCosts.map((cost) => ({
+        category: cost.category,
+        description: cost.description,
+        amount: cost.amount,
+      })),
+      externalOrderId: raw.externalOrderId,
+      buyerNotes: raw.buyerNotes,
+    };
+  }
+
+  /** Speichert den Erfassungsstand, ohne den Verkauf zu buchen. */
+  async saveDraft(): Promise<boolean> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!workspaceId || !this.canSaveDraft()) return false;
+    this.isSavingDraft.set(true);
+    this.errorMessage.set(null);
+    try {
+      const filled = this.lines.controls.filter((line) => !!line.controls.target.value);
+      const titles = filled.map((line) => this.articleTitle(line).trim()).filter(Boolean);
+      const title =
+        titles.length > 1
+          ? `${titles[0]} und ${titles.length - 1} weitere`
+          : (titles[0] ?? 'Verkaufsentwurf');
+      const id = await this.injector.get(SaleDraftService).save({
+        id: this.draftId(),
+        workspaceId,
+        title,
+        saleAmount: this.grossRevenue(),
+        snapshot: this.draftSnapshot(),
+      });
+      this.draftId.set(id);
+      this.form.markAsPristine();
+      this.toast.success('Entwurf wurde gespeichert.');
+      return true;
+    } catch (cause: unknown) {
+      const message =
+        cause instanceof Error
+          ? cause.message
+          : 'Der Verkaufsentwurf konnte nicht gespeichert werden.';
+      this.errorMessage.set(message);
+      this.toast.error('Entwurf konnte nicht gespeichert werden.', message);
+      return false;
+    } finally {
+      this.isSavingDraft.set(false);
+    }
   }
 
   private readonly salesService = inject(SalesService);
@@ -280,6 +366,12 @@ export class SaleCreateModalComponent {
   readonly selectionLoading = computed(() => {
     const workspaceId = this.workspaceService?.currentWorkspace()?.id;
     if (!workspaceId) return false;
+    // Ohne Shop lädt Flipbase weder Artikelstamm noch Bestand; nur die Einkäufe zählen.
+    if (!this.shopActive())
+      return (
+        !!this.purchaseService?.isLoading?.() ||
+        this.purchaseService?.loadedWorkspaceId?.() !== workspaceId
+      );
     return (
       this.isLoadingStock() ||
       !!this.inventoryService.isLoading?.() ||
@@ -523,6 +615,11 @@ export class SaleCreateModalComponent {
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
     this.destroyRef.onDestroy(() => this.stockLoadRequestId++);
+    effect(() => {
+      const draft = this.draft();
+      if (!draft) return;
+      untracked(() => this.applyDraft(draft));
+    });
     effect(() => {
       const original = this.correctionSale?.();
       if (!original) return;
@@ -962,6 +1059,7 @@ export class SaleCreateModalComponent {
           : await this.salesService.recordSale(input);
       if (result.error) throw result.error;
       this.isPersisted.set(true);
+      await this.removeBookedDraft();
       this.toast.success(existing ? 'Verkauf wurde gespeichert.' : 'Verkauf wurde abgeschlossen.');
       this.created.emit();
       this.closed.emit();
@@ -986,6 +1084,22 @@ export class SaleCreateModalComponent {
     }
   }
 
+  /** Der gebuchte Verkauf ersetzt den Entwurf; ein Löschfehler macht die Buchung nicht ungültig. */
+  private async removeBookedDraft(): Promise<void> {
+    const id = this.draftId?.();
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!id || !workspaceId) return;
+    try {
+      await this.injector.get(SaleDraftService).remove(workspaceId, id);
+      this.draftId.set(null);
+    } catch {
+      this.toast.warning(
+        'Entwurf ist noch vorhanden.',
+        'Der Verkauf ist gebucht. Lösche den Entwurf bitte in der Verkaufsübersicht.',
+      );
+    }
+  }
+
   private focusFirstInvalidField(): void {
     afterNextRender(
       () =>
@@ -996,6 +1110,43 @@ export class SaleCreateModalComponent {
         )?.focus(),
       { injector: this.injector },
     );
+  }
+
+  private applyDraft(draft: SaleDraft): void {
+    const snapshot = draft.snapshot;
+    this.draftId.set(draft.id);
+    this.lines.clear();
+    this.purchaseReferences.set(new Map());
+    for (const source of snapshot.lines.length
+      ? snapshot.lines
+      : [{ target: '', quantity: 1, unitSalePrice: 0, purchaseId: null }]) {
+      const line = this.createLineForm();
+      line.setValue({
+        target: source.target,
+        quantity: source.quantity,
+        unitSalePrice: source.unitSalePrice,
+      });
+      this.lines.push(line);
+      if (source.purchaseId)
+        this.purchaseReferences.update((current) => new Map(current).set(line, source.purchaseId!));
+      this.updateQuantityValidator(line);
+    }
+    this.additionalCosts.clear();
+    for (const cost of snapshot.additionalCosts)
+      this.additionalCosts.push(this.createAdditionalCostForm(cost));
+    // Die gespeicherte Versandart gilt; der Plattform-Standard soll sie nicht überschreiben.
+    this.hasExplicitShippingMode = true;
+    this.form.patchValue({
+      platform: snapshot.platform,
+      saleDate: snapshot.saleDate,
+      platformFee: snapshot.platformFee,
+      shippingCost: snapshot.shippingCost,
+      shippingRevenue: snapshot.shippingRevenue,
+      shippingMode: snapshot.shippingMode,
+      externalOrderId: snapshot.externalOrderId,
+      buyerNotes: snapshot.buyerNotes,
+    });
+    this.form.markAsPristine();
   }
 
   private createLineForm(): SaleLineForm {

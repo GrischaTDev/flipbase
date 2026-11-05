@@ -196,7 +196,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     }
   });
   it.each([false, true])(
-    'schließt Kontoabgleiche ohne Toast ab (automatisch: %s)',
+    'zeigt Kontoabgleiche nicht in der Kopfzeile und schließt sie ohne Toast ab (automatisch: %s)',
     async (isAutomated) => {
       enabled.set(true);
       const syncAction: VintedAction = {
@@ -209,17 +209,60 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       read.mockResolvedValue({ actions: [syncAction] });
       const store = TestBed.inject(VintedActionOverviewHeaderStore);
       await settle();
-      expect(store.count()).toBe(2);
-      expect(store.hasRunning()).toBe(true);
+      expect(store.count()).toBe(0);
+      expect(store.hasRunning()).toBe(false);
+      expect(store.groups()).toEqual([]);
       read.mockResolvedValue({ actions: [{ ...syncAction, state: 'succeeded' }] });
       await store.refresh();
-      expect(store.count()).toBe(0);
       expect(store.groups()).toEqual([]);
-      expect(TestBed.inject(ToastService).toasts()).toEqual([]);
-      await store.refresh();
       expect(TestBed.inject(ToastService).toasts()).toEqual([]);
     },
   );
+  it('meldet einen neu beobachteten Fehler beim Kontoabgleich einmalig als Toast', async () => {
+    enabled.set(true);
+    list.mockResolvedValue({ canManage: true, connections: accounts.slice(0, 1) });
+    const syncAction: VintedAction = {
+      ...action,
+      id: 'sync:job',
+      source: 'sync',
+      kind: 'sync',
+      isAutomated: true,
+      updatedAt: new Date().toISOString(),
+    };
+    const oldFailure: VintedAction = { ...syncAction, id: 'sync:old', state: 'failed' };
+    read.mockResolvedValue({ actions: [syncAction, oldFailure] });
+    const store = TestBed.inject(VintedActionOverviewHeaderStore);
+    const toasts = TestBed.inject(ToastService);
+    await settle();
+    expect(toasts.toasts()).toEqual([]);
+    read.mockResolvedValue({ actions: [{ ...syncAction, state: 'failed' }, oldFailure] });
+    await store.refresh();
+    expect(toasts.toasts()).toEqual([
+      expect.objectContaining({ title: 'Aktualisierung fehlgeschlagen' }),
+    ]);
+    expect(store.groups()).toEqual([]);
+    await store.refresh();
+    expect(toasts.toasts()).toHaveLength(1);
+  });
+  it('behält beim erneuten Abruf den geladenen Stand statt eines Ladehinweises', async () => {
+    enabled.set(true);
+    read.mockResolvedValue({ actions: [] });
+    const store = TestBed.inject(VintedActionOverviewHeaderStore);
+    await settle();
+    expect(store.loaded()).toBe(true);
+    let finish: ((value: { actions: VintedAction[] }) => void) | undefined;
+    read.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    void store.refresh();
+    await settle();
+    expect(store.loading()).toBe(true);
+    expect(store.loaded()).toBe(true);
+    finish?.({ actions: [] });
+  });
   it('liest nach Rückkehr ins Fenster den aktuellen Stand ohne manuellen Button', async () => {
     enabled.set(true);
     const store = TestBed.inject(VintedActionOverviewHeaderStore);

@@ -5,18 +5,34 @@
   (cancelled)="returnToSales()"
 >
   <div entry-header-actions class="flex flex-wrap justify-end gap-2">
-    <app-button variant="secondary" [disabled]="isSaving()" (clicked)="returnToSales()">
-      Abbrechen
-    </app-button>
+    @if (!routeState.correctionSale && !routeState.legacyReconciliation) {
+      <app-button
+        variant="secondary"
+        [loading]="entryForm()?.isSavingDraft() ?? false"
+        [disabled]="!canSaveDraft()"
+        (clicked)="saveDraft()"
+      >
+        Entwurf speichern
+      </app-button>
+    }
     <app-button variant="primary" [loading]="isSaving()" [disabled]="!canSave()" (clicked)="save()">
       {{ entryForm()?.absendeBeschriftung() ?? 'Verkauf abschließen' }}
     </app-button>
   </div>
-  <app-sale-create-modal
-    [showActions]="false"
-    [correctionSale]="routeState.correctionSale ?? null"
-    [saleTarget]="routeState.saleTarget ?? null"
-    [legacyReconciliation]="routeState.legacyReconciliation ?? null"
-    (closed)="returnToSales()"
-  />
+  @if (draftLoading()) {
+    <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
+      <app-loading-indicator /> Entwurf wird geladen …
+    </p>
+  } @else if (draftError(); as error) {
+    <p role="alert" class="text-[13px] text-fb-critical">{{ error }}</p>
+  } @else {
+    <app-sale-create-modal
+      [showActions]="false"
+      [draft]="draft()"
+      [correctionSale]="routeState.correctionSale ?? null"
+      [saleTarget]="routeState.saleTarget ?? null"
+      [legacyReconciliation]="routeState.legacyReconciliation ?? null"
+      (closed)="returnToSales()"
+    />
+  }
 </app-entry-page-layout>

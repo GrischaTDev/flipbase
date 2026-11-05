@@ -172,7 +172,7 @@ describe('PurchaseCostOverviewDialogComponent', () => {
     fixture.componentInstance.onValidityChanged(true);
     fixture.detectChanges();
 
-    const saveButton = findButton(fixture.nativeElement as HTMLElement, 'Speichern');
+    const saveButton = findButton(fixture.nativeElement as HTMLElement, 'Hinzufügen');
     expect(saveButton.disabled).toBe(false);
     saveButton.click();
 
@@ -210,7 +210,7 @@ describe('PurchaseCostOverviewDialogComponent', () => {
     editor.costRows.at(0).controls.taxTreatment.setValue('expense');
     fixture.detectChanges();
     expect(fixture.componentInstance.saveDisabled()).toBe(false);
-    findButton(fixture.nativeElement as HTMLElement, 'Speichern').click();
+    findButton(fixture.nativeElement as HTMLElement, 'Hinzufügen').click();
     expect(saved).toHaveBeenCalledWith({
       discountAmount: 0,
       costs: [{ ...cost, taxTreatment: 'expense' }],
@@ -245,7 +245,7 @@ describe('PurchaseCostOverviewDialogComponent', () => {
 
     expect(host.querySelector('[role="status"]')?.textContent).toContain('Artikelzuordnung');
     expect(saved).not.toHaveBeenCalled();
-    const save = findButton(host, 'Speichern');
+    const save = findButton(host, 'Hinzufügen');
     expect(save.disabled).toBe(false);
     save.click();
 

@@ -12,8 +12,11 @@ test('ungespeicherte Artikeländerung lässt sich beim Weggehen behalten', async
     .locator('app-product-detail')
     .getByRole('textbox', { name: 'Name', exact: true });
   await field.fill('Noch nicht gespeichert');
-  page.once('dialog', (dialog) => dialog.dismiss());
   await page.getByRole('link', { name: 'Zur Artikelliste', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Seite verlassen?' })
+    .getByRole('button', { name: 'Weiter bearbeiten', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/catalog\/[^/?]+$/);
   await expect(field).toHaveValue('Noch nicht gespeichert');
   await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();

@@ -65,13 +65,15 @@ test('keeps edits after cancelling navigation and leaves after confirmation', as
   const description = page.getByRole('textbox', { name: 'Beschreibung' });
   await description.fill('Nicht verwerfen');
 
-  page.once('dialog', (dialog) => dialog.dismiss());
+  // Die Rückfrage kommt aus dem eigenen App-Dialog, nicht aus dem Browserfenster.
+  const leaveDialog = page.getByRole('dialog', { name: 'Seite verlassen?' });
   await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
+  await leaveDialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await expect(page).toHaveURL(/\/purchases\/new$/);
   await expect(description).toHaveValue('Nicht verwerfen');
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
+  await leaveDialog.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
   await expect(page).toHaveURL(/\/purchases$/);
 });
 
@@ -133,7 +135,7 @@ test('applies cost adjustments only when the management dialog is saved', async 
   await dialog.getByRole('combobox', { name: 'Zusatzausgabe 1', exact: true }).click();
   await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
   await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
 
   await expect(page.getByRole('textbox', { name: 'Beschreibung' })).toHaveValue('Kostenentwurf');
   await expect(page.getByRole('button', { name: 'Entwurf speichern' })).toBeEnabled();

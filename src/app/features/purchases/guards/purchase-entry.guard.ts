@@ -7,8 +7,9 @@ export type PurchaseEntryNavigationState = UnsavedEntryPage & {
 
 export function canLeavePurchaseEntry(
   component: PurchaseEntryNavigationState,
-  confirmLeave: (message: string) => boolean = (message) => window.confirm(message),
-): boolean {
+  confirmLeave: (message: string) => boolean | Promise<boolean> = (message) =>
+    window.confirm(message),
+): boolean | Promise<boolean> {
   if (component.isReloadingAfterSave?.() && !component.hasUnsavedChanges()) return true;
   return canLeaveUnsavedEntry(component, confirmLeave);
 }

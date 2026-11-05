@@ -40,16 +40,14 @@ for (const view of [
         });
         expect(profile.error).toBeNull();
         await page.goto('/sales/new');
-        await page.getByRole('button', { name: 'Freie Position', exact: true }).click();
+        await page.getByRole('button', { name: 'Position hinzufügen', exact: true }).click();
         await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).fill('25');
         await page.getByRole('combobox', { name: 'Verkaufsplattform' }).click();
         await page.getByRole('option', { name: 'Direktverkauf', exact: true }).click();
         await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
-        await expect(
-          page.getByText('Bitte gib eine Beschreibung ein.', { exact: true }),
-        ).toBeVisible();
+        await expect(page.getByText('Artikelname fehlt.', { exact: true })).toBeVisible();
         await page
-          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .getByRole('textbox', { name: 'Artikelname', exact: true })
           .fill('Freier Pullover');
         await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
         await expect(page).toHaveURL(/\/sales$/);
@@ -64,7 +62,7 @@ for (const view of [
           .click();
         await page.getByRole('button', { name: 'Verkauf korrigieren', exact: true }).click();
         await page
-          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .getByRole('textbox', { name: 'Artikelname', exact: true })
           .fill('Pullover korrigiert');
         await page
           .getByRole('textbox', { name: 'Korrekturgrund', exact: true })

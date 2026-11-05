@@ -33,7 +33,7 @@ for (const width of [1440, 390]) {
         ).violations,
     );
     expect(violations).toEqual([]);
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
     const summary = page.getByRole('region', { name: 'Kostenübersicht' });
     await expect(summary).toContainText('Versandkosten');
     await expect(summary).toContainText('110,00');
@@ -51,13 +51,13 @@ for (const width of [1440, 390]) {
     await expect(reopenedAmount).toHaveValue('10');
     await reopenedAmount.fill('12');
     await expect(
-      reopenedDialog.getByRole('button', { name: 'Speichern', exact: true }),
+      reopenedDialog.getByRole('button', { name: 'Hinzufügen', exact: true }),
     ).toBeEnabled();
     if (process.env['TAX_QA_SCREENSHOTS'])
       await page.screenshot({
         path: `${process.env['TAX_QA_SCREENSHOTS']}/additional-costs-${width}.png`,
       });
-    await reopenedDialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await reopenedDialog.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
     await expect(reopenedDialog).toBeHidden();
     const saveChanges = page.getByRole('button', { name: 'Änderungen speichern', exact: true });
     await expect(saveChanges).toBeEnabled();

@@ -1029,6 +1029,14 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
     border-bottom: 0;
     vertical-align: middle;
   }
+  /* Eingebettete Positionstabellen werden auf dem Handy zu Rasterzeilen. Dort wirkt
+     eine feste Zellhöhe nicht als Mindesthöhe, sondern schneidet mehrzeilige Zellen ab. */
+  @media (width < 48rem) {
+    .fb-admin table[data-shared-ui-exception='embedded-table'] tbody tr td {
+      height: auto;
+      min-height: 2.5rem;
+    }
+  }
   .fb-admin
     table:not(.sales-table):not(:where(.din-a4-sheet table, app-purchase-print table))
     td:not(:first-child) {
