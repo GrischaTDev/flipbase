@@ -56,7 +56,10 @@ import {
   VintedListingReadError,
 } from './vinted-listing-read-error.ts';
 import { vintedListingUpdateStoppedBeforeSaving } from './vinted-browser-listing-update.ts';
-import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import type {
+  VintedListingCategoryFields,
+  VintedListingContent,
+} from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import {
   parseVintedListingPhotoArrangement,
   type VintedListingPhotoArrangement,
@@ -115,7 +118,12 @@ interface BrowserApiOptions {
   conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'> &
-    Partial<Pick<SupabaseVintedListingCache, 'saveContent' | 'saveTransferSource' | 'remove'>>;
+    Partial<
+      Pick<
+        SupabaseVintedListingCache,
+        'saveContent' | 'saveTransferSource' | 'remove' | 'saveCategoryFields'
+      >
+    >;
 
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'> &
     Partial<Pick<SupabaseVintedProfileCache, 'saveDetails'>>;
@@ -360,6 +368,20 @@ export class MarketplaceBrowserHttpApi {
    * Fehlers wird deshalb sofort protokolliert: Herkunft, Fehlerart und höchstens eine feste
    * eigene Meldung ohne Ziffern oder Sonderzeichen.
    */
+  /** Gelesene Auswahlwerte sind ein Nebenprodukt; ein Speicherfehler bricht den Abruf nicht ab. */
+  private async rememberCategoryFields(
+    scope: BrowserSessionScope,
+    externalAccountId: string,
+    fields: VintedListingCategoryFields,
+  ): Promise<void> {
+    if (!this.listingCache?.saveCategoryFields || !fields.fields.length) return;
+    try {
+      await this.listingCache.saveCategoryFields(scope, externalAccountId, fields);
+    } catch {
+      process.stderr.write('Vinted-Auswahlwerte konnten nicht gespeichert werden!\n');
+    }
+  }
+
   private logListingReadDetail(
     route: 'content/read' | 'edit/read' | 'content/save' | 'price/save',
     error: unknown,
@@ -767,6 +789,7 @@ export class MarketplaceBrowserHttpApi {
               throw readFailure ?? error;
             });
           await authorize();
+          await this.rememberCategoryFields(scope, target.accountId, fields);
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;
           json(response, 200, { fields });
@@ -864,6 +887,7 @@ export class MarketplaceBrowserHttpApi {
           phase = 'confirm';
           await authorize();
           await this.listingCache?.saveTransferSource?.(scope, entryId, listing);
+          await this.rememberCategoryFields(scope, listing.externalAccountId, listing.schema);
           await authorize();
           phase = 'close';
           await this.broker.close(scope, currentSessionId);

@@ -319,3 +319,90 @@ it('keeps the old account-specific scarf categories distinct from modern target-
   expect(legacy.fields.some((field) => field.field === 'accessory_department')).toBe(false);
   expect(modern.fields.some((field) => field.field === 'accessory_department')).toBe(true);
 });
+
+describe('Gespeicherte echte Vinted-Auswahlwerte', () => {
+  const real = {
+    categoryId: 257,
+    fields: [
+      {
+        field: 'size' as const,
+        sizeGroupId: null,
+        choices: [
+          { id: 1641, label: 'W32', selected: true, disabled: false, sizeGroupId: 1074 },
+          { id: 207, label: 'S', selected: false, disabled: false, sizeGroupId: 4 },
+          { id: 2236, label: 'EU 38', selected: false, disabled: false, sizeGroupId: 30 },
+        ],
+      },
+      {
+        field: 'condition' as const,
+        sizeGroupId: null,
+        choices: [
+          { id: 2, label: 'Sehr gut', selected: false, disabled: false, sizeGroupId: null },
+        ],
+      },
+      {
+        field: 'color' as const,
+        sizeGroupId: null,
+        choices: [{ id: 9, label: 'Blau', selected: false, disabled: false, sizeGroupId: null }],
+      },
+    ],
+    unknownFields: [],
+    acceptedPhotoMimeTypes: ['image/jpeg'],
+    titleMaxLength: 100,
+    descriptionMaxLength: 2000,
+    aiPhoto: false,
+    bump: false,
+  };
+  const content = {
+    ...emptyVintedListingContent(),
+    title: 'Levi’s 501',
+    description: 'Gut erhalten.',
+    priceCents: 2500,
+    categoryId: 257,
+    categoryLabel: 'Herren > Kleidung > Jeans',
+    brandId: 10,
+    brandLabel: 'Levi’s',
+    sizeLabel: 'W32',
+    conditionLabel: 'Sehr gut',
+    colorLabels: ['Blau'],
+  };
+
+  it('zeigt alle Größengruppen von Vinted und lässt nicht angebotene Felder weg', () => {
+    const schema = flipbaseVintedListingFields(257, content.categoryLabel, content, real);
+    const sizes = schema.fields.find((field) => field.field === 'size')!.choices;
+    expect(sizes.map((choice) => [choice.id, choice.label, choice.selected])).toEqual([
+      [1641, 'W32', false],
+      [207, 'S', false],
+      [2236, 'EU 38', false],
+    ]);
+    expect(schema.fields.some((field) => field.field === 'material')).toBe(false);
+    expect(schema.fields.some((field) => field.field === 'package')).toBe(true);
+  });
+
+  it('übernimmt echte Kennungen und meldet bei Vinted nicht mehr vorhandene Größen', () => {
+    const prepared = prepareFlipbaseVintedListingContent(content, real);
+    expect(prepared).toMatchObject({ sizeId: 1641, conditionId: 2, colorIds: [9] });
+    const photos = [{ mimeType: 'image/jpeg', byteSize: 123 }];
+    expect(
+      validateVintedListingEditor(
+        prepared,
+        photos,
+        flipbaseVintedListingFields(257, content.categoryLabel, prepared, real),
+      )['size'],
+    ).toBeUndefined();
+    const outdated = prepareFlipbaseVintedListingContent({ ...content, sizeLabel: 'W31' }, real);
+    expect(outdated.sizeId).toBeNull();
+    expect(
+      validateVintedListingEditor(
+        outdated,
+        photos,
+        flipbaseVintedListingFields(257, content.categoryLabel, outdated, real),
+      )['size'],
+    ).toBeDefined();
+  });
+
+  it('ignoriert gespeicherte Werte einer anderen Kategorie', () => {
+    const schema = flipbaseVintedListingFields(1223, 'Damen > Kleidung > Jacken', content, real);
+    expect(schema.fields.find((field) => field.field === 'size')!.choices[0]!.label).toBe('XXXS');
+  });
+});

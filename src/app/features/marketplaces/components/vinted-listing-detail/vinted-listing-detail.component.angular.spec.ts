@@ -1,3 +1,4 @@
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import type { VintedSellingTreeNode } from '../../../../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -106,6 +107,10 @@ function setup(items: MarketplaceEntry[] = [], queryParams: Record<string, strin
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedCategoryFieldStore,
+        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+      },
       {
         provide: VintedListingCategoryService,
         useValue: {
@@ -759,7 +764,6 @@ it('loads the selected selling category and saves its explicit target group agai
   await settle();
   expect(categoryApi.read).toHaveBeenCalledWith(account.connectionId, 5555, {
     categoryLabel: 'Tücher & Schals',
-    fresh: true,
   });
   expect(component.form.controls.size.value).toBe('');
   component.form.patchValue({

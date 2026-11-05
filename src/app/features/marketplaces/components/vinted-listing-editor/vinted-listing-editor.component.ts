@@ -54,6 +54,7 @@ import type { ListingImageDraft } from '../../../../shared/components/listing-im
 import type { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import {
   VintedListingImageService,
@@ -205,6 +206,7 @@ export class VintedListingEditorComponent {
   private readonly imageApi = inject(VintedListingImageService);
   private readonly originals = inject(VintedListingOriginalPhotoService);
   private readonly liveCategoryApi = inject(VintedListingCategoryService);
+  private readonly categoryFields = inject(VintedCategoryFieldStore);
   private readonly sellingCategories = new Map<
     number,
     { id: number; title: string; path: string }
@@ -407,7 +409,12 @@ export class VintedListingEditorComponent {
     if (this.context() !== this.loadedContext) return null;
     return content.categoryId === null
       ? null
-      : flipbaseVintedListingFields(content.categoryId, content.categoryLabel, content);
+      : flipbaseVintedListingFields(
+          content.categoryId,
+          content.categoryLabel,
+          content,
+          this.categoryFields.fields(this.selectedAccount()?.connectionId, content.categoryId),
+        );
   });
   readonly fieldErrors = computed(() => {
     const stored = this.draft()?.images ?? [];
@@ -516,6 +523,12 @@ export class VintedListingEditorComponent {
   });
 
   constructor() {
+    effect(() => {
+      // Echte Auswahlwerte der gewählten Kategorie aus der Datenbank nachladen.
+      const categoryId = this.currentCategoryId();
+      const connectionId = this.selectedAccount()?.connectionId;
+      untracked(() => void this.categoryFields.load(connectionId, categoryId));
+    });
     effect(() => {
       const photoDisabled = this.saving() || this.imageEditing();
       const accountDisabled = this.relisting();
@@ -1388,6 +1401,7 @@ export class VintedListingEditorComponent {
       fields?.categoryId === categoryId
         ? applyVintedListingFieldSelection(content, fields)
         : content,
+      this.categoryFields.fields(this.selectedAccount()?.connectionId, categoryId),
     );
   }
   private focusFirstIssue(): void {

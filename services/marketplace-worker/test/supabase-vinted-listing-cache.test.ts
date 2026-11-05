@@ -111,3 +111,37 @@ test('Löschcache begrenzt alle Kontofilter und berührt weder Storage noch Orig
   );
   assert.equal(calls, 1);
 });
+
+test('stores real category choices per account without listing selections or brand', async () => {
+  const schema = listingCurrentContentFixture().schema;
+  let body: Record<string, unknown> | undefined;
+  const cache = new SupabaseVintedListingCache({
+    url: 'https://db.example.test',
+    serviceRoleKey: 'server-key',
+    fetch: async (input, init) => {
+      assert.equal(
+        new URL(String(input)).pathname,
+        '/rest/v1/rpc/marketplace_save_vinted_category_fields',
+      );
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return Response.json(true);
+    },
+  });
+  const scope = {
+    workspaceId: 'workspace',
+    connectionId: 'account',
+    userId: 'user',
+    userAccessToken: 'user-token',
+  };
+  assert.equal(
+    await cache.saveCategoryFields(scope, '123', schema, '2026-11-05T10:00:00.000Z'),
+    true,
+  );
+  assert.equal(body?.p_external_account_id, '123');
+  assert.equal(body?.p_observed_at, '2026-11-05T10:00:00.000Z');
+  const stored = body?.p_fields as typeof schema;
+  assert.equal(stored.categoryId, schema.categoryId);
+  assert.ok(stored.fields.length > 0);
+  assert.ok(stored.fields.every((field) => field.field !== 'brand'));
+  assert.ok(stored.fields.every((field) => field.choices.every((choice) => !choice.selected)));
+});

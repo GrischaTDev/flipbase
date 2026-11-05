@@ -1,3 +1,4 @@
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -166,6 +167,10 @@ function setup(allowed = false) {
       .mockResolvedValue({ available: true, readOnly: false, listingPublishingEnabled: true });
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedCategoryFieldStore,
+        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+      },
       { provide: AuthService, useValue: { currentUser: user } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceAccountStore, useValue: { canManage: signal(true), connections } },

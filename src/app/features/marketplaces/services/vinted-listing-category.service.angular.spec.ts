@@ -7,6 +7,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 import { VintedListingCategoryService } from './vinted-listing-category.service';
+import { VintedCategoryFieldStore } from './vinted-category-field.store';
 
 const connection = {
   workspaceId: 'workspace-a',
@@ -34,6 +35,11 @@ function setup() {
     connections = signal([connection]),
     canManage = signal(true);
   const read = vi.fn().mockResolvedValue(fields);
+  const stored = {
+    load: vi.fn().mockResolvedValue(null),
+    fields: () => null,
+    remember: vi.fn(),
+  };
   TestBed.configureTestingModule({
     providers: [
       { provide: SupabaseService, useValue: { client: {} } },
@@ -45,10 +51,12 @@ function setup() {
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceAccountStore, useValue: { connections, canManage } },
       { provide: MarketplaceBrowserTestApiService, useValue: { readListingCategory: read } },
+      { provide: VintedCategoryFieldStore, useValue: stored },
     ],
   });
   return {
     api: TestBed.inject(VintedListingCategoryService),
+    stored,
     read,
     workspace,
     user,
@@ -116,6 +124,7 @@ describe('Vinted category service', () => {
           }),
       );
       const pending = f.api.read('account-a', 1223);
+      await vi.waitFor(() => expect(f.read).toHaveBeenCalled());
       if (change === 'workspace') f.workspace.set({ id: 'workspace-b', archived_at: null });
       if (change === 'user') f.user.set({ id: 'user-b' });
       if (change === 'account') f.connections.set([{ ...connection, externalAccountId: '124' }]);
@@ -238,4 +247,15 @@ it('rejects a partial tree instead of showing an incomplete category picker', as
     error: null,
   });
   await expect(f.service.readSnapshot('modern')).rejects.toThrow('unvollständig');
+});
+
+it('verwendet gespeicherte echte Auswahlwerte ohne Abruf bei Vinted', async () => {
+  const f = setup();
+  const saved = { ...fields, titleMaxLength: 90 };
+  f.stored.load.mockResolvedValueOnce(saved);
+  expect(await f.api.read('account-a', 1223)).toEqual(saved);
+  expect(f.read).not.toHaveBeenCalled();
+  expect(await f.api.read('account-a', 1224)).toEqual(fields);
+  expect(f.read).toHaveBeenCalledTimes(1);
+  expect(f.stored.remember).toHaveBeenCalledWith('account-a', fields);
 });

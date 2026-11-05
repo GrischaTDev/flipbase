@@ -138,11 +138,19 @@ export class VintedRelistingSubmissionService {
       throw new Error('Die Artikelzuordnung hat sich geändert.');
     const sourceContent = parseVintedListingContent({ ...source.content, aiPhoto: source.aiPhoto });
     const photoUrls = source.photoUrls;
-    const content = prepareFlipbaseVintedListingContent({
-      ...sourceContent,
-      title: submission.title,
-      description: submission.descriptionKnown ? submission.description : sourceContent.description,
-    });
+    // Die gemeinsam mit dem Inserat gelesenen echten Auswahlwerte ersetzen die eigene Liste.
+    const realFields =
+      source.schema?.categoryId === sourceContent.categoryId ? source.schema : null;
+    const content = prepareFlipbaseVintedListingContent(
+      {
+        ...sourceContent,
+        title: submission.title,
+        description: submission.descriptionKnown
+          ? submission.description
+          : sourceContent.description,
+      },
+      realFields,
+    );
     const savedOriginals = await this.originals.read(
       { workspaceId: entry.workspaceId, connectionId: entry.connectionId },
       entry.externalId!,
@@ -167,7 +175,12 @@ export class VintedRelistingSubmissionService {
     const schema =
       content.categoryId === null
         ? null
-        : flipbaseVintedListingFields(content.categoryId, content.categoryLabel, content);
+        : flipbaseVintedListingFields(
+            content.categoryId,
+            content.categoryLabel,
+            content,
+            realFields,
+          );
     const errors = validateVintedListingEditor(
       content,
       files.map((file) => ({
@@ -224,7 +237,7 @@ export class VintedRelistingSubmissionService {
     ]);
     current();
     const review = reviewVintedListingPublication(
-      { ...draft, content: flipbaseVintedListingReviewContent(draft.content) },
+      { ...draft, content: flipbaseVintedListingReviewContent(draft.content, realFields) },
       schema!,
       brands,
       content.aiPhoto ?? false,

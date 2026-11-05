@@ -28,6 +28,7 @@ import {
   type VintedListingPermission,
 } from '../../models/vinted-listing-job';
 import { reviewVintedListingPublication } from '../../models/vinted-listing-publication-review';
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
 import {
@@ -91,6 +92,7 @@ export class VintedListingPublicationPreviewComponent {
   private readonly brandApi = inject(VintedBrandSearchService);
   private readonly browserApi = inject(MarketplaceBrowserTestApiService);
   private readonly api = inject(VintedListingJobService);
+  private readonly categoryFields = inject(VintedCategoryFieldStore);
   private readonly destroyRef = inject(DestroyRef);
   private loadedBinding: string | null = null;
   private generation = 0;
@@ -145,7 +147,13 @@ export class VintedListingPublicationPreviewComponent {
       ? reviewVintedListingPublication(
           {
             ...this.draft(),
-            content: flipbaseVintedListingReviewContent(this.draft().content),
+            content: flipbaseVintedListingReviewContent(
+              this.draft().content,
+              this.categoryFields.fields(
+                this.account().connectionId,
+                this.draft().content.categoryId,
+              ),
+            ),
           },
           schema,
           this.brands(),
@@ -271,13 +279,16 @@ export class VintedListingPublicationPreviewComponent {
     try {
       if (draft.content.categoryId === null) throw new Error('Wähle zuerst eine Vinted-Kategorie.');
       const [schema, brands, permission, availability, jobs] = await Promise.all([
-        Promise.resolve(
-          flipbaseVintedListingFields(
-            draft.content.categoryId,
-            draft.content.categoryLabel,
-            draft.content,
+        this.categoryFields
+          .load(account.connectionId, draft.content.categoryId)
+          .then((stored) =>
+            flipbaseVintedListingFields(
+              draft.content.categoryId!,
+              draft.content.categoryLabel,
+              draft.content,
+              stored,
+            ),
           ),
-        ),
         draft.content.brandId !== null
           ? this.brandApi.search(draft.content.brandLabel.slice(0, 100), draft.workspaceId)
           : Promise.resolve([] as VintedBrand[]),
@@ -290,7 +301,10 @@ export class VintedListingPublicationPreviewComponent {
       reviewVintedListingPublication(
         {
           ...draft,
-          content: flipbaseVintedListingReviewContent(draft.content),
+          content: flipbaseVintedListingReviewContent(
+            draft.content,
+            this.categoryFields.fields(account.connectionId, draft.content.categoryId),
+          ),
         },
         schema,
         brands,

@@ -21,6 +21,20 @@ Gespeicherte einfache Größen, Farben und Materialien gelten in der eigenen
 Auswahl weiter; Vinted ordnet sie wie bisher beim Veröffentlichen anhand der
 Bezeichnung zu. Mehrdeutige Kombinationen wie „M / L“ bleiben offen.
 
+**Echte Merkmale je Kategorie:** Auf Nutzerwunsch gespeichert statt geraten. Neue
+Tabelle `vinted_category_field_snapshots` mit Migration, Rechten und 15 SQL-Prüfungen.
+Der Worker speichert die Felder, die bei Inserat- und Kategorieabrufen ohnehin
+mitkommen; der Detailabgleich liest nun bis zu zehn statt drei Inserate je
+Kontoabgleich. Erstellen, Bearbeiten, Vorschau und Relisten verwenden die
+gespeicherten Größengruppen, Zustände, Farben und Materialien; ohne gespeicherte
+Werte gilt die eigene Liste. Ablauf unter
+[Echte Vinted-Merkmale je Kategorie](implementation/vinted-category-fields.md).
+Die seit PR #578 fehlende Registrierung von `468_marketplace_listing_details.sql`
+in `supabase/config.toml` nachgetragen. Migration in eigener lokaler Datenbank
+angewendet, Typen erzeugt (nur neue Tabelle und Funktion). Vorabcheck mit Node 22
+erfolgreich: 278 Skript-, 844 Node-, 217 DOM-, 2.581 Angular-Fälle, 94 gezielte
+Workerfälle, Bau. Datenbank-, Browser- und Imageprüfungen bleiben der CI vorbehalten.
+
 **Prüfung:** Neuer W32-Fall zuerst rot reproduziert, danach grün. Komponenten-
 fälle für Knopf und direktes Öffnen ergänzt. `npm run preflight` mit Node 22
 erfolgreich (Format, Lint, Typen, 26 Node-, 232 Angular-Fälle, Bau). Die

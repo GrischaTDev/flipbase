@@ -1,6 +1,9 @@
 import type { MarketplaceEntry } from './marketplace-read.models';
 import { flipbaseVintedListingFields } from './flipbase-vinted-listing-form';
-import type { VintedListingCurrentContent } from './vinted-listing-category-fields';
+import type {
+  VintedListingCategoryFields,
+  VintedListingCurrentContent,
+} from './vinted-listing-category-fields';
 import { vintedListingSourceContent } from './vinted-listing-source';
 import {
   applyVintedListingEdit,
@@ -16,10 +19,16 @@ import {
 export function storedVintedListingEdit(
   entry: MarketplaceEntry,
   description: string | null,
+  stored?: VintedListingCategoryFields | null,
 ): VintedListingEditSnapshot | null {
   const content = vintedListingSourceContent(entry, description);
   if (content.categoryId === null) return null;
-  const schema = flipbaseVintedListingFields(content.categoryId, content.categoryLabel, content);
+  const schema = flipbaseVintedListingFields(
+    content.categoryId,
+    content.categoryLabel,
+    content,
+    stored,
+  );
   const selected: Record<VintedListingEditField, readonly string[]> = {
     accessory_department: content.attributes['accessory_department_label']
       ? [content.attributes['accessory_department_label']]

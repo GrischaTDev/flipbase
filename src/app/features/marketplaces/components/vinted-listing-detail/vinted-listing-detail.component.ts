@@ -1,6 +1,7 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { applyVintedListingEdit } from '../../models/vinted-listing-edit-form';
 import { CurrencyPipe } from '@angular/common';
@@ -95,6 +96,7 @@ export class VintedListingDetailComponent {
   private readonly injector = inject(Injector);
   private readonly toast = inject(ToastService);
   private readonly categoryApi = inject(VintedListingCategoryService);
+  private readonly categoryFields = inject(VintedCategoryFieldStore);
   readonly categoryLoading = signal(false);
   private readonly categoryEdit = signal<VintedListingEditSnapshot | null>(null);
   readonly editingSnapshot = computed(() => this.categoryEdit() ?? this.current());
@@ -322,6 +324,12 @@ export class VintedListingDetailComponent {
       });
     });
     effect(() => {
+      // Echte Auswahlwerte der Kategorie früh laden, damit Bearbeiten sofort vollständig öffnet.
+      const categoryId = this.entry()?.listingContent?.categoryId;
+      const connectionId = this.connectionId();
+      untracked(() => void this.categoryFields.load(connectionId, categoryId));
+    });
+    effect(() => {
       if (!this.editRequested() || this.loading() || !this.entry()) return;
       untracked(() => {
         // Parameter sofort entfernen, damit ein Neuladen die Maske nicht erneut öffnet.
@@ -331,7 +339,12 @@ export class VintedListingDetailComponent {
           queryParamsHandling: 'merge',
           replaceUrl: true,
         });
-        this.edit();
+        const entry = this.entry();
+        void this.categoryFields
+          .load(this.connectionId(), entry?.listingContent?.categoryId)
+          .finally(() => {
+            if (this.entry() === entry) this.edit();
+          });
       });
     });
     effect(() => {
@@ -460,7 +473,11 @@ export class VintedListingDetailComponent {
     if (this.busy() || this.editing() || this.changingPrice() || !entry) return;
     this.error.set(null);
     this.notice.set(null);
-    const current = storedVintedListingEdit(entry, this.description()?.description ?? null);
+    const current = storedVintedListingEdit(
+      entry,
+      this.description()?.description ?? null,
+      this.categoryFields.fields(this.connectionId(), entry.listingContent?.categoryId),
+    );
     this.current.set(current);
     this.categoryEdit.set(null);
     this.categoryLoading.set(false);
@@ -522,7 +539,6 @@ export class VintedListingDetailComponent {
       if (!category) throw new Error('Suche die gewünschte Kategorie und wähle sie aus.');
       const schema = await this.categoryApi.read(this.connectionId(), category.id, {
         categoryLabel: category.title,
-        fresh: true,
       });
       if (!this.isCurrent(version) || this.form.controls.categoryId.value !== id) return;
       this.categoryEdit.set({
