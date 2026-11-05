@@ -1,4 +1,5 @@
 import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
+import { parseVintedListingEditContent } from './vinted-listing-contracts.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import type { VintedAccountImport, VintedConversationVersion } from './vinted-account-import.ts';
 
@@ -84,6 +85,13 @@ export class SupabaseVintedImportWriter {
         return [];
       const timestamp = (input: unknown) =>
         typeof input === 'string' && Number.isFinite(Date.parse(input)) ? input : null;
+      let listingContent;
+      try {
+        if (body['listingContent'] != null)
+          listingContent = parseVintedListingEditContent(body['listingContent']);
+      } catch {
+        // Eine beschädigte alte Aufnahme wird im automatischen Abgleich neu gelesen.
+      }
       return [
         {
           externalId: row['external_id'],
@@ -92,6 +100,16 @@ export class SupabaseVintedImportWriter {
           occurredAt: timestamp(row['flipbase_published_at']),
           publicationAge: parseVintedPublicationAge(body['publicationAge']),
           checkedAt: timestamp(body['publicationAgeCheckedAt']),
+          ...(listingContent ? { listingContent } : {}),
+          ...(body['listingDetailsReadAt'] !== undefined
+            ? { listingDetailsReadAt: timestamp(body['listingDetailsReadAt']) }
+            : {}),
+          ...(body['listingDetailsSourceUpdatedAt'] !== undefined
+            ? { listingDetailsSourceUpdatedAt: timestamp(body['listingDetailsSourceUpdatedAt']) }
+            : {}),
+          ...(body['listingDetailsAttemptedAt'] !== undefined
+            ? { listingDetailsAttemptedAt: timestamp(body['listingDetailsAttemptedAt']) }
+            : {}),
           ...(body['textState'] === 'loaded' &&
           typeof body['text'] === 'string' &&
           body['text'].length <= 2000

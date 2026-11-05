@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyVintedListingContent } from './vinted-listing-content';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import {
   parseMarketplaceConnections,
@@ -19,6 +20,17 @@ const snapshot = () => ({
 const entry = (body: object = {}) => ({ ...scope, id: 'entry-a', title: 'Schal', ...body });
 
 describe('Marktplatz-Antworten', () => {
+  it('übernimmt gespeicherte Artikeldetails und weist beschädigte Daten zurück', () => {
+    const listingContent = { ...emptyVintedListingContent(), categoryId: 2738, sizeLabel: '40' };
+    const page = (content: unknown) =>
+      parseMarketplacePage(
+        { items: [entry({ listingContent: content })], total: 1, nextCursor: null },
+        scope,
+      );
+    expect(page(listingContent).items[0].listingContent).toEqual(listingContent);
+    expect(page(null).items[0].listingContent).toBeUndefined();
+    expect(() => page({ ...listingContent, categoryId: '2738' })).toThrow();
+  });
   it('übernimmt das gerundete Anbieter-Alter getrennt vom Veröffentlichungsdatum', () => {
     const publicationAge = { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' };
     const result = parseMarketplacePage(

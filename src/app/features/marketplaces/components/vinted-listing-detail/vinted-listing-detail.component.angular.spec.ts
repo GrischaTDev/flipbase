@@ -41,7 +41,7 @@ import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { listingCurrentContentFixture } from '../../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
 const account = createMarketplaceFixtures().connections[0];
-const entry = (id: string, text = '') =>
+const entry = (id: string, text = '', listingContent?: MarketplaceEntry['listingContent']) =>
   parseMarketplacePage(
     {
       items: [
@@ -56,6 +56,7 @@ const entry = (id: string, text = '') =>
           ],
           text,
           textState: 'loaded',
+          ...(listingContent ? { listingContent } : {}),
         },
       ],
       total: 1,
@@ -287,6 +288,28 @@ describe('Reaktive Inseratdetails', () => {
     await settle();
     await component.edit();
     expect(component.editing()).toBe(true);
+  });
+  it('zeigt Datenbank-Artikelfelder ohne gesicherte Originalfotos und ohne Anbieterabruf', async () => {
+    const { component, store } = setup([
+      { ...entry('a', 'Sehr gut erhalten.', listingCurrentContentFixture().content), price: 20.5 },
+    ]);
+    await settle();
+    await component.edit();
+    expect(component.current()?.content.categoryId).toBe(2738);
+    expect(component.choiceFields().map((field) => field.label)).toEqual([
+      'Marke',
+      'Größe',
+      'Zustand',
+      'Paketgröße',
+    ]);
+    expect(component.multipleFields().map((field) => field.label)).toEqual(['Farben', 'Material']);
+    expect(await component.categorySource().getById('2738')).toMatchObject({
+      id: '2738',
+      name: 'Fußballschuhe',
+      fullName: 'Fußballschuhe',
+    });
+    expect(store.readListingContent).not.toHaveBeenCalled();
+    expect(store.readListingEdit).not.toHaveBeenCalled();
   });
   it('zeigt nach einem Konflikt den aktuellen Preis und nutzt ihn erst beim erneuten Speichern als Basis', async () => {
     const { component, store } = setup([{ ...entry('a'), price: 20.5, currency: 'EUR' }]);

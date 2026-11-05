@@ -1,6 +1,43 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SupabaseVintedListingCache } from '../src/supabase-vinted-listing-cache.ts';
+import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
+
+test('confirmed content stores all article details using the account-bound server RPC', async () => {
+  const content = listingCurrentContentFixture().content;
+  let calls = 0;
+  const cache = new SupabaseVintedListingCache({
+    url: 'https://db.example.test',
+    serviceRoleKey: 'server-key',
+    fetch: async (input, init) => {
+      calls++;
+      assert.equal(
+        new URL(String(input)).pathname,
+        '/rest/v1/rpc/marketplace_cache_listing_content',
+      );
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        p_workspace_id: 'workspace',
+        p_connection_id: 'account',
+        p_entry_id: 'entry',
+        p_external_id: '98765',
+        p_content: content,
+      });
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer server-key');
+      return Response.json(true);
+    },
+  });
+  const scope = {
+    workspaceId: 'workspace',
+    connectionId: 'account',
+    userId: 'user',
+    userAccessToken: 'user-token',
+  };
+  assert.equal(await cache.saveContent(scope, 'entry', '98765', content), true);
+  await assert.rejects(
+    cache.saveContent(scope, 'entry', '98765', { ...content, categoryId: null }),
+  );
+  assert.equal(calls, 1);
+});
 
 test('Inseratcache übergibt nur das gebundene Konto und die bestätigten Felder', async () => {
   let body: Record<string, unknown> | null = null;

@@ -10,6 +10,23 @@ begin
     new.body := jsonb_set(new.body, '{text}', old.body->'text', true);
     new.body := jsonb_set(new.body, '{textState}', to_jsonb('loaded'::text), true);
   end if;
+  -- Unvollständige Listen- oder Gesprächsimporte dürfen bestätigte Artikeldetails
+  -- derselben Kontobindung nicht entfernen. Neue vollständige Werte haben Vorrang.
+  if new.kind = 'publication' and old.kind = 'publication'
+    and row(new.workspace_id, new.connection_id, new.external_id)
+      is not distinct from row(old.workspace_id, old.connection_id, old.external_id)
+    and (
+      not (new.body ? 'listingContent')
+      or case when pg_input_is_valid(old.body->>'listingDetailsReadAt', 'timestamp with time zone') then
+        case when pg_input_is_valid(new.body->>'listingDetailsReadAt', 'timestamp with time zone') then
+          (new.body->>'listingDetailsReadAt')::timestamptz < (old.body->>'listingDetailsReadAt')::timestamptz
+        else true end
+      else false end
+    )
+    and jsonb_typeof(old.body->'listingContent') = 'object' then
+    new.body := new.body || (select jsonb_object_agg(key, value) from jsonb_each(old.body)
+      where key in ('listingContent','listingDetailsReadAt','listingDetailsSourceUpdatedAt','listingDetailsAttemptedAt'));
+  end if;
   -- Listenimporte liefern keine vollständige Quelle. Nur bei unveränderter
   -- Konto-/Inseratbindung übernehmen; ein bewusst gesetztes neues Feld gilt weiter.
   if new.kind = 'publication' and old.kind = 'publication'

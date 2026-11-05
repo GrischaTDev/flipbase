@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Vollständige Inseratbearbeitung aus dem Datenbankstand wiederherstellen
+
+**Anlass:** Beim Bearbeiten importierter Vinted-Inserate fehlten Kategorie,
+Marke, Größe, Zustand, Farben, Material und Paketgröße. Der Antwortparser
+verwarf vollständige Artikeldetails; der Editor bekam sie nur zufällig über
+eine frühere Originalfotosicherung. Der Nutzer verlangt ausdrücklich den
+Datenbankstand und automatische Aktualisierungen, keinen Anbieterabruf beim Öffnen.
+
+**Umsetzung:** Gespeicherte Artikeldetails werden beim Einlesen erhalten und
+haben Vorrang vor älteren Angaben der Fotosicherung. Der gespeicherte
+Kategoriename erscheint sofort. Der Cloud-Kontoabgleich sichert vollständige,
+kontogebunden gelesene Details und aktualisiert sie bei geänderter Anbieterversion
+oder sichtbaren Inhaltsänderungen; ohne Änderungsversion erfolgt ein täglicher
+Abgleich. Fehlende Altbestände werden nach und nach ergänzt, höchstens drei
+Detailabrufe je Kontoabgleich mit 45 Sekunden Startbudget. Ein fehlgeschlagenes
+Inserat blockiert die übrigen nicht. Gesprächsabrufe starten diese Zusatzphase
+nicht. Originalbilder bleiben unverändert.
+
+**Speicherung:** Eine erzeugte Migration erhält vollständige Artikeldetails bei
+Teilimporten derselben Kontobindung. Bestätigte Bearbeitungen speichern sämtliche
+Merkmale über eine ausschließlich serverseitige Funktion. Generierte Typen
+erneuert. Migration transaktional auf einer eigenen datenleeren Ausgangskopie
+angewendet und gegen die Zielkopie ohne verbleibende Schemadifferenz geprüft.
+Die Gegenprobe fand einen vom Generator ausgelassenen Rechteentzug für
+`authenticated`; den zusätzlich erzeugten Rechteabgleich in dieselbe Migration
+aufgenommen. 62 SQL-Prüfungen einschließlich Kontogrenzen, Rechteentzug,
+Teilimporten, verspätetem Detailcache und Originalerhalt erfolgreich.
+
+**Prüfung:** Der ursprüngliche fehlende Editorstand ist im Komponententest
+reproduziert. Gezielte Workerprüfungen sichern Datenbankcache, isolierte
+Übergabe, automatische Aktualisierung, Lesefehler, Kontoverwechslung und
+bestätigtes Speichern. Bestehende Browserfälle prüfen den vollständigen Editor
+aus der Datenbank ohne Originalfotosicherung und ohne Anbieterabruf beim Öffnen,
+einschließlich Konflikt, erneuter Bestätigung und Fotoreihenfolge. Desktop hell
+mit Maus und 390 Pixel dunkel mit Touch, AXE und Konsolenprüfung. Die erste
+Produktionsvorschau blockierte die lokale Fixture durch ihre Sicherheitsrichtlinie;
+die ruhende private Vorschau löst diese reine Testvoraussetzung. Verbindlicher
+Vorabcheck und endgültige Ergebnisse werden im Abschluss angegeben. Keine
+produktiven Inserate verändert; fremde Arbeitskopien und Datenbanken erhalten.
+
 ## 2026-11-05 - Juna - Kopfzeilen-Aktionen, Erfassungsmasken und Verkaufsentwürfe
 
 **Auftrag:** Mehrere kleine Korrekturen gesammelt in einem PR: Kontoaktualisierungen

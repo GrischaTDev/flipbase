@@ -7053,6 +7053,47 @@ export type Database = {
           },
         ]
       }
+      sale_drafts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          draft: Json
+          id: string
+          sale_amount: number
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          draft: Json
+          id?: string
+          sale_amount?: number
+          title?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          draft?: Json
+          id?: string
+          sale_amount?: number
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_drafts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_line_lot_allocations: {
         Row: {
           active_allocated_cost: number | null
@@ -7137,47 +7178,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stock_lots"
             referencedColumns: ["workspace_id", "id"]
-          },
-        ]
-      }
-      sale_drafts: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          draft: Json
-          id: string
-          sale_amount: number
-          title: string
-          updated_at: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          draft: Json
-          id?: string
-          sale_amount?: number
-          title?: string
-          updated_at?: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          draft?: Json
-          id?: string
-          sale_amount?: number
-          title?: string
-          updated_at?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sale_drafts_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -11306,6 +11306,16 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_cache_listing_content: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_entry_id: string
+          p_external_id: string
+          p_workspace_id: string
+        }
+        Returns: boolean
       }
       marketplace_cache_listing_text: {
         Args: {

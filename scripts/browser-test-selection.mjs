@@ -110,7 +110,7 @@ export const representativeBrowserFamilies = [
   ),
   browserFamily(
     'vinted-listing-edge-cases.spec.ts',
-    'Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei {size}px @marketplace-preview',
+    'Inseratbearbeitung Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei {size}px @marketplace-preview',
     [390, 1440],
     [[1440, '']],
     [''],

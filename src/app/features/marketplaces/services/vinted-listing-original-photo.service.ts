@@ -105,7 +105,7 @@ export class VintedListingOriginalPhotoService {
         providerImageUrls:
           entry.providerImageUrls ??
           (entry.imageUrls?.length ? entry.imageUrls : entry.imageUrl ? [entry.imageUrl] : []),
-        listingContent: draft.content,
+        listingContent: entry.listingContent ?? draft.content,
         imageUrl: imageUrls[0] ?? null,
         imageUrls,
       };

@@ -1,4 +1,6 @@
 import type { VintedListingCurrentContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import { parseVintedListingEditContent } from './vinted-listing-contracts.ts';
 import { normalizeVintedTransferSource } from './vinted-transfer-source.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import type { VintedListingEditFields } from './vinted-browser-listing-edit.ts';
@@ -75,6 +77,34 @@ export class SupabaseVintedListingCache {
           p_confirmed: confirmed,
           p_title: confirmed ? fields.title.trim() : null,
           p_price: confirmed ? price : null,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!response.ok) throw new Error('Inseratcache nicht verfügbar');
+    return (await response.json()) === true;
+  }
+  async saveContent(
+    scope: BrowserSessionScope,
+    entryId: string,
+    externalId: string,
+    content: VintedListingContent,
+  ): Promise<boolean> {
+    const response = await this.request(
+      new URL('/rest/v1/rpc/marketplace_cache_listing_content', this.baseUrl),
+      {
+        method: 'POST',
+        headers: {
+          apikey: this.serviceRoleKey,
+          Authorization: 'Bearer ' + this.serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_entry_id: entryId,
+          p_external_id: externalId,
+          p_content: parseVintedListingEditContent(content),
         }),
         signal: AbortSignal.timeout(10_000),
       },

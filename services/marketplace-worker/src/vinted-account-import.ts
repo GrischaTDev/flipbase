@@ -538,6 +538,9 @@ export function parseVintedAccountImport(
         occurredAt: null,
         text: description,
         textState: description === null ? 'not_loaded' : 'loaded',
+        listingSourceUpdatedAt:
+          itemTimestamp(item?.['updated_at_ts'], observedAt) ??
+          itemTimestamp(item?.['updated_at'], observedAt),
         price: money.amount,
         currency: money.currency,
         status: string(item?.['status']),
