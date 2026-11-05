@@ -19,6 +19,19 @@ Reservierung; der Entwurf wird beim Abschließen entfernt.
 RLS gegen eine lokale Datenbank geprüft; Abläufe im Browser mit und ohne Shop
 durchgespielt. Vorabcheck und CI-Nachweise stehen im PR.
 
+## 2026-11-05 - Juna - Vinted-Benachrichtigungen: „Artikel nicht verfügbar“ still, Gesprächszeile sichtbar
+
+**Auftrag:** Die Vinted-Meldung „Artikel nicht verfügbar“, die nach einem
+verschickten Angebot im Chat erscheint, soll keine Benachrichtigung mehr
+auslösen. Beim Öffnen eines Chats aus einer Benachrichtigung soll die
+Gesprächsliste links zur ausgewählten Zeile scrollen.
+
+**Umsetzung:** Die Datenbank speichert diese Meldungsart weiterhin, setzt aber
+keinen Benachrichtigungszeitpunkt; damit entfallen Glocke und Push für Cloud-
+und lokale Konten gleichermaßen. Bereits sichtbare Meldungen dieser Art werden
+per Migration ausgeblendet. Ein Direktlink scrollt die gewählte Gesprächszeile
+einmalig in den sichtbaren Bereich.
+
 ## 2026-11-05 - Juna - Freie Erfassung und Shop-Schalter zur Freigabe vorbereiten
 
 **Auftrag:** Den geprüften Aufgabenstand über einen PR veröffentlichen, erst nach

@@ -1555,6 +1555,28 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(fixture.nativeElement.textContent).toContain('nicht verfügbar');
     expect(store.selectedConnection()?.connectionId).toBe(accounts[1].connectionId);
   });
+  it('scrollt bei einem Direktlink die gewählte Zeile in der Gesprächsliste sichtbar', async () => {
+    const scrolled: string[] = [];
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
+      scrolled.push(this.dataset['conversationRow'] ?? '');
+    };
+    try {
+      params.next(
+        convertToParamMap({
+          connectionId: accounts[1].connectionId,
+          conversationId: 'conversation-1',
+        }),
+      );
+      const fixture = await render();
+      await settle(fixture);
+      expect(scrolled).toEqual(['conversation-1']);
+      await settle(fixture);
+      expect(scrolled).toEqual(['conversation-1']);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
   it('verarbeitet wechselnde und erneut ausgewählte Gesprächsdirektlinks reaktiv', async () => {
     params.next(
       convertToParamMap({

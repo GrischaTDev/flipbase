@@ -77,6 +77,8 @@ select ok(exists(select 1 from public.marketplace_message_notifications where ex
 select is(pg_temp.apply(jsonb_build_array(pg_temp.event('message:5',null))),1,'Legacy five-field chat payload stays supported');
 select is(pg_temp.apply(jsonb_build_array(pg_temp.event('status_message:6',null))),1,'Legacy system payload gets a safe other-status fallback');
 select is(pg_temp.apply(jsonb_build_array(pg_temp.event('status_message:7','feedback_received'))),0,'Profile source owns received reviews instead of a duplicate chat notification');
+select is(pg_temp.apply(jsonb_build_array(pg_temp.event('status_message:13','item_unavailable'))),0,'An unavailable item after an offer never notifies');
+select ok(exists(select 1 from public.marketplace_message_notifications where external_event_id='status_message:13' and notification_kind='item_unavailable' and notified_at is null),'The unavailable-item event is still recorded silently');
 select throws_ok($$select pg_temp.apply(jsonb_build_array(pg_temp.event('message:8','refund_completed')))$$,'22023',null,'A chat message cannot masquerade as a refund');
 select throws_ok($$select pg_temp.apply(jsonb_build_array(pg_temp.event('action_message:8','message')))$$,'22023',null,'System source cannot masquerade as a human message');
 select throws_ok($$select pg_temp.apply(jsonb_build_array(pg_temp.event('status_message:8','invented')))$$,'22023',null,'Unknown notification kind is rejected');
