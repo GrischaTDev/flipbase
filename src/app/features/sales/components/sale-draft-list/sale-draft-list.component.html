@@ -1,0 +1,35 @@
+@if (drafts.loadError(); as error) {
+  <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+}
+@if (visibleDrafts().length) {
+  <app-card title="Entwürfe" variant="section">
+    <ul class="divide-y divide-fb-line" aria-label="Verkaufsentwürfe">
+      @for (draft of visibleDrafts(); track draft.id) {
+        <li data-sale-draft class="flex items-center gap-3 py-2.5">
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-[13px] font-medium text-fb-text-primary">{{ draft.title }}</p>
+            <p class="text-xs text-fb-text-secondary">
+              Zuletzt bearbeitet {{ draft.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}
+            </p>
+          </div>
+          <span class="text-[13px] tabular-nums text-fb-text-primary">{{
+            draft.saleAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}</span>
+          <app-table-action-button
+            [icon]="editIcon"
+            [label]="draft.title + ' weiter bearbeiten'"
+            link="/sales/new"
+            [queryParams]="{ draft: draft.id }"
+          />
+          <app-table-action-button
+            [icon]="deleteIcon"
+            [label]="draft.title + ' löschen'"
+            tone="critical"
+            [loading]="deletingId() === draft.id"
+            (clicked)="remove(draft)"
+          />
+        </li>
+      }
+    </ul>
+  </app-card>
+}

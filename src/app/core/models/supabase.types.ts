@@ -7140,6 +7140,47 @@ export type Database = {
           },
         ]
       }
+      sale_drafts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          draft: Json
+          id: string
+          sale_amount: number
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          draft: Json
+          id?: string
+          sale_amount?: number
+          title?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          draft?: Json
+          id?: string
+          sale_amount?: number
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_drafts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_lines: {
         Row: {
           catalog_product_id: string | null

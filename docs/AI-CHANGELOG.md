@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Kopfzeilen-Aktionen, Erfassungsmasken und Verkaufsentwürfe
+
+**Auftrag:** Mehrere kleine Korrekturen gesammelt in einem PR: Kontoaktualisierungen
+nicht mehr unter „Laufende Aktionen“, kein Flackern im Aktionen-Popup, einheitliche
+„Position hinzufügen“-Zeile in Einkauf und Verkauf, Fehler erst beim Speichern,
+eigenes Modal beim Verlassen und speicherbare Verkaufsentwürfe.
+
+**Umsetzung:** Kontoabgleiche melden nur neu beobachtete Fehler als Toast; das Popup
+behält beim Nachladen den letzten Stand. Freie Positionen zeigen ein Feld
+„Artikelname“ ohne Pflichtlabel; der Hinweis „Angaben prüfen“ entfällt bis zum
+Speicherversuch. Die Verlassen-Abfrage nutzt den App-Dialog statt `confirm`. Ohne
+Shop wartet die Verkaufsmaske nicht mehr auf Artikelstamm und Bestand. Neue Tabelle
+`sale_drafts` speichert den Erfassungsstand ohne Buchung, Bestandsabgang oder
+Reservierung; der Entwurf wird beim Abschließen entfernt.
+
+**Prüfung:** Betroffene Angular-Tests, Typprüfung und Lint lokal grün; Migration und
+RLS gegen eine lokale Datenbank geprüft; Abläufe im Browser mit und ohne Shop
+durchgespielt. Vorabcheck und CI-Nachweise stehen im PR.
+
 ## 2026-11-05 - Juna - Freie Erfassung und Shop-Schalter zur Freigabe vorbereiten
 
 **Auftrag:** Den geprüften Aufgabenstand über einen PR veröffentlichen, erst nach

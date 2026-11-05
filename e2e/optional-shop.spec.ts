@@ -24,10 +24,10 @@ for (const viewport of [
           page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }),
         ).toHaveCount(0);
         await selectDefaultPurchaseSeller(page);
-        await page.getByRole('button', { name: 'Freie Position', exact: true }).click();
+        await page.getByRole('button', { name: 'Position hinzufügen', exact: true }).click();
         const editor = page.locator('app-purchase-line-editor');
         await editor
-          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .getByRole('textbox', { name: 'Artikelname', exact: true })
           .fill('10 kg Kleidung');
         await editor.getByRole('spinbutton').nth(0).fill('2');
         await editor.getByRole('spinbutton').nth(1).fill('150');
@@ -56,9 +56,11 @@ for (const viewport of [
           line_total: 300,
         });
         await page.goto('/sales/new');
-        await page.getByRole('button', { name: 'Freie Position', exact: true }).click();
+        await page.getByRole('button', { name: 'Position hinzufügen', exact: true }).click();
+        // Ohne Shop gibt es keinen Bestand zu laden; der Ladehinweis darf nicht stehen bleiben.
+        await expect(page.getByText('Artikel und Bestand werden geladen…')).toHaveCount(0);
         await page
-          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .getByRole('textbox', { name: 'Artikelname', exact: true })
           .fill('Pullover aus Paket');
         await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).fill('25');
         await page.getByRole('combobox', { name: 'Einkauf zuordnen', exact: true }).click();
@@ -84,7 +86,7 @@ for (const viewport of [
         await expect(page.getByRole('link', { name: 'Bestand', exact: true })).toBeVisible();
         await page.goto('/purchases/new');
         await expect(
-          page.getByRole('button', { name: 'Freie Position', exact: true }),
+          page.getByRole('button', { name: 'Position hinzufügen', exact: true }),
         ).toBeVisible();
         await expect(
           page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }),

@@ -24,6 +24,7 @@ import { SalePlatformsService } from '../../core/services/sale-platforms.service
 import { SupabaseService } from '../../core/services/supabase.service';
 import { mergeSalePlatforms } from '../../core/models/sale-platforms';
 import { EbaySaleActivityStore } from './services/ebay-sale-activity.store';
+import { SaleDraftService } from './services/sale-draft.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -261,6 +262,15 @@ beforeEach(() => {
           StockService,
           'positions' | 'lots' | 'loadedWorkspaceId' | 'loadPositions'
         >,
+      },
+      {
+        provide: SaleDraftService,
+        useValue: {
+          drafts: signal([]),
+          loadedWorkspaceId: signal(null),
+          loadError: signal<string | null>(null),
+          load: vi.fn(async () => undefined),
+        } satisfies Pick<SaleDraftService, 'drafts' | 'loadedWorkspaceId' | 'loadError' | 'load'>,
       },
       {
         provide: EbaySaleActivityStore,

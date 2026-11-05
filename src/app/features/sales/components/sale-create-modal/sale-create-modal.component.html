@@ -87,11 +87,13 @@
                             }
                             @if (isFreeLine(line)) {
                               <app-text-field
-                                label="Beschreibung"
+                                label="Artikelname"
+                                [labelHidden]="true"
+                                placeholder="Artikelname"
                                 [disabled]="!!externalDraft()"
                                 [value]="freeTitle(line)"
                                 (valueChange)="setFreeTitle(line, $event)"
-                                [required]="true"
+                                [ariaRequired]="true"
                                 [ariaInvalid]="
                                   validationAttempted() && line.controls.target.invalid
                                 "
@@ -162,7 +164,7 @@
                                 >
                                   {{
                                     isFreeLine(line)
-                                      ? 'Bitte gib eine Beschreibung ein.'
+                                      ? 'Artikelname fehlt.'
                                       : 'Bitte wähle einen verfügbaren Artikel aus.'
                                   }}
                                 </p>
@@ -265,9 +267,18 @@
         }
 
         @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
-          <div class="flex items-center gap-2 border-t border-fb-line pt-3">
-            <app-button [disabled]="isSubmitting()" (clicked)="addFreeLine()"
-              >Freie Position</app-button
+          <div
+            class="items-center gap-2 border-t border-fb-line pt-3"
+            [class]="shopActive() ? 'flex' : 'grid grid-cols-[1fr_auto_1fr]'"
+          >
+            <app-button
+              data-add-free-line
+              [class]="shopActive() ? '' : 'col-start-2'"
+              variant="ghost"
+              [icon]="plusIcon"
+              [disabled]="isSubmitting()"
+              (clicked)="addFreeLine()"
+              >Position hinzufügen</app-button
             >
             @if (shopActive()) {
               <app-button
