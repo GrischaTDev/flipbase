@@ -48,8 +48,16 @@
                 <div class="min-w-0">
                   @if (row.controls.positionKind.value === 'free') {
                     <app-text-field
-                      label="Beschreibung"
-                      [required]="true"
+                      [id]="'purchase-line-title-' + id"
+                      label="Artikelname"
+                      [labelHidden]="true"
+                      placeholder="Artikelname"
+                      [ariaRequired]="true"
+                      [error]="
+                        showLineErrors() && row.controls.titleSnapshot.invalid
+                          ? 'Artikelname fehlt.'
+                          : null
+                      "
                       formControlName="titleSnapshot"
                     />
                   } @else {
@@ -76,7 +84,9 @@
                       </p>
                     }
                   }
-                  @if (row.invalid) {
+                  @if (
+                    showLineErrors() && row.invalid && row.controls.positionKind.value !== 'free'
+                  ) {
                     <p class="mt-1 text-xs text-rose-700 dark:text-rose-400">Angaben prüfen</p>
                   }
                   @if (row.controls.isPackage.value) {
@@ -171,16 +181,26 @@
       Noch keine Einkaufspositionen hinzugefügt.
     </p>
   }
-  <div class="flex items-center gap-2 border-t border-fb-line pt-3">
-    <app-button variant="ghost" [icon]="plusIcon" (clicked)="addFreeLine()"
-      >Freie Position</app-button
+  <div
+    class="items-center gap-2 border-t border-fb-line pt-3"
+    [class]="shopActive() ? 'flex' : 'grid grid-cols-[1fr_auto_1fr]'"
+  >
+    <app-button
+      data-add-free-line
+      [class]="shopActive() ? '' : 'col-start-2'"
+      variant="ghost"
+      [icon]="plusIcon"
+      (clicked)="addFreeLine()"
+      >Position hinzufügen</app-button
     >
     @if (!shopActive()) {
       <app-button
+        class="justify-self-end"
         variant="ghost"
         [iconOnly]="true"
         [icon]="importIcon"
         ariaLabel="Liste importieren"
+        title="Liste importieren"
         (clicked)="csvInput.click()"
       />
     }

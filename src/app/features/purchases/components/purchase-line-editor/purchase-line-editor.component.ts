@@ -194,6 +194,8 @@ export class PurchaseLineEditorComponent {
     this.availableProducts().filter((product) => !product.archived_at),
   );
   readonly lineCount = signal(0);
+  /** Fehlende Pflichtangaben erst nach einem Speicherversuch markieren. */
+  readonly showLineErrors = signal(false);
   readonly lineRows = new FormArray<FormGroup<PurchaseLineControls>>([]);
   readonly linesChanged = output<readonly PurchaseLineDraft[]>();
   readonly createProductRequested = output<BarcodeProductInfo | null>();
@@ -586,12 +588,16 @@ export class PurchaseLineEditorComponent {
   focusFirstError(): void {
     const row = this.lineRows.controls.find((row) => row.invalid);
     if (!row) return;
+    this.showLineErrors.set(true);
     row.markAllAsTouched();
-    const field = row.controls.orderedQuantity.invalid
-      ? 'quantity'
-      : row.controls.unitPurchasePrice.invalid || row.hasError('totalTooLarge')
-        ? 'unit-price'
-        : null;
+    const field =
+      row.controls.positionKind.value === 'free' && row.controls.titleSnapshot.invalid
+        ? 'title'
+        : row.controls.orderedQuantity.invalid
+          ? 'quantity'
+          : row.controls.unitPurchasePrice.invalid || row.hasError('totalTooLarge')
+            ? 'unit-price'
+            : null;
     if (field) {
       this.host.nativeElement
         .querySelector<HTMLElement>('#purchase-line-' + field + '-' + row.controls.draftId.value)
@@ -719,6 +725,7 @@ export class PurchaseLineEditorComponent {
     }
     this.lineRows.markAsPristine();
     this.lineRows.markAsUntouched();
+    this.showLineErrors.set(false);
     this.lineCount.set(this.lineRows.length);
     this.pickerOpen.set(false);
     this.cameraOpen.set(false);

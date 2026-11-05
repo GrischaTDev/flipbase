@@ -1,4 +1,6 @@
+import { inject } from '@angular/core';
 import { CanDeactivateFn, ChildrenOutletContexts } from '@angular/router';
+import { ConfirmDialogService } from '../components/confirm-dialog/confirm-dialog.service';
 
 export interface UnsavedEntryPage {
   hasUnsavedChanges(): boolean;
@@ -23,9 +25,10 @@ export function hasOpenEntry(contexts: ChildrenOutletContexts | null): boolean {
 
 export function canLeaveUnsavedEntry(
   component: UnsavedEntryPage,
-  confirmLeave: (message: string) => boolean = (message) => globalThis.confirm(message),
+  confirmLeave: (message: string) => boolean | Promise<boolean> = (message) =>
+    globalThis.confirm(message),
   nextUrl?: string,
-): boolean {
+): boolean | Promise<boolean> {
   if (typeof component?.isSaving === 'function' && component.isSaving()) return false;
   if (nextUrl && component.canNavigateTo?.(nextUrl)) return true;
   const hasChanges =
@@ -41,4 +44,18 @@ export const unsavedEntryGuard: CanDeactivateFn<UnsavedEntryPage> = (
   _currentRoute,
   _currentState,
   nextState,
-) => canLeaveUnsavedEntry(component, undefined, nextState?.url);
+) => {
+  // Innerhalb der App fragt der eigene Dialog; nur Neuladen und Tab schließen bleiben beim Browser.
+  const dialog = inject(ConfirmDialogService);
+  return canLeaveUnsavedEntry(
+    component,
+    () =>
+      dialog.frage({
+        titel: 'Seite verlassen?',
+        text: 'Deine nicht gespeicherten Eingaben gehen verloren.',
+        bestaetigenText: 'Seite verlassen',
+        abbrechenText: 'Weiter bearbeiten',
+      }),
+    nextState?.url,
+  );
+};

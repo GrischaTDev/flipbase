@@ -226,6 +226,7 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
   Object.assign(editor, {
     lineRows: new FormArray([]),
     lineCount: signal(0),
+    showLineErrors: signal(false),
     activeWorkspaceId: signal(workspaceOne.id),
     pickerOpen: signal(false),
     cameraOpen: signal(false),
