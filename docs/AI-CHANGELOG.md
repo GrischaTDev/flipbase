@@ -19,6 +19,13 @@ Marktplatz-Browserfixture liefert nun auch den Shop-Zustand. Beide
 Vorbereitungen werden vor dem erneuten Push gezielt geprüft. Fachliche
 Prüferwartungen und Zugriffsgrenzen bleiben erhalten.
 
+**Freigabebudget:** Die korrigierte Revision besteht alle 19 Browsergruppen,
+Datenbank- und Anwendungstests sowie PWA. Zwei Qualitätsläufer erreichen nach
+erfolgreichen Vorprüfungen beim abschließenden Bau das Zehn-Minuten-Limit.
+Nur die vollständige Kombination aus Workflow-, Marktplatz-, Push- und
+Datenbankprüfungen erhält deshalb 15 Minuten Gesamtzeit. Alle Prüfschritte,
+Erwartungen und Freigabebedingungen bleiben unverändert.
+
 ## 2026-11-04 - Juna - Einfache Einkäufe und schaltbare Bestandsführung
 
 **Auftrag:** Schritte 2 und 3 auf dem freien Verkaufsablauf aufbauen: freie

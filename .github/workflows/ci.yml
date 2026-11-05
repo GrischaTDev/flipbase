@@ -138,7 +138,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.documentation_only != 'true' && needs.changes.outputs.tests_reused != 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Die vollständige Kette benötigt auch auf langsameren Läufern Zeit für den Bau.
+    timeout-minutes: ${{ needs.changes.outputs.workflow_required == 'true' && needs.changes.outputs.marketplace_required == 'true' && needs.changes.outputs.push == 'true' && needs.changes.outputs.supabase == 'true' && 15 || 10 }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
