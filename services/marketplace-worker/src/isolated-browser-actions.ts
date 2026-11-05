@@ -1212,6 +1212,13 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
   const snapshot = commandRecord(input);
   if (snapshot.sellingCategories !== undefined)
     snapshot.sellingCategories = parseVintedSellingTree(snapshot.sellingCategories);
+  if (snapshot.categoryFields !== undefined) {
+    if (!Array.isArray(snapshot.categoryFields) || snapshot.categoryFields.length > 50)
+      throw new Error('Ungültiger Kontoabruf');
+    snapshot.categoryFields = snapshot.categoryFields.map((fields) =>
+      parseVintedListingCategoryFields(fields, commandRecord(fields).categoryId as number),
+    );
+  }
   if (
     Object.keys(snapshot).some(
       (key) =>
@@ -1226,6 +1233,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
           'inboxEvents',
           'publicationFieldNames',
           'sellingCategories',
+          'categoryFields',
         ].includes(key),
     ) ||
     !Array.isArray(snapshot.entries) ||

@@ -1,3 +1,4 @@
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import type { VintedSellingTreeNode } from '../../../../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -69,10 +70,11 @@ async function settle() {
   for (let i = 0; i < 8; i++) await Promise.resolve();
   TestBed.tick();
 }
-function setup(items: MarketplaceEntry[] = []) {
+function setup(items: MarketplaceEntry[] = [], queryParams: Record<string, string> = {}) {
   const params = new BehaviorSubject(
     convertToParamMap({ connectionId: account.connectionId, entryId: 'a' }),
   );
+  const query = new BehaviorSubject(convertToParamMap(queryParams));
   const readPublication = vi.fn().mockImplementation(async (_: string, id: string) => entry(id));
   const store = {
     connections: signal([account]),
@@ -105,6 +107,10 @@ function setup(items: MarketplaceEntry[] = []) {
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedCategoryFieldStore,
+        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+      },
       {
         provide: VintedListingCategoryService,
         useValue: {
@@ -140,9 +146,21 @@ function setup(items: MarketplaceEntry[] = []) {
       },
       {
         provide: ActivatedRoute,
-        useValue: { paramMap: params, snapshot: { paramMap: params.value } },
+        useValue: {
+          paramMap: params,
+          queryParamMap: query,
+          snapshot: { paramMap: params.value, queryParamMap: query.value },
+        },
       },
-      { provide: Router, useValue: { navigate: vi.fn() } },
+      {
+        provide: Router,
+        useValue: {
+          navigate: vi.fn(async () => {
+            query.next(convertToParamMap({}));
+            return true;
+          }),
+        },
+      },
       { provide: MarketplaceAccountStore, useValue: store },
     ],
   });
@@ -250,6 +268,23 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.canSave()).toBe(true);
     expect(component.form.controls.description.value).toBe('Gespeichert');
     expect(component.form.controls.title.value).toBe('a');
+  });
+  it('öffnet die Bearbeitung direkt aus der Inseratliste und nur einmal', async () => {
+    const listing = listingCurrentContentFixture();
+    const { component, store } = setup(
+      [{ ...entry('a', 'Gespeichert'), listingContent: listing.content }],
+      { edit: '1' },
+    );
+    await settle();
+    expect(component.editing()).toBe(true);
+    expect(store.readListingEdit).not.toHaveBeenCalled();
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { edit: null }, replaceUrl: true }),
+    );
+    component.cancelEdit();
+    await settle();
+    expect(component.editing()).toBe(false);
   });
   it('zeigt die Beschreibung ohne Aufklappen', async () => {
     setup([entry('a', 'Immer sichtbarer Text')]);
@@ -729,7 +764,6 @@ it('loads the selected selling category and saves its explicit target group agai
   await settle();
   expect(categoryApi.read).toHaveBeenCalledWith(account.connectionId, 5555, {
     categoryLabel: 'Tücher & Schals',
-    fresh: true,
   });
   expect(component.form.controls.size.value).toBe('');
   component.form.patchValue({

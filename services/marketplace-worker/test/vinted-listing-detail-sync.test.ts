@@ -142,7 +142,8 @@ test('failed or foreign details retain the last stored values and do not block o
 });
 
 test('bounds background reads and gives unattempted listings priority over a previous failure', async () => {
-  const value = snapshot(['98765', '98766', '98767', '98768']);
+  const ids = Array.from({ length: 12 }, (_, index) => String(98765 + index));
+  const value = snapshot(ids);
   const reads: string[] = [];
   await syncVintedListingDetails(
     value,
@@ -153,7 +154,7 @@ test('bounds background reads and gives unattempted listings priority over a pre
     },
     authorize,
   );
-  assert.deepEqual(reads, ['98766', '98767', '98768']);
+  assert.deepEqual(reads, ids.slice(1, 11));
 });
 
 test('recent failed attempts are retained and do not immediately retry', async () => {
@@ -203,4 +204,15 @@ test('revoked access aborts before storing provider details', async () => {
     /Revoked/,
   );
   assert.equal(value.entries[0]!.body.listingContent, undefined);
+});
+
+test('collects the real category fields of read listings once per category', async () => {
+  const value = snapshot(['98765', '98766']);
+  await syncVintedListingDetails(
+    value,
+    [],
+    async (id) => ({ ...listing, externalId: id }),
+    authorize,
+  );
+  assert.deepEqual(value.categoryFields, [listing.schema]);
 });

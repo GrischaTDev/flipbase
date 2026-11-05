@@ -1008,3 +1008,35 @@ it('hält den Abschluss bei fehlender neuer Karte zurück und verwendet nach Kon
   expect(await completion).toBe(true);
   expect(f.plans.plans()).toEqual([]);
 });
+
+it('öffnet die Bearbeiten-Maske direkt aus der Inseratliste', () => {
+  const { component, store } = setup('');
+  store.selectedConnection.set({ ...accountA, status: 'connected', executionMode: 'cloud' });
+  TestBed.tick();
+  const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: 'edit-1',
+          externalId: '9001',
+          title: 'Jeans',
+          publicationState: 'active',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0];
+  component.editListing(entry);
+  expect(navigate).toHaveBeenCalledWith(
+    ['/marketplaces/vinted/listings', accountA.connectionId, 'edit-1'],
+    { queryParams: { edit: 1 } },
+  );
+  store.canManage.set(false);
+  navigate.mockClear();
+  component.editListing(entry);
+  expect(navigate).not.toHaveBeenCalled();
+});

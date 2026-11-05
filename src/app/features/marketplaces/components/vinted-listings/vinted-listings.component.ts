@@ -30,6 +30,7 @@ import {
   LucideRotateCcw,
   LucideCopy,
   LucidePencil,
+  LucideSquarePen,
   LucideTrash2,
 } from '@lucide/angular';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -88,6 +89,7 @@ export class VintedListingsComponent {
   readonly relistIcon = LucideRotateCcw;
   readonly templateIcon = LucideCopy;
   readonly editIcon = LucidePencil;
+  readonly listingEditIcon = LucideSquarePen;
   readonly deleteIcon = LucideTrash2;
   private readonly confirm = inject(ConfirmDialogService);
   readonly plans = inject(VintedRelistingPlanStore);
@@ -163,6 +165,13 @@ export class VintedListingsComponent {
   }
   openEditor(entry: MarketplaceEntry, mode: 'relist' | 'template'): void {
     if (this.canCreateFrom(entry)) this.editorSource.set({ entry, mode });
+  }
+  /** Öffnet die Bearbeiten-Maske direkt, ohne Umweg über die Detailansicht. */
+  editListing(entry: MarketplaceEntry): void {
+    if (!this.canCreateFrom(entry)) return;
+    void this.router.navigate(['/marketplaces/vinted/listings', entry.connectionId, entry.id], {
+      queryParams: { edit: 1 },
+    });
   }
   editPlan(entry: MarketplaceEntry, plan: VintedRelistingPlan): void {
     if (!this.canManageEntry(entry) || this.operations.isRunning(entry)) return;

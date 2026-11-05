@@ -1590,7 +1590,7 @@ for (const width of [390, 1440])
         await screenshot(page, `vinted-wardrobe-grid-${width}-${theme}`, wardrobe);
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();
         const sourceActions = wardrobe.locator('[data-listing-row] td').last();
-        await expect(sourceActions.getByRole('button')).toHaveCount(4);
+        await expect(sourceActions.getByRole('button')).toHaveCount(5);
         const listActionsBefore = await sourceActions
           .locator('[data-listing-actions]')
           .boundingBox();
@@ -1654,7 +1654,7 @@ for (const width of [390, 1440])
         await expect.poll(() => providerReads).toBe(1);
         await expect(editor).toHaveCount(0);
         await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
-        await expect(sourceActions.getByRole('button')).toHaveCount(4);
+        await expect(sourceActions.getByRole('button')).toHaveCount(5);
         for (const button of await sourceActions.getByRole('button').all())
           await expect(button).toBeDisabled();
         const preparingActions = await sourceActions

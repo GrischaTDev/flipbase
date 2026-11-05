@@ -8835,6 +8835,41 @@ export type Database = {
           },
         ]
       }
+      vinted_category_field_snapshots: {
+        Row: {
+          category_id: number
+          connection_id: string
+          external_account_id: string
+          fields: Json
+          observed_at: string
+          workspace_id: string
+        }
+        Insert: {
+          category_id: number
+          connection_id: string
+          external_account_id: string
+          fields: Json
+          observed_at: string
+          workspace_id: string
+        }
+        Update: {
+          category_id?: number
+          connection_id?: string
+          external_account_id?: string
+          fields?: Json
+          observed_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_category_field_snapshots_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       vinted_category_syncs: {
         Row: {
           category_count: number
@@ -12699,6 +12734,16 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_save_vinted_category_fields: {
+        Args: {
+          p_connection_id: string
+          p_external_account_id: string
+          p_fields: Json
+          p_observed_at: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
       marketplace_save_vinted_selling_tree: {
         Args: {
           p_categories: Json
@@ -14166,3 +14211,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

@@ -200,6 +200,19 @@
       />
     }
     @if (actionsVisible(entry)) {
+      @if (!plan) {
+        <app-button
+          variant="table-action"
+          tone="neutral"
+          size="slim"
+          [icon]="listingEditIcon"
+          [iconOnly]="true"
+          [disabled]="actionsBlocked(entry)"
+          title="Inserat bearbeiten"
+          [ariaLabel]="entry.title + ' bearbeiten'"
+          (clicked)="editListing(entry)"
+        />
+      }
       @if (plan || entry.publicationState === 'active') {
         <app-button
           variant="table-action"

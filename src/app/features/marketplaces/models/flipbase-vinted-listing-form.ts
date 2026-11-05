@@ -55,6 +55,7 @@ const materials = [
   'Polyamid',
   'Synthetik',
 ];
+type RealField = 'size' | 'condition' | 'color' | 'material';
 const range = (start: number, end: number, step = 1) =>
   Array.from({ length: Math.round((end - start) / step) + 1 }, (_, index) =>
     String(start + index * step).replace('.', ','),
@@ -65,8 +66,19 @@ export function flipbaseVintedListingFields(
   categoryId: number,
   categoryPath: string,
   brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'> &
-    Partial<Pick<VintedListingContent, 'attributes'>>,
+    Partial<
+      Pick<VintedListingContent, 'attributes' | 'sizeLabel' | 'colorLabels' | 'materialLabels'>
+    >,
+  stored?: VintedListingCategoryFields | null,
 ): VintedListingCategoryFields {
+  // Bei Vinted gelesene Auswahlwerte dieser Kategorie haben Vorrang vor den eigenen Listen.
+  const real = stored?.categoryId === categoryId ? stored : null;
+  const realField = (name: RealField): VintedListingChoiceSnapshot | null => {
+    const found = real?.fields.find((entry) => entry.field === name);
+    return found
+      ? { ...found, choices: found.choices.map((choice) => ({ ...choice, selected: false })) }
+      : null;
+  };
   // Ein unbestätigter Markenname bleibt im Entwurf, darf aber keine ungültige Auswahl erzeugen.
   const selectedBrand = brand && validVintedListingBrand(brand) ? brand : null;
   const path = categoryPath.toLocaleLowerCase('de');
@@ -116,13 +128,25 @@ export function flipbaseVintedListingFields(
   // Einzelne ältere Entwürfe enthalten nur den Blattnamen.
   if (!sizes.length && /bomber|jacke|hose|kleid|shirt|pullover/.test(path))
     sizes.push('XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL');
+  // Gespeicherte Angaben echter Inserate (z. B. „W32“) sind nicht vollständig in den eigenen
+  // Listen enthalten. Sie bleiben gültig; Vinted ordnet sie erst beim Veröffentlichen zu.
+  const kept: Partial<Record<VintedListingChoiceSnapshot['field'], readonly string[]>> = {
+    // Kombinierte Angaben wie „M / L“ bleiben offen, statt eine von beiden Größen zu raten.
+    size:
+      brand?.sizeLabel?.trim() && !brand.sizeLabel.includes('/') ? [brand.sizeLabel.trim()] : [],
+    color: brand?.colorLabels ?? [],
+    material: brand?.materialLabels ?? [],
+  };
   const field = (
     name: VintedListingChoiceSnapshot['field'],
-    labels: readonly string[],
+    known: readonly string[],
   ): VintedListingChoiceSnapshot => ({
     field: name,
     sizeGroupId: name === 'size' ? 1 : null,
-    choices: labels.map((label, index) => ({
+    choices: [
+      ...known,
+      ...(kept[name] ?? []).filter((label) => label.trim() && !known.includes(label)),
+    ].map((label, index) => ({
       id: index + 1,
       label,
       selected: false,
@@ -152,16 +176,26 @@ export function flipbaseVintedListingFields(
             },
           ]
         : []),
-      ...(sizes.length ? [field('size', sizes)] : []),
-      field('condition', [
-        'Neu mit Etikett',
-        'Neu ohne Etikett',
-        'Sehr gut',
-        'Gut',
-        'Zufriedenstellend',
-      ]),
-      field('color', colors),
-      field('material', materials),
+      // Mit echten Werten fehlen Felder, die Vinted für diese Kategorie nicht anbietet.
+      ...(real
+        ? [
+            realField('size'),
+            realField('condition'),
+            realField('color'),
+            realField('material'),
+          ].filter((entry) => entry !== null)
+        : [
+            ...(sizes.length ? [field('size', sizes)] : []),
+            field('condition', [
+              'Neu mit Etikett',
+              'Neu ohne Etikett',
+              'Sehr gut',
+              'Gut',
+              'Zufriedenstellend',
+            ]),
+            field('color', colors),
+            field('material', materials),
+          ]),
       field('package', packages),
       {
         field: 'brand',
@@ -189,14 +223,28 @@ export function flipbaseVintedListingFields(
 /** Erhält Texte alter Entwürfe, ersetzt ihre Anbieterkennungen aber durch eigene Auswahlkennungen. */
 export function prepareFlipbaseVintedListingContent(
   content: VintedListingContent,
+  stored?: VintedListingCategoryFields | null,
 ): VintedListingContent {
   if (content.categoryId === null) return content;
-  const schema = flipbaseVintedListingFields(content.categoryId, content.categoryLabel, content);
+  const schema = flipbaseVintedListingFields(
+    content.categoryId,
+    content.categoryLabel,
+    content,
+    stored,
+  );
   const id = (field: string, label: string) =>
     schema.fields
       .find((entry) => entry.field === field)
       ?.choices.find((choice) => choice.label === label)?.id ?? null;
-  const sizes = schema.fields.find((field) => field.field === 'size')?.choices ?? [];
+  const allSizes = schema.fields.find((field) => field.field === 'size')?.choices ?? [];
+  // Zuerst nur die eigene Liste auswerten, damit „M / 38 / 10“ weiterhin als „M“ gilt.
+  const known = flipbaseVintedListingFields(
+    content.categoryId,
+    content.categoryLabel,
+    { ...content, sizeLabel: '' },
+    stored,
+  ).fields.find((field) => field.field === 'size')?.choices.length;
+  const sizes = allSizes.slice(0, known ?? 0);
   const normalizeSize = (label: string) =>
     label
       .trim()
@@ -211,7 +259,11 @@ export function prepareFlipbaseVintedListingContent(
   // Eine kombinierte Konfektionsangabe wie „M / 38 / 10“ enthält die ausdrückliche Buchstabengröße.
   // Zwei unterschiedliche Buchstabengrößen oder Zahlenbereiche werden nicht geraten.
   const letters = matching.filter((choice) => /^\d*[a-z]+$/i.test(choice.label));
-  const size = exact ?? (letters.length === 1 ? letters[0] : undefined);
+  const size =
+    exact ??
+    (letters.length === 1
+      ? letters[0]
+      : allSizes.find((choice) => choice.label === content.sizeLabel.trim()));
   return {
     ...content,
     sizeId: size?.id ?? null,
@@ -232,8 +284,9 @@ export function prepareFlipbaseVintedListingContent(
 /** Nur die interne Formularversion aus der fachlichen Prüfung entfernen. */
 export function flipbaseVintedListingReviewContent(
   content: VintedListingContent,
+  stored?: VintedListingCategoryFields | null,
 ): VintedListingContent {
-  const local = prepareFlipbaseVintedListingContent(content);
+  const local = prepareFlipbaseVintedListingContent(content, stored);
   return {
     ...local,
     attributes: Object.fromEntries(

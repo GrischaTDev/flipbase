@@ -1,5 +1,9 @@
 import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
-import { parseVintedListingEditContent } from './vinted-listing-contracts.ts';
+import {
+  parseVintedListingCategoryFields,
+  parseVintedListingEditContent,
+} from './vinted-listing-contracts.ts';
+import { vintedCategoryFieldsForStorage } from './vinted-category-field-storage.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import type { VintedAccountImport, VintedConversationVersion } from './vinted-account-import.ts';
 
@@ -192,7 +196,7 @@ export class SupabaseVintedImportWriter {
     snapshot: VintedAccountImport,
   ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>> {
     await this.assertActive(scope, sessionId);
-    const { sellingCategories, ...accountSnapshot } = snapshot;
+    const { sellingCategories, categoryFields, ...accountSnapshot } = snapshot;
     const categories =
       sellingCategories === undefined ? undefined : parseVintedSellingTree(sellingCategories);
     // Zugriff, Identität, Einträge und Abrufstände werden in derselben Transaktion geprüft.
@@ -253,6 +257,31 @@ export class SupabaseVintedImportWriter {
         },
       );
       if (!response.ok) throw new Error('Vinted-Verkaufsbaum konnte nicht gespeichert werden');
+    }
+    for (const fields of categoryFields ?? []) {
+      // Auswahlwerte sind ergänzend: ein Fehler darf den bestätigten Kontoabgleich nicht zurücknehmen.
+      try {
+        await this.assertActive(scope, sessionId);
+        const parsed = parseVintedListingCategoryFields(fields, fields.categoryId);
+        const response = await this.request(
+          new URL('/rest/v1/rpc/marketplace_save_vinted_category_fields', this.baseUrl),
+          {
+            method: 'POST',
+            headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              p_workspace_id: scope.workspaceId,
+              p_connection_id: scope.connectionId,
+              p_external_account_id: snapshot.identity.id,
+              p_observed_at: snapshot.observedAt,
+              p_fields: vintedCategoryFieldsForStorage(parsed),
+            }),
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        if (!response.ok) throw new Error('Vinted-Auswahlwerte konnten nicht gespeichert werden');
+      } catch {
+        process.stderr.write('Vinted-Auswahlwerte konnten nicht gespeichert werden!\n');
+      }
     }
     return counts;
   }

@@ -461,3 +461,37 @@ test('persists a selling tree only after the authorized account import and keeps
     p_categories: categories,
   });
 });
+
+test('stores collected category choices after the account import without changing its contract', async () => {
+  const schema = listingCurrentContentFixture().schema;
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: sessionId,
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      writes.push({ path, body });
+      if (path.endsWith('marketplace_save_vinted_category_fields'))
+        return new Response('nope', { status: 500 });
+      return Response.json(counts);
+    },
+  });
+  assert.deepEqual(
+    await writer.write(scope, sessionId, { ...snapshot, categoryFields: [schema] }),
+    counts,
+    'a failed choice cache keeps the confirmed import',
+  );
+  assert.equal(writes.length, 2);
+  assert.deepEqual(writes[0]?.body.p_snapshot, snapshot);
+  assert.equal(writes[1]?.body.p_external_account_id, '123');
+  assert.equal((writes[1]?.body.p_fields as typeof schema).categoryId, schema.categoryId);
+});

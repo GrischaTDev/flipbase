@@ -11,6 +11,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { VintedListingCategoryFields } from '../models/vinted-listing-category-fields';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
+import { VintedCategoryFieldStore } from './vinted-category-field.store';
 
 /** Verwendet den Kontozustand des geöffneten Editors statt einer globalen Kontoauswahl. */
 @Injectable()
@@ -20,6 +21,7 @@ export class VintedListingCategoryService {
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
   private readonly api = inject(MarketplaceBrowserTestApiService);
+  private readonly stored = inject(VintedCategoryFieldStore);
   private readonly requests = new Map<string, Promise<VintedListingCategoryFields>>();
   private readonly snapshots = new Map<
     string,
@@ -44,12 +46,19 @@ export class VintedListingCategoryService {
     if (!options.fresh && cached && Date.now() - cached.at < 300_000) return cached.fields;
     let request = this.requests.get(key);
     if (!request) {
-      request = this.api.readListingCategory(
-        { workspaceId: current.workspaceId, connectionId },
-        categoryId,
-        token,
-        ...(options.categoryLabel ? [options.categoryLabel] : []),
-      );
+      request = (async () => {
+        // Gespeicherte echte Werte ersparen den Abruf bei Vinted.
+        const saved = options.fresh ? null : await this.stored.load(connectionId, categoryId);
+        return (
+          saved ??
+          this.api.readListingCategory(
+            { workspaceId: current.workspaceId, connectionId },
+            categoryId,
+            token,
+            ...(options.categoryLabel ? [options.categoryLabel] : []),
+          )
+        );
+      })();
       this.requests.set(key, request);
     }
     let fields: VintedListingCategoryFields;
@@ -61,6 +70,7 @@ export class VintedListingCategoryService {
     if (JSON.stringify(this.binding(connectionId)) !== JSON.stringify(current))
       throw new Error('Die Kontoverbindung wurde inzwischen geändert. Lade die Auswahl erneut.');
     this.snapshots.set(key, { at: Date.now(), fields });
+    this.stored.remember(connectionId, fields);
     if (this.snapshots.size > 12) this.snapshots.delete(this.snapshots.keys().next().value!);
     return fields;
   }

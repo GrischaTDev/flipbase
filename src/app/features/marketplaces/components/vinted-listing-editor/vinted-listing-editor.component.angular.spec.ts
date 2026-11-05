@@ -1,3 +1,4 @@
+import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { signal } from '@angular/core';
@@ -169,6 +170,10 @@ function setup(
   }));
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedCategoryFieldStore,
+        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+      },
       {
         provide: VintedListingCategoryService,
         useValue: {

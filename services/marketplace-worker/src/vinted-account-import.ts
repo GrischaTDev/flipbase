@@ -49,6 +49,8 @@ export interface VintedImportEntry {
 
 export interface VintedAccountImport {
   sellingCategories?: import('../../../supabase/functions/_shared/vinted-selling-tree.mjs').VintedSellingTreeNode[];
+  /** Echte Auswahlwerte je Kategorie aus den Detailabrufen dieses Abgleichs. */
+  categoryFields?: import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCategoryFields[];
   identity: VintedAccountIdentity;
   observedAt: string;
   entries: VintedImportEntry[];

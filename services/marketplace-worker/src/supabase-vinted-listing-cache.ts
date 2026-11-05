@@ -1,5 +1,9 @@
 import type { VintedListingCurrentContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
-import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import type {
+  VintedListingCategoryFields,
+  VintedListingContent,
+} from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import { vintedCategoryFieldsForStorage } from './vinted-category-field-storage.ts';
 import { parseVintedListingEditContent } from './vinted-listing-contracts.ts';
 import { normalizeVintedTransferSource } from './vinted-transfer-source.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
@@ -21,6 +25,36 @@ export class SupabaseVintedListingCache {
     this.baseUrl = options.url.replace(/\/$/, '');
     this.serviceRoleKey = options.serviceRoleKey;
     this.request = options.fetch ?? fetch;
+  }
+
+  /** Speichert die bei Vinted gelesenen Auswahlwerte einer Kategorie für dieses Konto. */
+  async saveCategoryFields(
+    scope: BrowserSessionScope,
+    externalAccountId: string,
+    fields: VintedListingCategoryFields,
+    observedAt = new Date().toISOString(),
+  ): Promise<boolean> {
+    const response = await this.request(
+      new URL('/rest/v1/rpc/marketplace_save_vinted_category_fields', this.baseUrl),
+      {
+        method: 'POST',
+        headers: {
+          apikey: this.serviceRoleKey,
+          Authorization: 'Bearer ' + this.serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_external_account_id: externalAccountId,
+          p_observed_at: observedAt,
+          p_fields: vintedCategoryFieldsForStorage(fields),
+        }),
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!response.ok) throw new Error('Vinted-Auswahlwerte konnten nicht gespeichert werden');
+    return (await response.json()) === true;
   }
 
   /** Entfernt ausschließlich die vom Anbieter bestätigt gelöschte Lesekopie, keine Originalbilder. */

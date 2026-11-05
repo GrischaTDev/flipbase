@@ -1,3 +1,4 @@
+import { VintedCategoryFieldStore } from './services/vinted-category-field.store';
 import { vintedProfileEditorRendering } from '../../../../e2e/support/vinted-profile-editor-rendering';
 import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
 import { ActionStatusIndicatorComponent } from '../../shared/components/action-status-indicator/action-status-indicator.component';
@@ -359,6 +360,10 @@ beforeEach(() => {
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedCategoryFieldStore,
+        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+      },
       { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: signal(false) } },
       {
         provide: VintedActionOverviewApiService,

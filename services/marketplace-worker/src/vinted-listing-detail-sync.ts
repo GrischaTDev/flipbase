@@ -48,7 +48,8 @@ export async function syncVintedListingDetails(
   // Alte Versuche zuerst: ein nicht lesbares Inserat darf die übrigen nicht blockieren.
   candidates.sort((left, right) => (left.attemptedAt || 0) - (right.attemptedAt || 0));
   const startedAt = now();
-  for (const { entry, sourceUpdatedAt } of candidates.slice(0, 3)) {
+  // Das Zeitbudget begrenzt die Dauer; die Anzahl nur die Last je Abgleich.
+  for (const { entry, sourceUpdatedAt } of candidates.slice(0, 10)) {
     if (now() - startedAt >= 45_000) break;
     await authorize();
     entry.body['listingDetailsAttemptedAt'] = observedAt;
@@ -64,6 +65,13 @@ export async function syncVintedListingDetails(
         listingDetailsReadAt: observedAt,
         listingDetailsSourceUpdatedAt: sourceUpdatedAt ?? null,
       });
+      // Die mitgelieferten echten Auswahlwerte der Kategorie werden mit dem Abgleich gespeichert.
+      const categoryFields = (snapshot.categoryFields ??= []);
+      if (
+        listing.schema.fields.length &&
+        !categoryFields.some((fields) => fields.categoryId === listing.schema.categoryId)
+      )
+        categoryFields.push(listing.schema);
     } catch {
       // Rechteverlust bricht ab; Lesefehler erhalten die letzte bestätigte Aufnahme.
       await authorize();
