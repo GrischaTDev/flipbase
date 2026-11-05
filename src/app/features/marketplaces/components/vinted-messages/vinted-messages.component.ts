@@ -318,6 +318,7 @@ export class VintedMessagesComponent {
   private prepending: ReadingPosition | null = null;
   private focusConversation: string | null = null;
   private focusListRow: string | null = null;
+  private revealListRow: string | null = null;
 
   constructor() {
     const clock = setInterval(() => this.now.set(Date.now()), 60_000);
@@ -398,8 +399,11 @@ export class VintedMessagesComponent {
         return;
       this.handledQuery = signature;
       const entry = snapshot.conversations.items.find((item) => item.id === conversationId);
-      if (entry) untracked(() => void this.openConversation(entry));
-      else this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
+      if (entry) {
+        // Ein Direktlink (z. B. aus einer Benachrichtigung) zeigt die gewählte Zeile auch links.
+        this.revealListRow = entry.id;
+        untracked(() => void this.openConversation(entry));
+      } else this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
     });
     afterEveryRender(() => {
       this.restoreReadingPosition();
@@ -934,6 +938,17 @@ export class VintedMessagesComponent {
   }
 
   private restoreReadingPosition(): void {
+    if (this.revealListRow && this.revealListRow !== this.store.selectedConversationId()) {
+      this.revealListRow = null;
+    } else if (this.revealListRow) {
+      const row = [
+        ...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-conversation-row]'),
+      ].find((item) => item.dataset['conversationRow'] === this.revealListRow);
+      if (row) {
+        row.scrollIntoView?.({ block: 'nearest' });
+        this.revealListRow = null;
+      }
+    }
     if (this.focusListRow && !this.store.selectedConversationId()) {
       const row = [
         ...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-conversation-row]'),
