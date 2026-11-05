@@ -150,6 +150,8 @@ begin
         -- Cloudbewertungen besitzt bereits die Profilquelle; lokale Konten erhalten sie im Chat.
         and (canonical.kind<>'feedback_received' or exists(select 1 from public.marketplace_connections feedback_connection
           where feedback_connection.workspace_id=p_workspace_id and feedback_connection.id=p_connection_id and feedback_connection.execution_mode='local'))
+        -- „Artikel nicht verfügbar“ folgt nur auf ein erledigtes Angebot und bleibt still im Verlauf.
+        and canonical.kind<>'item_unavailable'
         and public.marketplace_notification_enabled(p_workspace_id,p_connection_id,public.marketplace_notification_category(canonical.kind),(entry->>'occurredAt')::timestamptz)
         then v_observed end
     from canonical left join public.marketplace_account_entries c on c.workspace_id=p_workspace_id and c.connection_id=p_connection_id and c.kind='conversation' and c.external_id=entry->>'externalConversationId'
