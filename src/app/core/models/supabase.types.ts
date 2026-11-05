@@ -5195,7 +5195,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
+            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -5236,7 +5236,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: true
             referencedRelation: "marketplace_connections"
@@ -5306,7 +5306,7 @@ export type Database = {
             referencedColumns: ["workspace_id", "connection_id", "id"]
           },
           {
-            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey2"
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -11128,6 +11128,10 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_can_manage_cloud: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
       marketplace_cancel_listing_job: {
         Args: { p_expected_version: number; p_job_id: string }
         Returns: Json
@@ -12652,6 +12656,10 @@ export type Database = {
       }
       marketplace_worker_release: {
         Args: { p_worker_epoch: number; p_worker_id: string }
+        Returns: boolean
+      }
+      marketplace_workspace_authorization_valid: {
+        Args: { p_user_id: string; p_workspace_id: string }
         Returns: boolean
       }
       migrate_legacy_category_brand_texts: { Args: never; Returns: undefined }

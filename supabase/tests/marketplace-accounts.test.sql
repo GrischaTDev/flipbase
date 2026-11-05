@@ -70,9 +70,9 @@ select throws_ok($$select public.marketplace_read_snapshot('25000000-0000-4000-8
 select is((public.marketplace_read_snapshot('25000000-0000-4000-8000-000000000011','25000000-0000-4000-8000-000000000021')->'activity'->>'total')::int,61,'Snapshot enthält vollständigen Kontozähler');
 
 select set_config('request.jwt.claims','{"sub":"25000000-0000-4000-8000-000000000004","role":"authenticated"}',true);
-select is(public.marketplace_can_manage('25000000-0000-4000-8000-000000000011'),false,'Workspace-Admin ohne Betreiberrolle ist ausgeschlossen');
-select is((select count(*)::int from public.marketplace_connections),0,'Nichtbetreiber sieht keine Marktplatzkonten');
-select throws_ok($$select public.marketplace_create_connection('25000000-0000-4000-8000-000000000011','Nicht erlaubt')$$,'42501',null,'Nichtbetreiber kann keine Verbindung anlegen');
+select is(public.marketplace_can_manage('25000000-0000-4000-8000-000000000011'),true,'Workspace-Admin ohne Betreiberrolle erhält lokalen Zugriff');
+select ok((select count(*)::int from public.marketplace_connections)>0,'Workspace-Admin ohne Betreiberrolle sieht seine Marktplatzkonten');
+select is(public.marketplace_create_connection('25000000-0000-4000-8000-000000000011','Lokal erlaubt')->>'executionMode','local','Nichtbetreiber kann ausschließlich eine lokale Verbindung anlegen');
 
 select set_config('request.jwt.claims','{"sub":"25000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
 select is((select count(*)::int from public.marketplace_connections),0,'Mitglied ohne Verwaltungsrecht sieht keine Konten');

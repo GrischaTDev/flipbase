@@ -21,6 +21,67 @@ das `article` der Rasterkarte. Sichtbarkeit, Zentrierung und weitere Erwartungen
 bleiben vollständig erhalten. Der gezielte Nachweis umfasst auch Linux mit
 Node 22.23.4 und Chromium aus Playwright 1.62.1.
 
+## 2026-11-04 - Juna - Vinted lokal für die Beta öffnen und Cloud gesondert sperren
+
+**Auftrag und Umsetzung:** Vinted ist in der Navigation und über direkte Routen
+auch ohne Plattformbetreiberrolle erreichbar. Kontoverwaltung benötigt weiterhin
+Owner-/Adminrechte in einem aktiven, nicht archivierten Workspace. Lokale
+Extension-Freigaben, Importe, Nachrichten, Benachrichtigungen und Inserataufträge
+prüfen diese Rechte ohne Betreiberpflicht. Die allgemeine Kontoanlage erstellt
+ausdrücklich lokale Verbindungen. Cloud-Anlage, Cloud-Sitzungen, Cloud-Abrufe,
+Cloud-Schreibfreigaben und Proxy-Käufe behalten die separate Betreiberprüfung.
+Die Worker-Verfügbarkeitsprüfung verwendet dieselbe Cloud-Grenze. Fremde
+Workspaces, anonyme Sitzungen und abgelaufene Beta-Zugänge bleiben gesperrt.
+
+**Oberfläche:** Admin-Kennzeichnung bei Vinted entfernt; Administration bleibt
+gesperrt. Nichtbetreiber sehen oben bei den Vinted-Konten „Cloud-Konten sind in
+der Beta noch nicht verfügbar.“ Die lokale Kontoanlage bleibt verfügbar;
+Cloud-Auswahl und Wechsel sind ohne serverseitige Freigabe gesperrt.
+
+**Weiterer Einstieg:** Auch die Plattformauswahl in der Marktplatzübersicht zeigt
+Vinted ohne Betreiberrolle. Drei Gegenproben scheiterten mit dem alten Filter,
+darunter die bestehenden Abläufe zur Kontoauswahl und Inseraterstellung. Der
+Beta-Browserfall beginnt zusätzlich bei dieser Plattformauswahl.
+Auch die drei Benachrichtigungsdienste laden lokale Kontoereignisse ohne
+Betreiberrolle. Neue Gegenproben reproduzieren die alten Filtersperren; sofortiges
+Verwerfen bei Archivierung, Workspacewechsel und serverseitigem Rechteentzug
+bleibt abgesichert. Der Beta-Browserfall prüft das Laden aller drei Feeds.
+
+**Datenbank und Nachweis:** Zwei neue Prüffunktionen mit expliziten Rechten;
+keine Tabellenänderung. Migration mit Supabase CLI 2.114.0 aus zwei eigenen,
+datenfreien Ausgangskopien erzeugt und vollständig transaktional auf eine dritte
+frische Kopie angewendet. Abschließender Schemaabgleich ohne Differenz. Typen aus
+diesem migrierten Stand neu erzeugt; dabei auch drei bereits abweichende
+automatische Fremdschlüsselnamen aktualisiert. 2.039 Marketplace-SQL-Fälle
+bestanden, einschließlich 23 neuer Beta-Gegenproben. Vier bestehende lokale
+Suites laufen nun ausdrücklich ohne Betreiberrolle, einschließlich
+Nachrichtenversand und Inseratausführung. Die bewusst veränderten alten
+Betreibererwartungen wurden auf lokale beziehungsweise Cloud-Rechte umgestellt;
+echter Workspace-Rechteverlust bleibt geprüft. 53 betroffene Workerfälle und
+die ersten 49 Oberflächen-/Guardfälle bestanden. Weitere Vorabcheck- und
+Browsernachweise liegen privat unter `tmp/beta-access-checks/`.
+
+**Ergänzende Prüfung:** Gesamter Worker mit 812 erfolgreichen und acht regulär
+ausgelassenen Fällen, Worker-Typen und Bau sowie 455 Edge-Fälle erfolgreich.
+Die Datenbank-Sicherheitsprüfung meldet keine Befunde. Vier neue Browserfälle
+bestätigen Beta-Zugang, Cloud-Hinweis, gesperrte Cloud-Auswahl und die lokale
+Kontoanlage bis zur Extension-Seite bei 1440/390 Pixeln, hell/dunkel und mit
+Touch, einschließlich AXE. Screenshots visuell kontrolliert. Ein alter
+Mobilfall traf in der Produktionsvorschau auf den Updatefehler wegen der
+testweise gesperrten Service Worker; weitere Browserfälle verwenden deshalb
+die vorhandene ruhende Entwicklungsvorschau entsprechend der CI. Die
+PWA-Lebenszyklusmatrix bleibt ein eigener CI-Nachweis.
+
+**Grenzen:** Keine produktiven Daten oder Cloud-/Proxy-Buchungen verändert. Die
+gemeinsame Entwicklungsdatenbank wurde nur gelesen; eigene Datenbanken dienen
+der Prüfung. Der umfangreiche CI-Nachweis einschließlich Image-/Hostisolation
+auf dem GitHub-Wegwerfrunner bleibt vor dem Merge erforderlich. Schritt eins
+liegt unverändert auf seinem eigenen Zweig; kein Push, PR oder Merge ohne die
+Projektfreigabe.
+
+**Veröffentlichung:** Am 05.11.2026 mit dem aktuellen Hauptzweig abgeglichen;
+abschließender Vorabcheck und die ausgewählten CI-Nachweise vor der Auslieferung.
+
 ## 2026-11-04 - Juna - Gespeichertes Relisting unabhängig von der Bearbeitungsmaske prüfen
 
 **Produktiver Abschluss:** Der vom Nutzer gestartete beige Schal wurde nach dem

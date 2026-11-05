@@ -59,7 +59,7 @@ begin
     end if;
     raise exception 'Lokale Installation bereits verbunden' using errcode='55P03';
   end if;
-  if not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+  if not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   insert into public.marketplace_local_extension_grants(workspace_id,connection_id,approved_by,token_hash,external_account_id,expires_at)
     values(p_workspace_id,p_connection_id,(select auth.uid()),p_token_hash,p_expected_external_account_id,clock_timestamp()+interval '24 hours')
     on conflict(workspace_id,connection_id) do update set approved_by=excluded.approved_by,token_hash=excluded.token_hash,external_account_id=excluded.external_account_id,expires_at=excluded.expires_at,last_seen_at=null,revoked_at=null,messages_read=false,messages_send=false,grant_generation=public.marketplace_local_extension_grants.grant_generation+1,inbox_next_page=1 returning * into v_grant;
@@ -103,7 +103,7 @@ begin
   if not found or v_connection.execution_mode<>'local' or v_connection.status in ('paused','blocked','disconnected') then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
   select * into v_grant from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id and token_hash=p_token_hash for update;
   if not found or v_grant.revoked_at is not null or v_grant.expires_at<=clock_timestamp()
-    or not public.marketplace_sync_authorization_valid(p_workspace_id,v_grant.approved_by)
+    or not public.marketplace_workspace_authorization_valid(p_workspace_id,v_grant.approved_by)
     or not public.marketplace_local_extension_user_valid(v_grant.approved_by)
     or (v_connection.external_account_id is not null and v_connection.external_account_id<>v_grant.external_account_id) then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
   if p_snapshot is null then
@@ -195,7 +195,7 @@ declare v_connection public.marketplace_connections; v_grant public.marketplace_
 begin
   perform pg_advisory_xact_lock(91731,1);
   if not public.marketplace_can_manage(p_workspace_id) or not exists(select 1 from auth.users where id=(select auth.uid()) and not is_anonymous)
-    or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+    or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   if p_token_hash is null or p_token_hash !~ '^[0-9a-f]{64}$' or p_expected_external_account_id is null or p_expected_external_account_id !~ '^[1-9][0-9]{0,31}$' then raise exception 'Ungültige Freigabe' using errcode='22023'; end if;
   select * into v_connection from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted' for update;
   if not found or v_connection.execution_mode<>'local' or v_connection.status in ('paused','blocked','disconnected') or v_connection.external_account_id is distinct from p_expected_external_account_id then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
@@ -218,7 +218,7 @@ begin
   if not found or v_connection.execution_mode<>'local' or v_connection.status in ('paused','blocked','disconnected') then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
   select * into v_grant from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id and token_hash=p_token_hash for update;
   if not found or not v_grant.messages_read or v_grant.revoked_at is not null or v_grant.expires_at<=clock_timestamp()
-    or not public.marketplace_sync_authorization_valid(p_workspace_id,v_grant.approved_by)
+    or not public.marketplace_workspace_authorization_valid(p_workspace_id,v_grant.approved_by)
     or not public.marketplace_local_extension_user_valid(v_grant.approved_by)
     or v_connection.external_account_id is distinct from v_grant.external_account_id then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
   select coalesce(jsonb_agg(jsonb_build_object('externalId',e.external_id,'sourceUpdatedAt',e.body->>'sourceUpdatedAt',
@@ -241,7 +241,7 @@ begin
   if not found or v_connection.execution_mode<>'local' or v_connection.status in ('paused','blocked','disconnected') then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
   select * into v_grant from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id and token_hash=p_token_hash for update;
   if not found or not v_grant.messages_read or v_grant.revoked_at is not null or v_grant.expires_at<=clock_timestamp()
-    or not public.marketplace_sync_authorization_valid(p_workspace_id,v_grant.approved_by)
+    or not public.marketplace_workspace_authorization_valid(p_workspace_id,v_grant.approved_by)
     or not public.marketplace_local_extension_user_valid(v_grant.approved_by)
     or v_connection.external_account_id is distinct from v_grant.external_account_id then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
   if jsonb_typeof(p_batch) is distinct from 'object' or (select count(*) from jsonb_object_keys(p_batch)) not between 6 and 9

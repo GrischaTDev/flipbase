@@ -1,6 +1,5 @@
 -- Marktplatzkonten sind Verbindungen innerhalb eines Workspaces, keine neuen Vinted-Konten.
--- Der erste Pilot ist auf Plattformbetreiber mit Adminrechten im eigenen
--- Workspace begrenzt. Private Nachrichten sind für normale Nutzer gesperrt.
+-- Aktive Workspace-Administratoren dürfen lokale Konten nutzen; Cloud bleibt dem Betreiberpilot vorbehalten.
 create table public.marketplace_connections (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -52,12 +51,20 @@ grant all on public.marketplace_account_entries to service_role;
 create or replace function public.marketplace_can_manage(p_workspace_id uuid)
 returns boolean language sql stable security invoker set search_path = '' as $$
   select (select auth.uid()) is not null
-    and (select public.is_platform_operator())
+    and coalesce((select auth.jwt())->>'is_anonymous', 'false') = 'false'
     and public.is_workspace_admin(p_workspace_id)
     and exists (select 1 from public.workspaces w where w.id = p_workspace_id and w.archived_at is null);
 $$;
 revoke all on function public.marketplace_can_manage(uuid) from public, anon;
 grant execute on function public.marketplace_can_manage(uuid) to authenticated;
+
+-- Cloud-Sitzungen und Einrichtungen bleiben unabhängig vom lokalen Beta-Zugriff gesperrt.
+create or replace function public.marketplace_can_manage_cloud(p_workspace_id uuid)
+returns boolean language sql stable security invoker set search_path = '' as $$
+  select public.marketplace_can_manage(p_workspace_id) and (select public.is_platform_operator());
+$$;
+revoke all on function public.marketplace_can_manage_cloud(uuid) from public, anon;
+grant execute on function public.marketplace_can_manage_cloud(uuid) to authenticated;
 
 create policy "Administrators read their marketplace accounts" on public.marketplace_connections
 for select to authenticated using (public.marketplace_can_manage(workspace_id));
@@ -94,7 +101,9 @@ declare v_id uuid; v_result jsonb;
 begin
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if p_display_name is null or char_length(btrim(p_display_name)) not between 1 and 120 or p_display_name ~ '[[:cntrl:]]' then raise exception 'Ungültiger Kontoname' using errcode = '22023'; end if;
-  insert into public.marketplace_connections(workspace_id, display_name) values(p_workspace_id, btrim(p_display_name)) returning id into v_id;
+  -- Die allgemeine Kontoanlage reserviert ausschließlich einen lokalen Anschluss.
+  -- Cloudkonten entstehen nur über die gesondert berechtigte Cloud-Einrichtung.
+  insert into public.marketplace_connections(workspace_id, display_name, execution_mode) values(p_workspace_id, btrim(p_display_name), 'local') returning id into v_id;
   select value into v_result from jsonb_array_elements(public.marketplace_list_connections(p_workspace_id)->'connections') where value->>'connectionId' = v_id::text;
   return v_result;
 end;

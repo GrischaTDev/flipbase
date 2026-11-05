@@ -299,14 +299,15 @@ describe('SidebarComponent', () => {
 
     expect(adminLink).toBeNull();
     expect(subLinks).toEqual([]);
-    expect(element.querySelector('a[href="/marketplaces/vinted"]')).toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
     expect(element.querySelector('a[href="/marketplaces/ebay"]')?.textContent).toContain('eBay');
   });
 
-  it('zeigt den Vinted-Pilotbereich Plattformbetreibern', async () => {
+  it('zeigt Vinted ohne Admin-Kennzeichnung', async () => {
     const { element } = await renderAt('/dashboard');
     const vintedLink = element.querySelector('a[href="/marketplaces/vinted"]');
-    expect(vintedLink?.querySelector('app-badge')?.textContent?.trim()).toBe('Admin');
+    expect(vintedLink).not.toBeNull();
+    expect(vintedLink?.querySelector('app-badge')).toBeNull();
   });
 
   it('rendert eigene Plattform-Logos für die Marktplätze in der Sidebar', async () => {

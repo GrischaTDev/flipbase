@@ -85,7 +85,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_setting public.marketplace_message_notification_settings;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then
     raise exception 'Kontozugriff verweigert' using errcode='42501';
   end if;
   perform 1 from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted' for update;
@@ -117,7 +117,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_setting public.marketplace_message_notification_settings; v_categories jsonb; v_since jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then
     raise exception 'Kontozugriff verweigert' using errcode='42501';
   end if;
   perform 1 from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and marketplace='vinted' for update;

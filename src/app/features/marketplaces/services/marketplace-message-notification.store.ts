@@ -1,7 +1,6 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { PlatformOperatorService } from '../../../core/services/platform-operator.service';
 import {
   messageNotificationToInbox,
   type MessageNotificationFeed,
@@ -15,11 +14,10 @@ export class MarketplaceMessageNotificationStore {
   private readonly api = inject(MarketplaceMessageNotificationApiService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly operator = inject(PlatformOperatorService);
   private readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
     const workspace = this.workspace.currentWorkspace();
-    return userId && workspace && !workspace.archived_at && this.operator.operator()
+    return userId && workspace && !workspace.archived_at
       ? JSON.stringify([userId, workspace.id])
       : null;
   });

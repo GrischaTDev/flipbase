@@ -215,7 +215,7 @@ begin
   if p_enabled is null or p_expected_version is null or p_expected_version < 0 then raise exception 'Ungültige Meldungseinstellung' using errcode = '22023'; end if;
   select * into v_setting from public.marketplace_favorite_notification_settings where workspace_id = p_workspace_id and connection_id = p_connection_id for update;
   if coalesce(v_setting.version,0) <> p_expected_version then raise exception 'Meldungseinstellung wurde zwischenzeitlich geändert' using errcode = '40001'; end if;
-  if not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+  if not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if v_setting.id is null then
     insert into public.marketplace_favorite_notification_settings(workspace_id,connection_id,enabled) values(p_workspace_id,p_connection_id,p_enabled);
   elsif v_setting.enabled <> p_enabled then
@@ -251,7 +251,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 begin
   perform pg_advisory_xact_lock(91731,1);
   if not public.marketplace_can_manage(p_workspace_id)
-    or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
+    or not public.marketplace_workspace_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if p_clear is null then raise exception 'Ungültige Meldungsaktion' using errcode = '22023'; end if;
   if p_clear then
     delete from public.marketplace_favorite_notifications where workspace_id = p_workspace_id and (p_notification_id is null or id::text = p_notification_id);

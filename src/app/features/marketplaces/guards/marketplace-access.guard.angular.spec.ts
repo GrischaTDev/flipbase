@@ -42,10 +42,10 @@ describe('Marktplatzzugriff', () => {
     const f = setup(false);
     expect(await f.invoke()).toBe(f.denied);
   });
-  it('weist Nichtbetreiber vor dem Marktplatzaufruf ab', async () => {
+  it('erlaubt Nichtbetreibern den lokal freigegebenen Marktplatzbereich', async () => {
     const f = setup(true, false);
-    expect(await f.invoke()).toBe(f.denied);
-    expect(f.canManage).not.toHaveBeenCalled();
+    expect(await f.invoke()).toBe(true);
+    expect(f.canManage).toHaveBeenCalledWith('ws-a');
   });
   it('weist Fehler, fehlende Anmeldung und archivierte Workspaces ab', async () => {
     const f = setup();

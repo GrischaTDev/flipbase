@@ -165,7 +165,7 @@ export class SupabaseBrowserSessionStore {
   async authorizeScope(scope: BrowserSessionScope): Promise<void> {
     if (
       (await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId ||
-      (await this.callUserRpc('marketplace_can_manage', scope.userAccessToken, {
+      (await this.callUserRpc('marketplace_can_manage_cloud', scope.userAccessToken, {
         p_workspace_id: scope.workspaceId,
       })) !== true
     )

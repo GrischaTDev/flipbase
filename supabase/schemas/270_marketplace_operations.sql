@@ -35,7 +35,7 @@ revoke all on public.marketplace_operations from public, anon, authenticated;
 grant select on public.marketplace_operations to authenticated;
 grant all on public.marketplace_operations to service_role;
 create policy "Administrators read account operations" on public.marketplace_operations
-for select to authenticated using (public.marketplace_can_manage(workspace_id));
+for select to authenticated using (public.marketplace_can_manage_cloud(workspace_id));
 create policy "Worker reads account operations" on public.marketplace_operations
 for select to service_role using (true);
 create policy "Worker inserts account operations" on public.marketplace_operations
@@ -50,7 +50,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_operation public.marketplace_operations;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  if not public.marketplace_can_manage(p_workspace_id) then
+  if not public.marketplace_can_manage_cloud(p_workspace_id) then
     raise exception 'Kontozugriff verweigert' using errcode = '42501';
   end if;
   perform 1 from public.marketplace_connections
