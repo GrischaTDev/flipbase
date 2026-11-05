@@ -395,6 +395,13 @@ export async function mockMarketplace(
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };
     if (name === 'is_platform_operator') json = true;
+    if (name === 'get_workspace_shop_state')
+      json = {
+        workspace_id: workspaceId,
+        shop_enabled: true,
+        shop_entitled: true,
+        shop_version: 0,
+      };
     // Der Marktplatztest verwendet einen weiterhin aktiven Bestands-Workspace.
     if (name === 'list_my_workspace_access')
       json = [
@@ -411,6 +418,9 @@ export async function mockMarketplace(
           id: workspaceId,
           name: 'Test-Workspace',
           currency: 'EUR',
+          shop_enabled: true,
+          shop_entitled: true,
+          shop_version: 0,
           tax_mode: 'diff_25a',
           min_roi_percent: 35,
           min_profit_amount: 20,

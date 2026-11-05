@@ -12,6 +12,13 @@ Vorabcheck wird vor dem Push am zusammengeführten Stand ausgeführt. Ausgewähl
 CI-Nachweise und der Abschluss werden im PR festgehalten. Fremde Arbeitskopien
 und ihre ungesicherten Änderungen bleiben unangetastet.
 
+**CI-Nacharbeit:** Der erste PR-Lauf bestätigt 144 SQL-Suiten mit 5.418
+Prüfungen. Die anschließende eBay-Nebenläufigkeitsvorbereitung muss den Shop im
+neuen Test-Arbeitsbereich ausdrücklich aktivieren; die bestehende
+Marktplatz-Browserfixture liefert nun auch den Shop-Zustand. Beide
+Vorbereitungen werden vor dem erneuten Push gezielt geprüft. Fachliche
+Prüferwartungen und Zugriffsgrenzen bleiben erhalten.
+
 ## 2026-11-04 - Juna - Einfache Einkäufe und schaltbare Bestandsführung
 
 **Auftrag:** Schritte 2 und 3 auf dem freien Verkaufsablauf aufbauen: freie
