@@ -863,6 +863,9 @@ test('cached descriptions from the import writer reach the next isolated import 
       text: '  Originaltext\r\nmit\tZeilen und Leerzeichen  ',
       descriptionReadAt: '2026-11-03T08:00:00.000Z',
       descriptionSourceUpdatedAt: '2026-11-02T10:00:00.000Z',
+      listingContent: listingCurrentContentFixture().content,
+      listingDetailsReadAt: '2026-11-03T08:00:00.000Z',
+      listingDetailsSourceUpdatedAt: '2026-11-02T10:00:00.000Z',
     },
     { text: '', descriptionReadAt: null, descriptionSourceUpdatedAt: null },
     { text: 'a'.repeat(2000), descriptionReadAt: null, descriptionSourceUpdatedAt: null },
@@ -894,6 +897,13 @@ test('cached descriptions from the import writer reach the next isolated import 
       text: entry.description,
       descriptionReadAt: entry.descriptionReadAt,
       descriptionSourceUpdatedAt: entry.descriptionSourceUpdatedAt,
+      ...('listingContent' in entry
+        ? {
+            listingContent: entry.listingContent,
+            listingDetailsReadAt: entry.listingDetailsReadAt,
+            listingDetailsSourceUpdatedAt: entry.listingDetailsSourceUpdatedAt,
+          }
+        : {}),
     })),
     cached,
   );
@@ -937,6 +947,10 @@ test('isolated import rejects malformed cached descriptions and metadata before 
   };
   for (const changes of [
     { description: null },
+    { listingContent: { categoryId: '2738' } },
+    { listingDetailsReadAt: 'not-a-date' },
+    { listingDetailsSourceUpdatedAt: false },
+    { listingDetailsAttemptedAt: {} },
     { description: 123 },
     { description: {} },
     { description: 'a'.repeat(2001) },

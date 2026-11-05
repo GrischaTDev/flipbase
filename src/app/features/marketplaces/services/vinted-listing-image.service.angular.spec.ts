@@ -275,4 +275,27 @@ describe('Gesicherte Inseratoriginale', () => {
     expect(entries[0].providerImageUrls).toEqual(['https://vinted.example/bordered.jpg']);
     expect(page.items[0].imageUrl).toBe('https://vinted.example/bordered.jpg');
   });
+  it('erhält aktuelle Datenbank-Artikeldetails unabhängig von älteren Originalfotos', async () => {
+    const f = originalService();
+    const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
+    const listingContent = {
+      ...draft.content,
+      title: 'Aktuell',
+      categoryId: 2738,
+      sizeLabel: '40',
+    };
+    const page = parseMarketplacePage(
+      {
+        items: [
+          { ...scope, id: 'listing-1', externalId: '98765', title: 'Aktuell', listingContent },
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+      scope,
+    );
+    const entries = await f.service.entries(scope, page.items);
+    expect(entries[0].listingContent).toEqual(listingContent);
+    expect(entries[0].imageUrl).toBe('https://private.example.test/original');
+  });
 });

@@ -105,9 +105,34 @@ export class VintedListingDetailComponent {
   readonly categorySource = computed(() => {
     const connectionId = this.connectionId();
     this.sellingCategories.clear();
-    return this.categoryApi.source(connectionId, (category) => {
+    const source = this.categoryApi.source(connectionId, (category) => {
       if (this.connectionId() === connectionId) this.sellingCategories.set(category.id, category);
     });
+    return {
+      ...source,
+      getById: async (id: string) => {
+        const content = this.editingSnapshot()?.content;
+        // Den bereits gespeicherten Kategorienamen sofort anzeigen; der Verkaufsbaum
+        // wird erst für eine ausdrücklich geöffnete Suche benötigt.
+        if (
+          content?.categoryId != null &&
+          id === String(content.categoryId) &&
+          content.categoryLabel
+        ) {
+          const parts = content.categoryLabel.split(' > ');
+          return {
+            id,
+            parentId: null,
+            name: parts.at(-1)!,
+            fullName: content.categoryLabel,
+            level: parts.length,
+            isLeaf: true,
+            isDeprecated: false,
+          };
+        }
+        return source.getById(id);
+      },
+    };
   });
   private readonly priceReturnLink = viewChild('priceReturnLink', {
     read: ElementRef<HTMLElement>,

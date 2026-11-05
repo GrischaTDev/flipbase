@@ -1,4 +1,5 @@
 import { parseVintedAccountImport } from '../src/vinted-account-import.ts';
+import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SupabaseVintedImportWriter } from '../src/supabase-vinted-import-writer.ts';
@@ -229,6 +230,9 @@ test('publication cache remains bound to the active account and keeps exact and 
             text: 'Gespeicherte Beschreibung',
             descriptionReadAt: '2026-11-02T10:00:00Z',
             descriptionSourceUpdatedAt: '2026-11-01T10:00:00Z',
+            listingContent: listingCurrentContentFixture().content,
+            listingDetailsReadAt: '2026-11-02T10:00:00Z',
+            listingDetailsSourceUpdatedAt: '2026-11-01T10:00:00Z',
           },
         },
       ]);
@@ -245,6 +249,9 @@ test('publication cache remains bound to the active account and keeps exact and 
       description: 'Gespeicherte Beschreibung',
       descriptionReadAt: '2026-11-02T10:00:00Z',
       descriptionSourceUpdatedAt: '2026-11-01T10:00:00Z',
+      listingContent: listingCurrentContentFixture().content,
+      listingDetailsReadAt: '2026-11-02T10:00:00Z',
+      listingDetailsSourceUpdatedAt: '2026-11-01T10:00:00Z',
     },
   ]);
   assert.equal(calls[1]?.url.pathname, '/rest/v1/rpc/marketplace_publication_versions');

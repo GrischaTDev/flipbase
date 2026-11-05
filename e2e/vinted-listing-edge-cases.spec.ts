@@ -425,6 +425,7 @@ for (const width of [390, 1440])
 
 interface ListingFixture {
   storedContent?: VintedListingDraft['content'];
+  listingContent?: VintedListingDraft['content'];
   title: string;
   text: string | null;
   textState: 'loaded' | 'not_loaded';
@@ -1336,127 +1337,141 @@ for (const width of [390, 1440])
   }
 
 for (const width of [1440, 390]) {
-  test(`Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei ${width}px @marketplace-preview`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 900 });
-    const errors = await prepareListing(page, {
-      title: 'Meine Schuhe',
-      text: 'Sehr gut erhalten.',
-      textState: 'loaded',
-      price: 20.5,
-      storedContent: listingCurrentContentFixture().content,
-      imageUrls: listingCurrentContentFixture().photoUrls,
-    });
-    const listing = { ...listingCurrentContentFixture(), externalAccountId: '100' };
-    const reads: unknown[] = [],
-      saves: Record<string, unknown>[] = [];
-    await page.route('**/marketplace-browser/listings/content/read', (route) => {
-      reads.push(route.request().postDataJSON());
-      return route.fulfill({ json: { listing } });
-    });
-    await page.route('**/marketplace-browser/listings/content/save', (route) => {
-      saves.push(route.request().postDataJSON() as Record<string, unknown>);
-      return route.fulfill({ json: { status: saves.length === 1 ? 'conflict' : 'confirmed' } });
-    });
-    await page.goto(detailPath);
-    const detail = page.locator('app-vinted-listing-detail');
-    await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
-    await expect(detail.getByRole('heading', { name: 'Inserat bearbeiten' })).toBeVisible();
-    expect(reads).toEqual([]);
-    await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Meine Schuhe');
-    await expect(detail.getByLabel('Verkaufspreis')).toHaveValue('20,50');
-    // Farben sind eine Auswahlbox wie bei der Artikel-Erstellung, keine Checkbox-Liste.
-    const colors = detail.getByRole('combobox', { name: 'Farben (höchstens 2)' });
-    await expect(detail.getByRole('button', { name: 'Blau entfernen' })).toBeVisible();
-    await expect(detail.getByRole('checkbox')).toHaveCount(0);
-    await colors.click();
-    // Zwei Farben sind bereits gewählt; eine dritte lässt Vinted nicht zu.
-    await expect(detail.getByRole('option', { name: 'Rot', exact: true })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
-    await detail.getByRole('button', { name: 'Gelb entfernen' }).click();
-    await detail.getByRole('option', { name: 'Rot', exact: true }).click();
-    await expect(detail.getByRole('button', { name: 'Rot entfernen' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    // Das zweite Foto wird Titelbild; gespeichert wird die neue Reihenfolge der vorhandenen Fotos.
-    // Derselbe Bild-Baustein wie auf der Produktseite; hinzufügen und zuschneiden entfallen noch.
-    const photos = detail.locator('app-product-media-editor');
-    await expect(photos.locator('li')).toHaveCount(2);
-    await expect(photos.locator('[data-add-media]')).toHaveCount(0);
-    await photos.getByRole('button', { name: 'Bild 2: Foto 2, Details öffnen' }).click();
-    const photoDetails = page.getByRole('dialog');
-    await expect(photoDetails.getByRole('button', { name: 'Zuschneiden' })).toHaveCount(0);
-    await expect(photoDetails.getByRole('textbox', { name: 'Bildname' })).toHaveCount(0);
-    await page.evaluate(axe.source);
-    // Während des Einblendens misst die Prüfung Zwischenfarben; gewertet wird das fertige Fenster.
-    await expect
-      .poll(() =>
-        page.evaluate(async () =>
-          (
-            await (window as unknown as { axe: typeof axe }).axe.run(
-              document.querySelector('[role="dialog"]')!,
-            )
-          ).violations.map((violation) => violation.id),
-        ),
-      )
-      .toEqual([]);
-    await photoDetails.getByRole('combobox', { name: 'Position in der Galerie' }).click();
-    await photoDetails.getByRole('option', { name: '1 · Hauptbild' }).click();
-    await photoDetails.getByRole('button', { name: 'Übernehmen' }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await detail.getByRole('textbox', { name: 'Titel' }).fill('Neue Schuhe');
-    await detail.getByLabel('Verkaufspreis').fill('18');
-    // Nach dem Schließen des Bilddialogs startet die vorhandene Formular-Einblendung neu.
-    // Kontraste am vollständig eingeblendeten Formular messen, ohne die Animation abzuschalten.
-    await expect(detail.locator('app-entry-page-layout > div')).toHaveCSS('opacity', '1');
-    await page.evaluate(axe.source);
-    const violations = await page.evaluate(async () =>
-      (
-        await (window as unknown as { axe: typeof axe }).axe.run(
-          document.querySelector('app-vinted-listing-detail')!,
+  test.describe('Inseratbearbeitung', () => {
+    test.use({ hasTouch: width === 390 });
+    test(`Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei ${width}px @marketplace-preview`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const theme = width === 390 ? 'dark' : 'light';
+      await page.emulateMedia({ colorScheme: theme });
+      const errors = await prepareListing(page, {
+        title: 'Meine Schuhe',
+        text: 'Sehr gut erhalten.',
+        textState: 'loaded',
+        price: 20.5,
+        listingContent: listingCurrentContentFixture().content,
+        imageUrls: listingCurrentContentFixture().photoUrls,
+      });
+      await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+      const listing = { ...listingCurrentContentFixture(), externalAccountId: '100' };
+      const reads: unknown[] = [],
+        saves: Record<string, unknown>[] = [];
+      await page.route('**/marketplace-browser/listings/content/read', (route) => {
+        reads.push(route.request().postDataJSON());
+        return route.fulfill({ json: { listing } });
+      });
+      await page.route('**/marketplace-browser/listings/content/save', (route) => {
+        saves.push(route.request().postDataJSON() as Record<string, unknown>);
+        return route.fulfill({ json: { status: saves.length === 1 ? 'conflict' : 'confirmed' } });
+      });
+      await page.goto(detailPath);
+      const detail = page.locator('app-vinted-listing-detail');
+      await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+      await expect(detail.getByRole('heading', { name: 'Inserat bearbeiten' })).toBeVisible();
+      expect(reads).toEqual([]);
+      await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Meine Schuhe');
+      await expect(detail.getByLabel('Verkaufspreis')).toHaveValue('20,50');
+      await expect(
+        detail.getByRole('button', { name: 'Kategorie Fußballschuhe', exact: true }),
+      ).toBeVisible();
+      for (const name of ['Marke', 'Größe', 'Zustand', 'Paketgröße'])
+        await expect(detail.getByRole('combobox', { name, exact: true })).toBeVisible();
+      await expect(detail.getByRole('combobox', { name: 'Material (höchstens 3)' })).toBeVisible();
+      // Farben sind eine Auswahlbox wie bei der Artikel-Erstellung, keine Checkbox-Liste.
+      const colors = detail.getByRole('combobox', { name: 'Farben (höchstens 2)' });
+      await expect(detail.getByRole('button', { name: 'Blau entfernen' })).toBeVisible();
+      await expect(detail.getByRole('checkbox')).toHaveCount(0);
+      await colors.click();
+      // Zwei Farben sind bereits gewählt; eine dritte lässt Vinted nicht zu.
+      await expect(detail.getByRole('option', { name: 'Rot', exact: true })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await detail.getByRole('button', { name: 'Gelb entfernen' }).click();
+      await detail.getByRole('option', { name: 'Rot', exact: true }).click();
+      await expect(detail.getByRole('button', { name: 'Rot entfernen' })).toBeVisible();
+      await page.keyboard.press('Escape');
+      // Das zweite Foto wird Titelbild; gespeichert wird die neue Reihenfolge der vorhandenen Fotos.
+      // Derselbe Bild-Baustein wie auf der Produktseite; hinzufügen und zuschneiden entfallen noch.
+      const photos = detail.locator('app-product-media-editor');
+      await expect(photos.locator('li')).toHaveCount(2);
+      await expect(photos.locator('[data-add-media]')).toHaveCount(0);
+      await photos.getByRole('button', { name: 'Bild 2: Foto 2, Details öffnen' }).click();
+      const photoDetails = page.getByRole('dialog');
+      await expect(photoDetails.getByRole('button', { name: 'Zuschneiden' })).toHaveCount(0);
+      await expect(photoDetails.getByRole('textbox', { name: 'Bildname' })).toHaveCount(0);
+      await page.evaluate(axe.source);
+      // Während des Einblendens misst die Prüfung Zwischenfarben; gewertet wird das fertige Fenster.
+      await expect
+        .poll(() =>
+          page.evaluate(async () =>
+            (
+              await (window as unknown as { axe: typeof axe }).axe.run(
+                document.querySelector('[role="dialog"]')!,
+              )
+            ).violations.map((violation) => violation.id),
+          ),
         )
-      ).violations.map((violation) => ({
-        id: violation.id,
-        nodes: violation.nodes.map((node) => ({
-          target: node.target,
-          summary: node.failureSummary,
+        .toEqual([]);
+      await photoDetails.getByRole('combobox', { name: 'Position in der Galerie' }).click();
+      await photoDetails.getByRole('option', { name: '1 · Hauptbild' }).click();
+      await photoDetails.getByRole('button', { name: 'Übernehmen' }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await detail.getByRole('textbox', { name: 'Titel' }).fill('Neue Schuhe');
+      await detail.getByLabel('Verkaufspreis').fill('18');
+      // Nach dem Schließen des Bilddialogs startet die vorhandene Formular-Einblendung neu.
+      // Kontraste am vollständig eingeblendeten Formular messen, ohne die Animation abzuschalten.
+      await expect(detail.locator('app-entry-page-layout > div')).toHaveCSS('opacity', '1');
+      await page.evaluate(axe.source);
+      const violations = await page.evaluate(async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-vinted-listing-detail')!,
+          )
+        ).violations.map((violation) => ({
+          id: violation.id,
+          nodes: violation.nodes.map((node) => ({
+            target: node.target,
+            summary: node.failureSummary,
+          })),
         })),
-      })),
-    );
-    expect(violations).toEqual([]);
-    await screenshot(page, `vinted-listing-edit-${width}`);
-    const save = detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true });
-    expect(reads).toEqual([]);
-    await save.click();
-    expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
-    await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
-    await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Neue Schuhe');
-    await save.click();
-    await expect(page.locator('app-toast-container')).toContainText('Inserat erfolgreich geändert');
-    await expect(detail).not.toContainText('Die Änderung wurde bei Vinted bestätigt.');
-    await expect(detail.getByRole('heading', { name: 'Neue Schuhe' })).toBeVisible();
-    const base = listingCurrentContentFixture().content;
-    expect(saves).toHaveLength(2);
-    expect(saves[1]).toEqual({
-      workspaceId,
-      connectionId: accountIds[0],
-      entryId,
-      base,
-      content: {
-        ...base,
-        title: 'Neue Schuhe',
-        priceCents: 1800,
-        colorIds: [1, 3],
-        colorLabels: ['Blau', 'Rot'],
-      },
-      photos: {
-        base: listingCurrentContentFixture().photoUrls,
-        desired: [...listingCurrentContentFixture().photoUrls].reverse(),
-      },
+      );
+      expect(violations).toEqual([]);
+      await screenshot(page, `vinted-listing-edit-${width}`);
+      const save = detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true });
+      expect(reads).toEqual([]);
+      await save.click();
+      expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
+      await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
+      await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Neue Schuhe');
+      await save.click();
+      await expect(page.locator('app-toast-container')).toContainText(
+        'Inserat erfolgreich geändert',
+      );
+      await expect(detail).not.toContainText('Die Änderung wurde bei Vinted bestätigt.');
+      await expect(detail.getByRole('heading', { name: 'Neue Schuhe' })).toBeVisible();
+      const base = listingCurrentContentFixture().content;
+      expect(saves).toHaveLength(2);
+      expect(saves[1]).toEqual({
+        workspaceId,
+        connectionId: accountIds[0],
+        entryId,
+        base,
+        content: {
+          ...base,
+          title: 'Neue Schuhe',
+          priceCents: 1800,
+          colorIds: [1, 3],
+          colorLabels: ['Blau', 'Rot'],
+        },
+        photos: {
+          base: listingCurrentContentFixture().photoUrls,
+          desired: [...listingCurrentContentFixture().photoUrls].reverse(),
+        },
+      });
+      await checkPage(page, errors);
     });
-    await checkPage(page, errors);
   });
 }
 

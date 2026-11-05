@@ -89,5 +89,31 @@ update public.marketplace_browser_sessions set expires_at=now()-interval '1 seco
 set local role service_role;
 select throws_ok($$select pg_temp.apply(pg_temp.snapshot(12))$$,'42501',null,'Abgelaufene Sitzung verhindert Import');
 reset role;
+-- Vollständige Artikeldetails gehören zur aktuellen Lesekopie, nicht zur Fotosicherung.
+create function pg_temp.listing_content() returns jsonb language sql as $$
+ select '{"title":"Schuhe","description":"Sehr gut erhalten","priceCents":2050,"currency":"EUR","categoryId":2738,"categoryLabel":"Fußballschuhe","brandId":254956,"brandLabel":"Jako","sizeId":607,"sizeLabel":"38","conditionId":2,"conditionLabel":"Sehr gut","colorIds":[1,2],"colorLabels":["Blau","Gelb"],"materialIds":[149],"materialLabels":["Acryl"],"packageSizeId":2,"attributes":{}}'::jsonb;
+$$;
+insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at)
+ values('30000000-0000-4000-8000-000000000051','30000000-0000-4000-8000-000000000011','30000000-0000-4000-8000-000000000021','publication','details',
+ '{"title":"Schuhe","imageUrls":["https://images.example.test/original.jpg"]}','2026-11-05T10:00:00Z','2026-11-05T10:00:00Z');
+select ok(not has_function_privilege('anon','public.marketplace_cache_listing_content(uuid,uuid,uuid,text,jsonb)','execute'),'Anonyme dürfen keine Artikeldetails speichern');
+select ok(not has_function_privilege('authenticated','public.marketplace_cache_listing_content(uuid,uuid,uuid,text,jsonb)','execute'),'Clients dürfen keine Anbieterbestätigung erfinden');
+select ok(has_function_privilege('service_role','public.marketplace_cache_listing_content(uuid,uuid,uuid,text,jsonb)','execute'),'Worker darf bestätigte Artikeldetails speichern');
+select is(public.marketplace_cache_listing_content('30000000-0000-4000-8000-000000000011','30000000-0000-4000-8000-000000000021','30000000-0000-4000-8000-000000000051','other',pg_temp.listing_content()),false,'Fremde Inseratkennung wird abgelehnt');
+select is(public.marketplace_cache_listing_content('30000000-0000-4000-8000-000000000012','30000000-0000-4000-8000-000000000021','30000000-0000-4000-8000-000000000051','details',pg_temp.listing_content()),false,'Fremder Arbeitsbereich wird abgelehnt');
+select is(public.marketplace_cache_listing_content('30000000-0000-4000-8000-000000000011','30000000-0000-4000-8000-000000000022','30000000-0000-4000-8000-000000000051','details',pg_temp.listing_content()),false,'Fremdes Konto wird abgelehnt');
+select is(public.marketplace_cache_listing_content('30000000-0000-4000-8000-000000000011','30000000-0000-4000-8000-000000000021','30000000-0000-4000-8000-000000000051','details','{"priceCents":"ungueltig"}'),false,'Beschädigte Artikeldetails werden abgelehnt');
+select ok(public.marketplace_cache_listing_content('30000000-0000-4000-8000-000000000011','30000000-0000-4000-8000-000000000021','30000000-0000-4000-8000-000000000051','details',pg_temp.listing_content()),'Bestätigte vollständige Artikeldetails speichern');
+select is((select body->'listingContent' from public.marketplace_account_entries where external_id='details'),pg_temp.listing_content(),'Alle Merkmale sind in der Datenbank vorhanden');
+select is((select body->'imageUrls' from public.marketplace_account_entries where external_id='details'),'["https://images.example.test/original.jpg"]'::jsonb,'Fotosicherung bleibt unverändert');
+update public.marketplace_account_entries set body='{"title":"Schuhe","textState":"not_loaded"}' where external_id='details';
+select is((select body->'listingContent' from public.marketplace_account_entries where external_id='details'),pg_temp.listing_content(),'Teilimporte erhalten die vollständigen Artikeldetails');
+select ok((select body ? 'listingDetailsReadAt' from public.marketplace_account_entries where external_id='details'),'Teilimporte erhalten die Abrufzeit der Artikeldetails');
+update public.marketplace_account_entries set body=jsonb_build_object('listingContent',pg_temp.listing_content()||'{"sizeLabel":"37","sizeId":606}'::jsonb,'listingDetailsReadAt','2000-01-01T00:00:00Z') where external_id='details';
+select is((select body->'listingContent' from public.marketplace_account_entries where external_id='details'),pg_temp.listing_content(),'Alter Detailcache überschreibt keine neuere bestätigte Bearbeitung');
+update public.marketplace_account_entries set body=jsonb_build_object('listingContent',pg_temp.listing_content()||'{"sizeLabel":"39","sizeId":608}'::jsonb,'listingDetailsReadAt',clock_timestamp()+interval '1 second') where external_id='details';
+select is((select body->'listingContent'->>'sizeLabel' from public.marketplace_account_entries where external_id='details'),'39','Aktualisierte Artikelmerkmale ersetzen den vorherigen Stand');
+update public.marketplace_account_entries set external_id='details-other',body='{"title":"Anderes Inserat"}' where external_id='details';
+select ok(not (select body ? 'listingContent' from public.marketplace_account_entries where external_id='details-other'),'Geänderte Inseratbindung übernimmt keine fremden Artikeldetails');
 select * from finish();
 rollback;

@@ -8,6 +8,7 @@ import type {
   BrowserDesktop,
 } from './gologin-cloud-browser.ts';
 import { readVintedAccountImport } from './vinted-account-import.ts';
+import { syncVintedListingDetails } from './vinted-listing-detail-sync.ts';
 import { waitForOpenVintedSessionRenewals } from './vinted-session-renewal.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { submitVintedLogin } from './vinted-browser-login.ts';
@@ -255,6 +256,18 @@ export function vintedBrowserActions(
       if (!requestedConversation) {
         const context = connection.contexts?.()[0];
         if (context) {
+          await syncVintedListingDetails(
+            snapshot,
+            previousPublications ?? [],
+            async (externalId) =>
+              readVintedListingCurrentContent(
+                await context.newPage(),
+                snapshot.identity.id,
+                externalId,
+                authorize,
+              ),
+            authorize,
+          );
           try {
             snapshot.sellingCategories = await readVintedSellingTree(
               await context.newPage(),

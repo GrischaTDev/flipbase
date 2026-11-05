@@ -115,7 +115,7 @@ interface BrowserApiOptions {
   conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'> &
-    Partial<Pick<SupabaseVintedListingCache, 'saveTransferSource' | 'remove'>>;
+    Partial<Pick<SupabaseVintedListingCache, 'saveContent' | 'saveTransferSource' | 'remove'>>;
 
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'> &
     Partial<Pick<SupabaseVintedProfileCache, 'saveDetails'>>;
@@ -1040,20 +1040,22 @@ export class MarketplaceBrowserHttpApi {
           if (status === 'confirmed' && this.listingCache) {
             try {
               await authorize();
-              cachePending = !(await this.listingCache.save(
-                scope,
-                entryId,
-                entry.externalId,
-                {
-                  title: desired.title,
-                  description: desired.description,
-                  price:
-                    Math.floor(desired.priceCents! / 100) +
-                    ',' +
-                    String(desired.priceCents! % 100).padStart(2, '0'),
-                },
-                true,
-              ));
+              cachePending = !(await (this.listingCache.saveContent
+                ? this.listingCache.saveContent(scope, entryId, entry.externalId, desired)
+                : this.listingCache.save(
+                    scope,
+                    entryId,
+                    entry.externalId,
+                    {
+                      title: desired.title,
+                      description: desired.description,
+                      price:
+                        Math.floor(desired.priceCents! / 100) +
+                        ',' +
+                        String(desired.priceCents! % 100).padStart(2, '0'),
+                    },
+                    true,
+                  )));
             } catch {
               cachePending = true;
             }

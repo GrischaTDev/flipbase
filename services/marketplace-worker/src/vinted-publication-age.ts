@@ -9,6 +9,10 @@ export interface VintedPublicationVersion {
   description?: string;
   descriptionReadAt?: string | null;
   descriptionSourceUpdatedAt?: string | null;
+  listingContent?: import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingContent;
+  listingDetailsReadAt?: string | null;
+  listingDetailsSourceUpdatedAt?: string | null;
+  listingDetailsAttemptedAt?: string | null;
   publicationState?: VintedPublicationState;
   createdAt?: string | null;
   occurredAt: string | null;

@@ -159,7 +159,8 @@ async function fixture(
     missing?: boolean;
     readAccessOnly?: boolean;
     cacheFailure?: boolean;
-    listingCache?: Pick<SupabaseVintedListingCache, 'save' | 'remove' | 'saveTransferSource'>;
+    listingCache?: Pick<SupabaseVintedListingCache, 'save' | 'remove' | 'saveTransferSource'> &
+      Partial<Pick<SupabaseVintedListingCache, 'saveContent'>>;
     listingPhotos?: VintedListingPhotoSource;
     readOnly?: boolean;
     foreignItem?: boolean;
@@ -244,6 +245,17 @@ async function fixture(
     listingPhotos: options.listingPhotos,
     listingCache: options.listingCache ?? {
       save: async () => true,
+      saveContent: async (scope, id, externalId, content) => {
+        targets.push([
+          'cached-content',
+          scope.workspaceId,
+          scope.connectionId,
+          id,
+          externalId,
+          content,
+        ]);
+        return true;
+      },
       remove: async (scope, id, externalId) => {
         targets.push(['removed-cache', scope.workspaceId, scope.connectionId, id, externalId]);
         if (options.cacheFailure) throw new Error('private cache detail');
@@ -514,6 +526,10 @@ test('content HTTP save writes only for the own entry and passes conflicts throu
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { status: 'confirmed' });
     assert.ok(f.targets.some((target) => JSON.stringify(target) === '["123","98765",2050,1800]'));
+    assert.deepEqual(
+      f.targets.find((target) => Array.isArray(target) && target[0] === 'cached-content'),
+      ['cached-content', workspaceId, connectionId, entryId, '98765', content],
+    );
     assert.equal(f.closed(), 1);
     for (const body of [
       { workspaceId, connectionId, entryId, base },

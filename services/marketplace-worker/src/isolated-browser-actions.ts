@@ -614,6 +614,10 @@ export async function executeBrowserAction(
                 'description',
                 'descriptionReadAt',
                 'descriptionSourceUpdatedAt',
+                'listingContent',
+                'listingDetailsReadAt',
+                'listingDetailsSourceUpdatedAt',
+                'listingDetailsAttemptedAt',
               ].includes(key),
           )
         )
@@ -653,6 +657,18 @@ export async function executeBrowserAction(
             : {}),
           ...(version.descriptionSourceUpdatedAt !== undefined
             ? { descriptionSourceUpdatedAt: timestamp(version.descriptionSourceUpdatedAt) }
+            : {}),
+          ...(version.listingContent !== undefined
+            ? { listingContent: parseVintedListingEditContent(version.listingContent) }
+            : {}),
+          ...(version.listingDetailsReadAt !== undefined
+            ? { listingDetailsReadAt: timestamp(version.listingDetailsReadAt) }
+            : {}),
+          ...(version.listingDetailsSourceUpdatedAt !== undefined
+            ? { listingDetailsSourceUpdatedAt: timestamp(version.listingDetailsSourceUpdatedAt) }
+            : {}),
+          ...(version.listingDetailsAttemptedAt !== undefined
+            ? { listingDetailsAttemptedAt: timestamp(version.listingDetailsAttemptedAt) }
             : {}),
         };
       });

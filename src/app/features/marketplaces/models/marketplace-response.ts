@@ -1,4 +1,5 @@
 import { parseVintedPublicationAge } from './vinted-listing-age';
+import { parseVintedListingContent } from './vinted-listing-content';
 import { parseVintedPublicationState, vintedPublicationIsOnline } from './vinted-publication-state';
 import type {
   AccountScope,
@@ -180,6 +181,9 @@ export function parseMarketplacePage(
       id,
       externalId: text(item['externalId']),
       title: text(item['title']) ?? 'Ohne Bezeichnung',
+      ...(item['listingContent'] == null
+        ? {}
+        : { listingContent: parseVintedListingContent(item['listingContent']) }),
       text: text(item['text']) ?? text(item['message']) ?? text(item['lastMessage']),
       ...(item['textState'] === 'loaded' || item['textState'] === 'not_loaded'
         ? { textState: item['textState'] }
