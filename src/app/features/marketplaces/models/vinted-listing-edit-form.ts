@@ -59,6 +59,47 @@ export function vintedListingEditOptions(
     }));
 }
 
+/** Formularwert einer Marke, wie ihn die Auswahl verwendet. */
+export function vintedListingBrandValue(brand: Pick<VintedListingContent, 'brandId'>): string {
+  return brand.brandId === null ? 'none' : String(brand.brandId);
+}
+
+/**
+ * Nimmt eine über die Markensuche gewählte Marke in die Auswahl auf. Vinted zeigt im Formular
+ * nur die bisherige und vorgeschlagene Marken; die übrigen findet erst die Suche beim Speichern.
+ */
+export function withVintedListingBrand<T extends VintedListingEditSnapshot>(
+  snapshot: T,
+  brand: Pick<VintedListingContent, 'brandId' | 'brandLabel'>,
+): T {
+  const choice: VintedListingChoice = {
+    id: brand.brandId,
+    label: brand.brandLabel,
+    selected: false,
+    disabled: false,
+    sizeGroupId: null,
+  };
+  const field = snapshot.schema.fields.find((entry) => entry.field === 'brand');
+  if (field?.choices.some((entry) => entry.id === brand.brandId && !entry.disabled))
+    return snapshot;
+  return {
+    ...snapshot,
+    schema: {
+      ...snapshot.schema,
+      fields: field
+        ? snapshot.schema.fields.map((entry) =>
+            entry === field
+              ? {
+                  ...entry,
+                  choices: [...entry.choices.filter((value) => value.id !== brand.brandId), choice],
+                }
+              : entry,
+          )
+        : [...snapshot.schema.fields, { field: 'brand', sizeGroupId: null, choices: [choice] }],
+    },
+  };
+}
+
 /**
  * Vinteds Kachel der Paketgröße liefert Hinweis, Name und Beschreibung ohne Trennung, etwa
  * „EmpfohlenMittelFür Artikel, die in einen Schuhkarton passen“. Gezeigt wird nur der Name.

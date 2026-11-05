@@ -45,6 +45,8 @@ const choices = {
     [150, 'Wolle'],
   ],
 } as const;
+/** Marken, die Vinted erst über die Suche anzeigt. */
+const searchableBrands = [[4242, 'Levi’s']] as const;
 
 /** Synthetische Bearbeitungsmaske mit eigenem Speicherstand; keine Anfrage verlässt den Test. */
 export async function createVintedListingEditFormFixture(
@@ -68,6 +70,8 @@ export async function createVintedListingEditFormFixture(
      */
     itemApi?: 'full' | 'reference' | 'foreign-photo-urls';
     modernControls?: boolean;
+    /** Die Markenliste bietet eine Suche; gesuchte Marken erscheinen erst nach der Eingabe. */
+    brandSearch?: boolean;
   } = {},
 ) {
   let saves = 0,
@@ -140,7 +144,7 @@ export async function createVintedListingEditFormFixture(
         });
       // Aufbau wie am 12.10.2026 an Vinteds Schnittstelle gemessen (nur Feldnamen und Typen).
       const price = /^([0-9]+)(?:[,.]([0-9]{1,2}))?/.exec(state.price.split('€').join('').trim());
-      const brand = choices.brand.find(([id]) => id === state.brand);
+      const brand = [...choices.brand, ...searchableBrands].find(([id]) => id === state.brand);
       return route.fulfill({
         json: {
           code: 0,
@@ -246,7 +250,7 @@ export async function createVintedListingEditFormFixture(
       ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox">'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
       ${selectionControls}
       <div id="category-options" hidden>${options.categoryChange ? `<input id="catalog-search-input"><div role="radio" id="catalog-search-2739-result" aria-label="Wanderschuhe" aria-checked="${state.categoryId === 2739}">Wanderschuhe</div>` : ''}<div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
-      <div id="brand-options" hidden>${option('brand', 'radio', [state.brand])}</div>
+      <div id="brand-options" hidden>${options.brandSearch ? '<input id="brand-search-input" data-testid="brand-search--input">' : ''}${option('brand', 'radio', [state.brand])}</div>
       <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
       <div id="condition-options" hidden>${option('condition', 'radio', [state.condition])}</div>
       <div id="color-options" hidden>${option('color', 'checkbox', state.colors)}</div>
@@ -326,6 +330,16 @@ export async function createVintedListingEditFormFixture(
           if(!multiple.includes(name)) hide();
         });
       });
+      const brandSearch=document.querySelector('#brand-search-input');
+      if(brandSearch) brandSearch.oninput=()=>{
+        for(const [id,label] of ${JSON.stringify(searchableBrands)}){
+          if(!label.toLowerCase().includes(brandSearch.value.trim().toLowerCase())||document.getElementById('brand-'+id)) continue;
+          const node=document.createElement('div');
+          node.id='brand-'+id;node.setAttribute('role','radio');node.setAttribute('aria-label',label);node.setAttribute('aria-checked',String(id===${JSON.stringify(state.brand)}));node.textContent=label;
+          node.onclick=()=>{options('brand').forEach(other=>other.setAttribute('aria-checked','false'));node.setAttribute('aria-checked','true');reflect('brand');hide();};
+          document.querySelector('#brand-options').append(node);
+        }
+      };
       document.onkeydown=event=>{if(event.key==='Escape')hide();};
       [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id));
       document.querySelector('#save').onclick=async()=>{

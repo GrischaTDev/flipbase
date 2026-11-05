@@ -6,7 +6,7 @@ import {
   applyStoredVintedListingEdit,
   storedVintedListingEdit,
 } from './vinted-stored-listing-edit';
-import { vintedListingEditSelection } from './vinted-listing-edit-form';
+import { vintedListingEditSelection, withVintedListingBrand } from './vinted-listing-edit-form';
 
 function fixture() {
   const current = listingCurrentContentFixture();
@@ -156,6 +156,23 @@ describe('Stored Vinted listing editing', () => {
     };
     expect(() =>
       applyStoredVintedListingEdit(stored, ambiguous, { ...fields, size: String(size.id) }),
+    ).toThrow();
+  });
+  it('übernimmt eine gesuchte Marke, die Vinted im Formular nicht vorschlägt', () => {
+    const { current, stored, fields } = fixture();
+    const searched = withVintedListingBrand(stored, { brandId: 4242, brandLabel: 'Levi’s' });
+    expect(
+      searched.schema.fields
+        .find((field) => field.field === 'brand')
+        ?.choices.map((choice) => choice.label),
+    ).toContain('Levi’s');
+    const content = applyStoredVintedListingEdit(searched, current, { ...fields, brand: '4242' });
+    expect(content).toMatchObject({ brandId: 4242, brandLabel: 'Levi’s', sizeId: 607 });
+  });
+  it('lehnt eine Marke ab, die nicht über die Suche gewählt wurde', () => {
+    const { current, stored, fields } = fixture();
+    expect(() =>
+      applyStoredVintedListingEdit(stored, current, { ...fields, brand: '4242' }),
     ).toThrow();
   });
 });

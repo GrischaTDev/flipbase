@@ -58,6 +58,30 @@ test('writes only into an own fresh tab, saves once and confirms by reading the 
   }
 });
 
+test('changes the brand to a searched brand that the form does not suggest', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, { brandSearch: true });
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, brandId: 4242, brandLabel: 'Levi’s' },
+        allow,
+      ),
+      'confirmed',
+    );
+    assert.equal(f.writes(), 1);
+    assert.equal(f.state().brand, 4242);
+    assert.equal(f.state().size, base.sizeId);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('saves a price that is the only change although the form reformats it on leaving the field', async () => {
   const browser = await chromium.launch();
   try {

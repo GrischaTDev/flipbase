@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
+
+**Anlass:** Bei einer Jeans boten Marke und Größe in der Bearbeitung jeweils nur
+den bisherigen Wert an.
+
+**Analyse:** Vinted liefert als Kategorienamen oft nur das letzte Glied, etwa
+„Skinny Jeans“. Die eigene Größenliste erkannte daran keine Kleidung und blieb
+leer; gespeicherte echte Werte lagen für diese Kategorie noch nicht vor. Die Marke
+war ein Auswahlfeld mit genau der bisherigen Marke, und der Worker kannte beim
+Bearbeiten nur Vinteds Vorschläge, sodass eine andere Marke nicht speicherbar war.
+
+**Umsetzung:** Jeans gelten als Kleidung; die Liste enthält zusätzlich die
+Bundweiten W23 bis W48. Die Bearbeitung nutzt für die Marke dieselbe Suche wie
+die Erstellen-Maske; ein getippter Name ohne Treffer sperrt das Speichern. Beim
+Speichern wird die gesuchte Marke in den frisch gelesenen Stand übernommen, und
+der Worker liest bei einer geänderten Marke außerhalb der Vorschläge nur die
+Markenliste mit Suche neu.
+
+**Prüfung:** Neue Modell-, Komponenten- und Workerfälle; der Workerfall schlägt
+ohne die Änderung fehl. Ergebnisse von Browserprüfung und Vorabcheck im PR.
+
 ## 2026-11-05 - Juna - Bearbeiten direkt aus dem Kleiderschrank und gespeicherte Größen erhalten
 
 **Anlass:** Bearbeiten war nur über die Detailansicht erreichbar. Eine Jeans mit

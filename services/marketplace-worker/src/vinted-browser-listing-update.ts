@@ -1,5 +1,8 @@
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
-import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
+import {
+  readVintedListingCategoryFields,
+  readVintedListingChoices,
+} from './vinted-browser-listing-form.ts';
 import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import type {
@@ -13,6 +16,7 @@ import {
   parseVintedListingPriceCents,
   readLoadedVintedListingPhotos,
   readOpenVintedListingContent,
+  readVintedListingItemReference,
 } from './vinted-browser-listing-content.ts';
 import {
   mapVintedListingPhotoIds,
@@ -439,6 +443,36 @@ export async function updateVintedListingContent(
       ),
     );
     if (categoryChanged) changed.add('category');
+    // Eine neu gesuchte Marke steht nicht in Vinteds Vorschlägen; die Auswahl wird mit Suche neu gelesen.
+    if (
+      !categoryChanged &&
+      changed.has('brand') &&
+      desired.brandId !== null &&
+      desired.categoryId !== null &&
+      !schema.fields
+        .find((field) => field.field === 'brand')
+        ?.choices.some((choice) => choice.id === desired.brandId)
+    ) {
+      step = 'fields';
+      // Die Bearbeitungsmaske markiert die Kategorie nicht; ihre Kennung kommt aus dem Inserat.
+      const brandField = await readVintedListingChoices(
+        page,
+        accountId,
+        desired.categoryId,
+        'brand',
+        [],
+        {
+          brand: desired,
+          readCategoryId: async () =>
+            (await readVintedListingItemReference(page, externalId))?.categoryId ?? null,
+        },
+      );
+      await check();
+      schema = {
+        ...schema,
+        fields: schema.fields.map((field) => (field.field === 'brand' ? brandField : field)),
+      };
+    }
     if (desired.title !== current.content.title) changed.add('title');
     if (desired.description !== current.content.description) changed.add('description');
     if (desired.priceCents !== current.content.priceCents) changed.add('price');

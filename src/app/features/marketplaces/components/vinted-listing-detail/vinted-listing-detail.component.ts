@@ -2,6 +2,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
+import type { VintedListingBrandSelection } from '../../models/vinted-listing-brand-selection';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { applyVintedListingEdit } from '../../models/vinted-listing-edit-form';
 import { CurrencyPipe } from '@angular/common';
@@ -46,7 +49,9 @@ import type { VintedListingDescription } from '../../models/vinted-listing-descr
 import {
   parseVintedListingReadPriceCents,
   vintedListingEditOptions,
+  vintedListingBrandValue,
   vintedListingEditSelection,
+  withVintedListingBrand,
   vintedListingPriceText,
   type VintedListingEditField,
   type VintedListingEditSnapshot,
@@ -80,6 +85,7 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
     VintedListingAgeComponent,
     TextFieldComponent,
     VintedListingMetricsComponent,
+    VintedListingBrandDialogComponent,
   ],
   providers: [VintedListingCategoryService],
   templateUrl: './vinted-listing-detail.component.html',
@@ -97,6 +103,8 @@ export class VintedListingDetailComponent {
   private readonly toast = inject(ToastService);
   private readonly categoryApi = inject(VintedListingCategoryService);
   private readonly categoryFields = inject(VintedCategoryFieldStore);
+  private readonly workspace = inject(WorkspaceService);
+  readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? null);
   readonly categoryLoading = signal(false);
   private readonly categoryEdit = signal<VintedListingEditSnapshot | null>(null);
   readonly editingSnapshot = computed(() => this.categoryEdit() ?? this.current());
@@ -246,8 +254,18 @@ export class VintedListingDetailComponent {
   );
   /** Merkmale des Artikels; die Paketgröße steht bei Preis und Versand. */
   readonly articleChoiceFields = computed(() =>
-    this.choiceFields().filter((choice) => choice.field !== 'package'),
+    this.choiceFields().filter((choice) => choice.field !== 'package' && choice.field !== 'brand'),
   );
+  /** Die Marke wird gesucht; Vinteds Formular kennt nur die bisherige und vorgeschlagene Marken. */
+  readonly brandScope = computed(() => JSON.stringify([this.connectionId(), this.entryId()]));
+  private readonly brandValue = signal('');
+  readonly brandLabel = computed(
+    () =>
+      this.options('brand').find((option) => option.value && option.value === this.brandValue())
+        ?.label ?? '',
+  );
+  /** Ein getippter Name ohne Treffer aus der Suche ist noch keine Vinted-Marke. */
+  readonly brandPending = signal(false);
   readonly packageChoice = computed(
     () => this.choiceFields().find((choice) => choice.field === 'package') ?? null,
   );
@@ -256,6 +274,7 @@ export class VintedListingDetailComponent {
       this.editing() &&
       this.entry() !== null &&
       !this.categoryLoading() &&
+      !this.brandPending() &&
       this.form.controls.categoryId.value ===
         String(this.editingSnapshot()?.content.categoryId ?? ''),
   );
@@ -505,6 +524,8 @@ export class VintedListingDetailComponent {
       { emitEvent: false },
     );
     this.initialFields = this.form.getRawValue();
+    this.brandValue.set(this.form.controls.brand.value);
+    this.brandPending.set(false);
     this.editing.set(true);
   }
   private async changeCategory(id: string): Promise<void> {
@@ -526,6 +547,8 @@ export class VintedListingDetailComponent {
           },
           { emitEvent: false },
         );
+      this.brandValue.set(this.form.controls.brand.value);
+      this.brandPending.set(false);
       this.categoryEdit.set(null);
       this.categoryLoading.set(false);
       this.error.set(null);
@@ -565,6 +588,8 @@ export class VintedListingDetailComponent {
         },
         { emitEvent: false },
       );
+      this.brandValue.set('');
+      this.brandPending.set(false);
     } catch (error) {
       if (this.isCurrent(version) && this.form.controls.categoryId.value === id)
         this.error.set(
@@ -574,6 +599,20 @@ export class VintedListingDetailComponent {
       if (this.isCurrent(version) && this.form.controls.categoryId.value === id)
         this.categoryLoading.set(false);
     }
+  }
+  editBrand(label: string): void {
+    if (!this.editing()) return;
+    this.brandPending.set(label !== this.brandLabel());
+  }
+  selectBrand(selection: VintedListingBrandSelection): void {
+    if (!this.editing() || this.busy()) return;
+    this.current.update((snapshot) => snapshot && withVintedListingBrand(snapshot, selection));
+    this.categoryEdit.update((snapshot) => snapshot && withVintedListingBrand(snapshot, selection));
+    const value = vintedListingBrandValue(selection);
+    this.form.controls.brand.setValue(value);
+    this.form.controls.brand.markAsDirty();
+    this.brandValue.set(value);
+    this.brandPending.set(false);
   }
   async save(): Promise<void> {
     if (this.form.invalid || this.busy() || !this.canSave()) {

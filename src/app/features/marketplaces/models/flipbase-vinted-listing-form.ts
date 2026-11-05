@@ -85,7 +85,10 @@ export function flipbaseVintedListingFields(
   const children = /kinder|baby|mädchen|jungen/.test(path);
   const shoes =
     !/handschuhe/.test(path) && /schuhe|sneaker|stiefel|sandalen|pantoffeln|pumps/.test(path);
+  // Vinted nennt oft nur das letzte Kategorieglied, zum Beispiel „Skinny Jeans“.
+  const jeans = /jeans/.test(path);
   const clothing =
+    jeans ||
     /kleidung|jacken|hosen|kleider|röcke|shirts|pullover|blusen|hemden|mäntel|unterwäsche|bademode|anzüge|overalls|kostüme/.test(
       path,
     );
@@ -123,6 +126,8 @@ export function flipbaseVintedListingFields(
                     '5XL',
                     '6XL',
                     ...range(30, 70, 2),
+                    // Bundweiten wie „W32“ führt Vinted bei Jeans als eigene Größen.
+                    ...(jeans ? range(23, 48).map((width) => `W${width}`) : []),
                   ]
                 : [];
   // Einzelne ältere Entwürfe enthalten nur den Blattnamen.

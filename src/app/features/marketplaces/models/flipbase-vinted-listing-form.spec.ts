@@ -104,6 +104,19 @@ describe('Eigenes Inseratformular', () => {
     expect(errors['size']).toBeUndefined();
     expect(errors['material']).toBeUndefined();
   });
+  it('bietet bei Jeans mit nur dem Blattnamen die volle Größenauswahl samt Bundweiten an', () => {
+    const sizes =
+      flipbaseVintedListingFields(1839, 'Skinny Jeans', {
+        brandId: null,
+        brandLabel: '',
+        sizeLabel: 'W32',
+      })
+        .fields.find((field) => field.field === 'size')
+        ?.choices.map((choice) => choice.label) ?? [];
+    expect(sizes).toEqual(expect.arrayContaining(['XS', 'M', 'XXL', '38', 'W24', 'W32', 'W40']));
+    expect(sizes.filter((label) => label === 'W32')).toHaveLength(1);
+    expect(sizes.length).toBeGreaterThan(30);
+  });
   it('verwendet bei Mützen, Handschuhen, Gürteln und BHs vor allgemeinen Kleidungsgrößen das eigene Größenprofil', () => {
     for (const [path, expected] of [
       ['Kinder > Jungen > Kleidung > Mützen', '52'],
