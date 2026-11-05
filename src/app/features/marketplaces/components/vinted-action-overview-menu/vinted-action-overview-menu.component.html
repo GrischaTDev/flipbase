@@ -167,7 +167,7 @@
       !kleinanzeigen.entries().length &&
       !listingOperations.entries().length
     ) {
-      @if (store.loading()) {
+      @if (store.loading() && !store.loaded()) {
         <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
           <app-loading-indicator /> Aktionen werden geladen …
         </p>

@@ -47,6 +47,11 @@ export class VintedActionOverviewHeaderStore {
   } | null>(null);
   private readonly reading = signal<string | null>(null);
   private activeRead: { context: string; repeat: boolean } | null = null;
+  /** Zuletzt gelesener Stand der Kontoabgleiche; sie erscheinen nicht in der Kopfzeile. */
+  private syncStates: {
+    context: string;
+    states: ReadonlyMap<string, VintedAction['state']>;
+  } | null = null;
   private destroyed = false;
   /** Weggeklickte Fehlermeldungen; nur eine Ansichtshilfe je Browser, kein Auftragsstatus. */
   private readonly dismissed = signal<ReadonlySet<string>>(readDismissedActions());
@@ -102,6 +107,10 @@ export class VintedActionOverviewHeaderStore {
       ),
   );
   readonly loading = computed(() => this.context() !== null && this.reading() === this.context());
+  /** Erst der erste Abruf je Kontext zeigt einen Ladehinweis; Folgeabrufe behalten den Stand. */
+  readonly loaded = computed(
+    () => this.context() !== null && this.snapshot()?.context === this.context(),
+  );
   readonly error = computed(() =>
     this.context() && this.snapshot()?.context === this.context()
       ? (this.snapshot()?.error ?? null)
@@ -186,6 +195,9 @@ export class VintedActionOverviewHeaderStore {
       if (!isCurrent()) return;
       let hasError = false;
       const previous = this.groups();
+      const previousSyncStates =
+        this.syncStates?.context === context ? this.syncStates.states : null;
+      const syncStates = new Map(previousSyncStates ?? []);
       const groups = accounts.flatMap((account, index): VintedRunningActionGroup[] => {
         const result = results[index];
         if (result.status === 'rejected') {
@@ -198,6 +210,22 @@ export class VintedActionOverviewHeaderStore {
           previous.find((group) => group.scope.connectionId === account.connectionId)?.actions ??
           [];
         const actions = result.value.actions.filter((action) => {
+          if (action.kind === 'sync') {
+            // Kontoabgleiche laufen alle paar Minuten und stehen auf der Kontoseite.
+            // Nur ein neu beobachteter Fehler erscheint kurz als Toast.
+            const key = `${account.connectionId}:${action.id}`;
+            const before = previousSyncStates?.get(key);
+            syncStates.set(key, action.state);
+            if (
+              previousSyncStates &&
+              (action.state === 'failed' || action.state === 'outcome_unknown') &&
+              before !== 'failed' &&
+              before !== 'outcome_unknown' &&
+              recentFailure(action.updatedAt)
+            )
+              this.toast.error(describeVintedAction(action), account.displayName);
+            return false;
+          }
           if (action.state === 'running') return true;
           if (action.state === 'failed' || action.state === 'outcome_unknown')
             return recentFailure(action.updatedAt);
@@ -206,8 +234,7 @@ export class VintedActionOverviewHeaderStore {
             !previousActions.some((previousAction) => previousAction.id === action.id)
           )
             return false;
-          if (action.kind !== 'sync')
-            this.toast.success(describeVintedAction(action), account.displayName);
+          this.toast.success(describeVintedAction(action), account.displayName);
           return false;
         });
         return actions.length
@@ -220,6 +247,7 @@ export class VintedActionOverviewHeaderStore {
             ]
           : [];
       });
+      this.syncStates = { context, states: syncStates };
       if (listingResult.failed) hasError = true;
       const availableAccounts = new Map(
         accounts.map((account) => [account.connectionId, account.displayName]),
