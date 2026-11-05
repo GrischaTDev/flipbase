@@ -190,6 +190,7 @@ test('Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast @marketp
       }
     }).observe(document.body, { childList: true, subtree: true });
   });
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 1000)));
   holdSnapshot = true;
   const readsBeforeConfirmation = snapshotReads;
   publicationTime = await page.evaluate(() => new Date().toISOString());
@@ -208,13 +209,19 @@ test('Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast @marketp
   await expect(plan).toContainText('Veröffentlichung wird geprüft');
   await expect(page.locator('app-toast-container')).not.toContainText('Veröffentlicht');
   releaseSnapshot();
-  // Der fehlgeschlagene parallele Leseversuch wird im nächsten Takt wiederholt.
-  await page.clock.fastForward(6000);
-  await expect(wardrobe.locator('[data-listing-row]')).toHaveCount(1);
-  await expect(plan).toHaveCount(0);
+  // Kleine kontrollierte Takte lassen auch einen schon vor dem nächsten Abruf
+  // erschienenen Vier-Sekunden-Toast bis zu seiner Prüfung sichtbar bleiben.
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(1000);
+      return page.evaluate(
+        () => (window as unknown as { relistingToasts: unknown[] }).relistingToasts.length,
+      );
+    })
+    .toBe(1);
+  await expect(wardrobe.locator('[data-listing-row], [data-relisting-plan]')).toHaveCount(1);
   await expect(wardrobe.locator('app-vinted-listing-age')).toHaveText('Neu');
   await expect(wardrobe).not.toContainText('Alter unbekannt');
-  await expect(wardrobe.locator(`a[href*="${originalEntryId}"]`).first()).toBeVisible();
   await expect(page.locator('app-toast-container')).toContainText('Veröffentlicht');
   await expect
     .poll(() =>
@@ -231,6 +238,14 @@ test('Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast @marketp
   expect(observed[0].cards).toBe(1);
   expect(observed[0].wardrobe).toContain('Neu');
   expect(observed[0].wardrobe).not.toContain('Alter unbekannt');
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(1000);
+      return wardrobe.locator('[data-listing-row]').count();
+    })
+    .toBe(1);
+  await expect(plan).toHaveCount(0);
+  await expect(wardrobe.locator(`a[href*="${originalEntryId}"]`).first()).toBeVisible();
   await page.clock.fastForward(10000);
   expect(
     await page.evaluate(

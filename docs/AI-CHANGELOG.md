@@ -29,6 +29,8 @@ Identitätswechsel und echte Inhalts-/Fotoabweichungen. Ein zusätzlicher Fall
 veröffentlicht wie beim EA7-Artikel 13 Originalfotos in richtiger Reihenfolge.
 Der gerenderte Browserfall verzögert die Datenantwort absichtlich und prüft genau
 eine ursprüngliche Karte, sofort „Neu“ und genau einen anschließenden Toast.
+Die Testuhr läuft dabei kontrolliert in kleinen Takten, damit der vier Sekunden
+sichtbare Toast auf einem schnelleren CI-Läufer nicht vor seiner Prüfung verschwindet.
 Der lokale Vorabcheck und die vollständigen Datenbank-, Browser- und
 Imageprüfungen bilden die Freigabe für den vollständigen Änderungsstand.
 In Lissie ist Flipbase weiterhin nicht als Projekt verfügbar.
