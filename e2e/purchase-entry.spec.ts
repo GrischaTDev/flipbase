@@ -65,13 +65,15 @@ test('keeps edits after cancelling navigation and leaves after confirmation', as
   const description = page.getByRole('textbox', { name: 'Beschreibung' });
   await description.fill('Nicht verwerfen');
 
-  page.once('dialog', (dialog) => dialog.dismiss());
+  // Die Rückfrage kommt aus dem eigenen App-Dialog, nicht aus dem Browserfenster.
+  const leaveDialog = page.getByRole('dialog', { name: 'Seite verlassen?' });
   await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
+  await leaveDialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await expect(page).toHaveURL(/\/purchases\/new$/);
   await expect(description).toHaveValue('Nicht verwerfen');
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
+  await leaveDialog.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
   await expect(page).toHaveURL(/\/purchases$/);
 });
 

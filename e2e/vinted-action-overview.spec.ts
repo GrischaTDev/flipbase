@@ -258,9 +258,17 @@ test('meldet Aktionsabschlüsse per Toast und beendet Kontoabgleiche still @mark
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
   ).toBeVisible();
+  // Automatische Kontoabgleiche erscheinen nicht unter „Laufende Aktionen“.
   fixture.startAccountSync();
-  await expect(overview.getByText('Kontodaten werden aktualisiert', { exact: true })).toBeVisible();
-  await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
+  await page.waitForResponse('**/rest/v1/rpc/marketplace_read_action_overview');
+  await page.waitForResponse('**/rest/v1/rpc/marketplace_read_action_overview');
+  await expect(overview.getByText('Kontodaten werden aktualisiert', { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
+  ).toBeVisible();
   fixture.finishActions();
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
