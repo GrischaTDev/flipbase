@@ -40,6 +40,23 @@ Desktop und Handy, hell und dunkel. Abschalten und Wiedereinschalten von Vinted
 samt Wartungsseite wurden mit kurzzeitig eingespielten und danach wieder
 entfernten Migrationen geprüft.
 
+## 2026-11-06 - Juna - Vinted-Katalog vollständig mitliefern
+
+**Anlass:** Der lokale Katalog hätte sich erst über rund 41 Kontoabgleiche gefüllt; bis
+dahin galt für fehlende Kategorien der alte Weg.
+
+**Umsetzung:** Im angemeldeten, leeren Verkaufsformular den gesamten Verkaufsbaum, die
+Felder aller 2.462 Endkategorien und die Farben gelesen (400 ms Pause, nichts gespeichert
+oder veröffentlicht). Daraus eine Seed-Migration erzeugt: 2.874 Kategorien, 36
+Größengruppen mit 709 Größen, 301 Merkmalswerte, Felder über 65 gemeinsame Muster.
+Vorhandene Zeilen bleiben unverändert; Felder werden nur für Kategorien ohne gespeicherte
+Felder ergänzt. Der Katalogtest leert seine Tabellen nun zu Beginn seiner Transaktion.
+
+**Prüfung:** Migration in eigener lokaler Datenbank angewendet: alle Endkategorien mit
+Feldern, Damenjeans mit sechs, Herrenjeans mit zwei Größengruppen. Erneutes Anwenden in
+einer Transaktion ließ geänderte und vorhandene Werte unverändert. 65 SQL-Prüfungen
+einschließlich neuem Seed-Test bestanden. Vorabcheck im Commit.
+
 ## 2026-11-06 - Juna - Suchfilter-Karten im Vinted Bot bleiben an ihrem Platz
 
 **Anlass:** Die Karten in der Bot-Verwaltung sprangen während des Betriebs nach

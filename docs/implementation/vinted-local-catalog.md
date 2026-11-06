@@ -91,7 +91,8 @@ ein eigener Zeitplan ist nicht nötig. Ablauf:
 
 Fehler im Katalog ändern weder Ergebnis noch Status des Kontoabgleichs. Der erste
 Abgleich speichert Baum und Farben; ab dem nächsten folgen die Felder in Blöcken.
-Bei rund 2.460 Endkategorien ist der Katalog nach etwa 41 Kontoabgleichen vollständig.
+Seit der Erstbefüllung (unten) ist der Katalog sofort vollständig; der Abgleich hält ihn
+nur noch aktuell und liest Felder erneut, sobald sie älter als sieben Tage sind.
 
 ## Masken aus dem Katalog (Schritt 4)
 
@@ -131,7 +132,27 @@ Beobachtet am 06.11.2026 im leeren Verkaufsformular:
   Bearbeiten eine geänderte Marke oder Größe in den gelesenen Werten, wird genau dieses
   Feld mit Suche bzw. Gruppenwechsel neu gelesen.
 
-## Plan
+## Erstbefüllung (06.11.2026)
+
+Damit der Katalog nicht erst über rund 41 Kontoabgleiche entsteht, liefert die Migration
+`20261106150415_vinted_listing_catalog_seed.sql` ihn vollständig mit. Gelesen im
+angemeldeten, leeren Verkaufsformular von vinted.de mit 400 ms Pause je Abruf; nichts
+gespeichert oder veröffentlicht.
+
+| Inhalt                                                           | Anzahl       |
+| ---------------------------------------------------------------- | ------------ |
+| Kategorien im Verkaufsbaum                                       | 2.874        |
+| Endkategorien mit Feldern                                        | 2.462 (alle) |
+| Endkategorien mit Größe                                          | 595          |
+| Größengruppen / Größen                                           | 36 / 709     |
+| Merkmalswerte (Zustand, Farbe, Material, Zielgruppe und weitere) | 301          |
+| unterschiedliche Feldmuster                                      | 65           |
+
+Die Migration ist nicht destruktiv: Vorhandene Zeilen, etwa aus einem bereits gelaufenen
+Worker-Abgleich, bleiben unverändert; Felder einer Kategorie werden nur ergänzt, wenn für
+sie noch keine gespeichert sind. Neben Größe, Zustand, Farbe und Material speichert der
+Katalog weitere Merkmale einzelner Kategorien (z. B. `measurements`, `skirt_length`,
+`video_game_platform`); die Masken zeigen davon bisher die bekannten Felder.
 
 1. **Nachweis** – erledigt (oben).
 2. **Datenbank** – erledigt (oben): zentrale Tabellen ohne Kontobezug: Verkaufsbaum, Größengruppen
