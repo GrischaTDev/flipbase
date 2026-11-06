@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Vinted-Paketgrößen je Kategorie mit Vorschlag
+
+**Anlass:** Die Paketgröße sollte Vinteds Empfehlung je Kategorie vorbelegen. Bei der
+Suche nach der Quelle zeigte sich, dass schwere Kategorien (z. B. Möbel) bei Vinted nur
+5, 10 und 20 kg (IDs 8–10) anbieten; Flipbases feste Auswahl Klein/Mittel/Groß (1–3) war
+dort ungültig.
+
+**Umsetzung:** Quelle im angemeldeten Formular ermittelt (Versandschätzung unter
+`api.vinted.de`, deutsche Titel nur mit `Locale: de-DE`). Der Worker liest Paketgrößen und
+Vorschlag je Kategorie mit und speichert sie als Feld `package`; neue Spalte
+`recommended_option_id`. Editor und Bearbeiten bieten die Paketgrößen der Kategorie an,
+das Vorbereiten belegt fehlende oder unpassende Größen mit Vinteds Vorschlag vor. Die
+Migration stößt ein vollständiges Neu-Einlesen an.
+
+**Prüfung:** Migration in eigener lokaler Datenbank angewendet, Schemaabgleich ohne
+Treffer auf Katalogobjekte, Typen erzeugt (nur neue Spalte), 88 SQL-Prüfungen bestanden.
+Neue Worker- und Modelltests mit den beobachteten Antworten. Vorabcheck im Commit.
+
 ## 2026-11-06 - Juna - Admin-Modellauswahl und Freigabe von AI Search vorbereiten
 
 **Auftrag:** PR, erfolgreichen Merge und Serverausrollung ausdrücklich freigegeben;

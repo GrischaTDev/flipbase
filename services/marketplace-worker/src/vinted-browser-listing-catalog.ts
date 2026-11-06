@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { randomUUID } from 'node:crypto';
 import { setTimeout as wait } from 'node:timers/promises';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { readVintedCsrfToken } from './vinted-browser-messages.ts';
@@ -6,6 +7,7 @@ import {
   parseVintedListingCatalogTree,
   parseVintedListingCategoryAttributes,
   parseVintedListingColors,
+  parseVintedListingPackageField,
   type VintedListingCatalogCategoryFields,
   type VintedListingCatalogRead,
 } from './vinted-listing-catalog.ts';
@@ -22,6 +24,9 @@ export interface VintedListingCatalogReadOptions {
 }
 
 class CatalogRequestStopped extends Error {}
+
+/** Versandschätzung von Vinted; das Formular fragt Paketgrößen dort ab. */
+const shippingEstimation = 'https://api.vinted.de/shipping-estimation/external/';
 
 /**
  * Liest Teile des Vinted-Katalogs in einer eigenen, leeren Verkaufsseite. Speichert und
@@ -53,6 +58,9 @@ export async function readVintedListingCatalog(
       const response = await page.evaluate(
         async ({ path, body, token }) => {
           if (location.origin !== 'https://www.vinted.de') return { status: 401, payload: null };
+          // Nur eigene Pfade oder die Versandschätzung; sie liefert deutsche Texte nur mit Locale.
+          const shipping = path.startsWith('https://api.vinted.de/shipping-estimation/external/');
+          if (!shipping && !path.startsWith('/api/v2/')) return { status: 400, payload: null };
           const result = await fetch(path, {
             method: body === undefined ? 'GET' : 'POST',
             credentials: 'include',
@@ -61,6 +69,7 @@ export async function readVintedListingCatalog(
             headers: {
               Accept: 'application/json',
               'X-CSRF-Token': token,
+              ...(shipping ? { Locale: 'de-DE' } : {}),
               ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
             },
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -85,6 +94,30 @@ export async function readVintedListingCatalog(
       ? parseVintedListingColors(await request('/api/v2/item_upload/colors'))
       : undefined;
     const categories: VintedListingCatalogCategoryFields[] = [];
+    // Der Vorschlag verlangt eine Formularsitzung; eine zufällige Kennung genügt.
+    const uploadSessionId = randomUUID();
+    const packageField = async (categoryId: number, position: number) => {
+      try {
+        const sizes = await request(`${shippingEstimation}catalogs/${categoryId}/package_sizes`);
+        await wait(delayMs);
+        const suggestion = await request(`${shippingEstimation}package_sizes/suggestion`, {
+          catalog_id: categoryId,
+          upload_session_id: uploadSessionId,
+          brand_id: null,
+          title: '',
+          description: '',
+          price: null,
+          color_ids: [],
+          item_attributes: [],
+        });
+        return parseVintedListingPackageField(sizes, suggestion, position);
+      } catch (error) {
+        if (error instanceof CatalogRequestStopped) throw error;
+        // Ohne Paketgrößen bleiben die übrigen Felder gültig; die Masken nutzen dann 1–3.
+        process.stderr.write(`Paketgrößen der Vinted-Kategorie ${categoryId} fehlen!\n`);
+        return null;
+      }
+    };
     for (const categoryId of options.categoryIds) {
       if (Date.now() >= deadline) break;
       await wait(delayMs);
@@ -94,7 +127,13 @@ export async function readVintedListingCatalog(
             attributes: [{ code: 'category', value: [categoryId] }],
           }),
         );
-        categories.push({ categoryId, fields });
+        if (fields.some((field) => field.code === 'package')) {
+          categories.push({ categoryId, fields });
+          continue;
+        }
+        await wait(delayMs);
+        const parcel = await packageField(categoryId, fields.length);
+        categories.push({ categoryId, fields: parcel ? [...fields, parcel] : fields });
       } catch (error) {
         if (error instanceof CatalogRequestStopped) break;
         // Eine einzelne fehlerhafte Kategorie verhindert nicht den Rest des Laufs.

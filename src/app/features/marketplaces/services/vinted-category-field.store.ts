@@ -101,7 +101,9 @@ export class VintedCategoryFieldStore {
     const client = this.database.client;
     const fields = await client
       .from('vinted_listing_category_fields')
-      .select('field_code,position,option_ids,title,required,selection_type,selection_limit')
+      .select(
+        'field_code,position,option_ids,title,required,selection_type,selection_limit,recommended_option_id',
+      )
       .eq('category_id', categoryId);
     if (fields.error) throw fields.error;
     if (!fields.data?.length) return null;

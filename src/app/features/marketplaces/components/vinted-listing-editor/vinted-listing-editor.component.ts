@@ -92,6 +92,7 @@ import {
 import {
   flipbaseVintedListingFields,
   prepareFlipbaseVintedListingContent,
+  recommendedVintedPackageSizeId,
 } from '../../models/flipbase-vinted-listing-form';
 
 const textOptions = { nonNullable: true as const, validators: [Validators.maxLength(20000)] };
@@ -545,11 +546,22 @@ export class VintedListingEditorComponent {
     const content = this.content();
     if (content.packageSizeId === null) return 'Noch nicht festgelegt';
     const selection = this.selectedFields();
-    return selection?.categoryId === content.categoryId &&
+    if (
+      selection?.categoryId === content.categoryId &&
       selection.fields.includes('package') &&
       selection.values.packageSizeId === content.packageSizeId
-      ? selection.packageLabel
-      : 'Bereits festgelegt';
+    )
+      return selection.packageLabel;
+    // Aus dem Katalog vorbelegt, etwa mit Vinteds Vorschlag für die Kategorie.
+    const label = this.categorySchema()
+      ?.fields.find((field) => field.field === 'package')
+      ?.choices.find((choice) => choice.id === content.packageSizeId)?.label;
+    if (!label) return 'Bereits festgelegt';
+    const recommended = recommendedVintedPackageSizeId(
+      content.categoryId,
+      this.categoryFields.fields(this.selectedAccount()?.connectionId, content.categoryId),
+    );
+    return recommended === content.packageSizeId ? `${label} (empfohlen)` : label;
   });
 
   constructor() {

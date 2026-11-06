@@ -15,6 +15,7 @@ import { resolveFlipbaseVintedListingContent } from '../../../../../services/mar
 import {
   flipbaseVintedListingFields,
   prepareFlipbaseVintedListingContent,
+  recommendedVintedPackageSizeId,
 } from './flipbase-vinted-listing-form';
 import { storedVintedListingEdit } from './vinted-stored-listing-edit';
 import { vintedListingEditSelection } from './vinted-listing-edit-form';
@@ -328,5 +329,73 @@ describe('Zusatzfelder einer Vinted-Kategorie', () => {
         (field) => field.field === 'brand',
       ),
     ).toBe(true);
+  });
+});
+
+describe('Paketgrößen aus dem Vinted-Katalog', () => {
+  const packageRows = (
+    ids: readonly number[],
+    recommended: number | null,
+  ): VintedListingCatalogRows => ({
+    fields: [
+      { field_code: 'condition', position: 0, option_ids: [2] },
+      { field_code: 'package', position: 1, option_ids: ids, recommended_option_id: recommended },
+    ],
+    sizeGroups: [],
+    sizes: [],
+    options: [
+      { field_code: 'condition', id: 2, title: 'Sehr gut', position: 0 },
+      ...[
+        [1, 'Klein'],
+        [2, 'Mittel'],
+        [3, 'Groß'],
+        [8, '5 kg'],
+        [9, '10 kg'],
+        [10, '20 kg'],
+      ].map(([id, title], position) => ({
+        field_code: 'package',
+        id: id as number,
+        title: title as string,
+        position,
+      })),
+    ],
+  });
+  const draft = (categoryId: number, packageSizeId: number | null) => ({
+    ...emptyVintedListingContent(),
+    categoryId,
+    categoryLabel: 'Stühle',
+    conditionId: 2,
+    conditionLabel: 'Sehr gut',
+    packageSizeId,
+  });
+
+  it('bietet die Paketgrößen der Kategorie an, bei schweren Artikeln 5, 10 und 20 kg', () => {
+    const real = vintedListingCatalogCategoryFields(1193, packageRows([8, 9, 10], 8))!;
+    const parcel = flipbaseVintedListingFields(1193, 'Stühle', undefined, real).fields.find(
+      (field) => field.field === 'package',
+    )!;
+    expect(parcel.choices.map((choice) => [choice.id, choice.label, choice.selected])).toEqual([
+      [8, '5 kg', false],
+      [9, '10 kg', false],
+      [10, '20 kg', false],
+    ]);
+    expect(recommendedVintedPackageSizeId(1193, real)).toBe(8);
+    expect(vintedListingCatalogExtraFields(packageRows([8, 9, 10], 8))).toEqual([]);
+  });
+
+  it('belegt Vinteds Vorschlag vor und ersetzt nicht angebotene Größen', () => {
+    const heavy = vintedListingCatalogCategoryFields(1193, packageRows([8, 9, 10], 8))!;
+    expect(prepareFlipbaseVintedListingContent(draft(1193, null), heavy).packageSizeId).toBe(8);
+    // Eine Standardgröße gibt es bei schweren Kategorien nicht.
+    expect(prepareFlipbaseVintedListingContent(draft(1193, 2), heavy).packageSizeId).toBe(8);
+    // Eine angebotene Wahl bleibt erhalten.
+    expect(prepareFlipbaseVintedListingContent(draft(1193, 10), heavy).packageSizeId).toBe(10);
+    // Ohne Vorschlag bleibt eine ungültige Größe offen statt geraten.
+    const none = vintedListingCatalogCategoryFields(5523, packageRows([1, 2, 3], null))!;
+    expect(recommendedVintedPackageSizeId(5523, none)).toBeNull();
+    expect(prepareFlipbaseVintedListingContent(draft(5523, 9), none).packageSizeId).toBeNull();
+    expect(prepareFlipbaseVintedListingContent(draft(5523, 2), none).packageSizeId).toBe(2);
+    // Ohne Katalog bleibt die bisherige Auswahl 1–3 unverändert.
+    expect(prepareFlipbaseVintedListingContent(draft(5523, 2), null).packageSizeId).toBe(2);
   });
 });

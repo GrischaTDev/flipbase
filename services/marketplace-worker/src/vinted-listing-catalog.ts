@@ -37,6 +37,8 @@ export interface VintedListingCatalogField {
   readonly title?: string;
   readonly sizeGroups?: readonly VintedListingCatalogSizeGroup[];
   readonly options?: readonly VintedListingCatalogChoice[];
+  /** Von Vinted für die Kategorie vorgeschlagener Wert, bisher nur bei der Paketgröße. */
+  readonly recommendedId?: number;
 }
 
 export interface VintedListingCatalogColor extends VintedListingCatalogChoice {
@@ -164,6 +166,7 @@ export function parseVintedListingCategoryAttributes(input: unknown): VintedList
     const display = config['display_type'];
     const options = config['options'];
     const title = config['title'];
+    const recommended = config['recommended_option_id'];
     if (
       (selectionType !== null && selectionType !== 'single' && selectionType !== 'multi') ||
       (limit !== null && (!positive(limit) || limit > 100)) ||
@@ -182,7 +185,15 @@ export function parseVintedListingCategoryAttributes(input: unknown): VintedList
       display: (display as string | null) || null,
       ...(typeof title === 'string' && title.trim() ? { title: label(title) } : {}),
     };
-    if (code !== 'size') return { ...base, options: flatChoices(options as unknown[]) };
+    if (code !== 'size') {
+      const choices = flatChoices(options as unknown[]);
+      if (recommended === undefined || recommended === null) return { ...base, options: choices };
+      // Ein Vorschlag muss einer der angebotenen Werte sein.
+      return positive(recommended) && choices.some((entry) => entry.id === recommended)
+        ? { ...base, options: choices, recommendedId: recommended }
+        : invalid();
+    }
+    if (recommended !== undefined && recommended !== null) invalid();
     const groups = (options as unknown[]).map((group): VintedListingCatalogSizeGroup => {
       const entry = record(group);
       if (entry['type'] !== 'group' || !positive(entry['id']) || !Array.isArray(entry['options']))
@@ -194,6 +205,42 @@ export function parseVintedListingCategoryAttributes(input: unknown): VintedList
     if (!groups.length || groups.length > 30) invalid();
     return { ...base, sizeGroups: groups };
   });
+}
+
+/**
+ * Paketgrößen einer Kategorie als eigenes Feld `package`. Quellen (am 06.11.2026 im Formular
+ * beobachtet): `GET api.vinted.de/shipping-estimation/external/catalogs/{id}/package_sizes` liefert
+ * die angebotenen Größen (meist Klein/Mittel/Groß mit 1–3, bei schweren Artikeln 5/10/20 kg mit
+ * 8–10), `POST …/package_sizes/suggestion` Vinteds Vorschlag für die Kategorie oder `null`.
+ */
+export function parseVintedListingPackageField(
+  sizesInput: unknown,
+  suggestionInput: unknown,
+  position: number,
+): VintedListingCatalogField {
+  const sizes = record(sizesInput)['package_sizes'];
+  if (!Array.isArray(sizes) || !sizes.length || sizes.length > 20) return invalid();
+  const seen = new Set<number>();
+  const options = (sizes as unknown[]).map((value) => {
+    const option = choice(value);
+    if (seen.has(option.id)) invalid();
+    seen.add(option.id);
+    return option;
+  });
+  const suggested = record(suggestionInput)['package_size_id'];
+  if (suggested !== null && suggested !== undefined && !positive(suggested)) invalid();
+  return {
+    code: 'package',
+    position,
+    required: true,
+    selectionType: 'single',
+    limit: 1,
+    display: 'package',
+    title: 'Paketgröße',
+    options,
+    // Ein Vorschlag außerhalb der angebotenen Größen wird nicht übernommen.
+    ...(positive(suggested) && seen.has(suggested) ? { recommendedId: suggested } : {}),
+  };
 }
 
 /** Farben aus `GET /api/v2/item_upload/colors` in Vinteds Reihenfolge. */
@@ -310,6 +357,7 @@ function toAttribute(value: unknown): unknown {
       selection_limit: field['limit'],
       display_type: field['display'],
       title: field['title'],
+      recommended_option_id: field['recommendedId'],
       options:
         field['sizeGroups'] !== undefined
           ? (Array.isArray(field['sizeGroups']) ? field['sizeGroups'] : invalid()).map((group) => ({
