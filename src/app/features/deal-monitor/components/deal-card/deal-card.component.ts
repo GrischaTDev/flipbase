@@ -14,6 +14,7 @@ import {
   LucideExternalLink,
   LucideHeart,
   LucideShare2,
+  LucideSparkles,
 } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -42,6 +43,8 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
 export class DealCardComponent {
   readonly item = input.required<FeedItem>();
   readonly inspect = output<FeedItem>();
+  readonly allowAiSearch = input(false);
+  readonly aiSearch = output<FeedItem>();
 
   readonly favoritesService = inject(DealFavoritesService);
   private readonly failedImages = signal<ReadonlySet<string>>(new Set());
@@ -59,6 +62,7 @@ export class DealCardComponent {
     external: LucideExternalLink,
     heart: LucideHeart,
     share: LucideShare2,
+    aiSearch: LucideSparkles,
   };
   private readonly clock = inject(FeedClockService);
   readonly discoveredLabel = computed(() =>

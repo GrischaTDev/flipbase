@@ -12,6 +12,40 @@ import { createHash } from 'node:crypto';
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
 
+test('Vinted-KI-Laufzeit aendert ausschliesslich den bekannten Router und ist wiederholbar', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'flipbase-ai-runtime-'));
+  const main = join(directory, 'index.ts');
+  const script = fileURLToPath(
+    new URL('../deploy/configure-vinted-ai-runtime.py', import.meta.url),
+  );
+  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const original =
+    'const service_name = path_parts[1]\nconst workerTimeoutMs = 1 * 60 * 1000\nconst VERIFY_JWT = true\n';
+  try {
+    await writeFile(main, original);
+    execFileSync(python, [script, '--main-path', main]);
+    const result = await readFile(main, 'utf8');
+    assert.equal(
+      result,
+      original.replace(
+        'const workerTimeoutMs = 1 * 60 * 1000',
+        "const workerTimeoutMs = service_name === 'vinted-ai-search' ? 95_000 : 1 * 60 * 1000",
+      ),
+    );
+    const backups = (await readdir(directory)).filter((file) => file.endsWith('.bak'));
+    assert.equal(backups.length, 1);
+    assert.equal(await readFile(join(directory, backups[0]), 'utf8'), original);
+    execFileSync(python, [script, '--main-path', main]);
+    assert.equal((await readdir(directory)).filter((file) => file.endsWith('.bak')).length, 1);
+    await writeFile(main, 'const workerTimeoutMs = 999\n');
+    const failed = spawnSync(python, [script, '--main-path', main], { encoding: 'utf8' });
+    assert.notEqual(failed.status, 0);
+    assert.equal(await readFile(main, 'utf8'), 'const workerTimeoutMs = 999\n');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 const marketplaceRolloutScript = fileURLToPath(
   new URL('../deploy/marketplace-rollout.py', import.meta.url),
 );

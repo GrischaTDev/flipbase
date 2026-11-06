@@ -1,5 +1,122 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Admin-Modellauswahl und Freigabe von AI Search vorbereiten
+
+**Auftrag:** PR, erfolgreichen Merge und Serverausrollung ausdrücklich freigegeben;
+vorher auf Nutzerwunsch eine Modellauswahl ergänzt. Den aktuellen Hauptstand
+`a3356508` in denselben Aufgabenbranch übernommen. Beide vollständigen
+Changelog-Seiten und alle Schemaregistrierungen beim Konflikt erhalten.
+
+**Ergänzung:** Luna, Terra, Sol und Astra sind vor jeder Recherche auswählbar.
+Das Öffnen des Modals und die Auswahl erzeugen keine kostenpflichtige Analyse.
+Erst „Suchen“ startet den gewählten Lauf; Ergebnisse getesteter Modelle bleiben
+mit Identifikation, Preisspanne, Tokens, Webaufrufen und Kosten nebeneinander
+sichtbar. Einheitliche Bilder, Recherche- und Ausgabelimits bleiben erhalten.
+Tarife anhand der offiziellen Dokumentation aktualisiert und alle vier Modelle
+über die Modellliste des bestehenden Serverzugangs lesend als verfügbar bestätigt.
+Das neu vorhandene Guthaben wird nicht aus dem Browser ausgelesen.
+
+**Datenbank und Server:** Zusätzliche Migration ausschließlich aus zwei frischen,
+gleich aufgebauten isolierten Projektinstanzen erzeugt; sie erweitert nur den
+Modellvertrag von Tabelle und Reservierungsfunktion. Die vorhandene erste
+Migration bleibt unverändert. Beide Migrationen sind transaktional anwendbar.
+Der Serverrouter begrenzt alle Functions bisher auf 60 Sekunden. Ein enger,
+wiederholbarer Abschlusshelfer sichert den Router und gibt ausschließlich der
+AI Search 95 Sekunden, damit der auf 85 Sekunden begrenzte Anbieteraufruf seinen
+Verbrauch speichern kann. Unbekannte Routerfassungen werden abgewiesen; andere
+Functions und ihre JWT-Prüfung bleiben erhalten.
+
+**Nachweise:** 14 Deno-Fälle mit der CI-Laufzeit 2.9.7 und 24 zurückgerollte
+SQL-Fälle gegen den aktuellen Hauptstand mit beiden Aufgabenmigrationen
+erfolgreich. Neun AI-Browserfälle einschließlich kostenfreiem Öffnen,
+Vierermodell-Auswahl, separatem Suchstart, Modellvergleich, Hell/Dunkel und
+320/390/834/1440 Pixeln erfolgreich. Abschlusshelfer mit Sicherung,
+Wiederholung und unbekanntem Router geprüft. Der abschließende Vorabcheck,
+GitHub-Prüfungen, Merge und die Serverabnahme werden im Prüfbericht festgehalten.
+
+**CI-Korrekturen:** Der Freigabelauf deckte zwei Fehler im übernommenen Hauptstand
+auf: Öffentliche Katalogdaten wurden allein wegen „seed“ im Migrationsnamen
+abgewiesen. Der Paketierer prüft jetzt den Inhalt auf lokale Testkonten und
+verhindert deren Veröffentlichung auch nach einer Umbenennung. Die PWA meldete
+bei einer bereits laufenden Installation nach acht Sekunden einen falschen
+Netzwerkfehler. Ein installierender oder fertig wartender Worker bestätigt nun
+die erfolgreiche Prüfung; ein ausbleibender Netzwerkaufruf bleibt ein Fehler.
+Der unveränderte Produktionsbrowserfall wird mit Node 22 und der CI-Version von
+Playwright unter Linux bei begrenzten Ressourcen zusätzlich geprüft.
+
+## 2026-11-06 - Juna - AI Search im Vinted-Feed für Admins
+
+**Auftrag und Trennung:** Den bestehenden serverseitigen OpenAI-Zugang auf
+ausdrücklichen Nutzerauftrag für eine neue Admin-Analyse wiederverwendet. Eigener
+Zweig `juna/vinted-ai-search` vom frisch abgerufenen `origin/master` (`93ad8da4`),
+getrennte Arbeitskopie wegen fremder ungesicherter Erweiterungsarbeit in der
+primären Kopie. Kein Schlüssel ausgelesen, kopiert oder veröffentlicht.
+
+**Funktion:** „AI Search“ auf Feed-Karten öffnet das gemeinsame Modal mit
+Suchanimation, Modellidentifikation, belegten Hersteller-/Shoppreisen und
+getrennten Gebraucht-Angebots- und Verkaufspreisen. Der Server lädt Titel,
+vorhandene Beschreibung, Preis, Marke, Größe, Zustand und bis zu fünf sichere
+Vinted-Bilder aus dem Inserat; der Client darf diese Angaben nicht ersetzen.
+Adminrolle und konkreter Workspacezugang werden serverseitig geprüft.
+Vergleichspreise benötigen tatsächlich in der Websuche enthaltene Quellen,
+passende Variante und EUR; Query-Duplikate zählen nicht mehrfach. Ohne eindeutiges
+Modell und drei Gebrauchtvergleiche keine Gewinnampel. Die lokale Rechnung zieht
+Käuferschutz, Einkaufsversand, Verkaufsgebühren und weitere Kosten ab und weist
+die Spanne vor Steuern aus. Reine Angebotspreise erhalten einen sichtbaren
+Abschlag und niemals Grün.
+
+**Verbrauch:** Luna als günstiger Startkandidat, Sol ausschließlich auf zusätzlichen
+Klick zum Modellvergleich. Maximal drei Webaufrufe, fünf Bilder, 3.200 Ausgabetokens
+und 85 Sekunden; keine automatische Eskalation oder Wiederholung. Reservierung
+vor dem Anbieteraufruf, nutzerweiter Parallelitätsschutz, 20 Anfragen pro Stunde
+und 100 pro Tag. Identische Ergebnisse werden 24 Stunden wiederverwendet.
+Tokens, Webaufrufe, Preisstand, geschätzte USD-Kosten und Ergebnis bleiben
+dauerhaft gespeichert, einschließlich Verbrauch unvollständiger Antworten.
+Abgerissene Anfragen behalten ausdrücklich ungeklärte Kosten. Das Modal zeigt
+den eigenen 30-Tage-Verbrauch und Mittelwerte je Modell. Kundenkontingente sind
+noch nicht freigeschaltet. Verhalten, Heuristiken, Tarife und Grenzen stehen in
+[der Umsetzung](implementation/vinted-ai-search.md).
+
+**Datenbank:** Frische isolierte PostgreSQL-Instanz mit bisherigen Migrationen
+aufgebaut; keine fremde Entwicklungsdatenbank verändert. Migration mit der
+Projekt-CLI erzeugt und die vom Diff ausgelassenen Default-Rechte automatisiert
+aus dem deklarativen Schema ergänzt. Die Gegenprobe auf einer frischen Kopie
+deckte zunächst verbliebene Clientrechte auf Tabelle und Identitätssequenz auf;
+beide ausdrücklich entzogen. Endgültige Migration vollständig transaktional
+angewendet, 22 zurückgerollte SQL-Fälle erfolgreich. Acht echte gleichzeitige
+Dienstrollen-Aufrufe ergeben genau eine Reservierung und sieben Sperren.
+Datenbanktypen für beide bisherigen Schemas neu erzeugt. Edge-Fälle und
+Änderungsauswahl für die neue Funktion im bestehenden CI-Weg registriert.
+
+**Prüfung:** 13 Deno-Fälle einschließlich echter Anfrageform mit synthetischem
+Anbieter, acht neue Modell-/Servicefälle, bestehende Feed-Komponenten und zehn
+bestehende Feed-Browserfälle erfolgreich. Neun neue Browserfälle mit Laden,
+Admin-/Beta-Trennung, Modellvergleich, lokaler Gebührenrechnung, Escape/Rückfokus
+und verspäteten Antworten erfolgreich; 320/390/834/1440 Pixel, Hell/Dunkel,
+Maus/Touch und AXE ohne Verstöße. Zusätzliche Desktop-/Mobilaufnahmen visuell
+geprüft; ausschließlich synthetische Artikel. 113 gezielte Scriptfälle erfolgreich.
+Die unter Windows nicht passenden Bash-/Linux-Verträge unverändert in einer
+vollständigen isolierten Node-22-Linux-Kopie geprüft: 21 Fälle erfolgreich.
+Lokaler Vorabcheck mit Node 22 einschließlich Format, Lint, Typen, Suite-Audit,
+824 Node-, 217 DOM-, 2.590 Angularfällen und Produktionsbau erfolgreich;
+der Vorabcheck nach Dokumentation und CI-Registrierung sowie der abschließende
+Nachweis stehen im lokalen Prüfbericht. Die vorhandenen Bauwarnungen zu Budget
+und `pako` bleiben bestehen.
+
+**Lastgegenprobe:** Ein Folgelauf scheiterte im unveränderten
+`vinted-workspace.component.angular.spec.ts` beim Laden seiner Testressourcen
+am vorhandenen Zehn-Sekunden-Hooklimit; 227 andere Angular-Dateien bestanden.
+Der gezielte unveränderte Fall besteht mit zwei Testprozessen und allen
+51 Tests. Der abschließende Vorabcheck verwendet höchstens vier Vitest-Prozesse;
+Zeitlimits, Erwartungen und Prüfauswahl bleiben unverändert.
+
+**Freigabegrenze:** Der umfassende ausgewählte CI-Nachweis ist vor dem Merge noch
+erforderlich. Die neue Edge Function muss nach dem dokumentierten selbst
+gehosteten Ablauf samt Migration vor dem ersten realen Admin-Klick ausgerollt
+werden. Keine produktive API-Anfrage oder Modellgütemessung durchgeführt;
+reale Durchschnittskosten und Trefferqualität sind erst nach dem Admin-Pilot
+belegt. Noch kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Admin-Bereich mit Übersicht, Nutzerfiltern, Systemzustand und Not-Aus
 
 **Anlass:** Die Administration war nur über einen Punkt ganz unten in der

@@ -3,6 +3,12 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+export function assertNoLocalSeedData(sql, filename) {
+  if (/test@flipbase\.local|flipbase-test|5eed0000-0000-4000-8000-000000000001/iu.test(sql)) {
+    throw new Error(`Lokale Testkonten dürfen nicht veröffentlicht werden: ${filename}`);
+  }
+}
+
 // Technische Integritätsliste, keine SQL-Sicherheitsbewertung. Die inhaltliche
 // Freigabe erfolgt mit dem Review/Merge der SQL-Dateien, nicht in einer zweiten Liste.
 export async function packageMigrations(source, destination) {
@@ -24,6 +30,7 @@ export async function packageMigrations(source, destination) {
     if (versions.has(match[1])) throw new Error(`Doppelte Migrationsversion: ${match[1]}`);
     versions.add(match[1]);
     const bytes = await readFile(join(source, entry.name));
+    assertNoLocalSeedData(bytes.toString('utf8'), entry.name);
     if (!bytes.toString('utf8').trim()) throw new Error(`Leere Migrationsdatei: ${entry.name}`);
     files.push({ name: entry.name, bytes, hash: createHash('sha256').update(bytes).digest('hex') });
   }
