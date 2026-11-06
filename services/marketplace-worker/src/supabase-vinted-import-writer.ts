@@ -5,6 +5,11 @@ import {
 } from './vinted-listing-contracts.ts';
 import { vintedCategoryFieldsForStorage } from './vinted-category-field-storage.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import {
+  SupabaseVintedListingCatalogStore,
+  type VintedListingCatalogWork,
+} from './supabase-vinted-listing-catalog.ts';
+import type { VintedListingCatalogRead } from './vinted-listing-catalog.ts';
 import type { VintedAccountImport, VintedConversationVersion } from './vinted-account-import.ts';
 
 import {
@@ -31,6 +36,7 @@ export class SupabaseVintedImportWriter {
   private readonly publishableKey: string;
   private readonly serviceRoleKey: string;
   private readonly request: typeof fetch;
+  private readonly catalog: SupabaseVintedListingCatalogStore;
 
   constructor(options: ImportWriterOptions) {
     if (!options.publishableKey || !options.serviceRoleKey) throw new Error('Serverzugang fehlt');
@@ -38,6 +44,29 @@ export class SupabaseVintedImportWriter {
     this.publishableKey = options.publishableKey;
     this.serviceRoleKey = options.serviceRoleKey;
     this.request = options.fetch ?? fetch;
+    this.catalog = new SupabaseVintedListingCatalogStore({
+      url: this.baseUrl,
+      serviceRoleKey: this.serviceRoleKey,
+      fetch: this.request,
+    });
+  }
+
+  /** Fällige Teile des zentralen Vinted-Katalogs für diesen Abgleich. */
+  async listingCatalogWork(
+    scope: BrowserSessionScope,
+    sessionId: string,
+  ): Promise<VintedListingCatalogWork | null> {
+    await this.assertActive(scope, sessionId);
+    return this.catalog.work();
+  }
+
+  async saveListingCatalog(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    read: VintedListingCatalogRead,
+  ): Promise<{ categories: number; failed: number }> {
+    await this.assertActive(scope, sessionId);
+    return this.catalog.save(read);
   }
 
   async favoriteSettingsActive(scope: BrowserSessionScope, sessionId: string): Promise<boolean> {

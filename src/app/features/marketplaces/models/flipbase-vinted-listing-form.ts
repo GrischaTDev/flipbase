@@ -241,15 +241,30 @@ export function prepareFlipbaseVintedListingContent(
     schema.fields
       .find((entry) => entry.field === field)
       ?.choices.find((choice) => choice.label === label)?.id ?? null;
+  // Bei Vinted gelesene Inhalte tragen Vinteds Kennungen; mit echten Katalogwerten zählen sie
+  // vor der Bezeichnung. Entwürfe der eigenen Liste sind markiert und tragen eigene Kennungen.
+  const real = stored?.categoryId === content.categoryId && !content.attributes[marker];
+  const known = (field: string, ids: readonly (number | null)[]) => {
+    const choices = schema.fields.find((entry) => entry.field === field)?.choices ?? [];
+    const found = ids.flatMap((value) => choices.filter((choice) => choice.id === value));
+    return real && ids.length > 0 && found.length === ids.length ? found : null;
+  };
+  const realSize = known('size', content.sizeId === null ? [] : [content.sizeId])?.[0];
+  const realCondition = known(
+    'condition',
+    content.conditionId === null ? [] : [content.conditionId],
+  );
+  const realColors = known('color', content.colorIds);
+  const realMaterials = known('material', content.materialIds);
   const allSizes = schema.fields.find((field) => field.field === 'size')?.choices ?? [];
   // Zuerst nur die eigene Liste auswerten, damit „M / 38 / 10“ weiterhin als „M“ gilt.
-  const known = flipbaseVintedListingFields(
+  const ownSizes = flipbaseVintedListingFields(
     content.categoryId,
     content.categoryLabel,
     { ...content, sizeLabel: '' },
     stored,
   ).fields.find((field) => field.field === 'size')?.choices.length;
-  const sizes = allSizes.slice(0, known ?? 0);
+  const sizes = allSizes.slice(0, ownSizes ?? 0);
   const normalizeSize = (label: string) =>
     label
       .trim()
@@ -265,6 +280,7 @@ export function prepareFlipbaseVintedListingContent(
   // Zwei unterschiedliche Buchstabengrößen oder Zahlenbereiche werden nicht geraten.
   const letters = matching.filter((choice) => /^\d*[a-z]+$/i.test(choice.label));
   const size =
+    realSize ??
     exact ??
     (letters.length === 1
       ? letters[0]
@@ -273,15 +289,22 @@ export function prepareFlipbaseVintedListingContent(
     ...content,
     sizeId: size?.id ?? null,
     sizeLabel: size?.label ?? content.sizeLabel,
-    conditionId: id('condition', content.conditionLabel),
-    colorIds: content.colorLabels.flatMap((label) => {
-      const value = id('color', label);
-      return value === null ? [] : [value];
-    }),
-    materialIds: content.materialLabels.flatMap((label) => {
-      const value = id('material', label);
-      return value === null ? [] : [value];
-    }),
+    conditionId: realCondition?.[0]?.id ?? id('condition', content.conditionLabel),
+    ...(realCondition ? { conditionLabel: realCondition[0]!.label } : {}),
+    colorIds: realColors
+      ? realColors.map((choice) => choice.id as number)
+      : content.colorLabels.flatMap((label) => {
+          const value = id('color', label);
+          return value === null ? [] : [value];
+        }),
+    ...(realColors ? { colorLabels: realColors.map((choice) => choice.label) } : {}),
+    materialIds: realMaterials
+      ? realMaterials.map((choice) => choice.id as number)
+      : content.materialLabels.flatMap((label) => {
+          const value = id('material', label);
+          return value === null ? [] : [value];
+        }),
+    ...(realMaterials ? { materialLabels: realMaterials.map((choice) => choice.label) } : {}),
     attributes: { ...content.attributes, [marker]: '1' },
   };
 }

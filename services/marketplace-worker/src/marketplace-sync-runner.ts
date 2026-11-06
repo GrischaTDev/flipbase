@@ -20,6 +20,8 @@ import type {
   SupabaseMarketplaceOperationStore,
 } from './supabase-marketplace-operation-store.ts';
 import { MarketplaceOperationEvents } from './marketplace-operation-events.ts';
+import type { VintedListingCatalogWork } from './supabase-vinted-listing-catalog.ts';
+import type { VintedListingCatalogRead } from './vinted-listing-catalog.ts';
 
 interface SyncBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -46,6 +48,15 @@ interface ImportWriter {
     sessionId: string,
     snapshot: VintedAccountImport,
   ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
+  listingCatalogWork?(
+    scope: BrowserSessionScope,
+    sessionId: string,
+  ): Promise<VintedListingCatalogWork | null>;
+  saveListingCatalog?(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    read: VintedListingCatalogRead,
+  ): Promise<{ categories: number; failed: number }>;
 }
 
 export class MarketplaceSyncRunner {
@@ -189,6 +200,7 @@ export class MarketplaceSyncRunner {
         if (favoriteRead.failure) favoriteReadFailure = favoriteRead.failure;
         else snapshot.favoriteEvents = favoriteRead.events;
       }
+      await this.refreshListingCatalog(scope, currentSessionId, snapshot.identity.id);
       failedStage = 'access';
       await this.broker.run(scope, currentSessionId, async () => undefined);
       failedStage = 'persist';
@@ -281,6 +293,33 @@ export class MarketplaceSyncRunner {
         // eslint-disable-next-line preserve-caught-error
         throw new Error('Reservierte Browsersitzung verlangt Wiederherstellung');
       }
+    }
+  }
+
+  /**
+   * Liest fällige Teile des zentralen Vinted-Katalogs in derselben Sitzung nach. Best effort:
+   * Ein Fehler hier ändert weder Ergebnis noch Status des Kontoabgleichs.
+   */
+  private async refreshListingCatalog(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    accountId: string,
+  ): Promise<void> {
+    if (!this.imports.listingCatalogWork || !this.imports.saveListingCatalog) return;
+    try {
+      const work = await this.imports.listingCatalogWork(scope, sessionId);
+      if (!work) return;
+      const read = await this.broker.run(scope, sessionId, async (browser) =>
+        browser.readListingCatalog
+          ? browser.readListingCatalog(accountId, work, () =>
+              this.broker.run(scope, sessionId, async () => undefined),
+            )
+          : null,
+      );
+      if (read) await this.imports.saveListingCatalog(scope, sessionId, read);
+    } catch (error) {
+      if (error instanceof MarketplaceBrowserSessionEndedError) throw error;
+      process.stderr.write('Vinted-Katalog konnte nicht aktualisiert werden!\n');
     }
   }
 

@@ -161,10 +161,23 @@ test('refuses inconsistent selections, group changes and malformed IDs', () => {
     [option('color-1', 'Wrong field')],
   ])
     assert.throws(() => parseVintedListingChoices('brand', values));
+  // Am 06.11.2026 zeigte die echte Maske bei Herrenjeans zwei Größengruppen zugleich.
+  const sizes = parseVintedListingChoices('size', [
+    option('size-group-14-grid-option-208', 'M'),
+    option('size-group-77-grid-option-1640', 'W32 | DE 48'),
+  ]);
+  assert.equal(sizes.sizeGroupId, 14);
+  assert.deepEqual(
+    sizes.choices.map((choice) => [choice.id, choice.sizeGroupId]),
+    [
+      [208, 14],
+      [1640, 77],
+    ],
+  );
   assert.throws(() =>
     parseVintedListingChoices('size', [
       option('size-group-14-grid-option-208', 'M'),
-      option('size-group-31-grid-option-607', '38'),
+      option('size-group-77-grid-option-208', 'M'),
     ]),
   );
 });

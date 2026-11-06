@@ -8900,6 +8900,198 @@ export type Database = {
         }
         Relationships: []
       }
+      vinted_listing_categories: {
+        Row: {
+          fields_observed_at: string | null
+          full_title: string
+          id: number
+          is_leaf: boolean
+          parent_id: number | null
+          path: string
+          position: number
+          restricted_to_status_id: number | null
+          title: string
+          tree_observed_at: string
+        }
+        Insert: {
+          fields_observed_at?: string | null
+          full_title: string
+          id: number
+          is_leaf: boolean
+          parent_id?: number | null
+          path: string
+          position: number
+          restricted_to_status_id?: number | null
+          title: string
+          tree_observed_at: string
+        }
+        Update: {
+          fields_observed_at?: string | null
+          full_title?: string
+          id?: number
+          is_leaf?: boolean
+          parent_id?: number | null
+          path?: string
+          position?: number
+          restricted_to_status_id?: number | null
+          title?: string
+          tree_observed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_listing_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_listing_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_listing_category_fields: {
+        Row: {
+          category_id: number
+          display_type: string | null
+          field_code: string
+          option_ids: number[] | null
+          position: number
+          required: boolean | null
+          selection_limit: number | null
+          selection_type: string | null
+        }
+        Insert: {
+          category_id: number
+          display_type?: string | null
+          field_code: string
+          option_ids?: number[] | null
+          position: number
+          required?: boolean | null
+          selection_limit?: number | null
+          selection_type?: string | null
+        }
+        Update: {
+          category_id?: number
+          display_type?: string | null
+          field_code?: string
+          option_ids?: number[] | null
+          position?: number
+          required?: boolean | null
+          selection_limit?: number | null
+          selection_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_listing_category_fields_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_listing_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_listing_category_size_groups: {
+        Row: {
+          category_id: number
+          position: number
+          size_group_id: number
+        }
+        Insert: {
+          category_id: number
+          position: number
+          size_group_id: number
+        }
+        Update: {
+          category_id?: number
+          position?: number
+          size_group_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_listing_category_size_groups_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_listing_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinted_listing_category_size_groups_size_group_id_fkey"
+            columns: ["size_group_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_listing_size_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_listing_options: {
+        Row: {
+          color_code: string | null
+          field_code: string
+          hex: string | null
+          id: number
+          position: number
+          title: string
+        }
+        Insert: {
+          color_code?: string | null
+          field_code: string
+          hex?: string | null
+          id: number
+          position: number
+          title: string
+        }
+        Update: {
+          color_code?: string | null
+          field_code?: string
+          hex?: string | null
+          id?: number
+          position?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      vinted_listing_size_groups: {
+        Row: {
+          id: number
+          title: string
+        }
+        Insert: {
+          id: number
+          title: string
+        }
+        Update: {
+          id?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      vinted_listing_sizes: {
+        Row: {
+          id: number
+          position: number
+          size_group_id: number
+          title: string
+        }
+        Insert: {
+          id: number
+          position: number
+          size_group_id: number
+          title: string
+        }
+        Update: {
+          id?: number
+          position?: number
+          size_group_id?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_listing_sizes_size_group_id_fkey"
+            columns: ["size_group_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_listing_size_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vinted_selling_category_snapshots: {
         Row: {
           categories: Json
@@ -12743,6 +12935,18 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: boolean
+      }
+      marketplace_save_vinted_listing_categories: {
+        Args: { p_categories: Json; p_observed_at: string }
+        Returns: number
+      }
+      marketplace_save_vinted_listing_category_fields: {
+        Args: { p_category_id: number; p_fields: Json; p_observed_at: string }
+        Returns: boolean
+      }
+      marketplace_save_vinted_listing_options: {
+        Args: { p_field_code: string; p_options: Json }
+        Returns: number
       }
       marketplace_save_vinted_selling_tree: {
         Args: {

@@ -435,6 +435,7 @@ export async function updateVintedListingContent(
       schema = await readVintedListingCategoryFields(page, accountId, desired.categoryId, [], {
         authorize: check,
         brand: desired,
+        sizeId: desired.sizeId,
       });
     }
     const changed = new Set<string>(
@@ -443,26 +444,33 @@ export async function updateVintedListingContent(
       ),
     );
     if (categoryChanged) changed.add('category');
-    // Eine neu gesuchte Marke steht nicht in Vinteds Vorschlägen; die Auswahl wird mit Suche neu gelesen.
-    if (
-      !categoryChanged &&
-      changed.has('brand') &&
-      desired.brandId !== null &&
-      desired.categoryId !== null &&
-      !schema.fields
-        .find((field) => field.field === 'brand')
-        ?.choices.some((choice) => choice.id === desired.brandId)
-    ) {
+    // Eine neu gesuchte Marke steht nicht in Vinteds Vorschlägen, eine Größe kann in einer nicht
+    // angezeigten Größengruppe liegen. Solche Felder werden mit Suche bzw. Gruppenwechsel neu gelesen.
+    for (const [field, wantedId] of [
+      ['brand', desired.brandId],
+      ['size', desired.sizeId],
+    ] as const) {
+      if (
+        categoryChanged ||
+        !changed.has(field) ||
+        wantedId === null ||
+        desired.categoryId === null ||
+        schema.fields
+          .find((entry) => entry.field === field)
+          ?.choices.some((choice) => choice.id === wantedId)
+      )
+        continue;
       step = 'fields';
       // Die Bearbeitungsmaske markiert die Kategorie nicht; ihre Kennung kommt aus dem Inserat.
-      const brandField = await readVintedListingChoices(
+      const reread = await readVintedListingChoices(
         page,
         accountId,
         desired.categoryId,
-        'brand',
+        field,
         [],
         {
           brand: desired,
+          sizeId: desired.sizeId,
           readCategoryId: async () =>
             (await readVintedListingItemReference(page, externalId))?.categoryId ?? null,
         },
@@ -470,7 +478,7 @@ export async function updateVintedListingContent(
       await check();
       schema = {
         ...schema,
-        fields: schema.fields.map((field) => (field.field === 'brand' ? brandField : field)),
+        fields: schema.fields.map((entry) => (entry.field === field ? reread : entry)),
       };
     }
     if (desired.title !== current.content.title) changed.add('title');

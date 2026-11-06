@@ -1,4 +1,5 @@
 import { readVintedSellingTree } from './vinted-browser-selling-tree.ts';
+import { readVintedListingCatalog } from './vinted-browser-listing-catalog.ts';
 import type { Page } from 'playwright';
 import { setTimeout } from 'node:timers/promises';
 import type {
@@ -194,6 +195,12 @@ export function vintedBrowserActions(
     readFavoriteEvents: afterSessionRenewal((accountId, authorize) =>
       readVintedFavoriteEvents(currentPage(), accountId, authorize),
     ),
+    readListingCatalog: afterSessionRenewal(async (accountId, request, authorize) => {
+      await authorize();
+      const context = connection.contexts?.()[0];
+      if (!context) throw new Error('Browserkontext für den Katalog fehlt');
+      return readVintedListingCatalog(await context.newPage(), accountId, request, authorize);
+    }),
     sendFavoriteMessage: afterSessionRenewal((accountId, command, authorize) =>
       sendVintedFavoriteMessage(currentPage(), accountId, command, authorize),
     ),

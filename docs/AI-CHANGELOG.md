@@ -46,6 +46,52 @@ geteilte Zeile mit drei Verkäufen.
 **Prüfung:** Neue Fälle für Seitenlogik, Übersicht und Einrichtung; Ergebnisse
 von Vorabcheck und Browserprüfung im PR.
 
+## 2026-11-06 - Juna - Lokaler Vinted-Katalog mit allen Größengruppen
+
+**Anlass:** Größen- und Merkmalsauswahl sollen nicht mehr über eigene Listen und
+Bezeichnungen geraten werden, sondern aus einem lokalen Katalog mit Vinteds
+Original-IDs kommen.
+
+**Nachweis:** Im angemeldeten, leeren Verkaufsformular von vinted.de den
+Verkaufsbaum (2.874 Kategorien) sowie die Felder von zehn Beispielkategorien und
+die Farben gelesen. Größengruppen und Größen kommen vollständig mit IDs, Pflicht
+und Höchstanzahl. Nichts gespeichert oder veröffentlicht. Ergebnis, Quellen und
+Plan in [Lokaler Vinted-Katalog](implementation/vinted-local-catalog.md),
+Testdaten als Fixture.
+
+**Datenbank:** Sechs zentrale Tabellen für Verkaufsbaum, Größengruppen, Größen,
+Merkmalswerte und Felder je Kategorie, Lesen für Angemeldete, Schreiben nur über drei
+Funktionen für den Worker. Ältere Lesestände überschreiben keine neueren; entfernte
+Kategorien verlieren ihre Felder. Typen erzeugt (nur neue Objekte).
+
+**Abgleich:** Der Worker liest beim Kontoabgleich in derselben Sitzung den fälligen
+Teil des Katalogs nach: Baum und Farben wöchentlich, dazu bis zu 60 Endkategorien je
+Abgleich mit 400 ms Pause und 60 Sekunden Höchstdauer. Neue Browseraktion
+`readListingCatalog` mit Prüfung an der Prozessgrenze; Fehler beeinflussen den
+Kontoabgleich nicht. Ein Knopf im Plattform-Admin und die Paketgrößen sind offen.
+
+**Masken:** Erstellen, Bearbeiten, Vorschau und Relisten lesen Größe, Zustand, Farbe,
+Material und Zielgruppe zuerst aus dem zentralen Katalog, mit allen Größengruppen einer
+Kategorie. Das gemeinsame Feldformat nimmt dafür mehrere Gruppen bei gespeicherten Werten
+an; das Lesen aus dem Vinted-Formular bleibt bei einer Gruppe. Bei Vinted gelesene
+Inserate werden über ihre Kennungen vorausgewählt, Entwürfe der eigenen Liste weiter
+über Bezeichnungen. Bis der Katalog vollständig ist, gilt für fehlende Kategorien der
+bisherige Weg. Das Absenden von Größen aus anderen Gruppen folgt in Schritt 5.
+
+**Absenden:** Am echten Formular beobachtet: Herrenjeans zeigen zwei Größengruppen
+zugleich, Damenjeans sechs Gruppen zum Umschalten. Beides scheiterte bisher beim Lesen
+bzw. Auswählen. Der Worker nimmt mehrere Gruppen an, schaltet mit der gewünschten
+Größen-ID die passende Gruppe sichtbar und wählt über die Gruppe der Größe. Beim
+Bearbeiten werden fehlende Marke oder Größe gezielt neu gelesen.
+
+**Prüfung:** Migration in eigener lokaler Datenbank angewendet, 40 SQL-Prüfungen
+bestanden, Schemaabgleich ohne Abweichung bei den neuen Objekten. Elf neue Workerfälle für Parser,
+Auswahl fälliger Kategorien, Speichern, Prozessgrenze und Runner; 75 betroffene
+Workerfälle bestanden. Neun neue Oberflächenfälle für Katalogfelder, Store und
+Vorauswahl über Kennungen; fünf davon scheitern mit dem alten Code. Neuer Workerfall mit umschaltbaren
+Größengruppen, scheitert mit dem alten Code; 840 Unit- und 177 Browserfälle des Workers
+bestanden. Vorabcheck im Commit.
+
 ## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
 
 **Anlass:** Bei einer Jeans boten Marke und Größe in der Bearbeitung jeweils nur

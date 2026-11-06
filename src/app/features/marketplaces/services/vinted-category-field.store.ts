@@ -5,11 +5,13 @@ import {
   parseVintedListingCategoryFields,
   type VintedListingCategoryFields,
 } from '../models/vinted-listing-category-fields';
+import { vintedListingCatalogCategoryFields } from '../models/vinted-listing-catalog-fields';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 
 /**
- * Echte Vinted-Auswahlwerte je Konto und Kategorie aus der Datenbank.
- * Der Worker speichert sie bei jedem Inserat- oder Kategorieabruf; hier wird nur gelesen.
+ * Echte Vinted-Auswahlwerte je Kategorie aus der Datenbank, vorrangig aus dem zentralen
+ * Katalog (alle Größengruppen mit Vinted-IDs). Solange eine Kategorie dort noch fehlt,
+ * gelten die zuletzt beim Inseratabruf des Kontos gelesenen Werte. Hier wird nur gelesen.
  * Wird im Vinted-Arbeitsbereich bereitgestellt, weil die Kontoliste nur dort existiert.
  */
 @Injectable()
@@ -57,7 +59,12 @@ export class VintedCategoryFieldStore {
     categoryId: number,
   ): Promise<VintedListingCategoryFields | null> {
     const [workspaceId, , externalAccountId] = JSON.parse(key) as [string, string, string];
-    let fields: VintedListingCategoryFields | null = null;
+    // Ein nicht lesbarer Katalog wird wie ein fehlender behandelt.
+    let fields = await this.readCatalog(categoryId).catch(() => null);
+    if (fields) {
+      if (this.key(connectionId, categoryId) === key) this.set(key, fields);
+      return fields;
+    }
     try {
       const { data, error } = await this.database.client
         .from('vinted_category_field_snapshots')
@@ -74,6 +81,46 @@ export class VintedCategoryFieldStore {
     }
     if (this.key(connectionId, categoryId) === key) this.set(key, fields);
     return fields;
+  }
+
+  /** Felder, Größengruppen und Werte einer Kategorie aus dem zentralen Vinted-Katalog. */
+  private async readCatalog(categoryId: number): Promise<VintedListingCategoryFields | null> {
+    const client = this.database.client;
+    const fields = await client
+      .from('vinted_listing_category_fields')
+      .select('field_code,position,option_ids')
+      .eq('category_id', categoryId);
+    if (fields.error) throw fields.error;
+    if (!fields.data?.length) return null;
+    const codes = fields.data.map((row) => row.field_code).filter((code) => code !== 'size');
+    const [groups, options] = await Promise.all([
+      client
+        .from('vinted_listing_category_size_groups')
+        .select('size_group_id,position')
+        .eq('category_id', categoryId),
+      codes.length
+        ? client
+            .from('vinted_listing_options')
+            .select('field_code,id,title,position')
+            .in('field_code', codes)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (groups.error) throw groups.error;
+    if (options.error) throw options.error;
+    const groupIds = (groups.data ?? []).map((group) => group.size_group_id);
+    const sizes = groupIds.length
+      ? await client
+          .from('vinted_listing_sizes')
+          .select('id,size_group_id,title,position')
+          .in('size_group_id', groupIds)
+      : { data: [], error: null };
+    if (sizes.error) throw sizes.error;
+    return vintedListingCatalogCategoryFields(categoryId, {
+      fields: fields.data,
+      sizeGroups: groups.data ?? [],
+      sizes: sizes.data ?? [],
+      options: options.data ?? [],
+    });
   }
 
   private set(key: string, fields: VintedListingCategoryFields | null): void {

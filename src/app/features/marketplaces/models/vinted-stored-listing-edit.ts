@@ -42,6 +42,18 @@ export function storedVintedListingEdit(
     material: content.materialLabels,
     package: content.packageSizeId ? [String(content.packageSizeId)] : [],
   };
+  // Bei Vinted gelesene Inserate tragen Vinteds Kennungen; nur Entwürfe der eigenen Liste sind
+  // markiert. Mit echten Katalogwerten zählt deshalb zuerst die Kennung, nicht die Bezeichnung.
+  const real =
+    stored?.categoryId === content.categoryId && !content.attributes['flipbaseListingForm'];
+  const selectedIds: Partial<Record<VintedListingEditField, readonly number[]>> = real
+    ? {
+        size: content.sizeId === null ? [] : [content.sizeId],
+        condition: content.conditionId === null ? [] : [content.conditionId],
+        color: content.colorIds,
+        material: content.materialIds,
+      }
+    : {};
   const fields = [...schema.fields];
   if (content.sizeLabel && !fields.some((field) => field.field === 'size'))
     fields.push({ field: 'size', sizeGroupId: null, choices: [] });
@@ -55,15 +67,20 @@ export function storedVintedListingEdit(
       fields: fields.map((field) => {
         if (field.field === 'category') return field;
         const labels = selected[field.field];
+        const ids = selectedIds[field.field] ?? [];
+        const byId = ids.length > 0 && field.choices.some((choice) => ids.includes(choice.id ?? 0));
         const choices = field.choices.map((choice) => ({
           ...choice,
-          selected: labels.includes(field.field === 'package' ? String(choice.id) : choice.label),
+          selected: byId
+            ? ids.includes(choice.id ?? 0)
+            : labels.includes(field.field === 'package' ? String(choice.id) : choice.label),
         }));
         // Ungewöhnliche gespeicherte Größen und Materialien bleiben sichtbar und ausgewählt.
-        for (const label of labels) {
+        for (const label of byId ? [] : labels) {
           if (field.field !== 'package' && !choices.some((choice) => choice.label === label))
             choices.push({
-              id: choices.length + 1,
+              // Eine freie Kennung, die mit keinem echten Vinted-Wert dieses Felds zusammenfällt.
+              id: Math.max(0, ...choices.map((choice) => choice.id ?? 0)) + 1,
               label,
               selected: true,
               disabled: false,
