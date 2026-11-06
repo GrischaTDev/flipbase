@@ -84,7 +84,7 @@ const featureSpecs = {
 const globalPath =
   /^(?:package(?:-lock)?\.json|angular\.json|tsconfig[^/]*\.json|vitest[^/]*|src\/(?:main|test-setup)[^/]*|src\/environments\/|src\/styles|src\/index\.html|src\/app\/app\.|src\/app\/core\/guards\/)/u;
 const sharedUiPath =
-  /^src\/app\/(?:layout\/|shared\/components\/(?:badge|button|card|confirm-dialog|custom-checkbox|custom-search-input|custom-select|data-table|date-picker|entry-page-layout|form-field|loading-indicator|modal-shell|notice-banner|number-input|page-header|route-tabs|search-multi-select|section-navigation|split-pane|summary-metric|table-action-button|table-action-menu|table-column-menu|table-column-picker|table-sort-header|text-field|toast|two-column-layout)\/)/u;
+  /^src\/app\/(?:layout\/|shared\/components\/(?:badge|button|card|confirm-dialog|custom-checkbox|custom-search-input|custom-select|data-table|date-picker|entry-page-layout|form-field|loading-indicator|modal-shell|notice-banner|number-input|page-header|route-tabs|search-multi-select|section-navigation|split-pane|summary-metric|table-action-button|table-action-menu|table-column-menu|table-column-picker|table-pager|table-sort-header|text-field|toast|two-column-layout)\/)/u;
 const runtimePath =
   /^(?:package(?:-lock)?\.json|angular\.json|src\/(?:main\.ts|environments\/|index\.html)|src\/app\/app\.(?:config|routes)\.ts|src\/app\/core\/(?:guards\/|services\/(?:app-startup|supabase|auth)\.service\.ts))/u;
 const workflowPath =

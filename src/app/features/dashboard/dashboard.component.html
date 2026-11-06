@@ -120,7 +120,10 @@
       </p>
     }
   </app-card>
-  <div class="bottom-grid grid min-w-0 gap-5 xl:grid-cols-[1.1fr_1fr]">
+  <div
+    class="bottom-grid grid min-w-0 gap-5"
+    [class]="shopActive() ? 'xl:grid-cols-[1.1fr_1fr]' : ''"
+  >
     <section class="recent min-w-0" aria-labelledby="sales-table-heading">
       <app-card variant="overview" padding="lg" contentLayout="fill" class="h-full">
         <div class="overview-header mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -145,7 +148,7 @@
               class="sales-table h-full w-full min-w-[440px] table-fixed border-separate border-spacing-0 text-[13px]"
             >
               <caption class="sr-only">
-                Die drei letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
+                Die letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.
               </caption>
               <thead>
                 <tr class="bg-fb-subtle text-left text-fb-text-secondary">
@@ -222,6 +225,14 @@
               </tbody>
             </table>
           </div>
+          @if (recentSalesPagerVisible()) {
+            <app-table-pager
+              ariaLabel="Seiten der letzten Verkäufe"
+              [totalItems]="report().rows.length"
+              [pageSize]="recentSalesPageSize()"
+              [(page)]="recentSalesPage"
+            />
+          }
         } @else {
           <div class="py-6 text-sm text-fb-text-muted">
             <p>

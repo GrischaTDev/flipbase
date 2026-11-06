@@ -12,6 +12,8 @@ import { Workspace } from '../../../core/models/flipbase.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { WorkspaceAccessService } from '../../../core/services/workspace-access.service';
+import { WorkspaceShopService } from '../../../core/services/workspace-shop.service';
+import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { WorkspaceSetupComponent } from './workspace-setup.component';
@@ -59,6 +61,10 @@ const translations: Record<string, string> = {
   'BETA_ONBOARDING.PASSWORD': 'Passwort',
   'BETA_ONBOARDING.WORKSPACE': 'Workspace',
   'BETA_ONBOARDING.DISCORD': 'Discord',
+  'WORKSPACE.SETUP_SHOP_LABEL': 'Eigenen Online-Shop nutzen',
+  'WORKSPACE.SETUP_SHOP_DESCRIPTION': 'Für deinen eigenen Online-Shop mit eigener Domain.',
+  'WORKSPACE.SETUP_SHOP_NOT_NEEDED': 'Für reines Plattform-Reselling nicht nötig.',
+  'WORKSPACE.SETUP_SHOP_SAVE_ERROR': 'Die Shop-Auswahl konnte nicht gespeichert werden.',
 };
 
 beforeAll(async () => {
@@ -71,6 +77,10 @@ beforeAll(async () => {
     'button.component.scss': 'src/app/shared/components/button/button.component.scss',
     'text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
     'text-field.component.scss': 'src/app/shared/components/text-field/text-field.component.scss',
+    'custom-checkbox.component.html':
+      'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
+    'custom-checkbox.component.scss':
+      'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
   };
 
   await ɵresolveComponentResources(async (url) => {
@@ -126,6 +136,17 @@ beforeAll(async () => {
     'value',
   ]);
   registerInputs(BetaRegistrationProgressComponent, ['step']);
+  registerInputs(CustomCheckboxComponent, [
+    'checked',
+    'indeterminate',
+    'label',
+    'disabled',
+    'size',
+    'presentation',
+    'color',
+    'ariaLabel',
+    'id',
+  ]);
 });
 
 describe('WorkspaceSetupComponent', () => {
@@ -138,6 +159,7 @@ describe('WorkspaceSetupComponent', () => {
       completeError?: Error | null;
       review?: boolean;
       allowedWorkspaceIds?: string[];
+      shopSaveResult?: boolean;
     } = {},
   ) {
     const workspaces = signal(options.workspaces ?? [incompleteWorkspace]);
@@ -149,6 +171,7 @@ describe('WorkspaceSetupComponent', () => {
     const updateWorkspaceSettings = vi.fn().mockResolvedValue({ error: null });
     const signOut = vi.fn().mockResolvedValue(undefined);
     const navigate = vi.fn().mockResolvedValue(true);
+    const setShopEnabled = vi.fn().mockResolvedValue(options.shopSaveResult ?? true);
     const translate = (key: string) => translations[key] ?? key;
 
     TestBed.configureTestingModule({
@@ -178,6 +201,10 @@ describe('WorkspaceSetupComponent', () => {
             completeInitialSetup,
             updateWorkspaceSettings,
           },
+        },
+        {
+          provide: WorkspaceShopService,
+          useValue: { setEnabled: setShopEnabled, error: signal<string | null>(null) },
         },
         {
           provide: AuthService,
@@ -224,6 +251,7 @@ describe('WorkspaceSetupComponent', () => {
       updateWorkspaceSettings,
       signOut,
       navigate,
+      setShopEnabled,
     };
   }
 
@@ -368,6 +396,56 @@ describe('WorkspaceSetupComponent', () => {
     component.form.controls.workspaceName.setValue('Neuer Name');
     await component.onSubmit();
     expect(updateWorkspaceSettings).toHaveBeenCalledWith(completed.id, { name: 'Neuer Name' });
+  });
+
+  it('bietet berechtigten Workspaces den eigenen Shop an und speichert die Auswahl', async () => {
+    const entitled = { ...incompleteWorkspace, shop_enabled: false, shop_entitled: true };
+    const { fixture, component, setShopEnabled, navigate } = createComponent({
+      workspaces: [entitled],
+    });
+    await component.ngOnInit();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[data-workspace-shop-choice]')?.textContent).toContain(
+      'Eigenen Online-Shop nutzen',
+    );
+
+    component.form.controls.workspaceName.setValue('Kamera Handel');
+    component.form.controls.shopEnabled.setValue(true);
+    await component.onSubmit();
+
+    expect(setShopEnabled).toHaveBeenCalledWith(true, entitled);
+    expect(navigate).toHaveBeenCalledWith(['/onboarding/discord']);
+  });
+
+  it('bleibt bei fehlgeschlagener Shop-Auswahl auf der Seite', async () => {
+    const entitled = { ...incompleteWorkspace, shop_enabled: false, shop_entitled: true };
+    const { component, navigate } = createComponent({
+      workspaces: [entitled],
+      shopSaveResult: false,
+    });
+    await component.ngOnInit();
+    component.form.controls.workspaceName.setValue('Kamera Handel');
+    component.form.controls.shopEnabled.setValue(true);
+    await component.onSubmit();
+
+    expect(component.errorMessage()).toBe('Die Shop-Auswahl konnte nicht gespeichert werden.');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('zeigt ohne Shop-Berechtigung keine Auswahl und speichert nichts am Shop', async () => {
+    const notEntitled = { ...incompleteWorkspace, shop_enabled: false, shop_entitled: false };
+    const { fixture, component, setShopEnabled } = createComponent({ workspaces: [notEntitled] });
+    await component.ngOnInit();
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-workspace-shop-choice]'),
+    ).toBeNull();
+
+    component.form.controls.workspaceName.setValue('Kamera Handel');
+    component.form.controls.shopEnabled.setValue(true);
+    await component.onSubmit();
+    expect(setShopEnabled).not.toHaveBeenCalled();
   });
 
   it('zeigt die beschlossene Ein-Feld-Seite ohne schwerwiegende Barrieren', async () => {

@@ -63,6 +63,26 @@
         />
       </div>
 
+      @if (shopChoiceVisible()) {
+        <div
+          data-workspace-shop-choice
+          class="mt-6 rounded-xl border border-fb-border bg-fb-surface p-4"
+        >
+          <app-custom-checkbox
+            id="workspace-shop-enabled"
+            presentation="row"
+            size="lg"
+            formControlName="shopEnabled"
+            [label]="'WORKSPACE.SETUP_SHOP_LABEL' | translate"
+            [ariaLabel]="'WORKSPACE.SETUP_SHOP_LABEL' | translate"
+          />
+          <div class="mt-2 space-y-1.5 text-xs leading-relaxed text-fb-text-secondary">
+            <p>{{ 'WORKSPACE.SETUP_SHOP_DESCRIPTION' | translate }}</p>
+            <p>{{ 'WORKSPACE.SETUP_SHOP_NOT_NEEDED' | translate }}</p>
+          </div>
+        </div>
+      }
+
       <div class="mt-8 flex items-center justify-between">
         <app-button
           type="button"
