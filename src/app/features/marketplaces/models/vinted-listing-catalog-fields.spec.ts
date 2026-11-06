@@ -95,7 +95,7 @@ describe('Lokaler Vinted-Katalog in den Inseratmasken', () => {
     ).toBeNull();
   });
 
-  it('nimmt für gespeicherte Werte mehrere Größengruppen an, beim Formular nur eine', () => {
+  it('nimmt mehrere Größengruppen an und prüft die Feldgruppe gegen die gelieferten', () => {
     const fields = vintedListingCatalogCategoryFields(1819, rows(1819))!;
     expect(parseVintedListingCategoryFields(fields, 1819)).toEqual(fields);
     const size = fields.fields.find((field) => field.field === 'size')!;
@@ -110,7 +110,8 @@ describe('Lokaler Vinted-Katalog in den Inseratmasken', () => {
         { id: 'size-group-14-grid-option-208', label: 'M', selected: false, disabled: false },
       ]).sizeGroupId,
     ).toBe(14);
-    expect(() =>
+    // Herrenjeans zeigen im Formular zwei Gruppen zugleich (gemessen am 06.11.2026).
+    expect(
       parseVintedListingChoices('size', [
         { id: 'size-group-14-grid-option-208', label: 'M', selected: false, disabled: false },
         {
@@ -119,8 +120,8 @@ describe('Lokaler Vinted-Katalog in den Inseratmasken', () => {
           selected: false,
           disabled: false,
         },
-      ]),
-    ).toThrow();
+      ]).choices.map((choice) => choice.sizeGroupId),
+    ).toEqual([14, 77]);
   });
 
   it('wählt bei Vinted gelesene Inserate über ihre Kennungen vor, nicht über Bezeichnungen', () => {

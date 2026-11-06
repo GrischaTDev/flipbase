@@ -110,6 +110,27 @@ des Kontos gelesenen Werte und danach die eigene Liste.
   eigenen Liste (Merker `flipbaseListingForm`) werden weiter über Bezeichnungen zugeordnet.
 - Paketgröße und Marke bleiben bei der bisherigen Zuordnung.
 
+## Absenden mit Größengruppen (Schritt 5)
+
+Beobachtet am 06.11.2026 im leeren Verkaufsformular:
+
+- Herrenjeans zeigen beide Größengruppen zugleich (14 „Größen Männer“, 77 „Hosen für
+  Herren“). Bisher galt eine solche Auswahl beim Lesen als ungültig.
+- Damenjeans zeigen sechs Gruppen als Umschaltknöpfe (`button.web_ui__Chip__chip`,
+  aktiv mit `aria-pressed="true"`); im Formular steht nur die aktive Gruppe. Das Feld
+  heißt dort `category-size-single-grid_chips-input`, bleibt aber `input#size`.
+
+Änderungen im Worker:
+
+- Größen aus mehreren Gruppen sind beim Lesen gültig; jede Größe trägt ihre Gruppe.
+- Mit dem Hinweis `sizeId` schaltet das Öffnen der Größenauswahl die Gruppen durch, bis
+  die gesuchte Größe sichtbar ist. Umschalten wählt nichts aus.
+- Ausgewählt wird über die Gruppe der jeweiligen Größe; der frühere Abgleich einer
+  einzigen Feldgruppe entfällt.
+- Veröffentlichen und Bearbeiten geben die gewünschte Größe als Hinweis mit. Fehlt beim
+  Bearbeiten eine geänderte Marke oder Größe in den gelesenen Werten, wird genau dieses
+  Feld mit Suche bzw. Gruppenwechsel neu gelesen.
+
 ## Plan
 
 1. **Nachweis** – erledigt (oben).
@@ -124,7 +145,7 @@ des Kontos gelesenen Werte und danach die eigene Liste.
 4. **Oberfläche nur aus der Datenbank** – erledigt (oben), mit Übergang bis der Katalog vollständig ist: Kategorie wählen zeigt sofort ihre
    Felder und Werte. Gespeichert werden IDs. Bestehende Inserate öffnen mit
    ihren IDs (die Item-Abfrage liefert sie) vorausgewählt.
-5. **Absenden:** Der Worker überträgt IDs und gleicht sie vor dem Speichern mit
+5. **Absenden** – erledigt (oben) für Größengruppen: Der Worker überträgt IDs und gleicht sie vor dem Speichern mit
    Vinted ab. Bei Abweichung klare Meldung und erneutes Einlesen der Kategorie.
 
 Danach entfallen `vinted_category_field_snapshots`, die eigenen Listen in
@@ -132,7 +153,7 @@ Danach entfallen `vinted_category_field_snapshots`, die eigenen Listen in
 
 ## Offen
 
-- Beim Absenden wählt der Worker eine Größe noch über die Bezeichnung in der sichtbaren Gruppe. Größen anderer Gruppen (z. B. EU bei Damenjeans) brauchen Schritt 5.
+- Zustand, Farben und Material werden beim Veröffentlichen weiter über die Bezeichnung zugeordnet; mit den Katalogbezeichnungen sind sie identisch. Eine reine ID-Übergabe ohne Merker `flipbaseListingForm` ist noch nicht umgestellt.
 
 - Knopf mit Fortschrittsanzeige im Plattform-Admin für einen sofortigen Abgleich.
 - Paketgrößen werden noch nicht gespeichert (Herkunft der Werte und der Empfehlung offen).
