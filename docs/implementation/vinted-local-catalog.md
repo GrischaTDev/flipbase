@@ -93,6 +93,23 @@ Fehler im Katalog ändern weder Ergebnis noch Status des Kontoabgleichs. Der ers
 Abgleich speichert Baum und Farben; ab dem nächsten folgen die Felder in Blöcken.
 Bei rund 2.460 Endkategorien ist der Katalog nach etwa 41 Kontoabgleichen vollständig.
 
+## Masken aus dem Katalog (Schritt 4)
+
+`VintedCategoryFieldStore` liest zuerst den zentralen Katalog und baut daraus mit
+`vintedListingCatalogCategoryFields` Größe, Zustand, Farbe, Material und Zielgruppe mit
+Vinteds Kennungen. Damit erhalten Erstellen, Bearbeiten, Vorschau und Relisten dieselben
+Werte. Solange eine Kategorie im Katalog noch fehlt, gelten die zuletzt beim Inseratabruf
+des Kontos gelesenen Werte und danach die eigene Liste.
+
+- Das gemeinsame Feldformat nimmt für gespeicherte Werte mehrere Größengruppen an (jede
+  Größe trägt ihre Gruppe). Was aus dem Vinted-Formular gelesen wird, bleibt bei genau
+  einer sichtbaren Gruppe.
+- Gleiche Bezeichnungen mehrerer Gruppen („Sonstige“, „Einheitsgröße“) erscheinen einmal,
+  aus der ersten Gruppe.
+- Bei Vinted gelesene Inserate werden über ihre Kennungen vorausgewählt. Entwürfe der
+  eigenen Liste (Merker `flipbaseListingForm`) werden weiter über Bezeichnungen zugeordnet.
+- Paketgröße und Marke bleiben bei der bisherigen Zuordnung.
+
 ## Plan
 
 1. **Nachweis** – erledigt (oben).
@@ -104,7 +121,7 @@ Bei rund 2.460 Endkategorien ist der Katalog nach etwa 41 Kontoabgleichen vollst
 3. **Katalog-Abgleich im Worker** – erledigt (oben), ohne Knopf: Baum und Felder aller Endkategorien mit einer
    angemeldeten Sitzung lesen, gedrosselt, nur Änderungen schreiben. Auslöser
    wöchentlich und per Knopf im Plattform-Admin, Fortschritt sichtbar.
-4. **Oberfläche nur aus der Datenbank:** Kategorie wählen zeigt sofort ihre
+4. **Oberfläche nur aus der Datenbank** – erledigt (oben), mit Übergang bis der Katalog vollständig ist: Kategorie wählen zeigt sofort ihre
    Felder und Werte. Gespeichert werden IDs. Bestehende Inserate öffnen mit
    ihren IDs (die Item-Abfrage liefert sie) vorausgewählt.
 5. **Absenden:** Der Worker überträgt IDs und gleicht sie vor dem Speichern mit
@@ -114,6 +131,8 @@ Danach entfallen `vinted_category_field_snapshots`, die eigenen Listen in
 `flipbase-vinted-listing-form.ts` und die Zuordnung über Bezeichnungen.
 
 ## Offen
+
+- Beim Absenden wählt der Worker eine Größe noch über die Bezeichnung in der sichtbaren Gruppe. Größen anderer Gruppen (z. B. EU bei Damenjeans) brauchen Schritt 5.
 
 - Knopf mit Fortschrittsanzeige im Plattform-Admin für einen sofortigen Abgleich.
 - Paketgrößen werden noch nicht gespeichert (Herkunft der Werte und der Empfehlung offen).
