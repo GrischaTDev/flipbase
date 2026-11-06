@@ -2542,10 +2542,14 @@
       }
     </style>
     <link rel="stylesheet" href="landing-showcase.css" />
+    <link rel="stylesheet" href="product-demo.css" />
   </head>
 
   <body id="top">
     <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="icon-star" viewBox="0 0 24 24">
+        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.6l6.2-.9Z" />
+      </symbol>
       <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></symbol>
       <symbol id="icon-box" viewBox="0 0 24 24">
         <path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm-9 5 9 5 9-5m-9 5v9M7.5 5.5l9 5V15" />
@@ -2661,8 +2665,10 @@
         <nav id="landing-navigation" class="kopf-nav" aria-labelledby="landing-navigation-label">
           <a href="#features">
             <span class="lang-de">Funktionen</span>
-            <span class="lang-en" lang="en">Features</span>
-          </a>
+            <span class="lang-en" lang="en">Features</span> </a
+          ><a href="#demo" data-demo-link hidden
+            ><span class="lang-de">Demo</span><span class="lang-en" lang="en">Demo</span></a
+          >
           <a href="#roadmap"
             ><span class="lang-de">Überblick</span
             ><span class="lang-en" lang="en">Overview</span></a
@@ -2867,20 +2873,18 @@
 
         <figure class="replica-figure">
           <div id="dashboard-replica-label" class="sr-only">
-            <span class="lang-de"
-              >Beispielansicht der Flipbase-Übersicht: 7.824 Euro Umsatz, 2.632 Euro Gewinn nach
-              direkten Verkaufskosten, 33,6 Prozent Marge und 214 Verkäufe. Schnellaktionen,
-              Jahresdiagramm und zehn letzte Verkäufe.</span
-            ><span class="lang-en" lang="en"
-              >Sample view of the Flipbase overview: 7,824 euros revenue, 2,632 euros profit after
-              direct selling costs, 33.6 percent margin, and 214 sales. Quick actions, a yearly
-              chart, and ten latest sales.</span
-            >
+            <span class="lang-de">Interaktive Flipbase-Demo</span
+            ><span class="lang-en" lang="en">Interactive Flipbase demo</span>
           </div>
+          <span class="sr-only" id="demo-navigation-label"
+            ><span class="lang-de">Bereiche der Produktdemo</span
+            ><span class="lang-en" lang="en">Product demo pages</span></span
+          >
           <div
             class="replica-window"
             id="dashboard-replica"
-            role="img"
+            data-product-demo="compact"
+            role="region"
             aria-labelledby="dashboard-replica-label"
           >
             <div class="replica-sidebar">
@@ -2889,422 +2893,2007 @@
                   >Flipbase</span
                 >
               </div>
-              <div class="replica-nav-item replica-nav-active" data-nav-active>
-                <svg class="icon" aria-hidden="true"><use href="#icon-grid" /></svg
-                ><span class="lang-de">Übersicht</span
-                ><span class="lang-en" lang="en">Overview</span>
-              </div>
-              <p class="replica-nav-group" data-nav-group>
-                <span class="lang-de">Warenwirtschaft</span
-                ><span class="lang-en" lang="en">Business</span>
-              </p>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg
-                ><span class="lang-de">Einkäufe</span
-                ><span class="lang-en" lang="en">Purchases</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-cart" /></svg
-                ><span class="lang-de">Verkäufe</span><span class="lang-en" lang="en">Sales</span>
-              </div>
 
-              <p class="replica-nav-group" data-nav-group>
-                <span class="lang-de">Marktplätze</span
-                ><span class="lang-en" lang="en">Marketplaces</span>
-              </p>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
-                ><span class="lang-de">Übersicht</span
-                ><span class="lang-en" lang="en">Overview</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
-                ><span class="lang-de">Vinted</span><span class="lang-en" lang="en">Vinted</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
-                ><span class="lang-de">eBay</span><span class="lang-en" lang="en">eBay</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
-                ><span class="lang-de">Kleinanzeigen</span
-                ><span class="lang-en" lang="en">Kleinanzeigen</span>
-              </div>
-              <p class="replica-nav-group" data-nav-group>
-                <span class="lang-de">Finanzen</span><span class="lang-en" lang="en">Finances</span>
-              </p>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-receipt" /></svg
-                ><span class="lang-de">Ausgaben</span
-                ><span class="lang-en" lang="en">Expenses</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-file" /></svg
-                ><span class="lang-de">Steuern &amp; DATEV</span
-                ><span class="lang-en" lang="en">Tax &amp; DATEV</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg
-                ><span class="lang-de">Auswertungen</span
-                ><span class="lang-en" lang="en">Reports</span>
-              </div>
-              <p class="replica-nav-group" data-nav-group>
-                <span class="lang-de">Tools</span><span class="lang-en" lang="en">Tools</span>
-              </p>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg
-                ><span class="lang-de">Vinted Feed</span
-                ><span class="lang-en" lang="en">Vinted Feed</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-tag" /></svg
-                ><span class="lang-de">Marken &amp; Größen</span
-                ><span class="lang-en" lang="en">Brands &amp; sizes</span>
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon" aria-hidden="true"><use href="#icon-image" /></svg
-                ><span class="lang-de">Bildoptimierer</span
-                ><span class="lang-en" lang="en">Photo optimizer</span>
+              <div
+                class="demo-navigation"
+                role="tablist"
+                aria-orientation="vertical"
+                aria-labelledby="demo-navigation-label"
+              >
+                <button
+                  type="button"
+                  class="replica-nav-item replica-nav-active"
+                  id="demo-tab-overview"
+                  disabled=""
+                  data-demo-page="overview"
+                  role="tab"
+                  aria-controls="demo-panel-overview"
+                  aria-selected="true"
+                  tabindex="0"
+                  data-nav-active=""
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-grid"></use></svg
+                  ><span class="lang-de">Übersicht</span
+                  ><span class="lang-en" lang="en">Overview</span>
+                </button>
+                <p class="replica-nav-group" data-nav-group="">
+                  <span class="lang-de">Warenwirtschaft</span
+                  ><span class="lang-en" lang="en">Business</span>
+                </p>
+                <button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-purchases"
+                  disabled=""
+                  data-demo-page="purchases"
+                  role="tab"
+                  aria-controls="demo-panel-purchases"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-bag"></use></svg
+                  ><span class="lang-de">Einkäufe</span
+                  ><span class="lang-en" lang="en">Purchases</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-sales"
+                  disabled=""
+                  data-demo-page="sales"
+                  role="tab"
+                  aria-controls="demo-panel-sales"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-cart"></use></svg
+                  ><span class="lang-de">Verkäufe</span><span class="lang-en" lang="en">Sales</span>
+                </button>
+                <p class="replica-nav-group" data-nav-group="">
+                  <span class="lang-de">Marktplätze</span
+                  ><span class="lang-en" lang="en">Marketplaces</span>
+                </p>
+                <button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-marketplaces"
+                  disabled=""
+                  data-demo-page="marketplaces"
+                  role="tab"
+                  aria-controls="demo-panel-marketplaces"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <span class="sr-only"
+                    ><span class="lang-de">Marktplätze: </span
+                    ><span class="lang-en" lang="en">Marketplaces: </span></span
+                  >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg
+                  ><span class="lang-de">Übersicht</span
+                  ><span class="lang-en" lang="en">Overview</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-vinted"
+                  disabled=""
+                  data-demo-page="vinted"
+                  role="tab"
+                  aria-controls="demo-panel-vinted"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg
+                  ><span class="lang-de">Vinted</span
+                  ><span class="lang-en" lang="en">Vinted</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-ebay"
+                  disabled=""
+                  data-demo-page="ebay"
+                  role="tab"
+                  aria-controls="demo-panel-ebay"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg
+                  ><span class="lang-de">eBay</span
+                  ><span class="lang-en" lang="en">eBay</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-kleinanzeigen"
+                  disabled=""
+                  data-demo-page="kleinanzeigen"
+                  role="tab"
+                  aria-controls="demo-panel-kleinanzeigen"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg
+                  ><span class="lang-de">Kleinanzeigen</span
+                  ><span class="lang-en" lang="en">Kleinanzeigen</span>
+                </button>
+                <p class="replica-nav-group" data-nav-group="">
+                  <span class="lang-de">Finanzen</span
+                  ><span class="lang-en" lang="en">Finances</span>
+                </p>
+                <button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-expenses"
+                  disabled=""
+                  data-demo-page="expenses"
+                  role="tab"
+                  aria-controls="demo-panel-expenses"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-receipt"></use></svg
+                  ><span class="lang-de">Ausgaben</span
+                  ><span class="lang-en" lang="en">Expenses</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-accounting"
+                  disabled=""
+                  data-demo-page="accounting"
+                  role="tab"
+                  aria-controls="demo-panel-accounting"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                  ><span class="lang-de">Steuern &amp; DATEV</span
+                  ><span class="lang-en" lang="en">Tax &amp; DATEV</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-reports"
+                  disabled=""
+                  data-demo-page="reports"
+                  role="tab"
+                  aria-controls="demo-panel-reports"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-chart"></use></svg
+                  ><span class="lang-de">Auswertungen</span
+                  ><span class="lang-en" lang="en">Reports</span>
+                </button>
+                <p class="replica-nav-group" data-nav-group="">
+                  <span class="lang-de">Tools</span><span class="lang-en" lang="en">Tools</span>
+                </p>
+                <button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-feed"
+                  disabled=""
+                  data-demo-page="feed"
+                  role="tab"
+                  aria-controls="demo-panel-feed"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg
+                  ><span class="lang-de">Vinted Feed</span
+                  ><span class="lang-en" lang="en">Vinted Feed</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-brands"
+                  disabled=""
+                  data-demo-page="brands"
+                  role="tab"
+                  aria-controls="demo-panel-brands"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-tag"></use></svg
+                  ><span class="lang-de">Marken &amp; Größen</span
+                  ><span class="lang-en" lang="en">Brands &amp; sizes</span></button
+                ><button
+                  type="button"
+                  class="replica-nav-item"
+                  id="demo-tab-photos"
+                  disabled=""
+                  data-demo-page="photos"
+                  role="tab"
+                  aria-controls="demo-panel-photos"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  <svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg
+                  ><span class="lang-de">Bildoptimierer</span
+                  ><span class="lang-en" lang="en">Photo optimizer</span>
+                </button>
               </div>
             </div>
             <div class="replica-main">
               <div class="replica-topbar">
                 <span class="replica-workspace">Vintage Studio</span
-                ><svg class="icon" aria-hidden="true"><use href="#icon-bell" /></svg
+                ><span class="demo-badge">Demo</span
+                ><svg class="icon" aria-hidden="true"><use href="#icon-bell"></use></svg
                 ><span class="replica-avatar">A</span>
               </div>
-              <div class="replica-heading">
-                <div>
-                  <strong
-                    ><span class="lang-de">Übersicht</span
-                    ><span class="lang-en" lang="en">Overview</span></strong
-                  ><span
-                    ><span class="lang-de">Dein Geschäft auf einen Blick.</span
-                    ><span class="lang-en" lang="en">Your business at a glance.</span></span
-                  >
-                </div>
-                <div class="replica-filters">
-                  <span class="replica-select"
-                    ><span class="lang-de">Dieses Jahr</span
-                    ><span class="lang-en" lang="en">This year</span
-                    ><svg class="icon" aria-hidden="true"><use href="#icon-chevron" /></svg></span
-                  ><span class="replica-select"
-                    ><span class="lang-de">Alle Plattformen</span
-                    ><span class="lang-en" lang="en">All platforms</span
-                    ><svg class="icon" aria-hidden="true"><use href="#icon-chevron" /></svg
-                  ></span>
-                </div>
-              </div>
-              <div class="replica-kpis">
-                <div class="replica-kpi" data-kpi="revenue">
-                  <div class="replica-kpi-heading">
-                    <svg class="icon" aria-hidden="true"><use href="#icon-coins" /></svg
-                    ><span data-kpi-label
-                      ><span class="lang-de">Umsatz</span
-                      ><span class="lang-en" lang="en">Revenue</span></span
-                    >
-                  </div>
-                  <strong class="replica-kpi-value" data-kpi-value>7.824,00 €</strong
-                  ><span class="replica-kpi-note"
-                    ><span class="lang-de">+12,4 % zum Vorjahr</span
-                    ><span class="lang-en" lang="en">+12.4% vs. last year</span></span
-                  >
-                </div>
-                <div class="replica-kpi" data-kpi="gross-profit">
-                  <div class="replica-kpi-heading">
-                    <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg
-                    ><span data-kpi-label
-                      ><span class="lang-de">Gewinn</span
-                      ><span class="lang-en" lang="en">Profit</span></span
-                    >
-                  </div>
-                  <strong class="replica-kpi-value" data-kpi-value>2.632,00 €</strong
-                  ><span class="replica-kpi-note"
-                    ><span class="lang-de">+18,2 % zum Vorjahr</span
-                    ><span class="lang-en" lang="en">+18.2% vs. last year</span></span
-                  >
-                </div>
-                <div class="replica-kpi" data-kpi="margin">
-                  <div class="replica-kpi-heading">
-                    <svg class="icon" aria-hidden="true"><use href="#icon-percent" /></svg
-                    ><span data-kpi-label
-                      ><span class="lang-de">Marge</span
-                      ><span class="lang-en" lang="en">Margin</span></span
-                    >
-                  </div>
-                  <strong class="replica-kpi-value" data-kpi-value>33,6 %</strong
-                  ><span class="replica-kpi-note"
-                    ><span class="lang-de">+1,2 Pp. zum Vorjahr</span
-                    ><span class="lang-en" lang="en">+1.2 pp vs. last year</span></span
-                  >
-                </div>
-                <div class="replica-kpi" data-kpi="sales">
-                  <div class="replica-kpi-heading">
-                    <svg class="icon" aria-hidden="true"><use href="#icon-cart" /></svg
-                    ><span data-kpi-label
-                      ><span class="lang-de">Verkäufe</span
-                      ><span class="lang-en" lang="en">Sales</span></span
-                    >
-                  </div>
-                  <strong class="replica-kpi-value" data-kpi-value>214</strong
-                  ><span class="replica-kpi-note"
-                    ><span class="lang-de">Bestätigte Verkäufe</span
-                    ><span class="lang-en" lang="en">Confirmed sales</span></span
-                  >
-                </div>
-              </div>
-              <div class="replica-quick">
-                <span class="replica-section-label"
-                  ><span class="lang-de">Schnellaktionen</span
-                  ><span class="lang-en" lang="en">Quick actions</span></span
+              <div class="demo-pages">
+                <div
+                  class="demo-panel"
+                  id="demo-panel-overview"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-overview"
+                  tabindex="0"
                 >
-                <div>
-                  <span class="replica-quick-action"
-                    ><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg
-                    ><span class="lang-de">Einkauf erfassen</span
-                    ><span class="lang-en" lang="en">Record purchase</span></span
-                  ><span class="replica-quick-action"
-                    ><svg class="icon" aria-hidden="true"><use href="#icon-cart" /></svg
-                    ><span class="lang-de">Verkauf erfassen</span
-                    ><span class="lang-en" lang="en">Record sale</span></span
-                  ><span class="replica-quick-action replica-quick-action--primary"
-                    ><svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
-                    ><span class="lang-de">Inserat erstellen</span
-                    ><span class="lang-en" lang="en">Create listing</span></span
-                  >
-                </div>
-              </div>
-              <div class="replica-card replica-development">
-                <div class="replica-card-heading">
-                  <strong
-                    ><span class="lang-de">Umsatz, Ausgaben und Gewinn</span
-                    ><span class="lang-en" lang="en">Revenue, expenses, and profit</span></strong
-                  >
-                  <div class="replica-legend">
-                    <span class="replica-key-revenue" data-chart-legend
-                      ><span class="lang-de">Umsatz</span
-                      ><span class="lang-en" lang="en">Revenue</span></span
-                    ><span class="replica-key-expenses" data-chart-legend
-                      ><span class="lang-de">Ausgaben gesamt</span
-                      ><span class="lang-en" lang="en">Total expenses</span></span
-                    ><span class="replica-key-profit" data-chart-legend
-                      ><span class="lang-de">Gewinn</span
-                      ><span class="lang-en" lang="en">Profit</span></span
+                  <div class="replica-heading">
+                    <div>
+                      <h2>
+                        <span class="lang-de">Übersicht</span
+                        ><span class="lang-en" lang="en">Overview</span>
+                      </h2>
+                      <span
+                        ><span class="lang-de">Dein Geschäft auf einen Blick.</span
+                        ><span class="lang-en" lang="en">Your business at a glance.</span></span
+                      >
+                    </div>
+                    <div class="replica-filters">
+                      <label class="sr-only" id="demo-period-label" for="demo-period"
+                        ><span class="lang-de">Zeitraum der Demo</span
+                        ><span class="lang-en" lang="en">Demo period</span></label
+                      ><select class="demo-control" id="demo-period" data-demo-period="">
+                        <option value="year" data-de="Dieses Jahr" data-en="This year">
+                          Dieses Jahr
+                        </option>
+                        <option value="month" data-de="Oktober" data-en="October">
+                          Oktober
+                        </option></select
+                      ><label class="sr-only" id="demo-platform-label" for="demo-platform"
+                        ><span class="lang-de">Plattform der Demo</span
+                        ><span class="lang-en" lang="en">Demo platform</span></label
+                      ><select class="demo-control" id="demo-platform" data-demo-platform="">
+                        <option value="all" data-de="Alle Plattformen" data-en="All platforms">
+                          Alle Plattformen
+                        </option>
+                        <option value="vinted">Vinted</option>
+                        <option value="ebay">eBay</option>
+                        <option value="kleinanzeigen">Kleinanzeigen</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="replica-kpis">
+                    <div class="replica-kpi" data-kpi="revenue">
+                      <div class="replica-kpi-heading">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-coins"></use></svg
+                        ><span data-kpi-label=""
+                          ><span class="lang-de">Umsatz</span
+                          ><span class="lang-en" lang="en">Revenue</span></span
+                        >
+                      </div>
+                      <strong class="replica-kpi-value" data-kpi-value="">7.824,00 €</strong
+                      ><span class="replica-kpi-note"
+                        ><span class="lang-de">+12,4 % zum Vorjahr</span
+                        ><span class="lang-en" lang="en">+12.4% vs. last year</span></span
+                      >
+                    </div>
+                    <div class="replica-kpi" data-kpi="gross-profit">
+                      <div class="replica-kpi-heading">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-chart"></use></svg
+                        ><span data-kpi-label=""
+                          ><span class="lang-de">Gewinn</span
+                          ><span class="lang-en" lang="en">Profit</span></span
+                        >
+                      </div>
+                      <strong class="replica-kpi-value" data-kpi-value="">2.632,00 €</strong
+                      ><span class="replica-kpi-note"
+                        ><span class="lang-de">+18,2 % zum Vorjahr</span
+                        ><span class="lang-en" lang="en">+18.2% vs. last year</span></span
+                      >
+                    </div>
+                    <div class="replica-kpi" data-kpi="margin">
+                      <div class="replica-kpi-heading">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-percent"></use></svg
+                        ><span data-kpi-label=""
+                          ><span class="lang-de">Marge</span
+                          ><span class="lang-en" lang="en">Margin</span></span
+                        >
+                      </div>
+                      <strong class="replica-kpi-value" data-kpi-value="">33,6 %</strong
+                      ><span class="replica-kpi-note"
+                        ><span class="lang-de">+1,2 Pp. zum Vorjahr</span
+                        ><span class="lang-en" lang="en">+1.2 pp vs. last year</span></span
+                      >
+                    </div>
+                    <div class="replica-kpi" data-kpi="sales">
+                      <div class="replica-kpi-heading">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-cart"></use></svg
+                        ><span data-kpi-label=""
+                          ><span class="lang-de">Verkäufe</span
+                          ><span class="lang-en" lang="en">Sales</span></span
+                        >
+                      </div>
+                      <strong class="replica-kpi-value" data-kpi-value="">214</strong
+                      ><span class="replica-kpi-note"
+                        ><span class="lang-de">Bestätigte Verkäufe</span
+                        ><span class="lang-en" lang="en">Confirmed sales</span></span
+                      >
+                    </div>
+                  </div>
+                  <div class="replica-quick">
+                    <span class="replica-section-label"
+                      ><span class="lang-de">Schnellaktionen</span
+                      ><span class="lang-en" lang="en">Quick actions</span></span
                     >
-                  </div>
-                </div>
-                <div class="replica-plot">
-                  <div class="replica-axis">
-                    <span>1.300 €</span><span>650 €</span><span>0 €</span>
-                  </div>
-                  <div class="replica-bars">
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 420"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 380"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 120"></span
-                      ><small
-                        ><span class="lang-de">Jan.</span
-                        ><span class="lang-en" lang="en">Jan</span></small
+                    <div>
+                      <button type="button" class="replica-quick-action" data-demo-go="purchases">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-bag"></use></svg
+                        ><span class="lang-de">Einkauf erfassen</span
+                        ><span class="lang-en" lang="en">Record purchase</span></button
+                      ><button type="button" class="replica-quick-action" data-demo-go="sales">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-cart"></use></svg
+                        ><span class="lang-de">Verkauf erfassen</span
+                        ><span class="lang-en" lang="en">Record sale</span></button
+                      ><button
+                        type="button"
+                        class="replica-quick-action replica-quick-action--primary"
+                        data-demo-go="vinted"
                       >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 510"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 400"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 170"></span
-                      ><small
-                        ><span class="lang-de">Feb.</span
-                        ><span class="lang-en" lang="en">Feb</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 640"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 480"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 210"></span
-                      ><small
-                        ><span class="lang-de">März</span
-                        ><span class="lang-en" lang="en">Mar</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 590"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 450"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 200"></span
-                      ><small
-                        ><span class="lang-de">Apr.</span
-                        ><span class="lang-en" lang="en">Apr</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 780"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 600"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 260"></span
-                      ><small
-                        ><span class="lang-de">Mai</span
-                        ><span class="lang-en" lang="en">May</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 860"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 640"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 300"></span
-                      ><small
-                        ><span class="lang-de">Juni</span
-                        ><span class="lang-en" lang="en">Jun</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 720"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 540"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 250"></span
-                      ><small
-                        ><span class="lang-de">Juli</span
-                        ><span class="lang-en" lang="en">Jul</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 940"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 690"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 330"></span
-                      ><small
-                        ><span class="lang-de">Aug.</span
-                        ><span class="lang-en" lang="en">Aug</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 1080"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 780"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 380"></span
-                      ><small
-                        ><span class="lang-de">Sep.</span
-                        ><span class="lang-en" lang="en">Sep</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 1284"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 900"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 412"></span
-                      ><small
-                        ><span class="lang-de">Okt.</span
-                        ><span class="lang-en" lang="en">Oct</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 0"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 0"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 0"></span
-                      ><small
-                        ><span class="lang-de">Nov.</span
-                        ><span class="lang-en" lang="en">Nov</span></small
-                      >
-                    </div>
-                    <div class="replica-month">
-                      <span class="replica-bar" data-series="revenue" style="--value: 0"></span
-                      ><span class="replica-bar" data-series="expenses" style="--value: 0"></span
-                      ><span class="replica-bar" data-series="profit" style="--value: 0"></span
-                      ><small
-                        ><span class="lang-de">Dez.</span
-                        ><span class="lang-en" lang="en">Dec</span></small
-                      >
+                        <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg
+                        ><span class="lang-de">Inserat erstellen</span
+                        ><span class="lang-en" lang="en">Create listing</span>
+                      </button>
                     </div>
                   </div>
-                </div>
-              </div>
-              <div class="replica-bottom">
-                <div class="replica-card">
-                  <div class="replica-card-heading">
-                    <strong
-                      ><span class="lang-de">Letzte Verkäufe</span
-                      ><span class="lang-en" lang="en">Latest sales</span></strong
-                    ><svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                  <div class="replica-card replica-development">
+                    <div class="replica-card-heading">
+                      <strong
+                        ><span class="lang-de">Umsatz, Ausgaben und Gewinn</span
+                        ><span class="lang-en" lang="en"
+                          >Revenue, expenses, and profit</span
+                        ></strong
+                      >
+                      <div class="replica-legend">
+                        <span class="replica-key-revenue" data-chart-legend=""
+                          ><span class="lang-de">Umsatz</span
+                          ><span class="lang-en" lang="en">Revenue</span></span
+                        ><span class="replica-key-expenses" data-chart-legend=""
+                          ><span class="lang-de">Ausgaben gesamt</span
+                          ><span class="lang-en" lang="en">Total expenses</span></span
+                        ><span class="replica-key-profit" data-chart-legend=""
+                          ><span class="lang-de">Gewinn</span
+                          ><span class="lang-en" lang="en">Profit</span></span
+                        >
+                      </div>
+                    </div>
+                    <div class="replica-plot">
+                      <div class="replica-axis">
+                        <span>1.300 €</span><span>650 €</span><span>0 €</span>
+                      </div>
+                      <div class="replica-bars">
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 420"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 380"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 120"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Jan.</span
+                            ><span class="lang-en" lang="en">Jan</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 510"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 400"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 170"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Feb.</span
+                            ><span class="lang-en" lang="en">Feb</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 640"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 480"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 210"
+                          ></span
+                          ><small
+                            ><span class="lang-de">März</span
+                            ><span class="lang-en" lang="en">Mar</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 590"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 450"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 200"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Apr.</span
+                            ><span class="lang-en" lang="en">Apr</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 780"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 600"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 260"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Mai</span
+                            ><span class="lang-en" lang="en">May</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 860"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 640"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 300"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Juni</span
+                            ><span class="lang-en" lang="en">Jun</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 720"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 540"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 250"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Juli</span
+                            ><span class="lang-en" lang="en">Jul</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 940"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 690"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 330"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Aug.</span
+                            ><span class="lang-en" lang="en">Aug</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 1080"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 780"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 380"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Sep.</span
+                            ><span class="lang-en" lang="en">Sep</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span
+                            class="replica-bar"
+                            data-series="revenue"
+                            style="--value: 1284"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 900"
+                          ></span
+                          ><span
+                            class="replica-bar"
+                            data-series="profit"
+                            style="--value: 412"
+                          ></span
+                          ><small
+                            ><span class="lang-de">Okt.</span
+                            ><span class="lang-en" lang="en">Oct</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span class="replica-bar" data-series="revenue" style="--value: 0"></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 0"
+                          ></span
+                          ><span class="replica-bar" data-series="profit" style="--value: 0"></span
+                          ><small
+                            ><span class="lang-de">Nov.</span
+                            ><span class="lang-en" lang="en">Nov</span></small
+                          >
+                        </div>
+                        <div class="replica-month">
+                          <span class="replica-bar" data-series="revenue" style="--value: 0"></span
+                          ><span
+                            class="replica-bar"
+                            data-series="expenses"
+                            style="--value: 0"
+                          ></span
+                          ><span class="replica-bar" data-series="profit" style="--value: 0"></span
+                          ><small
+                            ><span class="lang-de">Dez.</span
+                            ><span class="lang-en" lang="en">Dec</span></small
+                          >
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="replica-sales-heading">
-                    <span
-                      ><span class="lang-de">Datum</span
-                      ><span class="lang-en" lang="en">Date</span></span
-                    ><span
-                      ><span class="lang-de">Artikel</span
-                      ><span class="lang-en" lang="en">Item</span></span
-                    ><span
-                      ><span class="lang-de">Plattform</span
-                      ><span class="lang-en" lang="en">Platform</span></span
-                    ><span
-                      ><span class="lang-de">Gewinn</span
-                      ><span class="lang-en" lang="en">Profit</span></span
-                    >
-                  </div>
+                  <div class="replica-bottom">
+                    <div class="replica-card">
+                      <div class="replica-card-heading">
+                        <strong
+                          ><span class="lang-de">Letzte Verkäufe</span
+                          ><span class="lang-en" lang="en">Latest sales</span></strong
+                        ><svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                      </div>
+                      <div class="replica-sales-heading">
+                        <span
+                          ><span class="lang-de">Datum</span
+                          ><span class="lang-en" lang="en">Date</span></span
+                        ><span
+                          ><span class="lang-de">Artikel</span
+                          ><span class="lang-en" lang="en">Item</span></span
+                        ><span
+                          ><span class="lang-de">Plattform</span
+                          ><span class="lang-en" lang="en">Platform</span></span
+                        ><span
+                          ><span class="lang-de">Gewinn</span
+                          ><span class="lang-en" lang="en">Profit</span></span
+                        >
+                      </div>
 
-                  <div class="replica-sale">
-                    <span>31.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Vintage
-                      Sweatshirt</span
-                    ><span class="replica-platform">Vinted</span><strong>25,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>30.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Crewneck
-                      Sweatshirt</span
-                    ><span class="replica-platform">eBay</span><strong>21,50 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>29.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Wool
-                      Sweatshirt</span
-                    ><span class="replica-platform">Vinted</span><strong>32,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>28.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Basic
-                      Sweatshirt</span
-                    ><span class="replica-platform">Kleinanzeigen</span><strong>18,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>27.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Vintage
-                      Crewneck</span
-                    ><span class="replica-platform">Vinted</span><strong>22,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>26.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Classic
-                      Sweatshirt</span
-                    ><span class="replica-platform">eBay</span><strong>16,50 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>25.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Oversize
-                      Sweatshirt</span
-                    ><span class="replica-platform">Vinted</span><strong>28,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>24.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Retro
-                      Sweatshirt</span
-                    ><span class="replica-platform">Kleinanzeigen</span><strong>19,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>23.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Logo
-                      Sweatshirt</span
-                    ><span class="replica-platform">Vinted</span><strong>24,00 €</strong>
-                  </div>
-                  <div class="replica-sale">
-                    <span>22.10.</span
-                    ><span class="replica-sale-product"
-                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Cotton
-                      Sweatshirt</span
-                    ><span class="replica-platform">eBay</span><strong>17,50 €</strong>
+                      <div class="replica-sale">
+                        <span>31.10.</span
+                        ><span class="replica-sale-product"
+                          ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Vintage
+                          Sweatshirt</span
+                        ><span class="replica-platform">Vinted</span><strong>25,00 €</strong>
+                      </div>
+                      <div class="replica-sale">
+                        <span>30.10.</span
+                        ><span class="replica-sale-product"
+                          ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Crewneck
+                          Sweatshirt</span
+                        ><span class="replica-platform">eBay</span><strong>21,50 €</strong>
+                      </div>
+                      <div class="replica-sale">
+                        <span>29.10.</span
+                        ><span class="replica-sale-product"
+                          ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Wool
+                          Sweatshirt</span
+                        ><span class="replica-platform">Vinted</span><strong>32,00 €</strong>
+                      </div>
+                      <div class="replica-sale">
+                        <span>28.10.</span
+                        ><span class="replica-sale-product"
+                          ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Basic
+                          Sweatshirt</span
+                        ><span class="replica-platform">Kleinanzeigen</span><strong>18,00 €</strong>
+                      </div>
+                      <div class="replica-sale">
+                        <span>27.10.</span
+                        ><span class="replica-sale-product"
+                          ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Vintage
+                          Crewneck</span
+                        ><span class="replica-platform">Vinted</span><strong>22,00 €</strong>
+                      </div>
+                    </div>
                   </div>
                 </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-purchases"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-purchases"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Einkäufe</span
+                      ><span class="lang-en" lang="en">Purchases</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Einkauf und Beleg gehören zusammen.</span
+                      ><span class="lang-en" lang="en">Keep purchases and receipts together.</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Einkäufe</span
+                        ><span class="lang-en" lang="en">Purchases</span></span
+                      ><strong>3</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Einkaufssumme</span
+                        ><span class="lang-en" lang="en">Purchase total</span></span
+                      ><strong>85,00 €</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Belege</span
+                        ><span class="lang-en" lang="en">Receipts</span></span
+                      ><strong>3</strong>
+                    </div>
+                  </div>
+                  <div
+                    class="product-demo-table-wrap"
+                    tabindex="0"
+                    role="region"
+                    aria-label="Datum / Date"
+                  >
+                    <table class="product-demo-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Einkauf</span
+                            ><span class="lang-en" lang="en">Purchase</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Gesamt</span
+                            ><span class="lang-en" lang="en">Total</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>12.10.</td>
+                          <td>Vintage Sweatshirt</td>
+                          <td>12,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>10.10.</td>
+                          <td>
+                            <span class="lang-de">Sweatshirts · 3 Positionen</span
+                            ><span class="lang-en" lang="en">Sweatshirts · 3 items</span>
+                          </td>
+                          <td>28,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>08.10.</td>
+                          <td>
+                            <span class="lang-de">Vintage-Auswahl</span
+                            ><span class="lang-en" lang="en">Vintage selection</span>
+                          </td>
+                          <td>45,00 €</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="demo-section-heading">
+                    <h3>
+                      <span class="lang-de">Belege</span
+                      ><span class="lang-en" lang="en">Receipts</span>
+                    </h3>
+                  </div>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                      ><span>Kaufbeleg.pdf</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="receipt-paper">
+                      <strong
+                        ><span class="lang-de">Kaufbeleg</span
+                        ><span class="lang-en" lang="en">Purchase receipt</span></strong
+                      ><span class="receipt-paper-lines" aria-hidden="true"></span>
+                      <dl>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </dt>
+                          <dd>12.10.2026</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </dt>
+                          <dd>12,00&nbsp;€</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                      ><span>Rechnung.pdf</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="receipt-paper">
+                      <strong
+                        ><span class="lang-de">Kaufbeleg</span
+                        ><span class="lang-en" lang="en">Purchase receipt</span></strong
+                      ><span class="receipt-paper-lines" aria-hidden="true"></span>
+                      <dl>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </dt>
+                          <dd>12.10.2026</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </dt>
+                          <dd>28,00&nbsp;€</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                      ><span>Ankauf.pdf</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="receipt-paper">
+                      <strong
+                        ><span class="lang-de">Kaufbeleg</span
+                        ><span class="lang-en" lang="en">Purchase receipt</span></strong
+                      ><span class="receipt-paper-lines" aria-hidden="true"></span>
+                      <dl>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </dt>
+                          <dd>12.10.2026</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </dt>
+                          <dd>45,00&nbsp;€</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-sales"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-sales"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Verkäufe</span
+                      ><span class="lang-en" lang="en">Sales</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Deine Verkäufe und direkten Kosten.</span
+                      ><span class="lang-en" lang="en">Your sales and direct costs.</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Verkäufe</span
+                        ><span class="lang-en" lang="en">Sales</span></span
+                      ><strong>214</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Gewinn</span
+                        ><span class="lang-en" lang="en">Profit</span></span
+                      ><strong>2.632,00 €</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Plattformen</span
+                        ><span class="lang-en" lang="en">Platforms</span></span
+                      ><strong>3</strong>
+                    </div>
+                  </div>
+                  <div
+                    class="product-demo-table-wrap"
+                    tabindex="0"
+                    role="region"
+                    aria-label="Datum / Date"
+                  >
+                    <table class="product-demo-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Artikel</span
+                            ><span class="lang-en" lang="en">Item</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Plattform</span
+                            ><span class="lang-en" lang="en">Platform</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Gewinn</span
+                            ><span class="lang-en" lang="en">Profit</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>31.10.</td>
+                          <td>Vintage Sweatshirt</td>
+                          <td>Vinted</td>
+                          <td>25,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>30.10.</td>
+                          <td>Crewneck Sweatshirt</td>
+                          <td>eBay</td>
+                          <td>21,50 €</td>
+                        </tr>
+                        <tr>
+                          <td>29.10.</td>
+                          <td>Wool Sweatshirt</td>
+                          <td>Vinted</td>
+                          <td>32,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>28.10.</td>
+                          <td>Basic Sweatshirt</td>
+                          <td>Kleinanzeigen</td>
+                          <td>18,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>27.10.</td>
+                          <td>Vintage Crewneck</td>
+                          <td>Vinted</td>
+                          <td>22,00 €</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-receipt"></use></svg
+                      ><span class="lang-de">Verkauf: Vintage Sweatshirt</span
+                      ><span class="lang-en" lang="en">Sale: Vintage Sweatshirt</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <dl class="product-demo-details">
+                      <div>
+                        <dt>
+                          <span class="lang-de">Verkaufspreis</span
+                          ><span class="lang-en" lang="en">Sale price</span>
+                        </dt>
+                        <dd>39,00 €</dd>
+                      </div>
+                      <div>
+                        <dt>
+                          <span class="lang-de">Einkauf</span
+                          ><span class="lang-en" lang="en">Purchase</span>
+                        </dt>
+                        <dd>12,00 €</dd>
+                      </div>
+                      <div>
+                        <dt>
+                          <span class="lang-de">Direkte Kosten</span
+                          ><span class="lang-en" lang="en">Direct costs</span>
+                        </dt>
+                        <dd>2,00 €</dd>
+                      </div>
+                      <div>
+                        <dt>
+                          <span class="lang-de">Gewinn</span
+                          ><span class="lang-en" lang="en">Profit</span>
+                        </dt>
+                        <dd>25,00 €</dd>
+                      </div>
+                    </dl>
+                  </details>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-marketplaces"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-marketplaces"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Marktplätze</span
+                      ><span class="lang-en" lang="en">Marketplaces</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Deine Konten im Überblick.</span
+                      ><span class="lang-en" lang="en">Your accounts at a glance.</span>
+                    </p>
+                  </div>
+                  <div class="demo-marketplaces">
+                    <button type="button" class="demo-marketplace-card" data-demo-go="vinted">
+                      <span class="demo-platform-mark">V</span><strong>Vinted</strong
+                      ><span>vintage.studio</span
+                      ><span
+                        ><span class="lang-de">12 Inserate</span
+                        ><span class="lang-en" lang="en">12 listings</span></span
+                      ><svg class="icon" aria-hidden="true">
+                        <use href="#icon-arrow"></use>
+                      </svg></button
+                    ><button type="button" class="demo-marketplace-card" data-demo-go="ebay">
+                      <span class="demo-platform-mark">e</span><strong>eBay</strong
+                      ><span>vintage-studio</span
+                      ><span
+                        ><span class="lang-de">8 Inserate</span
+                        ><span class="lang-en" lang="en">8 listings</span></span
+                      ><svg class="icon" aria-hidden="true">
+                        <use href="#icon-arrow"></use>
+                      </svg></button
+                    ><button
+                      type="button"
+                      class="demo-marketplace-card"
+                      data-demo-go="kleinanzeigen"
+                    >
+                      <span class="demo-platform-mark">K</span><strong>Kleinanzeigen</strong
+                      ><span>Vintage Studio</span
+                      ><span
+                        ><span class="lang-de">6 Inserate</span
+                        ><span class="lang-en" lang="en">6 listings</span></span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                    </button>
+                  </div>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-vinted"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-vinted"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Vinted</span
+                      ><span class="lang-en" lang="en">Vinted</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">vintage.studio</span
+                      ><span class="lang-en" lang="en">vintage.studio</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Inserate</span
+                        ><span class="lang-en" lang="en">Listings</span></span
+                      ><strong>12</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Aufrufe</span
+                        ><span class="lang-en" lang="en">Views</span></span
+                      ><strong>248</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Favoriten</span
+                        ><span class="lang-en" lang="en">Favorites</span></span
+                      ><strong>36</strong>
+                    </div>
+                  </div>
+                  <div class="demo-section-heading">
+                    <h3>
+                      <span class="lang-de">Deine Inserate</span
+                      ><span class="lang-en" lang="en">Your listings</span>
+                    </h3>
+                  </div>
+                  <div class="demo-product-list">
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Vintage Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe M · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size M · Very good</span></span
+                        ><b>39,00&nbsp;€</b>
+                      </div>
+                    </div>
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Crewneck Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe L · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size L · Very good</span></span
+                        ><b>45,00&nbsp;€</b>
+                      </div>
+                    </div>
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Basic Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe S · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size S · Very good</span></span
+                        ><b>29,00&nbsp;€</b>
+                      </div>
+                    </div>
+                  </div>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-bell"></use></svg
+                      ><span class="lang-de">Nachricht zu Vintage Sweatshirt</span
+                      ><span class="lang-en" lang="en">Message about Vintage Sweatshirt</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="demo-message">
+                      <strong>Anna</strong>
+                      <p>
+                        <span class="lang-de">Hallo, ist das Sweatshirt noch verfügbar?</span
+                        ><span class="lang-en" lang="en"
+                          >Hi, is the sweatshirt still available?</span
+                        >
+                      </p>
+                      <span
+                        ><span class="lang-de">Heute, 10:24</span
+                        ><span class="lang-en" lang="en">Today, 10:24</span></span
+                      >
+                    </div>
+                  </details>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-ebay"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-ebay"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">eBay</span><span class="lang-en" lang="en">eBay</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">vintage-studio</span
+                      ><span class="lang-en" lang="en">vintage-studio</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Inserate</span
+                        ><span class="lang-en" lang="en">Listings</span></span
+                      ><strong>8</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Aufrufe</span
+                        ><span class="lang-en" lang="en">Views</span></span
+                      ><strong>248</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Favoriten</span
+                        ><span class="lang-en" lang="en">Favorites</span></span
+                      ><strong>36</strong>
+                    </div>
+                  </div>
+                  <div class="demo-section-heading">
+                    <h3>
+                      <span class="lang-de">Deine Inserate</span
+                      ><span class="lang-en" lang="en">Your listings</span>
+                    </h3>
+                  </div>
+                  <div class="demo-product-list">
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Vintage Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe M · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size M · Very good</span></span
+                        ><b>39,00&nbsp;€</b>
+                      </div>
+                    </div>
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Crewneck Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe L · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size L · Very good</span></span
+                        ><b>45,00&nbsp;€</b>
+                      </div>
+                    </div>
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Basic Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe S · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size S · Very good</span></span
+                        ><b>29,00&nbsp;€</b>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-kleinanzeigen"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-kleinanzeigen"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Kleinanzeigen</span
+                      ><span class="lang-en" lang="en">Kleinanzeigen</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Vintage Studio</span
+                      ><span class="lang-en" lang="en">Vintage Studio</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Inserate</span
+                        ><span class="lang-en" lang="en">Listings</span></span
+                      ><strong>6</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Aufrufe</span
+                        ><span class="lang-en" lang="en">Views</span></span
+                      ><strong>248</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Favoriten</span
+                        ><span class="lang-en" lang="en">Favorites</span></span
+                      ><strong>36</strong>
+                    </div>
+                  </div>
+                  <div class="demo-section-heading">
+                    <h3>
+                      <span class="lang-de">Deine Inserate</span
+                      ><span class="lang-en" lang="en">Your listings</span>
+                    </h3>
+                  </div>
+                  <div class="demo-product-list">
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Vintage Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe M · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size M · Very good</span></span
+                        ><b>39,00&nbsp;€</b>
+                      </div>
+                    </div>
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Crewneck Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe L · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size L · Very good</span></span
+                        ><b>45,00&nbsp;€</b>
+                      </div>
+                    </div>
+                    <div class="demo-product">
+                      <img
+                        src="images/sweatshirt.svg"
+                        alt=""
+                        width="66"
+                        height="78"
+                        loading="lazy"
+                      />
+                      <div>
+                        <strong>Basic Sweatshirt</strong
+                        ><span
+                          ><span class="lang-de">Größe S · Sehr gut</span
+                          ><span class="lang-en" lang="en">Size S · Very good</span></span
+                        ><b>29,00&nbsp;€</b>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-expenses"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-expenses"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Ausgaben</span
+                      ><span class="lang-en" lang="en">Expenses</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Belege und laufende Kosten.</span
+                      ><span class="lang-en" lang="en">Receipts and recurring costs.</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Ausgaben</span
+                        ><span class="lang-en" lang="en">Expenses</span></span
+                      ><strong>74,00 €</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Belege</span
+                        ><span class="lang-en" lang="en">Receipts</span></span
+                      ><strong>3</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Wiederkehrend</span
+                        ><span class="lang-en" lang="en">Recurring</span></span
+                      ><strong>25,00 €</strong>
+                    </div>
+                  </div>
+                  <div
+                    class="product-demo-table-wrap"
+                    tabindex="0"
+                    role="region"
+                    aria-label="Ausgabe / Expense"
+                  >
+                    <table class="product-demo-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">
+                            <span class="lang-de">Ausgabe</span
+                            ><span class="lang-en" lang="en">Expense</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Art</span
+                            ><span class="lang-en" lang="en">Type</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span class="lang-de">Verpackung</span
+                            ><span class="lang-en" lang="en">Packaging</span>
+                          </td>
+                          <td>
+                            <span class="lang-de">Material</span
+                            ><span class="lang-en" lang="en">Materials</span>
+                          </td>
+                          <td>31,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>Software</td>
+                          <td>
+                            <span class="lang-de">Monatlich</span
+                            ><span class="lang-en" lang="en">Monthly</span>
+                          </td>
+                          <td>25,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="lang-de">Versandmaterial</span
+                            ><span class="lang-en" lang="en">Shipping supplies</span>
+                          </td>
+                          <td>
+                            <span class="lang-de">Material</span
+                            ><span class="lang-en" lang="en">Materials</span>
+                          </td>
+                          <td>18,00 €</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="demo-section-heading">
+                    <h3>
+                      <span class="lang-de">Zugeordnete Belege</span
+                      ><span class="lang-en" lang="en">Attached receipts</span>
+                    </h3>
+                  </div>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                      ><span>Verpackung.pdf</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="receipt-paper">
+                      <strong
+                        ><span class="lang-de">Kaufbeleg</span
+                        ><span class="lang-en" lang="en">Purchase receipt</span></strong
+                      ><span class="receipt-paper-lines" aria-hidden="true"></span>
+                      <dl>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </dt>
+                          <dd>12.10.2026</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </dt>
+                          <dd>31,00&nbsp;€</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                      ><span>Software.pdf</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="receipt-paper">
+                      <strong
+                        ><span class="lang-de">Kaufbeleg</span
+                        ><span class="lang-en" lang="en">Purchase receipt</span></strong
+                      ><span class="receipt-paper-lines" aria-hidden="true"></span>
+                      <dl>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </dt>
+                          <dd>12.10.2026</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </dt>
+                          <dd>25,00&nbsp;€</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                  <details class="demo-receipt">
+                    <summary>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                      ><span>Versandmaterial.jpg</span
+                      ><svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+                    </summary>
+                    <div class="receipt-paper">
+                      <strong
+                        ><span class="lang-de">Kaufbeleg</span
+                        ><span class="lang-en" lang="en">Purchase receipt</span></strong
+                      ><span class="receipt-paper-lines" aria-hidden="true"></span>
+                      <dl>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </dt>
+                          <dd>12.10.2026</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </dt>
+                          <dd>18,00&nbsp;€</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-accounting"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-accounting"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Steuern &amp; DATEV</span
+                      ><span class="lang-en" lang="en">Tax &amp; DATEV</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Buchungsdaten und zugehörige Belege.</span
+                      ><span class="lang-en" lang="en">Accounting entries and their receipts.</span>
+                    </p>
+                  </div>
+                  <div class="demo-field">
+                    <label for="demo-accounting-chart"
+                      ><span class="lang-de">Kontenrahmen</span
+                      ><span class="lang-en" lang="en">Chart of accounts</span></label
+                    ><select id="demo-accounting-chart" class="demo-control">
+                      <option>SKR03</option>
+                      <option>SKR04</option>
+                    </select>
+                  </div>
+                  <div
+                    class="product-demo-table-wrap"
+                    tabindex="0"
+                    role="region"
+                    aria-label="Datum / Date"
+                  >
+                    <table class="product-demo-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">
+                            <span class="lang-de">Datum</span
+                            ><span class="lang-en" lang="en">Date</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Beleg</span
+                            ><span class="lang-en" lang="en">Receipt</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Buchung</span
+                            ><span class="lang-en" lang="en">Entry</span>
+                          </th>
+                          <th scope="col">
+                            <span class="lang-de">Betrag</span
+                            ><span class="lang-en" lang="en">Amount</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>12.10.</td>
+                          <td>Kaufbeleg.pdf</td>
+                          <td>
+                            <span class="lang-de">Einkauf</span
+                            ><span class="lang-en" lang="en">Purchase</span>
+                          </td>
+                          <td>12,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>28.10.</td>
+                          <td>Verpackung.pdf</td>
+                          <td>
+                            <span class="lang-de">Ausgabe</span
+                            ><span class="lang-en" lang="en">Expense</span>
+                          </td>
+                          <td>31,00 €</td>
+                        </tr>
+                        <tr>
+                          <td>31.10.</td>
+                          <td>VK-0025</td>
+                          <td>
+                            <span class="lang-de">Verkauf</span
+                            ><span class="lang-en" lang="en">Sale</span>
+                          </td>
+                          <td>39,00 €</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    type="button"
+                    class="demo-button"
+                    data-demo-export=""
+                    aria-expanded="false"
+                    aria-controls="demo-export-preview"
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg
+                    ><span class="lang-de">Exportvorschau</span
+                    ><span class="lang-en" lang="en">Preview export</span>
+                  </button>
+                  <pre id="demo-export-preview" class="demo-export" hidden=""></pre>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-reports"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-reports"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Auswertungen</span
+                      ><span class="lang-en" lang="en">Reports</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Umsatz, Kosten und Ergebnis im Blick.</span
+                      ><span class="lang-en" lang="en">Track revenue, costs, and results.</span>
+                    </p>
+                  </div>
+                  <div class="demo-metrics">
+                    <div>
+                      <span
+                        ><span class="lang-de">Umsatz</span
+                        ><span class="lang-en" lang="en">Revenue</span></span
+                      ><strong>7.824,00 €</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Gewinn</span
+                        ><span class="lang-en" lang="en">Profit</span></span
+                      ><strong>2.632,00 €</strong>
+                    </div>
+                    <div>
+                      <span
+                        ><span class="lang-de">Marge</span
+                        ><span class="lang-en" lang="en">Margin</span></span
+                      ><strong>33,6 %</strong>
+                    </div>
+                  </div>
+                  <div class="demo-report" role="img" aria-labelledby="demo-report-label">
+                    <div id="demo-report-label" class="sr-only">
+                      <span class="lang-de"
+                        >Umsatz im August 940 Euro, September 1.080 Euro und Oktober 1.284
+                        Euro.</span
+                      ><span class="lang-en" lang="en"
+                        >Revenue: August 940 euros, September 1,080 euros, October 1,284
+                        euros.</span
+                      >
+                    </div>
+                    <div>
+                      <strong>940 €</strong><span style="--demo-bar: 73%"></span
+                      ><small
+                        ><span class="lang-de">August</span
+                        ><span class="lang-en" lang="en">August</span></small
+                      >
+                    </div>
+                    <div>
+                      <strong>1.080 €</strong><span style="--demo-bar: 84%"></span
+                      ><small
+                        ><span class="lang-de">September</span
+                        ><span class="lang-en" lang="en">September</span></small
+                      >
+                    </div>
+                    <div>
+                      <strong>1.284 €</strong><span style="--demo-bar: 100%"></span
+                      ><small
+                        ><span class="lang-de">Oktober</span
+                        ><span class="lang-en" lang="en">October</span></small
+                      >
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-feed"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-feed"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Vinted Feed</span
+                      ><span class="lang-en" lang="en">Vinted Feed</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Sweatshirts · bis 20 € · sehr gut</span
+                      ><span class="lang-en" lang="en">Sweatshirts · up to €20 · very good</span>
+                    </p>
+                  </div>
+                  <div class="demo-segments" role="group" aria-labelledby="demo-feed-filter-label">
+                    <span id="demo-feed-filter-label" class="sr-only"
+                      ><span class="lang-de">Funde filtern</span
+                      ><span class="lang-en" lang="en">Filter finds</span></span
+                    ><button
+                      type="button"
+                      class="demo-button"
+                      data-demo-feed-filter="all"
+                      aria-pressed="true"
+                    >
+                      <span class="lang-de">Alle Funde</span
+                      ><span class="lang-en" lang="en">All finds</span></button
+                    ><button
+                      type="button"
+                      class="demo-button"
+                      data-demo-feed-filter="favorites"
+                      aria-pressed="false"
+                    >
+                      <span class="lang-de">Favoriten</span
+                      ><span class="lang-en" lang="en">Favorites</span>
+                      <span data-demo-favorite-count="">1</span>
+                    </button>
+                  </div>
+                  <div class="demo-product-list">
+                    <div class="demo-feed-item" data-demo-feed-item="" data-demo-favorited="true">
+                      <div class="demo-product">
+                        <img
+                          src="images/sweatshirt.svg"
+                          alt=""
+                          width="66"
+                          height="78"
+                          loading="lazy"
+                        />
+                        <div>
+                          <strong>Vintage Sweatshirt</strong
+                          ><span
+                            ><span class="lang-de">Größe M · Sehr gut</span
+                            ><span class="lang-en" lang="en">Size M · Very good</span></span
+                          ><b>12,00&nbsp;€</b>
+                        </div>
+                        <button
+                          type="button"
+                          class="demo-favorite"
+                          data-demo-favorite=""
+                          aria-pressed="true"
+                          aria-labelledby="demo-favorite-label-0"
+                        >
+                          <svg class="icon" aria-hidden="true"><use href="#icon-star"></use></svg
+                          ><span class="sr-only" id="demo-favorite-label-0"
+                            ><span class="lang-de">Favorit: Vintage Sweatshirt</span
+                            ><span class="lang-en" lang="en"
+                              >Favorite: Vintage Sweatshirt</span
+                            ></span
+                          >
+                        </button>
+                      </div>
+                    </div>
+                    <div class="demo-feed-item" data-demo-feed-item="" data-demo-favorited="false">
+                      <div class="demo-product">
+                        <img
+                          src="images/sweatshirt.svg"
+                          alt=""
+                          width="66"
+                          height="78"
+                          loading="lazy"
+                        />
+                        <div>
+                          <strong>Crewneck Sweatshirt</strong
+                          ><span
+                            ><span class="lang-de">Größe L · Sehr gut</span
+                            ><span class="lang-en" lang="en">Size L · Very good</span></span
+                          ><b>18,00&nbsp;€</b>
+                        </div>
+                        <button
+                          type="button"
+                          class="demo-favorite"
+                          data-demo-favorite=""
+                          aria-pressed="false"
+                          aria-labelledby="demo-favorite-label-1"
+                        >
+                          <svg class="icon" aria-hidden="true"><use href="#icon-star"></use></svg
+                          ><span class="sr-only" id="demo-favorite-label-1"
+                            ><span class="lang-de">Favorit: Crewneck Sweatshirt</span
+                            ><span class="lang-en" lang="en"
+                              >Favorite: Crewneck Sweatshirt</span
+                            ></span
+                          >
+                        </button>
+                      </div>
+                    </div>
+                    <div class="demo-feed-item" data-demo-feed-item="" data-demo-favorited="false">
+                      <div class="demo-product">
+                        <img
+                          src="images/sweatshirt.svg"
+                          alt=""
+                          width="66"
+                          height="78"
+                          loading="lazy"
+                        />
+                        <div>
+                          <strong>Basic Sweatshirt</strong
+                          ><span
+                            ><span class="lang-de">Größe S · Sehr gut</span
+                            ><span class="lang-en" lang="en">Size S · Very good</span></span
+                          ><b>15,00&nbsp;€</b>
+                        </div>
+                        <button
+                          type="button"
+                          class="demo-favorite"
+                          data-demo-favorite=""
+                          aria-pressed="false"
+                          aria-labelledby="demo-favorite-label-2"
+                        >
+                          <svg class="icon" aria-hidden="true"><use href="#icon-star"></use></svg
+                          ><span class="sr-only" id="demo-favorite-label-2"
+                            ><span class="lang-de">Favorit: Basic Sweatshirt</span
+                            ><span class="lang-en" lang="en">Favorite: Basic Sweatshirt</span></span
+                          >
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="demo-empty" data-demo-feed-empty="" hidden="">
+                    <span class="lang-de">Keine Favoriten ausgewählt.</span
+                    ><span class="lang-en" lang="en">No favorites selected.</span>
+                  </p>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-brands"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-brands"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Marken &amp; Größen</span
+                      ><span class="lang-en" lang="en">Brands &amp; sizes</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Dein Nachschlagewerk.</span
+                      ><span class="lang-en" lang="en">Your reference library.</span>
+                    </p>
+                  </div>
+                  <div class="demo-field">
+                    <label for="demo-brand-search"
+                      ><span class="lang-de">Marke suchen</span
+                      ><span class="lang-en" lang="en">Search brands</span></label
+                    ><input
+                      type="search"
+                      class="demo-control"
+                      id="demo-brand-search"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="demo-brand-list">
+                    <div class="demo-brand" data-demo-brand="carhartt">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-tag"></use></svg
+                      ><strong>Carhartt</strong>
+                    </div>
+                    <div class="demo-brand" data-demo-brand="levi’s">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-tag"></use></svg
+                      ><strong>Levi’s</strong>
+                    </div>
+                    <div class="demo-brand" data-demo-brand="nike">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-tag"></use></svg
+                      ><strong>Nike</strong>
+                    </div>
+                    <div class="demo-brand" data-demo-brand="adidas">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-tag"></use></svg
+                      ><strong>Adidas</strong>
+                    </div>
+                  </div>
+                  <p class="demo-empty" data-demo-brand-empty="" hidden="">
+                    <span class="lang-de">Keine passende Marke.</span
+                    ><span class="lang-en" lang="en">No matching brand.</span>
+                  </p>
+                  <div class="demo-section-heading">
+                    <h3>
+                      <span class="lang-de">Größenübersicht</span
+                      ><span class="lang-en" lang="en">Size overview</span>
+                    </h3>
+                  </div>
+                  <div class="demo-size-row">
+                    <span>XS</span><span>S</span><span>M</span><span>L</span><span>XL</span>
+                  </div>
+                </div>
+                <div
+                  class="demo-panel"
+                  id="demo-panel-photos"
+                  role="tabpanel"
+                  aria-labelledby="demo-tab-photos"
+                  tabindex="0"
+                  hidden=""
+                >
+                  <div class="demo-page-heading">
+                    <h2>
+                      <span class="lang-de">Bildoptimierer</span
+                      ><span class="lang-en" lang="en">Photo optimizer</span>
+                    </h2>
+                    <p>
+                      <span class="lang-de">Dein Original bleibt erhalten.</span
+                      ><span class="lang-en" lang="en">Your original stays intact.</span>
+                    </p>
+                  </div>
+                  <div class="demo-photo-comparison">
+                    <div>
+                      <strong
+                        ><span class="lang-de">Original</span
+                        ><span class="lang-en" lang="en">Original</span></strong
+                      ><img src="images/sweatshirt.svg" alt="" width="180" height="220" />
+                    </div>
+                    <div>
+                      <strong
+                        ><span class="lang-de">Marktplatzausgabe</span
+                        ><span class="lang-en" lang="en">Marketplace output</span></strong
+                      >
+                      <div class="demo-photo-output" data-demo-photo-ratio="portrait">
+                        <img
+                          src="images/sweatshirt.svg"
+                          alt=""
+                          width="180"
+                          height="220"
+                          data-demo-photo=""
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="demo-segments" role="group" aria-labelledby="demo-photo-format-label">
+                    <span class="sr-only" id="demo-photo-format-label"
+                      ><span class="lang-de">Bildformat der Demo</span
+                      ><span class="lang-en" lang="en">Demo photo format</span></span
+                    ><button
+                      type="button"
+                      class="demo-button"
+                      data-demo-photo-format="portrait"
+                      aria-pressed="true"
+                    >
+                      4 : 5</button
+                    ><button
+                      type="button"
+                      class="demo-button"
+                      data-demo-photo-format="square"
+                      aria-pressed="false"
+                    >
+                      1 : 1
+                    </button>
+                  </div>
+                  <div class="demo-field">
+                    <label for="demo-photo-brightness"
+                      ><span class="lang-de">Helligkeit</span
+                      ><span class="lang-en" lang="en">Brightness</span>
+                      <output for="demo-photo-brightness" data-demo-brightness-value=""
+                        >100 %</output
+                      ></label
+                    ><input
+                      type="range"
+                      id="demo-photo-brightness"
+                      min="80"
+                      max="120"
+                      value="100"
+                    />
+                  </div>
+                  <button type="button" class="demo-button" data-demo-photo-reset="">
+                    <span class="lang-de">Zurücksetzen</span
+                    ><span class="lang-en" lang="en">Reset</span>
+                  </button>
+                </div>
               </div>
+              <span
+                class="sr-only"
+                id="demo-page-announcement"
+                role="status"
+                aria-live="polite"
+              ></span>
             </div>
           </div>
         </figure>
@@ -4185,6 +5774,15 @@
             </p>
           </div>
         </aside>
+      </section>
+      <section id="demo" hidden aria-labelledby="expanded-demo-label">
+        <div class="sektion-header">
+          <h2 class="sektion-titel" id="expanded-demo-label">
+            <span class="lang-de">Flipbase ausprobieren.</span
+            ><span class="lang-en" lang="en">Try Flipbase.</span>
+          </h2>
+        </div>
+        <div data-demo-expanded-host></div>
       </section>
       <!-- Technologie & Sicherheit -->
       <section>
@@ -5351,6 +6949,7 @@
     </div>
 
     <script src="landing.js" defer></script>
+    <script src="product-demo.js" defer></script>
     <script src="beta-application.js" defer></script>
     <script src="analytics-consent.js" defer></script>
   </body>

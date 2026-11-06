@@ -1,5 +1,41 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Zwei bedienbare Produktdemos auf der Landingpage
+
+**Auftrag:** Die Vorschau im Einstieg kürzen, die letzten Verkäufe halbieren und
+alle Menüs mit eigenen Demoansichten bedienbar machen. Zusätzlich führt der neue
+Kopfmenüpunkt „Demo“ zu einer größeren Vorschau unter der Funktionsübersicht.
+Die vorherigen Entscheidungen zu Belegfokus, Preisen, ruhiger Gestaltung und dem
+getrennten Shop-Ausblick gelten weiter. Derselbe eigene Arbeitszweig; fremde
+Arbeitskopien bleiben unangetastet.
+
+**Umsetzung:** Zwei unabhängig bedienbare Vorschauen mit 13 Ansichten:
+Dashboard, Einkäufe, Verkäufe, Marktplätze, Vinted, eBay, Kleinanzeigen,
+Ausgaben, Steuer/DATEV, Auswertung, Sniper-Feed, Marken und Bildoptimierung.
+Die kompakte Desktopvorschau sinkt von rund 906 auf 745 Pixel und zeigt fünf
+statt zehn letzte Verkäufe. Die große Demo nutzt die volle Abschnittsbreite.
+Menüs erhalten Hover, blauen Tastaturfokus, Pfeiltasten und Home/End; auf schmalen
+Ansichten wird die Navigation horizontal bedienbar. Die Rahmenhöhe bleibt beim
+Seitenwechsel konstant. Beide Vorschauen teilen ihre Inhalte, besitzen aber
+eindeutige IDs und voneinander unabhängige Auswahlzustände.
+
+Filter, Belegdetails, Marktplatzwechsel, Favoriten, Markensuche, Kontenrahmen und
+Exportvorschau sowie Bildformat/Helligkeit reagieren ausschließlich lokal mit
+synthetischen Beispieldaten. Originalbilder bleiben unverändert. Keine Anmeldung,
+Datenübertragung oder echte Veröffentlichung; der bestehende Bewerbungsablauf
+bleibt erhalten. Die Ansichten wechseln ausschließlich durch bewusste Bedienung.
+Ohne JavaScript bleibt die kompakte Übersicht sichtbar; die zusätzliche Demo und
+nicht bedienbare Verweise bleiben ausgeblendet.
+
+**Nachweise:** Sieben gezielte Regressionen ergänzen die bestehenden
+Landingpagefälle für beide Vorschauen, eindeutige Ziele, Tastatursteuerung,
+konsistente Diagramm-/Filterwerte, Belegansicht, lokale Aktionen, Bildoriginale und
+die Darstellung ohne JavaScript. Integration und Browsermatrix werden auf dem
+endgültigen Stand geprüft; die tatsächlichen Ergebnisse folgen vor der Freigabe.
+Private Protokolle und Vorschauaufnahmen liegen unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/interactive-demo/`.
+Kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Belegerfassung statt Bestandsdarstellung hervorheben
 
 **Nutzerentscheidung:** Die laufende Landingpage-Überarbeitung auf demselben

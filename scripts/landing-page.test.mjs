@@ -14,6 +14,8 @@ const html = await readFile(landingPath, 'utf8');
 const landingScript =
   (await readFile(landingScriptPath, 'utf8')) +
   '\n' +
+  (await readFile(path.join(landingDirectory, 'product-demo.js'), 'utf8')) +
+  '\n' +
   (await readFile(path.join(landingDirectory, 'beta-application.js'), 'utf8'));
 const analyticsScript = await readFile(analyticsScriptPath, 'utf8');
 const normalizedHtml = html.replace(/\s+/gu, ' ');
@@ -476,7 +478,7 @@ test('keeps a compact sticky header with section navigation and sign in', () => 
   assert.ok(navigation, 'The sticky header must contain section navigation');
   assert.deepEqual(
     [...navigation.querySelectorAll(':scope > a')].map((link) => link.getAttribute('href')),
-    ['#features', '#roadmap', '#pricing', '#faq'],
+    ['#features', '#demo', '#roadmap', '#pricing', '#faq'],
   );
   assert.match(navigation.textContent, /Funktionen/u);
   assert.match(navigation.textContent, /Überblick/u);
@@ -696,7 +698,7 @@ test('loads only local deferred scripts and keeps native toggle controls', () =>
   const scripts = extractStartTags(html, 'script');
   assert.deepEqual(
     scripts.map((script) => attribute(script, 'src')),
-    ['landing.js', 'beta-application.js', 'analytics-consent.js'],
+    ['landing.js', 'product-demo.js', 'beta-application.js', 'analytics-consent.js'],
   );
   for (const script of scripts) assert.match(script, /\bdefer\b/iu);
 
@@ -1758,6 +1760,11 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
   const { window } = dom;
   const timers = new Map();
+  const networkCalls = [];
+  window.fetch = async (...args) => {
+    networkCalls.push(args);
+    throw new Error('Demo must stay local');
+  };
   let nextTimer = 0;
   let isHidden = false;
   Object.defineProperty(window.document, 'hidden', { get: () => isHidden });
@@ -1788,6 +1795,7 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
     window,
     document: window.document,
     timers,
+    networkCalls,
     setHidden(hidden) {
       isHidden = hidden;
       window.document.dispatchEvent(new window.Event('visibilitychange'));
@@ -1804,10 +1812,13 @@ test('hero preview follows the current overview with four metrics, quick actions
   const dom = new JSDOM(html);
   const { document } = dom.window;
   const replica = document.getElementById('dashboard-replica');
-  assert.equal(replica.getAttribute('role'), 'img');
+  assert.equal(replica.getAttribute('role'), 'region');
   const label = document.getElementById(replica.getAttribute('aria-labelledby'));
-  assert.match(label.querySelector('.lang-de').textContent, /Beispielansicht/u);
-  assert.match(label.querySelector('.lang-en[lang="en"]').textContent, /Sample view/u);
+  assert.match(label.querySelector('.lang-de').textContent, /Interaktive Flipbase-Demo/u);
+  assert.match(
+    label.querySelector('.lang-en[lang="en"]').textContent,
+    /Interactive Flipbase demo/u,
+  );
   assert.deepEqual(listText(replica, '[data-nav-group] .lang-de'), [
     'Warenwirtschaft',
     'Marktplätze',
@@ -1834,7 +1845,7 @@ test('hero preview follows the current overview with four metrics, quick actions
   assert.deepEqual(listText(replica, '.replica-bottom .replica-card-heading .lang-de'), [
     'Letzte Verkäufe',
   ]);
-  assert.equal(replica.querySelectorAll('.replica-sale').length, 10);
+  assert.equal(replica.querySelectorAll('.replica-sale').length, 5);
   assert.equal(replica.querySelectorAll('.replica-stock-row').length, 0);
   assert.equal(replica.closest('figure').querySelector('figcaption'), null);
   dom.window.close();
@@ -1956,4 +1967,185 @@ test('keeps the examples readable without JavaScript and lets visitors pick a cr
   assert.equal(page.document.getElementById('crop-photo').dataset.ratio, 'square');
   assert.equal(page.document.getElementById('crop-dimensions').textContent, '1 : 1');
   page.dom.window.close();
+});
+
+test('both product demos navigate all thirteen pages independently with unique accessible targets', () => {
+  const page = createShowcasePage();
+  const roots = [...page.document.querySelectorAll('[data-product-demo]')];
+  assert.equal(roots.length, 2);
+  assert.equal(page.document.getElementById('demo').hidden, false);
+  assert.equal(page.document.querySelector('[data-demo-link]').hidden, false);
+  const ids = [...page.document.querySelectorAll('[id]')].map((element) => element.id);
+  assert.equal(ids.length, new Set(ids).size);
+  for (const root of roots) {
+    const tabs = [...root.querySelectorAll('[data-demo-page]')];
+    assert.equal(tabs.length, 13);
+    for (const tab of tabs) {
+      assert.equal(tab.disabled, false);
+      tab.click();
+      const panel = page.document.getElementById(tab.getAttribute('aria-controls'));
+      assert.equal(panel.hidden, false);
+      assert.equal(panel.getAttribute('aria-labelledby'), tab.id);
+      assert.equal(root.querySelectorAll('.demo-panel:not([hidden])').length, 1);
+      assert.equal(root.querySelectorAll('[data-demo-page][aria-selected="true"]').length, 1);
+    }
+  }
+  roots[0].querySelector('[data-demo-page="expenses"]').click();
+  assert.equal(
+    roots[1].querySelector('[data-demo-page="photos"]').getAttribute('aria-selected'),
+    'true',
+  );
+  assert.equal(page.networkCalls.length, 0);
+  assert.equal(page.timers.size, 0);
+  page.dom.window.close();
+});
+
+test('product demo navigation supports arrows, Home and End on mouse and touch layouts', () => {
+  for (const mobile of [false, true]) {
+    const page = createShowcasePage({ mobile });
+    for (const root of page.document.querySelectorAll('[data-product-demo]')) {
+      const tabs = [...root.querySelectorAll('[data-demo-page]')];
+      tabs[0].focus();
+      tabs[0].dispatchEvent(
+        new page.window.KeyboardEvent('keydown', {
+          key: mobile ? 'ArrowRight' : 'ArrowDown',
+          bubbles: true,
+        }),
+      );
+      assert.equal(page.document.activeElement, tabs[1]);
+      assert.equal(tabs[1].getAttribute('aria-selected'), 'true');
+      tabs[1].dispatchEvent(
+        new page.window.KeyboardEvent('keydown', { key: 'End', bubbles: true }),
+      );
+      assert.equal(page.document.activeElement, tabs.at(-1));
+      tabs
+        .at(-1)
+        .dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+      assert.equal(page.document.activeElement, tabs[0]);
+    }
+    page.dom.window.close();
+  }
+});
+
+test('demo filters keep revenue, profit, chart sums and platform rows consistent', () => {
+  const page = createShowcasePage();
+  const root = page.document.getElementById('dashboard-replica');
+  const platform = root.querySelector('[data-demo-platform]');
+  const period = root.querySelector('[data-demo-period]');
+  const metric = (key) => root.querySelector(`[data-kpi="${key}"] [data-kpi-value]`).textContent;
+  const series = (key) =>
+    [...root.querySelectorAll(`[data-series="${key}"]`)].reduce(
+      (sum, element) => sum + Number(element.style.getPropertyValue('--value')),
+      0,
+    );
+  for (const [key, revenue, profit] of [
+    ['all', 7824, 2632],
+    ['vinted', 4300, 1498],
+    ['ebay', 2400, 720],
+    ['kleinanzeigen', 1124, 414],
+  ]) {
+    platform.value = key;
+    platform.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+    assert.equal(readEuro(metric('revenue')), revenue);
+    assert.equal(readEuro(metric('gross-profit')), profit);
+    assert.equal(Math.round(series('revenue') * 100), revenue * 100);
+    assert.equal(Math.round(series('profit') * 100), profit * 100);
+  }
+  platform.value = 'vinted';
+  period.value = 'month';
+  period.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  assert.equal(readEuro(metric('revenue')), 706);
+  assert.equal(readEuro(metric('gross-profit')), 234);
+  assert.equal(metric('sales'), '20');
+  assert.ok(
+    [...root.querySelectorAll('.replica-platform')].every(
+      (element) => element.textContent === 'Vinted',
+    ),
+  );
+  assert.equal(page.networkCalls.length, 0);
+  page.dom.window.close();
+});
+
+test('demo quick actions and receipts stay inside the selected demo', () => {
+  const page = createShowcasePage();
+  const root = page.document.getElementById('dashboard-replica');
+  root.querySelector('.replica-quick-action[data-demo-go="purchases"]').click();
+  assert.equal(
+    root.querySelector('[data-demo-page="purchases"]').getAttribute('aria-selected'),
+    'true',
+  );
+  const detail = root.querySelector('#demo-panel-purchases .demo-receipt');
+  detail.querySelector('summary').click();
+  assert.equal(detail.open, true);
+  assert.match(detail.textContent, /12,00/u);
+  assert.equal(page.document.querySelector('form').id, 'zweit-bewerbung-form');
+  assert.equal(page.networkCalls.length, 0);
+  page.dom.window.close();
+});
+
+test('demo favorites, brand search and export preview react locally', () => {
+  const page = createShowcasePage();
+  const root = page.document.getElementById('dashboard-replica');
+  root.querySelector('[data-demo-page="feed"]').click();
+  root.querySelector('[data-demo-feed-filter="favorites"]').click();
+  assert.equal(root.querySelectorAll('[data-demo-feed-item]:not([hidden])').length, 1);
+  root.querySelector('[data-demo-favorite]').click();
+  assert.equal(root.querySelectorAll('[data-demo-feed-item]:not([hidden])').length, 0);
+  assert.equal(root.querySelector('[data-demo-feed-empty]').hidden, false);
+  root.querySelector('[data-demo-page="brands"]').click();
+  const search = root.querySelector('#demo-brand-search');
+  search.value = 'carhartt';
+  search.dispatchEvent(new page.window.Event('input', { bubbles: true }));
+  assert.equal(root.querySelectorAll('[data-demo-brand]:not([hidden])').length, 1);
+  search.value = 'no such brand';
+  search.dispatchEvent(new page.window.Event('input', { bubbles: true }));
+  assert.equal(root.querySelector('[data-demo-brand-empty]').hidden, false);
+  root.querySelector('[data-demo-page="accounting"]').click();
+  const chart = root.querySelector('#demo-accounting-chart');
+  chart.value = 'SKR04';
+  chart.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  root.querySelector('[data-demo-export]').click();
+  assert.equal(root.querySelector('#demo-export-preview').hidden, false);
+  assert.match(root.querySelector('#demo-export-preview').textContent, /SKR04/u);
+  assert.equal(page.networkCalls.length, 0);
+  page.dom.window.close();
+});
+
+test('photo demo preserves originals and isolates format and brightness between sizes', () => {
+  const page = createShowcasePage();
+  const root = page.document.getElementById('dashboard-replica');
+  const expanded = page.document.getElementById('expanded-product-demo');
+  root.querySelector('[data-demo-page="photos"]').click();
+  root.querySelector('[data-demo-photo-format="square"]').click();
+  const brightness = root.querySelector('#demo-photo-brightness');
+  brightness.value = '120';
+  brightness.dispatchEvent(new page.window.Event('input', { bubbles: true }));
+  assert.equal(root.querySelector('[data-demo-photo-ratio]').dataset.demoPhotoRatio, 'square');
+  assert.equal(root.querySelector('[data-demo-photo]').style.filter, 'brightness(1.2)');
+  assert.equal(
+    root.querySelector('.demo-photo-comparison > div:first-child img').getAttribute('style'),
+    null,
+  );
+  assert.equal(
+    expanded.querySelector('[data-demo-photo-ratio]').dataset.demoPhotoRatio,
+    'portrait',
+  );
+  assert.equal(expanded.querySelector('[data-demo-photo]').style.filter, 'brightness(1)');
+  root.querySelector('[data-demo-photo-reset]').click();
+  assert.equal(brightness.value, '100');
+  assert.equal(root.querySelector('[data-demo-photo-ratio]').dataset.demoPhotoRatio, 'portrait');
+  assert.equal(page.networkCalls.length, 0);
+  page.dom.window.close();
+});
+
+test('demo defaults remain readable without JavaScript and expanded demo links wait for initialization', () => {
+  const dom = new JSDOM(html);
+  assert.equal(dom.window.document.querySelectorAll('[data-product-demo]').length, 1);
+  assert.equal(dom.window.document.getElementById('demo').hidden, true);
+  assert.equal(dom.window.document.querySelector('[data-demo-link]').hidden, true);
+  assert.ok(
+    [...dom.window.document.querySelectorAll('[data-demo-page]')].every((tab) => tab.disabled),
+  );
+  assert.equal(dom.window.document.querySelectorAll('.replica-sale').length, 5);
+  dom.window.close();
 });
