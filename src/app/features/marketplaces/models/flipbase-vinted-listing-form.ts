@@ -202,19 +202,24 @@ export function flipbaseVintedListingFields(
             field('material', materials),
           ]),
       field('package', packages),
-      {
-        field: 'brand',
-        sizeGroupId: null,
-        choices: [
-          {
-            id: selectedBrand?.brandId ?? null,
-            label: selectedBrand?.brandLabel ?? 'Keine Marke',
-            selected: false,
-            disabled: false,
-            sizeGroupId: null,
-          },
-        ],
-      },
+      // Kategorien ohne Marke bei Vinted (z. B. Bücher, Videospiele) bieten auch hier keine an.
+      ...(real && !real.fields.some((entry) => entry.field === 'brand')
+        ? []
+        : [
+            {
+              field: 'brand' as const,
+              sizeGroupId: null,
+              choices: [
+                {
+                  id: selectedBrand?.brandId ?? null,
+                  label: selectedBrand?.brandLabel ?? 'Keine Marke',
+                  selected: false,
+                  disabled: false,
+                  sizeGroupId: null,
+                },
+              ],
+            },
+          ]),
     ],
     unknownFields: [],
     acceptedPhotoMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
@@ -290,8 +295,10 @@ export function prepareFlipbaseVintedListingContent(
     (letters.length === 1
       ? letters[0]
       : allSizes.find((choice) => choice.label === content.sizeLabel.trim()));
+  const withoutBrand = catalog && !schema.fields.some((field) => field.field === 'brand');
   return {
     ...content,
+    ...(withoutBrand ? { brandId: null, brandLabel: '' } : {}),
     sizeId: size?.id ?? null,
     sizeLabel: size?.label ?? content.sizeLabel,
     conditionId: realCondition?.[0]?.id ?? id('condition', content.conditionLabel),

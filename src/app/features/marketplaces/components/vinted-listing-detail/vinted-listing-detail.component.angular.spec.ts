@@ -109,7 +109,12 @@ function setup(items: MarketplaceEntry[] = [], queryParams: Record<string, strin
     providers: [
       {
         provide: VintedCategoryFieldStore,
-        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+        useValue: {
+          fields: () => null,
+          extraFields: () => [],
+          load: async () => null,
+          remember: () => undefined,
+        },
       },
       {
         provide: VintedListingCategoryService,

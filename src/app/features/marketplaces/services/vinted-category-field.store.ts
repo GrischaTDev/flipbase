@@ -5,7 +5,12 @@ import {
   parseVintedListingCategoryFields,
   type VintedListingCategoryFields,
 } from '../models/vinted-listing-category-fields';
-import { vintedListingCatalogCategoryFields } from '../models/vinted-listing-catalog-fields';
+import {
+  vintedListingCatalogCategoryFields,
+  vintedListingCatalogExtraFields,
+  type VintedListingCatalogRows,
+  type VintedListingExtraField,
+} from '../models/vinted-listing-catalog-fields';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 
 /**
@@ -23,6 +28,14 @@ export class VintedCategoryFieldStore {
     ReadonlyMap<string, { fields: VintedListingCategoryFields | null; at: number }>
   >(new Map());
   private readonly requests = new Map<string, Promise<VintedListingCategoryFields | null>>();
+  private readonly extras = signal<ReadonlyMap<number, readonly VintedListingExtraField[]>>(
+    new Map(),
+  );
+
+  /** Zusatzfelder einer Kategorie aus dem Katalog (z. B. Rocklänge, Maße); leer, solange unbekannt. */
+  extraFields(categoryId: number | null | undefined): readonly VintedListingExtraField[] {
+    return categoryId ? (this.extras().get(categoryId) ?? []) : [];
+  }
 
   /** Gespeicherte Werte oder `null`, solange für diese Kategorie nichts bekannt ist. */
   fields(connectionId: string | null | undefined, categoryId: number | null | undefined) {
@@ -88,7 +101,7 @@ export class VintedCategoryFieldStore {
     const client = this.database.client;
     const fields = await client
       .from('vinted_listing_category_fields')
-      .select('field_code,position,option_ids')
+      .select('field_code,position,option_ids,title,required,selection_type,selection_limit')
       .eq('category_id', categoryId);
     if (fields.error) throw fields.error;
     if (!fields.data?.length) return null;
@@ -115,12 +128,15 @@ export class VintedCategoryFieldStore {
           .in('size_group_id', groupIds)
       : { data: [], error: null };
     if (sizes.error) throw sizes.error;
-    return vintedListingCatalogCategoryFields(categoryId, {
+    const rows: VintedListingCatalogRows = {
       fields: fields.data,
       sizeGroups: groups.data ?? [],
       sizes: sizes.data ?? [],
       options: options.data ?? [],
-    });
+    };
+    const extras = vintedListingCatalogExtraFields(rows);
+    this.extras.update((entries) => new Map(entries).set(categoryId, extras));
+    return vintedListingCatalogCategoryFields(categoryId, rows);
   }
 
   private set(key: string, fields: VintedListingCategoryFields | null): void {

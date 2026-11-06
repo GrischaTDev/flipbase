@@ -8981,6 +8981,7 @@ export type Database = {
           required: boolean | null
           selection_limit: number | null
           selection_type: string | null
+          title: string | null
         }
         Insert: {
           category_id: number
@@ -8991,6 +8992,7 @@ export type Database = {
           required?: boolean | null
           selection_limit?: number | null
           selection_type?: string | null
+          title?: string | null
         }
         Update: {
           category_id?: number
@@ -9001,6 +9003,7 @@ export type Database = {
           required?: boolean | null
           selection_limit?: number | null
           selection_type?: string | null
+          title?: string | null
         }
         Relationships: [
           {
