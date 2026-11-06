@@ -40,6 +40,8 @@ import { MarketplacePlatformIdentityComponent } from '../../shared/components/ma
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
+import { TablePagerComponent } from '../../shared/components/table-pager/table-pager.component';
+import { tablePageRows } from '../../shared/components/table-pager/table-page';
 import { BetaDiscordBannerComponent } from '../beta-discord/components/beta-discord-banner/beta-discord-banner.component';
 import { stockOverview } from './models/dashboard-overview';
 import { kpiChange } from './models/kpi-change';
@@ -73,6 +75,7 @@ interface OverviewMetric {
     ModalShellComponent,
     PageHeaderComponent,
     RevenueChartComponent,
+    TablePagerComponent,
     BetaDiscordBannerComponent,
   ],
   templateUrl: './dashboard.component.html',
@@ -144,7 +147,15 @@ export class DashboardComponent {
       share: this.stock().units ? (entry.units / this.stock().units) * 100 : 0,
     })),
   );
-  readonly recentSales = computed(() => this.report().rows.slice(0, 3));
+  /** Mit Shop teilt sich die Liste die Zeile mit dem Bestand; ohne Shop volle Breite mit Pager. */
+  readonly recentSalesPageSize = computed(() => (this.shopActive() ? 3 : 10));
+  readonly recentSalesPage = signal(1);
+  readonly recentSalesPagerVisible = computed(
+    () => !this.shopActive() && this.report().rows.length > this.recentSalesPageSize(),
+  );
+  readonly recentSales = computed(() =>
+    tablePageRows(this.report().rows, this.recentSalesPage(), this.recentSalesPageSize()),
+  );
   readonly comparisonLabel = computed(
     () =>
       ({
@@ -252,9 +263,11 @@ export class DashboardComponent {
     });
   }
   setRange(range: DashboardRange): void {
+    this.recentSalesPage.set(1);
     this.preferences.setRange(range);
   }
   setPlatform(platform: string | null): void {
+    this.recentSalesPage.set(1);
     this.preferences.setPlatform(platform ?? 'all');
   }
   reload(): void {

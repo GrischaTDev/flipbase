@@ -173,6 +173,12 @@ export const TRANSLATIONS_DE = {
     SETUP_LOAD_ERROR: 'Der Workspace konnte nicht geladen werden.',
     SETUP_MISSING_ERROR: 'Dein Workspace ist noch nicht verfügbar.',
     SETUP_SAVE_ERROR: 'Der Workspace konnte nicht eingerichtet werden.',
+    SETUP_SHOP_LABEL: 'Eigenen Online-Shop nutzen',
+    SETUP_SHOP_DESCRIPTION:
+      'Für deinen eigenen Online-Shop mit eigener Domain. Dazu gehören Artikelerfassung mit Bestand, Shop-Seiten, Zahlungsarten und Bestellungen.',
+    SETUP_SHOP_NOT_NEEDED:
+      'Verkaufst du nur über Plattformen wie Vinted, eBay oder Kleinanzeigen, brauchst du das nicht. Du kannst den Shop später in den Einstellungen ein- oder ausschalten.',
+    SETUP_SHOP_SAVE_ERROR: 'Die Shop-Auswahl konnte nicht gespeichert werden.',
   },
   BETA_ONBOARDING: {
     BACK: 'Zurück',
@@ -607,6 +613,12 @@ export const TRANSLATIONS_EN = {
     SETUP_LOAD_ERROR: 'The workspace could not be loaded.',
     SETUP_MISSING_ERROR: 'Your workspace is not available yet.',
     SETUP_SAVE_ERROR: 'The workspace could not be set up.',
+    SETUP_SHOP_LABEL: 'Use your own online shop',
+    SETUP_SHOP_DESCRIPTION:
+      'For your own online shop with its own domain. Includes item entry with stock, shop pages, payment methods and orders.',
+    SETUP_SHOP_NOT_NEEDED:
+      'If you only sell on platforms like Vinted, eBay or Kleinanzeigen, you do not need it. You can turn the shop on or off later in settings.',
+    SETUP_SHOP_SAVE_ERROR: 'The shop choice could not be saved.',
   },
   BETA_ONBOARDING: {
     BACK: 'Back',
