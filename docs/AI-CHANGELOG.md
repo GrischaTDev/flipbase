@@ -27,12 +27,32 @@ bleibt erhalten. Die Ansichten wechseln ausschließlich durch bewusste Bedienung
 Ohne JavaScript bleibt die kompakte Übersicht sichtbar; die zusätzliche Demo und
 nicht bedienbare Verweise bleiben ausgeblendet.
 
-**Nachweise:** Sieben gezielte Regressionen ergänzen die bestehenden
-Landingpagefälle für beide Vorschauen, eindeutige Ziele, Tastatursteuerung,
-konsistente Diagramm-/Filterwerte, Belegansicht, lokale Aktionen, Bildoriginale und
-die Darstellung ohne JavaScript. Integration und Browsermatrix werden auf dem
-endgültigen Stand geprüft; die tatsächlichen Ergebnisse folgen vor der Freigabe.
-Private Protokolle und Vorschauaufnahmen liegen unter
+**Nachweise:** 55 erfolgreiche Landingpagefälle und neun Integrationsfälle.
+Sieben neue Regressionen sichern beide Vorschauen, eindeutige Ziele,
+Tastatursteuerung, Diagramm-/Filterwerte, Belegansicht, lokale Aktionen,
+Bildoriginale und die Darstellung ohne JavaScript. 32 erfolgreiche
+Chromium-/WebKit-Szenarien unter Windows bei 320/390/834/1440 Pixel, Hell/Dunkel
+und Deutsch/Englisch; beide Vorschauen mit allen 13 Ansichten, Touch/Tastatur und
+AXE geprüft. Ein Kontrastfehler des mobilen gelben Schnellzugriffs wurde behoben.
+Die Sichtprüfung deckte zusätzlich falsche tatsächliche Bildrahmenmaße auf;
+4:5/1:1 und stabile Rahmenhöhe anschließend in acht zusätzlichen Szenarien
+bestätigt. Vier Prüfungen der gesamten Seite bestätigen AXE und den Demo-Anker.
+Ein unmittelbar abgefragter WebKit-Favoritenzustand war verzögert sichtbar;
+den Fall isoliert untersucht und die sieben verbleibenden Szenarien mit
+wartenden Zustandsprüfungen erfolgreich abgeschlossen. Keine Abschwächung der
+Erwartung; keine echten Daten übertragen oder Bewerbung verschickt.
+
+**Vorabcheck und Grenzen:** GitHub erneut abgeglichen und den aktuellen
+Hauptstand `e31379ce` in denselben eigenen Zweig übernommen; fremde Änderungen
+und Changelog-Einträge erhalten. Der erste lokale Vorabcheck auf Node 22.23.4
+bestand Format, Lint, Typprüfung, Suite-Audit, 203 Skriptfälle, 55 Landingpagefälle,
+Testorchestrierung, neun Integrationsfälle und den Anwendungsbau. Nach der
+Bildrahmenkorrektur wird er auf dem endgültigen Stand erneut ausgeführt.
+Bauwarnungen betreffen bestehende App-Vorlagen, das initiale Größenbudget und
+CommonJS. Die ausgewählten zusätzlichen CI-Nachweise für Migrationspaket,
+Actionlint und Workflow-/Deploymentverträge bleiben vor dem Merge erforderlich.
+Windows-WebKit ersetzt keine native Safari-/Geräteprüfung. Private Protokolle
+und Vorschauaufnahmen unter
 `C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/interactive-demo/`.
 Kein Push, PR oder Merge.
 
