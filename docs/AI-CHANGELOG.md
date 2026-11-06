@@ -9,10 +9,14 @@ Funde, und am Vorabend wirkte der Feed nicht aktuell.
 **Analyse:** Standardmäßig wurde nach `updated_at` sortiert. Diesen Wert setzen
 die Datenbankfunktionen für erfolgreiche und fehlgeschlagene Abrufe sowie der
 Bot-Dienst bei jedem Abruf neu. Der zuletzt abgefragte Filter stand deshalb
-vorn. Karte und Detailansicht lesen dieselbe Fundzahl aus demselben Abruf. Eine
-Ursache für die abweichende Anzeige war im Code nicht erkennbar. Die Serverlogs
-vom Vorabend konnten nicht gelesen werden, weil der SSH-Zugriff in dieser
-Sitzung gesperrt war.
+vorn. Karte und Detailansicht lesen dieselbe Fundzahl. Laut Datenbank hatte
+„Carhartt Fleecejacken Max 50“ 29 und „Blauer“ 928 Funde. Die 929 gehörten also
+sehr wahrscheinlich zu „Blauer“: Die Karte war vor dem Klick verrutscht. Die
+Serverlogs vom 05.11. zeigen einen durchgehend laufenden Bot (rund 750 Abrufe pro
+Stunde, neue Artikel ohne Lücke) mit vier kurzen Neustarts des Feed-Browsers,
+zuletzt um 18:41 UTC. Alle Browseranfragen wurden mit 200 beantwortet.
+`sniper_feed_search` wurde zwischen 12:00 und 23:30 UTC nicht aufgerufen; ab
+23:30 UTC kam der Abruf normal etwa alle 2 Sekunden, im Mittel in 77 ms.
 
 **Umsetzung:** Standardsortierung nach Name. „Zuletzt geändert“ wird durch
 „Zuletzt angelegt“ (`created_at`) ersetzt. Abrufe ändern die Reihenfolge nicht
