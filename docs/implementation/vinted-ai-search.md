@@ -6,8 +6,8 @@ Zugang zum ausgewählten Arbeitsbereich. Der vorhandene serverseitige
 
 ## Ablauf und Ergebnisse
 
-„AI Search“ auf einer Feed-Karte öffnet den gemeinsamen Dialog und startet die
-Recherche. Der Browser sendet nur Arbeitsbereich, Inserat-ID und Modell. Die
+„AI Search“ auf einer Feed-Karte öffnet den gemeinsamen Dialog. Erst nach der
+Modellauswahl und dem Klick auf „Suchen“ startet die Recherche. Der Browser sendet nur Arbeitsbereich, Inserat-ID und Modell. Die
 Edge Function `vinted-ai-search` liest Titel, vorhandene Beschreibung, Preise,
 Marke, Größe, Zustand und bis zu fünf unterschiedliche HTTPS-Fotos von
 `*.vinted.net` aus dem gespeicherten Feed-Inserat. Fehlende Beschreibung und
@@ -46,10 +46,11 @@ Der ausgewiesene Überschuss gilt vor Steuern.
 
 ## Modelle und Kosten
 
-Standard ist `gpt-6-luna`, ein Vergleich mit `gpt-6.1-sol` startet nur über einen
-zusätzlichen, ausdrücklich als kostenpflichtig beschrifteten Klick. Das erste
-Ergebnis bleibt für den direkten Vergleich von Identifikation, Spanne und
-Kosten erhalten. Beide verwenden dieselben Bilder und Recherchegrenzen:
+Vor jeder Suche stehen `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol` und
+`gpt-6-astra` zur Auswahl. Luna bleibt vorausgewählt. Das Öffnen und Wechseln
+der Auswahl erzeugt keine Analyse; erst „Suchen“ startet den gewählten Lauf.
+Bereits getestete Modelle bleiben im Dialog zum Vergleich von Identifikation,
+Spanne, Tokens, Webaufrufen und Kosten erhalten. Alle verwenden dieselben Bilder und Recherchegrenzen:
 `reasoning.effort=low`, maximal 3 Webwerkzeugaufrufe, 3.200 Ausgabetokens,
 85 Sekunden Anbieterzeit und `store=false`. Titel und Beschreibung sind auf
 300 beziehungsweise 5.000 Zeichen begrenzt. Es gibt keine automatischen
@@ -59,10 +60,12 @@ Die [OpenAI-Preisliste](https://developers.openai.com/api/docs/pricing) und die
 [Luna-Modellseite](https://developers.openai.com/api/docs/models/gpt-6-luna)
 wurden am 06.11.2026 geprüft. Hinterlegte Standardpreise in USD:
 
-| Modell      | Eingabe / 1 Mio. | Gecacht / 1 Mio. | Ausgabe / 1 Mio. |
-| ----------- | ---------------: | ---------------: | ---------------: |
-| GPT-6 Luna  |             0,10 |             0,01 |             0,50 |
-| GPT-6.1 Sol |             2,00 |             0,10 |            10,00 |
+| Modell        | Eingabe / 1 Mio. | Gecacht / 1 Mio. | Ausgabe / 1 Mio. |
+| ------------- | ---------------: | ---------------: | ---------------: |
+| GPT-6 Luna    |             0,10 |             0,01 |             0,50 |
+| GPT-6.1 Terra |             1,00 |             0,05 |             5,00 |
+| GPT-6.1 Sol   |             2,00 |             0,10 |            10,00 |
+| GPT-6 Astra   |            10,00 |             1,00 |            50,00 |
 
 Zusätzlich 0,01 USD je Webwerkzeugaufruf; Suchinhaltstokens werden zum Modelltarif
 berechnet. Die Erfassung verwendet die von der Responses API gemeldeten Ein-,

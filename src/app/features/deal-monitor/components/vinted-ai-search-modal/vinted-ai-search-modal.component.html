@@ -7,6 +7,21 @@
   [hasFooter]="false"
   (closed)="closed.emit()"
 >
+  <app-button
+    header-actions
+    [disabled]="loading() || !selectedModel()"
+    [loading]="loading()"
+    [icon]="searchIcon"
+    (clicked)="startSearch()"
+    >Suchen</app-button
+  >
+  <app-custom-select
+    label="Modell"
+    ariaLabel="Modell"
+    [options]="modelOptions"
+    [(value)]="selectedModel"
+    [disabled]="loading()"
+  />
   @if (loading()) {
     <div role="status" class="flex flex-col items-center gap-3 py-10 text-fb-text-secondary">
       <svg
@@ -19,9 +34,6 @@
   }
   @if (error(); as message) {
     <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
-    <app-button [disabled]="loading()" [icon]="searchIcon" (clicked)="search('gpt-6-luna')"
-      >Erneut suchen</app-button
-    >
   }
   @if (result(); as data) {
     <section class="space-y-2" aria-label="Modellidentifikation">
@@ -173,33 +185,35 @@
             : (data.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
         }}
       </p>
-      @if (data.model === 'gpt-6-luna') {
-        <app-button
-          variant="secondary"
-          [disabled]="loading()"
-          [icon]="sparklesIcon"
-          (clicked)="search('gpt-6.1-sol')"
-          >Mit GPT-6.1 Sol vergleichen (zusätzliche API-Kosten)</app-button
-        >
-      }
-      @if (data.model === 'gpt-6.1-sol') {
-        @if (baseline(); as initial) {
+    </section>
+  }
+  @if (completedResults().length > 1) {
+    <section aria-label="Modellvergleich" class="space-y-3 text-sm text-fb-text-secondary">
+      <h3 class="font-semibold text-fb-text-primary">Modellvergleich</h3>
+      @for (entry of completedResults(); track entry.model) {
+        <div class="space-y-1 border-b border-fb-border pb-2">
+          <p class="font-semibold text-fb-text-primary">{{ entry.model }}</p>
           <p>
-            Vergleich GPT-6 Luna: {{ initial.analysis.modelName || 'Modell unbekannt' }} ·
-            {{ confidenceLabels[initial.analysis.confidence] }} ·
-            {{
-              initial.usage.estimatedCostUsd === null
-                ? 'Kosten unbekannt'
-                : (initial.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
-            }}
+            {{ entry.analysis.modelName || 'Modell unbekannt' }} ·
+            {{ confidenceLabels[entry.analysis.confidence] }}
           </p>
-          @if (initial.analysis.resale; as resale) {
+          @if (entry.analysis.resale; as resale) {
             <p>
-              Wiederverkauf laut Luna: {{ resale.low | currency: 'EUR' }} –
+              Wiederverkauf: {{ resale.low | currency: 'EUR' }} –
               {{ resale.high | currency: 'EUR' }}
             </p>
           }
-        }
+          <p>
+            {{ entry.usage.inputTokens ?? 'unbekannt' }} Eingabe- /
+            {{ entry.usage.outputTokens ?? 'unbekannt' }} Ausgabetokens ·
+            {{ entry.usage.webSearchCalls }} Webaufrufe ·
+            {{
+              entry.usage.estimatedCostUsd === null
+                ? 'Kosten unbekannt'
+                : (entry.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
+            }}
+          </p>
+        </div>
       }
     </section>
   }

@@ -48,6 +48,10 @@ insert into public.vinted_ai_searches(user_id,workspace_id,listing_id,input_hash
  select '54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('c',64),'gpt-6-luna','failed',now()-interval '2 hours' from generate_series(1,80);
 select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('d',64),'gpt-6-luna')->>'error','search_limit','Tageslimit gilt unabhaengig vom Stundenlimit');
 select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6-luna')->>'cached','true','Cache bleibt auch bei ausgeschöpftem Limit kostenfrei nutzbar');
+delete from public.vinted_ai_searches where user_id='54000000-0000-4000-8000-000000000001';
+select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6.1-terra')->>'cached','false','Terra ist fuer einen eigenen Modellvergleich freigegeben');
+update public.vinted_ai_searches set status='failed' where status='pending';
+select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6-astra')->>'cached','false','Astra ist fuer einen eigenen Modellvergleich freigegeben');
 delete from public.workspace_members where user_id='54000000-0000-4000-8000-000000000001';
 select throws_ok($$select public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6-luna')$$,'42501',null,'Entzogener Workspacezugriff sperrt auch Cache');
 select * from finish();

@@ -1,4 +1,10 @@
-export type VintedAiModel = 'gpt-6-luna' | 'gpt-6.1-sol';
+export type VintedAiModel = 'gpt-6-luna' | 'gpt-6.1-terra' | 'gpt-6.1-sol' | 'gpt-6-astra';
+export const VINTED_AI_MODELS = [
+  { value: 'gpt-6-luna' as const, label: 'GPT-6 Luna · sparsam' },
+  { value: 'gpt-6.1-terra' as const, label: 'GPT-6.1 Terra' },
+  { value: 'gpt-6.1-sol' as const, label: 'GPT-6.1 Sol' },
+  { value: 'gpt-6-astra' as const, label: 'GPT-6 Astra' },
+];
 export interface VintedAiComparison {
   title: string;
   url: string;

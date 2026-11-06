@@ -5,7 +5,7 @@ create table public.vinted_ai_searches (
     workspace_id uuid not null references public.workspaces(id) on delete cascade,
     listing_id uuid not null,
     input_hash text not null,
-    model text not null check (model in ('gpt-6-luna', 'gpt-6.1-sol')),
+    model text not null check (model in ('gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.1-sol', 'gpt-6-astra')),
     status text not null default 'pending' check (status in ('pending', 'completed', 'failed', 'unknown')),
     response_id text,
     input_tokens integer check (input_tokens >= 0),
@@ -44,7 +44,7 @@ begin
         or not public.user_can_access_workspace(p_workspace_id, p_user_id) then
         raise exception 'Kein Admin-Zugriff.' using errcode = '42501';
     end if;
-    if p_input_hash is null or p_input_hash !~ '^[a-f0-9]{64}$' or p_model is null or p_model not in ('gpt-6-luna', 'gpt-6.1-sol')
+    if p_input_hash is null or p_input_hash !~ '^[a-f0-9]{64}$' or p_model is null or p_model not in ('gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.1-sol', 'gpt-6-astra')
         or not exists (select 1 from public.sniper_listings where id = p_listing_id and marketplace = 'vinted') then
         raise exception 'Ungueltige Suchdaten.' using errcode = '22023';
     end if;

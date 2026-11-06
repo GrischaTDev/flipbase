@@ -1,6 +1,8 @@
 export const MODEL_PRICES = {
   'gpt-6-luna': { input: 0.1, cached: 0.01, output: 0.5 },
+  'gpt-6.1-terra': { input: 1, cached: 0.05, output: 5 },
   'gpt-6.1-sol': { input: 2, cached: 0.1, output: 10 },
+  'gpt-6-astra': { input: 10, cached: 1, output: 50 },
 } as const;
 export type SearchModel = keyof typeof MODEL_PRICES;
 export const PRICING_DATE = '2026-11-06';

@@ -13275,6 +13275,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      platform_system_health: { Args: never; Returns: Json }
       prepare_beta_invitation: {
         Args: {
           p_application_id: string
@@ -13287,7 +13288,6 @@ export type Database = {
         Args: { p_application_id: string; p_request_id: string }
         Returns: Json
       }
-      platform_system_health: { Args: never; Returns: Json }
       prepare_listing: {
         Args: {
           p_catalog_product_id?: string

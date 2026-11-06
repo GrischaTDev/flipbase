@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Admin-Modellauswahl und Freigabe von AI Search vorbereiten
+
+**Auftrag:** PR, erfolgreichen Merge und Serverausrollung ausdrücklich freigegeben;
+vorher auf Nutzerwunsch eine Modellauswahl ergänzt. Den aktuellen Hauptstand
+`a3356508` in denselben Aufgabenbranch übernommen. Beide vollständigen
+Changelog-Seiten und alle Schemaregistrierungen beim Konflikt erhalten.
+
+**Ergänzung:** Luna, Terra, Sol und Astra sind vor jeder Recherche auswählbar.
+Das Öffnen des Modals und die Auswahl erzeugen keine kostenpflichtige Analyse.
+Erst „Suchen“ startet den gewählten Lauf; Ergebnisse getesteter Modelle bleiben
+mit Identifikation, Preisspanne, Tokens, Webaufrufen und Kosten nebeneinander
+sichtbar. Einheitliche Bilder, Recherche- und Ausgabelimits bleiben erhalten.
+Tarife anhand der offiziellen Dokumentation aktualisiert und alle vier Modelle
+über die Modellliste des bestehenden Serverzugangs lesend als verfügbar bestätigt.
+Das neu vorhandene Guthaben wird nicht aus dem Browser ausgelesen.
+
+**Datenbank und Server:** Zusätzliche Migration ausschließlich aus zwei frischen,
+gleich aufgebauten isolierten Projektinstanzen erzeugt; sie erweitert nur den
+Modellvertrag von Tabelle und Reservierungsfunktion. Die vorhandene erste
+Migration bleibt unverändert. Beide Migrationen sind transaktional anwendbar.
+Der Serverrouter begrenzt alle Functions bisher auf 60 Sekunden. Ein enger,
+wiederholbarer Abschlusshelfer sichert den Router und gibt ausschließlich der
+AI Search 95 Sekunden, damit der auf 85 Sekunden begrenzte Anbieteraufruf seinen
+Verbrauch speichern kann. Unbekannte Routerfassungen werden abgewiesen; andere
+Functions und ihre JWT-Prüfung bleiben erhalten.
+
+**Nachweise:** 14 Deno-Fälle mit der CI-Laufzeit 2.9.7 und 24 zurückgerollte
+SQL-Fälle gegen den aktuellen Hauptstand mit beiden Aufgabenmigrationen
+erfolgreich. Neun AI-Browserfälle einschließlich kostenfreiem Öffnen,
+Vierermodell-Auswahl, separatem Suchstart, Modellvergleich, Hell/Dunkel und
+320/390/834/1440 Pixeln erfolgreich. Abschlusshelfer mit Sicherung,
+Wiederholung und unbekanntem Router geprüft. Der abschließende Vorabcheck,
+GitHub-Prüfungen, Merge und die Serverabnahme werden im Prüfbericht festgehalten.
+
 ## 2026-11-06 - Juna - AI Search im Vinted-Feed für Admins
 
 **Auftrag und Trennung:** Den bestehenden serverseitigen OpenAI-Zugang auf

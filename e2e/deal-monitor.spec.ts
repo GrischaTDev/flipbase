@@ -113,6 +113,10 @@ for (const theme of ['light', 'dark'] as const) {
         const requests: Record<string, unknown>[] = [];
         await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
           const body = route.request().postDataJSON() as Record<string, unknown>;
+          if (body['action'] === 'usage') {
+            await route.fulfill({ json: { stats: [] } });
+            return;
+          }
           requests.push(body);
           await gate;
           await route.fulfill({ json: { ...aiSearchResult, model: body['model'] } });
@@ -123,6 +127,9 @@ for (const theme of ['light', 'dark'] as const) {
         expect(requests).toHaveLength(0);
         await launch.click();
         const dialog = page.getByRole('dialog', { name: 'AI Search', exact: true });
+        await expect(dialog.getByRole('button', { name: 'Suchen', exact: true })).toBeVisible();
+        expect(requests).toHaveLength(0);
+        await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
         await expect(
           dialog.getByText('Artikel und Vergleichspreise werden gesucht …'),
         ).toBeVisible();
@@ -140,8 +147,17 @@ for (const theme of ['light', 'dark'] as const) {
         ).toBeVisible();
         expect(requests).toHaveLength(1);
         await dialog.getByRole('spinbutton', { name: 'Einkaufsversand', exact: true }).fill('0');
-        await dialog.getByRole('button', { name: /Mit GPT-6.1 Sol vergleichen/ }).click();
-        await expect(dialog.getByText(/Vergleich GPT-6 Luna:/)).toBeVisible();
+        await dialog.getByRole('combobox', { name: 'Modell', exact: true }).click();
+        await expect(
+          page.getByRole('option', { name: 'GPT-6.1 Terra', exact: true }),
+        ).toBeVisible();
+        await expect(page.getByRole('option', { name: 'GPT-6 Astra', exact: true })).toBeVisible();
+        await page.getByRole('option', { name: 'GPT-6.1 Sol', exact: true }).click();
+        expect(requests).toHaveLength(1);
+        await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+        await expect(
+          dialog.getByRole('heading', { name: 'Modellvergleich', exact: true }),
+        ).toBeVisible();
         expect(requests.map((body) => body['model'])).toEqual(['gpt-6-luna', 'gpt-6.1-sol']);
         await page.evaluate(axe.source);
         const accessibility = await page.evaluate(async () => {
@@ -184,12 +200,25 @@ test('verbirgt AI Search für Beta-Nutzer und verwirft verspätete Ergebnisse na
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
+  let requestedModel: string | null = null;
   await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+    if (route.request().postDataJSON().action === 'usage') {
+      await route.fulfill({ json: { stats: [] } });
+      return;
+    }
+    requestedModel = route.request().postDataJSON().model;
     await gate;
     await route.fulfill({ json: aiSearchResult });
   });
   await page.reload();
   await page.getByRole('button', { name: 'AI Search', exact: true }).first().click();
+  await page.getByRole('combobox', { name: 'Modell', exact: true }).click();
+  await page.getByRole('option', { name: 'GPT-6 Astra', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'AI Search', exact: true })
+    .getByRole('button', { name: 'Suchen', exact: true })
+    .click();
+  await expect.poll(() => requestedModel).toBe('gpt-6-astra');
   await expect(page.getByText('Artikel und Vergleichspreise werden gesucht …')).toBeVisible();
   await page.keyboard.press('Escape');
   release();

@@ -14,12 +14,14 @@ import { LucideDynamicIcon, LucideSearch, LucideSparkles } from '@lucide/angular
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { FeedItem } from '../../models/deal-monitor.model';
 import {
   VintedAiModel,
   VintedAiResult,
   VintedAiUsageSummary,
   resaleEstimate,
+  VINTED_AI_MODELS,
 } from '../../models/vinted-ai-search';
 import { VintedAiSearchService } from '../../services/vinted-ai-search.service';
 
@@ -29,6 +31,7 @@ import { VintedAiSearchService } from '../../services/vinted-ai-search.service';
     ModalShellComponent,
     ButtonComponent,
     NumberInputComponent,
+    CustomSelectComponent,
     LucideDynamicIcon,
     CurrencyPipe,
     DatePipe,
@@ -43,7 +46,9 @@ export class VintedAiSearchModalComponent {
   readonly closed = output<void>();
   private readonly api = inject(VintedAiSearchService);
   readonly result = signal<VintedAiResult | null>(null);
-  readonly baseline = signal<VintedAiResult | null>(null);
+  readonly selectedModel = signal<VintedAiModel | null>('gpt-6-luna');
+  readonly modelOptions = VINTED_AI_MODELS;
+  readonly completedResults = signal<VintedAiResult[]>([]);
   readonly stats = signal<VintedAiUsageSummary[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -72,20 +77,36 @@ export class VintedAiSearchModalComponent {
   constructor() {
     effect((onCleanup) => {
       const workspace = this.workspaceId();
-      const item = this.item();
+      this.item();
       onCleanup(() => this.generation++);
       untracked(() => {
         this.loading.set(false);
         this.result.set(null);
-        this.baseline.set(null);
+        this.selectedModel.set('gpt-6-luna');
+        this.completedResults.set([]);
         this.stats.set([]);
         this.statsError.set(null);
         this.shipping.set(0);
         this.feePercent.set(0);
         this.otherCosts.set(0);
-        void this.search('gpt-6-luna', workspace, item.id);
+        void this.loadUsage(workspace, ++this.generation);
       });
     });
+  }
+
+  startSearch(): void {
+    const model = this.selectedModel();
+    if (model) void this.search(model);
+  }
+
+  private async loadUsage(workspace: string, generation: number): Promise<void> {
+    try {
+      const stats = await this.api.usage(workspace);
+      if (generation === this.generation) this.stats.set(stats);
+    } catch {
+      if (generation === this.generation)
+        this.statsError.set('Der gespeicherte Verbrauch konnte nicht geladen werden.');
+    }
   }
 
   async search(
@@ -101,7 +122,10 @@ export class VintedAiSearchModalComponent {
       const result = await this.api.search(workspace, listingId, model);
       if (generation !== this.generation) return;
       this.result.set(result);
-      if (model === 'gpt-6-luna') this.baseline.set(result);
+      this.completedResults.update((results) => [
+        ...results.filter((entry) => entry.model !== result.model),
+        result,
+      ]);
       this.stats.set(result.stats);
       this.statsError.set(null);
     } catch (error) {

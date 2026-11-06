@@ -97,6 +97,24 @@ function fixture(overrides: Partial<SearchDependencies> = {}) {
     );
   return { request, saved, calls: () => calls };
 }
+Deno.test(
+  'alle vier freigegebenen Modelle werden unveraendert an den Anbieter uebergeben',
+  async () => {
+    for (const model of ['gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.1-sol', 'gpt-6-astra'] as const) {
+      let selected = '';
+      const test = fixture({
+        search: async (_listing, _images, chosen) => {
+          selected = chosen;
+          return provider();
+        },
+      });
+      equal((await test.request({ workspaceId, listingId, model })).status, 200);
+      equal(selected, model);
+    }
+    equal(parseUsage(provider(), 'gpt-6.1-terra').estimatedCostUsd, 0.01331);
+    equal(parseUsage(provider(), 'gpt-6-astra').estimatedCostUsd, 0.0432);
+  },
+);
 Deno.test('weist fehlende Anmeldung und Beta-Nutzer vor Anbieteraufruf ab', async () => {
   const noToken = fixture();
   equal((await noToken.request({}, {})).status, 401);
@@ -114,7 +132,10 @@ Deno.test('weist fremde Herkunft, ungueltige Eingaben und fremde Modelle ab', as
     403,
   );
   equal((await test.request({ workspaceId: 'bad', listingId })).status, 400);
-  equal((await test.request({ workspaceId, listingId, model: 'gpt-6-astra' })).status, 400);
+  equal(
+    (await test.request({ workspaceId, listingId, model: 'not-an-allowed-model' })).status,
+    400,
+  );
   equal((await test.request({ workspaceId, listingId, model: '__proto__' })).status, 400);
   equal((await test.request({ workspaceId, listingId, text: 'x'.repeat(4096) })).status, 400);
   equal(test.calls(), 0);
