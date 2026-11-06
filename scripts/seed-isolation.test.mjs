@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { assertNoLocalSeedData } from './package-migrations.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -20,10 +21,16 @@ async function filesBelow(directory) {
 // bei `supabase db reset`/`start` auf dem eigenen Rechner und in CI laufen.
 test('Seed-Daten gelangen weder ins Migrationspaket noch in die Veröffentlichung', async () => {
   const migrations = await readdir(join(root, 'supabase/migrations'));
-  assert.deepEqual(
-    migrations.filter((name) => /seed/i.test(name)),
-    [],
-    'Keine Seed-Datei unter supabase/migrations',
+  const localSeed = await readFile(join(root, 'supabase/seed.sql'), 'utf8');
+  for (const migration of migrations.filter((name) => name.endsWith('.sql'))) {
+    assertNoLocalSeedData(
+      await readFile(join(root, 'supabase/migrations', migration), 'utf8'),
+      migration,
+    );
+  }
+  assert.throws(
+    () => assertNoLocalSeedData(localSeed, '20261106000000_reference_rows.sql'),
+    /Lokale Testkonten/,
   );
 
   const releaseFiles = [

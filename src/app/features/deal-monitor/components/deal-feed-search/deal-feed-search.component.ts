@@ -26,6 +26,8 @@ import { DealFeedUpdatesService } from '../../services/deal-feed-updates.service
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import { FeedItem, Watchlist } from '../../models/deal-monitor.model';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
+import { VintedAiSearchModalComponent } from '../vinted-ai-search-modal/vinted-ai-search-modal.component';
 
 const SLOW_MODE_STORAGE_KEY = 'flipbase:vinted-feed:slow-mode';
 
@@ -40,6 +42,7 @@ const SLOW_MODE_STORAGE_KEY = 'flipbase:vinted-feed:slow-mode';
     CustomSearchInputComponent,
     DealCardComponent,
     DealDetailModalComponent,
+    VintedAiSearchModalComponent,
   ],
   templateUrl: './deal-feed-search.component.html',
   // Jede Suche richtet Filter und Raster nach ihrer eigenen Spaltenbreite aus.
@@ -80,6 +83,8 @@ export class DealFeedSearchComponent {
   readonly minPrice = signal<number | null>(null);
   readonly maxPrice = signal<number | null>(null);
   readonly selectedDeal = signal<FeedItem | null>(null);
+  readonly selectedAnalysis = signal<FeedItem | null>(null);
+  readonly operator = inject(PlatformOperatorService);
   readonly sizeOptions = [
     { value: null as string | null, label: 'Alle Größen' },
     { value: 'xs', label: 'XS' },
@@ -144,6 +149,12 @@ export class DealFeedSearchComponent {
   private timer?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    void this.operator.isOperator();
+    effect(() => {
+      this.workspace();
+      this.operator.operator();
+      untracked(() => this.selectedAnalysis.set(null));
+    });
     this.state.setSlowMode(this.readSlowModePreference());
     effect(() => {
       const workspace = this.workspace()?.id ?? null;

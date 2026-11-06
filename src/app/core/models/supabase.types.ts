@@ -8821,6 +8821,77 @@ export type Database = {
           },
         ]
       }
+      vinted_ai_searches: {
+        Row: {
+          cached_input_tokens: number | null
+          created_at: string
+          error_code: string | null
+          estimated_cost_usd: number | null
+          finished_at: string | null
+          id: number
+          input_hash: string
+          input_tokens: number | null
+          listing_id: string
+          model: string
+          output_tokens: number | null
+          pricing: Json | null
+          response_id: string | null
+          result: Json | null
+          status: string
+          user_id: string
+          web_search_calls: number | null
+          workspace_id: string
+        }
+        Insert: {
+          cached_input_tokens?: number | null
+          created_at?: string
+          error_code?: string | null
+          estimated_cost_usd?: number | null
+          finished_at?: string | null
+          id?: never
+          input_hash: string
+          input_tokens?: number | null
+          listing_id: string
+          model: string
+          output_tokens?: number | null
+          pricing?: Json | null
+          response_id?: string | null
+          result?: Json | null
+          status?: string
+          user_id: string
+          web_search_calls?: number | null
+          workspace_id: string
+        }
+        Update: {
+          cached_input_tokens?: number | null
+          created_at?: string
+          error_code?: string | null
+          estimated_cost_usd?: number | null
+          finished_at?: string | null
+          id?: never
+          input_hash?: string
+          input_tokens?: number | null
+          listing_id?: string
+          model?: string
+          output_tokens?: number | null
+          pricing?: Json | null
+          response_id?: string | null
+          result?: Json | null
+          status?: string
+          user_id?: string
+          web_search_calls?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_ai_searches_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vinted_categories: {
         Row: {
           id: number
@@ -13204,6 +13275,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      platform_system_health: { Args: never; Returns: Json }
       prepare_beta_invitation: {
         Args: {
           p_application_id: string
@@ -13216,7 +13288,6 @@ export type Database = {
         Args: { p_application_id: string; p_request_id: string }
         Returns: Json
       }
-      platform_system_health: { Args: never; Returns: Json }
       prepare_listing: {
         Args: {
           p_catalog_product_id?: string
@@ -13542,6 +13613,16 @@ export type Database = {
       }
       reserve_label_image: {
         Args: { p_input: Json; p_request_id: string }
+        Returns: Json
+      }
+      reserve_vinted_ai_search: {
+        Args: {
+          p_input_hash: string
+          p_listing_id: string
+          p_model: string
+          p_user_id: string
+          p_workspace_id: string
+        }
         Returns: Json
       }
       resolve_legacy_sold_item: {
@@ -14238,6 +14319,10 @@ export type Database = {
       }
       validate_size_reference: {
         Args: { p_content: Json; p_publish: boolean }
+        Returns: Json
+      }
+      vinted_ai_search_usage: {
+        Args: { p_workspace_id: string }
         Returns: Json
       }
       web_push_allowed_categories: {

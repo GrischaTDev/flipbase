@@ -24,6 +24,7 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { DealCardComponent } from '../deal-card/deal-card.component';
 import { DealDetailModalComponent } from '../deal-detail-modal/deal-detail-modal.component';
 import { WatchlistEditorComponent } from '../watchlist-editor/watchlist-editor.component';
+import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -61,6 +62,8 @@ function registerSignalInputs(
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './vinted-ai-search-modal.component.html':
+    'src/app/features/deal-monitor/components/vinted-ai-search-modal/vinted-ai-search-modal.component.html',
   './custom-search-input.component.html':
     'src/app/shared/components/custom-search-input/custom-search-input.component.html',
   './deal-feed-search.component.html':
@@ -198,7 +201,7 @@ describe('DealFeedSearchComponent', () => {
       'ariaLabel',
       'checked',
     ]);
-    registerSignalInputs(DealCardComponent, ['item'], ['inspect']);
+    registerSignalInputs(DealCardComponent, ['item', 'allowAiSearch'], ['inspect', 'aiSearch']);
     registerSignalInputs(DealDetailModalComponent, ['item'], ['closed']);
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
   });
@@ -278,6 +281,10 @@ describe('DealFeedSearchComponent', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        {
+          provide: PlatformOperatorService,
+          useValue: { operator: signal(false), isOperator: vi.fn().mockResolvedValue(false) },
+        },
         DealFeedSearchComponent,
         { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
         { provide: DealMonitorService, useValue: mockApi },

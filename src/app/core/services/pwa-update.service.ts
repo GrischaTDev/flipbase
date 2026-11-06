@@ -451,7 +451,20 @@ export class PwaUpdateService {
     // mobil länger dauern und wird unabhängig über updatefound/statechange erkannt.
     let timeout: ReturnType<typeof setTimeout>;
     const limit = new Promise<void>((resolve, reject) => {
-      timeout = setTimeout(() => reject(new Error('Updateprüfung ohne Antwort')), 8000);
+      timeout = setTimeout(() => {
+        const installing = this.registration?.installing;
+        // update() kann bis zum Installationsende offenbleiben. Ein ladender
+        // oder wartender Worker bestätigt bereits die erfolgreiche Netzwerkprüfung.
+        if (
+          installing?.state === 'installing' ||
+          installing?.state === 'installed' ||
+          this.registration?.waiting?.state === 'installed'
+        ) {
+          resolve();
+        } else {
+          reject(new Error('Updateprüfung ohne Antwort'));
+        }
+      }, 8000);
       abort.signal.addEventListener('abort', () => resolve(), { once: true });
     });
     const inspect = async () => {

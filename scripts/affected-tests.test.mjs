@@ -25,6 +25,14 @@ const files = {
   'e2e/purchase-profitability.spec.ts': '',
 };
 
+test('Vinted-KI-Funktion und ihre Tests aktivieren die verbindlichen Edge-Prüfungen', () => {
+  for (const file of ['index.ts', 'analysis.ts', 'index.test.ts']) {
+    const path = 'supabase/functions/vinted-ai-search/' + file;
+    const plan = selectAffectedTests([path], { ...files, [path]: '' });
+    assert.equal(plan.checks.marketplace, true);
+  }
+});
+
 test('gemeinsame Controls prüfen lokal eigene Verträge und in CI alle betroffenen Verbraucher', () => {
   const button = 'src/app/shared/components/button/button.component';
   const purchase = 'src/app/features/purchases/components/purchase-form';
