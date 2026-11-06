@@ -25,6 +25,7 @@ describe('PlatformUserService', () => {
           last_action_at: '2026-09-25T14:00:00.000Z',
           purchases_created_30_days: 2,
           sales_recorded_30_days: 1,
+          is_platform_operator: true,
         },
       ],
       error: null,
@@ -57,6 +58,7 @@ describe('PlatformUserService', () => {
         lastActionAt: '2026-09-25T14:00:00.000Z',
         purchasesCreated30Days: 2,
         salesRecorded30Days: 1,
+        isPlatformOperator: true,
       },
     ]);
   });

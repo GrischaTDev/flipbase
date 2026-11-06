@@ -46,6 +46,7 @@ export class PlatformUserService {
         lastActionAt: row.last_action_at,
         purchasesCreated30Days: row.purchases_created_30_days,
         salesRecorded30Days: row.sales_recorded_30_days,
+        isPlatformOperator: row.is_platform_operator === true,
       };
     });
   }

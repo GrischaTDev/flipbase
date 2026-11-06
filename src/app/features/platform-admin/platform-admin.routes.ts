@@ -2,10 +2,24 @@ import { Routes } from '@angular/router';
 import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
 
 // Die Unterseiten der Administration stehen in der Seitenleiste
-// (core/config/platform-admin-navigation.ts). Die Bot-Seiten sind unter
+// (core/config/platform-admin-navigation.ts) und ersetzen dort das Hauptmenue. Die Bot-Seiten sind unter
 // "vinted-bot" gebuendelt und haben dort ihr eigenes Seitenmenue.
 export const platformAdminRoutes: Routes = [
-  { path: '', redirectTo: 'applications', pathMatch: 'full' },
+  { path: '', redirectTo: 'overview', pathMatch: 'full' },
+  {
+    path: 'overview',
+    loadComponent: () =>
+      import('./pages/platform-overview/platform-overview.component').then(
+        (m) => m.PlatformOverviewComponent,
+      ),
+  },
+  {
+    path: 'system',
+    loadComponent: () =>
+      import('./pages/platform-system/platform-system.component').then(
+        (m) => m.PlatformSystemComponent,
+      ),
+  },
   {
     path: 'server-storage',
     loadComponent: () =>

@@ -15,9 +15,27 @@
     [hasRows]="filteredUsers().length > 0"
     loadingText="Nutzer werden geladen …"
     emptyTitle="Keine Nutzer gefunden."
-    emptyText="Passe die Suche an oder prüfe später erneut."
+    emptyText="Passe Suche oder Filter an."
     (searchValueChange)="searchQuery.set($event)"
   >
+    <div
+      table-view
+      class="flex items-center gap-1 overflow-x-auto"
+      role="group"
+      aria-label="Nutzer filtern"
+      data-platform-user-filters
+    >
+      @for (filter of userFilters; track filter.value) {
+        <app-button
+          size="slim"
+          [variant]="userFilter() === filter.value ? 'secondary' : 'ghost'"
+          [ariaPressed]="userFilter() === filter.value"
+          (clicked)="userFilter.set(filter.value)"
+        >
+          {{ filter.label }}
+        </app-button>
+      }
+    </div>
     <div table-content class="overflow-x-auto">
       <table data-platform-users-table class="linear-table min-w-[1200px]">
         <caption class="sr-only">
@@ -40,7 +58,14 @@
         <tbody>
           @for (user of filteredUsers(); track user.userId) {
             <tr class="transition hover:bg-fb-surface-hover">
-              <td class="font-semibold text-fb-text-primary">{{ user.fullName }}</td>
+              <td class="font-semibold text-fb-text-primary">
+                <span class="inline-flex items-center gap-2">
+                  {{ user.fullName }}
+                  @if (user.isPlatformOperator) {
+                    <app-badge tone="admin" size="sm">Admin</app-badge>
+                  }
+                </span>
+              </td>
               <td class="text-fb-text-secondary">{{ user.email }}</td>
               <td class="text-fb-text-secondary">{{ user.workspaceName || '—' }}</td>
               <td>

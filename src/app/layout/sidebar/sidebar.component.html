@@ -21,7 +21,7 @@
   <div class="h-16 flex shrink-0 items-center justify-between px-3">
     <a
       routerLink="/dashboard"
-      [attr.aria-label]="marketplaceContext() ? 'Zurück zu Flipbase' : 'Zur Übersicht'"
+      [attr.aria-label]="replacedNavigationContext() ? 'Zurück zu Flipbase' : 'Zur Übersicht'"
       (click)="closed.emit()"
       class="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
     >
@@ -30,7 +30,7 @@
         in beiden Designs. Der Schriftzug daneben bleibt Text: So faerbt er
         sich mit dem Design mit und laesst sich vorlesen und durchsuchen.
       -->
-      @if (marketplaceContext()) {
+      @if (replacedNavigationContext()) {
         <svg [lucideIcon]="backIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
         <span class="text-sm font-semibold text-fb-text-primary">Zurück zu Flipbase</span>
       } @else {
@@ -58,7 +58,22 @@
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-4">
-    @if (kleinanzeigenContext()) {
+    @if (adminContext()) {
+      <p class="flex items-center gap-2 px-2 pb-3 text-lg font-semibold text-fb-text-primary">
+        <span>Administration</span>
+        <app-badge tone="admin" size="sm">Admin</app-badge>
+      </p>
+      <ul class="space-y-0.5" data-admin-navigation>
+        @for (item of adminNavigation; track item.path) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="marketplaceNavigationItem"
+              [ngTemplateOutletContext]="{ $implicit: item }"
+            />
+          </li>
+        }
+      </ul>
+    } @else if (kleinanzeigenContext()) {
       <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">
         <app-marketplace-platform-identity platform="kleinanzeigen" />
       </p>

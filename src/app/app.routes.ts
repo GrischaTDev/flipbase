@@ -1,3 +1,4 @@
+import { platformFeatureGuard } from './core/guards/platform-feature.guard';
 import { inject } from '@angular/core';
 import { workspaceShopGuard } from './core/guards/workspace-shop.guard';
 import { Router, Routes } from '@angular/router';
@@ -248,6 +249,7 @@ export const routes: Routes = [
       { path: 'deal-monitor', redirectTo: 'vinted-bot', pathMatch: 'full' },
       {
         path: 'vinted-bot',
+        canActivate: [platformFeatureGuard('vinted_feed')],
         loadComponent: () =>
           import('./features/deal-monitor/deal-monitor.component').then(
             (m) => m.DealMonitorComponent,
@@ -255,6 +257,7 @@ export const routes: Routes = [
       },
       {
         path: 'vinted-bot/filters',
+        canActivate: [platformFeatureGuard('vinted_feed')],
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/deal-monitor/pages/deal-filters/deal-filters.component').then(
@@ -263,6 +266,7 @@ export const routes: Routes = [
       },
       {
         path: 'vinted-bot/favorites',
+        canActivate: [platformFeatureGuard('vinted_feed')],
         loadComponent: () =>
           import('./features/deal-monitor/pages/deal-favorites/deal-favorites.component').then(
             (m) => m.DealFavoritesComponent,
@@ -280,6 +284,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/deal-calculator/deal-calculator.component').then(
             (m) => m.DealCalculatorComponent,
+          ),
+      },
+      {
+        path: 'maintenance/:feature',
+        loadComponent: () =>
+          import('./features/maintenance/maintenance.component').then(
+            (m) => m.MaintenanceComponent,
           ),
       },
       {
