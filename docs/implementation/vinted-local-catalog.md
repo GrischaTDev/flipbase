@@ -14,13 +14,13 @@ oder veröffentlicht. Testdaten:
 
 ### Quellen
 
-| Inhalt              | Abruf                                                                                         | Ergebnis                                                  |
-| ------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Verkaufsbaum        | `GET /api/v2/item_upload/catalogs`                                                            | 2.874 Kategorien, 2.462 Endkategorien                     |
-| Felder je Kategorie | `POST /api/v2/item_upload/attributes` mit `{"attributes":[{"code":"category","value":[ID]}]}` | Felder mit Pflicht, Auswahlart, Höchstanzahl und Optionen |
-| Farben              | `GET /api/v2/item_upload/colors`                                                              | 29 Farben mit ID, Name, Farbwert und Code                 |
-| Marken              | `GET /api/v2/item_upload/brands?category_id=ID`                                               | Suche, nicht vollständig speicherbar                      |
-| Paketgrößen         | im Formular, kein eigener Abruf beobachtet                                                    | 1 Klein, 2 Mittel, 3 Groß; Empfehlung je Kategorie        |
+| Inhalt              | Abruf                                                                                                                     | Ergebnis                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Verkaufsbaum        | `GET /api/v2/item_upload/catalogs`                                                                                        | 2.874 Kategorien, 2.462 Endkategorien                          |
+| Felder je Kategorie | `POST /api/v2/item_upload/attributes` mit `{"attributes":[{"code":"category","value":[ID]}]}`                             | Felder mit Pflicht, Auswahlart, Höchstanzahl und Optionen      |
+| Farben              | `GET /api/v2/item_upload/colors`                                                                                          | 29 Farben mit ID, Name, Farbwert und Code                      |
+| Marken              | `GET /api/v2/item_upload/brands?category_id=ID`                                                                           | Suche, nicht vollständig speicherbar                           |
+| Paketgrößen         | `api.vinted.de/shipping-estimation/external/catalogs/{id}/package_sizes`, Vorschlag per `POST …/package_sizes/suggestion` | 1–3 Standard, 8–10 schwer (5/10/20 kg); Vorschlag je Kategorie |
 
 Die Abrufe brauchen die Sitzung samt CSRF-Kennung des Formulars.
 
@@ -194,10 +194,30 @@ Danach entfallen `vinted_category_field_snapshots`, die eigenen Listen in
   vor ihm Gelesene fällig; der Worker liest dann je Kontoabgleich bis zu 200 Kategorien
   in höchstens drei Minuten, bis nichts mehr fällig ist.
 
+## Paketgrößen mit Vinteds Vorschlag (06.11.2026)
+
+- **Quelle:** Im angemeldeten Formular beobachtet. Die angebotenen Paketgrößen einer
+  Kategorie liefert `GET https://api.vinted.de/shipping-estimation/external/catalogs/{id}/package_sizes`,
+  den Vorschlag `POST …/package_sizes/suggestion` mit `catalog_id` und einer beliebigen
+  `upload_session_id` (ohne sie 422). Deutsche Titel nur mit der Kopfzeile `Locale: de-DE`.
+  Der Vorschlag hängt mit leerem Titel, Marke und Preis nur an der Kategorie (z. B. Kniehohe
+  Stiefel 3, Röcke kein Vorschlag).
+- **Schwere Artikel:** Manche Kategorien (z. B. Möbel) bieten statt Klein/Mittel/Groß (1–3)
+  nur 5 kg, 10 kg und 20 kg (8–10) an. Die feste Liste 1–3 war dort nie gültig.
+- **Speicherung:** Der Worker liest beides beim Katalogabgleich je Endkategorie mit und
+  speichert es als Feld `package` in `vinted_listing_category_fields` (Werte in
+  `vinted_listing_options`), den Vorschlag in der neuen Spalte `recommended_option_id`.
+  Scheitert nur der Paketabruf, bleiben die übrigen Felder gültig.
+- **Masken:** Mit Katalogwerten bieten Editor und Bearbeiten die Paketgrößen der Kategorie
+  an. Beim Vorbereiten bleibt eine angebotene Wahl; fehlt sie oder passt sie nicht zur
+  Kategorie, gilt Vinteds Vorschlag, ohne Vorschlag keine Angabe. Der Editor zeigt die
+  vorbelegte Größe mit „(empfohlen)“.
+- **Nachlesen:** Die Migration legt einen Auftrag zum Neu-Einlesen an; der Worker liest
+  dadurch alle Kategorien mit Paketgrößen nach. Bis dahin gilt für eine Kategorie die
+  bisherige Auswahl 1–3.
+
 ## Offen
 
-- Paketgrößen-Empfehlung je Kategorie: Quelle noch nicht ermittelt; ausgewählt wird die
-  Paketgröße weiter über die festen Werte 1–3 (Klein, Mittel, Groß).
 - Pflichtstatus der Farbe: im Feld ohne Konfiguration geliefert; das Formular erlaubt bis
   zu zwei Farben.
 - Freie Zusatzfelder bestehender Inserate (Maße, ISBN) liefert Vinteds Inseratabfrage

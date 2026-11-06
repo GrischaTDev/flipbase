@@ -9067,6 +9067,7 @@ export type Database = {
           field_code: string
           option_ids: number[] | null
           position: number
+          recommended_option_id: number | null
           required: boolean | null
           selection_limit: number | null
           selection_type: string | null
@@ -9078,6 +9079,7 @@ export type Database = {
           field_code: string
           option_ids?: number[] | null
           position: number
+          recommended_option_id?: number | null
           required?: boolean | null
           selection_limit?: number | null
           selection_type?: string | null
@@ -9089,6 +9091,7 @@ export type Database = {
           field_code?: string
           option_ids?: number[] | null
           position?: number
+          recommended_option_id?: number | null
           required?: boolean | null
           selection_limit?: number | null
           selection_type?: string | null

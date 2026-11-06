@@ -61,11 +61,14 @@ create table public.vinted_listing_category_fields (
   display_type text check (display_type is null or char_length(display_type) between 1 and 40),
   title text check (title is null or char_length(btrim(title)) between 1 and 200),
   option_ids integer[] check (option_ids is null or cardinality(option_ids) <= 1000),
+  recommended_option_id integer check (recommended_option_id is null
+    or (option_ids is not null and recommended_option_id = any(option_ids))),
   primary key (category_id, field_code)
 );
 comment on table public.vinted_listing_category_fields is 'Felder einer Kategorie in Vinteds Reihenfolge mit Pflicht, Auswahlart und Höchstanzahl.';
 comment on column public.vinted_listing_category_fields.title is 'Feldtitel wie bei Vinted, etwa "Rocklänge" oder "Material (empfohlen)"; leer bei Feldern ohne eigene Konfiguration.';
 comment on column public.vinted_listing_category_fields.option_ids is 'Erlaubte Werte aus vinted_listing_options in Vinteds Reihenfolge; leer heißt alle Werte des Merkmals (z. B. Farben). Größen stehen in vinted_listing_category_size_groups.';
+comment on column public.vinted_listing_category_fields.recommended_option_id is 'Von Vinted für die Kategorie vorgeschlagener Wert aus option_ids, bisher nur bei der Paketgröße (package); leer ohne Vorschlag.';
 
 create table public.vinted_listing_category_size_groups (
   category_id integer not null references public.vinted_listing_categories(id) on delete cascade,
@@ -196,6 +199,11 @@ begin
         or jsonb_array_length(v_field->'sizeGroups') not between 1 and 30))
       or (v_field->'options' is not null and (jsonb_typeof(v_field->'options') <> 'array'
         or jsonb_array_length(v_field->'options') > 1000 or (v_field->>'code') = 'size'))
+      or (v_field->'recommendedId' is not null and jsonb_typeof(v_field->'recommendedId') <> 'null'
+        and (jsonb_typeof(v_field->'recommendedId') <> 'number'
+          or (v_field->>'recommendedId') !~ '^[1-9][0-9]{0,8}$'
+          or not exists (select 1 from jsonb_array_elements(coalesce(v_field->'options', '[]')) o
+            where o->>'id' = v_field->>'recommendedId')))
     then raise exception 'Invalid Vinted category fields'; end if;
     v_codes := v_codes || (v_field->>'code');
     for v_group in select value from jsonb_array_elements(coalesce(v_field->'sizeGroups', '[]')) loop
@@ -246,11 +254,12 @@ begin
       into v_option_ids from jsonb_array_elements(v_field->'options') with ordinality o;
     end if;
     insert into public.vinted_listing_category_fields(category_id, field_code, position, required,
-      selection_type, selection_limit, display_type, option_ids, title)
+      selection_type, selection_limit, display_type, option_ids, title, recommended_option_id)
     values(p_category_id, v_field->>'code', (v_field->>'position')::integer,
       (v_field->>'required')::boolean, v_field->>'selectionType', (v_field->>'limit')::integer,
       nullif(left(v_field->>'display', 40), ''), v_option_ids,
-      nullif(left(btrim(coalesce(v_field->>'title', '')), 200), ''));
+      nullif(left(btrim(coalesce(v_field->>'title', '')), 200), ''),
+      (v_field->>'recommendedId')::integer);
   end loop;
   update public.vinted_listing_categories set fields_observed_at = p_observed_at where id = p_category_id;
   return true;

@@ -55,7 +55,7 @@ const materials = [
   'Polyamid',
   'Synthetik',
 ];
-type RealField = 'size' | 'condition' | 'color' | 'material';
+type RealField = 'size' | 'condition' | 'color' | 'material' | 'package';
 const range = (start: number, end: number, step = 1) =>
   Array.from({ length: Math.round((end - start) / step) + 1 }, (_, index) =>
     String(start + index * step).replace('.', ','),
@@ -201,7 +201,8 @@ export function flipbaseVintedListingFields(
             field('color', colors),
             field('material', materials),
           ]),
-      field('package', packages),
+      // Vinteds Paketgrößen der Kategorie, bei schweren Artikeln etwa 5, 10 und 20 kg.
+      realField('package') ?? field('package', packages),
       // Kategorien ohne Marke bei Vinted (z. B. Bücher, Videospiele) bieten auch hier keine an.
       ...(real && !real.fields.some((entry) => entry.field === 'brand')
         ? []
@@ -299,6 +300,7 @@ export function prepareFlipbaseVintedListingContent(
   return {
     ...content,
     ...(withoutBrand ? { brandId: null, brandLabel: '' } : {}),
+    packageSizeId: catalogPackageSizeId(content, stored),
     sizeId: size?.id ?? null,
     sizeLabel: size?.label ?? content.sizeLabel,
     conditionId: realCondition?.[0]?.id ?? id('condition', content.conditionLabel),
@@ -324,6 +326,37 @@ export function prepareFlipbaseVintedListingContent(
       ? Object.fromEntries(Object.entries(content.attributes).filter(([key]) => key !== marker))
       : { ...content.attributes, [marker]: '1' },
   };
+}
+
+/**
+ * Paketgröße passend zum Katalog: Eine angebotene Größe bleibt, sonst gilt Vinteds Vorschlag für
+ * die Kategorie (im Katalog-Schnappschuss als `selected` markiert) oder keine Angabe. So erhält eine
+ * schwere Kategorie keine Standardgröße 1–3, die Vinted dort nicht anbietet.
+ */
+function catalogPackageSizeId(
+  content: VintedListingContent,
+  stored?: VintedListingCategoryFields | null,
+): number | null {
+  const parcel =
+    stored?.categoryId === content.categoryId
+      ? stored.fields.find((field) => field.field === 'package')
+      : undefined;
+  if (!parcel || parcel.choices.some((choice) => choice.id === content.packageSizeId))
+    return content.packageSizeId;
+  return parcel.choices.find((choice) => choice.selected)?.id ?? null;
+}
+
+/** Vinteds Vorschlag für die Paketgröße einer Kategorie aus dem Katalog, sonst `null`. */
+export function recommendedVintedPackageSizeId(
+  categoryId: number | null,
+  stored?: VintedListingCategoryFields | null,
+): number | null {
+  if (categoryId === null || stored?.categoryId !== categoryId) return null;
+  return (
+    stored.fields
+      .find((field) => field.field === 'package')
+      ?.choices.find((choice) => choice.selected)?.id ?? null
+  );
 }
 
 /** Nur die interne Formularversion aus der fachlichen Prüfung entfernen. */
