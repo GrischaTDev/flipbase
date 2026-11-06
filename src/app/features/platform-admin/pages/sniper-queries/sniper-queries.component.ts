@@ -80,7 +80,7 @@ export class SniperQueriesComponent {
   );
   readonly operationOpen = signal(false);
   readonly view = signal<'cards' | 'compact'>('cards');
-  readonly sort = signal('updated');
+  readonly sort = signal('name');
   readonly selectedIds = signal<ReadonlySet<string>>(new Set());
   private editorReturnId: string | null = null;
   readonly saving = signal(false);
@@ -105,8 +105,8 @@ export class SniperQueriesComponent {
     { value: 'attention' as const, label: 'Aufmerksamkeit' },
   ];
   readonly sortOptions = [
-    { value: 'updated', label: 'Zuletzt geändert' },
     { value: 'name', label: 'Name A–Z' },
+    { value: 'created', label: 'Zuletzt angelegt' },
     { value: 'finds', label: 'Meiste Funde' },
   ];
   readonly filtered = computed(() => {
@@ -130,8 +130,9 @@ export class SniperQueriesComponent {
       rows.sort((a, b) => this.queryTitle(a).localeCompare(this.queryTitle(b), 'de'));
     if (this.sort() === 'finds')
       rows.sort((a, b) => (this.state.counts()[b.id] ?? 0) - (this.state.counts()[a.id] ?? 0));
-    if (this.sort() === 'updated')
-      rows.sort((a, b) => Date.parse(b.updated_at ?? '') - Date.parse(a.updated_at ?? ''));
+    // Nicht nach updated_at sortieren: Jeder Bot-Abruf setzt den Wert neu und die Karten springen.
+    if (this.sort() === 'created')
+      rows.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
     return rows;
   });
   readonly activeCount = computed(

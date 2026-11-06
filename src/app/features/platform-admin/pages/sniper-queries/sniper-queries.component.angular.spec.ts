@@ -368,6 +368,28 @@ describe('SniperQueriesComponent activation', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('keeps the filter order stable when a bot run updates a filter', async () => {
+    state.queries.set([
+      { ...query, id: 'b', title: 'Carhartt', created_at: '2026-11-01T10:00:00Z' },
+      { ...query, id: 'a', title: 'Adidas', created_at: '2026-11-03T10:00:00Z' },
+    ]);
+    const fixture = TestBed.createComponent(SniperQueriesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    expect(component.filtered().map((row) => row.id)).toEqual(['a', 'b']);
+    state.queries.update((rows) =>
+      rows.map((row) =>
+        row.id === 'b'
+          ? { ...row, updated_at: '2026-11-06T12:00:00Z', last_polled_at: '2026-11-06T12:00:00Z' }
+          : row,
+      ),
+    );
+    expect(component.filtered().map((row) => row.id)).toEqual(['a', 'b']);
+    component.sort.set('created');
+    expect(component.filtered().map((row) => row.id)).toEqual(['a', 'b']);
+  });
+
   it('combines search and active state and shows exclusions, prices and bounded coverage', async () => {
     state.queries.set([
       {

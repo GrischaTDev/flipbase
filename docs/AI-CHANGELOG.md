@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Suchfilter-Karten im Vinted Bot bleiben an ihrem Platz
+
+**Anlass:** Die Karten in der Bot-Verwaltung sprangen während des Betriebs nach
+vorne. Außerdem zeigte Carhartt auf der Karte 29 und in der Detailansicht 929
+Funde, und am Vorabend wirkte der Feed nicht aktuell.
+
+**Analyse:** Standardmäßig wurde nach `updated_at` sortiert. Diesen Wert setzen
+die Datenbankfunktionen für erfolgreiche und fehlgeschlagene Abrufe sowie der
+Bot-Dienst bei jedem Abruf neu. Der zuletzt abgefragte Filter stand deshalb
+vorn. Karte und Detailansicht lesen dieselbe Fundzahl aus demselben Abruf. Eine
+Ursache für die abweichende Anzeige war im Code nicht erkennbar. Die Serverlogs
+vom Vorabend konnten nicht gelesen werden, weil der SSH-Zugriff in dieser
+Sitzung gesperrt war.
+
+**Umsetzung:** Standardsortierung nach Name. „Zuletzt geändert“ wird durch
+„Zuletzt angelegt“ (`created_at`) ersetzt. Abrufe ändern die Reihenfolge nicht
+mehr.
+
+**Prüfung:** Neuer Komponentenfall: Die Reihenfolge bleibt gleich, wenn ein
+Abruf `updated_at` neu setzt. Komponententests der Suchfilter-Seite laufen durch.
+Ergebnisse des Vorabchecks im PR.
+
 ## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
 
 **Anlass:** Bei einer Jeans boten Marke und Größe in der Bearbeitung jeweils nur
