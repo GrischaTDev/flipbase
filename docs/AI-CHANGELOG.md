@@ -1,5 +1,78 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - AI Search im Vinted-Feed für Admins
+
+**Auftrag und Trennung:** Den bestehenden serverseitigen OpenAI-Zugang auf
+ausdrücklichen Nutzerauftrag für eine neue Admin-Analyse wiederverwendet. Eigener
+Zweig `juna/vinted-ai-search` vom frisch abgerufenen `origin/master` (`93ad8da4`),
+getrennte Arbeitskopie wegen fremder ungesicherter Erweiterungsarbeit in der
+primären Kopie. Kein Schlüssel ausgelesen, kopiert oder veröffentlicht.
+
+**Funktion:** „AI Search“ auf Feed-Karten öffnet das gemeinsame Modal mit
+Suchanimation, Modellidentifikation, belegten Hersteller-/Shoppreisen und
+getrennten Gebraucht-Angebots- und Verkaufspreisen. Der Server lädt Titel,
+vorhandene Beschreibung, Preis, Marke, Größe, Zustand und bis zu fünf sichere
+Vinted-Bilder aus dem Inserat; der Client darf diese Angaben nicht ersetzen.
+Adminrolle und konkreter Workspacezugang werden serverseitig geprüft.
+Vergleichspreise benötigen tatsächlich in der Websuche enthaltene Quellen,
+passende Variante und EUR; Query-Duplikate zählen nicht mehrfach. Ohne eindeutiges
+Modell und drei Gebrauchtvergleiche keine Gewinnampel. Die lokale Rechnung zieht
+Käuferschutz, Einkaufsversand, Verkaufsgebühren und weitere Kosten ab und weist
+die Spanne vor Steuern aus. Reine Angebotspreise erhalten einen sichtbaren
+Abschlag und niemals Grün.
+
+**Verbrauch:** Luna als günstiger Startkandidat, Sol ausschließlich auf zusätzlichen
+Klick zum Modellvergleich. Maximal drei Webaufrufe, fünf Bilder, 3.200 Ausgabetokens
+und 85 Sekunden; keine automatische Eskalation oder Wiederholung. Reservierung
+vor dem Anbieteraufruf, nutzerweiter Parallelitätsschutz, 20 Anfragen pro Stunde
+und 100 pro Tag. Identische Ergebnisse werden 24 Stunden wiederverwendet.
+Tokens, Webaufrufe, Preisstand, geschätzte USD-Kosten und Ergebnis bleiben
+dauerhaft gespeichert, einschließlich Verbrauch unvollständiger Antworten.
+Abgerissene Anfragen behalten ausdrücklich ungeklärte Kosten. Das Modal zeigt
+den eigenen 30-Tage-Verbrauch und Mittelwerte je Modell. Kundenkontingente sind
+noch nicht freigeschaltet. Verhalten, Heuristiken, Tarife und Grenzen stehen in
+[der Umsetzung](implementation/vinted-ai-search.md).
+
+**Datenbank:** Frische isolierte PostgreSQL-Instanz mit bisherigen Migrationen
+aufgebaut; keine fremde Entwicklungsdatenbank verändert. Migration mit der
+Projekt-CLI erzeugt und die vom Diff ausgelassenen Default-Rechte automatisiert
+aus dem deklarativen Schema ergänzt. Die Gegenprobe auf einer frischen Kopie
+deckte zunächst verbliebene Clientrechte auf Tabelle und Identitätssequenz auf;
+beide ausdrücklich entzogen. Endgültige Migration vollständig transaktional
+angewendet, 22 zurückgerollte SQL-Fälle erfolgreich. Acht echte gleichzeitige
+Dienstrollen-Aufrufe ergeben genau eine Reservierung und sieben Sperren.
+Datenbanktypen für beide bisherigen Schemas neu erzeugt. Edge-Fälle und
+Änderungsauswahl für die neue Funktion im bestehenden CI-Weg registriert.
+
+**Prüfung:** 13 Deno-Fälle einschließlich echter Anfrageform mit synthetischem
+Anbieter, acht neue Modell-/Servicefälle, bestehende Feed-Komponenten und zehn
+bestehende Feed-Browserfälle erfolgreich. Neun neue Browserfälle mit Laden,
+Admin-/Beta-Trennung, Modellvergleich, lokaler Gebührenrechnung, Escape/Rückfokus
+und verspäteten Antworten erfolgreich; 320/390/834/1440 Pixel, Hell/Dunkel,
+Maus/Touch und AXE ohne Verstöße. Zusätzliche Desktop-/Mobilaufnahmen visuell
+geprüft; ausschließlich synthetische Artikel. 113 gezielte Scriptfälle erfolgreich.
+Die unter Windows nicht passenden Bash-/Linux-Verträge unverändert in einer
+vollständigen isolierten Node-22-Linux-Kopie geprüft: 21 Fälle erfolgreich.
+Lokaler Vorabcheck mit Node 22 einschließlich Format, Lint, Typen, Suite-Audit,
+824 Node-, 217 DOM-, 2.590 Angularfällen und Produktionsbau erfolgreich;
+der Vorabcheck nach Dokumentation und CI-Registrierung sowie der abschließende
+Nachweis stehen im lokalen Prüfbericht. Die vorhandenen Bauwarnungen zu Budget
+und `pako` bleiben bestehen.
+
+**Lastgegenprobe:** Ein Folgelauf scheiterte im unveränderten
+`vinted-workspace.component.angular.spec.ts` beim Laden seiner Testressourcen
+am vorhandenen Zehn-Sekunden-Hooklimit; 227 andere Angular-Dateien bestanden.
+Der gezielte unveränderte Fall besteht mit zwei Testprozessen und allen
+51 Tests. Der abschließende Vorabcheck verwendet höchstens vier Vitest-Prozesse;
+Zeitlimits, Erwartungen und Prüfauswahl bleiben unverändert.
+
+**Freigabegrenze:** Der umfassende ausgewählte CI-Nachweis ist vor dem Merge noch
+erforderlich. Die neue Edge Function muss nach dem dokumentierten selbst
+gehosteten Ablauf samt Migration vor dem ersten realen Admin-Klick ausgerollt
+werden. Keine produktive API-Anfrage oder Modellgütemessung durchgeführt;
+reale Durchschnittskosten und Trefferqualität sind erst nach dem Admin-Pilot
+belegt. Noch kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Suchfilter-Karten im Vinted Bot bleiben an ihrem Platz
 
 **Anlass:** Die Karten in der Bot-Verwaltung sprangen während des Betriebs nach

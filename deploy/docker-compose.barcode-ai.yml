@@ -1,4 +1,4 @@
-# Reicht den serverseitigen OpenAI-Schluessel an die Barcode-KI-Funktion durch.
+# Reicht den bestehenden OpenAI-Schluessel an Foto-/EAN- und Vinted-KI-Suche durch.
 # Der Wert bleibt in /opt/supabase/.env, nie in dieser Datei oder im Browser-Bau.
 services:
   functions:

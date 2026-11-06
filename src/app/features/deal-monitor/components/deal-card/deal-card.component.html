@@ -143,6 +143,11 @@
           }
         </div>
       </div>
+      @if (allowAiSearch()) {
+        <app-button variant="secondary" [icon]="icons.aiSearch" (clicked)="aiSearch.emit(item())"
+          >AI Search</app-button
+        >
+      }
       @if (shareMessage(); as message) {
         <p role="status" class="text-xs text-fb-text-secondary">{{ message }}</p>
       }

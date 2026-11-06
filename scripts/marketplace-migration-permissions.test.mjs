@@ -1,4 +1,5 @@
 import { appendKleinanzeigenReviewFixPermissions } from './marketplace-migration-permissions.mjs';
+import { appendVintedAiSearchPermissions } from './marketplace-migration-permissions.mjs';
 import { normalizeGeneratedSqlKeywords } from './marketplace-migration-permissions.mjs';
 import { appendKleinanzeigenJobLifecyclePermissions } from './marketplace-migration-permissions.mjs';
 import { appendKleinanzeigenJobPermissions } from './marketplace-migration-permissions.mjs';
@@ -32,6 +33,33 @@ grant execute on function public.marketplace_can_manage(uuid) to authenticated;
 const migration = 'create table public.marketplace_connections (id uuid);\n';
 const script = fileURLToPath(new URL('./marketplace-migration-permissions.mjs', import.meta.url));
 const filename = '20260926150000_marketplace_accounts.sql';
+
+test('Vinted-KI-Migration uebernimmt alle expliziten Tabellen-, Sequenz- und Funktionsrechte', async () => {
+  const schema = await readFile('supabase/schemas/540_vinted_ai_search.sql', 'utf8');
+  const migration = 'create table public.vinted_ai_searches (id bigint);\n';
+  const completed = appendVintedAiSearchPermissions(migration, schema);
+  assert.match(
+    completed,
+    /revoke all on public\.vinted_ai_searches from public, anon, authenticated;/u,
+  );
+  assert.match(
+    completed,
+    /grant usage, select on sequence public\.vinted_ai_searches_id_seq to service_role;/u,
+  );
+  assert.equal(appendVintedAiSearchPermissions(completed, schema), completed);
+  assert.throws(() =>
+    appendVintedAiSearchPermissions(
+      migration,
+      schema.replace('from public, anon, authenticated;', 'from anon;'),
+    ),
+  );
+  assert.throws(() =>
+    appendVintedAiSearchPermissions(
+      migration,
+      schema + '\ngrant all on public.workspaces to anon;',
+    ),
+  );
+});
 
 for (const table of ['marketplace_connections', 'marketplace_account_entries']) {
   test(`Migration übernimmt den expliziten Rechteentzug für ${table}`, () => {

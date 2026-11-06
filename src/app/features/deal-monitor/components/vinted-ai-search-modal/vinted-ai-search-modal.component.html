@@ -1,0 +1,240 @@
+<app-modal-shell
+  title="AI Search"
+  [subtitle]="item().title"
+  [icon]="sparklesIcon"
+  iconTone="brand"
+  size="xl"
+  [hasFooter]="false"
+  (closed)="closed.emit()"
+>
+  @if (loading()) {
+    <div role="status" class="flex flex-col items-center gap-3 py-10 text-fb-text-secondary">
+      <svg
+        [lucideIcon]="searchIcon"
+        class="size-10 motion-safe:animate-pulse"
+        aria-hidden="true"
+      ></svg>
+      <p>Artikel und Vergleichspreise werden gesucht …</p>
+    </div>
+  }
+  @if (error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+    <app-button [disabled]="loading()" [icon]="searchIcon" (clicked)="search('gpt-6-luna')"
+      >Erneut suchen</app-button
+    >
+  }
+  @if (result(); as data) {
+    <section class="space-y-2" aria-label="Modellidentifikation">
+      <h3 class="text-base font-semibold text-fb-text-primary">
+        {{ data.analysis.modelName || 'Modell unbekannt' }}
+      </h3>
+      <p class="text-sm text-fb-text-secondary">{{ confidenceLabels[data.analysis.confidence] }}</p>
+      <p class="text-sm text-fb-text-secondary">{{ data.analysis.evidence }}</p>
+      <p class="text-xs text-fb-text-muted">
+        {{ data.listing.photoCount }} Bilder · Beschreibung
+        {{ data.listing.hasDescription ? 'vorhanden' : 'nicht vorhanden' }} ·
+        {{ data.searchedAt | date: 'dd.MM.yyyy HH:mm' }}
+      </p>
+    </section>
+    <section class="space-y-3" aria-label="Preisvergleich">
+      <h3 class="font-semibold text-fb-text-primary">Preisvergleich</h3>
+      @for (comparison of data.analysis.comparisons; track comparison.url) {
+        <div class="space-y-1 border-b border-fb-border pb-3 text-sm">
+          <div class="flex flex-wrap justify-between gap-2">
+            <span class="text-fb-text-secondary">{{ labels[comparison.kind] }}</span>
+            <strong class="text-fb-text-primary">{{ comparison.price | currency: 'EUR' }}</strong>
+          </div>
+          <a
+            [href]="comparison.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-fb-text-primary underline underline-offset-4"
+            >{{ comparison.title }}<span class="sr-only"> (neuer Tab)</span></a
+          >
+          <p class="text-fb-text-secondary">{{ comparison.evidence }}</p>
+        </div>
+      } @empty {
+        <p class="text-sm text-fb-text-secondary">
+          Keine passenden, belegten Vergleichspreise gefunden.
+        </p>
+      }
+      <dl class="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-fb-text-secondary">Ø belegte Verkaufspreise</dt>
+          <dd class="font-semibold text-fb-text-primary">
+            {{
+              data.analysis.soldAverage === null
+                ? 'Nicht verfügbar'
+                : (data.analysis.soldAverage | currency: 'EUR')
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-fb-text-secondary">Ø laufende Angebotspreise</dt>
+          <dd class="font-semibold text-fb-text-primary">
+            {{
+              data.analysis.askingAverage === null
+                ? 'Nicht verfügbar'
+                : (data.analysis.askingAverage | currency: 'EUR')
+            }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+    <section class="space-y-3" aria-label="Wiederverkaufsbewertung">
+      <h3 class="font-semibold text-fb-text-primary">Wiederverkauf</h3>
+      <p class="text-sm text-fb-text-secondary">
+        Einkauf inkl. gemeldetem Käuferschutz: {{ data.listing.totalPrice | currency: 'EUR' }}
+      </p>
+      <div class="grid gap-3 sm:grid-cols-3">
+        <app-number-input
+          label="Einkaufsversand"
+          unit="€"
+          [min]="0"
+          [step]="0.01"
+          [(value)]="shipping"
+        />
+        <app-number-input
+          label="Verkaufsgebühr"
+          unit="%"
+          [min]="0"
+          [max]="100"
+          [step]="0.1"
+          [(value)]="feePercent"
+        />
+        <app-number-input
+          label="Weitere Kosten inkl. Verkaufsversand"
+          unit="€"
+          [min]="0"
+          [step]="0.01"
+          [(value)]="otherCosts"
+        />
+      </div>
+      @if (data.analysis.resale; as resale) {
+        <p class="text-sm text-fb-text-secondary">
+          Geschätzter Wiederverkauf: {{ resale.low | currency: 'EUR' }} –
+          {{ resale.high | currency: 'EUR' }} · {{ resale.count }}
+          {{ resale.basis === 'sold' ? 'belegte Verkäufe' : 'Angebote, mit 15–30 % Abschlag' }}
+        </p>
+      }
+      @if (estimate(); as margin) {
+        <p class="text-sm font-semibold text-fb-text-primary">
+          Möglicher Überschuss vor Steuern: {{ margin.low | currency: 'EUR' }} bis
+          {{ margin.high | currency: 'EUR' }}
+        </p>
+        <div
+          role="img"
+          [attr.aria-label]="
+            margin.tone === 'green'
+              ? 'Grün: konservativ mindestens 20 Euro und 30 Prozent Überschuss'
+              : margin.tone === 'yellow'
+                ? 'Gelb: begrenzter Überschuss oder unsichere Angebotsbasis'
+                : 'Rot: kein positiver Überschuss erwartet'
+          "
+          class="relative h-4 rounded-full bg-gradient-to-r from-green-600 via-yellow-400 to-red-600"
+        >
+          <span
+            class="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-slate-950 shadow"
+            [style.left.%]="margin.position"
+          ></span>
+        </div>
+        <p class="text-sm text-fb-text-secondary">
+          {{
+            margin.tone === 'green'
+              ? 'Grün · attraktiver Einkauf'
+              : margin.tone === 'yellow'
+                ? 'Gelb · vorsichtig kalkulieren'
+                : 'Rot · kein erwarteter Überschuss'
+          }}
+        </p>
+      } @else {
+        <p class="text-sm text-fb-text-secondary">
+          {{
+            data.analysis.resale
+              ? 'Bitte gültige Kosten und Gebühren eingeben.'
+              : 'Keine belastbare Gewinnspanne: Modell unklar oder weniger als drei vergleichbare Gebrauchtpreise.'
+          }}
+        </p>
+      }
+    </section>
+    <section class="space-y-2 text-sm text-fb-text-secondary" aria-label="API-Verbrauch">
+      <h3 class="font-semibold text-fb-text-primary">Verbrauch und geschätzte Kosten</h3>
+      <p>
+        {{ data.model }} ·
+        {{ data.cacheHit ? 'Gespeichertes Ergebnis, keine neue API-Anfrage' : 'Neue API-Anfrage' }}
+      </p>
+      <p>
+        Ursprüngliche Analyse: {{ data.usage.inputTokens ?? 'unbekannt' }} Eingabe- /
+        {{ data.usage.outputTokens ?? 'unbekannt' }} Ausgabetokens ·
+        {{ data.usage.webSearchCalls }} Webaufrufe ·
+        {{
+          data.usage.estimatedCostUsd === null
+            ? 'Kosten unbekannt'
+            : (data.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
+        }}
+      </p>
+      @if (data.model === 'gpt-6-luna') {
+        <app-button
+          variant="secondary"
+          [disabled]="loading()"
+          [icon]="sparklesIcon"
+          (clicked)="search('gpt-6.1-sol')"
+          >Mit GPT-6.1 Sol vergleichen (zusätzliche API-Kosten)</app-button
+        >
+      }
+      @if (data.model === 'gpt-6.1-sol') {
+        @if (baseline(); as initial) {
+          <p>
+            Vergleich GPT-6 Luna: {{ initial.analysis.modelName || 'Modell unbekannt' }} ·
+            {{ confidenceLabels[initial.analysis.confidence] }} ·
+            {{
+              initial.usage.estimatedCostUsd === null
+                ? 'Kosten unbekannt'
+                : (initial.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
+            }}
+          </p>
+          @if (initial.analysis.resale; as resale) {
+            <p>
+              Wiederverkauf laut Luna: {{ resale.low | currency: 'EUR' }} –
+              {{ resale.high | currency: 'EUR' }}
+            </p>
+          }
+        }
+      }
+    </section>
+  }
+  @if (stats().length) {
+    <section
+      aria-label="Gespeicherter Verbrauch der letzten 30 Tage"
+      class="space-y-2 text-sm text-fb-text-secondary"
+    >
+      <h3 class="font-semibold text-fb-text-primary">
+        Dein Verbrauch im Arbeitsbereich · letzte 30 Tage
+      </h3>
+      @for (stat of stats(); track stat.model) {
+        <p>
+          {{ stat.model }}: {{ stat.requests }} Anfragen · {{ stat.total_tokens | number }} Tokens ·
+          {{ stat.web_search_calls ?? 0 }} Webaufrufe ·
+          {{
+            stat.estimated_cost_usd === null
+              ? 'Kosten unbekannt'
+              : (stat.estimated_cost_usd | currency: 'USD' : 'symbol' : '1.4-6')
+          }}
+          · Ø
+          {{
+            stat.average_cost_usd === null
+              ? 'unbekannt'
+              : (stat.average_cost_usd | currency: 'USD' : 'symbol' : '1.4-6')
+          }}
+          je Anfrage mit bekanntem Verbrauch
+        </p>
+        @if (stat.unknown_cost_requests) {
+          <p>{{ stat.unknown_cost_requests }} Anfragen mit ungeklärten Kosten</p>
+        }
+      }
+    </section>
+  }
+  @if (statsError(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
+</app-modal-shell>

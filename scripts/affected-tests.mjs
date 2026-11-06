@@ -386,7 +386,7 @@ export function selectAffectedTests(paths, files) {
       marketplace:
         paths === null ||
         changed.some((file) =>
-          /^(?:package(?:-lock)?\.json|services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/functions\/(?:marketplace-|ebay-|_shared\/))/u.test(
+          /^(?:package(?:-lock)?\.json|services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/functions\/(?:marketplace-|ebay-|vinted-ai-search\/|_shared\/))/u.test(
             file,
           ),
         ),

@@ -38,10 +38,172 @@ const makeItem = (i: number) => ({
 });
 
 type FavoriteFixtureStore = Map<string, Record<string, unknown> | null>;
+
+const aiSearchResult = {
+  analysis: {
+    modelName: 'Nike Air Test 42',
+    confidence: 'exact',
+    evidence: 'Modellnummer auf Etikett und Herstellerseite stimmen überein.',
+    comparisons: [
+      {
+        title: 'Hersteller Nike Air Test',
+        url: 'https://www.nike.com/de/t/test',
+        kind: 'manufacturer',
+        price: 120,
+        evidence: 'Aktueller Neupreis des identifizierten Modells.',
+      },
+      ...[65, 70, 85].map((price, index) => ({
+        title: `Vergleichsverkauf ${index + 1}`,
+        url: `https://www.ebay.de/itm/540${index}`,
+        kind: 'sold',
+        price,
+        evidence: 'Gleiche Variante, vergleichbarer Zustand, belegter Verkaufspreis.',
+      })),
+    ],
+    soldAverage: 73.33,
+    askingAverage: null,
+    resale: { low: 65, high: 85, basis: 'sold', count: 3 },
+  },
+  model: 'gpt-6-luna',
+  cacheHit: false,
+  searchedAt: '2026-11-06T12:00:00Z',
+  listing: {
+    title: 'Nike Sneaker 1',
+    itemPrice: 19,
+    totalPrice: 21,
+    currency: 'EUR',
+    photoCount: 4,
+    hasDescription: true,
+  },
+  usage: {
+    inputTokens: 1000,
+    cachedInputTokens: 0,
+    outputTokens: 500,
+    webSearchCalls: 2,
+    estimatedCostUsd: 0.02035,
+  },
+  stats: [
+    {
+      model: 'gpt-6-luna',
+      requests: 2,
+      unknown_cost_requests: 0,
+      total_tokens: 3000,
+      web_search_calls: 4,
+      estimated_cost_usd: 0.0407,
+      average_cost_usd: 0.02035,
+    },
+  ],
+};
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const width of [320, 390, 834, 1440]) {
+    test.describe(`AI Search ${theme} ${width}px`, () => {
+      test.use({ hasTouch: width < 1000, isMobile: width < 1000 });
+      test('analysiert nur auf Admin-Klick, rechnet Kosten lokal und zeigt Modellvergleich', async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        await fixture(page, new Map(), undefined, true);
+        let release: () => void = () => undefined;
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const requests: Record<string, unknown>[] = [];
+        await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+          const body = route.request().postDataJSON() as Record<string, unknown>;
+          requests.push(body);
+          await gate;
+          await route.fulfill({ json: { ...aiSearchResult, model: body['model'] } });
+        });
+        await page.goto('/vinted-bot');
+        const launch = page.getByRole('button', { name: 'AI Search', exact: true }).first();
+        await expect(launch).toBeVisible();
+        expect(requests).toHaveLength(0);
+        await launch.click();
+        const dialog = page.getByRole('dialog', { name: 'AI Search', exact: true });
+        await expect(
+          dialog.getByText('Artikel und Vergleichspreise werden gesucht …'),
+        ).toBeVisible();
+        release();
+        await expect(
+          dialog.getByRole('heading', { name: 'Nike Air Test 42', exact: true }),
+        ).toBeVisible();
+        await expect(dialog.getByText('Grün · attraktiver Einkauf', { exact: true })).toBeVisible();
+        await expect(
+          dialog.getByRole('link', { name: /Hersteller Nike Air Test/ }),
+        ).toHaveAttribute('href', 'https://www.nike.com/de/t/test');
+        await dialog.getByRole('spinbutton', { name: 'Einkaufsversand', exact: true }).fill('100');
+        await expect(
+          dialog.getByText('Rot · kein erwarteter Überschuss', { exact: true }),
+        ).toBeVisible();
+        expect(requests).toHaveLength(1);
+        await dialog.getByRole('spinbutton', { name: 'Einkaufsversand', exact: true }).fill('0');
+        await dialog.getByRole('button', { name: /Mit GPT-6.1 Sol vergleichen/ }).click();
+        await expect(dialog.getByText(/Vergleich GPT-6 Luna:/)).toBeVisible();
+        expect(requests.map((body) => body['model'])).toEqual(['gpt-6-luna', 'gpt-6.1-sol']);
+        await page.evaluate(axe.source);
+        const accessibility = await page.evaluate(async () => {
+          const browser = window as typeof window & { axe: typeof axe };
+          return browser.axe.run(document.querySelector('app-vinted-ai-search-modal')!, {
+            runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] },
+          });
+        });
+        expect(accessibility.violations).toEqual([]);
+        if ((width === 1440 && theme === 'light') || (width === 390 && theme === 'dark')) {
+          await dialog
+            .getByRole('heading', { name: 'Nike Air Test 42', exact: true })
+            .scrollIntoViewIfNeeded();
+          await page.screenshot({ path: testInfo.outputPath('ai-search-top.png') });
+          await dialog
+            .getByRole('heading', { name: 'Wiederverkauf', exact: true })
+            .scrollIntoViewIfNeeded();
+          await page.screenshot({ path: testInfo.outputPath('ai-search-resale.png') });
+        }
+        expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+          true,
+        );
+        await page.keyboard.press('Escape');
+        await expect(dialog).not.toBeVisible();
+        await expect(launch).toBeFocused();
+      });
+    });
+  }
+}
+
+test('verbirgt AI Search für Beta-Nutzer und verwirft verspätete Ergebnisse nach Schließen', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto('/vinted-bot');
+  await expect(page.getByRole('article')).toHaveCount(8);
+  await expect(page.getByRole('button', { name: 'AI Search', exact: true })).toHaveCount(0);
+  await fixture(page, new Map(), undefined, true);
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+    await gate;
+    await route.fulfill({ json: aiSearchResult });
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'AI Search', exact: true }).first().click();
+  await expect(page.getByText('Artikel und Vergleichspreise werden gesucht …')).toBeVisible();
+  await page.keyboard.press('Escape');
+  release();
+  await expect(page.getByRole('dialog', { name: 'AI Search', exact: true })).not.toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Nike Air Test 42', exact: true }),
+  ).not.toBeVisible();
+});
+
 async function fixture(
   page: Page,
   favoriteStore: FavoriteFixtureStore = new Map(),
   userId = '92000000-0000-4000-8000-000000000001',
+  operator = false,
 ) {
   // Lokale Bildantworten statt fremder Produktfotos: prüft Raster und Fehlerzustände.
   await page.route('https://images1.vinted.net/feed-fixture/**', async (route) => {
@@ -106,7 +268,7 @@ async function fixture(
     let json: unknown = [];
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Monitor Test' };
-    if (name === 'is_platform_operator') json = false;
+    if (name === 'is_platform_operator') json = operator;
     if (name === 'list_my_workspace_access')
       json = [workspace, secondWorkspace].map((workspaceId) => ({
         workspace_id: workspaceId,
