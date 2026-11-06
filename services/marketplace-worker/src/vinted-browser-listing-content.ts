@@ -66,6 +66,34 @@ export interface VintedListingItemReference {
   categoryId: number;
   brandId: number | null;
   brandLabel: string;
+  /** Zusatzmerkmale der Kategorie wie `skirt_length` mit ihren Vinted-Kennungen. */
+  extraIds?: Readonly<Record<string, readonly number[]>>;
+}
+
+/** Merkmale, die das Formular eigens führt; alle übrigen Auswahlmerkmale gelten als Zusatz. */
+const standardItemAttributes = new Set(['size', 'condition', 'material', 'accessory_department']);
+
+function itemExtraIds(input: unknown): Record<string, number[]> {
+  const extras: Record<string, number[]> = {};
+  if (!Array.isArray(input)) return extras;
+  for (const entry of input.slice(0, 40)) {
+    if (!entry || typeof entry !== 'object') continue;
+    const code: unknown = 'code' in entry ? entry.code : null;
+    const ids: unknown = 'ids' in entry ? entry.ids : null;
+    if (
+      typeof code !== 'string' ||
+      !/^[a-z][a-z0-9_]{0,39}$/.test(code) ||
+      code.endsWith('_label') ||
+      standardItemAttributes.has(code) ||
+      !Array.isArray(ids) ||
+      ids.length < 1 ||
+      ids.length > 10 ||
+      !ids.every((id) => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)
+    )
+      continue;
+    extras[code] = [...new Set(ids as number[])];
+  }
+  return extras;
 }
 
 /**
@@ -109,6 +137,7 @@ export async function readVintedListingItemReference(
         categoryId: item.catalog_id,
         brandId: 'brand_id' in item ? item.brand_id : null,
         brandLabel: brand && 'title' in brand ? brand.title : null,
+        attributes: 'item_attributes' in item ? item.item_attributes : null,
       };
     }, externalId);
   } catch {
@@ -137,6 +166,7 @@ export async function readVintedListingItemReference(
     categoryId,
     brandId: hasBrand ? brandId : null,
     brandLabel: hasBrand ? brandLabel.trim() : '',
+    extraIds: itemExtraIds('attributes' in value ? value.attributes : null),
   };
 }
 
@@ -233,12 +263,18 @@ export async function readOpenVintedListingContent(
       materialIds: materials.map((choice) => choice.id as number),
       materialLabels: materials.map((choice) => choice.label),
       packageSizeId: selected('package')[0]?.id ?? null,
-      attributes: department?.id
-        ? {
-            accessory_department: String(department.id),
-            accessory_department_label: department.label,
-          }
-        : {},
+      attributes: {
+        ...(department?.id
+          ? {
+              accessory_department: String(department.id),
+              accessory_department_label: department.label,
+            }
+          : {}),
+        // Zusatzmerkmale wie die Rocklänge stehen nur in Vinteds Inseratabfrage.
+        ...Object.fromEntries(
+          Object.entries(item.extraIds ?? {}).map(([code, ids]) => [code, ids.join(',')]),
+        ),
+      },
     },
     aiPhoto: before.ai_photo,
     bump: before.bump,

@@ -59,10 +59,12 @@ create table public.vinted_listing_category_fields (
   selection_type text check (selection_type is null or selection_type in ('single', 'multi')),
   selection_limit integer check (selection_limit is null or selection_limit between 1 and 100),
   display_type text check (display_type is null or char_length(display_type) between 1 and 40),
+  title text check (title is null or char_length(btrim(title)) between 1 and 200),
   option_ids integer[] check (option_ids is null or cardinality(option_ids) <= 1000),
   primary key (category_id, field_code)
 );
 comment on table public.vinted_listing_category_fields is 'Felder einer Kategorie in Vinteds Reihenfolge mit Pflicht, Auswahlart und Höchstanzahl.';
+comment on column public.vinted_listing_category_fields.title is 'Feldtitel wie bei Vinted, etwa "Rocklänge" oder "Material (empfohlen)"; leer bei Feldern ohne eigene Konfiguration.';
 comment on column public.vinted_listing_category_fields.option_ids is 'Erlaubte Werte aus vinted_listing_options in Vinteds Reihenfolge; leer heißt alle Werte des Merkmals (z. B. Farben). Größen stehen in vinted_listing_category_size_groups.';
 
 create table public.vinted_listing_category_size_groups (
@@ -244,10 +246,11 @@ begin
       into v_option_ids from jsonb_array_elements(v_field->'options') with ordinality o;
     end if;
     insert into public.vinted_listing_category_fields(category_id, field_code, position, required,
-      selection_type, selection_limit, display_type, option_ids)
+      selection_type, selection_limit, display_type, option_ids, title)
     values(p_category_id, v_field->>'code', (v_field->>'position')::integer,
       (v_field->>'required')::boolean, v_field->>'selectionType', (v_field->>'limit')::integer,
-      nullif(left(v_field->>'display', 40), ''), v_option_ids);
+      nullif(left(v_field->>'display', 40), ''), v_option_ids,
+      nullif(left(btrim(coalesce(v_field->>'title', '')), 200), ''));
   end loop;
   update public.vinted_listing_categories set fields_observed_at = p_observed_at where id = p_category_id;
   return true;

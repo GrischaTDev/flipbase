@@ -44,7 +44,7 @@ test('rejects foreign bindings, extra data and content that differs from the sel
     (value) => ({ ...value, content: { ...value.content, colorIds: [2, 1] } }),
     (value) => ({ ...value, content: { ...value.content, colorIds: [1], colorLabels: ['Blau'] } }),
     (value) => ({ ...value, content: { ...value.content, packageSizeId: 3 } }),
-    (value) => ({ ...value, content: { ...value.content, attributes: { isbn: '1' } } }),
+    (value) => ({ ...value, content: { ...value.content, attributes: { isbn: 'x' } } }),
     (value) => ({ ...value, aiPhoto: 'true' }),
     (value) => ({ ...value, photoUrls: [] }),
     (value) => ({ ...value, photoUrls: [value.photoUrls[0], value.photoUrls[0]] }),
