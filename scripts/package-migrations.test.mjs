@@ -32,6 +32,12 @@ for (const [label, files] of [
   ['leeres Verzeichnis', {}],
   ['ungültiger Name', { 'bad.sql': 'select 1;' }],
   ['leere Datei', { '20260905000001_empty.sql': ' \n' }],
+  ['lokale Testadresse', { '20260905000001_rows.sql': "select 'test@flipbase.local';" }],
+  ['lokales Testpasswort', { '20260905000001_rows.sql': "select 'flipbase-test';" }],
+  [
+    'lokale Testkennung',
+    { '20260905000001_rows.sql': "select '5eed0000-0000-4000-8000-000000000001';" },
+  ],
   [
     'Unterordner',
     { '20260905000001_a.sql': 'select 1;', 'nested/20260905000002_b.sql': 'select 2;' },
@@ -56,3 +62,17 @@ for (const [label, files] of [
     assert.notEqual(result.status, 0);
   });
 }
+
+test('erlaubt öffentliche Katalogdaten unabhängig vom Dateinamen', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'migration-catalog-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, 'source');
+  await mkdir(source);
+  const name = '20260905000001_catalog_seed.sql';
+  const sql = "insert into public.catalogs (name) values ('Sneaker');\n";
+  await writeFile(join(source, name), sql);
+  const output = join(root, 'output');
+  const result = spawnSync(process.execPath, [script, source, output], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(await readFile(join(output, name), 'utf8'), sql);
+});

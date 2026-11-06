@@ -34,6 +34,16 @@ Vierermodell-Auswahl, separatem Suchstart, Modellvergleich, Hell/Dunkel und
 Wiederholung und unbekanntem Router geprüft. Der abschließende Vorabcheck,
 GitHub-Prüfungen, Merge und die Serverabnahme werden im Prüfbericht festgehalten.
 
+**CI-Korrekturen:** Der Freigabelauf deckte zwei Fehler im übernommenen Hauptstand
+auf: Öffentliche Katalogdaten wurden allein wegen „seed“ im Migrationsnamen
+abgewiesen. Der Paketierer prüft jetzt den Inhalt auf lokale Testkonten und
+verhindert deren Veröffentlichung auch nach einer Umbenennung. Die PWA meldete
+bei einer bereits laufenden Installation nach acht Sekunden einen falschen
+Netzwerkfehler. Ein installierender oder fertig wartender Worker bestätigt nun
+die erfolgreiche Prüfung; ein ausbleibender Netzwerkaufruf bleibt ein Fehler.
+Der unveränderte Produktionsbrowserfall wird mit Node 22 und der CI-Version von
+Playwright unter Linux bei begrenzten Ressourcen zusätzlich geprüft.
+
 ## 2026-11-06 - Juna - AI Search im Vinted-Feed für Admins
 
 **Auftrag und Trennung:** Den bestehenden serverseitigen OpenAI-Zugang auf

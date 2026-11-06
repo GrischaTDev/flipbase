@@ -89,7 +89,7 @@ entfernt seine Analysezeilen.
 Eine Dienstrollen-RPC prüft die Adminrolle und den konkreten Workspacezugang
 erneut und serialisiert Reservierungen je Nutzer. Maximal eine laufende
 Analyse, 20 neue Anfragen pro rollender Stunde und 100 pro rollendem Tag gelten
-über alle Arbeitsbereiche und beide Modelle hinweg. Identische erfolgreiche
+über alle Arbeitsbereiche und alle freigegebenen Modelle hinweg. Identische erfolgreiche
 Ergebnisse werden nutzer-, arbeitsbereichs- und modellgebunden 24 Stunden
 wiederverwendet, auch wenn das Anfragekontingent bereits ausgeschöpft ist.
 Inhalt, Bilder, Preisänderungen und Promptversion bestimmen den Cachehash.
