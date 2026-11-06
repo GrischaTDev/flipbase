@@ -73,6 +73,63 @@ werden. Keine produktive API-Anfrage oder Modellgütemessung durchgeführt;
 reale Durchschnittskosten und Trefferqualität sind erst nach dem Admin-Pilot
 belegt. Noch kein Push, PR oder Merge.
 
+## 2026-11-06 - Juna - Admin-Bereich mit Übersicht, Nutzerfiltern, Systemzustand und Not-Aus
+
+**Anlass:** Die Administration war nur über einen Punkt ganz unten in der
+Seitenleiste erreichbar. Gewünscht ist ein schneller Einstieg oben rechts und
+ein eigenes Verwaltungs-Dashboard: Nutzerzahlen, Aktivität und Status, der
+Zustand der Server-Dienste und zentrale Schalter, um Kernbereiche bei Problemen
+für alle abzuschalten.
+
+**Umsetzung:** Betreiber sehen neben der Aktionsübersicht einen Schild-Knopf
+zu `/admin`. Im Admin-Bereich ersetzt die Seitenleiste das Hauptmenü, wie bei
+den Marktplätzen; der Punkt „Administration“ unten bleibt als einfacher Link.
+Die neue Startseite „Übersicht“ zeigt Nutzer, Aktive (7 Tage), Inaktive (30 Tage),
+aktive Zugänge, offene Bewerbungen und „Zuletzt aktiv“. „Aktive Zugänge“ zählt
+aktive Lizenzen, weil es noch keine Abos gibt. Als offene Einladung gilt eine
+angenommene Bewerbung ohne Registrierung; direkt angelegte Konten zählen als
+Nutzer. Die Nutzerliste hat Filter und ein Admin-Kennzeichen
+(`list_platform_user_usage.is_platform_operator`).
+
+„Systemzustand“ zeigt die Lebenszeichen von Vinted-Worker, Feed-Bot,
+Server-Speicher, Aufträgen der letzten Stunde und Proxy-IPs. Quelle ist
+`platform_system_health()`. Darunter stehen die Schalter für Vinted, eBay,
+Kleinanzeigen und Vinted-Feed (`platform_feature_switches`, geändert nur über
+`set_platform_feature_switch`), jeweils mit optionalem Wartungstext und
+Rückfrage vor dem Abschalten. Ist ein Bereich aus, führt eine Routensperre
+Nutzer auf `/maintenance/:feature`. Der Vinted-Worker beansprucht dann keine
+neuen Aufträge, sein Lebenszeichen läuft weiter. Der Feed-Bot fragt Vinted nicht
+mehr an, meldet aber weiter seinen Status. Kann der Schalter nicht gelesen
+werden, gilt der Bereich als offen. Aufträge der Browser-Erweiterung (lokales
+Vinted und Kleinanzeigen) werden nur über die gesperrte Oberfläche angehalten,
+nicht serverseitig.
+
+**Prüfung:** Neue Modell-, Komponenten-, Guard- und Worker-Tests sowie
+angepasste Tests für Seitenleiste, Header und Nutzer. Beide Migrationen und ihre
+pgTAP-Tests liefen lokal in zurückgerollten Transaktionen. Sniper-Suite und
+-Typprüfung, Worker-Suite und -Typprüfung, App-Typprüfung, ESLint,
+Shared-UI-Prüfung und Bau. Im Browser mit einem lokalen Test-Betreiberkonto:
+Desktop und Handy, hell und dunkel. Abschalten und Wiedereinschalten von Vinted
+samt Wartungsseite wurden mit kurzzeitig eingespielten und danach wieder
+entfernten Migrationen geprüft.
+
+## 2026-11-06 - Juna - Vinted-Katalog vollständig mitliefern
+
+**Anlass:** Der lokale Katalog hätte sich erst über rund 41 Kontoabgleiche gefüllt; bis
+dahin galt für fehlende Kategorien der alte Weg.
+
+**Umsetzung:** Im angemeldeten, leeren Verkaufsformular den gesamten Verkaufsbaum, die
+Felder aller 2.462 Endkategorien und die Farben gelesen (400 ms Pause, nichts gespeichert
+oder veröffentlicht). Daraus eine Seed-Migration erzeugt: 2.874 Kategorien, 36
+Größengruppen mit 709 Größen, 301 Merkmalswerte, Felder über 65 gemeinsame Muster.
+Vorhandene Zeilen bleiben unverändert; Felder werden nur für Kategorien ohne gespeicherte
+Felder ergänzt. Der Katalogtest leert seine Tabellen nun zu Beginn seiner Transaktion.
+
+**Prüfung:** Migration in eigener lokaler Datenbank angewendet: alle Endkategorien mit
+Feldern, Damenjeans mit sechs, Herrenjeans mit zwei Größengruppen. Erneutes Anwenden in
+einer Transaktion ließ geänderte und vorhandene Werte unverändert. 65 SQL-Prüfungen
+einschließlich neuem Seed-Test bestanden. Vorabcheck im Commit.
+
 ## 2026-11-06 - Juna - Suchfilter-Karten im Vinted Bot bleiben an ihrem Platz
 
 **Anlass:** Die Karten in der Bot-Verwaltung sprangen während des Betriebs nach
@@ -118,6 +175,52 @@ geteilte Zeile mit drei Verkäufen.
 
 **Prüfung:** Neue Fälle für Seitenlogik, Übersicht und Einrichtung; Ergebnisse
 von Vorabcheck und Browserprüfung im PR.
+
+## 2026-11-06 - Juna - Lokaler Vinted-Katalog mit allen Größengruppen
+
+**Anlass:** Größen- und Merkmalsauswahl sollen nicht mehr über eigene Listen und
+Bezeichnungen geraten werden, sondern aus einem lokalen Katalog mit Vinteds
+Original-IDs kommen.
+
+**Nachweis:** Im angemeldeten, leeren Verkaufsformular von vinted.de den
+Verkaufsbaum (2.874 Kategorien) sowie die Felder von zehn Beispielkategorien und
+die Farben gelesen. Größengruppen und Größen kommen vollständig mit IDs, Pflicht
+und Höchstanzahl. Nichts gespeichert oder veröffentlicht. Ergebnis, Quellen und
+Plan in [Lokaler Vinted-Katalog](implementation/vinted-local-catalog.md),
+Testdaten als Fixture.
+
+**Datenbank:** Sechs zentrale Tabellen für Verkaufsbaum, Größengruppen, Größen,
+Merkmalswerte und Felder je Kategorie, Lesen für Angemeldete, Schreiben nur über drei
+Funktionen für den Worker. Ältere Lesestände überschreiben keine neueren; entfernte
+Kategorien verlieren ihre Felder. Typen erzeugt (nur neue Objekte).
+
+**Abgleich:** Der Worker liest beim Kontoabgleich in derselben Sitzung den fälligen
+Teil des Katalogs nach: Baum und Farben wöchentlich, dazu bis zu 60 Endkategorien je
+Abgleich mit 400 ms Pause und 60 Sekunden Höchstdauer. Neue Browseraktion
+`readListingCatalog` mit Prüfung an der Prozessgrenze; Fehler beeinflussen den
+Kontoabgleich nicht. Ein Knopf im Plattform-Admin und die Paketgrößen sind offen.
+
+**Masken:** Erstellen, Bearbeiten, Vorschau und Relisten lesen Größe, Zustand, Farbe,
+Material und Zielgruppe zuerst aus dem zentralen Katalog, mit allen Größengruppen einer
+Kategorie. Das gemeinsame Feldformat nimmt dafür mehrere Gruppen bei gespeicherten Werten
+an; das Lesen aus dem Vinted-Formular bleibt bei einer Gruppe. Bei Vinted gelesene
+Inserate werden über ihre Kennungen vorausgewählt, Entwürfe der eigenen Liste weiter
+über Bezeichnungen. Bis der Katalog vollständig ist, gilt für fehlende Kategorien der
+bisherige Weg. Das Absenden von Größen aus anderen Gruppen folgt in Schritt 5.
+
+**Absenden:** Am echten Formular beobachtet: Herrenjeans zeigen zwei Größengruppen
+zugleich, Damenjeans sechs Gruppen zum Umschalten. Beides scheiterte bisher beim Lesen
+bzw. Auswählen. Der Worker nimmt mehrere Gruppen an, schaltet mit der gewünschten
+Größen-ID die passende Gruppe sichtbar und wählt über die Gruppe der Größe. Beim
+Bearbeiten werden fehlende Marke oder Größe gezielt neu gelesen.
+
+**Prüfung:** Migration in eigener lokaler Datenbank angewendet, 40 SQL-Prüfungen
+bestanden, Schemaabgleich ohne Abweichung bei den neuen Objekten. Elf neue Workerfälle für Parser,
+Auswahl fälliger Kategorien, Speichern, Prozessgrenze und Runner; 75 betroffene
+Workerfälle bestanden. Neun neue Oberflächenfälle für Katalogfelder, Store und
+Vorauswahl über Kennungen; fünf davon scheitern mit dem alten Code. Neuer Workerfall mit umschaltbaren
+Größengruppen, scheitert mit dem alten Code; 840 Unit- und 177 Browserfälle des Workers
+bestanden. Vorabcheck im Commit.
 
 ## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
 

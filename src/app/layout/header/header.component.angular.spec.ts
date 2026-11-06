@@ -602,4 +602,24 @@ describe('HeaderComponent', () => {
     expect(languageButtons?.[0]?.textContent?.trim()).toBe('DE');
     expect(languageButtons?.[1]?.textContent?.trim()).toBe('EN');
   });
+
+  it('zeigt Betreibern neben der Aktionsübersicht einen Knopf zur Administration', async () => {
+    const plain = await renderHeader();
+    expect((plain.nativeElement as HTMLElement).querySelector('[data-admin-area-link]')).toBeNull();
+    TestBed.resetTestingModule();
+
+    TestBed.overrideProvider(PlatformOperatorService, {
+      useValue: { operator: signal(true), isOperator: vi.fn(async () => true) },
+    });
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const adminButton = element.querySelector('[data-admin-area-link]');
+    const link = adminButton?.querySelector('a');
+
+    expect(link?.getAttribute('href')).toBe('/admin');
+    expect(link?.getAttribute('aria-label')).toBe('Administration öffnen');
+    expect(element.querySelector('app-vinted-action-overview-menu')?.nextElementSibling).toBe(
+      adminButton,
+    );
+  });
 });

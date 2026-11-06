@@ -38,6 +38,9 @@
     if (!Number.isSafeInteger(number) || number <= 0) invalid();
     return number;
   }
+  // Größen können aus mehreren Gruppen stammen: Am 06.11.2026 zeigte die echte Maske bei
+  // Herrenjeans zwei Gruppen zugleich, bei Damenjeans sechs Gruppen zum Umschalten. Jede
+  // Größe trägt ihre Gruppe; die Feldgruppe ist die erste gelesene.
   function parseChoices(field, input) {
     if (
       !Object.hasOwn(patterns, field) ||
@@ -84,7 +87,7 @@
     }
     const result = [...choices.values()];
     const max = field === 'color' ? 2 : field === 'material' ? 3 : 1;
-    if (groups.size > 1 || result.filter((choice) => choice.selected).length > max) invalid();
+    if (result.filter((choice) => choice.selected).length > max) invalid();
     return { field, sizeGroupId: [...groups][0] ?? null, choices: result };
   }
 
@@ -171,7 +174,9 @@
             ? field.field !== 'brand' || choice.label !== 'Keine Marke'
             : !Number.isSafeInteger(choice.id) || choice.id <= 0) ||
           ids.has(choice.id) ||
-          choice.sizeGroupId !== field.sizeGroupId ||
+          (field.field === 'size'
+            ? !Number.isSafeInteger(choice.sizeGroupId) || choice.sizeGroupId <= 0
+            : choice.sizeGroupId !== null) ||
           !safeText(choice.label, 2000) ||
           typeof choice.selected !== 'boolean' ||
           typeof choice.disabled !== 'boolean'
@@ -180,7 +185,7 @@
         ids.add(choice.id);
         const id =
           field.field === 'size'
-            ? `size-group-${field.sizeGroupId}-grid-option-${choice.id}`
+            ? `size-group-${choice.sizeGroupId}-grid-option-${choice.id}`
             : field.field === 'package'
               ? 'package_type_selector_' + choice.id
               : choice.id === null
@@ -188,7 +193,12 @@
                 : field.field + '-' + choice.id;
         return { id, label: choice.label, selected: choice.selected, disabled: choice.disabled };
       });
-      fields.push(parseChoices(field.field, choices));
+      const parsed = parseChoices(field.field, choices);
+      if (field.field === 'size') {
+        // Die Feldgruppe muss eine der gelieferten Gruppen sein.
+        if (!field.choices.some((choice) => choice.sizeGroupId === field.sizeGroupId)) invalid();
+        fields.push({ ...parsed, sizeGroupId: field.sizeGroupId });
+      } else fields.push(parsed);
     }
     return {
       categoryId: expectedCategoryId,

@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { platformFeatureGuard } from '../../core/guards/platform-feature.guard';
 import { marketplaceAccessGuard } from './guards/marketplace-access.guard';
 import { vintedListingEditorGuard } from './guards/vinted-listing-editor.guard';
 import { ebayUnsavedChangesGuard } from './guards/ebay-unsaved-changes.guard';
@@ -14,6 +15,8 @@ export const MARKETPLACES_ROUTES: Routes = [
   },
   {
     path: 'ebay',
+    canActivate: [platformFeatureGuard('ebay')],
+    canActivateChild: [platformFeatureGuard('ebay')],
     loadComponent: () =>
       import('./ebay-workspace.component').then((module) => module.EbayWorkspaceComponent),
     children: [
@@ -55,6 +58,8 @@ export const MARKETPLACES_ROUTES: Routes = [
   },
   {
     path: 'kleinanzeigen',
+    canActivate: [platformFeatureGuard('kleinanzeigen')],
+    canActivateChild: [platformFeatureGuard('kleinanzeigen')],
     children: [
       { path: '', redirectTo: 'listings', pathMatch: 'full' },
       { path: 'inbox', redirectTo: 'listings', pathMatch: 'full' },
@@ -71,7 +76,8 @@ export const MARKETPLACES_ROUTES: Routes = [
   },
   {
     path: 'vinted',
-    canActivate: [marketplaceAccessGuard],
+    canActivate: [platformFeatureGuard('vinted'), marketplaceAccessGuard],
+    canActivateChild: [platformFeatureGuard('vinted')],
     loadComponent: () =>
       import('./vinted-workspace.component').then((m) => m.VintedWorkspaceComponent),
     children: [

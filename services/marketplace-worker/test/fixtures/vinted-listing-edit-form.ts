@@ -47,6 +47,11 @@ const choices = {
 } as const;
 /** Marken, die Vinted erst über die Suche anzeigt. */
 const searchableBrands = [[4242, 'Levi’s']] as const;
+/** Zweite Größengruppe; wie bei Damenjeans erst nach Umschalten sichtbar. */
+const euSizes = [
+  [1944, 'EU 38'],
+  [1945, 'EU 40'],
+] as const;
 
 /** Synthetische Bearbeitungsmaske mit eigenem Speicherstand; keine Anfrage verlässt den Test. */
 export async function createVintedListingEditFormFixture(
@@ -72,6 +77,8 @@ export async function createVintedListingEditFormFixture(
     modernControls?: boolean;
     /** Die Markenliste bietet eine Suche; gesuchte Marken erscheinen erst nach der Eingabe. */
     brandSearch?: boolean;
+    /** Größen in zwei Gruppen mit Umschaltknöpfen wie am 06.11.2026 beobachtet. */
+    sizeGroups?: boolean;
   } = {},
 ) {
   let saves = 0,
@@ -251,7 +258,20 @@ export async function createVintedListingEditFormFixture(
       ${selectionControls}
       <div id="category-options" hidden>${options.categoryChange ? `<input id="catalog-search-input"><div role="radio" id="catalog-search-2739-result" aria-label="Wanderschuhe" aria-checked="${state.categoryId === 2739}">Wanderschuhe</div>` : ''}<div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${options.brandSearch ? '<input id="brand-search-input" data-testid="brand-search--input">' : ''}${option('brand', 'radio', [state.brand])}</div>
-      <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
+      <div id="size-options" hidden>${
+        options.sizeGroups
+          ? (() => {
+              const euActive = euSizes.some(([id]) => id === state.size);
+              const eu = euSizes
+                .map(
+                  ([id, text]) =>
+                    `<div role="checkbox" data-testid="size-group-82-grid-option-${id}" aria-label="${text}" aria-checked="${state.size === id}">${text}</div>`,
+                )
+                .join('');
+              return `<button type="button" class="web_ui__Chip__chip" data-group="31"${euActive ? '' : ' aria-pressed="true"'}>Schuhe</button><button type="button" class="web_ui__Chip__chip" data-group="82"${euActive ? ' aria-pressed="true"' : ''}>EU</button><div data-size-group="31"${euActive ? ' hidden' : ''}>${option('size', 'checkbox', [state.size])}</div><div data-size-group="82"${euActive ? '' : ' hidden'}>${eu}</div>`;
+            })()
+          : option('size', 'checkbox', [state.size])
+      }</div>
       <div id="condition-options" hidden>${option('condition', 'radio', [state.condition])}</div>
       <div id="color-options" hidden>${option('color', 'checkbox', state.colors)}</div>
       <div id="material-options" hidden><div role="checkbox" id="material-suggestion-298" aria-checked="false">Wildleder</div>${option('material', 'checkbox', state.materials)}</div>
@@ -340,6 +360,11 @@ export async function createVintedListingEditFormFixture(
           document.querySelector('#brand-options').append(node);
         }
       };
+      document.querySelectorAll('#size-options .web_ui__Chip__chip').forEach(chip=>chip.onclick=()=>{
+        document.querySelectorAll('#size-options .web_ui__Chip__chip').forEach(other=>other.toggleAttribute('aria-pressed',other===chip));
+        if(chip.hasAttribute('aria-pressed')) chip.setAttribute('aria-pressed','true');
+        document.querySelectorAll('#size-options [data-size-group]').forEach(group=>group.hidden=group.dataset.sizeGroup!==chip.dataset.group);
+      });
       document.onkeydown=event=>{if(event.key==='Escape')hide();};
       [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id));
       document.querySelector('#save').onclick=async()=>{

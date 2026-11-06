@@ -31,6 +31,8 @@ interface DispatcherOptions<Job> {
   store: MarketplaceSyncDispatchStore;
   run(scope: BrowserSessionScope): Promise<void>;
   prepareDispatch?(): Promise<void>;
+  /** Betreiber-Not-Aus: Solange true, werden keine neuen Aufträge beansprucht. */
+  isPaused?(): Promise<boolean>;
   onRuntimeLost(reason: MarketplaceRuntimeLossReason): void | Promise<void>;
   includeScheduled?: boolean;
   maxJobsPerPoll?: number;
@@ -119,6 +121,8 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
   }
 
   private async drainAvailableJobs(): Promise<void> {
+    // Der Heartbeat läuft weiter; wartende Aufträge bleiben bis zum Wiedereinschalten stehen.
+    if (this.options.isPaused && (await this.options.isPaused())) return;
     // Erst nach bestätigtem Abschluss folgt das nächste Konto; kein zusätzlicher Timer-Leerlauf.
     for (let index = 0; index < (this.options.maxJobsPerPoll ?? 1); index++) {
       if (this.stopped || !this.checkRuntime() || !(await this.claimAndRun())) return;

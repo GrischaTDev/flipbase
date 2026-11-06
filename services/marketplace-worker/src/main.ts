@@ -33,6 +33,7 @@ import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
 import { VintedListingPhotoSource } from './vinted-listing-photo-source.ts';
 import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import { MarketplaceSyncDispatcher } from './marketplace-sync-dispatcher.ts';
+import { PlatformFeatureSwitch } from './platform-feature-switch.ts';
 import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-sync-dispatch-store.ts';
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
@@ -183,9 +184,17 @@ async function main(): Promise<void> {
   let listingRunner: MarketplaceListingRunner | undefined;
   const sessionLifecycle: { broker?: MarketplaceBrowserSessionBroker } = {};
   const workerLifecycle: { stop?: () => Promise<void> } = {};
+  const vintedSwitch = isCloud
+    ? new PlatformFeatureSwitch({
+        url: config.supabaseUrl,
+        serviceRoleKey: config.serviceRoleKey,
+        feature: 'vinted',
+      })
+    : undefined;
   const dispatcher = dispatchStore
     ? new MarketplaceSyncDispatcher<MarketplaceCloudWriteClaim>({
         store: dispatchStore,
+        isPaused: async () => !((await vintedSwitch?.isEnabled()) ?? true),
         writes: messageStore
           ? createMarketplaceCloudWriteDispatch({
               listingWritesEnabled: config.listingPublishingEnabled,

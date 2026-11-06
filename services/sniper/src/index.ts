@@ -26,6 +26,7 @@ import { readVintedPage } from './vinted/response-body.js';
 import { preferIpv6 } from './vinted/network.js';
 import { sleep } from './vinted/session.js';
 import { ForbiddenError, RateLimitedError, parseRetryAfter } from './vinted/errors.js';
+import { FEED_SWITCHED_OFF_MESSAGE, FeedOperatorSwitch } from './runtime/feed-operator-switch.js';
 
 preferIpv6();
 
@@ -138,6 +139,17 @@ startHealthServer(health, config.healthPort, (error) => {
   process.exit(1);
 });
 
+// Betreiber-Not-Aus fuer den Feed; null bedeutet "kein Eintrag" und gilt als an.
+const feedSwitch = new FeedOperatorSwitch(async () => {
+  const { data, error } = await client
+    .from('platform_feature_switches')
+    .select('enabled')
+    .eq('feature_key', 'vinted_feed')
+    .maybeSingle();
+  if (error) throw error;
+  return data ? data.enabled === true : null;
+});
+
 const controller = new AbortController();
 const stopWatchdog = startCollectorWatchdog({
   isLive: () => health.isLive(),
@@ -177,7 +189,10 @@ while (!controller.signal.aborted) {
     // vorher mit `hasCapacity()` um Erlaubnis, genau wie der Taktgeber vor
     // jeder Abfrage. Nur mitzaehlen ohne fragen hiesse: Diese eine Anfrage
     // laesst sich nie verweigern, verbraucht aber das Budget der anderen.
+    // Abgeschaltet: keine Vinted-Anfrage; Statusmeldung und Takt laufen weiter.
+    const feedEnabled = await feedSwitch.isEnabled();
     const report = (await browserSession.runAutomatic(async () => {
+      if (!feedEnabled) return undefined;
       const origin = await originState.getState('vinted');
       if (
         origin.state === 'ready' ||
@@ -267,6 +282,7 @@ while (!controller.signal.aborted) {
           ? 'Manuelle Prüfung erforderlich. Öffne die Botsitzung im Adminbereich. Der Bot bleibt bis zum bestätigten Katalogzugriff pausiert.'
           : `${reason}. Automatische Wiederprüfung ab ${nextAttempt}.`;
     }
+    if (!feedEnabled) cycleError = FEED_SWITCHED_OFF_MESSAGE;
   } catch (error) {
     // Eine gescheiterte Runde beendet den Dienst nicht. Der naechste Takt
     // versucht es erneut; was dauerhaft kaputt ist, faellt am Health-Endpunkt

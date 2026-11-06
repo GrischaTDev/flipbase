@@ -195,6 +195,7 @@ function fixture(
   includeScheduled = false,
   maxJobsPerPoll = 1,
   writes?: MarketplaceCloudWriteDispatch<CloudMessageClaim>,
+  isPaused?: () => Promise<boolean>,
 ) {
   let current = Date.parse('2026-10-01T12:00:00Z');
   let lost = 0;
@@ -246,6 +247,7 @@ function fixture(
     store,
     writes,
     run,
+    isPaused,
     onRuntimeLost: (reason) => {
       lost++;
       lossReasons.push(reason);
@@ -789,5 +791,28 @@ test('lange Recovery hält Runtime per Monitoring aktiv ohne vorzeitig Aufträge
   assert.equal(dispatcher.ready, true);
   assert.equal(callbacks.size, 2);
   dispatcher.stop();
+  await dispatcher.drain();
+});
+
+test('the operator switch stops new claims but keeps the worker runtime alive', async () => {
+  let paused = true;
+  const { dispatcher, calls, lost } = fixture(
+    {},
+    undefined,
+    false,
+    1,
+    undefined,
+    async () => paused,
+  );
+  await dispatcher.initialize();
+  dispatcher.start();
+  await dispatcher.poll();
+  assert.equal(calls.includes('claim'), false);
+  assert.equal(lost(), 0);
+  assert.equal(dispatcher.ready, true);
+
+  paused = false;
+  await dispatcher.poll();
+  assert.equal(calls.filter((call) => call === 'claim').length, 1);
   await dispatcher.drain();
 });

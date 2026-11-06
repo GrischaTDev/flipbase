@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { PLATFORM_ADMIN_NAVIGATION } from './platform-admin-navigation';
+import {
+  PLATFORM_ADMIN_SIDEBAR_NAVIGATION,
+  isPlatformAdminRoute,
+} from './platform-admin-navigation';
 import { VINTED_BOT_NAVIGATION } from './vinted-bot-navigation';
 import {
   DASHBOARD_NAVIGATION,
@@ -132,8 +135,18 @@ describe('Arbeitsnavigation', () => {
     ]);
   });
 
-  it('behaelt das Plattform-Admin Untermenü', () => {
-    assert.equal(OPERATOR_NAVIGATION.children, PLATFORM_ADMIN_NAVIGATION);
+  it('fuehrt die Administration unten als einfachen Link ohne Untermenü', () => {
+    assert.equal(OPERATOR_NAVIGATION.path, '/admin');
+    assert.equal(OPERATOR_NAVIGATION.children, undefined);
+  });
+
+  it('erkennt den Admin-Bereich samt Referenzbibliothek, aber keine Nachbarpfade', () => {
+    for (const url of ['/admin', '/admin/overview?x=1', '/tools/brand-labels/admin/brands']) {
+      assert.equal(isPlatformAdminRoute(url), true, url);
+    }
+    for (const url of ['/administration', '/tools/brand-labels', '/tools/brand-labels/sizes']) {
+      assert.equal(isPlatformAdminRoute(url), false, url);
+    }
   });
 
   it('behaelt den Demo-Hinweis ausschliesslich am Online-Shop', () => {
@@ -236,7 +249,7 @@ describe('Aktive Navigationspfade', () => {
   });
 
   it('markiert den administrativen Bot-Eintrag auf tieferliegenden Seiten', () => {
-    const active = PLATFORM_ADMIN_NAVIGATION.filter((child) =>
+    const active = PLATFORM_ADMIN_SIDEBAR_NAVIGATION.filter((child) =>
       isNavigationChildActive(child, '/admin/vinted-bot/operation#status'),
     );
     assert.deepEqual(

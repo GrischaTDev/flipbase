@@ -1,0 +1,29 @@
+<section
+  class="mx-auto flex max-w-xl flex-col items-center py-12 text-center"
+  data-maintenance-page
+>
+  <app-card variant="section" class="w-full">
+    <div class="flex flex-col items-center gap-4 py-4">
+      <span
+        class="inline-flex size-12 items-center justify-center rounded-full bg-fb-surface-alt text-fb-text-secondary"
+      >
+        <svg [lucideIcon]="wrenchIcon" class="size-6" aria-hidden="true"></svg>
+      </span>
+      <h1 class="text-xl font-semibold text-fb-text-primary">
+        {{ area()?.label ?? 'Dieser Bereich' }} ist vorübergehend geschlossen
+      </h1>
+      <p class="text-sm text-fb-text-secondary">
+        {{
+          message() ??
+            'Wir führen gerade Wartungsarbeiten durch. Bitte versuche es später noch einmal.'
+        }}
+      </p>
+      <div class="flex flex-wrap justify-center gap-2 pt-2">
+        <app-button variant="secondary" link="/dashboard">Zur Übersicht</app-button>
+        @if (area(); as currentArea) {
+          <app-button variant="primary" [link]="currentArea.path">Erneut versuchen</app-button>
+        }
+      </div>
+    </div>
+  </app-card>
+</section>

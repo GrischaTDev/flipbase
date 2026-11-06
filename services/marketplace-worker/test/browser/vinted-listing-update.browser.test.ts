@@ -82,6 +82,29 @@ test('changes the brand to a searched brand that the form does not suggest', asy
   }
 });
 
+test('switches the size group to select a size that the form does not show first', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, { sizeGroups: true });
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, sizeId: 1944, sizeLabel: 'EU 38' },
+        allow,
+      ),
+      'confirmed',
+    );
+    assert.equal(f.writes(), 1);
+    assert.equal(f.state().size, 1944);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('saves a price that is the only change although the form reformats it on leaving the field', async () => {
   const browser = await chromium.launch();
   try {
