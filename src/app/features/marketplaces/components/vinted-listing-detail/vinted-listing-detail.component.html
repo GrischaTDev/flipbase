@@ -126,7 +126,7 @@
                   </p>
                 }
                 <div class="grid gap-4">
-                  @if (workspaceId(); as workspaceId) {
+                  @if (brandAvailable() && workspaceId(); as workspaceId) {
                     <app-vinted-listing-brand-dialog
                       [inline]="true"
                       [scopeKey]="brandScope()"
@@ -151,6 +151,15 @@
                         size="md"
                       />
                     </div>
+                  }
+                  @if (extraFields().length) {
+                    <app-vinted-listing-extra-fields
+                      [fields]="extraFields()"
+                      [attributes]="extraAttributes()"
+                      [errors]="extraErrors()"
+                      [disabled]="busy() || categoryLoading()"
+                      (changed)="changeExtras($event)"
+                    />
                   }
                 </div>
                 @if (multipleFields().length) {

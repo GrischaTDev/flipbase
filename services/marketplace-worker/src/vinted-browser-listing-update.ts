@@ -24,6 +24,10 @@ import {
   type VintedListingItem,
 } from './vinted-browser-listing-item.ts';
 import { selectVintedListingField } from './vinted-browser-listing-fields.ts';
+import {
+  fillVintedListingExtras,
+  vintedListingExtraAttributes,
+} from './vinted-browser-listing-extras.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
 import {
   arrangeVintedListingPhotos,
@@ -304,11 +308,16 @@ export async function updateVintedListingContent(
    * `null` heißt: nicht anwendbar oder nicht eindeutig – dann wurde die Maske noch nicht verändert
    * und der vollständige Weg über die Maske übernimmt.
    */
+  // Zusatzmerkmale wie Rocklänge oder Maße; nur geänderte werden in der Maske gesetzt.
+  const extrasChanged =
+    JSON.stringify(vintedListingExtraAttributes(desired.attributes)) !==
+    JSON.stringify(vintedListingExtraAttributes(base.attributes));
   const saveWithoutChoiceLists = async (): Promise<VintedEditResult | null> => {
     if (
       desired.categoryId !== base.categoryId ||
       desired.categoryLabel !== base.categoryLabel ||
-      !choiceFields.every((field) => sameChoice(base, desired, field))
+      !choiceFields.every((field) => sameChoice(base, desired, field)) ||
+      extrasChanged
     )
       return null;
     const form = await readFormState();
@@ -496,7 +505,7 @@ export async function updateVintedListingContent(
       )
     )
       throw invalid();
-    if (changed.size === 0 && !photosChanged) return 'confirmed';
+    if (changed.size === 0 && !photosChanged && !extrasChanged) return 'confirmed';
     if (photosChanged)
       await arrangeVintedListingPhotos(
         page,
@@ -511,6 +520,8 @@ export async function updateVintedListingContent(
     for (const field of schema.fields)
       if (changed.has(field.field))
         await selectVintedListingField(page, field, wanted(desired, field.field), check);
+    if (extrasChanged)
+      await fillVintedListingExtras(page, desired.attributes, current.content.attributes, check);
     await check();
     step = 'verify';
     const prepared = await readOpenVintedListingContent(

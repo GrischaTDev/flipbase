@@ -1,0 +1,81 @@
+<section class="mx-auto space-y-4">
+  <app-page-header
+    title="Vinted-Katalog"
+    subtitle="Kategorien, Größen und Merkmale für Inserate"
+    [icon]="catalogIcon"
+  >
+    <app-button
+      header-actions
+      [icon]="refreshIcon"
+      [loading]="requesting()"
+      [disabled]="refreshRunning()"
+      (clicked)="requestRefresh()"
+    >
+      Jetzt neu einlesen
+    </app-button>
+  </app-page-header>
+
+  @if (error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
+  @if (!status() && loading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Katalogstand wird geladen.</p>
+  }
+
+  @if (status(); as status) {
+    <app-card title="Aktualität">
+      <div class="space-y-3">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ currentPercent() }} % aktuell
+        </p>
+        <div
+          role="meter"
+          aria-label="Aktuelle Endkategorien"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-valuenow]="currentPercent()"
+          class="h-3 overflow-hidden rounded-full bg-fb-surface-alt"
+        >
+          <div class="h-full bg-fb-text-primary" [style.width.%]="currentPercent()"></div>
+        </div>
+        <p class="text-sm text-fb-text-secondary">
+          {{ status.leaves - status.leavesDue | number }} von {{ status.leaves | number }}
+          Endkategorien aktuell
+        </p>
+        @if (status.refreshRequestedAt; as requestedAt) {
+          <p role="status" class="text-sm text-fb-text-secondary">
+            Neu einlesen angefordert am
+            <time [attr.datetime]="requestedAt">{{ requestedAt | date: 'dd.MM.yyyy, HH:mm' }}</time>
+            @if (refreshRunning()) {
+              – läuft mit den nächsten Kontoabgleichen
+            } @else {
+              – abgeschlossen
+            }
+          </p>
+        }
+      </div>
+    </app-card>
+
+    <div class="grid gap-3 sm:grid-cols-3">
+      <app-card title="Kategorien" variant="kpi">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ status.categories | number }}
+        </p>
+      </app-card>
+      <app-card title="Endkategorien mit Feldern" variant="kpi">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ status.leavesWithFields | number }} / {{ status.leaves | number }}
+        </p>
+      </app-card>
+      <app-card title="Kategoriebaum gelesen" variant="kpi">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          @if (status.treeObservedAt; as treeAt) {
+            <time [attr.datetime]="treeAt">{{ treeAt | date: 'dd.MM.yyyy' }}</time>
+          } @else {
+            –
+          }
+        </p>
+      </app-card>
+    </div>
+  }
+</section>

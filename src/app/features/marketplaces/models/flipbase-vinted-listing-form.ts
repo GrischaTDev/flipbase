@@ -202,19 +202,24 @@ export function flipbaseVintedListingFields(
             field('material', materials),
           ]),
       field('package', packages),
-      {
-        field: 'brand',
-        sizeGroupId: null,
-        choices: [
-          {
-            id: selectedBrand?.brandId ?? null,
-            label: selectedBrand?.brandLabel ?? 'Keine Marke',
-            selected: false,
-            disabled: false,
-            sizeGroupId: null,
-          },
-        ],
-      },
+      // Kategorien ohne Marke bei Vinted (z. B. Bücher, Videospiele) bieten auch hier keine an.
+      ...(real && !real.fields.some((entry) => entry.field === 'brand')
+        ? []
+        : [
+            {
+              field: 'brand' as const,
+              sizeGroupId: null,
+              choices: [
+                {
+                  id: selectedBrand?.brandId ?? null,
+                  label: selectedBrand?.brandLabel ?? 'Keine Marke',
+                  selected: false,
+                  disabled: false,
+                  sizeGroupId: null,
+                },
+              ],
+            },
+          ]),
     ],
     unknownFields: [],
     acceptedPhotoMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
@@ -225,7 +230,11 @@ export function flipbaseVintedListingFields(
   };
 }
 
-/** Erhält Texte alter Entwürfe, ersetzt ihre Anbieterkennungen aber durch eigene Auswahlkennungen. */
+/**
+ * Bereitet Inhalte für Prüfung und Übertragung vor. Mit Katalogwerten der Kategorie entstehen
+ * Vinteds Kennungen (ältere Entwürfe der eigenen Liste werden dabei über die Bezeichnung
+ * zugeordnet); ohne Katalog eigene Auswahlkennungen mit Merker für die Zuordnung beim Anbieter.
+ */
 export function prepareFlipbaseVintedListingContent(
   content: VintedListingContent,
   stored?: VintedListingCategoryFields | null,
@@ -243,7 +252,8 @@ export function prepareFlipbaseVintedListingContent(
       ?.choices.find((choice) => choice.label === label)?.id ?? null;
   // Bei Vinted gelesene Inhalte tragen Vinteds Kennungen; mit echten Katalogwerten zählen sie
   // vor der Bezeichnung. Entwürfe der eigenen Liste sind markiert und tragen eigene Kennungen.
-  const real = stored?.categoryId === content.categoryId && !content.attributes[marker];
+  const catalog = stored?.categoryId === content.categoryId;
+  const real = catalog && !content.attributes[marker];
   const known = (field: string, ids: readonly (number | null)[]) => {
     const choices = schema.fields.find((entry) => entry.field === field)?.choices ?? [];
     const found = ids.flatMap((value) => choices.filter((choice) => choice.id === value));
@@ -285,8 +295,10 @@ export function prepareFlipbaseVintedListingContent(
     (letters.length === 1
       ? letters[0]
       : allSizes.find((choice) => choice.label === content.sizeLabel.trim()));
+  const withoutBrand = catalog && !schema.fields.some((field) => field.field === 'brand');
   return {
     ...content,
+    ...(withoutBrand ? { brandId: null, brandLabel: '' } : {}),
     sizeId: size?.id ?? null,
     sizeLabel: size?.label ?? content.sizeLabel,
     conditionId: realCondition?.[0]?.id ?? id('condition', content.conditionLabel),
@@ -305,7 +317,12 @@ export function prepareFlipbaseVintedListingContent(
           return value === null ? [] : [value];
         }),
     ...(realMaterials ? { materialLabels: realMaterials.map((choice) => choice.label) } : {}),
-    attributes: { ...content.attributes, [marker]: '1' },
+    // Mit Katalogwerten tragen alle Auswahlen Vinteds Kennungen; der Worker überträgt sie direkt.
+    // Nur ohne Katalog bleibt der Merker, damit Vinted die eigenen Angaben über die Bezeichnung
+    // zuordnet. Paketgröße (1–3), Zielgruppe und Marke tragen schon Vinteds Kennungen.
+    attributes: catalog
+      ? Object.fromEntries(Object.entries(content.attributes).filter(([key]) => key !== marker))
+      : { ...content.attributes, [marker]: '1' },
   };
 }
 

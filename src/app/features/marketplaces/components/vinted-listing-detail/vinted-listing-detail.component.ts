@@ -65,6 +65,11 @@ import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
 import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 
+import { VintedListingExtraFieldsComponent } from '../vinted-listing-extra-fields/vinted-listing-extra-fields.component';
+import {
+  vintedListingExtraFieldErrors,
+  withVintedListingExtraValues,
+} from '../../models/vinted-listing-catalog-fields';
 @Component({
   selector: 'app-vinted-listing-detail',
   imports: [
@@ -86,6 +91,7 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
     TextFieldComponent,
     VintedListingMetricsComponent,
     VintedListingBrandDialogComponent,
+    VintedListingExtraFieldsComponent,
   ],
   providers: [VintedListingCategoryService],
   templateUrl: './vinted-listing-detail.component.html',
@@ -258,6 +264,35 @@ export class VintedListingDetailComponent {
   );
   /** Die Marke wird gesucht; Vinteds Formular kennt nur die bisherige und vorgeschlagene Marken. */
   readonly brandScope = computed(() => JSON.stringify([this.connectionId(), this.entryId()]));
+  /** Ob die Kategorie bei Vinted eine Marke hat; Bücher oder Videospiele haben keine. */
+  readonly brandAvailable = computed(
+    () => this.editingSnapshot()?.schema.fields.some((field) => field.field === 'brand') ?? true,
+  );
+  /** Zusatzfelder der Kategorie aus dem Vinted-Katalog, etwa Rocklänge oder Maße. */
+  readonly extraFields = computed(() =>
+    this.categoryFields.extraFields(this.editingSnapshot()?.content.categoryId),
+  );
+  private readonly extraValues = signal<{
+    readonly categoryId: number;
+    readonly values: Readonly<Record<string, string>>;
+  } | null>(null);
+  /** Zusatzangaben des Inserats mit den Änderungen dieser Bearbeitung. */
+  readonly extraAttributes = computed(() => {
+    const snapshot = this.editingSnapshot();
+    const changed = this.extraValues();
+    return withVintedListingExtraValues(
+      snapshot?.content.attributes ?? {},
+      changed && changed.categoryId === snapshot?.content.categoryId ? changed.values : {},
+    );
+  });
+  readonly extraErrors = computed(() =>
+    vintedListingExtraFieldErrors(this.extraFields(), this.extraAttributes()),
+  );
+  changeExtras(values: Readonly<Record<string, string>>): void {
+    const categoryId = this.editingSnapshot()?.content.categoryId;
+    if (!this.editing() || this.busy() || !categoryId) return;
+    this.extraValues.set({ categoryId, values });
+  }
   private readonly brandValue = signal('');
   readonly brandLabel = computed(
     () =>
@@ -275,6 +310,7 @@ export class VintedListingDetailComponent {
       this.entry() !== null &&
       !this.categoryLoading() &&
       !this.brandPending() &&
+      Object.keys(this.extraErrors()).length === 0 &&
       this.form.controls.categoryId.value ===
         String(this.editingSnapshot()?.content.categoryId ?? ''),
   );
@@ -524,6 +560,7 @@ export class VintedListingDetailComponent {
       { emitEvent: false },
     );
     this.initialFields = this.form.getRawValue();
+    this.extraValues.set(null);
     this.brandValue.set(this.form.controls.brand.value);
     this.brandPending.set(false);
     this.editing.set(true);
@@ -694,6 +731,12 @@ export class VintedListingDetailComponent {
       } else {
         content = applyStoredVintedListingEdit(current, fresh, fields);
       }
+      const extras = this.extraValues();
+      if (extras && extras.categoryId === content.categoryId)
+        content = {
+          ...content,
+          attributes: withVintedListingExtraValues(content.attributes, extras.values),
+        };
       const arranged = this.arrangedPhotos();
       const photos = arranged ? { base: current.photoUrls, desired: arranged } : undefined;
       await this.store.saveListingContent(

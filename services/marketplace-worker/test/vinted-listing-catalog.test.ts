@@ -289,7 +289,7 @@ test('wählt einen fehlenden Baum und Endkategorien ohne oder mit alten Feldern'
     includeTree: true,
     categoryIds: [],
   });
-  const due = empty.calls[1]!.url.searchParams;
+  const due = empty.calls[2]!.url.searchParams;
   assert.equal(due.get('is_leaf'), 'eq.true');
   assert.equal(
     due.get('or'),
@@ -313,6 +313,27 @@ test('wählt einen fehlenden Baum und Endkategorien ohne oder mit alten Feldern'
       : Response.json([]),
   );
   assert.equal(await done.instance.work(new Date('2026-11-06T10:00:00Z')), null);
+});
+
+test('liest bei offenem Auftrag alles vor dem Auftrag Gelesene in größeren Blöcken neu', async () => {
+  const requested = store((url) =>
+    url.pathname.endsWith('vinted_listing_catalog_refreshes')
+      ? Response.json([{ requested_at: '2026-11-06T09:00:00+00:00' }])
+      : url.searchParams.get('select') === 'tree_observed_at'
+        ? Response.json([{ tree_observed_at: '2026-11-06T08:00:00+00:00' }])
+        : Response.json([{ id: 1819 }]),
+  );
+  assert.deepEqual(await requested.instance.work(new Date('2026-11-06T10:00:00Z')), {
+    includeTree: true,
+    categoryIds: [1819],
+    budgetMs: 180_000,
+  });
+  const due = requested.calls[2]!.url.searchParams;
+  assert.equal(
+    due.get('or'),
+    '(fields_observed_at.is.null,fields_observed_at.lt.2026-11-06T09:00:00.000Z)',
+  );
+  assert.equal(due.get('limit'), '200');
 });
 
 test('speichert Baum, Farben und Felder; eine abgelehnte Kategorie hält den Rest nicht auf', async () => {

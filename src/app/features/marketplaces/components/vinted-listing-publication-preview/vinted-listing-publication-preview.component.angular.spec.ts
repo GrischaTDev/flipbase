@@ -169,7 +169,12 @@ function setup(allowed = false) {
     providers: [
       {
         provide: VintedCategoryFieldStore,
-        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+        useValue: {
+          fields: () => null,
+          extraFields: () => [],
+          load: async () => null,
+          remember: () => undefined,
+        },
       },
       { provide: AuthService, useValue: { currentUser: user } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },

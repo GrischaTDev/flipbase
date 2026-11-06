@@ -382,8 +382,15 @@ export async function executeBrowserAction(
       const request = commandRecord(argumentsList[1]);
       const categoryIds = request.categoryIds;
       if (
-        Object.keys(request).some((key) => !['categoryIds', 'includeTree'].includes(key)) ||
+        Object.keys(request).some(
+          (key) => !['categoryIds', 'includeTree', 'budgetMs'].includes(key),
+        ) ||
         typeof request.includeTree !== 'boolean' ||
+        (request.budgetMs !== undefined &&
+          (typeof request.budgetMs !== 'number' ||
+            !Number.isSafeInteger(request.budgetMs) ||
+            request.budgetMs < 1000 ||
+            request.budgetMs > 600_000)) ||
         !Array.isArray(categoryIds) ||
         categoryIds.length > 200 ||
         new Set(categoryIds).size !== categoryIds.length ||
@@ -394,7 +401,11 @@ export async function executeBrowserAction(
         throw new Error('Ungültiger Katalogauftrag');
       return required(browser.readListingCatalog)(
         identifier(argumentsList[0]),
-        { categoryIds: categoryIds as number[], includeTree: request.includeTree },
+        {
+          categoryIds: categoryIds as number[],
+          includeTree: request.includeTree,
+          ...(request.budgetMs === undefined ? {} : { budgetMs: request.budgetMs as number }),
+        },
         authorize,
       );
     }

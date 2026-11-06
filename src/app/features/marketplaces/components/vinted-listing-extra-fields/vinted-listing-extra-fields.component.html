@@ -1,0 +1,34 @@
+@for (field of choiceFields(); track field.key) {
+  @if (field.multiple) {
+    <app-attribute-picker
+      [label]="field.label"
+      [options]="labels(field)"
+      [multiple]="true"
+      [allowCustom]="false"
+      [maxSelected]="field.limit"
+      [error]="errors()[field.key] ?? null"
+      placeholder="Auswählen oder suchen"
+      [formControl]="control(field.key)"
+    />
+  } @else {
+    <app-custom-select
+      [label]="field.label"
+      [ariaLabel]="field.label"
+      [options]="options(field)"
+      [searchable]="field.options.length > 8"
+      [required]="field.required"
+      [error]="errors()[field.key] ?? null"
+      size="md"
+      [formControl]="control(field.key)"
+    />
+  }
+}
+@for (field of textFields(); track field.key) {
+  <app-text-field
+    [label]="field.label"
+    [suffix]="field.unit"
+    [maxLength]="200"
+    [error]="errors()[field.key] ?? null"
+    [formControl]="control(field.key)"
+  />
+}

@@ -138,6 +138,7 @@ describe('SidebarComponent', () => {
       'Bewerbungen',
       'Nutzer',
       'Vinted Bot',
+      'Vinted-Katalog',
       'Server-Speicher',
       'Referenzbibliothek',
     ]);
@@ -147,6 +148,7 @@ describe('SidebarComponent', () => {
       '/admin/applications',
       '/admin/users',
       '/admin/vinted-bot',
+      '/admin/vinted-catalog',
       '/admin/server-storage',
       '/tools/brand-labels/admin',
     ]);
@@ -173,13 +175,22 @@ describe('SidebarComponent', () => {
         link.getAttribute('aria-current'),
       );
     const applications = await renderAt('/admin/applications');
-    expect(current(applications.element)).toEqual([null, null, 'page', null, null, null, null]);
+    expect(current(applications.element)).toEqual([
+      null,
+      null,
+      'page',
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
     expect(applications.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
 
     TestBed.resetTestingModule();
     // Tiefer liegende Bot-Seiten gehoeren zum Punkt "Vinted Bot".
     const operation = await renderAt('/admin/vinted-bot/operation');
-    expect(current(operation.element)).toEqual([null, null, null, null, 'page', null, null]);
+    expect(current(operation.element)).toEqual([null, null, null, null, 'page', null, null, null]);
     expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 

@@ -18,6 +18,7 @@ import {
 } from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { resolveFlipbaseVintedListingContent } from './vinted-listing-form-mapping.ts';
+import { fillVintedListingExtras } from './vinted-browser-listing-extras.ts';
 import {
   VintedListingReadError,
   vintedListingChoiceReadError,
@@ -284,6 +285,8 @@ export async function prepareVintedListingFields(
     reportPreparationStep(field.field);
     await selectVintedListingField(page, field, wanted(content, field.field), check);
   }
+  reportPreparationStep('values');
+  await fillVintedListingExtras(page, content.attributes, {}, check);
   await check();
   const final = await readVintedListingCategoryFields(
     page,
