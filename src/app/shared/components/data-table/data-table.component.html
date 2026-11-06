@@ -80,5 +80,13 @@
     <div data-data-table-mobile>
       <ng-content select="[table-mobile]" />
     </div>
+    @if (pagerVisible()) {
+      <app-table-pager
+        class="border-t border-fb-line px-3 pb-3"
+        [totalItems]="totalItems() ?? 0"
+        [pageSize]="pageSize()"
+        [(page)]="page"
+      />
+    }
   }
 </section>
