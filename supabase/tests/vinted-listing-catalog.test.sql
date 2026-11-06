@@ -4,6 +4,11 @@ set local search_path = public, extensions;
 select no_plan();
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
  ('54010000-0000-4000-8000-000000000001','authenticated','authenticated','catalog-reader@example.test','{}','{}');
+-- Die Prüfungen beginnen mit leerem Katalog; die Erstbefüllung wird in dieser Transaktion
+-- entfernt und am Ende mit allem anderen zurückgerollt.
+delete from public.vinted_listing_categories;
+delete from public.vinted_listing_size_groups;
+delete from public.vinted_listing_options;
 
 -- Rechte: lesen nur Angemeldete, schreiben nur der Dienstschlüssel über die Funktionen.
 select ok(not has_table_privilege('anon','public.vinted_listing_categories','select'),'No anonymous category read');
