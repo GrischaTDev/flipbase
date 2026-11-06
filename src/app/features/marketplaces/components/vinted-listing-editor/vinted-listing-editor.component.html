@@ -318,7 +318,7 @@
                     <p class="text-xs text-fb-critical">{{ message }}</p>
                   }
                 </div>
-                @if (workspaceId(); as workspaceId) {
+                @if (brandAvailable() && workspaceId(); as workspaceId) {
                   <div [attr.data-listing-issue]="visibleFieldErrors()['brand'] ? '' : null">
                     <app-vinted-listing-brand-dialog
                       [inline]="true"
@@ -344,6 +344,15 @@
                     [fieldErrors]="visibleFieldErrors()"
                     [disabled]="saving() || imageEditing()"
                     (selected)="selectFields($event, true)"
+                  />
+                }
+                @if (extraFields().length) {
+                  <app-vinted-listing-extra-fields
+                    [fields]="extraFields()"
+                    [attributes]="content().attributes"
+                    [errors]="visibleFieldErrors()"
+                    [disabled]="saving() || imageEditing()"
+                    (changed)="changeExtras($event)"
                   />
                 }
                 @for (message of additionalFieldErrors(); track $index) {

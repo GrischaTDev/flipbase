@@ -59,10 +59,12 @@ create table public.vinted_listing_category_fields (
   selection_type text check (selection_type is null or selection_type in ('single', 'multi')),
   selection_limit integer check (selection_limit is null or selection_limit between 1 and 100),
   display_type text check (display_type is null or char_length(display_type) between 1 and 40),
+  title text check (title is null or char_length(btrim(title)) between 1 and 200),
   option_ids integer[] check (option_ids is null or cardinality(option_ids) <= 1000),
   primary key (category_id, field_code)
 );
 comment on table public.vinted_listing_category_fields is 'Felder einer Kategorie in Vinteds Reihenfolge mit Pflicht, Auswahlart und Höchstanzahl.';
+comment on column public.vinted_listing_category_fields.title is 'Feldtitel wie bei Vinted, etwa "Rocklänge" oder "Material (empfohlen)"; leer bei Feldern ohne eigene Konfiguration.';
 comment on column public.vinted_listing_category_fields.option_ids is 'Erlaubte Werte aus vinted_listing_options in Vinteds Reihenfolge; leer heißt alle Werte des Merkmals (z. B. Farben). Größen stehen in vinted_listing_category_size_groups.';
 
 create table public.vinted_listing_category_size_groups (
@@ -244,10 +246,11 @@ begin
       into v_option_ids from jsonb_array_elements(v_field->'options') with ordinality o;
     end if;
     insert into public.vinted_listing_category_fields(category_id, field_code, position, required,
-      selection_type, selection_limit, display_type, option_ids)
+      selection_type, selection_limit, display_type, option_ids, title)
     values(p_category_id, v_field->>'code', (v_field->>'position')::integer,
       (v_field->>'required')::boolean, v_field->>'selectionType', (v_field->>'limit')::integer,
-      nullif(left(v_field->>'display', 40), ''), v_option_ids);
+      nullif(left(v_field->>'display', 40), ''), v_option_ids,
+      nullif(left(btrim(coalesce(v_field->>'title', '')), 200), ''));
   end loop;
   update public.vinted_listing_categories set fields_observed_at = p_observed_at where id = p_category_id;
   return true;
@@ -286,3 +289,60 @@ end;
 $$;
 revoke all on function public.marketplace_save_vinted_listing_options(text, jsonb) from public, anon, authenticated;
 grant execute on function public.marketplace_save_vinted_listing_options(text, jsonb) to service_role;
+
+-- Auftrag aus dem Plattform-Admin, den Katalog sofort vollständig neu einzulesen. Der Worker liest
+-- dann beim nächsten Kontoabgleich alles, was vor dem Auftrag gelesen wurde, in größeren Blöcken.
+create table public.vinted_listing_catalog_refreshes (
+  id integer primary key default 1 check (id = 1),
+  requested_at timestamptz not null,
+  requested_by uuid references auth.users(id) on delete set null
+);
+comment on table public.vinted_listing_catalog_refreshes is 'Letzter Auftrag, den Vinted-Katalog neu einzulesen; genau eine Zeile.';
+create index vinted_listing_catalog_refreshes_requested_by on public.vinted_listing_catalog_refreshes(requested_by);
+alter table public.vinted_listing_catalog_refreshes enable row level security;
+revoke all on public.vinted_listing_catalog_refreshes from public, anon, authenticated;
+grant select on public.vinted_listing_catalog_refreshes to authenticated;
+grant all on public.vinted_listing_catalog_refreshes to service_role;
+create policy "Platform operators read catalog refreshes" on public.vinted_listing_catalog_refreshes
+  for select to authenticated using ((select public.is_platform_operator()));
+
+-- Setzt den Auftrag; nur für Plattform-Admins. Läuft als Eigentümer, weil Clients die Tabelle
+-- nicht direkt beschreiben dürfen.
+create or replace function public.request_vinted_listing_catalog_refresh()
+returns timestamptz language plpgsql security definer set search_path = '' as $$
+declare v_at timestamptz := clock_timestamp();
+begin
+  if not public.is_platform_operator() then raise exception 'Nur für die Plattform-Administration.'; end if;
+  insert into public.vinted_listing_catalog_refreshes(id, requested_at, requested_by)
+  values (1, v_at, (select auth.uid()))
+  on conflict (id) do update set requested_at = excluded.requested_at, requested_by = excluded.requested_by;
+  return v_at;
+end;
+$$;
+revoke all on function public.request_vinted_listing_catalog_refresh() from public, anon;
+grant execute on function public.request_vinted_listing_catalog_refresh() to authenticated;
+
+-- Stand des Katalogs für die Administration: Umfang, Aktualität und offener Auftrag.
+create or replace function public.vinted_listing_catalog_status()
+returns jsonb language plpgsql stable security invoker set search_path = '' as $$
+declare v_requested timestamptz; v_due timestamptz;
+begin
+  if not public.is_platform_operator() then raise exception 'Nur für die Plattform-Administration.'; end if;
+  select r.requested_at into v_requested from public.vinted_listing_catalog_refreshes r where r.id = 1;
+  v_due := greatest(clock_timestamp() - interval '7 days', coalesce(v_requested, '-infinity'::timestamptz));
+  return (
+    select jsonb_build_object(
+      'categories', count(*),
+      'leaves', count(*) filter (where c.is_leaf),
+      'leavesWithFields', count(*) filter (where c.is_leaf and c.fields_observed_at is not null),
+      'leavesDue', count(*) filter (where c.is_leaf and (c.fields_observed_at is null or c.fields_observed_at < v_due)),
+      'treeObservedAt', max(c.tree_observed_at),
+      'oldestFieldsObservedAt', min(c.fields_observed_at) filter (where c.is_leaf),
+      'refreshRequestedAt', v_requested
+    )
+    from public.vinted_listing_categories c
+  );
+end;
+$$;
+revoke all on function public.vinted_listing_catalog_status() from public, anon;
+grant execute on function public.vinted_listing_catalog_status() to authenticated;

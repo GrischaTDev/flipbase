@@ -361,12 +361,29 @@ test('does not bypass disabled choices, drop unknown fields or submit unresolved
       (issue) => issue.field === 'brand' && issue.code === 'disabled',
     ),
   );
+  // Zusatzmerkmale: Auswahl über Vinted-Kennungen, freie Felder nur als text_<name>.
+  for (const attributes of [
+    { isbn: '978-3-16-148410-0' },
+    { skirt_length: '392,392' },
+    { text_isbn: ' ' },
+    { Rocklaenge: '392' },
+    { skirt_length_label: 'Mini' },
+  ] as Record<string, string>[])
+    assert.ok(
+      validateVintedListingSubmission({ ...content, attributes }, [photo], schema).some(
+        (issue) => issue.field === 'attributes' && issue.code === 'unsupported',
+      ),
+      JSON.stringify(attributes),
+    );
   assert.ok(
-    validateVintedListingSubmission(
-      { ...content, attributes: { isbn: '123' } },
+    !validateVintedListingSubmission(
+      {
+        ...content,
+        attributes: { skirt_length: '392', text_shoulder_width: '45', text_isbn: '9783161484100' },
+      },
       [photo],
       schema,
-    ).some((issue) => issue.field === 'attributes' && issue.code === 'unsupported'),
+    ).some((issue) => issue.field === 'attributes'),
   );
   assert.ok(
     validateVintedListingSubmission(content, [photo], { ...schema, unknownFields: ['isbn'] }).some(

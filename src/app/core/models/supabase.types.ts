@@ -8995,6 +8995,24 @@ export type Database = {
         }
         Relationships: []
       }
+      vinted_listing_catalog_refreshes: {
+        Row: {
+          id: number
+          requested_at: string
+          requested_by: string | null
+        }
+        Insert: {
+          id?: number
+          requested_at: string
+          requested_by?: string | null
+        }
+        Update: {
+          id?: number
+          requested_at?: string
+          requested_by?: string | null
+        }
+        Relationships: []
+      }
       vinted_listing_categories: {
         Row: {
           fields_observed_at: string | null
@@ -9052,6 +9070,7 @@ export type Database = {
           required: boolean | null
           selection_limit: number | null
           selection_type: string | null
+          title: string | null
         }
         Insert: {
           category_id: number
@@ -9062,6 +9081,7 @@ export type Database = {
           required?: boolean | null
           selection_limit?: number | null
           selection_type?: string | null
+          title?: string | null
         }
         Update: {
           category_id?: number
@@ -9072,6 +9092,7 @@ export type Database = {
           required?: boolean | null
           selection_limit?: number | null
           selection_type?: string | null
+          title?: string | null
         }
         Relationships: [
           {
@@ -13611,6 +13632,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      request_vinted_listing_catalog_refresh: { Args: never; Returns: string }
       reserve_label_image: {
         Args: { p_input: Json; p_request_id: string }
         Returns: Json
@@ -14325,6 +14347,7 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: Json
       }
+      vinted_listing_catalog_status: { Args: never; Returns: Json }
       web_push_allowed_categories: {
         Args: { p_user_id: string; p_workspace_id: string }
         Returns: string[]

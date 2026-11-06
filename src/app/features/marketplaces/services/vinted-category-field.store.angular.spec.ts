@@ -105,15 +105,20 @@ it('nimmt zuerst den zentralen Katalog mit allen Größengruppen und Vinted-Kenn
     vinted_category_field_snapshots: { fields: schema },
   });
   const fields = await f.store.load('account-a', 1819);
-  expect(fields?.fields.map((field) => field.field)).toEqual(['size', 'condition', 'color']);
+  expect(fields?.fields.map((field) => field.field)).toEqual([
+    'brand',
+    'size',
+    'condition',
+    'color',
+  ]);
   expect(
-    fields?.fields[0]?.choices.map((choice) => [choice.id, choice.label, choice.sizeGroupId]),
+    fields?.fields[1]?.choices.map((choice) => [choice.id, choice.label, choice.sizeGroupId]),
   ).toEqual([
     [207, 'S', 14],
     [208, 'M', 14],
     [1640, 'W32 | DE 48', 77],
   ]);
-  expect(fields?.fields[1]?.choices.map((choice) => choice.label)).toEqual([
+  expect(fields?.fields[2]?.choices.map((choice) => choice.label)).toEqual([
     'Neu, mit Etikett',
     'Sehr gut',
   ]);

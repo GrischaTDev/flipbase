@@ -12,23 +12,37 @@
     material: /^material-(?:suggestion-)?([1-9][0-9]*)$/,
     package: /^package_type_selector_([1-9][0-9]*)$/,
   };
-  // Ausschließlich das am Verkaufsformular belegte zusätzliche Merkmal übernehmen.
+  // Zusatzmerkmale einer Kategorie: Auswahlfelder als `<code>` mit Vinted-Kennungen (mehrere
+  // kommagetrennt, z. B. `skirt_length: "392"`), freie Felder als `text_<name>` (z. B.
+  // `text_shoulder_width: "45"`). Die Zielgruppe trägt zusätzlich ihre Bezeichnung.
   function validAttributes(attributes) {
     if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) return false;
     const keys = Object.keys(attributes);
-    if (keys.length === 0) return true;
-    return (
-      keys.length === 2 &&
-      keys.includes('accessory_department') &&
-      keys.includes('accessory_department_label') &&
-      typeof attributes.accessory_department === 'string' &&
-      /^[1-9][0-9]*$/.test(attributes.accessory_department) &&
-      Number.isSafeInteger(Number(attributes.accessory_department)) &&
-      typeof attributes.accessory_department_label === 'string' &&
-      attributes.accessory_department_label.trim().length > 0 &&
-      attributes.accessory_department_label.length <= 2000 &&
-      !/[\x00-\x1f\x7f]/.test(attributes.accessory_department_label)
-    );
+    if (keys.length > 40) return false;
+    const safe = (value, limit) =>
+      typeof value === 'string' &&
+      value.trim().length > 0 &&
+      value.length <= limit &&
+      !/[\x00-\x1f\x7f]/.test(value);
+    for (const key of keys) {
+      const value = attributes[key];
+      if (key === 'accessory_department_label') {
+        if (!keys.includes('accessory_department') || !safe(value, 2000)) return false;
+      } else if (/^text_[a-z][a-z0-9_]{0,39}$/.test(key)) {
+        if (!safe(value, 200)) return false;
+      } else if (/^[a-z][a-z0-9_]{0,39}$/.test(key) && !key.endsWith('_label')) {
+        if (
+          typeof value !== 'string' ||
+          !/^[1-9][0-9]{0,9}(?:,[1-9][0-9]{0,9}){0,9}$/.test(value) ||
+          value.split(',').some((id) => !Number.isSafeInteger(Number(id))) ||
+          new Set(value.split(',')).size !== value.split(',').length ||
+          (key === 'accessory_department' &&
+            (value.includes(',') || !keys.includes('accessory_department_label')))
+        )
+          return false;
+      } else return false;
+    }
+    return true;
   }
   function invalid() {
     throw new Error('Die Vinted-Auswahl konnte nicht eindeutig gelesen werden.');

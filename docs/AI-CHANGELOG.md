@@ -117,6 +117,26 @@ werden. Keine produktive API-Anfrage oder Modellgütemessung durchgeführt;
 reale Durchschnittskosten und Trefferqualität sind erst nach dem Admin-Pilot
 belegt. Noch kein Push, PR oder Merge.
 
+## 2026-11-06 - Juna - Vinted-Katalog: IDs, Zusatzfelder und Neu-Einlesen
+
+**Anlass:** Mit dem vollständigen Katalog sollen Auswahlen direkt über Vinteds IDs
+übertragen, Zusatzfelder einer Kategorie (z. B. Rocklänge, Maße) angeboten und der Katalog
+im Plattform-Admin auf Knopfdruck neu eingelesen werden.
+
+**Umsetzung:** Mit Katalogwerten entfällt der Merker für die Zuordnung über Bezeichnungen;
+ältere Entwürfe werden einmal über den Katalog zugeordnet. Der Katalog speichert Vinteds
+Feldtitel; Editor und Bearbeiten zeigen Zusatzfelder mit Vinteds Titel und Werten, Pflicht
+nur wo Vinted sie verlangt. Maße und ISBN als freie Felder, am Formular beobachtet.
+Kategorien ohne Marke bieten keine an. Der Worker liest Zusatzauswahlen bestehender
+Inserate mit und setzt geänderte Zusatzfelder. Neue Seite „Vinted-Katalog“ mit Stand und
+„Jetzt neu einlesen“; der Worker liest bei offenem Auftrag größere Blöcke.
+
+**Prüfung:** Migrationen in eigener lokaler Datenbank angewendet, Typen erzeugt (nur neue
+Objekte), Schemaabgleich ohne Abweichung, 68 SQL-Prüfungen einschließlich neuem Test für
+Auftrag und Status. Worker: 843 Unit- und neue Browserfälle für Zusatzfelder. Oberfläche:
+neue Modell-, Komponenten- und Seitenfälle, alle Marktplatz-Angularfälle bestanden.
+Vorabcheck im Commit.
+
 ## 2026-11-06 - Juna - Admin-Bereich mit Übersicht, Nutzerfiltern, Systemzustand und Not-Aus
 
 **Anlass:** Die Administration war nur über einen Punkt ganz unten in der

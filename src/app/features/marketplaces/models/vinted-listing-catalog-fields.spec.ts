@@ -4,10 +4,14 @@ import { listingCurrentContentFixture } from '../../../../../services/marketplac
 import { emptyVintedListingContent } from './vinted-listing-content';
 import {
   vintedListingCatalogCategoryFields,
+  vintedListingCatalogExtraFields,
+  vintedListingExtraFieldErrors,
+  withVintedListingExtraValues,
   type VintedListingCatalogRows,
 } from './vinted-listing-catalog-fields';
 import { parseVintedListingCategoryFields } from './vinted-listing-category-fields';
 import { parseVintedListingChoices } from '../../../../../services/marketplace-worker/src/vinted-listing-contracts';
+import { resolveFlipbaseVintedListingContent } from '../../../../../services/marketplace-worker/src/vinted-listing-form-mapping';
 import {
   flipbaseVintedListingFields,
   prepareFlipbaseVintedListingContent,
@@ -187,5 +191,142 @@ describe('Lokaler Vinted-Katalog in den Inseratmasken', () => {
       conditionId: 2,
     });
     expect(flipbaseVintedListingFields(1819, 'Jeans', draft, real).fields[0]?.field).toBe('size');
+  });
+
+  it('überträgt mit Katalogwerten Vinteds Kennungen direkt, ohne Zuordnung über Bezeichnungen', () => {
+    const real = vintedListingCatalogCategoryFields(1819, rows(1819))!;
+    const draft = {
+      ...emptyVintedListingContent(),
+      categoryId: 1819,
+      categoryLabel: 'Gerade geschnittene Jeans',
+      sizeId: 4,
+      sizeLabel: 'M',
+      conditionId: 3,
+      conditionLabel: 'Sehr gut',
+      attributes: { flipbaseListingForm: '1' },
+    };
+    // Ältere Entwürfe der eigenen Liste werden einmal über den Katalog zugeordnet.
+    const prepared = prepareFlipbaseVintedListingContent(draft, real);
+    expect(prepared.attributes).toEqual({});
+    expect(resolveFlipbaseVintedListingContent(prepared, real)).toBe(prepared);
+    // Ohne Katalogwerte bleibt die Zuordnung über Bezeichnungen beim Anbieter.
+    expect(prepareFlipbaseVintedListingContent(draft, null).attributes).toEqual({
+      flipbaseListingForm: '1',
+    });
+  });
+});
+
+describe('Zusatzfelder einer Vinted-Kategorie', () => {
+  const skirtRows: VintedListingCatalogRows = {
+    fields: [
+      {
+        field_code: 'skirt_length',
+        position: 0,
+        option_ids: [392, 649],
+        title: 'Rocklänge',
+        required: true,
+        selection_type: 'single',
+        selection_limit: 1,
+      },
+      { field_code: 'brand', position: 1, option_ids: null },
+      { field_code: 'measurements', position: 2, option_ids: null },
+      {
+        field_code: 'computer_operating_system',
+        position: 3,
+        option_ids: null,
+        title: 'Betriebssystem (empfohlen)',
+        required: false,
+        selection_type: 'single',
+        selection_limit: 1,
+      },
+      { field_code: 'condition', position: 4, option_ids: [2] },
+    ],
+    sizeGroups: [],
+    sizes: [],
+    options: [
+      { field_code: 'skirt_length', id: 649, title: 'Knielänge', position: 1 },
+      { field_code: 'skirt_length', id: 392, title: 'Mini', position: 0 },
+      { field_code: 'skirt_length', id: 391, title: 'Midi', position: 2 },
+      { field_code: 'computer_operating_system', id: 7, title: 'Windows', position: 0 },
+      { field_code: 'condition', id: 2, title: 'Sehr gut', position: 0 },
+    ],
+  };
+
+  it('bietet Auswahl- und freie Zusatzfelder mit Vinteds Titel und Pflichtangabe an', () => {
+    expect(vintedListingCatalogExtraFields(skirtRows)).toEqual([
+      {
+        kind: 'choice',
+        key: 'skirt_length',
+        label: 'Rocklänge',
+        required: true,
+        multiple: false,
+        limit: 1,
+        options: [
+          { id: 392, label: 'Mini' },
+          { id: 649, label: 'Knielänge' },
+        ],
+      },
+      { kind: 'text', key: 'text_shoulder_width', label: 'Schulterweite', unit: 'cm' },
+      { kind: 'text', key: 'text_height', label: 'Länge', unit: 'cm' },
+      {
+        kind: 'choice',
+        key: 'computer_operating_system',
+        label: 'Betriebssystem (empfohlen)',
+        required: false,
+        multiple: false,
+        limit: 1,
+        options: [{ id: 7, label: 'Windows' }],
+      },
+    ]);
+  });
+
+  it('meldet nur fehlende Pflichtfelder und übernimmt oder entfernt Angaben', () => {
+    const extras = vintedListingCatalogExtraFields(skirtRows);
+    expect(vintedListingExtraFieldErrors(extras, {})).toEqual({
+      skirt_length: 'Ergänze bitte: Rocklänge.',
+    });
+    expect(vintedListingExtraFieldErrors(extras, { skirt_length: '392' })).toEqual({});
+    expect(
+      withVintedListingExtraValues(
+        { skirt_length: '649', text_height: '60', accessory_department: '576' },
+        { skirt_length: '392', text_height: '' },
+      ),
+    ).toEqual({ skirt_length: '392', accessory_department: '576' });
+  });
+
+  it('bietet die Marke nur an, wenn die Kategorie bei Vinted eine hat', () => {
+    const book: VintedListingCatalogRows = {
+      fields: [
+        { field_code: 'isbn', position: 0, option_ids: null },
+        { field_code: 'condition', position: 1, option_ids: [2] },
+      ],
+      sizeGroups: [],
+      sizes: [],
+      options: [{ field_code: 'condition', id: 2, title: 'Sehr gut', position: 0 }],
+    };
+    const real = vintedListingCatalogCategoryFields(2319, book)!;
+    const fields = flipbaseVintedListingFields(2319, 'Belletristik', undefined, real);
+    expect(fields.fields.some((field) => field.field === 'brand')).toBe(false);
+    expect(vintedListingCatalogExtraFields(book)).toEqual([
+      { kind: 'text', key: 'text_isbn', label: 'ISBN', unit: '' },
+    ]);
+    const prepared = prepareFlipbaseVintedListingContent(
+      {
+        ...emptyVintedListingContent(),
+        categoryId: 2319,
+        categoryLabel: 'Belletristik',
+        brandLabel: 'Keine Marke',
+        conditionId: 2,
+        conditionLabel: 'Sehr gut',
+      },
+      real,
+    );
+    expect(prepared).toMatchObject({ brandId: null, brandLabel: '', conditionId: 2 });
+    const withBrand = vintedListingCatalogCategoryFields(5523, skirtRows)!;
+    expect(
+      flipbaseVintedListingFields(5523, 'Röcke', undefined, withBrand).fields.some(
+        (field) => field.field === 'brand',
+      ),
+    ).toBe(true);
   });
 });

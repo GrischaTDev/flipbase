@@ -21,6 +21,13 @@ export const platformAdminRoutes: Routes = [
       ),
   },
   {
+    path: 'vinted-catalog',
+    loadComponent: () =>
+      import('./pages/vinted-listing-catalog/vinted-listing-catalog.component').then(
+        (m) => m.VintedListingCatalogComponent,
+      ),
+  },
+  {
     path: 'server-storage',
     loadComponent: () =>
       import('./pages/server-storage/server-storage.component').then(

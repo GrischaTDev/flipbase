@@ -33,6 +33,8 @@ export interface VintedListingCatalogField {
   readonly selectionType: 'single' | 'multi' | null;
   readonly limit: number | null;
   readonly display: string | null;
+  /** Feldtitel wie bei Vinted, etwa „Rocklänge“; fehlt bei Feldern ohne Konfiguration. */
+  readonly title?: string;
   readonly sizeGroups?: readonly VintedListingCatalogSizeGroup[];
   readonly options?: readonly VintedListingCatalogChoice[];
 }
@@ -161,6 +163,7 @@ export function parseVintedListingCategoryAttributes(input: unknown): VintedList
     const required = config['required'];
     const display = config['display_type'];
     const options = config['options'];
+    const title = config['title'];
     if (
       (selectionType !== null && selectionType !== 'single' && selectionType !== 'multi') ||
       (limit !== null && (!positive(limit) || limit > 100)) ||
@@ -177,6 +180,7 @@ export function parseVintedListingCategoryAttributes(input: unknown): VintedList
       selectionType: selectionType as 'single' | 'multi' | null,
       limit: limit as number | null,
       display: (display as string | null) || null,
+      ...(typeof title === 'string' && title.trim() ? { title: label(title) } : {}),
     };
     if (code !== 'size') return { ...base, options: flatChoices(options as unknown[]) };
     const groups = (options as unknown[]).map((group): VintedListingCatalogSizeGroup => {
@@ -305,6 +309,7 @@ function toAttribute(value: unknown): unknown {
       selection_type: field['selectionType'],
       selection_limit: field['limit'],
       display_type: field['display'],
+      title: field['title'],
       options:
         field['sizeGroups'] !== undefined
           ? (Array.isArray(field['sizeGroups']) ? field['sizeGroups'] : invalid()).map((group) => ({

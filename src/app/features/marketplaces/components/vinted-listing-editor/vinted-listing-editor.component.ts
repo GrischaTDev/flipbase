@@ -101,6 +101,11 @@ const labels = (text: string) =>
     .map((value) => value.trim())
     .filter(Boolean);
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+import { VintedListingExtraFieldsComponent } from '../vinted-listing-extra-fields/vinted-listing-extra-fields.component';
+import {
+  vintedListingExtraFieldErrors,
+  withVintedListingExtraValues,
+} from '../../models/vinted-listing-catalog-fields';
 @Component({
   selector: 'app-vinted-listing-editor',
   templateUrl: './vinted-listing-editor.component.html',
@@ -123,6 +128,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     VintedListingTemplatePanelComponent,
     VintedListingBrandDialogComponent,
     VintedListingFieldsDialogComponent,
+    VintedListingExtraFieldsComponent,
     VintedListingPublicationPreviewComponent,
     VintedListingScheduleDialogComponent,
   ],
@@ -416,6 +422,26 @@ export class VintedListingEditorComponent {
           this.categoryFields.fields(this.selectedAccount()?.connectionId, content.categoryId),
         );
   });
+  /** Zusatzfelder der Kategorie aus dem Vinted-Katalog, etwa Rocklänge oder Maße. */
+  readonly extraFields = computed(() => {
+    const content = this.content();
+    if (this.context() !== this.loadedContext || content.categoryId === null) return [];
+    return this.categoryFields.extraFields(content.categoryId);
+  });
+  /** Ob die Kategorie bei Vinted eine Marke hat; Bücher oder Videospiele haben keine. */
+  readonly brandAvailable = computed(
+    () => this.categorySchema()?.fields.some((field) => field.field === 'brand') ?? true,
+  );
+  private readonly extraValues = signal<{
+    readonly categoryId: number;
+    readonly values: Readonly<Record<string, string>>;
+  } | null>(null);
+  changeExtras(values: Readonly<Record<string, string>>): void {
+    const categoryId = this.currentCategoryId();
+    if (categoryId === null) return;
+    this.extraValues.set({ categoryId, values });
+    this.markChanged();
+  }
   readonly fieldErrors = computed(() => {
     const stored = this.draft()?.images ?? [];
     const photos = this.images().map((image) => {
@@ -425,7 +451,10 @@ export class VintedListingEditorComponent {
         byteSize: image.file?.size ?? saved?.byteSize ?? 0,
       };
     });
-    const errors = validateVintedListingEditor(this.content(), photos, this.categorySchema());
+    const errors = {
+      ...validateVintedListingEditor(this.content(), photos, this.categorySchema()),
+      ...vintedListingExtraFieldErrors(this.extraFields(), this.content().attributes),
+    };
     const categoryId = this.currentCategoryId();
     const category =
       this.categories().find((value) => value.id === categoryId) ??
@@ -464,6 +493,7 @@ export class VintedListingEditorComponent {
             'color',
             'material',
             'package',
+            ...this.extraFields().map((extra) => extra.key),
           ].includes(field),
       )
       .map(([, message]) => message),
@@ -1394,7 +1424,10 @@ export class VintedListingEditorComponent {
       materialIds:
         categorySame && same(materialLabels, previous.materialLabels) ? previous.materialIds : [],
       packageSizeId: categorySame ? previous.packageSizeId : null,
-      attributes: categorySame ? previous.attributes : {},
+      attributes: withVintedListingExtraValues(
+        categorySame ? previous.attributes : {},
+        this.extraValues()?.categoryId === categoryId ? (this.extraValues()?.values ?? {}) : {},
+      ),
     });
     const fields = this.selectedFields();
     return prepareFlipbaseVintedListingContent(

@@ -362,7 +362,12 @@ beforeEach(() => {
     providers: [
       {
         provide: VintedCategoryFieldStore,
-        useValue: { fields: () => null, load: async () => null, remember: () => undefined },
+        useValue: {
+          fields: () => null,
+          extraFields: () => [],
+          load: async () => null,
+          remember: () => undefined,
+        },
       },
       { provide: AppDisplayPreferencesService, useValue: { actionOverviewEnabled: signal(false) } },
       {

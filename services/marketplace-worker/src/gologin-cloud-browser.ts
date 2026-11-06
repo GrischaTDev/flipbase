@@ -65,7 +65,11 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   /** Liest Teile des lokalen Vinted-Katalogs; speichert und veröffentlicht nichts. */
   readListingCatalog?(
     accountId: string,
-    request: { readonly categoryIds: readonly number[]; readonly includeTree: boolean },
+    request: {
+      readonly categoryIds: readonly number[];
+      readonly includeTree: boolean;
+      readonly budgetMs?: number;
+    },
     authorize: () => Promise<void>,
   ): Promise<VintedListingCatalogRead>;
   sendFavoriteMessage?(
