@@ -2520,9 +2520,10 @@ test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzö
     attributes: {
       accessory_department: '575',
       accessory_department_label: 'Herren',
-      flipbaseListingForm: '1',
     },
   });
+  // Mit Katalogwerten überträgt der Worker die IDs direkt, ohne Formular-Markierung.
+  expect(draft.content.attributes).not.toHaveProperty('flipbaseListingForm');
   expect(uploadedPhotos).toHaveLength(1);
   expect(uploadedPhotos[0]).toEqual(photo);
   expect(uploadedPhotos[0].includes(metadata)).toBe(true);
