@@ -59,6 +59,7 @@ const checks = {
         'supabase/functions/brand-label-media/index.ts',
         'supabase/functions/kleinanzeigen-account/index.ts',
         'supabase/functions/kleinanzeigen-local-extension/index.ts',
+        'supabase/functions/vinted-ai-search/index.ts',
       ],
     },
     {
@@ -69,6 +70,7 @@ const checks = {
         '--no-config',
         '--node-modules-dir=none',
         '--allow-env',
+        'supabase/functions/vinted-ai-search/index.test.ts',
         'supabase/functions/webhook-dispatch/handler.test.ts',
         'supabase/functions/webhook-dispatch/public-webhook-post.test.ts',
         'supabase/functions/webhook-dispatch/sale-notification.test.ts',

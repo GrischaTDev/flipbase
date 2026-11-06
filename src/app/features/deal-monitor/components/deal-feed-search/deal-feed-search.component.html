@@ -245,6 +245,8 @@
                 class="motion-safe:transition motion-safe:starting:opacity-0"
                 [class]="cardMotion()"
                 [item]="item"
+                [allowAiSearch]="operator.operator()"
+                (aiSearch)="selectedAnalysis.set($event)"
                 (inspect)="selectedDeal.set($event)"
               />
             }
@@ -265,4 +267,15 @@
 </div>
 @if (selectedDeal(); as deal) {
   <app-deal-detail-modal [item]="deal" (closed)="selectedDeal.set(null)" />
+}
+@if (operator.operator()) {
+  @if (workspace(); as currentWorkspace) {
+    @if (selectedAnalysis(); as item) {
+      <app-vinted-ai-search-modal
+        [item]="item"
+        [workspaceId]="currentWorkspace.id"
+        (closed)="selectedAnalysis.set(null)"
+      />
+    }
+  }
 }

@@ -118,6 +118,7 @@ it('releases the startup after the current document times out without reopening 
   const check = service.checkForUpdate({ force: true, showScreen: true });
   await vi.advanceTimersByTimeAsync(8000);
   await check;
+  expect(service.checkError()).not.toBe('');
   expect(service.startupPending()).toBe(false);
   expect(service.isApplying()).toBe(false);
 });
@@ -587,6 +588,7 @@ it('finishes the check while a slow update keeps downloading and offers it when 
   Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
   Object.defineProperty(registration, 'installing', { configurable: true, value: installing });
   registration.dispatchEvent(new Event('updatefound'));
+  registration.update.mockImplementation(() => new Promise(() => undefined));
   const check = service.checkForUpdate({ force: true, showScreen: true });
   await vi.advanceTimersByTimeAsync(8100);
   await check;

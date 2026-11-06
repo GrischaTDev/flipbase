@@ -46,6 +46,7 @@ export function appendMarketplacePermissions(migration, schema) {
 }
 
 async function finalizeGeneratedMigration() {
+  const aiSearch = process.argv.includes('--vinted-ai-search');
   const reviewFixes = process.argv.includes('--kleinanzeigen-review-fixes');
   const lifecycle = process.argv.includes('--kleinanzeigen-job-lifecycle');
   const jobs = process.argv.includes('--kleinanzeigen-jobs');
@@ -66,27 +67,29 @@ async function finalizeGeneratedMigration() {
     read ||
     sync ||
     process.argv.includes('--kleinanzeigen');
-  const suffix = reviewFixes
-    ? 'kleinanzeigen_review_fixes'
-    : lifecycle
-      ? 'kleinanzeigen_job_lifecycle'
-      : jobs
-        ? 'kleinanzeigen_publication_jobs'
-        : forms
-          ? 'kleinanzeigen_form_schemas'
-          : images
-            ? 'kleinanzeigen_transfer_images'
-            : sources
-              ? 'kleinanzeigen_transfer_sources'
-              : drafts
-                ? 'kleinanzeigen_drafts'
-                : read
-                  ? 'kleinanzeigen_read'
-                  : sync
-                    ? 'kleinanzeigen_sync'
-                    : kleinanzeigen
-                      ? 'kleinanzeigen_accounts'
-                      : 'marketplace_accounts';
+  const suffix = aiSearch
+    ? 'vinted_ai_search'
+    : reviewFixes
+      ? 'kleinanzeigen_review_fixes'
+      : lifecycle
+        ? 'kleinanzeigen_job_lifecycle'
+        : jobs
+          ? 'kleinanzeigen_publication_jobs'
+          : forms
+            ? 'kleinanzeigen_form_schemas'
+            : images
+              ? 'kleinanzeigen_transfer_images'
+              : sources
+                ? 'kleinanzeigen_transfer_sources'
+                : drafts
+                  ? 'kleinanzeigen_drafts'
+                  : read
+                    ? 'kleinanzeigen_read'
+                    : sync
+                      ? 'kleinanzeigen_sync'
+                      : kleinanzeigen
+                        ? 'kleinanzeigen_accounts'
+                        : 'marketplace_accounts';
   const directory = 'supabase/migrations';
   const migrations = (await readdir(directory)).filter((file) =>
     new RegExp('^\\d{14}_' + suffix + '\\.sql$', 'u').test(file),
@@ -99,25 +102,27 @@ async function finalizeGeneratedMigration() {
   if (tracked.error || tracked.status !== 1)
     throw new Error('Migration ist bereits versioniert oder Git-Status nicht prüfbar.');
   if (!(await lstat(path)).isFile()) throw new Error('Migration ist keine reguläre Datei.');
-  const schemaPath = lifecycle
-    ? 'supabase/schemas/511_kleinanzeigen_job_execution.sql'
-    : jobs
-      ? 'supabase/schemas/510_kleinanzeigen_publication_jobs.sql'
-      : forms
-        ? 'supabase/schemas/503_kleinanzeigen_form_schemas.sql'
-        : images
-          ? 'supabase/schemas/502_kleinanzeigen_transfer_images.sql'
-          : sources
-            ? 'supabase/schemas/501_kleinanzeigen_transfer_sources.sql'
-            : drafts
-              ? 'supabase/schemas/500_kleinanzeigen_drafts.sql'
-              : read
-                ? 'supabase/schemas/492_kleinanzeigen_read.sql'
-                : sync
-                  ? 'supabase/schemas/491_kleinanzeigen_sync.sql'
-                  : kleinanzeigen
-                    ? 'supabase/schemas/490_kleinanzeigen_accounts.sql'
-                    : 'supabase/schemas/250_marketplace_accounts.sql';
+  const schemaPath = aiSearch
+    ? 'supabase/schemas/540_vinted_ai_search.sql'
+    : lifecycle
+      ? 'supabase/schemas/511_kleinanzeigen_job_execution.sql'
+      : jobs
+        ? 'supabase/schemas/510_kleinanzeigen_publication_jobs.sql'
+        : forms
+          ? 'supabase/schemas/503_kleinanzeigen_form_schemas.sql'
+          : images
+            ? 'supabase/schemas/502_kleinanzeigen_transfer_images.sql'
+            : sources
+              ? 'supabase/schemas/501_kleinanzeigen_transfer_sources.sql'
+              : drafts
+                ? 'supabase/schemas/500_kleinanzeigen_drafts.sql'
+                : read
+                  ? 'supabase/schemas/492_kleinanzeigen_read.sql'
+                  : sync
+                    ? 'supabase/schemas/491_kleinanzeigen_sync.sql'
+                    : kleinanzeigen
+                      ? 'supabase/schemas/490_kleinanzeigen_accounts.sql'
+                      : 'supabase/schemas/250_marketplace_accounts.sql';
   let [migration, schema] = await Promise.all([
     readFile(path, 'utf8'),
     readFile(schemaPath, 'utf8'),
@@ -125,34 +130,70 @@ async function finalizeGeneratedMigration() {
   if (jobs || reviewFixes)
     schema +=
       '\n' + (await readFile('supabase/schemas/511_kleinanzeigen_job_execution.sql', 'utf8'));
-  const finish = reviewFixes
-    ? appendKleinanzeigenReviewFixPermissions
-    : lifecycle
-      ? appendKleinanzeigenJobLifecyclePermissions
-      : jobs
-        ? appendKleinanzeigenJobPermissions
-        : forms
-          ? appendKleinanzeigenFormPermissions
-          : images
-            ? appendKleinanzeigenImagePermissions
-            : sources
-              ? appendKleinanzeigenSourcePermissions
-              : drafts
-                ? appendKleinanzeigenDraftPermissions
-                : read
-                  ? appendKleinanzeigenReadPermissions
-                  : sync
-                    ? appendKleinanzeigenSyncPermissions
-                    : kleinanzeigen
-                      ? appendKleinanzeigenPermissions
-                      : appendMarketplacePermissions;
+  const finish = aiSearch
+    ? appendVintedAiSearchPermissions
+    : reviewFixes
+      ? appendKleinanzeigenReviewFixPermissions
+      : lifecycle
+        ? appendKleinanzeigenJobLifecyclePermissions
+        : jobs
+          ? appendKleinanzeigenJobPermissions
+          : forms
+            ? appendKleinanzeigenFormPermissions
+            : images
+              ? appendKleinanzeigenImagePermissions
+              : sources
+                ? appendKleinanzeigenSourcePermissions
+                : drafts
+                  ? appendKleinanzeigenDraftPermissions
+                  : read
+                    ? appendKleinanzeigenReadPermissions
+                    : sync
+                      ? appendKleinanzeigenSyncPermissions
+                      : kleinanzeigen
+                        ? appendKleinanzeigenPermissions
+                        : appendMarketplacePermissions;
   await writeFile(
     path,
-    finish(kleinanzeigen ? normalizeGeneratedSqlKeywords(migration) : migration, schema),
+    finish(
+      kleinanzeigen || aiSearch ? normalizeGeneratedSqlKeywords(migration) : migration,
+      schema,
+    ),
   );
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   await finalizeGeneratedMigration();
+
+export function appendVintedAiSearchPermissions(migration, schema) {
+  if (!/create table public\.vinted_ai_searches\b/iu.test(migration))
+    throw new Error('Keine generierte Vinted-KI-Migration.');
+  const permissions = [...schema.matchAll(/^(?:revoke|grant)\s+[^;]+;/gimu)].map(
+    (match) => match[0],
+  );
+  const required = [
+    'revoke all on public.vinted_ai_searches from public, anon, authenticated;',
+    'grant select on public.vinted_ai_searches to authenticated;',
+    'grant all on public.vinted_ai_searches to service_role;',
+    'revoke all on sequence public.vinted_ai_searches_id_seq from public, anon, authenticated;',
+    'grant usage, select on sequence public.vinted_ai_searches_id_seq to service_role;',
+    'revoke all on function public.reserve_vinted_ai_search(uuid, uuid, uuid, text, text) from public, anon, authenticated;',
+    'grant execute on function public.reserve_vinted_ai_search(uuid, uuid, uuid, text, text) to service_role;',
+    'revoke all on function public.vinted_ai_search_usage(uuid) from public, anon;',
+    'grant execute on function public.vinted_ai_search_usage(uuid) to authenticated;',
+  ];
+  if (
+    permissions.length !== required.length ||
+    required.some((statement) => !permissions.includes(statement))
+  )
+    throw new Error('Abweichender Vinted-KI-Rechtevertrag.');
+  const marker = '-- Explizite Rechte aus 540_vinted_ai_search.sql';
+  const suffix = `${marker}\n${permissions.join('\n')}\n`;
+  if (migration.includes(marker)) {
+    if (!migration.endsWith(suffix)) throw new Error('Abweichender Rechteblock vorhanden.');
+    return migration;
+  }
+  return `${migration.trimEnd()}\n\n${suffix}`;
+}
 function appendKleinanzeigenPermissionBlock(migration, schema, kind, tables, requiredFunction) {
   if (!migration.trim()) throw new Error('Leere Migration.');
   const permissions = schema
