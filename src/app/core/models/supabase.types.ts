@@ -8924,6 +8924,24 @@ export type Database = {
         }
         Relationships: []
       }
+      vinted_listing_catalog_refreshes: {
+        Row: {
+          id: number
+          requested_at: string
+          requested_by: string | null
+        }
+        Insert: {
+          id?: number
+          requested_at: string
+          requested_by?: string | null
+        }
+        Update: {
+          id?: number
+          requested_at?: string
+          requested_by?: string | null
+        }
+        Relationships: []
+      }
       vinted_listing_categories: {
         Row: {
           fields_observed_at: string | null
@@ -13207,6 +13225,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      platform_system_health: { Args: never; Returns: Json }
       prepare_beta_invitation: {
         Args: {
           p_application_id: string
@@ -13219,7 +13238,6 @@ export type Database = {
         Args: { p_application_id: string; p_request_id: string }
         Returns: Json
       }
-      platform_system_health: { Args: never; Returns: Json }
       prepare_listing: {
         Args: {
           p_catalog_product_id?: string
@@ -13543,6 +13561,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      request_vinted_listing_catalog_refresh: { Args: never; Returns: string }
       reserve_label_image: {
         Args: { p_input: Json; p_request_id: string }
         Returns: Json
@@ -14243,6 +14262,7 @@ export type Database = {
         Args: { p_content: Json; p_publish: boolean }
         Returns: Json
       }
+      vinted_listing_catalog_status: { Args: never; Returns: Json }
       web_push_allowed_categories: {
         Args: { p_user_id: string; p_workspace_id: string }
         Returns: string[]

@@ -17,7 +17,13 @@ interface ListingCatalogStoreOptions {
 export interface VintedListingCatalogWork {
   readonly includeTree: boolean;
   readonly categoryIds: readonly number[];
+  /** Höchstdauer des Lesens; länger, solange ein Auftrag zum Neu-Einlesen offen ist. */
+  readonly budgetMs?: number;
 }
+
+/** Je Abgleich bei offenem Auftrag aus dem Plattform-Admin. */
+const refreshBatchSize = 200;
+const refreshBudgetMs = 180_000;
 
 const weekMs = 7 * 24 * 60 * 60 * 1000;
 
@@ -40,7 +46,15 @@ export class SupabaseVintedListingCatalogStore {
 
   /** Fällig sind ein fehlender oder älterer Baum und Endkategorien ohne oder mit alten Feldern. */
   async work(now = new Date()): Promise<VintedListingCatalogWork | null> {
-    const staleBefore = new Date(now.getTime() - this.maxAgeMs).toISOString();
+    // Ein Auftrag zum Neu-Einlesen macht alles fällig, was vor ihm gelesen wurde.
+    const refresh = this.row(
+      await this.get('vinted_listing_catalog_refreshes', { select: 'requested_at', id: 'eq.1' }),
+    )?.['requested_at'];
+    const requestedAt =
+      typeof refresh === 'string' && Number.isFinite(Date.parse(refresh)) ? Date.parse(refresh) : 0;
+    const staleBefore = new Date(
+      Math.max(now.getTime() - this.maxAgeMs, Math.min(requestedAt, now.getTime())),
+    ).toISOString();
     const newest = await this.get('vinted_listing_categories', {
       select: 'tree_observed_at',
       order: 'tree_observed_at.desc',
@@ -54,7 +68,9 @@ export class SupabaseVintedListingCatalogStore {
       is_leaf: 'eq.true',
       or: `(fields_observed_at.is.null,fields_observed_at.lt.${staleBefore})`,
       order: 'fields_observed_at.asc.nullsfirst,id.asc',
-      limit: String(this.batchSize),
+      limit: String(
+        requestedAt > now.getTime() - this.maxAgeMs ? refreshBatchSize : this.batchSize,
+      ),
     });
     if (!Array.isArray(due)) throw new Error('Ungültige Katalogantwort');
     const categoryIds = due.map((entry) => {
@@ -63,7 +79,10 @@ export class SupabaseVintedListingCatalogStore {
         throw new Error('Ungültige Katalogantwort');
       return id;
     });
-    return includeTree || categoryIds.length ? { includeTree, categoryIds } : null;
+    if (!includeTree && !categoryIds.length) return null;
+    return requestedAt > now.getTime() - this.maxAgeMs
+      ? { includeTree, categoryIds, budgetMs: refreshBudgetMs }
+      : { includeTree, categoryIds };
   }
 
   /** Speichert Baum, Farben und Felder; eine abgelehnte Kategorie hält den Rest nicht auf. */

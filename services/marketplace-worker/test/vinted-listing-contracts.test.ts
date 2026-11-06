@@ -368,7 +368,7 @@ test('does not bypass disabled choices, drop unknown fields or submit unresolved
     { text_isbn: ' ' },
     { Rocklaenge: '392' },
     { skirt_length_label: 'Mini' },
-  ])
+  ] as Record<string, string>[])
     assert.ok(
       validateVintedListingSubmission({ ...content, attributes }, [photo], schema).some(
         (issue) => issue.field === 'attributes' && issue.code === 'unsupported',

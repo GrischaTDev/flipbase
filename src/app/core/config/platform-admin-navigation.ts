@@ -23,6 +23,7 @@ export const PLATFORM_ADMIN_SIDEBAR_NAVIGATION: readonly PlatformAdminNavigation
   { label: 'Bewerbungen', path: '/admin/applications', icon: 'userPlus' },
   { label: 'Nutzer', path: '/admin/users', icon: 'users' },
   { label: 'Vinted Bot', path: '/admin/vinted-bot', icon: 'bot' },
+  { label: 'Vinted-Katalog', path: '/admin/vinted-catalog', icon: 'tag' },
   { label: 'Server-Speicher', path: '/admin/server-storage', icon: 'hardDrive' },
   { label: 'Referenzbibliothek', path: '/tools/brand-labels/admin', icon: 'bookOpen' },
 ];

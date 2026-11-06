@@ -160,7 +160,7 @@ Katalog weitere Merkmale einzelner Kategorien (z. B. `measurements`, `skirt_leng
    Größengruppen) sowie Zustände, Farben, Materialien, Zielgruppen und
    Paketgrößen mit Original-IDs. Lesen für angemeldete Nutzer, Schreiben nur
    der Worker. Stand und Zeitpunkt je Kategorie.
-3. **Katalog-Abgleich im Worker** – erledigt (oben), ohne Knopf: Baum und Felder aller Endkategorien mit einer
+3. **Katalog-Abgleich im Worker** – erledigt (oben), Knopf siehe unten: Baum und Felder aller Endkategorien mit einer
    angemeldeten Sitzung lesen, gedrosselt, nur Änderungen schreiben. Auslöser
    wöchentlich und per Knopf im Plattform-Admin, Fortschritt sichtbar.
 4. **Oberfläche nur aus der Datenbank** – erledigt (oben), mit Übergang bis der Katalog vollständig ist: Kategorie wählen zeigt sofort ihre
@@ -172,14 +172,34 @@ Katalog weitere Merkmale einzelner Kategorien (z. B. `measurements`, `skirt_leng
 Danach entfallen `vinted_category_field_snapshots`, die eigenen Listen in
 `flipbase-vinted-listing-form.ts` und die Zuordnung über Bezeichnungen.
 
+## Übertragung über IDs, Zusatzfelder und Neu-Einlesen (06.11.2026)
+
+- **IDs statt Bezeichnungen:** Liegen für eine Kategorie Katalogwerte vor, setzt
+  `prepareFlipbaseVintedListingContent` den Merker `flipbaseListingForm` nicht mehr; der
+  Worker überträgt Größe, Zustand, Farben und Material direkt über Vinteds Kennungen.
+  Ältere Entwürfe der eigenen Liste werden dabei einmal über den Katalog zugeordnet. Ohne
+  Katalogwerte bleibt die Zuordnung über Bezeichnungen.
+- **Zusatzfelder:** Der Katalog speichert Vinteds Feldtitel (`title`). Editor und
+  Bearbeiten zeigen Zusatzfelder der Kategorie mit Vinteds Titel und Werten, Pflicht nur
+  wo Vinted sie verlangt. Gespeichert werden sie in `attributes`: Auswahlfelder als
+  `<code>` mit Vinted-Kennungen (z. B. `skirt_length: "392"`), freie Felder als
+  `text_<name>`. Maße (`text_shoulder_width`, `text_height` in cm) und ISBN (`text_isbn`)
+  stehen nicht in Vinteds Merkmalsabfrage, sondern nur im Formular und sind deshalb fest
+  hinterlegt. Der Worker liest Zusatzauswahlen bestehender Inserate mit und setzt geänderte
+  Zusatzfelder beim Veröffentlichen und Bearbeiten (`vinted-browser-listing-extras.ts`).
+- **Marke nur, wo Vinted sie hat:** Kategorien ohne Marke (z. B. Bücher, Videospiele)
+  bieten keine Marke an; eine vorhandene wird beim Vorbereiten entfernt.
+- **Neu-Einlesen:** Seite „Vinted-Katalog“ im Plattform-Admin mit Umfang, Aktualität und
+  Knopf „Jetzt neu einlesen“. Der Auftrag (`vinted_listing_catalog_refreshes`) macht alles
+  vor ihm Gelesene fällig; der Worker liest dann je Kontoabgleich bis zu 200 Kategorien
+  in höchstens drei Minuten, bis nichts mehr fällig ist.
+
 ## Offen
 
-- Zustand, Farben und Material werden beim Veröffentlichen weiter über die Bezeichnung zugeordnet; mit den Katalogbezeichnungen sind sie identisch. Eine reine ID-Übergabe ohne Merker `flipbaseListingForm` ist noch nicht umgestellt.
-
-- Knopf mit Fortschrittsanzeige im Plattform-Admin für einen sofortigen Abgleich.
-- Paketgrößen werden noch nicht gespeichert (Herkunft der Werte und der Empfehlung offen).
-
-- Paketgrößen-Empfehlung je Kategorie: Quelle noch nicht ermittelt.
-- Pflichtstatus der Farbe: im Feld ohne Konfiguration geliefert; das Formular
-  erlaubt bis zu zwei Farben.
-- Laufzeit und Drosselung des vollständigen Abgleichs (2.462 Abrufe).
+- Paketgrößen-Empfehlung je Kategorie: Quelle noch nicht ermittelt; ausgewählt wird die
+  Paketgröße weiter über die festen Werte 1–3 (Klein, Mittel, Groß).
+- Pflichtstatus der Farbe: im Feld ohne Konfiguration geliefert; das Formular erlaubt bis
+  zu zwei Farben.
+- Freie Zusatzfelder bestehender Inserate (Maße, ISBN) liefert Vinteds Inseratabfrage
+  nicht; beim Bearbeiten bleiben sie bei Vinted unverändert, solange sie nicht neu
+  eingegeben werden.
