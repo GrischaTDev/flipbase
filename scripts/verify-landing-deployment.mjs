@@ -63,10 +63,17 @@ async function verify() {
     throw new Error('Die Landingpage hat keine Canonical-URL.');
   }
   const scriptTags = [...html.matchAll(/<script\b([^>]*)>[\s\S]*?<\/script>/giu)];
-  if (scriptTags.length !== 3) {
-    throw new Error(`Landingpage enthält ${scriptTags.length} statt drei lokalen Skripten.`);
+  const expectedScripts = [
+    'landing.js',
+    'product-demo.js',
+    'beta-application.js',
+    'analytics-consent.js',
+  ];
+  if (scriptTags.length !== expectedScripts.length) {
+    throw new Error(
+      `Landingpage enthält ${scriptTags.length} statt ${expectedScripts.length} lokalen Skripten.`,
+    );
   }
-  const expectedScripts = ['landing.js', 'beta-application.js', 'analytics-consent.js'];
   for (const [index, scriptTag] of scriptTags.entries()) {
     const attributes = scriptTag[1];
     const sourceMatch = attributes.match(/\bsrc\s*=\s*["']([^"']+)["']/iu);
@@ -79,6 +86,7 @@ async function verify() {
   }
 
   await requireOkResponse(new URL('landing.js', baseUrl), 'Seitenskript');
+  await requireOkResponse(new URL('product-demo.js', baseUrl), 'Demoskript');
   const scriptResponse = await requireOkResponse(
     new URL('beta-application.js', baseUrl),
     'Formularskript',

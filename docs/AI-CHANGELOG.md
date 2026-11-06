@@ -1,5 +1,341 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Landingpage zur Veröffentlichung vorbereiten
+
+**Freigabe:** Der Nutzer autorisiert Push, PR, erfolgreichen Merge und
+anschließende Bereinigung. PR #589 für die zusammenhängende Überarbeitung
+erstellt. Unveränderten lokalen Prüfstand mit frisch abgerufenem Zielzweig und
+identischem Auswahlplan bestätigt; fremde Arbeitskopien bleiben erhalten.
+
+**Korrektur vor dem Merge:** Der öffentliche Deployment-Prüfer erwartete noch
+drei Skripte und hätte die neue Demo als Fehler abgewiesen. Die bestehende
+Prüfung verwendet jetzt die echte Landingpage anstelle einer veralteten
+HTML-Nachbildung. Drei gezielte Fälle bestätigten den Fehler zunächst. Der
+Prüfer verlangt alle vier lokalen, verzögert geladenen Skripte und prüft die
+Erreichbarkeit des Demoskripts ausdrücklich. Fehlende Demo- und Formularskripte
+bleiben eigenständige Fehlerfälle. Diese Lücke war im vorherigen lokalen
+Nachweis noch nicht enthalten.
+
+**Nachweise:** Alle elf Deploymentverträge unter Node 22 erfolgreich. Der
+abschließende Vorabcheck wird vor dem weiteren Push erneut ausgeführt.
+Die gültigen 59 Landingpagefälle und 32
+Browserkonfigurationen bleiben für die unveränderte Oberfläche erhalten.
+Abschließende lokale Ergebnisse, GitHub-Pflichtprüfungen und Auslieferungsnachweis
+werden im PR und Abschluss festgehalten. Protokolle unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/demo-polish/`.
+
+## 2026-11-06 - Juna - Vorführbare Demo und bedienbare Benachrichtigungen
+
+**Auftrag:** Den veralteten Bot-Hinweis im Vinted-Feed entfernen, drei kleinere
+Karten nebeneinander zeigen, die Glocke wie im Produkt bedienbar machen und
+unpassende Demo-Texte bereinigen. Fortsetzung auf `juna/landing-refresh`;
+GitHub abgeglichen und fremde Arbeitskopien unverändert erhalten.
+
+**Umsetzung:** Die Aufnahme nutzt eine feste Browserzeit passend zu den
+synthetischen Feed-Daten. Der originale Feed erhält für Desktop einen breiteren
+Aufnahmebereich und zeigt dadurch drei Karten in einer Reihe. Die realen
+Produktseiten und ihre Fehlerbehandlung bleiben unverändert. Fehlende eBay-
+Testantworten vervollständigt, Synchronisationsdaten vereinheitlicht und
+Kleinanzeigen mit Preisen und Veröffentlichungsstatus befüllt. Steuer/DATEV
+zeigt den Bankabgleich mit importierten Beispieltransaktionen.
+
+Alle 52 Aufnahmen erneut erstellt und ihre sichtbaren Texte geprüft; zuletzt
+bereinigte Marktplatz- und Bankansichten gezielt erneuert. Das Manifest hält
+Aufnahmebreite, Texte und Feed-Kartenpositionen fest. Der Aufnahmecheck weist
+unpassende Fehler-/Statushinweise sowie die fehlerhafte Zwei-plus-eins-Anordnung
+zurück. Pflegeablauf dokumentiert, Testauswahl ergänzt.
+
+Die Glocke öffnet ein Dropdown mit drei Beispielmeldungen, Gelesen-Aktion,
+Verlauf leeren und Verweisen auf die zugehörigen Demoansichten. Beide
+Vorschauen behalten unabhängige Zustände. Vollständige Tastaturbedienung,
+Fokusrückgabe, Außenklick und 44-Pixel-Touchflächen; keine Speicherung,
+Backendaufrufe oder automatische Bewegung.
+
+**Nachweise:** 59 Landingpagefälle und alle 32 Browserkonfigurationen erfolgreich.
+Beide Vorschauen und alle 13 Menüs einschließlich des geöffneten Dropdowns
+in Chromium/WebKit, bei 320/390/834/1440 Pixel, Hell/Dunkel und Deutsch/Englisch
+geprüft. AXE ohne Verstöße, keine externen Anfragen oder laufenden Animationen.
+Der abschließende Node-22-Vorabcheck prüft Format, Lint, Typen, Suite-Audit,
+ausgewählte Skriptverträge, Landingpage, Testorchestrierung,
+Auslieferungsintegration und Anwendungsbau. Tatsächliche Ergebnisse und offene
+CI-Nachweise stehen im PR-Entwurf und Abschluss. Private Protokolle und
+Ansichten unter `C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/demo-polish/`.
+Kein Push, PR oder Merge.
+
+## 2026-11-06 - Juna - Demo an den Originalansichten ausrichten
+
+**Anlass:** Der Nutzer verwirft die Demo wegen zu großer Abweichungen vom Produkt.
+Die vereinfachten Fachseiten hatten eigene Kennzahlenblöcke, Tabellen und
+Werkzeuge erhalten. Die laufende Aufgabe bleibt auf `juna/landing-refresh`;
+GitHub erneut abgeglichen, fremde Arbeitskopien unverändert erhalten.
+
+**Umsetzung:** 52 Aufnahmen der tatsächlich gerenderten Angular-Seiten mit
+synthetischen Daten ersetzen die erfundenen Fachlayouts: 13 Ansichten jeweils
+Desktop/Handy und Hell/Dunkel. Einkäufe, Verkäufe, Marktplätze, Vinted, eBay,
+Kleinanzeigen, Ausgaben, Steuer/DATEV, Auswertung, Feed, Marken/Labels und
+Bildoptimierer besitzen damit die echten Tabellen, Filterleisten und
+Bereichsaufteilungen. Die Übersicht zeigt fünf letzte Verkäufe im Modus ohne
+Shop. Rahmenfarben aus den berechneten App-Werten übernommen; Kopfzeile,
+Plattformlogos und Navigationsicons an den Originalverbrauchern ausgerichtet.
+Nicht mehr benötigte Layoutregeln und die zusätzliche Geschäftslogik der
+bisherigen Demo entfernt.
+
+Beide Größen und der Menüpunkt „Demo“ bleiben bestehen. Navigation mit Hover,
+Fokus, Pfeiltasten und Home/End sowie voneinander unabhängige Seitenauswahl.
+Handyansichten erhalten ihre eigenen Aufnahmen; Bilddateien werden passend zum
+Farbschema gewählt. Die Aufnahmen zeigen die deutsche Produktoberfläche und
+haben deutsche/englische Alternativtexte. Die Interaktion gilt für die
+Menünavigation; die Formulare und Werkzeuge in den Bildern sind Originalaufnahmen.
+Es läuft keine zweite Produktanwendung und es gibt keine Backendaufrufe.
+
+**Pflege:** `scripts/landing-demo-capture.mjs` erzeugt die Aufnahmen aus einem
+aktuellen Anwendungsbau über vollständig abgefangene lokale Fixtures.
+Einzelne Seiten können gezielt erneuert werden. Bilder erst nach erfolgreichem
+Aufnahmelauf schreiben; Manifest mit Routen, Quellkomponenten, tatsächlichen
+Bitmapmaßen, Integritätswerten und Dashboardzahlen automatisch erzeugen.
+Die Testauswahl für Generator und Bilddateien ausdrücklich mitgesichert.
+Pflegeablauf in `docs/implementation/landing-product-demo.md` dokumentiert.
+
+**Nachweise:** 55 Landingpagefälle erfolgreich; Regressionen an die ursprüngliche
+Anforderung einer klickbaren Vorschau angepasst: echte Bildquellen, alle vier
+Varianten pro Seite, Bildintegrität, Diagramm-/Kennzahlkonsistenz, unabhängige
+Navigation, Sprachalternativen und die Darstellung ohne JavaScript. 32 geprüfte
+Chromium-/WebKit-Konfigurationen bei 320/390/834/1440 Pixel, Hell/Dunkel und
+Deutsch/Englisch, mit beiden Vorschauen und allen 13 Menüs erfolgreich.
+Acht gezielte Nachprüfungen der zuletzt erneuerten Marktplatzaufnahmen ebenfalls
+erfolgreich. AXE ohne Verstöße, keine externen Anfragen oder laufenden Animationen.
+
+Eine zu kleine Touchfläche in der großen Tablet-Demo korrigiert. Der WebKit-Test
+wartet auf die tatsächlich gewählte Bildquelle; ein sofortiges `decode()` kann
+beim nativen `picture`-Wechsel abbrechen. Unvollständige Vinted-Fixtures und eine
+ersetzte Sonderzeichenkodierung bereinigt. Bildmaße aus den erzeugten Bitmapdaten
+statt gerundeten Browserrechtecken ableiten. Alle echten Produktvorlagen und
+Anbieterabläufe unverändert erhalten. Private Protokolle und Aufnahmen unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/original-fidelity/`.
+
+**Vorabcheck:** Der abschließende Node-22-Lauf prüft Format, Lint, Typen,
+Suite-Audit, ausgewählte Skriptverträge, Landingpage, Testorchestrierung,
+Auslieferungsintegration und Anwendungsbau. Tatsächliches Ergebnis und offene
+Linux-/CI-Nachweise werden im PR-Entwurf und Abschluss festgehalten.
+Kein Push, PR oder Merge.
+
+## 2026-11-06 - Juna - Zwei bedienbare Produktdemos auf der Landingpage
+
+**Auftrag:** Die Vorschau im Einstieg kürzen, die letzten Verkäufe halbieren und
+alle Menüs mit eigenen Demoansichten bedienbar machen. Zusätzlich führt der neue
+Kopfmenüpunkt „Demo“ zu einer größeren Vorschau unter der Funktionsübersicht.
+Die vorherigen Entscheidungen zu Belegfokus, Preisen, ruhiger Gestaltung und dem
+getrennten Shop-Ausblick gelten weiter. Derselbe eigene Arbeitszweig; fremde
+Arbeitskopien bleiben unangetastet.
+
+**Umsetzung:** Zwei unabhängig bedienbare Vorschauen mit 13 Ansichten:
+Dashboard, Einkäufe, Verkäufe, Marktplätze, Vinted, eBay, Kleinanzeigen,
+Ausgaben, Steuer/DATEV, Auswertung, Sniper-Feed, Marken und Bildoptimierung.
+Die kompakte Desktopvorschau sinkt von rund 906 auf 745 Pixel und zeigt fünf
+statt zehn letzte Verkäufe. Die große Demo nutzt die volle Abschnittsbreite.
+Menüs erhalten Hover, blauen Tastaturfokus, Pfeiltasten und Home/End; auf schmalen
+Ansichten wird die Navigation horizontal bedienbar. Die Rahmenhöhe bleibt beim
+Seitenwechsel konstant. Beide Vorschauen teilen ihre Inhalte, besitzen aber
+eindeutige IDs und voneinander unabhängige Auswahlzustände.
+
+Filter, Belegdetails, Marktplatzwechsel, Favoriten, Markensuche, Kontenrahmen und
+Exportvorschau sowie Bildformat/Helligkeit reagieren ausschließlich lokal mit
+synthetischen Beispieldaten. Originalbilder bleiben unverändert. Keine Anmeldung,
+Datenübertragung oder echte Veröffentlichung; der bestehende Bewerbungsablauf
+bleibt erhalten. Die Ansichten wechseln ausschließlich durch bewusste Bedienung.
+Ohne JavaScript bleibt die kompakte Übersicht sichtbar; die zusätzliche Demo und
+nicht bedienbare Verweise bleiben ausgeblendet.
+
+**Nachweise:** 55 erfolgreiche Landingpagefälle und neun Integrationsfälle.
+Sieben neue Regressionen sichern beide Vorschauen, eindeutige Ziele,
+Tastatursteuerung, Diagramm-/Filterwerte, Belegansicht, lokale Aktionen,
+Bildoriginale und die Darstellung ohne JavaScript. 32 erfolgreiche
+Chromium-/WebKit-Szenarien unter Windows bei 320/390/834/1440 Pixel, Hell/Dunkel
+und Deutsch/Englisch; beide Vorschauen mit allen 13 Ansichten, Touch/Tastatur und
+AXE geprüft. Ein Kontrastfehler des mobilen gelben Schnellzugriffs wurde behoben.
+Die Sichtprüfung deckte zusätzlich falsche tatsächliche Bildrahmenmaße auf;
+4:5/1:1 und stabile Rahmenhöhe anschließend in acht zusätzlichen Szenarien
+bestätigt. Vier Prüfungen der gesamten Seite bestätigen AXE und den Demo-Anker.
+Ein unmittelbar abgefragter WebKit-Favoritenzustand war verzögert sichtbar;
+den Fall isoliert untersucht und die sieben verbleibenden Szenarien mit
+wartenden Zustandsprüfungen erfolgreich abgeschlossen. Keine Abschwächung der
+Erwartung; keine echten Daten übertragen oder Bewerbung verschickt.
+
+**Vorabcheck und Grenzen:** GitHub erneut abgeglichen und den aktuellen
+Hauptstand `e31379ce` in denselben eigenen Zweig übernommen; fremde Änderungen
+und Changelog-Einträge erhalten. Der erste lokale Vorabcheck auf Node 22.23.4
+bestand Format, Lint, Typprüfung, Suite-Audit, 203 Skriptfälle, 55 Landingpagefälle,
+Testorchestrierung, neun Integrationsfälle und den Anwendungsbau. Nach der
+Bildrahmenkorrektur wird er auf dem endgültigen Stand erneut ausgeführt.
+Bauwarnungen betreffen bestehende App-Vorlagen, das initiale Größenbudget und
+CommonJS. Die ausgewählten zusätzlichen CI-Nachweise für Migrationspaket,
+Actionlint und Workflow-/Deploymentverträge bleiben vor dem Merge erforderlich.
+Windows-WebKit ersetzt keine native Safari-/Geräteprüfung. Private Protokolle
+und Vorschauaufnahmen unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/interactive-demo/`.
+Kein Push, PR oder Merge.
+
+## 2026-11-06 - Juna - Belegerfassung statt Bestandsdarstellung hervorheben
+
+**Nutzerentscheidung:** Die laufende Landingpage-Überarbeitung auf demselben
+eigenen Zweig fortsetzen. Einkäufe, Belege und Verkäufe bilden das aktuelle
+Produktversprechen. Die Bestandsansicht entfällt aus der Vermarktung; ausdrücklich
+gewünscht ist ein kleiner, klar als geplant gekennzeichneter Ausblick auf eine
+Online-Shop-Anbindung mit Einzelbestand und Bestandsabgleich. Diese Ausnahme gilt
+ausschließlich für den Shop-Ausblick. GitHub vor der Fortsetzung erneut
+abgeglichen; fremde Arbeitskopien unverändert erhalten.
+
+**Umsetzung:** Einstieg, zweisprachige Suchbeschreibungen, Funktionsübersicht,
+Pakete und FAQ auf Belegerfassung ausgerichtet. Die Dashboardgrafik zeigt den
+tatsächlichen Modus ohne Shop: kein Bestandsmenü und keine Lagerdauerkarte,
+stattdessen die Verkäufe über die volle Breite mit zehn Zeilen wie in der
+aktuellen Seitenlogik. Die Belegerfassung erhält eine eigene Produktgrafik mit
+Belegdatei, Datum, Betrag und Zuordnung zum Einkauf. Im bedienbaren Ablauf ersetzt
+„Beleg zuordnen“ den bisherigen Bestandsschritt; Tab-IDs, Tastaturziele und
+Beschriftungen passen zusammen. Keine Belegkarte in das Dashboard erfunden.
+Der Shop-Ausblick steht als kleine separate Fläche unter den drei
+Funktionsbereichen und gehört zu keinem aktuellen Paket. Keine Zeit- oder
+Anbieterzusage, keine OCR-, automatische Prüfungs- oder Rechtskonformitätszusage.
+
+**Nachweise:** 48 erfolgreiche Landingpagefälle einschließlich neuer Regression
+für Belegfokus, fehlende Bestandsdarstellung und den ausdrücklich begrenzten
+Shop-Ausblick. Die bestehenden Diagramm-, Formular-, Preis-, Sprach-, Ruhe- und
+Tastaturprüfungen bleiben erhalten. Neun bestehende Integrationsfälle erfolgreich.
+32 erfolgreiche Chromium-/WebKit-Darstellungen unter Windows bei
+320/390/834/1440 Pixel, Hell/Dunkel und Deutsch/Englisch, schmale Ansichten mit
+Touch. AXE ohne Verstöße; Belegschritt, Dateidarstellung und Zuordnung, zehn
+Verkaufszeilen ohne Bestandskarte, Kennzeichnung des Ausblicks, Kartenrollen,
+flache Buttons und Bildzuschnitt tatsächlich im Browser geprüft. Nur synthetische
+Vorschaudaten; keine echte Belegdatei hochgeladen und keine Anwendungs- oder
+Backendfunktion verändert.
+
+**Vorabcheck und Grenzen:** `npm run preflight:plan` und `npm run preflight` mit
+Node 22.23.4 auf dem endgültigen Stand erfolgreich: Format, ESLint, Typprüfungen,
+Suite-Audit, die ausgewählten Skriptverträge und 48 Landingpagefälle. Die zusätzlich
+ausgewählten CI-Nachweise für Migrationspaket, Actionlint,
+Workflow-/Deploymentverträge und Anwendungsbau bleiben vor dem Merge erforderlich.
+Windows-WebKit ersetzt keine native Safari-/Geräteprüfung. Private Protokolle und
+vollständige Vorher-/Nachheraufnahmen sowie Vorschauausschnitte unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/receipts/`. Kein Push, PR oder
+Merge.
+
+**Abgleich vor dem PR:** Während der lokalen Prüfung wurde `origin/master` um
+PR #586 erweitert. Den aktuellen Hauptstand `40afa35a` in denselben eigenen
+Zweig übernommen und beide vollständigen Changelog-Ergänzungen erhalten. Die
+Landingpage-Dateien blieben beim Abgleich unverändert. Der Vorabcheck wird mit
+der aktualisierten Testauswahl erneut auf dem gemeinsamen Stand ausgeführt.
+
+## 2026-11-06 - Juna - Landingpage entzerren und Bewegung beruhigen
+
+**Anlass und Grundlage:** Auf demselben eigenen Zweig `juna/landing-refresh`
+weiterarbeiten. Der Nutzer beanstandet die gestalterisch noch uneinheitlichen
+Karten, bewegte Inhalte und den überladenen Block aus acht Funktionskacheln.
+GitHub erneut abgeglichen; fremde Arbeitskopien erhalten. Den aktuellen
+Flipbase-Gestaltungsvertrag und die tatsächlichen Kartenrollen geprüft: 12px für
+Inhaltsabschnitte, 20px als eigene Übersichtsrolle. Diese Maße sind
+Flipbase-Webentscheidungen, keine pauschalen Apple-Originalwerte.
+
+**Umsetzung:** Acht gleichgewichtete Funktionskarten durch drei großzügige
+Bereiche mit jeweils einer zusammenhängenden Vorschau ersetzt: Warenwirtschaft
+und Finanzen, Marktplätze sowie Suche und Bilder. Alle acht Kernthemen bleiben
+sichtbar und besitzen ihre bisherigen Fachanker; kürzere Absätze und kompakte
+Funktionslisten ersetzen Nummernbadges, wiederholte Erklärungen und lange
+Checklisten. Drei neue zweisprachig zugänglich beschriftete Vorschauen zeigen
+Kosten/Gewinn, Inserate/Relisting/Konten und Feed/Bildzuschnitt. Preise, Beta-Zugang
+und die übrige Abschnittsfolge bleiben erhalten.
+
+**Gestaltung und Bewegung:** Inhaltsvorschauen, Preise, FAQ, Vertrauensflächen,
+Produktüberblick und Bewerbungsbereich verwenden 12px; die Übersicht behält 20px.
+Flache Aktionen mit 6px und Felder mit 7px bleiben erhalten. Ruhige Konturen,
+leichte Schatten und blauer Tastaturfokus ersetzen weitere abweichende Details.
+Die Schrift bevorzugt auf Apple-Geräten die Systemschrift mit lokalem Fallback.
+Automatische Text-/Szenenwechsel, Diagrammaufbau und dekorative Einblendungen
+entfallen vollständig. Nicht mehr nötige Wiedergabeaktionen und deren Zeitgeber,
+Sichtbarkeitsbeobachter und CSS-Animationen entfernt. Ablauf und Bildzuschnitt
+bleiben per Maus, Touch und Tastatur bedienbar; ohne JavaScript bleiben alle
+Ablaufschritte sichtbar. Der Zuschnitt verändert die äußere Vorschauhöhe nicht.
+Der tatsächliche Ladefortschritt beim Bewerben bleibt erhalten.
+
+**Nachweise:** 47 bestehende Landingpagefälle erfolgreich, an die ausdrücklich
+beauftragte Gruppierung und manuelle Bedienung angepasst. Regressionen prüfen
+weiterhin alle acht Themen, beide Sprachen, stabile Inhalte ohne automatische
+Zeitgeber, Tastaturwahl, Bildzuschnitt, Preise und Bewerbung. 32 erfolgreiche
+Chromium-/WebKit-Darstellungen unter Windows: 320/390/834/1440 Pixel, Hell/Dunkel
+und Deutsch/Englisch, auf schmalen Ansichten mit Touch. AXE ohne Verstöße;
+tatsächliche 12-/20px-Kartenrollen, flache Buttons, fehlende laufende
+Vorschauanimationen und gleichbleibende Höhe beim Formatwechsel geprüft. Die
+Browserprüfung deckte eine beim Entfernen alter Sammelregeln verlorene
+Textfarbvererbung und einen 1px-Formatsprung auf; beide Ursachen vor der
+vollständigen erfolgreichen Matrix korrigiert, keine Prüfung abgeschwächt.
+
+**Vorabcheck und Grenzen:** `npm run preflight:plan` und `npm run preflight` mit
+Node 22.23.4 auf dem endgültigen Stand erfolgreich: Format, ESLint, beide
+Typprüfungen, Suite-Audit, 194 ausgewählte Skriptfälle und 47 Landingpagefälle.
+Die vom Plan verlangten zusätzlichen CI-Nachweise einschließlich
+Workflow-/Deploymentverträgen und Anwendungsbau bleiben vor dem Merge offen.
+Windows-WebKit ersetzt keine native Safari-/Geräteprüfung. Private Protokolle und
+vollständige Vorher-/Nachheraufnahmen sowie ausdrücklich als Ausschnitt geführte
+Funktionsaufnahmen unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/refinement/`. Kein Push,
+PR, Merge oder produktiver Schreibzugriff.
+
+## 2026-11-06 - Juna - Landingpage an Produkt und Flipbase-Design anpassen
+
+**Auftrag und Grundlage:** Die Landingpage vollständig auf veraltete Aussagen,
+Vorschauen und abweichende Buttons prüfen. Die bestätigte Preisstaffel 15/29/49
+Euro erhalten. Kernfunktionen auf ausdrücklichen Nutzerwunsch unmittelbar als
+Produkt präsentieren, ohne Entwicklungsstände oder Zukunftsankündigungen.
+GitHub vor Beginn und vor der abschließenden Prüfung abgeglichen; eigener Zweig
+`juna/landing-refresh` vom aktuellen `origin/master` in getrennter Arbeitskopie.
+Die belegte primäre Arbeitskopie samt fremden Änderungen bleibt unverändert.
+
+**Ergebnis:** Die Hauptvorschau folgt der heutigen Übersicht: vier gemeinsame
+Kennzahlen, Zeitraum-/Plattformfilter, Schnellaktionen, Diagramm in Gelb/Grau/Petrol,
+die letzten drei Verkäufe mit Datum sowie Bestand nach Lagerdauer. Beispielsummen
+und direkte Verkaufskosten sind rechnerisch geprüft. Darstellung bleibt auch
+mobil vollständig. Veraltete Dashboardelemente, Bildunterschrift und der Text zu
+verteilten Tabellen entfallen. Produkttexte, Konten-/Inseratsvorschauen, FAQ und
+zweisprachige Suchbeschreibungen berücksichtigen Marktplatzkonten, Inserate,
+Vinted-Relisting und den Erhalt der Originalbilder. Abschnittsfolge und bestehende
+Bewerbungs-, Sprach-, Design- und Animationssteuerung bleiben erhalten.
+
+**Pakete und Gestaltung:** Standard, Plus und Pro unterscheiden Warenwirtschaft,
+Marktplatzfunktionen und größere Workspace-/Konten-/Teamumfänge. Die bestehenden
+Workspacegrenzen 1/3/5, Vinted-Kontengrenzen 3/5 und drei Teammitglieder im
+Pro-Paket bleiben erhalten. Keine durchgestrichenen Preise oder Listen geplanter
+Funktionen; alle drei Pakete verweisen weiterhin auf dieselbe kostenlose
+Beta-Bewerbung. Hauptaktionen verwenden eine gemeinsame flache Buttonrolle mit
+6px Radius, ohne Farbverlauf, Schatten oder Bewegung beim Überfahren/Drücken.
+Formularfelder verwenden 7px Radius und blauen Tastaturfokus. Keine gemeinsame
+Angular-Komponente, Abhängigkeit, Preisabrechnung oder Anbieterfunktion geändert.
+
+**Prüfung:** Mit Node 22.23.4 `npm run preflight:plan` und `npm run preflight`
+ausgeführt. Erfolgreich: Formatprüfung, ESLint, beide TypeScript-Prüfungen,
+Suite-Audit, 194 ausgewählte Skriptvertragsfälle und alle 47 Landingpagefälle.
+Die bestehenden Regressionen wurden an die beauftragten Aussagen angepasst und
+um flache Buttonzustände, fehlende Entwicklungsankündigungen, aktuelle
+Übersichtsstruktur und konsistente Diagrammkosten ergänzt. Zusätzlich 32
+erfolgreiche Playwright-Darstellungen unter Windows: Chromium/WebKit bei
+320/390/834/1440 Pixel, Hell/Dunkel und Deutsch/Englisch, schmale Ansichten mit
+Touch. AXE/WCAG A/AA ohne Verstöße; Seitenbreite, Bedienelemente, Diagramm,
+Ablaufschritte und Bildzuschnitt geprüft. Tastatur, native Pflichtfeldprüfung,
+erfolgreiche Bewerbung mit ausschließlich abgefangener synthetischer Antwort,
+Dialog-Rückfokus, flache Hover-/Gedrücktzustände und gespeicherte Design-/Sprachwahl
+ebenfalls geprüft. Den erkannten unzureichenden Kontrast der Plattformbeschriftung
+in der dunklen Vorschau vor der vollständigen Browsermatrix korrigiert.
+Die Lagerdauerbalken entsprechen wie in der Anwendung den Anteilen am gesamten
+Bestand. Nach dem abschließenden Zahlenabgleich zusätzlich in 16 gezielten
+Chromium-/WebKit-Darstellungen ihre tatsächlich gerenderten Breiten nachgemessen;
+die unveränderten Bewerbungs- und Sprachabläufe dabei nicht erneut durchlaufen.
+
+**Grenzen und Nachweise:** Lokale Entwicklungsprüfung erfolgreich; die vom Plan
+ausgewählten CI-Nachweise für Workflow-/Deploymentverträge, Migrationspaket,
+Actionlint und Anwendungsbau bleiben vor dem Merge erforderlich. Windows-WebKit
+ist kein nativer Safari-/Gerätetest. Kein echter Bewerbungsversand und keine
+produktive Anbieteraktion. Ausführliche Protokolle, Prüfskript, Matrixergebnisse
+und Screenshots privat unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/`. Kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Vinted-Paketgrößen je Kategorie mit Vorschlag
 
 **Anlass:** Die Paketgröße sollte Vinteds Empfehlung je Kategorie vorbelegen. Bei der
