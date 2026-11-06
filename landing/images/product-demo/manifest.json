@@ -1,0 +1,437 @@
+{
+  "sourceCommit": "d30a0c42f0d94a605549167760e2c2317bc3e695",
+  "capture": "actual-angular-pages",
+  "syntheticData": true,
+  "pages": {
+    "overview": {
+      "route": "/dashboard",
+      "component": "src/app/features/dashboard/dashboard.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "overview-desktop-light.webp",
+          "width": 1024,
+          "height": 1097,
+          "sha256": "900b632211be25e9eaf0127ccef8c3c8d28bbfc66002c6af10ef5d695e270b06"
+        },
+        "desktop-dark": {
+          "file": "overview-desktop-dark.webp",
+          "width": 1024,
+          "height": 1097,
+          "sha256": "c3c9bc54b39a4ca3b7cecc1effc9f78f0db58f09124f072bb2691fb158882ea1"
+        },
+        "mobile-light": {
+          "file": "overview-mobile-light.webp",
+          "width": 358,
+          "height": 1483,
+          "sha256": "1415aac72ed1b0ab8c8336947a03e73d8e70d3194e3dfc299ca30ffa85eb75d4"
+        },
+        "mobile-dark": {
+          "file": "overview-mobile-dark.webp",
+          "width": 358,
+          "height": 1483,
+          "sha256": "d74e9eb14116e63f521aa8c0814fb869b2b9c9697f25568ef208fa8d53e09c53"
+        }
+      },
+      "figures": {
+        "metrics": ["187,00 €", "115,50 €", "61,76 %", "5"],
+        "chart": [
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["187,00 €", "152,50 €", "115,50 €"],
+          ["0,00 €", "0,00 €", "0,00 €"]
+        ],
+        "recentSales": 5
+      }
+    },
+    "purchases": {
+      "route": "/purchases",
+      "component": "src/app/features/purchases/purchases.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "purchases-desktop-light.webp",
+          "width": 1024,
+          "height": 288,
+          "sha256": "50d4515c998e48cf5c5fa50fc1811e33b9cda9dd1f4fe2345497bc4a4998f1f4"
+        },
+        "desktop-dark": {
+          "file": "purchases-desktop-dark.webp",
+          "width": 1024,
+          "height": 288,
+          "sha256": "b385146bd4f4fc04dd156873a6bd2625843bc58affe56d60cf952ddc2980f385"
+        },
+        "mobile-light": {
+          "file": "purchases-mobile-light.webp",
+          "width": 358,
+          "height": 450,
+          "sha256": "740b058da5f54086aff945ad4374b0f0ff8b996042b4263b58413e84dde762b5"
+        },
+        "mobile-dark": {
+          "file": "purchases-mobile-dark.webp",
+          "width": 358,
+          "height": 450,
+          "sha256": "090469fdd2e7083f1a2e6df0caa6e178986d36cce022b4bf62e1c114d3fe282e"
+        }
+      }
+    },
+    "sales": {
+      "route": "/sales",
+      "component": "src/app/features/sales/sales.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "sales-desktop-light.webp",
+          "width": 1024,
+          "height": 515,
+          "sha256": "d7780c50b3046d11230c94e8cc24851755197773c3962ec8db7b811cf365072a"
+        },
+        "desktop-dark": {
+          "file": "sales-desktop-dark.webp",
+          "width": 1024,
+          "height": 515,
+          "sha256": "6e58f28ed053f39330d6ce032ab94df22606e35ca7c17ebccbd14ec237cc6316"
+        },
+        "mobile-light": {
+          "file": "sales-mobile-light.webp",
+          "width": 358,
+          "height": 1422,
+          "sha256": "8f5b13bf909cb6ecdef1da11588f5d3d069e221207faa7de9a8069f7c67afb7c"
+        },
+        "mobile-dark": {
+          "file": "sales-mobile-dark.webp",
+          "width": 358,
+          "height": 1422,
+          "sha256": "d5d2067039a53ebc88f790e5600e977f9a26b78e6d72c7237a69a48d89b58379"
+        }
+      }
+    },
+    "marketplaces": {
+      "route": "/marketplaces/overview",
+      "component": "src/app/features/marketplaces/components/marketplace-overview/marketplace-overview.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "marketplaces-desktop-light.webp",
+          "width": 1024,
+          "height": 466,
+          "sha256": "ce7b39fe15e161fc67ba3d1abb05701fb76d473dfcdc80f29d2d7766011faa5c"
+        },
+        "desktop-dark": {
+          "file": "marketplaces-desktop-dark.webp",
+          "width": 1024,
+          "height": 466,
+          "sha256": "8d953615f0d5121efbb07fc1d9f2b9baa2508d4321e3772052f2d5d594acad33"
+        },
+        "mobile-light": {
+          "file": "marketplaces-mobile-light.webp",
+          "width": 358,
+          "height": 805,
+          "sha256": "0c3c5d2359ebd8b9fb8706e17aa1e87b1be847a1f4b86252b0ab3febaa5fbc1b"
+        },
+        "mobile-dark": {
+          "file": "marketplaces-mobile-dark.webp",
+          "width": 358,
+          "height": 805,
+          "sha256": "80ee055572cff8fa6bf6cb8b424be9e204244f2ad4d5e74f521daf5db614867d"
+        }
+      }
+    },
+    "vinted": {
+      "route": "/marketplaces/vinted/listings",
+      "component": "src/app/features/marketplaces/vinted-workspace.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "vinted-desktop-light.webp",
+          "width": 1024,
+          "height": 642,
+          "sha256": "34dbb740940abcc098cff747009cdd3904acb281138d83a3489592816245adb5"
+        },
+        "desktop-dark": {
+          "file": "vinted-desktop-dark.webp",
+          "width": 1024,
+          "height": 642,
+          "sha256": "673f8ded2f17caf725543dca2233b49701376e40ad62c76521930613628ba7dd"
+        },
+        "mobile-light": {
+          "file": "vinted-mobile-light.webp",
+          "width": 358,
+          "height": 1166,
+          "sha256": "d518077d02a9c4594bd483198938e4816d3fb70b7e3b4587f99b54a56d427962"
+        },
+        "mobile-dark": {
+          "file": "vinted-mobile-dark.webp",
+          "width": 358,
+          "height": 1166,
+          "sha256": "4490975aac34f15d28187b8bbbcf049d4baf91356c7be9e4d6995b9a868939c4"
+        }
+      }
+    },
+    "ebay": {
+      "route": "/marketplaces/ebay",
+      "component": "src/app/features/marketplaces/ebay-workspace.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "ebay-desktop-light.webp",
+          "width": 1024,
+          "height": 326,
+          "sha256": "d7dd7124ac373c1e1e6b07fe5a64147b11222e370e16e282be08270508c9975c"
+        },
+        "desktop-dark": {
+          "file": "ebay-desktop-dark.webp",
+          "width": 1024,
+          "height": 326,
+          "sha256": "6a7c5705d83ca34294e2b5577492830f35828e9d0d5024534f12b8141c6db548"
+        },
+        "mobile-light": {
+          "file": "ebay-mobile-light.webp",
+          "width": 358,
+          "height": 450,
+          "sha256": "123a0202bb8b62159ddf961956b969ddebb7e8b4ab74dd3f0002c6cccb8a001a"
+        },
+        "mobile-dark": {
+          "file": "ebay-mobile-dark.webp",
+          "width": 358,
+          "height": 450,
+          "sha256": "aca9a927d53d4f09fca1c03579a700b875de7551cb356b3d909e7cf4c43c9b63"
+        }
+      }
+    },
+    "kleinanzeigen": {
+      "route": "/marketplaces/kleinanzeigen",
+      "component": "src/app/features/marketplaces/components/kleinanzeigen-workspace/kleinanzeigen-workspace.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "kleinanzeigen-desktop-light.webp",
+          "width": 1024,
+          "height": 525,
+          "sha256": "e2986c8574f87e16eac44983efe7e039929748bec524ffe72d33bb058c371ab5"
+        },
+        "desktop-dark": {
+          "file": "kleinanzeigen-desktop-dark.webp",
+          "width": 1024,
+          "height": 525,
+          "sha256": "e270ea074027e6b277f9b7976669318cd8f1376fc13b159d601ea202967a8667"
+        },
+        "mobile-light": {
+          "file": "kleinanzeigen-mobile-light.webp",
+          "width": 358,
+          "height": 1024,
+          "sha256": "edb45d4e9d06beaa4e50cd3fd19b8421d0080c9665935c4af0d3736a406b89b7"
+        },
+        "mobile-dark": {
+          "file": "kleinanzeigen-mobile-dark.webp",
+          "width": 358,
+          "height": 1024,
+          "sha256": "7bbf4586a2b69e4db5a90b2c80c7aaa7629976f2af373b04dfd8c586ccdb4c26"
+        }
+      }
+    },
+    "expenses": {
+      "route": "/expenses",
+      "component": "src/app/features/expenses/expenses.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "expenses-desktop-light.webp",
+          "width": 1024,
+          "height": 510,
+          "sha256": "1154a48cd7e9acaf621ab9b7e6add3ff51031899ae58872f6667fe5f3a2dce94"
+        },
+        "desktop-dark": {
+          "file": "expenses-desktop-dark.webp",
+          "width": 1024,
+          "height": 510,
+          "sha256": "8d7321230cd361ebc72a76a0a3af7d382b021fe8475ba3ba8f53ab7a8470fd0a"
+        },
+        "mobile-light": {
+          "file": "expenses-mobile-light.webp",
+          "width": 358,
+          "height": 1075,
+          "sha256": "e6960591fcd05caa8cbeffe1fb7f16a036b3b5f30b88408da6cb1a04e14ff17f"
+        },
+        "mobile-dark": {
+          "file": "expenses-mobile-dark.webp",
+          "width": 358,
+          "height": 1075,
+          "sha256": "1088fdf216960942f69b118446b11d97e329d5cc54bd3977844d7c9b4e7a594d"
+        }
+      }
+    },
+    "accounting": {
+      "route": "/accounting",
+      "component": "src/app/features/accounting/accounting.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "accounting-desktop-light.webp",
+          "width": 1024,
+          "height": 487,
+          "sha256": "3d609d68775407ad869e4c17a7d5fa04f95ffa00953c00d801eca7f34df10a7a"
+        },
+        "desktop-dark": {
+          "file": "accounting-desktop-dark.webp",
+          "width": 1024,
+          "height": 487,
+          "sha256": "6449c3737642c0ee18a50f9ae19ee1bb3271a9ff4492fb33206b20e021bbef51"
+        },
+        "mobile-light": {
+          "file": "accounting-mobile-light.webp",
+          "width": 358,
+          "height": 1042,
+          "sha256": "d0c50510f548dcc266000bf3495dee04a0d705ca3a1629e749b82f01f4497664"
+        },
+        "mobile-dark": {
+          "file": "accounting-mobile-dark.webp",
+          "width": 358,
+          "height": 1042,
+          "sha256": "2a178e23a6ba99811aa2870c7e55dfa31c392b4c17063bdc32a3eba324c6b86f"
+        }
+      }
+    },
+    "reports": {
+      "route": "/analytics",
+      "component": "src/app/features/analytics/analytics.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "reports-desktop-light.webp",
+          "width": 1024,
+          "height": 617,
+          "sha256": "8795c57063457aeb7ef0f0d7a486eff840acebe0121cc858112c8a8ecf74a6ff"
+        },
+        "desktop-dark": {
+          "file": "reports-desktop-dark.webp",
+          "width": 1024,
+          "height": 617,
+          "sha256": "3a4cf1f1e102ec9a2cd58a4270dc9095aa3984aca69ad6d6a7849f08cfc879e6"
+        },
+        "mobile-light": {
+          "file": "reports-mobile-light.webp",
+          "width": 358,
+          "height": 1472,
+          "sha256": "44bec306b4d0404cc8d802318faed707b352b372727f2ea22169087b5223c15a"
+        },
+        "mobile-dark": {
+          "file": "reports-mobile-dark.webp",
+          "width": 358,
+          "height": 1472,
+          "sha256": "2cbb9261da0bbf27b00b231e159de0d60e8ce7c633f75d5d8ecda546dc1249c4"
+        }
+      }
+    },
+    "feed": {
+      "route": "/vinted-bot",
+      "component": "src/app/features/deal-monitor/deal-monitor.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "feed-desktop-light.webp",
+          "width": 1024,
+          "height": 1431,
+          "sha256": "fbba8f91e9062a62477160650f1ed90445f3f5cac8aec92993a772ebe2eb6700"
+        },
+        "desktop-dark": {
+          "file": "feed-desktop-dark.webp",
+          "width": 1024,
+          "height": 1431,
+          "sha256": "16f9dc1bced4885395cd2d58172f8c2328652e01a22ffe5f3f64b6a8b43f55ba"
+        },
+        "mobile-light": {
+          "file": "feed-mobile-light.webp",
+          "width": 358,
+          "height": 2652,
+          "sha256": "e3b392965b826506a292fce3efc6e93b16b03ef2a9097be61b5fa73a30d259e3"
+        },
+        "mobile-dark": {
+          "file": "feed-mobile-dark.webp",
+          "width": 358,
+          "height": 2652,
+          "sha256": "5bd3a201a4c56caa38d908a9b334333764a03db69b6f10b21d8aff649e8aae71"
+        }
+      }
+    },
+    "brands": {
+      "route": "/tools/brand-labels",
+      "component": "src/app/features/brand-labels/pages/label-library/label-library.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "brands-desktop-light.webp",
+          "width": 1024,
+          "height": 530,
+          "sha256": "8729645e68e38de4dafa66528edf75b3113f27e1cbd0e605c15b4718f828db3d"
+        },
+        "desktop-dark": {
+          "file": "brands-desktop-dark.webp",
+          "width": 1024,
+          "height": 530,
+          "sha256": "25b69a989b3c79519344a9ba25989331ec17097cd452ec7a4fc633b9fc8ecd8d"
+        },
+        "mobile-light": {
+          "file": "brands-mobile-light.webp",
+          "width": 358,
+          "height": 1733,
+          "sha256": "3ac8797cdbf7fb7ea9fea7dc41ed94fb6c742253ebd059a162e8027ada1c841e"
+        },
+        "mobile-dark": {
+          "file": "brands-mobile-dark.webp",
+          "width": 358,
+          "height": 1733,
+          "sha256": "5dc2fb26aceca24a5a5a0e24be7625b238501d48d171e6d6477452ca169643ae"
+        }
+      }
+    },
+    "photos": {
+      "route": "/image-optimizer",
+      "component": "src/app/features/image-optimizer/image-optimizer.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "photos-desktop-light.webp",
+          "width": 1024,
+          "height": 1267,
+          "sha256": "8e5d04baff6364275e3b163de0ae1bb8e390ee6d8550b55ec87b566942c14ca2"
+        },
+        "desktop-dark": {
+          "file": "photos-desktop-dark.webp",
+          "width": 1024,
+          "height": 1267,
+          "sha256": "de08fee309d8aab739f4f604f597391c90a76ecd3edd9d178ed70a8236b04360"
+        },
+        "mobile-light": {
+          "file": "photos-mobile-light.webp",
+          "width": 358,
+          "height": 1889,
+          "sha256": "e77f2e3263f0e40440df2742be02e48489d5702e5eaf7f7eb4c4e214f1746c40"
+        },
+        "mobile-dark": {
+          "file": "photos-mobile-dark.webp",
+          "width": 358,
+          "height": 1889,
+          "sha256": "f2849b7695e49dfe4d87e24ad32bd2a2404e592110a3ce32bc51fedfbeedc6ff"
+        }
+      }
+    }
+  },
+  "themeColors": {
+    "light": {
+      "--fb-bg-app": "#f5f5f7",
+      "--fb-bg-sidebar": "#f5f5f7",
+      "--fb-bg-header": "#fafafc",
+      "--fb-bg-surface": "#fff",
+      "--fb-border-subtle": "#e5e5ea",
+      "--fb-text-primary": "#1d1d1f",
+      "--fb-text-secondary": "#505057",
+      "--fb-text-muted": "#5f5f66"
+    },
+    "dark": {
+      "--fb-bg-app": "#1c1c1e",
+      "--fb-bg-sidebar": "#242426",
+      "--fb-bg-header": "#1c1c1e",
+      "--fb-bg-surface": "#28282b",
+      "--fb-border-subtle": "#39393d",
+      "--fb-text-primary": "#f2f2f7",
+      "--fb-text-secondary": "#c9c9cf",
+      "--fb-text-muted": "#aaaab2"
+    }
+  }
+}

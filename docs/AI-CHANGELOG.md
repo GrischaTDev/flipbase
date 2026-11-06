@@ -1,5 +1,62 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Demo an den Originalansichten ausrichten
+
+**Anlass:** Der Nutzer verwirft die Demo wegen zu großer Abweichungen vom Produkt.
+Die vereinfachten Fachseiten hatten eigene Kennzahlenblöcke, Tabellen und
+Werkzeuge erhalten. Die laufende Aufgabe bleibt auf `juna/landing-refresh`;
+GitHub erneut abgeglichen, fremde Arbeitskopien unverändert erhalten.
+
+**Umsetzung:** 52 Aufnahmen der tatsächlich gerenderten Angular-Seiten mit
+synthetischen Daten ersetzen die erfundenen Fachlayouts: 13 Ansichten jeweils
+Desktop/Handy und Hell/Dunkel. Einkäufe, Verkäufe, Marktplätze, Vinted, eBay,
+Kleinanzeigen, Ausgaben, Steuer/DATEV, Auswertung, Feed, Marken/Labels und
+Bildoptimierer besitzen damit die echten Tabellen, Filterleisten und
+Bereichsaufteilungen. Die Übersicht zeigt fünf letzte Verkäufe im Modus ohne
+Shop. Rahmenfarben aus den berechneten App-Werten übernommen; Kopfzeile,
+Plattformlogos und Navigationsicons an den Originalverbrauchern ausgerichtet.
+Nicht mehr benötigte Layoutregeln und die zusätzliche Geschäftslogik der
+bisherigen Demo entfernt.
+
+Beide Größen und der Menüpunkt „Demo“ bleiben bestehen. Navigation mit Hover,
+Fokus, Pfeiltasten und Home/End sowie voneinander unabhängige Seitenauswahl.
+Handyansichten erhalten ihre eigenen Aufnahmen; Bilddateien werden passend zum
+Farbschema gewählt. Die Aufnahmen zeigen die deutsche Produktoberfläche und
+haben deutsche/englische Alternativtexte. Die Interaktion gilt für die
+Menünavigation; die Formulare und Werkzeuge in den Bildern sind Originalaufnahmen.
+Es läuft keine zweite Produktanwendung und es gibt keine Backendaufrufe.
+
+**Pflege:** `scripts/landing-demo-capture.mjs` erzeugt die Aufnahmen aus einem
+aktuellen Anwendungsbau über vollständig abgefangene lokale Fixtures.
+Einzelne Seiten können gezielt erneuert werden. Bilder erst nach erfolgreichem
+Aufnahmelauf schreiben; Manifest mit Routen, Quellkomponenten, tatsächlichen
+Bitmapmaßen, Integritätswerten und Dashboardzahlen automatisch erzeugen.
+Die Testauswahl für Generator und Bilddateien ausdrücklich mitgesichert.
+Pflegeablauf in `docs/implementation/landing-product-demo.md` dokumentiert.
+
+**Nachweise:** 55 Landingpagefälle erfolgreich; Regressionen an die ursprüngliche
+Anforderung einer klickbaren Vorschau angepasst: echte Bildquellen, alle vier
+Varianten pro Seite, Bildintegrität, Diagramm-/Kennzahlkonsistenz, unabhängige
+Navigation, Sprachalternativen und die Darstellung ohne JavaScript. 32 geprüfte
+Chromium-/WebKit-Konfigurationen bei 320/390/834/1440 Pixel, Hell/Dunkel und
+Deutsch/Englisch, mit beiden Vorschauen und allen 13 Menüs erfolgreich.
+Acht gezielte Nachprüfungen der zuletzt erneuerten Marktplatzaufnahmen ebenfalls
+erfolgreich. AXE ohne Verstöße, keine externen Anfragen oder laufenden Animationen.
+
+Eine zu kleine Touchfläche in der großen Tablet-Demo korrigiert. Der WebKit-Test
+wartet auf die tatsächlich gewählte Bildquelle; ein sofortiges `decode()` kann
+beim nativen `picture`-Wechsel abbrechen. Unvollständige Vinted-Fixtures und eine
+ersetzte Sonderzeichenkodierung bereinigt. Bildmaße aus den erzeugten Bitmapdaten
+statt gerundeten Browserrechtecken ableiten. Alle echten Produktvorlagen und
+Anbieterabläufe unverändert erhalten. Private Protokolle und Aufnahmen unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/original-fidelity/`.
+
+**Vorabcheck:** Der abschließende Node-22-Lauf prüft Format, Lint, Typen,
+Suite-Audit, ausgewählte Skriptverträge, Landingpage, Testorchestrierung,
+Auslieferungsintegration und Anwendungsbau. Tatsächliches Ergebnis und offene
+Linux-/CI-Nachweise werden im PR-Entwurf und Abschluss festgehalten.
+Kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Zwei bedienbare Produktdemos auf der Landingpage
 
 **Auftrag:** Die Vorschau im Einstieg kürzen, die letzten Verkäufe halbieren und

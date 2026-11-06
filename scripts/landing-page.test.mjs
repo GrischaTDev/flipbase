@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
@@ -11,6 +12,9 @@ const landingPath = path.join(landingDirectory, 'index.html');
 const landingScriptPath = path.join(landingDirectory, 'landing.js');
 const analyticsScriptPath = path.join(landingDirectory, 'analytics-consent.js');
 const html = await readFile(landingPath, 'utf8');
+const demoManifest = JSON.parse(
+  await readFile(path.join(landingDirectory, 'images/product-demo/manifest.json'), 'utf8'),
+);
 const landingScript =
   (await readFile(landingScriptPath, 'utf8')) +
   '\n' +
@@ -1808,77 +1812,43 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   };
 }
 
-test('hero preview follows the current overview with four metrics, quick actions and lower cards', () => {
+test('hero preview uses captured original views with thirteen accessible navigation targets', () => {
   const dom = new JSDOM(html);
   const { document } = dom.window;
   const replica = document.getElementById('dashboard-replica');
   assert.equal(replica.getAttribute('role'), 'region');
-  const label = document.getElementById(replica.getAttribute('aria-labelledby'));
-  assert.match(label.querySelector('.lang-de').textContent, /Interaktive Flipbase-Demo/u);
-  assert.match(
-    label.querySelector('.lang-en[lang="en"]').textContent,
-    /Interactive Flipbase demo/u,
-  );
   assert.deepEqual(listText(replica, '[data-nav-group] .lang-de'), [
     'Warenwirtschaft',
     'Marktplätze',
     'Finanzen',
     'Tools',
   ]);
+  assert.equal(replica.querySelectorAll('[data-demo-page]').length, 13);
+  assert.equal(replica.querySelectorAll('.demo-panel').length, 13);
   assert.deepEqual(listText(replica, '[data-nav-active] .lang-de'), ['Übersicht']);
-  assert.deepEqual(listText(replica, '[data-kpi-label] .lang-de'), [
-    'Umsatz',
-    'Gewinn',
-    'Marge',
-    'Verkäufe',
-  ]);
-  assert.deepEqual(listText(replica, '[data-chart-legend] .lang-de'), [
-    'Umsatz',
-    'Ausgaben gesamt',
-    'Gewinn',
-  ]);
-  assert.deepEqual(listText(replica, '.replica-quick-action .lang-de'), [
-    'Einkauf erfassen',
-    'Verkauf erfassen',
-    'Inserat erstellen',
-  ]);
-  assert.deepEqual(listText(replica, '.replica-bottom .replica-card-heading .lang-de'), [
-    'Letzte Verkäufe',
-  ]);
-  assert.equal(replica.querySelectorAll('.replica-sale').length, 5);
-  assert.equal(replica.querySelectorAll('.replica-stock-row').length, 0);
+  assert.equal(replica.querySelector('.replica-kpis, .demo-metrics, .demo-photo-comparison'), null);
   assert.equal(replica.closest('figure').querySelector('figcaption'), null);
+  assert.equal(demoManifest.capture, 'actual-angular-pages');
+  assert.equal(demoManifest.syntheticData, true);
+  assert.equal(demoManifest.pages.overview.figures.metrics.length, 4);
+  assert.equal(demoManifest.pages.overview.figures.recentSales, 5);
   dom.window.close();
 });
 
-test('dashboard example figures agree with the chart they summarize', () => {
-  const dom = new JSDOM(html);
-  const replica = dom.window.document.getElementById('dashboard-replica');
-  const kpi = (key) => replica.querySelector(`[data-kpi="${key}"] [data-kpi-value]`).textContent;
-  const seriesTotal = (series) =>
-    [...replica.querySelectorAll(`[data-series="${series}"]`)].reduce(
-      (total, bar) => total + Number(bar.style.getPropertyValue('--value')),
-      0,
-    );
-  const revenue = readEuro(kpi('revenue'));
-  const profit = readEuro(kpi('gross-profit'));
-  assert.equal(seriesTotal('revenue'), revenue);
-  assert.equal(seriesTotal('profit'), profit);
-  assert.ok(seriesTotal('expenses') > 0);
-  for (const month of replica.querySelectorAll('.replica-month')) {
-    const value = (key) =>
-      Number(month.querySelector(`[data-series="${key}"]`).style.getPropertyValue('--value'));
-    assert.ok(
-      value('expenses') >= value('revenue') - value('profit'),
-      'Total expenses include direct costs',
-    );
-  }
-  assert.equal(replica.querySelectorAll('[data-series]').length % 3, 0);
+test('captured dashboard metrics and chart agree using the real application calculations', () => {
+  const { metrics, chart } = demoManifest.pages.overview.figures;
+  const revenue = readEuro(metrics[0]);
+  const profit = readEuro(metrics[1]);
+  const sum = (column) =>
+    Math.round(chart.reduce((total, row) => total + readEuro(row[column]), 0) * 100);
+  assert.equal(sum(0), Math.round(revenue * 100));
+  assert.equal(sum(2), Math.round(profit * 100));
+  assert.ok(sum(1) > 0);
   assert.equal(
-    kpi('margin'),
-    `${((profit / revenue) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`,
+    Number.parseFloat(metrics[2].replace(',', '.')),
+    Math.round((profit / revenue) * 10000) / 100,
   );
-  dom.window.close();
+  assert.equal(Number(metrics[3]), demoManifest.pages.overview.figures.recentSales);
 });
 
 test('uses plain section headings and names every example image in both languages', () => {
@@ -2027,118 +1997,92 @@ test('product demo navigation supports arrows, Home and End on mouse and touch l
   }
 });
 
-test('demo filters keep revenue, profit, chart sums and platform rows consistent', () => {
-  const page = createShowcasePage();
-  const root = page.document.getElementById('dashboard-replica');
-  const platform = root.querySelector('[data-demo-platform]');
-  const period = root.querySelector('[data-demo-period]');
-  const metric = (key) => root.querySelector(`[data-kpi="${key}"] [data-kpi-value]`).textContent;
-  const series = (key) =>
-    [...root.querySelectorAll(`[data-series="${key}"]`)].reduce(
-      (sum, element) => sum + Number(element.style.getPropertyValue('--value')),
-      0,
-    );
-  for (const [key, revenue, profit] of [
-    ['all', 7824, 2632],
-    ['vinted', 4300, 1498],
-    ['ebay', 2400, 720],
-    ['kleinanzeigen', 1124, 414],
-  ]) {
-    platform.value = key;
-    platform.dispatchEvent(new page.window.Event('change', { bubbles: true }));
-    assert.equal(readEuro(metric('revenue')), revenue);
-    assert.equal(readEuro(metric('gross-profit')), profit);
-    assert.equal(Math.round(series('revenue') * 100), revenue * 100);
-    assert.equal(Math.round(series('profit') * 100), profit * 100);
+test('all original-view captures have intact desktop and mobile images in both themes', async () => {
+  assert.equal(Object.keys(demoManifest.pages).length, 13);
+  for (const [key, page] of Object.entries(demoManifest.pages)) {
+    assert.match(page.route, /^\//u);
+    assert.match(page.component, /^src\/app\/features\/.+\.component\.html$/u);
+    await assertFileExists(path.join(repositoryRoot, page.component), page.component);
+    assert.deepEqual(Object.keys(page.captures).sort(), [
+      'desktop-dark',
+      'desktop-light',
+      'mobile-dark',
+      'mobile-light',
+    ]);
+    for (const [variant, capture] of Object.entries(page.captures)) {
+      assert.equal(capture.file, `${key}-${variant}.webp`);
+      const bytes = await readFile(
+        path.join(landingDirectory, 'images/product-demo', capture.file),
+      );
+      assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
+      assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), capture.sha256);
+      assert.equal(capture.width, variant.startsWith('mobile') ? 358 : 1024);
+      assert.ok(capture.height > 100);
+    }
   }
-  platform.value = 'vinted';
-  period.value = 'month';
-  period.dispatchEvent(new page.window.Event('change', { bubbles: true }));
-  assert.equal(readEuro(metric('revenue')), 706);
-  assert.equal(readEuro(metric('gross-profit')), 234);
-  assert.equal(metric('sales'), '20');
-  assert.ok(
-    [...root.querySelectorAll('.replica-platform')].every(
-      (element) => element.textContent === 'Vinted',
-    ),
-  );
-  assert.equal(page.networkCalls.length, 0);
-  page.dom.window.close();
 });
 
-test('demo quick actions and receipts stay inside the selected demo', () => {
+test('view navigation cannot submit records or contact an application backend', () => {
   const page = createShowcasePage();
-  const root = page.document.getElementById('dashboard-replica');
-  root.querySelector('.replica-quick-action[data-demo-go="purchases"]').click();
-  assert.equal(
-    root.querySelector('[data-demo-page="purchases"]').getAttribute('aria-selected'),
-    'true',
-  );
-  const detail = root.querySelector('#demo-panel-purchases .demo-receipt');
-  detail.querySelector('summary').click();
-  assert.equal(detail.open, true);
-  assert.match(detail.textContent, /12,00/u);
+  for (const root of page.document.querySelectorAll('[data-product-demo]')) {
+    for (const tab of root.querySelectorAll('[data-demo-page]')) tab.click();
+    assert.equal(
+      root.querySelector('form, input, select, [data-demo-export], [data-demo-photo-reset]'),
+      null,
+    );
+  }
+  assert.equal(page.document.querySelectorAll('form').length, 1);
   assert.equal(page.document.querySelector('form').id, 'zweit-bewerbung-form');
   assert.equal(page.networkCalls.length, 0);
+  assert.equal(page.timers.size, 0);
   page.dom.window.close();
 });
 
-test('demo favorites, brand search and export preview react locally', () => {
+test('original captures have translated alternatives without changing either selected view', () => {
   const page = createShowcasePage();
-  const root = page.document.getElementById('dashboard-replica');
-  root.querySelector('[data-demo-page="feed"]').click();
-  root.querySelector('[data-demo-feed-filter="favorites"]').click();
-  assert.equal(root.querySelectorAll('[data-demo-feed-item]:not([hidden])').length, 1);
-  root.querySelector('[data-demo-favorite]').click();
-  assert.equal(root.querySelectorAll('[data-demo-feed-item]:not([hidden])').length, 0);
-  assert.equal(root.querySelector('[data-demo-feed-empty]').hidden, false);
-  root.querySelector('[data-demo-page="brands"]').click();
-  const search = root.querySelector('#demo-brand-search');
-  search.value = 'carhartt';
-  search.dispatchEvent(new page.window.Event('input', { bubbles: true }));
-  assert.equal(root.querySelectorAll('[data-demo-brand]:not([hidden])').length, 1);
-  search.value = 'no such brand';
-  search.dispatchEvent(new page.window.Event('input', { bubbles: true }));
-  assert.equal(root.querySelector('[data-demo-brand-empty]').hidden, false);
-  root.querySelector('[data-demo-page="accounting"]').click();
-  const chart = root.querySelector('#demo-accounting-chart');
-  chart.value = 'SKR04';
-  chart.dispatchEvent(new page.window.Event('change', { bubbles: true }));
-  root.querySelector('[data-demo-export]').click();
-  assert.equal(root.querySelector('#demo-export-preview').hidden, false);
-  assert.match(root.querySelector('#demo-export-preview').textContent, /SKR04/u);
+  const compact = page.document.querySelector('[data-product-demo="compact"]');
+  const expanded = page.document.querySelector('[data-product-demo="expanded"]');
+  compact.querySelector('[data-demo-page="purchases"]').click();
+  expanded.querySelector('[data-demo-page="photos"]').click();
+  const toggle = page.document.getElementById('lang-toggle');
+  toggle.checked = true;
+  toggle.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  for (const root of [compact, expanded]) {
+    for (const image of root.querySelectorAll('[data-demo-image]'))
+      assert.equal(image.alt, image.dataset.altEn);
+  }
+  assert.equal(compact.querySelector('[aria-selected="true"]').dataset.demoPage, 'purchases');
+  assert.equal(expanded.querySelector('[aria-selected="true"]').dataset.demoPage, 'photos');
   assert.equal(page.networkCalls.length, 0);
   page.dom.window.close();
 });
 
-test('photo demo preserves originals and isolates format and brightness between sizes', () => {
-  const page = createShowcasePage();
-  const root = page.document.getElementById('dashboard-replica');
-  const expanded = page.document.getElementById('expanded-product-demo');
-  root.querySelector('[data-demo-page="photos"]').click();
-  root.querySelector('[data-demo-photo-format="square"]').click();
-  const brightness = root.querySelector('#demo-photo-brightness');
-  brightness.value = '120';
-  brightness.dispatchEvent(new page.window.Event('input', { bubbles: true }));
-  assert.equal(root.querySelector('[data-demo-photo-ratio]').dataset.demoPhotoRatio, 'square');
-  assert.equal(root.querySelector('[data-demo-photo]').style.filter, 'brightness(1.2)');
-  assert.equal(
-    root.querySelector('.demo-photo-comparison > div:first-child img').getAttribute('style'),
-    null,
-  );
-  assert.equal(
-    expanded.querySelector('[data-demo-photo-ratio]').dataset.demoPhotoRatio,
-    'portrait',
-  );
-  assert.equal(expanded.querySelector('[data-demo-photo]').style.filter, 'brightness(1)');
-  root.querySelector('[data-demo-photo-reset]').click();
-  assert.equal(brightness.value, '100');
-  assert.equal(root.querySelector('[data-demo-photo-ratio]').dataset.demoPhotoRatio, 'portrait');
-  assert.equal(page.networkCalls.length, 0);
-  page.dom.window.close();
+test('each page references its original responsive captures instead of a second product layout', () => {
+  const document = new JSDOM(html).window.document;
+  for (const panel of document.querySelectorAll('.demo-panel')) {
+    const key = panel.id.replace('demo-panel-', '');
+    for (const theme of ['light', 'dark']) {
+      const picture = panel.querySelector(`.demo-screen--${theme}`);
+      const image = picture.querySelector('img');
+      const source = picture.querySelector('source');
+      assert.equal(image.getAttribute('src'), `images/product-demo/${key}-desktop-${theme}.webp`);
+      assert.equal(
+        source.getAttribute('srcset'),
+        `images/product-demo/${key}-mobile-${theme}.webp`,
+      );
+      assert.equal(source.media, '(max-width: 760px)');
+      assert.equal(
+        Number(image.getAttribute('height')),
+        demoManifest.pages[key].captures[`desktop-${theme}`].height,
+      );
+      assert.ok(image.dataset.altDe && image.dataset.altEn);
+    }
+    assert.equal(panel.querySelector('button, input, table, svg'), null);
+  }
 });
 
-test('demo defaults remain readable without JavaScript and expanded demo links wait for initialization', () => {
+test('original overview remains visible without JavaScript while extra navigation waits for initialization', () => {
   const dom = new JSDOM(html);
   assert.equal(dom.window.document.querySelectorAll('[data-product-demo]').length, 1);
   assert.equal(dom.window.document.getElementById('demo').hidden, true);
@@ -2146,6 +2090,9 @@ test('demo defaults remain readable without JavaScript and expanded demo links w
   assert.ok(
     [...dom.window.document.querySelectorAll('[data-demo-page]')].every((tab) => tab.disabled),
   );
-  assert.equal(dom.window.document.querySelectorAll('.replica-sale').length, 5);
+  const panels = dom.window.document.querySelectorAll('.demo-panel:not([hidden])');
+  assert.equal(panels.length, 1);
+  assert.equal(panels[0].id, 'demo-panel-overview');
+  assert.equal(panels[0].querySelectorAll('img[data-demo-image="overview"]').length, 2);
   dom.window.close();
 });

@@ -440,12 +440,18 @@ test('Dokumentation und eigenständiger Worker starten keine Anwendungstests', (
 });
 
 test('bekannte Landingpage startet ihre Vertragsprüfung ohne Anwendungs- oder Browserlauf', () => {
-  const plan = selectAffectedTests(['landing/index.html'], files);
-  assert.equal(plan.full, false);
-  assert.equal(plan.checks.landing, true);
-  assert.deepEqual(selectedFeatureBrowserFiles(plan), []);
-  assert.deepEqual(plan.units.node, []);
-  assert.equal(plan.pwa, false);
+  for (const changed of [
+    'landing/index.html',
+    'scripts/landing-demo-capture.mjs',
+    'landing/images/product-demo/overview-desktop-light.webp',
+  ]) {
+    const plan = selectAffectedTests([changed], files);
+    assert.equal(plan.full, false);
+    assert.equal(plan.checks.landing, true);
+    assert.deepEqual(selectedFeatureBrowserFiles(plan), []);
+    assert.deepEqual(plan.units.node, []);
+    assert.equal(plan.pwa, false);
+  }
 });
 
 test('eigenständiger Push-Worker prüft ausschließlich seinen Dienst', () => {
