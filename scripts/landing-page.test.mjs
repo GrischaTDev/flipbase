@@ -1471,30 +1471,31 @@ test('explains the reselling workflow and the real marketplace scope', () => {
     'Create and relist listings',
   );
 
-  const featureCards = [...document.querySelectorAll('#features .feature-karte')];
+  const groups = [...document.querySelectorAll('#features .feature-group')];
   assert.deepEqual(
-    featureCards.map((card) => card.id),
+    groups.map((group) => group.dataset.featureGroup),
+    ['business', 'marketplaces', 'tools'],
+  );
+  assert.equal(document.querySelector('.feature-grid'), null);
+  assert.deepEqual(
+    groups.map((group) =>
+      [...group.querySelectorAll('.feature-topics li')].map((topic) => topic.id),
+    ),
     [
-      'tracking',
-      'sales',
-      'expenses',
-      'accounting',
-      'vinted-bot',
-      'image-optimization',
-      'listings',
-      'multi-account',
+      ['tracking', 'sales', 'expenses', 'accounting'],
+      ['listings', 'multi-account'],
+      ['vinted-bot', 'image-optimization'],
     ],
   );
-  assert.ok(featureCards[0].classList.contains('hervorgehoben'));
-  assert.equal(featureCards[7].querySelector('.feature-badge .lang-de')?.textContent, 'Konten');
-  assert.equal(featureCards[7].querySelector('.feature-badge .lang-en')?.textContent, 'Accounts');
-  assert.match(featureCards[7].textContent, /Verbinde mehrere Marktplatzkonten/u);
-  assert.match(featureCards[6].textContent, /Vinted, eBay und Kleinanzeigen/u);
-  assert.match(featureCards[6].textContent, /Vinted-Relisting/u);
+  assert.match(groups[0].textContent, /Steuerdaten/u);
+  assert.match(groups[1].textContent, /Vinted-Relisting/u);
+  assert.match(groups[1].textContent, /Vinted · eBay · Kleinanzeigen/u);
   assert.match(
-    featureCards[5].textContent.replace(/\s+/gu, ' '),
+    groups[2].textContent.replace(/\s+/gu, ' '),
     /Deine Originalbilder bleiben erhalten/u,
   );
+  assert.ok(groups.every((group) => group.querySelectorAll('.feature-preview').length === 1));
+  assert.equal(document.querySelectorAll('#features .feature-badge').length, 0);
 
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
@@ -1506,10 +1507,10 @@ test('explains the reselling workflow and the real marketplace scope', () => {
   );
   assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
   assert.match(normalizedHtml, /für dein Reselling/u);
-  assert.match(normalizedHtml, /Vinted Bot: passende Funde prüfen/u);
-  assert.match(normalizedHtml, /Betriebsausgaben und Fixkosten erfassen/u);
+  assert.match(normalizedHtml, /Vinted Bot mit Filtern/u);
+  assert.match(normalizedHtml, /Belege, laufende Ausgaben und Steuerexporte/u);
   assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
-  assert.match(normalizedHtml, /Verkäufe auf Vinted, eBay und Kleinanzeigen fest/u);
+  assert.match(normalizedHtml, /Inserate, Nachrichten und Verkäufe bleiben klar zugeordnet/u);
   assert.match(normalizedHtml, /Ob Vintage Reselling oder andere Produkte/u);
   assert.doesNotMatch(document.title, /Vintage/iu);
   assert.doesNotMatch(document.querySelector('h1')?.textContent ?? '', /Vintage/iu);
@@ -1547,10 +1548,6 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   );
 
   for (const phrase of [
-    'Steuerliche Einordnung und Vollständigkeit sind vor der Nutzung zu prüfen.',
-    'Tax treatment and completeness must be reviewed before use.',
-    'Rechnerische 19/119-Aufteilung erfasster Margen',
-    'Calculated 19/119 split of recorded margins',
     'Welche Einstellung im Einzelfall passt, muss fachlich geprüft werden.',
     'The appropriate setting for each case must be reviewed by a qualified adviser.',
     'Ob § 25a anwendbar ist und welche Rechnungsangaben erforderlich sind, muss im Einzelfall geprüft werden.',
@@ -1721,7 +1718,6 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   const { window } = dom;
   const timers = new Map();
   let nextTimer = 0;
-  let observeEntries;
   let isHidden = false;
   Object.defineProperty(window.document, 'hidden', { get: () => isHidden });
   window.matchMedia = (query) => {
@@ -1741,7 +1737,7 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   window.clearInterval = (timerId) => timers.delete(timerId);
   window.IntersectionObserver = class {
     constructor(callback) {
-      observeEntries = callback;
+      void callback;
     }
     observe() {}
   };
@@ -1751,9 +1747,6 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
     window,
     document: window.document,
     timers,
-    intersect(id, isIntersecting) {
-      observeEntries([{ target: window.document.getElementById(id), isIntersecting }]);
-    },
     setHidden(hidden) {
       isHidden = hidden;
       window.document.dispatchEvent(new window.Event('visibilitychange'));
@@ -1858,14 +1851,10 @@ test('uses plain section headings and names every example image in both language
   for (const stylesheet of [css, showcaseCss]) {
     assert.doesNotMatch(stylesheet, /text-transform:\s*uppercase/u);
   }
-  assert.match(
-    showcaseCss,
-    /\[data-motion='on'\][^{]*\.replica-bar/u,
-    'Chart bars may only grow while animations are allowed',
-  );
+  assert.doesNotMatch(showcaseCss, /@keyframes|animation\s*:/u);
   const document = new JSDOM(html).window.document;
-  const demos = [...document.querySelectorAll('#features .feature-karte .tool-demo[role="img"]')];
-  assert.equal(demos.length, 7);
+  const demos = [...document.querySelectorAll('#features [role="img"]')];
+  assert.equal(demos.length, 3);
   for (const demo of demos) {
     const name = document.getElementById(demo.getAttribute('aria-labelledby'));
     assert.ok(name?.querySelector('.lang-de'), 'Every example image needs a German name');
@@ -1876,56 +1865,39 @@ test('uses plain section headings and names every example image in both language
   }
 });
 
-test('example scenes animate only in view and show complete results when paused or reduced', () => {
+test('keeps preview text and workflow stable without any automatic timers', () => {
   for (const reduced of [false, true]) {
     const page = createShowcasePage({ reduced });
+    const text = page.document.querySelector('main').textContent;
     assert.equal(page.timers.size, 0);
-    for (const id of ['feed-scene', 'listing-scene', 'expenses-scene']) {
-      const scene = page.document.getElementById(id);
-      page.intersect(id, true);
-      page.tick(2000);
-      assert.equal(scene.dataset.frame, reduced ? '3' : '0');
-      page.intersect(id, false);
-      assert.equal(page.timers.size, 0);
-    }
-    const button = page.document.getElementById('motion-toggle');
-    assert.equal(button.hidden, false);
-    assert.equal(button.disabled, reduced);
-    if (!reduced) {
-      page.intersect('profit-scene', true);
-      page.tick(1800);
-      assert.equal(page.document.getElementById('profit-scene').dataset.phase, '0');
-      page.setHidden(true);
-      assert.equal(page.timers.size, 0);
-      page.setHidden(false);
-      assert.equal(page.timers.size, 1);
-      button.click();
-      assert.equal(button.getAttribute('aria-pressed'), 'true');
-      assert.equal(page.document.documentElement.dataset.motion, 'off');
-      assert.equal(page.timers.size, 0);
-    }
+    assert.equal(page.document.getElementById('motion-toggle'), null);
+    assert.equal(page.document.getElementById('workflow-replay'), null);
+    page.tick(1800);
+    page.tick(2000);
+    page.tick(6500);
+    page.setHidden(true);
+    page.setHidden(false);
+    assert.equal(page.timers.size, 0);
+    assert.equal(page.document.getElementById('panel-purchase').hidden, false);
+    assert.equal(page.document.querySelector('main').textContent, text);
     assert.equal(page.document.getElementById('profit-scene').dataset.phase, '3');
-    for (const scene of page.document.querySelectorAll('[data-animated-scene]')) {
-      assert.equal(scene.dataset.frame, '3');
-    }
     page.dom.window.close();
   }
 });
 
-test('workflow steps show one panel, stop automatic changes after manual use and follow the keyboard', () => {
+test('workflow steps change only on selection and follow the keyboard', () => {
   const page = createShowcasePage();
-  page.intersect('workflow-scene', true);
   page.tick(6500);
-  assert.equal(page.document.getElementById('panel-inventory').hidden, false);
+  assert.equal(page.document.getElementById('panel-purchase').hidden, false);
   const saleButton = page.document.getElementById('step-sale');
   saleButton.click();
   assert.equal(page.document.querySelectorAll('.workflow-panel:not([hidden])').length, 1);
   assert.equal(page.document.getElementById('panel-sale').hidden, false);
   assert.equal(saleButton.getAttribute('aria-selected'), 'true');
   assert.equal(page.timers.size, 0);
-  page.document.getElementById('workflow-replay').click();
-  assert.equal(page.document.getElementById('panel-purchase').hidden, false);
-  assert.equal(page.timers.size, 1);
+  page.tick(6500);
+  assert.equal(page.document.getElementById('panel-sale').hidden, false);
+  assert.equal(page.timers.size, 0);
   page.dom.window.close();
 
   for (const mobile of [false, true]) {
@@ -1950,7 +1922,7 @@ test('keeps the examples readable without JavaScript and lets visitors pick a cr
   assert.equal(document.querySelectorAll('.workflow-panel:not([hidden])').length, 3);
   assert.equal(document.getElementById('profit-scene').dataset.phase, '3');
   assert.equal(document.querySelector('.crop-controls').hidden, true);
-  assert.equal(document.getElementById('motion-toggle').hidden, true);
+  assert.equal(document.getElementById('motion-toggle'), null);
   dom.window.close();
 
   const page = createShowcasePage();

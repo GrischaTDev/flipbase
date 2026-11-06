@@ -1,3 +1,9 @@
+/* Bedienelemente der Vorschauen übernehmen Schrift und Textfarbe der Seite. */
+.workflow-step,
+.crop-controls button {
+  font: inherit;
+  color: inherit;
+}
 /* Produktvorschauen folgen den Rollen der aktuellen Flipbase-Übersicht.
    Diagrammfarben entsprechen revenue-chart.config.ts. */
 main {
@@ -23,12 +29,6 @@ main {
     --replica-expenses: #9ca3af;
     --replica-profit: #006b73;
   }
-}
-.workflow-step,
-.replay-button,
-.crop-controls button {
-  font: inherit;
-  color: inherit;
 }
 .hero-copy h1 {
   font-size: clamp(2.2rem, 1.3rem + 2.2vw, 3.4rem);
@@ -434,14 +434,6 @@ main {
 .replica-stock-total + .replica-stock-row .replica-stock-track > span {
   background: #fcc601;
 }
-@keyframes replica-bar-grow {
-  from {
-    transform: scaleY(0);
-  }
-}
-[data-motion='on'] .replica-bar {
-  animation: replica-bar-grow 0.7s ease-out both;
-}
 @media (max-width: 1300px) and (min-width: 1101px) {
   .replica-sidebar {
     display: none;
@@ -612,11 +604,10 @@ main {
   background: var(--surface);
   padding: 8px 8px 13px;
   border: 1px solid var(--surface);
-  border-radius: 15px;
+  border-radius: 12px;
   box-shadow:
     0 8px 18px #55523812,
     0 1px 2px #55523814;
-  transform: rotate(-4deg);
 }
 .product-photo {
   display: flex;
@@ -677,7 +668,7 @@ main {
   width: 340px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 19px 21px;
   box-shadow:
     0 12px 24px #504d3210,
@@ -819,24 +810,6 @@ main {
     opacity 0.35s ease,
     transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
-[data-phase='0'] .cost-row,
-[data-phase='0'] .profit-row,
-[data-phase='1'] .profit-row {
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(4px);
-}
-[data-phase='0'] .profit-bar > span,
-[data-phase='1'] .profit-bar > span {
-  transform: scaleX(0);
-}
-[data-phase='0'] .sale-notification,
-[data-phase='1'] .sale-notification,
-[data-phase='2'] .sale-notification {
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(8px) scale(0.97);
-}
 .scene-caption {
   display: flex;
   justify-content: center;
@@ -850,12 +823,6 @@ main {
   width: 26px;
   height: 1px;
   background: var(--line);
-}
-[data-phase='0'] [data-phase-label='0'],
-[data-phase='1'] [data-phase-label='1'],
-[data-phase='2'] [data-phase-label='2'],
-[data-phase='3'] [data-phase-label='2'] {
-  color: var(--accent);
 }
 .workflow-layout {
   display: grid;
@@ -877,13 +844,13 @@ main {
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 21px 18px;
 }
 .workflow-step[aria-selected='true'] {
   background: var(--surface);
   border-color: var(--line);
-  box-shadow: inset 3px 0 0 var(--brand);
+  box-shadow: none;
 }
 .step-number {
   display: grid;
@@ -898,8 +865,8 @@ main {
 }
 .workflow-step[aria-selected='true'] .step-number {
   background: var(--brand);
-  border-color: #e5ba17;
-  color: #39320d;
+  border-color: transparent;
+  color: var(--on-brand);
 }
 .workflow-step strong {
   display: block;
@@ -923,31 +890,6 @@ main {
 .workflow-step[aria-selected='true'] > .icon {
   opacity: 1;
 }
-.replay-button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--ink-muted);
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  padding: 12px;
-  margin: 16px 0 0 7px;
-  font-size: 11px;
-}
-.replay-button:hover {
-  background: var(--panel);
-  color: var(--ink);
-}
-.replay-button .icon {
-  width: 13px;
-  height: 13px;
-}
-.workflow-hint {
-  font-size: 10px;
-  color: var(--ink-muted);
-  margin: 1px 0 0 19px;
-}
 .workflow-stage {
   position: relative;
   isolation: isolate;
@@ -960,17 +902,6 @@ main {
   min-height: 510px;
 }
 .workflow-panel:not([hidden]) {
-  animation: panel-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes panel-in {
-  from {
-    opacity: 0.2;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 .workflow-window {
   background: var(--surface);
@@ -1180,12 +1111,6 @@ main {
   font-size: 9px;
   margin-bottom: 8px;
 }
-[data-motion='off'] *,
-[data-motion='off'] *::before,
-[data-motion='off'] *::after {
-  animation: none !important;
-  transition: none !important;
-}
 @media (max-width: 1000px) {
   .workflow-layout {
     gap: 24px;
@@ -1254,15 +1179,6 @@ main {
   .workflow-step > .icon {
     display: none;
   }
-  .replay-button {
-    margin: 12px auto 0;
-    padding: 8px;
-    min-height: 36px;
-  }
-  .workflow-hint {
-    text-align: center;
-    margin: 2px 0 0;
-  }
   .workflow-panel {
     min-height: 510px;
     padding: 32px;
@@ -1291,8 +1207,7 @@ main {
     width: 225px;
     padding: 5px;
     margin: 0 auto 20px;
-    border-radius: 11px;
-    transform: rotate(-3deg);
+    border-radius: 12px;
   }
   .product-photo {
     height: 57px;
@@ -1333,11 +1248,6 @@ main {
     width: max-content;
     max-width: 95%;
     transform: translateX(-50%);
-  }
-  [data-phase='0'] .sale-notification,
-  [data-phase='1'] .sale-notification,
-  [data-phase='2'] .sale-notification {
-    transform: translate(-50%, 8px) scale(0.97);
   }
   .scene-caption {
     gap: 7px;
@@ -1541,21 +1451,6 @@ main {
   width: 13px;
   height: 13px;
 }
-[data-frame='0'] .feed-row {
-  opacity: 0.3;
-  transform: translateY(4px);
-}
-[data-frame='1'] .feed-row-two,
-[data-frame='1'] .feed-row-three,
-[data-frame='2'] .feed-row-three {
-  opacity: 0.3;
-  transform: translateY(4px);
-}
-[data-frame='1'] .feed-row-one,
-[data-frame='2'] .feed-row-two,
-[data-frame='3'] .feed-row-three {
-  border-color: var(--accent);
-}
 .image-demo {
   position: relative;
 }
@@ -1570,11 +1465,11 @@ main {
   width: 168px;
   height: 210px;
   overflow: hidden;
-  border: 2px solid var(--accent);
+  border: 1px solid var(--brand);
   background: var(--photo);
   transition:
-    width 0.4s ease,
-    height 0.4s ease;
+    width 0.15s ease,
+    height 0.15s ease;
 }
 .crop-photo[data-ratio='square'] {
   width: 210px;
@@ -1629,12 +1524,12 @@ main {
 }
 .crop-controls button {
   min-width: 52px;
-  min-height: 34px;
+  min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--surface);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .crop-controls button[aria-pressed='true'] {
   background: var(--brand);
@@ -1718,17 +1613,6 @@ main {
   width: 15px;
   height: 15px;
 }
-[data-frame='0'] .draft-field > :not(small),
-[data-frame='1'] .draft-field:nth-child(n + 2) > :not(small),
-[data-frame='2'] .draft-field:last-child > :not(small) {
-  opacity: 0.15;
-  transform: translateY(3px);
-}
-[data-frame='0'] .draft-ready,
-[data-frame='1'] .draft-ready,
-[data-frame='2'] .draft-ready {
-  opacity: 0.2;
-}
 .expense-entry {
   display: flex;
   gap: 11px;
@@ -1788,17 +1672,6 @@ main {
   background: var(--brand);
   transform-origin: left;
   transition: transform 0.65s ease;
-}
-[data-frame='0'] .expense-progress > span {
-  transform: scaleX(0);
-}
-[data-frame='1'] .expense-progress > span {
-  transform: scaleX(0.55);
-}
-[data-frame='0'] .expense-check,
-[data-frame='1'] .expense-entry:nth-of-type(3) .expense-check {
-  opacity: 0;
-  transform: scale(0.5);
 }
 .workspace-demo {
   padding: 20px;
@@ -2047,15 +1920,6 @@ main {
 }
 
 /* ---------- Funktionskarten mit Beispielbild am unteren Rand ---------- */
-.feature-karte > .tool-demo {
-  margin: auto -1.5rem -1.5rem;
-  min-height: 0;
-  padding: 18px 22px 22px;
-  border-top: 1px solid var(--line);
-}
-.feature-karte > .feature-punkte {
-  margin-bottom: 1.5rem;
-}
 .demo-table {
   display: grid;
   gap: 6px;
@@ -2165,29 +2029,5 @@ main {
 .workflow-section {
   padding-bottom: 0;
 }
-.workflow-hint {
-  margin: 12px 0 0;
-}
 
 /* ---------- Animationen pausieren ---------- */
-.motion-toggle {
-  width: 40px;
-  min-height: 40px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--ink-muted);
-}
-.motion-toggle:hover,
-.motion-toggle:focus-visible {
-  color: var(--ink);
-}
-.motion-toggle .icon {
-  width: 16px;
-  height: 16px;
-}
-.motion-toggle:disabled {
-  opacity: 0.6;
-  cursor: default;
-}

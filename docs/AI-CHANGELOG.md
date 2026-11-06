@@ -1,5 +1,59 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Landingpage entzerren und Bewegung beruhigen
+
+**Anlass und Grundlage:** Auf demselben eigenen Zweig `juna/landing-refresh`
+weiterarbeiten. Der Nutzer beanstandet die gestalterisch noch uneinheitlichen
+Karten, bewegte Inhalte und den überladenen Block aus acht Funktionskacheln.
+GitHub erneut abgeglichen; fremde Arbeitskopien erhalten. Den aktuellen
+Flipbase-Gestaltungsvertrag und die tatsächlichen Kartenrollen geprüft: 12px für
+Inhaltsabschnitte, 20px als eigene Übersichtsrolle. Diese Maße sind
+Flipbase-Webentscheidungen, keine pauschalen Apple-Originalwerte.
+
+**Umsetzung:** Acht gleichgewichtete Funktionskarten durch drei großzügige
+Bereiche mit jeweils einer zusammenhängenden Vorschau ersetzt: Warenwirtschaft
+und Finanzen, Marktplätze sowie Suche und Bilder. Alle acht Kernthemen bleiben
+sichtbar und besitzen ihre bisherigen Fachanker; kürzere Absätze und kompakte
+Funktionslisten ersetzen Nummernbadges, wiederholte Erklärungen und lange
+Checklisten. Drei neue zweisprachig zugänglich beschriftete Vorschauen zeigen
+Kosten/Gewinn, Inserate/Relisting/Konten und Feed/Bildzuschnitt. Preise, Beta-Zugang
+und die übrige Abschnittsfolge bleiben erhalten.
+
+**Gestaltung und Bewegung:** Inhaltsvorschauen, Preise, FAQ, Vertrauensflächen,
+Produktüberblick und Bewerbungsbereich verwenden 12px; die Übersicht behält 20px.
+Flache Aktionen mit 6px und Felder mit 7px bleiben erhalten. Ruhige Konturen,
+leichte Schatten und blauer Tastaturfokus ersetzen weitere abweichende Details.
+Die Schrift bevorzugt auf Apple-Geräten die Systemschrift mit lokalem Fallback.
+Automatische Text-/Szenenwechsel, Diagrammaufbau und dekorative Einblendungen
+entfallen vollständig. Nicht mehr nötige Wiedergabeaktionen und deren Zeitgeber,
+Sichtbarkeitsbeobachter und CSS-Animationen entfernt. Ablauf und Bildzuschnitt
+bleiben per Maus, Touch und Tastatur bedienbar; ohne JavaScript bleiben alle
+Ablaufschritte sichtbar. Der Zuschnitt verändert die äußere Vorschauhöhe nicht.
+Der tatsächliche Ladefortschritt beim Bewerben bleibt erhalten.
+
+**Nachweise:** 47 bestehende Landingpagefälle erfolgreich, an die ausdrücklich
+beauftragte Gruppierung und manuelle Bedienung angepasst. Regressionen prüfen
+weiterhin alle acht Themen, beide Sprachen, stabile Inhalte ohne automatische
+Zeitgeber, Tastaturwahl, Bildzuschnitt, Preise und Bewerbung. 32 erfolgreiche
+Chromium-/WebKit-Darstellungen unter Windows: 320/390/834/1440 Pixel, Hell/Dunkel
+und Deutsch/Englisch, auf schmalen Ansichten mit Touch. AXE ohne Verstöße;
+tatsächliche 12-/20px-Kartenrollen, flache Buttons, fehlende laufende
+Vorschauanimationen und gleichbleibende Höhe beim Formatwechsel geprüft. Die
+Browserprüfung deckte eine beim Entfernen alter Sammelregeln verlorene
+Textfarbvererbung und einen 1px-Formatsprung auf; beide Ursachen vor der
+vollständigen erfolgreichen Matrix korrigiert, keine Prüfung abgeschwächt.
+
+**Vorabcheck und Grenzen:** `npm run preflight:plan` und `npm run preflight` mit
+Node 22.23.4 auf dem endgültigen Stand erfolgreich: Format, ESLint, beide
+Typprüfungen, Suite-Audit, 194 ausgewählte Skriptfälle und 47 Landingpagefälle.
+Die vom Plan verlangten zusätzlichen CI-Nachweise einschließlich
+Workflow-/Deploymentverträgen und Anwendungsbau bleiben vor dem Merge offen.
+Windows-WebKit ersetzt keine native Safari-/Geräteprüfung. Private Protokolle und
+vollständige Vorher-/Nachheraufnahmen sowie ausdrücklich als Ausschnitt geführte
+Funktionsaufnahmen unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/refinement/`. Kein Push,
+PR, Merge oder produktiver Schreibzugriff.
+
 ## 2026-11-06 - Juna - Landingpage an Produkt und Flipbase-Design anpassen
 
 **Auftrag und Grundlage:** Die Landingpage vollständig auf veraltete Aussagen,
