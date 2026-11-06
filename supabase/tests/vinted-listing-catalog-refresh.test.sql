@@ -27,6 +27,20 @@ select is((select title from public.vinted_listing_category_fields where categor
  'Rocklänge', 'Keeps Vinted''s field title');
 select is((select title from public.vinted_listing_category_fields where category_id = 5523 and field_code = 'brand'),
  null, 'Fields without configuration have no title');
+select is(public.marketplace_save_vinted_listing_category_fields(2319, now() - interval '20 minutes', '[
+ {"code":"package","position":0,"required":true,"selectionType":"single","limit":1,"display":"package","title":"Paketgröße",
+  "options":[{"id":8,"title":"5 kg"},{"id":9,"title":"10 kg"},{"id":10,"title":"20 kg"}],"recommendedId":8}
+]'), true, 'Stores package sizes with Vinted''s recommendation');
+select is((select recommended_option_id from public.vinted_listing_category_fields where category_id = 2319 and field_code = 'package'),
+ 8, 'Keeps the recommended package size');
+select is((select option_ids from public.vinted_listing_category_fields where category_id = 2319 and field_code = 'package'),
+ array[8, 9, 10], 'Keeps the offered package sizes in Vinted''s order');
+select throws_ok($$select public.marketplace_save_vinted_listing_category_fields(2319, now(), '[
+ {"code":"package","position":0,"required":true,"selectionType":"single","limit":1,
+  "options":[{"id":1,"title":"Klein"}],"recommendedId":2}
+]')$$, 'P0001', 'Invalid Vinted category fields', 'Rejects a recommendation outside the offered sizes');
+select is((select recommended_option_id from public.vinted_listing_category_fields where category_id = 5523 and field_code = 'skirt_length'),
+ null, 'Fields without a recommendation stay empty');
 reset role;
 
 set local role authenticated;
@@ -37,8 +51,8 @@ select is((select count(*)::integer from public.vinted_listing_catalog_refreshes
 
 select set_config('request.jwt.claims','{"sub":"54020000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select is((public.vinted_listing_catalog_status()->>'leaves')::integer, 2, 'Operators read the catalog size');
-select is((public.vinted_listing_catalog_status()->>'leavesWithFields')::integer, 1, 'Counts leaves with fields');
-select is((public.vinted_listing_catalog_status()->>'leavesDue')::integer, 1, 'A leaf without fields is due');
+select is((public.vinted_listing_catalog_status()->>'leavesWithFields')::integer, 2, 'Counts leaves with fields');
+select is((public.vinted_listing_catalog_status()->>'leavesDue')::integer, 0, 'Recently read leaves are not due');
 select ok(public.request_vinted_listing_catalog_refresh() is not null, 'Operators request a refresh');
 select is((public.vinted_listing_catalog_status()->>'leavesDue')::integer, 2, 'A refresh makes earlier reads due');
 select ok(public.vinted_listing_catalog_status()->>'refreshRequestedAt' is not null, 'Shows the open request');

@@ -13,6 +13,8 @@ export interface VintedListingCatalogFieldRow {
   readonly required?: boolean | null;
   readonly selection_type?: string | null;
   readonly selection_limit?: number | null;
+  /** Vinteds Vorschlag für die Kategorie, bisher nur bei der Paketgröße. */
+  readonly recommended_option_id?: number | null;
 }
 
 /** Zeilen aus vinted_listing_category_size_groups mit ihren Größen. */
@@ -42,8 +44,15 @@ export interface VintedListingCatalogRows {
   readonly options: readonly VintedListingCatalogOptionRow[];
 }
 
-/** Felder, die die Masken aus dem Katalog übernehmen; Marke und Paketgröße bleiben getrennt. */
-const catalogFields = ['size', 'condition', 'color', 'material', 'accessory_department'] as const;
+/** Felder, die die Masken aus dem Katalog übernehmen; die Marke kommt aus der Markensuche. */
+const catalogFields = [
+  'size',
+  'condition',
+  'color',
+  'material',
+  'accessory_department',
+  'package',
+] as const;
 type CatalogField = (typeof catalogFields)[number];
 
 /**
@@ -112,7 +121,8 @@ export function vintedListingCatalogCategoryFields(
       choices: allowed.map((option) => ({
         id: option.id,
         label: option.title,
-        selected: false,
+        // Im Katalog gibt es keine Auswahl; `selected` markiert hier Vinteds Vorschlag.
+        selected: field === 'package' && option.id === row.recommended_option_id,
         disabled: false,
         sizeGroupId: null,
       })),
@@ -161,6 +171,7 @@ const standardFields = new Set([
   'color',
   'material',
   'accessory_department',
+  'package',
 ]);
 
 /**
