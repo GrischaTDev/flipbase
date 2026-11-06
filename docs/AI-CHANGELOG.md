@@ -1,6 +1,6 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-11-06 - Juna - Nachweis für einen lokalen Vinted-Katalog
+## 2026-11-06 - Juna - Lokaler Vinted-Katalog: Nachweis und Datenbank
 
 **Anlass:** Größen- und Merkmalsauswahl sollen nicht mehr über eigene Listen und
 Bezeichnungen geraten werden, sondern aus einem lokalen Katalog mit Vinteds
@@ -13,7 +13,13 @@ und Höchstanzahl. Nichts gespeichert oder veröffentlicht. Ergebnis, Quellen un
 Plan in [Lokaler Vinted-Katalog](implementation/vinted-local-catalog.md),
 Testdaten als Fixture.
 
-**Prüfung:** Reine Dokumentation und Testdaten; Format geprüft.
+**Datenbank:** Sechs zentrale Tabellen für Verkaufsbaum, Größengruppen, Größen,
+Merkmalswerte und Felder je Kategorie, Lesen für Angemeldete, Schreiben nur über drei
+Funktionen für den Worker. Ältere Lesestände überschreiben keine neueren; entfernte
+Kategorien verlieren ihre Felder. Typen erzeugt (nur neue Objekte).
+
+**Prüfung:** Migration in eigener lokaler Datenbank angewendet, 40 SQL-Prüfungen
+bestanden, Schemaabgleich ohne Abweichung bei den neuen Objekten. Vorabcheck im Commit.
 
 ## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
 

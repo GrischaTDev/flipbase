@@ -48,10 +48,34 @@ werden über Kategorien hinweg geteilt (11 Gruppen in 10 Kategorien):
 - Damenjeans haben keine W-Gruppe; Herrenjeans haben zwei Gruppen. Eine einzige
   gespeicherte Gruppe je Kategorie reicht nicht.
 
+## Datenbank (Schritt 2)
+
+Schema: [`540_vinted_listing_catalog.sql`](../../supabase/schemas/540_vinted_listing_catalog.sql).
+Zentral für alle Konten, ohne Arbeitsbereichsbezug. Angemeldete Nutzer lesen alles;
+geschrieben wird nur mit dem Dienstschlüssel über die Funktionen.
+
+| Tabelle                               | Inhalt                                                                                           |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `vinted_listing_categories`           | Verkaufsbaum mit Vinted-ID, Elternkategorie, Pfad, Reihenfolge, Endkategorie und Lesezeitpunkten |
+| `vinted_listing_size_groups`          | Größengruppen wie „S/M/L“ oder „Hosen für Herren“                                                |
+| `vinted_listing_sizes`                | Größen mit Vinted-ID und exakter Bezeichnung                                                     |
+| `vinted_listing_options`              | übrige Werte je Merkmal: Zustand, Farbe (mit Farbwert), Material, Zielgruppe, Paketgröße         |
+| `vinted_listing_category_fields`      | Felder je Endkategorie mit Pflicht, Auswahlart, Höchstanzahl und erlaubten Werten                |
+| `vinted_listing_category_size_groups` | Größengruppen je Endkategorie in Vinteds Reihenfolge                                             |
+
+| Funktion                                          | Zweck                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `marketplace_save_vinted_listing_categories`      | ersetzt den Baum vollständig; entfernte Kategorien verlieren ihre Felder; ältere Lesestände werden ignoriert |
+| `marketplace_save_vinted_listing_category_fields` | ersetzt die Felder einer Endkategorie samt Größengruppen und Werten; ältere Lesestände werden ignoriert      |
+| `marketplace_save_vinted_listing_options`         | speichert merkmalsweite Listen wie Farben; nicht mehr angebotene Werte entfallen                             |
+
+Ein Feld ohne erlaubte Werte (`option_ids` leer) nutzt alle Werte des Merkmals, so wie
+Vinted die Farben getrennt liefert.
+
 ## Plan
 
 1. **Nachweis** – erledigt (oben).
-2. **Datenbank:** zentrale Tabellen ohne Kontobezug: Verkaufsbaum, Größengruppen
+2. **Datenbank** – erledigt (oben): zentrale Tabellen ohne Kontobezug: Verkaufsbaum, Größengruppen
    mit Größen, Felder je Kategorie (Pflicht, Auswahlart, Höchstanzahl,
    Größengruppen) sowie Zustände, Farben, Materialien, Zielgruppen und
    Paketgrößen mit Original-IDs. Lesen für angemeldete Nutzer, Schreiben nur
