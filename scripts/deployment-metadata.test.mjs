@@ -20,6 +20,7 @@ const verifyLandingScript = fileURLToPath(
   new URL('./verify-landing-deployment.mjs', import.meta.url),
 );
 const workflowPath = fileURLToPath(new URL('../.github/workflows/ci.yml', import.meta.url));
+const landingHtml = await readFile(new URL('../landing/index.html', import.meta.url), 'utf8');
 const commit = '0123456789abcdef0123456789abcdef01234567';
 
 async function withServer(handler, callback) {
@@ -234,20 +235,17 @@ test('stoppt, wenn der öffentliche Healthcheck nicht exakt ok liefert', async (
   );
 });
 
-test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () => {
+test('bestätigt die echte Landingpage, lokale Demo-/Formularlogik und passende CSP', async () => {
+  const requests = [];
   await withServer(
     (request, response) => {
+      requests.push(request.url);
       if (request.url === '/') {
         response.writeHead(200, {
           'content-type': 'text/html',
           'content-security-policy': "default-src 'self'; script-src 'self'; object-src 'none'",
         });
-        response.end(
-          '<!doctype html><link rel="canonical" href="https://flipbase.de/" />' +
-            '<script src="landing.js" defer></script>' +
-            '<script src="beta-application.js" defer></script>' +
-            '<script src="analytics-consent.js" defer></script>',
-        );
+        response.end(landingHtml);
         return;
       }
       if (request.url === '/beta-application.js') {
@@ -255,7 +253,7 @@ test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () =
         response.end("var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';");
         return;
       }
-      if (request.url === '/landing.js' || request.url === '/analytics-consent.js') {
+      if (['/landing.js', '/product-demo.js', '/analytics-consent.js'].includes(request.url)) {
         response.writeHead(200, { 'content-type': 'text/javascript' });
         response.end('');
         return;
@@ -282,44 +280,46 @@ test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () =
       ]);
 
       assert.match(stdout, /Landingpage und Formularskript sind öffentlich nutzbar/u);
+      assert.ok(requests.includes('/product-demo.js'));
     },
   );
 });
 
-test('stoppt, wenn das ausgelagerte Beta-Formularskript fehlt', async () => {
-  await withServer(
-    (request, response) => {
-      if (request.url === '/') {
-        response.writeHead(200, {
-          'content-type': 'text/html',
-          'content-security-policy': "default-src 'self'; script-src 'self'; object-src 'none'",
-        });
-        response.end(
-          '<!doctype html><link rel="canonical" href="https://flipbase.de/" />' +
-            '<script src="landing.js" defer></script>' +
-            '<script src="beta-application.js" defer></script>' +
-            '<script src="analytics-consent.js" defer></script>',
+for (const [asset, label] of [
+  ['product-demo.js', 'Demoskript'],
+  ['beta-application.js', 'Formularskript'],
+])
+  test(`stoppt, wenn das ausgelagerte ${label} fehlt`, async () => {
+    await withServer(
+      (request, response) => {
+        if (request.url === '/') {
+          response.writeHead(200, {
+            'content-type': 'text/html',
+            'content-security-policy': "default-src 'self'; script-src 'self'; object-src 'none'",
+          });
+          response.end(landingHtml);
+        } else if (request.url === '/' + asset) {
+          response.writeHead(404).end();
+        } else if (['/landing.js', '/product-demo.js'].includes(request.url)) {
+          response.writeHead(200, { 'content-type': 'text/javascript' }).end('');
+        } else {
+          response.writeHead(404).end();
+        }
+      },
+      async (baseUrl) => {
+        await assert.rejects(
+          execFileAsync(process.execPath, [
+            verifyLandingScript,
+            '--base-url',
+            baseUrl,
+            '--attempts',
+            '1',
+          ]),
+          new RegExp(`${label} antwortet mit HTTP 404 statt 200`, 'u'),
         );
-      } else if (request.url === '/landing.js') {
-        response.writeHead(200, { 'content-type': 'text/javascript' }).end('');
-      } else {
-        response.writeHead(404).end();
-      }
-    },
-    async (baseUrl) => {
-      await assert.rejects(
-        execFileAsync(process.execPath, [
-          verifyLandingScript,
-          '--base-url',
-          baseUrl,
-          '--attempts',
-          '1',
-        ]),
-        /Formularskript antwortet mit HTTP 404 statt 200/u,
-      );
-    },
-  );
-});
+      },
+    );
+  });
 
 test('stoppt bei einer veralteten CSP ohne Freigabe für das lokale Formularskript', async () => {
   await withServer(

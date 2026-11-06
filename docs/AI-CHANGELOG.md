@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Landingpage zur Veröffentlichung vorbereiten
+
+**Freigabe:** Der Nutzer autorisiert Push, PR, erfolgreichen Merge und
+anschließende Bereinigung. PR #589 für die zusammenhängende Überarbeitung
+erstellt. Unveränderten lokalen Prüfstand mit frisch abgerufenem Zielzweig und
+identischem Auswahlplan bestätigt; fremde Arbeitskopien bleiben erhalten.
+
+**Korrektur vor dem Merge:** Der öffentliche Deployment-Prüfer erwartete noch
+drei Skripte und hätte die neue Demo als Fehler abgewiesen. Die bestehende
+Prüfung verwendet jetzt die echte Landingpage anstelle einer veralteten
+HTML-Nachbildung. Drei gezielte Fälle bestätigten den Fehler zunächst. Der
+Prüfer verlangt alle vier lokalen, verzögert geladenen Skripte und prüft die
+Erreichbarkeit des Demoskripts ausdrücklich. Fehlende Demo- und Formularskripte
+bleiben eigenständige Fehlerfälle. Diese Lücke war im vorherigen lokalen
+Nachweis noch nicht enthalten.
+
+**Nachweise:** Alle elf Deploymentverträge unter Node 22 erfolgreich. Der
+abschließende Vorabcheck wird vor dem weiteren Push erneut ausgeführt.
+Die gültigen 59 Landingpagefälle und 32
+Browserkonfigurationen bleiben für die unveränderte Oberfläche erhalten.
+Abschließende lokale Ergebnisse, GitHub-Pflichtprüfungen und Auslieferungsnachweis
+werden im PR und Abschluss festgehalten. Protokolle unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/demo-polish/`.
+
 ## 2026-11-06 - Juna - Vorführbare Demo und bedienbare Benachrichtigungen
 
 **Auftrag:** Den veralteten Bot-Hinweis im Vinted-Feed entfernen, drei kleinere
