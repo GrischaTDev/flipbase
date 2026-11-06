@@ -8,6 +8,7 @@ import {
 } from './vinted-listing-catalog-fields';
 import { parseVintedListingCategoryFields } from './vinted-listing-category-fields';
 import { parseVintedListingChoices } from '../../../../../services/marketplace-worker/src/vinted-listing-contracts';
+import { resolveFlipbaseVintedListingContent } from '../../../../../services/marketplace-worker/src/vinted-listing-form-mapping';
 import {
   flipbaseVintedListingFields,
   prepareFlipbaseVintedListingContent,
@@ -187,5 +188,27 @@ describe('Lokaler Vinted-Katalog in den Inseratmasken', () => {
       conditionId: 2,
     });
     expect(flipbaseVintedListingFields(1819, 'Jeans', draft, real).fields[0]?.field).toBe('size');
+  });
+
+  it('überträgt mit Katalogwerten Vinteds Kennungen direkt, ohne Zuordnung über Bezeichnungen', () => {
+    const real = vintedListingCatalogCategoryFields(1819, rows(1819))!;
+    const draft = {
+      ...emptyVintedListingContent(),
+      categoryId: 1819,
+      categoryLabel: 'Gerade geschnittene Jeans',
+      sizeId: 4,
+      sizeLabel: 'M',
+      conditionId: 3,
+      conditionLabel: 'Sehr gut',
+      attributes: { flipbaseListingForm: '1' },
+    };
+    // Ältere Entwürfe der eigenen Liste werden einmal über den Katalog zugeordnet.
+    const prepared = prepareFlipbaseVintedListingContent(draft, real);
+    expect(prepared.attributes).toEqual({});
+    expect(resolveFlipbaseVintedListingContent(prepared, real)).toBe(prepared);
+    // Ohne Katalogwerte bleibt die Zuordnung über Bezeichnungen beim Anbieter.
+    expect(prepareFlipbaseVintedListingContent(draft, null).attributes).toEqual({
+      flipbaseListingForm: '1',
+    });
   });
 });
