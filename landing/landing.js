@@ -8,12 +8,12 @@
     de: {
       title: 'Flipbase: Reselling-Software für Vinted, eBay & Kleinanzeigen',
       description:
-        'Reselling ohne Excel: Flipbase verbindet Einkauf, Bestand, Verkäufe, Ausgaben und Steuerdaten mit Vinted Bot, Bildern und Kleinanzeigen-Inseraten.',
+        'Flipbase verbindet Einkäufe, Bestand, Verkäufe und Finanzen mit deinen Marktplätzen. Verwalte Inserate, plane Relisting und finde neue Ware mit dem Vinted Bot.',
     },
     en: {
       title: 'Flipbase: Reselling software for Vinted, eBay & Kleinanzeigen',
       description:
-        'Reselling beyond spreadsheets: Flipbase connects purchases, inventory, sales, expenses, and accounting data with Vinted finds, photos, and listings.',
+        'Flipbase connects purchases, inventory, sales, and finances with your marketplaces. Manage listings, schedule relisting, and source inventory with the Vinted Bot.',
     },
   };
 

@@ -6,7 +6,7 @@
     <title>Flipbase: Reselling-Software für Vinted, eBay &amp; Kleinanzeigen</title>
     <meta
       name="description"
-      content="Reselling ohne Excel: Flipbase verbindet Einkauf, Bestand, Verkäufe, Ausgaben und Steuerdaten mit Vinted Bot, Bildern und Kleinanzeigen-Inseraten."
+      content="Flipbase verbindet Einkäufe, Bestand, Verkäufe und Finanzen mit deinen Marktplätzen. Verwalte Inserate, plane Relisting und finde neue Ware mit dem Vinted Bot."
     />
     <link rel="canonical" href="https://flipbase.de/" />
     <meta property="og:type" content="website" />
@@ -602,32 +602,6 @@
         display: block;
       }
 
-      .kopf-cta {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 38px;
-        padding: 0.5rem 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 9px;
-        background: linear-gradient(180deg, var(--brand) 0%, var(--brand-hover) 100%);
-        box-shadow: 0 6px 18px var(--brand-glow);
-        color: var(--on-brand);
-        font-size: 0.84rem;
-        font-weight: 700;
-        line-height: 1.2;
-        white-space: nowrap;
-        transition:
-          transform 0.15s ease,
-          box-shadow 0.15s ease;
-      }
-
-      .kopf-cta:hover,
-      .kopf-cta:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 22px var(--brand-glow);
-      }
-
       #features,
       #roadmap,
       #pricing,
@@ -741,7 +715,7 @@
 
       /* ---------- Hero / Aufmacher ---------- */
 
-      /* Text links, Nachbau des Dashboards rechts (Gestaltung in landing-showcase.css). */
+      /* Text links, Produktvorschau rechts (Gestaltung in landing-showcase.css). */
       .aufmacher {
         display: grid;
         grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
@@ -793,10 +767,12 @@
 
       h1 em {
         font-style: normal;
-        color: var(--on-brand);
-        background: var(--brand);
-        padding: 0 0.1em;
-        box-decoration-break: clone;
+        background: transparent;
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--brand);
+        text-decoration-thickness: 0.08em;
+        text-underline-offset: 0.14em;
       }
 
       .unterzeile {
@@ -1027,25 +1003,21 @@
       }
 
       .hero-beta-input {
-        flex: 1;
+        width: 100%;
         min-width: 0;
+        min-height: 46px;
+        padding: 0.72rem 0.9rem;
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0.8rem 1.15rem;
+        border-radius: 7px;
         color: var(--ink);
-        font-family: var(--sans);
-        font-size: 0.95rem;
-        outline: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        transition:
-          border-color 0.2s ease,
-          box-shadow 0.2s ease;
+        font: inherit;
+        font-size: 16px;
+        box-shadow: none;
       }
-
-      .hero-beta-input:focus {
-        border-color: var(--brand);
-        box-shadow: 0 0 0 3px var(--brand-glow);
+      .hero-beta-input:focus-visible {
+        outline: 2px solid #007aff;
+        outline-offset: 2px;
       }
 
       .hero-beta-input::placeholder {
@@ -1053,19 +1025,8 @@
       }
 
       .hero-beta-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
         width: 100%;
-        min-height: 48px;
-        padding: 0.8rem 1.35rem;
-        border: none;
-        border-radius: 11px;
-        font-size: 0.9rem;
-        font-weight: 700;
-        white-space: nowrap;
-        cursor: pointer;
+        white-space: normal;
       }
 
       .hero-beta-submit-loading {
@@ -1134,7 +1095,7 @@
         }
         .hero-beta-btn {
           width: 100%;
-          justify-content: center;
+          white-space: normal;
         }
       }
 
@@ -1145,49 +1106,65 @@
         gap: 1rem;
       }
 
-      .btn-primary {
+      .btn-primary,
+      .btn-secondary,
+      .kopf-cta {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 0.6rem;
-        background: linear-gradient(180deg, var(--brand) 0%, var(--brand-hover) 100%);
+        min-height: 44px;
+        padding: 0.7rem 1.1rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        box-shadow: none;
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.4;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+      .btn-primary,
+      .kopf-cta {
+        background: var(--brand);
         color: var(--on-brand);
-        font-size: 0.95rem;
-        font-weight: 700;
-        padding: 0.85rem 1.65rem;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 10px 24px var(--brand-glow);
-        transition:
-          transform 0.15s ease,
-          box-shadow 0.15s ease;
       }
-
       .btn-primary:hover,
-      .btn-primary:focus-visible {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 30px var(--brand-glow);
+      .kopf-cta:hover {
+        background: var(--brand-hover);
       }
-
       .btn-secondary {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.6rem;
-        background: var(--surface);
+        background: var(--surface-alt);
         color: var(--ink);
-        font-size: 0.95rem;
-        font-weight: 600;
-        padding: 0.85rem 1.45rem;
-        border-radius: 12px;
-        border: 1px solid var(--line);
-        transition:
-          background 0.15s ease,
-          border-color 0.15s ease;
+        border-color: var(--line);
       }
-
-      .btn-secondary:hover,
-      .btn-secondary:focus-visible {
+      .btn-secondary:hover {
         background: var(--surface-hover);
-        border-color: var(--line-strong);
+      }
+      .btn-primary:active,
+      .kopf-cta:active,
+      .btn-secondary:active {
+        filter: brightness(0.94);
+      }
+      .btn-primary:focus-visible,
+      .btn-secondary:focus-visible,
+      .kopf-cta:focus-visible {
+        outline: 2px solid #007aff;
+        outline-offset: 3px;
+      }
+      .btn-primary:disabled,
+      .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .btn-primary,
+        .btn-secondary,
+        .kopf-cta {
+          transition: none;
+        }
       }
 
       /* ---------- Reselling-Ablauf im Aufmacher ---------- */
@@ -1621,27 +1598,6 @@
         line-height: 1.5;
       }
 
-      .pricing-future-price {
-        margin: 0 0 0.4rem;
-        color: var(--ink-muted);
-        line-height: 1.5;
-      }
-
-      .pricing-future-value {
-        display: inline-flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: 0.4rem;
-        font-size: 0.8rem;
-      }
-
-      .pricing-future-amount {
-        color: var(--ink-soft);
-        font-size: 1.15rem;
-        font-weight: 600;
-        text-decoration-thickness: 1.5px;
-      }
-
       .pricing-current-price {
         display: flex;
         flex-wrap: wrap;
@@ -1652,7 +1608,7 @@
         font-size: 0.85rem;
       }
 
-      .pricing-beta-amount {
+      .pricing-amount {
         color: var(--ink);
         font-size: clamp(2.65rem, 3.6vw, 3.4rem);
         font-weight: 800;
@@ -1679,18 +1635,6 @@
         font-weight: 650;
       }
 
-      .pricing-planned-label {
-        display: inline-block;
-        margin: 0 0 0.85rem;
-        padding: 0.18rem 0.5rem;
-        border: 1px solid var(--line-strong);
-        border-radius: 6px;
-        background: var(--surface-alt);
-        color: var(--ink-muted);
-        font-size: 0.7rem;
-        font-weight: 600;
-      }
-
       .pricing-features {
         display: grid;
         gap: 0.7rem;
@@ -1709,16 +1653,12 @@
         min-width: 0;
       }
 
-      .pricing-feature-icon {
+      .pricing-features .icon {
         width: 17px;
         height: 17px;
         flex: 0 0 17px;
         margin-top: 0.1rem;
         color: var(--profit);
-      }
-
-      .pricing-features--planned .pricing-feature-icon {
-        color: var(--ink-muted);
       }
 
       .pricing-card .pricing-cta {
@@ -1730,11 +1670,6 @@
         font-size: 0.84rem;
         line-height: 1.5;
         text-align: center;
-      }
-
-      .pricing-card .pricing-cta:focus-visible {
-        outline: 2px solid var(--ink);
-        outline-offset: 4px;
       }
 
       .pricing-footnote {
@@ -1755,15 +1690,6 @@
 
         .pricing-description {
           min-height: 0;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .pricing-card .pricing-cta,
-        .pricing-card .pricing-cta:hover,
-        .pricing-card .pricing-cta:focus-visible {
-          transition: none;
-          transform: none;
         }
       }
 
@@ -1892,13 +1818,6 @@
         color: var(--ink-muted);
         font-size: 1rem;
         line-height: 1.65;
-      }
-
-      .hero-beta-form .hero-beta-input {
-        min-height: 46px;
-        padding: 0.72rem 0.9rem;
-        border-radius: 10px;
-        box-shadow: none;
       }
 
       @media (max-width: 860px) {
@@ -2433,10 +2352,10 @@
             <span class="lang-de">Funktionen</span>
             <span class="lang-en" lang="en">Features</span>
           </a>
-          <a href="#roadmap">
-            <span class="lang-de">Beta</span>
-            <span class="lang-en" lang="en">Beta</span>
-          </a>
+          <a href="#roadmap"
+            ><span class="lang-de">Überblick</span
+            ><span class="lang-en" lang="en">Overview</span></a
+          >
           <a href="#pricing">
             <span class="lang-de">Pakete &amp; Preise</span>
             <span class="lang-en" lang="en">Plans &amp; pricing</span>
@@ -2594,7 +2513,7 @@
     </header>
 
     <main>
-      <!-- Hero mit Nachbau des echten Flipbase-Dashboards -->
+      <!-- Hero mit aktuelle Flipbase-Übersicht -->
       <div class="aufmacher">
         <div class="hero-copy">
           <div class="hero-badge">
@@ -2604,18 +2523,18 @@
           </div>
 
           <h1 tabindex="-1">
-            <span class="lang-de">Die Warenwirtschaft <em>für dein Reselling.</em></span>
-            <span class="lang-en" lang="en">Inventory management <em>for your reselling.</em></span>
+            <span class="lang-de">Mehr Überblick <em>für dein Reselling.</em></span>
+            <span class="lang-en" lang="en">A clearer view <em>of your reselling.</em></span>
           </h1>
 
           <p class="unterzeile">
             <span class="lang-de">
-              Einkäufe, Bestand, Verkäufe und Kosten an einem Ort – und am Ende siehst du, was
-              wirklich bleibt.
+              Vom ersten Einkauf bis zum nächsten Verkauf: Behalte deine Artikel, Marktplätze und
+              Zahlen im Blick.
             </span>
             <span class="lang-en" lang="en">
-              Purchases, inventory, sales and costs in one place – so you can see what you actually
-              keep.
+              From your first purchase to your next sale: keep track of your inventory,
+              marketplaces, and numbers.
             </span>
           </p>
 
@@ -2649,14 +2568,14 @@
         <figure class="replica-figure">
           <div id="dashboard-replica-label" class="sr-only">
             <span class="lang-de"
-              >Beispielansicht des Flipbase-Dashboards für dieses Jahr: 7.824 Euro Umsatz, 2.632
-              Euro Gewinn, 33,6 Prozent Marge, 214 Verkäufe und ein Säulendiagramm mit Umsatz,
-              Ausgaben und Gewinn je Monat.</span
-            >
-            <span class="lang-en" lang="en"
-              >Sample view of the Flipbase dashboard for this year: 7,824 euros revenue, 2,632 euros
-              profit, 33.6 percent margin, 214 sales and a bar chart of revenue, expenses and profit
-              per month.</span
+              >Beispielansicht der Flipbase-Übersicht: 7.824 Euro Umsatz, 2.632 Euro Gewinn nach
+              direkten Verkaufskosten, 33,6 Prozent Marge und 214 Verkäufe. Darunter
+              Schnellaktionen, Jahresdiagramm, die letzten drei Verkäufe und 38 Stück im Bestand
+              nach Lagerdauer.</span
+            ><span class="lang-en" lang="en"
+              >Sample view of the Flipbase overview: 7,824 euros revenue, 2,632 euros profit after
+              direct selling costs, 33.6 percent margin, and 214 sales. Quick actions, a yearly
+              chart, the three latest sales, and 38 inventory units by stock age.</span
             >
           </div>
           <div
@@ -2672,308 +2591,425 @@
                 >
               </div>
               <div class="replica-nav-item replica-nav-active" data-nav-active>
-                <svg class="icon"><use href="#icon-grid" /></svg> Dashboard
+                <svg class="icon" aria-hidden="true"><use href="#icon-grid" /></svg
+                ><span class="lang-de">Übersicht</span
+                ><span class="lang-en" lang="en">Overview</span>
               </div>
-              <p class="replica-nav-group" data-nav-group>Warenwirtschaft</p>
+              <p class="replica-nav-group" data-nav-group>
+                <span class="lang-de">Warenwirtschaft</span
+                ><span class="lang-en" lang="en">Inventory management</span>
+              </p>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-bag" /></svg> Einkäufe
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-box" /></svg> Artikel &amp; Bestand
-              </div>
-              <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-chart" /></svg> Verkäufe
-              </div>
-              <p class="replica-nav-group" data-nav-group>Marktplätze</p>
-              <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-store" /></svg> Vinted
+                <svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg
+                ><span class="lang-de">Einkäufe</span
+                ><span class="lang-en" lang="en">Purchases</span>
               </div>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-search" /></svg> Vinted Feed
+                <svg class="icon" aria-hidden="true"><use href="#icon-cart" /></svg
+                ><span class="lang-de">Verkäufe</span><span class="lang-en" lang="en">Sales</span>
               </div>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-store" /></svg> eBay
+                <svg class="icon" aria-hidden="true"><use href="#icon-box" /></svg
+                ><span class="lang-de">Bestand</span
+                ><span class="lang-en" lang="en">Inventory</span>
+              </div>
+              <p class="replica-nav-group" data-nav-group>
+                <span class="lang-de">Marktplätze</span
+                ><span class="lang-en" lang="en">Marketplaces</span>
+              </p>
+              <div class="replica-nav-item">
+                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
+                ><span class="lang-de">Übersicht</span
+                ><span class="lang-en" lang="en">Overview</span>
               </div>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-store" /></svg> Kleinanzeigen
-              </div>
-              <p class="replica-nav-group" data-nav-group>Finanzen</p>
-              <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-receipt" /></svg> Ausgaben
+                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
+                ><span class="lang-de">Vinted</span><span class="lang-en" lang="en">Vinted</span>
               </div>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-file" /></svg> Steuern &amp; DATEV
+                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
+                ><span class="lang-de">eBay</span><span class="lang-en" lang="en">eBay</span>
               </div>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-chart" /></svg> Auswertungen
+                <svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
+                ><span class="lang-de">Kleinanzeigen</span
+                ><span class="lang-en" lang="en">Kleinanzeigen</span>
               </div>
-              <p class="replica-nav-group" data-nav-group>Tools</p>
+              <p class="replica-nav-group" data-nav-group>
+                <span class="lang-de">Finanzen</span><span class="lang-en" lang="en">Finances</span>
+              </p>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-tag" /></svg> Marken &amp; Größen
+                <svg class="icon" aria-hidden="true"><use href="#icon-receipt" /></svg
+                ><span class="lang-de">Ausgaben</span
+                ><span class="lang-en" lang="en">Expenses</span>
               </div>
               <div class="replica-nav-item">
-                <svg class="icon"><use href="#icon-image" /></svg> Bildoptimierer
+                <svg class="icon" aria-hidden="true"><use href="#icon-file" /></svg
+                ><span class="lang-de">Steuern &amp; DATEV</span
+                ><span class="lang-en" lang="en">Tax &amp; DATEV</span>
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg
+                ><span class="lang-de">Auswertungen</span
+                ><span class="lang-en" lang="en">Reports</span>
+              </div>
+              <p class="replica-nav-group" data-nav-group>
+                <span class="lang-de">Tools</span><span class="lang-en" lang="en">Tools</span>
+              </p>
+              <div class="replica-nav-item">
+                <svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg
+                ><span class="lang-de">Vinted Feed</span
+                ><span class="lang-en" lang="en">Vinted Feed</span>
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon" aria-hidden="true"><use href="#icon-tag" /></svg
+                ><span class="lang-de">Marken &amp; Größen</span
+                ><span class="lang-en" lang="en">Brands &amp; sizes</span>
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon" aria-hidden="true"><use href="#icon-image" /></svg
+                ><span class="lang-de">Bildoptimierer</span
+                ><span class="lang-en" lang="en">Photo optimizer</span>
               </div>
             </div>
-
             <div class="replica-main">
               <div class="replica-topbar">
-                <span class="replica-example">Beispieldaten</span>
-                <svg class="icon"><use href="#icon-bell" /></svg>
-                <span class="replica-avatar">A</span>
+                <span class="replica-workspace">Vintage Studio</span
+                ><svg class="icon" aria-hidden="true"><use href="#icon-bell" /></svg
+                ><span class="replica-avatar">A</span>
               </div>
               <div class="replica-heading">
                 <div>
-                  <strong>Dashboard</strong>
-                  <span>Dein Überblick über Umsätze, Gewinne und deinen Bestand.</span>
+                  <strong
+                    ><span class="lang-de">Übersicht</span
+                    ><span class="lang-en" lang="en">Overview</span></strong
+                  ><span
+                    ><span class="lang-de">Dein Geschäft auf einen Blick.</span
+                    ><span class="lang-en" lang="en">Your business at a glance.</span></span
+                  >
                 </div>
                 <div class="replica-filters">
-                  <span class="replica-periods"
-                    ><span>Heute</span><span>7 Tage</span><span>Dieser Monat</span
-                    ><span class="replica-period-active">Dieses Jahr</span></span
-                  >
                   <span class="replica-select"
-                    >Alle Plattformen <svg class="icon"><use href="#icon-chevron" /></svg
+                    ><span class="lang-de">Dieses Jahr</span
+                    ><span class="lang-en" lang="en">This year</span
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-chevron" /></svg></span
+                  ><span class="replica-select"
+                    ><span class="lang-de">Alle Plattformen</span
+                    ><span class="lang-en" lang="en">All platforms</span
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-chevron" /></svg
                   ></span>
                 </div>
               </div>
-
               <div class="replica-kpis">
-                <div class="replica-card replica-kpi" data-kpi="revenue">
+                <div class="replica-kpi" data-kpi="revenue">
                   <div class="replica-kpi-heading">
-                    <span class="replica-icon-well"
-                      ><svg class="icon"><use href="#icon-coins" /></svg></span
-                    ><span data-kpi-label>Umsatz</span>
-                  </div>
-                  <span class="replica-kpi-value" data-kpi-value>7.824,00 €</span>
-                  <span class="replica-kpi-note"
-                    ><span class="replica-positive">▲ 18,4 %</span> zum Vorjahr</span
-                  >
-                  <svg class="replica-sparkline" viewBox="0 0 100 50">
-                    <path
-                      d="M2.00,46.00 L12.67,41.83 L23.33,35.81 L34.00,38.13 L44.67,29.33 L55.33,25.63 L66.00,32.11 L76.67,21.93 L87.33,15.44 L98.00,6.00"
-                    />
-                  </svg>
-                </div>
-                <div class="replica-card replica-kpi" data-kpi="gross-profit" data-tone="positive">
-                  <div class="replica-kpi-heading">
-                    <span class="replica-icon-well"
-                      ><svg class="icon"><use href="#icon-chart" /></svg></span
-                    ><span data-kpi-label>Gewinn</span>
-                  </div>
-                  <span class="replica-kpi-value" data-kpi-value>2.632,00 €</span>
-                  <span class="replica-kpi-note"
-                    ><span class="replica-positive">▲ 22,1 %</span> zum Vorjahr</span
-                  >
-                  <svg class="replica-sparkline" viewBox="0 0 100 50">
-                    <path
-                      d="M2.00,46.00 L12.67,39.15 L23.33,33.67 L34.00,35.04 L44.67,26.82 L55.33,21.34 L66.00,28.19 L76.67,17.23 L87.33,10.38 L98.00,6.00"
-                    />
-                  </svg>
-                </div>
-                <div class="replica-card replica-kpi" data-kpi="margin">
-                  <div class="replica-kpi-heading">
-                    <span class="replica-icon-well"
-                      ><svg class="icon"><use href="#icon-percent" /></svg></span
-                    ><span data-kpi-label>Marge</span>
-                  </div>
-                  <span class="replica-kpi-value" data-kpi-value>33,6 %</span>
-                  <span class="replica-kpi-note"
-                    ><span class="replica-positive">▲ 1,2 Pp.</span> zum Vorjahr</span
-                  >
-                  <svg class="replica-sparkline" viewBox="0 0 100 50">
-                    <path
-                      d="M2.00,46.00 L12.67,17.20 L23.33,20.35 L34.00,13.78 L44.67,17.20 L55.33,7.82 L66.00,8.80 L76.67,6.48 L87.33,6.00 L98.00,24.74"
-                    />
-                  </svg>
-                </div>
-                <div class="replica-card replica-kpi" data-kpi="inventory-capital">
-                  <div class="replica-kpi-heading">
-                    <span class="replica-icon-well"
-                      ><svg class="icon"><use href="#icon-box" /></svg></span
-                    ><span data-kpi-label>Kapital im Bestand</span>
-                  </div>
-                  <span class="replica-kpi-value" data-kpi-value>1.146,00 €</span>
-                  <span class="replica-kpi-note">38 Stück · aktueller Bestand</span>
-                </div>
-                <div class="replica-card replica-kpi" data-kpi="sales">
-                  <div class="replica-kpi-heading">
-                    <span class="replica-icon-well"
-                      ><svg class="icon"><use href="#icon-cart" /></svg></span
-                    ><span data-kpi-label>Verkäufe</span>
-                  </div>
-                  <span class="replica-kpi-value" data-kpi-value>214</span>
-                  <span class="replica-kpi-note">231 Stück verkauft</span>
-                  <svg class="replica-sparkline" viewBox="0 0 100 50">
-                    <path
-                      d="M2.00,46.00 L12.67,40.00 L23.33,34.00 L34.00,36.00 L44.67,26.00 L55.33,22.00 L66.00,30.00 L76.67,18.00 L87.33,14.00 L98.00,6.00"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              <div class="replica-middle">
-                <div class="replica-card replica-chart">
-                  <div class="replica-card-heading">
-                    <strong>Umsatz, Ausgaben und Gewinn</strong>
-                    <span class="replica-legend"
-                      ><span class="replica-key-revenue" data-chart-legend>Umsatz</span
-                      ><span class="replica-key-expenses" data-chart-legend>Ausgaben gesamt</span
-                      ><span class="replica-key-profit" data-chart-legend>Gewinn</span></span
+                    <svg class="icon" aria-hidden="true"><use href="#icon-coins" /></svg
+                    ><span data-kpi-label
+                      ><span class="lang-de">Umsatz</span
+                      ><span class="lang-en" lang="en">Revenue</span></span
                     >
                   </div>
-                  <div class="replica-plot">
-                    <div class="replica-axis">
-                      <span>1.200 €</span><span>800 €</span><span>400 €</span><span>0 €</span>
+                  <strong class="replica-kpi-value" data-kpi-value>7.824,00 €</strong
+                  ><span class="replica-kpi-note"
+                    ><span class="lang-de">+12,4 % zum Vorjahr</span
+                    ><span class="lang-en" lang="en">+12.4% vs. last year</span></span
+                  >
+                </div>
+                <div class="replica-kpi" data-kpi="gross-profit">
+                  <div class="replica-kpi-heading">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg
+                    ><span data-kpi-label
+                      ><span class="lang-de">Gewinn</span
+                      ><span class="lang-en" lang="en">Profit</span></span
+                    >
+                  </div>
+                  <strong class="replica-kpi-value" data-kpi-value>2.632,00 €</strong
+                  ><span class="replica-kpi-note"
+                    ><span class="lang-de">+18,2 % zum Vorjahr</span
+                    ><span class="lang-en" lang="en">+18.2% vs. last year</span></span
+                  >
+                </div>
+                <div class="replica-kpi" data-kpi="margin">
+                  <div class="replica-kpi-heading">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-percent" /></svg
+                    ><span data-kpi-label
+                      ><span class="lang-de">Marge</span
+                      ><span class="lang-en" lang="en">Margin</span></span
+                    >
+                  </div>
+                  <strong class="replica-kpi-value" data-kpi-value>33,6 %</strong
+                  ><span class="replica-kpi-note"
+                    ><span class="lang-de">+1,2 Pp. zum Vorjahr</span
+                    ><span class="lang-en" lang="en">+1.2 pp vs. last year</span></span
+                  >
+                </div>
+                <div class="replica-kpi" data-kpi="sales">
+                  <div class="replica-kpi-heading">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-cart" /></svg
+                    ><span data-kpi-label
+                      ><span class="lang-de">Verkäufe</span
+                      ><span class="lang-en" lang="en">Sales</span></span
+                    >
+                  </div>
+                  <strong class="replica-kpi-value" data-kpi-value>214</strong
+                  ><span class="replica-kpi-note"
+                    ><span class="lang-de">Bestätigte Verkäufe</span
+                    ><span class="lang-en" lang="en">Confirmed sales</span></span
+                  >
+                </div>
+              </div>
+              <div class="replica-quick">
+                <span class="replica-section-label"
+                  ><span class="lang-de">Schnellaktionen</span
+                  ><span class="lang-en" lang="en">Quick actions</span></span
+                >
+                <div>
+                  <span class="replica-quick-action"
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg
+                    ><span class="lang-de">Einkauf erfassen</span
+                    ><span class="lang-en" lang="en">Record purchase</span></span
+                  ><span class="replica-quick-action"
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-cart" /></svg
+                    ><span class="lang-de">Verkauf erfassen</span
+                    ><span class="lang-en" lang="en">Record sale</span></span
+                  ><span class="replica-quick-action replica-quick-action--primary"
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-store" /></svg
+                    ><span class="lang-de">Inserat erstellen</span
+                    ><span class="lang-en" lang="en">Create listing</span></span
+                  >
+                </div>
+              </div>
+              <div class="replica-card replica-development">
+                <div class="replica-card-heading">
+                  <strong
+                    ><span class="lang-de">Umsatz, Ausgaben und Gewinn</span
+                    ><span class="lang-en" lang="en">Revenue, expenses, and profit</span></strong
+                  >
+                  <div class="replica-legend">
+                    <span class="replica-key-revenue" data-chart-legend
+                      ><span class="lang-de">Umsatz</span
+                      ><span class="lang-en" lang="en">Revenue</span></span
+                    ><span class="replica-key-expenses" data-chart-legend
+                      ><span class="lang-de">Ausgaben gesamt</span
+                      ><span class="lang-en" lang="en">Total expenses</span></span
+                    ><span class="replica-key-profit" data-chart-legend
+                      ><span class="lang-de">Gewinn</span
+                      ><span class="lang-en" lang="en">Profit</span></span
+                    >
+                  </div>
+                </div>
+                <div class="replica-plot">
+                  <div class="replica-axis">
+                    <span>1.300 €</span><span>650 €</span><span>0 €</span>
+                  </div>
+                  <div class="replica-bars">
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 420"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 380"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 120"></span
+                      ><small
+                        ><span class="lang-de">Jan.</span
+                        ><span class="lang-en" lang="en">Jan</span></small
+                      >
                     </div>
-                    <div class="replica-bars">
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 420"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 380"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 120"></span
-                        ><small>Jan.</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 510"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 300"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 170"></span
-                        ><small>Feb.</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 640"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 520"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 210"></span
-                        ><small>März</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 590"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 410"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 200"></span
-                        ><small>Apr.</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 780"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 600"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 260"></span
-                        ><small>Mai</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 860"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 540"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 300"></span
-                        ><small>Juni</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 720"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 480"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 250"></span
-                        ><small>Juli</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 940"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 690"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 330"></span
-                        ><small>Aug.</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 1080"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 720"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 380"></span
-                        ><small>Sept.</small>
-                      </div>
-                      <div class="replica-month">
-                        <span class="replica-bar" data-series="revenue" style="--value: 1284"></span
-                        ><span
-                          class="replica-bar"
-                          data-series="expenses"
-                          style="--value: 671"
-                        ></span
-                        ><span class="replica-bar" data-series="profit" style="--value: 412"></span
-                        ><small>Okt.</small>
-                      </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 510"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 400"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 170"></span
+                      ><small
+                        ><span class="lang-de">Feb.</span
+                        ><span class="lang-en" lang="en">Feb</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 640"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 480"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 210"></span
+                      ><small
+                        ><span class="lang-de">März</span
+                        ><span class="lang-en" lang="en">Mar</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 590"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 450"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 200"></span
+                      ><small
+                        ><span class="lang-de">Apr.</span
+                        ><span class="lang-en" lang="en">Apr</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 780"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 600"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 260"></span
+                      ><small
+                        ><span class="lang-de">Mai</span
+                        ><span class="lang-en" lang="en">May</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 860"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 640"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 300"></span
+                      ><small
+                        ><span class="lang-de">Juni</span
+                        ><span class="lang-en" lang="en">Jun</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 720"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 540"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 250"></span
+                      ><small
+                        ><span class="lang-de">Juli</span
+                        ><span class="lang-en" lang="en">Jul</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 940"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 690"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 330"></span
+                      ><small
+                        ><span class="lang-de">Aug.</span
+                        ><span class="lang-en" lang="en">Aug</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 1080"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 780"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 380"></span
+                      ><small
+                        ><span class="lang-de">Sep.</span
+                        ><span class="lang-en" lang="en">Sep</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 1284"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 900"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 412"></span
+                      ><small
+                        ><span class="lang-de">Okt.</span
+                        ><span class="lang-en" lang="en">Oct</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 0"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 0"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 0"></span
+                      ><small
+                        ><span class="lang-de">Nov.</span
+                        ><span class="lang-en" lang="en">Nov</span></small
+                      >
+                    </div>
+                    <div class="replica-month">
+                      <span class="replica-bar" data-series="revenue" style="--value: 0"></span
+                      ><span class="replica-bar" data-series="expenses" style="--value: 0"></span
+                      ><span class="replica-bar" data-series="profit" style="--value: 0"></span
+                      ><small
+                        ><span class="lang-de">Dez.</span
+                        ><span class="lang-en" lang="en">Dec</span></small
+                      >
                     </div>
                   </div>
                 </div>
-
-                <div class="replica-side">
-                  <div class="replica-card">
-                    <div class="replica-card-heading">
-                      <strong>Zu erledigen</strong><span class="replica-badge">2</span>
-                    </div>
-                    <div class="replica-task">
-                      <svg class="icon"><use href="#icon-alert" /></svg>
-                      <span>2 Einkäufe mit fehlenden Kostenangaben</span>
-                      <svg class="icon"><use href="#icon-arrow" /></svg>
-                    </div>
-                    <div class="replica-task">
-                      <svg class="icon"><use href="#icon-box" /></svg>
-                      <span>3 Artikel ohne Kostenangabe</span>
-                      <svg class="icon"><use href="#icon-arrow" /></svg>
-                    </div>
+              </div>
+              <div class="replica-bottom">
+                <div class="replica-card">
+                  <div class="replica-card-heading">
+                    <strong
+                      ><span class="lang-de">Letzte Verkäufe</span
+                      ><span class="lang-en" lang="en">Latest sales</span></strong
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
                   </div>
-                  <div class="replica-card">
-                    <div class="replica-card-heading"><strong>Schnellaktionen</strong></div>
-                    <div class="replica-quick">
-                      <span
-                        ><span class="replica-quick-icon"
-                          ><svg class="icon"><use href="#icon-bag" /></svg></span
-                        ><span><strong>Einkauf erfassen</strong>Neue Ware einbuchen</span></span
-                      >
-                      <span
-                        ><span class="replica-quick-icon"
-                          ><svg class="icon"><use href="#icon-tag" /></svg></span
-                        ><span
-                          ><strong>Verkauf erfassen</strong>Artikel als verkauft erfassen</span
-                        ></span
-                      >
-                    </div>
+                  <div class="replica-sales-heading">
+                    <span
+                      ><span class="lang-de">Datum</span
+                      ><span class="lang-en" lang="en">Date</span></span
+                    ><span
+                      ><span class="lang-de">Artikel</span
+                      ><span class="lang-en" lang="en">Item</span></span
+                    ><span
+                      ><span class="lang-de">Plattform</span
+                      ><span class="lang-en" lang="en">Platform</span></span
+                    ><span
+                      ><span class="lang-de">Gewinn</span
+                      ><span class="lang-en" lang="en">Profit</span></span
+                    >
+                  </div>
+                  <div class="replica-sale">
+                    <span>31.10.</span
+                    ><span class="replica-sale-product"
+                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Vintage
+                      Sweatshirt</span
+                    ><span class="replica-platform">Vinted</span><strong>25,00 €</strong>
+                  </div>
+                  <div class="replica-sale">
+                    <span>30.10.</span
+                    ><span class="replica-sale-product"
+                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Denim
+                      Jacket</span
+                    ><span class="replica-platform replica-platform--ebay">eBay</span
+                    ><strong>21,50 €</strong>
+                  </div>
+                  <div class="replica-sale">
+                    <span>29.10.</span
+                    ><span class="replica-sale-product"
+                      ><img src="images/sweatshirt.svg" alt="" width="26" height="30" />Wool
+                      Pullover</span
+                    ><span class="replica-platform">Vinted</span><strong>32,00 €</strong>
+                  </div>
+                </div>
+                <div class="replica-card">
+                  <div class="replica-card-heading">
+                    <strong
+                      ><span class="lang-de">Bestand im Blick</span
+                      ><span class="lang-en" lang="en">Inventory at a glance</span></strong
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-box" /></svg>
+                  </div>
+                  <p class="replica-stock-total">
+                    38
+                    <span
+                      ><span class="lang-de">Stück</span
+                      ><span class="lang-en" lang="en">units</span></span
+                    >
+                  </p>
+                  <div class="replica-stock-row">
+                    <span
+                      ><span class="lang-de">Bis 30 Tage</span
+                      ><span class="lang-en" lang="en">Up to 30 days</span></span
+                    ><span class="replica-stock-track"
+                      ><span style="--stock-share: 57.9%"></span></span
+                    ><strong>22</strong>
+                  </div>
+                  <div class="replica-stock-row">
+                    <span
+                      ><span class="lang-de">31–60 Tage</span
+                      ><span class="lang-en" lang="en">31–60 days</span></span
+                    ><span class="replica-stock-track"
+                      ><span style="--stock-share: 26.3%"></span></span
+                    ><strong>10</strong>
+                  </div>
+                  <div class="replica-stock-row">
+                    <span
+                      ><span class="lang-de">61–90 Tage</span
+                      ><span class="lang-en" lang="en">61–90 days</span></span
+                    ><span class="replica-stock-track"
+                      ><span style="--stock-share: 10.5%"></span></span
+                    ><strong>4</strong>
+                  </div>
+                  <div class="replica-stock-row">
+                    <span
+                      ><span class="lang-de">Über 90 Tage</span
+                      ><span class="lang-en" lang="en">Over 90 days</span></span
+                    ><span class="replica-stock-track"
+                      ><span style="--stock-share: 5.3%"></span></span
+                    ><strong>2</strong>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <figcaption>
-            <span class="lang-de">Nachbau des Flipbase-Dashboards mit Beispieldaten.</span>
-            <span class="lang-en" lang="en"
-              >Replica of the Flipbase dashboard with sample data.</span
-            >
-          </figcaption>
         </figure>
       </div>
 
@@ -2995,8 +3031,8 @@
             <span
               ><b class="lang-de">Einkauf &amp; Bestand</b
               ><b class="lang-en" lang="en">Purchases &amp; inventory</b
-              ><small class="lang-de">Artikel und Kosten nachvollziehbar erfassen</small
-              ><small class="lang-en" lang="en">Track items and costs clearly</small></span
+              ><small class="lang-de">Einkäufe erfassen, Bestand verwalten</small
+              ><small class="lang-en" lang="en">Record purchases, manage inventory</small></span
             >
           </li>
           <li>
@@ -3020,15 +3056,11 @@
             <span
               ><b class="lang-de">Bilder &amp; Inserate</b
               ><b class="lang-en" lang="en">Photos &amp; listings</b
-              ><small class="lang-de">Bilder optimieren, Inserate vorbereiten</small
-              ><small class="lang-en" lang="en">Optimize photos, prepare listings</small></span
+              ><small class="lang-de">Inserieren und erneut einstellen</small
+              ><small class="lang-en" lang="en">Create and relist listings</small></span
             >
           </li>
         </ol>
-        <p class="workflow-note">
-          <span class="lang-de">Artikel, Zahlen und Marktplätze – ohne verteilte Tabellen.</span>
-          <span class="lang-en" lang="en">Items, figures, and marketplaces in one place.</span>
-        </p>
       </div>
 
       <!-- Gewinnrechnung als animiertes Beispiel -->
@@ -3133,8 +3165,8 @@
                 </div>
                 <div class="profit-row">
                   <dt>
-                    <span class="lang-de">Gewinn vor Steuern</span
-                    ><span class="lang-en" lang="en">Profit before tax</span>
+                    <span class="lang-de">Gewinn nach Verkaufskosten</span
+                    ><span class="lang-en" lang="en">Profit after selling costs</span>
                   </dt>
                   <dd>25,00 €</dd>
                 </div>
@@ -3227,8 +3259,8 @@
                     ><span class="lang-en" lang="en">Record the purchase</span></strong
                   ><span
                     ><span class="lang-de"
-                      >Artikel und Einkaufspreis erfassen. Der Anfang für deine spätere
-                      Gewinnrechnung.</span
+                      >Artikel und Einkaufspreis erfassen. Deine Grundlage für Bestand und
+                      Gewinn.</span
                     ><span class="lang-en" lang="en"
                       >Record the item and purchase price. The start of your profit
                       calculation.</span
@@ -3292,10 +3324,6 @@
               <span class="lang-de">Ablauf neu starten</span>
               <span class="lang-en" lang="en">Restart workflow</span>
             </button>
-            <p class="workflow-hint">
-              <span class="lang-de">Mit Beispieldaten. Du entscheidest, was du erfasst.</span>
-              <span class="lang-en" lang="en">With sample data. You decide what you record.</span>
-            </p>
           </div>
           <div class="workflow-stage">
             <div
@@ -3517,8 +3545,8 @@
                 <div class="workflow-profit">
                   <div>
                     <span
-                      ><span class="lang-de">Gewinn vor Steuern</span
-                      ><span class="lang-en" lang="en">Profit before tax</span></span
+                      ><span class="lang-de">Gewinn nach Verkaufskosten</span
+                      ><span class="lang-en" lang="en">Profit after selling costs</span></span
                     ><strong>25,00 €</strong>
                   </div>
                   <span
@@ -3558,11 +3586,11 @@
           <p class="sektion-text">
             <span class="lang-de"
               >Von Einkauf und Bestand über Verkauf und Finanzen bis zu Vinted-Funden, Bildern und
-              Inseraten: Jeder Bereich baut auf deinen Artikeln auf.</span
+              Inseraten: Du behältst den gesamten Ablauf im Blick.</span
             >
             <span class="lang-en" lang="en"
               >From purchases and inventory to sales, finances, Vinted finds, photos, and listings:
-              every area builds on your items.</span
+              keep your entire workflow in view.</span
             >
           </p>
         </div>
@@ -3574,8 +3602,8 @@
             >
             <div class="feature-icon-box" aria-hidden="true">01</div>
             <h3>
-              <span class="lang-de">Einkäufe und Bestand statt Excel</span
-              ><span class="lang-en" lang="en">Purchases and inventory beyond spreadsheets</span>
+              <span class="lang-de">Deine Einkäufe. Dein Bestand.</span
+              ><span class="lang-en" lang="en">Your purchases. Your inventory.</span>
             </h3>
             <p>
               <span class="lang-de"
@@ -3609,9 +3637,6 @@
                 <span
                   ><span class="lang-de">Einkauf vom 12.10.</span
                   ><span class="lang-en" lang="en">Purchase from 12 Oct</span></span
-                ><span
-                  ><span class="lang-de">Beispiel</span
-                  ><span class="lang-en" lang="en">Example</span></span
                 >
               </div>
               <div class="demo-table">
@@ -3721,9 +3746,6 @@
                 <span
                   ><span class="lang-de">Letzte Verkäufe</span
                   ><span class="lang-en" lang="en">Recent sales</span></span
-                ><span
-                  ><span class="lang-de">Beispiel</span
-                  ><span class="lang-en" lang="en">Example</span></span
                 >
               </div>
               <div class="demo-table">
@@ -3760,8 +3782,8 @@
               </div>
               <div class="demo-total">
                 <span
-                  ><span class="lang-de">Gewinn vor Steuern</span
-                  ><span class="lang-en" lang="en">Profit before tax</span></span
+                  ><span class="lang-de">Gewinn nach Verkaufskosten</span
+                  ><span class="lang-en" lang="en">Profit after selling costs</span></span
                 ><strong class="demo-positive">78,50 €</strong>
               </div>
             </div>
@@ -3816,9 +3838,6 @@
                 <span
                   ><span class="lang-de">Betriebsausgaben</span
                   ><span class="lang-en" lang="en">Business expenses</span></span
-                ><span
-                  ><span class="lang-de">Beispielmonat</span
-                  ><span class="lang-en" lang="en">Sample month</span></span
                 >
               </div>
               <div class="expense-entry">
@@ -3907,9 +3926,6 @@
                 <span
                   ><span class="lang-de">Buchungsdaten</span
                   ><span class="lang-en" lang="en">Booking data</span></span
-                ><span
-                  ><span class="lang-de">Beispiel</span
-                  ><span class="lang-en" lang="en">Example</span></span
                 >
               </div>
               <dl class="demo-details">
@@ -3995,9 +4011,6 @@
                 <span
                   ><span class="status-dot"></span> <span class="lang-de">Gespeicherte Suche</span
                   ><span class="lang-en" lang="en">Saved search</span></span
-                ><span
-                  ><span class="lang-de">Beispiel</span
-                  ><span class="lang-en" lang="en">Example</span></span
                 >
               </div>
               <div class="filter-chips">
@@ -4083,11 +4096,12 @@
             </h3>
             <p>
               <span class="lang-de"
-                >Bereite Fotos für deine Inserate auf: Zuschnitt, Bildanpassungen und Export laufen
-                in einem Werkzeug. Beim Export werden Standort- und andere Metadaten entfernt.</span
+                >Schneide Produktfotos zu, passe sie an und exportiere sie gesammelt. Deine
+                Originalbilder bleiben erhalten; Standort- und andere Metadaten werden aus dem
+                Export entfernt.</span
               ><span class="lang-en" lang="en"
-                >Prepare listing photos with cropping, adjustments, and export in one tool. Location
-                and other metadata are removed on export.</span
+                >Crop and adjust product photos, then export them together. Your originals stay
+                intact; location and other metadata are removed from the export.</span
               >
             </p>
             <ul class="feature-punkte">
@@ -4105,9 +4119,6 @@
                 <span
                   ><span class="lang-de">Zuschnitt ausprobieren</span
                   ><span class="lang-en" lang="en">Try a crop</span></span
-                ><span
-                  ><span class="lang-de">Illustration</span
-                  ><span class="lang-en" lang="en">Illustration</span></span
                 >
               </div>
               <div class="crop-stage">
@@ -4143,17 +4154,17 @@
             >
             <div class="feature-icon-box" aria-hidden="true">07</div>
             <h3>
-              <span class="lang-de">Kleinanzeigen-Inserate vorbereiten</span
-              ><span class="lang-en" lang="en">Prepare Kleinanzeigen listings</span>
+              <span class="lang-de">Inserate erstellen und erneut einstellen</span
+              ><span class="lang-en" lang="en">Create and relist your listings</span>
             </h3>
             <p>
               <span class="lang-de"
-                >Übernimm Artikeldaten und Bilder in einen Inseratsentwurf. Mit einem Klick
-                überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du
-                die Veröffentlichung ab.</span
+                >Erstelle Inserate für Vinted, eBay und Kleinanzeigen mit deinen Artikeldaten und
+                Bildern. Bearbeite bestehende Angebote und stelle Artikel mit Relisting erneut
+                ein.</span
               ><span class="lang-en" lang="en"
-                >Use item details and photos in a listing draft. With one click, the browser
-                extension transfers it to a Kleinanzeigen tab, where you finish publishing.</span
+                >Create listings for Vinted, eBay, and Kleinanzeigen using your item details and
+                photos. Edit existing listings and relist items.</span
               >
             </p>
             <ul class="feature-punkte">
@@ -4162,17 +4173,17 @@
                 ><span class="lang-en" lang="en">Edit title, description, and price</span>
               </li>
               <li>
-                <span class="lang-de">Vorbereitete Inserate mit dem Bestand verknüpfen</span
-                ><span class="lang-en" lang="en">Link prepared listings to inventory</span>
+                <span class="lang-de">Vinted-Relisting mit Zeitpunkt und Bildausgabe planen</span
+                ><span class="lang-en" lang="en">Schedule Vinted relisting with photo options</span>
               </li>
             </ul>
             <div id="demo-listing-label" class="sr-only">
               <span class="lang-de"
-                >Illustrativer Inseratsentwurf: Vintage Sweatshirt, Größe M, sehr guter Zustand,
-                Preis 39 Euro. Die Veröffentlichung erfolgt auf Kleinanzeigen.</span
+                >Inserat mit Produktfoto, Titel, Beschreibung und Preis: Vintage Sweatshirt, Größe
+                M, sehr guter Zustand, 39 Euro.</span
               ><span class="lang-en" lang="en"
-                >Illustrative listing draft: vintage sweatshirt, size M, very good condition, price
-                39 euros. Publishing happens on Kleinanzeigen.</span
+                >Listing with a product photo, title, description, and price: vintage sweatshirt,
+                size M, very good condition, 39 euros.</span
               >
             </div>
             <div
@@ -4185,11 +4196,8 @@
             >
               <div class="demo-toolbar">
                 <span
-                  ><span class="lang-de">Inseratsentwurf</span
-                  ><span class="lang-en" lang="en">Listing draft</span></span
-                ><span
-                  ><span class="lang-de">Beispiel</span
-                  ><span class="lang-en" lang="en">Example</span></span
+                  ><span class="lang-de">Inserat erstellen</span
+                  ><span class="lang-en" lang="en">Create listing</span></span
                 >
               </div>
               <div class="listing-preview">
@@ -4222,15 +4230,15 @@
               </div>
               <div class="draft-ready">
                 <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
-                <span class="lang-de">Bereit für die Übertragung</span
-                ><span class="lang-en" lang="en">Ready to transfer</span>
+                <span class="lang-de">Vinted · eBay · Kleinanzeigen</span
+                ><span class="lang-en" lang="en">Vinted · eBay · Kleinanzeigen</span>
               </div>
             </div>
           </article>
           <article class="feature-karte" id="multi-account">
             <span class="feature-badge localized-badge"
-              ><span class="lang-de">Geplant</span
-              ><span class="lang-en" lang="en">Planned</span></span
+              ><span class="lang-de">Konten</span
+              ><span class="lang-en" lang="en">Accounts</span></span
             >
             <div class="feature-icon-box" aria-hidden="true">08</div>
             <h3>
@@ -4239,13 +4247,11 @@
             </h3>
             <p>
               <span class="lang-de"
-                >Multi-Account ist für eine spätere Ausbaustufe geplant. Mehrere Konten eines
-                Marktplatzes sollen sich dann in einem Workspace getrennt verwalten lassen. Diese
-                Funktion ist noch nicht in der Beta verfügbar.</span
+                >Verbinde mehrere Marktplatzkonten in deinem Workspace. Wechsle zwischen deinen
+                Konten und behalte Inserate, Nachrichten und Verkäufe getrennt im Blick.</span
               ><span class="lang-en" lang="en"
-                >Multi-account support is planned for a later release. You will be able to manage
-                multiple accounts for one marketplace separately in a workspace. This feature is not
-                available in the beta yet.</span
+                >Connect multiple marketplace accounts in your workspace. Switch between accounts
+                and keep listings, messages, and sales clearly separated.</span
               >
             </p>
             <ul class="feature-punkte">
@@ -4260,10 +4266,11 @@
             </ul>
             <div id="demo-accounts-label" class="sr-only">
               <span class="lang-de"
-                >Geplantes Beispiel: Zwei Vinted-Konten in einem Workspace, getrennt
-                verwaltet.</span
+                >Zwei Vinted-Konten in einem Workspace mit getrennten Inseraten, Nachrichten und
+                Verkäufen.</span
               ><span class="lang-en" lang="en"
-                >Planned example: two Vinted accounts in one workspace, managed separately.</span
+                >Two Vinted accounts in one workspace, each with its own listings, messages, and
+                sales.</span
               >
             </div>
             <div class="tool-demo accounts-demo" role="img" aria-labelledby="demo-accounts-label">
@@ -4272,8 +4279,8 @@
                   ><span class="lang-de">Vinted-Konten</span
                   ><span class="lang-en" lang="en">Vinted accounts</span></span
                 ><span
-                  ><span class="lang-de">Geplant</span
-                  ><span class="lang-en" lang="en">Planned</span></span
+                  ><span class="lang-de">Konten</span
+                  ><span class="lang-en" lang="en">Accounts</span></span
                 >
               </div>
               <div class="workspace-tile">
@@ -4342,14 +4349,12 @@
             </h3>
             <p>
               <span class="lang-de">
-                Die Anwendung schützt Workspace-Daten mit serverseitigen Zugriffsregeln. Die
-                konkrete Betriebs- und Datenschutzkonfiguration wird vor dem öffentlichen Start
-                gesondert geprüft.
+                Deine Daten sind Workspaces zugeordnet. Serverseitige Zugriffsregeln begrenzen den
+                Zugriff auf berechtigte Nutzer.
               </span>
               <span class="lang-en" lang="en">
-                The application protects workspace data with server-side access rules. The
-                production privacy and hosting configuration is reviewed separately before public
-                launch.
+                Your data belongs to workspaces. Server-side access rules restrict access to
+                authorized users.
               </span>
             </p>
           </div>
@@ -4384,281 +4389,157 @@
         </div>
       </section>
 
-      <!-- Funktionsstand der Beta -->
       <section id="roadmap">
         <div class="sektion-header">
           <h2 class="sektion-titel">
-            <span class="lang-de">Das kannst du in Flipbase nutzen.</span
-            ><span class="lang-en" lang="en">What you can use in Flipbase.</span>
+            <span class="lang-de">Alles für deinen Reselling-Alltag.</span
+            ><span class="lang-en" lang="en">Everything for your reselling day.</span>
           </h2>
           <p class="sektion-text">
             <span class="lang-de"
-              >Diese Bereiche sind Teil der Anwendung. Verfügbarkeit und Funktionsumfang können sich
-              während der Beta ändern.</span
+              >Ware einkaufen, Angebote verwalten und deine Zahlen verstehen. Mit Flipbase greifen
+              deine täglichen Aufgaben ineinander.</span
             ><span class="lang-en" lang="en"
-              >These areas are part of the app. Availability and feature scope may change during the
-              beta.</span
+              >Source inventory, manage listings, and understand your numbers. Flipbase connects
+              your daily tasks.</span
             >
           </p>
         </div>
         <div class="status-box">
           <ul class="status-liste">
             <li class="status-item">
-              <span class="status-tag fertig"
-                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
-              >
-              <span class="lang-de">Einkäufe, Artikelbestand und Verkäufe erfassen</span
-              ><span class="lang-en" lang="en">Record purchases, inventory, and sales</span>
+              <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+              ><span class="lang-de">Einkäufe, Bestand und Verkäufe verbinden</span
+              ><span class="lang-en" lang="en">Connect purchases, inventory, and sales</span>
             </li>
             <li class="status-item">
-              <span class="status-tag fertig"
-                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
-              >
-              <span class="lang-de"
-                >Betriebsausgaben, Fixkosten, Workspaces und Steuerdaten verwalten</span
+              <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+              ><span class="lang-de">Ausgaben, Belege und Steuerdaten aufbereiten</span
               ><span class="lang-en" lang="en"
-                >Manage expenses, recurring costs, workspaces, and accounting data</span
+                >Organize expenses, receipts, and accounting data</span
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig"
-                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
-              >
-              <span class="lang-de">Vinted Bot mit Suchfiltern, Feed und Favoriten</span
+              <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+              ><span class="lang-de">Vinted, eBay und Kleinanzeigen verwalten</span
+              ><span class="lang-en" lang="en">Manage Vinted, eBay, and Kleinanzeigen</span>
+            </li>
+            <li class="status-item">
+              <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+              ><span class="lang-de">Vinted-Relisting planen und Originalfotos erhalten</span
               ><span class="lang-en" lang="en"
-                >Vinted Bot with saved filters, a feed, and favorites</span
+                >Schedule Vinted relisting while keeping original photos</span
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig"
-                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
-              >
-              <span class="lang-de">Bilder optimieren, zuschneiden und exportieren</span
-              ><span class="lang-en" lang="en">Optimize, crop, and export photos</span>
-            </li>
-            <li class="status-item">
-              <span class="status-tag fertig"
-                ><span class="lang-de">Beta</span><span class="lang-en" lang="en">Beta</span></span
-              >
-              <span class="lang-de"
-                >Kleinanzeigen-Inserate vorbereiten und per Erweiterung übertragen</span
-              ><span class="lang-en" lang="en"
-                >Prepare Kleinanzeigen listings and transfer them with the extension</span
-              >
+              <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+              ><span class="lang-de">Neue Ware mit dem Vinted Bot finden</span
+              ><span class="lang-en" lang="en">Find new inventory with the Vinted Bot</span>
             </li>
           </ul>
         </div>
       </section>
-
-      <!-- Pakete: Die gesamte verfügbare Beta bleibt kostenlos. -->
       <section id="pricing" aria-labelledby="pricing-title" aria-describedby="pricing-availability">
         <div class="sektion-header pricing-header">
           <h2 class="sektion-titel" id="pricing-title">
-            <span class="lang-de">Für jeden Reseller das passende Paket.</span>
-            <span class="lang-en" lang="en">The right plan for every reseller.</span>
+            <span class="lang-de">Dein Reselling. Dein Paket.</span
+            ><span class="lang-en" lang="en">Your reselling. Your plan.</span>
           </h2>
           <p class="sektion-text">
             <span class="lang-de"
-              >Alle aktuell verfügbaren Funktionen sind während der Beta kostenlos. Hier siehst Du
-              die geplanten Pakete für die Zeit danach.</span
-            >
-            <span class="lang-en" lang="en"
-              >All currently available features are free during beta. Here is a preview of the plans
-              for afterwards.</span
+              >Vom ersten Bestand bis zu mehreren Konten: Wähle den Umfang, der zu deinem Geschäft
+              passt.</span
+            ><span class="lang-en" lang="en"
+              >From your first inventory to multiple accounts: choose the scope that fits your
+              business.</span
             >
           </p>
         </div>
-
-        <div class="pricing-beta-note">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="9"></circle>
-            <path d="m8 12 3 3 5-6"></path>
-          </svg>
-          <span>
-            <span class="lang-de"
-              >Bewirb Dich für den kostenlosen Beta-Zugang. Teste schon jetzt alle fertigen Features
-              kostenlos und beteilige Dich mit Deinem Feedback an der Weiterentwicklung von
+        <div class="pricing-beta-note" id="pricing-availability">
+          <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+          ><span
+            ><span class="lang-de"
+              >Während der Beta nutzt du alle verfügbaren Funktionen kostenlos. Bewirb dich und
+              lerne Flipbase kennen.</span
+            ><span class="lang-en" lang="en"
+              >All available features are free during the beta. Apply and get to know
               Flipbase.</span
-            >
-            <span class="lang-en" lang="en"
-              >Apply for free beta access. Test all finished features for free today and help shape
-              Flipbase with your feedback.</span
-            >
-          </span>
+            ></span
+          >
         </div>
-
         <div class="pricing-grid">
           <article
             class="pricing-card"
             data-pricing-plan="standard"
             aria-labelledby="pricing-standard-title"
           >
-            <div class="pricing-card-heading">
-              <h3 id="pricing-standard-title">Standard</h3>
-            </div>
+            <div class="pricing-card-heading"><h3 id="pricing-standard-title">Standard</h3></div>
             <p class="pricing-description">
-              <span class="lang-de">Alles für den Überblick über Dein Reselling.</span>
-              <span class="lang-en" lang="en">Everything to keep your reselling organized.</span>
-            </p>
-            <p class="pricing-future-price">
-              <span class="pricing-future-value">
-                <s class="pricing-future-amount">15 €</s>
-                <span>
-                  <span class="lang-de">/ Monat</span>
-                  <span class="lang-en" lang="en">/ month</span>
-                </span>
-              </span>
+              <span class="lang-de">Dein Geschäft im Überblick.</span
+              ><span class="lang-en" lang="en">Your business at a glance.</span>
             </p>
             <p class="pricing-current-price">
-              <strong class="pricing-beta-amount">0 €</strong>
-              <span>
-                <span class="lang-de">/ Monat</span>
-                <span class="lang-en" lang="en">/ month</span>
-              </span>
+              <strong class="pricing-amount">15 €</strong
+              ><span
+                ><span class="lang-de">/ Monat</span
+                ><span class="lang-en" lang="en">/ month</span></span
+              >
             </p>
             <p class="pricing-beta-label">
-              <span class="lang-de">Während der Beta kostenlos</span>
-              <span class="lang-en" lang="en">Free during beta</span>
+              <span class="lang-de">Beta: 0 € · alle verfügbaren Funktionen</span
+              ><span class="lang-en" lang="en">Beta: €0 · all available features</span>
             </p>
-
             <div class="pricing-details">
               <p class="pricing-includes">
-                <span class="lang-de">Enthalten</span>
-                <span class="lang-en" lang="en">Included</span>
+                <span class="lang-de">Deine Grundlage</span
+                ><span class="lang-en" lang="en">Your foundation</span>
               </p>
               <ul class="pricing-features">
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">1 Workspace für dein Reselling</span
+                    ><span class="lang-en" lang="en">1 workspace for your reselling</span></span
                   >
-                    <path d="m5 12 4 4L19 6"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de"
-                      >1 Workspace für Artikel, Einkäufe, Verkäufe und Auswertungen</span
-                    >
-                    <span class="lang-en" lang="en"
-                      >1 workspace for products, purchases, sales, and reports</span
-                    >
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Einkäufe, Bestand und Verkäufe</span
+                    ><span class="lang-en" lang="en">Purchases, inventory, and sales</span></span
                   >
-                    <path d="m5 12 4 4L19 6"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Einkäufe, Bestand und Verkäufe</span>
-                    <span class="lang-en" lang="en">Purchases, inventory, and sales</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Ausgaben und Belege</span
+                    ><span class="lang-en" lang="en">Expenses and receipts</span></span
                   >
-                    <path d="m5 12 4 4L19 6"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Ausgaben, Belege und Statistiken</span>
-                    <span class="lang-en" lang="en">Expenses, receipts, and statistics</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Auswertungen und Steuerexporte</span
+                    ><span class="lang-en" lang="en">Reports and accounting exports</span></span
                   >
-                    <path d="m5 12 4 4L19 6"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Bilder zuschneiden und exportieren</span>
-                    <span class="lang-en" lang="en">Photo cropping and export</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Bildoptimierer und Deal-Rechner</span
+                    ><span class="lang-en" lang="en"
+                      >Photo optimizer and deal calculator</span
+                    ></span
                   >
-                    <path d="m5 12 4 4L19 6"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Kalkulator und Inseratsvorbereitung</span>
-                    <span class="lang-en" lang="en">Calculator and listing preparation</span>
-                  </span>
-                </li>
-                <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="m5 12 4 4L19 6"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Vinted Bot mit Suchfiltern und Favoriten</span>
-                    <span class="lang-en" lang="en"
-                      >Vinted Bot with saved searches and favorites</span
-                    >
-                  </span>
                 </li>
               </ul>
             </div>
-
-            <a class="btn-secondary pricing-cta" href="#beta-anmeldung">
-              <span class="lang-de">Für die Beta bewerben</span>
-              <span class="lang-en" lang="en">Apply for the beta</span>
-              <span aria-hidden="true">→</span>
-            </a>
+            <a class="btn-secondary pricing-cta" href="#beta-anmeldung"
+              ><span class="lang-de">Für die Beta bewerben</span
+              ><span class="lang-en" lang="en">Apply for the beta</span
+              ><span aria-hidden="true">→</span></a
+            >
           </article>
-
           <article
             class="pricing-card pricing-card--featured"
             data-pricing-plan="plus"
@@ -4666,352 +4547,135 @@
           >
             <div class="pricing-card-heading">
               <h3 id="pricing-plus-title">Plus</h3>
-              <span class="pricing-recommendation">
-                <span class="lang-de">Unser Tipp</span>
-                <span class="lang-en" lang="en">Our pick</span>
-              </span>
+              <span class="pricing-recommendation"
+                ><span class="lang-de">Für deinen Alltag</span
+                ><span class="lang-en" lang="en">For your everyday</span></span
+              >
             </div>
             <p class="pricing-description">
-              <span class="lang-de">Für regelmäßiges Reselling und weniger Handarbeit.</span>
-              <span class="lang-en" lang="en">For regular reselling with less manual work.</span>
-            </p>
-            <p class="pricing-future-price">
-              <span class="pricing-future-value">
-                <s class="pricing-future-amount">29 €</s>
-                <span>
-                  <span class="lang-de">/ Monat</span>
-                  <span class="lang-en" lang="en">/ month</span>
-                </span>
-              </span>
+              <span class="lang-de">Deine Marktplätze im Griff.</span
+              ><span class="lang-en" lang="en">Your marketplaces under control.</span>
             </p>
             <p class="pricing-current-price">
-              <strong class="pricing-beta-amount">0 €</strong>
-              <span>
-                <span class="lang-de">/ Monat</span>
-                <span class="lang-en" lang="en">/ month</span>
-              </span>
+              <strong class="pricing-amount">29 €</strong
+              ><span
+                ><span class="lang-de">/ Monat</span
+                ><span class="lang-en" lang="en">/ month</span></span
+              >
             </p>
             <p class="pricing-beta-label">
-              <span class="lang-de">Während der Beta kostenlos</span>
-              <span class="lang-en" lang="en">Free during beta</span>
+              <span class="lang-de">Beta: 0 € · alle verfügbaren Funktionen</span
+              ><span class="lang-en" lang="en">Beta: €0 · all available features</span>
             </p>
-
             <div class="pricing-details">
               <p class="pricing-includes">
-                <span class="lang-de">Alles aus Standard, später zusätzlich:</span>
-                <span class="lang-en" lang="en"
-                  >Everything in Standard, with future additions:</span
-                >
+                <span class="lang-de">Alles aus Standard und:</span
+                ><span class="lang-en" lang="en">Everything in Standard, plus:</span>
               </p>
-              <p class="pricing-planned-label">
-                <span class="lang-de">Geplante Erweiterungen</span>
-                <span class="lang-en" lang="en">Planned additions</span>
-              </p>
-              <ul class="pricing-features pricing-features--planned">
+              <ul class="pricing-features">
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">3 Workspaces für getrennte Geschäftsbereiche</span
+                    ><span class="lang-en" lang="en"
+                      >3 workspaces for separate businesses</span
+                    ></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">3 Workspaces für getrennte Geschäftsbereiche</span>
-                    <span class="lang-en" lang="en">3 workspaces for separate business areas</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Multi-Account-Verwaltung für bis zu 3 Vinted-Konten</span
+                    ><span class="lang-en" lang="en">Manage up to 3 Vinted accounts</span></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Multi-Account-Verwaltung für bis zu 3 Vinted-Konten</span>
-                    <span class="lang-en" lang="en"
-                      >Multi-account management for up to 3 Vinted accounts</span
-                    >
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Inserate und Vinted-Relisting</span
+                    ><span class="lang-en" lang="en">Listings and Vinted relisting</span></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Erweiterte Vinted-Suchfunktionen</span>
-                    <span class="lang-en" lang="en">Advanced Vinted search features</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Vinted Bot mit Suchfiltern und Favoriten</span
+                    ><span class="lang-en" lang="en"
+                      >Vinted Bot with saved filters and favorites</span
+                    ></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">KI für Artikel und Recherche</span>
-                    <span class="lang-en" lang="en">AI for products and research</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Marken und Größen nachschlagen</span
+                    ><span class="lang-en" lang="en">Brand and size reference library</span></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Vollständiges Reseller-Nachschlagewerk</span>
-                    <span class="lang-en" lang="en">Full reseller knowledge library</span>
-                  </span>
-                </li>
-                <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Neue Sammelbearbeitung für Artikel</span>
-                    <span class="lang-en" lang="en">New bulk editing for products</span>
-                  </span>
                 </li>
               </ul>
             </div>
-
-            <a class="btn-primary pricing-cta" href="#beta-anmeldung">
-              <span class="lang-de">Für die Beta bewerben</span>
-              <span class="lang-en" lang="en">Apply for the beta</span>
-              <span aria-hidden="true">→</span>
-            </a>
+            <a class="btn-primary pricing-cta" href="#beta-anmeldung"
+              ><span class="lang-de">Für die Beta bewerben</span
+              ><span class="lang-en" lang="en">Apply for the beta</span
+              ><span aria-hidden="true">→</span></a
+            >
           </article>
-
           <article class="pricing-card" data-pricing-plan="pro" aria-labelledby="pricing-pro-title">
-            <div class="pricing-card-heading">
-              <h3 id="pricing-pro-title">Pro</h3>
-            </div>
+            <div class="pricing-card-heading"><h3 id="pricing-pro-title">Pro</h3></div>
             <p class="pricing-description">
-              <span class="lang-de">Für größere Bestände und gemeinsames Arbeiten.</span>
-              <span class="lang-en" lang="en">For larger inventories and working together.</span>
-            </p>
-            <p class="pricing-future-price">
-              <span class="pricing-future-value">
-                <s class="pricing-future-amount">49 €</s>
-                <span>
-                  <span class="lang-de">/ Monat</span>
-                  <span class="lang-en" lang="en">/ month</span>
-                </span>
-              </span>
+              <span class="lang-de">Mehr Raum für dein Geschäft.</span
+              ><span class="lang-en" lang="en">More room for your business.</span>
             </p>
             <p class="pricing-current-price">
-              <strong class="pricing-beta-amount">0 €</strong>
-              <span>
-                <span class="lang-de">/ Monat</span>
-                <span class="lang-en" lang="en">/ month</span>
-              </span>
+              <strong class="pricing-amount">49 €</strong
+              ><span
+                ><span class="lang-de">/ Monat</span
+                ><span class="lang-en" lang="en">/ month</span></span
+              >
             </p>
             <p class="pricing-beta-label">
-              <span class="lang-de">Während der Beta kostenlos</span>
-              <span class="lang-en" lang="en">Free during beta</span>
+              <span class="lang-de">Beta: 0 € · alle verfügbaren Funktionen</span
+              ><span class="lang-en" lang="en">Beta: €0 · all available features</span>
             </p>
-
             <div class="pricing-details">
               <p class="pricing-includes">
-                <span class="lang-de">Alles aus Plus, später zusätzlich:</span>
-                <span class="lang-en" lang="en">Everything in Plus, with future additions:</span>
+                <span class="lang-de">Alles aus Plus und:</span
+                ><span class="lang-en" lang="en">Everything in Plus, plus:</span>
               </p>
-              <p class="pricing-planned-label">
-                <span class="lang-de">Geplante Erweiterungen</span>
-                <span class="lang-en" lang="en">Planned additions</span>
-              </p>
-              <ul class="pricing-features pricing-features--planned">
+              <ul class="pricing-features">
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">5 Workspaces für getrennte Geschäftsbereiche</span
+                    ><span class="lang-en" lang="en"
+                      >5 workspaces for separate businesses</span
+                    ></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">5 Workspaces für getrennte Geschäftsbereiche</span>
-                    <span class="lang-en" lang="en">5 workspaces for separate business areas</span>
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Multi-Account-Verwaltung für bis zu 5 Vinted-Konten</span
+                    ><span class="lang-en" lang="en">Manage up to 5 Vinted accounts</span></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Multi-Account-Verwaltung für bis zu 5 Vinted-Konten</span>
-                    <span class="lang-en" lang="en"
-                      >Multi-account management for up to 5 Vinted accounts</span
-                    >
-                  </span>
                 </li>
                 <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                  ><span
+                    ><span class="lang-de">Zusammenarbeit mit bis zu 3 Personen</span
+                    ><span class="lang-en" lang="en">Collaborate with up to 3 people</span></span
                   >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Größere KI- und Suchkontingente</span>
-                    <span class="lang-en" lang="en">Larger AI and search allowances</span>
-                  </span>
-                </li>
-                <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Erweiterte Sammelbearbeitung</span>
-                    <span class="lang-en" lang="en">Advanced bulk editing</span>
-                  </span>
-                </li>
-                <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Kontovergleiche und eigene Berichte</span>
-                    <span class="lang-en" lang="en">Account comparisons and custom reports</span>
-                  </span>
-                </li>
-                <li>
-                  <svg
-                    class="pricing-feature-icon"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
-                  <span>
-                    <span class="lang-de">Zusammenarbeit mit bis zu 3 Personen</span>
-                    <span class="lang-en" lang="en">Collaboration for up to 3 people</span>
-                  </span>
                 </li>
               </ul>
             </div>
-
-            <a class="btn-secondary pricing-cta" href="#beta-anmeldung">
-              <span class="lang-de">Für die Beta bewerben</span>
-              <span class="lang-en" lang="en">Apply for the beta</span>
-              <span aria-hidden="true">→</span>
-            </a>
+            <a class="btn-secondary pricing-cta" href="#beta-anmeldung"
+              ><span class="lang-de">Für die Beta bewerben</span
+              ><span class="lang-en" lang="en">Apply for the beta</span
+              ><span aria-hidden="true">→</span></a
+            >
           </article>
         </div>
-
-        <p class="pricing-footnote" id="pricing-availability">
-          <span class="lang-de"
-            >Die späteren Preise und Paketgrenzen sind vorläufig. Geplante Erweiterungen sind
-            entsprechend markiert und noch nicht vollständig verfügbar.</span
-          >
-          <span class="lang-en" lang="en"
-            >Future prices and plan limits are provisional. Planned additions are marked accordingly
-            and are not fully available yet.</span
-          >
-        </p>
       </section>
-
       <!-- FAQ -->
       <section id="faq">
         <div class="sektion-header faq-header-center">
@@ -5241,15 +4905,14 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Verkäufe kannst du für Vinted, eBay und Kleinanzeigen erfassen. Der Vinted Bot
-                  unterstützt die Produktsuche. Inserate bereitest du derzeit für Kleinanzeigen vor;
-                  die Browser-Erweiterung überträgt den Entwurf in einen neuen Tab. Die
-                  Veröffentlichung schließt du auf Kleinanzeigen selbst ab.
+                  Flipbase verbindet Vinted, eBay und Kleinanzeigen mit deiner Warenwirtschaft.
+                  Verwalte Marktplatzkonten, Inserate, Nachrichten und Verkäufe. Für Vinted planst
+                  du Relisting und findest mit dem Vinted Bot neue Angebote.
                 </span>
                 <span class="lang-en" lang="en">
-                  You can record sales from Vinted, eBay, and Kleinanzeigen. The Vinted Bot helps
-                  with sourcing. You currently prepare listings for Kleinanzeigen; the browser
-                  extension transfers the draft into a new tab. You finish publishing there.
+                  Flipbase connects Vinted, eBay, and Kleinanzeigen with your inventory management.
+                  Manage marketplace accounts, listings, messages, and sales. Schedule Vinted
+                  relisting and find new offers with the Vinted Bot.
                 </span>
               </p>
             </div>
@@ -5353,14 +5016,12 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Die Anwendung schützt Workspace-Daten mit serverseitigen Zugriffsregeln. Die
-                  konkrete Betriebs- und Datenschutzkonfiguration wird vor dem öffentlichen Start
-                  gesondert geprüft.
+                  Deine Daten sind Workspaces zugeordnet. Serverseitige Zugriffsregeln begrenzen den
+                  Zugriff auf berechtigte Nutzer.
                 </span>
                 <span class="lang-en" lang="en">
-                  The application protects workspace data with server-side access rules. The
-                  production privacy and hosting configuration is reviewed separately before public
-                  launch.
+                  Your data belongs to workspaces. Server-side access rules restrict access to
+                  authorized users.
                 </span>
               </p>
             </div>

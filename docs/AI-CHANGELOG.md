@@ -1,5 +1,62 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Landingpage an Produkt und Flipbase-Design anpassen
+
+**Auftrag und Grundlage:** Die Landingpage vollständig auf veraltete Aussagen,
+Vorschauen und abweichende Buttons prüfen. Die bestätigte Preisstaffel 15/29/49
+Euro erhalten. Kernfunktionen auf ausdrücklichen Nutzerwunsch unmittelbar als
+Produkt präsentieren, ohne Entwicklungsstände oder Zukunftsankündigungen.
+GitHub vor Beginn und vor der abschließenden Prüfung abgeglichen; eigener Zweig
+`juna/landing-refresh` vom aktuellen `origin/master` in getrennter Arbeitskopie.
+Die belegte primäre Arbeitskopie samt fremden Änderungen bleibt unverändert.
+
+**Ergebnis:** Die Hauptvorschau folgt der heutigen Übersicht: vier gemeinsame
+Kennzahlen, Zeitraum-/Plattformfilter, Schnellaktionen, Diagramm in Gelb/Grau/Petrol,
+die letzten drei Verkäufe mit Datum sowie Bestand nach Lagerdauer. Beispielsummen
+und direkte Verkaufskosten sind rechnerisch geprüft. Darstellung bleibt auch
+mobil vollständig. Veraltete Dashboardelemente, Bildunterschrift und der Text zu
+verteilten Tabellen entfallen. Produkttexte, Konten-/Inseratsvorschauen, FAQ und
+zweisprachige Suchbeschreibungen berücksichtigen Marktplatzkonten, Inserate,
+Vinted-Relisting und den Erhalt der Originalbilder. Abschnittsfolge und bestehende
+Bewerbungs-, Sprach-, Design- und Animationssteuerung bleiben erhalten.
+
+**Pakete und Gestaltung:** Standard, Plus und Pro unterscheiden Warenwirtschaft,
+Marktplatzfunktionen und größere Workspace-/Konten-/Teamumfänge. Die bestehenden
+Workspacegrenzen 1/3/5, Vinted-Kontengrenzen 3/5 und drei Teammitglieder im
+Pro-Paket bleiben erhalten. Keine durchgestrichenen Preise oder Listen geplanter
+Funktionen; alle drei Pakete verweisen weiterhin auf dieselbe kostenlose
+Beta-Bewerbung. Hauptaktionen verwenden eine gemeinsame flache Buttonrolle mit
+6px Radius, ohne Farbverlauf, Schatten oder Bewegung beim Überfahren/Drücken.
+Formularfelder verwenden 7px Radius und blauen Tastaturfokus. Keine gemeinsame
+Angular-Komponente, Abhängigkeit, Preisabrechnung oder Anbieterfunktion geändert.
+
+**Prüfung:** Mit Node 22.23.4 `npm run preflight:plan` und `npm run preflight`
+ausgeführt. Erfolgreich: Formatprüfung, ESLint, beide TypeScript-Prüfungen,
+Suite-Audit, 194 ausgewählte Skriptvertragsfälle und alle 47 Landingpagefälle.
+Die bestehenden Regressionen wurden an die beauftragten Aussagen angepasst und
+um flache Buttonzustände, fehlende Entwicklungsankündigungen, aktuelle
+Übersichtsstruktur und konsistente Diagrammkosten ergänzt. Zusätzlich 32
+erfolgreiche Playwright-Darstellungen unter Windows: Chromium/WebKit bei
+320/390/834/1440 Pixel, Hell/Dunkel und Deutsch/Englisch, schmale Ansichten mit
+Touch. AXE/WCAG A/AA ohne Verstöße; Seitenbreite, Bedienelemente, Diagramm,
+Ablaufschritte und Bildzuschnitt geprüft. Tastatur, native Pflichtfeldprüfung,
+erfolgreiche Bewerbung mit ausschließlich abgefangener synthetischer Antwort,
+Dialog-Rückfokus, flache Hover-/Gedrücktzustände und gespeicherte Design-/Sprachwahl
+ebenfalls geprüft. Den erkannten unzureichenden Kontrast der Plattformbeschriftung
+in der dunklen Vorschau vor der vollständigen Browsermatrix korrigiert.
+Die Lagerdauerbalken entsprechen wie in der Anwendung den Anteilen am gesamten
+Bestand. Nach dem abschließenden Zahlenabgleich zusätzlich in 16 gezielten
+Chromium-/WebKit-Darstellungen ihre tatsächlich gerenderten Breiten nachgemessen;
+die unveränderten Bewerbungs- und Sprachabläufe dabei nicht erneut durchlaufen.
+
+**Grenzen und Nachweise:** Lokale Entwicklungsprüfung erfolgreich; die vom Plan
+ausgewählten CI-Nachweise für Workflow-/Deploymentverträge, Migrationspaket,
+Actionlint und Anwendungsbau bleiben vor dem Merge erforderlich. Windows-WebKit
+ist kein nativer Safari-/Gerätetest. Kein echter Bewerbungsversand und keine
+produktive Anbieteraktion. Ausführliche Protokolle, Prüfskript, Matrixergebnisse
+und Screenshots privat unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/`. Kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Admin-Bereich mit Übersicht, Nutzerfiltern, Systemzustand und Not-Aus
 
 **Anlass:** Die Administration war nur über einen Punkt ganz unten in der

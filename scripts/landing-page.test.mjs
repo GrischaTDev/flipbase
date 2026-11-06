@@ -412,11 +412,11 @@ test('leads from the revised hero to one application form at the end of the page
   const headline = new JSDOM(html).window.document.querySelector('h1');
   assert.equal(
     headline.querySelector('.lang-de').textContent.replace(/\s+/gu, ' ').trim(),
-    'Die Warenwirtschaft für dein Reselling.',
+    'Mehr Überblick für dein Reselling.',
   );
   assert.equal(
     headline.querySelector('.lang-en').textContent.replace(/\s+/gu, ' ').trim(),
-    'Inventory management for your reselling.',
+    'A clearer view of your reselling.',
   );
   assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
 
@@ -479,7 +479,7 @@ test('keeps a compact sticky header with section navigation and sign in', () => 
     ['#features', '#roadmap', '#pricing', '#faq'],
   );
   assert.match(navigation.textContent, /Funktionen/u);
-  assert.match(navigation.textContent, /Beta/u);
+  assert.match(navigation.textContent, /Überblick/u);
   assert.match(navigation.textContent, /Pakete & Preise/u);
   assert.match(navigation.textContent, /FAQ/u);
 
@@ -765,7 +765,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.match(firstVisit.document.title, /Reselling software for Vinted, eBay/u);
   assert.match(
     firstVisit.document.querySelector('meta[name="description"]').content,
-    /Reselling beyond spreadsheets/u,
+    /Flipbase connects purchases, inventory, sales, and finances/u,
   );
   firstVisit.mediaQuery.setLight(true);
   assert.equal(themeToggle.checked, false);
@@ -897,8 +897,8 @@ test('declares English passages and gives localized controls static screen-reade
   }
 
   const roadmapDocument = new JSDOM(html).window.document;
-  const roadmapStatuses = [...roadmapDocument.querySelectorAll('.status-tag')];
-  assert.ok(roadmapStatuses.length > 0, 'Expected beta status labels');
+  const roadmapStatuses = [...roadmapDocument.querySelectorAll('#roadmap .status-item')];
+  assert.ok(roadmapStatuses.length > 0, 'Expected product features');
   for (const status of roadmapStatuses) {
     assert.ok(status.querySelector('.lang-de'), 'Every status needs German text');
     assert.ok(status.querySelector('.lang-en[lang="en"]'), 'Every status needs English text');
@@ -1464,11 +1464,11 @@ test('explains the reselling workflow and the real marketplace scope', () => {
   );
   assert.equal(
     workflowSteps[0]?.querySelector('small.lang-de')?.textContent,
-    'Artikel und Kosten nachvollziehbar erfassen',
+    'Einkäufe erfassen, Bestand verwalten',
   );
   assert.equal(
     workflowSteps[3]?.querySelector('small.lang-en')?.textContent,
-    'Optimize photos, prepare listings',
+    'Create and relist listings',
   );
 
   const featureCards = [...document.querySelectorAll('#features .feature-karte')];
@@ -1486,25 +1486,29 @@ test('explains the reselling workflow and the real marketplace scope', () => {
     ],
   );
   assert.ok(featureCards[0].classList.contains('hervorgehoben'));
-  assert.equal(featureCards[7].querySelector('.feature-badge .lang-de')?.textContent, 'Geplant');
-  assert.equal(featureCards[7].querySelector('.feature-badge .lang-en')?.textContent, 'Planned');
-  assert.match(featureCards[7].textContent, /noch nicht in der Beta verfügbar/u);
-  assert.doesNotMatch(document.querySelector('#roadmap')?.textContent ?? '', /Multi-Account/iu);
+  assert.equal(featureCards[7].querySelector('.feature-badge .lang-de')?.textContent, 'Konten');
+  assert.equal(featureCards[7].querySelector('.feature-badge .lang-en')?.textContent, 'Accounts');
+  assert.match(featureCards[7].textContent, /Verbinde mehrere Marktplatzkonten/u);
+  assert.match(featureCards[6].textContent, /Vinted, eBay und Kleinanzeigen/u);
+  assert.match(featureCards[6].textContent, /Vinted-Relisting/u);
+  assert.match(
+    featureCards[5].textContent.replace(/\s+/gu, ' '),
+    /Deine Originalbilder bleiben erhalten/u,
+  );
 
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
   );
   assert.ok(descriptionTag, 'Expected a meta description');
-  assert.match(attribute(descriptionTag, 'content'), /Reselling ohne Excel/u);
+  assert.match(
+    attribute(descriptionTag, 'content'),
+    /Flipbase verbindet Einkäufe, Bestand, Verkäufe und Finanzen/u,
+  );
   assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
   assert.match(normalizedHtml, /für dein Reselling/u);
   assert.match(normalizedHtml, /Vinted Bot: passende Funde prüfen/u);
   assert.match(normalizedHtml, /Betriebsausgaben und Fixkosten erfassen/u);
   assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
-  assert.match(
-    normalizedHtml,
-    /Mit einem Klick überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du die Veröffentlichung ab\./u,
-  );
   assert.match(normalizedHtml, /Verkäufe auf Vinted, eBay und Kleinanzeigen fest/u);
   assert.match(normalizedHtml, /Ob Vintage Reselling oder andere Produkte/u);
   assert.doesNotMatch(document.title, /Vintage/iu);
@@ -1530,14 +1534,14 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   assert.equal(
     matches(
       normalizedHtml,
-      /Die Anwendung schützt Workspace-Daten mit serverseitigen Zugriffsregeln\. Die konkrete Betriebs- und Datenschutzkonfiguration wird vor dem öffentlichen Start gesondert geprüft\./gu,
+      /Deine Daten sind Workspaces zugeordnet\. Serverseitige Zugriffsregeln begrenzen den Zugriff auf berechtigte Nutzer\./gu,
     ),
     2,
   );
   assert.equal(
     matches(
       normalizedHtml,
-      /The application protects workspace data with server-side access rules\. The production privacy and hosting configuration is reviewed separately before public launch\./gu,
+      /Your data belongs to workspaces\. Server-side access rules restrict access to authorized users\./gu,
     ),
     2,
   );
@@ -1602,44 +1606,60 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   }
 });
 
-test('pricing section shows the free beta and future plan limits', () => {
+test('pricing keeps three clear packages, prices and free beta access without roadmap promises', () => {
   const dom = new JSDOM(html);
   const pricing = dom.window.document.getElementById('pricing');
-  assert.ok(pricing, 'pricing section must exist');
-
-  const heading = pricing.querySelector('#pricing-title');
-  assert.ok(heading);
-  assert.match(heading.textContent, /Für jeden Reseller das passende Paket\./u);
-
+  assert.match(pricing.querySelector('#pricing-title').textContent, /Dein Reselling. Dein Paket./u);
   const cards = [...pricing.querySelectorAll('[data-pricing-plan]')];
-  assert.equal(cards.length, 3);
-
-  const byPlan = Object.fromEntries(
-    cards.map((card) => [card.getAttribute('data-pricing-plan'), card]),
+  assert.deepEqual(
+    cards.map((card) => card.dataset.pricingPlan),
+    ['standard', 'plus', 'pro'],
   );
-  assert.deepEqual(Object.keys(byPlan).sort(), ['plus', 'pro', 'standard']);
-
-  assert.match(byPlan.standard.textContent, /1 Workspace/u);
-  assert.doesNotMatch(byPlan.standard.textContent, /Multi-Account-Verwaltung/u);
-  assert.match(byPlan.plus.textContent, /3 Workspaces/u);
-  assert.match(byPlan.plus.textContent, /bis zu 3 Vinted-Konten/u);
-  assert.match(byPlan.pro.textContent, /5 Workspaces/u);
-  assert.match(byPlan.pro.textContent, /bis zu 5 Vinted-Konten/u);
-
-  const futurePrices = cards.map((card) => card.querySelector('s')?.textContent.trim());
-  assert.deepEqual(futurePrices, ['15 €', '29 €', '49 €']);
+  assert.deepEqual(
+    cards.map((card) => card.querySelector('.pricing-amount').textContent),
+    ['15 €', '29 €', '49 €'],
+  );
+  assert.match(cards[0].textContent, /1 Workspace/u);
+  assert.match(cards[1].textContent, /3 Workspaces/u);
+  assert.match(cards[1].textContent, /bis zu 3 Vinted-Konten/u);
+  assert.match(cards[2].textContent, /5 Workspaces/u);
+  assert.match(cards[2].textContent, /bis zu 5 Vinted-Konten/u);
+  assert.match(cards[2].textContent, /bis zu 3 Personen/u);
+  assert.equal(pricing.querySelectorAll('s').length, 0, 'Prices must not suggest a discount');
   for (const card of cards) {
-    assert.match(card.textContent, /0 €/u);
-    assert.equal(card.querySelector('.pricing-cta')?.getAttribute('href'), '#beta-anmeldung');
+    assert.match(card.textContent, /Beta: 0 €/u);
+    assert.equal(card.querySelector('.pricing-cta').getAttribute('href'), '#beta-anmeldung');
   }
-
-  const pricingText = pricing.textContent.replace(/\s+/gu, ' ').trim();
   assert.match(
-    pricingText,
-    /Bewirb Dich für den kostenlosen Beta-Zugang\. Teste schon jetzt alle fertigen Features kostenlos und beteilige Dich mit Deinem Feedback an der Weiterentwicklung von Flipbase\./u,
+    pricing.textContent,
+    /Während der Beta nutzt du alle verfügbaren Funktionen kostenlos/u,
   );
-  assert.doesNotMatch(pricingText, /Geplant nach der Beta/u);
-  assert.doesNotMatch(pricingText, /Paketumfang nach der Beta/u);
+  dom.window.close();
+});
+
+test('presents core features without development status or explanatory preview captions', () => {
+  const dom = new JSDOM(html);
+  const text = dom.window.document.querySelector('main').textContent.replace(/\s+/gu, ' ');
+  assert.doesNotMatch(
+    text,
+    /geplant|später|Zukunft|\bin Arbeit\b|vorläufig|Ausbaustufe|not available|planned|future|later release|listing draft|Nachbau|ohne verteilte Tabellen/iu,
+  );
+  assert.equal(dom.window.document.querySelector('.workflow-note'), null);
+  assert.equal(dom.window.document.querySelector('.replica-figure figcaption'), null);
+  dom.window.close();
+});
+
+test('uses a parseable shared flat button role for sign in and beta actions', () => {
+  const dom = new JSDOM(html);
+  assert.ok(dom.window.document.styleSheets.length > 0);
+  for (const selector of ['.kopf-cta', '.hero-beta-cta', '.pricing-cta', '.hero-beta-btn']) {
+    const style = dom.window.getComputedStyle(dom.window.document.querySelector(selector));
+    assert.equal(style.borderRadius, '6px', selector);
+    assert.equal(style.boxShadow, 'none', selector);
+    assert.equal(style.backgroundImage, 'none', selector);
+    assert.ok(!style.transform || style.transform === 'none', selector);
+  }
+  dom.window.close();
 });
 
 test('does not show the spreadsheet comparison block', () => {
@@ -1746,7 +1766,7 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   };
 }
 
-test('hero shows a replica of the real Flipbase dashboard instead of borrowed competitor elements', () => {
+test('hero preview follows the current overview with four metrics, quick actions and lower cards', () => {
   const dom = new JSDOM(html);
   const { document } = dom.window;
   const replica = document.getElementById('dashboard-replica');
@@ -1754,36 +1774,36 @@ test('hero shows a replica of the real Flipbase dashboard instead of borrowed co
   const label = document.getElementById(replica.getAttribute('aria-labelledby'));
   assert.match(label.querySelector('.lang-de').textContent, /Beispielansicht/u);
   assert.match(label.querySelector('.lang-en[lang="en"]').textContent, /Sample view/u);
-  assert.deepEqual(listText(replica, '[data-nav-group]'), [
+  assert.deepEqual(listText(replica, '[data-nav-group] .lang-de'), [
     'Warenwirtschaft',
     'Marktplätze',
     'Finanzen',
     'Tools',
   ]);
-  assert.deepEqual(listText(replica, '[data-nav-active]'), ['Dashboard']);
-  assert.deepEqual(listText(replica, '[data-kpi-label]'), [
+  assert.deepEqual(listText(replica, '[data-nav-active] .lang-de'), ['Übersicht']);
+  assert.deepEqual(listText(replica, '[data-kpi-label] .lang-de'), [
     'Umsatz',
     'Gewinn',
     'Marge',
-    'Kapital im Bestand',
     'Verkäufe',
   ]);
-  assert.deepEqual(listText(replica, '[data-chart-legend]'), [
+  assert.deepEqual(listText(replica, '[data-chart-legend] .lang-de'), [
     'Umsatz',
     'Ausgaben gesamt',
     'Gewinn',
   ]);
-  const caption = replica.closest('figure').querySelector('figcaption');
-  assert.match(caption.querySelector('.lang-de').textContent, /Beispieldaten/u);
-  assert.match(caption.querySelector('.lang-en').textContent, /sample data/u);
-  for (const borrowed of [
-    '⌘',
-    'Persönlicher Arbeitsbereich',
-    'Dein Geschäft im Überblick',
-    'Verkaufsentwicklung',
-  ]) {
-    assert.ok(!document.body.textContent.includes(borrowed), `Borrowed element: ${borrowed}`);
-  }
+  assert.deepEqual(listText(replica, '.replica-quick-action .lang-de'), [
+    'Einkauf erfassen',
+    'Verkauf erfassen',
+    'Inserat erstellen',
+  ]);
+  assert.deepEqual(listText(replica, '.replica-bottom .replica-card-heading .lang-de'), [
+    'Letzte Verkäufe',
+    'Bestand im Blick',
+  ]);
+  assert.equal(replica.querySelectorAll('.replica-sale').length, 3);
+  assert.equal(replica.querySelectorAll('.replica-stock-row').length, 4);
+  assert.equal(replica.closest('figure').querySelector('figcaption'), null);
   dom.window.close();
 });
 
@@ -1801,7 +1821,31 @@ test('dashboard example figures agree with the chart they summarize', () => {
   assert.equal(seriesTotal('revenue'), revenue);
   assert.equal(seriesTotal('profit'), profit);
   assert.ok(seriesTotal('expenses') > 0);
+  for (const month of replica.querySelectorAll('.replica-month')) {
+    const value = (key) =>
+      Number(month.querySelector(`[data-series="${key}"]`).style.getPropertyValue('--value'));
+    assert.ok(
+      value('expenses') >= value('revenue') - value('profit'),
+      'Total expenses include direct costs',
+    );
+  }
   assert.equal(replica.querySelectorAll('[data-series]').length % 3, 0);
+  const stockRows = [...replica.querySelectorAll('.replica-stock-row')];
+  const stockUnits = stockRows.map((row) => Number(row.querySelector('strong').textContent));
+  const totalStock = stockUnits.reduce((total, units) => total + units, 0);
+  assert.equal(
+    totalStock,
+    Number.parseInt(replica.querySelector('.replica-stock-total').textContent, 10),
+  );
+  for (const [index, row] of stockRows.entries()) {
+    const shownShare = Number.parseFloat(
+      row.querySelector('[style]').style.getPropertyValue('--stock-share'),
+    );
+    assert.ok(
+      Math.abs(shownShare - (stockUnits[index] / totalStock) * 100) < 0.1,
+      'Stock bars show shares of total stock',
+    );
+  }
   assert.equal(
     kpi('margin'),
     `${((profit / revenue) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`,
