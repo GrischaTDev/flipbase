@@ -443,6 +443,7 @@ test('bekannte Landingpage startet ihre Vertragsprüfung ohne Anwendungs- oder B
   for (const changed of [
     'landing/index.html',
     'scripts/landing-demo-capture.mjs',
+    'scripts/landing-demo-capture-audit.mjs',
     'landing/images/product-demo/overview-desktop-light.webp',
   ]) {
     const plan = selectAffectedTests([changed], files);

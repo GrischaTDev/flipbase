@@ -17,6 +17,110 @@
     function isEnglish() {
       return locale() === 'en-GB';
     }
+    var notifications = preview.querySelector('[data-demo-notifications]');
+    var notificationToggle = preview.querySelector('[data-demo-notification-toggle]');
+    var notificationMenu = preview.querySelector('[data-demo-notification-menu]');
+    function setNotificationsOpen(open, returnFocus) {
+      if (!notificationMenu) return;
+      notificationMenu.hidden = !open;
+      notificationToggle.setAttribute('aria-expanded', String(open));
+      if (!open && returnFocus) notificationToggle.focus({ preventScroll: true });
+    }
+    function updateNotifications() {
+      if (!notifications) return;
+      var items = Array.prototype.slice.call(
+        notifications.querySelectorAll('[data-demo-notification-item]'),
+      );
+      var unread = items.filter(function (item) {
+        return item.dataset.unread === 'true';
+      }).length;
+      notifications.querySelectorAll('[data-demo-notification-count]').forEach(function (count) {
+        count.textContent = String(unread);
+      });
+      notifications.querySelectorAll('[data-demo-notification-badge]').forEach(function (badge) {
+        badge.hidden = unread === 0;
+      });
+      notifications.querySelector('[data-demo-notification-list]').hidden = items.length === 0;
+      notifications.querySelector('[data-demo-notification-empty]').hidden = items.length > 0;
+    }
+    function notificationEntries() {
+      return Array.prototype.slice.call(
+        notifications.querySelectorAll('[data-demo-notification-target]'),
+      );
+    }
+    if (notifications) {
+      notificationToggle.disabled = false;
+      notificationToggle.addEventListener('click', function () {
+        setNotificationsOpen(notificationMenu.hidden, false);
+      });
+      notificationToggle.addEventListener('keydown', function (event) {
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+        event.preventDefault();
+        setNotificationsOpen(true, false);
+        var entries = notificationEntries();
+        var entry = event.key === 'ArrowUp' ? entries[entries.length - 1] : entries[0];
+        if (entry) entry.focus();
+        else notificationMenu.focus();
+      });
+      notificationEntries().forEach(function (entry) {
+        entry.addEventListener('click', function () {
+          entry.closest('[data-demo-notification-item]').dataset.unread = 'false';
+          updateNotifications();
+          activatePage(entry.dataset.demoNotificationTarget, true);
+          find('demo-panel-' + entry.dataset.demoNotificationTarget).focus({ preventScroll: true });
+        });
+        entry.addEventListener('keydown', function (event) {
+          var entries = notificationEntries();
+          var index = entries.indexOf(entry);
+          var target;
+          if (event.key === 'ArrowDown') target = (index + 1) % entries.length;
+          else if (event.key === 'ArrowUp') target = (index + entries.length - 1) % entries.length;
+          else if (event.key === 'Home') target = 0;
+          else if (event.key === 'End') target = entries.length - 1;
+          else return;
+          event.preventDefault();
+          entries[target].focus();
+        });
+      });
+      notifications
+        .querySelector('[data-demo-notification-read]')
+        .addEventListener('click', function () {
+          notifications.querySelectorAll('[data-demo-notification-item]').forEach(function (item) {
+            item.dataset.unread = 'false';
+          });
+          updateNotifications();
+          find('demo-page-announcement').textContent = isEnglish()
+            ? 'All notifications marked as read.'
+            : 'Alle Benachrichtigungen als gelesen markiert.';
+        });
+      notifications
+        .querySelector('[data-demo-notification-clear]')
+        .addEventListener('click', function () {
+          notifications.querySelectorAll('[data-demo-notification-item]').forEach(function (item) {
+            item.remove();
+          });
+          updateNotifications();
+          find('demo-page-announcement').textContent = isEnglish()
+            ? 'Notifications cleared.'
+            : 'Benachrichtigungsverlauf geleert.';
+        });
+      document.addEventListener('click', function (event) {
+        if (!notificationMenu.hidden && !notifications.contains(event.target))
+          setNotificationsOpen(false, false);
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !notificationMenu.hidden) {
+          event.preventDefault();
+          setNotificationsOpen(false, true);
+        }
+      });
+      notifications.addEventListener('focusout', function (event) {
+        if (!notificationMenu.hidden && !notifications.contains(event.relatedTarget))
+          setNotificationsOpen(false, false);
+      });
+      updateNotifications();
+    }
+
     function pageName(tab) {
       return Array.prototype.slice
         .call(tab.querySelectorAll(isEnglish() ? '.lang-en' : '.lang-de'))
@@ -30,6 +134,7 @@
         return tab.dataset.demoPage === key;
       });
       if (!selected) return;
+      setNotificationsOpen(false, false);
       tabs.forEach(function (tab) {
         var current = tab === selected;
         tab.setAttribute('aria-selected', String(current));
@@ -76,6 +181,8 @@
       orientation.addEventListener('change', syncOrientation);
 
     function syncLanguage() {
+      if (notificationToggle)
+        notificationToggle.title = isEnglish() ? 'Notifications' : 'Benachrichtigungen';
       preview.querySelectorAll('[data-demo-image]').forEach(function (image) {
         image.alt = isEnglish() ? image.dataset.altEn : image.dataset.altDe;
       });

@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Vorführbare Demo und bedienbare Benachrichtigungen
+
+**Auftrag:** Den veralteten Bot-Hinweis im Vinted-Feed entfernen, drei kleinere
+Karten nebeneinander zeigen, die Glocke wie im Produkt bedienbar machen und
+unpassende Demo-Texte bereinigen. Fortsetzung auf `juna/landing-refresh`;
+GitHub abgeglichen und fremde Arbeitskopien unverändert erhalten.
+
+**Umsetzung:** Die Aufnahme nutzt eine feste Browserzeit passend zu den
+synthetischen Feed-Daten. Der originale Feed erhält für Desktop einen breiteren
+Aufnahmebereich und zeigt dadurch drei Karten in einer Reihe. Die realen
+Produktseiten und ihre Fehlerbehandlung bleiben unverändert. Fehlende eBay-
+Testantworten vervollständigt, Synchronisationsdaten vereinheitlicht und
+Kleinanzeigen mit Preisen und Veröffentlichungsstatus befüllt. Steuer/DATEV
+zeigt den Bankabgleich mit importierten Beispieltransaktionen.
+
+Alle 52 Aufnahmen erneut erstellt und ihre sichtbaren Texte geprüft; zuletzt
+bereinigte Marktplatz- und Bankansichten gezielt erneuert. Das Manifest hält
+Aufnahmebreite, Texte und Feed-Kartenpositionen fest. Der Aufnahmecheck weist
+unpassende Fehler-/Statushinweise sowie die fehlerhafte Zwei-plus-eins-Anordnung
+zurück. Pflegeablauf dokumentiert, Testauswahl ergänzt.
+
+Die Glocke öffnet ein Dropdown mit drei Beispielmeldungen, Gelesen-Aktion,
+Verlauf leeren und Verweisen auf die zugehörigen Demoansichten. Beide
+Vorschauen behalten unabhängige Zustände. Vollständige Tastaturbedienung,
+Fokusrückgabe, Außenklick und 44-Pixel-Touchflächen; keine Speicherung,
+Backendaufrufe oder automatische Bewegung.
+
+**Nachweise:** 59 Landingpagefälle und alle 32 Browserkonfigurationen erfolgreich.
+Beide Vorschauen und alle 13 Menüs einschließlich des geöffneten Dropdowns
+in Chromium/WebKit, bei 320/390/834/1440 Pixel, Hell/Dunkel und Deutsch/Englisch
+geprüft. AXE ohne Verstöße, keine externen Anfragen oder laufenden Animationen.
+Der abschließende Node-22-Vorabcheck prüft Format, Lint, Typen, Suite-Audit,
+ausgewählte Skriptverträge, Landingpage, Testorchestrierung,
+Auslieferungsintegration und Anwendungsbau. Tatsächliche Ergebnisse und offene
+CI-Nachweise stehen im PR-Entwurf und Abschluss. Private Protokolle und
+Ansichten unter `C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/demo-polish/`.
+Kein Push, PR oder Merge.
+
 ## 2026-11-06 - Juna - Demo an den Originalansichten ausrichten
 
 **Anlass:** Der Nutzer verwirft die Demo wegen zu großer Abweichungen vom Produkt.

@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { inspectDemoCapture } from './landing-demo-capture-audit.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 const landingDirectory = path.join(repositoryRoot, 'landing');
@@ -2017,7 +2018,20 @@ test('all original-view captures have intact desktop and mobile images in both t
       assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
       assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
       assert.equal(createHash('sha256').update(bytes).digest('hex'), capture.sha256);
-      assert.equal(capture.width, variant.startsWith('mobile') ? 358 : 1024);
+      assert.equal(
+        capture.width,
+        variant.startsWith('mobile') ? 358 : key === 'feed' ? 1184 : 1024,
+      );
+      assert.deepEqual(capture.audit.notices, []);
+      assert.ok(capture.audit.text.length > 20);
+      inspectDemoCapture(
+        key,
+        variant.startsWith('mobile') ? 'mobile' : 'desktop',
+        capture.audit.text,
+        capture.audit.feedCards,
+      );
+      if (key === 'feed' && variant.startsWith('desktop'))
+        assert.equal(capture.audit.feedCards.length, 3);
       assert.ok(capture.height > 100);
     }
   }
@@ -2095,4 +2109,109 @@ test('original overview remains visible without JavaScript while extra navigatio
   assert.equal(panels[0].id, 'demo-panel-overview');
   assert.equal(panels[0].querySelectorAll('img[data-demo-image="overview"]').length, 2);
   dom.window.close();
+});
+
+test('capture audit rejects stale bot and technical error notices without rejecting normal product copy', () => {
+  for (const text of [
+    'Der Bot meldet sich zurzeit nicht aktuell. Gespeicherte Artikel bleiben sichtbar.',
+    'Die Kontodaten konnten nicht sicher zugeordnet werden. Bitte lade die Ansicht erneut.',
+    'Automatik pausiert',
+  ])
+    assert.throws(() => inspectDemoCapture('feed', 'mobile', text));
+  assert.deepEqual(
+    inspectDemoCapture(
+      'brands',
+      'desktop',
+      'Ein passendes Etikett allein bestätigt keine Echtheit.',
+    ).notices,
+    [],
+  );
+});
+
+test('capture audit prevents the two-plus-one desktop feed layout while allowing stacked mobile cards', () => {
+  const twoPlusOne = [
+    { left: 0, top: 0, width: 300 },
+    { left: 316, top: 0, width: 300 },
+    { left: 0, top: 400, width: 300 },
+  ];
+  assert.throws(() => inspectDemoCapture('feed', 'desktop', 'Vinted Feed', twoPlusOne));
+  const oneRow = twoPlusOne.map((card, index) => ({
+    ...card,
+    left: index * 216,
+    top: 0,
+    width: 200,
+  }));
+  assert.equal(inspectDemoCapture('feed', 'desktop', 'Vinted Feed', oneRow).feedCards.length, 3);
+  assert.equal(inspectDemoCapture('feed', 'mobile', 'Vinted Feed', twoPlusOne).feedCards.length, 3);
+});
+
+test('demo notifications open, mark read, navigate and clear independently without backend calls', () => {
+  const page = createShowcasePage();
+  const [compact, expanded] = page.document.querySelectorAll('[data-product-demo]');
+  const toggle = compact.querySelector('[data-demo-notification-toggle]');
+  const menu = compact.querySelector('[data-demo-notification-menu]');
+  assert.equal(toggle.disabled, false);
+  assert.equal(toggle.closest('[aria-hidden="true"]'), null);
+  toggle.click();
+  assert.equal(menu.hidden, false);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  compact.querySelector('[data-demo-notification-read]').click();
+  assert.equal(
+    compact.querySelectorAll('[data-demo-notification-item][data-unread="true"]').length,
+    0,
+  );
+  assert.equal(compact.querySelector('[data-demo-notification-badge]').hidden, true);
+  assert.equal(
+    expanded.querySelectorAll('[data-demo-notification-item][data-unread="true"]').length,
+    3,
+  );
+  compact.querySelector('[data-demo-notification-target="purchases"]').click();
+  assert.equal(menu.hidden, true);
+  assert.equal(
+    compact.querySelector('[data-demo-page="purchases"]').getAttribute('aria-selected'),
+    'true',
+  );
+  assert.equal(page.document.activeElement.id, 'demo-panel-purchases');
+  assert.equal(
+    expanded.querySelector('[data-demo-page="overview"]').getAttribute('aria-selected'),
+    'true',
+  );
+  toggle.click();
+  compact.querySelector('[data-demo-notification-clear]').click();
+  assert.equal(compact.querySelectorAll('[data-demo-notification-item]').length, 0);
+  assert.equal(compact.querySelector('[data-demo-notification-empty]').hidden, false);
+  assert.equal(expanded.querySelectorAll('[data-demo-notification-item]').length, 3);
+  assert.equal(page.networkCalls.length, 0);
+  assert.equal(page.timers.size, 0);
+  page.dom.window.close();
+});
+
+test('demo notifications support keyboard focus, Escape and closing outside the menu', () => {
+  const page = createShowcasePage();
+  for (const root of page.document.querySelectorAll('[data-product-demo]')) {
+    const toggle = root.querySelector('[data-demo-notification-toggle]');
+    const menu = root.querySelector('[data-demo-notification-menu]');
+    const entries = [...root.querySelectorAll('[data-demo-notification-target]')];
+    const key = (element, value) =>
+      element.dispatchEvent(
+        new page.window.KeyboardEvent('keydown', { key: value, bubbles: true }),
+      );
+    toggle.focus();
+    key(toggle, 'ArrowDown');
+    assert.equal(page.document.activeElement, entries[0]);
+    key(entries[0], 'ArrowUp');
+    assert.equal(page.document.activeElement, entries.at(-1));
+    key(entries.at(-1), 'Home');
+    assert.equal(page.document.activeElement, entries[0]);
+    key(entries[0], 'End');
+    assert.equal(page.document.activeElement, entries.at(-1));
+    key(entries.at(-1), 'Escape');
+    assert.equal(menu.hidden, true);
+    assert.equal(page.document.activeElement, toggle);
+    toggle.click();
+    page.document.body.click();
+    assert.equal(menu.hidden, true);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  }
+  page.dom.window.close();
 });

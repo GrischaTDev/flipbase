@@ -2627,6 +2627,12 @@
         />
       </symbol>
       <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="icon-check-double" viewBox="0 0 24 24">
+        <path d="m18 6-7 7-3-3M22 10l-7 7-3-3M2 12l3 3 3-3" />
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+      </symbol>
     </svg>
     <!-- Header -->
     <header class="site-header">
@@ -3208,8 +3214,8 @@
               </div>
             </div>
             <div class="replica-main">
-              <div class="replica-topbar" aria-hidden="true">
-                <span class="replica-workspace"
+              <div class="replica-topbar">
+                <span class="replica-workspace" aria-hidden="true"
                   ><svg class="icon" aria-hidden="true" viewBox="0 0 24 24">
                     <!---->
                     <path
@@ -3227,22 +3233,180 @@
                   ><span>Vintage Studio</span><span>⌄</span></span
                 >
                 <div class="replica-header-actions">
+                  <div class="demo-notifications" data-demo-notifications="">
+                    <button
+                      type="button"
+                      class="demo-notification-toggle"
+                      data-demo-notification-toggle=""
+                      disabled=""
+                      aria-expanded="false"
+                      aria-controls="demo-notification-menu"
+                      aria-labelledby="demo-notification-label"
+                      aria-describedby="demo-notification-count-label"
+                    >
+                      <svg class="icon" aria-hidden="true" viewBox="0 0 24 24">
+                        <!---->
+                        <path d="M10.268 21a2 2 0 0 0 3.464 0"></path>
+                        <!----><!----><!----><!----><!----><!----><!---->
+                        <path
+                          d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"
+                        ></path>
+                        <!----><!----><!----><!----><!----><!----><!----><!---->
+                      </svg>
+                      <span
+                        class="demo-notification-badge"
+                        data-demo-notification-badge=""
+                        aria-hidden="true"
+                        ><span data-demo-notification-count="">3</span></span
+                      >
+                      <span id="demo-notification-label" class="sr-only"
+                        ><span class="lang-de">Benachrichtigungen</span
+                        ><span class="lang-en" lang="en">Notifications</span></span
+                      >
+                      <span id="demo-notification-count-label" class="sr-only"
+                        ><span data-demo-notification-count="">3</span>
+                        <span class="lang-de">ungelesen</span
+                        ><span class="lang-en" lang="en">unread</span></span
+                      >
+                    </button>
+                    <div
+                      id="demo-notification-menu"
+                      class="demo-notification-menu"
+                      role="region"
+                      aria-labelledby="demo-notification-title"
+                      tabindex="-1"
+                      data-demo-notification-menu=""
+                      hidden=""
+                    >
+                      <div class="demo-notification-heading">
+                        <div class="demo-notification-title">
+                          <strong id="demo-notification-title"
+                            ><span class="lang-de">Benachrichtigungen</span
+                            ><span class="lang-en" lang="en">Notifications</span></strong
+                          ><span class="demo-notification-new" data-demo-notification-badge=""
+                            ><span data-demo-notification-count="">3</span>
+                            <span class="lang-de">neu</span
+                            ><span class="lang-en" lang="en">new</span></span
+                          >
+                        </div>
+                        <div class="demo-notification-actions">
+                          <button
+                            type="button"
+                            class="demo-notification-action"
+                            data-demo-notification-read=""
+                          >
+                            <svg class="icon" aria-hidden="true">
+                              <use href="#icon-check-double"></use></svg
+                            ><span class="lang-de">Gelesen</span
+                            ><span class="lang-en" lang="en">Read</span></button
+                          ><button
+                            type="button"
+                            class="demo-notification-action demo-notification-action--icon"
+                            data-demo-notification-clear=""
+                            aria-labelledby="demo-notification-clear-label"
+                          >
+                            <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg
+                            ><span class="sr-only" id="demo-notification-clear-label"
+                              ><span class="lang-de">Benachrichtigungsverlauf leeren</span
+                              ><span class="lang-en" lang="en">Clear notifications</span></span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <ul class="demo-notification-list" data-demo-notification-list="">
+                        <li data-demo-notification-item="" data-unread="true">
+                          <button
+                            type="button"
+                            class="demo-notification-entry"
+                            data-demo-notification-target="sales"
+                          >
+                            <img
+                              class="demo-notification-platform"
+                              src="images/product-demo/vinted.svg"
+                              width="32"
+                              height="32"
+                              alt=""
+                            /><span class="demo-notification-content"
+                              ><strong
+                                ><span class="lang-de">Verkauf erfasst</span
+                                ><span class="lang-en" lang="en">Sale recorded</span></strong
+                              ><span>Vintage Sweatshirt · 39,00 €</span
+                              ><span class="demo-notification-time"
+                                ><span class="lang-de">Vor 2 Min.</span
+                                ><span class="lang-en" lang="en">2 min ago</span></span
+                              ></span
+                            ><span class="demo-notification-unread" aria-hidden="true"></span>
+                          </button>
+                        </li>
+                        <li data-demo-notification-item="" data-unread="true">
+                          <button
+                            type="button"
+                            class="demo-notification-entry"
+                            data-demo-notification-target="purchases"
+                          >
+                            <span
+                              class="demo-notification-platform demo-notification-platform--document"
+                              ><svg class="icon" aria-hidden="true">
+                                <use href="#icon-receipt"></use></svg></span
+                            ><span class="demo-notification-content"
+                              ><strong
+                                ><span class="lang-de">Beleg zugeordnet</span
+                                ><span class="lang-en" lang="en">Receipt assigned</span></strong
+                              ><span
+                                ><span class="lang-de">Kaufbeleg.pdf · Einkauf #104</span
+                                ><span class="lang-en" lang="en"
+                                  >Kaufbeleg.pdf · Purchase #104</span
+                                ></span
+                              ><span class="demo-notification-time"
+                                ><span class="lang-de">Vor 5 Min.</span
+                                ><span class="lang-en" lang="en">5 min ago</span></span
+                              ></span
+                            ><span class="demo-notification-unread" aria-hidden="true"></span>
+                          </button>
+                        </li>
+                        <li data-demo-notification-item="" data-unread="true">
+                          <button
+                            type="button"
+                            class="demo-notification-entry"
+                            data-demo-notification-target="vinted"
+                          >
+                            <img
+                              class="demo-notification-platform"
+                              src="images/product-demo/vinted.svg"
+                              width="32"
+                              height="32"
+                              alt=""
+                            /><span class="demo-notification-content"
+                              ><strong
+                                ><span class="lang-de">Neue Favoriten</span
+                                ><span class="lang-en" lang="en">New favorites</span></strong
+                              ><span
+                                ><span class="lang-de">2 Favoriten für Crewneck Sweatshirt</span
+                                ><span class="lang-en" lang="en"
+                                  >2 favorites for Crewneck Sweatshirt</span
+                                ></span
+                              ><span class="demo-notification-time"
+                                ><span class="lang-de">Vor 8 Min.</span
+                                ><span class="lang-en" lang="en">8 min ago</span></span
+                              ></span
+                            ><span class="demo-notification-unread" aria-hidden="true"></span>
+                          </button>
+                        </li>
+                      </ul>
+                      <p class="demo-notification-empty" data-demo-notification-empty="" hidden="">
+                        <span class="lang-de">Keine Benachrichtigungen.</span
+                        ><span class="lang-en" lang="en">No notifications.</span>
+                      </p>
+                    </div>
+                  </div>
                   <svg class="icon" aria-hidden="true" viewBox="0 0 24 24">
-                    <!---->
-                    <path d="M10.268 21a2 2 0 0 0 3.464 0"></path>
-                    <!----><!----><!----><!----><!----><!----><!---->
-                    <path
-                      d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"
-                    ></path>
-                    <!----><!----><!----><!----><!----><!----><!----><!----></svg
-                  ><svg class="icon" aria-hidden="true" viewBox="0 0 24 24">
                     <!---->
                     <path
                       d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
                     ></path>
                     <!----><!----><!----><!----><!----><!----><!----><!----></svg
-                  ><span class="replica-avatar">A</span
-                  ><span class="replica-profile-name">Anna Berger⌄</span>
+                  ><span class="replica-avatar" aria-hidden="true">A</span
+                  ><span class="replica-profile-name" aria-hidden="true">Anna Berger⌄</span>
                 </div>
               </div>
               <div class="demo-pages">
@@ -3477,7 +3641,7 @@
                     <img
                       src="images/product-demo/ebay-desktop-light.webp"
                       width="1024"
-                      height="326"
+                      height="603"
                       alt="eBay in Flipbase. eBay-Konto mit der Inseratsverwaltung."
                       data-demo-image="ebay"
                       data-alt-de="eBay in Flipbase. eBay-Konto mit der Inseratsverwaltung."
@@ -3492,7 +3656,7 @@
                     <img
                       src="images/product-demo/ebay-desktop-dark.webp"
                       width="1024"
-                      height="326"
+                      height="603"
                       alt="eBay in Flipbase. eBay-Konto mit der Inseratsverwaltung."
                       data-demo-image="ebay"
                       data-alt-de="eBay in Flipbase. eBay-Konto mit der Inseratsverwaltung."
@@ -3606,11 +3770,11 @@
                     <img
                       src="images/product-demo/accounting-desktop-light.webp"
                       width="1024"
-                      height="487"
-                      alt="Steuer & DATEV in Flipbase. Steuerjournal, Bankabgleich und Berichtspaket."
+                      height="458"
+                      alt="Steuer & DATEV in Flipbase. Bankabgleich mit Transaktionen und Zuordnung zu Belegen."
                       data-demo-image="accounting"
-                      data-alt-de="Steuer & DATEV in Flipbase. Steuerjournal, Bankabgleich und Berichtspaket."
-                      data-alt-en="Tax and DATEV in Flipbase. Tax journal, bank reconciliation and reporting package."
+                      data-alt-de="Steuer & DATEV in Flipbase. Bankabgleich mit Transaktionen und Zuordnung zu Belegen."
+                      data-alt-en="Tax and DATEV in Flipbase. Bank reconciliation with transactions and links to receipts."
                       loading="lazy"
                       decoding="async"
                   /></picture>
@@ -3621,11 +3785,11 @@
                     <img
                       src="images/product-demo/accounting-desktop-dark.webp"
                       width="1024"
-                      height="487"
-                      alt="Steuer & DATEV in Flipbase. Steuerjournal, Bankabgleich und Berichtspaket."
+                      height="458"
+                      alt="Steuer & DATEV in Flipbase. Bankabgleich mit Transaktionen und Zuordnung zu Belegen."
                       data-demo-image="accounting"
-                      data-alt-de="Steuer & DATEV in Flipbase. Steuerjournal, Bankabgleich und Berichtspaket."
-                      data-alt-en="Tax and DATEV in Flipbase. Tax journal, bank reconciliation and reporting package."
+                      data-alt-de="Steuer & DATEV in Flipbase. Bankabgleich mit Transaktionen und Zuordnung zu Belegen."
+                      data-alt-en="Tax and DATEV in Flipbase. Bank reconciliation with transactions and links to receipts."
                       loading="lazy"
                       decoding="async"
                   /></picture>
@@ -3691,8 +3855,8 @@
                       srcset="images/product-demo/feed-mobile-light.webp" />
                     <img
                       src="images/product-demo/feed-desktop-light.webp"
-                      width="1024"
-                      height="1431"
+                      width="1184"
+                      height="610"
                       alt="Vinted Feed in Flipbase. Suchfilter und aktuelle Vinted-Artikel."
                       data-demo-image="feed"
                       data-alt-de="Vinted Feed in Flipbase. Suchfilter und aktuelle Vinted-Artikel."
@@ -3706,8 +3870,8 @@
                       srcset="images/product-demo/feed-mobile-dark.webp" />
                     <img
                       src="images/product-demo/feed-desktop-dark.webp"
-                      width="1024"
-                      height="1431"
+                      width="1184"
+                      height="610"
                       alt="Vinted Feed in Flipbase. Suchfilter und aktuelle Vinted-Artikel."
                       data-demo-image="feed"
                       data-alt-de="Vinted Feed in Flipbase. Suchfilter und aktuelle Vinted-Artikel."

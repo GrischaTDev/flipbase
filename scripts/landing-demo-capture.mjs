@@ -9,6 +9,11 @@ import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
+import {
+  DEMO_CAPTURE_TIME,
+  demoCaptureViewport,
+  inspectDemoCapture,
+} from './landing-demo-capture-audit.mjs';
 
 const root = process.cwd();
 const require = createRequire(join(root, 'package.json'));
@@ -136,6 +141,21 @@ const expenses = [31, 25, 18].map((amount, index) => ({
   updated_at: date,
 }));
 
+const bankTransactions = [39, -31].map((amount, index) => ({
+  id: '75000000-0000-4000-8000-00000000000' + (index + 1),
+  workspace_id: workspaceId,
+  booking_date: date,
+  value_date: date,
+  counterparty_name: index === 0 ? 'Vinted Auszahlung' : 'Papier & Paket',
+  counterparty_iban: null,
+  purpose: index === 0 ? 'Vintage Sweatshirt' : 'Versandmaterial',
+  amount,
+  currency: 'EUR',
+  source_format: 'csv',
+  status: 'pending',
+  match_json: null,
+  booked_at: null,
+}));
 function prepareResponse(route, options) {
   const url = new URL(route.request().url());
   const name = url.pathname.split('/').at(-1);
@@ -147,6 +167,39 @@ function prepareResponse(route, options) {
     options = { ...options, headers: { ...options.headers, 'content-range': '0-2/3' } };
   if (!('json' in options)) return options;
   let json = structuredClone(options.json);
+  if (name === 'ebay-account') {
+    const request = route.request().postDataJSON();
+    const scope = { workspaceId, connectionId: request.connectionId };
+    if (request.action === 'listing_settings')
+      return {
+        ...options,
+        status: 200,
+        json: {
+          ...scope,
+          payment: [{ id: '1', name: 'Standard' }],
+          fulfillment: [{ id: '2', name: 'DHL Paket' }],
+          returns: [{ id: '3', name: 'Standard' }],
+        },
+      };
+    if (request.action === 'listing_traffic')
+      return {
+        ...options,
+        status: 200,
+        json: {
+          ...scope,
+          startDate: '2026-11-01',
+          endDate: date,
+          lastUpdatedDate: date,
+          items: request.listingIds.map((listingId, index) => ({
+            listingId,
+            views: 38 + index * 9,
+            transactions: 0,
+            conversionRate: 0,
+          })),
+        },
+      };
+  }
+  if (name === 'bank_transactions') json = bankTransactions;
   if (name === 'profiles') json = { ...json, full_name: 'Anna Berger' };
   if (name === 'workspaces')
     json = json.map((row) => ({
@@ -202,9 +255,9 @@ function prepareResponse(route, options) {
     json = {
       workspaceId,
       connectionId: route.request().postDataJSON().p_connection_id,
-      enabled: false,
+      enabled: true,
       intervalMinutes: 15,
-      nextDueAt: null,
+      nextDueAt: date + 'T10:05:00Z',
       lastAttemptAt: date + 'T10:00:00Z',
       lastSuccessAt: date + 'T10:00:00Z',
       pausedReason: null,
@@ -221,9 +274,12 @@ function prepareResponse(route, options) {
       actions: [],
     };
   if (name === 'marketplace_list_connections')
-    json.connections = json.connections
-      .slice(0, 1)
-      .map((a) => ({ ...a, displayName: 'vintage.studio', status: 'connected' }));
+    json.connections = json.connections.slice(0, 1).map((a) => ({
+      ...a,
+      displayName: 'vintage.studio',
+      status: 'connected',
+      lastSyncedAt: date + 'T10:00:00Z',
+    }));
   if (name === 'marketplace_read_snapshot') {
     json.profile = {
       ...json.profile,
@@ -309,15 +365,31 @@ function prepareResponse(route, options) {
         imageUrl: 'https://images1.vinted.net/flipbase-demo/sweatshirt.svg',
         price: [39, 35, 49, 28, 36][i],
       }));
-    if (json.connection) json.connection.username = 'vintage.studio';
+    if (json.connection)
+      json.connection = {
+        ...json.connection,
+        username: 'vintage.studio',
+        lastReadAt: date + 'T10:00:00Z',
+      };
   }
   if (name === 'kleinanzeigen-account' && json && typeof json === 'object') {
     if (Array.isArray(json.accounts))
-      json.accounts = json.accounts
-        .slice(0, 1)
-        .map((a) => ({ ...a, displayName: 'Vintage Studio', listingCount: 3 }));
+      json.accounts = json.accounts.slice(0, 1).map((a) => ({
+        ...a,
+        displayName: 'Vintage Studio',
+        listingCount: 3,
+        lastSyncedAt: date + 'T10:00:00Z',
+      }));
     if (Array.isArray(json.items)) {
-      json.items = json.items.slice(0, 3).map((item, i) => ({ ...item, title: saleTitles[i] }));
+      json.items = json.items.slice(0, 3).map((item, i) => ({
+        ...item,
+        title: saleTitles[i],
+        state: 'active',
+        priceCents: [3900, 3500, 4900][i],
+        currency: 'EUR',
+        publishedAt: '2026-11-04T10:00:00Z',
+        observedAt: date + 'T10:00:00Z',
+      }));
       json.total = json.items.length;
       json.nextId = null;
     }
@@ -409,6 +481,7 @@ try {
         serviceWorkers: 'block',
       });
       const page = await context.newPage();
+      await page.clock.setFixedTime(new Date(DEMO_CAPTURE_TIME));
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.route('**/*', (route) =>
@@ -484,10 +557,14 @@ try {
       );
       for (const [key, path, component] of pages) {
         if (selected.length && !selected.includes(key)) continue;
+        const viewport = demoCaptureViewport(key, mode);
+        await page.setViewportSize(viewport);
         await page.goto(origin + path);
         await expect(page.locator('[data-page-content] h1').first()).toBeVisible();
         if (key === 'overview')
           await expect(page.locator('app-revenue-chart .apexcharts-svg')).toBeVisible();
+        if (key === 'accounting')
+          await page.getByRole('button', { name: 'Bankabgleich', exact: true }).click();
         if (key === 'photos') {
           await page.locator('input[type=file]').first().setInputFiles({
             name: 'Vintage-Sweatshirt.png',
@@ -501,12 +578,16 @@ try {
         await page.waitForTimeout(400);
         const panel = page.locator('[data-page-content]');
         const text = await panel.innerText();
-        if (
-          /konnten nicht geladen|konnte nicht geladen|ungültige Antwort|noch nicht verfügbar|nicht sicher zugeordnet|passt nicht zu Deinen/iu.test(
-            text,
-          )
-        )
-          throw new Error(key + ': ' + text);
+        const cardPositions =
+          key === 'feed'
+            ? await panel.locator('app-deal-card').evaluateAll((elements) =>
+                elements.map((element) => {
+                  const { left, top, width } = element.getBoundingClientRect();
+                  return { left, top, width };
+                }),
+              )
+            : [];
+        const audit = inspectDemoCapture(key, mode, text, cardPositions);
         await page.mouse.move(0, 0);
         const png = await panel.screenshot({
           style:
@@ -557,6 +638,8 @@ try {
           );
         manifest.pages[key].captures[mode + '-' + theme] = {
           file: filename,
+          viewport,
+          audit,
           width: png.readUInt32BE(16),
           height: png.readUInt32BE(20),
           sha256: createHash('sha256').update(bytes).digest('hex'),
