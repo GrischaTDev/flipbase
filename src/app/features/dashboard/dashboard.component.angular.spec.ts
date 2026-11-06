@@ -36,6 +36,7 @@ import { BetaDiscordService } from '../beta-discord/services/beta-discord.servic
 import { DashboardComponent } from './dashboard.component';
 import { DashboardPreferences } from './models/dashboard-preferences';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
+import { TablePagerComponent } from '../../shared/components/table-pager/table-pager.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -68,6 +69,8 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/custom-select/custom-select.component.scss',
 
   './dashboard.component.html': 'src/app/features/dashboard/dashboard.component.html',
+  './table-pager.component.html':
+    'src/app/shared/components/table-pager/table-pager.component.html',
   './beta-discord-banner.component.html':
     'src/app/features/beta-discord/components/beta-discord-banner/beta-discord-banner.component.html',
   './dashboard-kpi-card.component.html':
@@ -150,8 +153,10 @@ beforeAll(async () => {
         'title',
         'iconOnly',
         'ariaLabel',
+        'disabled',
       ],
     ],
+    [TablePagerComponent, ['totalItems', 'pageSize', 'ariaLabel', 'page']],
     [SummaryMetricComponent, ['label', 'value', 'icon', 'negative']],
     [CardComponent, ['padding', 'rounded', 'variant', 'contentLayout']],
     [PageHeaderComponent, ['title', 'subtitle', 'icon', 'appearance']],
@@ -171,6 +176,7 @@ beforeAll(async () => {
     metadata.outputs = { ...metadata.outputs };
     for (const name of names) metadata.inputs[name] = [name, 1, null];
     if (component === ButtonComponent) metadata.outputs['clicked'] = 'clicked';
+    if (component === TablePagerComponent) metadata.outputs['pageChange'] = 'page';
   }
 });
 
@@ -732,6 +738,44 @@ describe('DashboardComponent', () => {
     expect(cells[1].textContent).toContain('Kleinanzeigen');
     expect(cells[2].textContent).toContain('eBay');
     expect(cells).toHaveLength(3);
+  });
+
+  it('zeigt ohne Shop zehn Verkäufe je Seite in voller Breite mit Pager', () => {
+    const workspaceWithoutShop = { id: 'workspace-1', shop_enabled: false };
+    currentWorkspace.set(workspaceWithoutShop);
+    createReport.mockReturnValue({
+      ...emptyReport,
+      rows: Array.from({ length: 23 }, (_, index) => ({
+        saleId: `paged-sale-${index}`,
+        date: '2026-09-23',
+        articles: `Artikel ${index}`,
+        quantity: 1,
+        platform: 'vinted',
+        revenue: 20,
+        costOfGoodsSold: 10,
+        sellingCosts: 0,
+        resultAfterDirectCosts: 10,
+        marginPercent: 50,
+        profit: 10,
+      })),
+    });
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.bottom-grid')?.className).not.toContain('xl:grid-cols');
+    expect(host.querySelector('#inventory-overview-heading')).toBeNull();
+    expect(host.querySelectorAll('.sales-table tbody tr')).toHaveLength(10);
+    const pager = host.querySelector('[data-table-pager]') as HTMLElement;
+    expect(pager.textContent).toContain('1–10 von 23');
+
+    (pager.querySelector('[aria-label="Nächste Seite"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(pager.textContent).toContain('11–20 von 23');
+    expect(fixture.componentInstance.recentSalesPage()).toBe(2);
+    expect(host.querySelector('.sales-table tbody tr')?.textContent).toContain('Artikel 10');
+
+    fixture.componentInstance.setRange('month');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.recentSalesPage()).toBe(1);
   });
 
   it('zeigt Kennzahlenicons ohne Mini-Kurven und vier Lagergruppen', () => {

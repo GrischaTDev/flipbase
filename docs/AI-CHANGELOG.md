@@ -26,6 +26,26 @@ mehr.
 Abruf `updated_at` neu setzt. Komponententests der Suchfilter-Seite laufen durch.
 Ergebnisse des Vorabchecks im PR.
 
+## 2026-11-06 - Juna - Shop-Auswahl beim Start und Pager für letzte Verkäufe
+
+**Anlass:** Beim ersten Einrichten sollte man direkt wählen können, ob der
+eigene Online-Shop dazugehört. Ohne Shop stand „Letzte Verkäufe“ auf der
+Übersicht nur halb breit und zeigte drei Einträge.
+
+**Umsetzung:** Die Workspace-Einrichtung zeigt bei Shop-Berechtigung
+(`shop_entitled`, später das große Paket) einen Schalter „Eigenen Online-Shop
+nutzen“ mit kurzer Erklärung. Neue Workspaces starten weiter ohne Shop; nur
+eine abweichende Wahl wird über die vorhandene Serverfunktion gespeichert, eine
+Datenbankänderung ist nicht nötig. Neuer Baustein `app-table-pager` mit
+Seitenlogik (`table-page.ts`); `app-data-table` zeigt ihn optional über
+`totalItems`/`pageSize`/`page`, die bestehenden Tabellen bleiben unverändert.
+Die Übersicht zeigt ohne Shop die Verkäufe in voller Breite mit zehn je Seite;
+Zeitraum- oder Plattformwechsel springt auf Seite 1. Mit Shop bleibt die
+geteilte Zeile mit drei Verkäufen.
+
+**Prüfung:** Neue Fälle für Seitenlogik, Übersicht und Einrichtung; Ergebnisse
+von Vorabcheck und Browserprüfung im PR.
+
 ## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
 
 **Anlass:** Bei einer Jeans boten Marke und Größe in der Bearbeitung jeweils nur

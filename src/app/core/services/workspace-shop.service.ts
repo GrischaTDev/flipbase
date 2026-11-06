@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } f
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
+import type { Workspace } from '../models/flipbase.models';
 import { isWorkspaceShopActive, WorkspaceShopState } from '../models/workspace-shop.models';
 
 @Injectable({ providedIn: 'root' })
@@ -70,8 +71,12 @@ export class WorkspaceShopService {
     }
   }
 
-  async setEnabled(enabled: boolean): Promise<boolean> {
-    const current = this.workspace.currentWorkspace();
+  /** Schaltet den Shop; ohne Ziel gilt der aktive Workspace (z. B. im Onboarding ein anderer). */
+  async setEnabled(
+    enabled: boolean,
+    target: Workspace | null = this.workspace.currentWorkspace(),
+  ): Promise<boolean> {
+    const current = target;
     if (!current || this.saving()) return false;
     const generation = this.generation;
     this.saving.set(true);
@@ -110,13 +115,11 @@ export class WorkspaceShopService {
       !Number.isSafeInteger(state.shop_version)
     )
       throw new Error('Shop-Einstellung unvollständig.');
-    const current = this.workspace.currentWorkspace();
-    if (
-      !current ||
-      current.id !== state.workspace_id ||
-      state.shop_version < (current.shop_version ?? 0)
-    )
-      return;
+    const current =
+      this.workspace.currentWorkspace()?.id === state.workspace_id
+        ? this.workspace.currentWorkspace()
+        : (this.workspace.workspaces().find((row) => row.id === state.workspace_id) ?? null);
+    if (!current || state.shop_version < (current.shop_version ?? 0)) return;
     if (
       current.shop_enabled === state.shop_enabled &&
       current.shop_entitled === state.shop_entitled &&
@@ -132,6 +135,7 @@ export class WorkspaceShopService {
     this.workspace.workspaces.update((rows) =>
       rows.map((row) => (row.id === current.id ? { ...row, ...update } : row)),
     );
-    this.workspace.currentWorkspace.set(update);
+    if (this.workspace.currentWorkspace()?.id === current.id)
+      this.workspace.currentWorkspace.set(update);
   }
 }

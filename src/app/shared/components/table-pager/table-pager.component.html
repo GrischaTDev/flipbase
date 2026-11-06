@@ -1,0 +1,32 @@
+<nav
+  data-table-pager
+  class="flex items-center justify-between gap-3 pt-3 text-[13px] text-fb-text-secondary"
+  [attr.aria-label]="ariaLabel()"
+>
+  <p class="tabular-nums" aria-live="polite">
+    {{ firstItem() }}–{{ lastItem() }} von {{ totalItems() }}
+  </p>
+  <div class="flex items-center gap-1">
+    <app-button
+      variant="plain"
+      size="slim"
+      [icon]="previousIcon"
+      [iconOnly]="true"
+      ariaLabel="Vorherige Seite"
+      title="Vorherige Seite"
+      [disabled]="currentPage() <= 1"
+      (clicked)="goTo(currentPage() - 1)"
+    />
+    <span class="min-w-14 text-center tabular-nums"> {{ currentPage() }} / {{ pageCount() }} </span>
+    <app-button
+      variant="plain"
+      size="slim"
+      [icon]="nextIcon"
+      [iconOnly]="true"
+      ariaLabel="Nächste Seite"
+      title="Nächste Seite"
+      [disabled]="currentPage() >= pageCount()"
+      (clicked)="goTo(currentPage() + 1)"
+    />
+  </div>
+</nav>
