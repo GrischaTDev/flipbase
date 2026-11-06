@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Suchfilter-Karten im Vinted Bot bleiben an ihrem Platz
+
+**Anlass:** Die Karten in der Bot-Verwaltung sprangen während des Betriebs nach
+vorne. Außerdem zeigte Carhartt auf der Karte 29 und in der Detailansicht 929
+Funde, und am Vorabend wirkte der Feed nicht aktuell.
+
+**Analyse:** Standardmäßig wurde nach `updated_at` sortiert. Diesen Wert setzen
+die Datenbankfunktionen für erfolgreiche und fehlgeschlagene Abrufe sowie der
+Bot-Dienst bei jedem Abruf neu. Der zuletzt abgefragte Filter stand deshalb
+vorn. Karte und Detailansicht lesen dieselbe Fundzahl. Laut Datenbank hatte
+„Carhartt Fleecejacken Max 50“ 29 und „Blauer“ 928 Funde. Die 929 gehörten also
+sehr wahrscheinlich zu „Blauer“: Die Karte war vor dem Klick verrutscht. Die
+Serverlogs vom 05.11. zeigen einen durchgehend laufenden Bot (rund 750 Abrufe pro
+Stunde, neue Artikel ohne Lücke) mit vier kurzen Neustarts des Feed-Browsers,
+zuletzt um 18:41 UTC. Alle Browseranfragen wurden mit 200 beantwortet.
+`sniper_feed_search` wurde zwischen 12:00 und 23:30 UTC nicht aufgerufen; ab
+23:30 UTC kam der Abruf normal etwa alle 2 Sekunden, im Mittel in 77 ms.
+
+**Umsetzung:** Standardsortierung nach Name. „Zuletzt geändert“ wird durch
+„Zuletzt angelegt“ (`created_at`) ersetzt. Abrufe ändern die Reihenfolge nicht
+mehr.
+
+**Prüfung:** Neuer Komponentenfall: Die Reihenfolge bleibt gleich, wenn ein
+Abruf `updated_at` neu setzt. Komponententests der Suchfilter-Seite laufen durch.
+Ergebnisse des Vorabchecks im PR.
+
 ## 2026-11-06 - Juna - Shop-Auswahl beim Start und Pager für letzte Verkäufe
 
 **Anlass:** Beim ersten Einrichten sollte man direkt wählen können, ob der
