@@ -412,11 +412,11 @@ test('leads from the revised hero to one application form at the end of the page
   const headline = new JSDOM(html).window.document.querySelector('h1');
   assert.equal(
     headline.querySelector('.lang-de').textContent.replace(/\s+/gu, ' ').trim(),
-    'Mehr Überblick für dein Reselling.',
+    'Einkäufe erfassen. Belege zuordnen. Verkäufe nachvollziehen.',
   );
   assert.equal(
     headline.querySelector('.lang-en').textContent.replace(/\s+/gu, ' ').trim(),
-    'A clearer view of your reselling.',
+    'Record purchases. Organize receipts. Track your sales.',
   );
   assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
 
@@ -765,7 +765,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.match(firstVisit.document.title, /Reselling software for Vinted, eBay/u);
   assert.match(
     firstVisit.document.querySelector('meta[name="description"]').content,
-    /Flipbase connects purchases, inventory, sales, and finances/u,
+    /Record purchases, organize receipts, and track sales/u,
   );
   firstVisit.mediaQuery.setLight(true);
   assert.equal(themeToggle.checked, false);
@@ -1460,11 +1460,11 @@ test('explains the reselling workflow and the real marketplace scope', () => {
   const workflowSteps = [...document.querySelectorAll('.workflow-steps li')];
   assert.deepEqual(
     workflowSteps.map((step) => step.querySelector('b.lang-de, b:not([class])')?.textContent),
-    ['Einkauf & Bestand', 'Verkauf & Finanzen', 'Vinted Bot', 'Bilder & Inserate'],
+    ['Einkäufe & Belege', 'Verkauf & Finanzen', 'Vinted Bot', 'Bilder & Inserate'],
   );
   assert.equal(
     workflowSteps[0]?.querySelector('small.lang-de')?.textContent,
-    'Einkäufe erfassen, Bestand verwalten',
+    'Einkäufe erfassen, Belege zuordnen',
   );
   assert.equal(
     workflowSteps[3]?.querySelector('small.lang-en')?.textContent,
@@ -1503,12 +1503,12 @@ test('explains the reselling workflow and the real marketplace scope', () => {
   assert.ok(descriptionTag, 'Expected a meta description');
   assert.match(
     attribute(descriptionTag, 'content'),
-    /Flipbase verbindet Einkäufe, Bestand, Verkäufe und Finanzen/u,
+    /Einkäufe erfassen, Belege zuordnen, Verkäufe nachvollziehen/u,
   );
-  assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
+  assert.match(attribute(descriptionTag, 'content'), /Belege zuordnen/u);
   assert.match(normalizedHtml, /für dein Reselling/u);
   assert.match(normalizedHtml, /Vinted Bot mit Filtern/u);
-  assert.match(normalizedHtml, /Belege, laufende Ausgaben und Steuerexporte/u);
+  assert.match(normalizedHtml, /Lade Kaufbelege und Rechnungen hoch/u);
   assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
   assert.match(normalizedHtml, /Inserate, Nachrichten und Verkäufe bleiben klar zugeordnet/u);
   assert.match(normalizedHtml, /Ob Vintage Reselling oder andere Produkte/u);
@@ -1636,13 +1636,54 @@ test('pricing keeps three clear packages, prices and free beta access without ro
 
 test('presents core features without development status or explanatory preview captions', () => {
   const dom = new JSDOM(html);
-  const text = dom.window.document.querySelector('main').textContent.replace(/\s+/gu, ' ');
+  const currentFeatures = dom.window.document.querySelector('main').cloneNode(true);
+  currentFeatures.querySelector('#shop-outlook').remove();
+  const text = currentFeatures.textContent.replace(/\s+/gu, ' ');
   assert.doesNotMatch(
     text,
     /geplant|später|Zukunft|\bin Arbeit\b|vorläufig|Ausbaustufe|not available|planned|future|later release|listing draft|Nachbau|ohne verteilte Tabellen/iu,
   );
   assert.equal(dom.window.document.querySelector('.workflow-note'), null);
   assert.equal(dom.window.document.querySelector('.replica-figure figcaption'), null);
+  dom.window.close();
+});
+
+test('prioritizes receipt capture and reserves stock management for the planned shop outlook', () => {
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  const outlook = document.querySelector('#shop-outlook');
+  assert.ok(outlook);
+  assert.equal(outlook.querySelector('.shop-outlook-status .lang-de').textContent, 'Geplant');
+  assert.equal(outlook.querySelector('.shop-outlook-status .lang-en').textContent, 'Planned');
+  assert.match(outlook.textContent, /Online-Shop-Anbindung/u);
+  assert.match(outlook.textContent, /Einzelbestand und Bestandsabgleich/u);
+  assert.equal(
+    outlook.querySelector('a, button'),
+    null,
+    'The outlook must not look like an available plan or purchase',
+  );
+  const current = document.querySelector('main').cloneNode(true);
+  current.querySelector('#shop-outlook').remove();
+  assert.doesNotMatch(current.textContent, /Bestand|\binventory\b|\bstock\b/iu);
+  assert.equal(
+    document.querySelector('#step-inventory, #panel-inventory, .replica-stock-total'),
+    null,
+  );
+  const tab = document.getElementById('step-receipts');
+  assert.equal(tab.getAttribute('aria-controls'), 'panel-receipts');
+  assert.match(tab.textContent, /Beleg zuordnen/u);
+  const panel = document.getElementById('panel-receipts');
+  assert.equal(panel.getAttribute('aria-labelledby'), 'step-receipts');
+  assert.match(panel.textContent, /Kaufbeleg.pdf/u);
+  assert.match(panel.textContent, /Beleg beim Einkauf hinterlegt/u);
+  const preview = document.querySelector(
+    '[data-feature-group="business"] .receipt-capture-preview',
+  );
+  assert.equal(preview.getAttribute('role'), 'img');
+  assert.match(preview.textContent, /Belegerfassung/u);
+  assert.match(preview.textContent, /Einkauf zugeordnet/u);
+  assert.doesNotMatch(preview.textContent, /OCR|automatisch erkannt|rechtssicher|GoBD/iu);
+  assert.match(document.querySelector('#faq').textContent, /Wie erfasse ich meine Belege/u);
   dom.window.close();
 });
 
@@ -1792,10 +1833,9 @@ test('hero preview follows the current overview with four metrics, quick actions
   ]);
   assert.deepEqual(listText(replica, '.replica-bottom .replica-card-heading .lang-de'), [
     'Letzte Verkäufe',
-    'Bestand im Blick',
   ]);
-  assert.equal(replica.querySelectorAll('.replica-sale').length, 3);
-  assert.equal(replica.querySelectorAll('.replica-stock-row').length, 4);
+  assert.equal(replica.querySelectorAll('.replica-sale').length, 10);
+  assert.equal(replica.querySelectorAll('.replica-stock-row').length, 0);
   assert.equal(replica.closest('figure').querySelector('figcaption'), null);
   dom.window.close();
 });
@@ -1823,22 +1863,6 @@ test('dashboard example figures agree with the chart they summarize', () => {
     );
   }
   assert.equal(replica.querySelectorAll('[data-series]').length % 3, 0);
-  const stockRows = [...replica.querySelectorAll('.replica-stock-row')];
-  const stockUnits = stockRows.map((row) => Number(row.querySelector('strong').textContent));
-  const totalStock = stockUnits.reduce((total, units) => total + units, 0);
-  assert.equal(
-    totalStock,
-    Number.parseInt(replica.querySelector('.replica-stock-total').textContent, 10),
-  );
-  for (const [index, row] of stockRows.entries()) {
-    const shownShare = Number.parseFloat(
-      row.querySelector('[style]').style.getPropertyValue('--stock-share'),
-    );
-    assert.ok(
-      Math.abs(shownShare - (stockUnits[index] / totalStock) * 100) < 0.1,
-      'Stock bars show shares of total stock',
-    );
-  }
   assert.equal(
     kpi('margin'),
     `${((profit / revenue) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`,
@@ -1910,8 +1934,8 @@ test('workflow steps change only on selection and follow the keyboard', () => {
         bubbles: true,
       }),
     );
-    assert.equal(keyboardPage.document.activeElement.id, 'step-inventory');
-    assert.equal(keyboardPage.document.getElementById('panel-inventory').hidden, false);
+    assert.equal(keyboardPage.document.activeElement.id, 'step-receipts');
+    assert.equal(keyboardPage.document.getElementById('panel-receipts').hidden, false);
     keyboardPage.dom.window.close();
   }
 });

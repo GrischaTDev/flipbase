@@ -1,5 +1,49 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Belegerfassung statt Bestandsdarstellung hervorheben
+
+**Nutzerentscheidung:** Die laufende Landingpage-Überarbeitung auf demselben
+eigenen Zweig fortsetzen. Einkäufe, Belege und Verkäufe bilden das aktuelle
+Produktversprechen. Die Bestandsansicht entfällt aus der Vermarktung; ausdrücklich
+gewünscht ist ein kleiner, klar als geplant gekennzeichneter Ausblick auf eine
+Online-Shop-Anbindung mit Einzelbestand und Bestandsabgleich. Diese Ausnahme gilt
+ausschließlich für den Shop-Ausblick. GitHub vor der Fortsetzung erneut
+abgeglichen; fremde Arbeitskopien unverändert erhalten.
+
+**Umsetzung:** Einstieg, zweisprachige Suchbeschreibungen, Funktionsübersicht,
+Pakete und FAQ auf Belegerfassung ausgerichtet. Die Dashboardgrafik zeigt den
+tatsächlichen Modus ohne Shop: kein Bestandsmenü und keine Lagerdauerkarte,
+stattdessen die Verkäufe über die volle Breite mit zehn Zeilen wie in der
+aktuellen Seitenlogik. Die Belegerfassung erhält eine eigene Produktgrafik mit
+Belegdatei, Datum, Betrag und Zuordnung zum Einkauf. Im bedienbaren Ablauf ersetzt
+„Beleg zuordnen“ den bisherigen Bestandsschritt; Tab-IDs, Tastaturziele und
+Beschriftungen passen zusammen. Keine Belegkarte in das Dashboard erfunden.
+Der Shop-Ausblick steht als kleine separate Fläche unter den drei
+Funktionsbereichen und gehört zu keinem aktuellen Paket. Keine Zeit- oder
+Anbieterzusage, keine OCR-, automatische Prüfungs- oder Rechtskonformitätszusage.
+
+**Nachweise:** 48 erfolgreiche Landingpagefälle einschließlich neuer Regression
+für Belegfokus, fehlende Bestandsdarstellung und den ausdrücklich begrenzten
+Shop-Ausblick. Die bestehenden Diagramm-, Formular-, Preis-, Sprach-, Ruhe- und
+Tastaturprüfungen bleiben erhalten. Neun bestehende Integrationsfälle erfolgreich.
+32 erfolgreiche Chromium-/WebKit-Darstellungen unter Windows bei
+320/390/834/1440 Pixel, Hell/Dunkel und Deutsch/Englisch, schmale Ansichten mit
+Touch. AXE ohne Verstöße; Belegschritt, Dateidarstellung und Zuordnung, zehn
+Verkaufszeilen ohne Bestandskarte, Kennzeichnung des Ausblicks, Kartenrollen,
+flache Buttons und Bildzuschnitt tatsächlich im Browser geprüft. Nur synthetische
+Vorschaudaten; keine echte Belegdatei hochgeladen und keine Anwendungs- oder
+Backendfunktion verändert.
+
+**Vorabcheck und Grenzen:** `npm run preflight:plan` und `npm run preflight` mit
+Node 22.23.4 auf dem endgültigen Stand erfolgreich: Format, ESLint, Typprüfungen,
+Suite-Audit, die ausgewählten Skriptverträge und 48 Landingpagefälle. Die zusätzlich
+ausgewählten CI-Nachweise für Migrationspaket, Actionlint,
+Workflow-/Deploymentverträge und Anwendungsbau bleiben vor dem Merge erforderlich.
+Windows-WebKit ersetzt keine native Safari-/Geräteprüfung. Private Protokolle und
+vollständige Vorher-/Nachheraufnahmen sowie Vorschauausschnitte unter
+`C:/Users/Grisc/.codex/tmp/flipbase-landing-refresh/receipts/`. Kein Push, PR oder
+Merge.
+
 ## 2026-11-06 - Juna - Landingpage entzerren und Bewegung beruhigen
 
 **Anlass und Grundlage:** Auf demselben eigenen Zweig `juna/landing-refresh`
