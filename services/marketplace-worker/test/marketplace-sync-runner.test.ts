@@ -541,3 +541,84 @@ for (const requestFailure of ['unauthorized', 'browser_context'] as const) {
     );
   });
 }
+
+for (const outcome of ['saved', 'read_failed', 'nothing_due'] as const) {
+  test(`liest fällige Teile des Vinted-Katalogs nach, ohne den Abgleich zu gefährden: ${outcome}`, async () => {
+    const dispatched = {
+      ...scope,
+      userAccessToken: '',
+      syncRead: {
+        operationId,
+        runnerId: operationId,
+        workerEpoch: 2,
+        sessionId,
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+      },
+    };
+    const catalogRead = { observedAt: '2026-11-06T12:00:00Z', categories: [] };
+    let catalogReads = 0;
+    let catalogSaves = 0;
+    let writes = 0;
+    let succeeded = false;
+    const runner = new MarketplaceSyncRunner(
+      {
+        open: async () => sessionId,
+        run: async (_scope, id, operation) => {
+          assert.equal(id, sessionId);
+          return operation({
+            version: () => 'fixture',
+            importAccount: async () => ({
+              identity: { id: '123', username: 'test' },
+              observedAt: '2026-11-06T12:00:00Z',
+              entries: [],
+              areas,
+            }),
+            readListingCatalog: async (account, request, authorize) => {
+              assert.equal(account, '123');
+              assert.deepEqual(request, { includeTree: true, categoryIds: [1819] });
+              await authorize();
+              catalogReads++;
+              if (outcome === 'read_failed') throw new Error('Vinted blockiert');
+              return catalogRead;
+            },
+          });
+        },
+        close: async () => undefined,
+      },
+      {
+        listingCatalogWork: async (binding, id) => {
+          assert.equal(binding, dispatched);
+          assert.equal(id, sessionId);
+          return outcome === 'nothing_due' ? null : { includeTree: true, categoryIds: [1819] };
+        },
+        saveListingCatalog: async (_binding, id, read) => {
+          assert.equal(id, sessionId);
+          assert.equal(read, catalogRead);
+          catalogSaves++;
+          return { categories: 0, failed: 0 };
+        },
+        write: async () => {
+          writes++;
+          return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+        },
+      },
+      {
+        claim: async () => true,
+        stage: async () => undefined,
+        succeed: async () => {
+          succeeded = true;
+        },
+        fail: async () => {
+          assert.fail('Der Katalog darf den Abgleich nicht scheitern lassen');
+        },
+      } as unknown as SupabaseMarketplaceOperationStore,
+      { record: () => undefined },
+    );
+    await runner.runDispatched(dispatched);
+    assert.equal(catalogReads, outcome === 'nothing_due' ? 0 : 1);
+    assert.equal(catalogSaves, outcome === 'saved' ? 1 : 0);
+    assert.equal(writes, 1);
+    assert.equal(succeeded, true);
+  });
+}

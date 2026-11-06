@@ -111,6 +111,8 @@ export async function openVintedListingChoices(
   categoryPath: readonly number[] = [],
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    /** Gesuchte Größe; ihre Gruppe wird bei Bedarf in der Auswahl angezeigt. */
+    sizeId?: number | null;
     targetCategoryId?: number;
     categoryLabel?: string;
     authorize?: () => Promise<void>;
@@ -209,6 +211,13 @@ export async function openVintedListingChoices(
   }
   let choices = await readVisibleListingChoices(page, field, canSearchBrand, optionsDeadline);
   if (
+    field === 'size' &&
+    options.sizeId &&
+    choices &&
+    !choices.choices.some((choice) => choice.id === options.sizeId)
+  )
+    choices = (await showVintedListingSizeGroup(page, options.sizeId)) ?? choices;
+  if (
     field === 'brand' &&
     brand &&
     brand.brandId !== null &&
@@ -250,6 +259,37 @@ export async function openVintedListingChoices(
   return choices;
 }
 
+/**
+ * Vinted zeigt bei mehreren Größengruppen teils nur die aktive (z. B. S/M/L, EU, UK, FR, IT, US
+ * bei Damenjeans, gemessen am 06.11.2026). Schaltet die Gruppen der geöffneten Auswahl durch,
+ * bis die gesuchte Größe sichtbar ist. Umschalten wählt nichts aus und speichert nichts.
+ */
+async function showVintedListingSizeGroup(
+  page: Page,
+  sizeId: number,
+): Promise<VintedListingChoiceSnapshot | null> {
+  if (!Number.isSafeInteger(sizeId) || sizeId <= 0) return null;
+  const chips = page.locator('button.web_ui__Chip__chip').filter({ visible: true });
+  const count = await chips.count();
+  if (count < 2 || count > 30) return null;
+  const option = page
+    .locator(`[role="checkbox"][data-testid^="size-group-"][data-testid$="-grid-option-${sizeId}"]`)
+    .filter({ visible: true })
+    .first();
+  for (let index = 0; index < count; index++) {
+    const chip = chips.nth(index);
+    if ((await chip.getAttribute('aria-pressed')) === 'true') continue;
+    try {
+      await chip.click({ timeout: 3000 });
+      await option.waitFor({ state: 'visible', timeout: 1500 });
+    } catch {
+      continue;
+    }
+    return readVisibleListingChoices(page, 'size', false, performance.now() + 3000);
+  }
+  return null;
+}
+
 export async function closeVintedListingChoices(
   page: Page,
   field: VintedListingChoiceField,
@@ -267,6 +307,8 @@ async function readPopup(
   categoryPath: readonly number[] = [],
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    /** Gesuchte Größe; ihre Gruppe wird bei Bedarf in der Auswahl angezeigt. */
+    sizeId?: number | null;
     targetCategoryId?: number;
     categoryLabel?: string;
     authorize?: () => Promise<void>;
@@ -301,6 +343,8 @@ export async function readVintedListingChoices(
     targetCategoryId?: number;
     categoryLabel?: string;
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    /** Gesuchte Größe; ihre Gruppe wird bei Bedarf in der Auswahl angezeigt. */
+    sizeId?: number | null;
     /**
      * Beim Bearbeiten öffnet Vinted die Kategorieauswahl ganz oben im Katalog und markiert die
      * gewählte Kategorie dort nicht. Die Kennung kommt dann aus dem Inserat selbst.
@@ -357,6 +401,8 @@ export async function readVintedListingCategoryFields(
   categoryPath: readonly number[],
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    /** Gesuchte Größe; ihre Gruppe wird bei Bedarf in der Auswahl angezeigt. */
+    sizeId?: number | null;
     authorize?: () => Promise<void>;
     readCategoryId?: () => Promise<number | null>;
     onReadField?: (field: VintedListingChoiceField | 'metadata') => void;

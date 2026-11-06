@@ -137,9 +137,10 @@ export async function selectVintedListingField(
           : undefined;
       const actual = await openVintedListingChoices(page, expected.field, [], {
         brand: brand ? { brandId: brand.id, brandLabel: brand.label } : undefined,
+        // Größen aus einer anderen Gruppe als der angezeigten erst sichtbar machen.
+        sizeId: expected.field === 'size' ? (ids[0] ?? null) : null,
       });
       if (
-        actual.sizeGroupId !== expected.sizeGroupId ||
         ids.some((id) => {
           const previous = expected.choices.find((choice) => choice.id === id),
             current = actual.choices.find((choice) => choice.id === id);
@@ -157,7 +158,9 @@ export async function selectVintedListingField(
       if (!change || change.disabled) throw vintedListingChoiceReadError(expected.field, 'match');
       await check();
       try {
-        await clickEnabled(choiceLocator(page, expected.field, change.id, actual.sizeGroupId));
+        await clickEnabled(
+          choiceLocator(page, expected.field, change.id, change.sizeGroupId ?? actual.sizeGroupId),
+        );
       } catch {
         throw vintedListingChoiceReadError(expected.field, 'choice');
       }
@@ -261,7 +264,7 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId!,
     categoryPath,
-    { brand: content, onReadField: reportPreparationStep },
+    { brand: content, sizeId: content.sizeId, onReadField: reportPreparationStep },
   );
   reportPreparationStep('values');
   content = resolveFlipbaseVintedListingContent(content, schema, { deferPackage: true });
@@ -287,7 +290,7 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId!,
     categoryPath,
-    { brand: content, onReadField: reportPreparationStep },
+    { brand: content, sizeId: content.sizeId, onReadField: reportPreparationStep },
   );
   reportPreparationStep('changed');
   if (
