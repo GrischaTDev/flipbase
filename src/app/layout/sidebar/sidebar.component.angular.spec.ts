@@ -36,7 +36,9 @@ const routes: Routes = [
   {
     path: 'admin',
     children: [
-      { path: '', redirectTo: 'applications', pathMatch: 'full' },
+      { path: '', redirectTo: 'overview', pathMatch: 'full' },
+      { path: 'overview', component: TestPageComponent },
+      { path: 'system', component: TestPageComponent },
       { path: 'applications', component: TestPageComponent },
       { path: 'users', component: TestPageComponent },
       {
@@ -124,50 +126,60 @@ describe('SidebarComponent', () => {
     };
   }
 
-  it('zeigt die Unterpunkte der Administration in fester Reihenfolge', async () => {
-    const { subLinks } = await renderAt('/admin/applications');
+  it('ersetzt im Admin-Bereich die Hauptnavigation durch das Admin-Menü', async () => {
+    const { element, fixture } = await renderAt('/admin/applications');
+    const links = Array.from(
+      element.querySelectorAll<HTMLAnchorElement>('[data-admin-navigation] a'),
+    );
 
-    expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Übersicht',
+      'Systemzustand',
       'Bewerbungen',
       'Nutzer',
       'Vinted Bot',
       'Server-Speicher',
       'Referenzbibliothek',
     ]);
-    expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/admin/overview',
+      '/admin/system',
       '/admin/applications',
       '/admin/users',
       '/admin/vinted-bot',
       '/admin/server-storage',
       '/tools/brand-labels/admin',
     ]);
+    expect(element.querySelector('a[href="/dashboard"]')?.textContent).toContain(
+      'Zurück zu Flipbase',
+    );
+    expect(element.querySelector('a[href="/purchases"]')).toBeNull();
+    expect(element.querySelector('a[href="/admin"]')).toBeNull();
+    const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(result.violations).toEqual([]);
+
+    await TestBed.inject(Router).navigateByUrl('/dashboard');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-admin-navigation]')).toBeNull();
+    expect(element.querySelector('a[href="/purchases"]')).not.toBeNull();
   });
 
   // Beide Richtungen, damit der Test nicht gruen bliebe, wenn aria-current
   // fest auf einem Punkt stuende.
-  it('zeichnet nur den aktiven Unterpunkt als aktuelle Seite aus', async () => {
+  it('zeichnet nur den aktiven Admin-Punkt als aktuelle Seite aus', async () => {
+    const current = (element: HTMLElement) =>
+      Array.from(element.querySelectorAll('[data-admin-navigation] a')).map((link) =>
+        link.getAttribute('aria-current'),
+      );
     const applications = await renderAt('/admin/applications');
-    expect(applications.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
-      'page',
-      null,
-      null,
-      null,
-      null,
-    ]);
-    expect(applications.adminLink?.getAttribute('aria-current')).toBeNull();
-    expect(applications.adminLink?.classList.contains('font-semibold')).toBe(true);
+    expect(current(applications.element)).toEqual([null, null, 'page', null, null, null, null]);
     expect(applications.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
 
     TestBed.resetTestingModule();
     // Tiefer liegende Bot-Seiten gehoeren zum Punkt "Vinted Bot".
     const operation = await renderAt('/admin/vinted-bot/operation');
-    expect(operation.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
-      null,
-      null,
-      'page',
-      null,
-      null,
-    ]);
+    expect(current(operation.element)).toEqual([null, null, null, null, 'page', null, null]);
     expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
@@ -294,11 +306,12 @@ describe('SidebarComponent', () => {
     expect(divider?.classList.contains('pb-2')).toBe(true);
   });
 
-  it('zeigt Nicht-Betreibern weder Administration noch Unterpunkte', async () => {
+  it('zeigt Nicht-Betreibern weder Administration noch Admin-Menü', async () => {
     const { element, adminLink, subLinks } = await renderAt('/admin/applications', false);
 
     expect(adminLink).toBeNull();
     expect(subLinks).toEqual([]);
+    expect(element.querySelector('[data-admin-navigation]')).toBeNull();
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
     expect(element.querySelector('a[href="/marketplaces/ebay"]')?.textContent).toContain('eBay');
   });

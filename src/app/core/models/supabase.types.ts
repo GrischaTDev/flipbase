@@ -6014,6 +6014,30 @@ export type Database = {
           },
         ]
       }
+      platform_feature_switches: {
+        Row: {
+          enabled: boolean
+          feature_key: string
+          maintenance_message: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          feature_key: string
+          maintenance_message?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          feature_key?: string
+          maintenance_message?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       platform_operators: {
         Row: {
           created_at: string
@@ -11170,6 +11194,7 @@ export type Database = {
           email: string
           full_name: string
           invitation_status: string
+          is_platform_operator: boolean
           last_action_at: string
           last_sign_in_at: string
           license_status: string
@@ -12987,6 +13012,7 @@ export type Database = {
         Args: { p_application_id: string; p_request_id: string }
         Returns: Json
       }
+      platform_system_health: { Args: never; Returns: Json }
       prepare_listing: {
         Args: {
           p_catalog_product_id?: string
@@ -13639,6 +13665,26 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "listings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_platform_feature_switch: {
+        Args: {
+          p_enabled: boolean
+          p_feature_key: string
+          p_maintenance_message?: string
+        }
+        Returns: {
+          enabled: boolean
+          feature_key: string
+          maintenance_message: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "platform_feature_switches"
           isOneToOne: true
           isSetofReturn: false
         }

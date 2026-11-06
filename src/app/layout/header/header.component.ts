@@ -33,6 +33,7 @@ import {
   LucideSettings as Settings,
   LucidePackage as Package,
   LucideTrendingUp as TrendingUp,
+  LucideShieldCheck as ShieldCheck,
 } from '@lucide/angular';
 import { resolveNotificationVisual, formatNotificationTime } from './header-notification-visuals';
 import { AuthService } from '../../core/services/auth.service';
@@ -164,6 +165,7 @@ export class HeaderComponent {
   readonly WifiOffIcon = WifiOff;
   readonly PackageIcon = Package;
   readonly TrendingUpIcon = TrendingUp;
+  readonly ShieldCheckIcon = ShieldCheck;
   readonly resolveNotificationVisual = resolveNotificationVisual;
   readonly formatNotificationTime = formatNotificationTime;
 

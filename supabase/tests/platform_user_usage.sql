@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(6);
+select plan(7);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, raw_app_meta_data,
@@ -125,6 +125,15 @@ select ok(
     ) as action
   ),
   'Die Chronik bleibt auf die angefragte Person begrenzt und ist zeitlich sortiert'
+);
+
+select ok(
+  (
+    select bool_and(usage.is_platform_operator = (usage.user_id = 'b2600000-0000-4000-8000-000000000001'::uuid))
+    from public.list_platform_user_usage() as usage
+    where usage.user_id::text like 'b2600000-%'
+  ),
+  'Nur das eingetragene Betreiberkonto ist als Betreiber gekennzeichnet'
 );
 
 select * from finish();

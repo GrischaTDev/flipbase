@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-06 - Juna - Admin-Bereich mit Übersicht, Nutzerfiltern, Systemzustand und Not-Aus
+
+**Anlass:** Die Administration war nur über einen Punkt ganz unten in der
+Seitenleiste erreichbar. Gewünscht ist ein schneller Einstieg oben rechts und
+ein eigenes Verwaltungs-Dashboard: Nutzerzahlen, Aktivität und Status, der
+Zustand der Server-Dienste und zentrale Schalter, um Kernbereiche bei Problemen
+für alle abzuschalten.
+
+**Umsetzung:** Betreiber sehen neben der Aktionsübersicht einen Schild-Knopf
+zu `/admin`. Im Admin-Bereich ersetzt die Seitenleiste das Hauptmenü, wie bei
+den Marktplätzen; der Punkt „Administration“ unten bleibt als einfacher Link.
+Die neue Startseite „Übersicht“ zeigt Nutzer, Aktive (7 Tage), Inaktive (30 Tage),
+aktive Zugänge, offene Bewerbungen und „Zuletzt aktiv“. „Aktive Zugänge“ zählt
+aktive Lizenzen, weil es noch keine Abos gibt. Als offene Einladung gilt eine
+angenommene Bewerbung ohne Registrierung; direkt angelegte Konten zählen als
+Nutzer. Die Nutzerliste hat Filter und ein Admin-Kennzeichen
+(`list_platform_user_usage.is_platform_operator`).
+
+„Systemzustand“ zeigt die Lebenszeichen von Vinted-Worker, Feed-Bot,
+Server-Speicher, Aufträgen der letzten Stunde und Proxy-IPs. Quelle ist
+`platform_system_health()`. Darunter stehen die Schalter für Vinted, eBay,
+Kleinanzeigen und Vinted-Feed (`platform_feature_switches`, geändert nur über
+`set_platform_feature_switch`), jeweils mit optionalem Wartungstext und
+Rückfrage vor dem Abschalten. Ist ein Bereich aus, führt eine Routensperre
+Nutzer auf `/maintenance/:feature`. Der Vinted-Worker beansprucht dann keine
+neuen Aufträge, sein Lebenszeichen läuft weiter. Der Feed-Bot fragt Vinted nicht
+mehr an, meldet aber weiter seinen Status. Kann der Schalter nicht gelesen
+werden, gilt der Bereich als offen. Aufträge der Browser-Erweiterung (lokales
+Vinted und Kleinanzeigen) werden nur über die gesperrte Oberfläche angehalten,
+nicht serverseitig.
+
+**Prüfung:** Neue Modell-, Komponenten-, Guard- und Worker-Tests sowie
+angepasste Tests für Seitenleiste, Header und Nutzer. Beide Migrationen und ihre
+pgTAP-Tests liefen lokal in zurückgerollten Transaktionen. Sniper-Suite und
+-Typprüfung, Worker-Suite und -Typprüfung, App-Typprüfung, ESLint,
+Shared-UI-Prüfung und Bau. Im Browser mit einem lokalen Test-Betreiberkonto:
+Desktop und Handy, hell und dunkel. Abschalten und Wiedereinschalten von Vinted
+samt Wartungsseite wurden mit kurzzeitig eingespielten und danach wieder
+entfernten Migrationen geprüft.
+
 ## 2026-11-06 - Juna - Suchfilter-Karten im Vinted Bot bleiben an ihrem Platz
 
 **Anlass:** Die Karten in der Bot-Verwaltung sprangen während des Betriebs nach

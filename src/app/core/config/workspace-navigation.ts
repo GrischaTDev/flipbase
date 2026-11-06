@@ -1,5 +1,4 @@
 import { isArticleRoute } from './article-navigation';
-import { PLATFORM_ADMIN_NAVIGATION } from './platform-admin-navigation';
 import type { SubNavigationItem } from './platform-admin-navigation';
 import { VINTED_BOT_NAVIGATION } from './vinted-bot-navigation';
 
@@ -23,7 +22,10 @@ export type WorkspaceNavigationIcon =
   | 'calculator'
   | 'truck'
   | 'settings'
-  | 'shieldCheck';
+  | 'shieldCheck'
+  | 'userPlus'
+  | 'hardDrive'
+  | 'activity';
 
 export interface WorkspaceNavigationItem {
   readonly path: string;
@@ -201,7 +203,6 @@ export const OPERATOR_NAVIGATION: WorkspaceNavigationItem = {
   labelKey: 'NAV.PLATFORM_ADMIN',
   label: 'Administration',
   icon: 'shieldCheck',
-  children: PLATFORM_ADMIN_NAVIGATION,
 };
 
 export function isNavigationItemActive(item: WorkspaceNavigationItem, url: string): boolean {

@@ -1,0 +1,54 @@
+<section class="space-y-4">
+  <app-page-header title="Übersicht" [icon]="overviewIcon">
+    <app-button header-actions [icon]="refreshIcon" [loading]="loading()" (clicked)="load()">
+      Aktualisieren
+    </app-button>
+  </app-page-header>
+
+  @if (error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-5" data-platform-overview-metrics>
+    @for (metric of metrics(); track metric.key) {
+      <app-card padding="none" rounded="xl" [attr.data-metric]="metric.key">
+        <app-summary-metric
+          [label]="metric.label"
+          [value]="loading() && users().length === 0 ? '–' : metric.value.toString()"
+          [icon]="metric.icon"
+        />
+      </app-card>
+    }
+  </div>
+
+  <app-card variant="section" title="Zuletzt aktiv">
+    @if (recentActivity().length > 0) {
+      <ul class="divide-y divide-fb-border-subtle" data-platform-recent-activity>
+        @for (entry of recentActivity(); track entry.userId) {
+          <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+            <a
+              class="min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+              [routerLink]="['/admin/users', entry.userId]"
+            >
+              <span class="block truncate text-[13px] font-medium text-fb-text-primary">{{
+                entry.fullName || entry.email
+              }}</span>
+              @if (entry.fullName) {
+                <span class="block truncate text-xs text-fb-text-muted">{{ entry.email }}</span>
+              }
+            </a>
+            @if (entry.lastSeenAt; as seen) {
+              <time class="text-xs tabular-nums text-fb-text-secondary" [attr.datetime]="seen">{{
+                seen | date: 'dd.MM.yyyy, HH:mm'
+              }}</time>
+            } @else {
+              <span class="text-xs text-fb-text-muted">Noch nicht aktiv</span>
+            }
+          </li>
+        }
+      </ul>
+    } @else if (!loading()) {
+      <p class="text-sm text-fb-text-secondary">Noch keine Nutzer.</p>
+    }
+  </app-card>
+</section>

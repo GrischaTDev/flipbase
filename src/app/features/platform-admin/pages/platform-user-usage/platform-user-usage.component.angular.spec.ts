@@ -62,6 +62,7 @@ const user: PlatformUser = {
   lastActionAt: '2026-09-25T14:00:00.000Z',
   purchasesCreated30Days: 2,
   salesRecorded30Days: 1,
+  isPlatformOperator: false,
 };
 
 describe('PlatformUserUsageComponent', () => {

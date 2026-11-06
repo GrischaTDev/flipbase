@@ -24,6 +24,12 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { PlatformUser } from '../../models/platform-user.model';
 import { PlatformUserService } from '../../services/platform-user.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import {
+  PLATFORM_USER_FILTERS,
+  PlatformUserFilter,
+  matchesPlatformUserFilter,
+} from '../../models/platform-user-filter';
 
 interface StatusDisplay {
   readonly label: string;
@@ -36,6 +42,7 @@ interface StatusDisplay {
     DatePipe,
     BetaDurationDialogComponent,
     BadgeComponent,
+    ButtonComponent,
     DataTableComponent,
     PageHeaderComponent,
     TableActionButtonComponent,
@@ -60,10 +67,15 @@ export class PlatformUsersComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly searchQuery = signal('');
+  readonly userFilters = PLATFORM_USER_FILTERS;
+  readonly userFilter = signal<PlatformUserFilter>('all');
   readonly filteredUsers = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
-    if (!query) return this.users();
-    return this.users().filter((user) =>
+    const filter = this.userFilter();
+    const now = this.clock.now();
+    const users = this.users().filter((user) => matchesPlatformUserFilter(user, filter, now));
+    if (!query) return users;
+    return users.filter((user) =>
       [user.fullName, user.email, user.workspaceName ?? '', this.accessStatus(user).label]
         .join(' ')
         .toLocaleLowerCase('de')

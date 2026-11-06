@@ -1,0 +1,138 @@
+<section class="space-y-4">
+  <app-page-header title="Systemzustand" [icon]="systemIcon">
+    <app-button header-actions [icon]="refreshIcon" [loading]="loading()" (clicked)="load()">
+      Aktualisieren
+    </app-button>
+  </app-page-header>
+
+  @if (error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
+
+  @if (health(); as current) {
+    @if (status(); as state) {
+      <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-platform-system-services>
+        <app-card variant="section" title="Vinted-Worker" data-service="worker">
+          <div class="space-y-2 text-sm text-fb-text-secondary">
+            <div>
+              <app-badge [tone]="state.worker.tone">{{ state.worker.label }}</app-badge>
+            </div>
+            @if (current.marketplaceWorker; as worker) {
+              <p>
+                Letztes Lebenszeichen
+                <time [attr.datetime]="worker.heartbeatAt">{{
+                  worker.heartbeatAt | date: 'dd.MM.yyyy, HH:mm:ss'
+                }}</time>
+              </p>
+            }
+          </div>
+        </app-card>
+
+        <app-card variant="section" title="Vinted-Feed-Bot" data-service="feed-bot">
+          <div class="space-y-2 text-sm text-fb-text-secondary">
+            <div>
+              <app-badge [tone]="state.feedBot.tone">{{ state.feedBot.label }}</app-badge>
+            </div>
+            @if (current.feedBot; as bot) {
+              <p>
+                Letzte Meldung
+                <time [attr.datetime]="bot.reportedAt">{{
+                  bot.reportedAt | date: 'dd.MM.yyyy, HH:mm:ss'
+                }}</time>
+              </p>
+              <p class="tabular-nums">
+                {{ bot.requestsLastMinute }} von {{ bot.requestBudget }} Anfragen pro Minute,
+                {{ bot.rejectedLastMinute }} abgewiesen
+              </p>
+              @if (bot.lastCycleError; as cycleError) {
+                <p class="text-fb-text-primary">{{ cycleError }}</p>
+              }
+            }
+            <app-button class="block" size="slim" variant="ghost" link="/admin/vinted-bot">
+              Bot verwalten
+            </app-button>
+          </div>
+        </app-card>
+
+        <app-card variant="section" title="Aufträge der letzten Stunde" data-service="operations">
+          <div class="space-y-2 text-sm text-fb-text-secondary">
+            <div>
+              <app-badge [tone]="state.operations.tone">{{ state.operations.label }}</app-badge>
+            </div>
+            <p class="tabular-nums">
+              {{ current.operationsLastHour.succeeded }} erfolgreich ·
+              {{ current.operationsLastHour.failed }} fehlgeschlagen ·
+              {{ current.operationsLastHour.running }} laufen ·
+              {{ current.operationsLastHour.queued }} warten
+            </p>
+          </div>
+        </app-card>
+
+        <app-card variant="section" title="Proxy-IPs" data-service="cloud-ips">
+          <div class="space-y-2 text-sm text-fb-text-secondary">
+            <div>
+              <app-badge [tone]="state.cloudIps.tone">{{ state.cloudIps.label }}</app-badge>
+            </div>
+            <p class="tabular-nums">
+              {{ current.cloudIps.enabled }} aktiv · {{ current.cloudIps.expiringSoon }} laufen in 7
+              Tagen ab · {{ current.cloudIps.expired }} abgelaufen
+            </p>
+          </div>
+        </app-card>
+
+        <app-card variant="section" title="Server-Speicher" data-service="storage">
+          <div class="space-y-2 text-sm text-fb-text-secondary">
+            <div>
+              <app-badge [tone]="state.storage.tone">{{ state.storage.label }}</app-badge>
+            </div>
+            @if (state.storagePercent !== null) {
+              <p class="tabular-nums">{{ state.storagePercent | number: '1.0-1' }} % belegt</p>
+            }
+            <app-button class="block" size="slim" variant="ghost" link="/admin/server-storage">
+              Details
+            </app-button>
+          </div>
+        </app-card>
+      </div>
+    }
+  } @else if (loading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Systemzustand wird geladen …</p>
+  }
+
+  <app-card variant="section" title="Bereiche" data-platform-feature-switches>
+    @if (switchError(); as message) {
+      <p role="alert" class="mb-3 text-sm text-fb-critical">{{ message }}</p>
+    }
+    <ul class="divide-y divide-fb-border-subtle">
+      @for (area of areas; track area.key) {
+        @let enabled = isEnabled(area);
+        <li class="flex flex-wrap items-end gap-3 py-3" [attr.data-feature]="area.key">
+          <div class="flex min-w-36 items-center gap-2 self-center">
+            <span class="text-[13px] font-semibold text-fb-text-primary">{{ area.label }}</span>
+            <app-badge [tone]="enabled ? 'success' : 'critical'">{{
+              enabled ? 'Offen' : 'Geschlossen'
+            }}</app-badge>
+          </div>
+          <app-text-field
+            class="min-w-56 flex-1"
+            [label]="'Wartungstext für ' + area.label"
+            [labelHidden]="true"
+            placeholder="Wartungstext (optional)"
+            [value]="messageFor(area)"
+            [disabled]="savingKey() !== null"
+            (valueChange)="setMessage(area, $event)"
+          />
+          <app-button
+            [variant]="enabled ? 'secondary' : 'primary'"
+            [tone]="enabled ? 'critical' : 'neutral'"
+            [loading]="savingKey() === area.key"
+            [disabled]="savingKey() !== null"
+            (clicked)="toggle(area)"
+          >
+            {{ enabled ? 'Abschalten' : 'Einschalten' }}
+          </app-button>
+        </li>
+      }
+    </ul>
+  </app-card>
+</section>

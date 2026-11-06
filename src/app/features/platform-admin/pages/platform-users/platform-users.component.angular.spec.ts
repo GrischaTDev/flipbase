@@ -85,6 +85,7 @@ beforeAll(async () => {
     'link',
     'href',
     'queryParams',
+    'ariaPressed',
   ]);
 });
 
@@ -104,6 +105,7 @@ const activeUser: PlatformUser = {
   lastActionAt: '2026-09-25T14:00:00.000Z',
   purchasesCreated30Days: 2,
   salesRecorded30Days: 1,
+  isPlatformOperator: false,
 };
 
 describe('PlatformUsersComponent', () => {
@@ -168,5 +170,33 @@ describe('PlatformUsersComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Wartet auf Registrierung');
     expect(fixture.nativeElement.textContent).toContain('Beta abgelaufen');
+  });
+
+  it('kennzeichnet Admins und filtert die Liste nach Status', async () => {
+    const { fixture } = await render([
+      { ...activeUser, userId: 'admin', fullName: 'Ada Admin', isPlatformOperator: true },
+      { ...activeUser, userId: 'invited', fullName: 'Ines Eingeladen', registeredAt: null },
+    ]);
+    const element = fixture.nativeElement as HTMLElement;
+    const names = () =>
+      Array.from(element.querySelectorAll('[data-platform-users-table] tbody tr')).map((row) =>
+        row.querySelector('td')?.textContent?.replace(/\s+/g, ' ').trim(),
+      );
+    const filter = (label: string) =>
+      Array.from(
+        element.querySelectorAll<HTMLButtonElement>('[data-platform-user-filters] button'),
+      ).find((button) => button.textContent?.trim() === label)!;
+
+    expect(names()).toEqual(['Ada Admin Admin', 'Ines Eingeladen']);
+
+    filter('Admins').click();
+    fixture.detectChanges();
+    expect(names()).toEqual(['Ada Admin Admin']);
+    expect(filter('Admins').getAttribute('aria-pressed')).toBe('true');
+    expect(filter('Alle').getAttribute('aria-pressed')).toBe('false');
+
+    filter('Eingeladen').click();
+    fixture.detectChanges();
+    expect(names()).toEqual(['Ines Eingeladen']);
   });
 });

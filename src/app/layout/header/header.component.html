@@ -104,6 +104,18 @@
 
     <app-vinted-action-overview-menu />
 
+    @if (headerAdminRole()) {
+      <app-button
+        data-admin-area-link
+        size="search"
+        link="/admin"
+        [icon]="ShieldCheckIcon"
+        [iconOnly]="true"
+        ariaLabel="Administration öffnen"
+        title="Administration"
+      />
+    }
+
     <!-- Notification Bell Dropdown -->
     <div class="sm:relative" #notificationContainer>
       <button
