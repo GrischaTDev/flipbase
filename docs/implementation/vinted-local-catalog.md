@@ -72,6 +72,27 @@ geschrieben wird nur mit dem Dienstschlüssel über die Funktionen.
 Ein Feld ohne erlaubte Werte (`option_ids` leer) nutzt alle Werte des Merkmals, so wie
 Vinted die Farben getrennt liefert.
 
+## Abgleich im Worker (Schritt 3)
+
+Der Katalog wird beim normalen Kontoabgleich in derselben Vinted-Sitzung nachgelesen;
+ein eigener Zeitplan ist nicht nötig. Ablauf:
+
+1. Der Hauptprozess fragt `vinted_listing_categories` ab
+   (`SupabaseVintedListingCatalogStore.work`): Baum und Farben sind fällig, wenn sie
+   fehlen oder älter als sieben Tage sind; dazu bis zu 60 Endkategorien ohne Felder
+   oder mit Feldern älter als sieben Tage, die ältesten zuerst.
+2. Der abgeschottete Browser liest in einer eigenen, leeren Verkaufsseite
+   (`readVintedListingCatalog`): Baum, Farben und die Felder der fälligen Kategorien,
+   mit 400 ms Pause je Abruf und höchstens 60 Sekunden. Bei 429 oder 403 endet der
+   Lauf mit dem bis dahin Gelesenen.
+3. Das Ergebnis wird an der Prozessgrenze erneut geprüft
+   (`parseVintedListingCatalogRead`) und über die Funktionen aus Schritt 2 gespeichert.
+   Eine abgelehnte Kategorie hält die übrigen nicht auf.
+
+Fehler im Katalog ändern weder Ergebnis noch Status des Kontoabgleichs. Der erste
+Abgleich speichert Baum und Farben; ab dem nächsten folgen die Felder in Blöcken.
+Bei rund 2.460 Endkategorien ist der Katalog nach etwa 41 Kontoabgleichen vollständig.
+
 ## Plan
 
 1. **Nachweis** – erledigt (oben).
@@ -80,7 +101,7 @@ Vinted die Farben getrennt liefert.
    Größengruppen) sowie Zustände, Farben, Materialien, Zielgruppen und
    Paketgrößen mit Original-IDs. Lesen für angemeldete Nutzer, Schreiben nur
    der Worker. Stand und Zeitpunkt je Kategorie.
-3. **Katalog-Abgleich im Worker:** Baum und Felder aller Endkategorien mit einer
+3. **Katalog-Abgleich im Worker** – erledigt (oben), ohne Knopf: Baum und Felder aller Endkategorien mit einer
    angemeldeten Sitzung lesen, gedrosselt, nur Änderungen schreiben. Auslöser
    wöchentlich und per Knopf im Plattform-Admin, Fortschritt sichtbar.
 4. **Oberfläche nur aus der Datenbank:** Kategorie wählen zeigt sofort ihre
@@ -93,6 +114,9 @@ Danach entfallen `vinted_category_field_snapshots`, die eigenen Listen in
 `flipbase-vinted-listing-form.ts` und die Zuordnung über Bezeichnungen.
 
 ## Offen
+
+- Knopf mit Fortschrittsanzeige im Plattform-Admin für einen sofortigen Abgleich.
+- Paketgrößen werden noch nicht gespeichert (Herkunft der Werte und der Empfehlung offen).
 
 - Paketgrößen-Empfehlung je Kategorie: Quelle noch nicht ermittelt.
 - Pflichtstatus der Farbe: im Feld ohne Konfiguration geliefert; das Formular

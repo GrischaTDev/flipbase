@@ -1,6 +1,6 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-11-06 - Juna - Lokaler Vinted-Katalog: Nachweis und Datenbank
+## 2026-11-06 - Juna - Lokaler Vinted-Katalog: Nachweis, Datenbank und Abgleich
 
 **Anlass:** Größen- und Merkmalsauswahl sollen nicht mehr über eigene Listen und
 Bezeichnungen geraten werden, sondern aus einem lokalen Katalog mit Vinteds
@@ -18,8 +18,16 @@ Merkmalswerte und Felder je Kategorie, Lesen für Angemeldete, Schreiben nur üb
 Funktionen für den Worker. Ältere Lesestände überschreiben keine neueren; entfernte
 Kategorien verlieren ihre Felder. Typen erzeugt (nur neue Objekte).
 
+**Abgleich:** Der Worker liest beim Kontoabgleich in derselben Sitzung den fälligen
+Teil des Katalogs nach: Baum und Farben wöchentlich, dazu bis zu 60 Endkategorien je
+Abgleich mit 400 ms Pause und 60 Sekunden Höchstdauer. Neue Browseraktion
+`readListingCatalog` mit Prüfung an der Prozessgrenze; Fehler beeinflussen den
+Kontoabgleich nicht. Ein Knopf im Plattform-Admin und die Paketgrößen sind offen.
+
 **Prüfung:** Migration in eigener lokaler Datenbank angewendet, 40 SQL-Prüfungen
-bestanden, Schemaabgleich ohne Abweichung bei den neuen Objekten. Vorabcheck im Commit.
+bestanden, Schemaabgleich ohne Abweichung bei den neuen Objekten. Elf neue Workerfälle für Parser,
+Auswahl fälliger Kategorien, Speichern, Prozessgrenze und Runner; 75 betroffene
+Workerfälle bestanden. Vorabcheck im Commit.
 
 ## 2026-11-05 - Juna - Marke und Jeansgröße beim Bearbeiten änderbar
 

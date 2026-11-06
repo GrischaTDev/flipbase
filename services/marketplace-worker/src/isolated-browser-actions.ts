@@ -12,6 +12,7 @@ import {
   isVintedNegotiationEvent,
 } from './vinted-negotiation-contracts.ts';
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
+import { parseVintedListingCatalogRead } from './vinted-listing-catalog.ts';
 import {
   parseVintedProfileChanges,
   parseVintedProfileDetails,
@@ -240,6 +241,7 @@ export async function executeBrowserAction(
     sendNegotiation: [4],
     sendMessage: [2],
     readFavoriteEvents: [1],
+    readListingCatalog: [2],
     sendFavoriteMessage: [2],
     sendFavoriteOffer: [2],
     submitListing: [4],
@@ -376,6 +378,26 @@ export async function executeBrowserAction(
       );
     case 'readFavoriteEvents':
       return required(browser.readFavoriteEvents)(identifier(argumentsList[0]), authorize);
+    case 'readListingCatalog': {
+      const request = commandRecord(argumentsList[1]);
+      const categoryIds = request.categoryIds;
+      if (
+        Object.keys(request).some((key) => !['categoryIds', 'includeTree'].includes(key)) ||
+        typeof request.includeTree !== 'boolean' ||
+        !Array.isArray(categoryIds) ||
+        categoryIds.length > 200 ||
+        new Set(categoryIds).size !== categoryIds.length ||
+        categoryIds.some(
+          (id) => typeof id !== 'number' || !Number.isSafeInteger(id) || id < 1 || id > 2147483647,
+        )
+      )
+        throw new Error('Ungültiger Katalogauftrag');
+      return required(browser.readListingCatalog)(
+        identifier(argumentsList[0]),
+        { categoryIds: categoryIds as number[], includeTree: request.includeTree },
+        authorize,
+      );
+    }
     case 'sendFavoriteMessage':
       return required(browser.sendFavoriteMessage)(
         identifier(argumentsList[0]),
@@ -957,6 +979,10 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
       (await run('readFavoriteEvents', [account], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['readFavoriteEvents']>>
       >,
+    readListingCatalog: async (account, request, authorize) =>
+      (await run('readListingCatalog', [account, request], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['readListingCatalog']>>
+      >,
     sendFavoriteMessage: async (account, command, authorize) =>
       (await run('sendFavoriteMessage', [account, command], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['sendFavoriteMessage']>>
@@ -1076,6 +1102,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     if (!isVintedNegotiationResult(input)) throw new Error('Ungültiges Verhandlungsergebnis');
     return input;
   }
+  if (name === 'readListingCatalog') return parseVintedListingCatalogRead(input);
   if (name === 'readFavoriteEvents') {
     if (!Array.isArray(input) || input.length > 200)
       throw new Error('Ungültige Favoritenereignisse');

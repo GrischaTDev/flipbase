@@ -28,6 +28,7 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-negotiation-contracts.d.ts';
 import type { ConfirmedNegotiationOffer } from './vinted-negotiation-contracts.ts';
 import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
+import type { VintedListingCatalogRead } from './vinted-listing-catalog.ts';
 import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
 
 export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
@@ -61,6 +62,12 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     accountId: string,
     authorize: () => Promise<void>,
   ): Promise<VintedFavoriteEvent[]>;
+  /** Liest Teile des lokalen Vinted-Katalogs; speichert und veröffentlicht nichts. */
+  readListingCatalog?(
+    accountId: string,
+    request: { readonly categoryIds: readonly number[]; readonly includeTree: boolean },
+    authorize: () => Promise<void>,
+  ): Promise<VintedListingCatalogRead>;
   sendFavoriteMessage?(
     accountId: string,
     command: MarketplaceFavoriteMessageCommand,
