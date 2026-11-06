@@ -41,9 +41,16 @@ import {
   LucideLightbulb as Lightbulb,
   LucideChevronRight as ChevronRight,
   LucideArrowLeft as ArrowLeft,
+  LucideUserPlus as UserPlus,
+  LucideHardDrive as HardDrive,
+  LucideActivity as Activity,
 } from '@lucide/angular';
 import type { LucideIconInput } from '@lucide/angular';
 import type { SubNavigationItem } from '../../core/config/platform-admin-navigation';
+import {
+  PLATFORM_ADMIN_SIDEBAR_NAVIGATION,
+  isPlatformAdminRoute,
+} from '../../core/config/platform-admin-navigation';
 import {
   DASHBOARD_NAVIGATION,
   IDEAS_NAVIGATION,
@@ -103,6 +110,9 @@ const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   truck: Truck,
   settings: Settings,
   shieldCheck: ShieldCheck,
+  userPlus: UserPlus,
+  hardDrive: HardDrive,
+  activity: Activity,
 };
 
 @Component({
@@ -145,6 +155,14 @@ export class SidebarComponent {
   readonly marketplaceContext = computed(
     () => this.vintedContext() || this.ebayContext() || this.kleinanzeigenContext(),
   );
+  // Der Admin-Bereich tauscht die Hauptnavigation genauso aus wie ein Marktplatz.
+  readonly adminContext = computed(
+    () => this.operatorService.operator() && isPlatformAdminRoute(this.currentUrl()),
+  );
+  readonly replacedNavigationContext = computed(
+    () => this.marketplaceContext() || this.adminContext(),
+  );
+  readonly adminNavigation = PLATFORM_ADMIN_SIDEBAR_NAVIGATION;
   readonly kleinanzeigenNavigation = KLEINANZEIGEN_WORKSPACE_NAVIGATION;
   readonly ebayNavigation = EBAY_WORKSPACE_NAVIGATION;
   readonly vintedAccountsItem = VINTED_ACCOUNTS_NAVIGATION;
@@ -216,6 +234,7 @@ export class SidebarComponent {
   }
 
   isMarketplaceItemActive(path: string): boolean {
+    if (this.adminContext()) return isNavigationChildActive({ label: '', path }, this.currentUrl());
     if (this.kleinanzeigenContext())
       return isKleinanzeigenNavigationActive(path, this.currentUrl());
     return this.ebayContext()

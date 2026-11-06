@@ -22,6 +22,7 @@ export interface PlatformUser {
   readonly lastActionAt: string | null;
   readonly purchasesCreated30Days: number;
   readonly salesRecorded30Days: number;
+  readonly isPlatformOperator: boolean;
 }
 
 export type PlatformUserActionType =

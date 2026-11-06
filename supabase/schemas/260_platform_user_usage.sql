@@ -1,6 +1,7 @@
 -- Betreiberuebersicht: letzter Login und bereits protokollierte Kernaktionen.
 -- Betroffene Daten: auth.users.last_sign_in_at und public.business_events.
 -- Es werden keine neuen Nutzungsereignisse oder Seitenaufrufe gespeichert.
+-- is_platform_operator kennzeichnet Betreiberkonten fuer die Rollenanzeige.
 
 create index if not exists business_events_actor_created_idx
   on public.business_events (actor_id, created_at desc)
@@ -22,7 +23,8 @@ returns table (
   last_sign_in_at timestamptz,
   last_action_at timestamptz,
   purchases_created_30_days bigint,
-  sales_recorded_30_days bigint
+  sales_recorded_30_days bigint,
+  is_platform_operator boolean
 )
 language plpgsql
 security definer
@@ -51,7 +53,12 @@ begin
     auth_user.last_sign_in_at,
     last_action.created_at,
     coalesce(recent_actions.purchases_created, 0::bigint),
-    coalesce(recent_actions.sales_recorded, 0::bigint)
+    coalesce(recent_actions.sales_recorded, 0::bigint),
+    exists (
+      select 1
+      from public.platform_operators as operator
+      where operator.user_id = platform_user.user_id
+    )
   from public.list_platform_users() as platform_user
   join auth.users as auth_user on auth_user.id = platform_user.user_id
   left join lateral (
@@ -73,7 +80,7 @@ end;
 $$;
 
 comment on function public.list_platform_user_usage() is
-  'Zeigt Betreibern Loginzeit und nachweisbare Kernaktionen je Nutzer, ohne Seitenaufrufe zu erfassen.';
+  'Zeigt Betreibern Loginzeit, nachweisbare Kernaktionen und Betreiberrolle je Nutzer, ohne Seitenaufrufe zu erfassen.';
 
 alter function public.list_platform_user_usage() owner to postgres;
 revoke all on function public.list_platform_user_usage() from public, anon;

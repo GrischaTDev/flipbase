@@ -1,4 +1,5 @@
 import { SupabaseService } from '../../../../core/services/supabase.service';
+import { PlatformFeatureSwitchService } from '../../../../core/services/platform-feature-switch.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { MarketplaceAccountHeaderComponent } from '../../../../shared/components/marketplace-account-header/marketplace-account-header.component';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
@@ -314,6 +315,9 @@ describe('Persönliche eBay-Oberfläche', () => {
           useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
         },
         { provide: EbayAccountApiService, useValue: api },
+        // Die echten Marktplatzrouten prüfen den Betreiberschalter; ohne Platzhalter
+        // ginge diese Abfrage an eine echte Supabase und liefe in der CI ins Leere.
+        { provide: PlatformFeatureSwitchService, useValue: { isEnabled: async () => true } },
       ],
     });
   });
