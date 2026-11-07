@@ -68,6 +68,12 @@ select ok(not (public.marketplace_read_local_messages('36100000-0000-4000-8000-0
 reset role;
 select is((select count(*)::integer from public.marketplace_local_message_outbox where request_id='36100000-0000-4000-8000-000000000041'),1,'One row per stable request');
 update public.marketplace_local_message_outbox set created_at=clock_timestamp()-interval '1 minute' where request_id='36100000-0000-4000-8000-000000000041';
+update public.platform_feature_switches set enabled=false where feature_key='vinted';
+set local role service_role;
+select ok((pg_temp.claim()->'command') is null,'Operator switch hands out no new command');
+reset role;
+select is((select state from public.marketplace_local_message_outbox where request_id='36100000-0000-4000-8000-000000000041'),'queued','Message waits while Vinted is switched off');
+update public.platform_feature_switches set enabled=true where feature_key='vinted';
 set local role service_role;
 select ok((pg_temp.claim()->'command') is not null,'Worker claims first command');
 select lives_ok($$select pg_temp.start()$$,'Start persisted before provider attempt');

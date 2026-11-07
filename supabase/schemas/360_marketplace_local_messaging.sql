@@ -214,6 +214,8 @@ returns jsonb language plpgsql volatile security invoker set search_path='' as $
 declare v_grant public.marketplace_local_extension_grants; v_message public.marketplace_local_message_outbox;
 begin
   v_grant:=public.marketplace_local_message_authorized(p_workspace_id,p_connection_id,p_token_hash);
+  -- Betreiber-Not-Aus: keine neuen Aufträge, solange Vinted abgeschaltet ist.
+  if not public.platform_feature_enabled('vinted') then return jsonb_build_object('ok',true,'command',null); end if;
   update public.marketplace_local_message_outbox set state='outcome_unknown',error_code='timeout',updated_at=clock_timestamp()
     where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='sending' and lease_expires_at<=clock_timestamp();
   update public.marketplace_local_message_outbox set state='queued',claim_token=null,lease_expires_at=null,updated_at=clock_timestamp()

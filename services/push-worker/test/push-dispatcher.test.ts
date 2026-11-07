@@ -42,6 +42,7 @@ function fixture(overrides: Partial<PushDeliveryStore> = {}) {
     },
     health: async () => ({}),
     cleanup: async () => undefined,
+    reportStatus: async () => undefined,
     ...overrides,
   };
   return { store, finished };

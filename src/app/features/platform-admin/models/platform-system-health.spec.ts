@@ -5,6 +5,7 @@ import {
   marketplaceWorkerStatus,
   operationsStatus,
   parsePlatformSystemHealth,
+  pushWorkerStatus,
   storageStatus,
   storageUsedPercent,
 } from './platform-system-health';
@@ -23,6 +24,13 @@ const health = (overrides: Record<string, unknown> = {}) =>
       requestBudget: 60,
       lastCycleError: null,
       vintedLastSuccessAt: minutesAgo(1),
+    },
+    pushWorker: {
+      reportedAt: minutesAgo(1),
+      enabled: true,
+      waiting: 2,
+      retry: 0,
+      configurationError: 0,
     },
     storage: { reportedAt: minutesAgo(2), totalBytes: 1000, usedBytes: 500 },
     operationsLastHour: { queued: 1, running: 0, succeeded: 10, failed: 0 },
@@ -73,5 +81,26 @@ describe('Systemzustand der Administration', () => {
     const sparse = parsePlatformSystemHealth({ checkedAt: minutesAgo(0) });
     expect(sparse.operationsLastHour).toEqual({ queued: 0, running: 0, succeeded: 0, failed: 0 });
     expect(sparse.marketplaceWorker).toBeNull();
+  });
+
+  it('bewertet den Push-Worker nach Meldung, Schalter und Konfiguration', () => {
+    expect(pushWorkerStatus(health(), NOW).label).toBe('Läuft');
+    expect(pushWorkerStatus(health({ pushWorker: null }), NOW).label).toBe('Keine Meldung');
+    expect(
+      pushWorkerStatus(health({ pushWorker: { reportedAt: minutesAgo(5), enabled: true } }), NOW)
+        .label,
+    ).toBe('Meldet sich nicht');
+    expect(
+      pushWorkerStatus(health({ pushWorker: { reportedAt: minutesAgo(1), enabled: false } }), NOW)
+        .label,
+    ).toBe('Ausgeschaltet');
+    expect(
+      pushWorkerStatus(
+        health({
+          pushWorker: { reportedAt: minutesAgo(1), enabled: true, configurationError: 1 },
+        }),
+        NOW,
+      ),
+    ).toEqual({ label: 'Konfigurationsfehler', tone: 'critical' });
   });
 });

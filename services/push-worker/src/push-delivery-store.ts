@@ -17,6 +17,8 @@ export interface PushDeliveryStore {
   finish(claim: PushClaim, result: PushProviderResult): Promise<boolean>;
   health(): Promise<Record<string, number>>;
   cleanup(): Promise<void>;
+  /** Lebenszeichen für den Systemzustand der Administration. */
+  reportStatus(enabled: boolean, counts: Record<string, number>): Promise<void>;
 }
 const uuid = /^[a-f0-9-]{36}$/iu;
 export function createPushDeliveryStore(config: PushWorkerConfig): PushDeliveryStore {
@@ -113,6 +115,14 @@ export function createPushDeliveryStore(config: PushWorkerConfig): PushDeliveryS
     },
     async cleanup() {
       await rpc('web_push_cleanup');
+    },
+    async reportStatus(enabled, counts) {
+      await rpc('push_worker_report_status', {
+        p_enabled: enabled,
+        p_waiting: counts['waiting'] ?? 0,
+        p_retry: counts['retry'] ?? 0,
+        p_configuration_error: counts['configuration_error'] ?? 0,
+      });
     },
   };
 }

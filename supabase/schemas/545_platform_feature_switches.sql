@@ -41,6 +41,31 @@ insert into public.platform_feature_switches (feature_key)
 values ('vinted'), ('ebay'), ('kleinanzeigen'), ('vinted_feed')
 on conflict (feature_key) do nothing;
 
+-- Fuer Datenbankfunktionen der Server- und Erweiterungsauftraege: Ist der Bereich offen?
+-- Ohne Eintrag gilt ein Bereich als offen, wie im Frontend und in den Diensten.
+create or replace function public.platform_feature_enabled(p_feature_key text)
+returns boolean
+language sql
+security invoker
+stable
+set search_path = ''
+as $$
+    select coalesce(
+        (
+            select switch.enabled
+            from public.platform_feature_switches as switch
+            where switch.feature_key = p_feature_key
+        ),
+        true
+    );
+$$;
+
+comment on function public.platform_feature_enabled(text) is
+    'Liefert false nur fuer einen vom Betreiber abgeschalteten Bereich.';
+
+revoke all on function public.platform_feature_enabled(text) from public, anon;
+grant execute on function public.platform_feature_enabled(text) to authenticated, service_role;
+
 create or replace function public.set_platform_feature_switch(
     p_feature_key text,
     p_enabled boolean,
@@ -86,6 +111,7 @@ revoke all on function public.set_platform_feature_switch(text, boolean, text) f
 grant execute on function public.set_platform_feature_switch(text, boolean, text) to authenticated;
 
 -- Liefert der Administration die letzten Lebenszeichen der Server-Dienste.
+-- Der Push-Stand kommt aus public.push_worker_runtime_status (550_push_worker_status.sql).
 -- Nur Zeitpunkte, Zaehler und feste Fehlertexte; keine Kontodaten, Pfade oder
 -- Proxyzugaenge.
 create or replace function public.platform_system_health()
@@ -122,6 +148,17 @@ begin
             )
             from public.sniper_runtime_status as status
             where status.id = 1
+        ),
+        'pushWorker', (
+            select jsonb_build_object(
+                'reportedAt', push.reported_at,
+                'enabled', push.enabled,
+                'waiting', push.waiting,
+                'retry', push.retry,
+                'configurationError', push.configuration_error
+            )
+            from public.push_worker_runtime_status as push
+            where push.id = 1
         ),
         'storage', (
             select jsonb_build_object(
@@ -160,7 +197,7 @@ end;
 $$;
 
 comment on function public.platform_system_health() is
-    'Systemzustand fuer die Administration: Worker-, Bot-, Speicher-, Auftrags- und IP-Lebenszeichen.';
+    'Systemzustand fuer die Administration: Worker-, Bot-, Push-, Speicher-, Auftrags- und IP-Lebenszeichen.';
 
 alter function public.platform_system_health() owner to postgres;
 revoke all on function public.platform_system_health() from public, anon;

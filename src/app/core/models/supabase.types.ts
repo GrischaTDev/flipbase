@@ -6699,6 +6699,33 @@ export type Database = {
           },
         ]
       }
+      push_worker_runtime_status: {
+        Row: {
+          configuration_error: number
+          enabled: boolean
+          id: number
+          reported_at: string
+          retry: number
+          waiting: number
+        }
+        Insert: {
+          configuration_error: number
+          enabled: boolean
+          id?: number
+          reported_at: string
+          retry: number
+          waiting: number
+        }
+        Update: {
+          configuration_error?: number
+          enabled?: boolean
+          id?: number
+          reported_at?: string
+          retry?: number
+          waiting?: number
+        }
+        Relationships: []
+      }
       record_comments: {
         Row: {
           author_id: string
@@ -13299,6 +13326,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      platform_feature_enabled: {
+        Args: { p_feature_key: string }
+        Returns: boolean
+      }
       platform_system_health: { Args: never; Returns: Json }
       prepare_beta_invitation: {
         Args: {
@@ -13391,6 +13422,15 @@ export type Database = {
       purchase_seller_details_snapshot: {
         Args: { p_purchase: Database["public"]["Tables"]["purchases"]["Row"] }
         Returns: Json
+      }
+      push_worker_report_status: {
+        Args: {
+          p_configuration_error: number
+          p_enabled: boolean
+          p_retry: number
+          p_waiting: number
+        }
+        Returns: undefined
       }
       receive_individual_purchase_line: {
         Args: {

@@ -49,8 +49,11 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const)
     shutdown.abort();
     server.close();
   });
+// Alle 30 Sekunden reicht für den Systemzustand; jeder Takt wäre unnötige Schreiblast.
+const STATUS_REPORT_INTERVAL_MS = 30000;
 async function run() {
   let nextCleanup = 0;
+  let nextStatusReport = 0;
   while (!stopped) {
     const started = Date.now();
     try {
@@ -60,6 +63,13 @@ async function run() {
         if (Date.now() >= nextCleanup) {
           await store.cleanup();
           nextCleanup = Date.now() + 3600000;
+        }
+        if (Date.now() >= nextStatusReport) {
+          // Eine fehlende Statusmeldung darf die Zustellung nicht aufhalten.
+          await store.reportStatus(config.enabled, counts).catch(() => {
+            process.stderr.write('Push worker status report failed!\n');
+          });
+          nextStatusReport = Date.now() + STATUS_REPORT_INTERVAL_MS;
         }
       }
       lastSuccess = Date.now();

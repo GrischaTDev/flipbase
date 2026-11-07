@@ -27,6 +27,7 @@ import {
   feedBotStatus,
   marketplaceWorkerStatus,
   operationsStatus,
+  pushWorkerStatus,
   storageStatus,
   storageUsedPercent,
 } from '../../models/platform-system-health';
@@ -73,6 +74,7 @@ export class PlatformSystemComponent implements OnInit {
     return {
       worker: marketplaceWorkerStatus(health, now),
       feedBot: feedBotStatus(health, now),
+      pushWorker: pushWorkerStatus(health, now),
       storage: storageStatus(health, now),
       storagePercent: storageUsedPercent(health),
       operations: operationsStatus(health),

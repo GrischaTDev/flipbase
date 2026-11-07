@@ -273,6 +273,10 @@ describe('HeaderComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     const enabled = TestBed.inject(AppDisplayPreferencesService)
       .workspaceSwitcherEnabled as ReturnType<typeof signal<boolean>>;
+    // Ohne Sperre gibt es keinen Tooltip; früher stand dort der Text "null".
+    expect(
+      element.querySelector('[aria-controls="header-workspace-menu"]')?.hasAttribute('title'),
+    ).toBe(false);
     element.querySelector<HTMLButtonElement>('[aria-controls="header-workspace-menu"]')?.click();
     fixture.detectChanges();
     expect(element.querySelector('#header-workspace-menu')).not.toBeNull();

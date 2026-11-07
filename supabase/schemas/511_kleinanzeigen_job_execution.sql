@@ -84,6 +84,8 @@ begin
  v_session:=public.kleinanzeigen_extension_session(p_workspace_id,p_connection_id,p_token_hash,p_generation);
  if v_session->>'canPublish' is distinct from 'true' or v_session->>'externalAccountId' is distinct from v_job.external_account_id or v_job.grant_generation is distinct from p_generation or not exists(select 1 from public.kleinanzeigen_local_grants where workspace_id=p_workspace_id and connection_id=p_connection_id and token_hash=p_token_hash and approved_by=v_job.requested_by) then raise exception 'Schreibfreigabe nicht bestätigt.' using errcode='42501';end if;
  if v_job.state='claimed' and v_job.claim_token_hash=v_claim_hash and v_job.claim_installation_hash=p_token_hash then return public.kleinanzeigen_job_document(v_job)||jsonb_build_object('claimToken',p_claim_token,'leaseUntil',v_job.lease_until,'absoluteExpiresAt',v_job.absolute_expires_at);end if;
+ -- Betreiber-Not-Aus: laufende Versuche oben dürfen enden, neue Aufträge nicht.
+ if not public.platform_feature_enabled('kleinanzeigen') then raise exception 'Kleinanzeigen ist vorübergehend geschlossen.' using errcode='55000';end if;
  if v_job.state<>'queued' or exists(select 1 from public.kleinanzeigen_publication_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and id<>p_job_id and state in ('claimed','writing','outcome_unknown')) then raise exception 'Ein anderer Versuch ist noch offen.' using errcode='40001';end if;
  v_snapshot:=public.kleinanzeigen_prepare_listing_job(p_workspace_id,p_connection_id,v_job.draft_id,v_job.draft_revision,v_job.requested_by);
  if (v_snapshot-'images') is distinct from (v_job.immutable_snapshot-'images') then raise exception 'Zielfassung inzwischen geändert.' using errcode='40001';end if;
