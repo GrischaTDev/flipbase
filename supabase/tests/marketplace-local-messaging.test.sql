@@ -70,7 +70,7 @@ select is((select count(*)::integer from public.marketplace_local_message_outbox
 update public.marketplace_local_message_outbox set created_at=clock_timestamp()-interval '1 minute' where request_id='36100000-0000-4000-8000-000000000041';
 update public.platform_feature_switches set enabled=false where feature_key='vinted';
 set local role service_role;
-select ok((pg_temp.claim()->'command') is null,'Operator switch hands out no new command');
+select is(pg_temp.claim()->'command','null'::jsonb,'Operator switch hands out no new command');
 reset role;
 select is((select state from public.marketplace_local_message_outbox where request_id='36100000-0000-4000-8000-000000000041'),'queued','Message waits while Vinted is switched off');
 update public.platform_feature_switches set enabled=true where feature_key='vinted';
