@@ -110,8 +110,8 @@ export function createSearchHandler(deps: SearchDependencies) {
       if (!found) return respond({ error: 'listing_not_found' }, 404);
       if (
         found.currency !== 'EUR' ||
-        !Number.isFinite(found.total_price) ||
-        found.total_price < 0 ||
+        (found.total_price !== null &&
+          (!Number.isFinite(found.total_price) || found.total_price < 0)) ||
         !Number.isFinite(found.item_price) ||
         found.item_price < 0
       )

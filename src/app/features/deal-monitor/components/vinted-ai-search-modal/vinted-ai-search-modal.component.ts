@@ -86,6 +86,16 @@ export class VintedAiSearchModalComponent {
     likely: 'Modell vermutlich erkannt',
     unknown: 'Modell nicht eindeutig',
   };
+  readonly comparisonLabels = {
+    model: 'passendes Modell',
+    category: 'ähnlicher Artikel derselben Kategorie',
+    different: 'abweichender Artikel · nicht in der Auswertung',
+  };
+  readonly listingDateLabels = {
+    within_window: 'Innerhalb der letzten 30 Tage eingestellt',
+    outside_window: 'Älter als 30 Tage · nicht in der Auswertung',
+    unknown: 'Einstelldatum ungeklärt · keine 30-Tage-Zuordnung',
+  };
   private generation = 0;
 
   constructor() {

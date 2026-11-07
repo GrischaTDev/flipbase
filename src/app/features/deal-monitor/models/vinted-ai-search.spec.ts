@@ -49,6 +49,11 @@ describe('resaleEstimate', () => {
     tentative.analysis.confidence = 'likely';
     expect(resaleEstimate(tentative)?.tone).toBe('yellow');
   });
+  it('wertet Kategorievergleiche auch bei bekanntem Zielmodell nicht als sichere Gewinnbasis', () => {
+    const category = result();
+    category.analysis.comparisonBasis = 'category';
+    expect(resaleEstimate(category)?.tone).toBe('yellow');
+  });
   it('zeigt Verluste rot und geringe oder unsichere Spannen gelb', () => {
     expect(resaleEstimate(result('sold', 10, 15), 0, 0, 0)?.tone).toBe('red');
     expect(resaleEstimate(result('sold', 20, 40), 0, 0, 0)?.tone).toBe('yellow');
@@ -66,5 +71,11 @@ describe('resaleEstimate', () => {
     const inconsistent = result();
     inconsistent.listing.totalPrice = 1;
     expect(resaleEstimate(inconsistent, 0, 0, 0)?.purchaseCost).toBe(20);
+  });
+  it('berechnet bei aktualisiertem Artikelpreis ohne belegten Gesamtpreis keinen Preisabstand', () => {
+    const changedPrice = result();
+    changedPrice.listing.itemPrice = 35;
+    changedPrice.listing.totalPrice = null;
+    expect(resaleEstimate(changedPrice)).toBeNull();
   });
 });

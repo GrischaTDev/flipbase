@@ -6,7 +6,15 @@ export const MODEL_PRICES = {
 } as const;
 export type SearchModel = keyof typeof MODEL_PRICES;
 export const PRICING_DATE = '2026-11-06';
-export const PROMPT_VERSION = 'vinted-product-research-6';
+export const PROMPT_VERSION = 'vinted-product-research-7';
+export interface ComparisonDate {
+  status: 'within_window' | 'outside_window' | 'unknown';
+  earliest: string | null;
+  latest: string | null;
+  label: string | null;
+  checkedAt: string | null;
+  source: 'vinted_listing' | 'unverified';
+}
 export interface Comparison {
   title: string;
   url: string;
@@ -14,6 +22,8 @@ export interface Comparison {
   price: number;
   evidence: string;
   sameVariant: boolean;
+  match: 'model' | 'category' | 'different';
+  listingDate?: ComparisonDate;
 }
 export interface ResearchSection {
   summary: string;
@@ -26,6 +36,21 @@ export interface Analysis {
   confidence: 'exact' | 'likely' | 'unknown';
   evidence: string;
   comparisons: Comparison[];
+  comparisonBasis: 'model' | 'category';
+  marketWindow: {
+    days: 30;
+    checkedAt: string;
+    verifiedCount: number;
+    undatedCount: number;
+    excludedCount: number;
+  };
+  currentMarket: {
+    low: number;
+    high: number;
+    count: number;
+    basis: 'sold' | 'asking';
+    match: 'model' | 'category';
+  } | null;
   soldAverage: number | null;
   askingAverage: number | null;
   newPriceRange: { low: number; high: number; count: number } | null;
@@ -102,10 +127,51 @@ function humanText(value: string): string {
     .replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/g, '$1')
     .trim();
 }
-function sourceIdentity(value: string): string {
+// Feste Marktplatzhosts aus den Vinted-Länderlinks; beliebige Subdomains sind keine Artikelquellen.
+const vintedDomains = new Set(
+  [
+    'at',
+    'be',
+    'co.uk',
+    'com',
+    'com.au',
+    'cz',
+    'de',
+    'dk',
+    'ee',
+    'es',
+    'fi',
+    'fr',
+    'gr',
+    'hr',
+    'hu',
+    'ie',
+    'it',
+    'lt',
+    'lu',
+    'lv',
+    'nl',
+    'pl',
+    'pt',
+    'ro',
+    'se',
+    'si',
+    'sk',
+  ].flatMap((suffix) => [`vinted.${suffix}`, `www.vinted.${suffix}`]),
+);
+
+export function vintedSourceItemId(value: unknown): string | null {
+  const source = safeSource(value);
+  if (!source) return null;
+  const url = new URL(source);
+  if (!vintedDomains.has(url.hostname)) return null;
+  return /^\/items\/(\d{1,20})(?:-[^/]*)?$/.exec(url.pathname)?.[1] ?? null;
+}
+
+export function sourceIdentity(value: string): string {
   const url = new URL(value);
-  const itemId = /^\/items\/(\d+)(?:-|\/|$)/.exec(url.pathname)?.[1];
-  if (/(?:^|\.)vinted\.[a-z.]+$/i.test(url.hostname) && itemId) return `vinted:${itemId}`;
+  const itemId = vintedSourceItemId(value);
+  if (itemId) return `vinted:${itemId}`;
   for (const key of [...url.searchParams.keys()])
     if (/^(?:utm_.+|srsltid|gclid|fbclid|msclkid)$/i.test(key)) url.searchParams.delete(key);
   url.searchParams.sort();
@@ -181,6 +247,47 @@ function researchSection(value: unknown): ResearchSection {
       : [...sources.values()].slice(0, 6),
   };
 }
+
+function timestamp(value: unknown): number | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value)) return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : null;
+}
+
+function comparisonDate(value: unknown, researchedAt: number | null): ComparisonDate {
+  const entry = record(value);
+  const unknown: ComparisonDate = {
+    status: 'unknown',
+    earliest: null,
+    latest: null,
+    label: null,
+    checkedAt: null,
+    source: 'unverified',
+  };
+  if (entry?.['source'] !== 'vinted_listing' || researchedAt === null) return unknown;
+  const checkedAt = timestamp(entry['checkedAt']);
+  if (checkedAt === null || checkedAt > researchedAt || researchedAt - checkedAt > 180_000)
+    return unknown;
+  const earliest = timestamp(entry['earliest']);
+  const latest = timestamp(entry['latest']);
+  const result: ComparisonDate = {
+    ...unknown,
+    source: 'vinted_listing',
+    label: typeof entry['label'] === 'string' ? humanText(entry['label']).slice(0, 120) : null,
+    checkedAt: new Date(checkedAt).toISOString(),
+  };
+  if (earliest === null || latest === null || earliest > latest || latest > checkedAt)
+    return result;
+  const cutoff = researchedAt - 30 * 24 * 60 * 60 * 1000;
+  return {
+    ...result,
+    // Nur das vollständige mögliche Zeitintervall darf im Auswertungsfenster liegen.
+    status: earliest >= cutoff ? 'within_window' : latest < cutoff ? 'outside_window' : 'unknown',
+    earliest: new Date(earliest).toISOString(),
+    latest: new Date(latest).toISOString(),
+  };
+}
+
 export function parseAnalysis(result: Record<string, unknown>, listingUrl?: string): Analysis {
   if (result['status'] !== 'completed' || !Array.isArray(result['output']))
     throw new Error('incomplete_response');
@@ -221,6 +328,11 @@ export function parseAnalysis(result: Record<string, unknown>, listingUrl?: stri
   if (research)
     for (const section of Object.values(research))
       for (const source of section.sources) addSource(source.url);
+  // Direkte Belege behalten die kanonische Quelle auch bei Webtreffern anderer Vinted-Länder.
+  for (const source of Array.isArray(result['comparisonSources'])
+    ? result['comparisonSources']
+    : [])
+    addSource(record(source)?.['url']);
   if (!searches) throw new Error('missing_web_search');
   const parsed = record(JSON.parse(texts.join('')));
   if (
@@ -231,18 +343,40 @@ export function parseAnalysis(result: Record<string, unknown>, listingUrl?: stri
     !Array.isArray(parsed['comparisons'])
   )
     throw new Error('invalid_analysis');
+  const modelName = humanText(parsed['modelName']).slice(0, 200);
+  const confidence: Analysis['confidence'] =
+    !modelName || !parsed['evidence'].trim()
+      ? 'unknown'
+      : (parsed['confidence'] as Analysis['confidence']);
+  const researchedAt = timestamp(result['researchedAt']);
+  const dates = new Map<string, ComparisonDate>();
+  for (const value of Array.isArray(result['comparisonDates']) ? result['comparisonDates'] : []) {
+    const date = record(value);
+    const url = safeSource(date?.['url']);
+    // Vertrauensdaten stammen ausschließlich aus unserem Detailseitenabruf, nie aus Modelltext.
+    if (
+      url &&
+      new URL(url).origin === 'https://www.vinted.de' &&
+      /^\/items\/\d+(?:-|$)/.test(new URL(url).pathname)
+    )
+      dates.set(sourceIdentity(url), comparisonDate(date?.['listingDate'], researchedAt));
+  }
   const comparisons: Comparison[] = [];
   const seen = new Set<string>();
   for (const raw of parsed['comparisons'].slice(0, 24)) {
     const entry = record(raw);
     const url = safeSource(entry?.['url']);
-    const pageIdentity = url ? new URL(url).origin + new URL(url).pathname.replace(/\/$/, '') : '';
+    const identity = url ? sourceIdentity(url) : '';
+    const duplicateIdentity =
+      identity.startsWith('vinted:') || !url
+        ? identity
+        : new URL(url).origin + new URL(url).pathname.replace(/\/$/, '');
     if (
       !entry ||
       !url ||
-      !sources.has(sourceIdentity(url)) ||
-      (listingUrl && sourceIdentity(url) === sourceIdentity(listingUrl)) ||
-      seen.has(pageIdentity) ||
+      !sources.has(identity) ||
+      (listingUrl && identity === sourceIdentity(listingUrl)) ||
+      seen.has(duplicateIdentity) ||
       entry['currency'] !== 'EUR' ||
       typeof entry['sameVariant'] !== 'boolean' ||
       typeof entry['price'] !== 'number' ||
@@ -255,49 +389,80 @@ export function parseAnalysis(result: Record<string, unknown>, listingUrl?: stri
       !['manufacturer', 'retail', 'sold', 'asking'].includes(String(entry['kind']))
     )
       continue;
-    seen.add(pageIdentity);
+    seen.add(duplicateIdentity);
+    const proposedMatch = entry['match'] ?? (entry['sameVariant'] ? 'model' : 'different');
+    const match: Comparison['match'] =
+      proposedMatch === 'model' && entry['sameVariant'] && confidence !== 'unknown'
+        ? 'model'
+        : proposedMatch === 'category'
+          ? 'category'
+          : 'different';
+    const kind = entry['kind'] as Comparison['kind'];
     comparisons.push({
       title: entry['title'].slice(0, 200),
-      url: sources.get(sourceIdentity(url))!,
-      kind: entry['kind'] as Comparison['kind'],
+      url: sources.get(identity)!,
+      kind,
       price: entry['price'],
       evidence: humanText(entry['evidence']).slice(0, 600),
-      sameVariant: entry['sameVariant'],
+      sameVariant: match === 'model',
+      match,
+      ...(['sold', 'asking'].includes(kind)
+        ? { listingDate: dates.get(identity) ?? comparisonDate(null, researchedAt) }
+        : {}),
     });
   }
-  const prices = (kind: Comparison['kind']) =>
-    comparisons
-      .filter((entry) => entry.kind === kind && entry.sameVariant)
+  const used = comparisons.filter((entry) => ['sold', 'asking'].includes(entry.kind));
+  const inScope = used.filter((entry) => entry.listingDate?.status !== 'outside_window');
+  const comparisonBasis =
+    inScope.some((entry) => entry.match === 'model') ||
+    (!inScope.some((entry) => entry.match === 'category') && confidence !== 'unknown')
+      ? 'model'
+      : 'category';
+  const matching = inScope.filter((entry) => entry.match === comparisonBasis);
+  const prices = (entries: Comparison[], kind: Comparison['kind']) =>
+    entries
+      .filter((entry) => entry.kind === kind)
       .map((entry) => entry.price)
       .sort((a, b) => a - b);
-  const sold = prices('sold');
-  const asking = prices('asking');
-  const newPrices = [...prices('manufacturer'), ...prices('retail')];
+  const verified = matching.filter((entry) => entry.listingDate?.status === 'within_window');
+  const sold = prices(verified, 'sold');
+  const asking = prices(verified, 'asking');
+  const newPrices = comparisons
+    .filter((entry) => ['manufacturer', 'retail'].includes(entry.kind) && entry.match === 'model')
+    .map((entry) => entry.price);
   const round = (value: number) => Math.round(value * 100) / 100;
   const average = (values: number[]) =>
     values.length ? round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
-  const modelName = humanText(parsed['modelName']).slice(0, 200);
-  const confidence: Analysis['confidence'] =
-    !modelName || !parsed['evidence'].trim()
-      ? 'unknown'
-      : (parsed['confidence'] as Analysis['confidence']);
   const base = sold.length >= 3 ? sold : asking.length >= 3 ? asking : [];
   const basis = sold.length >= 3 ? 'sold' : 'asking';
-  // Angebotswerte sind keine Verkäufe: vorsichtiger Abschlag, sichtbar getrennt.
-  const resale =
-    confidence !== 'unknown' && base.length >= 3
-      ? {
-          low: round(base[Math.floor((base.length - 1) * 0.25)] * (basis === 'asking' ? 0.7 : 1)),
-          high: round(base[Math.ceil((base.length - 1) * 0.75)] * (basis === 'asking' ? 0.85 : 1)),
-          basis: basis as 'sold' | 'asking',
-          count: base.length,
-        }
-      : null;
+  const range = (values: number[]) => ({
+    low: round(values[Math.floor((values.length - 1) * 0.25)]),
+    high: round(values[Math.ceil((values.length - 1) * 0.75)]),
+    count: values.length,
+  });
+  // Angebotsspannen bleiben Angebotsspannen; ein pauschaler Rabatt wäre kein Marktbeleg.
+  const resale = base.length >= 3 ? { ...range(base), basis: basis as 'sold' | 'asking' } : null;
+  const currentSold = prices(matching, 'sold');
+  const currentAsking = prices(matching, 'asking');
+  const currentBasis = currentSold.length >= 3 || !currentAsking.length ? 'sold' : 'asking';
+  const currentPrices = currentBasis === 'sold' ? currentSold : currentAsking;
+  const currentMarket: Analysis['currentMarket'] = currentPrices.length
+    ? { ...range(currentPrices), basis: currentBasis as 'sold' | 'asking', match: comparisonBasis }
+    : null;
   return {
     modelName,
     confidence,
     evidence: humanText(parsed['evidence']).slice(0, 2500),
     comparisons,
+    comparisonBasis,
+    marketWindow: {
+      days: 30,
+      checkedAt: researchedAt === null ? '' : new Date(researchedAt).toISOString(),
+      verifiedCount: verified.length,
+      undatedCount: matching.filter((entry) => entry.listingDate?.status === 'unknown').length,
+      excludedCount: used.filter((entry) => entry.listingDate?.status === 'outside_window').length,
+    },
+    currentMarket,
     soldAverage: average(sold),
     askingAverage: average(asking),
     newPriceRange: newPrices.length
@@ -321,11 +486,11 @@ export const ANALYSIS_SCHEMA = {
     evidence: { type: 'string' },
     comparisons: {
       type: 'array',
-      maxItems: 12,
+      maxItems: 8,
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'url', 'kind', 'price', 'currency', 'sameVariant', 'evidence'],
+        required: ['title', 'url', 'kind', 'price', 'currency', 'sameVariant', 'match', 'evidence'],
         properties: {
           title: { type: 'string' },
           url: { type: 'string' },
@@ -333,6 +498,7 @@ export const ANALYSIS_SCHEMA = {
           price: { type: 'number' },
           currency: { type: 'string' },
           sameVariant: { type: 'boolean' },
+          match: { type: 'string', enum: ['model', 'category', 'different'] },
           evidence: { type: 'string' },
         },
       },

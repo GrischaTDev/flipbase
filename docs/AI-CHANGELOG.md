@@ -1,5 +1,179 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Artikelbezogene Live-Preisanalyse umsetzen
+
+**Auftrag:** Die vorangegangene Recherche auf ausdrücklichen Nutzerauftrag umsetzen:
+Inserattext und Kategorie zuerst auswerten, Bilder zur Modellprüfung nutzen,
+Originalmodell und aktuelle Neupreise vor passenden Gebrauchtangeboten bestimmen.
+Bei unklarem Modell Kategorievergleiche ausweisen; ohne große Vergleichsdatenbank
+und ohne zusätzlichen Anbieter innerhalb eines begrenzten Recherchebudgets arbeiten.
+
+**Grundlage:** GitHub frisch abgeglichen (`25eb50a4`); fremde primäre Arbeitskopie
+unverändert erhalten. Eigene Forschungsarbeitskopie mit ihren ungesicherten Berichten
+auf neuen Zweig `juna/feed-ai-live-comparison` vom aktuellen `origin/master`
+übernommen. Drei unterstützende Analysen für Datumsprüfung, Preisrechnung und UI.
+
+**Umsetzung:** Zwei aufeinander aufbauende KI-Aufrufe statt dreier Teilrecherchen.
+Alle verfügbaren Inseratbilder und Detailmerkmale gehen einmal in die Modell- und
+Neupreisbestimmung; deren Ergebnis steuert die Gebrauchtmarktsuche. Eine begrenzte
+öffentliche Vinted-Katalogabfrage liefert bis zu 24 Kandidaten ohne Einkaufsobergrenze.
+Höchstens sechs Gebrauchtvergleiche werden fachlich eingeordnet und ihre Vinted-
+Einstellangaben direkt geprüft. Modell- und Kategorievergleiche, aktuelle Angebote
+und sicher datierte 30-Tage-Inserate bleiben getrennt. Keine erfundenen bezahlten
+Verkaufspreise oder pauschalen 15–30-Prozent-Abschläge. Vorhandener Ergebnis-Cache
+bleibt; keine neue Tabelle oder Migration.
+
+**Budgets:** 130 Sekunden Recherche insgesamt, zwei KI-Antworten mit jeweils
+höchstens 3.200 Ausgabetokens und drei/vier Webwerkzeugaufrufen, kleiner Suchkontext.
+Ab 0,75 USD bekannten Kosten der ersten Phase oder unvollständigem Verbrauch keine
+weitere kostenpflichtige Phase. Diese Fortsetzungsgrenze ist kein garantiertes
+Gesamtkostenlimit: Eingabe-/Such- und Bildtokens sowie bereits laufende Antworten
+bleiben variabel. Tatsächlicher Verbrauch und Teilabbrüche werden weiterhin erfasst.
+
+**Korrekturen aus der Prüfung:** Aktuelle Titel und Einzelpreise aus dem tatsächlichen
+Produktdatensatz übernehmen; bei geändertem Preis und fehlendem Gesamtpreis diesen
+als unbekannt behandeln. Deutsche Katalogquellen behalten Vorrang vor anderen
+Länderdomains derselben Artikelkennung. Kurze Modellabfrage getrennt von Farb- und
+Unsicherheitszusätzen; passende andersfarbige Artikel als Kategorievergleich zulassen.
+Allgemeine Favoritenhinweise („Entfernt!“) sind kein Inseratstatus.
+
+**Live-Nachweise:** Öffentliche Carhartt-Katalogabfrage mit 24 Kandidaten und echte
+Uploadangaben wie „22 Min.“, „2 h“ und „2 Wochen“ bestätigt. Erster vollständiger
+Astra-Versuch: Modell erkannt, Gebrauchtphase nach 45 Sekunden abgebrochen;
+0,43738 USD bekannte Teilkosten, Gesamtkosten dieses Abbruchs unbekannt und so
+in der Verbrauchserfassung erhalten. Nach kompakter Modellabfrage/adaptiver
+Werkzeugzahl vollständiger Lauf in 88 Sekunden, 0,69823 USD geschätzt. Dessen
+zu strenger Farbabgleich wurde korrigiert und die bezahlte Original-/Neupreisphase
+für die gezielte Nachprüfung wiederverwendet: Gebrauchtphase einschließlich
+Quellenprüfung 34 Sekunden, zusätzlich 0,25468 USD; drei direkt datierte
+Kategorievergleiche (60/75/109 EUR, Angebotspreise, keine Verkaufsbelege).
+Keinen neuen vollständigen Gesamtlauf mit dieser Teilprüfung behauptet.
+Isolierter Prüfcontainer, keine laufende Produktionsfunktion ersetzt; Kosten
+im bestehenden Verbrauch protokolliert. Private Rohberichte gesichert.
+
+**Prüfung:** 66 Deno-Tests einschließlich Typprüfung auf Deno 2.9.7 erfolgreich.
+Acht Frontend-Modelltests und die elf betroffenen Browserfälle einschließlich
+Hell/Dunkel, Touch, AXE sowie unbekanntem aktuellem Gesamtpreis erfolgreich.
+Ein zu strenger Test-Textselektor wurde im ersten Browserlauf korrigiert und
+gezielt erfolgreich nachgeprüft. CI-Registrierung aller Artikelanalyse-Tests
+zusätzlich abgesichert. Lokaler Vorabcheck auf Node 22 erfolgreich (Exitcode 0): Format, Lint, Typen,
+Suite-Audit, ausgewählte Skript-/Anwendungstests und Produktionsbau. Der Bau
+meldet bestehende Warnungen zu Budget/CommonJS und Vorlagen. Die abschließende
+reine Nachtragsdokumentation wird gezielt formatiert; Produktcode unverändert.
+Pflichtnachweise für SQL/Workflow/Marketplace und ausgewählte Integrationsbrowser
+bleiben dem nachfolgenden CI-Lauf zugeordnet. Keine Migration notwendig.
+
+## 2026-11-07 - Juna - Anbieter für Produkt- und Preisanalyse recherchieren
+
+**Auftrag:** Vintz und Alternativen für bildgestützte Produktbestimmung sowie
+Neu-/Gebrauchtpreisanalyse prüfen; öffentlich bekannte Technik, Prompts und
+mögliche effizientere Ansätze einordnen. Keine Implementierungsfreigabe abgeleitet.
+
+**Grundlage:** Primäre Arbeitskopie mit fremden Änderungen geprüft und erhalten,
+GitHub frisch abgerufen. Eigene Arbeitskopie auf `origin/master` (`25eb50a4`),
+Zweig `juna/product-price-analysis-research` angelegt. Nutzer bestätigt Vintz.
+
+**Präzisierung:** Der Nutzer schließt zusätzliche externe APIs und kostenpflichtige
+Zusatzprodukte aus. Anbieter nur zum Verständnis des Verfahrens untersuchen.
+Nach erneutem GitHub-Abgleich auf demselben eigenen Zweig fortgesetzt; primäre
+fremde Änderungen erhalten. Vorhandenen Sammler, Detailparser, Transaktionsdaten
+und tatsächliche Feed-Aufbewahrung geprüft. Öffentliche Carhartt-Prentis-Suche
+lesend mit HTTP 200 und 96 eindeutigen Artikelkennungen einschließlich Preisen
+und Merkmalen bestätigt; kein neuer Anbieterzugang und kein KI-Aufruf.
+Gesondertes internes Konzept unter
+`docs/research/2026-11-07-internal-vinted-article-analysis.md`. Die bisherige
+Anbieterempfehlung ausdrücklich auf reine Recherche zurückgestuft. Kein
+Produktumbau oder neue Beobachtungssammlung gestartet.
+
+**Ergebnis:** Quellenbericht unter
+`docs/research/2026-11-07-product-price-analysis-providers.md`. Fertige Apps,
+Datenzugänge und Bildsuchbausteine getrennt bewertet. Öffentlich beschriebene
+Funktion, tatsächlich offengelegte Technik und eigene Architekturvorschläge
+auseinandergehalten. Letzten Angebotspreis eines verkauft markierten Inserats
+nicht als ausgehandelten Endpreis behandelt. Ein offenes Beispiel zeigt die
+Trennung von Bildprompt, Vergleichssuche und Preisrechnung. Empfehlung:
+gezielte Bildsuche und Datenqualität zunächst gegen den bestehenden Ablauf messen.
+
+**Kapazitätsfrage:** Server ausschließlich lesend geprüft: rund 18,8 GB frei,
+Produktionsdatenbank rund 1,34 GB. In eigenem lokalem PostgreSQL-17-Container mit
+künstlichen Daten 100.000/1.000.000 Artikel und jeweils fünf Beobachtungen pro
+Artikel gemessen. Millionenstufe einschließlich sieben Indizes 1.288.290.304
+Bytes; drei kleine Beispielabfragen erfolgreich. Keine Produktionslastmessung,
+WAL/Backups nicht in der Relationsgröße enthalten. Bericht unter
+`docs/research/2026-11-07-vinted-analysis-storage-capacity.md`, rohe Nachweise im
+privaten Aufgabenordner. Messprozess Exitcode 0, eigener Container nach
+Identitätsprüfung entfernt; keine Produktänderung.
+
+**Zulauf und Aufbewahrung:** Auf Nutzerauftrag mit drei unterstützenden Analysen
+vertieft. Nach erneutem GitHub-Abgleich ausschließlich lesend rund 56.000
+Feedaufnahmen/24 Stunden, drei Tage vorhandene Historie sowie tatsächlich
+30/min Budget und 2.500 ms Mindestabstand bestätigt. Langfristige eindeutige
+Neuzugänge nicht behauptet. Keepa, Comps, ResellTrack und PostgreSQL-Primärquellen
+ausgewertet; unbekannte interne Anbieterarchitektur ausdrücklich abgegrenzt.
+Zweite isolierte PostgreSQL-Messung: eine Million kompakte Artikelbelege rund
+219 MB, eine Million Wiedererkennungskennungen rund 99 MB inklusive Indizes.
+Erster Messversuch traf den temporären Initialisierungsserver; nach korrigierter
+TCP-Bereitschaft endgültiger Messlauf Exitcode 0. Beide eigenen Container nach
+Prüfung entfernt. Gestufte Aufbewahrung, begrenzte Nachprüfung, unverzerrte
+Verdichtung und feste Speicherbudgets im Bericht
+`docs/research/2026-11-07-vinted-analysis-retention-strategy.md` hergeleitet.
+Keine Sammlung, Migration oder automatische Löschung eingerichtet.
+
+**Saisonpausen und weitere Marken:** Recherche auf Nutzerwunsch um Reddit,
+offene Preis-Tracker, zusätzliche Anbieter und amtliche Saisonmethodik
+vertieft; drei unterstützende Analysen. Erneut GitHub abgeglichen, fremde
+primäre Arbeitskopie unverändert erhalten. Produktionsabfrage ausschließlich
+lesend: fünf aktive Filter enthalten sieben Markenbezeichnungen mit stark
+abweichendem Zulauf. Keine lineare Markenhochrechnung behauptet. Vorhandene
+Markenrotation und Wiederanlaufgrenzen geprüft. Dauerhafte Produktgruppen,
+getrennte Sammelregeln und Beobachtungsperioden vorgeschlagen; 36 statt 24
+Monatsstatistiken mit ausdrücklich neu berechnetem Mehrbedarf. Bericht unter
+`docs/research/2026-11-07-vinted-analysis-seasonal-collection.md`.
+Keine Zusatzsammlung, Anbieterintegration oder automatische Saisonsteuerung
+eingerichtet; reine Dokumentprüfung.
+
+**Aktueller Kernnutzen und KI:** Nutzerbeispiel Adidas-Trainingsanzug mit
+30-Tage-Vergleich eingeordnet. Mehrjährige Saisonarchive als optionale
+Erweiterung zurückgestellt; für diese aktuelle Artikelbewertung nicht nötig.
+Auswertungszeitraum von Inseratalter und Aufbewahrung getrennt. KI für
+Bild-/Modellbestimmung und schwierige Vergleichbarkeit; Kennzahlen und
+Einkaufsgrenze im normalen Anwendungscode. Bei vollständig bekannten
+Merkmalen benötigt die Standard-Preisauswertung keine KI. Fachliche Grenzen
+zu tatsächlich gezahlten Preisen und fehlender rückwirkender Beobachtung
+festgehalten. Bericht unter
+`docs/research/2026-11-07-vinted-analysis-current-market-scope.md`.
+Keine Implementierung oder Änderung vorhandener Daten.
+
+**Einmaliger Startimport:** Nutzerfrage nach einmaliger Befüllung mit den
+letzten 30 Tagen geprüft. Ein initialer mehrseitiger Angebotsimport ist möglich,
+ein vollständiger historischer Monatsexport damit nicht belegt. Zwei öffentliche
+Adidas-Trainingsanzug-Katalogseiten lesend geprüft: HTTP 200, zusammen 189
+eindeutige Kandidaten, keine veröffentlichten Datumsfelder auf der ausgelesenen
+Artikelebene. Tatsächliche Zeitgrenze, tiefe Pagination und Vergleichbarkeit
+bleiben gesondert zu prüfen. Prozess Exitcode 0, privater Nachweis erhalten.
+Grenzen durch fehlende historische Preise und versteckte/gelöschte Inserate
+anhand Quelle und Code dokumentiert. Kein Datenbankimport oder Sammelauftrag
+eingerichtet; Dokumente gezielt formatiert und auf Unterschiede geprüft.
+
+**Gezielte Live-Analyse statt Vergleichsarchiv:** Nutzer präzisiert den
+AI-Search-Klick auf eine einzelne Carhartt-Fleecejacke. Vorhandenen Ablauf erneut
+gelesen; großes Archiv als Voraussetzung verworfen. Öffentliche konkrete
+Prentis-Detailseite direkt geprüft: HTTP 200, strukturiert `upload_date` mit
+`2 Wochen`, Prozess Exitcode 0. Katalogdatum und Detaildatum ausdrücklich
+unterschieden. Aktuelle Lücke: Parser lässt relative Altersangaben weg,
+Vergleichsstruktur enthält keine Datumsprüfung. Gezielte Live-Recherche,
+quellengebundene 30-Tage-Auswahl und kleiner Cache im aktuellen Konzept
+beschrieben; Einkaufsobergrenze darf Preisvergleich nicht verzerren.
+Keine vollständige rückwirkende Verkaufsstatistik zugesagt. Kein Produktcode,
+Schema oder bestehender Datenbestand verändert.
+
+**Prüfung und Grenzen:** Verlinkte Primärquellen am 7. November 2026 geprüft,
+Dokumente gezielt formatiert und auf Unterschiede kontrolliert. Keine bezahlten
+Zugänge, Anbieteranfragen oder Vergleichsläufe ausgelöst. Interne Prompts der
+kommerziellen Anbieter und tatsächliche Datenqualität bleiben unbestätigt.
+Nur Dokumentation; keine Anwendungstests oder Builds und keine Änderung am
+produktiven System.
+
 ## 2026-11-07 - Juna - Vollständige KI-Artikelrecherche zur Veröffentlichung freigeben
 
 **Freigabe:** Der Nutzer autorisiert Branch-Push, PR, erfolgreichen Merge und

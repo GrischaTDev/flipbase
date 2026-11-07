@@ -85,6 +85,14 @@ const aiSearchResult = {
     ],
     soldAverage: 73.33,
     askingAverage: null,
+    comparisonBasis: 'model',
+    marketWindow: {
+      days: 30,
+      checkedAt: '2026-11-06T12:00:00Z',
+      verifiedCount: 3,
+      undatedCount: 0,
+      excludedCount: 0,
+    },
     resale: { low: 65, high: 85, basis: 'sold', count: 3 },
   },
   model: 'gpt-6-luna',
@@ -168,6 +176,12 @@ for (const theme of ['light', 'dark'] as const) {
         ).toBeVisible();
         await expect(dialog.getByRole('spinbutton')).toHaveCount(0);
         await expect(dialog.getByText(/Preisabstand zum Einkauf:/)).toContainText('44,00');
+        await expect(dialog.getByText(/30-Tage-Auswahl nach Einstelldatum:/)).toContainText(
+          '3 bestätigt',
+        );
+        await expect(dialog.getByText(/Ø belegte Verkaufspreise/)).toContainText(
+          '30-Tage-Inserate',
+        );
         const modelSource = dialog.getByRole('link', { name: /Modellmerkmale beim Hersteller/ });
         await expect(modelSource).toHaveAttribute('href', 'https://www.nike.com/de/t/test');
         await expect(modelSource).toHaveAttribute('target', '_blank');
@@ -280,6 +294,7 @@ test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei feh
         analysis: {
           ...aiSearchResult.analysis,
           confidence: 'likely',
+          marketWindow: { ...aiSearchResult.analysis.marketWindow, verifiedCount: 0 },
           comparisons: [],
           resale: null,
           soldAverage: null,
@@ -323,6 +338,111 @@ test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei feh
   const source = await popup;
   await expect(source.getByText('Modellquelle', { exact: true })).toBeVisible();
   await source.close();
+});
+
+test('trennt Kategorievergleiche mit ungeklärtem Alter von bestätigten 30-Tage-Inseraten', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await fixture(page, new Map(), undefined, true);
+  let searches = 0;
+  await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+    if (route.request().postDataJSON().action === 'usage') {
+      await route.fulfill({ json: { stats: [] } });
+      return;
+    }
+    searches++;
+    await route.fulfill({
+      json: {
+        ...aiSearchResult,
+        listing: { ...aiSearchResult.listing, itemPrice: 35, totalPrice: null },
+        analysis: {
+          ...aiSearchResult.analysis,
+          modelName: '',
+          confidence: 'unknown',
+          evidence: 'Marke und Kategorie sind erkennbar, eine Modellnummer fehlt.',
+          comparisonBasis: 'category',
+          newPriceRange: null,
+          soldAverage: null,
+          askingAverage: searches === 1 ? null : 55,
+          resale: searches === 1 ? null : { low: 40, high: 70, basis: 'asking', count: 3 },
+          currentMarket: { low: 40, high: 70, basis: 'asking', count: 3, match: 'category' },
+          marketWindow: {
+            ...aiSearchResult.analysis.marketWindow,
+            verifiedCount: searches === 1 ? 1 : 3,
+            undatedCount: searches === 1 ? 2 : 0,
+            excludedCount: 1,
+          },
+          comparisons: [
+            { price: 40, status: 'within_window', label: '2 Wochen' },
+            { price: 55, status: 'unknown', label: '1 Monat' },
+            { price: 70, status: 'unknown', label: null },
+            { price: 90, status: 'outside_window', label: '3 Monate' },
+          ].map((comparison, index) => ({
+            title: `Vergleichbarer Artikel ${index + 1}`,
+            url: `https://www.vinted.de/items/${5100 + index}`,
+            kind: 'asking',
+            price: comparison.price,
+            evidence: 'Gleiche Marke, Kategorie und vergleichbarer Zustand; Modell unbekannt.',
+            match: 'category',
+            sameVariant: false,
+            listingDate: {
+              status: searches > 1 && index < 3 ? 'within_window' : comparison.status,
+              earliest: comparison.status === 'within_window' ? '2026-10-16T12:00:00Z' : null,
+              latest: comparison.status === 'within_window' ? '2026-10-23T12:00:00Z' : null,
+              label: searches > 1 && index < 3 ? '2 Wochen' : comparison.label,
+              checkedAt: '2026-11-06T12:00:00Z',
+              source: 'vinted_listing',
+            },
+          })),
+          research: {
+            ...aiSearchResult.analysis.research,
+            used: {
+              summary: 'Ähnliche Artikel werden für 40 bis 70 Euro angeboten.',
+              limitations: [],
+              completed: true,
+              sources: [],
+            },
+          },
+        },
+      },
+    });
+  });
+  await page.goto('/vinted-bot');
+  await page.getByRole('button', { name: 'AI Search', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'AI Search', exact: true });
+  await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+  await expect(
+    dialog.getByRole('heading', { name: 'Modell unbekannt', exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByText('Vergleichsbasis: ähnliche Artikel derselben Marke und Kategorie'),
+  ).toBeVisible();
+  await expect(dialog.getByText(/Innerhalb der letzten 30 Tage eingestellt/)).toHaveText(
+    'Innerhalb der letzten 30 Tage eingestellt · Quelle: 2 Wochen',
+  );
+  await expect(dialog.getByText(/Einstelldatum ungeklärt · keine 30-Tage-Zuordnung/)).toHaveCount(
+    2,
+  );
+  await expect(dialog.getByText(/Älter als 30 Tage · nicht in der Auswertung/)).toBeVisible();
+  await expect(dialog.getByText(/Aktuelle Angebotsspanne:/)).toContainText('40,00');
+  await expect(dialog.getByText(/Aktuelle Angebotsspanne:/)).toContainText('70,00');
+  await expect(
+    dialog.getByText('Einschließlich Inseraten ohne bestätigtes Einstelldatum'),
+  ).toBeVisible();
+  await expect(dialog.getByText(/Ø geforderte Gebrauchtpreise/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+  await expect(dialog.getByText(/Ø geforderte Gebrauchtpreise/)).toContainText('30-Tage-Inserate');
+  await expect(
+    dialog.getByRole('region', { name: 'Wiederverkaufsbewertung' }).getByText('Angebotsspanne:'),
+  ).toContainText('40,00');
+  await expect(dialog.getByText(/3 geforderte Angebotspreise/)).toContainText(
+    'Inserate innerhalb der letzten 30 Tage eingestellt',
+  );
+  await expect(dialog.getByText('Artikelpreis:')).toContainText('35,00');
+  await expect(dialog.getByText(/Einkauf inkl. gemeldetem Käuferschutz:/)).toHaveCount(0);
+  await expect(dialog.getByText(/Preisabstand zum Einkauf:/)).toHaveCount(0);
+  await expect(dialog.getByText(/15–30 % Abschlag/)).toHaveCount(0);
 });
 
 async function fixture(
