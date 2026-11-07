@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Bearbeiten ohne Scheinkonflikt, Relist-Modal ohne Rückfrage
+
+**Anlass:** Beim Bearbeiten einer Jeans meldete Flipbase „Das Inserat wurde inzwischen bei
+Vinted geändert“, obwohl dort nichts geändert war. Außerdem fragte das Relist-Modal beim
+Schließen „Entwurf verlassen?“, obwohl es keinen Entwurf gibt.
+
+**Ursache und Umsetzung:** Das Bearbeiten-Formular übernahm die Beschreibung aus dem
+Inseratsinhalt, der Vergleichsstand für das Speichern dagegen den Text aus dem Kontoabgleich.
+Wichen beide ab, galt die unveränderte Beschreibung als geändert und wurde gegen Vinted
+verglichen. Das Formular nutzt jetzt Titel und Beschreibung desselben Vergleichsstands. Das
+Relist-Modal schließt ohne Rückfrage; Vorlage und geplante Relists behalten sie.
+
+**Prüfung:** Neuer Komponententest stellt die Meldung nach und besteht nach der Korrektur;
+Relist-Browsertest in vier Varianten lokal bestanden. Vorabcheck im Commit.
+
 ## 2026-11-07 - Juna - Landingpage zur Veröffentlichung vorbereiten
 
 **Freigabe:** Der Nutzer autorisiert Push, PR, erfolgreichen Merge und

@@ -1717,8 +1717,8 @@ for (const width of [390, 1440])
           page.locator('[data-modal-surface]'),
         );
         await page.keyboard.press('Escape');
-        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
         await expect(editor).toHaveCount(0);
+        await expect(page.getByRole('dialog', { name: 'Entwurf verlassen?' })).toHaveCount(0);
         await wardrobe
           .getByRole('button', {
             name: 'Meine Schuhe als Vorlage für neues Inserat verwenden',
@@ -1805,7 +1805,8 @@ for (const width of [390, 1440])
           200,
         );
         await page.keyboard.press('Escape');
-        await page.getByRole('button', { name: 'Seite verlassen', exact: true }).click();
+        await expect(editor).toHaveCount(0);
+        await expect(page.getByRole('dialog', { name: 'Entwurf verlassen?' })).toHaveCount(0);
         const createdAt = new Date().toISOString();
         let plannedDraft = {
           id: '20',
