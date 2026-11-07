@@ -62,6 +62,8 @@ returns jsonb language plpgsql volatile security invoker set search_path='' as $
 declare v_grant public.marketplace_local_extension_grants; v_job public.marketplace_listing_jobs;
 begin
   v_grant:=public.marketplace_local_listing_authorized(p_workspace_id,p_connection_id,p_token_hash);
+  -- Betreiber-Not-Aus: keine neuen Aufträge, solange Vinted abgeschaltet ist.
+  if not public.platform_feature_enabled('vinted') then return null; end if;
   perform public.marketplace_expire_local_listing_attempts(p_workspace_id,p_connection_id);
   update public.marketplace_listing_jobs job set state='cancelled',error_code='authorization_revoked'
     where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state in ('queued','paused','claimed') and not public.marketplace_listing_job_valid(job);

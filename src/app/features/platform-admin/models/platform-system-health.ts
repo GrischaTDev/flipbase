@@ -11,6 +11,13 @@ export interface PlatformSystemHealth {
     readonly lastCycleError: string | null;
     readonly vintedLastSuccessAt: string | null;
   } | null;
+  readonly pushWorker: {
+    readonly reportedAt: string;
+    readonly enabled: boolean;
+    readonly waiting: number;
+    readonly retry: number;
+    readonly configurationError: number;
+  } | null;
   readonly storage: {
     readonly reportedAt: string;
     readonly totalBytes: number;
@@ -59,6 +66,15 @@ export function feedBotStatus(health: PlatformSystemHealth, now: number): Health
   if (!bot) return NEVER;
   if (ageMs(bot.reportedAt, now) > SERVICE_STALE_AFTER_MS) return STALE;
   if (bot.lastCycleError) return { label: 'Läuft mit Hinweis', tone: 'caution' };
+  return OK;
+}
+
+export function pushWorkerStatus(health: PlatformSystemHealth, now: number): HealthStatus {
+  const push = health.pushWorker;
+  if (!push) return NEVER;
+  if (ageMs(push.reportedAt, now) > SERVICE_STALE_AFTER_MS) return STALE;
+  if (!push.enabled) return { label: 'Ausgeschaltet', tone: 'neutral' };
+  if (push.configurationError > 0) return { label: 'Konfigurationsfehler', tone: 'critical' };
   return OK;
 }
 
@@ -113,6 +129,8 @@ export function parsePlatformSystemHealth(value: unknown): PlatformSystemHealth 
   const worker = record(root['marketplaceWorker']);
   const bot = record(root['feedBot']);
   const storage = record(root['storage']);
+  const push = record(root['pushWorker']);
+  const pushReported = text(push?.['reportedAt']);
   const operations = record(root['operationsLastHour']) ?? {};
   const ips = record(root['cloudIps']) ?? {};
   const workerHeartbeat = text(worker?.['heartbeatAt']);
@@ -133,6 +151,16 @@ export function parsePlatformSystemHealth(value: unknown): PlatformSystemHealth 
             requestBudget: count(bot['requestBudget']),
             lastCycleError: text(bot['lastCycleError']),
             vintedLastSuccessAt: text(bot['vintedLastSuccessAt']),
+          }
+        : null,
+    pushWorker:
+      push && pushReported
+        ? {
+            reportedAt: pushReported,
+            enabled: push['enabled'] === true,
+            waiting: count(push['waiting']),
+            retry: count(push['retry']),
+            configurationError: count(push['configurationError']),
           }
         : null,
     storage:
