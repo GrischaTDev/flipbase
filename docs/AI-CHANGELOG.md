@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Zeitraum der Carhartt-Suchergebnisse direkt prüfen
+
+**Nutzerfrage:** Ob die 960 Treffer praktisch die jüngsten Inserate sind und der
+Zeitraum zunächst mit wenigen gezielten Prüfungen eingegrenzt werden kann.
+
+**Grundlage:** Gleicher eigener Aufgabenbranch, sauberer Stand geprüft und GitHub
+frisch abgerufen (`origin/master` weiterhin `25eb50a4`). Eine unabhängige fachliche
+Gegenprüfung ohne zusätzliche Vinted-Abrufe. Keine Veröffentlichung oder Änderung
+an laufenden Sammlern.
+
+**Nachweis:** Öffentliche Carhartt-Fleece-Suche wie zuvor mit 96 Treffern je Seite.
+Fünf Katalogseiten (1/5/7/8/10) und zwölf ausgewählte Detailaufrufe mit den tatsächlich
+beobachteten vollständigen Inserat-URLs geprüft. Seite 1: 29 Minuten/1 Tag, zusätzlich
+ein beworbener Treffer mit 2 Stunden und ein auffällig niedriger Artikel-ID-Treffer
+mit 22 Stunden. Seite 5: 1/2 Wochen; Seite 7: 3/4 Wochen; Seite 8: 4/5 Wochen;
+Seite 10: 6/8 Wochen. Kein Beleg für drei oder vier Monate alte Treffer in dieser
+Stichprobe, wohl aber eindeutig für mehr als 30 Tage. Dasselbe Inserat verschob
+sich zwischen Seite 7 und 8; beim Sammeln bleibt Doppelerkennung erforderlich.
+
+**Einordnung:** Eine breite aktuelle Angebotsstatistik braucht keine pauschale
+Einzel-Datierung aller 1.000 Treffer. Kleine Altersstichproben und gezielte Verdichtung
+am gewünschten Zeitraumübergang liefern schnell eine brauchbare zeitliche Orientierung.
+Sie beweisen weder ein exaktes 30-Tage-Fenster sämtlicher Treffer noch vollständig
+chronologische Sortierung. „4 Wochen“ bleibt wegen der gerundeten Quelle eine
+mehrdeutige 30-Tage-Grenze. 960 Suchtreffer sind kein Ereignis-/Verkaufsprotokoll.
+
+**Prüfung:** Beide lokalen Deno-Liveproben Exitcode 0, 17 öffentliche HTTP-Abrufe
+insgesamt, keine KI-Kosten oder Bilderdownloads. Datumsbelege stammen direkt aus
+passenden RSC-Artikelattributen; die zusätzliche Web-Leseoberfläche konnte die zwei
+älteren Inserat-URLs nicht öffnen und wird nicht als Nachweis ausgegeben. Private
+Nachweise `bulk-recency-proof.json` und `bulk-recency-boundary-proof.json` im
+bestehenden Aufgabenordner. Nur Dokumentation geändert, gezielt formatiert und
+Diff geprüft; keine Anwendungstests oder Builds für diesen Nachtrag.
+
 ## 2026-11-07 - Juna - Breite Vergleichsbasis für Artikelpreise vorbereiten
 
 **Nutzerkorrektur:** Wenige ausgewählte Vergleichsangebote erfüllen den Auftrag

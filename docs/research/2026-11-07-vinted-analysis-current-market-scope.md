@@ -52,6 +52,54 @@ Quelldaten. Eine neue Auftrags-/Lease-Struktur und die UI-Anbindung sind noch
 nicht umgesetzt. Die bestehende Drei-Minuten-Kostenreservierung ist keine
 geeignete Warteschlange für diesen Ablauf.
 
+## Tatsächlich beobachteter Zeitraum der 960 Carhartt-Treffer
+
+Auf die Nutzerfrage zur Altersprüfung wurde dieselbe Carhartt-Fleece-Suche am 7. November um etwa 15:00 UTC nochmals öffentlich gelesen. Je ausgewählter Seite
+wurden Anfang und Ende mit ihren vollständigen Inserat-URLs geöffnet; auf Seite 1
+zusätzlich ein beworbener und ein Treffer mit auffällig niedriger Artikelkennung.
+
+| Suchseite | Alter am Anfang | Alter am Ende |
+| --------- | --------------- | ------------- |
+| 1         | 29 Minuten      | 1 Tag         |
+| 5         | 1 Woche         | 2 Wochen      |
+| 7         | 3 Wochen        | 4 Wochen      |
+| 8         | 4 Wochen        | 5 Wochen      |
+| 10        | 6 Wochen        | 8 Wochen      |
+
+Die Werte sind die tatsächlichen gerundeten „Hochgeladen“-Angaben in den
+Detailseiten, keine Umrechnung aus Artikelkennungen oder Fotozeitstempeln.
+Der beworbene Treffer auf Seite 1 war zwei Stunden alt; der Eintrag mit niedriger
+Kennung war laut Quelle erst 22 Stunden alt. Kennungen allein taugen damit nicht
+zur belastbaren Datierung. Zwischen den Abrufen erschien dasselbe Inserat am Ende
+von Seite 7 und am Anfang von Seite 8; Doppelerkennung bleibt erforderlich.
+
+Beispielquellen:
+
+- [Seite 7: 3 Wochen](https://www.vinted.de/items/10364815945-veste-carhartt-prentis-liner-sherpa-ecru-et-noir-taille-m)
+- [Übergang Seite 7/8: 4 Wochen](https://www.vinted.de/items/10269413699-carhartt-wip-printed-jacquard-fleece-jacket)
+- [Seite 10: 6 Wochen](https://www.vinted.de/items/10115087491-giubbino-uomo-carhartt)
+- [Ende Seite 10: 8 Wochen](https://www.vinted.de/items/9924709195-carhartt-wip-prentis-liner-noir-polaire-sherpa)
+
+Damit ist die Annahme widerlegt, alle 960 Treffer dieser Abfrage lägen innerhalb
+von 30 Tagen. Drei bis vier Monate alte Treffer wurden in dieser Stichprobe
+hingegen nicht gefunden. Die beobachteten Positionen wirken grob zeitlich geordnet;
+aus zwölf Detailabrufen folgt keine garantierte Reihenfolge aller übrigen Treffer.
+
+Für eine schnelle breite Angebotsorientierung ist die vorgeschlagene punktuelle
+Altersprüfung angemessen. Der Übergang von ungefähr vier Wochen liegt hier um
+Seite 7/8; das ist keine bestätigte Auswahl der ersten 672 Artikel innerhalb von
+30 Tagen. Eine schnelle Analyse kann den beobachteten Zeitraum und den geprüften
+Stichprobenumfang ausweisen. Nur eine ausdrücklich exakte 30-Tage-Zuordnung benötigt
+weitergehende Quellennachweise; die gerundete Angabe „4 Wochen“ bleibt dabei selbst
+mehrdeutig. Eine pauschale lange Einzelprüfung jedes Artikels ist für eine grobe
+aktuelle Marktübersicht nicht Voraussetzung.
+
+17 öffentliche HTTP-Abrufe (fünf Suchseiten, zwölf Detailaufrufe), beide Prüfskripte
+Exitcode 0, keine KI-Aufrufe und keine Produktänderung. Private Nachweise:
+`bulk-recency-proof.json`, `bulk-recency-boundary-proof.json`. Die ergänzende
+Web-Leseoberfläche konnte zwei URLs nicht öffnen; die Tabellenangaben beruhen auf
+den erfolgreichen direkten, begrenzten HTML-Abrufen mit dem vorhandenen Parser.
+
 ## Empfehlung für diesen konkreten Umfang
 
 **Weitere Eingrenzung des Nutzers:** Der Einstieg ist der AI-Search-Klick auf
