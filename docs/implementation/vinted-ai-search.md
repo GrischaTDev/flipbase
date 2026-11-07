@@ -1,6 +1,6 @@
 # AI Search im Vinted-Feed
 
-Stand: 06.11.2026. Erste Stufe ausschließlich für Plattformadmins mit gültigem
+Stand: 07.11.2026. Erste Stufe ausschließlich für Plattformadmins mit gültigem
 Zugang zum ausgewählten Arbeitsbereich. Der vorhandene serverseitige
 `OPENAI_API_KEY` wird unverändert verwendet.
 
@@ -8,41 +8,66 @@ Zugang zum ausgewählten Arbeitsbereich. Der vorhandene serverseitige
 
 „AI Search“ auf einer Feed-Karte öffnet den gemeinsamen Dialog. Erst nach der
 Modellauswahl und dem Klick auf „Suchen“ startet die Recherche. Der Browser sendet nur Arbeitsbereich, Inserat-ID und Modell. Die
-Edge Function `vinted-ai-search` liest Titel, vorhandene Beschreibung, Preise,
-Marke, Größe, Zustand und bis zu fünf unterschiedliche HTTPS-Fotos von
-`*.vinted.net` aus dem gespeicherten Feed-Inserat. Fehlende Beschreibung und
-Bildanzahl werden im Ergebnis sichtbar; nicht vorhandene Angaben werden nicht
-ergänzt. Inserate mit anderer Währung als EUR sind zunächst ausgeschlossen.
+Edge Function `vinted-ai-search` liest die gespeicherten Inseratdaten und lädt
+anschließend die öffentliche Vinted-Inseratseite ohne Anmeldung nach (maximal
+sieben Sekunden, drei MB, keine Weiterleitungen). Aus den React-Datensätzen
+werden ausschließlich Beschreibung und Fotos mit passender Inseratkennung
+übernommen. Fremde Empfehlungen, Verkäuferdaten und ausführbare Scripts werden
+nicht übernommen. Bei gesperrter oder veränderter Seite bleiben die gespeicherten
+Daten erhalten; der Dialog kennzeichnet den fehlgeschlagenen Detailabruf.
 
-Das Modell identifiziert die offizielle Modellvariante und recherchiert
-Hersteller, bekannte Shops und Gebrauchtangebote. Vergleichspreise benötigen
-eine konkrete, in der API-Websuche enthaltene HTTPS-Quelle, EUR und dieselbe
-Variante. Mehrere Query-Links derselben Seite zählen nur einmal. Hersteller-
-und Shop-Neupreise, belegte Verkaufspreise und Angebotspreise werden getrennt
-ausgegeben. Ein „verkauft“-Status belegt nicht den tatsächlich gezahlten Preis.
-Die Erkennung und Zuordnung bleiben KI-Ergebnisse, keine Echtheitsprüfung.
+Die Modellbestimmung erhält Titel, Beschreibung (maximal 5.000 Zeichen), Marke,
+Größe, Zustand, Inserat-URL, Artikelpreis und gemeldeten Gesamtpreis einschließlich
+Käuferschutz sowie **alle verfügbaren sicheren Fotos** (bis zur Kataloggrenze von
+100). Die frühere Begrenzung auf fünf entfällt. Die Anzahl im Ergebnis bezeichnet
+die tatsächlich übergebenen Fotos. Fehlen Bilder oder Beschreibung, werden sie
+nicht erfunden. EUR bleibt die unterstützte Währung.
 
-## Gewinnspanne und Ampel
+Die Recherche besteht aus drei ausdrücklich getrennten Responses-Anfragen mit
+dem vom Nutzer gewählten Modell:
 
-Eine Spanne entsteht nur bei eindeutiger Modellzuordnung und mindestens drei
-vergleichbaren Gebrauchtpreisen. Belegte Verkäufe haben Vorrang. Verwendet
-werden das untere und obere Quartil der Stichprobe; bei kleinen Stichproben
-wird nach außen gerundet. Sind nur Angebote vorhanden, wird die Spanne mit
-15–30 % Abschlag als Angebots-Schätzung ausgewiesen. Diese erste Heuristik ist
-noch nicht anhand realer Wiederverkäufe kalibriert.
+1. Modellbestimmung anhand sämtlicher Fotos, sichtbarer Etiketten und Merkmale,
+   mit Webabgleich und begründeter Unsicherheit.
+2. Neupreisrecherche bei Hersteller, Shops und passenden Preisvergleichsplattformen
+   einschließlich Idealo. Ausgelaufene Varianten und ähnliche Nachfolger bleiben
+   unterscheidbar.
+3. Gebrauchtmarktrecherche mit getrennten Suchen nach laufenden und verkauften
+   Angeboten, insbesondere Vinted, eBay und Kleinanzeigen; dazu eine begründete
+   Einschätzung zum konkreten Einkauf.
 
-Abgezogen werden mindestens der Artikelpreis beziehungsweise der höhere
-gemeldete Gesamtpreis einschließlich Käuferschutz, eingegebener Einkaufsversand,
-prozentuale Verkaufsgebühren und weitere Kosten einschließlich Verkaufsversand.
-Änderungen dieser Kosten rechnen lokal und lösen keine neue API-Anfrage aus.
-Der ausgewiesene Überschuss gilt vor Steuern.
+Die Marktanfragen laufen nach der Modellbestimmung parallel und erhalten deren
+Ergebnis. Jede Teilrecherche muss das Webwerkzeug verwenden. Modellbegründung,
+Marktzusammenfassung, konkrete Lücken und bis zu sechs benannte Quellen pro
+Bereich bleiben auch ohne passenden Preis sichtbar. Quellen müssen in den echten
+Webwerkzeugausgaben oder URL-Zitaten derselben Recherche vorkommen. Interne
+Zitiermarker werden entfernt; URLs erscheinen als bedienbare Links.
 
-- Grün: belegte Verkäufe und bereits am unteren Ende mindestens 20 EUR sowie
-  30 % Überschuss auf den gesamten kalkulierten Einkauf.
-- Gelb: positiver Spielraum, der diese Bedingungen nicht erreicht, oder eine
-  ausschließlich aus Angebotspreisen abgeleitete Schätzung.
-- Rot: selbst das obere Ende liefert keinen positiven Überschuss.
-- Ohne ausreichende Daten oder mit ungültigen Kosten: keine Ampel.
+Preisvergleiche benötigen eine gefundene HTTPS-Quelle und EUR. Ähnliche Varianten
+bleiben sichtbar gekennzeichnet, fließen aber nicht in Durchschnittswerte oder
+die rechnerische Spanne ein. Das untersuchte Inserat selbst zählt nicht als
+Vergleich, auch nicht unter einer anderen Vinted-Länderdomain. Trackingvarianten
+werden mit gefundenen Quellen abgeglichen; dieselbe Produktseite zählt nur einmal.
+Hersteller-/Shopneupreise, tatsächlich belegte Gebrauchtverkäufe und geforderte
+Gebrauchtpreise bleiben getrennt. Ein „verkauft“-Status belegt keinen tatsächlich
+gezahlten Preis. Erkennung, Preiszuordnung und textliche Bewertung bleiben
+KI-Ergebnisse, keine Echtheitsprüfung oder unabhängige Preisverifikation.
+
+## Wiederverkaufsbewertung
+
+Die Analyse bewertet Modell, Zustand, Marktlage und den konkreten Einkauf anhand
+der recherchierten Belege. Die manuellen Versand-, Gebühren- und Zusatzkostenfelder
+entfallen. Einkauf einschließlich gemeldetem Käuferschutz bleibt sichtbar; der
+Preisabstand ist ausdrücklich vor Versand, Verkaufsgebühren und Steuern und wird
+nicht als Gewinn ausgegeben. Die frühere Gewinnampel entfällt im Dialog.
+
+Eine zusätzliche rechnerische Spanne entsteht bei identifiziertem oder begründet
+wahrscheinlichem Modell und mindestens drei passenden Gebrauchtpreisen. Bei
+wahrscheinlicher Zuordnung steht ausdrücklich „vorläufig“. Unbekannte Modelle
+und bloß ähnliche Vergleiche erlauben keine solche Spanne. Belegte Verkäufe haben
+Vorrang; verwendet werden unteres und oberes Quartil. Reine Angebote erhalten
+weiterhin 15–30 % Abschlag. Diese Heuristik ist nicht anhand realer Wiederverkäufe
+kalibriert. Eine textliche, als solche begründete KI-Schätzung auf eingeschränkter
+Vergleichsbasis ersetzt keinen rechnerisch belegten Marktwert.
 
 ## Modelle und Kosten
 
@@ -50,11 +75,23 @@ Vor jeder Suche stehen `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol` und
 `gpt-6-astra` zur Auswahl. Luna bleibt vorausgewählt. Das Öffnen und Wechseln
 der Auswahl erzeugt keine Analyse; erst „Suchen“ startet den gewählten Lauf.
 Bereits getestete Modelle bleiben im Dialog zum Vergleich von Identifikation,
-Spanne, Tokens, Webaufrufen und Kosten erhalten. Alle verwenden dieselben Bilder und Recherchegrenzen:
-`reasoning.effort=low`, maximal 3 Webwerkzeugaufrufe, 3.200 Ausgabetokens,
-85 Sekunden Anbieterzeit und `store=false`. Titel und Beschreibung sind auf
-300 beziehungsweise 5.000 Zeichen begrenzt. Es gibt keine automatischen
-Wiederholungen und keine automatische Eskalation auf das größere Modell.
+Spanne, Tokens, Webaufrufen und Kosten erhalten. Die Anfragen verwenden
+`reasoning.effort=medium`, hohen Suchkontext und beantragte Werkzeugbudgets von
+4/5/6 sowie Ausgabelimits von 2.600/4.800/4.800 Tokens. Die tatsächlichen
+Werkzeugausgaben werden gezählt; die beantragten Budgets sind kein Ersatz für
+diesen Verbrauchsnachweis. Alle drei Anfragen teilen sich 85 Sekunden ab Beginn
+der Modellbestimmung und verwenden `store=false`. Mit dem begrenzten Detailabruf
+bleibt die vorhandene Servergrenze von 95 Sekunden bestehen. Es gibt keine
+automatischen Wiederholungen oder Modellwechsel.
+
+Unvollständige Modellbestimmung führt zum vorhandenen Analysefehler; gemeldeter
+Verbrauch bleibt erhalten. Eine gescheiterte Marktrecherche erhält einen sichtbaren
+Teilfehler und unterdrückt erfolgreiche andere Ergebnisse nicht. Solche Teilergebnisse
+werden nicht als vollständiger 24-Stunden-Cache wiederverwendet. Vollständig
+gemeldete Tokens werden über alle Anfragen addiert. Fehlt bei einer abgerissenen
+Anfrage der Verbrauch, bleiben Gesamttokens und Gesamtkosten unbekannt; bekannte
+Werkzeugausgaben werden weiter erfasst. Unbekannte Teilkosten werden nicht als
+kostenlos behandelt.
 
 Die [OpenAI-Preisliste](https://developers.openai.com/api/docs/pricing) und die
 [Luna-Modellseite](https://developers.openai.com/api/docs/models/gpt-6-luna)
@@ -130,7 +167,7 @@ Edge-Fälle sind im bestehenden Marketplace-Deno-Job registriert; die
 Änderungsauswahl aktiviert diesen Job für den neuen Funktionsordner.
 SQL-Fälle laufen mit der bestehenden Datenbanksuite. Die neuen Browserfälle
 stehen in der bereits registrierten Feed-Datei und prüfen 320/390/834/1440 px,
-Hell/Dunkel, Maus/Touch, AXE, Ladezustand, Adminsichtbarkeit, lokale Kostenrechnung,
+Hell/Dunkel, Maus/Touch, AXE, Ladezustand, Adminsichtbarkeit, bedienbare Quellen ohne Kostenformular,
 Modellvergleich, Escape/Rückfokus und verspätete Antworten nach dem Schließen.
 Alle Entwicklungsdaten und Anbieterantworten dieser Prüfungen sind synthetisch.
 
@@ -142,3 +179,26 @@ erforderlich. Erst der anschließende Admin-Pilot mit echten freigegebenen
 Artikeln liefert belastbare Werte für Erkennungsqualität, Laufzeit, Trefferquote
 und Durchschnittskosten. Der Standard ist ein kostengünstiger Startkandidat;
 ein nachgewiesener Qualitätsvorteil eines Modells wird noch nicht behauptet.
+
+## Nachweis mit dem gemeldeten Carhartt-Inserat am 07.11.2026
+
+Beim [gemeldeten Inserat](https://www.vinted.de/items/10693973187-giacca-carhartt)
+enthielt der Feed ein Bild ohne Beschreibung, die öffentliche Detailseite dagegen
+sechs Bilder und den italienischen Beschreibungstext. Der begrenzte Detailparser
+hat beides auch auf dem bestehenden Server gelesen. Ein reservierter Pilotlauf
+mit dem vorhandenen Serverzugang und `gpt-6-astra` erfasste Modellbestimmung sowie
+beide Marktbereiche erfolgreich in 82 Sekunden. Ergebnis: wahrscheinlich Carhartt
+WIP Prentis Liner, Wax/Wall; acht konkrete Neu-/Gebrauchtvergleiche, sämtlich mit
+Variantenabweichung gekennzeichnet. Keine tatsächlich gezahlten Gebrauchtpreise
+belegt. Textliche Schätzung 55–75 EUR ausdrücklich aus eingeschränkt passenden
+Angebotspreisen; keine exakte Vergleichsspanne und keine Gewinnbehauptung.
+
+Der Pilot meldete 135.029 Eingabe-, 4.755 Ausgabetokens und 18 Werkzeugausgaben,
+geschätzt 1,76804 USD. Reservierung und Verbrauch wurden über den bestehenden
+serverseitigen Erfassungsweg gespeichert. Schlüssel blieben im vorhandenen
+Functions-Container. Kein Funktionscode wurde produktiv ersetzt. Dieser einzelne
+Pilot ist kein allgemeiner Qualitäts-, Kosten- oder Laufzeitdurchschnitt; das
+Zeitbudget ist knapp. Anschließend wurde die Quellenliste auf explizit benannte,
+gegen echte Werkzeugquellen geprüfte Belege begrenzt; dieser Ausgabezusatz ist
+separat synthetisch geprüft. Private Protokolle:
+`C:/Users/Grisc/.codex/tmp/flipbase-feed-ai-research/`.

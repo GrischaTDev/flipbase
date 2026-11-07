@@ -1,5 +1,73 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Artikelrecherche im Vinted-Feed vervollständigen
+
+**Auftrag und Ursache:** Unbrauchbare AI-Search-Ergebnisse mit fehlenden
+Preisvergleichen, unbedienbaren Textzitaten und unerwünschtem Kostenformular
+korrigieren. Sauberen eigenen Zweig vom frisch abgerufenen `origin/master`
+(`45362095`) in getrennter Arbeitskopie begonnen; fremde ungesicherte Relist-
+Arbeit und deren Zweige unverändert erhalten. Der belegte lokale Hauptzweig
+bleibt unangetastet. Beim konkret gemeldeten Carhartt-Inserat lagen im Feed nur
+ein Bild und keine Beschreibung, öffentlich dagegen sechs Bilder und Text.
+Die bisherige Funktion sendete zudem höchstens fünf Bilder und begrenzte die
+gesamte Recherche auf drei Werkzeugaufrufe.
+
+**Änderung:** Öffentliche Inseratdetails begrenzt und ohne Anmeldung nachladen,
+nur Beschreibung und Fotos derselben Inseratkennung übernehmen; bei Ausfall
+Feed-Daten erhalten und die Lücke sichtbar machen. Modellbestimmung erhält alle
+verfügbaren sicheren Bilder. Modellidentifikation, Hersteller-/Shop-/Idealo-
+Neupreise und Vinted-/eBay-/Kleinanzeigen-Gebrauchtmarkt als drei getrennte
+Webrecherchen mit gemeinsamem Zeitbudget. Begründung, Unsicherheiten und echte
+anklickbare Quellen bleiben auch ohne exakte Preisvergleiche sichtbar. Ähnliche
+Varianten werden angezeigt, aber aus rechnerischen Spannen ausgeschlossen.
+Eigene Anzeige und Trackingduplikate zählen nicht als Vergleich. Wahrscheinliche
+Modelle erlauben bei ausreichenden passenden Belegen eine ausdrücklich vorläufige
+Spanne. Manuelle Versand-/Gebührenfelder und Gewinnampel entfallen; Preisabstand
+erscheint vor unbekannten Kosten. Verbrauch aller Teilanfragen zusammenfassen;
+gemeldete Teilkosten erhalten, unbekannte Gesamtkosten nicht als null behandeln.
+Neue Promptversion verhindert die Wiederverwendung alter unvollständiger Analysen.
+Keine Schemaänderung, neue Abhängigkeit oder produktive Funktionsausrollung.
+
+**Echter Pilot:** Mit bestehendem Serverzugang, ordentlicher Reservierung und
+Verbrauchsspeicherung das gemeldete Inserat mit Astra untersucht. Sechs Fotos,
+Beschreibung, wahrscheinlicher Carhartt WIP Prentis Liner Wax/Wall und acht
+konkrete, als abweichend gekennzeichnete Neu-/Gebrauchtvergleiche. Beide
+Marktrecherchen erfolgreich; 82 Sekunden, 18 Werkzeugausgaben, 135.029 Eingabe-
+und 4.755 Ausgabetokens, geschätzt 1,76804 USD. Keine tatsächlich gezahlten
+Verkaufspreise belegt; textliche Schätzung 55–75 EUR ausdrücklich auf
+Angebotsbasis mit Einschränkungen. Schlüssel blieben im bestehenden Container;
+kein produktiver Funktionscode ersetzt. Anschließend benannte Quellen gegen die
+jeweiligen Werkzeugbelege abgesichert; dieser Ausgabezusatz separat synthetisch
+geprüft. Ein Pilot belegt keinen allgemeinen Qualitäts- oder Laufzeitdurchschnitt.
+
+**Prüfstand:** Neue Regressionen zu sechs Fotos, fremden Inseratdaten, gesperrten
+und übergroßen Antworten, Quellenabgleich, Teilabbrüchen, Verbrauch sowie
+vorläufiger Modellzuordnung. Browsernachweis prüft Quellenöffnung, fehlende
+Details, Teilfehler, Adminsichtbarkeit und Modellvergleich ohne Kostenformular.
+Die erste statische Prüfvorschau blieb vor dem Feed an Start-/Updategrenzen
+hängen; auf den regulären, während der Tests ruhenden Entwicklungsserver
+gewechselt. Der neue Popupfall benötigte die Netzwerkroute am Browserkontext,
+weil eine Seitenroute die erste Popupnavigation nicht erfasst. Keine
+Anwendungsprüfung abgeschwächt.
+
+**Nachweise und Grenze:** Node 22 und gesperrte Abhängigkeiten; gezielte
+Formatierung, `npm run preflight:plan` und tatsächlicher `npm run preflight`
+erfolgreich, einschließlich globalem Format/Lint, Typen, Suite-Audit, 155
+Skriptfällen, sechs Modell- und 27 Angular-/Servicefällen sowie Angular-
+Vorlagenbau. Testorchestrierung acht Fälle erfolgreich, drei bestehende
+Unix-Signalfälle unter Windows regulär ausgelassen. Zusätzlich 22 Deno-Fälle
+mit CI-Version 2.9.7 erfolgreich. Zehn endgültige Browserfälle erfolgreich:
+320/390/834/1440 Pixel, Hell/Dunkel, Maus/Touch, AXE ohne Verstöße, echte
+Popupöffnung einer synthetischen Quelle, Teilfehler und verspätete Antworten.
+Vorschauen visuell geprüft. Bestehende Warnungen zu ungenutzten Kleinanzeigen-
+Imports, Baugröße und `pako` bleiben bestehen. Der lokale Entwicklungsnachweis
+ersetzt nicht die ausgewählten GitHub-Prüfungen für vollständige Marketplace-/
+Edge-Integration, Migrations-/Datenbankverträge und Browsergruppen. Diese bleiben
+vor einem Merge offen. Kein Push, PR, Merge oder produktiver Codeaustausch.
+Temporäre Pilotdateien auf dem Server und im Container entfernt.
+Ablauf und Pilot in [AI Search](implementation/vinted-ai-search.md), private
+Protokolle unter `C:/Users/Grisc/.codex/tmp/flipbase-feed-ai-research/`.
+
 ## 2026-11-07 - Juna - Landingpage zur Veröffentlichung vorbereiten
 
 **Freigabe:** Der Nutzer autorisiert Push, PR, erfolgreichen Merge und

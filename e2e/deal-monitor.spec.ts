@@ -44,6 +44,29 @@ const aiSearchResult = {
     modelName: 'Nike Air Test 42',
     confidence: 'exact',
     evidence: 'Modellnummer auf Etikett und Herstellerseite stimmen überein.',
+    research: {
+      identification: {
+        summary: '',
+        limitations: [],
+        completed: true,
+        sources: [
+          { title: 'Modellmerkmale beim Hersteller', url: 'https://www.nike.com/de/t/test' },
+        ],
+      },
+      retail: {
+        summary: 'Das Modell kostet beim Hersteller aktuell 120 Euro.',
+        limitations: [],
+        completed: true,
+        sources: [{ title: 'Aktueller Shoppreis', url: 'https://www.nike.com/de/t/test' }],
+      },
+      used: {
+        summary: 'Vergleichbare Verkäufe liegen zwischen 65 und 85 Euro.',
+        limitations: [],
+        completed: true,
+        sources: [{ title: 'Gebrauchter Vergleich', url: 'https://www.ebay.de/itm/5400' }],
+      },
+    },
+    newPriceRange: { low: 120, high: 120, count: 1 },
     comparisons: [
       {
         title: 'Hersteller Nike Air Test',
@@ -99,7 +122,7 @@ for (const theme of ['light', 'dark'] as const) {
   for (const width of [320, 390, 834, 1440]) {
     test.describe(`AI Search ${theme} ${width}px`, () => {
       test.use({ hasTouch: width < 1000, isMobile: width < 1000 });
-      test('analysiert nur auf Admin-Klick, rechnet Kosten lokal und zeigt Modellvergleich', async ({
+      test('analysiert nur auf Admin-Klick, zeigt Recherchequellen ohne Kostenformular und Modellvergleich', async ({
         page,
       }, testInfo) => {
         await page.setViewportSize({ width, height: 1000 });
@@ -137,16 +160,21 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(
           dialog.getByRole('heading', { name: 'Nike Air Test 42', exact: true }),
         ).toBeVisible();
-        await expect(dialog.getByText('Grün · attraktiver Einkauf', { exact: true })).toBeVisible();
+        await expect(
+          dialog.getByText('Das Modell kostet beim Hersteller aktuell 120 Euro.'),
+        ).toBeVisible();
+        await expect(
+          dialog.getByText('Vergleichbare Verkäufe liegen zwischen 65 und 85 Euro.'),
+        ).toBeVisible();
+        await expect(dialog.getByRole('spinbutton')).toHaveCount(0);
+        await expect(dialog.getByText(/Preisabstand zum Einkauf:/)).toContainText('44,00');
+        const modelSource = dialog.getByRole('link', { name: /Modellmerkmale beim Hersteller/ });
+        await expect(modelSource).toHaveAttribute('href', 'https://www.nike.com/de/t/test');
+        await expect(modelSource).toHaveAttribute('target', '_blank');
         await expect(
           dialog.getByRole('link', { name: /Hersteller Nike Air Test/ }),
         ).toHaveAttribute('href', 'https://www.nike.com/de/t/test');
-        await dialog.getByRole('spinbutton', { name: 'Einkaufsversand', exact: true }).fill('100');
-        await expect(
-          dialog.getByText('Rot · kein erwarteter Überschuss', { exact: true }),
-        ).toBeVisible();
         expect(requests).toHaveLength(1);
-        await dialog.getByRole('spinbutton', { name: 'Einkaufsversand', exact: true }).fill('0');
         await dialog.getByRole('combobox', { name: 'Modell', exact: true }).click();
         await expect(
           page.getByRole('option', { name: 'GPT-6.1 Terra', exact: true }),
@@ -226,6 +254,67 @@ test('verbirgt AI Search für Beta-Nutzer und verwirft verspätete Ergebnisse na
   await expect(
     page.getByRole('heading', { name: 'Nike Air Test 42', exact: true }),
   ).not.toBeVisible();
+});
+
+test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei fehlenden Inseratdetails', async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await fixture(page, new Map(), undefined, true);
+  await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+    if (route.request().postDataJSON().action === 'usage') {
+      await route.fulfill({ json: { stats: [] } });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        ...aiSearchResult,
+        listing: { ...aiSearchResult.listing, detailsStatus: 'unavailable' },
+        analysis: {
+          ...aiSearchResult.analysis,
+          confidence: 'likely',
+          comparisons: [],
+          resale: null,
+          soldAverage: null,
+          newPriceRange: null,
+          research: {
+            ...aiSearchResult.analysis.research,
+            retail: {
+              ...aiSearchResult.analysis.research.retail,
+              summary: 'Das ältere Modell ist nicht mehr regulär im Handel.',
+            },
+            used: {
+              summary: '',
+              limitations: ['Diese Teilrecherche konnte nicht abgeschlossen werden.'],
+              completed: false,
+              sources: [],
+            },
+          },
+        },
+      },
+    });
+  });
+  await context.route('https://www.nike.com/de/t/test', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<p>Modellquelle</p>' }),
+  );
+  await page.goto('/vinted-bot');
+  await page.getByRole('button', { name: 'AI Search', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'AI Search', exact: true });
+  await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+  await expect(dialog.getByText(/Inseratdetails konnten nicht geladen werden/)).toBeVisible();
+  await expect(
+    dialog.getByText('Das ältere Modell ist nicht mehr regulär im Handel.'),
+  ).toBeVisible();
+  await expect(
+    dialog.getByText('Diese Teilrecherche konnte nicht abgeschlossen werden.'),
+  ).toBeVisible();
+  await expect(dialog.getByRole('spinbutton')).toHaveCount(0);
+  const popup = page.waitForEvent('popup');
+  await dialog.getByRole('link', { name: /Modellmerkmale beim Hersteller/ }).click();
+  const source = await popup;
+  await expect(source.getByText('Modellquelle', { exact: true })).toBeVisible();
+  await source.close();
 });
 
 async function fixture(
