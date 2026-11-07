@@ -56,6 +56,13 @@ describe('PlatformSystemComponent', () => {
                 checkedAt: recent,
                 marketplaceWorker: { heartbeatAt: recent, expiresAt: recent },
                 feedBot: null,
+                pushWorker: {
+                  reportedAt: recent,
+                  enabled: true,
+                  waiting: 3,
+                  retry: 1,
+                  configurationError: 0,
+                },
                 storage: null,
                 operationsLastHour: { queued: 0, running: 0, succeeded: 4, failed: 0 },
                 cloudIps: { enabled: 1, expiringSoon: 0, expired: 0 },
@@ -96,6 +103,9 @@ describe('PlatformSystemComponent', () => {
     expect(element.querySelector('[data-service="operations"]')?.textContent).toContain(
       '4 erfolgreich',
     );
+    const push = element.querySelector('[data-service="push-worker"]')?.textContent ?? '';
+    expect(push).toContain('Läuft');
+    expect(push).toContain('3 warten');
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
   });

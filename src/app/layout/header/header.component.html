@@ -23,7 +23,7 @@
           [disabled]="workspaceActionsBlocked()"
           [attr.aria-expanded]="isWorkspaceDropdownOpen()"
           aria-controls="header-workspace-menu"
-          [title]="
+          [attr.title]="
             workspaceActionsBlocked()
               ? 'Workspacewechsel ist in einer Erfassungsmaske gesperrt.'
               : null

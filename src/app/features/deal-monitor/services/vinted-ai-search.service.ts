@@ -22,6 +22,7 @@ export class VintedAiSearchService {
   private async invoke<T>(body: Record<string, string>): Promise<T> {
     const { data, error } = await this.supabase.client.functions.invoke<T>('vinted-ai-search', {
       body,
+      ...(body['action'] === 'usage' ? {} : { timeout: 155_000 }),
     });
     if (error) {
       let code: unknown;

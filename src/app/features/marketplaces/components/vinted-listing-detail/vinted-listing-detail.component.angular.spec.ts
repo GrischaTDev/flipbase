@@ -668,6 +668,29 @@ describe('Reaktive Inseratdetails', () => {
       price: '12,00',
     });
   });
+  it('meldet beim Ändern nur eines Merkmals keinen Konflikt, wenn Abgleichtext und Inhalt abweichen', async () => {
+    const live = listingCurrentContentFixture();
+    const { component, store } = setup([
+      {
+        // Der Kontoabgleich kann einen anderen Text führen als der gespeicherte Inhalt.
+        ...entry('a', 'Text aus dem Kontoabgleich'),
+        title: 'Meine Schuhe',
+        price: 20.5,
+        listingContent: live.content,
+        imageUrls: live.photoUrls,
+      },
+    ]);
+    store.cachedListingDescription.mockImplementation(() => null);
+    await settle();
+    await component.edit();
+    component.form.patchValue({ color: 'Blau · Rot' });
+    await component.save();
+    expect(component.error()).toBeNull();
+    expect(store.saveListingContent).toHaveBeenCalledTimes(1);
+    expect(store.saveListingContent.mock.calls[0]![3]).toMatchObject({
+      description: live.content.description,
+    });
+  });
   it('lässt die Eingabe bei einem Konflikt oder unbestätigtem Speichern offen und meldet keinen Erfolg', async () => {
     const { component, store } = setup([
       {
