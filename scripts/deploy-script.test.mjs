@@ -61,6 +61,14 @@ test('Vinted-KI-Zeitbudgets passen zu Detailabruf, Gateway und Kostenreservierun
     new URL('../supabase/functions/vinted-ai-search/research.ts', import.meta.url),
     'utf8',
   );
+  const handler = await readFile(
+    new URL('../supabase/functions/vinted-ai-search/index.ts', import.meta.url),
+    'utf8',
+  );
+  const details = await readFile(
+    new URL('../supabase/functions/vinted-ai-search/listing-details.ts', import.meta.url),
+    'utf8',
+  );
   const runtime = await readFile(
     new URL('../deploy/configure-vinted-ai-runtime.py', import.meta.url),
     'utf8',
@@ -76,18 +84,58 @@ test('Vinted-KI-Zeitbudgets passen zu Detailabruf, Gateway und Kostenreservierun
     new URL('../supabase/schemas/540_vinted_ai_search.sql', import.meta.url),
     'utf8',
   );
-  const milliseconds = (value) => Number(value.replaceAll('_', ''));
-  const researchTimeout = milliseconds(research.match(/AbortSignal\.timeout\(([\d_]+)\)/u)[1]);
-  const workerTimeout = milliseconds(runtime.match(/replacement = .*?\? ([\d_]+) :/u)[1]);
-  const clientTimeout = milliseconds(client.match(/timeout: ([\d_]+)/u)[1]);
+  const numberFrom = (source, pattern, name) => {
+    const match = source.match(pattern);
+    assert.ok(match, `${name}: Zeitlimit im Produktivcode nicht gefunden`);
+    const value = Number(match[1].replaceAll('_', ''));
+    assert.ok(Number.isSafeInteger(value) && value > 0, `${name}: ungültiges Zeitlimit`);
+    return value;
+  };
+  const limits = research.match(/export const RESEARCH_LIMITS\s*=\s*\{([^}]+)\}/u)?.[1];
+  assert.ok(limits, 'RESEARCH_LIMITS muss die Zeitlimits der Recherche enthalten');
+  const researchTimeout = numberFrom(limits, /\btotalMs:\s*([\d_]+)/u, 'Gesamtrecherche');
+  const productTimeout = numberFrom(limits, /\bproductMs:\s*([\d_]+)/u, 'Produktrecherche');
+  const detailsTimeout = numberFrom(
+    details,
+    /readVintedListingPage\(listing\.url,\s*AbortSignal\.timeout\(([\d_]+)\)/u,
+    'Detailabruf',
+  );
+  const databaseTimeout = numberFrom(
+    handler,
+    /\.rpc\('vinted_comparison_market',[\s\S]*?\.abortSignal\(AbortSignal\.timeout\(([\d_]+)\)\)/u,
+    'Vergleichsdatenbank',
+  );
+  const workerTimeout = numberFrom(runtime, /replacement = .*?\? ([\d_]+) :/u, 'Worker');
+  const clientTimeout = numberFrom(client, /timeout: ([\d_]+)/u, 'Browser');
   const reservationTimeout =
-    Number(
-      schema.match(/status = 'pending' and created_at > now\(\) - interval '(\d+) minutes'/u)[1],
+    numberFrom(
+      schema,
+      /status = 'pending' and created_at > now\(\) - interval '(\d+) minutes'/u,
+      'Kostenreservierung',
     ) * 60_000;
+  assert.match(research, /AbortSignal\.timeout\(RESEARCH_LIMITS\.totalMs\)/u);
+  assert.match(research, /AbortSignal\.any\(\[signal,\s*AbortSignal\.timeout\(stageMs\)\]\)/u);
+  assert.match(
+    research,
+    /productSchema,\s*RESEARCH_LIMITS\.productTools,\s*RESEARCH_LIMITS\.productMs/u,
+  );
+  assert.match(handler, /deps\.search\([\s\S]*?marketDataset: deps\.marketDataset/u);
+  assert.match(
+    research,
+    /if \(marketDatasetProvider\) \{[\s\S]*?await loadMarketDataset\([\s\S]*?\} else if \(canContinue\) \{/u,
+  );
   // Das selbst gehostete Gateway begrenzt Funktionsanfragen auf 150 Sekunden.
   const gatewayTimeout = 150_000;
+  const trackingAllowance = 5_000;
+  assert.ok(productTimeout <= researchTimeout, 'Die Produktrecherche muss ins Gesamtlimit passen');
+  // Produktion: nur Produktrecherche, danach die getrennt begrenzte Datenbankabfrage.
   assert.ok(
-    researchTimeout + 7_000 + 5_000 < workerTimeout,
+    productTimeout + databaseTimeout + detailsTimeout + trackingAllowance < workerTimeout,
+    'Produktrecherche, Datenbanknachlauf, Detailabruf und Erfassung müssen vor dem Worker enden',
+  );
+  // Ohne Datenbankanbieter gilt weiterhin das gesamte Recherchelimit, ohne Datenbanknachlauf.
+  assert.ok(
+    researchTimeout + detailsTimeout + trackingAllowance < workerTimeout,
     'Detailabruf und Erfassung benötigen Zeit außerhalb der Recherche',
   );
   assert.ok(workerTimeout < gatewayTimeout, 'Die Funktion muss vor dem Gateway antworten');

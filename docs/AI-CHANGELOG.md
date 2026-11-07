@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Vinted-Vergleichsbestand zur Veröffentlichung prüfen
+
+**Auftrag:** Freigegebenen PR erstellen, nach erfolgreichen Pflichtprüfungen mit
+Merge-Commit veröffentlichen und den eigenen Zweig samt Arbeitskopie bereinigen.
+Frischer GitHub-Abgleich unverändert auf `25eb50a4`; PR #593 erstellt.
+
+**CI-Korrektur:** Der Zeitbudgetvertrag suchte noch einen direkten Zahlenwert in
+`AbortSignal.timeout` und brach bei den inzwischen benannten Recherchelimits ab.
+Die Prüfung liest jetzt die tatsächlich verwendeten Konstanten und kontrolliert
+beide Pfade: Produktrecherche mit Datenbanknachlauf, Detailabruf und Erfassung
+75 Sekunden; bisherige Recherche ohne Datenbank 142 Sekunden. Beide liegen unter
+145 Sekunden Workerlimit, anschließend gelten 150 Sekunden Gateway, 155 Sekunden
+Client und 180 Sekunden Kostenreservierung. Produktivlimits bleiben unverändert;
+fehlende Konstanten oder geänderte Verdrahtung lassen die Prüfung ausdrücklich scheitern.
+
+**Nachweise:** Fehler unter Node 22 reproduziert, anschließend beide betroffenen
+Vinted-KI-Deployprüfungen bestanden. Der erste CI-Lauf bestätigt bereits 153 SQL-
+Dateien mit 5.667 Prüfungen einschließlich aller 97 neuen Assertions sowie 503
+Sniper-Tests ohne übersprungene Fälle und den isolierten Chrome-Image-Smoke.
+Der vollständige lokale Vorabcheck wurde auf dem korrigierten Stand unter Node 22
+erneut erfolgreich ausgeführt (Exit 0, einschließlich Format, Lint, Typen,
+3.652 Anwendungstests und Bau). Danach nur diesen Prüfnachweis ergänzt und erneut
+formatiert/geprüft. Alle übrigen Jobs des ersten CI-Laufs einschließlich Browser
+und PWA waren erfolgreich; vor dem Merge müssen sämtliche ausgewählten
+CI-Prüfungen auf dem korrigierten Stand erfolgreich sein.
+
 ## 2026-11-07 - Juna - Sieben-Tage-Erstimport und laufenden Vergleichsbestand umsetzen
 
 **Auftrag:** Aktuelle Botfilter einmal ohne Preisunter-/obergrenze über sieben Tage
