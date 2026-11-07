@@ -1,5 +1,51 @@
 # Aktuelle 30-Tage-Artikelanalyse und die Rolle der KI
 
+## Aktuelle Empfehlung: kompakter Bestand mit 30-Tage-Auswertung
+
+Nach dem Nachweis, dass verkaufte Artikel über bekannte Links erkannt werden,
+aber in der heutigen Katalogliste fehlen, ist eine kleine eigene Vergleichstabelle
+in der bestehenden Supabase-Datenbank sinnvoller als eine vollständig neue
+Direktsammlung bei jedem AI-Search-Klick. Dies präzisiert die früheren Abschnitte
+zur reinen Live-Recherche; die Datenbank ist noch nicht umgesetzt.
+
+Der vorhandene Feed lässt sich als Eingang für passende Funde nutzen. Seine
+Drei-Tage-Bereinigung und das Ignorieren bekannter Artikelpreise ersetzen jedoch
+keine Vergleichsbeobachtung. Ergänzende Vergleichsabfragen derselben Marken und
+Kategorien dürfen keine Einkaufspreisobergrenze übernehmen, die teurere Konkurrenz
+systematisch ausschließt. Artikel unabhängig von überlappenden Filtern deduplizieren.
+
+Pro Artikel genügen ID, Link, Titel und relevante Vergleichsmerkmale, zuletzt
+beobachteter Preis, Status und Zeitpunkte. Bilder und vollständige Seiten werden
+für diesen Vergleichsbestand nicht gespeichert. Preis-/Statusänderungen getrennt
+von wiederholt unverändertem Zustand führen; unveränderte Abrufe nicht als immer
+neue Vollkopien ablegen.
+
+Die 30 Tage bilden das Auswertungsfenster. Verkauft markierte Artikel nach der
+ersten Verkaufserkennung beispielsweise 30 Tage aufbewahren, mit letzter aktiver
+Beobachtung zur zeitlichen Einordnung. Das bleibt ein Beobachtungsfenster, kein
+sekundengenaues Verkaufsdatum. Ältere aktive Artikel können kompakt weitergeführt
+werden, solange sie gezielt beobachtet werden; feste Mengen- und Laufzeitgrenzen
+verhindern unbegrenztes Wachstum. Beendete Beobachtung bedeutet nicht Verkauf.
+
+Neue passende Angebote über den gemeinsamen Sammler ergänzen. Statusprüfungen
+im Hintergrund priorisieren, ältere aktive Artikel seltener prüfen und das
+bestehende Abrufbudget samt Feedpriorität einhalten. Eine gespeicherte Auswertung
+vermeidet wiederholte Vollabrufe bei jeder Analyse, beseitigt aber den Aufwand der
+Aktualisierung nicht: 1.000 Einzelprüfungen benötigen bei 2,5 Sekunden Mindestabstand
+bereits ungefähr 42 Minuten, zuzüglich weiterer Last. Fehlende Abdeckung und alte
+Prüfstände müssen fachlich erkennbar bleiben.
+
+Die Anwendung berechnet Anzahl, Median und Preisspannen aus gespeicherten passenden
+Belegen; KI ordnet den konkreten Zielartikel über Text und Bilder zu und recherchiert
+gezielt Modell und Neupreise. Nicht Tausende unveränderte Inserate bei jeder Analyse
+erneut an das Modell übergeben. Der aktuelle Angebotsbestand ist sofort aufbaubar;
+eine selbst beobachtete 30-Tage-Verkaufshistorie wächst erst nach dem Start.
+
+Für die Umsetzung bleiben schema-, rechte- und lastgerechte Prüfung erforderlich.
+PostgreSQL dokumentiert [Indizes für kombinierte Filter](https://www.postgresql.org/docs/current/indexes-multicolumn.html)
+und [Autovacuum zur Wiederverwendung gelöschter beziehungsweise ersetzter Zeilen](https://www.postgresql.org/docs/current/routine-vacuuming.html).
+Daraus folgt keine ungeprüfte Speicher- oder Antwortzeitgarantie für unseren Server.
+
 Forschungsstand vor der anschließenden Umsetzung am 7. November 2026.
 Die Umsetzung ist im aktuellen Eintrag des [KI-Änderungsprotokolls](../AI-CHANGELOG.md) dokumentiert.
 Präzisierung nach dem Nutzerbeispiel: Einen

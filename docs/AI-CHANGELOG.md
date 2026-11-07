@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Rollierende Vergleichsdatenbank empfehlen
+
+**Nutzerfrage:** Ob ein eigener Bestand über ungefähr 30 Tage die wiederholten
+langsamen Direktabrufe bei jeder AI-Suche sinnvoll ersetzt.
+
+**Grundlage und Ergebnis:** Eigener sauberer Aufgabenbranch und frischer
+GitHub-Abgleich, `origin/master` unverändert `25eb50a4`. Bestehenden Feed-Schreibpfad,
+SQL-Bereinigung und Abrufabstand geprüft; unabhängige fachliche Gegenprüfung der
+Zeitfenster. Empfehlung jetzt: kompakter Vergleichsbestand in der bestehenden
+Supabase-Datenbank, gemeinsame Aktualisierung im Hintergrund und 30-Tage-Auswertung.
+Der Feed löscht tatsächlich nach drei Tagen; der SQL-Kommentar mit sieben Tagen
+ist veraltet. Wiederfunde werden im bisherigen Speicherpfad nicht als Preisupdates
+geführt. Ein bloßes Verlängern der Feed-Aufbewahrung wäre daher unzureichend.
+
+**Grenzen:** Statusprüfungen bleiben nötig und teilen sich das Abrufbudget mit dem
+Feed. Keine tägliche Vollprüfung beliebig vieler Artikel versprechen. Suchfilter
+für Preisvergleiche dürfen nicht unbemerkt die Einkaufspreisgrenzen des Feeds erben.
+Auswertungsfenster und Aufbewahrung trennen; laufende Artikel kompakt und begrenzt
+beobachten, Verkaufsmarkierungen mit Erkennungszeit und letztem Aktivnachweis führen.
+Der Bestand liefert am Anfang aktuelle Angebote; eine eigene Verkaufshistorie
+entsteht erst während der Beobachtung. KI bleibt für Modellzuordnung, Bilder und
+gezielte Neupreisrecherche zuständig; Statistik berechnet die Anwendung.
+
+**Prüfung:** Reine Analyse und Dokumentation, keine neue Tabelle, Migration,
+Hintergrundsammlung oder Produktänderung. Gezielt formatiert und Diff geprüft;
+keine Anwendungstests oder Builds. Kein Push, PR, Merge oder Deployment.
+
 ## 2026-11-07 - Juna - Verkaufskennzeichen und öffentliche Verfügbarkeit prüfen
 
 **Nutzerfrage:** Ob ein Verkaufsflag in den vollständigen Suchdaten vorhanden ist
