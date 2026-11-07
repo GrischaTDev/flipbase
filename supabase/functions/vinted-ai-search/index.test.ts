@@ -5,6 +5,7 @@ import {
   type SearchDependencies,
 } from './index.ts';
 import { parseAnalysis, parseUsage } from './analysis.ts';
+import { parseListingDetails, loadListingDetails } from './listing-details.ts';
 
 function recordInit(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -18,6 +19,7 @@ const workspaceId = '54000000-0000-4000-8000-000000000001';
 const listingId = '54000000-0000-4000-8000-000000000002';
 const listing = {
   id: listingId,
+  url: 'https://www.vinted.de/items/123-jacket',
   title: 'Modell 42',
   description: 'Etikett ABC',
   image_urls: ['https://images1.vinted.net/a.jpg'],
@@ -249,22 +251,27 @@ Deno.test('akzeptiert nur gefundene EUR-Quellen derselben Variante und entfernt 
     comparisons: [valid, valid, ...invalids, comparison(20, 99)],
   });
   const analysis = parseAnalysis(raw);
-  equal(analysis.comparisons.length, 1);
+  equal(analysis.comparisons.length, 2);
+  equal(analysis.comparisons[1].sameVariant, false);
   equal(analysis.resale, null);
 });
-Deno.test('leitet ohne drei passende Preise oder eindeutiges Modell keine Marge ab', () => {
-  equal(parseAnalysis(provider([comparison(60, 1), comparison(70, 2)])).resale, null);
-  equal(parseAnalysis(provider(undefined, 'likely')).resale, null);
-  const asking = parseAnalysis(
-    provider([
-      comparison(100, 1, 'asking'),
-      comparison(100, 2, 'asking'),
-      comparison(100, 3, 'asking'),
-    ]),
-  );
-  equal(asking.soldAverage, null);
-  equal(asking.resale, { low: 70, high: 85, basis: 'asking', count: 3 });
-});
+Deno.test(
+  'berechnet bei wahrscheinlichem Modell nur eine vorlaeufige Spanne und benoetigt drei Preise',
+  () => {
+    equal(parseAnalysis(provider([comparison(60, 1), comparison(70, 2)])).resale, null);
+    equal(parseAnalysis(provider(undefined, 'likely')).resale?.count, 3);
+    equal(parseAnalysis(provider(undefined, 'unknown')).resale, null);
+    const asking = parseAnalysis(
+      provider([
+        comparison(100, 1, 'asking'),
+        comparison(100, 2, 'asking'),
+        comparison(100, 3, 'asking'),
+      ]),
+    );
+    equal(asking.soldAverage, null);
+    equal(asking.resale, { low: 70, high: 85, basis: 'asking', count: 3 });
+  },
+);
 Deno.test('zaehlt verschiedene Query-Links desselben Inserats nicht als mehrere Verkaeufe', () => {
   const comparisons = [0, 1, 2].map((index) => ({
     ...comparison(60, 1),
@@ -289,7 +296,7 @@ Deno.test(
     equal(analysis.resale, null);
   },
 );
-Deno.test('begrenzt Bilder auf sichere Vinted-Adressen und hoechstens fuenf', () => {
+Deno.test('uebergibt auch spaete Etikettenbilder und begrenzt auf sichere Vinted-Adressen', () => {
   equal(
     listingImages([
       'http://images1.vinted.net/a',
@@ -298,7 +305,7 @@ Deno.test('begrenzt Bilder auf sichere Vinted-Adressen und hoechstens fuenf', ()
       'https://images1.vinted.net:444/a',
       ...Array.from({ length: 8 }, (_, i) => `https://images1.vinted.net/${i}`),
     ]).length,
-    5,
+    8,
   );
 });
 Deno.test(
@@ -323,14 +330,34 @@ Deno.test(
         const body = JSON.parse(String(recordInit(init)?.['body']));
         equal(body.model, 'gpt-6-luna');
         equal(body.store, false);
-        equal(body.max_tool_calls, 3);
-        equal(body.max_output_tokens, 3200);
-        equal(body.input[0].content.length, 2);
-        equal(body.input[0].content[1].image_url, listing.image_urls[0]);
+        equal(body.tool_choice, 'required');
+        if (!JSON.parse(body.input[0].content[0].text).identification) {
+          equal(body.reasoning.effort, 'low');
+          equal(body.max_tool_calls, 2);
+          equal(body.max_output_tokens, 1800);
+          equal(body.text.format.schema.properties.sources.maxItems, 3);
+          equal(body.input[0].content.length, 2);
+          equal(body.input[0].content[1].image_url, listing.image_urls[0]);
+          return Response.json(provider());
+        }
+        equal(body.reasoning.effort, 'medium');
+        if (![5, 6].includes(body.max_tool_calls)) throw new Error('Marktrecherche fehlt');
+        equal(body.input[0].content.length, 1);
         equal(JSON.parse(body.input[0].content[0].text).description, listing.description);
-        return Response.json(provider());
+        const raw = provider();
+        raw.output[1].content![0].text = JSON.stringify({
+          summary: 'Marktvergleich',
+          limitations: [],
+          comparisons: [
+            comparison(70, body.max_tool_calls, body.max_tool_calls === 5 ? 'retail' : 'sold'),
+          ],
+        });
+        return Response.json(raw);
       };
-      await searchOpenAi(listing, listing.image_urls, 'gpt-6-luna');
+      const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-luna');
+      equal(parseUsage(raw, 'gpt-6-luna').inputTokens, 3000);
+      equal(parseUsage(raw, 'gpt-6-luna').webSearchCalls, 3);
+      equal(parseAnalysis(raw).research?.used.summary, 'Marktvergleich');
     } finally {
       globalThis.fetch = originalFetch;
       keys.forEach((key, index) => {
@@ -338,6 +365,399 @@ Deno.test(
         if (value === undefined) Deno.env.delete(key);
         else Deno.env.set(key, value);
       });
+    }
+  },
+);
+
+const detailsHtml = (objects: unknown[]) => {
+  const stream = objects.map((value, index) => `${index}:${JSON.stringify(value)}\n`).join('');
+  // React darf einen JSON-Datensatz über mehrere Scriptblöcke verteilen.
+  const middle = Math.floor(stream.length / 2);
+  return [stream.slice(0, middle), stream.slice(middle)]
+    .map((chunk) => `<script>self.__next_f.push(${JSON.stringify([1, chunk])})</script>`)
+    .join('');
+};
+Deno.test(
+  'liest alle sechs Fotos und Beschreibung derselben Anzeige statt des einzelnen Feed-Fotos',
+  async () => {
+    const images = Array.from(
+      { length: 6 },
+      (_, index) => `https://images1.vinted.net/${index}.jpg`,
+    );
+    const html = detailsHtml([
+      {
+        data: {
+          item_id: '999',
+          description: 'Fremde Anzeige',
+          photos: [{ url: 'https://images1.vinted.net/other' }],
+        },
+      },
+      { data: { item_id: '123', photos: images.map((url) => ({ url })) } },
+      { data: { item_id: '123', description: 'Innenetikett und Modellnummer' } },
+    ]);
+    equal(parseListingDetails(html, '123'), {
+      image_urls: images,
+      description: 'Innenetikett und Modellnummer',
+      attributes: [],
+      category: null,
+    });
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (url, init) => {
+        equal(String(url), listing.url);
+        equal(init?.redirect, 'error');
+        equal(init?.headers, undefined);
+        return new Response(html);
+      };
+      const enriched = await loadListingDetails({ ...listing, description: null });
+      equal(enriched.image_urls, images);
+      equal(enriched.description, 'Innenetikett und Modellnummer');
+      equal(enriched.detailsStatus, 'loaded');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+Deno.test(
+  'liest die Artikelmerkmale der Detailseite und uebergibt sie allen drei Recherchen',
+  async () => {
+    const attribute = (code: string, label: string, value: unknown) => ({
+      code,
+      type: 'text',
+      data: { title: label, value, id: 'not-needed', seller_id: 'private-id' },
+    });
+    const images = Array.from(
+      { length: 6 },
+      (_, index) => `https://images1.vinted.net/${index}.jpg`,
+    );
+    const html = detailsHtml([
+      {
+        item_id: '999',
+        catalog_id: '999',
+        breadcrumbs: [{ title: 'Fremde Kategorie', url: '/catalog/999-other' }],
+        attributes: [attribute('material', 'Material', 'Leder')],
+      },
+      {
+        item_id: '123',
+        photos: images.map((url) => ({ url })),
+        description: 'Eigene Artikelbeschreibung',
+      },
+      {
+        item_id: '123',
+        catalog_id: '1858',
+        breadcrumbs: [
+          { title: 'Herren', url: '/catalog/5-men' },
+          { title: 'Kleidung', url: '/catalog/2050-clothing' },
+          { title: 'Jacken & Mäntel', url: '/catalog/1206-outerwear' },
+          { title: 'Jacken', url: '/catalog/2052-jackets' },
+          { title: 'Fleecejacken', url: '/catalog/1858-fleece-jackets' },
+          {
+            title: 'Carhartt Fleecejacken',
+            url: '/catalog/1858-fleece-jackets/brand/362-carhartt',
+          },
+        ],
+      },
+      {
+        item_id: '123',
+        attributes: [
+          attribute('brand', 'Marke', 'Carhartt'),
+          attribute('size', 'Größe', 'L'),
+          attribute('status', 'Zustand', 'Sehr gut'),
+          attribute('material', 'Material', ['Fleece', 'Polyester']),
+          attribute('color', 'Farbe', ['Creme', 'Schwarz']),
+          attribute('measurements', 'Maße', 'Brustweite 58 cm'),
+          attribute('article_number', 'Artikelnummer', 'I025120'),
+          attribute('weight', 'Gewicht', 450),
+          attribute('upload_date', 'Hochgeladen', '11 h'),
+          attribute('broken', 'Ungültig', { private: true }),
+        ],
+      },
+    ]);
+    const originalFetch = globalThis.fetch;
+    const contexts: Record<string, unknown>[] = [];
+    try {
+      globalThis.fetch = async (url, init) => {
+        if (String(url) === listing.url) return new Response(html);
+        equal(String(url), 'https://api.openai.com/v1/responses');
+        const body = JSON.parse(String(init?.body));
+        const input = JSON.parse(body.input[0].content[0].text);
+        contexts.push(input);
+        equal(input.brand, 'Carhartt');
+        equal(input.size, 'L');
+        equal(input.condition, 'Sehr gut');
+        equal(input.description, 'Eigene Artikelbeschreibung');
+        equal(input.detailsStatus, 'loaded');
+        equal(input.category, {
+          id: '1858',
+          path: ['Herren', 'Kleidung', 'Jacken & Mäntel', 'Jacken', 'Fleecejacken'],
+        });
+        equal(
+          input.attributes.map((entry: { value: string }) => entry.value),
+          [
+            'Carhartt',
+            'L',
+            'Sehr gut',
+            'Fleece, Polyester',
+            'Creme, Schwarz',
+            'Brustweite 58 cm',
+            'I025120',
+            '450',
+          ],
+        );
+        equal(JSON.stringify(input).includes('private-id'), false);
+        equal(JSON.stringify(input).includes('Leder'), false);
+        equal(JSON.stringify(input).includes('upload_date'), false);
+        if (!input.identification) equal(body.input[0].content.length, 7);
+        const response = provider();
+        if (input.identification)
+          response.output[1].content![0].text = JSON.stringify({
+            summary: 'Kontext bestätigt',
+            limitations: [],
+            comparisons: [],
+            sources: [],
+          });
+        return Response.json(response);
+      };
+      const enriched = await loadListingDetails({
+        ...listing,
+        brand: 'Feed-Marke',
+        size: 'XXL',
+        condition: 'Neu',
+      });
+      equal(enriched.attributes?.length, 8);
+      const result = await searchOpenAi(enriched, enriched.image_urls, 'gpt-6-astra');
+      equal(contexts.length, 3);
+      equal(parseAnalysis(result).research?.retail.completed, true);
+      equal(parseAnalysis(result).research?.used.completed, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+Deno.test(
+  'erhaelt Feed-Daten bei gesperrten, fremden oder zu grossen Inseratseiten ohne Script-Ausfuehrung',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      for (const response of [
+        new Response('blocked', { status: 403 }),
+        new Response(
+          detailsHtml([{ item_id: '999', photos: [{ url: 'https://images1.vinted.net/other' }] }]),
+        ),
+        new Response('x'.repeat(3_000_001)),
+        new Response('<script>throw new Error("never execute")</script>'),
+      ]) {
+        globalThis.fetch = async () => response;
+        const enriched = await loadListingDetails(listing);
+        equal(enriched.image_urls, listing.image_urls);
+        equal(enriched.detailsStatus, 'unavailable');
+      }
+      let fetched = false;
+      globalThis.fetch = async () => {
+        fetched = true;
+        return new Response('');
+      };
+      await loadListingDetails({ ...listing, url: 'https://www.vinted.de.evil.test/items/123' });
+      equal(fetched, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+Deno.test(
+  'behaelt Recherchequellen ohne Preisbeleg und bereinigt unbedienbare Zitiermarker',
+  () => {
+    const raw = {
+      ...provider([]),
+      research: {
+        identification: {
+          raw: provider([comparison(0, 99)]),
+          summary: 'Merkmale citeturn0search1 [Hersteller](https://www.ebay.de/itm/99)',
+          completed: true,
+        },
+        retail: {
+          raw: provider([]),
+          data: { summary: 'Ausgelaufen', limitations: ['Kein aktueller Neupreis'] },
+          completed: true,
+        },
+        used: { raw: {}, data: { summary: '', limitations: ['Zeitlimit'] }, completed: false },
+      },
+    };
+    const analysis = parseAnalysis(raw);
+    equal(analysis.research?.identification.sources[0].url, 'https://www.ebay.de/itm/99');
+    equal(analysis.research?.identification.summary, 'Merkmale  Hersteller');
+    equal(analysis.research?.retail.limitations, ['Kein aktueller Neupreis']);
+    equal(analysis.research?.used.completed, false);
+    equal(analysis.resale, null);
+  },
+);
+Deno.test(
+  'verknuepft Trackingvarianten mit echten Quellen und zaehlt das untersuchte Inserat nicht mit',
+  () => {
+    const self = { ...comparison(30, 1), url: listing.url };
+    const retail = {
+      ...comparison(120, 2, 'retail'),
+      url: 'https://shop.test/product?size=L&utm_source=search',
+    };
+    const raw = provider([self, retail]);
+    raw.output[1].content![0].text = JSON.stringify({
+      modelName: 'ABC',
+      confidence: 'exact',
+      evidence: 'Nummer',
+      comparisons: [self, { ...retail, url: 'https://shop.test/product?size=L' }],
+    });
+    const analysis = parseAnalysis(raw, listing.url);
+    equal(analysis.comparisons.length, 1);
+    equal(analysis.comparisons[0].url, retail.url);
+    equal(analysis.newPriceRange, { low: 120, high: 120, count: 1 });
+  },
+);
+Deno.test(
+  'weist Kosten nach abgebrochener Teilrecherche als unbekannt aus und behaelt erfolgreiche Recherche',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        if (body.max_tool_calls === 6) throw new Error('timeout');
+        const raw = provider();
+        if (body.max_tool_calls === 5)
+          raw.output[1].content![0].text = JSON.stringify({
+            summary: 'Herstellerpreis 120 EUR',
+            limitations: [],
+            comparisons: [comparison(120, 1, 'retail')],
+          });
+        return Response.json(raw);
+      };
+      const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
+      equal(parseUsage(raw, 'gpt-6-astra').estimatedCostUsd, null);
+      equal(parseUsage(raw, 'gpt-6-astra').inputTokens, 2000);
+      equal(parseUsage(raw, 'gpt-6-astra').outputTokens, 1000);
+      equal(parseUsage(raw, 'gpt-6-astra').knownCostUsd, 0.0864);
+      equal(parseUsage(raw, 'gpt-6-astra').incomplete, true);
+      equal(parseAnalysis(raw).research?.retail.summary, 'Herstellerpreis 120 EUR');
+      equal(parseAnalysis(raw).research?.used.completed, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+Deno.test(
+  'verlinkt benannte Belege nur nach Abgleich mit den Quellen derselben Teilrecherche',
+  () => {
+    const raw = {
+      ...provider([]),
+      research: {
+        identification: {
+          raw: provider([comparison(20, 1)]),
+          data: {
+            sources: [
+              { title: 'Belegtes Modell', url: 'https://www.ebay.de/itm/1' },
+              { title: 'Erfundene Quelle', url: 'https://invented.test/item' },
+            ],
+          },
+          completed: true,
+        },
+      },
+    };
+    equal(parseAnalysis(raw).research?.identification.sources, [
+      { url: 'https://www.ebay.de/itm/1', title: 'Belegtes Modell' },
+    ]);
+  },
+);
+Deno.test(
+  'erhaelt gemeldeten Verbrauch bei unvollstaendiger Identifikation und Marktantwort',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () => Response.json({ ...provider(), status: 'incomplete' });
+      const incomplete = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
+      equal(incomplete.status, 'incomplete');
+      equal(parseUsage(incomplete, 'gpt-6-astra').inputTokens, 1000);
+      globalThis.fetch = async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        if (body.max_tool_calls === 2) return Response.json(provider());
+        if (body.max_tool_calls === 6)
+          return Response.json({ ...provider(), status: 'incomplete' });
+        const raw = provider();
+        raw.output[1].content![0].text = JSON.stringify({
+          summary: 'Neupreis',
+          limitations: [],
+          comparisons: [],
+        });
+        return Response.json(raw);
+      };
+      const partial = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
+      equal(parseUsage(partial, 'gpt-6-astra').inputTokens, 3000);
+      equal(parseAnalysis(partial).research?.used.completed, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+Deno.test(
+  'liefert nutzbare Teilergebnisse ohne sie als vollstaendigen 24-Stunden-Cache zu speichern',
+  async () => {
+    const raw = {
+      ...provider(),
+      research: {
+        identification: { raw: provider(), summary: 'Modell erkannt', completed: true },
+        retail: {
+          raw: provider(),
+          data: { summary: 'Herstellerpreis', comparisons: [] },
+          completed: true,
+        },
+        used: { raw: {}, data: { limitations: ['Zeitlimit'], comparisons: [] }, completed: false },
+      },
+    };
+    const test = fixture({ search: async () => raw });
+    const response = await test.request();
+    equal(response.status, 200);
+    equal((await response.json()).analysis.research.used.completed, false);
+    equal(test.saved.at(-1)?.status, 'failed');
+    equal(test.saved.at(-1)?.error_code, 'research_incomplete');
+  },
+);
+
+Deno.test(
+  'beendet eine vollstaendige Recherche nach hundert Sekunden ohne die alte 85-Sekunden-Grenze',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTimeout = AbortSignal.timeout;
+    let elapsed = 0;
+    const timers: { deadline: number; controller: AbortController }[] = [];
+    try {
+      AbortSignal.timeout = (milliseconds: number) => {
+        const controller = new AbortController();
+        timers.push({ deadline: elapsed + milliseconds, controller });
+        return controller.signal;
+      };
+      globalThis.fetch = async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        elapsed += body.max_tool_calls === 2 ? 50_000 : body.max_tool_calls === 5 ? 40_000 : 10_000;
+        for (const timer of timers)
+          if (elapsed >= timer.deadline)
+            timer.controller.abort(new DOMException('Deadline reached', 'TimeoutError'));
+        init?.signal?.throwIfAborted();
+        const response = provider();
+        if (body.max_tool_calls !== 2)
+          response.output[1].content![0].text = JSON.stringify({
+            summary: 'Vollständige Marktrecherche',
+            limitations: [],
+            comparisons: [],
+            sources: [],
+          });
+        return Response.json(response);
+      };
+      const result = parseAnalysis(await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra'));
+      equal(elapsed, 100_000);
+      equal(result.research?.retail.completed, true);
+      equal(result.research?.used.completed, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+      AbortSignal.timeout = originalTimeout;
     }
   },
 );

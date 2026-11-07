@@ -11,6 +11,7 @@ export interface VintedAiComparison {
   kind: 'manufacturer' | 'retail' | 'sold' | 'asking';
   price: number;
   evidence: string;
+  sameVariant?: boolean;
 }
 export interface VintedAiUsageSummary {
   model: VintedAiModel;
@@ -21,6 +22,12 @@ export interface VintedAiUsageSummary {
   estimated_cost_usd: number | null;
   average_cost_usd: number | null;
 }
+export interface VintedAiResearchSection {
+  summary: string;
+  limitations: string[];
+  completed: boolean;
+  sources: { title: string; url: string }[];
+}
 export interface VintedAiResult {
   analysis: {
     modelName: string;
@@ -29,6 +36,12 @@ export interface VintedAiResult {
     comparisons: VintedAiComparison[];
     soldAverage: number | null;
     askingAverage: number | null;
+    newPriceRange?: { low: number; high: number; count: number } | null;
+    research?: {
+      identification: VintedAiResearchSection;
+      retail: VintedAiResearchSection;
+      used: VintedAiResearchSection;
+    } | null;
     resale: { low: number; high: number; basis: 'sold' | 'asking'; count: number } | null;
   };
   model: VintedAiModel;
@@ -40,6 +53,7 @@ export interface VintedAiResult {
     totalPrice: number;
     currency: string;
     photoCount: number;
+    detailsStatus?: 'loaded' | 'unavailable' | null;
     hasDescription: boolean;
   };
   usage: {
@@ -48,15 +62,17 @@ export interface VintedAiResult {
     outputTokens: number | null;
     webSearchCalls: number;
     estimatedCostUsd: number | null;
+    knownCostUsd?: number | null;
+    incomplete?: boolean;
   };
   stats: VintedAiUsageSummary[];
 }
 
 export function resaleEstimate(
   result: VintedAiResult | null,
-  shipping: number | null,
-  feePercent: number | null,
-  otherCosts: number | null,
+  shipping: number | null = 0,
+  feePercent: number | null = 0,
+  otherCosts: number | null = 0,
 ) {
   const resale = result?.analysis.resale;
   if (
@@ -76,7 +92,11 @@ export function resaleEstimate(
   const roi = purchaseCost > 0 ? (low / purchaseCost) * 100 : 0;
   // Grün nur bei belegten Verkäufen und konservativ mindestens 20 EUR/30 %.
   const tone =
-    high <= 0 ? 'red' : low >= 20 && roi >= 30 && resale.basis === 'sold' ? 'green' : 'yellow';
+    high <= 0
+      ? 'red'
+      : low >= 20 && roi >= 30 && resale.basis === 'sold' && result.analysis.confidence === 'exact'
+        ? 'green'
+        : 'yellow';
   return {
     low,
     high,

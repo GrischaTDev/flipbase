@@ -44,6 +44,11 @@ describe('resaleEstimate', () => {
   it('gibt für reine Angebotspreise auch bei hoher Spanne kein Grün aus', () => {
     expect(resaleEstimate(result('asking'), 0, 0, 0)?.tone).toBe('yellow');
   });
+  it('behandelt eine wahrscheinliche Modellzuordnung auch mit Verkaufspreisen vorsichtig', () => {
+    const tentative = result();
+    tentative.analysis.confidence = 'likely';
+    expect(resaleEstimate(tentative)?.tone).toBe('yellow');
+  });
   it('zeigt Verluste rot und geringe oder unsichere Spannen gelb', () => {
     expect(resaleEstimate(result('sold', 10, 15), 0, 0, 0)?.tone).toBe('red');
     expect(resaleEstimate(result('sold', 20, 40), 0, 0, 0)?.tone).toBe('yellow');

@@ -13,7 +13,6 @@ import {
 import { LucideDynamicIcon, LucideSearch, LucideSparkles } from '@lucide/angular';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { FeedItem } from '../../models/deal-monitor.model';
 import {
@@ -30,7 +29,6 @@ import { VintedAiSearchService } from '../../services/vinted-ai-search.service';
   imports: [
     ModalShellComponent,
     ButtonComponent,
-    NumberInputComponent,
     CustomSelectComponent,
     LucideDynamicIcon,
     CurrencyPipe,
@@ -53,14 +51,30 @@ export class VintedAiSearchModalComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly statsError = signal<string | null>(null);
-  readonly shipping = signal<number | null>(0);
-  readonly feePercent = signal<number | null>(0);
-  readonly otherCosts = signal<number | null>(0);
   readonly searchIcon = LucideSearch;
   readonly sparklesIcon = LucideSparkles;
-  readonly estimate = computed(() =>
-    resaleEstimate(this.result(), this.shipping(), this.feePercent(), this.otherCosts()),
-  );
+  readonly estimate = computed(() => resaleEstimate(this.result()));
+  readonly marketSections = computed(() => {
+    const analysis = this.result()?.analysis;
+    return [
+      {
+        key: 'retail',
+        title: 'Neupreise',
+        research: analysis?.research?.retail,
+        comparisons:
+          analysis?.comparisons.filter((entry) =>
+            ['manufacturer', 'retail'].includes(entry.kind),
+          ) ?? [],
+      },
+      {
+        key: 'used',
+        title: 'Gebrauchtmarkt',
+        research: analysis?.research?.used,
+        comparisons:
+          analysis?.comparisons.filter((entry) => ['sold', 'asking'].includes(entry.kind)) ?? [],
+      },
+    ];
+  });
   readonly labels = {
     manufacturer: 'Hersteller-Neupreis',
     retail: 'Shop-Neupreis',
@@ -82,13 +96,11 @@ export class VintedAiSearchModalComponent {
       untracked(() => {
         this.loading.set(false);
         this.result.set(null);
+        this.error.set(null);
         this.selectedModel.set('gpt-6-luna');
         this.completedResults.set([]);
         this.stats.set([]);
         this.statsError.set(null);
-        this.shipping.set(0);
-        this.feePercent.set(0);
-        this.otherCosts.set(0);
         void this.loadUsage(workspace, ++this.generation);
       });
     });
