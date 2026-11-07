@@ -1,3 +1,4 @@
+import { PLATFORM_ERROR_AREAS } from './platform-error-areas';
 import type { WorkspaceNavigationIcon } from './workspace-navigation';
 
 export interface SubNavigationItem {
@@ -7,7 +8,18 @@ export interface SubNavigationItem {
 
 export interface PlatformAdminNavigationItem extends SubNavigationItem {
   readonly icon: WorkspaceNavigationIcon;
+  /** Klappt unter dem Eintrag auf, solange einer seiner Pfade geöffnet ist. */
+  readonly children?: readonly SubNavigationItem[];
 }
+
+/** Systemzustand mit je einer Detailseite für das Fehlerprotokoll eines Bereichs. */
+const SYSTEM_HEALTH_NAVIGATION: readonly SubNavigationItem[] = [
+  { label: 'Übersicht', path: '/admin/system' },
+  ...PLATFORM_ERROR_AREAS.map((area) => ({
+    label: area.label,
+    path: `/admin/system/${area.slug}`,
+  })),
+];
 
 /**
  * Die Seiten der Administration. Im Admin-Bereich ersetzt diese Liste die
@@ -19,7 +31,12 @@ export interface PlatformAdminNavigationItem extends SubNavigationItem {
  */
 export const PLATFORM_ADMIN_SIDEBAR_NAVIGATION: readonly PlatformAdminNavigationItem[] = [
   { label: 'Übersicht', path: '/admin/overview', icon: 'dashboard' },
-  { label: 'Systemzustand', path: '/admin/system', icon: 'activity' },
+  {
+    label: 'Systemzustand',
+    path: '/admin/system',
+    icon: 'activity',
+    children: SYSTEM_HEALTH_NAVIGATION,
+  },
   { label: 'Bewerbungen', path: '/admin/applications', icon: 'userPlus' },
   { label: 'Nutzer', path: '/admin/users', icon: 'users' },
   { label: 'Vinted Bot', path: '/admin/vinted-bot', icon: 'bot' },

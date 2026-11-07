@@ -233,6 +233,11 @@ export class SidebarComponent {
     return isNavigationChildActive(child, this.currentUrl());
   }
 
+  /** Unterpunkte der Administration gelten nur auf ihrer eigenen Seite als geöffnet. */
+  isAdminChildActive(child: SubNavigationItem): boolean {
+    return this.currentUrl().split(/[?#]/, 1)[0] === child.path;
+  }
+
   isMarketplaceItemActive(path: string): boolean {
     if (this.adminContext()) return isNavigationChildActive({ label: '', path }, this.currentUrl());
     if (this.kleinanzeigenContext())

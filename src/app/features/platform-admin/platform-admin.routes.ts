@@ -21,6 +21,13 @@ export const platformAdminRoutes: Routes = [
       ),
   },
   {
+    path: 'system/:area',
+    loadComponent: () =>
+      import('./pages/platform-error-log/platform-error-log.component').then(
+        (m) => m.PlatformErrorLogComponent,
+      ),
+  },
+  {
     path: 'vinted-catalog',
     loadComponent: () =>
       import('./pages/vinted-listing-catalog/vinted-listing-catalog.component').then(

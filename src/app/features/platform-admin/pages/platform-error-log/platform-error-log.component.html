@@ -1,0 +1,122 @@
+<section class="space-y-4">
+  @if (area(); as current) {
+    <app-page-header [title]="current.label" [icon]="systemIcon">
+      <app-button header-actions [icon]="refreshIcon" [loading]="loading()" (clicked)="load()">
+        Aktualisieren
+      </app-button>
+    </app-page-header>
+
+    <app-data-table
+      [ariaLabel]="'Fehlerprotokoll ' + current.label"
+      [toolbarVisible]="false"
+      [loading]="loading() && events().length === 0"
+      [errorMessage]="events().length === 0 ? error() : null"
+      [hasRows]="events().length > 0"
+      loadingText="Fehlerprotokoll wird geladen …"
+      emptyTitle="Keine Fehler in den letzten 30 Tagen"
+    >
+      <div table-content class="hidden overflow-x-auto md:block">
+        <table data-platform-error-table class="linear-table min-w-[960px]">
+          <caption class="sr-only">
+            Protokollierte Fehler und Abbrüche, neueste zuerst
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="w-40">Zeit</th>
+              <th scope="col" class="w-24">Art</th>
+              <th scope="col" class="min-w-40">Konto</th>
+              <th scope="col" class="min-w-36">Quelle</th>
+              <th scope="col" class="min-w-56">Fehler</th>
+              <th scope="col" class="min-w-64">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (event of events(); track event.id) {
+              @let state = severity(event);
+              <tr>
+                <td class="tabular-nums whitespace-nowrap text-fb-text-secondary">
+                  <time [attr.datetime]="event.occurredAt">{{
+                    event.occurredAt | date: 'dd.MM.yyyy, HH:mm:ss'
+                  }}</time>
+                </td>
+                <td>
+                  <app-badge [tone]="state.tone" size="sm">{{ state.label }}</app-badge>
+                </td>
+                <td>
+                  <span class="block font-medium text-fb-text-primary">{{
+                    event.accountLabel ?? event.userEmail ?? '—'
+                  }}</span>
+                  @if (event.workspaceName) {
+                    <span class="block text-xs text-fb-text-muted">{{ event.workspaceName }}</span>
+                  }
+                </td>
+                <td class="text-fb-text-secondary">{{ sourceLabel(event.source) }}</td>
+                <td>
+                  <span class="block text-fb-text-primary">{{ codeLabel(event.code) }}</span>
+                  @if (codeLabel(event.code) !== event.code) {
+                    <code class="block text-xs text-fb-text-muted">{{ event.code }}</code>
+                  }
+                </td>
+                <td class="text-xs text-fb-text-secondary">
+                  @if (event.message) {
+                    <p class="text-sm text-fb-text-primary break-words">{{ event.message }}</p>
+                  }
+                  @if (event.detail.length > 0) {
+                    <dl class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                      @for (entry of event.detail; track entry.label) {
+                        <div class="flex gap-1">
+                          <dt class="text-fb-text-muted">{{ entry.label }}</dt>
+                          <dd class="break-all">{{ entry.value }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <ul table-mobile class="divide-y divide-fb-line md:hidden" data-platform-error-list>
+        @for (event of events(); track event.id) {
+          @let state = severity(event);
+          <li class="space-y-1 px-4 py-3 text-sm">
+            <div class="flex items-center justify-between gap-2">
+              <time
+                class="tabular-nums text-xs text-fb-text-secondary"
+                [attr.datetime]="event.occurredAt"
+                >{{ event.occurredAt | date: 'dd.MM.yyyy, HH:mm:ss' }}</time
+              >
+              <app-badge [tone]="state.tone" size="sm">{{ state.label }}</app-badge>
+            </div>
+            <p class="font-medium text-fb-text-primary">{{ codeLabel(event.code) }}</p>
+            <p class="text-xs text-fb-text-secondary">
+              {{ sourceLabel(event.source) }} · {{ event.accountLabel ?? event.userEmail ?? '—' }}
+            </p>
+            @if (event.message) {
+              <p class="break-words text-xs text-fb-text-primary">{{ event.message }}</p>
+            }
+            @for (entry of event.detail; track entry.label) {
+              <p class="text-xs text-fb-text-muted">{{ entry.label }}: {{ entry.value }}</p>
+            }
+          </li>
+        }
+      </ul>
+    </app-data-table>
+
+    @if (events().length > 0 && error(); as message) {
+      <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+    }
+    @if (hasMore()) {
+      <div class="flex justify-center">
+        <app-button variant="secondary" [loading]="loadingMore()" (clicked)="loadMore()">
+          Ältere laden
+        </app-button>
+      </div>
+    }
+  } @else {
+    <app-page-header title="Systemzustand" [icon]="systemIcon" />
+    <p role="alert" class="text-sm text-fb-critical">Diesen Bereich gibt es nicht.</p>
+  }
+</section>

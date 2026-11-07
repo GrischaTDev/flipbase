@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Fehlerprotokoll im Systemzustand
+
+**Auftrag:** Im Admin-Bereich soll jeder Abbruch und Fehler je Bereich
+nachvollziehbar sein: links unter „Systemzustand“ aufklappbare Unterpunkte, je
+Bereich eine schlichte Tabelle mit Zeit, Fehler und Details. Der Nutzer hat
+entschieden, dass sichtbare App-Fehler (auch auf Handy und Tablet) ebenfalls
+protokolliert werden. Anlass war ein Ausfall der Vinted-Automatik am 06.11.,
+dessen Worker-Logs beim Neustart verloren gingen.
+
+**Umsetzung:** Neue Tabelle `platform_error_events` (RLS, nur Betreiber lesen,
+30 Tage Aufbewahrung, keine Inhalte oder Zugangsdaten). Ein gemeinsamer Trigger
+schreibt Fehlerzustände aus zehn bestehenden Tabellen in derselben Transaktion
+mit: Vinted-Abrufe, Browsersitzungen und Automatikpausen, Nachrichten, Favoriten,
+Preisverhandlungen, Inserate, Kleinanzeigen-Abgleich und -Veröffentlichung,
+Push-Zustellungen und Feed-Bot-Zyklen. `platform_report_app_error` nimmt
+gedrosselt sichtbare Fehlermeldungen (`role="alert"`) und unbehandelte Ausnahmen
+der App an. Feldfehler der Formularprüfung bleiben außen vor. Unter „Systemzustand“
+klappen „Übersicht“ und sechs Bereichsseiten auf. Jede zeigt die Einträge
+neueste zuerst, mit „Ältere laden“.
+
+**Nachweise:** pgTAP `platform-error-log` 20/20 in einer zurückgerollten
+Transaktion gegen die lokale Datenbank. 22 bestehende Testdateien der
+betroffenen Tabellen bestanden mit den Triggern. Bei 20 weiteren treten dieselben
+Abweichungen mit und ohne Migration auf, weil die lokale Datenbank auf einem
+älteren Stand ist. Den vollständigen Lauf auf frischer Datenbank übernimmt die CI.
+Neue Specs für Modell, Detailseite, Melde-Dienst und Seitenmenü bestanden.
+
 ## 2026-11-07 - Juna - Not-Aus auch für Erweiterungsaufträge, Push-Worker im Systemzustand
 
 **Anlass:** Nach dem Admin-Bereich (PR 584) waren drei Punkte offen. Aufträge der

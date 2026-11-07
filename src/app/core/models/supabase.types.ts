@@ -6014,6 +6014,51 @@ export type Database = {
           },
         ]
       }
+      platform_error_events: {
+        Row: {
+          account_label: string | null
+          area: string
+          code: string
+          detail: Json
+          id: number
+          message: string | null
+          occurred_at: string
+          reference_id: string | null
+          severity: string
+          source: string
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          account_label?: string | null
+          area: string
+          code: string
+          detail?: Json
+          id?: never
+          message?: string | null
+          occurred_at?: string
+          reference_id?: string | null
+          severity?: string
+          source: string
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          account_label?: string | null
+          area?: string
+          code?: string
+          detail?: Json
+          id?: never
+          message?: string | null
+          occurred_at?: string
+          reference_id?: string | null
+          severity?: string
+          source?: string
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       platform_feature_switches: {
         Row: {
           enabled: boolean
@@ -13326,11 +13371,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      platform_error_events_list: {
+        Args: { p_area: string; p_before_id?: number; p_limit?: number }
+        Returns: Json
+      }
+      platform_error_events_summary: { Args: never; Returns: Json }
       platform_feature_enabled: {
         Args: { p_feature_key: string }
         Returns: boolean
       }
       platform_system_health: { Args: never; Returns: Json }
+      platform_report_app_error: {
+        Args: { p_code: string; p_device: string; p_message: string; p_page: string }
+        Returns: boolean
+      }
       prepare_beta_invitation: {
         Args: {
           p_application_id: string
