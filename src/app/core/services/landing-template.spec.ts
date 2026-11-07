@@ -18,11 +18,11 @@ describe('Auslieferung der Landingpage', () => {
     expect(header).toContain('Sign in');
   });
 
-  it('die Seite bindet nur die drei lokalen Skripte statt eingebettetem Code ein', () => {
+  it('die Seite bindet nur die vier lokalen Skripte statt eingebettetem Code ein', () => {
     const scriptTags = [...seite.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/giu)];
     expect(
       scriptTags.map(([, attributes]) => attributes.match(/\bsrc=["']([^"']+)["']/iu)?.[1]),
-    ).toEqual(['landing.js', 'beta-application.js', 'analytics-consent.js']);
+    ).toEqual(['landing.js', 'product-demo.js', 'beta-application.js', 'analytics-consent.js']);
     for (const [, attributes, content] of scriptTags) {
       expect(attributes).toMatch(/\bdefer\b/iu);
       expect(content.trim()).toBe('');

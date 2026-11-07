@@ -1,0 +1,921 @@
+{
+  "sourceCommit": "c7a818c370f38fb695206f34267ec62ec852dcf1",
+  "capture": "actual-angular-pages",
+  "syntheticData": true,
+  "pages": {
+    "overview": {
+      "route": "/dashboard",
+      "component": "src/app/features/dashboard/dashboard.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "overview-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Übersicht\n\nDein Geschäft auf einen Blick.\n\nDieses Jahr\nAlle Plattformen\nUmsatz\n\n187,00 €\n\nUmsatz bestätigter Verkäufe im gewählten Zeitraum inklusive Versanderlösen und dokumentierter Erstattungen.\nGewinn\n\n115,50 €\n\nErgebnis nach Wareneinsatz und direkten Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen. Verkäufe mit unbekannten Kosten bleiben unberücksichtigt.\nMarge\n\n61,76 %\n\nUmsatzgewichtete Marge der Verkäufe mit bekannten Kosten. Veränderungen in Prozentpunkten.\nVerkäufe\n\n5\n\nAnzahl bestätigter Verkäufe, nicht die Stückzahl.\nSchnellaktionen\nEinkauf erfassen\nVerkauf erfassen\nInserat erstellen\nUmsatz, Ausgaben und Gewinn\n\nGewinn aus Verkäufen; Ausgaben gesamt inklusive Einkäufe und Betriebsausgaben.\n\nUmsatz\nAusgaben gesamt\nGewinn\n200 €\n150 €\n100 €\n50 €\n0 €\nJan\nFeb\nMär\nApr\nMai\nJun\nJul\nAug\nSep\nOkt\nNov\nDez\n\nMit den Pfeiltasten zwischen Datenpunkten wechseln. Pos1 und Ende springen zum ersten oder letzten Datenpunkt. Escape schließt die Detailanzeige.\n\nTabellarische Zusammenfassung des Diagramms\nZeitraum\tUmsatz\tAusgaben gesamt\tGewinn\nJan\t0,00 €\t0,00 €\t0,00 €\nFeb\t0,00 €\t0,00 €\t0,00 €\nMär\t0,00 €\t0,00 €\t0,00 €\nApr\t0,00 €\t0,00 €\t0,00 €\nMai\t0,00 €\t0,00 €\t0,00 €\nJun\t0,00 €\t0,00 €\t0,00 €\nJul\t0,00 €\t0,00 €\t0,00 €\nAug\t0,00 €\t0,00 €\t0,00 €\nSep\t0,00 €\t0,00 €\t0,00 €\nOkt\t0,00 €\t0,00 €\t0,00 €\nNov\t187,00 €\t152,50 €\t115,50 €\nDez\t0,00 €\t0,00 €\t0,00 €\nLetzte Verkäufe\nAlle anzeigen\nDie letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.\nDatum\tArtikel\tPlattform\tGewinn\n06.11.2026\t\nVintage Sweatshirt\n\t\nVinted\n\t25,00 €\n06.11.2026\t\nCrewneck Sweatshirt\n\t\neBay\n\t19,50 €\n06.11.2026\t\nWool Sweatshirt\n\t\nVinted\n\t35,00 €\n06.11.2026\t\nBasic Sweatshirt\n\t\nKleinanzeigen\n\t14,00 €\n06.11.2026\t\nVintage Crewneck\n\t\nVinted\n\t22,00 €",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 1097,
+          "sha256": "900b632211be25e9eaf0127ccef8c3c8d28bbfc66002c6af10ef5d695e270b06"
+        },
+        "desktop-dark": {
+          "file": "overview-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Übersicht\n\nDein Geschäft auf einen Blick.\n\nDieses Jahr\nAlle Plattformen\nUmsatz\n\n187,00 €\n\nUmsatz bestätigter Verkäufe im gewählten Zeitraum inklusive Versanderlösen und dokumentierter Erstattungen.\nGewinn\n\n115,50 €\n\nErgebnis nach Wareneinsatz und direkten Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen. Verkäufe mit unbekannten Kosten bleiben unberücksichtigt.\nMarge\n\n61,76 %\n\nUmsatzgewichtete Marge der Verkäufe mit bekannten Kosten. Veränderungen in Prozentpunkten.\nVerkäufe\n\n5\n\nAnzahl bestätigter Verkäufe, nicht die Stückzahl.\nSchnellaktionen\nEinkauf erfassen\nVerkauf erfassen\nInserat erstellen\nUmsatz, Ausgaben und Gewinn\n\nGewinn aus Verkäufen; Ausgaben gesamt inklusive Einkäufe und Betriebsausgaben.\n\nUmsatz\nAusgaben gesamt\nGewinn\n200 €\n150 €\n100 €\n50 €\n0 €\nJan\nFeb\nMär\nApr\nMai\nJun\nJul\nAug\nSep\nOkt\nNov\nDez\n\nMit den Pfeiltasten zwischen Datenpunkten wechseln. Pos1 und Ende springen zum ersten oder letzten Datenpunkt. Escape schließt die Detailanzeige.\n\nTabellarische Zusammenfassung des Diagramms\nZeitraum\tUmsatz\tAusgaben gesamt\tGewinn\nJan\t0,00 €\t0,00 €\t0,00 €\nFeb\t0,00 €\t0,00 €\t0,00 €\nMär\t0,00 €\t0,00 €\t0,00 €\nApr\t0,00 €\t0,00 €\t0,00 €\nMai\t0,00 €\t0,00 €\t0,00 €\nJun\t0,00 €\t0,00 €\t0,00 €\nJul\t0,00 €\t0,00 €\t0,00 €\nAug\t0,00 €\t0,00 €\t0,00 €\nSep\t0,00 €\t0,00 €\t0,00 €\nOkt\t0,00 €\t0,00 €\t0,00 €\nNov\t187,00 €\t152,50 €\t115,50 €\nDez\t0,00 €\t0,00 €\t0,00 €\nLetzte Verkäufe\nAlle anzeigen\nDie letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.\nDatum\tArtikel\tPlattform\tGewinn\n06.11.2026\t\nVintage Sweatshirt\n\t\nVinted\n\t25,00 €\n06.11.2026\t\nCrewneck Sweatshirt\n\t\neBay\n\t19,50 €\n06.11.2026\t\nWool Sweatshirt\n\t\nVinted\n\t35,00 €\n06.11.2026\t\nBasic Sweatshirt\n\t\nKleinanzeigen\n\t14,00 €\n06.11.2026\t\nVintage Crewneck\n\t\nVinted\n\t22,00 €",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 1097,
+          "sha256": "c3c9bc54b39a4ca3b7cecc1effc9f78f0db58f09124f072bb2691fb158882ea1"
+        },
+        "mobile-light": {
+          "file": "overview-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Übersicht\n\nDein Geschäft auf einen Blick.\n\nDieses Jahr\nAlle Plattformen\nUmsatz\n\n187,00 €\n\nUmsatz bestätigter Verkäufe im gewählten Zeitraum inklusive Versanderlösen und dokumentierter Erstattungen.\nGewinn\n\n115,50 €\n\nErgebnis nach Wareneinsatz und direkten Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen. Verkäufe mit unbekannten Kosten bleiben unberücksichtigt.\nMarge\n\n61,76 %\n\nUmsatzgewichtete Marge der Verkäufe mit bekannten Kosten. Veränderungen in Prozentpunkten.\nVerkäufe\n\n5\n\nAnzahl bestätigter Verkäufe, nicht die Stückzahl.\nSchnellaktionen\nEinkauf erfassen\nVerkauf erfassen\nInserat erstellen\nUmsatz, Ausgaben und Gewinn\n\nGewinn aus Verkäufen; Ausgaben gesamt inklusive Einkäufe und Betriebsausgaben.\n\nUmsatz\nAusgaben gesamt\nGewinn\n200 €\n150 €\n100 €\n50 €\n0 €\nJan\nJul\nDez\n\nMit den Pfeiltasten zwischen Datenpunkten wechseln. Pos1 und Ende springen zum ersten oder letzten Datenpunkt. Escape schließt die Detailanzeige.\n\nTabellarische Zusammenfassung des Diagramms\nZeitraum\tUmsatz\tAusgaben gesamt\tGewinn\nJan\t0,00 €\t0,00 €\t0,00 €\nFeb\t0,00 €\t0,00 €\t0,00 €\nMär\t0,00 €\t0,00 €\t0,00 €\nApr\t0,00 €\t0,00 €\t0,00 €\nMai\t0,00 €\t0,00 €\t0,00 €\nJun\t0,00 €\t0,00 €\t0,00 €\nJul\t0,00 €\t0,00 €\t0,00 €\nAug\t0,00 €\t0,00 €\t0,00 €\nSep\t0,00 €\t0,00 €\t0,00 €\nOkt\t0,00 €\t0,00 €\t0,00 €\nNov\t187,00 €\t152,50 €\t115,50 €\nDez\t0,00 €\t0,00 €\t0,00 €\nLetzte Verkäufe\nAlle anzeigen\nDie letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.\nDatum\tArtikel\tPlattform\tGewinn\n06.11.2026\t\nVintage Sweatshirt\n\t\nVinted\n\t25,00 €\n06.11.2026\t\nCrewneck Sweatshirt\n\t\neBay\n\t19,50 €\n06.11.2026\t\nWool Sweatshirt\n\t\nVinted\n\t35,00 €\n06.11.2026\t\nBasic Sweatshirt\n\t\nKleinanzeigen\n\t14,00 €\n06.11.2026\t\nVintage Crewneck\n\t\nVinted\n\t22,00 €",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1483,
+          "sha256": "1415aac72ed1b0ab8c8336947a03e73d8e70d3194e3dfc299ca30ffa85eb75d4"
+        },
+        "mobile-dark": {
+          "file": "overview-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Übersicht\n\nDein Geschäft auf einen Blick.\n\nDieses Jahr\nAlle Plattformen\nUmsatz\n\n187,00 €\n\nUmsatz bestätigter Verkäufe im gewählten Zeitraum inklusive Versanderlösen und dokumentierter Erstattungen.\nGewinn\n\n115,50 €\n\nErgebnis nach Wareneinsatz und direkten Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen. Verkäufe mit unbekannten Kosten bleiben unberücksichtigt.\nMarge\n\n61,76 %\n\nUmsatzgewichtete Marge der Verkäufe mit bekannten Kosten. Veränderungen in Prozentpunkten.\nVerkäufe\n\n5\n\nAnzahl bestätigter Verkäufe, nicht die Stückzahl.\nSchnellaktionen\nEinkauf erfassen\nVerkauf erfassen\nInserat erstellen\nUmsatz, Ausgaben und Gewinn\n\nGewinn aus Verkäufen; Ausgaben gesamt inklusive Einkäufe und Betriebsausgaben.\n\nUmsatz\nAusgaben gesamt\nGewinn\n200 €\n150 €\n100 €\n50 €\n0 €\nJan\nJul\nDez\n\nMit den Pfeiltasten zwischen Datenpunkten wechseln. Pos1 und Ende springen zum ersten oder letzten Datenpunkt. Escape schließt die Detailanzeige.\n\nTabellarische Zusammenfassung des Diagramms\nZeitraum\tUmsatz\tAusgaben gesamt\tGewinn\nJan\t0,00 €\t0,00 €\t0,00 €\nFeb\t0,00 €\t0,00 €\t0,00 €\nMär\t0,00 €\t0,00 €\t0,00 €\nApr\t0,00 €\t0,00 €\t0,00 €\nMai\t0,00 €\t0,00 €\t0,00 €\nJun\t0,00 €\t0,00 €\t0,00 €\nJul\t0,00 €\t0,00 €\t0,00 €\nAug\t0,00 €\t0,00 €\t0,00 €\nSep\t0,00 €\t0,00 €\t0,00 €\nOkt\t0,00 €\t0,00 €\t0,00 €\nNov\t187,00 €\t152,50 €\t115,50 €\nDez\t0,00 €\t0,00 €\t0,00 €\nLetzte Verkäufe\nAlle anzeigen\nDie letzten Verkäufe im gewählten Zeitraum und auf der gewählten Plattform.\nDatum\tArtikel\tPlattform\tGewinn\n06.11.2026\t\nVintage Sweatshirt\n\t\nVinted\n\t25,00 €\n06.11.2026\t\nCrewneck Sweatshirt\n\t\neBay\n\t19,50 €\n06.11.2026\t\nWool Sweatshirt\n\t\nVinted\n\t35,00 €\n06.11.2026\t\nBasic Sweatshirt\n\t\nKleinanzeigen\n\t14,00 €\n06.11.2026\t\nVintage Crewneck\n\t\nVinted\n\t22,00 €",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1483,
+          "sha256": "d74e9eb14116e63f521aa8c0814fb869b2b9c9697f25568ef208fa8d53e09c53"
+        }
+      },
+      "figures": {
+        "metrics": ["187,00 €", "115,50 €", "61,76 %", "5"],
+        "chart": [
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["0,00 €", "0,00 €", "0,00 €"],
+          ["187,00 €", "152,50 €", "115,50 €"],
+          ["0,00 €", "0,00 €", "0,00 €"]
+        ],
+        "recentSales": 5
+      }
+    },
+    "purchases": {
+      "route": "/purchases",
+      "component": "src/app/features/purchases/purchases.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "purchases-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Einkäufe\n3 Einkäufe\n\nEinkäufe und enthaltene Artikel verwalten.\n\nNeuer Einkauf\nAlle\nNach Verkäufer filtern\nRentabilität\nEinkaufstabelle\nEinkauf\t\nKaufdatum\n\tVerkäufer\tStatus\t\nBeschreibung\n\t\nGesamt\n\n#104\t06.11.2026\tVintage Studio\t\nAbgeschlossen\n\t\nVintage Sweatshirt\n\t12,00 €\n#105\t06.11.2026\tSecondhand Markt\t\nAbgeschlossen\n\t\nSweatshirts · 3 Positionen\n\t28,00 €\n#106\t06.11.2026\tPrivatankauf\t\nAbgeschlossen\n\t\nVintage-Auswahl\n\t45,00 €",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 288,
+          "sha256": "50d4515c998e48cf5c5fa50fc1811e33b9cda9dd1f4fe2345497bc4a4998f1f4"
+        },
+        "desktop-dark": {
+          "file": "purchases-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Einkäufe\n3 Einkäufe\n\nEinkäufe und enthaltene Artikel verwalten.\n\nNeuer Einkauf\nAlle\nNach Verkäufer filtern\nRentabilität\nEinkaufstabelle\nEinkauf\t\nKaufdatum\n\tVerkäufer\tStatus\t\nBeschreibung\n\t\nGesamt\n\n#104\t06.11.2026\tVintage Studio\t\nAbgeschlossen\n\t\nVintage Sweatshirt\n\t12,00 €\n#105\t06.11.2026\tSecondhand Markt\t\nAbgeschlossen\n\t\nSweatshirts · 3 Positionen\n\t28,00 €\n#106\t06.11.2026\tPrivatankauf\t\nAbgeschlossen\n\t\nVintage-Auswahl\n\t45,00 €",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 288,
+          "sha256": "b385146bd4f4fc04dd156873a6bd2625843bc58affe56d60cf952ddc2980f385"
+        },
+        "mobile-light": {
+          "file": "purchases-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Einkäufe\n3 Einkäufe\n\nEinkäufe und enthaltene Artikel verwalten.\n\nNeuer Einkauf\nAlle\nNach Verkäufer filtern\nRentabilität\nEinkaufstabelle\nEinkauf\t\nKaufdatum\n\tVerkäufer\tStatus\t\nBeschreibung\n\t\nGesamt\n\n#104\t06.11.2026\tVintage Studio\t\nAbgeschlossen\n\t\nVintage Sweatshirt\n\t12,00 €\n#105\t06.11.2026\tSecondhand Markt\t\nAbgeschlossen\n\t\nSweatshirts · 3 Positionen\n\t28,00 €\n#106\t06.11.2026\tPrivatankauf\t\nAbgeschlossen\n\t\nVintage-Auswahl\n\t45,00 €",
+            "notices": []
+          },
+          "width": 358,
+          "height": 450,
+          "sha256": "740b058da5f54086aff945ad4374b0f0ff8b996042b4263b58413e84dde762b5"
+        },
+        "mobile-dark": {
+          "file": "purchases-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Einkäufe\n3 Einkäufe\n\nEinkäufe und enthaltene Artikel verwalten.\n\nNeuer Einkauf\nAlle\nNach Verkäufer filtern\nRentabilität\nEinkaufstabelle\nEinkauf\t\nKaufdatum\n\tVerkäufer\tStatus\t\nBeschreibung\n\t\nGesamt\n\n#104\t06.11.2026\tVintage Studio\t\nAbgeschlossen\n\t\nVintage Sweatshirt\n\t12,00 €\n#105\t06.11.2026\tSecondhand Markt\t\nAbgeschlossen\n\t\nSweatshirts · 3 Positionen\n\t28,00 €\n#106\t06.11.2026\tPrivatankauf\t\nAbgeschlossen\n\t\nVintage-Auswahl\n\t45,00 €",
+            "notices": []
+          },
+          "width": 358,
+          "height": 450,
+          "sha256": "090469fdd2e7083f1a2e6df0caa6e178986d36cce022b4bf62e1c114d3fe282e"
+        }
+      }
+    },
+    "sales": {
+      "route": "/sales",
+      "component": "src/app/features/sales/sales.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "sales-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Verkäufe & Retouren\n\nVerkaufsbetrag, Gewinn und Marge im Überblick.\n\nVerkauf erfassen\nGewinn\n\n115,50 €\n\nVerkäufe\n\n5\n\nAlle\nVerkaufsnummer\t\nDatum\n\t\nArtikel\n\tMenge\tPlattform\t\nVerkaufsbetrag\n\t\nGewinn\n\t\nMarge\n\tAktionen\n–\t06.11.2026\t\nVintage Sweatshirt\n\t1\t\nVinted\n\t39,00 €\t25,00 €\t64,1 %\t\n\n–\t06.11.2026\t\nCrewneck Sweatshirt\n\t1\t\neBay\n\t35,00 €\t19,50 €\t55,71 %\t\n\n–\t06.11.2026\t\nWool Sweatshirt\n\t1\t\nVinted\n\t49,00 €\t35,00 €\t71,43 %\t\n\n–\t06.11.2026\t\nBasic Sweatshirt\n\t1\t\nKleinanzeigen\n\t28,00 €\t14,00 €\t50 %\t\n\n–\t06.11.2026\t\nVintage Crewneck\n\t1\t\nVinted\n\t36,00 €\t22,00 €\t61,11 %\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 515,
+          "sha256": "d7780c50b3046d11230c94e8cc24851755197773c3962ec8db7b811cf365072a"
+        },
+        "desktop-dark": {
+          "file": "sales-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Verkäufe & Retouren\n\nVerkaufsbetrag, Gewinn und Marge im Überblick.\n\nVerkauf erfassen\nGewinn\n\n115,50 €\n\nVerkäufe\n\n5\n\nAlle\nVerkaufsnummer\t\nDatum\n\t\nArtikel\n\tMenge\tPlattform\t\nVerkaufsbetrag\n\t\nGewinn\n\t\nMarge\n\tAktionen\n–\t06.11.2026\t\nVintage Sweatshirt\n\t1\t\nVinted\n\t39,00 €\t25,00 €\t64,1 %\t\n\n–\t06.11.2026\t\nCrewneck Sweatshirt\n\t1\t\neBay\n\t35,00 €\t19,50 €\t55,71 %\t\n\n–\t06.11.2026\t\nWool Sweatshirt\n\t1\t\nVinted\n\t49,00 €\t35,00 €\t71,43 %\t\n\n–\t06.11.2026\t\nBasic Sweatshirt\n\t1\t\nKleinanzeigen\n\t28,00 €\t14,00 €\t50 %\t\n\n–\t06.11.2026\t\nVintage Crewneck\n\t1\t\nVinted\n\t36,00 €\t22,00 €\t61,11 %\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 515,
+          "sha256": "6e58f28ed053f39330d6ce032ab94df22606e35ca7c17ebccbd14ec237cc6316"
+        },
+        "mobile-light": {
+          "file": "sales-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Verkäufe & Retouren\n\nVerkaufsbetrag, Gewinn und Marge im Überblick.\n\nVerkauf erfassen\nGewinn\n\n115,50 €\n\nVerkäufe\n\n5\n\nAlle\n\n–\n\n06.11.2026\nVintage Sweatshirt\nVinted\n39,00 €\nGewinn\n25,00 €\nMarge\n64,1 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nCrewneck Sweatshirt\neBay\n35,00 €\nGewinn\n19,50 €\nMarge\n55,71 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nWool Sweatshirt\nVinted\n49,00 €\nGewinn\n35,00 €\nMarge\n71,43 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nBasic Sweatshirt\nKleinanzeigen\n28,00 €\nGewinn\n14,00 €\nMarge\n50 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nVintage Crewneck\nVinted\n36,00 €\nGewinn\n22,00 €\nMarge\n61,11 %\nMenge\n1\nHaltedauer\n0 Tage",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1422,
+          "sha256": "8f5b13bf909cb6ecdef1da11588f5d3d069e221207faa7de9a8069f7c67afb7c"
+        },
+        "mobile-dark": {
+          "file": "sales-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Verkäufe & Retouren\n\nVerkaufsbetrag, Gewinn und Marge im Überblick.\n\nVerkauf erfassen\nGewinn\n\n115,50 €\n\nVerkäufe\n\n5\n\nAlle\n\n–\n\n06.11.2026\nVintage Sweatshirt\nVinted\n39,00 €\nGewinn\n25,00 €\nMarge\n64,1 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nCrewneck Sweatshirt\neBay\n35,00 €\nGewinn\n19,50 €\nMarge\n55,71 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nWool Sweatshirt\nVinted\n49,00 €\nGewinn\n35,00 €\nMarge\n71,43 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nBasic Sweatshirt\nKleinanzeigen\n28,00 €\nGewinn\n14,00 €\nMarge\n50 %\nMenge\n1\nHaltedauer\n0 Tage\n\n–\n\n06.11.2026\nVintage Crewneck\nVinted\n36,00 €\nGewinn\n22,00 €\nMarge\n61,11 %\nMenge\n1\nHaltedauer\n0 Tage",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1422,
+          "sha256": "d5d2067039a53ebc88f790e5600e977f9a26b78e6d72c7237a69a48d89b58379"
+        }
+      }
+    },
+    "marketplaces": {
+      "route": "/marketplaces/overview",
+      "component": "src/app/features/marketplaces/components/marketplace-overview/marketplace-overview.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "marketplaces-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marktplatzübersicht\n\nDeine Accounts und Inserate an einem Ort.\n\nInserat erstellen\nKonto hinzufügen\nMarktplätze verwalten\nVinted\nvintage.studio\nVerbunden\nInserate\n60\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\neBay\nvintage.studio\nVerbunden\nInserate\nUnbekannt\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\nKleinanzeigen\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nInserate",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 466,
+          "sha256": "57d1c62998ef600832b95e7a94056c5a6e9db017645397396e64939fe968d592"
+        },
+        "desktop-dark": {
+          "file": "marketplaces-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marktplatzübersicht\n\nDeine Accounts und Inserate an einem Ort.\n\nInserat erstellen\nKonto hinzufügen\nMarktplätze verwalten\nVinted\nvintage.studio\nVerbunden\nInserate\n60\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\neBay\nvintage.studio\nVerbunden\nInserate\nUnbekannt\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\nKleinanzeigen\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nInserate",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 466,
+          "sha256": "b562cc1fee20463a3c8970ecc11cf7f820aa4872c0aa64610988925c54e9b3fc"
+        },
+        "mobile-light": {
+          "file": "marketplaces-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marktplatzübersicht\n\nDeine Accounts und Inserate an einem Ort.\n\nInserat erstellen\nKonto hinzufügen\nMarktplätze verwalten\nVinted\nvintage.studio\nVerbunden\nInserate\n60\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\neBay\nvintage.studio\nVerbunden\nInserate\nUnbekannt\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\nKleinanzeigen\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nInserate",
+            "notices": []
+          },
+          "width": 358,
+          "height": 805,
+          "sha256": "1523aaebd7851905ad649ce526667231f2557029478b1c81a1165d536cb55c6d"
+        },
+        "mobile-dark": {
+          "file": "marketplaces-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marktplatzübersicht\n\nDeine Accounts und Inserate an einem Ort.\n\nInserat erstellen\nKonto hinzufügen\nMarktplätze verwalten\nVinted\nvintage.studio\nVerbunden\nInserate\n60\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\neBay\nvintage.studio\nVerbunden\nInserate\nUnbekannt\nLetzter Abgleich\n06.11.2026, 11:00\nInserate\nKleinanzeigen\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nInserate",
+            "notices": []
+          },
+          "width": 358,
+          "height": 805,
+          "sha256": "e9e5154eb3e7a42b1767dec7138b41d0831e4259a2495e37fab630ec8cf3eb00"
+        }
+      }
+    },
+    "vinted": {
+      "route": "/marketplaces/vinted/listings",
+      "component": "src/app/features/marketplaces/vinted-workspace.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "vinted-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleiderschrank\nvintage.studio\nZuletzt aktualisiert: 11:00 Uhr\n\nKleiderschrank (3)\nÄnderungen\nLetzter Abruf\nVintage Sweatshirt\n2 T\n\n39,00 €\n\nZustand:\nAktiv\n\n38\n4\nCrewneck Sweatshirt\n2 T\n\n35,00 €\n\nZustand:\nAktiv\n\n47\n5\nWool Sweatshirt\n2 T\n\n49,00 €\n\nZustand:\nAktiv\n\n56\n6",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 642,
+          "sha256": "034794bc433e2bdf826486e02228ad9da38f1356e36504be8d60a53a0c0d4292"
+        },
+        "desktop-dark": {
+          "file": "vinted-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleiderschrank\nvintage.studio\nZuletzt aktualisiert: 11:00 Uhr\n\nKleiderschrank (3)\nÄnderungen\nLetzter Abruf\nVintage Sweatshirt\n2 T\n\n39,00 €\n\nZustand:\nAktiv\n\n38\n4\nCrewneck Sweatshirt\n2 T\n\n35,00 €\n\nZustand:\nAktiv\n\n47\n5\nWool Sweatshirt\n2 T\n\n49,00 €\n\nZustand:\nAktiv\n\n56\n6",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 642,
+          "sha256": "4b30026466a7590c98504eceddeb28c427fc31f7cec30161500da14003f6ad43"
+        },
+        "mobile-light": {
+          "file": "vinted-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleiderschrank\nvintage.studio\nZuletzt aktualisiert: 11:00 Uhr\n\nKleiderschrank (3)\nÄnderungen\nLetzter Abruf\nVintage Sweatshirt\n2 T\n\n39,00 €\n\nZustand:\nAktiv\n\n38\n4\nCrewneck Sweatshirt\n2 T\n\n35,00 €\n\nZustand:\nAktiv\n\n47\n5\nWool Sweatshirt\n2 T\n\n49,00 €\n\nZustand:\nAktiv\n\n56\n6",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1114,
+          "sha256": "4827c86bd1ec62a7868093a356a4acab84833f0724304bfa46142f03224c6a97"
+        },
+        "mobile-dark": {
+          "file": "vinted-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleiderschrank\nvintage.studio\nZuletzt aktualisiert: 11:00 Uhr\n\nKleiderschrank (3)\nÄnderungen\nLetzter Abruf\nVintage Sweatshirt\n2 T\n\n39,00 €\n\nZustand:\nAktiv\n\n38\n4\nCrewneck Sweatshirt\n2 T\n\n35,00 €\n\nZustand:\nAktiv\n\n47\n5\nWool Sweatshirt\n2 T\n\n49,00 €\n\nZustand:\nAktiv\n\n56\n6",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1114,
+          "sha256": "8126d18eeb022c1ed3408cb4a1d0c589738c2a5e9bbe9cb6711d13a8b4b7e86a"
+        }
+      }
+    },
+    "ebay": {
+      "route": "/marketplaces/ebay",
+      "component": "src/app/features/marketplaces/ebay-workspace.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "ebay-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "eBay\neBay-Inserate\n\nKonto: vintage.studio\n\nInserat erstellen\nAktualisieren\n\nAufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen. Beobachter sind der aktuelle Stand.\n\nZeitraum (UTC): 01.11.2026 – 06.11.2026 · eBay-Datenstand: 06.11.2026 00:00\n\nDeine aktiven eBay-Inserate. Bearbeite ein Angebot oder ordne es einem Flipbase-Artikel zu.\n\n30 Einträge bei eBay\n\nAktive Inserate deines verbundenen eBay-Kontos\nInserat\tAktueller Preis\tVerfügbar\tBeobachter\tAufrufe (30 Tage)\tAktionen\n\nVintage Sweatshirt\nFestpreis\n\t39,00 EUR\t1\t–\t38\t\n\n\nCrewneck Sweatshirt\nFestpreis\n\t35,00 EUR\t1\t–\t47\t\n\n\nWool Sweatshirt\nFestpreis\n\t49,00 EUR\t1\t–\t56\t\n\n\nBasic Sweatshirt\nFestpreis\n\t28,00 EUR\t1\t–\t65\t\n\n\nVintage Crewneck\nFestpreis\n\t36,00 EUR\t1\t–\t74\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 603,
+          "sha256": "5b93bc4d93be6e941d9912fdec30ec9acc6d15f9198d25bf5f81ba2c588e6d55"
+        },
+        "desktop-dark": {
+          "file": "ebay-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "eBay\neBay-Inserate\n\nKonto: vintage.studio\n\nInserat erstellen\nAktualisieren\n\nAufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen. Beobachter sind der aktuelle Stand.\n\nZeitraum (UTC): 01.11.2026 – 06.11.2026 · eBay-Datenstand: 06.11.2026 00:00\n\nDeine aktiven eBay-Inserate. Bearbeite ein Angebot oder ordne es einem Flipbase-Artikel zu.\n\n30 Einträge bei eBay\n\nAktive Inserate deines verbundenen eBay-Kontos\nInserat\tAktueller Preis\tVerfügbar\tBeobachter\tAufrufe (30 Tage)\tAktionen\n\nVintage Sweatshirt\nFestpreis\n\t39,00 EUR\t1\t–\t38\t\n\n\nCrewneck Sweatshirt\nFestpreis\n\t35,00 EUR\t1\t–\t47\t\n\n\nWool Sweatshirt\nFestpreis\n\t49,00 EUR\t1\t–\t56\t\n\n\nBasic Sweatshirt\nFestpreis\n\t28,00 EUR\t1\t–\t65\t\n\n\nVintage Crewneck\nFestpreis\n\t36,00 EUR\t1\t–\t74\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 603,
+          "sha256": "e97c2f0c5d0984fa2356a26e0f5b4866b784fe8095aa6344e71358a2d7f1d6ea"
+        },
+        "mobile-light": {
+          "file": "ebay-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "eBay\neBay-Inserate\n\nKonto: vintage.studio\n\nInserat erstellen\nAktualisieren\n\nAufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen. Beobachter sind der aktuelle Stand.\n\nZeitraum (UTC): 01.11.2026 – 06.11.2026 · eBay-Datenstand: 06.11.2026 00:00\n\nDeine aktiven eBay-Inserate. Bearbeite ein Angebot oder ordne es einem Flipbase-Artikel zu.\n\n30 Einträge bei eBay\n\nAktive Inserate deines verbundenen eBay-Kontos\nInserat\tAktueller Preis\tVerfügbar\tBeobachter\tAufrufe (30 Tage)\tAktionen\n\nVintage Sweatshirt\nFestpreis\n\t39,00 EUR\t1\t–\t38\t\n\n\nCrewneck Sweatshirt\nFestpreis\n\t35,00 EUR\t1\t–\t47\t\n\n\nWool Sweatshirt\nFestpreis\n\t49,00 EUR\t1\t–\t56\t\n\n\nBasic Sweatshirt\nFestpreis\n\t28,00 EUR\t1\t–\t65\t\n\n\nVintage Crewneck\nFestpreis\n\t36,00 EUR\t1\t–\t74\t",
+            "notices": []
+          },
+          "width": 358,
+          "height": 821,
+          "sha256": "694381de1b8d3b91339e7eb85002337e7d568a0e81e7c7b2a133b8420f9ffa26"
+        },
+        "mobile-dark": {
+          "file": "ebay-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "eBay\neBay-Inserate\n\nKonto: vintage.studio\n\nInserat erstellen\nAktualisieren\n\nAufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen. Beobachter sind der aktuelle Stand.\n\nZeitraum (UTC): 01.11.2026 – 06.11.2026 · eBay-Datenstand: 06.11.2026 00:00\n\nDeine aktiven eBay-Inserate. Bearbeite ein Angebot oder ordne es einem Flipbase-Artikel zu.\n\n30 Einträge bei eBay\n\nAktive Inserate deines verbundenen eBay-Kontos\nInserat\tAktueller Preis\tVerfügbar\tBeobachter\tAufrufe (30 Tage)\tAktionen\n\nVintage Sweatshirt\nFestpreis\n\t39,00 EUR\t1\t–\t38\t\n\n\nCrewneck Sweatshirt\nFestpreis\n\t35,00 EUR\t1\t–\t47\t\n\n\nWool Sweatshirt\nFestpreis\n\t49,00 EUR\t1\t–\t56\t\n\n\nBasic Sweatshirt\nFestpreis\n\t28,00 EUR\t1\t–\t65\t\n\n\nVintage Crewneck\nFestpreis\n\t36,00 EUR\t1\t–\t74\t",
+            "notices": []
+          },
+          "width": 358,
+          "height": 821,
+          "sha256": "afaa7f33f492ba97fc79c7418c42e7987b288f2c91cbe39a6536be040fd1dda4"
+        }
+      }
+    },
+    "kleinanzeigen": {
+      "route": "/marketplaces/kleinanzeigen",
+      "component": "src/app/features/marketplaces/components/kleinanzeigen-workspace/kleinanzeigen-workspace.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "kleinanzeigen-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleinanzeigen\nKleinanzeigen · Inserate\nPostfach\nKonto hinzufügen\nDeine Kleinanzeigen-Konten\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nAlle Inserate\nAlle auf dieser Seite\n\n0 ausgewählt\n\nInserate von Vintage Studio\nAuswahl\n\tInserat\tPreis\tOnline seit\tAktionen\n\n\t\n\nVintage Sweatshirt\n\nOnline\n\t39,00 €\t\n2 T\n\t\n\n\n\t\n\nCrewneck Sweatshirt\n\nOnline\n\t35,00 €\t\n2 T\n\t\n\n\n\t\n\nWool Sweatshirt\n\nOnline\n\t49,00 €\t\n2 T\n\t\n\n3 von 3 Inseraten\n\nZurück\nWeiter",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 525,
+          "sha256": "62b20a00377a5b6e7612d84c606cd193090ce20e213aef9aa70454a812f83c1c"
+        },
+        "desktop-dark": {
+          "file": "kleinanzeigen-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleinanzeigen\nKleinanzeigen · Inserate\nPostfach\nKonto hinzufügen\nDeine Kleinanzeigen-Konten\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nAlle Inserate\nAlle auf dieser Seite\n\n0 ausgewählt\n\nInserate von Vintage Studio\nAuswahl\n\tInserat\tPreis\tOnline seit\tAktionen\n\n\t\n\nVintage Sweatshirt\n\nOnline\n\t39,00 €\t\n2 T\n\t\n\n\n\t\n\nCrewneck Sweatshirt\n\nOnline\n\t35,00 €\t\n2 T\n\t\n\n\n\t\n\nWool Sweatshirt\n\nOnline\n\t49,00 €\t\n2 T\n\t\n\n3 von 3 Inseraten\n\nZurück\nWeiter",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 525,
+          "sha256": "7b25b8517c8009fffea3bf3e04c525910fd68fb0193b52fcbc43dc6404157fd0"
+        },
+        "mobile-light": {
+          "file": "kleinanzeigen-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleinanzeigen\nKleinanzeigen · Inserate\nPostfach\nKonto hinzufügen\nDeine Kleinanzeigen-Konten\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nAlle Inserate\nAlle auf dieser Seite\n\n0 ausgewählt\n\nVintage Sweatshirt\n\n39,00 €\n\nOnline\n\n2 T\nCrewneck Sweatshirt\n\n35,00 €\n\nOnline\n\n2 T\nWool Sweatshirt\n\n49,00 €\n\nOnline\n\n2 T\n\n3 von 3 Inseraten\n\nZurück\nWeiter",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1024,
+          "sha256": "e8b902cb96be20ecd514de2a1581cdce17006f5b071e4a464fa6e63a2284f741"
+        },
+        "mobile-dark": {
+          "file": "kleinanzeigen-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Kleinanzeigen\nKleinanzeigen · Inserate\nPostfach\nKonto hinzufügen\nDeine Kleinanzeigen-Konten\nVintage Studio\nVerbunden\nInserate\n3\nLetzter Abgleich\n06.11.2026, 11:00\nAlle Inserate\nAlle auf dieser Seite\n\n0 ausgewählt\n\nVintage Sweatshirt\n\n39,00 €\n\nOnline\n\n2 T\nCrewneck Sweatshirt\n\n35,00 €\n\nOnline\n\n2 T\nWool Sweatshirt\n\n49,00 €\n\nOnline\n\n2 T\n\n3 von 3 Inseraten\n\nZurück\nWeiter",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1024,
+          "sha256": "4c22578342a691d3ce2ce377e628050de9d1de62873f3eb6d55669c27afd6e4c"
+        }
+      }
+    },
+    "expenses": {
+      "route": "/expenses",
+      "component": "src/app/features/expenses/expenses.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "expenses-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Ausgaben\n\nBetriebsausgaben, laufende Kosten und Belege im Blick behalten.\n\nKategorien verwalten\nAusgabe hinzufügen\nAusgaben\nWiederkehrend\n\nGesamt\n\n74,00 €\n\nBezahlt\n\n56,00 €\n\nOffen\n\n18,00 €\n\nTabelle und Summen beziehen sich auf das Rechnungs- bzw. Ausgabedatum.\n\nNovember 2026\nAlle Status\nAlle Kategorien\nDatum\n\t\nBezeichnung\n\tAnbieter\tKategorie\tMenge\t\nGesamtbetrag\n\t\nStatus\n\tBeleg\tAktionen\n06.11.2026\tFahrtkosten\tFahrkarte\tBetriebsausgaben\t1\t18,00 €\t\nOffen\n\t\n\t\n\n06.11.2026\tSoftware\tSoftware-Abonnement\tBetriebsausgaben\t1\t25,00 €\t\nBezahlt\n\t\n\t\n\n06.11.2026\tVersandmaterial\tPapier & Paket\tBetriebsausgaben\t1\t31,00 €\t\nBezahlt\n\t\n\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 510,
+          "sha256": "1154a48cd7e9acaf621ab9b7e6add3ff51031899ae58872f6667fe5f3a2dce94"
+        },
+        "desktop-dark": {
+          "file": "expenses-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Ausgaben\n\nBetriebsausgaben, laufende Kosten und Belege im Blick behalten.\n\nKategorien verwalten\nAusgabe hinzufügen\nAusgaben\nWiederkehrend\n\nGesamt\n\n74,00 €\n\nBezahlt\n\n56,00 €\n\nOffen\n\n18,00 €\n\nTabelle und Summen beziehen sich auf das Rechnungs- bzw. Ausgabedatum.\n\nNovember 2026\nAlle Status\nAlle Kategorien\nDatum\n\t\nBezeichnung\n\tAnbieter\tKategorie\tMenge\t\nGesamtbetrag\n\t\nStatus\n\tBeleg\tAktionen\n06.11.2026\tFahrtkosten\tFahrkarte\tBetriebsausgaben\t1\t18,00 €\t\nOffen\n\t\n\t\n\n06.11.2026\tSoftware\tSoftware-Abonnement\tBetriebsausgaben\t1\t25,00 €\t\nBezahlt\n\t\n\t\n\n06.11.2026\tVersandmaterial\tPapier & Paket\tBetriebsausgaben\t1\t31,00 €\t\nBezahlt\n\t\n\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 510,
+          "sha256": "8d7321230cd361ebc72a76a0a3af7d382b021fe8475ba3ba8f53ab7a8470fd0a"
+        },
+        "mobile-light": {
+          "file": "expenses-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Ausgaben\n\nBetriebsausgaben, laufende Kosten und Belege im Blick behalten.\n\nKategorien verwalten\nAusgabe hinzufügen\nAusgaben\nWiederkehrend\n\nGesamt\n\n74,00 €\n\nBezahlt\n\n56,00 €\n\nOffen\n\n18,00 €\n\nTabelle und Summen beziehen sich auf das Rechnungs- bzw. Ausgabedatum.\n\nNovember 2026\nAlle Status\nAlle Kategorien\nDatum\n\t\nBezeichnung\n\tAnbieter\tKategorie\tMenge\t\nGesamtbetrag\n\t\nStatus\n\tBeleg\tAktionen\n06.11.2026\tFahrtkosten\tFahrkarte\tBetriebsausgaben\t1\t18,00 €\t\nOffen\n\t\n\t\n\n06.11.2026\tSoftware\tSoftware-Abonnement\tBetriebsausgaben\t1\t25,00 €\t\nBezahlt\n\t\n\t\n\n06.11.2026\tVersandmaterial\tPapier & Paket\tBetriebsausgaben\t1\t31,00 €\t\nBezahlt\n\t\n\t",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1075,
+          "sha256": "e6960591fcd05caa8cbeffe1fb7f16a036b3b5f30b88408da6cb1a04e14ff17f"
+        },
+        "mobile-dark": {
+          "file": "expenses-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Ausgaben\n\nBetriebsausgaben, laufende Kosten und Belege im Blick behalten.\n\nKategorien verwalten\nAusgabe hinzufügen\nAusgaben\nWiederkehrend\n\nGesamt\n\n74,00 €\n\nBezahlt\n\n56,00 €\n\nOffen\n\n18,00 €\n\nTabelle und Summen beziehen sich auf das Rechnungs- bzw. Ausgabedatum.\n\nNovember 2026\nAlle Status\nAlle Kategorien\nDatum\n\t\nBezeichnung\n\tAnbieter\tKategorie\tMenge\t\nGesamtbetrag\n\t\nStatus\n\tBeleg\tAktionen\n06.11.2026\tFahrtkosten\tFahrkarte\tBetriebsausgaben\t1\t18,00 €\t\nOffen\n\t\n\t\n\n06.11.2026\tSoftware\tSoftware-Abonnement\tBetriebsausgaben\t1\t25,00 €\t\nBezahlt\n\t\n\t\n\n06.11.2026\tVersandmaterial\tPapier & Paket\tBetriebsausgaben\t1\t31,00 €\t\nBezahlt\n\t\n\t",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1075,
+          "sha256": "1088fdf216960942f69b118446b11d97e329d5cc54bd3977844d7c9b4e7a594d"
+        }
+      }
+    },
+    "accounting": {
+      "route": "/accounting",
+      "component": "src/app/features/accounting/accounting.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "accounting-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Steuer & DATEV\n\nSteuerjournal, Exporte und Bankabgleich.\n\nKontoauszug zurücksetzen\nDatei auswählen\n§ 25a Steuer & DATEV\nBankabgleich\nUmsätze importiert\n2\n0 gebucht • 2 offen\nGutschriften\n39,00 €\nZahlungseingänge\nLastschriften / Ausgaben\n-31,00 €\nEinkäufe & Gebühren\nAuto-Match-Rate\n0%\n(0 bereit)\nAlle (2)\nBereit zum Buchen (0)\nOffen / Ungeklärt (2)\nBereits gebucht (0)\nBanktransaktionen\nDatum\n\t\nAuftraggeber / Empfänger\n\tVerwendungszweck\t\nBetrag\n\tZugeordnetes Objekt / Match\tStatus\tAktionen\n06.11.2026\t\nVinted Auszahlung\n\t\n\nVintage Sweatshirt\n\n\t+39,00 €\tKein automatischer Treffer\t\nOffen\n\t\n\n06.11.2026\t\nPapier & Paket\n\t\n\nVersandmaterial\n\n\t-31,00 €\tKein automatischer Treffer\t\nOffen\n\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 458,
+          "sha256": "74a77479321f25d34c44c431113ae2ad7f476a9e230fec29fd76123e6a90240b"
+        },
+        "desktop-dark": {
+          "file": "accounting-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Steuer & DATEV\n\nSteuerjournal, Exporte und Bankabgleich.\n\nKontoauszug zurücksetzen\nDatei auswählen\n§ 25a Steuer & DATEV\nBankabgleich\nUmsätze importiert\n2\n0 gebucht • 2 offen\nGutschriften\n39,00 €\nZahlungseingänge\nLastschriften / Ausgaben\n-31,00 €\nEinkäufe & Gebühren\nAuto-Match-Rate\n0%\n(0 bereit)\nAlle (2)\nBereit zum Buchen (0)\nOffen / Ungeklärt (2)\nBereits gebucht (0)\nBanktransaktionen\nDatum\n\t\nAuftraggeber / Empfänger\n\tVerwendungszweck\t\nBetrag\n\tZugeordnetes Objekt / Match\tStatus\tAktionen\n06.11.2026\t\nVinted Auszahlung\n\t\n\nVintage Sweatshirt\n\n\t+39,00 €\tKein automatischer Treffer\t\nOffen\n\t\n\n06.11.2026\t\nPapier & Paket\n\t\n\nVersandmaterial\n\n\t-31,00 €\tKein automatischer Treffer\t\nOffen\n\t",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 458,
+          "sha256": "448a35f3f8e03975d2e02e8a9b514d268011ed42c157840837ac4f3df3f143ec"
+        },
+        "mobile-light": {
+          "file": "accounting-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Steuer & DATEV\n\nSteuerjournal, Exporte und Bankabgleich.\n\nKontoauszug zurücksetzen\nDatei auswählen\n§ 25a Steuer & DATEV\nBankabgleich\nUmsätze importiert\n2\n0 gebucht • 2 offen\nGutschriften\n39,00 €\nZahlungseingänge\nLastschriften / Ausgaben\n-31,00 €\nEinkäufe & Gebühren\nAuto-Match-Rate\n0%\n(0 bereit)\nAlle (2)\nBereit zum Buchen (0)\nOffen / Ungeklärt (2)\nBereits gebucht (0)\nBanktransaktionen\nDatum\n\t\nAuftraggeber / Empfänger\n\tVerwendungszweck\t\nBetrag\n\tZugeordnetes Objekt / Match\tStatus\tAktionen\n06.11.2026\t\nVinted Auszahlung\n\t\n\nVintage Sweatshirt\n\n\t+39,00 €\tKein automatischer Treffer\t\nOffen\n\t\n\n06.11.2026\t\nPapier & Paket\n\t\n\nVersandmaterial\n\n\t-31,00 €\tKein automatischer Treffer\t\nOffen\n\t",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1025,
+          "sha256": "bdcd15f3037e3532392950c5c7b3f9c24ec2dffe32d86cb80d97ffd213590cdc"
+        },
+        "mobile-dark": {
+          "file": "accounting-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Steuer & DATEV\n\nSteuerjournal, Exporte und Bankabgleich.\n\nKontoauszug zurücksetzen\nDatei auswählen\n§ 25a Steuer & DATEV\nBankabgleich\nUmsätze importiert\n2\n0 gebucht • 2 offen\nGutschriften\n39,00 €\nZahlungseingänge\nLastschriften / Ausgaben\n-31,00 €\nEinkäufe & Gebühren\nAuto-Match-Rate\n0%\n(0 bereit)\nAlle (2)\nBereit zum Buchen (0)\nOffen / Ungeklärt (2)\nBereits gebucht (0)\nBanktransaktionen\nDatum\n\t\nAuftraggeber / Empfänger\n\tVerwendungszweck\t\nBetrag\n\tZugeordnetes Objekt / Match\tStatus\tAktionen\n06.11.2026\t\nVinted Auszahlung\n\t\n\nVintage Sweatshirt\n\n\t+39,00 €\tKein automatischer Treffer\t\nOffen\n\t\n\n06.11.2026\t\nPapier & Paket\n\t\n\nVersandmaterial\n\n\t-31,00 €\tKein automatischer Treffer\t\nOffen\n\t",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1025,
+          "sha256": "62402f2196916aa46b8a943038dc871522d10826cda100ae81e64ec6f6c4abe9"
+        }
+      }
+    },
+    "reports": {
+      "route": "/analytics",
+      "component": "src/app/features/analytics/analytics.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "reports-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Auswertung\n\nUmsatz, Gewinn und Bestandsentwicklung im Blick behalten.\n\n7 Tage\n30 Tage\n1 Jahr\nGesamt\nBruttoumsatz\n187,00 €\n5 Verkäufe im Zeitraum\nReingewinn (Netto)\n115,50 €\nNach Abzug aller Gebühren & EK\nDurchschnittl. ROI\n192.5%\nKapitalrendite pro verkaufter Artikel\nØ Haltedauer\n0 Tage\nVon Einkauf bis zum Verkauf\n\nAuswertungen\n\nÜbersicht\nAlle Workspaces\nPlattformen\nBestand & Kapital\nEinkaufsgruppen\nWochentage\nKategorien\nTop-Gewinnbringer im Zeitraum\nVintage Sweatshirt\nvinted\n•\nVK: 39,00 €\n•\n0 Tage Haltedauer\n25,00 €\nROI: 208.33%\nCrewneck Sweatshirt\nebay\n•\nVK: 35,00 €\n•\n0 Tage Haltedauer\n19,50 €\nROI: 162.5%\nWool Sweatshirt\nvinted\n•\nVK: 49,00 €\n•\n0 Tage Haltedauer\n35,00 €\nROI: 291.67%\nBasic Sweatshirt\nkleinanzeigen\n•\nVK: 28,00 €\n•\n0 Tage Haltedauer\n14,00 €\nROI: 116.67%\nVintage Crewneck\nvinted\n•\nVK: 36,00 €\n•\n0 Tage Haltedauer\n22,00 €\nROI: 183.33%\nPlattform-Umsatzverteilung\nVinted\n82,00 €\n3 Verkäufe (66% Umsatz)\nGebührenquote: 0%\neBay\n19,50 €\n1 Verkäufe (19% Umsatz)\nGebührenquote: 4.3%\nKleinanzeigen\n14,00 €\n1 Verkäufe (15% Umsatz)\nGebührenquote: 0%",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 617,
+          "sha256": "8795c57063457aeb7ef0f0d7a486eff840acebe0121cc858112c8a8ecf74a6ff"
+        },
+        "desktop-dark": {
+          "file": "reports-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Auswertung\n\nUmsatz, Gewinn und Bestandsentwicklung im Blick behalten.\n\n7 Tage\n30 Tage\n1 Jahr\nGesamt\nBruttoumsatz\n187,00 €\n5 Verkäufe im Zeitraum\nReingewinn (Netto)\n115,50 €\nNach Abzug aller Gebühren & EK\nDurchschnittl. ROI\n192.5%\nKapitalrendite pro verkaufter Artikel\nØ Haltedauer\n0 Tage\nVon Einkauf bis zum Verkauf\n\nAuswertungen\n\nÜbersicht\nAlle Workspaces\nPlattformen\nBestand & Kapital\nEinkaufsgruppen\nWochentage\nKategorien\nTop-Gewinnbringer im Zeitraum\nVintage Sweatshirt\nvinted\n•\nVK: 39,00 €\n•\n0 Tage Haltedauer\n25,00 €\nROI: 208.33%\nCrewneck Sweatshirt\nebay\n•\nVK: 35,00 €\n•\n0 Tage Haltedauer\n19,50 €\nROI: 162.5%\nWool Sweatshirt\nvinted\n•\nVK: 49,00 €\n•\n0 Tage Haltedauer\n35,00 €\nROI: 291.67%\nBasic Sweatshirt\nkleinanzeigen\n•\nVK: 28,00 €\n•\n0 Tage Haltedauer\n14,00 €\nROI: 116.67%\nVintage Crewneck\nvinted\n•\nVK: 36,00 €\n•\n0 Tage Haltedauer\n22,00 €\nROI: 183.33%\nPlattform-Umsatzverteilung\nVinted\n82,00 €\n3 Verkäufe (66% Umsatz)\nGebührenquote: 0%\neBay\n19,50 €\n1 Verkäufe (19% Umsatz)\nGebührenquote: 4.3%\nKleinanzeigen\n14,00 €\n1 Verkäufe (15% Umsatz)\nGebührenquote: 0%",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 617,
+          "sha256": "3a4cf1f1e102ec9a2cd58a4270dc9095aa3984aca69ad6d6a7849f08cfc879e6"
+        },
+        "mobile-light": {
+          "file": "reports-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Auswertung\n\nUmsatz, Gewinn und Bestandsentwicklung im Blick behalten.\n\n7 Tage\n30 Tage\n1 Jahr\nGesamt\nBruttoumsatz\n187,00 €\n5 Verkäufe im Zeitraum\nReingewinn (Netto)\n115,50 €\nNach Abzug aller Gebühren & EK\nDurchschnittl. ROI\n192.5%\nKapitalrendite pro verkaufter Artikel\nØ Haltedauer\n0 Tage\nVon Einkauf bis zum Verkauf\nÜbersicht\nTop-Gewinnbringer im Zeitraum\nVintage Sweatshirt\nvinted\n•\nVK: 39,00 €\n•\n0 Tage Haltedauer\n25,00 €\nROI: 208.33%\nCrewneck Sweatshirt\nebay\n•\nVK: 35,00 €\n•\n0 Tage Haltedauer\n19,50 €\nROI: 162.5%\nWool Sweatshirt\nvinted\n•\nVK: 49,00 €\n•\n0 Tage Haltedauer\n35,00 €\nROI: 291.67%\nBasic Sweatshirt\nkleinanzeigen\n•\nVK: 28,00 €\n•\n0 Tage Haltedauer\n14,00 €\nROI: 116.67%\nVintage Crewneck\nvinted\n•\nVK: 36,00 €\n•\n0 Tage Haltedauer\n22,00 €\nROI: 183.33%\nPlattform-Umsatzverteilung\nVinted\n82,00 €\n3 Verkäufe (66% Umsatz)\nGebührenquote: 0%\neBay\n19,50 €\n1 Verkäufe (19% Umsatz)\nGebührenquote: 4.3%\nKleinanzeigen\n14,00 €\n1 Verkäufe (15% Umsatz)\nGebührenquote: 0%",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1472,
+          "sha256": "44bec306b4d0404cc8d802318faed707b352b372727f2ea22169087b5223c15a"
+        },
+        "mobile-dark": {
+          "file": "reports-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Auswertung\n\nUmsatz, Gewinn und Bestandsentwicklung im Blick behalten.\n\n7 Tage\n30 Tage\n1 Jahr\nGesamt\nBruttoumsatz\n187,00 €\n5 Verkäufe im Zeitraum\nReingewinn (Netto)\n115,50 €\nNach Abzug aller Gebühren & EK\nDurchschnittl. ROI\n192.5%\nKapitalrendite pro verkaufter Artikel\nØ Haltedauer\n0 Tage\nVon Einkauf bis zum Verkauf\nÜbersicht\nTop-Gewinnbringer im Zeitraum\nVintage Sweatshirt\nvinted\n•\nVK: 39,00 €\n•\n0 Tage Haltedauer\n25,00 €\nROI: 208.33%\nCrewneck Sweatshirt\nebay\n•\nVK: 35,00 €\n•\n0 Tage Haltedauer\n19,50 €\nROI: 162.5%\nWool Sweatshirt\nvinted\n•\nVK: 49,00 €\n•\n0 Tage Haltedauer\n35,00 €\nROI: 291.67%\nBasic Sweatshirt\nkleinanzeigen\n•\nVK: 28,00 €\n•\n0 Tage Haltedauer\n14,00 €\nROI: 116.67%\nVintage Crewneck\nvinted\n•\nVK: 36,00 €\n•\n0 Tage Haltedauer\n22,00 €\nROI: 183.33%\nPlattform-Umsatzverteilung\nVinted\n82,00 €\n3 Verkäufe (66% Umsatz)\nGebührenquote: 0%\neBay\n19,50 €\n1 Verkäufe (19% Umsatz)\nGebührenquote: 4.3%\nKleinanzeigen\n14,00 €\n1 Verkäufe (15% Umsatz)\nGebührenquote: 0%",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1472,
+          "sha256": "2cbb9261da0bbf27b00b231e159de0d60e8ce7c633f75d5d8ecda546dc1249c4"
+        }
+      }
+    },
+    "feed": {
+      "route": "/vinted-bot",
+      "component": "src/app/features/deal-monitor/deal-monitor.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "feed-desktop-light.webp",
+          "viewport": {
+            "width": 1440,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Vinted Feed\n\nNeue Vinted-Artikel entdecken und für später merken.\n\nArtikel durchsuchen\nSuchfilter\nAlle Suchfilter\nMarke\nAlle Marken\nGröße\nAlle Größen\nMin. Preis\n€\nMax. Preis\n€\nLangsamer Modus\n\nNeue Funde rücken einzeln von links nach, damit keiner untergeht.\n\nArtikel im Vinted Feed\nVintage Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n18,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nCrewneck Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n23,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nWool Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n28,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search",
+            "notices": [],
+            "feedCards": [
+              {
+                "left": 544,
+                "top": 164,
+                "width": 283
+              },
+              {
+                "left": 843,
+                "top": 164,
+                "width": 283
+              },
+              {
+                "left": 1141,
+                "top": 164,
+                "width": 283
+              }
+            ]
+          },
+          "width": 1184,
+          "height": 610,
+          "sha256": "83cd3405b7639f4fed950a442d0090f79dbd25465953c8a5602f3a708d0c9d34"
+        },
+        "desktop-dark": {
+          "file": "feed-desktop-dark.webp",
+          "viewport": {
+            "width": 1440,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Vinted Feed\n\nNeue Vinted-Artikel entdecken und für später merken.\n\nArtikel durchsuchen\nSuchfilter\nAlle Suchfilter\nMarke\nAlle Marken\nGröße\nAlle Größen\nMin. Preis\n€\nMax. Preis\n€\nLangsamer Modus\n\nNeue Funde rücken einzeln von links nach, damit keiner untergeht.\n\nArtikel im Vinted Feed\nVintage Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n18,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nCrewneck Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n23,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nWool Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n28,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search",
+            "notices": [],
+            "feedCards": [
+              {
+                "left": 544,
+                "top": 164,
+                "width": 283
+              },
+              {
+                "left": 843,
+                "top": 164,
+                "width": 283
+              },
+              {
+                "left": 1141,
+                "top": 164,
+                "width": 283
+              }
+            ]
+          },
+          "width": 1184,
+          "height": 610,
+          "sha256": "2e5e8ee64d9ff71339d4cced779fa717e82cdf1dcde098f5e62cec782d0138c2"
+        },
+        "mobile-light": {
+          "file": "feed-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Vinted Feed\n\nNeue Vinted-Artikel entdecken und für später merken.\n\nArtikel durchsuchen\nSuchfilter\nAlle Suchfilter\nMarke\nAlle Marken\nGröße\nAlle Größen\nMin. Preis\n€\nMax. Preis\n€\nLangsamer Modus\n\nNeue Funde rücken einzeln von links nach, damit keiner untergeht.\n\nArtikel im Vinted Feed\nVintage Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n18,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nCrewneck Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n23,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nWool Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n28,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search",
+            "notices": [],
+            "feedCards": [
+              {
+                "left": 16,
+                "top": 602,
+                "width": 358
+              },
+              {
+                "left": 16,
+                "top": 1280,
+                "width": 358
+              },
+              {
+                "left": 16,
+                "top": 1959,
+                "width": 358
+              }
+            ]
+          },
+          "width": 358,
+          "height": 2542,
+          "sha256": "b5aad25afa9600ff0d34f39d41b30b690165c5ea98053e54ec1582d89a356397"
+        },
+        "mobile-dark": {
+          "file": "feed-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Vinted Feed\n\nNeue Vinted-Artikel entdecken und für später merken.\n\nArtikel durchsuchen\nSuchfilter\nAlle Suchfilter\nMarke\nAlle Marken\nGröße\nAlle Größen\nMin. Preis\n€\nMax. Preis\n€\nLangsamer Modus\n\nNeue Funde rücken einzeln von links nach, damit keiner untergeht.\n\nArtikel im Vinted Feed\nVintage Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n18,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nCrewneck Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n23,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search\nWool Sweatshirt\n– auf Vinted öffnen (neuer Tab)\n\n28,00 €\n\nMarke:\nVintage\nGröße:\nM\nZustand:\nSehr gut\n\nHeute · 11:00\n\nVinted\nAI Search",
+            "notices": [],
+            "feedCards": [
+              {
+                "left": 16,
+                "top": 602,
+                "width": 358
+              },
+              {
+                "left": 16,
+                "top": 1280,
+                "width": 358
+              },
+              {
+                "left": 16,
+                "top": 1959,
+                "width": 358
+              }
+            ]
+          },
+          "width": 358,
+          "height": 2542,
+          "sha256": "f6b6bb4809baf7cc67c831c20853d4210bf85a7776f0b689bef4134bf3b03bce"
+        }
+      }
+    },
+    "brands": {
+      "route": "/tools/brand-labels",
+      "component": "src/app/features/brand-labels/pages/label-library/label-library.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "brands-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marken & Labels\n\nLabels vergleichen und Zeiträume einordnen\n\nEin passendes Etikett allein bestätigt keine Echtheit. Vergleiche auch das Kleidungsstück und sein Pflegeetikett.\n\nSuchbegriff\nMarke\nAlle Marken\nZeitraum\nAlle Zeiträume\nLabelart\nAlle Labelarten\nSuchen\nNackenlabel\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nPflegeetikett\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nGewebtes Label\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 530,
+          "sha256": "8dcdb33abf3b7433c819465ca178b9783a33d4e78c92d9a23591595eb9a4dd68"
+        },
+        "desktop-dark": {
+          "file": "brands-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marken & Labels\n\nLabels vergleichen und Zeiträume einordnen\n\nEin passendes Etikett allein bestätigt keine Echtheit. Vergleiche auch das Kleidungsstück und sein Pflegeetikett.\n\nSuchbegriff\nMarke\nAlle Marken\nZeitraum\nAlle Zeiträume\nLabelart\nAlle Labelarten\nSuchen\nNackenlabel\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nPflegeetikett\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nGewebtes Label\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 530,
+          "sha256": "b7d420e92a787d5be0d114fd81c2964de72bbb900552f78597e656bdc1cd560e"
+        },
+        "mobile-light": {
+          "file": "brands-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marken & Labels\n\nLabels vergleichen und Zeiträume einordnen\n\nEin passendes Etikett allein bestätigt keine Echtheit. Vergleiche auch das Kleidungsstück und sein Pflegeetikett.\n\nSuchbegriff\nMarke\nAlle Marken\nZeitraum\nAlle Zeiträume\nLabelart\nAlle Labelarten\nSuchen\nNackenlabel\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nPflegeetikett\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nGewebtes Label\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1733,
+          "sha256": "3ac8797cdbf7fb7ea9fea7dc41ed94fb6c742253ebd059a162e8027ada1c841e"
+        },
+        "mobile-dark": {
+          "file": "brands-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Marken & Labels\n\nLabels vergleichen und Zeiträume einordnen\n\nEin passendes Etikett allein bestätigt keine Echtheit. Vergleiche auch das Kleidungsstück und sein Pflegeetikett.\n\nSuchbegriff\nMarke\nAlle Marken\nZeitraum\nAlle Zeiträume\nLabelart\nAlle Labelarten\nSuchen\nNackenlabel\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nPflegeetikett\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen\n\nGewebtes Label\n\nReferenzbeispiel\n\nForm, Schrift und Material vergleichen",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1733,
+          "sha256": "5dc2fb26aceca24a5a5a0e24be7625b238501d48d171e6d6477452ca169643ae"
+        }
+      }
+    },
+    "photos": {
+      "route": "/image-optimizer",
+      "component": "src/app/features/image-optimizer/image-optimizer.component.html",
+      "captures": {
+        "desktop-light": {
+          "file": "photos-desktop-light.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Produktbilder\n\nBildoptimierer\n\nPlattform wählen, Ausschnitt festlegen und fertige Bilder herunterladen. Alles bleibt in deinem Browser.\n\nDateiname\nBilder hinzufügen\nPlattformen\neBay\n1:1\nKleinanzeigen\n4:3\nVinted\n2:3\nFotoguide\n1 Bild(er)\n\nAusschnitt bearbeiten\n\neBay · 1600 × 1600 px maximal\nAuf andere Plattformen übernehmen\n100 %\nMetadaten\nFarbe\nDeine Bilder\n\nReihenfolge bestimmt das Hauptbild\n\n1 von 1 durchgesehen\n\nAlle entfernen\nAktiv\nHauptbild\n1\n✓\neBay\n1600 × 1600\nGroß ansehen\n\nBereit für den Export\n\nJPEG mit hoher Qualität, sortiert nach Plattform.\n\nBilder exportieren",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 1267,
+          "sha256": "8e5d04baff6364275e3b163de0ae1bb8e390ee6d8550b55ec87b566942c14ca2"
+        },
+        "desktop-dark": {
+          "file": "photos-desktop-dark.webp",
+          "viewport": {
+            "width": 1280,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Produktbilder\n\nBildoptimierer\n\nPlattform wählen, Ausschnitt festlegen und fertige Bilder herunterladen. Alles bleibt in deinem Browser.\n\nDateiname\nBilder hinzufügen\nPlattformen\neBay\n1:1\nKleinanzeigen\n4:3\nVinted\n2:3\nFotoguide\n1 Bild(er)\n\nAusschnitt bearbeiten\n\neBay · 1600 × 1600 px maximal\nAuf andere Plattformen übernehmen\n100 %\nMetadaten\nFarbe\nDeine Bilder\n\nReihenfolge bestimmt das Hauptbild\n\n1 von 1 durchgesehen\n\nAlle entfernen\nAktiv\nHauptbild\n1\n✓\neBay\n1600 × 1600\nGroß ansehen\n\nBereit für den Export\n\nJPEG mit hoher Qualität, sortiert nach Plattform.\n\nBilder exportieren",
+            "notices": []
+          },
+          "width": 1024,
+          "height": 1267,
+          "sha256": "de08fee309d8aab739f4f604f597391c90a76ecd3edd9d178ed70a8236b04360"
+        },
+        "mobile-light": {
+          "file": "photos-mobile-light.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Produktbilder\n\nBildoptimierer\n\nPlattform wählen, Ausschnitt festlegen und fertige Bilder herunterladen. Alles bleibt in deinem Browser.\n\nDateiname\nBilder hinzufügen\nPlattformen\neBay\n1:1\nKleinanzeigen\n4:3\nVinted\n2:3\nFotoguide\n1 Bild(er)\n\nAusschnitt bearbeiten\n\neBay · 1600 × 1600 px maximal\nAuf andere Plattformen übernehmen\n100 %\nMetadaten\nFarbe\nDeine Bilder\n\nReihenfolge bestimmt das Hauptbild\n\n1 von 1 durchgesehen\n\nAlle entfernen\nAktiv\nHauptbild\n1\n✓\neBay\n1600 × 1600\nGroß ansehen\n\nBereit für den Export\n\nJPEG mit hoher Qualität, sortiert nach Plattform.\n\nBilder exportieren",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1889,
+          "sha256": "e77f2e3263f0e40440df2742be02e48489d5702e5eaf7f7eb4c4e214f1746c40"
+        },
+        "mobile-dark": {
+          "file": "photos-mobile-dark.webp",
+          "viewport": {
+            "width": 390,
+            "height": 1100
+          },
+          "audit": {
+            "text": "Produktbilder\n\nBildoptimierer\n\nPlattform wählen, Ausschnitt festlegen und fertige Bilder herunterladen. Alles bleibt in deinem Browser.\n\nDateiname\nBilder hinzufügen\nPlattformen\neBay\n1:1\nKleinanzeigen\n4:3\nVinted\n2:3\nFotoguide\n1 Bild(er)\n\nAusschnitt bearbeiten\n\neBay · 1600 × 1600 px maximal\nAuf andere Plattformen übernehmen\n100 %\nMetadaten\nFarbe\nDeine Bilder\n\nReihenfolge bestimmt das Hauptbild\n\n1 von 1 durchgesehen\n\nAlle entfernen\nAktiv\nHauptbild\n1\n✓\neBay\n1600 × 1600\nGroß ansehen\n\nBereit für den Export\n\nJPEG mit hoher Qualität, sortiert nach Plattform.\n\nBilder exportieren",
+            "notices": []
+          },
+          "width": 358,
+          "height": 1889,
+          "sha256": "f2849b7695e49dfe4d87e24ad32bd2a2404e592110a3ce32bc51fedfbeedc6ff"
+        }
+      }
+    }
+  },
+  "themeColors": {
+    "light": {
+      "--fb-bg-app": "#f5f5f7",
+      "--fb-bg-sidebar": "#f5f5f7",
+      "--fb-bg-header": "#fafafc",
+      "--fb-bg-surface": "#fff",
+      "--fb-border-subtle": "#e5e5ea",
+      "--fb-text-primary": "#1d1d1f",
+      "--fb-text-secondary": "#505057",
+      "--fb-text-muted": "#5f5f66"
+    },
+    "dark": {
+      "--fb-bg-app": "#1c1c1e",
+      "--fb-bg-sidebar": "#242426",
+      "--fb-bg-header": "#1c1c1e",
+      "--fb-bg-surface": "#28282b",
+      "--fb-border-subtle": "#39393d",
+      "--fb-text-primary": "#f2f2f7",
+      "--fb-text-secondary": "#c9c9cf",
+      "--fb-text-muted": "#aaaab2"
+    }
+  }
+}

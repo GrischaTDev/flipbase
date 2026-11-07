@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { inspectDemoCapture } from './landing-demo-capture-audit.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 const landingDirectory = path.join(repositoryRoot, 'landing');
@@ -11,8 +13,13 @@ const landingPath = path.join(landingDirectory, 'index.html');
 const landingScriptPath = path.join(landingDirectory, 'landing.js');
 const analyticsScriptPath = path.join(landingDirectory, 'analytics-consent.js');
 const html = await readFile(landingPath, 'utf8');
+const demoManifest = JSON.parse(
+  await readFile(path.join(landingDirectory, 'images/product-demo/manifest.json'), 'utf8'),
+);
 const landingScript =
   (await readFile(landingScriptPath, 'utf8')) +
+  '\n' +
+  (await readFile(path.join(landingDirectory, 'product-demo.js'), 'utf8')) +
   '\n' +
   (await readFile(path.join(landingDirectory, 'beta-application.js'), 'utf8'));
 const analyticsScript = await readFile(analyticsScriptPath, 'utf8');
@@ -412,11 +419,11 @@ test('leads from the revised hero to one application form at the end of the page
   const headline = new JSDOM(html).window.document.querySelector('h1');
   assert.equal(
     headline.querySelector('.lang-de').textContent.replace(/\s+/gu, ' ').trim(),
-    'Die Warenwirtschaft für dein Reselling.',
+    'Einkäufe erfassen. Belege zuordnen. Verkäufe nachvollziehen.',
   );
   assert.equal(
     headline.querySelector('.lang-en').textContent.replace(/\s+/gu, ' ').trim(),
-    'Inventory management for your reselling.',
+    'Record purchases. Organize receipts. Track your sales.',
   );
   assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
 
@@ -476,10 +483,10 @@ test('keeps a compact sticky header with section navigation and sign in', () => 
   assert.ok(navigation, 'The sticky header must contain section navigation');
   assert.deepEqual(
     [...navigation.querySelectorAll(':scope > a')].map((link) => link.getAttribute('href')),
-    ['#features', '#roadmap', '#pricing', '#faq'],
+    ['#features', '#demo', '#roadmap', '#pricing', '#faq'],
   );
   assert.match(navigation.textContent, /Funktionen/u);
-  assert.match(navigation.textContent, /Beta/u);
+  assert.match(navigation.textContent, /Überblick/u);
   assert.match(navigation.textContent, /Pakete & Preise/u);
   assert.match(navigation.textContent, /FAQ/u);
 
@@ -696,7 +703,7 @@ test('loads only local deferred scripts and keeps native toggle controls', () =>
   const scripts = extractStartTags(html, 'script');
   assert.deepEqual(
     scripts.map((script) => attribute(script, 'src')),
-    ['landing.js', 'beta-application.js', 'analytics-consent.js'],
+    ['landing.js', 'product-demo.js', 'beta-application.js', 'analytics-consent.js'],
   );
   for (const script of scripts) assert.match(script, /\bdefer\b/iu);
 
@@ -765,7 +772,7 @@ test('restores theme and language after reload and keeps an explicit theme acros
   assert.match(firstVisit.document.title, /Reselling software for Vinted, eBay/u);
   assert.match(
     firstVisit.document.querySelector('meta[name="description"]').content,
-    /Reselling beyond spreadsheets/u,
+    /Record purchases, organize receipts, and track sales/u,
   );
   firstVisit.mediaQuery.setLight(true);
   assert.equal(themeToggle.checked, false);
@@ -897,8 +904,8 @@ test('declares English passages and gives localized controls static screen-reade
   }
 
   const roadmapDocument = new JSDOM(html).window.document;
-  const roadmapStatuses = [...roadmapDocument.querySelectorAll('.status-tag')];
-  assert.ok(roadmapStatuses.length > 0, 'Expected beta status labels');
+  const roadmapStatuses = [...roadmapDocument.querySelectorAll('#roadmap .status-item')];
+  assert.ok(roadmapStatuses.length > 0, 'Expected product features');
   for (const status of roadmapStatuses) {
     assert.ok(status.querySelector('.lang-de'), 'Every status needs German text');
     assert.ok(status.querySelector('.lang-en[lang="en"]'), 'Every status needs English text');
@@ -1460,52 +1467,57 @@ test('explains the reselling workflow and the real marketplace scope', () => {
   const workflowSteps = [...document.querySelectorAll('.workflow-steps li')];
   assert.deepEqual(
     workflowSteps.map((step) => step.querySelector('b.lang-de, b:not([class])')?.textContent),
-    ['Einkauf & Bestand', 'Verkauf & Finanzen', 'Vinted Bot', 'Bilder & Inserate'],
+    ['Einkäufe & Belege', 'Verkauf & Finanzen', 'Vinted Bot', 'Bilder & Inserate'],
   );
   assert.equal(
     workflowSteps[0]?.querySelector('small.lang-de')?.textContent,
-    'Artikel und Kosten nachvollziehbar erfassen',
+    'Einkäufe erfassen, Belege zuordnen',
   );
   assert.equal(
     workflowSteps[3]?.querySelector('small.lang-en')?.textContent,
-    'Optimize photos, prepare listings',
+    'Create and relist listings',
   );
 
-  const featureCards = [...document.querySelectorAll('#features .feature-karte')];
+  const groups = [...document.querySelectorAll('#features .feature-group')];
   assert.deepEqual(
-    featureCards.map((card) => card.id),
+    groups.map((group) => group.dataset.featureGroup),
+    ['business', 'marketplaces', 'tools'],
+  );
+  assert.equal(document.querySelector('.feature-grid'), null);
+  assert.deepEqual(
+    groups.map((group) =>
+      [...group.querySelectorAll('.feature-topics li')].map((topic) => topic.id),
+    ),
     [
-      'tracking',
-      'sales',
-      'expenses',
-      'accounting',
-      'vinted-bot',
-      'image-optimization',
-      'listings',
-      'multi-account',
+      ['tracking', 'sales', 'expenses', 'accounting'],
+      ['listings', 'multi-account'],
+      ['vinted-bot', 'image-optimization'],
     ],
   );
-  assert.ok(featureCards[0].classList.contains('hervorgehoben'));
-  assert.equal(featureCards[7].querySelector('.feature-badge .lang-de')?.textContent, 'Geplant');
-  assert.equal(featureCards[7].querySelector('.feature-badge .lang-en')?.textContent, 'Planned');
-  assert.match(featureCards[7].textContent, /noch nicht in der Beta verfügbar/u);
-  assert.doesNotMatch(document.querySelector('#roadmap')?.textContent ?? '', /Multi-Account/iu);
+  assert.match(groups[0].textContent, /Steuerdaten/u);
+  assert.match(groups[1].textContent, /Vinted-Relisting/u);
+  assert.match(groups[1].textContent, /Vinted · eBay · Kleinanzeigen/u);
+  assert.match(
+    groups[2].textContent.replace(/\s+/gu, ' '),
+    /Deine Originalbilder bleiben erhalten/u,
+  );
+  assert.ok(groups.every((group) => group.querySelectorAll('.feature-preview').length === 1));
+  assert.equal(document.querySelectorAll('#features .feature-badge').length, 0);
 
   const descriptionTag = extractStartTags(html, 'meta').find(
     (tag) => attribute(tag, 'name') === 'description',
   );
   assert.ok(descriptionTag, 'Expected a meta description');
-  assert.match(attribute(descriptionTag, 'content'), /Reselling ohne Excel/u);
-  assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
-  assert.match(normalizedHtml, /für dein Reselling/u);
-  assert.match(normalizedHtml, /Vinted Bot: passende Funde prüfen/u);
-  assert.match(normalizedHtml, /Betriebsausgaben und Fixkosten erfassen/u);
-  assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
   assert.match(
-    normalizedHtml,
-    /Mit einem Klick überträgt die Browser-Erweiterung ihn in einen Kleinanzeigen-Tab; dort schließt du die Veröffentlichung ab\./u,
+    attribute(descriptionTag, 'content'),
+    /Einkäufe erfassen, Belege zuordnen, Verkäufe nachvollziehen/u,
   );
-  assert.match(normalizedHtml, /Verkäufe auf Vinted, eBay und Kleinanzeigen fest/u);
+  assert.match(attribute(descriptionTag, 'content'), /Belege zuordnen/u);
+  assert.match(normalizedHtml, /für dein Reselling/u);
+  assert.match(normalizedHtml, /Vinted Bot mit Filtern/u);
+  assert.match(normalizedHtml, /Lade Kaufbelege und Rechnungen hoch/u);
+  assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
+  assert.match(normalizedHtml, /Inserate, Nachrichten und Verkäufe bleiben klar zugeordnet/u);
   assert.match(normalizedHtml, /Ob Vintage Reselling oder andere Produkte/u);
   assert.doesNotMatch(document.title, /Vintage/iu);
   assert.doesNotMatch(document.querySelector('h1')?.textContent ?? '', /Vintage/iu);
@@ -1530,23 +1542,19 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   assert.equal(
     matches(
       normalizedHtml,
-      /Die Anwendung schützt Workspace-Daten mit serverseitigen Zugriffsregeln\. Die konkrete Betriebs- und Datenschutzkonfiguration wird vor dem öffentlichen Start gesondert geprüft\./gu,
+      /Deine Daten sind Workspaces zugeordnet\. Serverseitige Zugriffsregeln begrenzen den Zugriff auf berechtigte Nutzer\./gu,
     ),
     2,
   );
   assert.equal(
     matches(
       normalizedHtml,
-      /The application protects workspace data with server-side access rules\. The production privacy and hosting configuration is reviewed separately before public launch\./gu,
+      /Your data belongs to workspaces\. Server-side access rules restrict access to authorized users\./gu,
     ),
     2,
   );
 
   for (const phrase of [
-    'Steuerliche Einordnung und Vollständigkeit sind vor der Nutzung zu prüfen.',
-    'Tax treatment and completeness must be reviewed before use.',
-    'Rechnerische 19/119-Aufteilung erfasster Margen',
-    'Calculated 19/119 split of recorded margins',
     'Welche Einstellung im Einzelfall passt, muss fachlich geprüft werden.',
     'The appropriate setting for each case must be reviewed by a qualified adviser.',
     'Ob § 25a anwendbar ist und welche Rechnungsangaben erforderlich sind, muss im Einzelfall geprüft werden.',
@@ -1602,44 +1610,101 @@ test('limits privacy, infrastructure and accounting copy to technically bounded 
   }
 });
 
-test('pricing section shows the free beta and future plan limits', () => {
+test('pricing keeps three clear packages, prices and free beta access without roadmap promises', () => {
   const dom = new JSDOM(html);
   const pricing = dom.window.document.getElementById('pricing');
-  assert.ok(pricing, 'pricing section must exist');
-
-  const heading = pricing.querySelector('#pricing-title');
-  assert.ok(heading);
-  assert.match(heading.textContent, /Für jeden Reseller das passende Paket\./u);
-
+  assert.match(pricing.querySelector('#pricing-title').textContent, /Dein Reselling. Dein Paket./u);
   const cards = [...pricing.querySelectorAll('[data-pricing-plan]')];
-  assert.equal(cards.length, 3);
-
-  const byPlan = Object.fromEntries(
-    cards.map((card) => [card.getAttribute('data-pricing-plan'), card]),
+  assert.deepEqual(
+    cards.map((card) => card.dataset.pricingPlan),
+    ['standard', 'plus', 'pro'],
   );
-  assert.deepEqual(Object.keys(byPlan).sort(), ['plus', 'pro', 'standard']);
-
-  assert.match(byPlan.standard.textContent, /1 Workspace/u);
-  assert.doesNotMatch(byPlan.standard.textContent, /Multi-Account-Verwaltung/u);
-  assert.match(byPlan.plus.textContent, /3 Workspaces/u);
-  assert.match(byPlan.plus.textContent, /bis zu 3 Vinted-Konten/u);
-  assert.match(byPlan.pro.textContent, /5 Workspaces/u);
-  assert.match(byPlan.pro.textContent, /bis zu 5 Vinted-Konten/u);
-
-  const futurePrices = cards.map((card) => card.querySelector('s')?.textContent.trim());
-  assert.deepEqual(futurePrices, ['15 €', '29 €', '49 €']);
+  assert.deepEqual(
+    cards.map((card) => card.querySelector('.pricing-amount').textContent),
+    ['15 €', '29 €', '49 €'],
+  );
+  assert.match(cards[0].textContent, /1 Workspace/u);
+  assert.match(cards[1].textContent, /3 Workspaces/u);
+  assert.match(cards[1].textContent, /bis zu 3 Vinted-Konten/u);
+  assert.match(cards[2].textContent, /5 Workspaces/u);
+  assert.match(cards[2].textContent, /bis zu 5 Vinted-Konten/u);
+  assert.match(cards[2].textContent, /bis zu 3 Personen/u);
+  assert.equal(pricing.querySelectorAll('s').length, 0, 'Prices must not suggest a discount');
   for (const card of cards) {
-    assert.match(card.textContent, /0 €/u);
-    assert.equal(card.querySelector('.pricing-cta')?.getAttribute('href'), '#beta-anmeldung');
+    assert.match(card.textContent, /Beta: 0 €/u);
+    assert.equal(card.querySelector('.pricing-cta').getAttribute('href'), '#beta-anmeldung');
   }
-
-  const pricingText = pricing.textContent.replace(/\s+/gu, ' ').trim();
   assert.match(
-    pricingText,
-    /Bewirb Dich für den kostenlosen Beta-Zugang\. Teste schon jetzt alle fertigen Features kostenlos und beteilige Dich mit Deinem Feedback an der Weiterentwicklung von Flipbase\./u,
+    pricing.textContent,
+    /Während der Beta nutzt du alle verfügbaren Funktionen kostenlos/u,
   );
-  assert.doesNotMatch(pricingText, /Geplant nach der Beta/u);
-  assert.doesNotMatch(pricingText, /Paketumfang nach der Beta/u);
+  dom.window.close();
+});
+
+test('presents core features without development status or explanatory preview captions', () => {
+  const dom = new JSDOM(html);
+  const currentFeatures = dom.window.document.querySelector('main').cloneNode(true);
+  currentFeatures.querySelector('#shop-outlook').remove();
+  const text = currentFeatures.textContent.replace(/\s+/gu, ' ');
+  assert.doesNotMatch(
+    text,
+    /geplant|später|Zukunft|\bin Arbeit\b|vorläufig|Ausbaustufe|not available|planned|future|later release|listing draft|Nachbau|ohne verteilte Tabellen/iu,
+  );
+  assert.equal(dom.window.document.querySelector('.workflow-note'), null);
+  assert.equal(dom.window.document.querySelector('.replica-figure figcaption'), null);
+  dom.window.close();
+});
+
+test('prioritizes receipt capture and reserves stock management for the planned shop outlook', () => {
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  const outlook = document.querySelector('#shop-outlook');
+  assert.ok(outlook);
+  assert.equal(outlook.querySelector('.shop-outlook-status .lang-de').textContent, 'Geplant');
+  assert.equal(outlook.querySelector('.shop-outlook-status .lang-en').textContent, 'Planned');
+  assert.match(outlook.textContent, /Online-Shop-Anbindung/u);
+  assert.match(outlook.textContent, /Einzelbestand und Bestandsabgleich/u);
+  assert.equal(
+    outlook.querySelector('a, button'),
+    null,
+    'The outlook must not look like an available plan or purchase',
+  );
+  const current = document.querySelector('main').cloneNode(true);
+  current.querySelector('#shop-outlook').remove();
+  assert.doesNotMatch(current.textContent, /Bestand|\binventory\b|\bstock\b/iu);
+  assert.equal(
+    document.querySelector('#step-inventory, #panel-inventory, .replica-stock-total'),
+    null,
+  );
+  const tab = document.getElementById('step-receipts');
+  assert.equal(tab.getAttribute('aria-controls'), 'panel-receipts');
+  assert.match(tab.textContent, /Beleg zuordnen/u);
+  const panel = document.getElementById('panel-receipts');
+  assert.equal(panel.getAttribute('aria-labelledby'), 'step-receipts');
+  assert.match(panel.textContent, /Kaufbeleg.pdf/u);
+  assert.match(panel.textContent, /Beleg beim Einkauf hinterlegt/u);
+  const preview = document.querySelector(
+    '[data-feature-group="business"] .receipt-capture-preview',
+  );
+  assert.equal(preview.getAttribute('role'), 'img');
+  assert.match(preview.textContent, /Belegerfassung/u);
+  assert.match(preview.textContent, /Einkauf zugeordnet/u);
+  assert.doesNotMatch(preview.textContent, /OCR|automatisch erkannt|rechtssicher|GoBD/iu);
+  assert.match(document.querySelector('#faq').textContent, /Wie erfasse ich meine Belege/u);
+  dom.window.close();
+});
+
+test('uses a parseable shared flat button role for sign in and beta actions', () => {
+  const dom = new JSDOM(html);
+  assert.ok(dom.window.document.styleSheets.length > 0);
+  for (const selector of ['.kopf-cta', '.hero-beta-cta', '.pricing-cta', '.hero-beta-btn']) {
+    const style = dom.window.getComputedStyle(dom.window.document.querySelector(selector));
+    assert.equal(style.borderRadius, '6px', selector);
+    assert.equal(style.boxShadow, 'none', selector);
+    assert.equal(style.backgroundImage, 'none', selector);
+    assert.ok(!style.transform || style.transform === 'none', selector);
+  }
+  dom.window.close();
 });
 
 test('does not show the spreadsheet comparison block', () => {
@@ -1700,8 +1765,12 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
   const { window } = dom;
   const timers = new Map();
+  const networkCalls = [];
+  window.fetch = async (...args) => {
+    networkCalls.push(args);
+    throw new Error('Demo must stay local');
+  };
   let nextTimer = 0;
-  let observeEntries;
   let isHidden = false;
   Object.defineProperty(window.document, 'hidden', { get: () => isHidden });
   window.matchMedia = (query) => {
@@ -1721,7 +1790,7 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   window.clearInterval = (timerId) => timers.delete(timerId);
   window.IntersectionObserver = class {
     constructor(callback) {
-      observeEntries = callback;
+      void callback;
     }
     observe() {}
   };
@@ -1731,9 +1800,7 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
     window,
     document: window.document,
     timers,
-    intersect(id, isIntersecting) {
-      observeEntries([{ target: window.document.getElementById(id), isIntersecting }]);
-    },
+    networkCalls,
     setHidden(hidden) {
       isHidden = hidden;
       window.document.dispatchEvent(new window.Event('visibilitychange'));
@@ -1746,67 +1813,43 @@ function createShowcasePage({ reduced = false, mobile = false } = {}) {
   };
 }
 
-test('hero shows a replica of the real Flipbase dashboard instead of borrowed competitor elements', () => {
+test('hero preview uses captured original views with thirteen accessible navigation targets', () => {
   const dom = new JSDOM(html);
   const { document } = dom.window;
   const replica = document.getElementById('dashboard-replica');
-  assert.equal(replica.getAttribute('role'), 'img');
-  const label = document.getElementById(replica.getAttribute('aria-labelledby'));
-  assert.match(label.querySelector('.lang-de').textContent, /Beispielansicht/u);
-  assert.match(label.querySelector('.lang-en[lang="en"]').textContent, /Sample view/u);
-  assert.deepEqual(listText(replica, '[data-nav-group]'), [
+  assert.equal(replica.getAttribute('role'), 'region');
+  assert.deepEqual(listText(replica, '[data-nav-group] .lang-de'), [
     'Warenwirtschaft',
     'Marktplätze',
     'Finanzen',
     'Tools',
   ]);
-  assert.deepEqual(listText(replica, '[data-nav-active]'), ['Dashboard']);
-  assert.deepEqual(listText(replica, '[data-kpi-label]'), [
-    'Umsatz',
-    'Gewinn',
-    'Marge',
-    'Kapital im Bestand',
-    'Verkäufe',
-  ]);
-  assert.deepEqual(listText(replica, '[data-chart-legend]'), [
-    'Umsatz',
-    'Ausgaben gesamt',
-    'Gewinn',
-  ]);
-  const caption = replica.closest('figure').querySelector('figcaption');
-  assert.match(caption.querySelector('.lang-de').textContent, /Beispieldaten/u);
-  assert.match(caption.querySelector('.lang-en').textContent, /sample data/u);
-  for (const borrowed of [
-    '⌘',
-    'Persönlicher Arbeitsbereich',
-    'Dein Geschäft im Überblick',
-    'Verkaufsentwicklung',
-  ]) {
-    assert.ok(!document.body.textContent.includes(borrowed), `Borrowed element: ${borrowed}`);
-  }
+  assert.equal(replica.querySelectorAll('[data-demo-page]').length, 13);
+  assert.equal(replica.querySelectorAll('.demo-panel').length, 13);
+  assert.deepEqual(listText(replica, '[data-nav-active] .lang-de'), ['Übersicht']);
+  assert.equal(replica.querySelector('.replica-kpis, .demo-metrics, .demo-photo-comparison'), null);
+  assert.equal(replica.closest('figure').querySelector('figcaption'), null);
+  assert.equal(demoManifest.capture, 'actual-angular-pages');
+  assert.equal(demoManifest.syntheticData, true);
+  assert.equal(demoManifest.pages.overview.figures.metrics.length, 4);
+  assert.equal(demoManifest.pages.overview.figures.recentSales, 5);
   dom.window.close();
 });
 
-test('dashboard example figures agree with the chart they summarize', () => {
-  const dom = new JSDOM(html);
-  const replica = dom.window.document.getElementById('dashboard-replica');
-  const kpi = (key) => replica.querySelector(`[data-kpi="${key}"] [data-kpi-value]`).textContent;
-  const seriesTotal = (series) =>
-    [...replica.querySelectorAll(`[data-series="${series}"]`)].reduce(
-      (total, bar) => total + Number(bar.style.getPropertyValue('--value')),
-      0,
-    );
-  const revenue = readEuro(kpi('revenue'));
-  const profit = readEuro(kpi('gross-profit'));
-  assert.equal(seriesTotal('revenue'), revenue);
-  assert.equal(seriesTotal('profit'), profit);
-  assert.ok(seriesTotal('expenses') > 0);
-  assert.equal(replica.querySelectorAll('[data-series]').length % 3, 0);
+test('captured dashboard metrics and chart agree using the real application calculations', () => {
+  const { metrics, chart } = demoManifest.pages.overview.figures;
+  const revenue = readEuro(metrics[0]);
+  const profit = readEuro(metrics[1]);
+  const sum = (column) =>
+    Math.round(chart.reduce((total, row) => total + readEuro(row[column]), 0) * 100);
+  assert.equal(sum(0), Math.round(revenue * 100));
+  assert.equal(sum(2), Math.round(profit * 100));
+  assert.ok(sum(1) > 0);
   assert.equal(
-    kpi('margin'),
-    `${((profit / revenue) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`,
+    Number.parseFloat(metrics[2].replace(',', '.')),
+    Math.round((profit / revenue) * 10000) / 100,
   );
-  dom.window.close();
+  assert.equal(Number(metrics[3]), demoManifest.pages.overview.figures.recentSales);
 });
 
 test('uses plain section headings and names every example image in both languages', () => {
@@ -1814,14 +1857,10 @@ test('uses plain section headings and names every example image in both language
   for (const stylesheet of [css, showcaseCss]) {
     assert.doesNotMatch(stylesheet, /text-transform:\s*uppercase/u);
   }
-  assert.match(
-    showcaseCss,
-    /\[data-motion='on'\][^{]*\.replica-bar/u,
-    'Chart bars may only grow while animations are allowed',
-  );
+  assert.doesNotMatch(showcaseCss, /@keyframes|animation\s*:/u);
   const document = new JSDOM(html).window.document;
-  const demos = [...document.querySelectorAll('#features .feature-karte .tool-demo[role="img"]')];
-  assert.equal(demos.length, 7);
+  const demos = [...document.querySelectorAll('#features [role="img"]')];
+  assert.equal(demos.length, 3);
   for (const demo of demos) {
     const name = document.getElementById(demo.getAttribute('aria-labelledby'));
     assert.ok(name?.querySelector('.lang-de'), 'Every example image needs a German name');
@@ -1832,56 +1871,39 @@ test('uses plain section headings and names every example image in both language
   }
 });
 
-test('example scenes animate only in view and show complete results when paused or reduced', () => {
+test('keeps preview text and workflow stable without any automatic timers', () => {
   for (const reduced of [false, true]) {
     const page = createShowcasePage({ reduced });
+    const text = page.document.querySelector('main').textContent;
     assert.equal(page.timers.size, 0);
-    for (const id of ['feed-scene', 'listing-scene', 'expenses-scene']) {
-      const scene = page.document.getElementById(id);
-      page.intersect(id, true);
-      page.tick(2000);
-      assert.equal(scene.dataset.frame, reduced ? '3' : '0');
-      page.intersect(id, false);
-      assert.equal(page.timers.size, 0);
-    }
-    const button = page.document.getElementById('motion-toggle');
-    assert.equal(button.hidden, false);
-    assert.equal(button.disabled, reduced);
-    if (!reduced) {
-      page.intersect('profit-scene', true);
-      page.tick(1800);
-      assert.equal(page.document.getElementById('profit-scene').dataset.phase, '0');
-      page.setHidden(true);
-      assert.equal(page.timers.size, 0);
-      page.setHidden(false);
-      assert.equal(page.timers.size, 1);
-      button.click();
-      assert.equal(button.getAttribute('aria-pressed'), 'true');
-      assert.equal(page.document.documentElement.dataset.motion, 'off');
-      assert.equal(page.timers.size, 0);
-    }
+    assert.equal(page.document.getElementById('motion-toggle'), null);
+    assert.equal(page.document.getElementById('workflow-replay'), null);
+    page.tick(1800);
+    page.tick(2000);
+    page.tick(6500);
+    page.setHidden(true);
+    page.setHidden(false);
+    assert.equal(page.timers.size, 0);
+    assert.equal(page.document.getElementById('panel-purchase').hidden, false);
+    assert.equal(page.document.querySelector('main').textContent, text);
     assert.equal(page.document.getElementById('profit-scene').dataset.phase, '3');
-    for (const scene of page.document.querySelectorAll('[data-animated-scene]')) {
-      assert.equal(scene.dataset.frame, '3');
-    }
     page.dom.window.close();
   }
 });
 
-test('workflow steps show one panel, stop automatic changes after manual use and follow the keyboard', () => {
+test('workflow steps change only on selection and follow the keyboard', () => {
   const page = createShowcasePage();
-  page.intersect('workflow-scene', true);
   page.tick(6500);
-  assert.equal(page.document.getElementById('panel-inventory').hidden, false);
+  assert.equal(page.document.getElementById('panel-purchase').hidden, false);
   const saleButton = page.document.getElementById('step-sale');
   saleButton.click();
   assert.equal(page.document.querySelectorAll('.workflow-panel:not([hidden])').length, 1);
   assert.equal(page.document.getElementById('panel-sale').hidden, false);
   assert.equal(saleButton.getAttribute('aria-selected'), 'true');
   assert.equal(page.timers.size, 0);
-  page.document.getElementById('workflow-replay').click();
-  assert.equal(page.document.getElementById('panel-purchase').hidden, false);
-  assert.equal(page.timers.size, 1);
+  page.tick(6500);
+  assert.equal(page.document.getElementById('panel-sale').hidden, false);
+  assert.equal(page.timers.size, 0);
   page.dom.window.close();
 
   for (const mobile of [false, true]) {
@@ -1894,8 +1916,8 @@ test('workflow steps show one panel, stop automatic changes after manual use and
         bubbles: true,
       }),
     );
-    assert.equal(keyboardPage.document.activeElement.id, 'step-inventory');
-    assert.equal(keyboardPage.document.getElementById('panel-inventory').hidden, false);
+    assert.equal(keyboardPage.document.activeElement.id, 'step-receipts');
+    assert.equal(keyboardPage.document.getElementById('panel-receipts').hidden, false);
     keyboardPage.dom.window.close();
   }
 });
@@ -1906,7 +1928,7 @@ test('keeps the examples readable without JavaScript and lets visitors pick a cr
   assert.equal(document.querySelectorAll('.workflow-panel:not([hidden])').length, 3);
   assert.equal(document.getElementById('profit-scene').dataset.phase, '3');
   assert.equal(document.querySelector('.crop-controls').hidden, true);
-  assert.equal(document.getElementById('motion-toggle').hidden, true);
+  assert.equal(document.getElementById('motion-toggle'), null);
   dom.window.close();
 
   const page = createShowcasePage();
@@ -1915,5 +1937,281 @@ test('keeps the examples readable without JavaScript and lets visitors pick a cr
   assert.equal(square.getAttribute('aria-pressed'), 'true');
   assert.equal(page.document.getElementById('crop-photo').dataset.ratio, 'square');
   assert.equal(page.document.getElementById('crop-dimensions').textContent, '1 : 1');
+  page.dom.window.close();
+});
+
+test('both product demos navigate all thirteen pages independently with unique accessible targets', () => {
+  const page = createShowcasePage();
+  const roots = [...page.document.querySelectorAll('[data-product-demo]')];
+  assert.equal(roots.length, 2);
+  assert.equal(page.document.getElementById('demo').hidden, false);
+  assert.equal(page.document.querySelector('[data-demo-link]').hidden, false);
+  const ids = [...page.document.querySelectorAll('[id]')].map((element) => element.id);
+  assert.equal(ids.length, new Set(ids).size);
+  for (const root of roots) {
+    const tabs = [...root.querySelectorAll('[data-demo-page]')];
+    assert.equal(tabs.length, 13);
+    for (const tab of tabs) {
+      assert.equal(tab.disabled, false);
+      tab.click();
+      const panel = page.document.getElementById(tab.getAttribute('aria-controls'));
+      assert.equal(panel.hidden, false);
+      assert.equal(panel.getAttribute('aria-labelledby'), tab.id);
+      assert.equal(root.querySelectorAll('.demo-panel:not([hidden])').length, 1);
+      assert.equal(root.querySelectorAll('[data-demo-page][aria-selected="true"]').length, 1);
+    }
+  }
+  roots[0].querySelector('[data-demo-page="expenses"]').click();
+  assert.equal(
+    roots[1].querySelector('[data-demo-page="photos"]').getAttribute('aria-selected'),
+    'true',
+  );
+  assert.equal(page.networkCalls.length, 0);
+  assert.equal(page.timers.size, 0);
+  page.dom.window.close();
+});
+
+test('product demo navigation supports arrows, Home and End on mouse and touch layouts', () => {
+  for (const mobile of [false, true]) {
+    const page = createShowcasePage({ mobile });
+    for (const root of page.document.querySelectorAll('[data-product-demo]')) {
+      const tabs = [...root.querySelectorAll('[data-demo-page]')];
+      tabs[0].focus();
+      tabs[0].dispatchEvent(
+        new page.window.KeyboardEvent('keydown', {
+          key: mobile ? 'ArrowRight' : 'ArrowDown',
+          bubbles: true,
+        }),
+      );
+      assert.equal(page.document.activeElement, tabs[1]);
+      assert.equal(tabs[1].getAttribute('aria-selected'), 'true');
+      tabs[1].dispatchEvent(
+        new page.window.KeyboardEvent('keydown', { key: 'End', bubbles: true }),
+      );
+      assert.equal(page.document.activeElement, tabs.at(-1));
+      tabs
+        .at(-1)
+        .dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+      assert.equal(page.document.activeElement, tabs[0]);
+    }
+    page.dom.window.close();
+  }
+});
+
+test('all original-view captures have intact desktop and mobile images in both themes', async () => {
+  assert.equal(Object.keys(demoManifest.pages).length, 13);
+  for (const [key, page] of Object.entries(demoManifest.pages)) {
+    assert.match(page.route, /^\//u);
+    assert.match(page.component, /^src\/app\/features\/.+\.component\.html$/u);
+    await assertFileExists(path.join(repositoryRoot, page.component), page.component);
+    assert.deepEqual(Object.keys(page.captures).sort(), [
+      'desktop-dark',
+      'desktop-light',
+      'mobile-dark',
+      'mobile-light',
+    ]);
+    for (const [variant, capture] of Object.entries(page.captures)) {
+      assert.equal(capture.file, `${key}-${variant}.webp`);
+      const bytes = await readFile(
+        path.join(landingDirectory, 'images/product-demo', capture.file),
+      );
+      assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
+      assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), capture.sha256);
+      assert.equal(
+        capture.width,
+        variant.startsWith('mobile') ? 358 : key === 'feed' ? 1184 : 1024,
+      );
+      assert.deepEqual(capture.audit.notices, []);
+      assert.ok(capture.audit.text.length > 20);
+      inspectDemoCapture(
+        key,
+        variant.startsWith('mobile') ? 'mobile' : 'desktop',
+        capture.audit.text,
+        capture.audit.feedCards,
+      );
+      if (key === 'feed' && variant.startsWith('desktop'))
+        assert.equal(capture.audit.feedCards.length, 3);
+      assert.ok(capture.height > 100);
+    }
+  }
+});
+
+test('view navigation cannot submit records or contact an application backend', () => {
+  const page = createShowcasePage();
+  for (const root of page.document.querySelectorAll('[data-product-demo]')) {
+    for (const tab of root.querySelectorAll('[data-demo-page]')) tab.click();
+    assert.equal(
+      root.querySelector('form, input, select, [data-demo-export], [data-demo-photo-reset]'),
+      null,
+    );
+  }
+  assert.equal(page.document.querySelectorAll('form').length, 1);
+  assert.equal(page.document.querySelector('form').id, 'zweit-bewerbung-form');
+  assert.equal(page.networkCalls.length, 0);
+  assert.equal(page.timers.size, 0);
+  page.dom.window.close();
+});
+
+test('original captures have translated alternatives without changing either selected view', () => {
+  const page = createShowcasePage();
+  const compact = page.document.querySelector('[data-product-demo="compact"]');
+  const expanded = page.document.querySelector('[data-product-demo="expanded"]');
+  compact.querySelector('[data-demo-page="purchases"]').click();
+  expanded.querySelector('[data-demo-page="photos"]').click();
+  const toggle = page.document.getElementById('lang-toggle');
+  toggle.checked = true;
+  toggle.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  for (const root of [compact, expanded]) {
+    for (const image of root.querySelectorAll('[data-demo-image]'))
+      assert.equal(image.alt, image.dataset.altEn);
+  }
+  assert.equal(compact.querySelector('[aria-selected="true"]').dataset.demoPage, 'purchases');
+  assert.equal(expanded.querySelector('[aria-selected="true"]').dataset.demoPage, 'photos');
+  assert.equal(page.networkCalls.length, 0);
+  page.dom.window.close();
+});
+
+test('each page references its original responsive captures instead of a second product layout', () => {
+  const document = new JSDOM(html).window.document;
+  for (const panel of document.querySelectorAll('.demo-panel')) {
+    const key = panel.id.replace('demo-panel-', '');
+    for (const theme of ['light', 'dark']) {
+      const picture = panel.querySelector(`.demo-screen--${theme}`);
+      const image = picture.querySelector('img');
+      const source = picture.querySelector('source');
+      assert.equal(image.getAttribute('src'), `images/product-demo/${key}-desktop-${theme}.webp`);
+      assert.equal(
+        source.getAttribute('srcset'),
+        `images/product-demo/${key}-mobile-${theme}.webp`,
+      );
+      assert.equal(source.media, '(max-width: 760px)');
+      assert.equal(
+        Number(image.getAttribute('height')),
+        demoManifest.pages[key].captures[`desktop-${theme}`].height,
+      );
+      assert.ok(image.dataset.altDe && image.dataset.altEn);
+    }
+    assert.equal(panel.querySelector('button, input, table, svg'), null);
+  }
+});
+
+test('original overview remains visible without JavaScript while extra navigation waits for initialization', () => {
+  const dom = new JSDOM(html);
+  assert.equal(dom.window.document.querySelectorAll('[data-product-demo]').length, 1);
+  assert.equal(dom.window.document.getElementById('demo').hidden, true);
+  assert.equal(dom.window.document.querySelector('[data-demo-link]').hidden, true);
+  assert.ok(
+    [...dom.window.document.querySelectorAll('[data-demo-page]')].every((tab) => tab.disabled),
+  );
+  const panels = dom.window.document.querySelectorAll('.demo-panel:not([hidden])');
+  assert.equal(panels.length, 1);
+  assert.equal(panels[0].id, 'demo-panel-overview');
+  assert.equal(panels[0].querySelectorAll('img[data-demo-image="overview"]').length, 2);
+  dom.window.close();
+});
+
+test('capture audit rejects stale bot and technical error notices without rejecting normal product copy', () => {
+  for (const text of [
+    'Der Bot meldet sich zurzeit nicht aktuell. Gespeicherte Artikel bleiben sichtbar.',
+    'Die Kontodaten konnten nicht sicher zugeordnet werden. Bitte lade die Ansicht erneut.',
+    'Automatik pausiert',
+  ])
+    assert.throws(() => inspectDemoCapture('feed', 'mobile', text));
+  assert.deepEqual(
+    inspectDemoCapture(
+      'brands',
+      'desktop',
+      'Ein passendes Etikett allein bestätigt keine Echtheit.',
+    ).notices,
+    [],
+  );
+});
+
+test('capture audit prevents the two-plus-one desktop feed layout while allowing stacked mobile cards', () => {
+  const twoPlusOne = [
+    { left: 0, top: 0, width: 300 },
+    { left: 316, top: 0, width: 300 },
+    { left: 0, top: 400, width: 300 },
+  ];
+  assert.throws(() => inspectDemoCapture('feed', 'desktop', 'Vinted Feed', twoPlusOne));
+  const oneRow = twoPlusOne.map((card, index) => ({
+    ...card,
+    left: index * 216,
+    top: 0,
+    width: 200,
+  }));
+  assert.equal(inspectDemoCapture('feed', 'desktop', 'Vinted Feed', oneRow).feedCards.length, 3);
+  assert.equal(inspectDemoCapture('feed', 'mobile', 'Vinted Feed', twoPlusOne).feedCards.length, 3);
+});
+
+test('demo notifications open, mark read, navigate and clear independently without backend calls', () => {
+  const page = createShowcasePage();
+  const [compact, expanded] = page.document.querySelectorAll('[data-product-demo]');
+  const toggle = compact.querySelector('[data-demo-notification-toggle]');
+  const menu = compact.querySelector('[data-demo-notification-menu]');
+  assert.equal(toggle.disabled, false);
+  assert.equal(toggle.closest('[aria-hidden="true"]'), null);
+  toggle.click();
+  assert.equal(menu.hidden, false);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  compact.querySelector('[data-demo-notification-read]').click();
+  assert.equal(
+    compact.querySelectorAll('[data-demo-notification-item][data-unread="true"]').length,
+    0,
+  );
+  assert.equal(compact.querySelector('[data-demo-notification-badge]').hidden, true);
+  assert.equal(
+    expanded.querySelectorAll('[data-demo-notification-item][data-unread="true"]').length,
+    3,
+  );
+  compact.querySelector('[data-demo-notification-target="purchases"]').click();
+  assert.equal(menu.hidden, true);
+  assert.equal(
+    compact.querySelector('[data-demo-page="purchases"]').getAttribute('aria-selected'),
+    'true',
+  );
+  assert.equal(page.document.activeElement.id, 'demo-panel-purchases');
+  assert.equal(
+    expanded.querySelector('[data-demo-page="overview"]').getAttribute('aria-selected'),
+    'true',
+  );
+  toggle.click();
+  compact.querySelector('[data-demo-notification-clear]').click();
+  assert.equal(compact.querySelectorAll('[data-demo-notification-item]').length, 0);
+  assert.equal(compact.querySelector('[data-demo-notification-empty]').hidden, false);
+  assert.equal(expanded.querySelectorAll('[data-demo-notification-item]').length, 3);
+  assert.equal(page.networkCalls.length, 0);
+  assert.equal(page.timers.size, 0);
+  page.dom.window.close();
+});
+
+test('demo notifications support keyboard focus, Escape and closing outside the menu', () => {
+  const page = createShowcasePage();
+  for (const root of page.document.querySelectorAll('[data-product-demo]')) {
+    const toggle = root.querySelector('[data-demo-notification-toggle]');
+    const menu = root.querySelector('[data-demo-notification-menu]');
+    const entries = [...root.querySelectorAll('[data-demo-notification-target]')];
+    const key = (element, value) =>
+      element.dispatchEvent(
+        new page.window.KeyboardEvent('keydown', { key: value, bubbles: true }),
+      );
+    toggle.focus();
+    key(toggle, 'ArrowDown');
+    assert.equal(page.document.activeElement, entries[0]);
+    key(entries[0], 'ArrowUp');
+    assert.equal(page.document.activeElement, entries.at(-1));
+    key(entries.at(-1), 'Home');
+    assert.equal(page.document.activeElement, entries[0]);
+    key(entries[0], 'End');
+    assert.equal(page.document.activeElement, entries.at(-1));
+    key(entries.at(-1), 'Escape');
+    assert.equal(menu.hidden, true);
+    assert.equal(page.document.activeElement, toggle);
+    toggle.click();
+    page.document.body.click();
+    assert.equal(menu.hidden, true);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  }
   page.dom.window.close();
 });
