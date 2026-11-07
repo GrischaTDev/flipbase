@@ -19,6 +19,15 @@ beim Zurückkehren auf die Seite (`visibilitychange`) sofort den Serverstand.
 „Automatik nicht erreichbar“ erscheint erst, wenn die Prüfung zweimal in Folge
 scheitert. Nach dem ersten Fehlschlag wird nach 3 Sekunden erneut geprüft.
 
+**Nachtrag Aufwecken:** Weitere Meldungen nach dem Aufwecken des Handys
+(„kein Verwaltungszugriff“, „laufende Aktionen konnten nicht aktualisiert werden“)
+hatten eine gemeinsame Ursache. Der Zugriffstoken war abgelaufen, die Erneuerung
+scheiterte am noch fehlenden Netz, und Supabase schickte die Datenanfrage dann
+anonym oder mit abgelaufenem Token (`PGRST301`). `SupabaseService` nutzt jetzt
+eine eigene Fetch-Hülle (`supabase-wake-up-fetch.ts`). Sie wiederholt eine solche
+Anfrage bei bestehender Anmeldung genau einmal mit frisch bestätigtem Token.
+Anmeldeaufrufe und nicht erneut lesbare Inhalte bleiben unberührt.
+
 **Nachweise:** Betroffene Angular-Specs unter Node 22 (4 Dateien, 138 Tests)
 bestanden. pgTAP `marketplace-sync-scheduling` mit neuer Migration in einer
 zurückgerollten Transaktion gegen die lokale Datenbank: 125/125, davon 10 neue
