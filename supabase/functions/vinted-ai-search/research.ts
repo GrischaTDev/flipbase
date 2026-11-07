@@ -89,8 +89,8 @@ export async function searchOpenAi(
   images: string[],
   model: SearchModel,
 ): Promise<Record<string, unknown>> {
-  // Ein gemeinsames Zeitbudget bewahrt die bestehende 95-Sekunden-Servergrenze.
-  const signal = AbortSignal.timeout(85_000);
+  // Ein gemeinsames Zeitbudget bewahrt die 145-Sekunden-Servergrenze.
+  const signal = AbortSignal.timeout(130_000);
   const responses: Record<string, unknown>[] = [];
   let unknownUsage = false;
   const input = {
@@ -225,12 +225,11 @@ export async function searchOpenAi(
   );
   const tokenSum = (field: string) => {
     const values = responses.map((response) => record(response['usage'])?.[field]);
-    return !unknownUsage &&
-      values.every(
-        (value) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0,
-      )
-      ? (values as number[]).reduce((sum, value) => sum + value, 0)
-      : null;
+    const known = values.filter(
+      (value): value is number =>
+        typeof value === 'number' && Number.isSafeInteger(value) && value >= 0,
+    );
+    return known.length ? known.reduce((sum, value) => sum + value, 0) : null;
   };
   const cached = responses.reduce((sum, response) => {
     const value = record(record(response['usage'])?.['input_tokens_details'])?.['cached_tokens'];
@@ -240,6 +239,17 @@ export async function searchOpenAi(
   }, 0);
   return {
     status: 'completed',
+    usage_incomplete:
+      unknownUsage ||
+      responses.some((response) => {
+        const usage = record(response['usage']);
+        return ['input_tokens', 'output_tokens'].some(
+          (field) =>
+            typeof usage?.[field] !== 'number' ||
+            !Number.isSafeInteger(usage[field]) ||
+            usage[field] < 0,
+        );
+      }),
     id: responses
       .map((response) => response['id'])
       .filter((id) => typeof id === 'string')

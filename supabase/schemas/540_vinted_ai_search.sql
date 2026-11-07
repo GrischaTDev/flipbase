@@ -54,7 +54,7 @@ begin
         and input_hash = p_input_hash and model = p_model and status = 'completed'
         and created_at > now() - interval '24 hours' order by created_at desc limit 1;
     if found then return jsonb_build_object('id', v_search.id, 'cached', true, 'result', v_search.result); end if;
-    if exists (select 1 from public.vinted_ai_searches where user_id = p_user_id and status = 'pending' and created_at > now() - interval '2 minutes') then
+    if exists (select 1 from public.vinted_ai_searches where user_id = p_user_id and status = 'pending' and created_at > now() - interval '3 minutes') then
         return jsonb_build_object('error', 'search_busy');
     end if;
     if (select count(*) from public.vinted_ai_searches where user_id = p_user_id and created_at > now() - interval '1 hour') >= 20

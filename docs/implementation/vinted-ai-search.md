@@ -92,18 +92,23 @@ Marktrecherchen `medium`, hohen Suchkontext und beantragte Werkzeugbudgets von
 ausschließlich das Modell, begründet es knapp und nennt höchstens drei Quellen;
 sie nimmt die ausführliche Preisrecherche der Marktphasen nicht vorweg. Die tatsächlichen
 Werkzeugausgaben werden gezählt; die beantragten Budgets sind kein Ersatz für
-diesen Verbrauchsnachweis. Alle drei Anfragen teilen sich 85 Sekunden ab Beginn
+diesen Verbrauchsnachweis. Alle drei Anfragen teilen sich 130 Sekunden ab Beginn
 der Modellbestimmung und verwenden `store=false`. Mit dem begrenzten Detailabruf
-bleibt die vorhandene Servergrenze von 95 Sekunden bestehen. Es gibt keine
-automatischen Wiederholungen oder Modellwechsel.
+bleibt die vorhandene Servergrenze von 145 Sekunden bestehen. Es gibt keine
+automatischen Wiederholungen oder Modellwechsel. Dazu passen der 150-Sekunden-
+Grenzwert des vorhandenen API-Gateways, 155 Sekunden Browserwartezeit und drei
+Minuten Reservierungsschutz. Ein längerer laufender Auftrag darf nicht bereits
+nach zwei Minuten als unterbrochen gelten und einen zweiten kostenpflichtigen
+Lauf freigeben.
 
 Unvollständige Modellbestimmung führt zum vorhandenen Analysefehler; gemeldeter
 Verbrauch bleibt erhalten. Eine gescheiterte Marktrecherche erhält einen sichtbaren
 Teilfehler und unterdrückt erfolgreiche andere Ergebnisse nicht. Solche Teilergebnisse
 werden nicht als vollständiger 24-Stunden-Cache wiederverwendet. Vollständig
 gemeldete Tokens werden über alle Anfragen addiert. Fehlt bei einer abgerissenen
-Anfrage der Verbrauch, bleiben Gesamttokens und Gesamtkosten unbekannt; bekannte
-Werkzeugausgaben werden weiter erfasst. Unbekannte Teilkosten werden nicht als
+Anfrage der Verbrauch, bleiben Gesamtkosten unbekannt. Gemeldete Tokens und
+Werkzeugausgaben bleiben als bekannte Mindestwerte erfasst; bekannte geschätzte
+Teilkosten werden getrennt im Ergebnis gespeichert und angezeigt. Unbekannte Teilkosten werden nicht als
 kostenlos behandelt.
 
 Die [OpenAI-Preisliste](https://developers.openai.com/api/docs/pricing) und die
@@ -147,7 +152,7 @@ Inhalt, Bilder, Preisänderungen und Promptversion bestimmen den Cachehash.
 Die Reservierung muss vor dem Anbieteraufruf dauerhaft bestehen. Gemeldeter
 Verbrauch wird vor der Ergebnisvalidierung gespeichert, auch bei unvollständigen
 Antworten. Abbrüche ohne vollständigen Verbrauch bleiben ausdrücklich
-`unknown` mit NULL-Kosten. Ein zwei Minuten alter offener Request gilt beim
+`unknown` mit NULL-Kosten. Ein drei Minuten alter offener Request gilt beim
 nächsten Start als unterbrochen. Fehlende Erfassung verhindert neue Aufrufe.
 Der Dialog zeigt den gespeicherten eigenen 30-Tage-Verbrauch im Arbeitsbereich
 je Modell, Durchschnitt der bekannten Kosten und Anzahl ungeklärter Anfragen.
@@ -222,3 +227,36 @@ kostenpflichtige Analyse am echten öffentlichen Inserat geprüft. Derselbe Lade
 den vollständigen Kategoriepfad bis Fleecejacken (1858). Der synthetische
 Anbietertransport bestätigt, dass diese Angaben in allen drei Recherchephasen
 ankommen; die Modellbestimmung erhält zusätzlich sämtliche Fotos.
+
+## Laufzeitkorrektur vor Veröffentlichung
+
+Die endgültige Fassung wurde vor dem Merge erneut mit Astra und vollständigen
+Artikelmerkmalen geprüft. Ein Lauf verbrauchte 49 Sekunden für die
+Modellbestimmung und brach beide Marktphasen am damaligen 85-Sekunden-Limit ab.
+Nach Fokussierung der Modellbestimmung auf 19 Sekunden schloss die Neupreis-
+recherche nach weiteren 51 Sekunden ab; die Gebrauchtrecherche benötigte mehr
+als die verbleibenden 66 Sekunden. Beide Teilläufe wurden erfasst, ihre
+Gesamtkosten bleiben wegen abgebrochener Anbieteranfragen ausdrücklich unbekannt.
+Die unveränderte reine Token-/Werkzeugobergrenze beweist keine erfolgreiche
+Recherche innerhalb eines zu knappen HTTP-Zeitfensters.
+
+Die endgültigen Grenzen sind deshalb 130 Sekunden Recherche, 145 Sekunden
+Funktionslaufzeit, vorhandene 150 Sekunden Gateway, 155 Sekunden Browser und
+drei Minuten Reservierungsschutz. Der Routerhelfer kann sowohl den ursprünglichen
+60-Sekunden-Router als auch die bereits installierte 95-Sekunden-Ausnahme sicher
+auf 145 Sekunden aktualisieren. Andere Funktionen behalten ihre 60 Sekunden;
+unbekannte Router bleiben geschützt. Auf dem vorhandenen Edge-Runtime-Image
+v1.74.0 sind zusätzliche Request-Idle-Grenzen deaktiviert; das wurde mit dem
+installierten Programm und dem tatsächlichen Startbefehl geprüft.
+
+Die Reservierungsänderung ist eine neue, transaktionale, mit der Supabase-CLI
+aus zwei isolierten Datenbanken erzeugte Migration. Sie ersetzt ausschließlich
+die bestehende Funktion mit derselben Signatur und denselben Zugriffsrechten.
+Die erzeugte Funktion stimmt nach Anwendung mit dem Zielstand überein. In einer
+frischen, isolierten Kopie der vollständigen Produktions-Schemadefinitionen
+(ohne Nutzerdaten) reproduzierten drei SQL-Erwartungen das alte Zeitfensterproblem;
+nach der Migration bestanden alle 26 SQL-Fälle. Neu erzeugte Datenbanktypen
+sind unverändert. Ein virtueller Deno-Zeitablauf bestätigt eine vollständige
+Recherche nach 100 Sekunden; der gemeinsame Budgetvertrag prüft zusätzlich die
+Abstimmung zwischen Anwendung, Router, Gateway und Reservierung. Die eigentliche
+Serverausrollung und ein vollständiger Pilot erfolgen nach den GitHub-Prüfungen.

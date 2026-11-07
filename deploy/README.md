@@ -418,10 +418,19 @@ zusammengehören:
    die Foto-/EAN-Suche. Keine neuen Schlüssel anlegen oder in den Browser geben.
    Vor dem Neustart `python3 deploy/configure-vinted-ai-runtime.py` auf dem Server
    ausführen: Der bekannte zentrale Router erhält ausschließlich für
-   `vinted-ai-search` 95 Sekunden Laufzeit; die übrigen Functions behalten ihr
-   bestehendes Limit. Das Werkzeug sichert den Originalstand, ist wiederholbar
-   und lehnt unbekannte Routerfassungen ab. Damit kann die auf 85 Sekunden
-   begrenzte Anbieteranfrage ihren Verbrauch noch sicher abschließend speichern.
+   `vinted-ai-search` 145 Sekunden Laufzeit; die übrigen Functions behalten ihr
+   bestehendes Limit. Die bisherige 95-Sekunden-Ausnahme wird ebenfalls erkannt.
+   Das Werkzeug sichert den Originalstand, ist wiederholbar
+   und lehnt unbekannte Routerfassungen ab. Damit kann die auf 130 Sekunden
+   begrenzte Recherche ihren Verbrauch noch sicher abschließend speichern.
+
+   Das vorhandene Envoy-Gateway begrenzt Funktionsanfragen auf 150 Sekunden;
+   die Browserwartezeit beträgt 155 Sekunden. Die Kostenreservierung bleibt
+   drei Minuten gesperrt. Diese Grenzen müssen zusammenpassen. Das aktuell
+   installierte Edge-Runtime-Image v1.74.0 startet ohne zusätzliche
+   Request-Idle-Begrenzung; bei einer späteren Runtime-/Proxyänderung diese
+   äußere Grenze erneut prüfen. Die Migration zur längeren Reservierung muss
+   vor der aktualisierten Funktion angewendet sein.
 
    Für `barcode-ai-search` und `vinted-ai-search` muss `OPENAI_API_KEY` in `/opt/supabase/.env`
    stehen. `deploy/docker-compose.barcode-ai.yml` reicht den Schlüssel nur an

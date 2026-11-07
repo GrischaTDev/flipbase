@@ -38,6 +38,37 @@ und ihre ausführliche Recherche. Anfragevertrag und Fehlerfälle werden mit den
 bestehenden 23 Deno-Fällen geprüft; der korrigierte Ablauf erhält einen weiteren
 beobachteten Pilotlauf und Vorabcheck vor dem Push.
 
+**Abgestimmtes Zeitfenster:** Auch der nächste beobachtete Pilot zeigte eine
+reale Grenze: Modell 19 Sekunden, Neupreisrecherche weitere 51 Sekunden,
+Gebrauchtrecherche nach 66 Sekunden abgebrochen. Deshalb die gesamte Kette am
+vorhandenen 150-Sekunden-Gateway ausgerichtet: Recherche 130, Router 145 und
+Browser 155 Sekunden; andere Funktionen behalten 60 Sekunden. Der Routerhelfer
+aktualisiert auch die installierte 95-Sekunden-Ausnahme und schützt unbekannte
+Fassungen. Der Reservierungsschutz wächst über eine neue CLI-generierte
+Migration von zwei auf drei Minuten. Kein neuer Backenddienst oder Framework.
+
+**SQL-/Zeitnachweis:** 24 Deno-Fälle einschließlich eines virtuellen vollständigen
+100-Sekunden-Ablaufs erfolgreich. In einer eigenen PostgreSQL-17-Instanz mit der
+vollständigen Produktions-Schemadefinition ohne Nutzerdaten reproduzierten drei
+Erwartungen die zu frühe Freigabe des alten Zeitfensters. Nach transaktionaler
+Anwendung der erzeugten Migration alle 26 SQL-Fälle erfolgreich; Signatur,
+Funktionsdefinition und neue Datenbanktypen entsprechen dem geprüften Ziel.
+Migrationskommentar/DDL-Schreibweise und Zeilenenden automatisiert vereinheitlicht,
+keine fachliche Änderung an der erzeugten SQL-Funktion. Anwendungstypen unverändert.
+Die gezielte Routerprüfung bestätigt Erstinstallation, Aktualisierung der alten
+Ausnahme, Wiederholung und Schutz unbekannter Dateien. Der gemeinsame Zeitvertrag
+prüft zusätzlich die notwendigen Abstände zwischen den Grenzen. Weitere
+kostenpflichtige Piloten erst nach Anwendung des längeren Reservierungsschutzes;
+keine produktive Schema- oder Funktionsdatei vor dem grünen Merge verändert.
+
+**Teilabrechnung:** Bei einem abgebrochenen Marktaufruf die bereits gemeldeten
+Tokens und Werkzeugausgaben als Mindestwerte erhalten. Bekannte geschätzte
+Teilkosten bleiben im Ergebnis sichtbar und gespeichert; die unbekannten
+Gesamtkosten werden weiterhin nicht als null behandelt. Die Verbrauchsanzeige
+kennzeichnet unvollständige Werte ausdrücklich. Der konkrete Abbruchfall
+bestätigt 2.000 bekannte Eingabe-, 1.000 Ausgabetokens und 0,0864 USD bekannte
+Teilkosten bei unbekannten Gesamtkosten.
+
 **Ausrollung:** Der Webbau veröffentlicht Edge Functions nicht automatisch.
 Nach grünem Merge die Funktionsordner aus dem freigegebenen Hauptstand gemäß
 `deploy/README.md` gemeinsam übertragen, vorhandene Serverordner und Schlüssel

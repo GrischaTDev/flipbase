@@ -13,10 +13,12 @@ def configure(path):
         raise ValueError("Reguläre main/index.ts erwartet.")
     source = path.read_text(encoding="utf-8")
     original = "const workerTimeoutMs = 1 * 60 * 1000"
-    replacement = "const workerTimeoutMs = service_name === 'vinted-ai-search' ? 95_000 : 1 * 60 * 1000"
+    previous = "const workerTimeoutMs = service_name === 'vinted-ai-search' ? 95_000 : 1 * 60 * 1000"
+    replacement = "const workerTimeoutMs = service_name === 'vinted-ai-search' ? 145_000 : 1 * 60 * 1000"
     if source.count(replacement) == 1:
         return False
-    if source.count(original) != 1 or "const service_name = path_parts[1]" not in source:
+    matched = previous if source.count(previous) == 1 else original
+    if source.count(matched) != 1 or "const service_name = path_parts[1]" not in source:
         raise ValueError("Unbekannter Functionrouter; keine Änderung vorgenommen.")
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S%f")
     backup = path.with_name(path.name + ".ai-search-" + timestamp + ".bak")
@@ -24,7 +26,7 @@ def configure(path):
     descriptor, temporary = tempfile.mkstemp(prefix=".ai-search-", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as target:
-            target.write(source.replace(original, replacement))
+            target.write(source.replace(matched, replacement))
         shutil.copystat(path, temporary)
         os.replace(temporary, path)
     finally:

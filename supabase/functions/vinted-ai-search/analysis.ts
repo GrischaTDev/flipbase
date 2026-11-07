@@ -6,7 +6,7 @@ export const MODEL_PRICES = {
 } as const;
 export type SearchModel = keyof typeof MODEL_PRICES;
 export const PRICING_DATE = '2026-11-06';
-export const PROMPT_VERSION = 'vinted-product-research-5';
+export const PROMPT_VERSION = 'vinted-product-research-6';
 export interface Comparison {
   title: string;
   url: string;
@@ -55,7 +55,7 @@ export function parseUsage(result: Record<string, unknown>, model: SearchModel) 
     (item) => record(item)?.['type'] === 'web_search_call',
   ).length;
   const pricing = { ...MODEL_PRICES[model], webSearch: 0.01, date: PRICING_DATE, currency: 'USD' };
-  const estimatedCostUsd =
+  const knownCostUsd =
     inputTokens === null || outputTokens === null || cachedInputTokens > inputTokens
       ? null
       : Math.round(
@@ -65,12 +65,16 @@ export function parseUsage(result: Record<string, unknown>, model: SearchModel) 
             webSearchCalls * pricing.webSearch) *
             1e8,
         ) / 1e8;
+  const incomplete = result['usage_incomplete'] === true || knownCostUsd === null;
+  const estimatedCostUsd = incomplete ? null : knownCostUsd;
   return {
     inputTokens,
     cachedInputTokens,
     outputTokens,
     webSearchCalls,
     estimatedCostUsd,
+    knownCostUsd,
+    incomplete,
     pricing,
   };
 }

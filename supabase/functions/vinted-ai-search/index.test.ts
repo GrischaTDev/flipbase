@@ -631,6 +631,10 @@ Deno.test(
       };
       const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
       equal(parseUsage(raw, 'gpt-6-astra').estimatedCostUsd, null);
+      equal(parseUsage(raw, 'gpt-6-astra').inputTokens, 2000);
+      equal(parseUsage(raw, 'gpt-6-astra').outputTokens, 1000);
+      equal(parseUsage(raw, 'gpt-6-astra').knownCostUsd, 0.0864);
+      equal(parseUsage(raw, 'gpt-6-astra').incomplete, true);
       equal(parseAnalysis(raw).research?.retail.summary, 'Herstellerpreis 120 EUR');
       equal(parseAnalysis(raw).research?.used.completed, false);
     } finally {
@@ -714,5 +718,46 @@ Deno.test(
     equal((await response.json()).analysis.research.used.completed, false);
     equal(test.saved.at(-1)?.status, 'failed');
     equal(test.saved.at(-1)?.error_code, 'research_incomplete');
+  },
+);
+
+Deno.test(
+  'beendet eine vollstaendige Recherche nach hundert Sekunden ohne die alte 85-Sekunden-Grenze',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTimeout = AbortSignal.timeout;
+    let elapsed = 0;
+    const timers: { deadline: number; controller: AbortController }[] = [];
+    try {
+      AbortSignal.timeout = (milliseconds: number) => {
+        const controller = new AbortController();
+        timers.push({ deadline: elapsed + milliseconds, controller });
+        return controller.signal;
+      };
+      globalThis.fetch = async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        elapsed += body.max_tool_calls === 2 ? 50_000 : body.max_tool_calls === 5 ? 40_000 : 10_000;
+        for (const timer of timers)
+          if (elapsed >= timer.deadline)
+            timer.controller.abort(new DOMException('Deadline reached', 'TimeoutError'));
+        init?.signal?.throwIfAborted();
+        const response = provider();
+        if (body.max_tool_calls !== 2)
+          response.output[1].content![0].text = JSON.stringify({
+            summary: 'Vollständige Marktrecherche',
+            limitations: [],
+            comparisons: [],
+            sources: [],
+          });
+        return Response.json(response);
+      };
+      const result = parseAnalysis(await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra'));
+      equal(elapsed, 100_000);
+      equal(result.research?.retail.completed, true);
+      equal(result.research?.used.completed, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+      AbortSignal.timeout = originalTimeout;
+    }
   },
 );

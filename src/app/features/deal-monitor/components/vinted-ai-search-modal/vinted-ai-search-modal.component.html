@@ -193,15 +193,28 @@
         {{ data.cacheHit ? 'Gespeichertes Ergebnis, keine neue API-Anfrage' : 'Neue Recherche' }}
       </p>
       <p>
-        Ursprüngliche Analyse: {{ data.usage.inputTokens ?? 'unbekannt' }} Eingabe- /
-        {{ data.usage.outputTokens ?? 'unbekannt' }} Ausgabetokens ·
-        {{ data.usage.webSearchCalls }} Webaufrufe ·
+        Ursprüngliche Analyse:
+        {{ data.usage.incomplete && data.usage.inputTokens !== null ? 'mindestens ' : ''
+        }}{{ data.usage.inputTokens ?? 'unbekannt' }} Eingabe- /
+        {{ data.usage.incomplete && data.usage.outputTokens !== null ? 'mindestens ' : ''
+        }}{{ data.usage.outputTokens ?? 'unbekannt' }} Ausgabetokens ·
+        {{ data.usage.incomplete ? 'mindestens ' : '' }}{{ data.usage.webSearchCalls }} Webaufrufe ·
         {{
           data.usage.estimatedCostUsd === null
-            ? 'Kosten unbekannt'
+            ? 'Gesamtkosten unbekannt'
             : (data.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
         }}
       </p>
+      @if (
+        data.usage.incomplete &&
+        data.usage.knownCostUsd !== null &&
+        data.usage.knownCostUsd !== undefined
+      ) {
+        <p>
+          Geschätzte bekannte Teilkosten:
+          {{ data.usage.knownCostUsd | currency: 'USD' : 'symbol' : '1.4-6' }}
+        </p>
+      }
     </section>
   }
   @if (completedResults().length > 1) {
@@ -244,8 +257,11 @@
       </h3>
       @for (stat of stats(); track stat.model) {
         <p>
-          {{ stat.model }}: {{ stat.requests }} Anfragen · {{ stat.total_tokens | number }} Tokens ·
-          {{ stat.web_search_calls ?? 0 }} Webaufrufe ·
+          {{ stat.model }}: {{ stat.requests }} Anfragen ·
+          {{ stat.unknown_cost_requests ? 'mindestens ' : ''
+          }}{{ stat.total_tokens | number }} Tokens ·
+          {{ stat.unknown_cost_requests ? 'mindestens ' : ''
+          }}{{ stat.web_search_calls ?? 0 }} Webaufrufe ·
           {{
             stat.estimated_cost_usd === null
               ? 'Kosten unbekannt'

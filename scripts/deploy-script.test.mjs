@@ -29,7 +29,7 @@ test('Vinted-KI-Laufzeit aendert ausschliesslich den bekannten Router und ist wi
       result,
       original.replace(
         'const workerTimeoutMs = 1 * 60 * 1000',
-        "const workerTimeoutMs = service_name === 'vinted-ai-search' ? 95_000 : 1 * 60 * 1000",
+        "const workerTimeoutMs = service_name === 'vinted-ai-search' ? 145_000 : 1 * 60 * 1000",
       ),
     );
     const backups = (await readdir(directory)).filter((file) => file.endsWith('.bak'));
@@ -37,6 +37,16 @@ test('Vinted-KI-Laufzeit aendert ausschliesslich den bekannten Router und ist wi
     assert.equal(await readFile(join(directory, backups[0]), 'utf8'), original);
     execFileSync(python, [script, '--main-path', main]);
     assert.equal((await readdir(directory)).filter((file) => file.endsWith('.bak')).length, 1);
+    await writeFile(
+      main,
+      original.replace(
+        '1 * 60 * 1000',
+        "service_name === 'vinted-ai-search' ? 95_000 : 1 * 60 * 1000",
+      ),
+    );
+    execFileSync(python, [script, '--main-path', main]);
+    assert.equal(await readFile(main, 'utf8'), result);
+    assert.equal((await readdir(directory)).filter((file) => file.endsWith('.bak')).length, 2);
     await writeFile(main, 'const workerTimeoutMs = 999\n');
     const failed = spawnSync(python, [script, '--main-path', main], { encoding: 'utf8' });
     assert.notEqual(failed.status, 0);
@@ -44,6 +54,48 @@ test('Vinted-KI-Laufzeit aendert ausschliesslich den bekannten Router und ist wi
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('Vinted-KI-Zeitbudgets passen zu Detailabruf, Gateway und Kostenreservierung', async () => {
+  const research = await readFile(
+    new URL('../supabase/functions/vinted-ai-search/research.ts', import.meta.url),
+    'utf8',
+  );
+  const runtime = await readFile(
+    new URL('../deploy/configure-vinted-ai-runtime.py', import.meta.url),
+    'utf8',
+  );
+  const client = await readFile(
+    new URL(
+      '../src/app/features/deal-monitor/services/vinted-ai-search.service.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const schema = await readFile(
+    new URL('../supabase/schemas/540_vinted_ai_search.sql', import.meta.url),
+    'utf8',
+  );
+  const milliseconds = (value) => Number(value.replaceAll('_', ''));
+  const researchTimeout = milliseconds(research.match(/AbortSignal\.timeout\(([\d_]+)\)/u)[1]);
+  const workerTimeout = milliseconds(runtime.match(/replacement = .*?\? ([\d_]+) :/u)[1]);
+  const clientTimeout = milliseconds(client.match(/timeout: ([\d_]+)/u)[1]);
+  const reservationTimeout =
+    Number(
+      schema.match(/status = 'pending' and created_at > now\(\) - interval '(\d+) minutes'/u)[1],
+    ) * 60_000;
+  // Das selbst gehostete Gateway begrenzt Funktionsanfragen auf 150 Sekunden.
+  const gatewayTimeout = 150_000;
+  assert.ok(
+    researchTimeout + 7_000 + 5_000 < workerTimeout,
+    'Detailabruf und Erfassung benötigen Zeit außerhalb der Recherche',
+  );
+  assert.ok(workerTimeout < gatewayTimeout, 'Die Funktion muss vor dem Gateway antworten');
+  assert.ok(gatewayTimeout < clientTimeout, 'Der Browser muss die Serverantwort abwarten können');
+  assert.ok(
+    clientTimeout < reservationTimeout,
+    'Ein laufender Auftrag darf keine zweite Kostenreservierung erlauben',
+  );
 });
 
 const marketplaceRolloutScript = fileURLToPath(

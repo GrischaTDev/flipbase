@@ -271,6 +271,12 @@ test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei feh
       json: {
         ...aiSearchResult,
         listing: { ...aiSearchResult.listing, detailsStatus: 'unavailable' },
+        usage: {
+          ...aiSearchResult.usage,
+          estimatedCostUsd: null,
+          incomplete: true,
+          knownCostUsd: 0.02,
+        },
         analysis: {
           ...aiSearchResult.analysis,
           confidence: 'likely',
@@ -310,6 +316,8 @@ test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei feh
     dialog.getByText('Diese Teilrecherche konnte nicht abgeschlossen werden.'),
   ).toBeVisible();
   await expect(dialog.getByRole('spinbutton')).toHaveCount(0);
+  await expect(dialog.getByText(/Geschätzte bekannte Teilkosten:/)).toContainText('0,0200');
+  await expect(dialog.getByText(/Ursprüngliche Analyse:/)).toContainText('Gesamtkosten unbekannt');
   const popup = page.waitForEvent('popup');
   await dialog.getByRole('link', { name: /Modellmerkmale beim Hersteller/ }).click();
   const source = await popup;

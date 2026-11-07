@@ -62,6 +62,8 @@ export interface VintedAiResult {
     outputTokens: number | null;
     webSearchCalls: number;
     estimatedCostUsd: number | null;
+    knownCostUsd?: number | null;
+    incomplete?: boolean;
   };
   stats: VintedAiUsageSummary[];
 }
