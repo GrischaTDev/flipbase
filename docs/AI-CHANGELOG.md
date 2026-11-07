@@ -1,5 +1,431 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Sieben-Tage-Erstimport und laufenden Vergleichsbestand umsetzen
+
+**Auftrag:** Aktuelle Botfilter einmal ohne Preisunter-/obergrenze über sieben Tage
+befüllen, neue Feedartikel laufend ergänzen und aktive sowie verkauft markierte
+Inserate für die 30-Tage-Analyse beobachten. Nicht verfügbare Artikel ausschließen.
+
+**Grundlage:** Gleicher eigener Aufgabenbranch, frischer GitHub-Abgleich auf
+`25eb50a4`; fremde Hauptarbeitskopie erhalten. Produktionskonfiguration ausschließlich
+lesend geprüft: fünf aktive Filter mit sieben Markenkombinationen, Carhartt bisher
+bis 50 EUR. Drei ergänzende Teilaufgaben für Parser, Sammlung und Oberfläche;
+zusätzlich unabhängige SQL-Gegenprüfung. Keine Produktivmigration oder Veröffentlichung.
+
+**Umsetzung:** Drei kompakte Tabellen für Suchbereiche, Artikelzustände und
+Zuordnungen. Preisfreie, fortsetzbare Katalogabrufe und gezielte Detailprüfungen
+teilen Browser, Origin-Pausen und Abrufbudget mit dem Feed. Unter Last erhält der
+Vergleich einen von fünf Abrufplätzen, freie Kapazität wird im vorhandenen Abstand
+verwendet. Persistierter Wechsel zwischen Katalog und Details verhindert ein
+Verdrängen der Statusprüfungen bei vielen Bereichen. Lease-Token und Filterrevisionen
+weisen veraltete Ergebnisse zurück. Neue Feedfunde fließen zusätzlich per Trigger ein.
+
+**Datenqualität:** Nur artikelbezogene Verkaufsbelege zählen als verkauft;
+Reservierung, Verstecken und unklarer Status bleiben prüfbar. Fehlende Quellen
+werden ignoriert. Initiale Vergleichsbelege benötigen ein nachgewiesenes
+Veröffentlichungsintervall innerhalb der sieben Tage. Aktive Preise werden auf
+30 Tage Veröffentlichung begrenzt, Verkaufsmarkierungen separat auf 30 Tage
+Erkennung. Überlappende Datumsgrenzen werden nicht geschätzt. Die öffentlichen
+Preise bleiben Angebotspreise; ein rückwirkendes vollständiges Verkaufsarchiv
+wird nicht behauptet. Modelle werden zusätzlich nach Zielgröße/Zustand eingegrenzt;
+Kategorieauswertung bleibt ausdrücklich breiter. Mengen-/Zeitgrenzen und begrenzte
+Quellenseiten werden als unvollständige Abdeckung ausgewiesen.
+
+**AI-Suche:** Modellbestimmung mit allen Zielbildern und Neupreisrecherche bleiben.
+Danach liefert die Datenbank Anzahl, Median, Quartile und Gesamtspanne für aktive
+und verkauft markierte Artikel. Die bisherige zweite KI-Recherche, Einzelkatalog-
+und Datumsabrufe entfallen im Produktivpfad. Cachetreffer erneuern die Statistik;
+Datenbankausfälle erzwingen keinen weiteren kostenpflichtigen Modellaufruf.
+Die Oberfläche zeigt die breite Datenbasis und den Erstimportstatus. Unverbundene
+frühere Statistikvorbereitung entfernt; kein zusätzlicher API-Anbieter.
+
+**Nachweise:** 97 gezielte pgTAP-Prüfungen einschließlich Rechten, Leases,
+20-Bereich-Fairness, Datumsgrenzen, sehr hohen Preisen und Verkaufserhalt. 76
+Deno-Prüfungen, neun Modelltests, zwölf Browserfälle plus zwei Sichtprüfungen
+(Hell/Dunkel, Maus/Touch und AXE) erfolgreich. Sniper-Typprüfung und relevante
+Worker-/Parser-/Browserprüfungen erfolgreich, zuletzt 73 Browser-/Abstandsprüfungen.
+Die Browserprotokollsimulation bestätigt den Wechsel zwischen Katalog und Details;
+die Liveproben verwenden native HTTP-Abrufe, keinen produktiven Chrome-Lauf.
+Öffentliche Workerprobe: drei
+Abrufe, korrekt aktiver und verkaufter Status. Weitere Probe mit echten Filter-
+konfigurationen und isolierter Postgres: 17 Abrufe, sieben Markenkombinationen,
+672 Katalogartikel, darunter 280 über 50 EUR, zehn geprüfte aktive Detailseiten;
+keine KI-Kosten oder Produktivschreibzugriffe. Das ist kein abgeschlossener
+Sieben-Tage-Import. Private Berichte im bestehenden Aufgabenordner.
+
+**Datenbank und Freigabe:** Migration mit Supabase CLI aus aktueller isolierter
+Migrationsbasis erzeugt, unzitierte SQL-Schreibweise mechanisch vereinheitlicht.
+Die frische Migrationsprüfung deckte vier Rechtefehler auf: Der CLI-Abgleich
+übernahm die Sperren geerbter Rechte und der Identity-Sequenzen nicht vollständig.
+Deshalb wurden alle elf expliziten Rechteanweisungen automatisch aus dem
+deklarativen Schema in das erzeugte Paket übernommen. Nach vollständigem Neuaufbau
+bestanden die 97 neuen und 359 bestehenden SQL-Prüfungen ohne zusätzliche
+Rechtekorrekturen oder Fixtureänderungen. Erneut per CLI erzeugte Typen entsprechen
+dem eingecheckten Typstand. `npm run preflight:plan` und `npm run preflight`
+unter Node 22 erfolgreich (Exit 0): SQL-Paket, Format, Lint, Typen, Suite-Audit,
+157 Skriptprüfungen, 3.652 Anwendungstests und Bau. Der erste Vorabcheck hatte einen
+LF-verlangenden Konfigurationsvertrag beanstandet; `config.toml` wurde gemäß
+`.gitattributes` ohne fachliche Änderung auf LF vereinheitlicht. Drei bedingte
+Orchestrierungsfälle und sieben Windows-unpassende Sniper-Prozesslockfälle sind
+übersprungen; die umfassenderen CI-, Linux-, Image- und Integrationsnachweise
+bleiben offen. Der Bau meldet vorhandene Template-/CommonJS-Hinweise und eine
+Bundlebudget-Warnung (977,60 statt 900 kB). Nach Abschluss nur Prüfdokumentation
+ergänzt und erneut formatiert/geprüft; unveränderte Anwendungstests nicht wiederholt.
+Der produktive Erstimport beginnt erst nach regulärer
+Freigabe und Deployment automatisch für aktive Filter. Kein Push, PR oder Merge.
+
+## 2026-11-07 - Juna - Rollierende Vergleichsdatenbank empfehlen
+
+**Nutzerfrage:** Ob ein eigener Bestand über ungefähr 30 Tage die wiederholten
+langsamen Direktabrufe bei jeder AI-Suche sinnvoll ersetzt.
+
+**Grundlage und Ergebnis:** Eigener sauberer Aufgabenbranch und frischer
+GitHub-Abgleich, `origin/master` unverändert `25eb50a4`. Bestehenden Feed-Schreibpfad,
+SQL-Bereinigung und Abrufabstand geprüft; unabhängige fachliche Gegenprüfung der
+Zeitfenster. Empfehlung jetzt: kompakter Vergleichsbestand in der bestehenden
+Supabase-Datenbank, gemeinsame Aktualisierung im Hintergrund und 30-Tage-Auswertung.
+Der Feed löscht tatsächlich nach drei Tagen; der SQL-Kommentar mit sieben Tagen
+ist veraltet. Wiederfunde werden im bisherigen Speicherpfad nicht als Preisupdates
+geführt. Ein bloßes Verlängern der Feed-Aufbewahrung wäre daher unzureichend.
+
+**Grenzen:** Statusprüfungen bleiben nötig und teilen sich das Abrufbudget mit dem
+Feed. Keine tägliche Vollprüfung beliebig vieler Artikel versprechen. Suchfilter
+für Preisvergleiche dürfen nicht unbemerkt die Einkaufspreisgrenzen des Feeds erben.
+Auswertungsfenster und Aufbewahrung trennen; laufende Artikel kompakt und begrenzt
+beobachten, Verkaufsmarkierungen mit Erkennungszeit und letztem Aktivnachweis führen.
+Der Bestand liefert am Anfang aktuelle Angebote; eine eigene Verkaufshistorie
+entsteht erst während der Beobachtung. KI bleibt für Modellzuordnung, Bilder und
+gezielte Neupreisrecherche zuständig; Statistik berechnet die Anwendung.
+
+**Prüfung:** Reine Analyse und Dokumentation, keine neue Tabelle, Migration,
+Hintergrundsammlung oder Produktänderung. Gezielt formatiert und Diff geprüft;
+keine Anwendungstests oder Builds. Kein Push, PR, Merge oder Deployment.
+
+## 2026-11-07 - Juna - Verkaufskennzeichen und öffentliche Verfügbarkeit prüfen
+
+**Nutzerfrage:** Ob ein Verkaufsflag in den vollständigen Suchdaten vorhanden ist
+und wie lange verkaufte Vinted-Inserate für die Analyse erhalten bleiben.
+
+**Grundlage:** Eigener Aufgabenbranch sauber geprüft und GitHub frisch abgerufen;
+`origin/master` weiterhin `25eb50a4`. Ergänzende Quellenrecherche durch einen
+zweiten Agenten, ohne zusätzliche direkte Katalogabrufe oder Produktänderungen.
+
+**Nachweis:** Alle zehn Seiten der eingegrenzten öffentlichen Carhartt-Suche mit
+je 96 Karten gelesen: 960 Einträge, wegen Überschneidungen 931 eindeutige IDs.
+Alle Karten besaßen denselben Satz von Produktfeldern, ohne `is_sold`, `is_closed`
+oder `can_buy`; `itemBox.badge` war überall nicht gesetzt. Der bekannte verkaufte
+Zielartikel fehlte. Zwei anschließende Detailabrufe zeigten den Unterschied:
+10693973187 mit artikelbezogenem Banner `Verkauft`, `can_buy=false` und
+`instant_buy=false`; 10699246799 mit beiden Kaufbarkeitsflags auf `true`, ohne
+Verkaufsbanner. Beide nicht versteckt oder reserviert. Kein allgemeines Versprechen
+über andere Endpunkte oder sämtliche Artikel aus dieser Beobachtung ableiten.
+
+**Quellen:** Vinted-Hilfe 60 erlaubt Löschen verkaufter Angebote nach vollständigem
+Bestellabschluss; einige Daten bleiben danach intern bis zu sechs Monate erhalten.
+Keine Zusage öffentlicher Erreichbarkeit oder eines vollständigen 30-Tage-Archivs.
+Vinted-Hilfe 258 bestätigt, dass individuell ausgehandelte Angebote nur dem jeweiligen
+Käufer angezeigt werden. Flogits Beschreibung einer auf verkauften Artikeln beruhenden
+Vinted-Preisempfehlung ist ein noch technisch ungeprüfter ergänzender Rechercheansatz.
+
+**Einordnung:** Status bekannter Inserate ist lesbar; die heutige öffentliche
+Suchliste liefert die bereits verschwundenen Kennungen nicht rückwirkend mit.
+Für eigene Verkaufsbeobachtung genügen kompakte Artikelkennungen, Merkmale, letzte
+Preise und Beobachtungszeiten. Fehlende Kaufbarkeit oder ein verschwundener Treffer
+allein gilt nicht als Verkauf. Erstmalige Verkaufserkennung ist kein exaktes
+Verkaufsdatum; für 30-Tage-Verkäufe zählt Verkaufszeit statt Einstellzeit.
+
+**Prüfung:** Liveprobe Exitcode 0, zwölf erfolgreiche öffentliche Abrufe mit
+mindestens 2,5 Sekunden Abstand. Nachweis `catalog-sale-flags-proof.json` im
+privaten Aufgabenordner; keine KI-Kosten, Bilderdownloads, Produktänderungen oder
+Produktivschreibzugriffe. Nur Dokumentation, gezielte Formatierung und Diffprüfung;
+keine Anwendungstests oder Builds. Kein Push, PR, Merge oder Deployment.
+
+## 2026-11-07 - Juna - Verkaufsstatus älterer Vergleichsangebote prüfen
+
+**Nutzerfrage:** Ob die älteren Carhartt-Suchtreffer noch angeboten oder bereits
+verkauft sind und welchen Nutzen sie für eine aktuelle Wiederverkaufsanalyse haben.
+
+**Grundlage:** Eigener Aufgabenbranch sauber geprüft, GitHub erneut abgeglichen.
+Fremde Arbeitskopie unverändert. Eine unabhängige fachliche Gegenprüfung ohne
+weitere Netzabrufe; ergänzend öffentliche Vinted-Hilfe recherchiert.
+
+**Nachweis:** Vier öffentliche Detailseiten am 7. November, 15:09 UTC, mit
+2,5 Sekunden Mindestabstand abgerufen. Die zuvor gefundenen Inserate mit fünf
+Wochen (100 EUR), sechs Wochen (50 EUR) und acht Wochen (70 EUR) waren jeweils
+kaufbar, weder versteckt noch reserviert. Der ursprünglich verlinkte Artikel
+10693973187 war ausdrücklich als verkauft gekennzeichnet und nicht kaufbar;
+der sichtbare Inseratpreis betrug 30 EUR. Status ausschließlich aus strukturierten
+Datensätzen der passenden Artikel-ID gelesen, nicht aus allgemeinen Seitentexten.
+
+**Einordnung:** Eine erreichbare Detailseite ist kein Nachweis aktiver Kaufbarkeit.
+Ältere aktive Angebote beschreiben aktuelle Konkurrenz, aber keine erzielten
+Verkaufspreise und keinen belegten Preisverlauf. Auch jüngere aktive Angebote sind
+Angebotspreise. Ein Verkaufsbanner bestätigt ebenfalls nicht den ausgehandelten
+Endpreis. Für eine 30-Tage-Auswertung ältere Angebote separat behandeln; keine
+pauschalen Altersabschläge oder beleglosen Aussagen zur Ursache der Standzeit.
+Eine heutige Bestandsstichprobe kann lange sichtbare Angebote stärker enthalten
+als schnell verkaufte. Mehr Treffer beseitigen diese Verzerrung nicht.
+
+**Prüfung:** Liveprobe Exitcode 0, alle vier Abrufe erfolgreich, keine KI-Kosten,
+Bilderdownloads oder Produktänderungen. Privater Nachweis
+`older-listing-status-proof.json` im bestehenden Aufgabenordner. Nur Dokumentation,
+gezielt formatiert und Diff geprüft; keine Anwendungstests oder Builds.
+Kein Push, PR, Merge oder Deployment.
+
+## 2026-11-07 - Juna - Zeitraum der Carhartt-Suchergebnisse direkt prüfen
+
+**Nutzerfrage:** Ob die 960 Treffer praktisch die jüngsten Inserate sind und der
+Zeitraum zunächst mit wenigen gezielten Prüfungen eingegrenzt werden kann.
+
+**Grundlage:** Gleicher eigener Aufgabenbranch, sauberer Stand geprüft und GitHub
+frisch abgerufen (`origin/master` weiterhin `25eb50a4`). Eine unabhängige fachliche
+Gegenprüfung ohne zusätzliche Vinted-Abrufe. Keine Veröffentlichung oder Änderung
+an laufenden Sammlern.
+
+**Nachweis:** Öffentliche Carhartt-Fleece-Suche wie zuvor mit 96 Treffern je Seite.
+Fünf Katalogseiten (1/5/7/8/10) und zwölf ausgewählte Detailaufrufe mit den tatsächlich
+beobachteten vollständigen Inserat-URLs geprüft. Seite 1: 29 Minuten/1 Tag, zusätzlich
+ein beworbener Treffer mit 2 Stunden und ein auffällig niedriger Artikel-ID-Treffer
+mit 22 Stunden. Seite 5: 1/2 Wochen; Seite 7: 3/4 Wochen; Seite 8: 4/5 Wochen;
+Seite 10: 6/8 Wochen. Kein Beleg für drei oder vier Monate alte Treffer in dieser
+Stichprobe, wohl aber eindeutig für mehr als 30 Tage. Dasselbe Inserat verschob
+sich zwischen Seite 7 und 8; beim Sammeln bleibt Doppelerkennung erforderlich.
+
+**Einordnung:** Eine breite aktuelle Angebotsstatistik braucht keine pauschale
+Einzel-Datierung aller 1.000 Treffer. Kleine Altersstichproben und gezielte Verdichtung
+am gewünschten Zeitraumübergang liefern schnell eine brauchbare zeitliche Orientierung.
+Sie beweisen weder ein exaktes 30-Tage-Fenster sämtlicher Treffer noch vollständig
+chronologische Sortierung. „4 Wochen“ bleibt wegen der gerundeten Quelle eine
+mehrdeutige 30-Tage-Grenze. 960 Suchtreffer sind kein Ereignis-/Verkaufsprotokoll.
+
+**Prüfung:** Beide lokalen Deno-Liveproben Exitcode 0, 17 öffentliche HTTP-Abrufe
+insgesamt, keine KI-Kosten oder Bilderdownloads. Datumsbelege stammen direkt aus
+passenden RSC-Artikelattributen; die zusätzliche Web-Leseoberfläche konnte die zwei
+älteren Inserat-URLs nicht öffnen und wird nicht als Nachweis ausgegeben. Private
+Nachweise `bulk-recency-proof.json` und `bulk-recency-boundary-proof.json` im
+bestehenden Aufgabenordner. Nur Dokumentation geändert, gezielt formatiert und
+Diff geprüft; keine Anwendungstests oder Builds für diesen Nachtrag.
+
+## 2026-11-07 - Juna - Breite Vergleichsbasis für Artikelpreise vorbereiten
+
+**Nutzerkorrektur:** Wenige ausgewählte Vergleichsangebote erfüllen den Auftrag
+nicht. Die Preisgrundlage soll je nach Angebot etwa 100, 1.000 oder 2.000 passende
+Inserate aus 20–30 Tagen umfassen. Den bisherigen Stand nicht veröffentlichen.
+Die bisherige Begrenzung auf eine kleine KI-Auswahl wird als unzureichend behandelt.
+
+**Grundlage:** Auf demselben eigenen Aufgabenbranch weitergearbeitet, GitHub erneut
+abgeglichen (`origin/master` weiterhin `25eb50a4`). Zwei ergänzende Prüfungen für
+Katalogtiefe und Integration in den vorhandenen Abrufprozess. Fremde Hauptarbeitskopie
+unverändert erhalten; keine Veröffentlichung oder produktive Sammlung gestartet.
+
+**Quellennachweis:** Carhartt/Fleece, Kategorie 1858 und Marke 362: vier geprüfte
+Suchseiten (1, 2, 5, 10) mit je 96 Artikeln und insgesamt 382 eindeutigen IDs;
+Seite 20/21 leer. Die konkrete Abfrage meldet 960 Treffer/zehn Seiten. Keine
+Vollsammlung der 960 oder allgemeine Plattformgarantie behauptet. Pro Artikel
+Preise und Merkmale, aber kein bestätigtes Einstelldatum in den Katalogdaten.
+`pagination.time` ist eine Abrufzeit. Zwei Detailproben ohne beobachteten Slug
+wurden durch den Redirectschutz abgewiesen und liefern keinen Datumsnachweis.
+Acht öffentliche Abrufe, keine KI-Kosten; private Protokolle unter dem bestehenden
+Aufgabenordner. Offene Client-Dokumentation bestätigt die beobachtete Paging-
+Größenordnung, wird aber nicht als zusätzliches Produkt integriert.
+
+**Vorbereitung:** Reine Statistikfunktion für bis zu 2.000 kompakte Quellen:
+Doppelerkennung, Preisverteilungen mit Median/Quartilen und ausdrückliche
+Modell-/Kategoriegrundgesamtheit. Kategorie umfasst die Modellteilmenge;
+Größe/Zustand werden nicht heimlich auf wenige Belege eingegrenzt. Keine
+Ausreißer still löschen und Angebotspreise nicht als Verkaufserlöse behandeln.
+Beobachtete Preise und nachgewiesene Veröffentlichung im 20-/30-Tage-Fenster
+getrennt berechnen; eine längere Erfassung verwirft früh geprüfte Quellen nicht
+nach drei Minuten. Noch nicht an den Produktablauf angebunden.
+
+**Offene Produktentscheidung:** Bei 2,5 Sekunden Abrufabstand benötigen 1.000
+Einzel-Datumsprüfungen rechnerisch rund 42 Minuten, 2.000 rund 83 Minuten,
+zuzüglich anderem Feedbedarf. Das widerspricht einer vollständig datierten
+Erstauswertung in zwei bis drei Minuten. Nutzerpräferenz zur vorläufigen breiten
+Preisübersicht mit nachlaufender Datumsprüfung oder Anzeige erst nach vollständiger
+Prüfung angefragt. Dafür ist ein fortsetzbarer Hintergrundauftrag mit kurzlebigem
+Quellenspeicher und gemeinsamem Sniper-Abrufbudget erforderlich; noch keine neue
+Tabelle, Migration, Queue oder Benutzeroberfläche eingebaut.
+
+**Prüfung:** 16 Statistiktests erfolgreich, darunter 100/1.000/2.000 synthetische
+Angebote; Sniper-Typprüfung, Suite-Audit und gezielte Formatierung jeweils Exitcode 0.
+Kein vollständiger Produkt-/Browsercheck für die noch nicht angebundene Vorbereitung.
+Kein PR, Push, Merge oder Deployment; die Funktionsänderung ist noch nicht fertig.
+
+## 2026-11-07 - Juna - Artikelbezogene Live-Preisanalyse umsetzen
+
+**Auftrag:** Die vorangegangene Recherche auf ausdrücklichen Nutzerauftrag umsetzen:
+Inserattext und Kategorie zuerst auswerten, Bilder zur Modellprüfung nutzen,
+Originalmodell und aktuelle Neupreise vor passenden Gebrauchtangeboten bestimmen.
+Bei unklarem Modell Kategorievergleiche ausweisen; ohne große Vergleichsdatenbank
+und ohne zusätzlichen Anbieter innerhalb eines begrenzten Recherchebudgets arbeiten.
+
+**Grundlage:** GitHub frisch abgeglichen (`25eb50a4`); fremde primäre Arbeitskopie
+unverändert erhalten. Eigene Forschungsarbeitskopie mit ihren ungesicherten Berichten
+auf neuen Zweig `juna/feed-ai-live-comparison` vom aktuellen `origin/master`
+übernommen. Drei unterstützende Analysen für Datumsprüfung, Preisrechnung und UI.
+
+**Umsetzung:** Zwei aufeinander aufbauende KI-Aufrufe statt dreier Teilrecherchen.
+Alle verfügbaren Inseratbilder und Detailmerkmale gehen einmal in die Modell- und
+Neupreisbestimmung; deren Ergebnis steuert die Gebrauchtmarktsuche. Eine begrenzte
+öffentliche Vinted-Katalogabfrage liefert bis zu 24 Kandidaten ohne Einkaufsobergrenze.
+Höchstens sechs Gebrauchtvergleiche werden fachlich eingeordnet und ihre Vinted-
+Einstellangaben direkt geprüft. Modell- und Kategorievergleiche, aktuelle Angebote
+und sicher datierte 30-Tage-Inserate bleiben getrennt. Keine erfundenen bezahlten
+Verkaufspreise oder pauschalen 15–30-Prozent-Abschläge. Vorhandener Ergebnis-Cache
+bleibt; keine neue Tabelle oder Migration.
+
+**Budgets:** 130 Sekunden Recherche insgesamt, zwei KI-Antworten mit jeweils
+höchstens 3.200 Ausgabetokens und drei/vier Webwerkzeugaufrufen, kleiner Suchkontext.
+Ab 0,75 USD bekannten Kosten der ersten Phase oder unvollständigem Verbrauch keine
+weitere kostenpflichtige Phase. Diese Fortsetzungsgrenze ist kein garantiertes
+Gesamtkostenlimit: Eingabe-/Such- und Bildtokens sowie bereits laufende Antworten
+bleiben variabel. Tatsächlicher Verbrauch und Teilabbrüche werden weiterhin erfasst.
+
+**Korrekturen aus der Prüfung:** Aktuelle Titel und Einzelpreise aus dem tatsächlichen
+Produktdatensatz übernehmen; bei geändertem Preis und fehlendem Gesamtpreis diesen
+als unbekannt behandeln. Deutsche Katalogquellen behalten Vorrang vor anderen
+Länderdomains derselben Artikelkennung. Kurze Modellabfrage getrennt von Farb- und
+Unsicherheitszusätzen; passende andersfarbige Artikel als Kategorievergleich zulassen.
+Allgemeine Favoritenhinweise („Entfernt!“) sind kein Inseratstatus.
+
+**Live-Nachweise:** Öffentliche Carhartt-Katalogabfrage mit 24 Kandidaten und echte
+Uploadangaben wie „22 Min.“, „2 h“ und „2 Wochen“ bestätigt. Erster vollständiger
+Astra-Versuch: Modell erkannt, Gebrauchtphase nach 45 Sekunden abgebrochen;
+0,43738 USD bekannte Teilkosten, Gesamtkosten dieses Abbruchs unbekannt und so
+in der Verbrauchserfassung erhalten. Nach kompakter Modellabfrage/adaptiver
+Werkzeugzahl vollständiger Lauf in 88 Sekunden, 0,69823 USD geschätzt. Dessen
+zu strenger Farbabgleich wurde korrigiert und die bezahlte Original-/Neupreisphase
+für die gezielte Nachprüfung wiederverwendet: Gebrauchtphase einschließlich
+Quellenprüfung 34 Sekunden, zusätzlich 0,25468 USD; drei direkt datierte
+Kategorievergleiche (60/75/109 EUR, Angebotspreise, keine Verkaufsbelege).
+Keinen neuen vollständigen Gesamtlauf mit dieser Teilprüfung behauptet.
+Isolierter Prüfcontainer, keine laufende Produktionsfunktion ersetzt; Kosten
+im bestehenden Verbrauch protokolliert. Private Rohberichte gesichert.
+
+**Prüfung:** 66 Deno-Tests einschließlich Typprüfung auf Deno 2.9.7 erfolgreich.
+Acht Frontend-Modelltests und die elf betroffenen Browserfälle einschließlich
+Hell/Dunkel, Touch, AXE sowie unbekanntem aktuellem Gesamtpreis erfolgreich.
+Ein zu strenger Test-Textselektor wurde im ersten Browserlauf korrigiert und
+gezielt erfolgreich nachgeprüft. CI-Registrierung aller Artikelanalyse-Tests
+zusätzlich abgesichert. Lokaler Vorabcheck auf Node 22 erfolgreich (Exitcode 0): Format, Lint, Typen,
+Suite-Audit, ausgewählte Skript-/Anwendungstests und Produktionsbau. Der Bau
+meldet bestehende Warnungen zu Budget/CommonJS und Vorlagen. Die abschließende
+reine Nachtragsdokumentation wird gezielt formatiert; Produktcode unverändert.
+Pflichtnachweise für SQL/Workflow/Marketplace und ausgewählte Integrationsbrowser
+bleiben dem nachfolgenden CI-Lauf zugeordnet. Keine Migration notwendig.
+
+## 2026-11-07 - Juna - Anbieter für Produkt- und Preisanalyse recherchieren
+
+**Auftrag:** Vintz und Alternativen für bildgestützte Produktbestimmung sowie
+Neu-/Gebrauchtpreisanalyse prüfen; öffentlich bekannte Technik, Prompts und
+mögliche effizientere Ansätze einordnen. Keine Implementierungsfreigabe abgeleitet.
+
+**Grundlage:** Primäre Arbeitskopie mit fremden Änderungen geprüft und erhalten,
+GitHub frisch abgerufen. Eigene Arbeitskopie auf `origin/master` (`25eb50a4`),
+Zweig `juna/product-price-analysis-research` angelegt. Nutzer bestätigt Vintz.
+
+**Präzisierung:** Der Nutzer schließt zusätzliche externe APIs und kostenpflichtige
+Zusatzprodukte aus. Anbieter nur zum Verständnis des Verfahrens untersuchen.
+Nach erneutem GitHub-Abgleich auf demselben eigenen Zweig fortgesetzt; primäre
+fremde Änderungen erhalten. Vorhandenen Sammler, Detailparser, Transaktionsdaten
+und tatsächliche Feed-Aufbewahrung geprüft. Öffentliche Carhartt-Prentis-Suche
+lesend mit HTTP 200 und 96 eindeutigen Artikelkennungen einschließlich Preisen
+und Merkmalen bestätigt; kein neuer Anbieterzugang und kein KI-Aufruf.
+Gesondertes internes Konzept unter
+`docs/research/2026-11-07-internal-vinted-article-analysis.md`. Die bisherige
+Anbieterempfehlung ausdrücklich auf reine Recherche zurückgestuft. Kein
+Produktumbau oder neue Beobachtungssammlung gestartet.
+
+**Ergebnis:** Quellenbericht unter
+`docs/research/2026-11-07-product-price-analysis-providers.md`. Fertige Apps,
+Datenzugänge und Bildsuchbausteine getrennt bewertet. Öffentlich beschriebene
+Funktion, tatsächlich offengelegte Technik und eigene Architekturvorschläge
+auseinandergehalten. Letzten Angebotspreis eines verkauft markierten Inserats
+nicht als ausgehandelten Endpreis behandelt. Ein offenes Beispiel zeigt die
+Trennung von Bildprompt, Vergleichssuche und Preisrechnung. Empfehlung:
+gezielte Bildsuche und Datenqualität zunächst gegen den bestehenden Ablauf messen.
+
+**Kapazitätsfrage:** Server ausschließlich lesend geprüft: rund 18,8 GB frei,
+Produktionsdatenbank rund 1,34 GB. In eigenem lokalem PostgreSQL-17-Container mit
+künstlichen Daten 100.000/1.000.000 Artikel und jeweils fünf Beobachtungen pro
+Artikel gemessen. Millionenstufe einschließlich sieben Indizes 1.288.290.304
+Bytes; drei kleine Beispielabfragen erfolgreich. Keine Produktionslastmessung,
+WAL/Backups nicht in der Relationsgröße enthalten. Bericht unter
+`docs/research/2026-11-07-vinted-analysis-storage-capacity.md`, rohe Nachweise im
+privaten Aufgabenordner. Messprozess Exitcode 0, eigener Container nach
+Identitätsprüfung entfernt; keine Produktänderung.
+
+**Zulauf und Aufbewahrung:** Auf Nutzerauftrag mit drei unterstützenden Analysen
+vertieft. Nach erneutem GitHub-Abgleich ausschließlich lesend rund 56.000
+Feedaufnahmen/24 Stunden, drei Tage vorhandene Historie sowie tatsächlich
+30/min Budget und 2.500 ms Mindestabstand bestätigt. Langfristige eindeutige
+Neuzugänge nicht behauptet. Keepa, Comps, ResellTrack und PostgreSQL-Primärquellen
+ausgewertet; unbekannte interne Anbieterarchitektur ausdrücklich abgegrenzt.
+Zweite isolierte PostgreSQL-Messung: eine Million kompakte Artikelbelege rund
+219 MB, eine Million Wiedererkennungskennungen rund 99 MB inklusive Indizes.
+Erster Messversuch traf den temporären Initialisierungsserver; nach korrigierter
+TCP-Bereitschaft endgültiger Messlauf Exitcode 0. Beide eigenen Container nach
+Prüfung entfernt. Gestufte Aufbewahrung, begrenzte Nachprüfung, unverzerrte
+Verdichtung und feste Speicherbudgets im Bericht
+`docs/research/2026-11-07-vinted-analysis-retention-strategy.md` hergeleitet.
+Keine Sammlung, Migration oder automatische Löschung eingerichtet.
+
+**Saisonpausen und weitere Marken:** Recherche auf Nutzerwunsch um Reddit,
+offene Preis-Tracker, zusätzliche Anbieter und amtliche Saisonmethodik
+vertieft; drei unterstützende Analysen. Erneut GitHub abgeglichen, fremde
+primäre Arbeitskopie unverändert erhalten. Produktionsabfrage ausschließlich
+lesend: fünf aktive Filter enthalten sieben Markenbezeichnungen mit stark
+abweichendem Zulauf. Keine lineare Markenhochrechnung behauptet. Vorhandene
+Markenrotation und Wiederanlaufgrenzen geprüft. Dauerhafte Produktgruppen,
+getrennte Sammelregeln und Beobachtungsperioden vorgeschlagen; 36 statt 24
+Monatsstatistiken mit ausdrücklich neu berechnetem Mehrbedarf. Bericht unter
+`docs/research/2026-11-07-vinted-analysis-seasonal-collection.md`.
+Keine Zusatzsammlung, Anbieterintegration oder automatische Saisonsteuerung
+eingerichtet; reine Dokumentprüfung.
+
+**Aktueller Kernnutzen und KI:** Nutzerbeispiel Adidas-Trainingsanzug mit
+30-Tage-Vergleich eingeordnet. Mehrjährige Saisonarchive als optionale
+Erweiterung zurückgestellt; für diese aktuelle Artikelbewertung nicht nötig.
+Auswertungszeitraum von Inseratalter und Aufbewahrung getrennt. KI für
+Bild-/Modellbestimmung und schwierige Vergleichbarkeit; Kennzahlen und
+Einkaufsgrenze im normalen Anwendungscode. Bei vollständig bekannten
+Merkmalen benötigt die Standard-Preisauswertung keine KI. Fachliche Grenzen
+zu tatsächlich gezahlten Preisen und fehlender rückwirkender Beobachtung
+festgehalten. Bericht unter
+`docs/research/2026-11-07-vinted-analysis-current-market-scope.md`.
+Keine Implementierung oder Änderung vorhandener Daten.
+
+**Einmaliger Startimport:** Nutzerfrage nach einmaliger Befüllung mit den
+letzten 30 Tagen geprüft. Ein initialer mehrseitiger Angebotsimport ist möglich,
+ein vollständiger historischer Monatsexport damit nicht belegt. Zwei öffentliche
+Adidas-Trainingsanzug-Katalogseiten lesend geprüft: HTTP 200, zusammen 189
+eindeutige Kandidaten, keine veröffentlichten Datumsfelder auf der ausgelesenen
+Artikelebene. Tatsächliche Zeitgrenze, tiefe Pagination und Vergleichbarkeit
+bleiben gesondert zu prüfen. Prozess Exitcode 0, privater Nachweis erhalten.
+Grenzen durch fehlende historische Preise und versteckte/gelöschte Inserate
+anhand Quelle und Code dokumentiert. Kein Datenbankimport oder Sammelauftrag
+eingerichtet; Dokumente gezielt formatiert und auf Unterschiede geprüft.
+
+**Gezielte Live-Analyse statt Vergleichsarchiv:** Nutzer präzisiert den
+AI-Search-Klick auf eine einzelne Carhartt-Fleecejacke. Vorhandenen Ablauf erneut
+gelesen; großes Archiv als Voraussetzung verworfen. Öffentliche konkrete
+Prentis-Detailseite direkt geprüft: HTTP 200, strukturiert `upload_date` mit
+`2 Wochen`, Prozess Exitcode 0. Katalogdatum und Detaildatum ausdrücklich
+unterschieden. Aktuelle Lücke: Parser lässt relative Altersangaben weg,
+Vergleichsstruktur enthält keine Datumsprüfung. Gezielte Live-Recherche,
+quellengebundene 30-Tage-Auswahl und kleiner Cache im aktuellen Konzept
+beschrieben; Einkaufsobergrenze darf Preisvergleich nicht verzerren.
+Keine vollständige rückwirkende Verkaufsstatistik zugesagt. Kein Produktcode,
+Schema oder bestehender Datenbestand verändert.
+
+**Prüfung und Grenzen:** Verlinkte Primärquellen am 7. November 2026 geprüft,
+Dokumente gezielt formatiert und auf Unterschiede kontrolliert. Keine bezahlten
+Zugänge, Anbieteranfragen oder Vergleichsläufe ausgelöst. Interne Prompts der
+kommerziellen Anbieter und tatsächliche Datenqualität bleiben unbestätigt.
+Nur Dokumentation; keine Anwendungstests oder Builds und keine Änderung am
+produktiven System.
+
 ## 2026-11-07 - Juna - Vollständige KI-Artikelrecherche zur Veröffentlichung freigeben
 
 **Freigabe:** Der Nutzer autorisiert Branch-Push, PR, erfolgreichen Merge und

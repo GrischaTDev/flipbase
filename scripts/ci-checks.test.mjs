@@ -20,6 +20,22 @@ const projectLock = JSON.parse(
   await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'),
 );
 
+test('registriert alle Artikelanalyse-Verträge im Edge-Prüflauf', async () => {
+  const tests = (
+    await readdir(new URL('../supabase/functions/vinted-ai-search/', import.meta.url))
+  ).filter((name) => name.endsWith('.test.ts'));
+  const commands = getCheckCommands('marketplace');
+  const registered = commands.flatMap(({ command, args }) =>
+    command === 'deno' && args[0] === 'test' ? args : [],
+  );
+  assert.ok(tests.length > 0);
+  for (const name of tests)
+    assert.ok(
+      registered.includes(`supabase/functions/vinted-ai-search/${name}`),
+      `${name} fehlt im CI-Prüflauf`,
+    );
+});
+
 test('Pushrelease liefert Functions, Ratelimit und Digest vor der kompatiblen App', async () => {
   const [deploy, image, proxy, workflow] = await Promise.all([
     readFile(new URL('../deploy/deploy.sh', import.meta.url), 'utf8'),
