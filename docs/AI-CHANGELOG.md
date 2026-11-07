@@ -1,5 +1,44 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Verkaufskennzeichen und öffentliche Verfügbarkeit prüfen
+
+**Nutzerfrage:** Ob ein Verkaufsflag in den vollständigen Suchdaten vorhanden ist
+und wie lange verkaufte Vinted-Inserate für die Analyse erhalten bleiben.
+
+**Grundlage:** Eigener Aufgabenbranch sauber geprüft und GitHub frisch abgerufen;
+`origin/master` weiterhin `25eb50a4`. Ergänzende Quellenrecherche durch einen
+zweiten Agenten, ohne zusätzliche direkte Katalogabrufe oder Produktänderungen.
+
+**Nachweis:** Alle zehn Seiten der eingegrenzten öffentlichen Carhartt-Suche mit
+je 96 Karten gelesen: 960 Einträge, wegen Überschneidungen 931 eindeutige IDs.
+Alle Karten besaßen denselben Satz von Produktfeldern, ohne `is_sold`, `is_closed`
+oder `can_buy`; `itemBox.badge` war überall nicht gesetzt. Der bekannte verkaufte
+Zielartikel fehlte. Zwei anschließende Detailabrufe zeigten den Unterschied:
+10693973187 mit artikelbezogenem Banner `Verkauft`, `can_buy=false` und
+`instant_buy=false`; 10699246799 mit beiden Kaufbarkeitsflags auf `true`, ohne
+Verkaufsbanner. Beide nicht versteckt oder reserviert. Kein allgemeines Versprechen
+über andere Endpunkte oder sämtliche Artikel aus dieser Beobachtung ableiten.
+
+**Quellen:** Vinted-Hilfe 60 erlaubt Löschen verkaufter Angebote nach vollständigem
+Bestellabschluss; einige Daten bleiben danach intern bis zu sechs Monate erhalten.
+Keine Zusage öffentlicher Erreichbarkeit oder eines vollständigen 30-Tage-Archivs.
+Vinted-Hilfe 258 bestätigt, dass individuell ausgehandelte Angebote nur dem jeweiligen
+Käufer angezeigt werden. Flogits Beschreibung einer auf verkauften Artikeln beruhenden
+Vinted-Preisempfehlung ist ein noch technisch ungeprüfter ergänzender Rechercheansatz.
+
+**Einordnung:** Status bekannter Inserate ist lesbar; die heutige öffentliche
+Suchliste liefert die bereits verschwundenen Kennungen nicht rückwirkend mit.
+Für eigene Verkaufsbeobachtung genügen kompakte Artikelkennungen, Merkmale, letzte
+Preise und Beobachtungszeiten. Fehlende Kaufbarkeit oder ein verschwundener Treffer
+allein gilt nicht als Verkauf. Erstmalige Verkaufserkennung ist kein exaktes
+Verkaufsdatum; für 30-Tage-Verkäufe zählt Verkaufszeit statt Einstellzeit.
+
+**Prüfung:** Liveprobe Exitcode 0, zwölf erfolgreiche öffentliche Abrufe mit
+mindestens 2,5 Sekunden Abstand. Nachweis `catalog-sale-flags-proof.json` im
+privaten Aufgabenordner; keine KI-Kosten, Bilderdownloads, Produktänderungen oder
+Produktivschreibzugriffe. Nur Dokumentation, gezielte Formatierung und Diffprüfung;
+keine Anwendungstests oder Builds. Kein Push, PR, Merge oder Deployment.
+
 ## 2026-11-07 - Juna - Verkaufsstatus älterer Vergleichsangebote prüfen
 
 **Nutzerfrage:** Ob die älteren Carhartt-Suchtreffer noch angeboten oder bereits

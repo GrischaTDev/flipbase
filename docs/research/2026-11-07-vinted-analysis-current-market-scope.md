@@ -365,3 +365,53 @@ aktiver Angebote beseitigt diese Verzerrung nicht.
 Vier erfolgreiche Detailabrufe, Liveprobe Exitcode 0, keine KI-Kosten oder
 Produktänderung. Privater Nachweis `older-listing-status-proof.json` im bestehenden
 Aufgabenordner.
+
+### Verkaufskennzeichen: Suchliste und Detaildaten unterscheiden
+
+Am 7. November, 15:23 UTC, zehn Katalogseiten mit je 96 Karten geprüft.
+Die 960 Karten enthielten wegen Überschneidungen 931 eindeutige Artikelkennungen.
+Alle hatten dieselben Produktfelder, darunter Preis, Titel, Merkmale und Verweise,
+aber keine Kaufbarkeits-/Verkaufsflags. Das verschachtelte `itemBox.badge` war in
+allen 960 Einträgen nicht gesetzt. Der bekannte verkaufte Zielartikel 10693973187
+kam nicht vor. Das ist ein Nachweis für diesen aktuellen öffentlichen Abrufweg,
+keine Aussage über sämtliche internen Vinted-Daten oder andere Antwortformate.
+
+Die anschließende Detailprüfung zeigte für den Zielartikel `can_buy=false` und
+`instant_buy=false` sowie ein zur Artikelkennung gehörendes Banner mit
+`theme=SUCCESS` und `title=Verkauft`. Beim aktiven Kontrollartikel 10699246799
+waren beide Kaufbarkeitsflags `true`, ohne Verkaufsbanner. `can_buy=false` allein
+reicht nicht für eine Verkaufsentscheidung. Im vorhandenen eigenen
+Kleiderschrankimport gibt es außerdem `is_closed`; dort wird es bewusst als
+beendet behandelt und nicht pauschal als Verkauf. Ein Feld namens `status` kann
+in anderen Artikelantworten den Zustand der Ware bezeichnen.
+
+Laut [Vinted-Hilfe](https://www.vinted.de/help/60) können verkaufte Angebote nach
+vollständigem Bestellabschluss gelöscht werden. Einige Daten werden nach Löschung
+intern bis zu sechs Monate gespeichert. Das ist keine garantierte öffentliche
+Verfügbarkeit. In den geprüften offiziellen Quellen wurde keine feste öffentliche
+Archivfrist und keine vollständige rückwirkende Verkaufssuche nachgewiesen.
+Die [Verhandlungshilfe](https://www.vinted.de/help/258) bestätigt zudem, dass ein
+individueller niedrigerer Preis nur dem angesprochenen Käufer angezeigt wird.
+
+Der belastbare selbst betriebene Ansatz ist, bekannte Artikelkennungen und
+Vergleichsmerkmale kompakt festzuhalten und den Status gezielt erneut zu prüfen.
+Ein Verschwinden aus der Suchliste ist lediglich ein Prüfanlass. Erst ein
+artikelbezogener Verkaufsnachweis zählt als verkauft markiert. Letzte aktive und
+erste verkaufte Beobachtung begrenzen den erkannten Wechsel, ohne einen exakten
+Transaktionszeitpunkt zu erfinden. Die sichtbaren Preise bleiben Angebotspreise
+der verkauften Artikel, solange kein tatsächlicher Zahlbetrag belegt ist.
+
+Für eine Auswertung von Verkäufen der letzten 30 Tage ist der Verkaufszeitpunkt
+maßgeblich: Auch ein vor acht Wochen eingestelltes, gestern verkauftes Inserat
+kann dazugehören. Ein bloßes Uploaddatum genügt dafür nicht.
+
+Weiterer offener Rechercheansatz: [Flogit beschreibt Vinteds Preisempfehlung](https://flogit.app/help/prices/vinted-suggests)
+mit Anzahl und Median ähnlicher verkaufter Artikel anhand von Marke, Kategorie,
+Zustand und Größe. Das ist eine Anbieterbeschreibung, kein eigener technischer
+Nachweis eines nutzbaren öffentlichen Abrufwegs. Zeitraum, Modellgenauigkeit und
+Preisbasis sind damit nicht bestätigt. Keine Zusatzintegration beauftragt oder
+vorgenommen.
+
+Zwölf erfolgreiche öffentliche Abrufe, Liveprobe Exitcode 0; privater Nachweis
+`catalog-sale-flags-proof.json`. Kein Produktcode oder produktiver Datenbestand
+geändert.
