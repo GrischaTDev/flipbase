@@ -8,6 +8,50 @@ bewerten. Keine Implementierung oder Datenlöschung beauftragt beziehungsweise
 ausgeführt. Eigener Forschungszweig nach erneutem GitHub-Abgleich unverändert
 auf `25eb50a4`; fremde Arbeitskopie erhalten.
 
+## Präzisierung: breite Preisgrundlage statt einzelner KI-Beispiele
+
+Die anschließende Nutzerkorrektur verlangt je nach vorhandenem Angebot etwa
+100–2.000 passende Inserate innerhalb von 20–30 Tagen als Vergleichsbasis.
+Die zuvor umgesetzte kleine Auswahl reicht dafür nicht aus und wird nicht in
+unveränderter Form veröffentlicht. Eine breite Kategorieauswertung und die
+passende Modellteilmenge müssen mit ihren jeweiligen Fallzahlen sichtbar bleiben.
+Die KI darf nicht zunächst drei Quellen auswählen, aus denen dann sämtliche
+Marktkennzahlen entstehen.
+
+Am 7. November um 14:11 UTC wurden Carhartt-Fleece-Angebote mit `brand_ids[]=362`,
+`catalog_ids[]=1858`, `newest_first` und `per_page=96` öffentlich lesend geprüft.
+Seiten 1/2/5/10 lieferten je 96 Artikel und zusammen 382 eindeutige Kennungen;
+Seiten 20/21 waren leer. Die konkrete Antwort meldete 960 Einträge/zehn Seiten.
+Die vier Stichprobenseiten belegen keine vollständige Erfassung aller 960 Angebote.
+Die [Dokumentation eines offenen Vinted-Clients](https://github.com/googlarz/vinted-mcp-cli#search-flags)
+nennt ebenfalls 96 je Seite und maximal 960 erreichbare Ergebnisse pro Abfrage.
+Dies ist keine zugesicherte offizielle Schnittstelle; der Client wird nicht integriert.
+
+Die Katalogdaten enthalten Einzelpreise, Titel, Marke, Größe und Zustand, jedoch
+keine verifizierbare Veröffentlichungszeit je Artikel. `pagination.time` ändert
+sich mit dem Abruf und ist ungeeignet. Auch `newest_first` erlaubt ohne sichere
+Reihenfolge keinen Abbruch beim ersten älteren Artikel. Zwei Detailproben ohne
+vollständigen beobachteten Slug endeten am Redirectschutz und werden nicht als
+Datumsbelege gewertet. Rohdaten: `bulk-catalog-proof.json` und
+`bulk-boundary-proof.json` im privaten Aufgabenordner.
+
+Bei unserem Mindestabstand von 2,5 Sekunden sind hunderte Katalogpreise in
+vergleichsweise wenigen Abrufen erreichbar. Einzelne Altersprüfungen für
+1.000/2.000 Artikel benötigen dagegen mindestens ungefähr 42/83 Minuten, bevor
+weiterer Feedbedarf berücksichtigt wird. Eine schnelle vorläufige Angebotsübersicht
+und eine vollständig geprüfte 30-Tage-Auswahl sind deshalb unterschiedliche
+Bearbeitungsstände. Die Frage zur gewünschten Anzeige dieser Stände ist noch offen.
+
+Der passende technische Ablauf ist ein fortsetzbarer Auftrag im bestehenden
+Sniper-Prozess mit dessen Abrufbudget, Pausen und Browserexklusivität. KI bestimmt
+den Zielartikel und die Vergleichsregeln einmal; normaler Code sammelt, entfernt
+Duplikate und berechnet Median, Quartile, Preisverteilung sowie Fallzahlen.
+Ein kurzlebiger Ergebnisspeicher genügt, ohne Bilder oder vollständige Inserate.
+20–30 Tage Analysezeitraum erfordern nicht automatisch 30 Tage Aufbewahrung der
+Quelldaten. Eine neue Auftrags-/Lease-Struktur und die UI-Anbindung sind noch
+nicht umgesetzt. Die bestehende Drei-Minuten-Kostenreservierung ist keine
+geeignete Warteschlange für diesen Ablauf.
+
 ## Empfehlung für diesen konkreten Umfang
 
 **Weitere Eingrenzung des Nutzers:** Der Einstieg ist der AI-Search-Klick auf

@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Breite Vergleichsbasis für Artikelpreise vorbereiten
+
+**Nutzerkorrektur:** Wenige ausgewählte Vergleichsangebote erfüllen den Auftrag
+nicht. Die Preisgrundlage soll je nach Angebot etwa 100, 1.000 oder 2.000 passende
+Inserate aus 20–30 Tagen umfassen. Den bisherigen Stand nicht veröffentlichen.
+Die bisherige Begrenzung auf eine kleine KI-Auswahl wird als unzureichend behandelt.
+
+**Grundlage:** Auf demselben eigenen Aufgabenbranch weitergearbeitet, GitHub erneut
+abgeglichen (`origin/master` weiterhin `25eb50a4`). Zwei ergänzende Prüfungen für
+Katalogtiefe und Integration in den vorhandenen Abrufprozess. Fremde Hauptarbeitskopie
+unverändert erhalten; keine Veröffentlichung oder produktive Sammlung gestartet.
+
+**Quellennachweis:** Carhartt/Fleece, Kategorie 1858 und Marke 362: vier geprüfte
+Suchseiten (1, 2, 5, 10) mit je 96 Artikeln und insgesamt 382 eindeutigen IDs;
+Seite 20/21 leer. Die konkrete Abfrage meldet 960 Treffer/zehn Seiten. Keine
+Vollsammlung der 960 oder allgemeine Plattformgarantie behauptet. Pro Artikel
+Preise und Merkmale, aber kein bestätigtes Einstelldatum in den Katalogdaten.
+`pagination.time` ist eine Abrufzeit. Zwei Detailproben ohne beobachteten Slug
+wurden durch den Redirectschutz abgewiesen und liefern keinen Datumsnachweis.
+Acht öffentliche Abrufe, keine KI-Kosten; private Protokolle unter dem bestehenden
+Aufgabenordner. Offene Client-Dokumentation bestätigt die beobachtete Paging-
+Größenordnung, wird aber nicht als zusätzliches Produkt integriert.
+
+**Vorbereitung:** Reine Statistikfunktion für bis zu 2.000 kompakte Quellen:
+Doppelerkennung, Preisverteilungen mit Median/Quartilen und ausdrückliche
+Modell-/Kategoriegrundgesamtheit. Kategorie umfasst die Modellteilmenge;
+Größe/Zustand werden nicht heimlich auf wenige Belege eingegrenzt. Keine
+Ausreißer still löschen und Angebotspreise nicht als Verkaufserlöse behandeln.
+Beobachtete Preise und nachgewiesene Veröffentlichung im 20-/30-Tage-Fenster
+getrennt berechnen; eine längere Erfassung verwirft früh geprüfte Quellen nicht
+nach drei Minuten. Noch nicht an den Produktablauf angebunden.
+
+**Offene Produktentscheidung:** Bei 2,5 Sekunden Abrufabstand benötigen 1.000
+Einzel-Datumsprüfungen rechnerisch rund 42 Minuten, 2.000 rund 83 Minuten,
+zuzüglich anderem Feedbedarf. Das widerspricht einer vollständig datierten
+Erstauswertung in zwei bis drei Minuten. Nutzerpräferenz zur vorläufigen breiten
+Preisübersicht mit nachlaufender Datumsprüfung oder Anzeige erst nach vollständiger
+Prüfung angefragt. Dafür ist ein fortsetzbarer Hintergrundauftrag mit kurzlebigem
+Quellenspeicher und gemeinsamem Sniper-Abrufbudget erforderlich; noch keine neue
+Tabelle, Migration, Queue oder Benutzeroberfläche eingebaut.
+
+**Prüfung:** 16 Statistiktests erfolgreich, darunter 100/1.000/2.000 synthetische
+Angebote; Sniper-Typprüfung, Suite-Audit und gezielte Formatierung jeweils Exitcode 0.
+Kein vollständiger Produkt-/Browsercheck für die noch nicht angebundene Vorbereitung.
+Kein PR, Push, Merge oder Deployment; die Funktionsänderung ist noch nicht fertig.
+
 ## 2026-11-07 - Juna - Artikelbezogene Live-Preisanalyse umsetzen
 
 **Auftrag:** Die vorangegangene Recherche auf ausdrücklichen Nutzerauftrag umsetzen:
