@@ -25,6 +25,19 @@ dieser Freigabenotiz erneut ausgeführt; Protokoll `release-preflight.log` im
 privaten Aufgabenordner. Sämtliche ausgewählten GitHub-Pflichtprüfungen bleiben
 vor dem Merge erforderlich.
 
+**Laufzeitbefund vor dem Merge:** Der abschließende echte Astra-Pilot mit
+vollständigen Artikelmerkmalen lief ins gemeinsame 85-Sekunden-Limit. Die
+Modellbestimmung benötigte 49 Sekunden, fünf Werkzeugausgaben und 1.306
+Ausgabetokens; beide Marktphasen wurden danach abgebrochen. Teilergebnis und
+bekannter Verbrauch wurden gespeichert, Gesamtkosten bleiben wegen der
+abgebrochenen Anfragen unbekannt. Keine produktive Funktionsdatei ersetzt.
+Die erste Phase wird deshalb auf die eigentliche Modellbestimmung mit niedrigem
+Denkaufwand, zwei beantragten Werkzeugaufrufen, knapper Begründung und höchstens
+drei Quellen fokussiert. Beide Marktphasen behalten ihren mittleren Denkaufwand
+und ihre ausführliche Recherche. Anfragevertrag und Fehlerfälle werden mit den
+bestehenden 23 Deno-Fällen geprüft; der korrigierte Ablauf erhält einen weiteren
+beobachteten Pilotlauf und Vorabcheck vor dem Push.
+
 **Ausrollung:** Der Webbau veröffentlicht Edge Functions nicht automatisch.
 Nach grünem Merge die Funktionsordner aus dem freigegebenen Hauptstand gemäß
 `deploy/README.md` gemeinsam übertragen, vorhandene Serverordner und Schlüssel

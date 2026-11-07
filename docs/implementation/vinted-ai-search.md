@@ -86,8 +86,11 @@ Vor jeder Suche stehen `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol` und
 der Auswahl erzeugt keine Analyse; erst „Suchen“ startet den gewählten Lauf.
 Bereits getestete Modelle bleiben im Dialog zum Vergleich von Identifikation,
 Spanne, Tokens, Webaufrufen und Kosten erhalten. Die Anfragen verwenden
-`reasoning.effort=medium`, hohen Suchkontext und beantragte Werkzeugbudgets von
-4/5/6 sowie Ausgabelimits von 2.600/4.800/4.800 Tokens. Die tatsächlichen
+für die fokussierte Modellbestimmung `reasoning.effort=low` und für beide
+Marktrecherchen `medium`, hohen Suchkontext und beantragte Werkzeugbudgets von
+2/5/6 sowie Ausgabelimits von 1.800/4.800/4.800 Tokens. Die erste Phase recherchiert
+ausschließlich das Modell, begründet es knapp und nennt höchstens drei Quellen;
+sie nimmt die ausführliche Preisrecherche der Marktphasen nicht vorweg. Die tatsächlichen
 Werkzeugausgaben werden gezählt; die beantragten Budgets sind kein Ersatz für
 diesen Verbrauchsnachweis. Alle drei Anfragen teilen sich 85 Sekunden ab Beginn
 der Modellbestimmung und verwenden `store=false`. Mit dem begrenzten Detailabruf

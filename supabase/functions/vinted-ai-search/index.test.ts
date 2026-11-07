@@ -330,14 +330,17 @@ Deno.test(
         const body = JSON.parse(String(recordInit(init)?.['body']));
         equal(body.model, 'gpt-6-luna');
         equal(body.store, false);
-        equal(body.reasoning.effort, 'medium');
         equal(body.tool_choice, 'required');
         if (!JSON.parse(body.input[0].content[0].text).identification) {
-          equal(body.max_tool_calls, 4);
+          equal(body.reasoning.effort, 'low');
+          equal(body.max_tool_calls, 2);
+          equal(body.max_output_tokens, 1800);
+          equal(body.text.format.schema.properties.sources.maxItems, 3);
           equal(body.input[0].content.length, 2);
           equal(body.input[0].content[1].image_url, listing.image_urls[0]);
           return Response.json(provider());
         }
+        equal(body.reasoning.effort, 'medium');
         if (![5, 6].includes(body.max_tool_calls)) throw new Error('Marktrecherche fehlt');
         equal(body.input[0].content.length, 1);
         equal(JSON.parse(body.input[0].content[0].text).description, listing.description);
@@ -670,7 +673,7 @@ Deno.test(
       equal(parseUsage(incomplete, 'gpt-6-astra').inputTokens, 1000);
       globalThis.fetch = async (_url, init) => {
         const body = JSON.parse(String(init?.body));
-        if (body.max_tool_calls === 4) return Response.json(provider());
+        if (body.max_tool_calls === 2) return Response.json(provider());
         if (body.max_tool_calls === 6)
           return Response.json({ ...provider(), status: 'incomplete' });
         const raw = provider();

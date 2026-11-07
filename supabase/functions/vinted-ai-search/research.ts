@@ -41,7 +41,7 @@ const identificationSchema = {
     modelName: { type: 'string' },
     confidence: { type: 'string', enum: ['exact', 'likely', 'unknown'] },
     evidence: { type: 'string' },
-    sources: sourcesSchema,
+    sources: { ...sourcesSchema, maxItems: 3 },
   },
 };
 const marketSchema = {
@@ -124,7 +124,7 @@ export async function searchOpenAi(
       body: JSON.stringify({
         model,
         store: false,
-        reasoning: { effort: 'medium' },
+        reasoning: { effort: identification ? 'medium' : 'low' },
         max_output_tokens: maxTokens,
         max_tool_calls: maxTools,
         instructions: `${instructions}\n\nDeine konkrete Rechercheaufgabe:\n${task}`,
@@ -165,10 +165,10 @@ export async function searchOpenAi(
   let identified: { raw: Record<string, unknown>; data: Record<string, unknown> };
   try {
     const raw = await request(
-      `Bestimme zuerst Marke, offizielles Modell und Variante anhand SÄMTLICHER Fotos: Silhouette, Material, Verschlüsse, Taschen, Logo, Innenfutter, Etiketten und lesbare Artikelnummern. Öffne bei fehlender Beschreibung nach Möglichkeit die Inserat-URL. Vergleiche die sichtbaren Merkmale mit Hersteller- und Modellquellen. Bei Carhartt insbesondere Workwear/Carhartt WIP und ähnliche Jackenmodelle auseinanderhalten. Nenne die konkrete wahrscheinlichste Modellbezeichnung statt nur „Jacke“. Begründe Merkmale, Gegenargumente und verbleibende Unsicherheit. confidence exact nur mit eindeutigem Modellbeleg, likely bei begründeter Zuordnung, unknown ohne tragfähigen Kandidaten.`,
+      `Bestimme ausschließlich Marke, offizielles Modell und Variante anhand SÄMTLICHER Fotos und Artikelmerkmale: Silhouette, Material, Verschlüsse, Taschen, Logo, Innenfutter, Etiketten und lesbare Artikelnummern. Prüfe den naheliegenden Modellkandidaten gezielt mit höchstens zwei Webwerkzeugaufrufen gegen Hersteller-/Modellquellen. Die beiden nachfolgenden Phasen übernehmen die ausführliche Neu- und Gebrauchtpreisrecherche; suche hier keine Preise. Bei Carhartt Workwear und WIP auseinanderhalten. Nenne die konkrete wahrscheinlichste Modellbezeichnung. Begründe entscheidende Merkmale und verbleibende Unsicherheit in höchstens 120 Wörtern und nenne bis zu drei Belegquellen. confidence exact nur bei eindeutiger Identifikation, likely bei begründeter Zuordnung, unknown ohne tragfähigen Kandidaten.`,
       identificationSchema,
-      4,
-      2600,
+      2,
+      1800,
     );
     identified = { raw, data: outputData(raw) };
   } catch (error) {
