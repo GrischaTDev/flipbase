@@ -125,6 +125,8 @@ returns jsonb language plpgsql volatile security invoker set search_path='' as $
 declare v_session jsonb; v_run public.kleinanzeigen_sync_runs; v_token text;
 begin
  v_session:=public.kleinanzeigen_extension_session(p_workspace_id,p_connection_id,p_token_hash,p_generation);
+ -- Betreiber-Not-Aus: kein neuer Abgleich, solange Kleinanzeigen abgeschaltet ist.
+ if not public.platform_feature_enabled('kleinanzeigen') then raise exception 'Kleinanzeigen ist vorübergehend geschlossen.' using errcode='55000'; end if;
  select * into v_run from public.kleinanzeigen_sync_runs where workspace_id=p_workspace_id and connection_id=p_connection_id and id=p_run_id for update;
  if not found or v_run.state<>'queued' or v_run.lease_until<=clock_timestamp() or v_run.grant_generation<>p_generation
   or not public.marketplace_sync_authorization_valid(p_workspace_id,v_run.requested_by)

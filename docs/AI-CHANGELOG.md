@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Not-Aus auch für Erweiterungsaufträge, Push-Worker im Systemzustand
+
+**Anlass:** Nach dem Admin-Bereich (PR 584) waren drei Punkte offen. Aufträge der
+Browser-Erweiterung hielt der Not-Aus nur über die gesperrte Oberfläche an. Der
+Push-Worker fehlte im Systemzustand. Der Workspace-Knopf im Header zeigte als
+Tooltip „null“.
+
+**Umsetzung:** Neue Funktion `platform_feature_enabled`. Die Abholfunktionen der
+Erweiterung geben bei abgeschaltetem Bereich keinen neuen Auftrag heraus:
+Vinted-Nachrichten, -Favoriten, -Verhandlungen und -Inserate antworten mit „kein
+Auftrag“, Kleinanzeigen-Abgleich und -Veröffentlichung lehnen mit `55000` ab.
+Bereits begonnene Versuche enden regulär. Der Push-Worker meldet alle 30 Sekunden
+Schalterstand und Zähler über `push_worker_report_status` in
+`push_worker_runtime_status`. `platform_system_health` liefert dazu `pushWorker`,
+und der Systemzustand zeigt eine eigene Karte. Der Tooltip verwendet jetzt
+`[attr.title]`, damit ohne Sperre kein Attribut entsteht.
+
+**Prüfung:** Drei neue bzw. erweiterte pgTAP-Dateien laufen lokal in
+zurückgerollten Transaktionen grün. Die Verhaltensprüfung im Test der lokalen
+Nachrichten läuft erst in der CI: Die gemeinsame lokale Datenbank ist dafür zu
+alt. Dazu kommen Push-Worker-Suite und -Typprüfung, Modell- und Komponententests
+von Systemzustand und Header sowie die Ergebnisse des Vorabchecks im PR.
+
 ## 2026-11-07 - Juna - Landingpage zur Veröffentlichung vorbereiten
 
 **Freigabe:** Der Nutzer autorisiert Push, PR, erfolgreichen Merge und

@@ -54,6 +54,25 @@
           </div>
         </app-card>
 
+        <app-card variant="section" title="Push-Worker" data-service="push-worker">
+          <div class="space-y-2 text-sm text-fb-text-secondary">
+            <div>
+              <app-badge [tone]="state.pushWorker.tone">{{ state.pushWorker.label }}</app-badge>
+            </div>
+            @if (current.pushWorker; as push) {
+              <p>
+                Letzte Meldung
+                <time [attr.datetime]="push.reportedAt">{{
+                  push.reportedAt | date: 'dd.MM.yyyy, HH:mm:ss'
+                }}</time>
+              </p>
+              <p class="tabular-nums">
+                {{ push.waiting }} warten · {{ push.retry }} in Wiederholung
+              </p>
+            }
+          </div>
+        </app-card>
+
         <app-card variant="section" title="Aufträge der letzten Stunde" data-service="operations">
           <div class="space-y-2 text-sm text-fb-text-secondary">
             <div>
