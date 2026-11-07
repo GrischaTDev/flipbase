@@ -540,8 +540,14 @@ export class VintedListingDetailComponent {
     const selection = current ? vintedListingEditSelection(current) : null;
     this.form.reset(
       {
-        title: entry.title,
-        description: this.description()?.description ?? entry.listingContent?.description ?? '',
+        // Dieselbe Grundlage wie der Vergleich beim Speichern; sonst gilt ein unveränderter Text als
+        // geändert und eine abweichende Quelle (Kontoabgleich statt Inhalt) meldet einen Konflikt.
+        title: current?.content.title ?? entry.title,
+        description:
+          current?.content.description ??
+          this.description()?.description ??
+          entry.listingContent?.description ??
+          '',
         price:
           current?.content.priceCents !== null && current?.content.priceCents !== undefined
             ? vintedListingPriceText(current.content.priceCents)
