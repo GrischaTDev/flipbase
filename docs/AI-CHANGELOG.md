@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Vollständige KI-Artikelrecherche zur Veröffentlichung freigeben
+
+**Freigabe:** Der Nutzer autorisiert Branch-Push, PR, erfolgreichen Merge und
+anschließende Bereinigung. Sauberen Aufgabenstand `dc719385` und frisch
+abgerufenes `origin/master` (`a658ebfd`) bestätigt. Die Veröffentlichung umfasst
+die gemeinsame Artikelrecherche und die ergänzten strukturierten Inseratmerkmale;
+keine getrennten Zwischen-PRs.
+
+**Nachweise vor dem Push:** Node-22-Vorabcheck mit Format, Lint, Typen, Suite-Audit,
+155 Skriptfällen, betroffenen Modell-/Angularfällen und Vorlagenbau auf dem
+Umsetzungsstand erfolgreich. Zusätzlich 23 Deno-Fälle mit CI-Version 2.9.7 und
+der echte öffentliche Detailabruf erfolgreich. Die unveränderte Oberfläche
+behält ihre zehn Browsernachweise mit Hell/Dunkel, Maus/Touch und AXE. Drei
+bestehende Unix-Signalfälle der Orchestrierung bleiben unter Windows regulär
+ausgelassen. Der abschließende Vorabcheck wird vor dem Push einschließlich
+dieser Freigabenotiz erneut ausgeführt; Protokoll `release-preflight.log` im
+privaten Aufgabenordner. Sämtliche ausgewählten GitHub-Pflichtprüfungen bleiben
+vor dem Merge erforderlich.
+
+**Ausrollung:** Der Webbau veröffentlicht Edge Functions nicht automatisch.
+Nach grünem Merge die Funktionsordner aus dem freigegebenen Hauptstand gemäß
+`deploy/README.md` gemeinsam übertragen, vorhandene Serverordner und Schlüssel
+erhalten und den Funktionsdienst mit der bestehenden Laufzeitkonfiguration
+neu laden. Merge-, Auslieferungs- und Bereinigungsnachweis werden im PR und
+Abschluss festgehalten.
+
 ## 2026-11-07 - Juna - Vollständige Artikelmerkmale an die KI-Recherche übergeben
 
 **Auftrag und Grundlage:** Die Recherche soll den Link hinter dem Feed-Eintrag
