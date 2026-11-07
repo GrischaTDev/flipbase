@@ -336,3 +336,32 @@ keine Anwendungstests oder Builds. Bei der ursprünglichen Eingrenzung kein
 Artikelabruf; die nachfolgende Ergänzung dokumentiert die zwei öffentlichen
 Katalogabrufe separat. Kein Modellaufruf, neues Schema oder produktiver
 Lösch-/Sammelauftrag ausgelöst.
+
+### Verkaufsstatus der älteren Suchtreffer
+
+Am 7. November, 15:09 UTC, die zuvor datierten Beispiele erneut direkt geprüft:
+
+| Inserat                                                                                                     | Hochgeladen | Sichtbarer Artikelpreis | Status beim Abruf                        |
+| ----------------------------------------------------------------------------------------------------------- | ----------- | ----------------------- | ---------------------------------------- |
+| [Polaire Carhartt](https://www.vinted.de/items/10167157103-polaire-carhartt)                                | 5 Wochen    | 100 EUR                 | Kaufbar, nicht reserviert oder versteckt |
+| [Giubbino uomo Carhartt](https://www.vinted.de/items/10115087491-giubbino-uomo-carhartt)                    | 6 Wochen    | 50 EUR                  | Kaufbar, nicht reserviert oder versteckt |
+| [Prentis Liner noir](https://www.vinted.de/items/9924709195-carhartt-wip-prentis-liner-noir-polaire-sherpa) | 8 Wochen    | 70 EUR                  | Kaufbar, nicht reserviert oder versteckt |
+| [Ursprünglicher Zielartikel](https://www.vinted.de/items/10693973187-giacca-carhartt)                       | 18 Stunden  | 30 EUR                  | Als verkauft markiert, nicht kaufbar     |
+
+Jeweils die zur Artikel-ID gehörenden Statusfelder und gegebenenfalls das
+Verkaufsbanner geprüft. Die drei älteren Beispiele sind aktive Angebote; diese
+Stichprobe beweist nicht den Status aller 960 Treffer. Eine weiterhin erreichbare
+Detailseite allein unterscheidet aktive und verkaufte Artikel nicht.
+
+Für die Wiederverkaufsbewertung sind die älteren aktiven Preise lediglich
+Konkurrenzangebote. Sie belegen weder einen erzielten Erlös noch acht Wochen
+Angebotsdauer zum aktuell sichtbaren Preis. Auch ein Verkaufsbanner bestätigt
+keinen ausgehandelten Endpreis. Aktive Angebote innerhalb von 30 Tagen und ältere
+aktive Angebote getrennt auswerten; für eine echte Verkaufspreisstatistik wären
+nachgewiesene Verkaufserlöse erforderlich. Eine reine Bestandsaufnahme kann lange
+sichtbare Artikel stärker enthalten als schnell verkaufte; eine höhere Anzahl
+aktiver Angebote beseitigt diese Verzerrung nicht.
+
+Vier erfolgreiche Detailabrufe, Liveprobe Exitcode 0, keine KI-Kosten oder
+Produktänderung. Privater Nachweis `older-listing-status-proof.json` im bestehenden
+Aufgabenordner.

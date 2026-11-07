@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Verkaufsstatus älterer Vergleichsangebote prüfen
+
+**Nutzerfrage:** Ob die älteren Carhartt-Suchtreffer noch angeboten oder bereits
+verkauft sind und welchen Nutzen sie für eine aktuelle Wiederverkaufsanalyse haben.
+
+**Grundlage:** Eigener Aufgabenbranch sauber geprüft, GitHub erneut abgeglichen.
+Fremde Arbeitskopie unverändert. Eine unabhängige fachliche Gegenprüfung ohne
+weitere Netzabrufe; ergänzend öffentliche Vinted-Hilfe recherchiert.
+
+**Nachweis:** Vier öffentliche Detailseiten am 7. November, 15:09 UTC, mit
+2,5 Sekunden Mindestabstand abgerufen. Die zuvor gefundenen Inserate mit fünf
+Wochen (100 EUR), sechs Wochen (50 EUR) und acht Wochen (70 EUR) waren jeweils
+kaufbar, weder versteckt noch reserviert. Der ursprünglich verlinkte Artikel
+10693973187 war ausdrücklich als verkauft gekennzeichnet und nicht kaufbar;
+der sichtbare Inseratpreis betrug 30 EUR. Status ausschließlich aus strukturierten
+Datensätzen der passenden Artikel-ID gelesen, nicht aus allgemeinen Seitentexten.
+
+**Einordnung:** Eine erreichbare Detailseite ist kein Nachweis aktiver Kaufbarkeit.
+Ältere aktive Angebote beschreiben aktuelle Konkurrenz, aber keine erzielten
+Verkaufspreise und keinen belegten Preisverlauf. Auch jüngere aktive Angebote sind
+Angebotspreise. Ein Verkaufsbanner bestätigt ebenfalls nicht den ausgehandelten
+Endpreis. Für eine 30-Tage-Auswertung ältere Angebote separat behandeln; keine
+pauschalen Altersabschläge oder beleglosen Aussagen zur Ursache der Standzeit.
+Eine heutige Bestandsstichprobe kann lange sichtbare Angebote stärker enthalten
+als schnell verkaufte. Mehr Treffer beseitigen diese Verzerrung nicht.
+
+**Prüfung:** Liveprobe Exitcode 0, alle vier Abrufe erfolgreich, keine KI-Kosten,
+Bilderdownloads oder Produktänderungen. Privater Nachweis
+`older-listing-status-proof.json` im bestehenden Aufgabenordner. Nur Dokumentation,
+gezielt formatiert und Diff geprüft; keine Anwendungstests oder Builds.
+Kein Push, PR, Merge oder Deployment.
+
 ## 2026-11-07 - Juna - Zeitraum der Carhartt-Suchergebnisse direkt prüfen
 
 **Nutzerfrage:** Ob die 960 Treffer praktisch die jüngsten Inserate sind und der
