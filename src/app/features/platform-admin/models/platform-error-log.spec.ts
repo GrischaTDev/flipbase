@@ -44,4 +44,17 @@ describe('Fehlerprotokoll', () => {
     expect(platformErrorAreaBySlug('unbekannt')).toBeNull();
     expect(() => parsePlatformErrorEvents({})).toThrow();
   });
+
+  it('zeigt Zeitpunkte in den Details deutsch formatiert', () => {
+    const [event] = parsePlatformErrorEvents([
+      {
+        id: 1,
+        occurredAt: '2026-11-07T06:41:02Z',
+        code: 'network',
+        detail: { retry_after: '2026-11-07T07:11:02Z' },
+      },
+    ]);
+    expect(event.detail[0].label).toBe('Nächster Versuch');
+    expect(event.detail[0].value).toMatch(/^07\.11\.2026, \d{2}:11:02$/);
+  });
 });

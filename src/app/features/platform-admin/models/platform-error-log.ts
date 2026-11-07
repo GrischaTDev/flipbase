@@ -106,14 +106,27 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
+const TIMESTAMP_FORMAT = new Intl.DateTimeFormat('de-DE', {
+  dateStyle: 'medium',
+  timeStyle: 'medium',
+});
+
+function detailValue(entry: string | number | boolean): string {
+  const raw = String(entry);
+  if (typeof entry === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(entry)) {
+    const parsed = Date.parse(entry);
+    if (Number.isFinite(parsed)) return TIMESTAMP_FORMAT.format(parsed);
+  }
+  return VALUE_LABELS[raw] ?? raw;
+}
+
 function detailEntries(value: unknown): PlatformErrorEvent['detail'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
   return Object.entries(value as Record<string, unknown>)
-    .filter(([, entry]) => ['string', 'number', 'boolean'].includes(typeof entry))
-    .map(([key, entry]) => ({
-      label: DETAIL_LABELS[key] ?? key,
-      value: VALUE_LABELS[String(entry)] ?? String(entry),
-    }));
+    .filter((pair): pair is [string, string | number | boolean] =>
+      ['string', 'number', 'boolean'].includes(typeof pair[1]),
+    )
+    .map(([key, entry]) => ({ label: DETAIL_LABELS[key] ?? key, value: detailValue(entry) }));
 }
 
 /** Übersetzt die Antwort von platform_error_events_list; unbrauchbare Zeilen entfallen. */
