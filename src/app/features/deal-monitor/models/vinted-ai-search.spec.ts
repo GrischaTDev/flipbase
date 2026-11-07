@@ -78,4 +78,35 @@ describe('resaleEstimate', () => {
     changedPrice.listing.totalPrice = null;
     expect(resaleEstimate(changedPrice)).toBeNull();
   });
+  it('leitet bei einer breiten Angebotsbasis keinen Gewinn aus ergänzenden Einzelverkäufen ab', () => {
+    const tracked = result('sold', 120, 150);
+    tracked.analysis.marketDataset = {
+      windowDays: 30,
+      initialImportDays: 7,
+      asOf: '2026-11-07T12:00:00Z',
+      observedSince: '2026-11-01T12:00:00Z',
+      initialImportStatus: 'complete',
+      match: 'model',
+      active: {
+        count: 1200,
+        median: 40,
+        lowerQuartile: 30,
+        upperQuartile: 50,
+        minimum: 15,
+        maximum: 100,
+      },
+      soldMarked: {
+        count: 200,
+        median: 35,
+        lowerQuartile: 25,
+        upperQuartile: 45,
+        minimum: 10,
+        maximum: 80,
+      },
+    };
+    expect(resaleEstimate(tracked)).toBeNull();
+    tracked.analysis.marketDataset.active = null;
+    tracked.analysis.marketDataset.soldMarked = null;
+    expect(resaleEstimate(tracked)).toBeNull();
+  });
 });

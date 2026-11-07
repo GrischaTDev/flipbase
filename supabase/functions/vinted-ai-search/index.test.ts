@@ -1,5 +1,6 @@
 import {
   createSearchHandler,
+  createProductionDependencies,
   searchOpenAi,
   listingImages,
   type SearchDependencies,
@@ -30,6 +31,30 @@ const listing = {
   brand: 'Marke',
   size: '42',
   condition: 'Gut',
+};
+const dataset = {
+  windowDays: 30,
+  initialImportDays: 7,
+  asOf: '2026-11-07T12:00:00.000Z',
+  observedSince: '2026-11-01T12:00:00.000Z',
+  initialImportStatus: 'complete',
+  match: 'model',
+  active: {
+    count: 1000,
+    median: 55,
+    lowerQuartile: 40,
+    upperQuartile: 70,
+    minimum: 1,
+    maximum: 200,
+  },
+  soldMarked: {
+    count: 100,
+    median: 45,
+    lowerQuartile: 35,
+    upperQuartile: 60,
+    minimum: 5,
+    maximum: 160,
+  },
 };
 const comparison = (price: number, index: number, kind = 'sold') => ({
   title: 'Modell 42',
@@ -258,6 +283,159 @@ Deno.test('laedt Cache und Statistik ohne erneuten Anbieteraufruf', async () => 
   equal((await stats.request({ workspaceId, action: 'usage' })).status, 200);
   equal(stats.calls(), 0);
 });
+
+Deno.test(
+  'fragt die produktive Vergleichsstatistik mit serverseitiger Artikelkennung und Modellzuordnung ab',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    const previous = new Map(
+      ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY'].map((key) => [
+        key,
+        Deno.env.get(key),
+      ]),
+    );
+    try {
+      Deno.env.set('SUPABASE_URL', 'https://database.invalid');
+      Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'test-service-role');
+      Deno.env.set('SUPABASE_ANON_KEY', 'test-anon');
+      let calls = 0;
+      globalThis.fetch = async (url, init) => {
+        calls++;
+        equal(String(url), 'https://database.invalid/rest/v1/rpc/vinted_comparison_market');
+        equal(JSON.parse(String(init?.body)), {
+          p_listing_id: listingId,
+          p_brand: 'Marke',
+          p_category_id: 1858,
+          p_model: 'Marke Modell ABC',
+        });
+        equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-service-role');
+        return Response.json(dataset);
+      };
+      const deps = createProductionDependencies();
+      equal(typeof deps.marketDataset, 'function');
+      equal(
+        await deps.marketDataset!(
+          { ...listing, category: { id: '1858', path: ['Fleecejacken'] } },
+          'Marke Modell ABC',
+        ),
+        dataset,
+      );
+      equal(calls, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of previous) {
+        if (value === undefined) Deno.env.delete(key);
+        else Deno.env.set(key, value);
+      }
+    }
+  },
+);
+
+Deno.test(
+  'aktualisiert die Vergleichsdaten auch bei KI-Cachetreffern ohne erneute Kosten',
+  async () => {
+    let datasetCalls = 0;
+    const cached = {
+      analysis: {
+        modelName: 'Marke Modell ABC',
+        confidence: 'likely',
+        resale: { low: 1, high: 2, count: 3, basis: 'sold' },
+        research: {
+          used: {
+            summary: 'Veraltet',
+            limitations: ['Alter Datenfehler'],
+            completed: false,
+            sources: [],
+          },
+        },
+      },
+      usage: { estimatedCostUsd: 0.03 },
+      searchedAt: '2026-11-06T12:00:00Z',
+    };
+    const test = fixture({
+      reserve: async () => ({ id: 1, cached: true, result: cached }),
+      marketDataset: async (item, modelName) => {
+        datasetCalls++;
+        equal(item.id, listingId);
+        equal(modelName, 'Marke Modell ABC');
+        return dataset;
+      },
+    });
+    const response = await test.request();
+    equal(response.status, 200);
+    const body = await response.json();
+    equal(body.cacheHit, true);
+    equal(body.analysis.marketDataset, dataset);
+    equal(body.analysis.resale, null);
+    equal(body.analysis.research.used.completed, true);
+    equal(body.analysis.research.used.limitations, []);
+    equal(body.usage, cached.usage);
+    equal(body.searchedAt, cached.searchedAt);
+    equal(datasetCalls, 1);
+    equal(test.calls(), 0);
+    equal(test.saved.length, 0);
+  },
+);
+
+Deno.test(
+  'behält bei Datenbankfehlern den KI-Cache und kennzeichnet ausschließlich den Vergleichsbestand als nicht verfügbar',
+  async () => {
+    const test = fixture({
+      reserve: async () => ({
+        id: 1,
+        cached: true,
+        result: {
+          analysis: { modelName: 'Fleecejacke', confidence: 'unknown' },
+          usage: { estimatedCostUsd: 0.03 },
+        },
+      }),
+      marketDataset: async (_item, modelName) => {
+        equal(modelName, null);
+        throw new Error('database unavailable');
+      },
+    });
+    const response = await test.request();
+    equal(response.status, 200);
+    const body = await response.json();
+    equal(body.cacheHit, true);
+    equal(body.analysis.marketDataset.initialImportStatus, 'unavailable');
+    equal(body.analysis.marketDataset.match, 'category');
+    equal(body.analysis.marketDataset.active, null);
+    equal(body.usage.estimatedCostUsd, 0.03);
+    equal(test.calls(), 0);
+  },
+);
+
+Deno.test(
+  'speichert erfolgreiche Produktrecherche auch bei ausgefallener Datenbank für spätere kostenlose Aktualisierung',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    let providerCalls = 0;
+    try {
+      globalThis.fetch = async () => {
+        providerCalls++;
+        return Response.json(productProvider());
+      };
+      const test = fixture({
+        marketDataset: async () => {
+          throw new Error('database unavailable');
+        },
+        search: searchOpenAi,
+      });
+      const response = await test.request();
+      equal(response.status, 200);
+      const body = await response.json();
+      equal(body.analysis.marketDataset.initialImportStatus, 'unavailable');
+      equal(body.analysis.research.retail.completed, true);
+      equal(body.analysis.research.used.completed, false);
+      equal(test.saved[1].status, 'completed');
+      equal(test.saved[1].error_code, null);
+      equal(providerCalls, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
 Deno.test(
   'erfasst Kosten auch bei unvollstaendiger Antwort und haelt Abbrueche offen',
   async () => {
@@ -866,8 +1044,8 @@ Deno.test('erneuert den Cache-Schlüssel nach Änderung der Rechercheversion', a
     ]
       .map((byte) => byte.toString(16).padStart(2, '0'))
       .join('');
-  const oldHash = await hash('vinted-product-research-6');
-  const expectedHash = await hash('vinted-product-research-7');
+  const oldHash = await hash('vinted-product-research-7');
+  const expectedHash = await hash('vinted-product-research-8');
   let capturedHash = '';
   const test = fixture({
     reserve: async (_user, _workspace, _listing, inputHash) => {

@@ -37,6 +37,24 @@ export interface VintedAiResearchSection {
   completed: boolean;
   sources: { title: string; url: string }[];
 }
+export interface VintedMarketPriceDistribution {
+  count: number;
+  median: number;
+  lowerQuartile: number;
+  upperQuartile: number;
+  minimum: number;
+  maximum: number;
+}
+export interface VintedMarketDataset {
+  windowDays: 30;
+  initialImportDays: 7;
+  asOf: string;
+  observedSince: string | null;
+  initialImportStatus: 'pending' | 'running' | 'complete' | 'partial' | 'unavailable';
+  match: 'model' | 'category';
+  active: VintedMarketPriceDistribution | null;
+  soldMarked: VintedMarketPriceDistribution | null;
+}
 export interface VintedAiResult {
   analysis: {
     modelName: string;
@@ -45,6 +63,7 @@ export interface VintedAiResult {
     comparisons: VintedAiComparison[];
     soldAverage: number | null;
     askingAverage: number | null;
+    marketDataset?: VintedMarketDataset | null;
     comparisonBasis?: 'model' | 'category';
     marketWindow?: {
       days: 30;
@@ -102,6 +121,7 @@ export function resaleEstimate(
   if (
     !resale ||
     !result ||
+    result.analysis.marketDataset ||
     result.listing.totalPrice === null ||
     shipping === null ||
     feePercent === null ||

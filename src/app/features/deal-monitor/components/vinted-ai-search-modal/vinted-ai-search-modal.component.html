@@ -41,7 +41,7 @@
         {{ data.analysis.modelName || 'Modell unbekannt' }}
       </h3>
       <p class="text-sm text-fb-text-secondary">{{ confidenceLabels[data.analysis.confidence] }}</p>
-      @if (data.analysis.comparisonBasis === 'category') {
+      @if ((data.analysis.marketDataset?.match ?? data.analysis.comparisonBasis) === 'category') {
         <p class="text-sm font-medium text-fb-text-primary">
           Vergleichsbasis: ähnliche Artikel derselben Marke und Kategorie
         </p>
@@ -79,6 +79,70 @@
       @for (section of marketSections(); track section.title) {
         <section class="space-y-3" [attr.aria-label]="section.title">
           <h4 class="font-medium text-fb-text-primary">{{ section.title }}</h4>
+          @if (section.key === 'used' && data.analysis.marketDataset; as dataset) {
+            <section class="space-y-3" aria-label="Beobachteter Gebrauchtmarkt">
+              <p class="text-sm text-fb-text-secondary">
+                Letzte {{ dataset.windowDays }} Tage ·
+                {{ dataset.match === 'model' ? 'Modellvergleich' : 'Marke und Kategorie' }}
+              </p>
+              <div class="grid gap-4 sm:grid-cols-2">
+                @for (group of marketDatasetGroups(); track group.key) {
+                  <section class="space-y-2" [attr.aria-label]="group.title">
+                    <h5 class="text-sm font-medium text-fb-text-primary">{{ group.title }}</h5>
+                    <p class="text-xs text-fb-text-secondary">
+                      {{
+                        group.key === 'soldMarked'
+                          ? 'Zuletzt beobachtete Angebotspreise'
+                          : 'Beobachtete Angebotspreise'
+                      }}
+                    </p>
+                    @if (group.distribution; as prices) {
+                      <dl class="space-y-2 text-sm">
+                        <div class="flex flex-wrap justify-between gap-x-3">
+                          <dt class="text-fb-text-secondary">Artikel</dt>
+                          <dd class="font-semibold text-fb-text-primary">
+                            {{ prices.count | number }}
+                          </dd>
+                        </div>
+                        <div class="flex flex-wrap justify-between gap-x-3">
+                          <dt class="text-fb-text-secondary">Median</dt>
+                          <dd class="font-semibold text-fb-text-primary">
+                            {{ prices.median | currency: 'EUR' }}
+                          </dd>
+                        </div>
+                        <div class="flex flex-wrap justify-between gap-x-3">
+                          <dt class="text-fb-text-secondary">Mittlere 50 %</dt>
+                          <dd class="text-fb-text-primary">
+                            {{ prices.lowerQuartile | currency: 'EUR' }} –
+                            {{ prices.upperQuartile | currency: 'EUR' }}
+                          </dd>
+                        </div>
+                        <div class="flex flex-wrap justify-between gap-x-3">
+                          <dt class="text-fb-text-secondary">Gesamte Preisspanne</dt>
+                          <dd class="text-fb-text-primary">
+                            {{ prices.minimum | currency: 'EUR' }} –
+                            {{ prices.maximum | currency: 'EUR' }}
+                          </dd>
+                        </div>
+                      </dl>
+                    } @else {
+                      <p class="text-sm text-fb-text-secondary">0 passende Artikel</p>
+                    }
+                  </section>
+                }
+              </div>
+              <p class="text-xs text-fb-text-muted">
+                Stand: {{ dataset.asOf | date: 'dd.MM.yyyy HH:mm' }}
+                @if (dataset.observedSince) {
+                  · Beobachtung seit {{ dataset.observedSince | date: 'dd.MM.yyyy' }}
+                }
+              </p>
+              <p class="text-xs text-fb-text-muted">
+                Erstimport · {{ dataset.initialImportDays }} Tage ·
+                {{ initialImportStatusLabels[dataset.initialImportStatus] }}
+              </p>
+            </section>
+          }
           @if (section.key === 'retail' && section.research; as research) {
             <p class="whitespace-pre-line text-sm text-fb-text-secondary">{{ research.summary }}</p>
             @for (limitation of research.limitations; track $index) {
@@ -118,9 +182,11 @@
               }
             </div>
           } @empty {
-            <p class="text-sm text-fb-text-secondary">
-              Keine passenden, belegten Vergleichspreise gefunden.
-            </p>
+            @if (section.key !== 'used' || !data.analysis.marketDataset) {
+              <p class="text-sm text-fb-text-secondary">
+                Keine passenden, belegten Vergleichspreise gefunden.
+              </p>
+            }
           }
           @if (section.research; as research) {
             <ul class="space-y-1 text-sm" [attr.aria-label]="'Quellen: ' + section.title">
@@ -145,7 +211,10 @@
           {{ retail.high | currency: 'EUR' }} · {{ retail.count }} Modellvergleiche
         </p>
       }
-      @if (data.analysis.soldAverage !== null || data.analysis.askingAverage !== null) {
+      @if (
+        !data.analysis.marketDataset &&
+        (data.analysis.soldAverage !== null || data.analysis.askingAverage !== null)
+      ) {
         <dl class="grid gap-3 text-sm sm:grid-cols-2">
           @if (data.analysis.soldAverage !== null) {
             <div>
@@ -173,13 +242,16 @@
           }
         </dl>
       }
-      @if (data.analysis.marketWindow; as window) {
+      @if (!data.analysis.marketDataset && data.analysis.marketWindow; as window) {
         <p class="text-sm text-fb-text-secondary">
           30-Tage-Auswahl nach Einstelldatum: {{ window.verifiedCount }} bestätigt ·
           {{ window.undatedCount }} Datum ungeklärt · {{ window.excludedCount }} älter als 30 Tage
         </p>
       }
-      @if (!data.analysis.resale && data.analysis.currentMarket; as market) {
+      @if (
+        !data.analysis.marketDataset && !data.analysis.resale && data.analysis.currentMarket;
+        as market
+      ) {
         <p class="text-sm font-semibold text-fb-text-primary">
           {{
             market.basis === 'asking'
@@ -212,7 +284,7 @@
           <p class="text-sm text-fb-text-secondary">{{ limitation }}</p>
         }
       }
-      @if (data.analysis.resale; as resale) {
+      @if (!data.analysis.marketDataset && data.analysis.resale; as resale) {
         <p class="text-sm font-semibold text-fb-text-primary">
           {{ resale.basis === 'asking' ? 'Angebotsspanne' : 'Spanne belegter Verkaufspreise' }}:
           {{ resale.low | currency: 'EUR' }} – {{ resale.high | currency: 'EUR' }}
@@ -227,7 +299,9 @@
           }}
         </p>
       } @else if (
-        !data.analysis.research?.used?.summary && data.analysis.research?.used?.completed !== false
+        !data.analysis.marketDataset &&
+        !data.analysis.research?.used?.summary &&
+        data.analysis.research?.used?.completed !== false
       ) {
         <p class="text-sm text-fb-text-secondary">
           Keine rechnerische Wiederverkaufsspanne aus mindestens drei passenden Gebrauchtpreisen.
@@ -281,7 +355,20 @@
             {{ entry.analysis.modelName || 'Modell unbekannt' }} ·
             {{ confidenceLabels[entry.analysis.confidence] }}
           </p>
-          @if (entry.analysis.resale; as resale) {
+          @if (entry.analysis.marketDataset; as dataset) {
+            @if (dataset.active; as active) {
+              <p>
+                {{ active.count | number }} aktive Angebote · Median
+                {{ active.median | currency: 'EUR' }}
+              </p>
+            }
+            @if (dataset.soldMarked; as sold) {
+              <p>
+                {{ sold.count | number }} als verkauft markiert · Median der letzten Angebotspreise
+                {{ sold.median | currency: 'EUR' }}
+              </p>
+            }
+          } @else if (entry.analysis.resale; as resale) {
             <p>
               {{ resale.basis === 'asking' ? 'Angebotsspanne' : 'Belegte Verkaufspreise' }}:
               {{ resale.low | currency: 'EUR' }} –

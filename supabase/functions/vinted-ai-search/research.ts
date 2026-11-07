@@ -8,6 +8,7 @@ import {
 } from './analysis.ts';
 import { loadComparisonCatalog } from './comparison-catalog.ts';
 import { verifyComparisonDates } from './comparison-dates.ts';
+import { loadMarketDataset, marketDatasetSection, type MarketDataset } from './market-dataset.ts';
 
 export interface ListingAttribute {
   code: string;
@@ -30,6 +31,15 @@ export interface ResearchListing {
   attributes?: ListingAttribute[];
   category?: { id: string | null; path: string[] } | null;
   detailsStatus?: 'loaded' | 'unavailable';
+}
+
+export type MarketDatasetProvider = (
+  listing: ResearchListing,
+  modelName: string | null,
+) => Promise<unknown>;
+
+export interface ResearchOptions {
+  marketDataset?: MarketDatasetProvider;
 }
 
 const sourcesSchema = {
@@ -124,8 +134,9 @@ export async function searchOpenAi(
   listing: ResearchListing,
   images: string[],
   model: SearchModel,
+  options: ResearchOptions = {},
 ): Promise<Record<string, unknown>> {
-  // Zwei begrenzte KI-Aufrufe; Katalog und Datumsprüfung teilen das Gesamtbudget.
+  // Produktrecherche einmal; der produktive Gebrauchtvergleich kommt aus dem eigenen Bestand.
   const signal = AbortSignal.timeout(RESEARCH_LIMITS.totalMs);
   const responses: Record<string, unknown>[] = [];
   let unknownUsage = false;
@@ -250,7 +261,20 @@ export async function searchOpenAi(
     candidates: [],
     limitation: null,
   };
-  if (canContinue) {
+  let marketDataset: MarketDataset | undefined;
+  const marketDatasetProvider = options.marketDataset;
+  if (marketDatasetProvider) {
+    const modelName =
+      identified.data['confidence'] === 'unknown'
+        ? null
+        : String(identified.data['modelName']).trim().slice(0, 200) || null;
+    marketDataset = await loadMarketDataset(
+      () => marketDatasetProvider(listing, modelName),
+      modelName ? 'model' : 'category',
+    );
+    const section = marketDatasetSection(marketDataset);
+    used = { raw: {}, data: { ...section, comparisons: [] }, completed: section.completed };
+  } else if (canContinue) {
     catalog = await loadComparisonCatalog(listing, identified.data, signal);
     let raw: Record<string, unknown> | undefined;
     try {
@@ -328,6 +352,7 @@ export async function searchOpenAi(
   }, 0);
   const result: Record<string, unknown> = {
     status: 'completed',
+    ...(marketDataset ? { marketDataset } : {}),
     comparisonSources: catalog.candidates.map(({ url }) => ({ url })),
     usage_incomplete:
       unknownUsage ||
@@ -385,12 +410,14 @@ export async function searchOpenAi(
       },
     ],
   };
-  try {
-    const comparisons = parseAnalysis(result, listing.url).comparisons;
-    result['comparisonDates'] = await verifyComparisonDates(comparisons, new Date(), signal);
-  } catch {
-    // Der Handler speichert den bekannten Verbrauch auch bei ungültiger Analyse.
-    result['comparisonDates'] = [];
+  if (!marketDataset) {
+    try {
+      const comparisons = parseAnalysis(result, listing.url).comparisons;
+      result['comparisonDates'] = await verifyComparisonDates(comparisons, new Date(), signal);
+    } catch {
+      // Der Handler speichert den bekannten Verbrauch auch bei ungültiger Analyse.
+      result['comparisonDates'] = [];
+    }
   }
   result['researchedAt'] = new Date().toISOString();
   return result;

@@ -48,6 +48,99 @@ function provider(data: unknown, usage: unknown = { input_tokens: 1000, output_t
 const detailsHtml = (entry: unknown) =>
   `<script>self.__next_f.push(${JSON.stringify([1, `1:${JSON.stringify(entry)}\n`])})</script>`;
 
+Deno.test(
+  'nutzt nach Modell- und Neupreisrecherche den gesamten Datenbestand ohne weitere KI- oder Vinted-Abrufe',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    const calls: string[] = [];
+    let datasetCalls = 0;
+    try {
+      globalThis.fetch = async (url, init) => {
+        calls.push(String(url));
+        const body = JSON.parse(String(record(init)['body']));
+        equal(body.input[0].content.length, 3);
+        return Response.json(provider(product));
+      };
+      const dataset = {
+        windowDays: 30,
+        initialImportDays: 7,
+        asOf: '2026-11-07T12:00:00.000Z',
+        observedSince: '2026-11-01T12:00:00.000Z',
+        initialImportStatus: 'complete',
+        match: 'model',
+        active: {
+          count: 2000,
+          median: 55,
+          lowerQuartile: 40,
+          upperQuartile: 70,
+          minimum: 1,
+          maximum: 200,
+        },
+        soldMarked: {
+          count: 250,
+          median: 45,
+          lowerQuartile: 35,
+          upperQuartile: 60,
+          minimum: 5,
+          maximum: 160,
+        },
+      };
+      const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-luna', {
+        marketDataset: async (item, modelName) => {
+          datasetCalls++;
+          equal(item.id, listing.id);
+          equal(modelName, product.modelName);
+          return dataset;
+        },
+      });
+      equal(calls, ['https://api.openai.com/v1/responses']);
+      equal(datasetCalls, 1);
+      const result = parseAnalysis(raw);
+      equal(result.marketDataset, dataset);
+      equal(result.research?.used.completed, true);
+      equal(result.comparisons, []);
+      equal(parseUsage(raw, 'gpt-6-luna').webSearchCalls, 1);
+      equal(parseUsage(raw, 'gpt-6-luna').incomplete, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+Deno.test(
+  'erfindet bei Datenbankfehlern keine Preise und startet keinen kostenpflichtigen Livefallback',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    try {
+      globalThis.fetch = async () => {
+        calls++;
+        return Response.json(
+          provider({ ...product, confidence: 'unknown' }, { input_tokens: 1000 }),
+        );
+      };
+      const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra', {
+        marketDataset: async (_item, modelName) => {
+          equal(modelName, null);
+          throw new Error('database unavailable');
+        },
+      });
+      equal(calls, 1);
+      const result = parseAnalysis(raw);
+      equal(result.marketDataset?.initialImportStatus, 'unavailable');
+      equal(result.marketDataset?.match, 'category');
+      equal(result.marketDataset?.active, null);
+      equal(result.research?.used.completed, false);
+      equal(result.research?.used.limitations, [
+        'Die gespeicherten Vergleichsdaten konnten nicht geladen werden.',
+      ]);
+      equal(parseUsage(raw, 'gpt-6-astra').incomplete, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
 Deno.test('startet ab 0,75 USD bekannten Erstkosten keinen weiteren Abruf', async () => {
   const originalFetch = globalThis.fetch;
   const calls: string[] = [];

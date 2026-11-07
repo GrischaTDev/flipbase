@@ -54,6 +54,20 @@ export class VintedAiSearchModalComponent {
   readonly searchIcon = LucideSearch;
   readonly sparklesIcon = LucideSparkles;
   readonly estimate = computed(() => resaleEstimate(this.result()));
+  readonly marketDatasetGroups = computed(() => {
+    const dataset = this.result()?.analysis.marketDataset;
+    return [
+      { key: 'active', title: 'Aktive Angebote', distribution: dataset?.active },
+      { key: 'soldMarked', title: 'Als verkauft markiert', distribution: dataset?.soldMarked },
+    ];
+  });
+  readonly initialImportStatusLabels = {
+    pending: 'ausstehend',
+    running: 'läuft',
+    complete: 'abgeschlossen',
+    partial: 'teilweise erfasst',
+    unavailable: 'nicht verfügbar',
+  };
   readonly marketSections = computed(() => {
     const analysis = this.result()?.analysis;
     return [

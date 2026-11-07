@@ -1,3 +1,9 @@
+import {
+  parseMarketDataset,
+  unavailableMarketDataset,
+  type MarketDataset,
+} from './market-dataset.ts';
+
 export const MODEL_PRICES = {
   'gpt-6-luna': { input: 0.1, cached: 0.01, output: 0.5 },
   'gpt-6.1-terra': { input: 1, cached: 0.05, output: 5 },
@@ -6,7 +12,7 @@ export const MODEL_PRICES = {
 } as const;
 export type SearchModel = keyof typeof MODEL_PRICES;
 export const PRICING_DATE = '2026-11-06';
-export const PROMPT_VERSION = 'vinted-product-research-7';
+export const PROMPT_VERSION = 'vinted-product-research-8';
 export interface ComparisonDate {
   status: 'within_window' | 'outside_window' | 'unknown';
   earliest: string | null;
@@ -53,6 +59,7 @@ export interface Analysis {
   } | null;
   soldAverage: number | null;
   askingAverage: number | null;
+  marketDataset?: MarketDataset;
   newPriceRange: { low: number; high: number; count: number } | null;
   research: {
     identification: ResearchSection;
@@ -449,12 +456,15 @@ export function parseAnalysis(result: Record<string, unknown>, listingUrl?: stri
   const currentMarket: Analysis['currentMarket'] = currentPrices.length
     ? { ...range(currentPrices), basis: currentBasis as 'sold' | 'asking', match: comparisonBasis }
     : null;
+  const marketDataset = Object.hasOwn(result, 'marketDataset')
+    ? (parseMarketDataset(result['marketDataset']) ?? unavailableMarketDataset(comparisonBasis))
+    : null;
   return {
     modelName,
     confidence,
     evidence: humanText(parsed['evidence']).slice(0, 2500),
     comparisons,
-    comparisonBasis,
+    comparisonBasis: marketDataset?.match ?? comparisonBasis,
     marketWindow: {
       days: 30,
       checkedAt: researchedAt === null ? '' : new Date(researchedAt).toISOString(),
@@ -462,9 +472,10 @@ export function parseAnalysis(result: Record<string, unknown>, listingUrl?: stri
       undatedCount: matching.filter((entry) => entry.listingDate?.status === 'unknown').length,
       excludedCount: used.filter((entry) => entry.listingDate?.status === 'outside_window').length,
     },
-    currentMarket,
-    soldAverage: average(sold),
-    askingAverage: average(asking),
+    currentMarket: marketDataset ? null : currentMarket,
+    soldAverage: marketDataset ? null : average(sold),
+    askingAverage: marketDataset ? null : average(asking),
+    ...(marketDataset ? { marketDataset } : {}),
     newPriceRange: newPrices.length
       ? {
           low: Math.min(...newPrices),
@@ -473,7 +484,7 @@ export function parseAnalysis(result: Record<string, unknown>, listingUrl?: stri
         }
       : null,
     research,
-    resale,
+    resale: marketDataset ? null : resale,
   };
 }
 export const ANALYSIS_SCHEMA = {

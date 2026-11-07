@@ -1,4 +1,5 @@
 import { parseAnalysis, sourceIdentity, vintedSourceItemId } from './analysis.ts';
+import { parseMarketDataset } from './market-dataset.ts';
 
 function equal(actual: unknown, expected: unknown) {
   if (JSON.stringify(actual) !== JSON.stringify(expected))
@@ -6,6 +7,30 @@ function equal(actual: unknown, expected: unknown) {
 }
 
 const now = '2026-11-07T12:00:00.000Z';
+const marketDataset = {
+  windowDays: 30,
+  initialImportDays: 7,
+  asOf: now,
+  observedSince: '2026-11-01T12:00:00.000Z',
+  initialImportStatus: 'complete',
+  match: 'model',
+  active: {
+    count: 2000,
+    median: 55,
+    lowerQuartile: 40,
+    upperQuartile: 70,
+    minimum: 1,
+    maximum: 200000,
+  },
+  soldMarked: {
+    count: 300,
+    median: 45,
+    lowerQuartile: 30,
+    upperQuartile: 60,
+    minimum: 5,
+    maximum: 180,
+  },
+};
 const recent = {
   status: 'within_window',
   earliest: '2026-10-20T12:00:00.000Z',
@@ -77,6 +102,57 @@ Deno.test(
     });
   },
 );
+
+Deno.test(
+  'übernimmt die volle Datenbankverteilung ohne Preisobergrenze und ohne Einzelbeleg-Mischung',
+  () => {
+    const result = parseAnalysis(
+      response([comparison(1, 60), comparison(2, 70), comparison(3, 80)], { marketDataset }),
+    );
+    equal(result.marketDataset, marketDataset);
+    equal(result.askingAverage, null);
+    equal(result.soldAverage, null);
+    equal(result.currentMarket, null);
+    equal(result.resale, null);
+  },
+);
+
+Deno.test('vertraut keiner vom Modell erfundenen Datenbankstatistik', () => {
+  const result = parseAnalysis(response([], {}, { marketDataset }));
+  equal(result.marketDataset, undefined);
+});
+
+Deno.test('weist ungültige Datenbankkennzahlen und widersprüchliche Zeitpunkte zurück', () => {
+  for (const invalid of [
+    { ...marketDataset, windowDays: 90 },
+    { ...marketDataset, initialImportDays: 30 },
+    { ...marketDataset, asOf: '2026-11-07' },
+    { ...marketDataset, observedSince: '2026-11-08T12:00:00Z' },
+    { ...marketDataset, initialImportStatus: 'guessed' },
+    { ...marketDataset, match: 'different' },
+    { ...marketDataset, active: { ...marketDataset.active, count: 0 } },
+    { ...marketDataset, active: { ...marketDataset.active, minimum: -1 } },
+    { ...marketDataset, active: { ...marketDataset.active, median: NaN } },
+    { ...marketDataset, soldMarked: { ...marketDataset.soldMarked, lowerQuartile: 100 } },
+  ]) {
+    equal(parseMarketDataset(invalid), null);
+    const result = parseAnalysis(response([], { marketDataset: invalid }));
+    equal(result.marketDataset?.initialImportStatus, 'unavailable');
+    equal(result.marketDataset?.active, null);
+    equal(result.marketDataset?.soldMarked, null);
+  }
+});
+
+Deno.test('akzeptiert einen laufenden Erstimport ohne erfundene Preise', () => {
+  const initial = {
+    ...marketDataset,
+    initialImportStatus: 'running',
+    observedSince: null,
+    active: null,
+    soldMarked: null,
+  };
+  equal(parseMarketDataset(initial), initial);
+});
 
 Deno.test('Datumsbehauptungen aus KI-Text erzeugen keine verifizierte 30-Tage-Auswertung', () => {
   const result = parseAnalysis(

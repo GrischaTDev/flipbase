@@ -3,14 +3,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { chromium } from 'playwright';
 import { ChromeProcess } from '../../src/browser/chrome-process.js';
 import { ChromeVintedBrowser } from '../../src/browser/vinted-browser.js';
+import { pacedVintedFetch } from '../../src/runtime/paced-vinted-fetch.js';
+import { RequestBudget } from '../../src/runtime/budget.js';
 
 vi.mock('playwright', () => ({ chromium: { connectOverCDP: vi.fn() } }));
 
 function setup(status = 403, requestTimeoutMs = 20_000) {
   vi.spyOn(ChromeProcess.prototype, 'start').mockResolvedValue();
   const order: string[] = [];
+  let currentUrl = 'https://www.vinted.de/catalog';
   const page = {
-    url: () => 'https://www.vinted.de/catalog',
+    url: () => currentUrl,
     evaluate: vi.fn(async () => ({ kind: 'response', status: 200, headers: [], body: 'catalog' })),
     close: vi.fn(async () => {
       order.push('close');
@@ -18,20 +21,22 @@ function setup(status = 403, requestTimeoutMs = 20_000) {
   };
   const replacement = { ...page, close: vi.fn() };
   const session = Object.assign(new EventEmitter(), {
-    send: vi.fn(async (method: string) => {
+    send: vi.fn(async (method: string, params?: Record<string, unknown>) => {
       if (method === 'Page.getFrameTree') return { frameTree: { frame: { id: 'main' } } };
       if (method === 'Runtime.evaluate') return { result: { type: 'boolean', value: false } };
-      if (method === 'Page.navigate')
+      if (method === 'Page.navigate') {
+        currentUrl = String(params?.url ?? 'https://www.vinted.de/catalog');
         queueMicrotask(() =>
           session.emit('Fetch.requestPaused', {
             requestId: 'main',
             frameId: 'main',
             resourceType: 'Document',
-            request: { url: 'https://www.vinted.de/catalog' },
+            request: { url: String(params?.url ?? 'https://www.vinted.de/catalog') },
             responseStatusCode: status,
             responseHeaders: status === 403 ? [{ name: 'cf-mitigated', value: 'challenge' }] : [],
           }),
         );
+      }
       if (method === 'Fetch.takeResponseBodyAsStream') return { stream: 'body' };
       if (method === 'IO.read')
         return { data: status === 403 ? 'challenge' : 'catalog', eof: true };
@@ -75,6 +80,93 @@ afterEach(() => {
 });
 
 describe('ChromeVintedBrowser lifecycle', () => {
+  it('keeps catalog and item switches paced without extra catalog document warmups', async () => {
+    const { browser, session, page } = setup(200);
+    const targets = [
+      'https://www.vinted.de/catalog?brand_ids=362',
+      'https://www.vinted.de/items/1001-carhartt-fleece',
+      'https://www.vinted.de/catalog?brand_ids=362&page=2',
+      'https://www.vinted.de/items/1002-carhartt-fleece',
+      'https://www.vinted.de/catalog?brand_ids=362&page=3',
+      'https://www.vinted.de/catalog?brand_ids=362&page=4',
+    ];
+    let time = 0;
+    const starts: number[] = [];
+    const budget = new RequestBudget(30, () => time);
+    const paced = pacedVintedFetch((url, init) => browser.fetch(url, init), {
+      minimumIntervalMs: 2500,
+      requestTimeoutMs: 20_000,
+      now: () => time,
+      sleep: async (delay) => {
+        time += delay;
+      },
+      assertCanStart: () => {
+        expect(budget.hasCapacity()).toBe(true);
+      },
+      recordStart: () => {
+        budget.record();
+        starts.push(time);
+      },
+    });
+    for (const target of targets) expect((await paced(target)).status).toBe(200);
+
+    expect(starts).toEqual([0, 2500, 5000, 7500, 10000, 12500]);
+    expect(budget.usageRatio()).toBe(6 / 30);
+    expect(
+      session.send.mock.calls
+        .filter(([method]) => method === 'Page.navigate')
+        .map(([, params]) => params?.url),
+    ).toEqual([targets[0], targets[1], targets[3]]);
+    expect(page.evaluate).toHaveBeenCalledTimes(3);
+    expect(page.url()).toBe(targets[3]);
+    expect(browser.needsRestart).toBe(false);
+  });
+
+  it('reads an exact public item in the existing guarded browser session', async () => {
+    const { browser, session } = setup(200);
+    const url = 'https://www.vinted.de/items/10693973187-giacca-carhartt';
+    expect((await browser.fetch(url)).status).toBe(200);
+    expect(session.send).toHaveBeenCalledWith('Page.navigate', { url });
+    expect(session.send.mock.calls.filter(([method]) => method === 'Page.navigate')).toHaveLength(
+      1,
+    );
+  });
+
+  it.each([
+    'https://other.example/items/1001-jacket',
+    'https://user@www.vinted.de/items/1001-jacket',
+    'https://www.vinted.de/items/1001/edit',
+    'https://www.vinted.de/items/1001-jacket?redirect=/login',
+    'https://www.vinted.de/items/1001-jacket#details',
+    'https://www.vinted.de/items/0-jacket',
+    'https://www.vinted.de/api/v2/items/1001',
+  ])('refuses an unsupported comparison target before browser startup: %s', async (url) => {
+    const { browser } = setup();
+    await expect(browser.fetch(url)).rejects.toThrow('Ungültige Vinted-Katalogadresse');
+    expect(ChromeProcess.prototype.start).not.toHaveBeenCalled();
+  });
+
+  it('keeps item paths outside the manual catalog entry point', async () => {
+    const { browser } = setup();
+    await expect(
+      browser.openManual(new URL('https://www.vinted.de/items/1001-jacket')),
+    ).rejects.toThrow();
+    expect(ChromeProcess.prototype.start).not.toHaveBeenCalled();
+  });
+
+  it('rejects an item document controlled by a service worker', async () => {
+    const { browser, session } = setup(200);
+    const send = session.send.getMockImplementation()!;
+    session.send.mockImplementation(async (method: string, params?: Record<string, unknown>) =>
+      method === 'Runtime.evaluate'
+        ? { result: { type: 'boolean', value: true } }
+        : send(method, params),
+    );
+    await expect(browser.fetch('https://www.vinted.de/items/1001-jacket')).rejects.toMatchObject({
+      kind: 'network_error',
+    });
+  });
+
   it('warms up once and then reads the catalog without a second document navigation', async () => {
     const { browser, session, page } = setup(200);
     await browser.fetch('https://www.vinted.de/catalog');

@@ -1,5 +1,79 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Sieben-Tage-Erstimport und laufenden Vergleichsbestand umsetzen
+
+**Auftrag:** Aktuelle Botfilter einmal ohne Preisunter-/obergrenze über sieben Tage
+befüllen, neue Feedartikel laufend ergänzen und aktive sowie verkauft markierte
+Inserate für die 30-Tage-Analyse beobachten. Nicht verfügbare Artikel ausschließen.
+
+**Grundlage:** Gleicher eigener Aufgabenbranch, frischer GitHub-Abgleich auf
+`25eb50a4`; fremde Hauptarbeitskopie erhalten. Produktionskonfiguration ausschließlich
+lesend geprüft: fünf aktive Filter mit sieben Markenkombinationen, Carhartt bisher
+bis 50 EUR. Drei ergänzende Teilaufgaben für Parser, Sammlung und Oberfläche;
+zusätzlich unabhängige SQL-Gegenprüfung. Keine Produktivmigration oder Veröffentlichung.
+
+**Umsetzung:** Drei kompakte Tabellen für Suchbereiche, Artikelzustände und
+Zuordnungen. Preisfreie, fortsetzbare Katalogabrufe und gezielte Detailprüfungen
+teilen Browser, Origin-Pausen und Abrufbudget mit dem Feed. Unter Last erhält der
+Vergleich einen von fünf Abrufplätzen, freie Kapazität wird im vorhandenen Abstand
+verwendet. Persistierter Wechsel zwischen Katalog und Details verhindert ein
+Verdrängen der Statusprüfungen bei vielen Bereichen. Lease-Token und Filterrevisionen
+weisen veraltete Ergebnisse zurück. Neue Feedfunde fließen zusätzlich per Trigger ein.
+
+**Datenqualität:** Nur artikelbezogene Verkaufsbelege zählen als verkauft;
+Reservierung, Verstecken und unklarer Status bleiben prüfbar. Fehlende Quellen
+werden ignoriert. Initiale Vergleichsbelege benötigen ein nachgewiesenes
+Veröffentlichungsintervall innerhalb der sieben Tage. Aktive Preise werden auf
+30 Tage Veröffentlichung begrenzt, Verkaufsmarkierungen separat auf 30 Tage
+Erkennung. Überlappende Datumsgrenzen werden nicht geschätzt. Die öffentlichen
+Preise bleiben Angebotspreise; ein rückwirkendes vollständiges Verkaufsarchiv
+wird nicht behauptet. Modelle werden zusätzlich nach Zielgröße/Zustand eingegrenzt;
+Kategorieauswertung bleibt ausdrücklich breiter. Mengen-/Zeitgrenzen und begrenzte
+Quellenseiten werden als unvollständige Abdeckung ausgewiesen.
+
+**AI-Suche:** Modellbestimmung mit allen Zielbildern und Neupreisrecherche bleiben.
+Danach liefert die Datenbank Anzahl, Median, Quartile und Gesamtspanne für aktive
+und verkauft markierte Artikel. Die bisherige zweite KI-Recherche, Einzelkatalog-
+und Datumsabrufe entfallen im Produktivpfad. Cachetreffer erneuern die Statistik;
+Datenbankausfälle erzwingen keinen weiteren kostenpflichtigen Modellaufruf.
+Die Oberfläche zeigt die breite Datenbasis und den Erstimportstatus. Unverbundene
+frühere Statistikvorbereitung entfernt; kein zusätzlicher API-Anbieter.
+
+**Nachweise:** 97 gezielte pgTAP-Prüfungen einschließlich Rechten, Leases,
+20-Bereich-Fairness, Datumsgrenzen, sehr hohen Preisen und Verkaufserhalt. 76
+Deno-Prüfungen, neun Modelltests, zwölf Browserfälle plus zwei Sichtprüfungen
+(Hell/Dunkel, Maus/Touch und AXE) erfolgreich. Sniper-Typprüfung und relevante
+Worker-/Parser-/Browserprüfungen erfolgreich, zuletzt 73 Browser-/Abstandsprüfungen.
+Die Browserprotokollsimulation bestätigt den Wechsel zwischen Katalog und Details;
+die Liveproben verwenden native HTTP-Abrufe, keinen produktiven Chrome-Lauf.
+Öffentliche Workerprobe: drei
+Abrufe, korrekt aktiver und verkaufter Status. Weitere Probe mit echten Filter-
+konfigurationen und isolierter Postgres: 17 Abrufe, sieben Markenkombinationen,
+672 Katalogartikel, darunter 280 über 50 EUR, zehn geprüfte aktive Detailseiten;
+keine KI-Kosten oder Produktivschreibzugriffe. Das ist kein abgeschlossener
+Sieben-Tage-Import. Private Berichte im bestehenden Aufgabenordner.
+
+**Datenbank und Freigabe:** Migration mit Supabase CLI aus aktueller isolierter
+Migrationsbasis erzeugt, unzitierte SQL-Schreibweise mechanisch vereinheitlicht.
+Die frische Migrationsprüfung deckte vier Rechtefehler auf: Der CLI-Abgleich
+übernahm die Sperren geerbter Rechte und der Identity-Sequenzen nicht vollständig.
+Deshalb wurden alle elf expliziten Rechteanweisungen automatisch aus dem
+deklarativen Schema in das erzeugte Paket übernommen. Nach vollständigem Neuaufbau
+bestanden die 97 neuen und 359 bestehenden SQL-Prüfungen ohne zusätzliche
+Rechtekorrekturen oder Fixtureänderungen. Erneut per CLI erzeugte Typen entsprechen
+dem eingecheckten Typstand. `npm run preflight:plan` und `npm run preflight`
+unter Node 22 erfolgreich (Exit 0): SQL-Paket, Format, Lint, Typen, Suite-Audit,
+157 Skriptprüfungen, 3.652 Anwendungstests und Bau. Der erste Vorabcheck hatte einen
+LF-verlangenden Konfigurationsvertrag beanstandet; `config.toml` wurde gemäß
+`.gitattributes` ohne fachliche Änderung auf LF vereinheitlicht. Drei bedingte
+Orchestrierungsfälle und sieben Windows-unpassende Sniper-Prozesslockfälle sind
+übersprungen; die umfassenderen CI-, Linux-, Image- und Integrationsnachweise
+bleiben offen. Der Bau meldet vorhandene Template-/CommonJS-Hinweise und eine
+Bundlebudget-Warnung (977,60 statt 900 kB). Nach Abschluss nur Prüfdokumentation
+ergänzt und erneut formatiert/geprüft; unveränderte Anwendungstests nicht wiederholt.
+Der produktive Erstimport beginnt erst nach regulärer
+Freigabe und Deployment automatisch für aktive Filter. Kein Push, PR oder Merge.
+
 ## 2026-11-07 - Juna - Rollierende Vergleichsdatenbank empfehlen
 
 **Nutzerfrage:** Ob ein eigener Bestand über ungefähr 30 Tage die wiederholten

@@ -1,12 +1,48 @@
 # Aktuelle 30-Tage-Artikelanalyse und die Rolle der KI
 
-## Aktuelle Empfehlung: kompakter Bestand mit 30-Tage-Auswertung
+## Umsetzung: Sieben-Tage-Erstimport und laufender Bestand
+
+Der nun beauftragte Umfang ist auf dem Aufgabenbranch umgesetzt: einmalig die
+heute auffindbaren Inserate der letzten sieben Tage aus den aktiven Filtern,
+ohne Preisgrenzen, danach neue Feedfunde und zusätzliche preisfreie Katalogläufe.
+Aktuelle Produktionskonfiguration lesend bestätigt: fünf Filter, sieben
+Markenkombinationen. Carhartts Feedgrenze von 50 EUR gilt nicht für die Vergleiche.
+
+Der Sammler legt beim ersten Einsatz nach dem regulären Deployment die Bereiche
+an. Katalogseiten und Detailprüfungen laufen fortsetzbar mit gemeinsamen Limits;
+der erste vollständige Import kann entsprechend Umfang und Feedlast länger dauern.
+Die begrenzte Liveprobe in einer isolierten Datenbank belegt den Schreibablauf,
+ist aber keine produktive Erstbefüllung. 960 Einträge je Quellenabfrage sind keine
+Vollständigkeitsgarantie. Gerundete oder fehlende Datumsbelege bleiben unklar.
+
+Die Datenbank enthält kompakte Kandidaten und geprüfte Artikelzustände ohne Bilder
+oder Verkäuferprofile. Die Preisstatistik berücksichtigt nur nachgewiesene passende
+Zeitfenster; Kandidaten sind noch keine bestätigten Vergleiche. Aktive Inserate
+älter als 30 Tage werden aus der aktuellen Angebotsstatistik ausgeschlossen.
+Verkaufte Inserate können älter eingestellt sein, wenn die Verkaufserkennung im
+Auswertungsfenster liegt. Nicht kaufbar ist ohne ausdrücklichen Verkaufsbeleg
+kein Verkauf. Gelöschte oder anderweitig nicht verfügbare Quellen zählen nicht.
+
+Verkaufsmarkierungen bleiben 30 Tage nach Erkennung erhalten, nicht verfügbare
+Zustände sieben Tage als Doppelerkennung. Sonstige Beobachtungen sind auf maximal
+90 Tage beschränkt. Ein Mengenlimit von 250.000 Artikeln begrenzt den Bestand;
+neue Feedfunde werden bei der stündlichen Pflege berücksichtigt. Begrenzungen
+führen zu ausdrücklich unvollständiger Abdeckung. Pausierte Filter verursachen
+keine Abrufe; nach langer Pause beginnt ein neuer Erstimport.
+
+AI Search führt Modell-/Neupreisrecherche aus und verwendet anschließend die
+Datenbankstatistik. Keine zweite KI-Gebrauchtmarktrecherche im Produktivpfad,
+keine 1.000 Inserate im Prompt. Cachetreffer aktualisieren die Kennzahlen ohne
+neuen Modellaufruf. Aktive und verkauft markierte Preise sind getrennt; letztere
+sind weiterhin letzte sichtbare Angebotspreise und keine bewiesenen Zahlbeträge.
+
+## Frühere Empfehlung: kompakter Bestand mit 30-Tage-Auswertung
 
 Nach dem Nachweis, dass verkaufte Artikel über bekannte Links erkannt werden,
 aber in der heutigen Katalogliste fehlen, ist eine kleine eigene Vergleichstabelle
 in der bestehenden Supabase-Datenbank sinnvoller als eine vollständig neue
-Direktsammlung bei jedem AI-Search-Klick. Dies präzisiert die früheren Abschnitte
-zur reinen Live-Recherche; die Datenbank ist noch nicht umgesetzt.
+Direktsammlung bei jedem AI-Search-Klick. Dies präzisierte die früheren Abschnitte
+zur reinen Live-Recherche; die anschließende Umsetzung steht oben.
 
 Der vorhandene Feed lässt sich als Eingang für passende Funde nutzen. Seine
 Drei-Tage-Bereinigung und das Ignorieren bekannter Artikelpreise ersetzen jedoch
