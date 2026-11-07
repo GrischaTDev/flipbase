@@ -1,5 +1,48 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Vollständige Artikelmerkmale an die KI-Recherche übergeben
+
+**Auftrag und Grundlage:** Die Recherche soll den Link hinter dem Feed-Eintrag
+öffnen und sämtliche relevanten Artikelangaben gemeinsam mit den Fotos verwenden:
+insbesondere Größe, Zustand, Material, Farben und Kategorie. Auf demselben eigenen
+Zweig fortgesetzt; sauberen Stand geprüft, GitHub frisch abgeglichen und den
+aktuellen Hauptstand `a658ebfd` übernommen. Beide vollständigen Changelog-Seiten
+im einzigen Zusammenführungskonflikt erhalten; fremde Arbeitskopien unverändert.
+
+**Ergänzung:** Der öffentliche Detailparser liest nun auch die strukturierten
+Artikelmerkmale mit ursprünglichem Code, Beschriftung und Wert sowie die
+Kategoriekennung und den vollständigen Kategoriepfad. Mehrere Farben/Materialien,
+Maße, Artikelnummern und weitere vorhandene Merkmale bleiben erhalten. Werte
+anderer Inserate und nicht benötigte interne Verkäufer-/Trackingkennungen werden
+nicht übernommen. Relative Hochladealter sind keine Produkteigenschaft und würden
+den Cache sonst stündlich verändern; Markenfilter im Kategoriepfad sind keine
+zusätzliche Kategorie. Direkt gelesene Marke, Größe und Zustand ersetzen die
+entsprechenden Feedwerte. Fehlende Merkmale werden nicht ergänzt oder erraten.
+Alle drei Rechercheanfragen erhalten den strukturierten Detailkontext. Der Prompt
+verlangt den Abgleich mit Fotos und die Berücksichtigung bei der Varianten- und
+Zustandsbewertung. Neue Promptversion verhindert Ergebnisse mit altem Kontext.
+Keine neue Oberfläche, Abhängigkeit, Schemaänderung oder zusätzliche kostenpflichtige
+Live-Analyse.
+
+**Funktionsnachweis:** 23 Deno-Fälle mit CI-Version 2.9.7 erfolgreich, einschließlich
+einer vollständigen Detailseite mit sechs Bildern und acht Artikelmerkmalen. Der
+Anbietertest kontrolliert die tatsächlichen Anfrageinhalte aller drei Phasen,
+mehrere Farben/Materialien, den Kategoriepfad, das Ersetzen veralteter Feedwerte
+und den Ausschluss fremder Inserate und interner Kennungen. Zusätzlich den echten
+öffentlichen Link ohne KI-Aufruf mit derselben Ladefunktion geprüft: sechs Fotos,
+Beschreibung, Carhartt, L, Sehr gut, Fleece, Creme und Herren → Kleidung → Jacken &
+Mäntel → Jacken → Fleecejacken (Kategorie 1858) vollständig übernommen.
+
+**Vorabcheck und Grenze:** Für den ergänzten Stand gelten `npm run preflight:plan`
+und `npm run preflight` mit Node 22 und den gesperrten Abhängigkeiten; die Ergebnisse
+stehen in `details-preflight-plan.log` und `details-preflight.log` im privaten
+Protokollordner. Die unveränderte Oberfläche behält den vorherigen Nachweis mit zehn
+Browserfällen einschließlich Hell/Dunkel, Touch und AXE; kein erneuter Browserlauf
+für die reine serverseitige Kontextergänzung. Der vollständige ausgewählte
+GitHub-Nachweis bleibt vor einem Merge erforderlich. Kein Push, PR oder Merge.
+Protokolle `details-edge.log` und `details-live.log` unter
+`C:/Users/Grisc/.codex/tmp/flipbase-feed-ai-research/`.
+
 ## 2026-11-07 - Juna - Artikelrecherche im Vinted-Feed vervollständigen
 
 **Auftrag und Ursache:** Unbrauchbare AI-Search-Ergebnisse mit fehlenden

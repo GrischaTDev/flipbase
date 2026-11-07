@@ -6,7 +6,7 @@ export const MODEL_PRICES = {
 } as const;
 export type SearchModel = keyof typeof MODEL_PRICES;
 export const PRICING_DATE = '2026-11-06';
-export const PROMPT_VERSION = 'vinted-product-research-3';
+export const PROMPT_VERSION = 'vinted-product-research-4';
 export interface Comparison {
   title: string;
   url: string;

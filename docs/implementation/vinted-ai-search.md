@@ -11,8 +11,14 @@ Modellauswahl und dem Klick auf „Suchen“ startet die Recherche. Der Browser 
 Edge Function `vinted-ai-search` liest die gespeicherten Inseratdaten und lädt
 anschließend die öffentliche Vinted-Inseratseite ohne Anmeldung nach (maximal
 sieben Sekunden, drei MB, keine Weiterleitungen). Aus den React-Datensätzen
-werden ausschließlich Beschreibung und Fotos mit passender Inseratkennung
-übernommen. Fremde Empfehlungen, Verkäuferdaten und ausführbare Scripts werden
+werden Beschreibung, Fotos und sämtliche relevanten strukturierten
+Artikelmerkmale mit passender Inseratkennung übernommen: ursprünglicher Code,
+Beschriftung und Wert, einschließlich Material, mehrerer Farben, Maßen,
+Artikelnummern und weiterer vorhandener Eigenschaften. Die Kategorie wird mit
+Kennung und vollständigem Pfad übernommen; abschließende Markenfilter sind keine
+zusätzliche Kategorie. Direkt gelesene Marke, Größe und Zustand ersetzen die
+entsprechenden Feedwerte. Nicht benötigte interne Kennungen sowie relative
+Hochladealter werden nicht als Produkteigenschaften an die KI gesendet. Fremde Empfehlungen, Verkäuferdaten und ausführbare Scripts werden
 nicht übernommen. Bei gesperrter oder veränderter Seite bleiben die gespeicherten
 Daten erhalten; der Dialog kennzeichnet den fehlgeschlagenen Detailabruf.
 
@@ -36,7 +42,11 @@ dem vom Nutzer gewählten Modell:
    Einschätzung zum konkreten Einkauf.
 
 Die Marktanfragen laufen nach der Modellbestimmung parallel und erhalten deren
-Ergebnis. Jede Teilrecherche muss das Webwerkzeug verwenden. Modellbegründung,
+Ergebnis sowie denselben vollständigen strukturierten Artikelkontext. Der Prompt
+verlangt, Größe, Zustand, Material, Farben, Kategorie und weitere Merkmale mit
+Fotos und Vergleichsangeboten abzugleichen. Verkäuferangaben gelten dabei nicht
+als unabhängig bestätigte Tatsachen; Widersprüche und fehlende Angaben bleiben
+benannt. Jede Teilrecherche muss das Webwerkzeug verwenden. Modellbegründung,
 Marktzusammenfassung, konkrete Lücken und bis zu sechs benannte Quellen pro
 Bereich bleiben auch ohne passenden Preis sichtbar. Quellen müssen in den echten
 Webwerkzeugausgaben oder URL-Zitaten derselben Recherche vorkommen. Interne
@@ -202,3 +212,10 @@ Zeitbudget ist knapp. Anschließend wurde die Quellenliste auf explizit benannte
 gegen echte Werkzeugquellen geprüfte Belege begrenzt; dieser Ausgabezusatz ist
 separat synthetisch geprüft. Private Protokolle:
 `C:/Users/Grisc/.codex/tmp/flipbase-feed-ai-research/`.
+
+Die Ergänzung der strukturierten Artikelmerkmale wurde anschließend ohne weitere
+kostenpflichtige Analyse am echten öffentlichen Inserat geprüft. Derselbe Lader
+übernimmt Carhartt, Größe L, Zustand Sehr gut, Material Fleece, Farbe Creme und
+den vollständigen Kategoriepfad bis Fleecejacken (1858). Der synthetische
+Anbietertransport bestätigt, dass diese Angaben in allen drei Recherchephasen
+ankommen; die Modellbestimmung erhält zusätzlich sämtliche Fotos.

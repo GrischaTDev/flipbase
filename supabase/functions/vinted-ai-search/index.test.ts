@@ -395,6 +395,8 @@ Deno.test(
     equal(parseListingDetails(html, '123'), {
       image_urls: images,
       description: 'Innenetikett und Modellnummer',
+      attributes: [],
+      category: null,
     });
     const originalFetch = globalThis.fetch;
     try {
@@ -408,6 +410,122 @@ Deno.test(
       equal(enriched.image_urls, images);
       equal(enriched.description, 'Innenetikett und Modellnummer');
       equal(enriched.detailsStatus, 'loaded');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+Deno.test(
+  'liest die Artikelmerkmale der Detailseite und uebergibt sie allen drei Recherchen',
+  async () => {
+    const attribute = (code: string, label: string, value: unknown) => ({
+      code,
+      type: 'text',
+      data: { title: label, value, id: 'not-needed', seller_id: 'private-id' },
+    });
+    const images = Array.from(
+      { length: 6 },
+      (_, index) => `https://images1.vinted.net/${index}.jpg`,
+    );
+    const html = detailsHtml([
+      {
+        item_id: '999',
+        catalog_id: '999',
+        breadcrumbs: [{ title: 'Fremde Kategorie', url: '/catalog/999-other' }],
+        attributes: [attribute('material', 'Material', 'Leder')],
+      },
+      {
+        item_id: '123',
+        photos: images.map((url) => ({ url })),
+        description: 'Eigene Artikelbeschreibung',
+      },
+      {
+        item_id: '123',
+        catalog_id: '1858',
+        breadcrumbs: [
+          { title: 'Herren', url: '/catalog/5-men' },
+          { title: 'Kleidung', url: '/catalog/2050-clothing' },
+          { title: 'Jacken & Mäntel', url: '/catalog/1206-outerwear' },
+          { title: 'Jacken', url: '/catalog/2052-jackets' },
+          { title: 'Fleecejacken', url: '/catalog/1858-fleece-jackets' },
+          {
+            title: 'Carhartt Fleecejacken',
+            url: '/catalog/1858-fleece-jackets/brand/362-carhartt',
+          },
+        ],
+      },
+      {
+        item_id: '123',
+        attributes: [
+          attribute('brand', 'Marke', 'Carhartt'),
+          attribute('size', 'Größe', 'L'),
+          attribute('status', 'Zustand', 'Sehr gut'),
+          attribute('material', 'Material', ['Fleece', 'Polyester']),
+          attribute('color', 'Farbe', ['Creme', 'Schwarz']),
+          attribute('measurements', 'Maße', 'Brustweite 58 cm'),
+          attribute('article_number', 'Artikelnummer', 'I025120'),
+          attribute('weight', 'Gewicht', 450),
+          attribute('upload_date', 'Hochgeladen', '11 h'),
+          attribute('broken', 'Ungültig', { private: true }),
+        ],
+      },
+    ]);
+    const originalFetch = globalThis.fetch;
+    const contexts: Record<string, unknown>[] = [];
+    try {
+      globalThis.fetch = async (url, init) => {
+        if (String(url) === listing.url) return new Response(html);
+        equal(String(url), 'https://api.openai.com/v1/responses');
+        const body = JSON.parse(String(init?.body));
+        const input = JSON.parse(body.input[0].content[0].text);
+        contexts.push(input);
+        equal(input.brand, 'Carhartt');
+        equal(input.size, 'L');
+        equal(input.condition, 'Sehr gut');
+        equal(input.description, 'Eigene Artikelbeschreibung');
+        equal(input.detailsStatus, 'loaded');
+        equal(input.category, {
+          id: '1858',
+          path: ['Herren', 'Kleidung', 'Jacken & Mäntel', 'Jacken', 'Fleecejacken'],
+        });
+        equal(
+          input.attributes.map((entry: { value: string }) => entry.value),
+          [
+            'Carhartt',
+            'L',
+            'Sehr gut',
+            'Fleece, Polyester',
+            'Creme, Schwarz',
+            'Brustweite 58 cm',
+            'I025120',
+            '450',
+          ],
+        );
+        equal(JSON.stringify(input).includes('private-id'), false);
+        equal(JSON.stringify(input).includes('Leder'), false);
+        equal(JSON.stringify(input).includes('upload_date'), false);
+        if (!input.identification) equal(body.input[0].content.length, 7);
+        const response = provider();
+        if (input.identification)
+          response.output[1].content![0].text = JSON.stringify({
+            summary: 'Kontext bestätigt',
+            limitations: [],
+            comparisons: [],
+            sources: [],
+          });
+        return Response.json(response);
+      };
+      const enriched = await loadListingDetails({
+        ...listing,
+        brand: 'Feed-Marke',
+        size: 'XXL',
+        condition: 'Neu',
+      });
+      equal(enriched.attributes?.length, 8);
+      const result = await searchOpenAi(enriched, enriched.image_urls, 'gpt-6-astra');
+      equal(contexts.length, 3);
+      equal(parseAnalysis(result).research?.retail.completed, true);
+      equal(parseAnalysis(result).research?.used.completed, true);
     } finally {
       globalThis.fetch = originalFetch;
     }
