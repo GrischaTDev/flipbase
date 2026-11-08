@@ -65,6 +65,65 @@ Deno.test('Leere Eingaben behalten Zugangsdaten; explizites Löschen entfernt si
   });
   assert.throws(() => settingsPatch({ clearCredentials: ['discord'], discordWebhookUrl: secret }));
 });
+Deno.test('Neue und bestehende Konfigurationen erben den bisherigen Tonstatus', async () => {
+  const { ports, row } = fixture();
+  ports.read = async () => null;
+  const blank = (await handleWebhook({ action: 'read', workspaceId }, ports)) as ReturnType<
+    typeof publicSettings
+  >;
+  assert.equal(blank.soundEnabled, true);
+  assert.equal(blank.saleSoundEnabled, true);
+  row.sound_enabled = false;
+  ports.read = async () => row;
+  const legacy = (await handleWebhook({ action: 'read', workspaceId }, ports)) as ReturnType<
+    typeof publicSettings
+  >;
+  assert.equal(legacy.soundEnabled, false);
+  assert.equal(legacy.saleSoundEnabled, false);
+});
+Deno.test(
+  'Allgemeine und Verkaufstöne werden in allen Kombinationen getrennt gespeichert',
+  async () => {
+    for (const soundEnabled of [false, true]) {
+      for (const saleSoundEnabled of [false, true]) {
+        const { ports, row } = fixture();
+        const result = (await handleWebhook(
+          { action: 'save', workspaceId, settings: { soundEnabled, saleSoundEnabled } },
+          ports,
+        )) as ReturnType<typeof publicSettings>;
+        assert.equal(row.sound_enabled, soundEnabled);
+        assert.equal(row.sale_sound_enabled, saleSoundEnabled);
+        assert.equal(result.soundEnabled, soundEnabled);
+        assert.equal(result.saleSoundEnabled, saleSoundEnabled);
+        const read = await handleWebhook({ action: 'read', workspaceId }, ports);
+        assert.deepEqual(read, result);
+        assert.equal(row.discord_webhook_url, secret);
+      }
+    }
+  },
+);
+Deno.test('Teiländerungen erhalten den jeweils anderen Tonstatus', async () => {
+  const { ports, row } = fixture();
+  await handleWebhook(
+    { action: 'save', workspaceId, settings: { saleSoundEnabled: false } },
+    ports,
+  );
+  assert.equal(row.sound_enabled, true);
+  assert.equal(row.sale_sound_enabled, false);
+  await handleWebhook({ action: 'save', workspaceId, settings: { soundEnabled: false } }, ports);
+  assert.equal(row.sale_sound_enabled, false);
+});
+Deno.test('Beide Tonschalter akzeptieren ausschließlich boolesche Werte', async () => {
+  for (const key of ['soundEnabled', 'saleSoundEnabled']) {
+    for (const value of [null, 'true', 'false', 0, 1, [], {}]) {
+      const { ports, calls } = fixture();
+      await assert.rejects(
+        handleWebhook({ action: 'save', workspaceId, settings: { [key]: value } }, ports),
+      );
+      assert.equal(calls.includes('save'), false);
+    }
+  }
+});
 Deno.test('Discord- und Telegram-Adressen können nicht auf beliebige Server zeigen', async () => {
   for (const discordWebhookUrl of [
     'http://discord.com/api/webhooks/1/x',

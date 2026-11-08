@@ -1,5 +1,98 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Benachrichtigungstöne veröffentlichen
+
+**Freigabe:** Der Nutzer hat Branch-Push, PR, Merge nach erfolgreichen
+Pflichtprüfungen und anschließende Bereinigung ausdrücklich bestätigt. Der
+geprüfte Umsetzungsstand ist `3613159` auf `juna/notification-sounds`.
+`origin/master` wurde erneut abgerufen und enthält gegenüber der geprüften
+Grundlage keine zusätzlichen Commits.
+
+**Vorbereitung:** Nur dieser Freigabevermerk und der Abschlussstatus im Plan
+werden ergänzt. Der Anwendungscode, die Migration und die geprüfte Testauswahl
+bleiben identisch zum dokumentierten Stand. Erfolgreiche unveränderte lokale
+Prüfungen werden gemäß Projektregel wiederverwendet; Format und Prüfplan werden
+am finalen Dokumentationsstand erneut geprüft. Die vollständigen ausgewählten
+CI-Prüfungen müssen vor dem Merge-Commit erfolgreich abgeschlossen sein.
+
+## 2026-11-08 - Juna - Benachrichtigungstöne unabhängig schalten
+
+**Auftrag:** In den bestehenden Benachrichtigungseinstellungen einen allgemeinen
+Ton und einen separaten Verkaufston anbieten; beide unabhängig abschaltbar.
+Beim ausgeschalteten Verkaufston bleiben Verkäufe stumm. Vorhandene stille
+Konfigurationen bleiben bei der Erweiterung erhalten.
+
+**Grundlage:** Eigene frische Arbeitskopie, GitHub-Abgleich und neuer Zweig
+`juna/notification-sounds` von `origin/master` (`25eb50a`). Vorhandenen
+Workspace-Speicherweg, Benachrichtigungsquellen und Gestaltungsvertrag geprüft.
+Geplante Schritte und Prüfgrenzen stehen im
+[Umsetzungsplan](superpowers/plans/2026-11-08-notification-sounds.md).
+
+**Umsetzung:** Die bestehende Seite bietet „Allgemeiner Benachrichtigungston“
+und „Verkaufston“ mit unabhängigen Schaltern und je einer Vorschau. Probehören
+speichert nichts und erzeugt keine Benachrichtigung. Ein gemeinsamer
+Audiokontext erzeugt zwei eigene kurze Klänge, darunter einen Kassenton.
+Touch-, Tastatur- und Zeigereingaben können die Wiedergabe freigeben;
+gesperrte Meldungen werden nicht nachgeholt. Ressourcen werden beim Beenden
+freigegeben. Eigene Töne gelten für die geöffnete Web-App, nicht für den
+Systemton einer geschlossenen PWA.
+
+Die bestehenden lokalen Meldungen sowie Nachrichten-, Favoriten-, Bewertungs-
+und eBay-Feeds sind angebunden. Vinted `sale_sold` und Shopbestellungen verwenden
+den Verkaufston; eBay-Quellenprobleme bleiben allgemeine Hinweise. Erste
+Bestandsladung, bekannte IDs, ältere Historie, gelesene Meldungen und verworfene
+Workspace-Antworten bleiben stumm. Ein gemischter Feed-Batch spielt höchstens
+einen freigegebenen Ton, mit Vorrang für einen enthaltenen Verkauf.
+
+**Speicherung und Migration:** `webhook_configs.sale_sound_enabled` ist nullable.
+Ein fehlender Wert übernimmt den bisherigen allgemeinen Tonstatus; ausdrücklich
+gespeichertes `false` bleibt unabhängig erhalten. API, Formular und Speicher-RPC
+übertragen beide Werte. Vorhandene Zugangsdaten und Rechte bleiben erhalten.
+Migration `20261108075641_independent_notification_sounds.sql` wurde mit Migra
+zwischen zwei lokalen PostgreSQL-17.11-Schemata erzeugt. Anwendung auf einen
+zuvor angelegten stummen Altbestand und anschließender leerer Schema-Diff sind
+nachgewiesen. Automatische SQL-Formatierung änderte nur Keyword-Schreibweise;
+Funktionskörper und Literale blieben unverändert. Die drei neuen Typfelder
+stammen aus einer echten postgres-meta-0.100.0-Generierung; der übrige bestehende
+Typblock wurde dagegen abgeglichen und erhalten.
+
+**Gezielte Nachweise:** UI-Rot/Grün mit 25 bestandenen Benachrichtigungsfällen;
+76 bestandene Feed-/Mappingfälle in fünf Specs; getrennte Soundwahl,
+Browserunterbrechungen, Touch-Freigabe und stumme Historie durch Modell-/Service-
+Tests abgesichert. 12 Edge-Handlerfälle mit Deno 2.9.6 und 30 pgTAP-Fälle an der
+betroffenen lokalen Schema-Fixture bestanden. Die CI-Vorgabe Deno 2.9.7 wurde
+nicht geändert; diese Version war im verwendeten npm-Registry nicht verfügbar.
+Unabhängiges Code-Review ohne offene Befunde.
+
+**Abschließender Vorabcheck:** `npm run preflight:plan` und `npm run preflight`
+mit Node 22.23.4 ausgeführt. Migrationsumfang, SQL-Paket, Format, Lint,
+Typprüfung, Suite-Audit und 168 ausgewählte Skriptfälle bestanden. Die
+Orchestrierungsprüfung scheiterte zunächst an der zusätzlichen Warnung
+`UNDICI-EHPA` der Ausführungsumgebung und dem getrennten npm-Installationspfad.
+Mit ausschließlich dieser Warnung ausgeblendet und korrekt gesetztem
+`npm_config_prefix` bestanden alle 11 unveränderten Orchestrierungsfälle.
+Die Netzwerkkonfiguration und Anwendungsdateien wurden dafür nicht geändert.
+
+Den restlichen unveränderten lokalen Plan über die bestehenden
+`run-affected-tests.mjs`-/`runCiCheck`-Einstiegspunkte vollständig ausgeführt;
+Auswahlnachweis
+`332574d561dfe36569a368e511b43bc66e5c0d90be972dc729ae518a5382546a`
+vor dem Fortsetzen erneut geprüft. 904 Node-, 227 DOM- und 2.620 Angular-Tests
+bestanden (87/28/233 Dateien). Produktionsbuild einschließlich Angular-Vorlagen
+und PWA-Paket erfolgreich; 300 App-Dateien geprüft. Der Build meldet
+Warnungen zu ungenutzten Imports außerhalb des Änderungsumfangs, dem
+Initial-Bundle-Warnbudget (979,62 kB) und `pako` als CommonJS-Abhängigkeit.
+Kein neuer Anwendungslauf nach den abschließenden reinen Protokolländerungen;
+der abschließende Formatcheck umfasst auch diese Protokolländerungen.
+
+**Prüfgrenzen:** Der Browser konnte die lokale App wegen getrennter
+Loopback-Netze nicht erreichen. Gerenderte Formularinteraktionen wurden in
+Angular-DOM-Tests geprüft; echte Audiowiedergabe und die vollständigen
+Supabase-/Browser-/PWA-Freigabejobs stehen bis zur CI aus. Lokaler Commit im
+Aufgabenzweig vorbereitet; Veröffentlichung wartet auf die Freigabe gemäß
+`AGENTS.md`. Keine produktiven Datenbankänderungen, kein Branch-Push, kein PR
+und kein Merge in diesem Schritt.
+
 ## 2026-11-07 - Juna - Vollständige KI-Artikelrecherche zur Veröffentlichung freigeben
 
 **Freigabe:** Der Nutzer autorisiert Branch-Push, PR, erfolgreichen Merge und

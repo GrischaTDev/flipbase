@@ -8,6 +8,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { InventoryService } from '../../../core/services/inventory.service';
 import { StockService } from '../../../core/services/stock.service';
+import { WebhookService } from '../../../core/services/webhook.service';
 import { EbaySaleDraftsComponent } from '../components/ebay-sale-drafts/ebay-sale-drafts.component';
 const scope = { workspaceId: 'workspace-a', connectionId: 'connection-a' };
 const connection = {
@@ -17,6 +18,16 @@ const connection = {
   environment: 'production',
   username: 'seller',
   lastReadAt: null,
+};
+const notification = {
+  ...scope,
+  eventId: 1,
+  eventKey: 'ebay-sale:1',
+  orderId: 'order-1',
+  draftId: null,
+  state: 'needs_mapping',
+  createdAt: '2026-10-23T12:00:00Z',
+  readAt: null,
 };
 describe('Persönliche eBay-Aktivität', () => {
   let store: EbaySaleActivityStore;
@@ -31,25 +42,16 @@ describe('Persönliche eBay-Aktivität', () => {
   };
   let status: ReturnType<typeof vi.fn>;
   let stockReload: ReturnType<typeof vi.fn>;
+  let playSound: ReturnType<typeof vi.fn>;
   beforeEach(async () => {
     workspace.set({ id: scope.workspaceId });
     user.set({ id: 'user-a' });
     status = vi.fn(async () => ({ configured: true, importAvailable: true, connection }));
     stockReload = vi.fn(async () => undefined);
+    playSound = vi.fn();
     api = {
       loadDrafts: vi.fn(async () => []),
-      loadNotifications: vi.fn(async () => [
-        {
-          ...scope,
-          eventId: 1,
-          eventKey: 'ebay-sale:1',
-          orderId: 'order-1',
-          draftId: null,
-          state: 'needs_mapping',
-          createdAt: '2026-10-23T12:00:00Z',
-          readAt: null,
-        },
-      ]),
+      loadNotifications: vi.fn(async () => [notification]),
       loadReservations: vi.fn(async () => []),
       updateNotification: vi.fn(async () => undefined),
       resolveReservation: vi.fn(async () => undefined),
@@ -61,6 +63,7 @@ describe('Persönliche eBay-Aktivität', () => {
         { provide: EbayAccountApiService, useValue: { loadStatus: status } },
         { provide: AuthService, useValue: { currentUser: user } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
+        { provide: WebhookService, useValue: { playNotificationSound: playSound } },
         {
           provide: StockService,
           useValue: { loadedWorkspaceId: signal(scope.workspaceId), loadPositions: stockReload },
@@ -74,6 +77,7 @@ describe('Persönliche eBay-Aktivität', () => {
     store = TestBed.inject(EbaySaleActivityStore);
     TestBed.tick();
     await store.reload();
+    expect(playSound).not.toHaveBeenCalled();
     vi.clearAllMocks();
   });
   afterEach(() => TestBed.resetTestingModule());
@@ -85,6 +89,53 @@ describe('Persönliche eBay-Aktivität', () => {
     quantity: 1,
     createdAt: '2026-10-23T12:00:00Z',
   }));
+  it('meldet neue Verkäufe und Quellenprobleme einmal pro Batch ohne gelesene oder ältere Historie', async () => {
+    api.loadNotifications.mockResolvedValue([
+      notification,
+      { ...notification, eventId: 2, eventKey: 'ebay-sale:2', createdAt: '2026-10-23T12:01:00Z' },
+      {
+        ...notification,
+        eventId: 3,
+        eventKey: 'ebay-sale:3',
+        createdAt: '2026-10-23T12:01:00Z',
+        sourceIssues: ['canceled'],
+      },
+      {
+        ...notification,
+        eventId: 4,
+        eventKey: 'ebay-sale:4',
+        createdAt: '2026-10-23T12:01:00Z',
+        readAt: '2026-10-23T12:02:00Z',
+      },
+      { ...notification, eventId: 5, eventKey: 'ebay-sale:5', createdAt: '2026-10-22T12:00:00Z' },
+    ]);
+    await store.reload();
+    expect(playSound).toHaveBeenCalledExactlyOnceWith(['sale', 'alert']);
+    await store.reload();
+    expect(playSound).toHaveBeenCalledOnce();
+  });
+  it('nimmt nach geänderter Kontofreigabe einen stummen Bestand auf und meldet erst spätere Zugänge', async () => {
+    status.mockResolvedValue({
+      configured: true,
+      importAvailable: true,
+      connection: { ...connection, authorizationVersion: 2 },
+    });
+    const baseline = {
+      ...notification,
+      eventId: 2,
+      eventKey: 'ebay-sale:2',
+      createdAt: '2026-10-23T12:01:00Z',
+    };
+    api.loadNotifications.mockResolvedValue([baseline]);
+    await store.reload();
+    expect(playSound).not.toHaveBeenCalled();
+    api.loadNotifications.mockResolvedValue([
+      baseline,
+      { ...notification, eventId: 3, eventKey: 'ebay-sale:3', createdAt: '2026-10-23T12:02:00Z' },
+    ]);
+    await store.reload();
+    expect(playSound).toHaveBeenCalledExactlyOnceWith(['sale']);
+  });
   it.each(['booked', 'linked_existing'])(
     'zeigt konkrete spätere Erstattung für %s in der Glocke',
     async (state) => {
@@ -103,8 +154,10 @@ describe('Persönliche eBay-Aktivität', () => {
       ]);
       await store.reload();
       expect(store.notifications()[0].message).toContain('Erstattung');
+      expect(store.notifications()[0].type).toBe('alert');
       expect(store.notifications()[0].link).toContain('/sales/ebay/connection-a/order-1');
       expect(store.notifications()).toHaveLength(1);
+      expect(playSound).not.toHaveBeenCalled();
     },
   );
   it('schließt interne Freigaben trotz dauerhaft verweigertem Privatstatus ab und erlaubt die nächste Klärung', async () => {
@@ -262,6 +315,7 @@ describe('Persönliche eBay-Aktivität', () => {
       'read',
       'dismiss',
     ]);
+    expect(playSound).not.toHaveBeenCalled();
   });
   it('überschreibt einen bestätigten Lesestatus nicht durch einen älteren laufenden Abruf', async () => {
     await store.reload();
@@ -289,6 +343,7 @@ describe('Persönliche eBay-Aktivität', () => {
     ]);
     await refreshing;
     expect(store.notifications()[0].read).toBe(true);
+    expect(playSound).not.toHaveBeenCalled();
   });
   it('bestätigt eine alte Autorisierungsfassung nicht für Lesemutationen', async () => {
     await store.reload();

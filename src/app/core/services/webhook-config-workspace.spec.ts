@@ -67,5 +67,6 @@ describe('Webhook-Konfiguration beim Workspace-Wechsel', () => {
     expect(service.config().telegramBotToken).toBeUndefined();
     expect(service.config().hasTelegramCredentials).toBe(true);
     expect(service.config().soundEnabled).toBe(false);
+    expect(service.config().saleSoundEnabled).toBe(false);
   });
 });

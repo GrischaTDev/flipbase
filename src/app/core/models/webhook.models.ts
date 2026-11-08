@@ -14,6 +14,8 @@ export interface WebhookConfig {
   notifyOnPurchase: boolean;
   notifyOnLowMargin: boolean;
   soundEnabled: boolean;
+  /** Bei älteren Antworten übernimmt der Verkaufston den bisherigen Tonstatus. */
+  saleSoundEnabled?: boolean;
 }
 
 /**

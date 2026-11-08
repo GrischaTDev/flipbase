@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { WebhookService } from '../../../core/services/webhook.service';
 import { PlatformOperatorService } from '../../../core/services/platform-operator.service';
 import {
   MarketplaceFeedbackNotificationApiService,
@@ -33,6 +34,7 @@ let api: {
 let changed: () => void;
 let reconnected: () => void;
 let cleanup: ReturnType<typeof vi.fn>;
+let playSound: ReturnType<typeof vi.fn>;
 async function settle() {
   TestBed.tick();
   for (let index = 0; index < 12; index++) await Promise.resolve();
@@ -42,6 +44,7 @@ beforeEach(() => {
   workspace = { currentWorkspace: signal({ id: 'workspace-a', archived_at: null }) };
   operator = { operator: signal(true) };
   cleanup = vi.fn();
+  playSound = vi.fn();
   api = {
     read: vi.fn().mockImplementation(async (workspaceId: string) => ({
       workspaceId,
@@ -61,6 +64,7 @@ beforeEach(() => {
       MarketplaceFeedbackNotificationStore,
       { provide: MarketplaceFeedbackNotificationApiService, useValue: api },
       { provide: WorkspaceService, useValue: workspace },
+      { provide: WebhookService, useValue: { playNotificationSound: playSound } },
       { provide: PlatformOperatorService, useValue: operator },
       {
         provide: AuthService,
@@ -79,6 +83,29 @@ describe('Kontogebundene Bewertungsmeldungen außerhalb der Vinted-Ansicht', () 
     await settle();
     expect(store.notifications()[0].message).toContain('mitglied');
     expect(store.unreadCount()).toBe(67);
+    expect(playSound).not.toHaveBeenCalled();
+  });
+  it('meldet neue ungelesene Bewertungen einmal pro Batch und bleibt bei Wiederholung stumm', async () => {
+    const store = TestBed.inject(MarketplaceFeedbackNotificationStore);
+    await settle();
+    api.read.mockResolvedValue({
+      workspaceId: 'workspace-a',
+      items: [
+        item,
+        { ...item, id: '8', observedAt: '2026-10-01T12:01:00Z' },
+        { ...item, id: '9', observedAt: '2026-10-01T12:01:00Z' },
+        { ...item, id: '10', observedAt: '2026-10-01T12:01:00Z', read: true },
+        { ...item, id: 'old', observedAt: '2026-09-30T12:00:00Z' },
+      ],
+      unreadCount: 4,
+    });
+    changed();
+    await settle();
+    expect(playSound).toHaveBeenCalledExactlyOnceWith(['alert', 'alert']);
+    reconnected();
+    await settle();
+    await store.reload();
+    expect(playSound).toHaveBeenCalledOnce();
   });
   it('lädt Meldungen für den aktiven Workspace auch ohne Betreiberrolle', async () => {
     operator.operator.set(false);
@@ -123,6 +150,7 @@ describe('Kontogebundene Bewertungsmeldungen außerhalb der Vinted-Ansicht', () 
     );
     expect(store.unreadCount()).toBe(67);
     expect(cleanup).toHaveBeenCalled();
+    expect(playSound).not.toHaveBeenCalled();
   });
   it('entfernt Feed und Kanal bei archiviertem Workspace sofort', async () => {
     const store = TestBed.inject(MarketplaceFeedbackNotificationStore);
@@ -142,6 +170,13 @@ describe('Kontogebundene Bewertungsmeldungen außerhalb der Vinted-Ansicht', () 
     expect(store.notifications()).toEqual([]);
     expect(store.unreadCount()).toBe(0);
     expect(cleanup).toHaveBeenCalled();
+    api.read.mockResolvedValue({
+      workspaceId: 'workspace-a',
+      items: [{ ...item, id: 'new-baseline', observedAt: '2026-10-02T12:00:00Z' }],
+      unreadCount: 1,
+    });
+    await store.reload();
+    expect(playSound).not.toHaveBeenCalled();
   });
   it('markiert mit Workspacebindung und lädt das bestätigte Ergebnis', async () => {
     const store = TestBed.inject(MarketplaceFeedbackNotificationStore);

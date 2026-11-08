@@ -11,6 +11,7 @@ export interface WebhookRow {
   notify_on_purchase: boolean;
   notify_on_low_margin: boolean;
   sound_enabled: boolean;
+  sale_sound_enabled: boolean | null;
 }
 export const defaultSettings: WebhookRow = {
   discord_enabled: false,
@@ -24,6 +25,7 @@ export const defaultSettings: WebhookRow = {
   notify_on_purchase: true,
   notify_on_low_margin: true,
   sound_enabled: true,
+  sale_sound_enabled: null,
 };
 
 export function publicSettings(row: WebhookRow) {
@@ -38,6 +40,7 @@ export function publicSettings(row: WebhookRow) {
     notifyOnPurchase: row.notify_on_purchase,
     notifyOnLowMargin: row.notify_on_low_margin,
     soundEnabled: row.sound_enabled,
+    saleSoundEnabled: row.sale_sound_enabled ?? row.sound_enabled,
   };
 }
 
@@ -76,7 +79,7 @@ export function customTarget(secret: string): URL {
 export function settingsPatch(input: unknown): Record<string, boolean | string | null> {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new Error('Ungültige Einstellungen');
-  const fields: Record<string, string> = {
+  const fields: Record<string, keyof WebhookRow> = {
     discordEnabled: 'discord_enabled',
     discordWebhookUrl: 'discord_webhook_url',
     telegramEnabled: 'telegram_enabled',
@@ -88,6 +91,7 @@ export function settingsPatch(input: unknown): Record<string, boolean | string |
     notifyOnPurchase: 'notify_on_purchase',
     notifyOnLowMargin: 'notify_on_low_margin',
     soundEnabled: 'sound_enabled',
+    saleSoundEnabled: 'sale_sound_enabled',
   };
   const patch: Record<string, boolean | string | null> = {};
   for (const [key, value] of Object.entries(input)) {

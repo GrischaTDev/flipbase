@@ -209,7 +209,7 @@ export function messageNotificationToInbox(item: MessageNotification): AppNotifi
   const sender = (kind === 'message' || kind === 'offer_received') && item.senderName;
   return {
     id: 'marketplace-message:' + item.id,
-    type: 'alert',
+    type: kind === 'sale_sold' ? 'sale' : 'alert',
     title: title + (sender ? ' von ' + sender : ''),
     message: 'Vinted-Konto: ' + item.accountName + '.',
     timestamp: item.observedAt,
