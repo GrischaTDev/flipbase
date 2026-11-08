@@ -71,6 +71,15 @@ test('only a bound cloud claim becomes a tokenless frozen listing scope', async 
     outcome: 'outcome_unknown',
     errorCode: 'timeout',
   });
+  assert.equal('p_stage' in (f.calls.at(-1)?.body ?? {}), false);
+  // Die nachgebildete Antwort gehört zum vorigen Ergebnis; hier zählt nur die gesendete Anfrage.
+  await f.store
+    .finish(claim, { outcome: 'failed', errorCode: 'provider_unavailable' }, 'values')
+    .catch(() => undefined);
+  assert.equal(f.calls.at(-1)?.body.p_stage, 'values');
+  await assert.rejects(
+    f.store.finish(claim, { outcome: 'failed', errorCode: 'provider_unavailable' }, 'Werte!'),
+  );
 });
 
 test('photo output options stay frozen separately from immutable original image metadata', async () => {

@@ -268,5 +268,16 @@ reset role;
 update public.marketplace_connections set external_account_id='46599' where id='46500000-0000-4000-8000-000000000021';
 set local role authenticated;
 select is(jsonb_array_length(public.marketplace_read_listing_photo_sources('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',array['76543'])->'items'),0,'Neu gekoppeltes Konto übernimmt keine Originale des vorigen Vinted-Kontos');
+-- Der Schritt eines vor dem Schreiben gescheiterten Versuchs erscheint im Fehlerprotokoll.
+reset role;
+select is((select pronargs::integer from pg_proc where proname='marketplace_cloud_listing_finish'),8,'Der Cloud-Abschluss nimmt den Schritt eines gescheiterten Versuchs an');
+set local role service_role;
+select throws_ok($$select public.marketplace_cloud_listing_finish('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','1','46500000-0000-4000-8000-000000000099','46500000-0000-4000-8000-000000000051',1,'{"outcome":"failed","errorCode":"provider_unavailable"}','Werte!')$$,'22023',null,'Ungültige Schrittnamen werden abgelehnt');
+reset role;
+update public.marketplace_listing_jobs set state='queued',error_code=null where id=(select (job->>'id')::bigint from cloud_listing_context);
+update public.marketplace_listing_jobs set stage='values' where id=(select (job->>'id')::bigint from cloud_listing_context);
+update public.marketplace_listing_jobs set state='failed',error_code='provider_unavailable' where id=(select (job->>'id')::bigint from cloud_listing_context);
+select is((select detail->>'stage' from public.platform_error_events where source='marketplace_listing_jobs' and reference_id=(select job->>'id' from cloud_listing_context) order by id desc limit 1),'values','Das Fehlerprotokoll nennt den gescheiterten Schritt');
+select throws_ok($$update public.marketplace_listing_jobs set stage='Werte!'$$,'23514',null,'Die Spalte nimmt nur gültige Schrittnamen an');
 select * from finish();
 rollback;

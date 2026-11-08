@@ -56,6 +56,7 @@ create table public.marketplace_listing_jobs (
   time_zone text,
   late_policy text not null default 'pause_after_30_minutes' check (late_policy in ('pause_after_30_minutes','publish_when_available')),
   error_code text check (error_code ~ '^[a-z_]{1,80}$'),
+  stage text check (stage ~ '^[a-z_]{1,40}$'),
   editing_previous_state text check (editing_previous_state in ('queued','paused','failed','cancelled')),
   editing_previous_error_code text check (editing_previous_error_code ~ '^[a-z_]{1,80}$'),
   relist_imported_at timestamptz,
@@ -74,6 +75,7 @@ create table public.marketplace_listing_jobs (
   check (state<>'confirmed' or (external_id is not null and provider_state is not null and verified_at is not null))
 );
 comment on table public.marketplace_listing_jobs is 'Dauerhafte Inhalts- und Fotoaufnahme mit festem Konto und Ausführer; queued bestätigt ausschließlich die lokale Auftragsannahme.';
+comment on column public.marketplace_listing_jobs.stage is 'Schritt, an dem ein Cloud-Versuch vor dem Schreiben gescheitert ist (etwa values oder category_path); erscheint im Fehlerprotokoll der Administration.';
 comment on column public.marketplace_listing_jobs.relist_entry_id is 'Stabile Flipbase-Karte eines Relists; Anbieterkennungen wechseln erst mit belegter Veröffentlichung. Ältere Aufträge werden im normalen Ablauf gebunden.';
 create unique index marketplace_listing_jobs_one_unresolved on public.marketplace_listing_jobs(draft_id) where state in ('queued','paused','claimed','writing','outcome_unknown');
 create unique index marketplace_listing_jobs_one_relisting on public.marketplace_listing_jobs(connection_id,(snapshot->>'relistExternalId'))

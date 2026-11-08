@@ -88,10 +88,11 @@ begin
 end;
 $$;
 
-create or replace function public.marketplace_cloud_listing_finish(p_workspace_id uuid,p_connection_id uuid,p_job_id text,p_claim_token uuid,p_worker_id uuid,p_worker_epoch bigint,p_result jsonb)
+create or replace function public.marketplace_cloud_listing_finish(p_workspace_id uuid,p_connection_id uuid,p_job_id text,p_claim_token uuid,p_worker_id uuid,p_worker_epoch bigint,p_result jsonb,p_stage text default null)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
 declare v_job public.marketplace_listing_jobs;
 begin
+  if p_stage is not null and p_stage !~ '^[a-z_]{1,40}$' then raise exception 'Ungültiger Schritt.' using errcode='22023'; end if;
   perform pg_advisory_xact_lock(91731,1);
   -- Späte Belege benötigen die ursprüngliche Kennung; neue Schreibaktionen bleiben gesperrt.
   select * into v_job from public.marketplace_listing_jobs where workspace_id=p_workspace_id and id=p_job_id::bigint and execution_mode='cloud'
@@ -114,9 +115,14 @@ begin
       where id=v_job.id returning * into v_job;
     return public.marketplace_listing_job_document(v_job);
   end if;
+  -- Der Schritt eines gescheiterten Versuchs steht vor dem Statuswechsel fest, damit ihn das
+  -- Fehlerprotokoll der Administration mit übernimmt.
+  if p_stage is not null and p_result->>'outcome' in ('failed','outcome_unknown') then
+    update public.marketplace_listing_jobs set stage=p_stage where id=v_job.id returning * into v_job;
+  end if;
   return public.marketplace_listing_finish_job(v_job,p_result);
 end;
 $$;
 
-revoke all on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb) from public,anon,authenticated;
-grant execute on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb) to service_role;
+revoke all on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb,text) from public,anon,authenticated;
+grant execute on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb,text) to service_role;

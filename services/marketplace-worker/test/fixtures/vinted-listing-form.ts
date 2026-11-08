@@ -135,7 +135,7 @@ export async function createVintedListingFormFixture(
       ${options.publishing ? '<div data-testid="media-upload-grid"></div><input type="checkbox" id="ai_photo"><input type="checkbox" id="bump">' : ''}
       ${contentControls}
       ${selectionControls}
-      ${options.unknown ? '<input id="isbn" name="isbn">' : ''}
+      ${options.unknown ? '<input id="warranty_code" name="warranty_code">' : ''}
       <div hidden id="category-options"><button type="button" id="catalog-5">Herren</button>${options.categoryLoadingDelayMs ? '<div id="category-previous-leaves"><div role="radio" id="catalog-999" aria-checked="false">Vorherige Kategorie</div></div>' : ''}<div hidden id="category-leaves"><div role="radio" id="catalog-1223" aria-checked="false"><div class="web_ui__Cell__title">Bomberjacken</div></div></div></div>
       <div hidden id="brand-options"><div id="brand-popular"><div role="radio" id="empty-brand" aria-label="Keine Marke" aria-checked="false">Keine Marke</div></div>
       ${options.brandSearch ? `<input id="brand-search-input" data-testid="brand-search--input" placeholder="Marke suchen"><div id="brand-results" hidden><div role="radio" id="brand-317425" aria-label="Jako-o" aria-checked="false">Jako-o</div>${options.brandSearch === 'custom_only' ? '' : `<div role="radio" id="brand-254956" aria-label="${options.brandSearch === 'wrong_label' ? 'Falsche Marke' : 'Jako'}" aria-checked="false">Jako</div>`}<div role="radio" id="custom-select-brand-radio" aria-checked="false">Jako als Markenname nutzen</div></div>` : ''}</div>

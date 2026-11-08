@@ -64,7 +64,7 @@ async function fixture(
       <input name="photos" type="file" accept="image/jpeg,image/png"><input name="title" value="Meine Schuhe"><textarea name="description">Sehr gut erhalten.</textarea><input name="price" value="20,50 €">
       ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox" checked>'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
       ${options.categoryControl === 'non-input' ? '<span id="category">Fußballschuhe</span>' : `<input id="category" readonly value="${options.categoryControl === 'empty' ? '' : options.categoryControl === 'long' ? 'x'.repeat(201) : 'Fußballschuhe'}">`}${options.categoryControl === 'duplicate' ? '<input id="category" readonly value="Fußballschuhe">' : ''}<input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"${options.hiddenCondition ? ' hidden' : ''}><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
-      ${options.unknown ? '<input name="isbn" id="isbn" value="Unbekanntes Merkmal">' : ''}
+      ${options.unknown ? '<input name="warranty_code" id="warranty_code" value="Unbekanntes Merkmal">' : ''}
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div><div role="button" id="catalog-1904">Damen</div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden><input id="brand-search-input" data-testid="brand-search--input">${options.brandSearch ? '' : '<div role="radio" id="suggested-brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div>'}<div role="radio" id="brand-1" aria-checked="false" aria-disabled="true">Gesperrte Marke</div></div>
       <div id="size-options" hidden><div role="checkbox" data-testid="size-group-31-grid-option-607" aria-checked="true">38</div></div>
@@ -194,7 +194,7 @@ test('keeps unknown fields visible and rejects foreign accounts, changed content
     const result = await readVintedListingCurrentContent(page, '123', '98765', () =>
       Promise.resolve(),
     );
-    assert.deepEqual(result.schema.unknownFields, ['isbn']);
+    assert.deepEqual(result.schema.unknownFields, ['warranty_code']);
     assert.equal(writes(), 0);
     for (const [options, step] of [
       [{ foreign: true }, 'identity'],

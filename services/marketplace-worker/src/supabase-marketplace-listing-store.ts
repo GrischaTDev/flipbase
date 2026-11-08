@@ -193,7 +193,12 @@ export class SupabaseMarketplaceListingStore {
       throw new Error('Das Foto konnte nicht geladen werden.');
     }
   }
-  async finish(claim: CloudListingClaim, result: MarketplaceListingResult): Promise<void> {
+  /** `stage` nennt den Schritt, an dem ein Versuch vor dem Schreiben gescheitert ist. */
+  async finish(
+    claim: CloudListingClaim,
+    result: MarketplaceListingResult,
+    stage?: string,
+  ): Promise<void> {
     if (
       result.outcome === 'relisting_deleted' &&
       (claim.snapshot.relistStage !== 'delete' ||
@@ -201,9 +206,11 @@ export class SupabaseMarketplaceListingStore {
     )
       throw invalid();
     if (!isVintedListingResult(result, claim.action, claim.accountId)) throw invalid();
+    if (stage !== undefined && !/^[a-z_]{1,40}$/.test(stage)) throw invalid();
     const input = await this.rpc('marketplace_cloud_listing_finish', {
       ...this.binding(claim),
       p_result: result,
+      ...(stage && result.outcome !== 'confirmed' ? { p_stage: stage } : {}),
     });
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw invalid();
     const document = input as Record<string, unknown>;

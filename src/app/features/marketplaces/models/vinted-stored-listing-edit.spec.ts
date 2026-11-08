@@ -217,7 +217,12 @@ describe('Kombinierte Größen älterer Inserate', () => {
       },
       account,
     ).items[0];
-    const stored = storedVintedListingEdit(entry, live.content.description, catalog)!;
+    const stored = storedVintedListingEdit(
+      // Ungekürzte alte Angabe, wie sie im gespeicherten Inhalt stehen kann.
+      { ...entry, size: 'M / 38 / 10' },
+      live.content.description,
+      catalog,
+    )!;
     const fresh = {
       ...live,
       content: { ...live.content, sizeId: 207, sizeLabel: 'M' },

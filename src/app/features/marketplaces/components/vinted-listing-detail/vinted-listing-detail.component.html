@@ -1,4 +1,4 @@
-@if (!editing()) {
+@if (!editing() && !openingEdit()) {
   <div class="mb-4 flex items-center justify-between gap-3">
     <app-button
       #priceReturnLink
@@ -22,7 +22,7 @@
 @if (notice(); as message) {
   <app-notice-banner class="mb-4">{{ message }}</app-notice-banner>
 }
-@if (loading()) {
+@if (loading() || (openingEdit() && !editing())) {
   <p role="status" class="text-sm text-fb-text-secondary">Inserat wird geladen …</p>
 } @else if (editing() && entry(); as item) {
   <app-entry-page-layout
