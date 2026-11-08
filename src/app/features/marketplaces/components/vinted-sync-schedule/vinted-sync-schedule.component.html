@@ -14,7 +14,7 @@
   }
   @if (pausedText(); as text) {
     <app-notice-banner class="mt-2">{{ text }}</app-notice-banner>
-  } @else if (schedule.enabled && !store.availability().enabled && !store.loading()) {
+  } @else if (schedule.enabled && store.serviceUnreachable()) {
     <p role="status" class="mt-1 text-xs text-fb-text-secondary">
       Automatikdienst nicht erreichbar
     </p>

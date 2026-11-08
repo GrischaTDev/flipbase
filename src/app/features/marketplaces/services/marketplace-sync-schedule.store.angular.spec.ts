@@ -45,7 +45,7 @@ let api: {
   availability: ReturnType<typeof vi.fn>;
 };
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
   workspace = signal<{ id: string; archived_at?: string } | null>({ id: accountA.workspaceId });
   user = signal<{ id: string } | null>({ id: 'user-a' });
   api = {
@@ -289,6 +289,38 @@ describe('Kontogebundene automatische Aktualisierung', () => {
       1,
     );
     expect(store.schedule()?.nextDueAt).toBe('2026-10-01T12:15:00Z');
+  });
+  it('meldet den Automatikdienst nach einem einzelnen Aussetzer nicht als unerreichbar', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    await settle();
+    expect(store.availability().enabled).toBe(true);
+    api.availability.mockResolvedValueOnce({ enabled: false, allowedIntervals: [] });
+    await vi.advanceTimersByTimeAsync(30_000);
+    await settle();
+    expect(store.serviceUnreachable()).toBe(false);
+    expect(store.availability().enabled).toBe(true);
+    await vi.advanceTimersByTimeAsync(3_000);
+    await settle();
+    expect(store.serviceUnreachable()).toBe(false);
+    expect(api.availability).toHaveBeenCalledTimes(3);
+  });
+  it('meldet den Automatikdienst nach zwei Fehlschlägen in Folge als unerreichbar', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    api.availability.mockResolvedValue({ enabled: false, allowedIntervals: [] });
+    await settle();
+    expect(store.serviceUnreachable()).toBe(false);
+    await vi.advanceTimersByTimeAsync(3_000);
+    await settle();
+    expect(store.serviceUnreachable()).toBe(true);
+  });
+  it('lädt beim Zurückkehren in die App sofort neu', async () => {
+    await settle();
+    const reads = api.read.mock.calls.length;
+    const health = api.availability.mock.calls.length;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(api.read).toHaveBeenCalledTimes(reads + 1);
+    expect(api.availability).toHaveBeenCalledTimes(health + 1);
   });
   it('aktiviert bei einem alten oder inzwischen ausgefallenen Worker nicht', async () => {
     api.availability.mockResolvedValue({ enabled: false, allowedIntervals: [] });

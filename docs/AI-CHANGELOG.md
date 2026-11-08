@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-07 - Juna - Vinted-Automatik nach Aussetzern stabilisieren
+
+**Anlass:** Am Morgen wirkten alle Konten auf dem Handy veraltet, und es erschien
+„Automatik nicht erreichbar“. Produktionsdaten und Worker nur lesend geprüft
+(nach ausdrücklicher Freigabe). Maike Vintage und Flipbase liefen die ganze
+Nacht durch. Beim Wiehen Store wurde ein zeitgesteuerter Abruf am 06.11. um
+16:26 abgebrochen, während seine Browsersitzung noch lief („cleanup“). Das schaltete
+die Automatik dauerhaft ab, bis sie um 01:35 von Hand wieder angestoßen wurde.
+Die Worker-Logs von 16:26 gingen beim Update um 21:26 verloren. In den letzten 14
+Tagen war das der einzige „cleanup“-Fall.
+
+**Umsetzung:** `marketplace_sync_finish` behandelt „cleanup“ jetzt wie einen
+Netzfehler: begrenzte Wiederholung nach 30 und 60 Minuten, erst danach
+`retry_limit`. Der Dispatcher startet weiterhin keinen Browser, solange eine
+Sitzung aktiv ist oder beendet wird. In der App holen Kontenliste und Zeitplan
+beim Zurückkehren auf die Seite (`visibilitychange`) sofort den Serverstand.
+„Automatik nicht erreichbar“ erscheint erst, wenn die Prüfung zweimal in Folge
+scheitert. Nach dem ersten Fehlschlag wird nach 3 Sekunden erneut geprüft.
+
+**Nachtrag Aufwecken:** Weitere Meldungen nach dem Aufwecken des Handys
+(„kein Verwaltungszugriff“, „laufende Aktionen konnten nicht aktualisiert werden“)
+hatten eine gemeinsame Ursache. Der Zugriffstoken war abgelaufen, die Erneuerung
+scheiterte am noch fehlenden Netz, und Supabase schickte die Datenanfrage dann
+anonym oder mit abgelaufenem Token (`PGRST301`). `SupabaseService` nutzt jetzt
+eine eigene Fetch-Hülle (`supabase-wake-up-fetch.ts`). Sie wiederholt eine solche
+Anfrage bei bestehender Anmeldung genau einmal mit frisch bestätigtem Token.
+Anmeldeaufrufe und nicht erneut lesbare Inhalte bleiben unberührt.
+
+**Nachweise:** Betroffene Angular-Specs unter Node 22 (4 Dateien, 138 Tests)
+bestanden. pgTAP `marketplace-sync-scheduling` mit neuer Migration in einer
+zurückgerollten Transaktion gegen die lokale Datenbank: 125/125, davon 10 neue
+Fälle. Kontrolliert, dass in der lokalen Datenbank nichts zurückblieb.
+
 ## 2026-11-08 - Juna - Benachrichtigungstöne veröffentlichen
 
 **Freigabe:** Der Nutzer hat Branch-Push, PR, Merge nach erfolgreichen
