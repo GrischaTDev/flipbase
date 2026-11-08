@@ -404,10 +404,11 @@ for (const width of [390, 1440])
       await detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('18,00');
       expect(saves).toEqual([]);
       await detail.getByRole('button', { name: 'Speichern', exact: true }).click();
+      // Die Bearbeitung schließt sofort; gespeichert wird als Aktion in der Übersicht.
+      await expect(page).toHaveURL(/\/marketplaces\/vinted\/listings$/);
       await expect(page.locator('app-toast-container')).toContainText(
-        'Inserat erfolgreich geändert',
+        'Inserat erfolgreich aktualisiert',
       );
-      await expect(detail).not.toContainText('Die Änderung wurde bei Vinted bestätigt.');
       expect(saves).toEqual([
         {
           workspaceId,
@@ -416,9 +417,6 @@ for (const width of [390, 1440])
           fields: { title: 'Unvollständiger Entwurf', description: '', price: '18,00' },
         },
       ]);
-      await expect(
-        detail.locator('app-badge').getByText('Vinted-Entwurf', { exact: true }),
-      ).toBeVisible();
       await screenshot(page, `vinted-native-draft-${width}-${theme}`);
     });
   }
@@ -1363,7 +1361,7 @@ for (const width of [1440, 390]) {
       });
       await page.route('**/marketplace-browser/listings/content/save', (route) => {
         saves.push(route.request().postDataJSON() as Record<string, unknown>);
-        return route.fulfill({ json: { status: saves.length === 1 ? 'conflict' : 'confirmed' } });
+        return route.fulfill({ json: { status: saves.length === 2 ? 'conflict' : 'confirmed' } });
       });
       await page.goto(detailPath);
       const detail = page.locator('app-vinted-listing-detail');
@@ -1442,18 +1440,15 @@ for (const width of [1440, 390]) {
       const save = detail.getByRole('button', { name: 'Speichern', exact: true });
       expect(reads).toEqual([]);
       await save.click();
-      expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
-      await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
-      await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Neue Schuhe');
-      await save.click();
+      // Die Bearbeitung schließt sofort; gespeichert wird als Aktion in der Übersicht.
+      await expect(page).toHaveURL(/\/marketplaces\/vinted\/listings$/);
       await expect(page.locator('app-toast-container')).toContainText(
-        'Inserat erfolgreich geändert',
+        'Inserat erfolgreich aktualisiert',
       );
-      await expect(detail).not.toContainText('Die Änderung wurde bei Vinted bestätigt.');
-      await expect(detail.getByRole('heading', { name: 'Neue Schuhe' })).toBeVisible();
+      expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
       const base = listingCurrentContentFixture().content;
-      expect(saves).toHaveLength(2);
-      expect(saves[1]).toEqual({
+      expect(saves).toHaveLength(1);
+      expect(saves[0]).toEqual({
         workspaceId,
         connectionId: accountIds[0],
         entryId,
@@ -1470,6 +1465,18 @@ for (const width of [1440, 390]) {
           desired: [...listingCurrentContentFixture().photoUrls].reverse(),
         },
       });
+      // Ein Konflikt erscheint in der Aktionsübersicht; die Bearbeitung ist dann schon geschlossen.
+      await page.goto(detailPath);
+      await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+      await detail.getByRole('textbox', { name: 'Titel' }).fill('Andere Schuhe');
+      await detail.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await expect(page).toHaveURL(/\/marketplaces\/vinted\/listings$/);
+      await expect(page.locator('[data-action-overview-error]')).toBeVisible();
+      await page.locator('[data-action-overview-trigger]').click();
+      await expect(page.locator('#header-action-overview')).toContainText(
+        'inzwischen bei Vinted geändert',
+      );
+      expect(saves).toHaveLength(2);
       await checkPage(page, errors);
     });
   });

@@ -27,6 +27,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
@@ -103,6 +104,7 @@ export class VintedListingDetailComponent {
   readonly store = inject(MarketplaceAccountStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly operations = inject(VintedListingOperationStore);
   private readonly destroy = inject(DestroyRef);
   private readonly builder = inject(FormBuilder);
   private readonly injector = inject(Injector);
@@ -657,23 +659,50 @@ export class VintedListingDetailComponent {
     this.brandValue.set(value);
     this.brandPending.set(false);
   }
+  /** Laufende Speicherung im Hintergrund; die Ansicht ist dann bereits geschlossen. */
+  savingTask: Promise<void> | null = null;
+
+  /** Übergibt die Bearbeitung an die Aktionsübersicht und kehrt sofort in den Kleiderschrank zurück. */
   async save(): Promise<void> {
     if (this.form.invalid || this.busy() || !this.canSave()) {
       this.form.markAllAsTouched();
       return;
     }
-    const version = this.requestVersion;
-    this.busy.set(true);
+    const entry = this.entry();
+    if (!entry) return;
+    if (this.operations.isRunning(entry)) {
+      this.error.set(
+        'Für dieses Inserat läuft bereits eine Aktion. Warte, bis sie abgeschlossen ist.',
+      );
+      return;
+    }
+    const task = this.saveTask();
     this.error.set(null);
-    try {
-      const current = this.current();
-      const fields = this.form.getRawValue();
+    this.notice.set(null);
+    this.editing.set(false);
+    this.current.set(null);
+    this.arrangedPhotos.set(null);
+    // Fehler zeigt die Aktionsübersicht; hier bleibt nichts offen.
+    this.savingTask = this.operations.updateListing(entry, task).catch(() => undefined);
+    await this.router.navigate(['/marketplaces/vinted/listings']);
+  }
+
+  /** Hält alle Eingaben fest, damit das Speichern unabhängig von dieser Ansicht weiterläuft. */
+  private saveTask(): () => Promise<void> {
+    const store = this.store;
+    const connectionId = this.connectionId();
+    const entryId = this.entryId();
+    const current = this.current();
+    const fields = this.form.getRawValue();
+    const initial = this.initialFields;
+    const categoryEdit = this.categoryEdit();
+    const extras = this.extraValues();
+    const arranged = this.arrangedPhotos();
+    return async () => {
       if (!current) {
-        const fresh = await this.store.readListingEdit(this.connectionId(), this.entryId());
-        if (!this.isCurrent(version)) return;
-        const initial = this.initialFields;
+        const fresh = await store.readListingEdit(connectionId, entryId);
         const priceCents = parseVintedListingReadPriceCents(fresh.price);
-        const basic = {
+        await store.saveListingEdit(connectionId, entryId, {
           title: fields.title === initial?.title ? fresh.title : fields.title,
           description:
             fields.description === initial?.description ? fresh.description : fields.description,
@@ -681,32 +710,12 @@ export class VintedListingDetailComponent {
             fields.price === initial?.price && priceCents !== null
               ? vintedListingPriceText(priceCents)
               : fields.price,
-        };
-        await this.store.saveListingEdit(this.connectionId(), this.entryId(), basic);
-        if (!this.isCurrent(version)) return;
-        this.editing.set(false);
-        this.loadedEntry.update((entry) =>
-          entry
-            ? {
-                ...entry,
-                title: basic.title,
-                text: basic.description,
-                textState: 'loaded',
-                price: Number(basic.price.replace(',', '.')),
-              }
-            : entry,
-        );
-        this.description.set({ description: basic.description, cacheState: 'unconfirmed' });
-        this.notice.set(null);
-        this.toast.success('Inserat erfolgreich geändert');
+        });
         return;
       }
-      const fresh = await this.store.readListingContent(this.connectionId(), this.entryId());
-      if (!this.isCurrent(version)) return;
-      const categoryEdit = this.categoryEdit();
+      const fresh = await store.readListingContent(connectionId, entryId);
       let content;
       if (categoryEdit && categoryEdit.content.categoryId !== current.content.categoryId) {
-        const initial = this.initialFields;
         if (!initial) throw new Error('Lade das Inserat erneut.');
         const merged = applyStoredVintedListingEdit(current, fresh, {
           ...initial,
@@ -737,58 +746,19 @@ export class VintedListingDetailComponent {
       } else {
         content = applyStoredVintedListingEdit(current, fresh, fields);
       }
-      const extras = this.extraValues();
       if (extras && extras.categoryId === content.categoryId)
         content = {
           ...content,
           attributes: withVintedListingExtraValues(content.attributes, extras.values),
         };
-      const arranged = this.arrangedPhotos();
       const photos = arranged ? { base: current.photoUrls, desired: arranged } : undefined;
-      await this.store.saveListingContent(
-        this.connectionId(),
-        this.entryId(),
+      await store.saveListingContent(
+        connectionId,
+        entryId,
         fresh.content,
         content,
         ...(photos ? [photos] : []),
       );
-      if (!this.isCurrent(version)) return;
-      this.editing.set(false);
-      this.current.set(null);
-      this.loadedEntry.update((entry) =>
-        entry
-          ? {
-              ...entry,
-              listingContent: content,
-              title: content.title,
-              text: content.description,
-              textState: 'loaded',
-              price: (content.priceCents ?? 0) / 100,
-              brand: content.brandLabel || null,
-              size: content.sizeLabel || null,
-              status: content.conditionLabel || entry.status,
-              ...(photos
-                ? {
-                    providerImageUrls: [...photos.desired],
-                    imageUrl: photos.desired[0] ?? null,
-                    imageUrls: [...photos.desired],
-                  }
-                : {}),
-            }
-          : entry,
-      );
-      this.arrangedPhotos.set(null);
-      this.selectedPhoto.set(photos?.desired[0] ?? this.selectedPhoto());
-      this.description.set({ description: content.description, cacheState: 'unconfirmed' });
-      this.notice.set(null);
-      this.toast.success('Inserat erfolgreich geändert');
-    } catch (error) {
-      if (this.isCurrent(version))
-        this.error.set(
-          error instanceof Error ? error.message : 'Die Änderung konnte nicht bestätigt werden.',
-        );
-    } finally {
-      if (this.isCurrent(version)) this.busy.set(false);
-    }
+    };
   }
 }
