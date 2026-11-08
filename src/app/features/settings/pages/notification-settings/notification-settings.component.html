@@ -281,13 +281,45 @@
           size="lg"
           formControlName="notifyOnPurchase"
           label="Neue Einkäufe"
-        /><app-custom-checkbox
-          presentation="row"
-          size="lg"
-          formControlName="soundEnabled"
-          label="Ton in Flipbase bei Verkäufen"
         />
       </div>
+      <fieldset class="space-y-3">
+        <legend class="mb-3 text-sm font-semibold text-fb-text-primary">Töne in Flipbase</legend>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <app-custom-checkbox
+            presentation="row"
+            size="lg"
+            formControlName="soundEnabled"
+            label="Allgemeiner Benachrichtigungston"
+          />
+          <app-button
+            type="button"
+            size="md"
+            variant="secondary"
+            [icon]="volumeIcon"
+            ariaLabel="Allgemeinen Benachrichtigungston probehören"
+            (clicked)="onPreviewSound('general')"
+            >Probehören</app-button
+          >
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <app-custom-checkbox
+            presentation="row"
+            size="lg"
+            formControlName="saleSoundEnabled"
+            label="Verkaufston"
+          />
+          <app-button
+            type="button"
+            size="md"
+            variant="secondary"
+            [icon]="volumeIcon"
+            ariaLabel="Verkaufston probehören"
+            (clicked)="onPreviewSound('sale')"
+            >Probehören</app-button
+          >
+        </div>
+      </fieldset>
       <div class="flex justify-end">
         <app-button
           [wrapLabel]="true"

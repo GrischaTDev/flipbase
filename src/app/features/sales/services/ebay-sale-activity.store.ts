@@ -3,6 +3,8 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { InventoryService } from '../../../core/services/inventory.service';
 import { StockService } from '../../../core/services/stock.service';
+import { WebhookService } from '../../../core/services/webhook.service';
+import { NotificationArrivalTracker } from '../../../core/models/notification-arrival-tracker';
 import type { AppNotification } from '../../../core/models/webhook.models';
 import type { EbayConnection } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import type {
@@ -57,6 +59,8 @@ export class EbaySaleActivityStore {
   private readonly stock = inject(StockService);
   private readonly inventory = inject(InventoryService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly webhook = inject(WebhookService);
+  private readonly notificationArrivals = new NotificationArrivalTracker();
   private readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
     const workspace = this.workspace.currentWorkspace();
@@ -87,7 +91,7 @@ export class EbaySaleActivityStore {
     this.context() === this.loadedContext() && connectionKey(this.connection())
       ? this.events().map((event) => ({
           id: event.eventKey,
-          type: 'sale',
+          type: event.sourceIssues?.length ? 'alert' : 'sale',
           title: 'eBay-Verkauf prüfen',
           message: `${event.orderId} · ${event.sourceIssues?.length ? event.sourceIssues.map(ebaySourceIssueLabel).join(' ') : ebayDraftStateLabel(event.state)}`,
           timestamp: event.createdAt,
@@ -107,6 +111,7 @@ export class EbaySaleActivityStore {
         this.inFlight = null;
         this.rows.set([]);
         this.events.set([]);
+        this.notificationArrivals.reset();
         this.held.set([]);
         this.connection.set(null);
         this.error.set(null);
@@ -126,6 +131,7 @@ export class EbaySaleActivityStore {
       this.resolutionRevision++;
       this.rows.set([]);
       this.events.set([]);
+      this.notificationArrivals.reset();
       this.held.set([]);
     });
   }
@@ -160,6 +166,7 @@ export class EbaySaleActivityStore {
         if (statusResult.status === 'rejected') {
           this.rows.set([]);
           this.events.set([]);
+          this.notificationArrivals.reset();
           this.connection.set(null);
           this.mutationRevision++;
           this.error.set(
@@ -175,6 +182,7 @@ export class EbaySaleActivityStore {
           this.mutationRevision++;
           this.rows.set([]);
           this.events.set([]);
+          this.notificationArrivals.reset();
         }
         this.connection.set(connection);
         const [drafts, events] = await Promise.all([
@@ -186,7 +194,12 @@ export class EbaySaleActivityStore {
         if (!current()) return;
         this.held.set(reservations);
         this.rows.set(drafts);
-        if (feedRevision === this.feedRevision) this.events.set(events);
+        if (feedRevision === this.feedRevision) {
+          this.events.set(events);
+          const arrivals = this.notificationArrivals.takeNew(this.notifications());
+          if (arrivals.length)
+            this.webhook.playNotificationSound(arrivals.map((item) => item.type));
+        }
         this.loadedContext.set(key);
         this.error.set(null);
         if (reservationChanged) await this.refreshLoadedStock(workspaceId, current);
@@ -194,6 +207,7 @@ export class EbaySaleActivityStore {
         if (current()) {
           this.rows.set([]);
           this.events.set([]);
+          this.notificationArrivals.reset();
           this.connection.set(null);
           this.mutationRevision++;
           this.error.set(
@@ -281,6 +295,7 @@ export class EbaySaleActivityStore {
     ) {
       this.mutationRevision++;
       this.events.set([]);
+      this.notificationArrivals.reset();
       this.rows.set([]);
       this.connection.set(null);
       return;
