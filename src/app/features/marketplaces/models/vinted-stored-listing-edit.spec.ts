@@ -176,3 +176,103 @@ describe('Stored Vinted listing editing', () => {
     ).toThrow();
   });
 });
+
+describe('Kombinierte Größen älterer Inserate', () => {
+  // Wie bei einer Silver-Jeans am 08.11.2026: gespeichert nur „M / 38 / 10“ ohne Kennung,
+  // das Vinted-Formular zeigt die Größe als „M“ einer Größengruppe.
+  const choice = (id: number, label: string, selected: boolean) => ({
+    id,
+    label,
+    selected,
+    disabled: false,
+    sizeGroupId: 4,
+  });
+  function combined() {
+    const live = listingCurrentContentFixture();
+    const account = createMarketplaceFixtures().connections[0];
+    const sizes = [choice(207, 'M', false), choice(208, 'L', false), choice(1640, 'M', false)];
+    const catalog = {
+      ...live.schema,
+      fields: [
+        { field: 'size' as const, sizeGroupId: 4, choices: sizes },
+        ...live.schema.fields.filter((field) => field.field !== 'size'),
+      ],
+    };
+    const savedContent = { ...live.content, sizeId: null, sizeLabel: '' };
+    const entry = parseMarketplacePage(
+      {
+        items: [
+          {
+            ...account,
+            id: 'a',
+            title: live.content.title,
+            text: live.content.description,
+            size: 'M / 38 / 10',
+            price: 20.5,
+            listingContent: savedContent,
+          },
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+      account,
+    ).items[0];
+    const stored = storedVintedListingEdit(entry, live.content.description, catalog)!;
+    const fresh = {
+      ...live,
+      content: { ...live.content, sizeId: 207, sizeLabel: 'M' },
+      schema: {
+        ...live.schema,
+        fields: live.schema.fields.map((field) =>
+          field.field === 'size'
+            ? { ...field, choices: sizes.map((size) => ({ ...size, selected: size.id === 207 })) }
+            : field,
+        ),
+      },
+    };
+    const selection = vintedListingEditSelection(stored);
+    const fields = {
+      ...selection,
+      color: 'Blau · Gelb',
+      material: 'Acryl',
+      title: live.content.title,
+      description: live.content.description,
+      price: '20,50',
+    };
+    return { stored, fresh, fields };
+  }
+
+  it('meldet keinen Konflikt, wenn Vinted dieselbe Größe ohne Zusatzangaben führt', () => {
+    const { stored, fresh, fields } = combined();
+    expect(vintedListingEditSelection(stored).size).not.toBe('207');
+    expect(applyStoredVintedListingEdit(stored, fresh, { ...fields, size: '207' })).toMatchObject({
+      sizeId: 207,
+      sizeLabel: 'M',
+    });
+    expect(applyStoredVintedListingEdit(stored, fresh, { ...fields, size: '208' })).toMatchObject({
+      sizeId: 208,
+      sizeLabel: 'L',
+    });
+  });
+
+  it('erkennt weiterhin eine echte Größenänderung bei Vinted', () => {
+    const { stored, fresh, fields } = combined();
+    const changed = {
+      ...fresh,
+      schema: {
+        ...fresh.schema,
+        fields: fresh.schema.fields.map((field) =>
+          field.field === 'size'
+            ? {
+                ...field,
+                choices: field.choices.map((size) => ({ ...size, selected: size.id === 208 })),
+              }
+            : field,
+        ),
+      },
+    };
+    expect(() => applyStoredVintedListingEdit(stored, changed, { ...fields, size: '207' })).toThrow(
+      'inzwischen bei Vinted geändert',
+    );
+  });
+});
