@@ -290,7 +290,9 @@
             presentation="row"
             size="lg"
             formControlName="soundEnabled"
-            label="Allgemeiner Benachrichtigungston"
+            [label]="
+              supportsSaleSound() ? 'Allgemeiner Benachrichtigungston' : 'Benachrichtigungstöne'
+            "
           />
           <app-button
             type="button"
@@ -302,23 +304,25 @@
             >Probehören</app-button
           >
         </div>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <app-custom-checkbox
-            presentation="row"
-            size="lg"
-            formControlName="saleSoundEnabled"
-            label="Verkaufston"
-          />
-          <app-button
-            type="button"
-            size="md"
-            variant="secondary"
-            [icon]="volumeIcon"
-            ariaLabel="Verkaufston probehören"
-            (clicked)="onPreviewSound('sale')"
-            >Probehören</app-button
-          >
-        </div>
+        @if (supportsSaleSound()) {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <app-custom-checkbox
+              presentation="row"
+              size="lg"
+              formControlName="saleSoundEnabled"
+              label="Verkaufston"
+            />
+            <app-button
+              type="button"
+              size="md"
+              variant="secondary"
+              [icon]="volumeIcon"
+              ariaLabel="Verkaufston probehören"
+              (clicked)="onPreviewSound('sale')"
+              >Probehören</app-button
+            >
+          </div>
+        }
       </fieldset>
       <div class="flex justify-end">
         <app-button
