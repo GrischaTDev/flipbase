@@ -101,31 +101,28 @@
           } @else {
             @for (account of group.accounts; track accountKey(account)) {
               @if (store.section(account); as section) {
-                <div
-                  class="min-w-0 rounded-2xl transition"
+                <app-marketplace-listing-section
+                  class="block min-w-0 rounded-2xl transition"
                   [class.ring-2]="dragOverAccountKey() === accountKey(account)"
                   [class.ring-fb-primary]="dragOverAccountKey() === accountKey(account)"
                   [attr.data-account-drop-zone]="accountKey(account)"
                   (dragover)="onAccountDragOver($event, account)"
                   (dragleave)="onAccountDragLeave($event, account)"
                   (drop)="onDropOnAccount($event, account)"
-                >
-                  <app-marketplace-listing-section
-                    [showAccountManagement]="true"
-                    (accountManagementRequested)="manageAccount(account)"
-                    (transferPublished)="store.refreshPlatform('kleinanzeigen')"
-                    (listingDragStarted)="onListingDragStart($event)"
-                    (listingDragEnded)="onListingDragEnd()"
-                    [section]="section"
-                    (toggled)="store.expand(account)"
-                    (retried)="store.retry(account)"
-                    (queryChanged)="store.setQuery(accountKey(account), $event)"
-                    (selectionChanged)="store.toggleSelection($event.reference, $event.checked)"
-                    (allSelected)="store.selectAll(account, $event)"
-                    (nextRequested)="store.next(account)"
-                    (previousRequested)="store.previous(account)"
-                  />
-                </div>
+                  [showAccountManagement]="true"
+                  (accountManagementRequested)="manageAccount(account)"
+                  (transferPublished)="store.refreshPlatform('kleinanzeigen')"
+                  (listingDragStarted)="onListingDragStart($event)"
+                  (listingDragEnded)="onListingDragEnd()"
+                  [section]="section"
+                  (toggled)="store.expand(account)"
+                  (retried)="store.retry(account)"
+                  (queryChanged)="store.setQuery(accountKey(account), $event)"
+                  (selectionChanged)="store.toggleSelection($event.reference, $event.checked)"
+                  (allSelected)="store.selectAll(account, $event)"
+                  (nextRequested)="store.next(account)"
+                  (previousRequested)="store.previous(account)"
+                />
               }
             }
           }
