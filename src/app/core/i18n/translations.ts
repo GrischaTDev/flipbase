@@ -166,7 +166,7 @@ export const TRANSLATIONS_DE = {
     SETUP_WELCOME: 'Willkommen bei Flipbase',
     SETUP_QUESTION: 'Wie soll dein Workspace heißen?',
     SETUP_HELP: 'Du kannst den Namen später jederzeit in den Einstellungen ändern.',
-    SETUP_NAME_PLACEHOLDER: 'Zum Beispiel Kamera Handel',
+    SETUP_NAME_PLACEHOLDER: 'Dein Workspace-Name',
     SETUP_NAME_ERROR: 'Bitte gib einen Namen mit 2 bis 100 Zeichen ein.',
     SETUP_SUBMIT: 'Weiter',
     SETUP_RETRY: 'Erneut versuchen',
@@ -175,16 +175,16 @@ export const TRANSLATIONS_DE = {
     SETUP_SAVE_ERROR: 'Der Workspace konnte nicht eingerichtet werden.',
     SETUP_SHOP_LABEL: 'Eigenen Online-Shop nutzen',
     SETUP_SHOP_DESCRIPTION:
-      'Für deinen eigenen Online-Shop mit eigener Domain. Dazu gehören Artikelerfassung mit Bestand, Shop-Seiten, Zahlungsarten und Bestellungen.',
+      'Du möchtest zusätzlich über eine eigene Website mit eigener Domain verkaufen? Dann schalte den Shop ein. Du bekommst Bestandsführung, Shop-Seiten, Zahlungsarten und Bestellungen.',
     SETUP_SHOP_NOT_NEEDED:
-      'Verkaufst du nur über Plattformen wie Vinted, eBay oder Kleinanzeigen, brauchst du das nicht. Du kannst den Shop später in den Einstellungen ein- oder ausschalten.',
+      'Verkaufst du nur über Vinted, eBay oder Kleinanzeigen, lass ihn einfach aus. Du kannst das später jederzeit in den Einstellungen ändern.',
     SETUP_SHOP_SAVE_ERROR: 'Die Shop-Auswahl konnte nicht gespeichert werden.',
   },
   BETA_ONBOARDING: {
     BACK: 'Zurück',
     PROGRESS_LABEL: 'Deine Beta-Registrierung',
     PASSWORD: 'Passwort',
-    WORKSPACE: 'Workspace',
+    WORKSPACE: 'Einrichtung',
     DISCORD: 'Discord',
     DISCORD_TITLE: 'Werde Teil unserer Beta-Community',
     DISCORD_DESCRIPTION:
@@ -606,7 +606,7 @@ export const TRANSLATIONS_EN = {
     SETUP_WELCOME: 'Welcome to Flipbase',
     SETUP_QUESTION: 'What should your workspace be called?',
     SETUP_HELP: 'You can change the name later at any time in settings.',
-    SETUP_NAME_PLACEHOLDER: 'For example Camera Trading',
+    SETUP_NAME_PLACEHOLDER: 'Your workspace name',
     SETUP_NAME_ERROR: 'Please enter a name between 2 and 100 characters.',
     SETUP_SUBMIT: 'Continue',
     SETUP_RETRY: 'Try again',
@@ -615,16 +615,16 @@ export const TRANSLATIONS_EN = {
     SETUP_SAVE_ERROR: 'The workspace could not be set up.',
     SETUP_SHOP_LABEL: 'Use your own online shop',
     SETUP_SHOP_DESCRIPTION:
-      'For your own online shop with its own domain. Includes item entry with stock, shop pages, payment methods and orders.',
+      'Want to sell on your own website with your own domain as well? Then turn on the shop. You get stock management, shop pages, payment methods and orders.',
     SETUP_SHOP_NOT_NEEDED:
-      'If you only sell on platforms like Vinted, eBay or Kleinanzeigen, you do not need it. You can turn the shop on or off later in settings.',
+      'If you only sell on Vinted, eBay or Kleinanzeigen, just leave it off. You can change this at any time in settings.',
     SETUP_SHOP_SAVE_ERROR: 'The shop choice could not be saved.',
   },
   BETA_ONBOARDING: {
     BACK: 'Back',
     PROGRESS_LABEL: 'Your beta registration',
     PASSWORD: 'Password',
-    WORKSPACE: 'Workspace',
+    WORKSPACE: 'Setup',
     DISCORD: 'Discord',
     DISCORD_TITLE: 'Join our beta community',
     DISCORD_DESCRIPTION:

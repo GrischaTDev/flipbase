@@ -53,7 +53,7 @@
     returnFocusTo = submitButton;
     successContent.hidden = false;
     successDialog.setAttribute('aria-labelledby', 'beta-success-title');
-    successDialog.setAttribute('aria-describedby', 'beta-success-description beta-success-receipt');
+    successDialog.setAttribute('aria-describedby', 'beta-success-description');
     successEmail.textContent = email;
     successDialog.hidden = false;
     document.body.classList.add('beta-dialog-open');
