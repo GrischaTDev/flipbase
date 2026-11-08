@@ -4,11 +4,13 @@ import {
   Injector,
   effect,
   inject,
+  input,
   signal,
   untracked,
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import type { Sale } from '../../../../core/models/flipbase.models';
 import type { SaleTargetRouteState } from '../../../../core/models/sale-target.models';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -36,6 +38,8 @@ import { SaleDraftService } from '../../services/sale-draft.service';
 export class SaleCreateComponent {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  readonly onClose = input<(() => void) | null>(null);
+  readonly correctionSaleInput = input<Sale | null>(null);
   readonly entryForm = viewChild(SaleCreateModalComponent);
   readonly routeState = (this.router.getCurrentNavigation()?.extras.state ??
     globalThis.history?.state ??
@@ -95,7 +99,14 @@ export class SaleCreateComponent {
   }
 
   async saveDraft(): Promise<void> {
-    if (await this.entryForm()?.saveDraft()) void this.router.navigateByUrl('/sales');
+    if (await this.entryForm()?.saveDraft()) {
+      const closeCallback = this.onClose?.();
+      if (closeCallback) {
+        closeCallback();
+        return;
+      }
+      void this.router.navigateByUrl('/sales');
+    }
   }
 
   onBeforeUnload(event: BeforeUnloadEvent): void {
@@ -104,6 +115,11 @@ export class SaleCreateComponent {
   }
 
   returnToSales(): void {
+    const closeCallback = this.onClose?.();
+    if (closeCallback) {
+      closeCallback();
+      return;
+    }
     const returnUrl = this.routeState.returnUrl;
     const isInventoryRoute = returnUrl === '/inventory' || returnUrl?.startsWith('/inventory/');
     const isCatalogRoute = returnUrl === '/catalog' || returnUrl?.startsWith('/catalog?');

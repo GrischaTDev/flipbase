@@ -12,6 +12,7 @@ import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucidePlus, LucideRefreshCw, LucideSettings, LucideStore } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
+import { PageLayoutService } from '../../../../core/services/page-layout.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import {
   MarketplaceSettingsService,
@@ -29,11 +30,15 @@ import { MarketplacesSettingsComponent } from '../../../settings/pages/marketpla
 import { MarketplaceOverviewStore } from '../../services/marketplace-overview.store';
 import { MarketplaceListingSectionComponent } from '../marketplace-listing-section/marketplace-listing-section.component';
 import { overviewAccountKey } from '../../models/marketplace-overview-normalization';
-import type { MarketplaceOverviewAccount } from '../../models/marketplace-overview.models';
+import type {
+  MarketplaceListingReference,
+  MarketplaceOverviewAccount,
+} from '../../models/marketplace-overview.models';
 import { MarketplacePlatformPickerComponent } from '../../../../shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
 import { VintedAccountManagementComponent } from '../vinted-account-grid/vinted-account-management.component';
 import { EbayAccountComponent } from '../ebay-account/ebay-account.component';
 import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleinanzeigen-accounts.component';
+import { ListingTransferDialogComponent } from '../listing-transfer-dialog/listing-transfer-dialog.component';
 
 @Component({
   selector: 'app-marketplace-overview',
@@ -50,6 +55,7 @@ import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleina
     MarketplacesSettingsComponent,
     MarketplaceListingSectionComponent,
     KleinanzeigenAccountsComponent,
+    ListingTransferDialogComponent,
   ],
   providers: [MarketplaceOverviewStore],
   templateUrl: './marketplace-overview.component.html',
@@ -61,6 +67,18 @@ export class MarketplaceOverviewComponent {
   readonly ebayAccount = viewChild(EbayAccountComponent);
   readonly store = inject(MarketplaceOverviewStore);
   readonly settings = inject(MarketplaceSettingsService);
+  readonly widescreen = inject(PageLayoutService).widescreen;
+  readonly platformsGridClass = computed(() => {
+    if (!this.widescreen()) return 'space-y-5';
+    const count = this.store.platforms().length;
+    if (count === 2) {
+      return 'grid min-w-0 gap-6 xl:grid-cols-2 xl:gap-8 2xl:gap-10 xl:items-start';
+    }
+    if (count >= 3) {
+      return 'grid min-w-0 gap-6 xl:grid-cols-3 xl:gap-8 2xl:gap-10 xl:items-start';
+    }
+    return 'space-y-5';
+  });
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly router = inject(Router);
@@ -102,6 +120,13 @@ export class MarketplaceOverviewComponent {
   });
   readonly manageOpen = signal(false);
   readonly createOpen = signal(false);
+  readonly draggedListing = signal<MarketplaceListingReference | null>(null);
+  readonly dragOverPlatform = signal<MarketplaceId | null>(null);
+  readonly dragOverAccountKey = signal<string | null>(null);
+  readonly dragTransfer = signal<{
+    source: MarketplaceListingReference;
+    targetConnectionId: string | null;
+  } | null>(null);
   readonly plusIcon = LucidePlus;
   readonly settingsIcon = LucideSettings;
   readonly storeIcon = LucideStore;
@@ -128,11 +153,14 @@ export class MarketplaceOverviewComponent {
         this.manageOpen.set(false);
         this.createPlatform.set(null);
         this.addPlatform.set(null);
+        this.dragTransfer.set(null);
+        this.onListingDragEnd();
       }
       const enabled = this.enabledPlatforms();
       if (this.createPlatform() && !enabled.includes(this.createPlatform()!))
         this.createPlatform.set(null);
       if (this.addPlatform() && !enabled.includes(this.addPlatform()!)) this.addPlatform.set(null);
+      if (this.dragTransfer() && !enabled.includes('kleinanzeigen')) this.dragTransfer.set(null);
     });
     effect(() => {
       const result = this.route.snapshot.queryParamMap.get('ebay_result');
@@ -240,5 +268,93 @@ export class MarketplaceOverviewComponent {
   }
   async retry(): Promise<void> {
     await this.settings.retryLoad();
+  }
+  canAcceptListingDrop(targetPlatform: MarketplaceId): boolean {
+    const dragged = this.draggedListing();
+    if (!dragged) return false;
+    return (
+      dragged.platform === 'vinted' &&
+      targetPlatform === 'kleinanzeigen' &&
+      this.settings.ready() &&
+      this.enabledPlatforms().includes('kleinanzeigen')
+    );
+  }
+  onListingDragStart(reference: MarketplaceListingReference): void {
+    this.draggedListing.set(reference);
+    this.dragOverPlatform.set(null);
+    this.dragOverAccountKey.set(null);
+  }
+  onListingDragEnd(): void {
+    this.draggedListing.set(null);
+    this.dragOverPlatform.set(null);
+    this.dragOverAccountKey.set(null);
+  }
+  onPlatformDragOver(event: DragEvent, platform: MarketplaceId): void {
+    if (!this.canAcceptListingDrop(platform)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    if (this.dragOverPlatform() !== platform) {
+      this.dragOverPlatform.set(platform);
+    }
+  }
+  onPlatformDragLeave(event: DragEvent, platform: MarketplaceId): void {
+    const currentTarget = event.currentTarget;
+    const relatedTarget = event.relatedTarget;
+    if (
+      currentTarget instanceof HTMLElement &&
+      relatedTarget instanceof Node &&
+      currentTarget.contains(relatedTarget)
+    ) {
+      return;
+    }
+    if (this.dragOverPlatform() === platform) {
+      this.dragOverPlatform.set(null);
+    }
+  }
+  onAccountDragOver(event: DragEvent, account: MarketplaceOverviewAccount): void {
+    if (!this.canAcceptListingDrop(account.platform)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    this.dragOverPlatform.set(account.platform);
+    const key = overviewAccountKey(account);
+    if (this.dragOverAccountKey() !== key) {
+      this.dragOverAccountKey.set(key);
+    }
+  }
+  onAccountDragLeave(event: DragEvent, account: MarketplaceOverviewAccount): void {
+    const currentTarget = event.currentTarget;
+    const relatedTarget = event.relatedTarget;
+    if (
+      currentTarget instanceof HTMLElement &&
+      relatedTarget instanceof Node &&
+      currentTarget.contains(relatedTarget)
+    ) {
+      return;
+    }
+    const key = overviewAccountKey(account);
+    if (this.dragOverAccountKey() === key) {
+      this.dragOverAccountKey.set(null);
+    }
+  }
+  onDropOnPlatform(event: DragEvent, platform: MarketplaceId): void {
+    if (!this.canAcceptListingDrop(platform)) return;
+    event.preventDefault();
+    const source = this.draggedListing();
+    this.onListingDragEnd();
+    if (!source) return;
+    this.dragTransfer.set({ source, targetConnectionId: null });
+  }
+  onDropOnAccount(event: DragEvent, account: MarketplaceOverviewAccount): void {
+    if (!this.canAcceptListingDrop(account.platform)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const source = this.draggedListing();
+    this.onListingDragEnd();
+    if (!source) return;
+    this.dragTransfer.set({ source, targetConnectionId: account.connectionId });
+  }
+  closeDragTransfer(): void {
+    this.dragTransfer.set(null);
   }
 }

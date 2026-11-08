@@ -98,6 +98,8 @@ export class ListingTransferDialogComponent {
   readonly kleinanzeigenAccount = viewChild(KleinanzeigenAccountsComponent);
   readonly source = input.required<MarketplaceListingReference>();
   readonly targetConnectionId = input<string | null>(null);
+  readonly initialPlatform = input<MarketplaceId | null>(null);
+  readonly autoSelectTarget = input(false);
   readonly closed = output<void>();
   readonly saved = output<KleinanzeigenTransferDraft>();
   readonly published = output<KleinanzeigenListingJob>();
@@ -455,6 +457,15 @@ export class ListingTransferDialogComponent {
       if (preferred && this.accounts().some((account) => account.connectionId === preferred)) {
         this.platform.setValue('kleinanzeigen', { emitEvent: false });
         this.selectedPlatform.set('kleinanzeigen');
+        if (this.autoSelectTarget()) {
+          this.target.setValue(preferred);
+        }
+      } else if (this.initialPlatform() === 'kleinanzeigen') {
+        this.platform.setValue('kleinanzeigen', { emitEvent: false });
+        this.selectedPlatform.set('kleinanzeigen');
+        if (this.autoSelectTarget() && this.accounts().length === 1) {
+          this.target.setValue(this.accounts()[0].connectionId);
+        }
       }
     } catch {
       if (this.current(generation))

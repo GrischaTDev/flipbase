@@ -12,6 +12,7 @@ export class EntryPageLayoutComponent {
   readonly title = input.required<string>();
   readonly subtitle = input<string>('');
   readonly backLabel = input<string>('Zurück');
+  readonly showBackButton = input<boolean>(true);
   readonly cancelled = output<void>();
 
   protected readonly backIcon = LucideArrowLeft;

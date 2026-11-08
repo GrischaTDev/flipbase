@@ -7,12 +7,14 @@ import {
   inject,
   Injector,
   signal,
+  type Type,
   untracked,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgComponentOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { LucideShoppingBag as ShoppingBag, LucidePlus as Plus } from '@lucide/angular';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { LegacyPurchaseRecoveryService } from './services/legacy-purchase-recovery.service';
 import type { Purchase } from '../../core/models/flipbase.models';
@@ -54,6 +56,7 @@ import { PurchaseReceiptPreviewStateService } from './services/purchase-receipt-
     RouterLink,
     DatePipe,
     CurrencyPipe,
+    NgComponentOutlet,
     TranslatePipe,
     CostStateComponent,
     PageHeaderComponent,
@@ -72,6 +75,18 @@ import { PurchaseReceiptPreviewStateService } from './services/purchase-receipt-
 export class PurchasesComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly recovery = inject(LegacyPurchaseRecoveryService);
+  readonly widescreen = inject(PageLayoutService).widescreen;
+  readonly sidePanelMode = signal<'detail' | 'create'>('detail');
+  readonly selectedPurchaseId = signal<string | null>(null);
+  readonly detailComponent = signal<Type<unknown> | null>(null);
+  readonly createComponent = signal<Type<unknown> | null>(null);
+  readonly closeSidePanelCallback = (): void => {
+    this.sidePanelMode.set('detail');
+  };
+  readonly onInlinePurchaseCreatedCallback = (purchaseId: string): void => {
+    this.selectedPurchaseId.set(purchaseId);
+    this.sidePanelMode.set('detail');
+  };
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly inventoryService = inject(InventoryService);
@@ -315,6 +330,13 @@ export class PurchasesComponent {
     });
   });
 
+  readonly activeDetailPurchaseId = computed(() => {
+    const selected = this.selectedPurchaseId();
+    const rows = this.purchaseRows();
+    if (selected && rows.some((row) => row.id === selected)) return selected;
+    return rows[0]?.id ?? selected;
+  });
+
   toggleColumnVisibility(columnId: PurchasesColumnId): void {
     this.tablePreferences.toggleColumnVisibility(
       this.tableId(),
@@ -414,14 +436,39 @@ export class PurchasesComponent {
       this.requestedStockWorkspaceId = workspaceId;
       void this.stockService.loadPositions(workspaceId);
     });
+    effect(() => {
+      if (!this.widescreen()) return;
+      untracked(() => {
+        if (!this.detailComponent()) {
+          void import('./pages/purchase-detail/purchase-detail.component').then((m) =>
+            this.detailComponent.set(m.PurchaseDetailComponent),
+          );
+        }
+        if (!this.createComponent()) {
+          void import('./pages/purchase-create/purchase-create.component').then((m) =>
+            this.createComponent.set(m.PurchaseCreateComponent),
+          );
+        }
+      });
+    });
+  }
+
+  openCreatePurchase(event?: Event): void {
+    if (this.widescreen()) {
+      event?.preventDefault();
+      this.sidePanelMode.set('create');
+      return;
+    }
+    void this.router.navigate(['/purchases/new']);
   }
 
   openPurchase(event: MouseEvent, id: string): void {
     if (
       event.target instanceof Element &&
-      event.target.closest('a, button, input, select, details, [data-purchase-receipt-preview]')
+      event.target.closest('button, input, select, details, [data-purchase-receipt-preview]')
     )
       return;
+    if (!this.widescreen() && event.target instanceof Element && event.target.closest('a')) return;
     const selection = window.getSelection();
     const row = event.currentTarget;
     if (
@@ -433,6 +480,12 @@ export class PurchasesComponent {
       return;
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
       return;
+    if (this.widescreen()) {
+      event.preventDefault();
+      this.selectedPurchaseId.set(id);
+      this.sidePanelMode.set('detail');
+      return;
+    }
     void this.router.navigate(['/purchases', id]);
   }
 

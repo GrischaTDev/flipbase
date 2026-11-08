@@ -1,27 +1,37 @@
-<div class="mx-auto w-full space-y-4 pb-8 animate-fade-in">
-  <header
-    class="grid min-h-10 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 lg:grid-cols-[2rem_minmax(0,1fr)_auto]"
-  >
-    <button
-      type="button"
-      (click)="cancelled.emit()"
-      class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fb-text-secondary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-      [attr.aria-label]="backLabel()"
-    >
-      <svg [lucideIcon]="backIcon" class="h-4 w-4" aria-hidden="true"></svg>
-    </button>
-    <div class="flex min-w-0 flex-wrap items-center gap-2">
-      <h1 class="text-lg font-semibold leading-6 text-fb-text-primary">{{ title() }}</h1>
-      <ng-content select="[entry-header-badge]" />
+<div class="mx-auto w-full space-y-5 pb-8 animate-fade-in">
+  <header class="flex flex-col gap-2.5 pb-2">
+    <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+      <div class="flex min-w-[min(100%,14rem)] flex-1 items-center gap-3">
+        @if (showBackButton()) {
+          <button
+            type="button"
+            (click)="cancelled.emit()"
+            class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fb-text-secondary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+            [attr.aria-label]="backLabel()"
+          >
+            <svg [lucideIcon]="backIcon" class="h-4 w-4" aria-hidden="true"></svg>
+          </button>
+        }
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <h1
+              class="min-w-0 break-words text-xl font-[450] leading-7 tracking-tight text-fb-text-primary"
+            >
+              {{ title() }}
+            </h1>
+            <ng-content select="[entry-header-badge]" />
+          </div>
+          @if (subtitle()) {
+            <p class="text-[13px] text-fb-text-muted">
+              {{ subtitle() }}
+            </p>
+          }
+        </div>
+      </div>
+      <div class="empty:hidden flex min-w-0 max-w-full flex-wrap items-center gap-2 max-sm:w-full">
+        <ng-content select="[entry-header-actions]" />
+      </div>
     </div>
-    <div class="col-span-2 min-w-0 lg:col-span-1">
-      <ng-content select="[entry-header-actions]" />
-    </div>
-    @if (subtitle()) {
-      <p class="col-start-2 col-end-4 text-[13px] leading-5 text-fb-text-muted">
-        {{ subtitle() }}
-      </p>
-    }
   </header>
 
   <ng-content />

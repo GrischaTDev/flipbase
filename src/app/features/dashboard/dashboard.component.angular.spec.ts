@@ -20,6 +20,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { MarketplacePlatformIdentityComponent } from '../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { DashboardReportService } from '../../core/services/dashboard-report.service';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { StockService } from '../../core/services/stock.service';
@@ -113,7 +114,7 @@ const emptyReport: DashboardReport = {
 const sales = signal<Sale[]>([]);
 const inventoryItems = signal<InventoryItem[]>([]);
 const stockLots = signal<StockLot[]>([]);
-const currentWorkspace = signal({ id: 'workspace-1' });
+const currentWorkspace = signal<{ id: string; shop_enabled?: boolean }>({ id: 'workspace-1' });
 const loadedWorkspaceId = signal('workspace-1');
 const sourceLoading = signal(false);
 const sourceError = signal<Error | null>(null);
@@ -254,6 +255,7 @@ beforeEach(() => {
   });
 
   sales.set([]);
+  localStorage.removeItem('flipbase_widescreen');
   inventoryItems.set([]);
   stockLots.set([]);
   currentWorkspace.set({ id: 'workspace-1' });
@@ -328,6 +330,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  localStorage.removeItem('flipbase_widescreen');
   try {
     TestBed.resetTestingModule();
   } finally {
@@ -799,5 +802,99 @@ describe('DashboardComponent', () => {
       host.querySelector('app-modal-shell app-marketplace-platform-identity .sr-only'),
     ).toBeNull();
     expect(host.querySelector('a[href="/listings/new"]')).toBeNull();
+  });
+
+  it('verteilt die Übersicht im Widescreen-Modus auf drei Spalten mit Kennzahl-Charts, Zeitraumtabelle und erweiterten Verkäufen', () => {
+    createReport.mockReturnValue({
+      ...emptyReport,
+      grossProfit: 35,
+      revenue: 80,
+      purchaseSpend: 30,
+      sellingCosts: 15,
+      operatingExpenseSpend: 5,
+      totalExpenses: 50,
+      soldItems: 3,
+      averageMarginPercent: 43.75,
+      inventoryCostValue: 120,
+      points: [
+        {
+          date: '2026-08-29',
+          label: '29.08.',
+          revenue: 30,
+          costOfGoodsSold: 15,
+          sellingCosts: 5,
+          resultAfterDirectCosts: 10,
+          expenses: 15,
+          totalExpenses: 20,
+          realizedProfit: 10,
+        },
+        {
+          date: '2026-08-30',
+          label: '30.08.',
+          revenue: 50,
+          costOfGoodsSold: 15,
+          sellingCosts: 10,
+          resultAfterDirectCosts: 25,
+          expenses: 15,
+          totalExpenses: 30,
+          realizedProfit: 25,
+        },
+      ],
+      rows: Array.from({ length: 14 }, (_, index) => ({
+        saleId: `wide-sale-${index}`,
+        date: '2026-08-30',
+        articles: `Widescreen Artikel ${index}`,
+        quantity: 2,
+        platform: 'ebay',
+        revenue: 50,
+        costOfGoodsSold: 15,
+        sellingCosts: 10,
+        resultAfterDirectCosts: 25,
+        marginPercent: 50,
+        profit: 25,
+      })),
+    });
+
+    const fixture = createDashboard();
+    const layout = TestBed.inject(PageLayoutService);
+    layout.setWidescreen(true);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const widescreenGrid = host.querySelector('[data-dashboard-widescreen]');
+    const leftColumn = host.querySelector('[data-widescreen-column="kpis"]');
+    const centerColumn = host.querySelector('[data-widescreen-column="center"]');
+    const salesSection = host.querySelector('[data-widescreen-column="sales"]');
+    expect(widescreenGrid).not.toBeNull();
+    expect(widescreenGrid?.className).toContain('xl:grid-cols-3');
+    expect(leftColumn).not.toBeNull();
+    expect(centerColumn).not.toBeNull();
+    expect(salesSection).not.toBeNull();
+
+    for (const key of ['revenue', 'gross-profit', 'margin', 'sales']) {
+      expect(leftColumn?.querySelector(`[data-kpi="${key}"]`)).not.toBeNull();
+      expect(leftColumn?.querySelector(`[data-kpi-chart="${key}"]`)).toBeNull();
+    }
+
+    const periodTable = leftColumn?.querySelector('[data-widescreen-period-table]');
+    expect(periodTable).not.toBeNull();
+    expect(periodTable?.textContent).toContain('Zeitraum- und Kostenübersicht');
+    expect(periodTable?.textContent).toContain('29.08.');
+    expect(periodTable?.textContent).toContain('30.08.');
+    expect(centerColumn?.textContent).toContain('Bestandswert:');
+    expect(centerColumn?.textContent).toContain('120,00');
+
+    const salesTable = salesSection?.querySelector('.sales-table');
+    expect(salesTable?.className).not.toContain('h-full');
+    const salesHeaders = [...(salesSection?.querySelectorAll('.sales-table thead th') ?? [])].map(
+      (th) => th.textContent?.trim(),
+    );
+    expect(salesHeaders).toEqual(['Datum', 'Artikel', 'Plattform', 'Gewinn']);
+    expect(salesSection?.querySelectorAll('.sales-table tbody tr')).toHaveLength(12);
+    expect(salesSection?.querySelector('[data-table-pager]')?.textContent).toContain('1–12 von 14');
+
+    currentWorkspace.set({ id: 'workspace-1', shop_enabled: false });
+    fixture.detectChanges();
+    expect(centerColumn?.textContent).not.toContain('Bestand im Blick');
   });
 });

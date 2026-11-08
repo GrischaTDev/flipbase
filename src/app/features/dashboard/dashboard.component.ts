@@ -1,5 +1,5 @@
 import { SummaryMetricComponent } from '../../shared/components/summary-metric/summary-metric.component';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { isWorkspaceShopActive } from '../../core/models/workspace-shop.models';
 import {
   ChangeDetectionStrategy,
@@ -27,6 +27,7 @@ import type { DashboardRange } from '../../core/models/flipbase.models';
 import { DashboardReportService } from '../../core/services/dashboard-report.service';
 import { ExpenseService } from '../../core/services/expense.service';
 import { InventoryService } from '../../core/services/inventory.service';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { SalePlatformsService } from '../../core/services/sale-platforms.service';
 import { SalesService } from '../../core/services/sales.service';
@@ -43,7 +44,7 @@ import { RevenueChartComponent } from '../../shared/components/revenue-chart/rev
 import { TablePagerComponent } from '../../shared/components/table-pager/table-pager.component';
 import { tablePageRows } from '../../shared/components/table-pager/table-page';
 import { BetaDiscordBannerComponent } from '../beta-discord/components/beta-discord-banner/beta-discord-banner.component';
-import { stockOverview } from './models/dashboard-overview';
+import { periodBreakdownRows, stockOverview } from './models/dashboard-overview';
 import { kpiChange } from './models/kpi-change';
 import { DashboardPreferencesService } from './services/dashboard-preferences.service';
 
@@ -66,6 +67,8 @@ interface OverviewMetric {
     SummaryMetricComponent,
     CurrencyPipe,
     DatePipe,
+    DecimalPipe,
+    NgTemplateOutlet,
     LucideDynamicIcon,
     BadgeComponent,
     ButtonComponent,
@@ -89,6 +92,8 @@ export class DashboardComponent {
   private readonly stockService = inject(StockService);
   private readonly purchases = inject(PurchaseService);
   private readonly expenses = inject(ExpenseService);
+  private readonly pageLayout = inject(PageLayoutService);
+  readonly widescreen = this.pageLayout.widescreen;
   readonly salesService = inject(SalesService);
   readonly salePlatforms = inject(SalePlatformsService);
   readonly range = computed(() => this.preferences.preferences().range);
@@ -147,14 +152,24 @@ export class DashboardComponent {
       share: this.stock().units ? (entry.units / this.stock().units) * 100 : 0,
     })),
   );
-  /** Mit Shop teilt sich die Liste die Zeile mit dem Bestand; ohne Shop volle Breite mit Pager. */
-  readonly recentSalesPageSize = computed(() => (this.shopActive() ? 3 : 10));
+  /** Mit Shop teilt sich die Liste im Standardmodus die Zeile mit dem Bestand; im Widescreen-Modus nutzt sie die volle rechte Spalte. */
+  readonly recentSalesPageSize = computed(() =>
+    this.widescreen() ? 12 : this.shopActive() ? 3 : 10,
+  );
   readonly recentSalesPage = signal(1);
   readonly recentSalesPagerVisible = computed(
-    () => !this.shopActive() && this.report().rows.length > this.recentSalesPageSize(),
+    () =>
+      (this.widescreen() || !this.shopActive()) &&
+      this.report().rows.length > this.recentSalesPageSize(),
   );
   readonly recentSales = computed(() =>
     tablePageRows(this.report().rows, this.recentSalesPage(), this.recentSalesPageSize()),
+  );
+  readonly periodBreakdown = computed(() =>
+    periodBreakdownRows(this.report().points, this.report().rows, this.range() === 'year'),
+  );
+  readonly inventoryCostValueFormatted = computed(() =>
+    euro.format(this.report().inventoryCostValue),
   );
   readonly comparisonLabel = computed(
     () =>
