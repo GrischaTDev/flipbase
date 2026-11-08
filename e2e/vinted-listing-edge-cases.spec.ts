@@ -403,7 +403,7 @@ for (const width of [390, 1440])
       ).toHaveCount(0);
       await detail.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('18,00');
       expect(saves).toEqual([]);
-      await detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true }).click();
+      await detail.getByRole('button', { name: 'Speichern', exact: true }).click();
       await expect(page.locator('app-toast-container')).toContainText(
         'Inserat erfolgreich geändert',
       );
@@ -1439,7 +1439,7 @@ for (const width of [1440, 390]) {
       );
       expect(violations).toEqual([]);
       await screenshot(page, `vinted-listing-edit-${width}`);
-      const save = detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true });
+      const save = detail.getByRole('button', { name: 'Speichern', exact: true });
       expect(reads).toEqual([]);
       await save.click();
       expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
