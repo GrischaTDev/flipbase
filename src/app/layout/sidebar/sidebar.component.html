@@ -68,8 +68,29 @@
           <li>
             <ng-container
               [ngTemplateOutlet]="marketplaceNavigationItem"
-              [ngTemplateOutletContext]="{ $implicit: item }"
+              [ngTemplateOutletContext]="{ $implicit: item, hasChildren: !!item.children }"
             />
+            @if (item.children && isMarketplaceItemActive(item.path)) {
+              <ul data-sub-navigation class="space-y-0.5">
+                @for (child of item.children; track child.path) {
+                  @let active = isAdminChildActive(child);
+                  <li>
+                    <a
+                      [routerLink]="child.path"
+                      [attr.aria-current]="active ? 'page' : null"
+                      [class.font-semibold]="active"
+                      [class.font-medium]="!active"
+                      [class.text-fb-text-primary]="active"
+                      [class.text-fb-text-secondary]="!active"
+                      (click)="closed.emit()"
+                      class="flex items-center py-1 pl-8 pr-2 leading-5 rounded-md text-[13px] hover:text-fb-text-primary hover:bg-fb-surface-hover transition border border-transparent"
+                    >
+                      <span class="min-w-0 break-words">{{ child.label }}</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            }
           </li>
         }
       </ul>
@@ -239,10 +260,10 @@
     }
   </nav>
 
-  <ng-template #marketplaceNavigationItem let-item>
+  <ng-template #marketplaceNavigationItem let-item let-hasChildren="hasChildren">
     <a
       [routerLink]="item.path"
-      [attr.aria-current]="isMarketplaceItemActive(item.path) ? 'page' : null"
+      [attr.aria-current]="!hasChildren && isMarketplaceItemActive(item.path) ? 'page' : null"
       [class.font-semibold]="isMarketplaceItemActive(item.path)"
       (click)="closed.emit()"
       class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
