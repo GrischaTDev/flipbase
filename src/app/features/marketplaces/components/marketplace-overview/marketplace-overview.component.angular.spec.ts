@@ -93,4 +93,39 @@ describe('Kontoverwaltung in der Marktplatzübersicht', () => {
     await component.createForAccount(account);
     expect(navigate).not.toHaveBeenCalled();
   });
+  it('löst per Drag-and-Drop eines Vinted-Inserats auf Kleinanzeigen den Übertragungsdialog aus', () => {
+    const ready = TestBed.inject(MarketplaceSettingsService).ready as ReturnType<
+      typeof signal<boolean>
+    >;
+    ready.set(true);
+    const component = TestBed.runInInjectionContext(() => new MarketplaceOverviewComponent());
+    const vintedRef = {
+      platform: 'vinted' as const,
+      workspaceId: 'ws-a',
+      connectionId: 'account-a',
+      externalId: '12345',
+    };
+    const kleinanzeigenAccount: MarketplaceOverviewAccount = {
+      ...account,
+      platform: 'kleinanzeigen',
+      connectionId: 'ka-1',
+    };
+
+    component.onListingDragStart(vintedRef);
+    expect(component.canAcceptListingDrop('kleinanzeigen')).toBe(true);
+    expect(component.canAcceptListingDrop('ebay')).toBe(false);
+
+    const dropEvent = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as DragEvent;
+    component.onDropOnAccount(dropEvent, kleinanzeigenAccount);
+
+    expect(dropEvent.preventDefault).toHaveBeenCalled();
+    expect(component.draggedListing()).toBeNull();
+    expect(component.dragTransfer()).toEqual({
+      source: vintedRef,
+      targetConnectionId: 'ka-1',
+    });
+  });
 });

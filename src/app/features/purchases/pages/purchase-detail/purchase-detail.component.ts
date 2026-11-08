@@ -178,6 +178,7 @@ export class PurchaseDetailComponent {
 
   readonly id = input.required<string>();
   readonly edit = input(false);
+  readonly onClose = input<(() => void) | null>(null);
   readonly isEditing = signal(false);
   readonly editingPurchase = signal<Purchase | null>(null);
   readonly historyRevision = signal(0);
@@ -434,6 +435,11 @@ export class PurchaseDetailComponent {
   }
 
   returnToPurchases(): void {
+    const closeCallback = this.onClose?.();
+    if (closeCallback) {
+      closeCallback();
+      return;
+    }
     void this.router.navigate(['/purchases']);
   }
 
@@ -997,6 +1003,11 @@ export class PurchaseDetailComponent {
         return;
       }
       this.toast.success('Einkauf wurde gelöscht.');
+      const closeCallback = this.onClose?.();
+      if (closeCallback) {
+        closeCallback();
+        return;
+      }
       await this.router.navigate(['/purchases']);
     }
   }

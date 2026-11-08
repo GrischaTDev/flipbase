@@ -9,15 +9,25 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   signal,
+  type Type,
+  untracked,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { CurrencyPipe, DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
+import {
+  CurrencyPipe,
+  DatePipe,
+  DecimalPipe,
+  NgComponentOutlet,
+  NgTemplateOutlet,
+} from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import {
   LucideTrendingUp as TrendingUp,
   LucideDollarSign as DollarSign,
@@ -100,6 +110,7 @@ function validatedSaleTargetId(value: string | null): string | null {
     PageHeaderComponent,
     ButtonComponent,
     TableActionMenuComponent,
+    NgComponentOutlet,
     NgTemplateOutlet,
     BadgeComponent,
     TableSortHeaderComponent,
@@ -115,6 +126,15 @@ export class SalesComponent {
   readonly salesLabels = SALES_LABELS;
   readonly salesHelp = SALES_HELP;
   readonly tablePreferences = inject(TablePreferencesService);
+  readonly widescreen = inject(PageLayoutService).widescreen;
+  readonly sidePanelMode = signal<'detail' | 'create'>('detail');
+  readonly selectedSaleId = signal<string | null>(null);
+  readonly inlineCorrectionSale = signal<Sale | null>(null);
+  readonly createComponent = signal<Type<unknown> | null>(null);
+  readonly closeSidePanelCallback = (): void => {
+    this.inlineCorrectionSale.set(null);
+    this.sidePanelMode.set('detail');
+  };
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *
@@ -382,6 +402,16 @@ export class SalesComponent {
     ...this.salePlatforms.options(),
   ]);
 
+  readonly activeDetailSale = computed<Sale | null>(() => {
+    const sales = this.filteredSales();
+    const selectedId = this.selectedSaleId() ?? this.highlightedSaleId();
+    if (selectedId) {
+      const found = sales.find((sale) => sale.id === selectedId);
+      if (found) return found;
+    }
+    return sales[0] ?? null;
+  });
+
   constructor() {
     const state = (this.router.getCurrentNavigation()?.extras.state ??
       globalThis.history?.state ??
@@ -389,6 +419,17 @@ export class SalesComponent {
     if (state.saleTarget) {
       void this.router.navigate(['/sales/new'], { state, replaceUrl: true });
     }
+
+    effect(() => {
+      if (!this.widescreen()) return;
+      untracked(() => {
+        if (!this.createComponent()) {
+          void import('./pages/sale-create/sale-create.component').then((m) =>
+            this.createComponent.set(m.SaleCreateComponent),
+          );
+        }
+      });
+    });
 
     afterRenderEffect({
       write: () => {
@@ -412,7 +453,33 @@ export class SalesComponent {
   }
 
   openCreatePage(): void {
+    if (this.widescreen()) {
+      this.inlineCorrectionSale.set(null);
+      this.sidePanelMode.set('create');
+      return;
+    }
     void this.router.navigate(['/sales/new']);
+  }
+
+  selectSaleRow(event: MouseEvent, saleId: string): void {
+    if (!this.widescreen()) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest('a, button, input, select, details, [role="menu"]')
+    )
+      return;
+    const selection = window.getSelection();
+    const row = event.currentTarget;
+    if (
+      selection?.toString() &&
+      row instanceof Node &&
+      ((selection.anchorNode && row.contains(selection.anchorNode)) ||
+        (selection.focusNode && row.contains(selection.focusNode)))
+    )
+      return;
+    this.selectedSaleId.set(saleId);
+    this.inlineCorrectionSale.set(null);
+    this.sidePanelMode.set('detail');
   }
 
   async openInvoiceForSale(sale: Sale): Promise<void> {
@@ -497,8 +564,13 @@ export class SalesComponent {
     );
   }
   correctFreeSale(sale: Sale): void {
-    if (this.canCorrectFreeSale(sale))
-      void this.router.navigate(['/sales/new'], { state: { correctionSale: sale } });
+    if (!this.canCorrectFreeSale(sale)) return;
+    if (this.widescreen()) {
+      this.inlineCorrectionSale.set(sale);
+      this.sidePanelMode.set('create');
+      return;
+    }
+    void this.router.navigate(['/sales/new'], { state: { correctionSale: sale } });
   }
   private refundBookingKey = crypto.randomUUID();
   isFreeSale(sale: Sale | null): boolean {

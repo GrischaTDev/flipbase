@@ -3,6 +3,10 @@
     <!-- Shopify Polaris Page Header -->
     <app-entry-page-layout
       [title]="purchaseDisplayTitle()"
+      [subtitle]="
+        onClose() ? 'Einkaufsangaben, Positionen und Verlauf des ausgewählten Einkaufs.' : ''
+      "
+      [showBackButton]="!onClose()"
       backLabel="Zurück zur Einkaufsübersicht"
       (cancelled)="returnToPurchases()"
     >

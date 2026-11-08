@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Widescreen-Layouts für Übersicht, Einkäufe, Verkäufe und Marktplatzübersicht
+
+**Nutzerwunsch:** Im Widescreen-Modus sollen die Seiten Schritt für Schritt sinnvoll für breite Monitore (z. B. 49 Zoll / 32:9) aufgeteilt werden:
+
+1. **Übersicht (`DashboardComponent`):** Kein vertikaler Seiten-Scrollbalken, drei gleich breite Spalten (`xl:grid-cols-3`): links oben die vier Kennzahl-Kacheln (`Umsatz`, `Gewinn`, `Marge`, `Verkäufe`) ohne Mini-Charts nebeneinander und darunter die „Zeitraum- und Kostenübersicht“-Tabelle bis nach unten; in der Mitte Schnellaktionen, das in der Höhe dynamisch mitwachsende Hauptdiagramm „Umsatz, Ausgaben und Gewinn“ und unten „Bestand im Blick“ (bei deaktiviertem Shop ausgeblendet, sodass das Diagramm bis nach unten läuft); rechts „Letzte Verkäufe“ über die volle Höhe mit normaler Zeilenhöhe.
+2. **Einkäufe (`PurchasesComponent`) & Verkäufe (`SalesComponent`):** 50/50-Master-Detail-Ansicht (`xl:grid-cols-2`) mit Tabelle links und Detailansicht rechts (beim Klick auf eine Zeile, ohne äußere Sammel-Card und ohne Zurück-Button in der Detailansicht) sowie direkter Inline-Erfassungsmaske rechts beim Klick auf „Einkauf erfassen“ bzw. „Verkauf erfassen“.
+3. **Marktplatzübersicht (`MarketplaceOverviewComponent`):** Die drei Marktplätze (`Vinted`, `eBay`, `Kleinanzeigen`) im Widescreen-Modus nebeneinander in drei Spalten (`xl:grid-cols-3` bzw. `xl:grid-cols-2` bei zwei aktiven Kanälen) darstellen und zusätzlich die Inseratsübertragung per Drag-and-Drop von einem Marktplatz zum anderen (ohne sichtbare Drag-Icons) ermöglichen.
+
+**Änderung:**
+
+- `ShellComponent`: Größerer seitlicher Abstand (`padding-inline: clamp(2.5rem, 4.5vw, 6.5rem)`) im Widescreen-Modus zur linken Sidebar und zum rechten Bildschirmrand.
+- `DashboardComponent` & `RevenueChartComponent`: Dreispaltiges Vollhöhen-Widescreen-Raster (`xl:h-[calc(100dvh-6rem)] xl:overflow-hidden`, `xl:grid-cols-3`) mit vier kompakten KPI-Kacheln + dehnbarer Zeitraum-/Kostenübersicht links, dynamischer Diagrammhöhe per `ResizeObserver` in der Mitte und unverzerrter Tabelle „Letzte Verkäufe“ rechts.
+- `PurchasesComponent`, `PurchaseDetailComponent`, `PurchaseCreateComponent` & `EntryPageLayoutComponent`: 50/50-Master-Detail-Ansicht im Widescreen-Modus (`[data-purchases-master]` / `[data-purchases-detail-pane]`) mit bündig ausgerichtetem Seitenkopf, ausgeblendetem Zurück-Button in der Detailansicht und Inline-Umschaltung auf die Einkaufserfassung.
+- `SalesComponent` & `SaleCreateComponent`: 50/50-Master-Detail-Ansicht im Widescreen-Modus (`[data-sales-master]` / `[data-sales-detail-pane]`) mit eigenständigen Detailkarten (Kennzahlen, Positionen, Notizen, Chronik) und Inline-Verkaufserfassung bzw. -korrektur.
+- `MarketplaceOverviewComponent`, `MarketplaceListingSectionComponent` & `ListingTransferDialogComponent`: Mehrspaltiges Widescreen-Raster (`xl:grid-cols-3` / `xl:grid-cols-2`) für die aktiven Marktplätze nebeneinander sowie Drag-and-Drop für übertragbare Vinted-Inserate direkt auf die Kleinanzeigen-Spalte bzw. ein Kleinanzeigen-Konto.
+
+**Prüfungen:** Unit-Tests für `shell`, `dashboard`, `revenue-chart`, `purchases`, `sales`, `marketplace-overview` und `listing-transfer-dialog`, Shared-UI-Prüfung, Format, Lint, Typprüfung und Bau grün.
+
 ## 2026-11-08 - Juna - Relisten mit Maßfeldern, Größenanzeige wie bei Vinted
 
 **Anlass:** Der Relist eines Nike-Strickpullovers scheiterte zweimal mit „Vorbereitung bei Vinted

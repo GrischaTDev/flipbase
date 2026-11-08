@@ -1,462 +1,765 @@
-<div class="space-y-4 animate-fade-in">
-  <!-- Page Header -->
-  <app-page-header
-    [title]="('NAV.SALES' | translate) + ' & Retouren'"
-    [icon]="trendingIcon"
-    subtitle="Verkaufsbetrag, Gewinn und Marge im Überblick."
-  >
-    <div header-actions class="flex items-center gap-2">
-      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
-        Verkauf erfassen
-      </app-button>
-    </div>
-  </app-page-header>
-
-  @if (companySettingsRequired()) {
-    <p role="alert" class="text-sm text-fb-text-secondary">
-      {{ companySettingsMessage() || 'Für neue Rechnungen fehlen Unternehmensdaten.' }}
-      <a routerLink="/settings/company" class="underline font-medium text-fb-text-primary"
-        >Unternehmensdaten vervollständigen</a
-      >
-    </p>
-  }
-
-  @if (salePlatforms.error()) {
-    <div role="status" class="flex flex-wrap items-center gap-2 text-sm text-fb-critical">
-      <span>{{ salePlatforms.error() }}</span
-      ><app-button (clicked)="salePlatforms.reload()">Erneut laden</app-button>
-    </div>
-  }
-  <section aria-label="Kennzahlen">
-    <app-card variant="overview" padding="none">
-      <div class="grid grid-cols-2 divide-x divide-fb-line">
-        <app-summary-metric
-          data-testid="sales-result-kpi"
-          [label]="salesLabels.profit"
-          [icon]="profitIcon"
-          [title]="salesHelp.profit"
-          [value]="
-            totalRealizedProfit() === null
-              ? 'Kosten noch offen'
-              : ((totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de') ?? '')
-          "
-          [negative]="(totalRealizedProfit() ?? 0) < 0"
-        />
-        <app-summary-metric
-          label="Verkäufe"
-          [icon]="salesIcon"
-          [value]="filteredSales().length.toString()"
-        />
+<div
+  [class]="
+    widescreen()
+      ? 'grid min-w-0 gap-6 xl:grid-cols-2 xl:gap-8 2xl:gap-10 xl:items-start animate-fade-in'
+      : 'space-y-4 animate-fade-in'
+  "
+>
+  <div data-sales-master class="min-w-0 space-y-4">
+    <!-- Page Header -->
+    <app-page-header
+      [title]="('NAV.SALES' | translate) + ' & Retouren'"
+      [icon]="trendingIcon"
+      subtitle="Verkaufsbetrag, Gewinn und Marge im Überblick."
+    >
+      <div header-actions class="flex items-center gap-2">
+        <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
+          Verkauf erfassen
+        </app-button>
       </div>
-    </app-card>
-  </section>
+    </app-page-header>
 
-  <app-sale-draft-list />
+    @if (companySettingsRequired()) {
+      <p role="alert" class="text-sm text-fb-text-secondary">
+        {{ companySettingsMessage() || 'Für neue Rechnungen fehlen Unternehmensdaten.' }}
+        <a routerLink="/settings/company" class="underline font-medium text-fb-text-primary"
+          >Unternehmensdaten vervollständigen</a
+        >
+      </p>
+    }
 
-  <app-ebay-sale-drafts />
+    @if (salePlatforms.error()) {
+      <div role="status" class="flex flex-wrap items-center gap-2 text-sm text-fb-critical">
+        <span>{{ salePlatforms.error() }}</span
+        ><app-button (clicked)="salePlatforms.reload()">Erneut laden</app-button>
+      </div>
+    }
+    <section aria-label="Kennzahlen">
+      <app-card variant="overview" padding="none">
+        <div class="grid grid-cols-2 divide-x divide-fb-line">
+          <app-summary-metric
+            data-testid="sales-result-kpi"
+            [label]="salesLabels.profit"
+            [icon]="profitIcon"
+            [title]="salesHelp.profit"
+            [value]="
+              totalRealizedProfit() === null
+                ? 'Kosten noch offen'
+                : ((totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de') ?? '')
+            "
+            [negative]="(totalRealizedProfit() ?? 0) < 0"
+          />
+          <app-summary-metric
+            label="Verkäufe"
+            [icon]="salesIcon"
+            [value]="filteredSales().length.toString()"
+          />
+        </div>
+      </app-card>
+    </section>
 
-  <app-data-table
-    ariaLabel="Verkäufe"
-    [searchValue]="searchQuery()"
-    searchPlaceholder="Verkäufe filtern …"
-    searchAriaLabel="Verkäufe durchsuchen"
-    [columns]="tablePrefs().columns"
-    [sortOptions]="salesTableConfig.sortOptions"
-    [currentSort]="tablePrefs().sort"
-    [viewModified]="viewModified()"
-    [hasRows]="filteredSales().length > 0"
-    emptyTitle="Keine passenden Verkäufe gefunden"
-    emptyText="Erfasse einen Verkauf oder passe Suche und Ansicht an."
-    (searchValueChange)="searchQuery.set($event)"
-    (columnVisibilityToggled)="toggleColumnVisibility($event)"
-    (columnsReordered)="onColumnsReordered($event)"
-    (sortChanged)="onSortChanged($event)"
-    (viewResetRequested)="resetView()"
-  >
-    <app-custom-select
-      table-view
-      data-sales-platform-filter
-      variant="toolbar"
-      widthClass="min-w-52"
-      ariaLabel="Verkäufe nach Plattform oder Retouren filtern"
-      [options]="platformFilterOptions()"
-      [value]="selectedPlatform()"
-      (valueChange)="selectedPlatform.set($event ?? 'all')"
-    />
-    <div table-content class="relative overflow-x-auto hidden md:block">
-      <table aria-label="Verkäufe" class="linear-table w-full text-left">
-        <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
-          <tr>
-            @for (column of orderedVisibleColumns(); track column.id) {
-              @switch (column.id) {
-                @case ('record_number') {
-                  <th scope="col" class="border-b border-fb-line px-4 py-2.5 font-[450]">
-                    {{ column.label }}
-                  </th>
-                }
-                @case ('title') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('title')" class="w-60 max-w-60">
-                    <app-table-sort-header
-                      [label]="column.label"
-                      sortField="title"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-                @case ('quantity') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right font-[450]">
-                    Menge
-                  </th>
-                }
-                @case ('platform') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 font-[450]">
-                    Plattform
-                  </th>
-                }
-                @case ('sale_date') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('sale_date')">
-                    <app-table-sort-header
-                      [label]="column.label"
-                      sortField="sale_date"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-                @case ('revenue') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('revenue')">
-                    <app-table-sort-header
-                      [label]="column.label"
-                      sortField="revenue"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('cost_of_goods_sold') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right font-[450]">
-                    <span [title]="salesHelp.purchaseCosts">{{ column.label }}</span>
-                  </th>
-                }
-                @case ('selling_costs') {
-                  <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right font-[450]">
-                    <span [title]="salesHelp.sellingCosts">{{ column.label }}</span>
-                  </th>
-                }
-                @case ('profit') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('profit')">
-                    <app-table-sort-header
-                      [label]="column.label"
-                      sortField="profit"
-                      [currentSort]="tablePrefs().sort"
-                      [description]="salesHelp.profit"
-                      (sortChanged)="onSortChanged($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('margin') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('margin')">
-                    <app-table-sort-header
-                      label="Marge"
-                      sortField="margin"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('holding_days') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('holding_days')">
-                    <app-table-sort-header
-                      label="Haltedauer"
-                      sortField="holding_days"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('actions') {
-                  <th
-                    scope="col"
-                    class="w-28 border-b border-fb-line px-4 py-2.5 text-right font-[450]"
-                  >
-                    Aktionen
-                  </th>
-                }
-              }
-            }
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-fb-line">
-          @for (sale of filteredSales(); track sale.id) {
-            @let ret = getReturnForSale(sale.id);
-            @let metrics = saleMetrics(sale);
-            <tr
-              [id]="'sale-desktop-' + sale.id"
-              tabindex="-1"
-              [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
-              class="hover:bg-fb-surface-alt transition group outline-none"
-              [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
-              [class.ring-2]="highlightedSaleId() === sale.id"
-              [class.ring-inset]="highlightedSaleId() === sale.id"
-              [class.ring-indigo-400]="highlightedSaleId() === sale.id"
-            >
+    <app-sale-draft-list />
+
+    <app-ebay-sale-drafts />
+
+    <app-data-table
+      ariaLabel="Verkäufe"
+      [searchValue]="searchQuery()"
+      searchPlaceholder="Verkäufe filtern …"
+      searchAriaLabel="Verkäufe durchsuchen"
+      [columns]="tablePrefs().columns"
+      [sortOptions]="salesTableConfig.sortOptions"
+      [currentSort]="tablePrefs().sort"
+      [viewModified]="viewModified()"
+      [hasRows]="filteredSales().length > 0"
+      emptyTitle="Keine passenden Verkäufe gefunden"
+      emptyText="Erfasse einen Verkauf oder passe Suche und Ansicht an."
+      (searchValueChange)="searchQuery.set($event)"
+      (columnVisibilityToggled)="toggleColumnVisibility($event)"
+      (columnsReordered)="onColumnsReordered($event)"
+      (sortChanged)="onSortChanged($event)"
+      (viewResetRequested)="resetView()"
+    >
+      <app-custom-select
+        table-view
+        data-sales-platform-filter
+        variant="toolbar"
+        widthClass="min-w-52"
+        ariaLabel="Verkäufe nach Plattform oder Retouren filtern"
+        [options]="platformFilterOptions()"
+        [value]="selectedPlatform()"
+        (valueChange)="selectedPlatform.set($event ?? 'all')"
+      />
+      <div table-content class="relative overflow-x-auto hidden md:block">
+        <table aria-label="Verkäufe" class="linear-table w-full text-left">
+          <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
+            <tr>
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('record_number') {
-                    <td
-                      class="whitespace-nowrap px-4 py-3 font-mono font-semibold text-fb-text-primary"
-                    >
-                      {{ sale.record_number || '–' }}
-                    </td>
+                    <th scope="col" class="border-b border-fb-line px-4 py-2.5 font-[450]">
+                      {{ column.label }}
+                    </th>
                   }
                   @case ('title') {
-                    <td class="w-60 max-w-60 px-4 py-3 font-semibold text-fb-text-primary">
-                      <div class="flex items-start gap-2">
-                        <div class="min-w-0 flex-1 space-y-0.5">
-                          @if (sale.lines?.length) {
-                            @for (line of sale.lines; track line.id) {
-                              <span
-                                class="block truncate text-xs text-fb-text-primary"
-                                [title]="line.title_snapshot"
-                                >{{ line.title_snapshot }}</span
-                              >
-                            }
-                          } @else {
-                            <a
-                              [routerLink]="['/inventory', sale.inventory_item_id]"
-                              class="block truncate transition hover:underline"
-                              [title]="sale.inventory_item?.title || 'Artikel'"
-                              >{{ sale.inventory_item?.title || 'Artikel' }}</a
-                            >
-                          }
-                        </div>
-                        @if (sale.voided_at) {
-                          <app-badge tone="neutral">Korrigiert</app-badge>
-                        }
-                        @if (sale.returned_at || ret) {
-                          <app-badge tone="critical" [mono]="true">{{
-                            sale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
-                          }}</app-badge>
-                        }
-                      </div>
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('title')" class="w-60 max-w-60">
+                      <app-table-sort-header
+                        [label]="column.label"
+                        sortField="title"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('quantity') {
-                    <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
-                      {{ saleQuantity(sale) }}
-                    </td>
+                    <th
+                      scope="col"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-[450]"
+                    >
+                      Menge
+                    </th>
                   }
                   @case ('platform') {
-                    <td class="px-3 py-3">
-                      <app-marketplace-platform-identity
-                        data-sales-platform-identity
-                        class="max-w-40 text-xs text-fb-text-secondary"
-                        [platform]="sale.platform"
-                        [iconOnly]="!!salePlatformAppearance(sale.platform).logo"
-                        [displayName]="salePlatforms.label(sale.platform)"
-                      />
-                    </td>
+                    <th scope="col" class="border-b border-fb-line px-3 py-2.5 font-[450]">
+                      Plattform
+                    </th>
                   }
                   @case ('sale_date') {
-                    <td class="px-3 py-3 font-mono text-[11px] text-fb-text-muted">
-                      {{ sale.sale_date | date: 'dd.MM.yyyy' }}
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('sale_date')">
+                      <app-table-sort-header
+                        [label]="column.label"
+                        sortField="sale_date"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('revenue') {
-                    <td class="px-3 py-3 text-right font-mono font-semibold text-fb-text-secondary">
-                      {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('revenue')">
+                      <app-table-sort-header
+                        [label]="column.label"
+                        sortField="revenue"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
                   }
                   @case ('cost_of_goods_sold') {
-                    <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
-                      @if (metrics.costOfGoodsSold === null) {
-                        <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
-                      } @else {
-                        {{ metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                      }
-                    </td>
+                    <th
+                      scope="col"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-[450]"
+                    >
+                      <span [title]="salesHelp.purchaseCosts">{{ column.label }}</span>
+                    </th>
                   }
                   @case ('selling_costs') {
-                    <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
-                      {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    </td>
+                    <th
+                      scope="col"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-[450]"
+                    >
+                      <span [title]="salesHelp.sellingCosts">{{ column.label }}</span>
+                    </th>
                   }
                   @case ('profit') {
-                    <td
-                      class="px-3 py-3 text-right font-mono font-bold"
-                      [class.text-fb-success]="
-                        metrics.resultAfterDirectCosts !== null &&
-                        metrics.resultAfterDirectCosts > 0
-                      "
-                      [class.text-fb-finance-negative]="
-                        metrics.resultAfterDirectCosts !== null &&
-                        metrics.resultAfterDirectCosts < 0
-                      "
-                      [class.text-fb-text-primary]="
-                        metrics.resultAfterDirectCosts === null ||
-                        metrics.resultAfterDirectCosts === 0
-                      "
-                    >
-                      @if (metrics.resultAfterDirectCosts === null) {
-                        <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
-                      } @else {
-                        {{
-                          metrics.resultAfterDirectCosts
-                            | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                        }}
-                      }
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('profit')">
+                      <app-table-sort-header
+                        [label]="column.label"
+                        sortField="profit"
+                        [currentSort]="tablePrefs().sort"
+                        [description]="salesHelp.profit"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
                   }
                   @case ('margin') {
-                    <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-secondary">
-                      @if (metrics.marginPercent === null) {
-                        –
-                      } @else {
-                        {{ metrics.marginPercent | number: '1.0-2' : 'de' }} %
-                      }
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('margin')">
+                      <app-table-sort-header
+                        label="Marge"
+                        sortField="margin"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
                   }
                   @case ('holding_days') {
-                    <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
-                      {{ sale.holding_duration_days }} Tage
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('holding_days')">
+                      <app-table-sort-header
+                        label="Haltedauer"
+                        sortField="holding_days"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
                   }
                   @case ('actions') {
-                    <td class="px-4 py-3 text-right">
-                      <ng-container
-                        [ngTemplateOutlet]="saleActions"
-                        [ngTemplateOutletContext]="{ $implicit: sale, ret: ret }"
-                      />
-                    </td>
+                    <th
+                      scope="col"
+                      class="w-28 border-b border-fb-line px-4 py-2.5 text-right font-[450]"
+                    >
+                      Aktionen
+                    </th>
                   }
                 }
               }
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Mobile Cards -->
-    <div table-mobile class="space-y-2 md:hidden p-3 border-t border-[var(--fb-border)]">
-      @for (sale of filteredSales(); track sale.id) {
-        @let ret = getReturnForSale(sale.id);
-        @let metrics = saleMetrics(sale);
-        <div
-          [id]="'sale-mobile-' + sale.id"
-          tabindex="-1"
-          [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
-          class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5 font-mono outline-none"
-          [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
-          [class.ring-2]="highlightedSaleId() === sale.id"
-          [class.ring-indigo-400]="highlightedSaleId() === sale.id"
-        >
-          <div class="flex min-w-0 items-start justify-between gap-2">
-            <div class="min-w-0 flex-1">
-              <div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <p aria-label="Verkaufsnummer" class="text-xs font-semibold text-fb-text-primary">
-                  {{ sale.record_number || '–' }}
-                </p>
-                <span aria-label="Verkaufsdatum" class="text-[11px] text-fb-text-muted">
-                  {{ sale.sale_date | date: 'dd.MM.yyyy' }}
-                </span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <h3
-                  class="min-w-0 text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans"
-                  [title]="saleTitle(sale)"
-                >
-                  {{ saleTitle(sale) }}
-                </h3>
-                @if (sale.voided_at) {
-                  <app-badge tone="neutral">Korrigiert</app-badge>
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            @for (sale of filteredSales(); track sale.id) {
+              @let ret = getReturnForSale(sale.id);
+              @let metrics = saleMetrics(sale);
+              <tr
+                [id]="'sale-desktop-' + sale.id"
+                tabindex="-1"
+                [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
+                [attr.data-sale-selected]="
+                  widescreen() && sidePanelMode() === 'detail' && activeDetailSale()?.id === sale.id
+                    ? ''
+                    : null
+                "
+                (click)="selectSaleRow($event, sale.id)"
+                class="hover:bg-fb-surface-alt transition group outline-none"
+                [class.cursor-pointer]="widescreen()"
+                [class.bg-fb-surface-muted]="
+                  widescreen() &&
+                  sidePanelMode() === 'detail' &&
+                  activeDetailSale()?.id === sale.id &&
+                  highlightedSaleId() !== sale.id
+                "
+                [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
+                [class.ring-2]="highlightedSaleId() === sale.id"
+                [class.ring-inset]="highlightedSaleId() === sale.id"
+                [class.ring-indigo-400]="highlightedSaleId() === sale.id"
+              >
+                @for (column of orderedVisibleColumns(); track column.id) {
+                  @switch (column.id) {
+                    @case ('record_number') {
+                      <td
+                        class="whitespace-nowrap px-4 py-3 font-mono font-semibold text-fb-text-primary"
+                      >
+                        {{ sale.record_number || '–' }}
+                      </td>
+                    }
+                    @case ('title') {
+                      <td class="w-60 max-w-60 px-4 py-3 font-semibold text-fb-text-primary">
+                        <div class="flex items-start gap-2">
+                          <div class="min-w-0 flex-1 space-y-0.5">
+                            @if (sale.lines?.length) {
+                              @for (line of sale.lines; track line.id) {
+                                <span
+                                  class="block truncate text-xs text-fb-text-primary"
+                                  [title]="line.title_snapshot"
+                                  >{{ line.title_snapshot }}</span
+                                >
+                              }
+                            } @else {
+                              <a
+                                [routerLink]="['/inventory', sale.inventory_item_id]"
+                                class="block truncate transition hover:underline"
+                                [title]="sale.inventory_item?.title || 'Artikel'"
+                                >{{ sale.inventory_item?.title || 'Artikel' }}</a
+                              >
+                            }
+                          </div>
+                          @if (sale.voided_at) {
+                            <app-badge tone="neutral">Korrigiert</app-badge>
+                          }
+                          @if (sale.returned_at || ret) {
+                            <app-badge tone="critical" [mono]="true">{{
+                              sale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
+                            }}</app-badge>
+                          }
+                        </div>
+                      </td>
+                    }
+                    @case ('quantity') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ saleQuantity(sale) }}
+                      </td>
+                    }
+                    @case ('platform') {
+                      <td class="px-3 py-3">
+                        <app-marketplace-platform-identity
+                          data-sales-platform-identity
+                          class="max-w-40 text-xs text-fb-text-secondary"
+                          [platform]="sale.platform"
+                          [iconOnly]="!!salePlatformAppearance(sale.platform).logo"
+                          [displayName]="salePlatforms.label(sale.platform)"
+                        />
+                      </td>
+                    }
+                    @case ('sale_date') {
+                      <td class="px-3 py-3 font-mono text-[11px] text-fb-text-muted">
+                        {{ sale.sale_date | date: 'dd.MM.yyyy' }}
+                      </td>
+                    }
+                    @case ('revenue') {
+                      <td
+                        class="px-3 py-3 text-right font-mono font-semibold text-fb-text-secondary"
+                      >
+                        {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                    }
+                    @case ('cost_of_goods_sold') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        @if (metrics.costOfGoodsSold === null) {
+                          <span class="font-sans text-[11px] text-amber-300"
+                            >Kosten noch offen</span
+                          >
+                        } @else {
+                          {{
+                            metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        }
+                      </td>
+                    }
+                    @case ('selling_costs') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                    }
+                    @case ('profit') {
+                      <td
+                        class="px-3 py-3 text-right font-mono font-bold"
+                        [class.text-fb-success]="
+                          metrics.resultAfterDirectCosts !== null &&
+                          metrics.resultAfterDirectCosts > 0
+                        "
+                        [class.text-fb-finance-negative]="
+                          metrics.resultAfterDirectCosts !== null &&
+                          metrics.resultAfterDirectCosts < 0
+                        "
+                        [class.text-fb-text-primary]="
+                          metrics.resultAfterDirectCosts === null ||
+                          metrics.resultAfterDirectCosts === 0
+                        "
+                      >
+                        @if (metrics.resultAfterDirectCosts === null) {
+                          <span class="font-sans text-[11px] text-amber-300"
+                            >Kosten noch offen</span
+                          >
+                        } @else {
+                          {{
+                            metrics.resultAfterDirectCosts
+                              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        }
+                      </td>
+                    }
+                    @case ('margin') {
+                      <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-secondary">
+                        @if (metrics.marginPercent === null) {
+                          –
+                        } @else {
+                          {{ metrics.marginPercent | number: '1.0-2' : 'de' }} %
+                        }
+                      </td>
+                    }
+                    @case ('holding_days') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ sale.holding_duration_days }} Tage
+                      </td>
+                    }
+                    @case ('actions') {
+                      <td class="px-4 py-3 text-right">
+                        <ng-container
+                          [ngTemplateOutlet]="saleActions"
+                          [ngTemplateOutletContext]="{ $implicit: sale, ret: ret }"
+                        />
+                      </td>
+                    }
+                  }
                 }
-                @if (sale.returned_at || ret) {
-                  <app-badge tone="critical" [mono]="true">{{
-                    sale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
-                  }}</app-badge>
-                }
-              </div>
-              <div class="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-fb-text-muted">
-                <app-marketplace-platform-identity
-                  data-sales-platform-identity
-                  class="min-w-0 max-w-36 font-sans"
-                  [platform]="sale.platform"
-                  [iconOnly]="!!salePlatformAppearance(sale.platform).logo"
-                  [displayName]="salePlatforms.label(sale.platform)"
-                />
-              </div>
-            </div>
-            <strong class="shrink-0 whitespace-nowrap text-xs font-bold text-fb-text-primary">
-              {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-            </strong>
-          </div>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
 
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-fb-line">
-            <div>
-              <span class="text-[10px] text-fb-text-muted font-sans block">{{
-                salesLabels.profit
-              }}</span>
-              @if (metrics.resultAfterDirectCosts === null) {
-                <strong class="font-sans text-amber-300">Kosten noch offen</strong>
-              } @else {
-                <strong
-                  [class.text-fb-success]="metrics.resultAfterDirectCosts > 0"
-                  [class.text-fb-finance-negative]="metrics.resultAfterDirectCosts < 0"
-                  [class.text-fb-text-primary]="metrics.resultAfterDirectCosts === 0"
-                >
-                  {{ metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </strong>
-              }
-            </div>
-
-            <div>
-              <span class="text-[10px] text-fb-text-muted font-sans block">Marge</span>
-              <strong class="text-fb-text-secondary">
-                @if (metrics.marginPercent === null) {
-                  –
-                } @else {
-                  {{ metrics.marginPercent | number: '1.0-2' : 'de' }} %
-                }
+      <!-- Mobile Cards -->
+      <div table-mobile class="space-y-2 md:hidden p-3 border-t border-[var(--fb-border)]">
+        @for (sale of filteredSales(); track sale.id) {
+          @let ret = getReturnForSale(sale.id);
+          @let metrics = saleMetrics(sale);
+          <div
+            [id]="'sale-mobile-' + sale.id"
+            tabindex="-1"
+            [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
+            class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5 font-mono outline-none"
+            [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
+            [class.ring-2]="highlightedSaleId() === sale.id"
+            [class.ring-indigo-400]="highlightedSaleId() === sale.id"
+          >
+            <div class="flex min-w-0 items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <p aria-label="Verkaufsnummer" class="text-xs font-semibold text-fb-text-primary">
+                    {{ sale.record_number || '–' }}
+                  </p>
+                  <span aria-label="Verkaufsdatum" class="text-[11px] text-fb-text-muted">
+                    {{ sale.sale_date | date: 'dd.MM.yyyy' }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <h3
+                    class="min-w-0 text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans"
+                    [title]="saleTitle(sale)"
+                  >
+                    {{ saleTitle(sale) }}
+                  </h3>
+                  @if (sale.voided_at) {
+                    <app-badge tone="neutral">Korrigiert</app-badge>
+                  }
+                  @if (sale.returned_at || ret) {
+                    <app-badge tone="critical" [mono]="true">{{
+                      sale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
+                    }}</app-badge>
+                  }
+                </div>
+                <div class="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-fb-text-muted">
+                  <app-marketplace-platform-identity
+                    data-sales-platform-identity
+                    class="min-w-0 max-w-36 font-sans"
+                    [platform]="sale.platform"
+                    [iconOnly]="!!salePlatformAppearance(sale.platform).logo"
+                    [displayName]="salePlatforms.label(sale.platform)"
+                  />
+                </div>
+              </div>
+              <strong class="shrink-0 whitespace-nowrap text-xs font-bold text-fb-text-primary">
+                {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </strong>
             </div>
 
-            <div class="text-right">
-              <span class="text-[10px] text-fb-text-muted font-sans block">Menge</span>
-              <strong class="text-fb-text-secondary">{{ saleQuantity(sale) }}</strong>
+            <div class="flex items-center justify-between text-xs pt-2 border-t border-fb-line">
+              <div>
+                <span class="text-[10px] text-fb-text-muted font-sans block">{{
+                  salesLabels.profit
+                }}</span>
+                @if (metrics.resultAfterDirectCosts === null) {
+                  <strong class="font-sans text-amber-300">Kosten noch offen</strong>
+                } @else {
+                  <strong
+                    [class.text-fb-success]="metrics.resultAfterDirectCosts > 0"
+                    [class.text-fb-finance-negative]="metrics.resultAfterDirectCosts < 0"
+                    [class.text-fb-text-primary]="metrics.resultAfterDirectCosts === 0"
+                  >
+                    {{
+                      metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
+                  </strong>
+                }
+              </div>
+
+              <div>
+                <span class="text-[10px] text-fb-text-muted font-sans block">Marge</span>
+                <strong class="text-fb-text-secondary">
+                  @if (metrics.marginPercent === null) {
+                    –
+                  } @else {
+                    {{ metrics.marginPercent | number: '1.0-2' : 'de' }} %
+                  }
+                </strong>
+              </div>
+
+              <div class="text-right">
+                <span class="text-[10px] text-fb-text-muted font-sans block">Menge</span>
+                <strong class="text-fb-text-secondary">{{ saleQuantity(sale) }}</strong>
+              </div>
+
+              <div class="text-right">
+                <span class="text-[10px] text-fb-text-muted font-sans block">Haltedauer</span>
+                <strong class="text-fb-text-secondary"
+                  >{{ sale.holding_duration_days }} Tage</strong
+                >
+              </div>
             </div>
 
-            <div class="text-right">
-              <span class="text-[10px] text-fb-text-muted font-sans block">Haltedauer</span>
-              <strong class="text-fb-text-secondary">{{ sale.holding_duration_days }} Tage</strong>
+            <div class="flex justify-end border-t border-fb-line pt-2">
+              <ng-container
+                [ngTemplateOutlet]="saleActions"
+                [ngTemplateOutletContext]="{ $implicit: sale, ret: ret }"
+              />
             </div>
           </div>
+        }
+      </div>
 
-          <div class="flex justify-end border-t border-fb-line pt-2">
-            <ng-container
-              [ngTemplateOutlet]="saleActions"
-              [ngTemplateOutletContext]="{ $implicit: sale, ret: ret }"
-            />
-          </div>
+      <app-button
+        table-empty-action
+        class="mt-4"
+        variant="primary"
+        [icon]="plusIcon"
+        (clicked)="openCreatePage()"
+      >
+        Verkauf erfassen
+      </app-button>
+    </app-data-table>
+  </div>
+
+  @if (widescreen()) {
+    <aside
+      data-sales-detail-pane
+      aria-label="Verkaufsdetails und Erfassung"
+      class="min-w-0 xl:sticky xl:top-20"
+    >
+      @if (sidePanelMode() === 'create') {
+        @if (createComponent(); as createComp) {
+          <ng-container
+            *ngComponentOutlet="
+              createComp;
+              inputs: {
+                onClose: closeSidePanelCallback,
+                correctionSaleInput: inlineCorrectionSale(),
+              }
+            "
+          />
+        }
+      } @else if (activeDetailSale(); as detailSale) {
+        @let detailRet = getReturnForSale(detailSale.id);
+        @let detailMetrics = saleMetrics(detailSale);
+        @let detailCreditNotes = creditNotesForSale(detailSale.id);
+        <div data-sale-detail-card class="space-y-4">
+          <!-- Detail Header auf Höhe des linken Seitenkopfs (ohne Zurück-Button) -->
+          <app-page-header
+            [title]="saleTitle(detailSale)"
+            [subtitle]="
+              (detailSale.record_number || 'Verkauf') +
+              ' · ' +
+              (detailSale.sale_date | date: 'dd.MM.yyyy') +
+              ' · ' +
+              salePlatforms.label(detailSale.platform) +
+              (detailSale.external_order_id
+                ? ' · Bestell-Nr.: ' + detailSale.external_order_id
+                : '')
+            "
+          >
+            @if (detailSale.voided_at) {
+              <app-badge header-badge tone="neutral">Korrigiert</app-badge>
+            }
+            @if (detailSale.returned_at || detailRet) {
+              <app-badge header-badge tone="critical" [mono]="true">{{
+                detailSale.returned_at ? 'Retourniert' : 'Teilweise erstattet'
+              }}</app-badge>
+            }
+
+            <div header-actions class="flex flex-wrap items-center gap-2">
+              <app-button
+                variant="secondary"
+                size="md"
+                [icon]="fileIcon"
+                (clicked)="openInvoiceForSale(detailSale)"
+                [disabled]="isCreatingInvoice()"
+                [loading]="isCreatingInvoice()"
+              >
+                {{ invoiceActionLabel(detailSale) }}
+              </app-button>
+              @if (!detailSale.returned_at && !detailSale.voided_at) {
+                <app-button
+                  variant="secondary"
+                  size="md"
+                  [icon]="returnIcon"
+                  (clicked)="openReturnModal(detailSale)"
+                >
+                  Retoure erfassen
+                </app-button>
+              }
+              @if (canCorrectFreeSale(detailSale)) {
+                <app-button
+                  variant="secondary"
+                  size="md"
+                  [icon]="historyIcon"
+                  (clicked)="correctFreeSale(detailSale)"
+                >
+                  Korrigieren
+                </app-button>
+              }
+              @if (detailSale.correction?.document) {
+                <app-button
+                  variant="secondary"
+                  size="md"
+                  [icon]="receiptIcon"
+                  (clicked)="openCorrectionDocument(detailSale)"
+                >
+                  Korrekturbeleg
+                </app-button>
+              }
+              @for (creditNote of detailCreditNotes; track creditNote.id) {
+                <app-button
+                  variant="secondary"
+                  size="md"
+                  [icon]="receiptIcon"
+                  (clicked)="openCreditNoteForSale(detailSale, creditNote.id)"
+                >
+                  {{
+                    detailCreditNotes.length > 1
+                      ? 'Gutschrift ' + creditNote.credit_note_number
+                      : 'Gutschrift anzeigen'
+                  }}
+                </app-button>
+              }
+              <app-button
+                variant="secondary"
+                size="md"
+                [icon]="receiptIcon"
+                link="/settings/data/print"
+                [queryParams]="{ entityType: 'sale', entityId: detailSale.id }"
+              >
+                Prüfbeleg
+              </app-button>
+            </div>
+          </app-page-header>
+
+          <!-- Kennzahlen des ausgewählten Verkaufs als eigenständige Karte -->
+          <app-card title="Kennzahlen & Ergebnis">
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div class="rounded-xl border border-fb-line bg-fb-surface-muted/40 p-3">
+                <span class="block text-[11px] text-fb-text-muted">Verkaufserlös</span>
+                <strong class="mt-0.5 block font-mono text-sm font-semibold text-fb-text-primary">
+                  {{ detailMetrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </strong>
+              </div>
+              <div class="rounded-xl border border-fb-line bg-fb-surface-muted/40 p-3">
+                <span class="block text-[11px] text-fb-text-muted">Wareneinsatz</span>
+                <strong class="mt-0.5 block font-mono text-sm font-semibold text-fb-text-primary">
+                  @if (detailMetrics.costOfGoodsSold === null) {
+                    <span class="font-sans text-xs text-amber-300">Kosten noch offen</span>
+                  } @else {
+                    {{
+                      detailMetrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
+                  }
+                </strong>
+              </div>
+              <div class="rounded-xl border border-fb-line bg-fb-surface-muted/40 p-3">
+                <span class="block text-[11px] text-fb-text-muted">Verkaufskosten</span>
+                <strong class="mt-0.5 block font-mono text-sm font-semibold text-fb-text-primary">
+                  {{ detailMetrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </strong>
+              </div>
+              <div class="rounded-xl border border-fb-line bg-fb-surface-muted/40 p-3">
+                <span class="block text-[11px] text-fb-text-muted">{{ salesLabels.profit }}</span>
+                @if (detailMetrics.resultAfterDirectCosts === null) {
+                  <strong class="mt-0.5 block font-sans text-xs text-amber-300"
+                    >Kosten noch offen</strong
+                  >
+                } @else {
+                  <strong
+                    class="mt-0.5 block font-mono text-sm font-bold"
+                    [class.text-fb-success]="detailMetrics.resultAfterDirectCosts > 0"
+                    [class.text-fb-finance-negative]="detailMetrics.resultAfterDirectCosts < 0"
+                    [class.text-fb-text-primary]="detailMetrics.resultAfterDirectCosts === 0"
+                  >
+                    {{
+                      detailMetrics.resultAfterDirectCosts
+                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
+                  </strong>
+                }
+              </div>
+              <div class="rounded-xl border border-fb-line bg-fb-surface-muted/40 p-3">
+                <span class="block text-[11px] text-fb-text-muted">Marge</span>
+                <strong class="mt-0.5 block font-mono text-sm font-semibold text-fb-text-primary">
+                  @if (detailMetrics.marginPercent === null) {
+                    –
+                  } @else {
+                    {{ detailMetrics.marginPercent | number: '1.0-2' : 'de' }} %
+                  }
+                </strong>
+              </div>
+              <div class="rounded-xl border border-fb-line bg-fb-surface-muted/40 p-3">
+                <span class="block text-[11px] text-fb-text-muted">Menge & Haltedauer</span>
+                <strong class="mt-0.5 block font-mono text-sm font-semibold text-fb-text-primary">
+                  {{ saleQuantity(detailSale) }} Stk. ·
+                  {{ detailSale.holding_duration_days || 0 }} Tage
+                </strong>
+              </div>
+            </div>
+          </app-card>
+
+          <!-- Verkaufte Positionen als eigenständige Karte -->
+          <app-card title="Verkaufte Positionen">
+            <div class="divide-y divide-fb-line rounded-xl border border-fb-line">
+              @if (detailSale.lines?.length) {
+                @for (line of detailSale.lines; track line.id) {
+                  <div class="flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
+                    <div class="min-w-0 flex-1">
+                      @if (line.inventory_item_id) {
+                        <a
+                          [routerLink]="['/inventory', line.inventory_item_id]"
+                          class="font-medium text-fb-text-primary hover:underline"
+                        >
+                          {{ line.title_snapshot }}
+                        </a>
+                      } @else {
+                        <span class="font-medium text-fb-text-primary">{{
+                          line.title_snapshot
+                        }}</span>
+                      }
+                      <span class="block text-[11px] text-fb-text-muted">
+                        Menge: {{ line.quantity }} ×
+                        {{ line.unit_sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </span>
+                    </div>
+                    <strong class="font-mono text-fb-text-primary">
+                      {{ line.line_total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    </strong>
+                  </div>
+                }
+              } @else {
+                <div class="flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
+                  <div class="min-w-0 flex-1">
+                    @if (detailSale.inventory_item_id) {
+                      <a
+                        [routerLink]="['/inventory', detailSale.inventory_item_id]"
+                        class="font-medium text-fb-text-primary hover:underline"
+                      >
+                        {{ detailSale.inventory_item?.title || 'Artikel' }}
+                      </a>
+                    } @else {
+                      <span class="font-medium text-fb-text-primary">{{
+                        detailSale.inventory_item?.title || 'Artikel'
+                      }}</span>
+                    }
+                  </div>
+                  <strong class="font-mono text-fb-text-primary">
+                    {{ detailSale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  </strong>
+                </div>
+              }
+            </div>
+          </app-card>
+
+          @if (detailSale.buyer_notes) {
+            <app-card title="Notizen">
+              <p class="text-xs text-fb-text-secondary">
+                {{ detailSale.buyer_notes }}
+              </p>
+            </app-card>
+          }
+
+          <!-- Chronik direkt als eigenständige Karte -->
+          <app-record-history-container [entityType]="'sale'" [entityId]="detailSale.id" />
+        </div>
+      } @else {
+        <div
+          class="flex min-h-80 flex-col items-center justify-center gap-3 rounded-2xl border border-fb-line bg-fb-surface p-6 text-center"
+        >
+          <p class="text-sm font-medium text-fb-text-primary">Kein Verkauf ausgewählt</p>
+          <p class="max-w-sm text-xs text-fb-text-muted">
+            Wähle links einen Verkauf aus der Tabelle oder erfasse direkt rechts einen neuen
+            Verkauf.
+          </p>
+          <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
+            Verkauf erfassen
+          </app-button>
         </div>
       }
-    </div>
-
-    <app-button
-      table-empty-action
-      class="mt-4"
-      variant="primary"
-      [icon]="plusIcon"
-      (clicked)="openCreatePage()"
-    >
-      Verkauf erfassen
-    </app-button>
-  </app-data-table>
+    </aside>
+  }
 
   <!-- ↩️ Retouren- & Gutschriften-Modal -->
   @if (isReturnModalOpen()) {

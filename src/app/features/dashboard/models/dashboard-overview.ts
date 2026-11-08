@@ -1,3 +1,4 @@
+import type { DashboardSaleRow, DashboardTimePoint } from '../../../core/models/flipbase.models';
 import { marketplacePlatformLabel } from '../../../shared/models/marketplace-platform';
 
 /** Reine Anzeigeprojektionen. Buchungs- und Kostenregeln bleiben im DashboardReportService. */
@@ -116,4 +117,108 @@ export function salesVolumes(
   const key = (date: string) => date.slice(0, monthly ? 7 : 10);
   for (const row of rows) counts.set(key(row.date), (counts.get(key(row.date)) ?? 0) + 1);
   return points.map((point) => counts.get(key(point.date)) ?? 0);
+}
+
+export function marginSeries(
+  points: readonly Pick<DashboardTimePoint, 'date' | 'revenue' | 'resultAfterDirectCosts'>[],
+  rows: readonly Pick<DashboardSaleRow, 'date' | 'revenue' | 'resultAfterDirectCosts'>[],
+  monthly: boolean,
+): (number | null)[] {
+  const key = (date: string) => date.slice(0, monthly ? 7 : 10);
+  const bucketTotals = new Map<string, { revenue: number; profit: number; hasSales: boolean }>();
+  for (const row of rows) {
+    const bucket = key(row.date);
+    const current = bucketTotals.get(bucket) ?? { revenue: 0, profit: 0, hasSales: false };
+    current.hasSales = true;
+    if (row.resultAfterDirectCosts !== null) {
+      current.revenue += row.revenue;
+      current.profit += row.resultAfterDirectCosts;
+    }
+    bucketTotals.set(bucket, current);
+  }
+  return points.map((point) => {
+    const fromRows = bucketTotals.get(key(point.date));
+    if (fromRows?.hasSales) {
+      return fromRows.revenue > 0
+        ? Number(((fromRows.profit / fromRows.revenue) * 100).toFixed(2))
+        : null;
+    }
+    if (point.revenue > 0) {
+      return point.resultAfterDirectCosts === null
+        ? null
+        : Number(((point.resultAfterDirectCosts / point.revenue) * 100).toFixed(2));
+    }
+    return 0;
+  });
+}
+
+export interface KpiSparklineGeometry {
+  readonly linePath: string;
+  readonly areaPath: string;
+  readonly min: number | null;
+  readonly max: number | null;
+}
+
+export function kpiSparkline(values: readonly (number | null)[]): KpiSparklineGeometry {
+  const known = values.filter((value): value is number => value !== null && Number.isFinite(value));
+  if (!known.length) {
+    return { linePath: '', areaPath: '', min: null, max: null };
+  }
+  const min = Math.min(...known);
+  const max = Math.max(...known);
+  if (values.length === 1 && values[0] !== null && Number.isFinite(values[0])) {
+    return {
+      linePath: 'M2.00,28.00 L98.00,28.00',
+      areaPath: 'M2.00,28.00 L98.00,28.00 L98.00,48.00 L2.00,48.00 Z',
+      min,
+      max,
+    };
+  }
+  const linePath = sparklinePath(values);
+  const span = max - min;
+  const coords = values.flatMap((value, index) => {
+    if (value === null || !Number.isFinite(value)) return [];
+    const x = values.length === 1 ? 50 : 2 + (index / (values.length - 1)) * 96;
+    const y = span === 0 ? 28 : 46 - ((value - min) / span) * 40;
+    return [{ x, y }];
+  });
+  const first = coords[0];
+  const last = coords.at(-1);
+  const areaPath =
+    first && last && coords.length > 1
+      ? `${linePath} L${last.x.toFixed(2)},48.00 L${first.x.toFixed(2)},48.00 Z`
+      : '';
+  return { linePath, areaPath, min, max };
+}
+
+export interface PeriodBreakdownRow {
+  readonly date: string;
+  readonly label: string;
+  readonly salesCount: number;
+  readonly revenue: number;
+  readonly costOfGoodsSold: number | null;
+  readonly sellingCosts: number;
+  readonly totalExpenses: number | null;
+  readonly grossProfit: number | null;
+  readonly marginPercent: number | null;
+}
+
+export function periodBreakdownRows(
+  points: readonly DashboardTimePoint[],
+  rows: readonly DashboardSaleRow[],
+  monthly: boolean,
+): PeriodBreakdownRow[] {
+  const counts = salesVolumes(points, rows, monthly);
+  const margins = marginSeries(points, rows, monthly);
+  return points.map((point, index) => ({
+    date: point.date,
+    label: point.label,
+    salesCount: counts[index] ?? 0,
+    revenue: point.revenue,
+    costOfGoodsSold: point.costOfGoodsSold,
+    sellingCosts: point.sellingCosts,
+    totalExpenses: point.totalExpenses,
+    grossProfit: point.resultAfterDirectCosts,
+    marginPercent: margins[index] ?? null,
+  }));
 }

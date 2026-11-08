@@ -28,13 +28,57 @@ Für sehr breite Bildschirme, zum Beispiel einen 49-Zoll-Monitor im 32:9-Format
   Vinted und der Bot werden dabei nicht abgefragt, gefiltert wird in der
   Datenbankfunktion. Jede Suche schaut alle zwei Sekunden nach neuen Funden,
   das ist für die Datenbank eine kleine Abfrage.
+- **Übersicht (`DashboardComponent`, ergänzt am 08.11.2026):**
+  - Statt den gestapelten Aufbau nur in die Breite zu ziehen, teilt sich die
+    Übersicht im Widescreen-Modus ohne vertikalen Seiten-Scrollbalken in drei
+    gleich breite Spalten (`xl:grid-cols-3`) über die verfügbare Bildschirmhöhe:
+    - **Linke Spalte:** Oben stehen die vier Kennzahl-Kacheln (`Umsatz`, `Gewinn`,
+      `Marge`, `Verkäufe`) ohne eigene Mini-Charts nebeneinander in einer Reihe.
+      Darunter füllt die Karte „Zeitraum- und Kostenübersicht“ (Aufschlüsselung
+      nach Zeitraum mit Verkäufen, Umsatz, Wareneinsatz, Verkaufskosten,
+      Ausgaben gesamt, Marge und Gewinn) den restlichen Platz bis zum unteren Rand.
+    - **Mittlere Spalte:** Enthält oben die Schnellaktionen, darunter das
+      Hauptdiagramm „Umsatz, Ausgaben und Gewinn“ (das sich dynamisch an die
+      verfügbare Höhe anpasst) und unten „Bestand im Blick“ inklusive Bestandswert.
+      Ist das Shop-/Bestands-Feature deaktiviert, wird „Bestand im Blick“
+      ausgeblendet und das Hauptdiagramm dehnt sich über die gesamte verbleibende
+      Höhe der mittleren Spalte aus.
+    - **Rechte Spalte:** „Letzte Verkäufe“ läuft über die volle Spaltenhöhe mit
+      unveränderter Zeilenhöhe und den gewohnten vier Spalten (`Datum`, `Artikel`,
+      `Plattform`, `Gewinn`) sowie bis zu zwölf Einträgen pro Seite.
+- **Einkäufe (`PurchasesComponent`) & Verkäufe (`SalesComponent`, ergänzt am 08.11.2026):**
+  - Nutzen im Widescreen-Modus eine zweispaltige 50/50-Master-Detail-Ansicht
+    (`xl:grid-cols-2`) mit direkt integrierter Inline-Erfassung:
+    - **Linke Hälfte (`[data-purchases-master]` / `[data-sales-master]`):** Die
+      Tabellenansicht (bei Verkäufen inklusive Kennzahl-Kacheln und Entwürfen).
+    - **Rechte Hälfte (`[data-purchases-detail-pane]` / `[data-sales-detail-pane]`):**
+      - Ein Klick auf eine Tabellenzeile öffnet rechts sofort die Detailansicht
+        (bei Einkäufen die vollständige `PurchaseDetailComponent`, bei Verkäufen
+        die Detailkarte mit Positionen, Kennzahlen, Beleg-/Retouren-Aktionen und
+        direkt eingebetteter Chronik). Standardmäßig wird der erste sichtbare
+        Eintrag angezeigt.
+      - Ein Klick auf „Einkauf erfassen“ bzw. „Verkauf erfassen“ (oder „Verkauf
+        korrigieren“) schaltet die rechte Bildschirmhälfte direkt auf die
+        Erfassungsmaske (`PurchaseCreateComponent` / `SaleCreateComponent`) um,
+        ohne die Seite zu verlassen.
+- **Marktplatzübersicht (`MarketplaceOverviewComponent`, ergänzt am 08.11.2026):**
+  - Zeigt die aktivierten Marktplätze (`Vinted`, `eBay`, `Kleinanzeigen`) im
+    Widescreen-Modus nebeneinander in eigenen Spalten (`xl:grid-cols-3` bei drei
+    aktiven Plattformen, `xl:grid-cols-2` bei zwei aktiven Plattformen), sodass
+    Konten, Abgleichstatus und ausgeklappte Inseratstabellen aller Kanäle direkt
+    nebeneinander verglichen und Crosslistings beobachtet werden können.
+  - Übertragbare Vinted-Inserate lassen sich ohne zusätzliche Drag-Icons direkt
+    per Drag-and-Drop auf die Kleinanzeigen-Spalte (oder gezielt auf ein
+    Kleinanzeigen-Konto) ziehen, um die vorausgefüllte Inseratsübertragung zu
+    öffnen.
 
 ## Offen
 
 - **Suchen merken:** Zusätzliche Suchen und ihre Filter gehen beim Neuladen der
   Seite verloren (wie die Filter der einzelnen Suche bisher auch).
-- **Weitere Seiten:** Alle übrigen Seiten nutzen im Widescreen-Modus bisher nur
-  die volle Breite und müssen einzeln angepasst werden.
+- **Weitere Seiten:** Alle übrigen Seiten neben Vinted Feed, Übersicht, Einkäufen,
+  Verkäufen und Marktplatzübersicht nutzen im Widescreen-Modus bisher nur die
+  volle Breite und werden schrittweise einzeln angepasst.
 
 ## Spätere Idee: geteilter Arbeitsbereich
 

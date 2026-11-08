@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -18,6 +18,8 @@ import { PurchaseProductReturnService } from '../../services/purchase-product-re
 export class PurchaseCreateComponent {
   private readonly router = inject(Router);
   private readonly productReturn = inject(PurchaseProductReturnService);
+  readonly onClose = input<(() => void) | null>(null);
+  readonly onCreated = input<((purchaseId: string) => void) | null>(null);
   readonly entryForm = viewChild.required(PurchaseEntryFormComponent);
 
   hasUnsavedChanges(): boolean {
@@ -47,6 +49,12 @@ export class PurchaseCreateComponent {
 
   returnToPurchases(): void {
     const entry = this.entryForm();
+    const closeCallback = this.onClose?.();
+    if (closeCallback) {
+      void entry.discardUnsubmittedBuffer();
+      closeCallback();
+      return;
+    }
     void this.router.navigate(['/purchases']).then((navigated) => {
       if (navigated) return entry.discardUnsubmittedBuffer();
       return undefined;
@@ -54,6 +62,11 @@ export class PurchaseCreateComponent {
   }
 
   openPurchase(purchaseId: string): void {
+    const createdCallback = this.onCreated?.();
+    if (createdCallback) {
+      createdCallback(purchaseId);
+      return;
+    }
     void this.router.navigate(['/purchases', purchaseId]);
   }
 }

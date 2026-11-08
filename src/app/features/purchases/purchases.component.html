@@ -1,391 +1,494 @@
-<div class="space-y-5 animate-fade-in">
-  <!-- Header & Actions -->
-  <app-page-header
-    [title]="'PURCHASES.TITLE' | translate"
-    [icon]="bagIcon"
-    subtitle="Einkäufe und enthaltene Artikel verwalten."
-  >
-    <app-badge header-badge tone="neutral" [mono]="true">
-      {{ filteredPurchases().length }} Einkäufe
-    </app-badge>
-
-    <div header-actions class="flex min-w-0 flex-wrap items-center gap-2">
-      <!-- Standard Einkauf erfassen -->
-      <app-button variant="primary" size="md" [icon]="plusIcon" routerLink="/purchases/new">
-        {{ 'PURCHASES.NEW_PURCHASE' | translate }}
-      </app-button>
-    </div>
-  </app-page-header>
-
-  @if (recovery.hasBackup()) {
-    <div
-      role="status"
-      class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-line bg-fb-surface p-4 text-sm text-fb-text-primary"
+<div
+  [class]="
+    widescreen()
+      ? 'grid min-w-0 gap-6 xl:grid-cols-2 xl:gap-8 2xl:gap-10 xl:items-start animate-fade-in'
+      : 'space-y-5 animate-fade-in'
+  "
+>
+  <div data-purchases-master class="min-w-0 space-y-5">
+    <!-- Header & Actions -->
+    <app-page-header
+      [title]="'PURCHASES.TITLE' | translate"
+      [icon]="bagIcon"
+      subtitle="Einkäufe und enthaltene Artikel verwalten."
     >
-      <p>
-        Auf diesem Gerät liegen ältere lokale Einkaufsaufnahmen. Sichere sie als Datei, um sie in
-        einem regulären Einkauf zu übernehmen. Die Originaldaten bleiben erhalten.
-      </p>
-      <app-button variant="secondary" (clicked)="exportLegacyPurchases()"
-        >Lokale Aufnahmen sichern</app-button
+      <app-badge header-badge tone="neutral" [mono]="true">
+        {{ filteredPurchases().length }} Einkäufe
+      </app-badge>
+
+      <div header-actions class="flex min-w-0 flex-wrap items-center gap-2">
+        <!-- Standard Einkauf erfassen -->
+        @if (widescreen()) {
+          <app-button
+            variant="primary"
+            size="md"
+            [icon]="plusIcon"
+            (clicked)="openCreatePurchase($event)"
+          >
+            {{ 'PURCHASES.NEW_PURCHASE' | translate }}
+          </app-button>
+        } @else {
+          <app-button variant="primary" size="md" [icon]="plusIcon" routerLink="/purchases/new">
+            {{ 'PURCHASES.NEW_PURCHASE' | translate }}
+          </app-button>
+        }
+      </div>
+    </app-page-header>
+
+    @if (recovery.hasBackup()) {
+      <div
+        role="status"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-line bg-fb-surface p-4 text-sm text-fb-text-primary"
       >
-    </div>
-  }
-
-  <app-data-table
-    data-purchase-list
-    ariaLabel="Einkäufe"
-    [searchValue]="searchQuery()"
-    searchPlaceholder="Suchen und filtern …"
-    searchAriaLabel="Einkäufe durchsuchen"
-    [columns]="tablePrefs().columns"
-    [sortOptions]="purchasesTableConfig.sortOptions"
-    [currentSort]="tablePrefs().sort"
-    [viewModified]="viewModified()"
-    [loading]="isPurchaseListLoading()"
-    [errorMessage]="purchaseService.loadError()?.message ?? null"
-    loadingText="Einkäufe werden geladen …"
-    [hasRows]="purchaseRows().length > 0"
-    [emptyTitle]="emptyTitle()"
-    [emptyText]="emptyText()"
-    (searchValueChange)="searchQuery.set($event)"
-    (columnVisibilityToggled)="toggleColumnVisibility($event)"
-    (columnsReordered)="onColumnsReordered($event)"
-    (sortChanged)="onSortChanged($event)"
-    (viewResetRequested)="resetView()"
-  >
-    <app-button
-      table-error-action
-      class="mt-3"
-      variant="secondary"
-      (clicked)="retryLoadPurchases()"
-    >
-      Erneut versuchen
-    </app-button>
-
-    <app-custom-select
-      table-view
-      variant="toolbar"
-      widthClass="w-auto"
-      ariaLabel="Einkaufsstatus"
-      [options]="statusOptions"
-      [value]="activeStatus()"
-      (valueChange)="activeStatus.set($event ?? 'all')"
-    />
-
-    <app-custom-select
-      table-filters
-      variant="toolbar"
-      widthClass="w-full max-w-48"
-      ariaLabel="Nach Verkäufer filtern"
-      [options]="sellerSelectOptions()"
-      [value]="sellerId()"
-      (valueChange)="sellerId.set($event ?? '')"
-    />
-
-    <app-button
-      table-filters
-      data-purchase-view="profitability"
-      size="slim"
-      [variant]="activeView() === 'profitability' ? 'primary' : 'secondary'"
-      [ariaPressed]="activeView() === 'profitability'"
-      (clicked)="setView(activeView() === 'profitability' ? 'overview' : 'profitability')"
-      >Rentabilität</app-button
-    >
-
-    @if (activeView() === 'profitability' && profitabilityLoadError()) {
-      <div table-filter-panel class="border-b border-fb-line px-3 py-2 text-xs text-fb-text-muted">
-        <p role="alert">Die Rentabilität konnte nicht vollständig geladen werden.</p>
-        <app-button class="mt-2" size="slim" variant="secondary" (clicked)="retryProfitability()"
-          >Erneut versuchen</app-button
+        <p>
+          Auf diesem Gerät liegen ältere lokale Einkaufsaufnahmen. Sichere sie als Datei, um sie in
+          einem regulären Einkauf zu übernehmen. Die Originaldaten bleiben erhalten.
+        </p>
+        <app-button variant="secondary" (clicked)="exportLegacyPurchases()"
+          >Lokale Aufnahmen sichern</app-button
         >
       </div>
     }
 
-    @if (filtersActive()) {
-      <div
-        table-filter-panel
-        role="status"
-        class="flex justify-center border-b border-fb-line px-3 py-2"
+    <app-data-table
+      data-purchase-list
+      ariaLabel="Einkäufe"
+      [searchValue]="searchQuery()"
+      searchPlaceholder="Suchen und filtern …"
+      searchAriaLabel="Einkäufe durchsuchen"
+      [columns]="tablePrefs().columns"
+      [sortOptions]="purchasesTableConfig.sortOptions"
+      [currentSort]="tablePrefs().sort"
+      [viewModified]="viewModified()"
+      [loading]="isPurchaseListLoading()"
+      [errorMessage]="purchaseService.loadError()?.message ?? null"
+      loadingText="Einkäufe werden geladen …"
+      [hasRows]="purchaseRows().length > 0"
+      [emptyTitle]="emptyTitle()"
+      [emptyText]="emptyText()"
+      (searchValueChange)="searchQuery.set($event)"
+      (columnVisibilityToggled)="toggleColumnVisibility($event)"
+      (columnsReordered)="onColumnsReordered($event)"
+      (sortChanged)="onSortChanged($event)"
+      (viewResetRequested)="resetView()"
+    >
+      <app-button
+        table-error-action
+        class="mt-3"
+        variant="secondary"
+        (clicked)="retryLoadPurchases()"
       >
-        <app-badge tone="caution">Filter aktiv</app-badge>
-      </div>
-    }
+        Erneut versuchen
+      </app-button>
 
-    <div table-content class="overflow-x-auto">
-      <table data-purchase-table class="linear-table min-w-[760px]">
-        <caption class="sr-only">
-          {{
-            activeView() === 'profitability' ? 'Rentabilität der Einkäufe' : 'Einkaufstabelle'
-          }}
-        </caption>
-        <thead>
-          <tr>
-            @for (column of orderedVisibleColumns(); track column.id) {
-              @switch (column.id) {
-                @case ('title') {
-                  <th scope="col">Einkauf</th>
-                }
-                @case ('description') {
-                  <th scope="col" class="min-w-56" [attr.aria-sort]="ariaSort('title')">
-                    <app-table-sort-header
-                      label="Beschreibung"
-                      sortField="title"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-                @case ('seller') {
-                  <th scope="col">Verkäufer</th>
-                }
-                @case ('purchase_date') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
-                    <app-table-sort-header
-                      label="Kaufdatum"
-                      sortField="purchase_date"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-                @case ('status') {
-                  <th scope="col">Status</th>
-                }
-                @case ('total_cost') {
-                  <th
-                    scope="col"
-                    class="min-w-28 text-right"
-                    [attr.aria-sort]="ariaSort('total_cost')"
-                  >
-                    <app-table-sort-header
-                      [label]="activeView() === 'profitability' ? 'Gesamtkosten' : 'Gesamt'"
-                      sortField="total_cost"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                      align="right"
-                    />
-                  </th>
-                }
-                @case ('receipt') {
-                  <th scope="col">Erhalten</th>
-                }
-                @case ('sold_units') {
-                  <th scope="col" [attr.aria-sort]="ariaSort('sold_units')">
-                    <app-table-sort-header
-                      label="Verkaufsstand"
-                      sortField="sold_units"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-                @case ('revenue') {
-                  <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('revenue')">
-                    <app-table-sort-header
-                      label="Verkaufserlös"
-                      sortField="revenue"
-                      align="right"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-                @case ('result') {
-                  <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('result')">
-                    <app-table-sort-header
-                      label="Ergebnis"
-                      sortField="result"
-                      align="right"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                    />
-                  </th>
-                }
-              }
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of purchaseRows(); track row.id) {
-            <tr
-              data-purchase-table-row
-              (click)="openPurchase($event, row.id)"
-              class="cursor-pointer transition hover:bg-fb-surface-hover"
-            >
+      <app-custom-select
+        table-view
+        variant="toolbar"
+        widthClass="w-auto"
+        ariaLabel="Einkaufsstatus"
+        [options]="statusOptions"
+        [value]="activeStatus()"
+        (valueChange)="activeStatus.set($event ?? 'all')"
+      />
+
+      <app-custom-select
+        table-filters
+        variant="toolbar"
+        widthClass="w-full max-w-48"
+        ariaLabel="Nach Verkäufer filtern"
+        [options]="sellerSelectOptions()"
+        [value]="sellerId()"
+        (valueChange)="sellerId.set($event ?? '')"
+      />
+
+      <app-button
+        table-filters
+        data-purchase-view="profitability"
+        size="slim"
+        [variant]="activeView() === 'profitability' ? 'primary' : 'secondary'"
+        [ariaPressed]="activeView() === 'profitability'"
+        (clicked)="setView(activeView() === 'profitability' ? 'overview' : 'profitability')"
+        >Rentabilität</app-button
+      >
+
+      @if (activeView() === 'profitability' && profitabilityLoadError()) {
+        <div
+          table-filter-panel
+          class="border-b border-fb-line px-3 py-2 text-xs text-fb-text-muted"
+        >
+          <p role="alert">Die Rentabilität konnte nicht vollständig geladen werden.</p>
+          <app-button class="mt-2" size="slim" variant="secondary" (clicked)="retryProfitability()"
+            >Erneut versuchen</app-button
+          >
+        </div>
+      }
+
+      @if (filtersActive()) {
+        <div
+          table-filter-panel
+          role="status"
+          class="flex justify-center border-b border-fb-line px-3 py-2"
+        >
+          <app-badge tone="caution">Filter aktiv</app-badge>
+        </div>
+      }
+
+      <div table-content class="overflow-x-auto">
+        <table data-purchase-table class="linear-table min-w-[760px]">
+          <caption class="sr-only">
+            {{
+              activeView() === 'profitability' ? 'Rentabilität der Einkäufe' : 'Einkaufstabelle'
+            }}
+          </caption>
+          <thead>
+            <tr>
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
-                    <td>
-                      <a
-                        [routerLink]="['/purchases', row.id]"
-                        data-purchase-row
-                        data-purchase-reference
-                        [attr.data-purchase-row]="row.id"
-                        class="font-semibold text-fb-text-primary transition hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-                      >
-                        {{ row.reference }}
-                      </a>
-                    </td>
+                    <th scope="col">Einkauf</th>
                   }
                   @case ('description') {
-                    <td data-purchase-description class="max-w-72">
-                      <span class="block max-w-72 truncate" [title]="row.title">{{
-                        row.title || '—'
-                      }}</span>
-                    </td>
+                    <th scope="col" class="min-w-56" [attr.aria-sort]="ariaSort('title')">
+                      <app-table-sort-header
+                        label="Beschreibung"
+                        sortField="title"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('seller') {
-                    <td>{{ row.supplierLabel }}</td>
+                    <th scope="col">Verkäufer</th>
                   }
                   @case ('purchase_date') {
-                    <td>
-                      <time [attr.datetime]="row.purchaseDate">{{
-                        row.purchaseDate | date: 'dd.MM.yyyy'
-                      }}</time>
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
+                      <app-table-sort-header
+                        label="Kaufdatum"
+                        sortField="purchase_date"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('status') {
-                    <td>
-                      <app-badge [tone]="row.purchaseStatusTone">{{
-                        row.purchaseStatus
-                      }}</app-badge>
-                    </td>
+                    <th scope="col">Status</th>
                   }
                   @case ('total_cost') {
-                    <td class="min-w-28 text-right font-mono font-semibold tabular-nums">
-                      <app-cost-state [state]="row.totalCost" />
-                    </td>
+                    <th
+                      scope="col"
+                      class="min-w-28 text-right"
+                      [attr.aria-sort]="ariaSort('total_cost')"
+                    >
+                      <app-table-sort-header
+                        [label]="activeView() === 'profitability' ? 'Gesamtkosten' : 'Gesamt'"
+                        sortField="total_cost"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
                   }
                   @case ('receipt') {
-                    <td>
-                      <app-purchase-receipt-preview [purchaseId]="row.id" [receipt]="row.receipt" />
-                    </td>
+                    <th scope="col">Erhalten</th>
                   }
                   @case ('sold_units') {
-                    <td data-purchase-sales-progress>
-                      @if (row.profitability?.state === 'review') {
-                        <span class="text-fb-text-muted">Noch prüfen</span>
-                      } @else if (row.quantityState === 'loaded' && row.soldUnits !== null) {
-                        <span>{{ row.soldUnits }} von {{ row.totalUnits }} verkauft</span>
-                        @if (row.soldUnits < row.totalUnits) {
-                          <span class="block text-xs text-fb-text-muted">Zwischenstand</span>
-                        }
-                      } @else {
-                        <span class="text-fb-text-muted">{{
-                          row.quantityState === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
-                        }}</span>
-                      }
-                    </td>
+                    <th scope="col" [attr.aria-sort]="ariaSort('sold_units')">
+                      <app-table-sort-header
+                        label="Verkaufsstand"
+                        sortField="sold_units"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('revenue') {
-                    <td data-purchase-revenue class="text-right tabular-nums">
-                      @if (
-                        row.profitability?.revenue !== null &&
-                        row.profitability?.revenue !== undefined
-                      ) {
-                        {{
-                          row.profitability?.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                        }}
-                      } @else {
-                        <span class="text-fb-text-muted">{{
-                          row.profitability?.state === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
-                        }}</span>
-                      }
-                    </td>
+                    <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('revenue')">
+                      <app-table-sort-header
+                        label="Verkaufserlös"
+                        sortField="revenue"
+                        align="right"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('result') {
-                    <td data-purchase-result class="text-right tabular-nums">
-                      @if (row.profitability; as profitability) {
-                        @if (profitability.state !== 'loaded') {
-                          <span class="text-fb-text-muted">{{
-                            profitability.state === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
-                          }}</span>
-                        } @else if (!profitability.hasSales) {
-                          <span class="text-fb-text-muted">Noch kein Verkauf</span>
-                        } @else if (profitability.result === null) {
-                          <span class="text-fb-text-muted">Kosten noch offen</span>
-                        } @else {
-                          <details class="min-w-36">
-                            <summary
-                              class="relative cursor-pointer rounded-lg font-semibold underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-fb-primary"
-                              [class.text-fb-success]="profitability.result > 0"
-                              [class.text-fb-critical]="profitability.result < 0"
-                            >
-                              <span class="sr-only">Berechnung für {{ row.reference }}: </span>
-                              {{ profitability.result > 0 ? '+' : ''
-                              }}{{
-                                profitability.result | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                              }}
-                            </summary>
-                            <dl class="mt-2 space-y-1 text-xs text-fb-text-muted">
-                              <div>
-                                <dt>Verkaufserlös</dt>
-                                <dd>
-                                  {{
-                                    profitability.revenue
-                                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                                  }}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt>Direkte Verkaufskosten</dt>
-                                <dd>
-                                  {{
-                                    profitability.sellingCosts
-                                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                                  }}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt>Gesamte Einkaufskosten</dt>
-                                <dd><app-cost-state [state]="row.totalCost" /></dd>
-                              </div>
-                            </dl>
-                          </details>
-                        }
-                      }
-                    </td>
+                    <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('result')">
+                      <app-table-sort-header
+                        label="Ergebnis"
+                        sortField="result"
+                        align="right"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                 }
               }
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (row of purchaseRows(); track row.id) {
+              <tr
+                data-purchase-table-row
+                [attr.data-purchase-selected]="
+                  widescreen() &&
+                  sidePanelMode() === 'detail' &&
+                  activeDetailPurchaseId() === row.id
+                    ? ''
+                    : null
+                "
+                (click)="openPurchase($event, row.id)"
+                class="cursor-pointer transition hover:bg-fb-surface-hover"
+                [class.bg-fb-surface-muted]="
+                  widescreen() &&
+                  sidePanelMode() === 'detail' &&
+                  activeDetailPurchaseId() === row.id
+                "
+              >
+                @for (column of orderedVisibleColumns(); track column.id) {
+                  @switch (column.id) {
+                    @case ('title') {
+                      <td>
+                        <a
+                          [routerLink]="['/purchases', row.id]"
+                          data-purchase-row
+                          data-purchase-reference
+                          [attr.data-purchase-row]="row.id"
+                          class="font-semibold text-fb-text-primary transition hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+                        >
+                          {{ row.reference }}
+                        </a>
+                      </td>
+                    }
+                    @case ('description') {
+                      <td data-purchase-description class="max-w-72">
+                        <span class="block max-w-72 truncate" [title]="row.title">{{
+                          row.title || '—'
+                        }}</span>
+                      </td>
+                    }
+                    @case ('seller') {
+                      <td>{{ row.supplierLabel }}</td>
+                    }
+                    @case ('purchase_date') {
+                      <td>
+                        <time [attr.datetime]="row.purchaseDate">{{
+                          row.purchaseDate | date: 'dd.MM.yyyy'
+                        }}</time>
+                      </td>
+                    }
+                    @case ('status') {
+                      <td>
+                        <app-badge [tone]="row.purchaseStatusTone">{{
+                          row.purchaseStatus
+                        }}</app-badge>
+                      </td>
+                    }
+                    @case ('total_cost') {
+                      <td class="min-w-28 text-right font-mono font-semibold tabular-nums">
+                        <app-cost-state [state]="row.totalCost" />
+                      </td>
+                    }
+                    @case ('receipt') {
+                      <td>
+                        <app-purchase-receipt-preview
+                          [purchaseId]="row.id"
+                          [receipt]="row.receipt"
+                        />
+                      </td>
+                    }
+                    @case ('sold_units') {
+                      <td data-purchase-sales-progress>
+                        @if (row.profitability?.state === 'review') {
+                          <span class="text-fb-text-muted">Noch prüfen</span>
+                        } @else if (row.quantityState === 'loaded' && row.soldUnits !== null) {
+                          <span>{{ row.soldUnits }} von {{ row.totalUnits }} verkauft</span>
+                          @if (row.soldUnits < row.totalUnits) {
+                            <span class="block text-xs text-fb-text-muted">Zwischenstand</span>
+                          }
+                        } @else {
+                          <span class="text-fb-text-muted">{{
+                            row.quantityState === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
+                          }}</span>
+                        }
+                      </td>
+                    }
+                    @case ('revenue') {
+                      <td data-purchase-revenue class="text-right tabular-nums">
+                        @if (
+                          row.profitability?.revenue !== null &&
+                          row.profitability?.revenue !== undefined
+                        ) {
+                          {{
+                            row.profitability?.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        } @else {
+                          <span class="text-fb-text-muted">{{
+                            row.profitability?.state === 'loading'
+                              ? 'Wird geladen …'
+                              : 'Noch prüfen'
+                          }}</span>
+                        }
+                      </td>
+                    }
+                    @case ('result') {
+                      <td data-purchase-result class="text-right tabular-nums">
+                        @if (row.profitability; as profitability) {
+                          @if (profitability.state !== 'loaded') {
+                            <span class="text-fb-text-muted">{{
+                              profitability.state === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
+                            }}</span>
+                          } @else if (!profitability.hasSales) {
+                            <span class="text-fb-text-muted">Noch kein Verkauf</span>
+                          } @else if (profitability.result === null) {
+                            <span class="text-fb-text-muted">Kosten noch offen</span>
+                          } @else {
+                            <details class="min-w-36">
+                              <summary
+                                class="relative cursor-pointer rounded-lg font-semibold underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                                [class.text-fb-success]="profitability.result > 0"
+                                [class.text-fb-critical]="profitability.result < 0"
+                              >
+                                <span class="sr-only">Berechnung für {{ row.reference }}: </span>
+                                {{ profitability.result > 0 ? '+' : ''
+                                }}{{
+                                  profitability.result | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                                }}
+                              </summary>
+                              <dl class="mt-2 space-y-1 text-xs text-fb-text-muted">
+                                <div>
+                                  <dt>Verkaufserlös</dt>
+                                  <dd>
+                                    {{
+                                      profitability.revenue
+                                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                                    }}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Direkte Verkaufskosten</dt>
+                                  <dd>
+                                    {{
+                                      profitability.sellingCosts
+                                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                                    }}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Gesamte Einkaufskosten</dt>
+                                  <dd><app-cost-state [state]="row.totalCost" /></dd>
+                                </div>
+                              </dl>
+                            </details>
+                          }
+                        }
+                      </td>
+                    }
+                  }
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
 
-    @if (canShowArchiveFromEmpty()) {
-      <app-button
-        data-show-purchase-archive
-        table-empty-action
-        class="mt-4"
-        variant="secondary"
-        (clicked)="showArchive()"
-      >
-        Archiv anzeigen
-      </app-button>
-    } @else if (hasPurchases()) {
-      <app-button
-        data-reset-purchase-view
-        table-empty-action
-        class="mt-4"
-        variant="secondary"
-        (clicked)="clearFilters()"
-      >
-        Suche und Filter löschen
-      </app-button>
-    } @else {
-      <app-button
-        data-create-first-purchase
-        table-empty-action
-        class="mt-4"
-        variant="primary"
-        [icon]="plusIcon"
-        routerLink="/purchases/new"
-      >
-        Neuer Einkauf
-      </app-button>
-    }
-  </app-data-table>
+      @if (canShowArchiveFromEmpty()) {
+        <app-button
+          data-show-purchase-archive
+          table-empty-action
+          class="mt-4"
+          variant="secondary"
+          (clicked)="showArchive()"
+        >
+          Archiv anzeigen
+        </app-button>
+      } @else if (hasPurchases()) {
+        <app-button
+          data-reset-purchase-view
+          table-empty-action
+          class="mt-4"
+          variant="secondary"
+          (clicked)="clearFilters()"
+        >
+          Suche und Filter löschen
+        </app-button>
+      } @else if (widescreen()) {
+        <app-button
+          data-create-first-purchase
+          table-empty-action
+          class="mt-4"
+          variant="primary"
+          [icon]="plusIcon"
+          (clicked)="openCreatePurchase($event)"
+        >
+          Neuer Einkauf
+        </app-button>
+      } @else {
+        <app-button
+          data-create-first-purchase
+          table-empty-action
+          class="mt-4"
+          variant="primary"
+          [icon]="plusIcon"
+          routerLink="/purchases/new"
+        >
+          Neuer Einkauf
+        </app-button>
+      }
+    </app-data-table>
+  </div>
+
+  @if (widescreen()) {
+    <aside
+      data-purchases-detail-pane
+      aria-label="Einkaufsdetails und Erfassung"
+      class="min-w-0 xl:sticky xl:top-20"
+    >
+      @if (sidePanelMode() === 'create') {
+        @if (createComponent(); as createComp) {
+          <ng-container
+            *ngComponentOutlet="
+              createComp;
+              inputs: {
+                onClose: closeSidePanelCallback,
+                onCreated: onInlinePurchaseCreatedCallback,
+              }
+            "
+          />
+        }
+      } @else if (activeDetailPurchaseId(); as detailId) {
+        @if (detailComponent(); as detailComp) {
+          <ng-container
+            *ngComponentOutlet="
+              detailComp;
+              inputs: {
+                id: detailId,
+                edit: false,
+                onClose: closeSidePanelCallback,
+              }
+            "
+          />
+        }
+      } @else {
+        <div
+          class="flex min-h-80 flex-col items-center justify-center gap-3 rounded-2xl border border-fb-line bg-fb-surface p-6 text-center"
+        >
+          <p class="text-sm font-medium text-fb-text-primary">Kein Einkauf ausgewählt</p>
+          <p class="max-w-sm text-xs text-fb-text-muted">
+            Wähle links einen Einkauf aus der Tabelle oder erfasse direkt rechts einen neuen
+            Einkauf.
+          </p>
+          <app-button
+            variant="primary"
+            size="md"
+            [icon]="plusIcon"
+            (clicked)="openCreatePurchase($event)"
+          >
+            {{ 'PURCHASES.NEW_PURCHASE' | translate }}
+          </app-button>
+        </div>
+      }
+    </aside>
+  }
 </div>

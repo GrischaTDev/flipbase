@@ -172,7 +172,7 @@
           >Erneut versuchen</app-button
         >
         <div table-content class="hidden min-w-0 overflow-x-auto md:block">
-          <table class="w-full min-w-[52rem] table-fixed text-left text-sm">
+          <table class="w-full min-w-[38rem] table-fixed text-left text-sm">
             <caption class="sr-only">
               Inserate von
               {{
@@ -183,13 +183,13 @@
               <tr>
                 <th scope="col" class="w-12 p-3"><span class="sr-only">Auswahl</span></th>
                 <th scope="col" class="p-3">Inserat</th>
-                <th scope="col" class="w-28 p-3">Preis</th>
-                <th scope="col" class="w-40 p-3">Online seit</th>
+                <th scope="col" class="w-24 p-3">Preis</th>
+                <th scope="col" class="w-32 p-3">Online seit</th>
                 <th
                   scope="col"
                   class="p-3 text-right"
-                  [class.w-72]="section().account.platform === 'vinted'"
-                  [class.w-32]="section().account.platform !== 'vinted'"
+                  [class.w-56]="section().account.platform === 'vinted'"
+                  [class.w-28]="section().account.platform !== 'vinted'"
                 >
                   Aktionen
                 </th>
@@ -204,6 +204,10 @@
                       ? 'bg-black/5 dark:bg-black/15 grayscale'
                       : ''
                   "
+                  [attr.draggable]="canDragItem(item) ? 'true' : null"
+                  [attr.data-listing-draggable]="canDragItem(item) ? 'true' : null"
+                  (dragstart)="onListingDragStart($event, item.reference)"
+                  (dragend)="onListingDragEnd()"
                   [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
                 >
                   <td class="p-3">
@@ -265,6 +269,10 @@
                   ? 'bg-black/5 dark:bg-black/15 grayscale'
                   : ''
               "
+              [attr.draggable]="canDragItem(item) ? 'true' : null"
+              [attr.data-listing-draggable]="canDragItem(item) ? 'true' : null"
+              (dragstart)="onListingDragStart($event, item.reference)"
+              (dragend)="onListingDragEnd()"
               [attr.aria-busy]="kleinanzeigenActions.isRunning(item.reference) ? 'true' : null"
             >
               <div class="flex min-w-0 items-start gap-3">

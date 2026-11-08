@@ -43,6 +43,7 @@ import type {
   MarketplaceListingState,
 } from '../../models/marketplace-overview.models';
 import { marketplacePlatformLabel } from '../../../../shared/models/marketplace-platform';
+import { MarketplaceSettingsService } from '../../../../core/services/marketplace-settings.service';
 import { overviewListingKey } from '../../models/marketplace-overview-normalization';
 
 @Component({
@@ -76,12 +77,15 @@ export class MarketplaceListingSectionComponent {
   readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly deleteIcon = LucideTrash2;
   readonly kleinanzeigenActions = inject(KleinanzeigenActionStore);
+  private readonly marketplaceSettings = inject(MarketplaceSettingsService);
   readonly section = input.required<MarketplaceOverviewSection>();
   readonly showAccountManagement = input(false);
   readonly collapsible = input(true);
   readonly accountManagementRequested = output<void>();
   readonly toggled = output<void>();
   readonly transferPublished = output<KleinanzeigenListingJob>();
+  readonly listingDragStarted = output<MarketplaceListingReference>();
+  readonly listingDragEnded = output<void>();
   readonly retried = output<void>();
   readonly nextRequested = output<void>();
   readonly previousRequested = output<void>();
@@ -199,6 +203,30 @@ export class MarketplaceListingSectionComponent {
       clearInterval(timer);
       window.removeEventListener('focus', reconcile);
     });
+  }
+  canDragItem(item: { reference: MarketplaceListingReference }): boolean {
+    return (
+      item.reference.platform === 'vinted' &&
+      /^[1-9][0-9]{0,31}$/u.test(item.reference.externalId) &&
+      this.marketplaceSettings.ready() &&
+      this.marketplaceSettings.isKleinanzeigenEnabled() &&
+      !this.kleinanzeigenActions.isRunning(item.reference)
+    );
+  }
+  onListingDragStart(event: DragEvent, reference: MarketplaceListingReference): void {
+    if (!this.canDragItem({ reference })) {
+      event.preventDefault();
+      return;
+    }
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('application/x-flipbase-listing', JSON.stringify(reference));
+      event.dataTransfer.setData('text/plain', reference.externalId);
+    }
+    this.listingDragStarted.emit(reference);
+  }
+  onListingDragEnd(): void {
+    this.listingDragEnded.emit();
   }
   async relistOne(reference: MarketplaceListingReference): Promise<void> {
     const pending = this.relisting
