@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Bearbeiten speichert im Hintergrund, alte Größen lesbar
+
+**Anlass:** Die Silver-Jeans ließ sich auch nach PR #600 nicht auf „M“ ändern. Außerdem soll
+Speichern das Bearbeiten schließen, in den Kleiderschrank zurückführen und als Aktion in der
+Übersicht laufen; der Knopf heißt nur noch „Speichern“.
+
+**Ursache und Umsetzung:** Im App-Mitschnitt lieferte das frische Lesen für dieses Inserat gar
+kein Größenfeld; die gespeicherte Angabe „M / 38 / 10“ wurde mit nichts verglichen. Mit
+Katalogwerten wird eine Größe ohne Kennung jetzt der enthaltenen Katalog-Größe zugeordnet (hier
+„M“), die alte Option entfällt, und eine unveränderte Größe wird nicht übertragen. Fehlt ein Feld
+beim frischen Lesen, meldet Flipbase das als nicht lesbar statt als Änderung bei Vinted.
+Speichern übergibt alle Eingaben an die Aktionsübersicht („Inserat wird aktualisiert“), schließt
+die Bearbeitung und kehrt in den Kleiderschrank zurück; Fehler bleiben dort sichtbar, Erfolg
+meldet „Inserat erfolgreich aktualisiert“.
+
+**Prüfung:** Modelltests für Zuordnung, andere Änderungen und nicht lesbare Felder; angepasste
+Komponententests der Bearbeiten-Ansicht (26); betroffene Browsertests lokal bestanden (6).
+Vorabcheck im Commit.
+
 ## 2026-11-08 - Juna - Bearbeiten mit kombinierten Größen älterer Inserate
 
 **Anlass:** Beim Ändern der Größe einer Silver-Jeans auf „M“ meldete Flipbase weiterhin „Das

@@ -41,7 +41,7 @@
         [disabled]="form.invalid || !canSave()"
         [loading]="busy()"
         (clicked)="save()"
-        >Bei Vinted speichern</app-button
+        >Speichern</app-button
       >
     </div>
     <form [formGroup]="form" (ngSubmit)="save()">

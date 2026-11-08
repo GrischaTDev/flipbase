@@ -9,7 +9,7 @@ import type { VintedRelistingPlanRecord } from '../models/vinted-relisting-plan'
 
 export interface VintedListingOperation {
   readonly key: string;
-  readonly kind: 'price' | 'delete' | 'relist';
+  readonly kind: 'price' | 'delete' | 'relist' | 'edit';
   readonly userId: string;
   readonly workspaceId: string;
   readonly connectionId: string;
@@ -144,12 +144,23 @@ export class VintedListingOperationStore {
     return this.run(entry, 'delete', remove);
   }
 
+  /** Speichert eine Bearbeitung im Hintergrund; die Artikelansicht ist dann schon geschlossen. */
+  async updateListing(entry: MarketplaceEntry, save: () => Promise<void>): Promise<void> {
+    return this.run(entry, 'edit', save);
+  }
+
   async prepareRelisting(entry: MarketplaceEntry, prepare: () => Promise<void>): Promise<void> {
     return this.run(entry, 'relist', prepare, true);
   }
 
   label(kind: VintedListingOperation['kind']): string {
-    return kind === 'relist' ? 'Relisting' : kind === 'delete' ? 'Löschung' : 'Preisänderung';
+    return kind === 'relist'
+      ? 'Relisting'
+      : kind === 'delete'
+        ? 'Löschung'
+        : kind === 'edit'
+          ? 'Aktualisierung'
+          : 'Preisänderung';
   }
 
   runningLabel(entry: MarketplaceEntry): string {
@@ -163,7 +174,9 @@ export class VintedListingOperationStore {
       ? 'Relisting wird vorbereitet'
       : action?.kind === 'delete'
         ? 'Inserat wird gelöscht'
-        : 'Preis wird geändert';
+        : action?.kind === 'edit'
+          ? 'Inserat wird aktualisiert'
+          : 'Preis wird geändert';
   }
 
   private async run(
@@ -196,7 +209,9 @@ export class VintedListingOperationStore {
             ? 'Relisting wird vorbereitet …'
             : kind === 'delete'
               ? 'Inserat wird gelöscht …'
-              : 'Preis wird geändert …',
+              : kind === 'edit'
+                ? 'Inserat wird aktualisiert …'
+                : 'Preis wird geändert …',
       },
     ]);
     try {
@@ -208,7 +223,11 @@ export class VintedListingOperationStore {
       this.finish(
         key,
         'success',
-        kind === 'delete' ? 'Inserat erfolgreich gelöscht' : 'Preis erfolgreich geändert',
+        kind === 'delete'
+          ? 'Inserat erfolgreich gelöscht'
+          : kind === 'edit'
+            ? 'Inserat erfolgreich aktualisiert'
+            : 'Preis erfolgreich geändert',
       );
     } catch (error) {
       this.finish(

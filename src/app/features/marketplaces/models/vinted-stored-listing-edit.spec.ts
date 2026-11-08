@@ -276,3 +276,87 @@ describe('Kombinierte Größen älterer Inserate', () => {
     );
   });
 });
+
+describe('Alte kombinierte Größe mit Katalog', () => {
+  // Silver-Jeans vom 08.11.2026: gespeichert „M / 38 / 10“ ohne Kennung; der Worker konnte das
+  // Größenfeld im Vinted-Formular nicht lesen und lieferte keines.
+  const choice = (id: number, label: string, selected = false) => ({
+    id,
+    label,
+    selected,
+    disabled: false,
+    sizeGroupId: 4,
+  });
+  function setup() {
+    const live = listingCurrentContentFixture();
+    const account = createMarketplaceFixtures().connections[0];
+    const catalog = {
+      ...live.schema,
+      fields: [
+        {
+          field: 'size' as const,
+          sizeGroupId: 4,
+          choices: [choice(205, 'S'), choice(207, 'M'), choice(208, 'L'), choice(1201, 'EU 38')],
+        },
+        ...live.schema.fields.filter((field) => field.field !== 'size'),
+      ],
+    };
+    const entry = parseMarketplacePage(
+      {
+        items: [
+          {
+            ...account,
+            id: 'a',
+            title: live.content.title,
+            text: live.content.description,
+            size: 'M / 38 / 10',
+            price: 20.5,
+            listingContent: { ...live.content, sizeId: null, sizeLabel: '' },
+          },
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+      account,
+    ).items[0];
+    const stored = storedVintedListingEdit(entry, live.content.description, catalog)!;
+    const withoutSize = {
+      ...live,
+      content: { ...live.content, sizeId: null, sizeLabel: '' },
+      schema: {
+        ...live.schema,
+        fields: live.schema.fields.filter((field) => field.field !== 'size'),
+      },
+    };
+    const fields = {
+      ...vintedListingEditSelection(stored),
+      color: 'Blau · Gelb',
+      material: 'Acryl',
+      title: live.content.title,
+      description: live.content.description,
+      price: '20,50',
+    };
+    return { stored, withoutSize, fields };
+  }
+
+  it('wählt die enthaltene Buchstabengröße vor und zeigt keine eigene Option', () => {
+    const { stored } = setup();
+    const size = stored.schema.fields.find((field) => field.field === 'size')!;
+    expect(vintedListingEditSelection(stored).size).toBe('207');
+    expect(size.choices.map((entry) => entry.label)).toEqual(['S', 'M', 'L', 'EU 38']);
+  });
+
+  it('speichert andere Änderungen, obwohl Vinted die Größe nicht lesbar liefert', () => {
+    const { stored, withoutSize, fields } = setup();
+    expect(
+      applyStoredVintedListingEdit(stored, withoutSize, { ...fields, title: 'Neu' }),
+    ).toMatchObject({ title: 'Neu', sizeId: null });
+  });
+
+  it('meldet eine nicht lesbare Größe statt einer Änderung bei Vinted', () => {
+    const { stored, withoutSize, fields } = setup();
+    expect(() =>
+      applyStoredVintedListingEdit(stored, withoutSize, { ...fields, size: '208' }),
+    ).toThrow('Die Größe konnte bei Vinted gerade nicht gelesen werden');
+  });
+});

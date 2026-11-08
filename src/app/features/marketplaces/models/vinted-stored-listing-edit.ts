@@ -46,9 +46,16 @@ export function storedVintedListingEdit(
   // markiert. Mit echten Katalogwerten zählt deshalb zuerst die Kennung, nicht die Bezeichnung.
   const real =
     stored?.categoryId === content.categoryId && !content.attributes['flipbaseListingForm'];
+  const combinedSize =
+    real && content.sizeId === null
+      ? catalogSizeForLabel(
+          schema.fields.find((field) => field.field === 'size')?.choices ?? [],
+          content.sizeLabel,
+        )
+      : null;
   const selectedIds: Partial<Record<VintedListingEditField, readonly number[]>> = real
     ? {
-        size: content.sizeId === null ? [] : [content.sizeId],
+        size: content.sizeId !== null ? [content.sizeId] : combinedSize ? [combinedSize] : [],
         condition: content.conditionId === null ? [] : [content.conditionId],
         color: content.colorIds,
         material: content.materialIds,
@@ -123,6 +130,39 @@ function sameSizes(left: readonly string[], right: readonly string[]): boolean {
   );
 }
 
+/**
+ * Ordnet eine gespeicherte Größe ohne Kennung einer Katalog-Größe zu. Ältere Inserate führen
+ * kombinierte Angaben wie „M / 38 / 10“; eine enthaltene Buchstabengröße ist dann eindeutig.
+ */
+function catalogSizeForLabel(
+  choices: readonly { readonly id: number | null; readonly label: string }[],
+  label: string,
+): number | null {
+  if (!label.trim()) return null;
+  const exact = choices.filter((choice) => normalizeSize(choice.label) === normalizeSize(label));
+  if (exact.length === 1) return exact[0]!.id;
+  const parts = label.split('/').map(normalizeSize).filter(Boolean);
+  if (parts.length < 2) return null;
+  const matching = choices.filter((choice) => parts.includes(normalizeSize(choice.label)));
+  const letters = matching.filter((choice) => /^\d*[a-z]+$/i.test(choice.label.trim()));
+  const found = letters.length === 1 ? letters : matching.length === 1 ? matching : [];
+  return found[0]?.id ?? null;
+}
+
+const unreadable = (field: VintedListingEditField) =>
+  new Error(
+    `${fieldNames[field]} konnte bei Vinted gerade nicht gelesen werden. Es wurde nichts gespeichert. Versuche es bitte erneut.`,
+  );
+const fieldNames: Record<VintedListingEditField, string> = {
+  accessory_department: 'Die Zielgruppe',
+  brand: 'Die Marke',
+  size: 'Die Größe',
+  condition: 'Der Zustand',
+  package: 'Die Paketgröße',
+  color: 'Die Farbe',
+  material: 'Das Material',
+};
+
 const conflict = () =>
   new Error(
     'Das Inserat wurde inzwischen bei Vinted geändert. Aktualisiere die Daten vor dem erneuten Speichern.',
@@ -190,6 +230,9 @@ export function applyStoredVintedListingEdit(
       ? desiredField.split(' · ').filter(Boolean)
       : labels(stored, field, desiredField ? [desiredField] : []);
     if (equal(previousLabels, desiredLabels)) continue;
+    // Fehlt das Feld im frisch gelesenen Formular ganz, ist das keine Änderung bei Vinted.
+    if (previousLabels.length > 0 && !current.schema.fields.some((group) => group.field === field))
+      throw unreadable(field);
     const fresh = selection[field] ?? '';
     const freshLabels = labels(
       current,
