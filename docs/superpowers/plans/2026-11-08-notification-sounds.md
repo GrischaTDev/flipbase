@@ -69,3 +69,30 @@
 - Produktionsbuild mit Angular-Vorlagen und PWA-Paket erfolgreich.
 - Unabhängige Codeprüfung ohne offene Befunde.
 - Echte Browser-Audiowiedergabe sowie vollständige Datenbank-, Browser- und PWA-Freigabe bleiben CI beziehungsweise Geräteprüfung vorbehalten.
+
+## Nachtrag: getrennte Bereitstellung von Web und Edge-Funktion
+
+PR #595 ist nach grüner vollständiger CI als `ee59d34` gemergt. Web-Release,
+SQL-Migration und öffentliche Auslieferung sind erfolgreich nachgewiesen.
+Der öffentliche Handler `webhook-dispatch` wird laut dokumentiertem Releaseweg
+separat installiert. Die alte Fassung lehnt den neuen Verkaufston-Schlüssel ab;
+der dafür notwendige Betreiberzugang ist in dieser Umgebung nicht verfügbar.
+
+- [x] Auf `juna/notification-sound-compatibility` bestätigte Serverunterstützung
+      getrennt vom Legacy-Tonstatus führen; alte Handler erhalten keine neuen
+      Schlüssel und die zweite Option erscheint erst nach Bestätigung.
+- [x] Legacy-Speichern und vorgeschaltetes Speichern beim Webhook-Test rot/grün
+      prüfen; neue unabhängige Optionen und Workspace-Grenzen erhalten.
+- [x] Korrektur lokal prüfen und für einen erneut grünen PR vorbereiten:
+      723 Node-, 189 DOM- und 2.260 Angular-Fälle, 148 Skriptfälle,
+      11 Orchestrierungsfälle sowie Produktionsbau nachgewiesen. Eine veraltete
+      Workspace-Fixture korrigiert und gezielt nachgeprüft; erfolgreiche
+      unveränderte Prüfungen weiterverwendet und den identischen Plan vollständig
+      abgeschlossen. CI und Auslieferung werden im zugehörigen PR dokumentiert.
+      Die vorhandene Nutzerfreigabe für den Soundauftrag umfasst die notwendige
+      Korrektur.
+- [ ] Geprüften Handler über den bestehenden Betreiberzugang installieren und
+      seinen tatsächlichen Laufzeitstand bestätigen. Ohne diesen Nachweis sind
+      die unabhängigen Toneinstellungen noch nicht vollständig freigegeben.
+- [ ] Verbleibende Remote-Aufgabenbranches löschen. Die GitHub-Anbindung bietet
+      keinen Löschaufruf; CLI und verfügbarer Browser sind nicht angemeldet.

@@ -184,19 +184,25 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
       }),
       notifications: signal([{ id: 'notification-a' }]),
       loadedWorkspaceId: signal<string | null>('workspace-a'),
+      supportsSaleSound: signal(true),
       workspaceService: { currentWorkspace },
       logger: { error: vi.fn() },
       supabase: {
-        client: queryClient({
-          webhook_configs: {
-            'workspace-a': configA.promise,
-            'workspace-b': Promise.resolve({ data: null, error: null }),
+        client: {
+          functions: {
+            invoke: vi.fn((_name: string, options: { body: { workspaceId: string } }) =>
+              options.body.workspaceId === workspaceA.id
+                ? configA.promise
+                : Promise.resolve({ data: null, error: null }),
+            ),
           },
-          app_notifications: {
-            'workspace-a': notificationsA.promise,
-            'workspace-b': Promise.resolve({ data: [], error: null }),
-          },
-        }),
+          ...queryClient({
+            app_notifications: {
+              'workspace-a': notificationsA.promise,
+              'workspace-b': Promise.resolve({ data: [], error: null }),
+            },
+          }),
+        },
       },
     });
 
@@ -206,20 +212,22 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
 
     expect(service.config().telegramBotToken).toBe('');
     expect(service.notifications()).toEqual([]);
+    expect(service.loadedWorkspaceId()).toBe(workspaceB.id);
+    expect(service.supportsSaleSound()).toBe(false);
 
     configA.resolve({
       data: {
-        discord_enabled: false,
-        discord_webhook_url: '',
-        telegram_enabled: true,
-        telegram_bot_token: 'delayed-a-secret',
-        telegram_chat_id: 'delayed-a-chat',
-        custom_webhook_enabled: false,
-        custom_webhook_url: '',
-        notify_on_sale: true,
-        notify_on_purchase: true,
-        notify_on_low_margin: true,
-        sound_enabled: true,
+        discordEnabled: false,
+        hasDiscordCredentials: false,
+        telegramEnabled: true,
+        hasTelegramCredentials: true,
+        customWebhookEnabled: false,
+        hasCustomWebhookCredentials: false,
+        notifyOnSale: true,
+        notifyOnPurchase: true,
+        notifyOnLowMargin: true,
+        soundEnabled: true,
+        saleSoundEnabled: true,
       },
       error: null,
     });
@@ -240,5 +248,8 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
 
     expect(service.config().telegramBotToken).toBe('');
     expect(service.notifications()).toEqual([]);
+    expect(service.loadedWorkspaceId()).toBe(workspaceB.id);
+    expect(service.supportsSaleSound()).toBe(false);
+    expect(service.config().hasTelegramCredentials).toBeFalsy();
   });
 });
