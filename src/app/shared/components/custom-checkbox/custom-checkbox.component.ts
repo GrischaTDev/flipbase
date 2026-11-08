@@ -23,6 +23,8 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     },
   ],
   host: {
+    // Die ID gehört nur dem inneren Button; sonst trifft ein <label for> das Host-Element.
+    '[attr.id]': 'null',
     '[class.inline-flex]': "presentation() === 'default'",
     '[class.flex]': "presentation() !== 'default'",
     '[class.items-center]': 'true',
