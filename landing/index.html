@@ -979,18 +979,6 @@
         line-height: 1.55;
       }
 
-      .beta-dialog-hinweis {
-        width: 100%;
-        max-width: none;
-        box-sizing: border-box;
-        padding: 0.85rem 1rem;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: var(--surface-alt);
-        font-size: 0.9rem;
-        text-align: center;
-      }
-
       .beta-dialog-aktion {
         justify-content: center;
         margin-top: 0.5rem;
@@ -5809,7 +5797,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="beta-success-title"
-      aria-describedby="beta-success-description beta-success-receipt"
+      aria-describedby="beta-success-description"
       hidden
     >
       <div class="beta-dialog-karte">
@@ -5834,25 +5822,16 @@
           </h2>
           <p id="beta-success-description" class="beta-dialog-copy">
             <span class="lang-de"
-              >Deine Bewerbung ist bei uns eingegangen. Wir melden uns schnellstmöglich bei
-              dir.</span
+              >Deine Bewerbung ist bei uns eingegangen. Wir melden uns schnellstmöglich per E-Mail
+              bei dir – schau dann bitte auch in deinen Spamordner.</span
             >
             <span class="lang-en" lang="en"
-              >We have received your application and will get back to you as soon as possible.</span
+              >We have received your application and will get back to you by email as soon as
+              possible – please also check your spam folder.</span
             >
           </p>
           <p class="beta-dialog-email">
             <strong id="beta-success-email"></strong>
-          </p>
-          <p id="beta-success-receipt" class="beta-dialog-copy beta-dialog-hinweis">
-            <span class="lang-de"
-              >Wenn deine Adresse neu aufgenommen wurde, erhältst du eine Bestätigungs-E-Mail. Prüfe
-              auch deinen Spamordner.</span
-            >
-            <span class="lang-en" lang="en"
-              >If your address was newly registered, you will receive a confirmation email. Please
-              also check your spam folder.</span
-            >
           </p>
         </div>
 

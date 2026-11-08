@@ -71,6 +71,7 @@ export class WebhookService {
   readonly config = signal<WebhookConfig>(createDefaultWebhookConfig());
   readonly notifications = signal<AppNotification[]>([]);
   readonly loadedWorkspaceId = signal<string | null>(null);
+  readonly supportsSaleSound = signal(false);
   private loadVersion = 0;
 
   readonly unreadCount = computed(() => this.notifications().filter((n) => !n.read).length);
@@ -129,7 +130,10 @@ export class WebhookService {
       if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
       if (cfgRes.error || notifRes.error) throw cfgRes.error ?? notifRes.error;
 
-      if (cfgRes.data) this.config.set(this.publicConfig(cfgRes.data));
+      if (cfgRes.data) {
+        this.supportsSaleSound.set(typeof cfgRes.data.saleSoundEnabled === 'boolean');
+        this.config.set(this.publicConfig(cfgRes.data));
+      }
 
       const mapped: AppNotification[] = (
         (notifRes.data ?? []) as Tables<'app_notifications'>[]
@@ -152,6 +156,7 @@ export class WebhookService {
   }
 
   private resetWorkspaceData(): void {
+    this.supportsSaleSound.set(false);
     this.config.set(createDefaultWebhookConfig());
     this.notifications.set([]);
     this.loadedWorkspaceId.set(null);
@@ -180,11 +185,15 @@ export class WebhookService {
       );
     let updated = this.publicConfig({ ...this.config(), ...cfg });
     if (persistent && this.supabase && workspaceId) {
+      const loadVersion = this.loadVersion;
+      const settings = { ...cfg };
+      // Ältere Funktionsstände weisen unbekannte Einstellungen vollständig zurück.
+      if (!this.supportsSaleSound()) delete settings.saleSoundEnabled;
       try {
         const { data, error } = await this.supabase.client.functions.invoke<WebhookConfig>(
           'webhook-dispatch',
           {
-            body: { action: 'save', workspaceId, settings: cfg },
+            body: { action: 'save', workspaceId, settings },
           },
         );
         if (error || !data)
@@ -192,12 +201,15 @@ export class WebhookService {
             'Speichern der Webhook-Konfiguration',
             error ?? new Error('Keine bestätigte Webhook-Konfiguration.'),
           );
-        if (!this.isCurrentWorkspace(workspaceId))
+        if (!this.isCurrentLoad(workspaceId, loadVersion))
           return {
             data: null,
-            error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+            error: new Error(
+              'Die aktive Webhook-Konfiguration wurde während des Speicherns gewechselt.',
+            ),
             reportedBySyncStatus: false,
           };
+        this.supportsSaleSound.set(typeof data.saleSoundEnabled === 'boolean');
         updated = this.publicConfig(data);
       } catch (error: unknown) {
         return this.webhookFehler('Speichern der Webhook-Konfiguration', error);

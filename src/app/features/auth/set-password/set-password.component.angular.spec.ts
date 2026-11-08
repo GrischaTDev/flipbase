@@ -92,7 +92,10 @@ beforeAll(async () => {
 });
 
 describe('SetPasswordComponent', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    sessionStorage.clear();
+  });
 
   function createComponent(
     options: {
@@ -275,6 +278,20 @@ describe('SetPasswordComponent', () => {
       expect.any(String),
     );
     expect(window.location.href).not.toContain('test-secret');
+    expect(sessionStorage.getItem('flipbase.betaRegistrationToken')).toBeNull();
+  });
+
+  it('zeigt nach dem Neuladen des Registrierungslinks kein Feld für das bisherige Passwort', async () => {
+    history.replaceState(null, '', '#beta_token=reload-secret');
+    const first = createComponent({ method: 'password' });
+    await first.component.ngOnInit();
+    expect(window.location.hash).toBe('');
+    TestBed.resetTestingModule();
+
+    const reloaded = createComponent({ method: 'password' });
+    await reloaded.component.ngOnInit();
+    expect(reloaded.component.isPasswordChange()).toBe(false);
+    expect(reloaded.registration.inspect).toHaveBeenCalledWith('reload-secret');
   });
 
   it('erkennt ungleiche Passwoerter als Mismatch', () => {
@@ -372,7 +389,7 @@ describe('SetPasswordComponent', () => {
       .componentInstance as CustomCheckboxComponent;
 
     expect(text).toContain('Passwort wiederholen');
-    expect(text).toContain('Workspace');
+    expect(text).toContain('Einrichtung');
     expect(text).toContain('Discord');
     expect(text).toContain('Sicherheitsstufe:');
     expect(text).not.toContain('AUTH.');

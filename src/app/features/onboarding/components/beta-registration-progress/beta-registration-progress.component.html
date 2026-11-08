@@ -27,6 +27,7 @@
           [class.bg-fb-primary]="step() >= item.number"
           [class.text-fb-on-accent]="step() >= item.number"
           [class.border-fb-border]="step() < item.number"
+          [class.bg-fb-surface]="step() < item.number"
           [class.text-fb-text-muted]="step() < item.number"
           [attr.aria-current]="step() === item.number ? 'step' : null"
           >{{ item.number }}</span

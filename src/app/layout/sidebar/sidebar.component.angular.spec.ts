@@ -39,6 +39,7 @@ const routes: Routes = [
       { path: '', redirectTo: 'overview', pathMatch: 'full' },
       { path: 'overview', component: TestPageComponent },
       { path: 'system', component: TestPageComponent },
+      { path: 'system/:area', component: TestPageComponent },
       { path: 'applications', component: TestPageComponent },
       { path: 'users', component: TestPageComponent },
       {
@@ -192,6 +193,38 @@ describe('SidebarComponent', () => {
     const operation = await renderAt('/admin/vinted-bot/operation');
     expect(current(operation.element)).toEqual([null, null, null, null, 'page', null, null, null]);
     expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+
+  it('klappt unter Systemzustand die Fehlerprotokolle je Bereich auf', async () => {
+    const { element } = await renderAt('/admin/system/push');
+    const children = Array.from(
+      element.querySelectorAll<HTMLAnchorElement>(
+        '[data-admin-navigation] [data-sub-navigation] a',
+      ),
+    );
+    expect(children.map((link) => link.textContent?.trim())).toEqual([
+      'Übersicht',
+      'Vinted-Abrufe',
+      'Vinted-Aktionen',
+      'Kleinanzeigen',
+      'Push',
+      'Feed-Bot',
+      'App',
+    ]);
+    expect(children.map((link) => link.getAttribute('href'))[4]).toBe('/admin/system/push');
+    expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    expect(children[4].getAttribute('aria-current')).toBe('page');
+    expect(
+      element
+        .querySelector('[data-admin-navigation] a[href="/admin/system"]')
+        ?.getAttribute('aria-current'),
+    ).toBeNull();
+    const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(result.violations).toEqual([]);
+
+    TestBed.resetTestingModule();
+    const other = await renderAt('/admin/users');
+    expect(other.element.querySelector('[data-admin-navigation] [data-sub-navigation]')).toBeNull();
   });
 
   it('fuehrt den Deal-Rechner und eBay-Gebührenrechner unter Tools', async () => {

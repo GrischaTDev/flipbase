@@ -16,6 +16,129 @@ mehrere Größengruppen dieselbe Bezeichnung führen.
 **Prüfung:** Neue Modelltests mit dem Aufbau des betroffenen Inserats; ohne Korrektur erscheint
 genau die gemeldete Meldung, mit Korrektur nicht. Vorabcheck im Commit.
 
+## 2026-11-07 - Juna - Fehlerprotokoll im Systemzustand
+
+**Auftrag:** Im Admin-Bereich soll jeder Abbruch und Fehler je Bereich
+nachvollziehbar sein: links unter „Systemzustand“ aufklappbare Unterpunkte, je
+Bereich eine schlichte Tabelle mit Zeit, Fehler und Details. Der Nutzer hat
+entschieden, dass sichtbare App-Fehler (auch auf Handy und Tablet) ebenfalls
+protokolliert werden. Anlass war ein Ausfall der Vinted-Automatik am 06.11.,
+dessen Worker-Logs beim Neustart verloren gingen.
+
+**Umsetzung:** Neue Tabelle `platform_error_events` (RLS, nur Betreiber lesen,
+30 Tage Aufbewahrung, keine Inhalte oder Zugangsdaten). Ein gemeinsamer Trigger
+schreibt Fehlerzustände aus zehn bestehenden Tabellen in derselben Transaktion
+mit: Vinted-Abrufe, Browsersitzungen und Automatikpausen, Nachrichten, Favoriten,
+Preisverhandlungen, Inserate, Kleinanzeigen-Abgleich und -Veröffentlichung,
+Push-Zustellungen und Feed-Bot-Zyklen. `platform_report_app_error` nimmt
+gedrosselt sichtbare Fehlermeldungen (`role="alert"`) und unbehandelte Ausnahmen
+der App an. Feldfehler der Formularprüfung bleiben außen vor. Unter „Systemzustand“
+klappen „Übersicht“ und sechs Bereichsseiten auf. Jede zeigt die Einträge
+neueste zuerst, mit „Ältere laden“.
+
+**Nachweise:** pgTAP `platform-error-log` 20/20 in einer zurückgerollten
+Transaktion gegen die lokale Datenbank. 22 bestehende Testdateien der
+betroffenen Tabellen bestanden mit den Triggern. Bei 20 weiteren treten dieselben
+Abweichungen mit und ohne Migration auf, weil die lokale Datenbank auf einem
+älteren Stand ist. Den vollständigen Lauf auf frischer Datenbank übernimmt die CI.
+Neue Specs für Modell, Detailseite, Melde-Dienst und Seitenmenü bestanden.
+
+## 2026-11-08 - Juna - Browsertest der Beta-Registrierung nachziehen
+
+**Anlass:** PR #597 wurde versehentlich vor Abschluss der Prüfungen gemergt, weil
+`gh pr merge --auto` bei ausgeschaltetem Auto-Merge im Repository sofort mergt.
+Die master-CI zeigte danach den Fehler: `e2e/beta-registration.spec.ts` suchte
+noch die alte Schrittbezeichnung „Workspace“. Der Quality-Job scheiterte zusätzlich
+an einem 504 beim Herunterladen von actionlint (Infrastruktur).
+
+**Umsetzung:** Der Browsertest erwartet jetzt „Einrichtung“. Künftig nicht mehr
+`--auto` verwenden, solange Auto-Merge im Repository aus ist.
+
+**Nachweise:** Siehe PR. Der Browsertest lief lokal nicht, weil Docker nicht lief.
+
+## 2026-11-08 - Juna - Soundeinstellungen mit älterem Backend kompatibel halten
+
+**Befund nach Veröffentlichung:** PR #595 wurde nach vollständig grünen
+Pflichtprüfungen als `ee59d34` gemergt. Der Web-Release hat die Migration
+`20261108075641` angewandt und den Merge öffentlich ausgeliefert. Der gesonderte
+öffentliche Handler `webhook-dispatch` gehört jedoch nicht zum automatischen
+Web-/Push-Release. Seine bisherige Fassung lehnt `saleSoundEnabled` als unbekannte
+Einstellung ab; damit könnten auch normale Speichervorgänge und der vorgeschaltete
+Save beim Webhook-Test scheitern. Dieser getrennte Rollout hätte vor dem Merge
+abgeglichen werden müssen.
+
+**Korrektur:** Auf `juna/notification-sound-compatibility` wird die bestätigte
+Unterstützung des Verkaufstons getrennt vom bisherigen Ton-Fallback geführt.
+Ein vorhandener boolescher Wert in einer aktuellen Serverantwort bestätigt die
+Unterstützung auch bei `false`. Ohne diese Bestätigung zeigt die Oberfläche nur
+den bisherigen gemeinsamen Schalter und sendet den neuen Schlüssel weder beim
+Speichern noch vor einem Webhook-Test. Der Service sichert denselben Vertrag
+zentral ab; Workspacewechsel und veraltete Antworten dürfen keine Unterstützung
+übertragen. Nach einer bestätigten neuen Serverantwort erscheinen die beiden
+unabhängigen Schalter automatisch.
+
+**Prüfstand:** Vier gezielte Angular-Regressionsfälle zunächst am veröffentlichten
+Verhalten fehlgeschlagen: gemeinsamer Schalter, alter Save-Payload, Webhook-Test
+und Anzeige nach Workspacewechsel. Anschließend alle 73 Fälle der vorhandenen
+Einstellungsseiten-Fixture erfolgreich. Im Service zunächst neun neue Fälle rot
+und drei bestehende grün; danach 45 Fälle aus fünf Webhook-Service-Dateien grün.
+Unabhängige Codeprüfung ohne offene Befunde.
+
+**Lokaler Pflichtnachweis:** Format, Lint, Typen, Suite-Audit, 148 Skriptfälle
+und 11 Orchestrierungsfälle erfolgreich. Der erste Node-Lauf fand eine alte
+`Object.create`-Fixture ohne das neue Signal; die übrigen 66 Dateien bestanden.
+Diese Fixture wurde auf den tatsächlichen Edge-Leseweg umgestellt und verlangt
+nun ausdrücklich den erfolgreich geladenen Workspace B sowie die Abweisung der
+verspäteten A-Antwort. Ihre drei Fälle und gezieltes ESLint anschließend grün.
+Damit sind alle 723 ausgewählten Node-Fälle abgedeckt. Der Auswahlnachweis
+`c3e972d9854dbfbca072f464c9385be3693f7c5e1c65c117a0e5a093a3030402`
+blieb identisch. Bestandene unveränderte Prüfungen wurden weiterverwendet;
+Typprüfung sowie sämtliche verbleibenden Prüfungen desselben Plans erfolgreich
+ausgeführt: 189 DOM-Fälle, 2.260 Angular-Fälle und Produktionsbau einschließlich
+PWA. Bekannte Bauwarnungen bleiben ohne Baufehler. Die vollständigen ausgewählten
+CI-Prüfungen bleiben vor dem Merge erforderlich.
+
+**Abgleich mit parallelen Änderungen:** Die inzwischen gemergten Änderungen bis
+`5574ff6` übernommen; nur im Änderungsprotokoll mussten beide Einträge erhalten
+werden. Nach der neuen Verbindungsbehandlung 244 betroffene Fälle grün, nach der
+gemeinsamen Checkbox-Korrektur nochmals 87 Einstellungs- und Checkbox-Fälle.
+Vollständiger Qualitätscheck und Produktionsbau auf dem aktuellen Stand erneut
+erfolgreich. Die sechs Anwendungs- und Testdateien der Kompatibilitätskorrektur
+blieben bei beiden Übernahmen unverändert. Der aktuelle Auswahlnachweis lautet
+`a23fbac2302d4998fd5422616bea201e7fc4ce279ed59e4ede20ef5f3e10f8ca`.
+
+**Offener Betriebsschritt:** Der geprüfte Laufzeitpatch
+`supabase/functions/webhook-dispatch/webhook-settings.ts` benötigt den bestehenden
+Betreiberzugang zum selbst gehosteten Funktionsdienst. In dieser Arbeitsumgebung
+sind weder eine Betreiberidentität noch ein SSH-Agent oder ein geeigneter
+Remote-Zugang vorhanden. Der eingeschränkte CI-Schlüssel erlaubt diesen Rollout
+nicht. Der Backendstand wird deshalb nicht als ausgerollt bezeichnet; der
+Kompatibilitätsschutz ersetzt die noch erforderliche Installation nicht.
+
+## 2026-11-08 - Juna - Beta-Registrierung nachbessern
+
+**Anlass:** Beim Test des Registrierungslinks fielen auf: durchscheinende
+Stepper-Kreise, ein nicht anklickbarer Zustimmungstext, unterschiedlich hohe
+Umschalter oben rechts, ein „Aktuelles Passwort“-Feld nach dem Neuladen, ein
+überflüssiger Zusatztext in der Beta-Bestätigung der Landingpage und holprige
+Texte im zweiten Schritt.
+
+**Umsetzung:** Die Ursache für das Passwortfeld: Der Link-Token wird nach dem
+ersten Laden aus der Adresse entfernt. Beim Neuladen fehlte er, und eine bereits
+bestehende Sitzung im Browser wurde als normale Passwortänderung gedeutet. Der
+Token liegt jetzt bis zum Abschluss im `sessionStorage` des Tabs und wird bei
+Abschluss oder ungültigem Link gelöscht. `app-custom-checkbox` entfernt die
+`id` vom Host-Element, damit `<label for>` den inneren Button trifft (betrifft
+alle Verwendungen). Kommende Stepper-Kreise haben einen hellen Hintergrund,
+DE/EN-Umschalter und Design-Knopf sind auf den Anmeldeseiten gleich hoch. Der
+zweite Schritt heißt „Einrichtung“, Platzhalter und Shop-Texte sind neu. Der
+Spam-Hinweis steht jetzt in der Beta-Bestätigung selbst.
+
+**Nachweise:** Angular-Specs zu Auth, Onboarding und Checkbox (42 Tests) und
+`scripts/landing-page.test.mjs` (58 Tests) bestanden. Im Browser geprüft:
+Umschalter beide 36 px, Klick auf den Zustimmungstext setzt das Häkchen, nach
+Neuladen kein Feld für das bisherige Passwort.
+
 ## 2026-11-07 - Juna - Vinted-Automatik nach Aussetzern stabilisieren
 
 **Anlass:** Am Morgen wirkten alle Konten auf dem Handy veraltet, und es erschien

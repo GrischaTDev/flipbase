@@ -48,6 +48,25 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
   return password === confirmPassword ? null : { passwordMismatch: true };
 };
 
+const BETA_TOKEN_STORAGE_KEY = 'flipbase.betaRegistrationToken';
+
+function readStoredBetaToken(): string | null {
+  try {
+    return sessionStorage.getItem(BETA_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeBetaToken(token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(BETA_TOKEN_STORAGE_KEY, token);
+    else sessionStorage.removeItem(BETA_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ohne Speicher bleibt nur der Link selbst gültig.
+  }
+}
+
 @Component({
   selector: 'app-set-password',
   imports: [
@@ -174,9 +193,14 @@ export class SetPasswordComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    const token = new URLSearchParams(window.location.hash.slice(1)).get('beta_token');
+    const hashToken = new URLSearchParams(window.location.hash.slice(1)).get('beta_token');
+    // Der Link-Token verschwindet nach dem ersten Laden aus der Adresse. Ohne diese Sicherung
+    // hielte ein Neuladen eine bestehende Sitzung für eine Passwortänderung.
+    const reviewing = this.route.snapshot.queryParamMap.get('review') === '1';
+    const token = hashToken ?? (reviewing ? null : readStoredBetaToken());
     if (token) {
       this.managedToken = token;
+      storeBetaToken(token);
       const parameters = new URLSearchParams(window.location.hash.slice(1));
       parameters.delete('beta_token');
       const remainingHash = parameters.toString();
@@ -190,6 +214,7 @@ export class SetPasswordComponent implements OnInit {
       try {
         await this.registration.inspect(token);
       } catch {
+        storeBetaToken(null);
         this.isTokenInvalid.set(true);
       }
       return;
@@ -287,6 +312,7 @@ export class SetPasswordComponent implements OnInit {
     try {
       if (this.managedToken) {
         await this.registration.complete(this.managedToken, password, this.requestId);
+        storeBetaToken(null);
         history.replaceState(null, '', window.location.pathname);
         await this.router.navigate(['/onboarding/workspace']);
         return;

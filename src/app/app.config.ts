@@ -13,11 +13,13 @@ import { AppErrorHandler } from './core/errors/app-error-handler';
 
 import { routes } from './app.routes';
 import { PwaService } from './core/services/pwa.service';
+import { AppErrorReportService } from './core/services/app-error-report.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideAppInitializer(() => {
       inject(PwaService);
+      inject(AppErrorReportService).start();
     }),
     provideZonelessChangeDetection(),
     provideRouter(routes, withComponentInputBinding()),
