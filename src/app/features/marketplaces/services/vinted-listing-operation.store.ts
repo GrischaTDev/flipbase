@@ -194,7 +194,6 @@ export class VintedListingOperationStore {
       throw new Error('Die Aktion ist für diesen Artikel nicht verfügbar.');
     const key = crypto.randomUUID();
     this.actions.update((actions) => [
-      ...actions,
       {
         key,
         kind,
@@ -213,6 +212,7 @@ export class VintedListingOperationStore {
                 ? 'Inserat wird aktualisiert …'
                 : 'Preis wird geändert …',
       },
+      ...actions,
     ]);
     try {
       await action();
