@@ -1158,28 +1158,39 @@ export class MarketplaceAccountStore {
             ...value,
             publications: {
               ...value.publications,
-              items: value.publications.items.map((entry) =>
-                entry.id === entryId
+              items: value.publications.items.map((entry) => {
+                if (entry.id !== entryId) return entry;
+                // Wie in der Datenbank: Ohne lesbare Größe bleibt bei gleicher Kategorie die bisherige.
+                const keepSize =
+                  content.sizeId === null &&
+                  !content.sizeLabel &&
+                  entry.listingContent?.categoryId === content.categoryId;
+                const saved = keepSize
                   ? {
-                      ...entry,
-                      listingContent: content,
-                      title: content.title,
-                      text: content.description,
-                      textState: 'loaded',
-                      price: (content.priceCents ?? 0) / 100,
-                      brand: content.brandLabel || null,
-                      size: content.sizeLabel || null,
-                      status: content.conditionLabel || entry.status,
-                      ...(photos
-                        ? {
-                            providerImageUrls: [...photos.desired],
-                            imageUrl: photos.desired[0] ?? null,
-                            imageUrls: [...photos.desired],
-                          }
-                        : {}),
+                      ...content,
+                      sizeId: entry.listingContent?.sizeId ?? null,
+                      sizeLabel: entry.listingContent?.sizeLabel ?? '',
                     }
-                  : entry,
-              ),
+                  : content;
+                return {
+                  ...entry,
+                  listingContent: saved,
+                  title: content.title,
+                  text: content.description,
+                  textState: 'loaded' as const,
+                  price: (content.priceCents ?? 0) / 100,
+                  brand: content.brandLabel || null,
+                  size: saved.sizeLabel || (keepSize ? entry.size : null),
+                  status: content.conditionLabel || entry.status,
+                  ...(photos
+                    ? {
+                        providerImageUrls: [...photos.desired],
+                        imageUrl: photos.desired[0] ?? null,
+                        imageUrls: [...photos.desired],
+                      }
+                    : {}),
+                };
+              }),
             },
           }
         : value,

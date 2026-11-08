@@ -66,6 +66,7 @@ let browserApi: {
   deleteListing: ReturnType<typeof vi.fn>;
   saveListingEdit: ReturnType<typeof vi.fn>;
   saveListingPrice: ReturnType<typeof vi.fn>;
+  saveListingContent: ReturnType<typeof vi.fn>;
   readProfileDetails: ReturnType<typeof vi.fn>;
   searchProfileCities: ReturnType<typeof vi.fn>;
   saveProfileDetails: ReturnType<typeof vi.fn>;
@@ -122,6 +123,7 @@ beforeEach(() => {
     readListingContent: vi.fn().mockResolvedValue(listingCurrentContentFixture()),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
     saveListingPrice: vi.fn().mockResolvedValue(undefined),
+    saveListingContent: vi.fn().mockResolvedValue(undefined),
     readProfileDetails: vi.fn(),
     searchProfileCities: vi.fn(),
     saveProfileDetails: vi.fn(),
@@ -807,6 +809,42 @@ describe('Inseratbeschreibungen und Kennzahlen', () => {
       accountA,
     );
   }
+  it('behält nach dem Speichern ohne lesbare Größe die gespeicherte Größe', async () => {
+    const saved = { ...listingCurrentContentFixture().content, sizeId: 207, sizeLabel: 'M' };
+    api.readSnapshot.mockResolvedValue(
+      parseMarketplaceSnapshot(
+        {
+          ...snapshot(accountA),
+          publications: {
+            items: [
+              {
+                ...accountA,
+                id: 'listing-a',
+                title: saved.title,
+                text: saved.description,
+                textState: 'loaded',
+                size: 'M',
+                listingContent: saved,
+              },
+            ],
+            total: 1,
+            nextCursor: null,
+          },
+        },
+        accountA,
+      ),
+    );
+    await settle();
+    const withoutSize = { ...saved, sizeId: null, sizeLabel: '', title: 'Neu' };
+    await store.saveListingContent(accountA.connectionId, 'listing-a', withoutSize, withoutSize);
+    const entry = store.snapshot()!.publications.items[0];
+    expect(entry).toMatchObject({ title: 'Neu', size: 'M' });
+    expect(entry.listingContent).toMatchObject({ sizeId: 207, sizeLabel: 'M', title: 'Neu' });
+    // Eine echte Größenänderung überschreibt weiterhin.
+    const larger = { ...saved, sizeId: 208, sizeLabel: 'L' };
+    await store.saveListingContent(accountA.connectionId, 'listing-a', saved, larger);
+    expect(store.snapshot()!.publications.items[0]).toMatchObject({ size: 'L' });
+  });
   it('liest bereits gespeicherte Originalquellen-Beschreibungen ohne Anbieterabruf', async () => {
     await settle();
     const item = publication().publications.items[0];

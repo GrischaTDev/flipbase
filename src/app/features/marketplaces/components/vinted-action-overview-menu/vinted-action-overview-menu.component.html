@@ -84,16 +84,7 @@
     @if (store.error(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }
-    @for (group of store.groups(); track group.scope.connectionId) {
-      <app-vinted-action-overview
-        [actions]="group.actions"
-        [accountName]="group.accountName"
-        [connectionId]="group.scope.connectionId"
-      />
-    }
-    @if (store.listings().length) {
-      <app-vinted-listing-action-overview [entries]="store.listings()" />
-    }
+    <!-- In Flipbase gestartete Aktionen stehen oben, die neueste zuerst. -->
     @for (action of listingOperations.entries(); track action.key) {
       <div class="flex items-start gap-3 rounded-lg border border-fb-border-subtle p-3">
         <app-action-status-indicator [state]="action.state" />
@@ -116,6 +107,16 @@
           />
         }
       </div>
+    }
+    @for (group of store.groups(); track group.scope.connectionId) {
+      <app-vinted-action-overview
+        [actions]="group.actions"
+        [accountName]="group.accountName"
+        [connectionId]="group.scope.connectionId"
+      />
+    }
+    @if (store.listings().length) {
+      <app-vinted-listing-action-overview [entries]="store.listings()" />
     }
     @for (action of kleinanzeigen.entries(); track action.key) {
       <div

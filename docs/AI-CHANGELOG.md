@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Größe nach dem Speichern erhalten, neue Aktionen oben
+
+**Anlass:** Nach dem Speichern der Silver-Jeans zeigte Flipbase keine Größe mehr, obwohl sie bei
+Vinted weiter „M“ ist. In der Aktionsübersicht stand die neue Aktualisierung unter einem älteren
+Fehler.
+
+**Ursache und Umsetzung:** Das frische Lesen liefert für solche Inserate kein Größenfeld; nach dem
+Speichern übernahm die Datenbankfunktion `marketplace_cache_listing_content` diesen Stand ohne
+Größe. Sie behält jetzt bei gleicher Kategorie die bisherige Größe (listingContent und Kleiderschrank),
+ebenso die lokale Übernahme in der App. Eine echte Größenänderung oder ein Kategoriewechsel
+überschreibt weiter. Im verbundenen Vinted-Konto geprüft: Bearbeiten- und Erstellen-Formular
+erkennen das Größenfeld auch bei Schlaghosen; die Ursache liegt bei Inseraten mit alter Größe.
+In Flipbase gestartete Aktionen stehen in der Übersicht oben, die neueste zuerst.
+
+**Prüfung:** Migration in eigener lokaler Datenbank, 11 neue SQL-Prüfungen, Schemaabgleich ohne
+Abweichung der Funktion; neuer Store- und Aktionsspeicher-Test. Vorabcheck im Commit.
+
 ## 2026-11-08 - Juna - Bearbeiten speichert im Hintergrund, alte Größen lesbar
 
 **Anlass:** Die Silver-Jeans ließ sich auch nach PR #600 nicht auf „M“ ändern. Außerdem soll
