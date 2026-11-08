@@ -168,6 +168,9 @@ export class VintedListingDetailComponent {
   });
   /** Die Inseratliste öffnet mit `?edit=1` direkt die Bearbeiten-Maske. */
   private readonly editRequested = computed(() => this.queryParams().get('edit') === '1');
+  /** Bearbeiten wurde aus der Liste angefordert; bis die Maske offen ist, keine Detailansicht zeigen. */
+  readonly openingEdit = computed(() => this.editRequested() || this.preparingEdit());
+  private readonly preparingEdit = signal(false);
   private readonly loadedEntry = signal<MarketplaceEntry | null>(null);
   private readonly loadedSelection = signal(-1);
   readonly entry = computed(() => {
@@ -389,6 +392,7 @@ export class VintedListingDetailComponent {
     effect(() => {
       if (!this.editRequested() || this.loading() || !this.entry()) return;
       untracked(() => {
+        this.preparingEdit.set(true);
         // Parameter sofort entfernen, damit ein Neuladen die Maske nicht erneut öffnet.
         void this.router.navigate([], {
           relativeTo: this.route,
@@ -401,6 +405,7 @@ export class VintedListingDetailComponent {
           .load(this.connectionId(), entry?.listingContent?.categoryId)
           .finally(() => {
             if (this.entry() === entry) this.edit();
+            this.preparingEdit.set(false);
           });
       });
     });

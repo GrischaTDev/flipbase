@@ -1,3 +1,4 @@
+import { vintedSizeDisplayLabel } from './vinted-size-label';
 import { parseVintedPublicationAge } from './vinted-listing-age';
 import { parseVintedListingContent } from './vinted-listing-content';
 import { parseVintedPublicationState, vintedPublicationIsOnline } from './vinted-publication-state';
@@ -232,7 +233,7 @@ export function parseMarketplacePage(
           ? item['readVersion']
           : null,
       brand: text(item['brand']),
-      size: text(item['size']),
+      size: vintedSizeDisplayLabel(text(item['size'])),
       shipmentStatus: text(item['shipmentStatus']),
       saleState:
         item['saleState'] === 'sold' ||
