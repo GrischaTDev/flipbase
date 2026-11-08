@@ -11,6 +11,19 @@ type RequestType =
   | 'FLIPBASE_VINTED_LOCAL_SOURCE_DETAILS'
   | 'FLIPBASE_VINTED_LOCAL_MESSAGES_SEND'
   | 'FLIPBASE_VINTED_LOCAL_DISCONNECT';
+/** Die Erweiterung führt gerade einen anderen Vorgang aus; ein späterer Versuch kann gelingen. */
+export class VintedLocalExtensionBusyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VintedLocalExtensionBusyError';
+  }
+}
+// Ältere Erweiterungen senden noch keinen Code, nur diese festen Belegt-Meldungen.
+const legacyBusyMessages = new Set([
+  'Ein lokaler Vorgang läuft bereits. Warte bis er beendet ist.',
+  'Ein lokaler Vorgang wird noch ausgeführt. Warte kurz und versuche es erneut.',
+  'In diesem Vinted-Tab läuft bereits ein Abgleich.',
+]);
 interface PendingRequest {
   readonly resolve: (result: unknown) => void;
   readonly reject: (error: Error) => void;
@@ -162,14 +175,18 @@ export class VintedLocalExtensionBridge {
     if (!request) return;
     clearTimeout(request.timer);
     this.pending.delete(response['requestId']);
-    if (response['success']) request.resolve(response['result']);
-    else
-      request.reject(
-        new Error(
-          typeof response['error'] === 'string' && response['error'].length <= 500
-            ? response['error']
-            : 'Die Erweiterung konnte die Anfrage nicht bestätigen.',
-        ),
-      );
+    if (response['success']) {
+      request.resolve(response['result']);
+      return;
+    }
+    const message =
+      typeof response['error'] === 'string' && response['error'].length <= 500
+        ? response['error']
+        : 'Die Erweiterung konnte die Anfrage nicht bestätigen.';
+    request.reject(
+      response['code'] === 'local_busy' || legacyBusyMessages.has(message)
+        ? new VintedLocalExtensionBusyError(message)
+        : new Error(message),
+    );
   };
 }

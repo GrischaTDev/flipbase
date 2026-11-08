@@ -550,6 +550,8 @@
             error instanceof Error
               ? error.message
               : 'Die lokale Verbindung konnte nicht bestätigt werden.',
+          // Nur der Belegt-Code geht an die App; andere Codes bleiben intern.
+          ...(error?.code === 'local_busy' ? { code: 'local_busy' } : {}),
         }),
       );
     return true;

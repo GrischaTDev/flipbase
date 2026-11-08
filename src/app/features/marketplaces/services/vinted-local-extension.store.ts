@@ -19,7 +19,15 @@ import {
 import { MarketplaceResponseError } from '../models/marketplace-response';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedLocalExtensionApiService } from './vinted-local-extension-api.service';
-import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
+import {
+  VintedLocalExtensionBridge,
+  VintedLocalExtensionBusyError,
+} from './vinted-local-extension-bridge';
+
+// Ein Hintergrundabgleich der Erweiterung hält seine Sperre höchstens 55 Sekunden.
+const localBusyRetryDelayMs = 2_000;
+const localBusyRetryLimitMs = 70_000;
+const skippedRequest = Symbol('skippedRequest');
 
 type LocalOperationResult =
   | { readonly status: 'success' }
@@ -425,11 +433,14 @@ export class VintedLocalExtensionStore {
     const result = await this.run(async (scope, valid) => {
       this.assertMatchingBrowserBinding(scope);
       if (!valid() || !isCurrent()) return {};
+      const response = await this.requestWhenExtensionIdle(
+        'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL',
+        { ...scope, conversationId },
+        () => valid() && isCurrent(),
+      );
+      if (response === skippedRequest || !valid() || !isCurrent()) return {};
       const inboxImported = parseLocalExtensionInboxSyncResult(
-        await this.bridge.request('FLIPBASE_VINTED_LOCAL_INBOX_DETAIL', {
-          ...scope,
-          conversationId,
-        }),
+        response,
         scope,
         binding.externalAccountId,
       );
@@ -454,6 +465,27 @@ export class VintedLocalExtensionStore {
         ? { status: 'success', observedAt }
         : { status: 'cancelled' }
       : result;
+  }
+  /**
+   * Wiederholt einen Abruf, solange die Erweiterung mit einem eigenen Vorgang belegt ist.
+   * Endet das Warten, weil die Ansicht gewechselt wurde, gilt der Abruf als übersprungen.
+   */
+  private async requestWhenExtensionIdle(
+    type: Parameters<VintedLocalExtensionBridge['request']>[0],
+    payload: unknown,
+    keepWaiting: () => boolean,
+  ): Promise<unknown> {
+    const deadline = Date.now() + localBusyRetryLimitMs;
+    for (;;) {
+      try {
+        return await this.bridge.request(type, payload);
+      } catch (error) {
+        if (!(error instanceof VintedLocalExtensionBusyError) || Date.now() >= deadline)
+          throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, localBusyRetryDelayMs));
+      if (this.destroyed || !keepWaiting()) return skippedRequest;
+    }
   }
   private assertMatchingBrowserBinding(scope: AccountScope): void {
     const profile = this.bridge.localAccount();

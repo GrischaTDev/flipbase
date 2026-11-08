@@ -1582,7 +1582,10 @@ test('Active binding is preserved during prepare, rejects other accounts and dis
 test('Concurrent requests and persisted lease after a terminated background do not overlap reads', async () => {
   const setup = harness();
   await setup.adapter.save({ leaseUntil: Date.parse(observedAt) + 30_000 });
-  await assert.rejects(() => setup.runtime.run(request('PREPARE'), appOrigin), /noch ausgeführt/);
+  await assert.rejects(
+    () => setup.runtime.run(request('PREPARE'), appOrigin),
+    (error) => /noch ausgeführt/.test(error.message) && error.code === 'local_busy',
+  );
   assert.equal(setup.saved.leaseUntil, Date.parse(observedAt) + 30_000);
   setup.setTime(Date.parse(observedAt) + 31_000);
   let finish;
@@ -1592,7 +1595,10 @@ test('Concurrent requests and persisted lease after a terminated background do n
     });
   const pending = setup.runtime.run(request('PREPARE'), appOrigin);
   await new Promise((resolve) => setImmediate(resolve));
-  await assert.rejects(() => setup.runtime.run(request('PREPARE'), appOrigin), /läuft bereits/);
+  await assert.rejects(
+    () => setup.runtime.run(request('PREPARE'), appOrigin),
+    (error) => /läuft bereits/.test(error.message) && error.code === 'local_busy',
+  );
   finish({ identity, tabId: 12 });
   await pending;
 });
@@ -1758,7 +1764,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.14.3');
+  assert.equal(announcement.reply.version, '1.14.4');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1966,7 +1972,7 @@ test('Manifest narrows application and provider access and keeps Kleinanzeigen a
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.14.3');
+  assert.equal(manifest.version, '1.14.4');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>

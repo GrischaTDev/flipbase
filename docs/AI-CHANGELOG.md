@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Chat lädt trotz laufendem Abgleich, „Verkauft“ nur einmal
+
+**Anlass:** Beim Öffnen eines Vinted-Chats stand oft sofort „Aktualisierung fehlgeschlagen“; ein
+zweiter Klick lud ihn. Nach dem Anfordern des Versandscheins für den Burberry-Schal kam neben
+„Versandlabel verfügbar“ ein zweites „Artikel verkauft“.
+
+**Ursache und Umsetzung:** Die Erweiterung führt nur einen Vorgang gleichzeitig aus und lehnte den
+Chatabruf ab, solange ihr Hintergrundabgleich lief; die App wartete nur auf eigene Vorgänge. Die
+Erweiterung (1.14.4) meldet „belegt“ jetzt mit dem Code `local_busy`, die App wartet bis zu 70
+Sekunden und versucht es alle 2 Sekunden erneut. Die festen Belegt-Meldungen älterer Erweiterungen
+gelten ebenfalls als belegt. Bei Cloud-Konten lehnte der Worker den Abruf während der
+Synchronisierung mit „Das Cloud-Konto wird gerade verwendet“ ab; dort wartet die App jetzt bis zu
+90 Sekunden und versucht es alle 3 Sekunden erneut. Für die doppelte Meldung am echten Vinted gemessen (lokal und im
+Cloud-Browser, nur lesend): Vor dem Versandschein steht eine Aktionsmeldung „Verkauft (vor dem …
+verschicken)“, danach ersetzt Vinted sie durch eine Statusmeldung „Verkauft“ ohne feste Kennung.
+`marketplace_record_message_event_batch` meldet einmalige Bestellstationen (Verkauft, Label
+verfügbar, Verschickt, Zugestellt, Abgeschlossen, Storno, Erstattung, Bewertung …) je Gespräch nur
+beim ersten Auftreten; spätere Zeilen werden weiter gespeichert, aber nicht gemeldet. Dabei auch
+den Anforderungsablauf des Versandscheins aufgezeichnet (Grundlage für die geplante
+Versandschein-Funktion); dafür lief kurzzeitig ein Lese- und Aufzeichnungsskript im laufenden
+Cloud-Browser, Hilfsdateien sind vom Server entfernt.
+
+**Prüfung:** Store- und Brückentests lokal (52 bzw. 23), Cloud-Store, Cloud-API und Chatansicht (207) einschließlich Warten, Abbruch bei
+Gesprächswechsel und Zeitgrenze; Erweiterungstests (123); Migration mit 68 SQL-Prüfungen in einer
+zurückgerollten Transaktion der lokalen Datenbank, Gegenprobe ohne Migration schlägt bei den zwei
+neuen Fällen fehl. Vorabcheck im Commit.
+
 ## 2026-11-08 - Juna - Relisten mit Maßfeldern, Größenanzeige wie bei Vinted
 
 **Anlass:** Der Relist eines Nike-Strickpullovers scheiterte zweimal mit „Vorbereitung bei Vinted

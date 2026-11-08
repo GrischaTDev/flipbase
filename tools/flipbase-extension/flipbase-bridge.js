@@ -33,7 +33,7 @@
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: backgroundReachable || kleinanzeigenAvailable,
         backgroundReachable,
-        version: '1.14.3',
+        version: '1.14.4',
         vintedLocal: backgroundReachable,
         vintedSourceDetails: vintedSourceDetailsAvailable,
         kleinanzeigenQuota: kleinanzeigenQuotaAvailable,
@@ -55,7 +55,7 @@
     if (backgroundReachable || kleinanzeigenAvailable)
       window.dispatchEvent(
         new CustomEvent('flipbase:extension-ready', {
-          detail: { version: '1.14.3', ready: true },
+          detail: { version: '1.14.4', ready: true },
         }),
       );
   }
@@ -150,6 +150,9 @@
                   error:
                     response?.error ??
                     'Die Flipbase-Erweiterung ist nicht erreichbar. Lade die Seite neu.',
+                  ...(!runtimeError && response?.code === 'local_busy'
+                    ? { code: 'local_busy' }
+                    : {}),
                 }),
           },
           window.location.origin,

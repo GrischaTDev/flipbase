@@ -32,6 +32,7 @@ import { MarketplaceResponseError } from '../models/marketplace-response';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import {
   MarketplaceBrowserTestApiService,
+  MarketplaceCloudAccountBusyError,
   MarketplaceConnectionRemovalError,
   MarketplaceWorkerOutdatedError,
   MarketplaceImportError,
@@ -39,6 +40,10 @@ import {
   type MarketplaceSyncProgress,
   type VintedListingEditFields,
 } from './marketplace-browser-test-api.service';
+
+// Eine Cloud-Synchronisierung belegt den Browser des Kontos meist unter einer Minute.
+const cloudBusyRetryDelayMs = 3_000;
+const cloudBusyRetryLimitMs = 90_000;
 
 const snapshotPages = {
   publication: 'publications',
@@ -617,7 +622,19 @@ export class MarketplaceAccountStore {
     )
       return { status: 'cancelled' };
     try {
-      const observedAt = await this.browserApi.readConversation(this.scope(connection), id, token);
+      const deadline = Date.now() + cloudBusyRetryLimitMs;
+      let observedAt: string;
+      for (;;) {
+        try {
+          observedAt = await this.browserApi.readConversation(this.scope(connection), id, token);
+          break;
+        } catch (error) {
+          if (!(error instanceof MarketplaceCloudAccountBusyError) || Date.now() >= deadline)
+            throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, cloudBusyRetryDelayMs));
+        if (!valid()) return { status: 'cancelled' };
+      }
       if (!valid()) return { status: 'cancelled' };
       await this.checkLatestImport(true);
       if (!valid()) return { status: 'cancelled' };

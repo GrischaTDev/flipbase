@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
+import {
+  VintedLocalExtensionBridge,
+  VintedLocalExtensionBusyError,
+} from './vinted-local-extension-bridge';
 
 describe('Lokale Vinted-Erweiterungsbrücke', () => {
   it('nimmt die Erreichbarkeitsmeldung bei verlorenem Hintergrunddienst zurück', () => {
@@ -220,6 +223,33 @@ describe('Lokale Vinted-Erweiterungsbrücke', () => {
     const assertion = expect(pending).rejects.toThrow('Erweiterung');
     await vi.advanceTimersByTimeAsync(60_000);
     await assertion;
+  });
+  it.each([
+    [{ error: 'Erweiterung beschäftigt', code: 'local_busy' }, true],
+    [{ error: 'Ein lokaler Vorgang läuft bereits. Warte bis er beendet ist.' }, true],
+    [{ error: 'Vinted-Anmeldung fehlt', code: 'login_required' }, false],
+  ])('kennzeichnet nur eine belegte Erweiterung als wiederholbar', async (failure, busy) => {
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const pending = TestBed.inject(VintedLocalExtensionBridge).request(
+      'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL',
+    );
+    const request = post.mock.calls[0][0] as { requestId: string };
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: location.origin,
+        source: window,
+        data: {
+          type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+          requestId: request.requestId,
+          success: false,
+          ...failure,
+        },
+      }),
+    );
+    const error = await pending.catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(Error);
+    expect(error instanceof VintedLocalExtensionBusyError).toBe(busy);
+    expect((error as Error).message).toBe(failure.error);
   });
   it('verwirft offene Anfragen beim Verlassen der Ansicht', async () => {
     vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
