@@ -966,6 +966,7 @@ CREATE TABLE IF NOT EXISTS public.webhook_configs (
     notify_on_purchase BOOLEAN NOT NULL DEFAULT TRUE,
     notify_on_low_margin BOOLEAN NOT NULL DEFAULT TRUE,
     sound_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    sale_sound_enabled boolean default null,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -20,7 +20,21 @@ select throws_ok($$select public.save_server_webhook_config('41000000-0000-4000-
 reset role;
 set local role service_role;
 select is(public.save_server_webhook_config('41000000-0000-4000-8000-000000000001', '{"telegram_bot_token":"existing-secret","telegram_chat_id":"1234"}') ->> 'telegram_bot_token', 'existing-secret', 'Server kann vorhandene Zugangsdaten speichern');
+select is((select sale_sound_enabled from public.webhook_configs where workspace_id = '41000000-0000-4000-8000-000000000001'), null::boolean, 'Neue Konfiguration erbt den bisherigen Tonstatus');
+select is((select coalesce(sale_sound_enabled, sound_enabled) from public.webhook_configs where workspace_id = '41000000-0000-4000-8000-000000000001'), true, 'Neue Konfiguration aktiviert beide Töne');
 select is(public.save_server_webhook_config('41000000-0000-4000-8000-000000000001', '{"sound_enabled":false}') ->> 'telegram_bot_token', 'existing-secret', 'Teiländerung erhält Zugangsdaten');
+select is((select coalesce(sale_sound_enabled, sound_enabled) from public.webhook_configs where workspace_id = '41000000-0000-4000-8000-000000000001'), false, 'Bestehende stumme Konfiguration bleibt ohne eigenen Verkaufston stumm');
+select ok(
+  public.save_server_webhook_config(
+    '41000000-0000-4000-8000-000000000001',
+    jsonb_build_object('sound_enabled', general_sound, 'sale_sound_enabled', sale_sound)
+  ) @> jsonb_build_object('sound_enabled', general_sound, 'sale_sound_enabled', sale_sound),
+  format('Beide Töne unabhängig gespeichert: allgemein=%s, Verkauf=%s', general_sound, sale_sound)
+)
+from (values (false, false), (false, true), (true, false), (true, true)) as sounds(general_sound, sale_sound);
+select is(public.save_server_webhook_config('41000000-0000-4000-8000-000000000001', '{"sale_sound_enabled":false}') ->> 'sound_enabled', 'true', 'Verkaufston-Teiländerung erhält den allgemeinen Ton');
+select is(public.save_server_webhook_config('41000000-0000-4000-8000-000000000001', '{"sound_enabled":false}') ->> 'sale_sound_enabled', 'false', 'Allgemeine Ton-Teiländerung erhält den Verkaufston');
+select is((select telegram_bot_token from public.webhook_configs where workspace_id = '41000000-0000-4000-8000-000000000001'), 'existing-secret', 'Tonänderungen erhalten gespeicherte Zugangsdaten');
 select is(public.save_server_webhook_config('41000000-0000-4000-8000-000000000001', '{"telegram_bot_token":null,"telegram_chat_id":null}') ->> 'telegram_bot_token', null::text, 'Explizites Löschen entfernt Zugangsdaten');
 select ok(public.claim_server_webhook_dispatch('41000000-0000-4000-8000-000000000001', 'test', 'discord'), 'Erster Test erlaubt');
 select ok(not public.claim_server_webhook_dispatch('41000000-0000-4000-8000-000000000001', 'test', 'discord'), 'Wiederholter Test begrenzt');

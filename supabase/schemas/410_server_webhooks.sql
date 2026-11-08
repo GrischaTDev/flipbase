@@ -43,6 +43,7 @@ begin
     notify_on_purchase = settings.notify_on_purchase,
     notify_on_low_margin = settings.notify_on_low_margin,
     sound_enabled = settings.sound_enabled,
+    sale_sound_enabled = settings.sale_sound_enabled,
     updated_at = now()
   where workspace_id = p_workspace_id returning * into settings;
   return to_jsonb(settings);

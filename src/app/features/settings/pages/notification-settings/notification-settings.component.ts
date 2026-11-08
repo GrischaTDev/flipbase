@@ -15,6 +15,10 @@ import {
   LucideVolume2,
 } from '@lucide/angular';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import {
+  NotificationSoundKind,
+  NotificationSoundService,
+} from '../../../../core/services/notification-sound.service';
 import { WebPushService } from '../../../../core/services/web-push.service';
 import { WebhookService } from '../../../../core/services/webhook.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -45,6 +49,7 @@ export class NotificationSettingsComponent {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly soundService = inject(NotificationSoundService);
   readonly bellIcon = LucideBell;
   readonly sendIcon = LucideSend;
   readonly volumeIcon = LucideVolume2;
@@ -88,6 +93,9 @@ export class NotificationSettingsComponent {
     notifyOnSale: new FormControl(this.webhookService.config().notifyOnSale),
     notifyOnPurchase: new FormControl(this.webhookService.config().notifyOnPurchase),
     soundEnabled: new FormControl(this.webhookService.config().soundEnabled),
+    saleSoundEnabled: new FormControl(
+      this.webhookService.config().saleSoundEnabled ?? this.webhookService.config().soundEnabled,
+    ),
   });
   readonly isLoadingWorkspaceConfig = signal(true);
   readonly isSavingWebhookConfig = signal(false);
@@ -117,6 +125,7 @@ export class NotificationSettingsComponent {
             notifyOnSale: true,
             notifyOnPurchase: true,
             soundEnabled: true,
+            saleSoundEnabled: true,
           },
           { emitEvent: false },
         );
@@ -126,6 +135,7 @@ export class NotificationSettingsComponent {
       this.webhookForm.patchValue(
         {
           ...value,
+          saleSoundEnabled: value.saleSoundEnabled ?? value.soundEnabled,
           discordWebhookUrl: '',
           telegramBotToken: '',
           telegramChatId: '',
@@ -135,6 +145,11 @@ export class NotificationSettingsComponent {
       );
       this.isLoadingWorkspaceConfig.set(false);
     });
+  }
+  async onPreviewSound(kind: NotificationSoundKind): Promise<void> {
+    if (!(await this.soundService.preview(kind))) {
+      this.toast.error('Der Ton konnte nicht abgespielt werden.');
+    }
   }
   async onRequestPushPermission(): Promise<void> {
     const granted = await this.webPushService.requestPermission();
@@ -262,6 +277,7 @@ export class NotificationSettingsComponent {
       notifyOnSale: !!value.notifyOnSale,
       notifyOnPurchase: !!value.notifyOnPurchase,
       soundEnabled: !!value.soundEnabled,
+      saleSoundEnabled: !!value.saleSoundEnabled,
     });
   }
   private isCurrentSave(requestId: number, workspaceId: string): boolean {
