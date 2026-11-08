@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Bearbeiten mit kombinierten Größen älterer Inserate
+
+**Anlass:** Beim Ändern der Größe einer Silver-Jeans auf „M“ meldete Flipbase weiterhin „Das
+Inserat wurde inzwischen bei Vinted geändert“, obwohl dort nichts geändert war.
+
+**Ursache und Umsetzung:** Das Inserat führt in Flipbase nur die kombinierte Angabe
+„M / 38 / 10“ ohne Vinted-Kennung; Vinted zeigt die Größe inzwischen als „M“ (öffentlich auf der
+Artikelseite nachgesehen). Der Konfliktvergleich verlangte gleiche Bezeichnungen und hielt das für
+eine Änderung bei Vinted. Größen gelten jetzt als gleich, wenn eine Bezeichnung einem Teil der
+kombinierten Angabe entspricht. Eine echte Größenänderung bei Vinted wird weiter erkannt. Die
+gewünschte Größe wird bei gleicher Vinted-Kennung und Bezeichnung direkt zugeordnet, auch wenn
+mehrere Größengruppen dieselbe Bezeichnung führen.
+
+**Prüfung:** Neue Modelltests mit dem Aufbau des betroffenen Inserats; ohne Korrektur erscheint
+genau die gemeldete Meldung, mit Korrektur nicht. Vorabcheck im Commit.
+
 ## 2026-11-07 - Juna - Fehlerprotokoll im Systemzustand
 
 **Auftrag:** Im Admin-Bereich soll jeder Abbruch und Fehler je Bereich

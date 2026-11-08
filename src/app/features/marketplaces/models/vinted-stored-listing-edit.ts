@@ -97,6 +97,32 @@ type EditFields = Record<
   Exclude<VintedListingEditField, 'accessory_department'> | 'title' | 'description' | 'price',
   string
 > & { accessory_department?: string };
+/** Vergleichsform einer Größenbezeichnung, etwa „EU 38“ wie „38“. */
+const normalizeSize = (text: string) =>
+  text
+    .trim()
+    .normalize('NFC')
+    .toLocaleLowerCase('de')
+    .replace(/^eu\s*/, '')
+    .replace('.', ',');
+
+/**
+ * Ob zwei Größenangaben dieselbe Größe meinen. Ältere Inserate führen kombinierte Angaben wie
+ * „M / 38 / 10“, das Vinted-Formular zeigt dafür eine Größe wie „M“.
+ */
+function sameSize(left: string, right: string): boolean {
+  const parts = (label: string) => label.split('/').map(normalizeSize).filter(Boolean);
+  const a = normalizeSize(left);
+  const b = normalizeSize(right);
+  return a === b || parts(left).includes(b) || parts(right).includes(a);
+}
+
+function sameSizes(left: readonly string[], right: readonly string[]): boolean {
+  return (
+    left.length === right.length && left.every((label, index) => sameSize(label, right[index]!))
+  );
+}
+
 const conflict = () =>
   new Error(
     'Das Inserat wurde inzwischen bei Vinted geändert. Aktualisiere die Daten vor dem erneuten Speichern.',
@@ -165,35 +191,42 @@ export function applyStoredVintedListingEdit(
       : labels(stored, field, desiredField ? [desiredField] : []);
     if (equal(previousLabels, desiredLabels)) continue;
     const fresh = selection[field] ?? '';
+    const freshLabels = labels(
+      current,
+      field,
+      typeof fresh === 'string' ? (fresh ? [fresh] : []) : fresh,
+    );
     if (
       !(field === 'accessory_department' && previousLabels.length === 0) &&
-      !equal(
-        previousLabels,
-        labels(current, field, typeof fresh === 'string' ? (fresh ? [fresh] : []) : fresh),
-      )
+      !(field === 'size'
+        ? sameSizes(previousLabels, freshLabels)
+        : equal(previousLabels, freshLabels))
     )
       throw conflict();
-    const identifiers = desiredLabels.map((label) => {
-      const normalize = (text: string) =>
-        text
-          .trim()
-          .normalize('NFC')
-          .toLocaleLowerCase('de')
-          .replace(/^eu\s*/, '')
-          .replace('.', ',');
-      const choices = current.schema.fields
-        .find((group) => group.field === field)
-        ?.choices.filter(
-          (option) =>
-            (field === 'size'
-              ? normalize(option.label) === normalize(label) ||
-                option.label.split('/').some((part) => normalize(part) === normalize(label))
-              : field === 'brand' && searchedBrand
-                ? option.id === searchedBrand.id
-                : (field === 'package' ? packageSizeLabel(option.label) : option.label) ===
-                  label) &&
-            (!option.disabled || option.selected),
-        );
+    const identifiers = desiredLabels.map((label, index) => {
+      const options = current.schema.fields.find((group) => group.field === field)?.choices;
+      // Katalogwerte tragen Vinteds Kennung; bei gleicher Kennung und Bezeichnung ist die Wahl eindeutig,
+      // auch wenn mehrere Größengruppen dieselbe Bezeichnung führen.
+      const sameId = multiple
+        ? undefined
+        : options?.find(
+            (option) =>
+              (option.id === null ? 'none' : String(option.id)) === desiredField &&
+              normalizeSize(option.label) === normalizeSize(label) &&
+              index === 0 &&
+              (!option.disabled || option.selected),
+          );
+      if (sameId) return sameId.id === null ? 'none' : String(sameId.id);
+      const choices = options?.filter(
+        (option) =>
+          (field === 'size'
+            ? normalizeSize(option.label) === normalizeSize(label) ||
+              option.label.split('/').some((part) => normalizeSize(part) === normalizeSize(label))
+            : field === 'brand' && searchedBrand
+              ? option.id === searchedBrand.id
+              : (field === 'package' ? packageSizeLabel(option.label) : option.label) === label) &&
+          (!option.disabled || option.selected),
+      );
       const choice = choices?.length === 1 ? choices[0] : undefined;
       if (!choice) throw new Error('Diese Auswahl ist bei Vinted nicht eindeutig verfügbar.');
       return choice.id === null ? 'none' : String(choice.id);
