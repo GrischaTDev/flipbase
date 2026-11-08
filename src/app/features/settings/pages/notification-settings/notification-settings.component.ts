@@ -101,6 +101,14 @@ export class NotificationSettingsComponent {
   readonly isSavingWebhookConfig = signal(false);
   readonly isTestingWebhook = signal(false);
   readonly isTestingPush = signal(false);
+  readonly supportsSaleSound = computed(() => {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    return (
+      !!workspaceId &&
+      this.webhookService.loadedWorkspaceId() === workspaceId &&
+      this.webhookService.supportsSaleSound()
+    );
+  });
   private saveRequestId = 0;
   private saveWorkspaceId: string | null = null;
   constructor() {
@@ -277,7 +285,7 @@ export class NotificationSettingsComponent {
       notifyOnSale: !!value.notifyOnSale,
       notifyOnPurchase: !!value.notifyOnPurchase,
       soundEnabled: !!value.soundEnabled,
-      saleSoundEnabled: !!value.saleSoundEnabled,
+      ...(this.supportsSaleSound() ? { saleSoundEnabled: !!value.saleSoundEnabled } : {}),
     });
   }
   private isCurrentSave(requestId: number, workspaceId: string): boolean {

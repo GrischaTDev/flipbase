@@ -1269,12 +1269,14 @@ async function renderNotifications(
     readonly permissionResult?: boolean;
     readonly pushTestResult?: boolean;
     readonly previewResult?: boolean;
+    readonly supportsSaleSound?: boolean;
     readonly centralThrow?: boolean;
   } = {},
 ) {
   const currentWorkspace = signal<Workspace | null>(workspace('workspace-a', 'Workspace A'));
   const config = signal<WebhookConfig>(webhookConfig('telegram-a-secret'));
   const loadedWorkspaceId = signal<string | null>('workspace-a');
+  const supportsSaleSound = signal(options.supportsSaleSound ?? true);
   const updateConfig = vi.fn(
     async (_patch: Partial<WebhookConfig>): Promise<MutationResult> =>
       options.updateResult ?? { data: {}, error: null, reportedBySyncStatus: false },
@@ -1286,6 +1288,7 @@ async function renderNotifications(
   const webhookService = {
     config,
     loadedWorkspaceId,
+    supportsSaleSound,
     updateConfig,
     sendTestNotification,
   };
@@ -1338,6 +1341,7 @@ async function renderNotifications(
     currentWorkspace,
     config,
     loadedWorkspaceId,
+    supportsSaleSound,
     webhookService,
     webPushService,
     soundService,
@@ -1347,6 +1351,45 @@ async function renderNotifications(
 }
 
 describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
+  it('zeigt bei altem Handler nur den gemeinsamen Tonschalter', async () => {
+    const { fixture } = await renderNotifications({ supportsSaleSound: false });
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(renderedCheckbox(fixture, 'Benachrichtigungstöne').getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect(root.querySelector('button[role="checkbox"][aria-label="Verkaufston"]')).toBeNull();
+    expect(root.querySelector('button[aria-label="Verkaufston probehören"]')).toBeNull();
+  });
+
+  it.each(['Webhook-Einstellungen speichern', 'Discord-Test senden'])(
+    'lässt mit altem Handler beim Button %s das neue Feld vollständig weg',
+    async (label) => {
+      const { fixture, webhookService, toast } = await renderNotifications({
+        supportsSaleSound: false,
+      });
+      fixture.componentInstance.webhookForm.patchValue({
+        soundEnabled: false,
+        saleSoundEnabled: true,
+      });
+      fixture.detectChanges();
+
+      renderedButton(fixture, label).click();
+      await flushAsyncAction(fixture);
+
+      expect(webhookService.updateConfig).toHaveBeenCalledOnce();
+      const payload = webhookService.updateConfig.mock.calls[0][0];
+      expect(payload.soundEnabled).toBe(false);
+      expect(payload).not.toHaveProperty('saleSoundEnabled');
+      if (label === 'Discord-Test senden') {
+        expect(webhookService.sendTestNotification).toHaveBeenCalledExactlyOnceWith('discord');
+        expectOnlyToast(toast, 'success', 'Test-Webhook wurde versendet.');
+      } else {
+        expectOnlyToast(toast, 'success', 'Webhook-Konfiguration wurde gespeichert.');
+      }
+    },
+  );
+
   it.each([
     [true, true],
     [true, false],
@@ -1389,28 +1432,39 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     },
   );
 
-  it('setzt den Verkaufston beim Workspacewechsel zurück und verwendet bei alten Daten den allgemeinen Ton', async () => {
-    const { fixture, currentWorkspace, config, loadedWorkspaceId } = await renderNotifications();
+  it('zeigt den Verkaufston erst nach bestätigter Unterstützung im aktuellen Workspace', async () => {
+    const { fixture, currentWorkspace, config, loadedWorkspaceId, supportsSaleSound } =
+      await renderNotifications();
     config.set({ ...webhookConfig('workspace-a'), soundEnabled: true, saleSoundEnabled: false });
     flushEffects(fixture);
     expect(renderedCheckbox(fixture, 'Verkaufston').getAttribute('aria-checked')).toBe('false');
 
     currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
     loadedWorkspaceId.set(null);
+    supportsSaleSound.set(false);
     flushEffects(fixture);
-    expect(renderedCheckbox(fixture, 'Verkaufston').getAttribute('aria-checked')).toBe('true');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        'button[role="checkbox"][aria-label="Verkaufston"]',
+      ),
+    ).toBeNull();
 
     config.set({ ...webhookConfig('workspace-b'), soundEnabled: false });
     loadedWorkspaceId.set('workspace-b');
     flushEffects(fixture);
+    expect(renderedCheckbox(fixture, 'Benachrichtigungstöne').getAttribute('aria-checked')).toBe(
+      'false',
+    );
     expect(
-      renderedCheckbox(fixture, 'Allgemeiner Benachrichtigungston').getAttribute('aria-checked'),
-    ).toBe('false');
-    expect(renderedCheckbox(fixture, 'Verkaufston').getAttribute('aria-checked')).toBe('false');
+      (fixture.nativeElement as HTMLElement).querySelector(
+        'button[role="checkbox"][aria-label="Verkaufston"]',
+      ),
+    ).toBeNull();
 
-    config.set({ ...webhookConfig('workspace-b'), soundEnabled: true });
+    config.set({ ...webhookConfig('workspace-b'), soundEnabled: true, saleSoundEnabled: false });
+    supportsSaleSound.set(true);
     flushEffects(fixture);
-    expect(renderedCheckbox(fixture, 'Verkaufston').getAttribute('aria-checked')).toBe('true');
+    expect(renderedCheckbox(fixture, 'Verkaufston').getAttribute('aria-checked')).toBe('false');
   });
 
   it.each([
