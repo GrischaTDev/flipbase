@@ -98,6 +98,8 @@ select is(pg_temp.apply(19,jsonb_build_array(
   pg_temp.event('action_message:event:'||repeat('d',64),'700','2026-09-30T12:19:00.000Z') || '{"notificationKind":"shipping_label_ready"}'
 )),1,'A replaced sale message stays silent while the new shipping label stage is notified');
 select is((select count(*)::int from public.marketplace_message_notifications where notification_kind='sale_sold'),2,'The replaced sale message is still recorded');
+select is(pg_temp.apply(19,jsonb_build_array(pg_temp.event('status_message:event:'||repeat('3',64),'700','2026-09-30T12:01:00.000Z') || '{"notificationKind":"order_completed"}')),0,'A stage from before the reference stays silent');
+select is(pg_temp.apply(19,jsonb_build_array(pg_temp.event('action_message:event:'||repeat('4',64),'700','2026-09-30T12:18:00.000Z') || '{"notificationKind":"order_completed"}')),1,'A silently recorded earlier stage does not suppress the first notified one');
 select is(pg_temp.apply(20,jsonb_build_array(
   pg_temp.event('status_message:event:'||repeat('e',64),'700','2026-09-30T12:20:00.000Z') || '{"notificationKind":"delivered"}',
   pg_temp.event('action_message:event:'||repeat('f',64),'700','2026-09-30T12:20:00.000Z') || '{"notificationKind":"delivered"}',

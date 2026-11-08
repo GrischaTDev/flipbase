@@ -2,7 +2,7 @@
 -- Vinted ersetzt beim Anfordern des Versandscheins die Aktionsmeldung „Verkauft (vor dem … verschicken)“
 -- durch eine Statusmeldung „Verkauft“ ohne feste Kennung. Beide wurden bisher als eigene Verkäufe gemeldet.
 -- Betroffen: Funktion public.marketplace_record_message_event_batch; die Zeilen werden weiter gespeichert,
--- spätere Wiederholungen derselben Station erhalten nur kein notified_at.
+-- spätere Wiederholungen einer bereits gemeldeten Station erhalten nur kein notified_at.
 
 create or replace function public.marketplace_record_message_event_batch(p_workspace_id uuid,p_connection_id uuid,p_external_account_id text,p_batch jsonb)
 returns integer language plpgsql volatile security invoker set search_path = '' as $$
@@ -50,13 +50,14 @@ begin
     from jsonb_array_elements(p_batch->'events') entry
   ), canonical as (
     -- Vinted ersetzt Bestellmeldungen beim nächsten Schritt durch neue Meldungen ohne feste Kennung.
-    -- Einmalige Bestellstationen melden deshalb je Gespräch nur ihr erstes Auftreten.
+    -- Eine bereits gemeldete Bestellstation wird deshalb je Gespräch nicht erneut gemeldet;
+    -- still gespeicherte Vorläufer (vor dem Bezugszeitpunkt oder bei abgeschalteter Kategorie) sperren nicht.
     select entry,kind,kind in ('sale_sold','purchase_created','shipping_label_ready','shipment_sent','ready_for_pickup','delivered','order_completed','order_cancelled','transaction_cancelled','item_relisted','refund_started','refund_completed','return_shipped','feedback_received','feedback_sent')
       and (row_number() over (partition by entry->>'externalConversationId',kind order by entry->>'occurredAt',entry->>'externalId')>1
         or exists(select 1 from public.marketplace_message_notifications earlier
           where earlier.workspace_id=p_workspace_id and earlier.connection_id=p_connection_id and earlier.external_account_id=p_external_account_id
             and earlier.external_conversation_id=entry->>'externalConversationId' and earlier.notification_kind=kind
-            and earlier.external_event_id<>entry->>'externalId')) as repeated_stage
+            and earlier.external_event_id<>entry->>'externalId' and earlier.notified_at is not null)) as repeated_stage
     from kinds
   ), added as (
     insert into public.marketplace_message_notifications(workspace_id,connection_id,external_account_id,external_conversation_id,external_event_id,notification_kind,conversation_id,occurred_at,observed_at,notified_at)

@@ -34,15 +34,17 @@ Synchronisierung mit „Das Cloud-Konto wird gerade verwendet“ ab; dort wartet
 Cloud-Browser, nur lesend): Vor dem Versandschein steht eine Aktionsmeldung „Verkauft (vor dem …
 verschicken)“, danach ersetzt Vinted sie durch eine Statusmeldung „Verkauft“ ohne feste Kennung.
 `marketplace_record_message_event_batch` meldet einmalige Bestellstationen (Verkauft, Label
-verfügbar, Verschickt, Zugestellt, Abgeschlossen, Storno, Erstattung, Bewertung …) je Gespräch nur
-beim ersten Auftreten; spätere Zeilen werden weiter gespeichert, aber nicht gemeldet. Dabei auch
+verfügbar, Verschickt, Zugestellt, Abgeschlossen, Storno, Erstattung, Bewertung …) je Gespräch nicht
+erneut, wenn dieselbe Station dort schon gemeldet wurde; die Zeilen werden weiter gespeichert. Still
+gespeicherte Vorläufer (vor dem Bezugszeitpunkt, abgeschaltete Kategorie) sperren nicht; das fiel in
+der CI in `marketplace-notification-categories` auf. Dabei auch
 den Anforderungsablauf des Versandscheins aufgezeichnet (Grundlage für die geplante
 Versandschein-Funktion); dafür lief kurzzeitig ein Lese- und Aufzeichnungsskript im laufenden
 Cloud-Browser, Hilfsdateien sind vom Server entfernt.
 
 **Prüfung:** Store- und Brückentests lokal (52 bzw. 23), Cloud-Store, Cloud-API und Chatansicht (207) einschließlich Warten, Abbruch bei
-Gesprächswechsel und Zeitgrenze; Erweiterungstests (123); Migration mit 68 SQL-Prüfungen in einer
-zurückgerollten Transaktion der lokalen Datenbank, Gegenprobe ohne Migration schlägt bei den zwei
+Gesprächswechsel und Zeitgrenze; Erweiterungstests (123); Migration mit allen sechs betroffenen SQL-Testdateien in
+zurückgerollten Transaktionen der lokalen Datenbank, Gegenprobe ohne Migration schlägt bei den zwei
 neuen Fällen fehl. Vorabcheck im Commit.
 
 ## 2026-11-08 - Juna - Relisten mit Maßfeldern, Größenanzeige wie bei Vinted
