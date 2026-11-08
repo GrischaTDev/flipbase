@@ -13,9 +13,15 @@ brach deshalb ab. Betroffen waren alle Kategorien mit Maßen oder Zusatzauswahle
 die Flipbase seit PR #587 ausfüllen kann. Diese Zusatzfelder gelten jetzt als bekannt; fremde Felder
 bleiben gesperrt. Alte kombinierte Größen mit genau einer Buchstabengröße zeigt Flipbase überall
 wie Vinted („M“). Bearbeiten aus der Liste zeigt bis zur offenen Maske nur den Ladezustand.
+Damit solche Abbrüche ohne Serverzugang nachvollziehbar sind, speichert der Cloud-Worker den
+gescheiterten Vorbereitungsschritt jetzt am Auftrag (neue Spalte `stage`, optionaler Parameter
+`p_stage` in `marketplace_cloud_listing_finish`); das Fehlerprotokoll der Administration zeigt ihn
+in den Details.
 
 **Prüfung:** Worker-Browsertests der Formularerkennung (71) einschließlich neuem Fall für Maße,
-Auswahllisten und ISBN; Modelltests (508) und Komponententests von Detail und Liste (58).
+Auswahllisten und ISBN; Runner- und Store-Tests für die Schrittübergabe (25); Migration in eigener
+lokaler Datenbank, 105 SQL-Prüfungen einschließlich Fehlerprotokoll mit Schritt; Modelltests (508)
+und Komponententests von Detail und Liste (58).
 Vorabcheck im Commit.
 
 ## 2026-11-08 - Juna - Größe nach dem Speichern erhalten, neue Aktionen oben

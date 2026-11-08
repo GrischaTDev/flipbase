@@ -4557,6 +4557,7 @@ export type Database = {
           requested_by: string
           scheduled_at: string | null
           snapshot: Json
+          stage: string | null
           started_at: string | null
           state: string
           time_zone: string | null
@@ -4603,6 +4604,7 @@ export type Database = {
           requested_by: string
           scheduled_at?: string | null
           snapshot: Json
+          stage?: string | null
           started_at?: string | null
           state?: string
           time_zone?: string | null
@@ -4649,6 +4651,7 @@ export type Database = {
           requested_by?: string
           scheduled_at?: string | null
           snapshot?: Json
+          stage?: string | null
           started_at?: string | null
           state?: string
           time_zone?: string | null
@@ -11882,6 +11885,7 @@ export type Database = {
           p_connection_id: string
           p_job_id: string
           p_result: Json
+          p_stage?: string
           p_worker_epoch: number
           p_worker_id: string
           p_workspace_id: string

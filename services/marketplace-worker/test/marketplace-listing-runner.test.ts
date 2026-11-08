@@ -42,7 +42,8 @@ function fixture(
   } = {},
 ) {
   const calls: string[] = [],
-    results: MarketplaceListingResult[] = [];
+    results: MarketplaceListingResult[] = [],
+    stages: (string | undefined)[] = [];
   let revoked = false;
   let latePhoto: (() => Promise<unknown>) | undefined;
   const browser: BrowserInfo = {
@@ -98,9 +99,10 @@ function fixture(
       calls.push('begin');
       if (options.beginLost) throw new Error('lost');
     },
-    finish: async (_job: CloudListingClaim, result: MarketplaceListingResult) => {
+    finish: async (_job: CloudListingClaim, result: MarketplaceListingResult, stage?: string) => {
       calls.push('finish');
       results.push(result);
+      stages.push(stage);
       if (options.finishLost) throw new Error('lost');
     },
     loadPhoto: async (_job: CloudListingClaim, imageId: string) => {
@@ -134,6 +136,7 @@ function fixture(
     store,
     calls,
     results,
+    stages,
     runner: new MarketplaceListingRunner(broker, store),
     latePhoto: () => latePhoto!(),
   };
@@ -335,6 +338,8 @@ test('preflight diagnostics contain only the fixed step and keep the failed writ
       assert.deepEqual(diagnostic.results, [
         { outcome: 'failed', errorCode: 'provider_unavailable' },
       ]);
+      // Der Schritt geht mit dem Ergebnis an die Datenbank und erscheint im Fehlerprotokoll.
+      assert.deepEqual(diagnostic.stages, [stage]);
       assert.ok(!diagnostic.calls.includes('begin'));
       assert.deepEqual(
         output.map((line) => JSON.parse(line)),

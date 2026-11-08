@@ -33,7 +33,7 @@ interface ListingStore {
   loadCategoryPath(claim: CloudListingClaim): Promise<readonly number[]>;
   check(claim: CloudListingClaim): Promise<boolean>;
   begin(claim: CloudListingClaim): Promise<void>;
-  finish(claim: CloudListingClaim, result: MarketplaceListingResult): Promise<void>;
+  finish(claim: CloudListingClaim, result: MarketplaceListingResult, stage?: string): Promise<void>;
   loadPhoto(claim: CloudListingClaim, imageId: string): Promise<MarketplaceListingPhoto>;
 }
 export class MarketplaceListingRunner {
@@ -66,6 +66,7 @@ export class MarketplaceListingRunner {
       recovery = false;
     let preflightStage:
       'browser' | 'authorization' | 'category_path' | 'photo_download' | 'provider' = 'browser';
+    let failedStage: string | undefined;
     let result: MarketplaceListingResult = {
       outcome: 'failed',
       errorCode: 'authorization_expired',
@@ -156,19 +157,21 @@ export class MarketplaceListingRunner {
       } catch (error) {
         if (error instanceof MarketplaceBrowserSessionEndedError && error.isSessionClosed)
           isSessionClosed = true;
-        if (!beginAttempted)
+        if (!beginAttempted) {
+          failedStage =
+            error instanceof VintedListingReadError
+              ? error.step
+              : error instanceof MarketplaceBrowserSessionEndedError
+                ? (error.listingReadStep ?? preflightStage)
+                : preflightStage;
           process.stderr.write(
             JSON.stringify({
               event: 'marketplace_listing_preflight_failed',
               jobId: claim.jobId,
-              stage:
-                error instanceof VintedListingReadError
-                  ? error.step
-                  : error instanceof MarketplaceBrowserSessionEndedError
-                    ? (error.listingReadStep ?? preflightStage)
-                    : preflightStage,
+              stage: failedStage,
             }) + '\n',
           );
+        }
         result = {
           outcome: beginAttempted ? 'outcome_unknown' : 'failed',
           errorCode:
@@ -181,7 +184,9 @@ export class MarketplaceListingRunner {
         if (!sessionId) recovery = true;
       }
       try {
-        await this.store.finish(claim, result);
+        await (failedStage
+          ? this.store.finish(claim, result, failedStage)
+          : this.store.finish(claim, result));
       } catch {
         process.stderr.write(
           JSON.stringify({
