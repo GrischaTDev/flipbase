@@ -630,7 +630,17 @@
         continue;
       }
       const name = element.id || element.name;
-      if (!allowed.has(name) && !/^package_type_selector_[1-9][0-9]*$/.test(name))
+      // Zusatzfelder einer Kategorie füllt Flipbase selbst aus (vinted-browser-listing-extras):
+      // Auswahllisten wie die Rocklänge und freie Maße oder die ISBN. Sie sind optional, solange
+      // Vinted sie nicht verlangt, und gelten deshalb nicht als unbekannt.
+      const testId = element.getAttribute('data-testid');
+      const extraField =
+        element instanceof HTMLInputElement &&
+        /^[a-z][a-z0-9_]{0,39}$/.test(element.id) &&
+        (testId === 'category-' + element.id + '-single-list-input' ||
+          testId === 'category-' + element.id + '-multi-list-input' ||
+          (element.type === 'text' && ['shoulder_width', 'height', 'isbn'].includes(element.id)));
+      if (!allowed.has(name) && !extraField && !/^package_type_selector_[1-9][0-9]*$/.test(name))
         unknownFields.add(name || 'unknown_field');
     }
     for (const element of root.querySelectorAll('button[data-testid$="-input"]'))

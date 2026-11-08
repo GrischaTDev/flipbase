@@ -78,6 +78,21 @@ test('bound modern choice buttons expose their labels while companion inputs car
     assert.deepEqual((await page.evaluate(collectVintedListingFormMetadata)).unknownFields, [
       'color',
     ]);
+    // Zusatzfelder füllt Flipbase selbst aus: Maße bei Oberteilen (am 08.11.2026 im Formular für
+    // Herren-Sweater gesehen), Auswahllisten wie die Rocklänge und die ISBN. Ein fremdes Feld bleibt
+    // unbekannt.
+    await page.setContent(
+      '<main id="content"><input name="title"><textarea name="description"></textarea>' +
+        '<input type="text" id="shoulder_width" name="shoulder_width" data-testid="measurement-width--input">' +
+        '<input type="text" id="height" name="height" data-testid="measurement-length--input">' +
+        '<input type="text" id="isbn" name="isbn">' +
+        '<input readonly id="skirt_length" data-testid="category-skirt_length-single-list-input">' +
+        '<input readonly id="video_game_platform" data-testid="category-video_game_platform-multi-list-input">' +
+        '<input readonly id="warranty_code" data-testid="category-other-single-list-input"></main>',
+    );
+    assert.deepEqual((await page.evaluate(collectVintedListingFormMetadata)).unknownFields, [
+      'warranty_code',
+    ]);
   } finally {
     await browser.close();
   }
@@ -463,7 +478,7 @@ test('reads actual popup choices and retains the category binding without saving
       return route.fulfill({
         contentType: 'text/html',
         body: `<div id="content"><input name="photos" type="file" multiple accept="image/jpeg,image/gif,image/png,image/webp"><input name="title"><textarea name="description"></textarea>
-        <input readonly id="category"><input readonly id="size"><input readonly id="condition"><input id="isbn"><div style="opacity:0"><input id="book_series"></div>
+        <input readonly id="category"><input readonly id="size"><input readonly id="condition"><input id="warranty_code"><div style="opacity:0"><input id="book_series"></div>
         <div id="category-options" hidden>
           <button id="catalog-5">Herren</button>
           <div id="category-leaves" hidden><div role="radio" id="catalog-1223" aria-checked="true"><div class="web_ui__Cell__title">Bomberjacken</div><label><input id="1223-catalog-radio" aria-hidden="true" type="radio" checked></label></div></div>
@@ -495,7 +510,7 @@ test('reads actual popup choices and retains the category binding without saving
     await assert.rejects(readVintedListingChoices(page, '789', 2738, 'size', [5]), /Kategorie/);
     await assert.rejects(readVintedListingChoices(page, '790', 1223, 'size'), /Konto/);
     const fields = await readVintedListingCategoryFields(page, '789', 1223, [5]);
-    assert.deepEqual(fields.unknownFields, ['isbn']);
+    assert.deepEqual(fields.unknownFields, ['warranty_code']);
     assert.deepEqual(
       fields.fields.map((field) => field.field),
       ['size', 'condition'],

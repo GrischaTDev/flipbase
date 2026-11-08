@@ -182,7 +182,7 @@ test('reads category-specific options on its own fresh page without saving or to
         { id: 209, label: 'L', group: 14 },
       ],
     );
-    assert.deepEqual(result.unknownFields, ['isbn']);
+    assert.deepEqual(result.unknownFields, ['warranty_code']);
     assert.equal(page.isClosed(), true);
     assert.equal(userPage.isClosed(), false);
     assert.equal(await userPage.locator('#title').inputValue(), 'Eigene Arbeit');

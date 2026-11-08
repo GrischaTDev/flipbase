@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Relisten mit Maßfeldern, Größenanzeige wie bei Vinted
+
+**Anlass:** Der Relist eines Nike-Strickpullovers scheiterte zweimal mit „Vorbereitung bei Vinted
+fehlgeschlagen“. Außerdem zeigte der Kleiderschrank alte Größen als „M / 38 / 10“, und beim
+Öffnen von Bearbeiten blitzte kurz die Detailansicht auf.
+
+**Ursache und Umsetzung:** Im Worker-Protokoll auf dem Server scheiterten beide Aufträge (45, 46)
+im Vorbereitungsschritt `values`. Im angemeldeten Formular für Herren-Sweater zeigt Vinted die
+Maßfelder `shoulder_width` und `height`; die Felderkennung wertete sie als unbekannt, die Prüfung
+brach deshalb ab. Betroffen waren alle Kategorien mit Maßen oder Zusatzauswahlen (z. B. Rocklänge),
+die Flipbase seit PR #587 ausfüllen kann. Diese Zusatzfelder gelten jetzt als bekannt; fremde Felder
+bleiben gesperrt. Alte kombinierte Größen mit genau einer Buchstabengröße zeigt Flipbase überall
+wie Vinted („M“). Bearbeiten aus der Liste zeigt bis zur offenen Maske nur den Ladezustand.
+
+**Prüfung:** Worker-Browsertests der Formularerkennung (71) einschließlich neuem Fall für Maße,
+Auswahllisten und ISBN; Modelltests (508) und Komponententests von Detail und Liste (58).
+Vorabcheck im Commit.
+
 ## 2026-11-08 - Juna - Größe nach dem Speichern erhalten, neue Aktionen oben
 
 **Anlass:** Nach dem Speichern der Silver-Jeans zeigte Flipbase keine Größe mehr, obwohl sie bei
