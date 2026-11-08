@@ -41,7 +41,28 @@
         {{ data.analysis.modelName || 'Modell unbekannt' }}
       </h3>
       <p class="text-sm text-fb-text-secondary">{{ confidenceLabels[data.analysis.confidence] }}</p>
-      <p class="text-sm text-fb-text-secondary">{{ data.analysis.evidence }}</p>
+      <p class="whitespace-pre-line text-sm text-fb-text-secondary">{{ data.analysis.evidence }}</p>
+      @if (data.analysis.research?.identification; as identification) {
+        <ul class="space-y-1 text-sm" aria-label="Quellen zur Modellbestimmung">
+          @for (source of identification.sources; track source.url) {
+            <li>
+              <a
+                [href]="source.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-words text-fb-text-primary underline underline-offset-4"
+                >{{ source.title }}<span class="sr-only"> (neuer Tab)</span></a
+              >
+            </li>
+          }
+        </ul>
+      }
+      @if (data.listing.detailsStatus === 'unavailable') {
+        <p class="text-sm text-fb-text-secondary">
+          Inseratdetails konnten nicht geladen werden; untersucht wurden die gespeicherten
+          Feed-Daten.
+        </p>
+      }
       <p class="text-xs text-fb-text-muted">
         {{ data.listing.photoCount }} Bilder · Beschreibung
         {{ data.listing.hasDescription ? 'vorhanden' : 'nicht vorhanden' }} ·
@@ -50,122 +71,118 @@
     </section>
     <section class="space-y-3" aria-label="Preisvergleich">
       <h3 class="font-semibold text-fb-text-primary">Preisvergleich</h3>
-      @for (comparison of data.analysis.comparisons; track comparison.url) {
-        <div class="space-y-1 border-b border-fb-border pb-3 text-sm">
-          <div class="flex flex-wrap justify-between gap-2">
-            <span class="text-fb-text-secondary">{{ labels[comparison.kind] }}</span>
-            <strong class="text-fb-text-primary">{{ comparison.price | currency: 'EUR' }}</strong>
-          </div>
-          <a
-            [href]="comparison.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-fb-text-primary underline underline-offset-4"
-            >{{ comparison.title }}<span class="sr-only"> (neuer Tab)</span></a
-          >
-          <p class="text-fb-text-secondary">{{ comparison.evidence }}</p>
-        </div>
-      } @empty {
-        <p class="text-sm text-fb-text-secondary">
-          Keine passenden, belegten Vergleichspreise gefunden.
+      @for (section of marketSections(); track section.title) {
+        <section class="space-y-3" [attr.aria-label]="section.title">
+          <h4 class="font-medium text-fb-text-primary">{{ section.title }}</h4>
+          @if (section.key === 'retail' && section.research; as research) {
+            <p class="whitespace-pre-line text-sm text-fb-text-secondary">{{ research.summary }}</p>
+            @for (limitation of research.limitations; track $index) {
+              <p class="text-sm text-fb-text-secondary">{{ limitation }}</p>
+            }
+          }
+          @for (comparison of section.comparisons; track comparison.url) {
+            <div class="space-y-1 border-b border-fb-border pb-3 text-sm">
+              <div class="flex flex-wrap justify-between gap-2">
+                <span class="text-fb-text-secondary"
+                  >{{ labels[comparison.kind]
+                  }}{{ comparison.sameVariant === false ? ' · ähnliches Modell' : '' }}</span
+                >
+                <strong class="text-fb-text-primary">{{
+                  comparison.price | currency: 'EUR'
+                }}</strong>
+              </div>
+              <a
+                [href]="comparison.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-words text-fb-text-primary underline underline-offset-4"
+                >{{ comparison.title }}<span class="sr-only"> (neuer Tab)</span></a
+              >
+              <p class="text-fb-text-secondary">{{ comparison.evidence }}</p>
+            </div>
+          } @empty {
+            <p class="text-sm text-fb-text-secondary">
+              Keine passenden, belegten Vergleichspreise gefunden.
+            </p>
+          }
+          @if (section.research; as research) {
+            <ul class="space-y-1 text-sm" [attr.aria-label]="'Quellen: ' + section.title">
+              @for (source of research.sources; track source.url) {
+                <li>
+                  <a
+                    [href]="source.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="break-words text-fb-text-primary underline underline-offset-4"
+                    >{{ source.title }}<span class="sr-only"> (neuer Tab)</span></a
+                  >
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+      @if (data.analysis.newPriceRange; as retail) {
+        <p class="text-sm font-semibold text-fb-text-primary">
+          Aktueller Neupreis: {{ retail.low | currency: 'EUR' }} –
+          {{ retail.high | currency: 'EUR' }} · {{ retail.count }} Modellvergleiche
         </p>
       }
-      <dl class="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt class="text-fb-text-secondary">Ø belegte Verkaufspreise</dt>
-          <dd class="font-semibold text-fb-text-primary">
-            {{
-              data.analysis.soldAverage === null
-                ? 'Nicht verfügbar'
-                : (data.analysis.soldAverage | currency: 'EUR')
-            }}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-fb-text-secondary">Ø laufende Angebotspreise</dt>
-          <dd class="font-semibold text-fb-text-primary">
-            {{
-              data.analysis.askingAverage === null
-                ? 'Nicht verfügbar'
-                : (data.analysis.askingAverage | currency: 'EUR')
-            }}
-          </dd>
-        </div>
-      </dl>
+      @if (data.analysis.soldAverage !== null || data.analysis.askingAverage !== null) {
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          @if (data.analysis.soldAverage !== null) {
+            <div>
+              <dt class="text-fb-text-secondary">Ø belegte Verkaufspreise</dt>
+              <dd class="font-semibold text-fb-text-primary">
+                {{ data.analysis.soldAverage | currency: 'EUR' }}
+              </dd>
+            </div>
+          }
+          @if (data.analysis.askingAverage !== null) {
+            <div>
+              <dt class="text-fb-text-secondary">Ø geforderte Gebrauchtpreise</dt>
+              <dd class="font-semibold text-fb-text-primary">
+                {{ data.analysis.askingAverage | currency: 'EUR' }}
+              </dd>
+            </div>
+          }
+        </dl>
+      }
     </section>
     <section class="space-y-3" aria-label="Wiederverkaufsbewertung">
       <h3 class="font-semibold text-fb-text-primary">Wiederverkauf</h3>
       <p class="text-sm text-fb-text-secondary">
         Einkauf inkl. gemeldetem Käuferschutz: {{ data.listing.totalPrice | currency: 'EUR' }}
       </p>
-      <div class="grid gap-3 sm:grid-cols-3">
-        <app-number-input
-          label="Einkaufsversand"
-          unit="€"
-          [min]="0"
-          [step]="0.01"
-          [(value)]="shipping"
-        />
-        <app-number-input
-          label="Verkaufsgebühr"
-          unit="%"
-          [min]="0"
-          [max]="100"
-          [step]="0.1"
-          [(value)]="feePercent"
-        />
-        <app-number-input
-          label="Weitere Kosten inkl. Verkaufsversand"
-          unit="€"
-          [min]="0"
-          [step]="0.01"
-          [(value)]="otherCosts"
-        />
-      </div>
+      @if (data.analysis.research?.used; as used) {
+        <p class="whitespace-pre-line text-sm text-fb-text-primary">{{ used.summary }}</p>
+        @for (limitation of used.limitations; track $index) {
+          <p class="text-sm text-fb-text-secondary">{{ limitation }}</p>
+        }
+      }
       @if (data.analysis.resale; as resale) {
+        <p class="text-sm font-semibold text-fb-text-primary">
+          {{
+            data.analysis.confidence === 'likely'
+              ? 'Vorläufig geschätzter Wiederverkauf'
+              : 'Geschätzter Wiederverkauf'
+          }}: {{ resale.low | currency: 'EUR' }} – {{ resale.high | currency: 'EUR' }}
+        </p>
         <p class="text-sm text-fb-text-secondary">
-          Geschätzter Wiederverkauf: {{ resale.low | currency: 'EUR' }} –
-          {{ resale.high | currency: 'EUR' }} · {{ resale.count }}
+          {{ resale.count }}
           {{ resale.basis === 'sold' ? 'belegte Verkäufe' : 'Angebote, mit 15–30 % Abschlag' }}
+        </p>
+      } @else if (
+        !data.analysis.research?.used?.summary && data.analysis.research?.used?.completed !== false
+      ) {
+        <p class="text-sm text-fb-text-secondary">
+          Keine rechnerische Wiederverkaufsspanne aus mindestens drei passenden Gebrauchtpreisen.
         </p>
       }
       @if (estimate(); as margin) {
-        <p class="text-sm font-semibold text-fb-text-primary">
-          Möglicher Überschuss vor Steuern: {{ margin.low | currency: 'EUR' }} bis
-          {{ margin.high | currency: 'EUR' }}
-        </p>
-        <div
-          role="img"
-          [attr.aria-label]="
-            margin.tone === 'green'
-              ? 'Grün: konservativ mindestens 20 Euro und 30 Prozent Überschuss'
-              : margin.tone === 'yellow'
-                ? 'Gelb: begrenzter Überschuss oder unsichere Angebotsbasis'
-                : 'Rot: kein positiver Überschuss erwartet'
-          "
-          class="relative h-4 rounded-full bg-gradient-to-r from-green-600 via-yellow-400 to-red-600"
-        >
-          <span
-            class="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-slate-950 shadow"
-            [style.left.%]="margin.position"
-          ></span>
-        </div>
-        <p class="text-sm text-fb-text-secondary">
-          {{
-            margin.tone === 'green'
-              ? 'Grün · attraktiver Einkauf'
-              : margin.tone === 'yellow'
-                ? 'Gelb · vorsichtig kalkulieren'
-                : 'Rot · kein erwarteter Überschuss'
-          }}
-        </p>
-      } @else {
-        <p class="text-sm text-fb-text-secondary">
-          {{
-            data.analysis.resale
-              ? 'Bitte gültige Kosten und Gebühren eingeben.'
-              : 'Keine belastbare Gewinnspanne: Modell unklar oder weniger als drei vergleichbare Gebrauchtpreise.'
-          }}
+        <p class="text-sm text-fb-text-primary">
+          Preisabstand zum Einkauf: {{ margin.low | currency: 'EUR' }} bis
+          {{ margin.high | currency: 'EUR' }} vor Versand, Verkaufsgebühren und Steuern
         </p>
       }
     </section>
@@ -173,18 +190,31 @@
       <h3 class="font-semibold text-fb-text-primary">Verbrauch und geschätzte Kosten</h3>
       <p>
         {{ data.model }} ·
-        {{ data.cacheHit ? 'Gespeichertes Ergebnis, keine neue API-Anfrage' : 'Neue API-Anfrage' }}
+        {{ data.cacheHit ? 'Gespeichertes Ergebnis, keine neue API-Anfrage' : 'Neue Recherche' }}
       </p>
       <p>
-        Ursprüngliche Analyse: {{ data.usage.inputTokens ?? 'unbekannt' }} Eingabe- /
-        {{ data.usage.outputTokens ?? 'unbekannt' }} Ausgabetokens ·
-        {{ data.usage.webSearchCalls }} Webaufrufe ·
+        Ursprüngliche Analyse:
+        {{ data.usage.incomplete && data.usage.inputTokens !== null ? 'mindestens ' : ''
+        }}{{ data.usage.inputTokens ?? 'unbekannt' }} Eingabe- /
+        {{ data.usage.incomplete && data.usage.outputTokens !== null ? 'mindestens ' : ''
+        }}{{ data.usage.outputTokens ?? 'unbekannt' }} Ausgabetokens ·
+        {{ data.usage.incomplete ? 'mindestens ' : '' }}{{ data.usage.webSearchCalls }} Webaufrufe ·
         {{
           data.usage.estimatedCostUsd === null
-            ? 'Kosten unbekannt'
+            ? 'Gesamtkosten unbekannt'
             : (data.usage.estimatedCostUsd | currency: 'USD' : 'symbol' : '1.4-6')
         }}
       </p>
+      @if (
+        data.usage.incomplete &&
+        data.usage.knownCostUsd !== null &&
+        data.usage.knownCostUsd !== undefined
+      ) {
+        <p>
+          Geschätzte bekannte Teilkosten:
+          {{ data.usage.knownCostUsd | currency: 'USD' : 'symbol' : '1.4-6' }}
+        </p>
+      }
     </section>
   }
   @if (completedResults().length > 1) {
@@ -227,8 +257,11 @@
       </h3>
       @for (stat of stats(); track stat.model) {
         <p>
-          {{ stat.model }}: {{ stat.requests }} Anfragen · {{ stat.total_tokens | number }} Tokens ·
-          {{ stat.web_search_calls ?? 0 }} Webaufrufe ·
+          {{ stat.model }}: {{ stat.requests }} Anfragen ·
+          {{ stat.unknown_cost_requests ? 'mindestens ' : ''
+          }}{{ stat.total_tokens | number }} Tokens ·
+          {{ stat.unknown_cost_requests ? 'mindestens ' : ''
+          }}{{ stat.web_search_calls ?? 0 }} Webaufrufe ·
           {{
             stat.estimated_cost_usd === null
               ? 'Kosten unbekannt'

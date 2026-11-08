@@ -292,5 +292,36 @@ select is((select value->>'enabled' from schedule_context where name='loginRejec
 select is((select value->>'reason' from schedule_context where name='loginRejection'),'needs_login','Dritte Ablehnung verlangt eine neue Anmeldung');
 select is((select value->>'versionChange' from schedule_context where name='loginRejection'),'1','Dritte Ablehnung entzieht die Freigabe');
 
+-- Eine beim Abschluss noch laufende Browsersitzung pausiert nur bis zum nächsten Versuch.
+create function pg_temp.unfinished_session() returns jsonb language plpgsql as $$
+declare v_runtime public.marketplace_worker_runtime; v_run jsonb; v_before public.marketplace_sync_schedules; v_result jsonb;
+begin
+  update public.marketplace_sync_schedules set next_due_at=clock_timestamp()-interval '1 minute',retry_after=null;
+  select * into v_before from public.marketplace_sync_schedules;
+  select * into v_runtime from public.marketplace_worker_runtime where id=1;
+  v_run:=public.marketplace_sync_dispatch_claim(v_runtime.worker_id,v_runtime.worker_epoch,gen_random_uuid(),true);
+  if v_run is null or v_run->>'authorizationKind'<>'scheduled_read' then raise exception 'Zeitgesteuerter Testauftrag fehlt'; end if;
+  perform public.marketplace_sync_finish((v_run->>'operationId')::uuid,(v_run->>'runnerId')::uuid,v_runtime.worker_epoch,'{"state":"failed","errorCode":"browser","pausedReason":"interrupted"}');
+  v_result:=(select jsonb_build_object('reason',paused_reason,'enabled',enabled,'failures',consecutive_failures,
+    'versionChange',authorization_version-v_before.authorization_version,'retryLater',retry_after>clock_timestamp()+interval '29 minutes',
+    'due',next_due_at is not null,'blocked',public.marketplace_sync_dispatch_claim(v_runtime.worker_id,v_runtime.worker_epoch,gen_random_uuid(),true) is null)
+    from public.marketplace_sync_schedules);
+  update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where public_id=(v_run->>'sessionId')::uuid;
+  return v_result;
+end;
+$$;
+update public.marketplace_sync_schedules set enabled=true,paused_reason=null,retry_after=null,consecutive_failures=0;
+insert into schedule_context values('unfinishedSession',pg_temp.unfinished_session());
+select is((select value->>'enabled' from schedule_context where name='unfinishedSession'),'true','Noch laufende Browsersitzung lässt die Automatik aktiv');
+select is((select value->>'reason' from schedule_context where name='unfinishedSession'),'cleanup','Noch laufende Browsersitzung bleibt als Wartegrund sichtbar');
+select is((select value->>'failures' from schedule_context where name='unfinishedSession'),'1','Bereinigung zählt zur begrenzten Wiederholung');
+select is((select value->>'versionChange' from schedule_context where name='unfinishedSession'),'0','Bereinigung entzieht keine Freigabe');
+select is((select value->>'retryLater' from schedule_context where name='unfinishedSession'),'true','Nächster Versuch wartet die Rückfallzeit ab');
+select is((select value->>'due' from schedule_context where name='unfinishedSession'),'true','Nächster Abruf bleibt geplant');
+select is((select value->>'blocked' from schedule_context where name='unfinishedSession'),'true','Solange die alte Sitzung läuft, startet kein neuer Browser');
+select is(pg_temp.unfinished_session()->>'failures','2','Zweite offene Sitzung zählt weiter');
+select is(pg_temp.unfinished_session()->>'reason','retry_limit','Dritte offene Sitzung in Folge beendet die Wiederholung');
+select is((select enabled from public.marketplace_sync_schedules),false,'Wiederholungsgrenze deaktiviert die Freigabe');
+
 select * from finish();
 rollback;

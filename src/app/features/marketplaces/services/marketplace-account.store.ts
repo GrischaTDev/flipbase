@@ -223,9 +223,16 @@ export class MarketplaceAccountStore {
     const importTimer = setInterval(() => {
       void this.checkLatestImport();
     }, 30_000);
+    // Mobile Browser halten Takt und Livekanal im Hintergrund an. Beim Zurückkehren
+    // sofort den Serverstand holen, statt bis zum nächsten Takt alte Daten zu zeigen.
+    const checkOnReturn = () => {
+      if (document.visibilityState === 'visible') void this.checkLatestImport(true);
+    };
+    document.addEventListener('visibilitychange', checkOnReturn);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       clearInterval(importTimer);
+      document.removeEventListener('visibilitychange', checkOnReturn);
       this.disconnectImports?.();
       this.disconnectImports = null;
       this.pendingImport.set(null);

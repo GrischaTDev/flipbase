@@ -18,7 +18,10 @@ update public.vinted_ai_searches set status='completed',result='{"analysis":{}}'
 select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6-luna')->>'cached','true','Identische Anfrage verwendet Ergebnis erneut');
 select is((select count(*) from public.vinted_ai_searches),1::bigint,'Cache verursacht keine neue Verbrauchszeile');
 select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('b',64),'gpt-6-luna')->>'cached','false','Geaenderte Inhalte werden neu analysiert');
-update public.vinted_ai_searches set created_at=now()-interval '3 minutes' where status='pending';
+update public.vinted_ai_searches set created_at=now()-interval '145 seconds' where status='pending';
+select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6.1-sol')->>'error','search_busy','Die vollstaendige Serverlaufzeit erlaubt keinen parallelen kostenpflichtigen Auftrag');
+select is((select count(*) from public.vinted_ai_searches where status='pending'),1::bigint,'Eine noch gueltige Reservierung bleibt unveraendert bestehen');
+update public.vinted_ai_searches set created_at=now()-interval '4 minutes' where status='pending';
 select is(public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000001','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6.1-sol')->>'cached','false','Modellvergleich hat eigenen Cache');
 select is((select count(*) from public.vinted_ai_searches where status='unknown' and estimated_cost_usd is null),1::bigint,'Unterbrochener Request bleibt mit unbekannten Kosten bestehen');
 select throws_ok($$select public.reserve_vinted_ai_search('54000000-0000-4000-8000-000000000002','54000000-0000-4000-8000-000000000003','54000000-0000-4000-8000-000000000004',repeat('a',64),'gpt-6-luna')$$,'42501',null,'Beta-Nutzer duerfen keine Kosten reservieren');

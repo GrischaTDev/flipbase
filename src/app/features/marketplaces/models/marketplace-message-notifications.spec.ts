@@ -90,6 +90,7 @@ describe('Gespeicherte Nachrichteneingänge', () => {
         parseMessageNotificationFeed({ ...feed, items: [system] }, 'workspace-a').items,
       ).toEqual([system]);
       expect(messageNotificationToInbox(system)).toMatchObject({
+        type: 'alert',
         title: 'Status bei Vinted aktualisiert',
         message: 'Vinted-Konto: Testkonto.',
         link: '/marketplaces/vinted/messages?connectionId=account-a&conversationId=conversation-a',
@@ -108,6 +109,7 @@ describe('Gespeicherte Nachrichteneingänge', () => {
       const system = { ...item, eventKind, senderName: null, notificationKind };
       const parsed = parseMessageNotificationFeed({ ...feed, items: [system] }, 'workspace-a');
       expect(messageNotificationToInbox(parsed.items[0])).toMatchObject({
+        type: notificationKind === 'sale_sold' ? 'sale' : 'alert',
         title,
         message: 'Vinted-Konto: Testkonto.',
       });

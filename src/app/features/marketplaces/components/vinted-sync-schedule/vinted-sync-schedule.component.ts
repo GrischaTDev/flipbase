@@ -80,7 +80,7 @@ export class VintedSyncScheduleComponent {
       return { label: 'Automatik pausiert', tone: 'caution' };
     if (status !== 'connected') return { label: 'Anmeldung erforderlich', tone: 'caution' };
     if (schedule?.pausedReason) return { label: 'Abruf wartet', tone: 'caution' };
-    if (schedule?.enabled && !this.store.loading() && !this.store.availability().enabled)
+    if (schedule?.enabled && this.store.serviceUnreachable())
       return { label: 'Automatik nicht erreichbar', tone: 'caution' };
     return null;
   });
@@ -90,11 +90,7 @@ export class VintedSyncScheduleComponent {
     if (error) return { text: error, alert: true, retry: true };
     const paused = this.pausedText();
     if (paused) return { text: paused, alert: false, retry: false };
-    if (
-      this.store.schedule()?.enabled &&
-      !this.store.availability().enabled &&
-      !this.store.loading()
-    )
+    if (this.store.schedule()?.enabled && this.store.serviceUnreachable())
       return {
         text: 'Der Automatikdienst ist momentan nicht erreichbar. Gespeicherte Daten bleiben lesbar.',
         alert: false,

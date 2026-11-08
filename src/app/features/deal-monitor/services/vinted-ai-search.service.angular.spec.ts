@@ -20,6 +20,7 @@ describe('VintedAiSearchService', () => {
     await service.search('workspace', 'listing', 'gpt-6-luna');
     expect(invoke).toHaveBeenCalledWith('vinted-ai-search', {
       body: { workspaceId: 'workspace', listingId: 'listing', model: 'gpt-6-luna' },
+      timeout: 155_000,
     });
   });
   it('lädt den dauerhaften Verbrauch ohne neue Analyse', async () => {

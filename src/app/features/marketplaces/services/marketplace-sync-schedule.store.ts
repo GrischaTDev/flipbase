@@ -59,6 +59,9 @@ export class MarketplaceSyncScheduleStore {
   private readonly loadError = signal<string | null>(null);
   private readonly needsReload = signal(false);
   private readonly denied = signal(false);
+  private readonly availabilityChecked = signal(false);
+  private availabilityFailures = 0;
+  private availabilityRetry: ReturnType<typeof setTimeout> | undefined;
   private revision = 0;
   private destroyed = false;
 
@@ -74,6 +77,15 @@ export class MarketplaceSyncScheduleStore {
       this.contextKey() !== null && (!this.current() || (this.fetching() && !this.savedSchedule())),
   );
   readonly busy = computed(() => this.current() && this.writing());
+  /** Erst nach zwei Fehlschlägen in Folge; ein einzelner Aussetzer nach dem Aufwecken zählt nicht. */
+  readonly serviceUnreachable = computed(
+    () =>
+      this.current() &&
+      !this.denied() &&
+      !this.loading() &&
+      this.availabilityChecked() &&
+      !this.capability().enabled,
+  );
   readonly error = computed(() => (this.current() ? this.loadError() : null));
   readonly canEnable = computed(
     () =>
@@ -112,6 +124,7 @@ export class MarketplaceSyncScheduleStore {
         this.loadedContext.set(key);
         this.savedSchedule.set(null);
         this.capability.set({ enabled: false, allowedIntervals: [] });
+        this.resetAvailabilityCheck();
         this.fetching.set(false);
         this.writing.set(false);
         this.loadError.set(null);
@@ -123,8 +136,16 @@ export class MarketplaceSyncScheduleStore {
     const statusTimer = setInterval(() => {
       if (this.current() && !this.fetching() && !this.busy()) void this.reload(true);
     }, 30_000);
+    // Nach dem Aufwecken eines Handys sofort neu prüfen, statt auf den gedrosselten Takt zu warten.
+    const reloadOnReturn = () => {
+      if (document.visibilityState === 'visible' && this.current() && !this.busy())
+        void this.reload(true);
+    };
+    document.addEventListener('visibilitychange', reloadOnReturn);
     inject(DestroyRef).onDestroy(() => {
       clearInterval(statusTimer);
+      document.removeEventListener('visibilitychange', reloadOnReturn);
+      this.resetAvailabilityCheck();
       this.destroyed = true;
       this.revision++;
     });
@@ -145,17 +166,39 @@ export class MarketplaceSyncScheduleStore {
     }
   }
 
+  private resetAvailabilityCheck(): void {
+    clearTimeout(this.availabilityRetry);
+    this.availabilityRetry = undefined;
+    this.availabilityFailures = 0;
+    this.availabilityChecked.set(false);
+  }
+
   private async refreshAvailability(key: string, revision: number): Promise<void> {
+    let capability: ScheduledSyncAvailability;
     try {
-      const capability = await this.api.availability();
-      if (this.isCurrent(key, revision) && !this.denied()) {
-        this.capability.set(capability);
-        await this.activateDefault();
-      }
+      capability = await this.api.availability();
     } catch {
-      if (this.isCurrent(key, revision))
-        this.capability.set({ enabled: false, allowedIntervals: [] });
+      capability = { enabled: false, allowedIntervals: [] };
     }
+    if (!this.isCurrent(key, revision) || this.denied()) return;
+    if (capability.enabled) {
+      this.availabilityFailures = 0;
+      this.capability.set(capability);
+      this.availabilityChecked.set(true);
+      await this.activateDefault();
+      return;
+    }
+    // Nach dem Aufwecken fehlt oft kurz das Netz. Den letzten Stand behalten und bald erneut fragen.
+    if (++this.availabilityFailures < 2) {
+      clearTimeout(this.availabilityRetry);
+      this.availabilityRetry = setTimeout(() => {
+        this.availabilityRetry = undefined;
+        if (this.isCurrent(key, revision)) void this.refreshAvailability(key, revision);
+      }, 3_000);
+      return;
+    }
+    this.capability.set(capability);
+    this.availabilityChecked.set(true);
   }
 
   async reload(keepVisible = false): Promise<void> {
@@ -168,6 +211,7 @@ export class MarketplaceSyncScheduleStore {
       this.loadError.set(null);
       this.savedSchedule.set(null);
       this.capability.set({ enabled: false, allowedIntervals: [] });
+      this.resetAvailabilityCheck();
     }
     this.denied.set(false);
     void this.refreshAvailability(key, revision);

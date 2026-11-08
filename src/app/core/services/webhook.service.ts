@@ -6,12 +6,9 @@ import { WorkspaceService } from './workspace.service';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 import { Tables } from '../models/supabase.types';
+import { NotificationSoundService } from './notification-sound.service';
 
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
-
-interface WindowWithWebkitAudio extends Window {
-  readonly webkitAudioContext?: typeof AudioContext;
-}
 
 function createDefaultWebhookConfig(): WebhookConfig {
   return {
@@ -26,6 +23,7 @@ function createDefaultWebhookConfig(): WebhookConfig {
     notifyOnPurchase: true,
     notifyOnLowMargin: true,
     soundEnabled: true,
+    saleSoundEnabled: true,
   };
 }
 
@@ -68,6 +66,7 @@ export class WebhookService {
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly notificationSounds = inject(NotificationSoundService, { optional: true });
 
   readonly config = signal<WebhookConfig>(createDefaultWebhookConfig());
   readonly notifications = signal<AppNotification[]>([]);
@@ -220,6 +219,7 @@ export class WebhookService {
       notifyOnPurchase: settings.notifyOnPurchase,
       notifyOnLowMargin: settings.notifyOnLowMargin,
       soundEnabled: settings.soundEnabled,
+      saleSoundEnabled: settings.saleSoundEnabled ?? settings.soundEnabled,
     };
   }
 
@@ -239,9 +239,18 @@ export class WebhookService {
       void this.schreibeMeldungInDieDatenbank(item, ws.id);
     }
 
-    if (this.config().soundEnabled) {
-      this.playChimeSound();
-    }
+    this.playNotificationSound(item.type);
+  }
+
+  playNotificationSound(type: AppNotificationType | readonly AppNotificationType[]): void {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (this.supabase && (!workspaceId || this.loadedWorkspaceId() !== workspaceId)) return;
+    const config = this.config();
+    const types = typeof type === 'string' ? [type] : type;
+    if (types.includes('sale') && (config.saleSoundEnabled ?? config.soundEnabled))
+      this.notificationSounds?.play('sale');
+    else if (types.some((candidate) => candidate !== 'sale') && config.soundEnabled)
+      this.notificationSounds?.play('general');
   }
 
   /**
@@ -482,27 +491,6 @@ export class WebhookService {
             'Webhook-Versand fehlgeschlagen. Prüfe Zugangsdaten und warte vor einem erneuten Test.',
         }
       : { success: true, message: 'Testnachricht wurde versendet.' };
-  }
-
-  private playChimeSound(): void {
-    try {
-      if (typeof window === 'undefined') return;
-      const AudioContextClass =
-        window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const audioCtx = new AudioContextClass();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.35);
-    } catch {}
   }
 
   private istPersistenterModus(): boolean {

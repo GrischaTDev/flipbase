@@ -511,6 +511,18 @@ describe('Gespeicherte Vinted-Kontoauswahl', () => {
     expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
     expect(api.readSnapshot).toHaveBeenCalledOnce();
   });
+  it('holt beim Zurückkehren in die App sofort den aktuellen Kontostand', async () => {
+    await settle();
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [accountA, { ...accountB, lastSyncedAt: '2026-10-02T12:00:00Z' }],
+    });
+    const reads = api.listConnections.mock.calls.length;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(api.listConnections).toHaveBeenCalledTimes(reads + 1);
+    expect(store.connections()[1].lastSyncedAt).toBe('2026-10-02T12:00:00Z');
+  });
   it('stellt ein gespeichertes zweites Konto nach einem neuen Seitenstart wieder her', async () => {
     localStorage.setItem(savedKey, accountB.connectionId);
     await settle();

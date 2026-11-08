@@ -9577,6 +9577,7 @@ export type Database = {
           notify_on_low_margin: boolean
           notify_on_purchase: boolean
           notify_on_sale: boolean
+          sale_sound_enabled: boolean | null
           sound_enabled: boolean
           telegram_bot_token: string | null
           telegram_chat_id: string | null
@@ -9594,6 +9595,7 @@ export type Database = {
           notify_on_low_margin?: boolean
           notify_on_purchase?: boolean
           notify_on_sale?: boolean
+          sale_sound_enabled?: boolean | null
           sound_enabled?: boolean
           telegram_bot_token?: string | null
           telegram_chat_id?: string | null
@@ -9611,6 +9613,7 @@ export type Database = {
           notify_on_low_margin?: boolean
           notify_on_purchase?: boolean
           notify_on_sale?: boolean
+          sale_sound_enabled?: boolean | null
           sound_enabled?: boolean
           telegram_bot_token?: string | null
           telegram_chat_id?: string | null

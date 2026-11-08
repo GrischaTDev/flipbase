@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { WebhookService } from './webhook.service';
+import { AppNotificationType } from '../models/webhook.models';
 import { AuthService } from './auth.service';
 import { WorkspaceService } from './workspace.service';
 import { PwaService } from './pwa.service';
@@ -685,11 +686,17 @@ export class WebPushService {
   }
 
   /**
-   * Displays a browser push notification if permitted and plays sound.
+   * Adds a foreground notification; OS push notifications are delivered by the server.
    */
   sendNotification(
     title: string,
-    options?: { body?: string; icon?: string; badge?: string; tag?: string },
+    options?: {
+      body?: string;
+      icon?: string;
+      badge?: string;
+      tag?: string;
+      type?: AppNotificationType;
+    },
   ): boolean {
     const currentPerm = this.permission();
     const cfg = this.settings();
@@ -701,7 +708,7 @@ export class WebPushService {
       this.webhookService.addNotification({
         title,
         message: options?.body || '',
-        type: 'system',
+        type: options?.type ?? 'system',
       });
     }
 
@@ -742,6 +749,7 @@ export class WebPushService {
     this.sendNotification(`Neue Shop-Bestellung #${orderNumber}`, {
       body: `${customerName} hat eine Bestellung über ${amount.toFixed(2)} € aufgegeben.`,
       tag: `order-${orderNumber}`,
+      type: 'sale',
     });
   }
 

@@ -1,6 +1,8 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { WebhookService } from '../../../core/services/webhook.service';
+import { NotificationArrivalTracker } from '../../../core/models/notification-arrival-tracker';
 import {
   feedbackNotificationToInbox,
   type FeedbackNotificationFeed,
@@ -14,6 +16,8 @@ export class MarketplaceFeedbackNotificationStore {
   private readonly api = inject(MarketplaceFeedbackNotificationApiService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
+  private readonly webhook = inject(WebhookService);
+  private readonly notificationArrivals = new NotificationArrivalTracker();
   private readonly context = computed(() => {
     const userId = this.auth.currentUser()?.id;
     const workspace = this.workspace.currentWorkspace();
@@ -46,6 +50,7 @@ export class MarketplaceFeedbackNotificationStore {
         this.disconnect?.();
         this.disconnect = null;
         this.feed.set(null);
+        this.notificationArrivals.reset();
         this.loadError.set(null);
         this.loadedContext.set(key);
         if (key) {
@@ -68,6 +73,7 @@ export class MarketplaceFeedbackNotificationStore {
       this.disconnect?.();
       this.disconnect = null;
       this.feed.set(null);
+      this.notificationArrivals.reset();
     });
   }
   private connect(): void {
@@ -101,11 +107,16 @@ export class MarketplaceFeedbackNotificationStore {
       this.loadedContext.set(key);
       this.loadError.set(null);
       this.connect();
+      const arrivals = this.notificationArrivals.takeNew(
+        feed.items.map(feedbackNotificationToInbox),
+      );
+      if (arrivals.length) this.webhook.playNotificationSound(arrivals.map((item) => item.type));
     } catch (error) {
       if (this.destroyed || key !== this.context() || revision !== this.revision) return;
       if (error instanceof FeedbackNotificationApiError && error.code === 'forbidden') {
         this.revision++;
         this.feed.set(null);
+        this.notificationArrivals.reset();
         this.disconnect?.();
         this.disconnect = null;
         this.loadError.set(null);
@@ -140,6 +151,7 @@ export class MarketplaceFeedbackNotificationStore {
       ) {
         this.revision++;
         this.feed.set(null);
+        this.notificationArrivals.reset();
         this.disconnect?.();
         this.disconnect = null;
       }

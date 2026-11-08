@@ -981,9 +981,17 @@ export class VintedListingEditorComponent {
       }))
     );
   }
+  /** Das Relist-Modal hat keinen Entwurf; Schließen verwirft die Eingaben ohne Rückfrage. */
+  private async canCloseRelisting(): Promise<boolean> {
+    if (this.publicationBusy()) return false;
+    if (this.activeSave) await this.activeSave;
+    return true;
+  }
   async cancel(): Promise<void> {
     if (this.source() || this.plannedJob()) {
-      if (await this.canLeave()) {
+      const closable =
+        this.source()?.mode === 'relist' ? await this.canCloseRelisting() : await this.canLeave();
+      if (closable) {
         const waiting = this.waitingPlan();
         if (waiting) {
           try {

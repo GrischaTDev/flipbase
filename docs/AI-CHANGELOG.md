@@ -27,6 +27,334 @@ Abweichungen mit und ohne Migration auf, weil die lokale Datenbank auf einem
 älteren Stand ist. Den vollständigen Lauf auf frischer Datenbank übernimmt die CI.
 Neue Specs für Modell, Detailseite, Melde-Dienst und Seitenmenü bestanden.
 
+## 2026-11-07 - Juna - Vinted-Automatik nach Aussetzern stabilisieren
+
+**Anlass:** Am Morgen wirkten alle Konten auf dem Handy veraltet, und es erschien
+„Automatik nicht erreichbar“. Produktionsdaten und Worker nur lesend geprüft
+(nach ausdrücklicher Freigabe). Maike Vintage und Flipbase liefen die ganze
+Nacht durch. Beim Wiehen Store wurde ein zeitgesteuerter Abruf am 06.11. um
+16:26 abgebrochen, während seine Browsersitzung noch lief („cleanup“). Das schaltete
+die Automatik dauerhaft ab, bis sie um 01:35 von Hand wieder angestoßen wurde.
+Die Worker-Logs von 16:26 gingen beim Update um 21:26 verloren. In den letzten 14
+Tagen war das der einzige „cleanup“-Fall.
+
+**Umsetzung:** `marketplace_sync_finish` behandelt „cleanup“ jetzt wie einen
+Netzfehler: begrenzte Wiederholung nach 30 und 60 Minuten, erst danach
+`retry_limit`. Der Dispatcher startet weiterhin keinen Browser, solange eine
+Sitzung aktiv ist oder beendet wird. In der App holen Kontenliste und Zeitplan
+beim Zurückkehren auf die Seite (`visibilitychange`) sofort den Serverstand.
+„Automatik nicht erreichbar“ erscheint erst, wenn die Prüfung zweimal in Folge
+scheitert. Nach dem ersten Fehlschlag wird nach 3 Sekunden erneut geprüft.
+
+**Nachtrag Aufwecken:** Weitere Meldungen nach dem Aufwecken des Handys
+(„kein Verwaltungszugriff“, „laufende Aktionen konnten nicht aktualisiert werden“)
+hatten eine gemeinsame Ursache. Der Zugriffstoken war abgelaufen, die Erneuerung
+scheiterte am noch fehlenden Netz, und Supabase schickte die Datenanfrage dann
+anonym oder mit abgelaufenem Token (`PGRST301`). `SupabaseService` nutzt jetzt
+eine eigene Fetch-Hülle (`supabase-wake-up-fetch.ts`). Sie wiederholt eine solche
+Anfrage bei bestehender Anmeldung genau einmal mit frisch bestätigtem Token.
+Anmeldeaufrufe und nicht erneut lesbare Inhalte bleiben unberührt.
+
+**Nachweise:** Betroffene Angular-Specs unter Node 22 (4 Dateien, 138 Tests)
+bestanden. pgTAP `marketplace-sync-scheduling` mit neuer Migration in einer
+zurückgerollten Transaktion gegen die lokale Datenbank: 125/125, davon 10 neue
+Fälle. Kontrolliert, dass in der lokalen Datenbank nichts zurückblieb.
+
+## 2026-11-08 - Juna - Benachrichtigungstöne veröffentlichen
+
+**Freigabe:** Der Nutzer hat Branch-Push, PR, Merge nach erfolgreichen
+Pflichtprüfungen und anschließende Bereinigung ausdrücklich bestätigt. Der
+geprüfte Umsetzungsstand ist `3613159` auf `juna/notification-sounds`.
+`origin/master` wurde erneut abgerufen und enthält gegenüber der geprüften
+Grundlage keine zusätzlichen Commits.
+
+**Vorbereitung:** Nur dieser Freigabevermerk und der Abschlussstatus im Plan
+werden ergänzt. Der Anwendungscode, die Migration und die geprüfte Testauswahl
+bleiben identisch zum dokumentierten Stand. Erfolgreiche unveränderte lokale
+Prüfungen werden gemäß Projektregel wiederverwendet; Format und Prüfplan werden
+am finalen Dokumentationsstand erneut geprüft. Die vollständigen ausgewählten
+CI-Prüfungen müssen vor dem Merge-Commit erfolgreich abgeschlossen sein.
+
+## 2026-11-08 - Juna - Benachrichtigungstöne unabhängig schalten
+
+**Auftrag:** In den bestehenden Benachrichtigungseinstellungen einen allgemeinen
+Ton und einen separaten Verkaufston anbieten; beide unabhängig abschaltbar.
+Beim ausgeschalteten Verkaufston bleiben Verkäufe stumm. Vorhandene stille
+Konfigurationen bleiben bei der Erweiterung erhalten.
+
+**Grundlage:** Eigene frische Arbeitskopie, GitHub-Abgleich und neuer Zweig
+`juna/notification-sounds` von `origin/master` (`25eb50a`). Vorhandenen
+Workspace-Speicherweg, Benachrichtigungsquellen und Gestaltungsvertrag geprüft.
+Geplante Schritte und Prüfgrenzen stehen im
+[Umsetzungsplan](superpowers/plans/2026-11-08-notification-sounds.md).
+
+**Umsetzung:** Die bestehende Seite bietet „Allgemeiner Benachrichtigungston“
+und „Verkaufston“ mit unabhängigen Schaltern und je einer Vorschau. Probehören
+speichert nichts und erzeugt keine Benachrichtigung. Ein gemeinsamer
+Audiokontext erzeugt zwei eigene kurze Klänge, darunter einen Kassenton.
+Touch-, Tastatur- und Zeigereingaben können die Wiedergabe freigeben;
+gesperrte Meldungen werden nicht nachgeholt. Ressourcen werden beim Beenden
+freigegeben. Eigene Töne gelten für die geöffnete Web-App, nicht für den
+Systemton einer geschlossenen PWA.
+
+Die bestehenden lokalen Meldungen sowie Nachrichten-, Favoriten-, Bewertungs-
+und eBay-Feeds sind angebunden. Vinted `sale_sold` und Shopbestellungen verwenden
+den Verkaufston; eBay-Quellenprobleme bleiben allgemeine Hinweise. Erste
+Bestandsladung, bekannte IDs, ältere Historie, gelesene Meldungen und verworfene
+Workspace-Antworten bleiben stumm. Ein gemischter Feed-Batch spielt höchstens
+einen freigegebenen Ton, mit Vorrang für einen enthaltenen Verkauf.
+
+**Speicherung und Migration:** `webhook_configs.sale_sound_enabled` ist nullable.
+Ein fehlender Wert übernimmt den bisherigen allgemeinen Tonstatus; ausdrücklich
+gespeichertes `false` bleibt unabhängig erhalten. API, Formular und Speicher-RPC
+übertragen beide Werte. Vorhandene Zugangsdaten und Rechte bleiben erhalten.
+Migration `20261108075641_independent_notification_sounds.sql` wurde mit Migra
+zwischen zwei lokalen PostgreSQL-17.11-Schemata erzeugt. Anwendung auf einen
+zuvor angelegten stummen Altbestand und anschließender leerer Schema-Diff sind
+nachgewiesen. Automatische SQL-Formatierung änderte nur Keyword-Schreibweise;
+Funktionskörper und Literale blieben unverändert. Die drei neuen Typfelder
+stammen aus einer echten postgres-meta-0.100.0-Generierung; der übrige bestehende
+Typblock wurde dagegen abgeglichen und erhalten.
+
+**Gezielte Nachweise:** UI-Rot/Grün mit 25 bestandenen Benachrichtigungsfällen;
+76 bestandene Feed-/Mappingfälle in fünf Specs; getrennte Soundwahl,
+Browserunterbrechungen, Touch-Freigabe und stumme Historie durch Modell-/Service-
+Tests abgesichert. 12 Edge-Handlerfälle mit Deno 2.9.6 und 30 pgTAP-Fälle an der
+betroffenen lokalen Schema-Fixture bestanden. Die CI-Vorgabe Deno 2.9.7 wurde
+nicht geändert; diese Version war im verwendeten npm-Registry nicht verfügbar.
+Unabhängiges Code-Review ohne offene Befunde.
+
+**Abschließender Vorabcheck:** `npm run preflight:plan` und `npm run preflight`
+mit Node 22.23.4 ausgeführt. Migrationsumfang, SQL-Paket, Format, Lint,
+Typprüfung, Suite-Audit und 168 ausgewählte Skriptfälle bestanden. Die
+Orchestrierungsprüfung scheiterte zunächst an der zusätzlichen Warnung
+`UNDICI-EHPA` der Ausführungsumgebung und dem getrennten npm-Installationspfad.
+Mit ausschließlich dieser Warnung ausgeblendet und korrekt gesetztem
+`npm_config_prefix` bestanden alle 11 unveränderten Orchestrierungsfälle.
+Die Netzwerkkonfiguration und Anwendungsdateien wurden dafür nicht geändert.
+
+Den restlichen unveränderten lokalen Plan über die bestehenden
+`run-affected-tests.mjs`-/`runCiCheck`-Einstiegspunkte vollständig ausgeführt;
+Auswahlnachweis
+`332574d561dfe36569a368e511b43bc66e5c0d90be972dc729ae518a5382546a`
+vor dem Fortsetzen erneut geprüft. 904 Node-, 227 DOM- und 2.620 Angular-Tests
+bestanden (87/28/233 Dateien). Produktionsbuild einschließlich Angular-Vorlagen
+und PWA-Paket erfolgreich; 300 App-Dateien geprüft. Der Build meldet
+Warnungen zu ungenutzten Imports außerhalb des Änderungsumfangs, dem
+Initial-Bundle-Warnbudget (979,62 kB) und `pako` als CommonJS-Abhängigkeit.
+Kein neuer Anwendungslauf nach den abschließenden reinen Protokolländerungen;
+der abschließende Formatcheck umfasst auch diese Protokolländerungen.
+
+**Prüfgrenzen:** Der Browser konnte die lokale App wegen getrennter
+Loopback-Netze nicht erreichen. Gerenderte Formularinteraktionen wurden in
+Angular-DOM-Tests geprüft; echte Audiowiedergabe und die vollständigen
+Supabase-/Browser-/PWA-Freigabejobs stehen bis zur CI aus. Lokaler Commit im
+Aufgabenzweig vorbereitet; Veröffentlichung wartet auf die Freigabe gemäß
+`AGENTS.md`. Keine produktiven Datenbankänderungen, kein Branch-Push, kein PR
+und kein Merge in diesem Schritt.
+
+## 2026-11-07 - Juna - Vollständige KI-Artikelrecherche zur Veröffentlichung freigeben
+
+**Freigabe:** Der Nutzer autorisiert Branch-Push, PR, erfolgreichen Merge und
+anschließende Bereinigung. Sauberen Aufgabenstand `dc719385` und frisch
+abgerufenes `origin/master` (`a658ebfd`) bestätigt. Die Veröffentlichung umfasst
+die gemeinsame Artikelrecherche und die ergänzten strukturierten Inseratmerkmale;
+keine getrennten Zwischen-PRs.
+
+**Aktueller Zielstand:** PR #592 erstellt. Während des Vorabchecks wurde PR #591
+in den Hauptzweig übernommen. Deshalb `789fcd04` in denselben Aufgabenbranch
+integriert und beide vollständigen Changelog-Ergänzungen im Konflikt erhalten.
+Die Aufgabenimplementierung bleibt unverändert; Vorabcheck und Zielstand werden
+vor dem weiteren Push erneut nachgewiesen.
+
+**Nachweise vor dem Push:** Node-22-Vorabcheck mit Format, Lint, Typen, Suite-Audit,
+155 Skriptfällen, betroffenen Modell-/Angularfällen und Vorlagenbau auf dem
+Umsetzungsstand erfolgreich. Zusätzlich 23 Deno-Fälle mit CI-Version 2.9.7 und
+der echte öffentliche Detailabruf erfolgreich. Die unveränderte Oberfläche
+behält ihre zehn Browsernachweise mit Hell/Dunkel, Maus/Touch und AXE. Drei
+bestehende Unix-Signalfälle der Orchestrierung bleiben unter Windows regulär
+ausgelassen. Der abschließende Vorabcheck wird vor dem Push einschließlich
+dieser Freigabenotiz erneut ausgeführt; Protokoll `release-preflight.log` im
+privaten Aufgabenordner. Sämtliche ausgewählten GitHub-Pflichtprüfungen bleiben
+vor dem Merge erforderlich.
+
+**Laufzeitbefund vor dem Merge:** Der abschließende echte Astra-Pilot mit
+vollständigen Artikelmerkmalen lief ins gemeinsame 85-Sekunden-Limit. Die
+Modellbestimmung benötigte 49 Sekunden, fünf Werkzeugausgaben und 1.306
+Ausgabetokens; beide Marktphasen wurden danach abgebrochen. Teilergebnis und
+bekannter Verbrauch wurden gespeichert, Gesamtkosten bleiben wegen der
+abgebrochenen Anfragen unbekannt. Keine produktive Funktionsdatei ersetzt.
+Die erste Phase wird deshalb auf die eigentliche Modellbestimmung mit niedrigem
+Denkaufwand, zwei beantragten Werkzeugaufrufen, knapper Begründung und höchstens
+drei Quellen fokussiert. Beide Marktphasen behalten ihren mittleren Denkaufwand
+und ihre ausführliche Recherche. Anfragevertrag und Fehlerfälle werden mit den
+bestehenden 23 Deno-Fällen geprüft; der korrigierte Ablauf erhält einen weiteren
+beobachteten Pilotlauf und Vorabcheck vor dem Push.
+
+**Abgestimmtes Zeitfenster:** Auch der nächste beobachtete Pilot zeigte eine
+reale Grenze: Modell 19 Sekunden, Neupreisrecherche weitere 51 Sekunden,
+Gebrauchtrecherche nach 66 Sekunden abgebrochen. Deshalb die gesamte Kette am
+vorhandenen 150-Sekunden-Gateway ausgerichtet: Recherche 130, Router 145 und
+Browser 155 Sekunden; andere Funktionen behalten 60 Sekunden. Der Routerhelfer
+aktualisiert auch die installierte 95-Sekunden-Ausnahme und schützt unbekannte
+Fassungen. Der Reservierungsschutz wächst über eine neue CLI-generierte
+Migration von zwei auf drei Minuten. Kein neuer Backenddienst oder Framework.
+
+**SQL-/Zeitnachweis:** 24 Deno-Fälle einschließlich eines virtuellen vollständigen
+100-Sekunden-Ablaufs erfolgreich. In einer eigenen PostgreSQL-17-Instanz mit der
+vollständigen Produktions-Schemadefinition ohne Nutzerdaten reproduzierten drei
+Erwartungen die zu frühe Freigabe des alten Zeitfensters. Nach transaktionaler
+Anwendung der erzeugten Migration alle 26 SQL-Fälle erfolgreich; Signatur,
+Funktionsdefinition und neue Datenbanktypen entsprechen dem geprüften Ziel.
+Migrationskommentar/DDL-Schreibweise und Zeilenenden automatisiert vereinheitlicht,
+keine fachliche Änderung an der erzeugten SQL-Funktion. Anwendungstypen unverändert.
+Die gezielte Routerprüfung bestätigt Erstinstallation, Aktualisierung der alten
+Ausnahme, Wiederholung und Schutz unbekannter Dateien. Der gemeinsame Zeitvertrag
+prüft zusätzlich die notwendigen Abstände zwischen den Grenzen. Weitere
+kostenpflichtige Piloten erst nach Anwendung des längeren Reservierungsschutzes;
+keine produktive Schema- oder Funktionsdatei vor dem grünen Merge verändert.
+
+**Teilabrechnung:** Bei einem abgebrochenen Marktaufruf die bereits gemeldeten
+Tokens und Werkzeugausgaben als Mindestwerte erhalten. Bekannte geschätzte
+Teilkosten bleiben im Ergebnis sichtbar und gespeichert; die unbekannten
+Gesamtkosten werden weiterhin nicht als null behandelt. Die Verbrauchsanzeige
+kennzeichnet unvollständige Werte ausdrücklich. Der konkrete Abbruchfall
+bestätigt 2.000 bekannte Eingabe-, 1.000 Ausgabetokens und 0,0864 USD bekannte
+Teilkosten bei unbekannten Gesamtkosten.
+
+**Ausrollung:** Der Webbau veröffentlicht Edge Functions nicht automatisch.
+Nach grünem Merge die Funktionsordner aus dem freigegebenen Hauptstand gemäß
+`deploy/README.md` gemeinsam übertragen, vorhandene Serverordner und Schlüssel
+erhalten und den Funktionsdienst mit der bestehenden Laufzeitkonfiguration
+neu laden. Merge-, Auslieferungs- und Bereinigungsnachweis werden im PR und
+Abschluss festgehalten.
+
+## 2026-11-07 - Juna - Vollständige Artikelmerkmale an die KI-Recherche übergeben
+
+**Auftrag und Grundlage:** Die Recherche soll den Link hinter dem Feed-Eintrag
+öffnen und sämtliche relevanten Artikelangaben gemeinsam mit den Fotos verwenden:
+insbesondere Größe, Zustand, Material, Farben und Kategorie. Auf demselben eigenen
+Zweig fortgesetzt; sauberen Stand geprüft, GitHub frisch abgeglichen und den
+aktuellen Hauptstand `a658ebfd` übernommen. Beide vollständigen Changelog-Seiten
+im einzigen Zusammenführungskonflikt erhalten; fremde Arbeitskopien unverändert.
+
+**Ergänzung:** Der öffentliche Detailparser liest nun auch die strukturierten
+Artikelmerkmale mit ursprünglichem Code, Beschriftung und Wert sowie die
+Kategoriekennung und den vollständigen Kategoriepfad. Mehrere Farben/Materialien,
+Maße, Artikelnummern und weitere vorhandene Merkmale bleiben erhalten. Werte
+anderer Inserate und nicht benötigte interne Verkäufer-/Trackingkennungen werden
+nicht übernommen. Relative Hochladealter sind keine Produkteigenschaft und würden
+den Cache sonst stündlich verändern; Markenfilter im Kategoriepfad sind keine
+zusätzliche Kategorie. Direkt gelesene Marke, Größe und Zustand ersetzen die
+entsprechenden Feedwerte. Fehlende Merkmale werden nicht ergänzt oder erraten.
+Alle drei Rechercheanfragen erhalten den strukturierten Detailkontext. Der Prompt
+verlangt den Abgleich mit Fotos und die Berücksichtigung bei der Varianten- und
+Zustandsbewertung. Neue Promptversion verhindert Ergebnisse mit altem Kontext.
+Keine neue Oberfläche, Abhängigkeit, Schemaänderung oder zusätzliche kostenpflichtige
+Live-Analyse.
+
+**Funktionsnachweis:** 23 Deno-Fälle mit CI-Version 2.9.7 erfolgreich, einschließlich
+einer vollständigen Detailseite mit sechs Bildern und acht Artikelmerkmalen. Der
+Anbietertest kontrolliert die tatsächlichen Anfrageinhalte aller drei Phasen,
+mehrere Farben/Materialien, den Kategoriepfad, das Ersetzen veralteter Feedwerte
+und den Ausschluss fremder Inserate und interner Kennungen. Zusätzlich den echten
+öffentlichen Link ohne KI-Aufruf mit derselben Ladefunktion geprüft: sechs Fotos,
+Beschreibung, Carhartt, L, Sehr gut, Fleece, Creme und Herren → Kleidung → Jacken &
+Mäntel → Jacken → Fleecejacken (Kategorie 1858) vollständig übernommen.
+
+**Vorabcheck und Grenze:** Für den ergänzten Stand gelten `npm run preflight:plan`
+und `npm run preflight` mit Node 22 und den gesperrten Abhängigkeiten; die Ergebnisse
+stehen in `details-preflight-plan.log` und `details-preflight.log` im privaten
+Protokollordner. Die unveränderte Oberfläche behält den vorherigen Nachweis mit zehn
+Browserfällen einschließlich Hell/Dunkel, Touch und AXE; kein erneuter Browserlauf
+für die reine serverseitige Kontextergänzung. Der vollständige ausgewählte
+GitHub-Nachweis bleibt vor einem Merge erforderlich. Kein Push, PR oder Merge.
+Protokolle `details-edge.log` und `details-live.log` unter
+`C:/Users/Grisc/.codex/tmp/flipbase-feed-ai-research/`.
+
+## 2026-11-07 - Juna - Artikelrecherche im Vinted-Feed vervollständigen
+
+**Auftrag und Ursache:** Unbrauchbare AI-Search-Ergebnisse mit fehlenden
+Preisvergleichen, unbedienbaren Textzitaten und unerwünschtem Kostenformular
+korrigieren. Sauberen eigenen Zweig vom frisch abgerufenen `origin/master`
+(`45362095`) in getrennter Arbeitskopie begonnen; fremde ungesicherte Relist-
+Arbeit und deren Zweige unverändert erhalten. Der belegte lokale Hauptzweig
+bleibt unangetastet. Beim konkret gemeldeten Carhartt-Inserat lagen im Feed nur
+ein Bild und keine Beschreibung, öffentlich dagegen sechs Bilder und Text.
+Die bisherige Funktion sendete zudem höchstens fünf Bilder und begrenzte die
+gesamte Recherche auf drei Werkzeugaufrufe.
+
+**Änderung:** Öffentliche Inseratdetails begrenzt und ohne Anmeldung nachladen,
+nur Beschreibung und Fotos derselben Inseratkennung übernehmen; bei Ausfall
+Feed-Daten erhalten und die Lücke sichtbar machen. Modellbestimmung erhält alle
+verfügbaren sicheren Bilder. Modellidentifikation, Hersteller-/Shop-/Idealo-
+Neupreise und Vinted-/eBay-/Kleinanzeigen-Gebrauchtmarkt als drei getrennte
+Webrecherchen mit gemeinsamem Zeitbudget. Begründung, Unsicherheiten und echte
+anklickbare Quellen bleiben auch ohne exakte Preisvergleiche sichtbar. Ähnliche
+Varianten werden angezeigt, aber aus rechnerischen Spannen ausgeschlossen.
+Eigene Anzeige und Trackingduplikate zählen nicht als Vergleich. Wahrscheinliche
+Modelle erlauben bei ausreichenden passenden Belegen eine ausdrücklich vorläufige
+Spanne. Manuelle Versand-/Gebührenfelder und Gewinnampel entfallen; Preisabstand
+erscheint vor unbekannten Kosten. Verbrauch aller Teilanfragen zusammenfassen;
+gemeldete Teilkosten erhalten, unbekannte Gesamtkosten nicht als null behandeln.
+Neue Promptversion verhindert die Wiederverwendung alter unvollständiger Analysen.
+Keine Schemaänderung, neue Abhängigkeit oder produktive Funktionsausrollung.
+
+**Echter Pilot:** Mit bestehendem Serverzugang, ordentlicher Reservierung und
+Verbrauchsspeicherung das gemeldete Inserat mit Astra untersucht. Sechs Fotos,
+Beschreibung, wahrscheinlicher Carhartt WIP Prentis Liner Wax/Wall und acht
+konkrete, als abweichend gekennzeichnete Neu-/Gebrauchtvergleiche. Beide
+Marktrecherchen erfolgreich; 82 Sekunden, 18 Werkzeugausgaben, 135.029 Eingabe-
+und 4.755 Ausgabetokens, geschätzt 1,76804 USD. Keine tatsächlich gezahlten
+Verkaufspreise belegt; textliche Schätzung 55–75 EUR ausdrücklich auf
+Angebotsbasis mit Einschränkungen. Schlüssel blieben im bestehenden Container;
+kein produktiver Funktionscode ersetzt. Anschließend benannte Quellen gegen die
+jeweiligen Werkzeugbelege abgesichert; dieser Ausgabezusatz separat synthetisch
+geprüft. Ein Pilot belegt keinen allgemeinen Qualitäts- oder Laufzeitdurchschnitt.
+
+**Prüfstand:** Neue Regressionen zu sechs Fotos, fremden Inseratdaten, gesperrten
+und übergroßen Antworten, Quellenabgleich, Teilabbrüchen, Verbrauch sowie
+vorläufiger Modellzuordnung. Browsernachweis prüft Quellenöffnung, fehlende
+Details, Teilfehler, Adminsichtbarkeit und Modellvergleich ohne Kostenformular.
+Die erste statische Prüfvorschau blieb vor dem Feed an Start-/Updategrenzen
+hängen; auf den regulären, während der Tests ruhenden Entwicklungsserver
+gewechselt. Der neue Popupfall benötigte die Netzwerkroute am Browserkontext,
+weil eine Seitenroute die erste Popupnavigation nicht erfasst. Keine
+Anwendungsprüfung abgeschwächt.
+
+**Nachweise und Grenze:** Node 22 und gesperrte Abhängigkeiten; gezielte
+Formatierung, `npm run preflight:plan` und tatsächlicher `npm run preflight`
+erfolgreich, einschließlich globalem Format/Lint, Typen, Suite-Audit, 155
+Skriptfällen, sechs Modell- und 27 Angular-/Servicefällen sowie Angular-
+Vorlagenbau. Testorchestrierung acht Fälle erfolgreich, drei bestehende
+Unix-Signalfälle unter Windows regulär ausgelassen. Zusätzlich 22 Deno-Fälle
+mit CI-Version 2.9.7 erfolgreich. Zehn endgültige Browserfälle erfolgreich:
+320/390/834/1440 Pixel, Hell/Dunkel, Maus/Touch, AXE ohne Verstöße, echte
+Popupöffnung einer synthetischen Quelle, Teilfehler und verspätete Antworten.
+Vorschauen visuell geprüft. Bestehende Warnungen zu ungenutzten Kleinanzeigen-
+Imports, Baugröße und `pako` bleiben bestehen. Der lokale Entwicklungsnachweis
+ersetzt nicht die ausgewählten GitHub-Prüfungen für vollständige Marketplace-/
+Edge-Integration, Migrations-/Datenbankverträge und Browsergruppen. Diese bleiben
+vor einem Merge offen. Kein Push, PR, Merge oder produktiver Codeaustausch.
+Temporäre Pilotdateien auf dem Server und im Container entfernt.
+Ablauf und Pilot in [AI Search](implementation/vinted-ai-search.md), private
+Protokolle unter `C:/Users/Grisc/.codex/tmp/flipbase-feed-ai-research/`.
+
+## 2026-11-07 - Juna - Bearbeiten ohne Scheinkonflikt, Relist-Modal ohne Rückfrage
+
+**Anlass:** Beim Bearbeiten einer Jeans meldete Flipbase „Das Inserat wurde inzwischen bei
+Vinted geändert“, obwohl dort nichts geändert war. Außerdem fragte das Relist-Modal beim
+Schließen „Entwurf verlassen?“, obwohl es keinen Entwurf gibt.
+
+**Ursache und Umsetzung:** Das Bearbeiten-Formular übernahm die Beschreibung aus dem
+Inseratsinhalt, der Vergleichsstand für das Speichern dagegen den Text aus dem Kontoabgleich.
+Wichen beide ab, galt die unveränderte Beschreibung als geändert und wurde gegen Vinted
+verglichen. Das Formular nutzt jetzt Titel und Beschreibung desselben Vergleichsstands. Das
+Relist-Modal schließt ohne Rückfrage; Vorlage und geplante Relists behalten sie.
+
+**Prüfung:** Neuer Komponententest stellt die Meldung nach und besteht nach der Korrektur;
+Relist-Browsertest in vier Varianten lokal bestanden. Vorabcheck im Commit.
+
 ## 2026-11-07 - Juna - Not-Aus auch für Erweiterungsaufträge, Push-Worker im Systemzustand
 
 **Anlass:** Nach dem Admin-Bereich (PR 584) waren drei Punkte offen. Aufträge der
