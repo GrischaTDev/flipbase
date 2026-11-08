@@ -5,7 +5,7 @@
   (cancelled)="returnToSales()"
 >
   <div entry-header-actions class="flex flex-wrap justify-end gap-2">
-    @if (!routeState.correctionSale && !routeState.legacyReconciliation) {
+    @if (!correctionSaleInput() && !routeState.correctionSale && !routeState.legacyReconciliation) {
       <app-button
         variant="secondary"
         [loading]="entryForm()?.isSavingDraft() ?? false"
@@ -29,7 +29,7 @@
     <app-sale-create-modal
       [showActions]="false"
       [draft]="draft()"
-      [correctionSale]="routeState.correctionSale ?? null"
+      [correctionSale]="correctionSaleInput() ?? routeState.correctionSale ?? null"
       [saleTarget]="routeState.saleTarget ?? null"
       [legacyReconciliation]="routeState.legacyReconciliation ?? null"
       (closed)="returnToSales()"

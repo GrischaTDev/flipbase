@@ -14,8 +14,9 @@ import {
   viewChild,
 } from '@angular/core';
 import type { DashboardTimePoint } from '../../../core/models/flipbase.models';
-import { ThemeService } from '../../../core/services/theme.service';
 import { LoggerService } from '../../../core/services/logger.service';
+import { PageLayoutService } from '../../../core/services/page-layout.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { ButtonComponent } from '../button/button.component';
 import {
   REVENUE_CHART_SERIES,
@@ -57,6 +58,11 @@ interface VisibleRevenueTooltip {
   templateUrl: './revenue-chart.component.html',
   host: {
     class: 'block min-w-0',
+    '[class.flex]': 'widescreen()',
+    '[class.h-full]': 'widescreen()',
+    '[class.min-h-0]': 'widescreen()',
+    '[class.flex-1]': 'widescreen()',
+    '[class.flex-col]': 'widescreen()',
     '(window:resize)': 'closeTooltip()',
     '(window:scroll)': 'closeTooltip()',
   },
@@ -67,6 +73,8 @@ export class RevenueChartComponent {
   readonly chartElement = viewChild<ElementRef<HTMLDivElement>>('chart');
   readonly activeTooltip = signal<VisibleRevenueTooltip | null>(null);
   readonly chartStatus = signal<RevenueChartStatus>('loading');
+  readonly widescreen = inject(PageLayoutService).widescreen;
+  private readonly containerHeight = signal<number | null>(null);
   private readonly requestedKeyboardPointIndex = signal(0);
   private readonly hiddenSeries = signal<readonly string[]>([]);
   private readonly themeService = inject(ThemeService);
@@ -76,12 +84,15 @@ export class RevenueChartComponent {
   private readonly prefersReducedMotion = signal(false);
   private renderer?: RevenueChartRenderer;
   private motionMediaQuery?: MediaQueryList;
+  private resizeObserver?: ResizeObserver;
 
   readonly configuration = computed(() => {
+    const height = this.widescreen() ? Math.max(240, this.containerHeight() ?? 340) : 280;
     const configuration = createRevenueChartConfiguration(
       this.points(),
       this.themeService.currentTheme(),
       this.prefersReducedMotion(),
+      height,
     );
     return {
       ...configuration,
@@ -122,6 +133,8 @@ export class RevenueChartComponent {
     afterNextRender(() => this.initializeChart());
     this.destroyRef.onDestroy(() => {
       this.motionMediaQuery?.removeEventListener('change', this.handleMotionPreferenceChange);
+      this.resizeObserver?.disconnect();
+      this.resizeObserver = undefined;
       this.renderer?.destroy();
       this.renderer = undefined;
     });
@@ -244,6 +257,16 @@ export class RevenueChartComponent {
     }
     const element = this.chartElement()?.nativeElement;
     if (!element) return;
+    const container = element.parentElement ?? element;
+    if (typeof ResizeObserver === 'function') {
+      this.resizeObserver = new ResizeObserver((entries) => {
+        const nextHeight = Math.floor(entries[0]?.contentRect.height ?? 0);
+        if (nextHeight >= 180 && Math.abs((this.containerHeight() ?? 0) - nextHeight) >= 4) {
+          this.containerHeight.set(nextHeight);
+        }
+      });
+      this.resizeObserver.observe(container);
+    }
     this.renderer = new RevenueChartRenderer(element, this.load, (status, error) => {
       this.chartStatus.set(status);
       if (error) this.logger.error('Diagramm konnte nicht geladen werden!', error);

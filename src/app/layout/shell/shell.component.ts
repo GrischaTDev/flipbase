@@ -26,6 +26,7 @@ export class ShellComponent {
   private readonly workspaceContext = inject(WorkspaceContextLockService);
 
   private readonly pageLayout = inject(PageLayoutService);
+  readonly widescreen = this.pageLayout.widescreen;
   readonly contentMaxWidth = computed(() =>
     this.pageLayout.widescreen() ? null : pageContentMaxWidth(this.pageLayout.width()),
   );

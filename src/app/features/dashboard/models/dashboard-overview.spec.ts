@@ -1,6 +1,9 @@
 import { it as test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
+  kpiSparkline,
+  marginSeries,
+  periodBreakdownRows,
   platformDistribution,
   stockOverview,
   sparklinePath,
@@ -97,4 +100,62 @@ test('nutzt für Mengenbestand das Einkaufsdatum und erhält die Grenzen 30/60/9
     new Date(2026, 9, 18),
   );
   assert.deepEqual(result, { units: 9, young: 4, middle: 3, slow: 2, old: 0, unknownAge: 0 });
+});
+
+test('berechnet Widescreen-Verlaufskurven für einzelne und mehrfache Punkte sowie Margen- und Zeitraumtabellen', () => {
+  const single = kpiSparkline([42.98]);
+  assert.equal(single.linePath, 'M2.00,28.00 L98.00,28.00');
+  assert.ok(single.areaPath.endsWith('Z'));
+  assert.equal(single.max, 42.98);
+
+  const multi = kpiSparkline([10, 30, 20]);
+  assert.ok(multi.linePath.includes('L'));
+  assert.ok(multi.areaPath.endsWith('Z'));
+  assert.equal(multi.min, 10);
+  assert.equal(multi.max, 30);
+
+  const points = [
+    {
+      date: '2026-08-29',
+      label: '29.08.',
+      revenue: 0,
+      costOfGoodsSold: 0,
+      sellingCosts: 0,
+      resultAfterDirectCosts: 0,
+      expenses: 0,
+      totalExpenses: 0,
+      realizedProfit: 0,
+    },
+    {
+      date: '2026-08-30',
+      label: '30.08.',
+      revenue: 50,
+      costOfGoodsSold: 20,
+      sellingCosts: 5,
+      resultAfterDirectCosts: 25,
+      expenses: 0,
+      totalExpenses: 5,
+      realizedProfit: 25,
+    },
+  ];
+  const rows = [
+    {
+      saleId: 's1',
+      date: '2026-08-30',
+      articles: 'Sneaker',
+      quantity: 2,
+      platform: 'vinted',
+      revenue: 50,
+      costOfGoodsSold: 20,
+      sellingCosts: 5,
+      resultAfterDirectCosts: 25,
+      marginPercent: 50,
+      profit: 25,
+    },
+  ];
+  assert.deepEqual(marginSeries(points, rows, false), [0, 50]);
+  const breakdown = periodBreakdownRows(points, rows, false);
+  assert.equal(breakdown.length, 2);
+  assert.equal(breakdown[1]?.salesCount, 1);
+  assert.equal(breakdown[1]?.marginPercent, 50);
 });

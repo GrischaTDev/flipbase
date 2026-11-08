@@ -100,12 +100,13 @@ export function createRevenueChartConfiguration(
   points: readonly DashboardTimePoint[],
   theme: AppTheme,
   reducedMotion: boolean,
+  height = 280,
 ): RevenueChartConfiguration {
   const palette = revenueChartPalette(theme);
   return {
     chart: {
       type: 'bar',
-      height: 280,
+      height,
       width: '100%',
       fontFamily: 'inherit',
       foreColor: palette.ticks,

@@ -40,85 +40,107 @@
   @if (settings.loading()) {
     <p class="text-sm text-fb-text-secondary" role="status">Deine Marktplätze werden geladen …</p>
   } @else if (settings.ready()) {
-    @for (group of store.platforms(); track group.platform) {
-      <section
-        class="min-w-0 space-y-3"
-        [attr.aria-labelledby]="'marketplace-heading-' + group.platform"
-      >
-        <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <div class="flex min-w-0 items-center gap-3">
-            <img [ngSrc]="platformLogo(group.platform)" width="28" height="28" alt="" />
-            <h2
-              [id]="'marketplace-heading-' + group.platform"
-              class="text-base font-semibold text-fb-text-primary"
-            >
-              {{ platformLabel(group.platform) }}
-            </h2>
+    <div data-marketplace-platforms-grid [class]="platformsGridClass()">
+      @for (group of store.platforms(); track group.platform) {
+        <section
+          class="min-w-0 space-y-3 rounded-2xl transition"
+          [class.ring-2]="dragOverPlatform() === group.platform && !dragOverAccountKey()"
+          [class.ring-fb-primary]="dragOverPlatform() === group.platform && !dragOverAccountKey()"
+          [attr.aria-labelledby]="'marketplace-heading-' + group.platform"
+          [attr.data-marketplace-drop-zone]="group.platform"
+          (dragover)="onPlatformDragOver($event, group.platform)"
+          (dragleave)="onPlatformDragLeave($event, group.platform)"
+          (drop)="onDropOnPlatform($event, group.platform)"
+        >
+          <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <img [ngSrc]="platformLogo(group.platform)" width="28" height="28" alt="" />
+              <h2
+                [id]="'marketplace-heading-' + group.platform"
+                class="text-base font-semibold text-fb-text-primary"
+              >
+                {{ platformLabel(group.platform) }}
+              </h2>
+            </div>
           </div>
-        </div>
-        @if (group.loading) {
-          <app-card padding="md"
-            ><p class="text-sm text-fb-text-secondary" role="status">
-              Konten werden geladen …
-            </p></app-card
-          >
-        } @else if (group.error) {
-          <app-card padding="md"
-            ><div class="space-y-3">
-              <p class="text-sm text-fb-critical" role="alert">{{ group.error }}</p>
-              <app-button
-                variant="secondary"
-                [icon]="retryIcon"
-                (clicked)="store.retryPlatform(group.platform)"
-                >Erneut versuchen</app-button
-              >
-            </div></app-card
-          >
-        } @else if (!group.accounts.length) {
-          <app-card padding="lg"
-            ><div class="flex flex-col items-center space-y-3 text-center">
-              <h3 class="text-sm font-semibold text-fb-text-primary">Noch kein Konto verbunden</h3>
-              <p class="text-sm text-fb-text-secondary">
-                Verbinde Dein Konto, um seine Inserate hier zu sehen.
-              </p>
-              <app-button variant="secondary" [icon]="plusIcon" (clicked)="openAdd(group.platform)"
-                >Konto hinzufügen</app-button
-              >
-            </div></app-card
-          >
-        } @else {
-          @for (account of group.accounts; track accountKey(account)) {
-            @if (store.section(account); as section) {
-              <app-marketplace-listing-section
-                [showAccountManagement]="true"
-                (accountManagementRequested)="manageAccount(account)"
-                (transferPublished)="store.refreshPlatform('kleinanzeigen')"
-                [section]="section"
-                (toggled)="store.expand(account)"
-                (retried)="store.retry(account)"
-                (queryChanged)="store.setQuery(accountKey(account), $event)"
-                (selectionChanged)="store.toggleSelection($event.reference, $event.checked)"
-                (allSelected)="store.selectAll(account, $event)"
-                (nextRequested)="store.next(account)"
-                (previousRequested)="store.previous(account)"
-              />
+          @if (group.loading) {
+            <app-card padding="md"
+              ><p class="text-sm text-fb-text-secondary" role="status">
+                Konten werden geladen …
+              </p></app-card
+            >
+          } @else if (group.error) {
+            <app-card padding="md"
+              ><div class="space-y-3">
+                <p class="text-sm text-fb-critical" role="alert">{{ group.error }}</p>
+                <app-button
+                  variant="secondary"
+                  [icon]="retryIcon"
+                  (clicked)="store.retryPlatform(group.platform)"
+                  >Erneut versuchen</app-button
+                >
+              </div></app-card
+            >
+          } @else if (!group.accounts.length) {
+            <app-card padding="lg"
+              ><div class="flex flex-col items-center space-y-3 text-center">
+                <h3 class="text-sm font-semibold text-fb-text-primary">
+                  Noch kein Konto verbunden
+                </h3>
+                <p class="text-sm text-fb-text-secondary">
+                  Verbinde Dein Konto, um seine Inserate hier zu sehen.
+                </p>
+                <app-button
+                  variant="secondary"
+                  [icon]="plusIcon"
+                  (clicked)="openAdd(group.platform)"
+                  >Konto hinzufügen</app-button
+                >
+              </div></app-card
+            >
+          } @else {
+            @for (account of group.accounts; track accountKey(account)) {
+              @if (store.section(account); as section) {
+                <app-marketplace-listing-section
+                  class="block min-w-0 rounded-2xl transition"
+                  [class.ring-2]="dragOverAccountKey() === accountKey(account)"
+                  [class.ring-fb-primary]="dragOverAccountKey() === accountKey(account)"
+                  [attr.data-account-drop-zone]="accountKey(account)"
+                  (dragover)="onAccountDragOver($event, account)"
+                  (dragleave)="onAccountDragLeave($event, account)"
+                  (drop)="onDropOnAccount($event, account)"
+                  [showAccountManagement]="true"
+                  (accountManagementRequested)="manageAccount(account)"
+                  (transferPublished)="store.refreshPlatform('kleinanzeigen')"
+                  (listingDragStarted)="onListingDragStart($event)"
+                  (listingDragEnded)="onListingDragEnd()"
+                  [section]="section"
+                  (toggled)="store.expand(account)"
+                  (retried)="store.retry(account)"
+                  (queryChanged)="store.setQuery(accountKey(account), $event)"
+                  (selectionChanged)="store.toggleSelection($event.reference, $event.checked)"
+                  (allSelected)="store.selectAll(account, $event)"
+                  (nextRequested)="store.next(account)"
+                  (previousRequested)="store.previous(account)"
+                />
+              }
             }
           }
-        }
-      </section>
-    } @empty {
-      <app-card padding="lg"
-        ><div class="space-y-3">
-          <h2 class="text-base font-semibold text-fb-text-primary">Wähle deine Marktplätze</h2>
-          <p class="text-sm text-fb-text-secondary">
-            Blende die Verkaufskanäle ein, die du verwenden möchtest.
-          </p>
-          <app-button [icon]="settingsIcon" (clicked)="manageOpen.set(true)"
-            >Marktplätze auswählen</app-button
-          >
-        </div></app-card
-      >
-    }
+        </section>
+      } @empty {
+        <app-card padding="lg" class="col-span-full"
+          ><div class="space-y-3">
+            <h2 class="text-base font-semibold text-fb-text-primary">Wähle deine Marktplätze</h2>
+            <p class="text-sm text-fb-text-secondary">
+              Blende die Verkaufskanäle ein, die du verwenden möchtest.
+            </p>
+            <app-button [icon]="settingsIcon" (clicked)="manageOpen.set(true)"
+              >Marktplätze auswählen</app-button
+            >
+          </div></app-card
+        >
+      }
+    </div>
   }
 </div>
 @if (manageOpen()) {
@@ -272,4 +294,14 @@
       }
     </div>
   </app-modal-shell>
+}
+@if (dragTransfer(); as transfer) {
+  <app-listing-transfer-dialog
+    [source]="transfer.source"
+    [targetConnectionId]="transfer.targetConnectionId"
+    initialPlatform="kleinanzeigen"
+    [autoSelectTarget]="true"
+    (published)="store.refreshPlatform('kleinanzeigen')"
+    (closed)="closeDragTransfer()"
+  />
 }
