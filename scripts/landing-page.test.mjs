@@ -563,7 +563,7 @@ test('confirms a stored beta application in a focused dialog', async () => {
   assert.equal(dialog.hidden, false);
   assert.match(dialog.textContent, /Vielen Dank für deine Anmeldung zur Beta/u);
   assert.match(dialog.textContent, /anna@example\.test/u);
-  assert.match(dialog.textContent, /Bestätigungs-E-Mail/u);
+  assert.match(dialog.textContent, /Spamordner/u);
   assert.ok(dialog.querySelector('#beta-success-description.beta-dialog-copy'));
   assert.ok(dialog.querySelector('.beta-dialog-email strong'));
   assert.match(dialog.textContent, /We have received your application/u);
@@ -584,22 +584,12 @@ test('confirms a stored beta application in a focused dialog', async () => {
   dom.window.close();
 });
 
-test('zieht den Hinweis zur Bestätigungs-E-Mail über die gesamte Dialogbreite', async () => {
-  const { dom } = await submitBetaApplication({ ok: true, receiptEmailSent: true });
-  const receipt = dom.window.document.getElementById('beta-success-receipt');
-  const style = dom.window.getComputedStyle(receipt);
-
-  assert.equal(style.width, '100%');
-  assert.equal(style.maxWidth, 'none');
-  assert.equal(style.textAlign, 'center');
-  dom.window.close();
-});
-
 test('bestätigt Bewerbungen neutral ohne Existenz- oder Versandstatus', async () => {
   const { dom } = await submitBetaApplication({ ok: true });
   const dialog = dom.window.document.getElementById('beta-success-dialog');
   assert.equal(dialog.hidden, false);
-  assert.match(dialog.textContent, /Wenn deine Adresse neu aufgenommen wurde/u);
+  assert.match(dialog.textContent, /Spamordner/u);
+  assert.doesNotMatch(dialog.textContent, /neu aufgenommen/u);
   assert.doesNotMatch(
     dialog.textContent,
     /Bewerbung bereits vorhanden|E-Mail wurde an diese Adresse gesendet/u,

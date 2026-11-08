@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Beta-Registrierung nachbessern
+
+**Anlass:** Beim Test des Registrierungslinks fielen auf: durchscheinende
+Stepper-Kreise, ein nicht anklickbarer Zustimmungstext, unterschiedlich hohe
+Umschalter oben rechts, ein „Aktuelles Passwort“-Feld nach dem Neuladen, ein
+überflüssiger Zusatztext in der Beta-Bestätigung der Landingpage und holprige
+Texte im zweiten Schritt.
+
+**Umsetzung:** Die Ursache für das Passwortfeld: Der Link-Token wird nach dem
+ersten Laden aus der Adresse entfernt. Beim Neuladen fehlte er, und eine bereits
+bestehende Sitzung im Browser wurde als normale Passwortänderung gedeutet. Der
+Token liegt jetzt bis zum Abschluss im `sessionStorage` des Tabs und wird bei
+Abschluss oder ungültigem Link gelöscht. `app-custom-checkbox` entfernt die
+`id` vom Host-Element, damit `<label for>` den inneren Button trifft (betrifft
+alle Verwendungen). Kommende Stepper-Kreise haben einen hellen Hintergrund,
+DE/EN-Umschalter und Design-Knopf sind auf den Anmeldeseiten gleich hoch. Der
+zweite Schritt heißt „Einrichtung“, Platzhalter und Shop-Texte sind neu. Der
+Spam-Hinweis steht jetzt in der Beta-Bestätigung selbst.
+
+**Nachweise:** Angular-Specs zu Auth, Onboarding und Checkbox (42 Tests) und
+`scripts/landing-page.test.mjs` (58 Tests) bestanden. Im Browser geprüft:
+Umschalter beide 36 px, Klick auf den Zustimmungstext setzt das Häkchen, nach
+Neuladen kein Feld für das bisherige Passwort.
+
 ## 2026-11-07 - Juna - Vinted-Automatik nach Aussetzern stabilisieren
 
 **Anlass:** Am Morgen wirkten alle Konten auf dem Handy veraltet, und es erschien
