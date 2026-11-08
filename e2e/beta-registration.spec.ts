@@ -81,7 +81,7 @@ test('genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage
   await page.getByRole('checkbox', { name: /AGB und Datenschutzerklärung/u }).click();
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/onboarding\/workspace$/u, { timeout: 15_000 });
-  await expect(page.getByText('Workspace', { exact: true })).toBeVisible();
+  await expect(page.getByText('Einrichtung', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Zurück' }).click();
   await expect(page).toHaveURL(/\/auth\/set-password\?review=1/u);
   await expect(page.getByText('Dein Passwort ist bereits festgelegt.')).toBeVisible();

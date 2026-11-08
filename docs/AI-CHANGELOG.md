@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-08 - Juna - Browsertest der Beta-Registrierung nachziehen
+
+**Anlass:** PR #597 wurde versehentlich vor Abschluss der Prüfungen gemergt, weil
+`gh pr merge --auto` bei ausgeschaltetem Auto-Merge im Repository sofort mergt.
+Die master-CI zeigte danach den Fehler: `e2e/beta-registration.spec.ts` suchte
+noch die alte Schrittbezeichnung „Workspace“. Der Quality-Job scheiterte zusätzlich
+an einem 504 beim Herunterladen von actionlint (Infrastruktur).
+
+**Umsetzung:** Der Browsertest erwartet jetzt „Einrichtung“. Künftig nicht mehr
+`--auto` verwenden, solange Auto-Merge im Repository aus ist.
+
+**Nachweise:** Siehe PR. Der Browsertest lief lokal nicht, weil Docker nicht lief.
+
 ## 2026-11-08 - Juna - Soundeinstellungen mit älterem Backend kompatibel halten
 
 **Befund nach Veröffentlichung:** PR #595 wurde nach vollständig grünen
