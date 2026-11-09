@@ -91,6 +91,21 @@ select is(pg_temp.apply(15,jsonb_build_array(
 )),3,'Purchase, action and status inbox events share the message notification setting');
 select is(pg_temp.apply(16,jsonb_build_array(pg_temp.event('status_message:event:'||repeat('a',64),'700','2026-09-30T12:14:00.000Z'))),0,'Stable synthetic system event identifiers remain idempotent');
 select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('payment_message:event:invalid')))$$,'22023',null,'Malformed system event references are rejected');
+-- Vinted ersetzt nach dem Versandschein die Aktionsmeldung „Verkauft (vor dem …)“ durch eine Statusmeldung „Verkauft“.
+select is(pg_temp.apply(18,jsonb_build_array(pg_temp.event('action_message:event:'||repeat('b',64),'700','2026-09-30T12:17:00.000Z') || '{"notificationKind":"sale_sold"}')),1,'A sale stage is notified once');
+select is(pg_temp.apply(19,jsonb_build_array(
+  pg_temp.event('status_message:event:'||repeat('c',64),'700','2026-09-30T12:17:00.000Z') || '{"notificationKind":"sale_sold"}',
+  pg_temp.event('action_message:event:'||repeat('d',64),'700','2026-09-30T12:19:00.000Z') || '{"notificationKind":"shipping_label_ready"}'
+)),1,'A replaced sale message stays silent while the new shipping label stage is notified');
+select is((select count(*)::int from public.marketplace_message_notifications where notification_kind='sale_sold'),2,'The replaced sale message is still recorded');
+select is(pg_temp.apply(19,jsonb_build_array(pg_temp.event('status_message:event:'||repeat('3',64),'700','2026-09-30T12:01:00.000Z') || '{"notificationKind":"order_completed"}')),0,'A stage from before the reference stays silent');
+select is(pg_temp.apply(19,jsonb_build_array(pg_temp.event('action_message:event:'||repeat('4',64),'700','2026-09-30T12:18:00.000Z') || '{"notificationKind":"order_completed"}')),1,'A silently recorded earlier stage does not suppress the first notified one');
+select is(pg_temp.apply(20,jsonb_build_array(
+  pg_temp.event('status_message:event:'||repeat('e',64),'700','2026-09-30T12:20:00.000Z') || '{"notificationKind":"delivered"}',
+  pg_temp.event('action_message:event:'||repeat('f',64),'700','2026-09-30T12:20:00.000Z') || '{"notificationKind":"delivered"}',
+  pg_temp.event('status_message:event:'||repeat('1',64),'700','2026-09-30T12:20:00.000Z') || '{"notificationKind":"other_status"}',
+  pg_temp.event('action_message:event:'||repeat('2',64),'700','2026-09-30T12:20:00.000Z') || '{"notificationKind":"other_status"}'
+)),3,'Repeated one-time stages in one snapshot notify once while other status messages stay separate');
 select throws_ok($$select pg_temp.apply(17,jsonb_build_array(pg_temp.event('unknown_message:703')))$$,'22023',null,'Unverified provider event types stay excluded');
 create function pg_temp.capacity_batch(p_events int default 2000,p_covered int default 10) returns jsonb language sql as $$
  select jsonb_build_object('version',1,'observedAt','2026-09-30T12:20:00.000Z','complete',true,

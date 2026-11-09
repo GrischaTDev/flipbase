@@ -14,6 +14,7 @@ import type { MarketplaceSnapshot } from '../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../models/marketplace-response';
 import {
   MarketplaceBrowserTestApiService,
+  MarketplaceCloudAccountBusyError,
   MarketplaceConnectionRemovalError,
   VintedListingPriceChangedError,
 } from './marketplace-browser-test-api.service';
@@ -304,6 +305,39 @@ describe('Cloud-Gesprächsabruf', () => {
       status: 'cancelled',
     });
     expect(browserApi.readConversation).not.toHaveBeenCalled();
+  });
+  it('wartet eine laufende Cloud-Synchronisierung ab und liest das Gespräch danach', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    vi.useFakeTimers();
+    try {
+      browserApi.readConversation
+        .mockRejectedValueOnce(new MarketplaceCloudAccountBusyError())
+        .mockResolvedValueOnce('2026-10-07T21:00:00Z');
+      const read = store.refreshCloudConversation('conversation-a', () => true);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(await read).toEqual({ status: 'success', observedAt: '2026-10-07T21:00:00Z' });
+      expect(browserApi.readConversation).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('wartet nach einem Gesprächswechsel nicht weiter auf das belegte Cloud-Konto', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    vi.useFakeTimers();
+    try {
+      let current = true;
+      browserApi.readConversation.mockRejectedValue(new MarketplaceCloudAccountBusyError());
+      const read = store.refreshCloudConversation('conversation-a', () => current);
+      await vi.advanceTimersByTimeAsync(0);
+      current = false;
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(await read).toEqual({ status: 'cancelled' });
+      expect(browserApi.readConversation).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('behält gespeicherte Nachrichten bei einem abgelehnten Cloud-Abruf', async () => {
     await settle();

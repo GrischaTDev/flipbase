@@ -6,7 +6,10 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { createMarketplaceFixtures } from '../testing/marketplace-fixtures';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedLocalExtensionApiService } from './vinted-local-extension-api.service';
-import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
+import {
+  VintedLocalExtensionBridge,
+  VintedLocalExtensionBusyError,
+} from './vinted-local-extension-bridge';
 import { VintedLocalExtensionStore } from './vinted-local-extension.store';
 
 const cloud = createMarketplaceFixtures().connections[0];
@@ -188,6 +191,74 @@ describe('Lokale Vinted-Freigabe', () => {
       connectionId: 'next-account',
       conversationId: '00000000-0000-4000-8000-000000000001',
     });
+  });
+  it('wartet einen Hintergrundabgleich der Erweiterung ab und liest das Gespräch danach', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    vi.useFakeTimers();
+    try {
+      bridge.request
+        .mockRejectedValueOnce(
+          new VintedLocalExtensionBusyError('Ein lokaler Vorgang läuft bereits.'),
+        )
+        .mockResolvedValueOnce({
+          ...approval,
+          connectionId: 'next-account',
+          observedAt: imported.observedAt,
+          counts: { conversation: 1, message: 1 },
+          conversationsComplete: false,
+          nextPage: 1,
+        });
+      const detail = store.openInboxConversation('00000000-0000-4000-8000-000000000001');
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(await detail).toEqual({ status: 'success', observedAt: imported.observedAt });
+      expect(store.error()).toBeNull();
+      expect(
+        bridge.request.mock.calls.filter(([type]) => type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL'),
+      ).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('bricht das Warten auf die Erweiterung ab, sobald ein anderes Gespräch gewählt ist', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    vi.useFakeTimers();
+    try {
+      let selected = true;
+      bridge.request.mockRejectedValue(
+        new VintedLocalExtensionBusyError('Ein lokaler Vorgang läuft bereits.'),
+      );
+      const detail = store.openInboxConversation(
+        '00000000-0000-4000-8000-000000000001',
+        () => selected,
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      selected = false;
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(await detail).toEqual({ status: 'cancelled' });
+      expect(store.error()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('meldet eine dauerhaft belegte Erweiterung erst nach der Wartezeit als Fehler', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    vi.useFakeTimers();
+    try {
+      bridge.request.mockRejectedValue(
+        new VintedLocalExtensionBusyError('Ein lokaler Vorgang läuft bereits.'),
+      );
+      const detail = store.openInboxConversation('00000000-0000-4000-8000-000000000001');
+      await vi.advanceTimersByTimeAsync(72_000);
+      expect(await detail).toEqual({
+        status: 'failed',
+        error: 'Ein lokaler Vorgang läuft bereits.',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('führt mit einer fremden Profilbindung keinen Live-Detailabruf aus', async () => {
     api.read.mockResolvedValue({ ...binding, messagesRead: true });

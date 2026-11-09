@@ -104,6 +104,14 @@ export class VintedListingNotSavedError extends Error {
   }
 }
 
+/** Der Cloud-Browser des Kontos ist gerade belegt, etwa durch die Synchronisierung. */
+export class MarketplaceCloudAccountBusyError extends Error {
+  constructor() {
+    super('Das Cloud-Konto wird gerade verwendet. Versuche die Aktualisierung gleich erneut.');
+    this.name = 'MarketplaceCloudAccountBusyError';
+  }
+}
+
 /** Für das Konto läuft bereits eine Browseraktion; die Änderung wurde gar nicht begonnen. */
 export class VintedAccountBusyError extends Error {
   constructor() {
@@ -689,9 +697,7 @@ export class MarketplaceBrowserTestApiService {
         'code' in result &&
         result.code === 'browser_session_busy')
     )
-      throw new Error(
-        'Das Cloud-Konto wird gerade verwendet. Versuche die Aktualisierung gleich erneut.',
-      );
+      throw new MarketplaceCloudAccountBusyError();
     if (!response.ok) throw new MarketplaceImportError('messages');
     if (
       !result ||

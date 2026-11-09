@@ -1,6 +1,13 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.3
+## Aktuell: Version 1.14.4
+
+Ist die Erweiterung gerade mit einem Vinted-Abgleich beschäftigt, meldet sie das
+der Flipbase-Seite ausdrücklich als belegt. Flipbase wartet dann kurz und lädt
+das geöffnete Gespräch selbst erneut, statt die Aktualisierung als
+fehlgeschlagen anzuzeigen.
+
+## Version 1.14.3
 
 Vor erneutem Inserieren und Löschen prüft Flipbase die tatsächlich geladene
 Erweiterung. Veraltete oder nicht erreichbare Versionen stoppen vor der Aktion.

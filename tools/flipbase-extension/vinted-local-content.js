@@ -293,7 +293,11 @@
     )
       return false;
     if (busy) {
-      sendResponse({ success: false, error: 'In diesem Vinted-Tab läuft bereits ein Abgleich.' });
+      sendResponse({
+        success: false,
+        error: 'In diesem Vinted-Tab läuft bereits ein Abgleich.',
+        code: 'local_busy',
+      });
       return false;
     }
     (async () => {

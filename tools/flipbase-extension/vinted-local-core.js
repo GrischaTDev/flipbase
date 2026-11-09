@@ -56,6 +56,12 @@
       this.code = 'local_binding_invalid';
     }
   }
+  // Belegte Erweiterung ist kein Fehler des Abrufs; die App wartet und versucht es erneut.
+  function localBusyError(message) {
+    const error = new Error(message);
+    error.code = 'local_busy';
+    return error;
+  }
   function identityChangedError() {
     const error = new Error('Das Vinted-Konto wurde gewechselt.');
     error.code = 'identity_changed';
@@ -1029,7 +1035,8 @@
     async function run(request, origin) {
       if (['READINESS', 'RECHECK'].includes(request.action))
         return checkReadiness(origin, { explicit: request.action === 'RECHECK' });
-      if (running) throw new Error('Ein lokaler Vorgang läuft bereits. Warte bis er beendet ist.');
+      if (running)
+        throw localBusyError('Ein lokaler Vorgang läuft bereits. Warte bis er beendet ist.');
       running = true;
       adapter.begin?.(request);
       let acquired = false;
@@ -1051,7 +1058,7 @@
           throw error;
         }
         if (installation?.leaseUntil > adapter.now())
-          throw new Error(
+          throw localBusyError(
             'Ein lokaler Vorgang wird noch ausgeführt. Warte kurz und versuche es erneut.',
           );
         installation = { ...installation, leaseUntil: adapter.now() + 55_000 };
