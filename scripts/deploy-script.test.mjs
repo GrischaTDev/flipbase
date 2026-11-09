@@ -1979,11 +1979,16 @@ case "$1" in
  cp)
    case "$2" in
      */archive-app-build.py)
-       [[ "\${MISSING_ARCHIVER:-0}" != 1 ]] || exit 1
-       cp "$ARCHIVE_SCRIPT" "$3" ;;
+       if [[ "$2" == flipbase-web:* ]]; then
+         [[ "\${MISSING_CURRENT_ARCHIVER:-0}" != 1 ]] || exit 1
+         cp "\${CURRENT_ARCHIVE_SCRIPT:-$ARCHIVE_SCRIPT}" "$3"
+       else
+         [[ "\${MISSING_ARCHIVER:-0}" != 1 ]] || exit 1
+         cp "$ARCHIVE_SCRIPT" "$3"
+       fi ;;
      */usr/share/nginx/html/.) cp -R "$APP_SOURCE/." "$3" ;;
    esac ;;
- exec) tar -C "$APP_SOURCE" -cf - . ;;
+ exec) tar -C "\${CURRENT_APP_SOURCE:-$APP_SOURCE}" -cf - . ;;
  rm|logout|image) ;;
  compose) [[ "$FLIPBASE_IMAGE" == "$EXPECTED_IMAGE" ]] || exit 92; if [[ "$2" == config ]]; then echo "\${CONFIGURED_IMAGE:-$EXPECTED_IMAGE}"; else echo start; fi ;;
  inspect) echo healthy ;;
@@ -2012,10 +2017,37 @@ esac
         }),
       );
       const archiveScript = join(root, 'archive-app-build.py');
-      await writeFile(
-        archiveScript,
-        await readFile(new URL('../deploy/archive-app-build.py', import.meta.url)),
+      const archiveSource = await readFile(
+        new URL('../deploy/archive-app-build.py', import.meta.url),
+        'utf8',
       );
+      await writeFile(archiveScript, archiveSource);
+      const legacyArchiveScript = join(root, 'legacy-archive-app-build.py');
+      // Historischer Pfadvertrag: identische Hash-/Pfadprüfung ohne WAV-Freigabe.
+      const legacyArchiveSource = archiveSource.replace(
+        "json)|'\n        r'/sounds/[\\w-]+\\.wav'",
+        "json)'",
+      );
+      assert.notEqual(legacyArchiveSource, archiveSource);
+      await writeFile(legacyArchiveScript, legacyArchiveSource);
+      const soundSource = join(root, 'sound-source');
+      const soundBuildId = 'c'.repeat(64);
+      const soundPath = '/sounds/sale-cash-register.wav';
+      const recording = await readFile(
+        new URL('../public/sounds/sale-cash-register.wav', import.meta.url),
+      );
+      const soundManifest = {
+        version: 1,
+        buildId: soundBuildId,
+        assets: [
+          { url: '/index.html', sha256: createHash('sha256').update(html).digest('hex') },
+          { url: soundPath, sha256: createHash('sha256').update(recording).digest('hex') },
+        ],
+      };
+      await mkdir(join(soundSource, 'sounds'), { recursive: true });
+      await writeFile(join(soundSource, 'index.html'), html);
+      await writeFile(join(soundSource, soundPath), recording);
+      await writeFile(join(soundSource, 'pwa-assets.json'), JSON.stringify(soundManifest));
       const env = {
         ...process.env,
         PATH: `${bin}:${process.env.PATH}`,
@@ -2030,9 +2062,61 @@ esac
       assert.equal(success.code, 0, success.stderr);
       assert.match(success.stdout, /start/);
       assert.equal(await readFile(join(root, 'app-builds', buildId, 'index.html'), 'utf8'), html);
-      const historical = await runDeploy({ ...env, MISSING_ARCHIVER: '1' });
+      const historical = await runDeploy({
+        ...env,
+        MISSING_ARCHIVER: '1',
+        MISSING_CURRENT_ARCHIVER: '1',
+      });
       assert.equal(historical.code, 0, historical.stderr);
       assert.match(historical.stdout, /start/);
+      const forward = await runDeploy({
+        ...env,
+        APP_SOURCE: soundSource,
+        CURRENT_APP_SOURCE: appSource,
+        CURRENT_ARCHIVE_SCRIPT: legacyArchiveScript,
+      });
+      assert.equal(forward.code, 0, forward.stderr);
+      assert.match(forward.stdout, /start/);
+      assert.deepEqual(
+        await readFile(join(root, 'app-builds', soundBuildId, soundPath)),
+        recording,
+      );
+      await rm(join(root, 'app-builds'), { recursive: true, force: true });
+      const rollbackEnvironment = {
+        ...env,
+        ARCHIVE_SCRIPT: legacyArchiveScript,
+        CURRENT_APP_SOURCE: soundSource,
+        CURRENT_ARCHIVE_SCRIPT: archiveScript,
+      };
+      const rollback = await runDeploy(rollbackEnvironment);
+      assert.equal(rollback.code, 0, rollback.stderr);
+      assert.match(rollback.stdout, /start/);
+      assert.equal(await readFile(join(root, 'app-builds', buildId, 'index.html'), 'utf8'), html);
+      assert.deepEqual(
+        await readFile(join(root, 'app-builds', soundBuildId, soundPath)),
+        recording,
+      );
+      await writeFile(join(soundSource, soundPath), 'corrupted recording');
+      const corrupted = await runDeploy(rollbackEnvironment);
+      assert.notEqual(corrupted.code, 0);
+      assert.doesNotMatch(corrupted.stdout, /start/);
+      assert.match(corrupted.stderr, /App-Datei fehlt oder hat falsche Bytes/);
+      await writeFile(join(soundSource, soundPath), recording);
+      await writeFile(
+        join(soundSource, 'pwa-assets.json'),
+        JSON.stringify({
+          ...soundManifest,
+          assets: [
+            soundManifest.assets[0],
+            { ...soundManifest.assets[1], url: '/sounds/../private.wav' },
+          ],
+        }),
+      );
+      const traversal = await runDeploy(rollbackEnvironment);
+      assert.notEqual(traversal.code, 0);
+      assert.doesNotMatch(traversal.stdout, /start/);
+      assert.match(traversal.stderr, /Ungültiger öffentlicher Dateipfad/);
+      await writeFile(join(soundSource, 'pwa-assets.json'), JSON.stringify(soundManifest));
       const outdated = await runDeploy({
         ...env,
         CONFIGURED_IMAGE: 'ghcr.io/grischatdev/flipbase:latest',

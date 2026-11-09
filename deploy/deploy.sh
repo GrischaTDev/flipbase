@@ -167,28 +167,35 @@ prepare_app_build_archive() {
   local artifact_container="$1"
   local archive_directory="$VERZEICHNIS/app-builds"
   local source_directory="$temporary/app-build-source"
-  local archive_script="$temporary/archive-app-build.py"
+  local next_archive_script="$temporary/archive-app-build-next.py"
+  local current_archive_script="$temporary/archive-app-build-current.py"
   # Die einmalige Aktualisierung dieses Deploy-Skripts ist vor dem ersten
   # unabhängigen Browserupdate erforderlich (siehe RELEASE-PIPELINE.md).
   command -v python3 >/dev/null || { echo 'Python 3 fuer App-Dateiarchiv fehlt.' >&2; return 1; }
-  if ! docker cp "$artifact_container":/opt/flipbase/archive-app-build.py "$archive_script"; then
+  if ! docker cp "$artifact_container":/opt/flipbase/archive-app-build.py "$next_archive_script"; then
     # Historische Rückfallimages enthalten den neuen Archivierer noch nicht.
     # Die beim Bootstrap geprüfte Serverkopie bleibt dafür verfügbar.
-    cp "$VERZEICHNIS/archive-app-build.py" "$archive_script"
+    cp "$VERZEICHNIS/archive-app-build.py" "$next_archive_script"
   fi
   mkdir -p "$source_directory" "$archive_directory"
   chmod 755 "$archive_directory"
   # Vor dem Containerwechsel auch den bisherigen Stand sichern. Das Archiv
   # selbst wird nicht nochmals kopiert; nur öffentliche Dateien kommen hinein.
   if docker inspect flipbase-web >/dev/null 2>&1; then
+    # Jeder Bau wird mit seinem eigenen Dateivertrag geprüft. Ein älteres
+    # Rückfallimage muss neuere Dateitypen des laufenden Baus nicht kennen.
+    if ! docker cp flipbase-web:/opt/flipbase/archive-app-build.py "$current_archive_script"; then
+      # Auch für historische laufende Images bleibt die geprüfte Serverkopie.
+      cp "$VERZEICHNIS/archive-app-build.py" "$current_archive_script"
+    fi
     docker exec flipbase-web tar --exclude='./app-builds' -C /usr/share/nginx/html -cf - . \
       | tar -xf - -C "$source_directory"
-    python3 "$archive_script" "$source_directory" "$archive_directory"
+    python3 "$current_archive_script" "$source_directory" "$archive_directory"
   fi
   local next_directory="$temporary/app-build-next"
   mkdir "$next_directory"
   docker cp "$artifact_container":/usr/share/nginx/html/. "$next_directory/"
-  python3 "$archive_script" "$next_directory" "$archive_directory"
+  python3 "$next_archive_script" "$next_directory" "$archive_directory"
   # Eine nur für diesen Lauf geltende Compose-Ergänzung erhält bestehende Netze,
   # Umgebungswerte und Sicherheitsoptionen. Das Archiv wird nur lesend eingebunden.
   export FLIPBASE_APP_BUILDS_DIRECTORY="$archive_directory"

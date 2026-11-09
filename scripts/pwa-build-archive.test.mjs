@@ -17,14 +17,23 @@ test('release archive verifies bytes, excludes private files, preserves recent b
   await mkdir(source);
   const build = 'a'.repeat(64);
   const content = '<html>previous build</html>';
+  const recording = Buffer.from([82, 73, 70, 70, 255, 0, 128, 64]);
   const manifest = {
     version: 1,
     buildId: build,
-    assets: [{ url: '/index.html', sha256: createHash('sha256').update(content).digest('hex') }],
+    assets: [
+      { url: '/index.html', sha256: createHash('sha256').update(content).digest('hex') },
+      {
+        url: '/sounds/sale-cash-register.wav',
+        sha256: createHash('sha256').update(recording).digest('hex'),
+      },
+    ],
   };
   const run = () => spawnSync(python, [script, source, archive], { encoding: 'utf8' });
   try {
     await writeFile(join(source, 'index.html'), content);
+    await mkdir(join(source, 'sounds'));
+    await writeFile(join(source, 'sounds/sale-cash-register.wav'), recording);
     await writeFile(join(source, 'private.json'), 'must never be published');
     await writeFile(join(source, 'pwa-assets.json'), JSON.stringify(manifest));
     let result = run();
@@ -32,21 +41,35 @@ test('release archive verifies bytes, excludes private files, preserves recent b
     assert.deepEqual((await readdir(join(archive, build))).sort(), [
       'index.html',
       'pwa-assets.json',
+      'sounds',
     ]);
     assert.equal(await readFile(join(archive, build, 'index.html'), 'utf8'), content);
+    assert.deepEqual(
+      await readFile(join(archive, build, 'sounds/sale-cash-register.wav')),
+      recording,
+    );
     assert.equal(run().status, 0, 'archiving the same immutable build is idempotent');
     await writeFile(join(source, 'index.html'), 'corrupted');
     assert.notEqual(run().status, 0, 'wrong bytes must stop publication');
     assert.equal(await readFile(join(archive, build, 'index.html'), 'utf8'), content);
     await writeFile(join(source, 'index.html'), content);
-    await writeFile(
-      join(source, 'pwa-assets.json'),
-      JSON.stringify({
-        ...manifest,
-        assets: [{ url: '/../private.json', sha256: manifest.assets[0].sha256 }],
-      }),
-    );
-    assert.notEqual(run().status, 0, 'traversal must not publish private paths');
+    for (const path of [
+      '/../private.json',
+      '/sounds/../private.wav',
+      '/sounds/unlisted.mp3',
+      'https://external.test/sounds/sale-cash-register.wav',
+    ]) {
+      await writeFile(
+        join(source, 'pwa-assets.json'),
+        JSON.stringify({
+          ...manifest,
+          assets: [{ url: path, sha256: manifest.assets[0].sha256 }],
+        }),
+      );
+      const invalid = run();
+      assert.notEqual(invalid.status, 0, path);
+      assert.match(invalid.stderr, /Ungültiger öffentlicher Dateipfad/, path);
+    }
     await writeFile(join(source, 'pwa-assets.json'), JSON.stringify(manifest));
     for (const [index, days] of [50, 45, 1].entries()) {
       const directory = join(archive, String(index + 1).repeat(64));

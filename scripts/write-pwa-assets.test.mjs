@@ -11,10 +11,14 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'flipbase-pwa-'));
   await mkdir(join(root, 'fonts'));
   await mkdir(join(root, 'mock-data'));
+  await mkdir(join(root, 'sounds'));
   await writeFile(join(root, 'index.html'), '<html><app-root></app-root></html>');
   await writeFile(join(root, 'main-ABC123.js'), 'main');
   await writeFile(join(root, 'fonts/font.woff2'), 'font');
   await writeFile(join(root, 'mock-data/private.json'), 'private');
+  await writeFile(join(root, 'sounds/sale-cash-register.wav'), 'cash-register-a');
+  await writeFile(join(root, 'sounds/unlisted.mp3'), 'unlisted audio');
+  await writeFile(join(root, 'private.wav'), 'private audio');
   await writeFile(join(root, 'deployment.json'), '{"commit":"release"}');
   await writeFile(
     join(root, 'sw.js'),
@@ -44,12 +48,16 @@ test('inventory contains all app chunks, content hashes and a baked worker ident
     const inventory = JSON.parse(text);
     assert.deepEqual(
       inventory.assets.map((asset) => asset.url),
-      ['/fonts/font.woff2', '/index.html', '/main-ABC123.js'],
+      ['/fonts/font.woff2', '/index.html', '/main-ABC123.js', '/sounds/sale-cash-register.wav'],
     );
     assert.match(inventory.buildId, /^[a-f0-9]{64}$/);
     assert.equal(
       inventory.assets.find((asset) => asset.url === '/main-ABC123.js').sha256,
       createHash('sha256').update('main').digest('hex'),
+    );
+    assert.equal(
+      inventory.assets.find((asset) => asset.url === '/sounds/sale-cash-register.wav').sha256,
+      createHash('sha256').update('cash-register-a').digest('hex'),
     );
     const worker = await readFile(join(root, 'sw.js'), 'utf8');
     assert.ok(worker.includes(inventory.buildId));
@@ -61,8 +69,8 @@ test('inventory contains all app chunks, content hashes and a baked worker ident
     await rm(root, { recursive: true, force: true });
   }
 });
-test('same input produces same identity; a new lazy chunk or worker change produces a new build', async () => {
-  const roots = await Promise.all([fixture(), fixture(), fixture(), fixture()]);
+test('same input produces same identity; changed chunks, sounds or version produce a new build', async () => {
+  const roots = await Promise.all([fixture(), fixture(), fixture(), fixture(), fixture()]);
   try {
     build(roots[0]);
     build(roots[1]);
@@ -81,6 +89,12 @@ test('same input produces same identity; a new lazy chunk or worker change produ
     build(roots[3]);
     assert.notEqual(
       JSON.parse(await readFile(join(roots[3], 'pwa-assets.json'), 'utf8')).buildId,
+      first,
+    );
+    await writeFile(join(roots[4], 'sounds/sale-cash-register.wav'), 'cash-register-b');
+    build(roots[4]);
+    assert.notEqual(
+      JSON.parse(await readFile(join(roots[4], 'pwa-assets.json'), 'utf8')).buildId,
       first,
     );
   } finally {

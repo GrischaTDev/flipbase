@@ -1,6 +1,9 @@
 import { DestroyRef, Injectable, inject } from '@angular/core';
 
 export type NotificationSoundKind = 'general' | 'sale';
+export type NotificationSoundPreviewResult = boolean | 'cancelled';
+
+const SALE_SOUND_URL = '/sounds/sale-cash-register.wav';
 
 interface WindowWithWebkitAudio extends Window {
   readonly webkitAudioContext?: typeof AudioContext;
@@ -10,7 +13,11 @@ interface WindowWithWebkitAudio extends Window {
 export class NotificationSoundService {
   private readonly destroyRef = inject(DestroyRef);
   private context: AudioContext | null = null;
-  private readonly voices = new Map<OscillatorNode, GainNode>();
+  private readonly voices = new Map<AudioScheduledSourceNode, GainNode>();
+  private saleBuffer: AudioBuffer | null = null;
+  private saleBufferLoad: Promise<AudioBuffer | null> | null = null;
+  private saleLoadAbort: AbortController | null = null;
+  private previewRequestId = 0;
   private destroyed = false;
   private readonly activateAudio = () => {
     void this.unlock();
@@ -25,6 +32,9 @@ export class NotificationSoundService {
     }
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
+      this.cancelPreview();
+      this.abortSaleLoad();
+      this.saleBuffer = null;
       if (typeof document !== 'undefined') {
         for (const event of this.activationEvents)
           document.removeEventListener(event, this.activateAudio, true);
@@ -42,16 +52,14 @@ export class NotificationSoundService {
   play(kind: NotificationSoundKind): boolean {
     const context = this.context;
     if (this.destroyed || !context || context.state !== 'running') return false;
+    const saleBuffer = kind === 'sale' ? this.saleBuffer : null;
+    if (kind === 'sale' && !saleBuffer) return false;
     try {
+      this.cancelPreview();
       this.stopVoices();
       const start = context.currentTime;
-      if (kind === 'sale') {
-        // Eigener kurzer Kassenton: Anschlag und zwei helle, metallische Klänge.
-        this.tone(context, 180, start, 0.035, 0.05, 'triangle');
-        this.tone(context, 1320, start + 0.045, 0.16, 0.065);
-        this.tone(context, 2112, start + 0.045, 0.12, 0.025);
-        this.tone(context, 1760, start + 0.17, 0.42, 0.075);
-        this.tone(context, 2816, start + 0.17, 0.3, 0.025);
+      if (saleBuffer) {
+        this.playSaleRecording(context, saleBuffer, start);
       } else {
         this.tone(context, 660, start, 0.14, 0.065);
         this.tone(context, 880, start + 0.11, 0.25, 0.055);
@@ -63,25 +71,103 @@ export class NotificationSoundService {
     }
   }
 
-  async preview(kind: NotificationSoundKind): Promise<boolean> {
-    return (await this.unlock()) && this.play(kind);
+  async preview(kind: NotificationSoundKind): Promise<NotificationSoundPreviewResult> {
+    const requestId = ++this.previewRequestId;
+    const context = await this.unlock();
+    if (this.destroyed || requestId !== this.previewRequestId) return 'cancelled';
+    if (!context) return false;
+    const prepared = kind !== 'sale' || !!(await this.prepareSaleSound(context));
+    if (this.destroyed || requestId !== this.previewRequestId || context !== this.context)
+      return 'cancelled';
+    return prepared && this.play(kind);
   }
 
-  private async unlock(): Promise<boolean> {
-    if (this.destroyed || typeof window === 'undefined') return false;
+  /** Eine verlassene oder ersetzte Vorschau darf nach dem Laden nicht mehr starten. */
+  cancelPreview(): void {
+    this.previewRequestId += 1;
+  }
+
+  private async unlock(): Promise<AudioContext | null> {
+    if (this.destroyed || typeof window === 'undefined') return null;
     try {
       if (!this.context || this.context.state === 'closed') {
+        this.abortSaleLoad();
         const AudioContextClass =
           window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
-        if (!AudioContextClass) return false;
+        if (!AudioContextClass) return null;
         this.context = new AudioContextClass();
       }
       const context = this.context;
       if (context.state !== 'running') await context.resume();
-      return !this.destroyed && context.state === 'running';
+      if (this.destroyed || context !== this.context || context.state !== 'running') return null;
+      // Vorbereiten spielt nichts ab. Automatische Meldungen warten auch hier nicht.
+      void this.prepareSaleSound(context);
+      return context;
     } catch {
-      return false;
+      return null;
     }
+  }
+
+  private prepareSaleSound(context: AudioContext): Promise<AudioBuffer | null> {
+    if (this.destroyed || context !== this.context || context.state === 'closed')
+      return Promise.resolve(null);
+    if (this.saleBuffer) return Promise.resolve(this.saleBuffer);
+    if (this.saleBufferLoad) return this.saleBufferLoad;
+    const controller = new AbortController();
+    this.saleLoadAbort = controller;
+    const load = this.loadSaleSound(context, controller).finally(() => {
+      if (this.saleBufferLoad === load) {
+        this.saleBufferLoad = null;
+        this.saleLoadAbort = null;
+      }
+    });
+    this.saleBufferLoad = load;
+    return load;
+  }
+
+  private async loadSaleSound(
+    context: AudioContext,
+    controller: AbortController,
+  ): Promise<AudioBuffer | null> {
+    const isCurrent = () =>
+      !this.destroyed &&
+      !controller.signal.aborted &&
+      context === this.context &&
+      context.state !== 'closed';
+    try {
+      const response = await fetch(SALE_SOUND_URL, { signal: controller.signal });
+      if (!response.ok || !isCurrent()) return null;
+      const bytes = await response.arrayBuffer();
+      if (!isCurrent()) return null;
+      const buffer = await context.decodeAudioData(bytes);
+      if (!isCurrent()) return null;
+      this.saleBuffer = buffer;
+      return buffer;
+    } catch {
+      return null;
+    }
+  }
+
+  private abortSaleLoad(): void {
+    this.saleLoadAbort?.abort();
+    this.saleLoadAbort = null;
+    this.saleBufferLoad = null;
+  }
+
+  private playSaleRecording(context: AudioContext, buffer: AudioBuffer, start: number): void {
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    this.voices.set(source, gain);
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(0.5, start);
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.onended = () => {
+      source.disconnect();
+      gain.disconnect();
+      this.voices.delete(source);
+    };
+    source.start(start);
   }
 
   private tone(
@@ -112,14 +198,14 @@ export class NotificationSoundService {
   }
 
   private stopVoices(): void {
-    for (const [oscillator, gain] of this.voices) {
-      oscillator.onended = null;
+    for (const [source, gain] of this.voices) {
+      source.onended = null;
       try {
-        oscillator.stop();
+        source.stop();
       } catch {
         // Bereits beendete Klangerzeuger benötigen nur noch das Trennen.
       }
-      oscillator.disconnect();
+      source.disconnect();
       gain.disconnect();
     }
     this.voices.clear();

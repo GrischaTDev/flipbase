@@ -17,6 +17,7 @@ const rootFiles =
   /^(?:index\.html|manifest\.webmanifest|favicon\.ico|app-startup\.js|[\w-]+\.(?:js|css))$/;
 const staticDirectories = /^(?:images|icons|fonts|i18n)\//;
 const staticExtensions = /\.(?:js|css|woff2?|ttf|otf|svg|png|jpe?g|gif|ico|webp|avif|json)$/;
+const soundFiles = /^sounds\/[\w-]+\.wav$/;
 
 async function collect(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -27,7 +28,11 @@ async function collect(directory) {
     else if (entry.isFile()) {
       const name = relative(output, path).split(sep).join('/');
       if (name === 'sw.js' || name === 'pwa-assets.json' || name === 'deployment.json') continue;
-      if (rootFiles.test(name) || (staticDirectories.test(name) && staticExtensions.test(name))) {
+      if (
+        rootFiles.test(name) ||
+        (staticDirectories.test(name) && staticExtensions.test(name)) ||
+        soundFiles.test(name)
+      ) {
         files.push({ url: `/${name}`, sha256: sha256(await readFile(path)) });
       }
     }
