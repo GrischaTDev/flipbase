@@ -56,27 +56,28 @@
 ### Task 3: Prüfung und Übergabe
 
 - [x] Gezielte betroffene Service-, Modell-, Handler- und Komponententests ausführen.
-- [x] Gerenderte Schalter und Probehören durch Angular-DOM-Tests auf der vorhandenen Einstellungsseite prüfen. Manuelle Browserprüfung wegen getrennter Loopback-Netze nicht möglich; echte Browser-/Audiofreigabe bleibt offen.
+- [x] Gerenderte Schalter und Probehören durch Angular-DOM-Tests auf der vorhandenen Einstellungsseite prüfen. Die anschließende Live-Bedienprüfung vom 9. November ist unten dokumentiert; eine akustische Bewertung wurde nicht vorgenommen.
 - [x] Unabhängige Gesamtprüfung durchführen und konkrete Fehler beheben.
 - [x] Eigene Dateien formatieren, Vorabcheck mit Node 22 ausführen und tatsächliche Prüflücken dokumentieren. Nach zwei behobenen Umgebungseinflüssen wurden die Orchestrierung und sämtliche verbleibenden Prüfungen desselben Plans erfolgreich ausgeführt; bestandene unveränderte Prüfungen wurden wiederverwendet.
 - [x] `docs/AI-CHANGELOG.md` mit Umsetzung und Nachweisen abschließen und den lokalen Aufgabenzweig für die Übergabe vorbereiten. Der Nutzer hat Branch-Push, PR, Merge nach erfolgreichen Pflichtprüfungen und anschließende Bereinigung ausdrücklich freigegeben.
 
-## Abschlussnachweis
+## Lokaler Umsetzungsnachweis vom 8. November 2026
 
 - 904 Node-, 227 DOM- und 2.620 Angular-Tests im ausgewählten lokalen Umfang bestanden.
 - 168 Skriptverträge und 11 Orchestrierungsfälle bestanden; Format, Lint, Typen und Suite-Audit geprüft.
 - 12 Edge-Handlerfälle und 30 SQL-Fälle bestanden; Migration auf Altbestand und leerer Folge-Diff nachgewiesen.
 - Produktionsbuild mit Angular-Vorlagen und PWA-Paket erfolgreich.
 - Unabhängige Codeprüfung ohne offene Befunde.
-- Echte Browser-Audiowiedergabe sowie vollständige Datenbank-, Browser- und PWA-Freigabe bleiben CI beziehungsweise Geräteprüfung vorbehalten.
+- Der ausgewählte CI-Freigabeumfang wurde anschließend mit PR #595 bestätigt. Die Live-Bedienprüfung folgt unten; die hörbare Wiedergabe wurde nicht akustisch bewertet.
 
 ## Nachtrag: getrennte Bereitstellung von Web und Edge-Funktion
 
 PR #595 ist nach grüner vollständiger CI als `ee59d34` gemergt. Web-Release,
 SQL-Migration und öffentliche Auslieferung sind erfolgreich nachgewiesen.
 Der öffentliche Handler `webhook-dispatch` wird laut dokumentiertem Releaseweg
-separat installiert. Die alte Fassung lehnt den neuen Verkaufston-Schlüssel ab;
-der dafür notwendige Betreiberzugang ist in dieser Umgebung nicht verfügbar.
+separat installiert. Die zunächst betriebene Fassung lehnte den neuen Verkaufston-Schlüssel ab;
+der dafür notwendige Betreiberzugang war am 8. November in dieser Umgebung
+nicht verfügbar.
 
 - [x] Auf `juna/notification-sound-compatibility` bestätigte Serverunterstützung
       getrennt vom Legacy-Tonstatus führen; alte Handler erhalten keine neuen
@@ -88,11 +89,33 @@ der dafür notwendige Betreiberzugang ist in dieser Umgebung nicht verfügbar.
       11 Orchestrierungsfälle sowie Produktionsbau nachgewiesen. Eine veraltete
       Workspace-Fixture korrigiert und gezielt nachgeprüft; erfolgreiche
       unveränderte Prüfungen weiterverwendet und den identischen Plan vollständig
-      abgeschlossen. CI und Auslieferung werden im zugehörigen PR dokumentiert.
+      abgeschlossen. Die Korrektur wurde mit PR #598 veröffentlicht.
       Die vorhandene Nutzerfreigabe für den Soundauftrag umfasst die notwendige
       Korrektur.
-- [ ] Geprüften Handler über den bestehenden Betreiberzugang installieren und
-      seinen tatsächlichen Laufzeitstand bestätigen. Ohne diesen Nachweis sind
-      die unabhängigen Toneinstellungen noch nicht vollständig freigegeben.
-- [ ] Verbleibende Remote-Aufgabenbranches löschen. Die GitHub-Anbindung bietet
-      keinen Löschaufruf; CLI und verfügbarer Browser sind nicht angemeldet.
+- [x] Geprüften Handler über den bestehenden Betreiberzugang atomar installiert,
+      Host-Prüfsumme bestätigt und den bestehenden Container neu gestartet.
+- [x] Tatsächlichen Laufzeitstand über Container-Gesundheit und Dateihash
+      bestätigt; unabhängiges Speichern mit jeweils einem ausgeschalteten Ton
+      in der öffentlichen Oberfläche durch erneutes Laden geprüft.
+- [x] Remote-Aufgabenbranches der PRs #595 und #598 gelöscht; am 9. November
+      bestätigt.
+
+## Betriebsnachweis vom 9. November 2026
+
+Der Betreiberzugang über die Hetzner-Konsole ist jetzt verfügbar. Die Zieldatei
+wurde nach Sicherung der bisherigen Datei atomar eingesetzt; der Host bestätigt
+den Zielhash. Der bestehende Funktionscontainer wurde erfolgreich neu gestartet.
+Der [Betriebsnachweis](../../implementation/notification-sound-rollout.md) hält
+Ausgangslage und Eingriff fest. Derselbe Container ist nach dem Neustart gesund;
+die Datei im Container entspricht dem Zielhash. Die öffentliche Einstellungsseite
+in Version `0.426.1` zeigt beide Schalter und Vorschauen. Aus/an und an/aus wurden
+jeweils gespeichert und nach erneutem Laden bestätigt; an/an wurde anschließend
+wiederhergestellt und ebenso bestätigt. Beide Vorschauen blieben ohne
+UI-Fehlermeldung; eine akustische Bewertung ist damit nicht belegt.
+
+Backup unter `/root/sound.Mdbu0i/webhook-settings.ts` mit der ursprünglichen
+Prüfsumme und Verzeichnismodus `0700` bestätigt. Der Containerstart ist mit
+`2026-11-09T11:26:50.682470354Z` belegt. Der separate Rollout und die funktionale
+Live-Prüfung sind abgeschlossen. Es wurden weder ein echtes Verkaufsereignis
+noch ein externer Webhook ausgelöst; die Nachweise betreffen Einstellungen und
+Vorschauaufrufe.
