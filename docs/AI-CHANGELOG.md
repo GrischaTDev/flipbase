@@ -1,5 +1,41 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-09 - Juna - Separaten Sound-Rollout abschließen
+
+**Anlass:** Die unabhängigen Toneinstellungen aus PR #595 benötigten zusätzlich
+die passende öffentliche Edge-Funktion. Der mit PR #598 ausgelieferte
+Kompatibilitätsschutz erhält das Speichern mit dem alten Handler, ersetzt dessen
+Aktualisierung aber nicht. Der Betreiberzugang über die Hetzner-Konsole steht
+inzwischen zur Verfügung.
+
+**Durchgeführt:** Der öffentliche Funktionscontainer verwendete vor dem Eingriff
+die alte Datei aus `/opt/supabase/volumes/functions`. Nach deren Sicherung wurde
+die Zieldatei aus dem unveränderlichen Feature-Merge `ee59d34` mit bestätigter
+Prüfsumme atomar eingesetzt. Besitzer und Modus bleiben `root:root` und `0664`;
+der Host bestätigt 5.128 Bytes und den Zielhash. Der bestehende Container wurde
+erfolgreich neu gestartet. Dateistände, Backup und Neustartzeit stehen im
+[Betriebsnachweis](implementation/notification-sound-rollout.md).
+
+**Live geprüft:** Derselbe Container ist nach dem Neustart gesund und liefert
+den Zielhash auch für die Datei im Container. Die öffentliche Einstellungsseite
+in Version `0.426.1` zeigt nach frischem Laden beide Schalter und Vorschauen.
+Allgemeiner Ton aus/Verkaufston an sowie die umgekehrte Kombination wurden
+jeweils gespeichert und durch erneutes Laden bestätigt. Anschließend wurde der
+Ausgangszustand an/an ebenso bestätigt wiederhergestellt. Beide Vorschauen
+wurden einzeln ohne UI-Fehlermeldung betätigt; keine akustische Bewertung.
+Es wurden weder Testverkäufe noch externe Webhooks ausgelöst.
+
+**Abschluss:** Backup unter `/root/sound.Mdbu0i/webhook-settings.ts` mit der
+bisherigen Prüfsumme bestätigt; das Verzeichnis hat den Modus `0700`.
+Containerstart: `2026-11-09T11:26:50.682470354Z`. Der separate Rollout und die
+funktionale Live-Prüfung sind abgeschlossen. Die Remote-Zweige der PRs #595
+und #598 sind gelöscht.
+
+**Dokumentationsprüfung:** Unter Node 22 erfolgreich: `preflight:plan`,
+`preflight`, `format:check` und `lint`. Der Plan wählt nur die
+Markdown-Prüfung für drei Dokumentationspfade; Anwendungstests und Bau sind
+nicht ausgewählt. Es wurden keine Anwendungsdateien geändert.
+
 ## 2026-11-08 - Juna - Widescreen-Layouts für Übersicht, Einkäufe, Verkäufe und Marktplatzübersicht
 
 **Nutzerwunsch:** Im Widescreen-Modus sollen die Seiten Schritt für Schritt sinnvoll für breite Monitore (z. B. 49 Zoll / 32:9) aufgeteilt werden:
