@@ -30,7 +30,8 @@ def archive_build(source: Path, destination: Path) -> None:
     paths = set()
     allowed = re.compile(
         r'/(?:index\.html|manifest\.webmanifest|favicon\.ico|[\w-]+\.(?:js|css))|'
-        r'/(?:images|icons|fonts|i18n)/[\w./-]+\.(?:js|css|woff2?|ttf|otf|svg|png|jpe?g|gif|ico|webp|avif|json)',
+        r'/(?:images|icons|fonts|i18n)/[\w./-]+\.(?:js|css|woff2?|ttf|otf|svg|png|jpe?g|gif|ico|webp|avif|json)|'
+        r'/sounds/[\w-]+\.wav',
         re.ASCII,
     )
     for asset in assets:

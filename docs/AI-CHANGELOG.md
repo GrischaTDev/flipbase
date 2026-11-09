@@ -1,5 +1,44 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-09 - Juna - Klassischen Ka-ching-Verkaufston einsetzen
+
+**Nutzerkorrektur:** Der bisherige elektronische Verkaufston entspricht nicht
+dem gewünschten deutlichen Ka-ching-Kassenklang wie bei Shopify oder eBay.
+
+**Umsetzung:** Die synthetische Verkaufstonfolge wird durch eine kurze Aufnahme
+mit mechanischem Anschlag und Glockenklang ersetzt. Die 1,2 Sekunden lange
+CC0-Datei stammt aus CapsLoks „Cash Register Fake.wav“ in der Kurzfassung von
+Slap Alert; Quelle, Lizenz und unveränderte Prüfsumme stehen unter
+`public/sounds/README.md`. Allgemeiner Ton und getrennte Einstellungen bleiben
+erhalten. Die Aufnahme wird über den bestehenden Audiokontext abgespielt und
+in das geprüfte PWA-Inventar sowie das Versionsarchiv aufgenommen.
+
+**Auslieferung:** Der Review fand eine Rückfalllücke für neue Assetklassen:
+Laufender und nächster Build müssen jeweils mit dem Archivierer aus ihrem
+eigenen Image gesichert werden. Der Deploymenthelfer ist entsprechend
+korrigiert; die bestehende Digest-Regression prüft Vorwärtswechsel, Rückfall,
+historischen Fallback und weiterhin gesperrte Hash-/Pfadfehler. Die geprüfte
+Hostkopie von `deploy.sh` muss vor dem WAV-Release übernommen werden;
+der konkrete Vollzugsnachweis wird im zugehörigen PR festgehalten.
+
+**Prüfstand:** Unter Node 22 erfolgreich: Format, Lint, Typen, Suite-Audit,
+195 ausgewählte Skriptfälle, 11 Orchestrierungsfälle, 3.217 Anwendungstests
+in 273 Dateien und Produktionsbau. Der Vorabcheck stoppte zunächst an einem
+fehlenden npm-Cacheeintrag für den gesperrten TypeScript-Parser. Nach Abruf
+der unveränderten Registrydatei und Abgleich mit der Lock-Prüfsumme bestand
+der betroffene Offline-/ESM-Test; die noch offenen Prüfgruppen wurden mit
+derselben Auswahl separat fortgesetzt. Die gezielte Digest-Regression ist
+ebenfalls erfolgreich. Der unabhängige Schlussreview hat keine offenen
+Befunde. Auswahlnachweis:
+`27d875a9346954083e42ea63c989d364313cffd24889a3eda3b693c207c146cd`.
+
+Abgelöste oder verlassene Vorschauen starten nach dem Laden nicht verspätet
+und erzeugen keinen falschen Fehlerhinweis. Die Hörprobe der konkreten
+Aufnahme ist dem Nutzer verlinkt; eine Gleichheit mit den Originaldateien
+von Shopify oder eBay wird nicht behauptet. CI, Hostübernahme und
+Live-Auslieferung werden im zugehörigen PR mit dem tatsächlich ausgeführten
+Stand nachgewiesen.
+
 ## 2026-11-09 - Juna - Separaten Sound-Rollout abschließen
 
 **Anlass:** Die unabhängigen Toneinstellungen aus PR #595 benötigten zusätzlich

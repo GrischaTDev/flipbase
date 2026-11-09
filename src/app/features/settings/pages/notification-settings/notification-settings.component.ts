@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -50,6 +51,7 @@ export class NotificationSettingsComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly soundService = inject(NotificationSoundService);
+  private readonly destroyRef = inject(DestroyRef);
   readonly bellIcon = LucideBell;
   readonly sendIcon = LucideSend;
   readonly volumeIcon = LucideVolume2;
@@ -112,9 +114,11 @@ export class NotificationSettingsComponent {
   private saveRequestId = 0;
   private saveWorkspaceId: string | null = null;
   constructor() {
+    this.destroyRef.onDestroy(() => this.soundService.cancelPreview());
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
       if (workspaceId !== this.saveWorkspaceId) {
+        this.soundService.cancelPreview();
         this.saveWorkspaceId = workspaceId;
         this.saveRequestId += 1;
         this.isSavingWebhookConfig.set(false);
@@ -155,7 +159,13 @@ export class NotificationSettingsComponent {
     });
   }
   async onPreviewSound(kind: NotificationSoundKind): Promise<void> {
-    if (!(await this.soundService.preview(kind))) {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    const result = await this.soundService.preview(kind);
+    if (
+      result === false &&
+      !this.destroyRef.destroyed &&
+      workspaceId === this.workspaceService.currentWorkspace()?.id
+    ) {
       this.toast.error('Der Ton konnte nicht abgespielt werden.');
     }
   }

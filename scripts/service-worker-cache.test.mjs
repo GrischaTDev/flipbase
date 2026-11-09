@@ -40,7 +40,11 @@ test('worker excludes auth, business and external requests, including misleading
     '/api/session.js',
     '/marketplace-browser/image.png',
     '/orders.json',
+    '/sounds/unlisted.mp3',
+    '/sounds/private.json',
+    '/sounds/../private.wav',
     'https://external.test/a.js',
+    'https://external.test/sounds/sale-cash-register.wav',
   ]) {
     assert.equal(await worker.request(path), undefined, path);
   }
@@ -80,6 +84,37 @@ test('an old document repairs a missing file from its exact archived release aft
   const response = await worker.request('/chunk-A1.js', 'old');
   assert.equal(response.status, 200);
   assert.equal(await response.text(), 'lazy-a');
+});
+
+test('an old document keeps its exact archived sale recording available offline', async () => {
+  const worker = createWorker();
+  await worker.dispatch('install');
+  const build = 'b'.repeat(64);
+  const path = '/sounds/sale-cash-register.wav';
+  const bytes = new Uint8Array([82, 73, 70, 70, 255, 0, 128, 64]);
+  const { createHash } = await import('node:crypto');
+  worker.resources.set(
+    `/app-builds/${build}/pwa-assets.json`,
+    JSON.stringify({
+      ...worker.inventory,
+      buildId: build,
+      assets: [
+        ...worker.inventory.assets,
+        { url: path, sha256: createHash('sha256').update(bytes).digest('hex') },
+      ],
+    }),
+  );
+  worker.resources.set(`/app-builds/${build}${path}`, bytes);
+  worker.resources.set(path, 'incompatible new recording');
+  await (
+    await worker.caches.open('flipbase-pwa-clients')
+  ).put('/__pwa_clients/old', new Response(build));
+  const response = await worker.request(path, 'old');
+  assert.equal(response.status, 200);
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
+  worker.resources.clear();
+  const offline = await worker.request(path, 'old');
+  assert.deepEqual(new Uint8Array(await offline.arrayBuffer()), bytes);
 });
 
 test('an unknown foreign client does not prevent another document from repairing its own cache', async () => {

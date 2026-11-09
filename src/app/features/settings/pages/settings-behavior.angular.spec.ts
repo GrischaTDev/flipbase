@@ -22,6 +22,7 @@ import { WebhookConfig } from '../../../core/models/webhook.models';
 import { AuthService } from '../../../core/services/auth.service';
 import {
   NotificationSoundKind,
+  NotificationSoundPreviewResult,
   NotificationSoundService,
 } from '../../../core/services/notification-sound.service';
 
@@ -1268,7 +1269,7 @@ async function renderNotifications(
     readonly permission?: 'granted' | 'denied' | 'default' | 'unsupported';
     readonly permissionResult?: boolean;
     readonly pushTestResult?: boolean;
-    readonly previewResult?: boolean;
+    readonly previewResult?: NotificationSoundPreviewResult;
     readonly supportsSaleSound?: boolean;
     readonly centralThrow?: boolean;
   } = {},
@@ -1319,6 +1320,7 @@ async function renderNotifications(
   };
   const soundService = {
     preview: vi.fn(async (_kind: NotificationSoundKind) => options.previewResult ?? true),
+    cancelPreview: vi.fn(),
   };
   const syncStatus = {
     istZentralGemeldet: vi.fn(() => options.centralThrow ?? false),
@@ -1513,6 +1515,40 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     expect(webhookService.updateConfig).not.toHaveBeenCalled();
     expectOnlyToast(toast, 'error', 'Der Ton konnte nicht abgespielt werden.');
   });
+
+  it('zeigt für eine ersetzte Vorschau keinen Fehler', async () => {
+    const { fixture, webhookService, toast } = await renderNotifications({
+      previewResult: 'cancelled',
+    });
+
+    await fixture.componentInstance.onPreviewSound('sale');
+
+    expect(toast.toasts()).toEqual([]);
+    expect(webhookService.updateConfig).not.toHaveBeenCalled();
+  });
+
+  it.each(['workspace', 'destroy'] as const)(
+    'bricht beim Verlassen durch %s die Vorschau ab und zeigt keinen verspäteten Fehler',
+    async (leave) => {
+      const { fixture, currentWorkspace, soundService, toast } = await renderNotifications();
+      const pending = deferred<NotificationSoundPreviewResult>();
+      soundService.preview.mockReturnValueOnce(pending.promise);
+      soundService.cancelPreview.mockClear();
+      const preview = fixture.componentInstance.onPreviewSound('sale');
+
+      if (leave === 'workspace') {
+        currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+        flushEffects(fixture);
+      } else {
+        fixture.destroy();
+      }
+      expect(soundService.cancelPreview).toHaveBeenCalledOnce();
+      pending.resolve(false);
+      await preview;
+
+      expect(toast.toasts()).toEqual([]);
+    },
+  );
 
   it('leert A-Geheimnisse beim Wechsel, ignoriert verspätetes A und patcht erst geladenes B', async () => {
     const { fixture, currentWorkspace, config, loadedWorkspaceId } = await renderNotifications();

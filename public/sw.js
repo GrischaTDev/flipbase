@@ -22,7 +22,8 @@ function allowedPath(path) {
     /^\/(?:index\.html|manifest\.webmanifest|favicon\.ico|[\w-]+\.(?:js|css))$/.test(path) ||
     /^\/(?:images|icons|fonts|i18n)\/[\w./-]+\.(?:js|css|woff2?|ttf|otf|svg|png|jpe?g|gif|ico|webp|avif|json)$/.test(
       path,
-    )
+    ) ||
+    /^\/sounds\/[\w-]+\.wav$/.test(path)
   );
 }
 function validateInventory(inventory, buildId = BUILD_ID) {
