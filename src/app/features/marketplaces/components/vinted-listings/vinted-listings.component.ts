@@ -3,6 +3,7 @@ import {
   type VintedRelistingPlan,
 } from '../../services/vinted-relisting-plan.store';
 import {
+  canDiscardFailedRelisting,
   isVintedListingConfirmationPending,
   type VintedListingJob,
 } from '../../models/vinted-listing-job';
@@ -32,6 +33,7 @@ import {
   LucidePencil,
   LucideSquarePen,
   LucideTrash2,
+  LucideX,
 } from '@lucide/angular';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -56,6 +58,7 @@ import { createVintedListingPriceEditor } from '../../services/vinted-listing-pr
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-vinted-listings',
@@ -91,6 +94,10 @@ export class VintedListingsComponent {
   readonly editIcon = LucidePencil;
   readonly listingEditIcon = LucideSquarePen;
   readonly deleteIcon = LucideTrash2;
+  readonly discardIcon = LucideX;
+  readonly canDiscardFailedRelisting = canDiscardFailedRelisting;
+  readonly discardingFailedPlan = signal<string | null>(null);
+  private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmDialogService);
   readonly plans = inject(VintedRelistingPlanStore);
   readonly editingPlan = signal<VintedListingJob | null>(null);
@@ -417,6 +424,47 @@ export class VintedListingsComponent {
         if (account) void this.selectLinkedConnection(connectionId, workspaceId);
       });
     });
+  }
+
+  async discardFailedRelisting(entry: MarketplaceEntry, plan: VintedRelistingPlan): Promise<void> {
+    if (
+      !this.canManageEntry(entry) ||
+      this.operations.isRunning(entry) ||
+      this.discardingFailedPlan() ||
+      !canDiscardFailedRelisting(plan.job)
+    )
+      return;
+    const confirmed = await this.confirm.frage({
+      titel: 'Fehlgeschlagenes Relisting verwerfen?',
+      text: 'Der fehlgeschlagene Auftrag wird beendet. Die ursprüngliche Anzeige bleibt erhalten und wird zur Bearbeitung freigegeben.',
+      bestaetigenText: 'Relisting verwerfen',
+    });
+    if (!confirmed) return;
+    const current = this.plans
+      .plans()
+      .find((candidate) => candidate.job.id === plan.job.id && this.matchesPlan(candidate.job, entry));
+    if (
+      !current ||
+      current.job.version !== plan.job.version ||
+      !canDiscardFailedRelisting(current.job) ||
+      !this.canManageEntry(entry) ||
+      this.operations.isRunning(entry) ||
+      this.discardingFailedPlan()
+    )
+      return;
+
+    this.discardingFailedPlan.set(plan.job.id);
+    try {
+      await this.plans.discardFailed(current.job);
+    } catch {
+      if (this.canManageEntry(entry))
+        this.toast.error(
+          'Relisting konnte nicht verworfen werden',
+          'Der Auftrag wurde nicht freigegeben. Lade den Status neu und versuche es erneut.',
+        );
+    } finally {
+      this.discardingFailedPlan.set(null);
+    }
   }
 
   async deleteListing(entry: MarketplaceEntry): Promise<void> {
