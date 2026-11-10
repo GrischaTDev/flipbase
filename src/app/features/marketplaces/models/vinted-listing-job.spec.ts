@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canDiscardFailedRelisting,
   parseVintedListingJob,
   parseVintedListingPermission,
   vintedListingJobLabel,
@@ -209,4 +210,28 @@ it('zeigt bei bekannter neuer Kennung die laufende Nachprüfung zeitlich begrenz
     expect(vintedRelistingJobLabel({ ...pending, ...changed }, now)).not.toBe(
       'Veröffentlichung wird geprüft …',
     );
+});
+
+it('lässt nur sicher vor der Löschung gescheiterte Cloud-Relists verwerfen', () => {
+  const failed = {
+    ...parseVintedListingJob(job, job.workspaceId),
+    state: 'failed' as const,
+    action: 'publish' as const,
+    executionMode: 'cloud' as const,
+    relistExternalId: '46303',
+    relistDeletedAt: null,
+  };
+  expect(canDiscardFailedRelisting(failed)).toBe(true);
+  for (const change of [
+    { state: 'queued' as const },
+    { state: 'writing' as const },
+    { state: 'outcome_unknown' as const },
+    { relistDeletedAt: '2026-11-10T20:00:00Z' },
+    { externalId: '46304' },
+    { relistExternalId: null },
+    { action: 'vinted_draft' as const },
+    { executionMode: 'local' as const },
+  ]) {
+    expect(canDiscardFailedRelisting({ ...failed, ...change })).toBe(false);
+  }
 });
