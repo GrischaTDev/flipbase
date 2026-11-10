@@ -43,7 +43,7 @@ $$;
 set local role service_role;
 select lives_ok($$select pg_temp.relist_import(jsonb_build_array(jsonb_build_object('kind','publication','externalId','46910','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Veralteter Import','price',1))))$$,'Import während Vorbereitung bleibt erfolgreich');
 select is((select body from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),(select source_body from relist_context),'Vorbereitung schützt den vollständigen Originalinhalt');
-select lives_ok($$select pg_temp.relist_import('[]')$$,'Vollständiger Import darf während Relist ohne alte Anzeige ankommen');
+select lives_ok($$statement$select pg_temp.relist_import('[]')$statement$$,'Vollständiger Import darf während Relist ohne alte Anzeige ankommen');
 select is((select sort_at from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),(select source_sort from relist_context),'Fehlende Quelle wird weder geprunt noch umsortiert');
 
 reset role;
@@ -62,7 +62,7 @@ reset role;
 update public.marketplace_listing_jobs set state='failed',error_code='listing_read_failed' where id=(select (job->>'id')::bigint from relist_context);
 set local role authenticated;
 select throws_ok(
-  $select public.marketplace_cancel_listing_job((select job->>'id' from relist_context),(select (job->>'version')::bigint from relist_context))$,
+  $statement$select public.marketplace_cancel_listing_job((select job->>'id' from relist_context),(select (job->>'version')::bigint from relist_context))$statement$,
   '22023',null,'Fehlgeschlagener Relist nach bestätigter Löschung kann nicht freigegeben werden');
 reset role;
 set local role service_role;
