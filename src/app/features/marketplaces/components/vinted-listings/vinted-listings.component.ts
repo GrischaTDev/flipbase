@@ -442,7 +442,10 @@ export class VintedListingsComponent {
     if (!confirmed) return;
     const current = this.plans
       .plans()
-      .find((candidate) => candidate.job.id === plan.job.id && this.matchesPlan(candidate.job, entry));
+      .find(
+        (candidate) =>
+          candidate.job.id === plan.job.id && this.matchesPlan(candidate.job, entry),
+      );
     if (
       !current ||
       current.job.version !== plan.job.version ||
