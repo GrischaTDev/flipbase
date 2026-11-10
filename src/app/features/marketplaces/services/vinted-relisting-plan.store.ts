@@ -169,7 +169,7 @@ export class VintedRelistingPlanStore {
         plan.job.id === job.id &&
         plan.job.version === job.version &&
         plan.job.workspaceId === account?.workspaceId &&
-        plan.job.connectionId === account.connectionId,
+        plan.job.connectionId === account?.connectionId,
     );
     if (!binding || !current || !canDiscardFailedRelisting(current.job))
       throw new Error('Der Relisting-Auftrag hat sich geändert. Aktualisiere die Anzeige.');
