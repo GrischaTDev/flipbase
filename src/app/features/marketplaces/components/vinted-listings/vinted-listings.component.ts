@@ -440,11 +440,10 @@ export class VintedListingsComponent {
       bestaetigenText: 'Relisting verwerfen',
     });
     if (!confirmed) return;
-    const current = this.plans.plans().find(
-      (candidate) => candidate.job.id === plan.job.id && this.matchesPlan(candidate.job, entry),
-    );
+    const current = this.plans.plans().find((candidate) => candidate.job.id === plan.job.id);
     if (
       !current ||
+      !this.matchesPlan(current.job, entry) ||
       current.job.version !== plan.job.version ||
       !canDiscardFailedRelisting(current.job) ||
       !this.canManageEntry(entry) ||
