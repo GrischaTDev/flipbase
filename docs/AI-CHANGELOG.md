@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-10 - Juna - Fallback-Vergleichsbasis für Inseratskennzahlen bei kurzer Historie
+
+**Problem:** Im Kleiderschrank zeigte die Kennzahlenansicht für neuere Inserate oder frisch synchronisierte Konten (z. B. Burberry Schal bei 1 Stunde +5 Aufrufe / +1 Favorit) bei der Auswahl „Tag“ oder „Woche“ gar keinen Zuwachs an.
+
+**Ursache:** Die SQL-Funktion `marketplace_read_listing_metric_changes` filterte die Vergleichsbasis (`baseline`) strikt auf Messpunkte vor mindestens 24 Stunden (`<= observed_at - interval '1440 minutes'`) bzw. vor mindestens 7 Tagen. War ein Inserat jünger als 24 Stunden, fand die Abfrage keinen Vergleichswert (`baseline = null`), wodurch Aufrufe und Favoriten als `null` zurückgegeben und in der Benutzeroberfläche ausgeblendet wurden.
+
+**Umsetzung:**
+
+- In `public.marketplace_read_listing_metric_changes` (Schema `340_marketplace_listing_statistics.sql` und Migration `20261110234000_vinted_listing_statistics_fallback_baseline.sql`) die Baseline-Sortierung erweitert: Existiert für `p_period_minutes > 5` noch kein Messpunkt vor dem gewünschten Zeitfenster, wird als Fallback der älteste bekannte Messwert des Inserats im Fenster gewählt.
+- Dadurch zeigen neuere Inserate bei „Tag“ und „Woche“ alle Zuwächse an, die seit Erfassungsbeginn angefallen sind (mindestens die Zuwächse der letzten Stunde), anstatt leer zu bleiben.
+- `supabase/tests/marketplace-listing-statistics.test.sql` um Testfälle für Inserate mit Historie unter 24 Stunden bei 60-, 1440- und 10080-Minuten-Vergleichen ergänzt.
+
+**Prüfung:** Migrations- und Schemavalidierung (`scripts/check-migration-changes.mjs`), Preflight-Planung, TypeScript-Typprüfung, Vitest Angular-Tests (`MarketplaceListingStatisticsStore`), Format (`prettier`) und Lint (`eslint`).
+
 ## 2026-11-09 - Juna - Klassischen Ka-ching-Verkaufston einsetzen
 
 **Nutzerkorrektur:** Der bisherige elektronische Verkaufston entspricht nicht

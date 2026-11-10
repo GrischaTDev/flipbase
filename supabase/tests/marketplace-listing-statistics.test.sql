@@ -47,6 +47,21 @@ set local role authenticated;
 select is(pg_temp.statistics()->>'views','0','Unveränderter Folgeabruf entfernt den vorherigen Zuwachs');
 select is(pg_temp.statistics()->>'favorites','0','Unveränderte Favoriten haben keinen neuen Zuwachs');
 set local role service_role;
+insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
+ ('34000000-0000-4000-8000-000000000032','34000000-0000-4000-8000-000000000011','34000000-0000-4000-8000-000000000021','publication','listing-young','{"title":"Neuer Artikel","metrics":{"views":10,"favorites":1}}','2026-10-02T10:05:00Z','2026-10-02T10:05:00Z');
+update public.marketplace_account_entries set observed_at='2026-10-02T11:05:00Z',body='{"metrics":{"views":15,"favorites":2}}' where external_id='listing-young';
+update public.marketplace_account_entries set observed_at='2026-10-02T12:05:00Z',body='{"metrics":{"views":20,"favorites":3}}' where external_id='listing-young';
+create function pg_temp.young_statistics(p_minutes integer default 5) returns jsonb language sql as $$
+ select item from jsonb_array_elements(public.marketplace_read_listing_metric_changes('34000000-0000-4000-8000-000000000011','34000000-0000-4000-8000-000000000021',p_minutes)->'items') item
+ where item->>'entryId'='34000000-0000-4000-8000-000000000032';
+$$;
+set local role authenticated;
+select is(pg_temp.young_statistics(60)->>'views','5','Jüngeres Inserat verwendet die 60-Minuten-Basis');
+select is(pg_temp.young_statistics(1440)->>'views','10','Tagesvergleich nutzt bei kurzer Historie den ältesten Messwert als Basis');
+select is((pg_temp.young_statistics(1440)->>'baselineAt')::timestamptz,'2026-10-02T10:05:00Z'::timestamptz,'Tagesbasis dokumentiert den tatsächlichen Startmesspunkt');
+select is(pg_temp.young_statistics(10080)->>'views','10','Wochenvergleich nutzt bei kurzer Historie ebenfalls den ältesten Messwert');
+select is((pg_temp.young_statistics(10080)->>'baselineAt')::timestamptz,'2026-10-02T10:05:00Z'::timestamptz,'Wochenbasis dokumentiert den tatsächlichen Startmesspunkt');
+set local role service_role;
 update public.marketplace_account_entries set observed_at='2026-10-02T12:15:00Z',body='{"metrics":{"views":null,"favorites":4}}' where external_id='listing-340';
 set local role authenticated;
 select is(pg_temp.statistics()->>'views',null,'Unbekannte Aufrufe bleiben unbekannt');
