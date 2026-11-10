@@ -1,35 +1,5 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-11-10 - Juna - Fehlgeschlagene Vinted-Relistings verwerfen
-
-**Anlass:** Mehrere Vorbereitungsversuche endeten mit „Vorbereitung bei Vinted
-fehlgeschlagen“. Der Relistplan sperrte danach weiterhin den Artikel. Das
-Schließen der Fehlermeldung in „Laufende Aktionen“ veränderte lediglich die
-sichtbare Benachrichtigung; Artikelbearbeitung und Löschen blieben blockiert.
-
-**Umsetzung:** Die bestehende serverseitige Abbruchfunktion akzeptiert jetzt
-endgültig fehlgeschlagene Cloud-Relists nur dann, wenn die Löschung der
-ursprünglichen Vinted-Anzeige nicht bestätigt ist und keine neue Anbieterkennung
-vorliegt. Das Kreuz in „Laufende Aktionen“ bietet dann nach Bestätigung die
-tatsächliche Freigabe statt bloßem Ausblenden. Auch im Kleiderschrank gibt es
-die Aktion „Fehlgeschlagenes Relisting verwerfen“. Der Auftrag bleibt in der
-Historie einschließlich Fehlercode erhalten; nur die Sperre entfällt.
-Planabgleiche dürfen eine gerade verworfene Karte nicht erneut sperren.
-
-**Sicherheit:** Nach bestätigter Löschung, während der Ausführung oder bei
-unklarem Veröffentlichungsergebnis ist dieser Weg gesperrt. Der vorhandene
-Bearbeitungs-/Wiederaufnahmeweg bleibt erhalten. Konto- und
-Workspaceberechtigungen, Auftragsversion sowie der gültige Zustand werden
-serverseitig erneut geprüft. Kein produktiver Lösch- oder Veröffentlichungsversuch
-wurde ausgelöst.
-
-**Prüfstand:** Modell-, Komponenten- und SQL-Regressionsfälle ergänzt.
-Format, Typprüfung, lokale Supabase-Migrationstests, Browserprüfung und
-CI-Pflichtprüfungen konnten in der hier verfügbaren GitHub-only-Sitzung nicht
-ausgeführt werden; kein Merge und kein produktiver Rollout. Die ursprünglichen
-Vinted-Fehlversuche sind ohne die produktiven Worker-Protokolle noch nicht
-ursächlich zugeordnet.
-
 ## 2026-11-09 - Juna - Klassischen Ka-ching-Verkaufston einsetzen
 
 **Nutzerkorrektur:** Der bisherige elektronische Verkaufston entspricht nicht
@@ -68,6 +38,36 @@ Aufnahme ist dem Nutzer verlinkt; eine Gleichheit mit den Originaldateien
 von Shopify oder eBay wird nicht behauptet. CI, Hostübernahme und
 Live-Auslieferung werden im zugehörigen PR mit dem tatsächlich ausgeführten
 Stand nachgewiesen.
+
+## 2026-11-10 - Juna - Fehlgeschlagene Vinted-Relistings verwerfen
+
+**Anlass:** Mehrere Vorbereitungsversuche endeten mit „Vorbereitung bei Vinted
+fehlgeschlagen“. Der Relistplan sperrte danach weiterhin den Artikel. Das
+Schließen der Fehlermeldung in „Laufende Aktionen“ veränderte lediglich die
+sichtbare Benachrichtigung; Artikelbearbeitung und Löschen blieben blockiert.
+
+**Umsetzung:** Die bestehende serverseitige Abbruchfunktion akzeptiert jetzt
+endgültig fehlgeschlagene Cloud-Relists nur dann, wenn die Löschung der
+ursprünglichen Vinted-Anzeige nicht bestätigt ist und keine neue Anbieterkennung
+vorliegt. Das Kreuz in „Laufende Aktionen“ bietet dann nach Bestätigung die
+tatsächliche Freigabe statt bloßem Ausblenden. Auch im Kleiderschrank gibt es
+die Aktion „Fehlgeschlagenes Relisting verwerfen“. Der Auftrag bleibt in der
+Historie einschließlich Fehlercode erhalten; nur die Sperre entfällt.
+Planabgleiche dürfen eine gerade verworfene Karte nicht erneut sperren.
+
+**Sicherheit:** Nach bestätigter Löschung, während der Ausführung oder bei
+unklarem Veröffentlichungsergebnis ist dieser Weg gesperrt. Der vorhandene
+Bearbeitungs-/Wiederaufnahmeweg bleibt erhalten. Konto- und
+Workspaceberechtigungen, Auftragsversion sowie der gültige Zustand werden
+serverseitig erneut geprüft. Kein produktiver Lösch- oder Veröffentlichungsversuch
+wurde ausgelöst.
+
+**Prüfstand:** Modell-, Komponenten- und SQL-Regressionsfälle ergänzt.
+Format, Typprüfung, lokale Supabase-Migrationstests, Browserprüfung und
+CI-Pflichtprüfungen konnten in der hier verfügbaren GitHub-only-Sitzung nicht
+ausgeführt werden; kein Merge und kein produktiver Rollout. Die ursprünglichen
+Vinted-Fehlversuche sind ohne die produktiven Worker-Protokolle noch nicht
+ursächlich zugeordnet.
 
 ## 2026-11-09 - Juna - Separaten Sound-Rollout abschließen
 
