@@ -62,6 +62,7 @@ function setup(connectionId: string) {
           plans: signal([]),
           error: signal(null),
           refresh: vi.fn(),
+          discardFailed: vi.fn().mockResolvedValue(undefined),
           canEdit: VintedRelistingPlanStore.prototype.canEdit,
         },
       },
@@ -599,6 +600,90 @@ it('bindet dieselbe Karte vor Löschung, bei Fehlern und bis zum neuen importier
   TestBed.tick();
   expect(component.tableRows().map((row) => row.entry.id)).toEqual(['before', stableId, 'after']);
   expect(component.tableRows()[1]?.entry.metrics).toEqual(imported.metrics);
+});
+
+it('gibt einen vor der Löschung gescheiterten Relist nach Bestätigung wieder zur Bearbeitung frei', async () => {
+  const { component } = setup('');
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: '46300000-0000-4000-8000-000000000099',
+          externalId: '123',
+          title: 'Zu bearbeitende Jacke',
+          publicationState: 'active',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0]!;
+  const record = acceptedPlan();
+  const plan = {
+    ...record,
+    job: {
+      ...record.job,
+      state: 'failed' as const,
+      connectionId: entry.connectionId,
+      executionMode: 'cloud' as const,
+      relistEntryId: entry.id,
+      relistDeletedAt: null,
+      externalId: null,
+      errorCode: 'provider_unavailable',
+    },
+    imageUrl: null,
+    label: 'Vorbereitung bei Vinted fehlgeschlagen',
+  };
+  component.plans.plans.set([plan]);
+  vi.spyOn(TestBed.inject(ConfirmDialogService), 'frage').mockResolvedValue(true);
+  const discard = vi
+    .spyOn(component.plans, 'discardFailed')
+    .mockImplementation(async () => component.plans.plans.set([]));
+  expect(component.actionsBlocked(entry)).toBe(true);
+  await component.discardFailedRelisting(entry, plan);
+  expect(discard).toHaveBeenCalledWith(plan.job);
+  expect(component.actionsBlocked(entry)).toBe(false);
+  expect(component.canCreateFrom(entry)).toBe(true);
+});
+
+it('bietet kein Verwerfen an, wenn Vinted die alte Anzeige bereits bestätigt gelöscht hat', async () => {
+  const { component } = setup('');
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: '46300000-0000-4000-8000-000000000099',
+          externalId: '123',
+          title: 'Bereits entfernte Quelle',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0]!;
+  const record = acceptedPlan();
+  const plan = {
+    ...record,
+    job: {
+      ...record.job,
+      state: 'failed' as const,
+      connectionId: entry.connectionId,
+      relistEntryId: entry.id,
+    },
+    imageUrl: null,
+    label: 'Fehlgeschlagen',
+  };
+  component.plans.plans.set([plan]);
+  const dialog = vi.spyOn(TestBed.inject(ConfirmDialogService), 'frage');
+  const discard = vi.spyOn(component.plans, 'discardFailed');
+  await component.discardFailedRelisting(entry, plan);
+  expect(dialog).not.toHaveBeenCalled();
+  expect(discard).not.toHaveBeenCalled();
+  expect(component.actionsBlocked(entry)).toBe(true);
 });
 
 it('verwendet die servergebundene Entry-ID auch ohne flüchtige Quellkarte', () => {
