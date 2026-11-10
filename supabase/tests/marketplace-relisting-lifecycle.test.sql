@@ -62,7 +62,7 @@ reset role;
 update public.marketplace_listing_jobs set state='failed',error_code='listing_read_failed' where id=(select (job->>'id')::bigint from relist_context);
 set local role authenticated;
 select throws_ok(
-  $statement$select public.marketplace_cancel_listing_job((select job->>'id' from relist_context),(select (job->>'version')::bigint from relist_context))$statement$,
+  $statement$select public.marketplace_cancel_listing_job((select job->>'id' from relist_context),(select version from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)))$statement$,
   '22023',null,'Fehlgeschlagener Relist nach bestätigter Löschung kann nicht freigegeben werden');
 reset role;
 set local role service_role;
@@ -205,7 +205,7 @@ update public.marketplace_listing_jobs set state='failed',error_code='listing_re
 -- den fehlgeschlagenen Auftrag oder seine Diagnose aus der Historie zu löschen.
 savepoint failed_relisting_cancellation;
 set local role authenticated;
-update relist_context set job=public.marketplace_cancel_listing_job(job->>'id',(job->>'version')::bigint);
+update relist_context set job=public.marketplace_cancel_listing_job(job->>'id',(select version from public.marketplace_listing_jobs where id=(relist_context.job->>'id')::bigint));
 select is((select job->>'state' from relist_context),'cancelled','Vor-Delete-Fehler kann ausdrücklich verworfen werden');
 select is(jsonb_array_length(public.marketplace_read_relisting_plans('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021')->'items'),0,'Verworfener Vor-Delete-Relist blockiert den Kleiderschrank nicht mehr');
 select is((select error_code from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'listing_read_failed','Verwerfen erhält den ursprünglichen Diagnosecode');
