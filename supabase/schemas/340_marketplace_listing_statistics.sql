@@ -160,13 +160,26 @@ begin
       and latest.statistic_item_id=item.id
       and latest.workspace_id=p_workspace_id and latest.connection_id=p_connection_id
     left join lateral (
-      select o.* from public.marketplace_listing_metric_observations o
-      where o.workspace_id=p_workspace_id and o.connection_id=p_connection_id and o.entry_id=e.id
-        and o.statistic_item_id=item.id
-        and o.observed_at < e.observed_at
-        -- Standard vergleicht zwei aufeinanderfolgende Abrufe, auch bei verzögertem Zeitplan.
-        and (p_period_minutes=5 or o.observed_at <= e.observed_at - make_interval(mins=>p_period_minutes))
-      order by o.observed_at desc limit 1
+      select b.* from (
+        select o.* from public.marketplace_listing_metric_observations o
+        where o.workspace_id=p_workspace_id and o.connection_id=p_connection_id and o.entry_id=e.id
+          and o.statistic_item_id=item.id
+          and o.observed_at < e.observed_at
+          -- Standard vergleicht den jüngsten Messpunkt vor dem gewünschten Zeitraum.
+          and (p_period_minutes=5 or o.observed_at <= e.observed_at - make_interval(mins=>p_period_minutes))
+        order by o.observed_at desc limit 1
+      ) b
+      union all
+      select f.* from (
+        -- Liegt noch kein Messpunkt vor dem Zeitraum (z. B. 24h / 7d), ältesten verfügbaren Messwert nutzen.
+        select o.* from public.marketplace_listing_metric_observations o
+        where o.workspace_id=p_workspace_id and o.connection_id=p_connection_id and o.entry_id=e.id
+          and o.statistic_item_id=item.id
+          and o.observed_at < e.observed_at
+          and p_period_minutes > 5
+        order by o.observed_at asc limit 1
+      ) f
+      limit 1
     ) baseline on true
     where e.workspace_id=p_workspace_id and e.connection_id=p_connection_id and e.kind='publication'
       and e.body->>'publicationState' is distinct from 'draft'
