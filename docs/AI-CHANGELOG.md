@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-11 - Juna - Lokale Rechercheunterlagen in Git sichern
+
+**Auftrag:** Die bisher nicht eingecheckten Dokumentationsstände aus der älteren Hauptarbeitskopie für den Hauptzweig sichern.
+
+**Ergebnis:** Acht fehlende Sitzungsnotizen in das [datierte Recherchearchiv](AI-CHANGELOG-research-archive-2026-11-11.md) übernommen. Die [Vintz-Startseitenanalyse vom 14. Oktober](research/2026-10-14-vintz-landing-analysis.md) einschließlich 17 zugehöriger Screenshots und Messdateien ergänzt. Historische Befunde sind ausdrücklich als damalige Stände eingeordnet; die anschließende Favoritenkorrektur aus PR #612 bleibt maßgeblich. Anwendung und Laufzeitkonfiguration unverändert.
+
+**Prüfung:** Gegen den aktuellen Hauptzweig abgeglichen, keine der acht Überschriften und keine der 18 Recherchedaten-Dateien war dort enthalten. Alle 18 Dateien sind bytegleich zu den Originalen; fünf JSON-Dateien, zwölf JPEG-Dateien und 17 lokale Verweise erfolgreich geprüft. Vorabcheck, vollständige Formatprüfung und Lint bestanden. Die Markdown-Prüfung lief wegen der Windows-Befehlslängengrenze mit einer nur für diesen Prozess gesetzten PowerShell-Ausführung; Projektwerkzeuge und Prüfumfang unverändert. Die Originaldateien bleiben bis zur bestätigten Übernahme erhalten. Flipbase ist weiterhin nicht in Lissie angelegt.
+
 ## 2026-11-11 - Juna - Favoritenangebote bei weiterem Kontakt stoppen
 
 **Auftrag:** Die drei bestätigten Lücken in einem eigenen Zweig schließen und mit passenden Tests absichern.

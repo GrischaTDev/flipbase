@@ -1,0 +1,513 @@
+{
+  "images": [
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "Vintz",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": false
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/product-real-shirt-256f3e57d10c.webp",
+      "alt": "",
+      "w": 886,
+      "h": 886,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/landing/studio-cardigan-before-v1.webp",
+      "alt": "",
+      "w": 1122,
+      "h": 1402,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/landing/studio-cardigan-after-v1.webp",
+      "alt": "",
+      "w": 1122,
+      "h": 1402,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/product-real-shirt-256f3e57d10c.webp",
+      "alt": "",
+      "w": 886,
+      "h": 886,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/pants-studio-fabafb0486a2.webp",
+      "alt": "",
+      "w": 1600,
+      "h": 1600,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": false
+    }
+  ],
+  "metaCounts": { "description": 2, "ogTitle": 2 },
+  "resources": [
+    {
+      "url": "https://vintz.ai/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+      "type": "link",
+      "transfer": 23408,
+      "decoded": 23108
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/3d-1vk5hzu5rq.css",
+      "type": "link",
+      "transfer": 1309,
+      "decoded": 3713
+    },
+    {
+      "url": "https://vintz.ai/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+      "type": "link",
+      "transfer": 29588,
+      "decoded": 29288
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/1rkfxkodnr_ql.css",
+      "type": "link",
+      "transfer": 88960,
+      "decoded": 580578
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0eis3u3juv1__.css",
+      "type": "link",
+      "transfer": 21556,
+      "decoded": 117159
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/2o5649p64s6mg.css",
+      "type": "link",
+      "transfer": 11337,
+      "decoded": 58511
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/1ct4zu42qfxxb.js",
+      "type": "link",
+      "transfer": 971,
+      "decoded": 1300
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/1gqm0ixwm2c94.js",
+      "type": "script",
+      "transfer": 9960,
+      "decoded": 31932
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/06es8zzmnhasg.js",
+      "type": "script",
+      "transfer": 74479,
+      "decoded": 231724
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/1rm737diirj6u.js",
+      "type": "script",
+      "transfer": 9634,
+      "decoded": 27796
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0g8ku62w0yb2s.js",
+      "type": "script",
+      "transfer": 10154,
+      "decoded": 44022
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/turbopack-0ctxlg9l10w7d.js",
+      "type": "script",
+      "transfer": 4689,
+      "decoded": 10647
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/17jwakrwn9tmv.js",
+      "type": "script",
+      "transfer": 10547,
+      "decoded": 30135
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/2q_kp5c8t1f7t.js",
+      "type": "script",
+      "transfer": 10938,
+      "decoded": 27514
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/029wrynfp0z1n.js",
+      "type": "script",
+      "transfer": 12890,
+      "decoded": 39462
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/2n_cspchycar5.js",
+      "type": "script",
+      "transfer": 30414,
+      "decoded": 110166
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0qpr7gjm4pbeq.js",
+      "type": "script",
+      "transfer": 17555,
+      "decoded": 48480
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0k_o5jhcx5ooa.js",
+      "type": "script",
+      "transfer": 13985,
+      "decoded": 54763
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/28fb4_y241vwl.js",
+      "type": "script",
+      "transfer": 59030,
+      "decoded": 221962
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/017ne7iwbqmbb.js",
+      "type": "script",
+      "transfer": 11970,
+      "decoded": 29881
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/2tntzc5r_rff2.js",
+      "type": "script",
+      "transfer": 50349,
+      "decoded": 148942
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0t82wd9cboarv.js",
+      "type": "script",
+      "transfer": 18506,
+      "decoded": 60869
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0ozkgx0vdqgpj.js",
+      "type": "script",
+      "transfer": 12184,
+      "decoded": 31674
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/3p01k26rp81fs.js",
+      "type": "script",
+      "transfer": 23018,
+      "decoded": 82020
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/0k10gzq8aymr7.js",
+      "type": "script",
+      "transfer": 1890,
+      "decoded": 3188
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/2_xck-zisot8f.js",
+      "type": "script",
+      "transfer": 1398,
+      "decoded": 2484
+    },
+    { "url": "https://vintz.ai/theme-init.js", "type": "link", "transfer": 832, "decoded": 983 },
+    {
+      "url": "https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920",
+      "type": "script",
+      "transfer": 0,
+      "decoded": 0
+    },
+    { "url": "https://vintz.ai/demo", "type": "iframe", "transfer": 8313, "decoded": 42623 },
+    {
+      "url": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "type": "img",
+      "transfer": 26450,
+      "decoded": 26150
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/2jr14dk1tedz2.js",
+      "type": "script",
+      "transfer": 0,
+      "decoded": 76642
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/3-f-tbmz_ol50.js",
+      "type": "script",
+      "transfer": 37748,
+      "decoded": 106892
+    },
+    {
+      "url": "https://vintz.ai/_next/static/chunks/33t69_rbmyysl.js",
+      "type": "script",
+      "transfer": 236551,
+      "decoded": 767714
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1718,
+      "decoded": 4451
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=8nTjltbQWvg6NcbE",
+      "type": "fetch",
+      "transfer": 11588,
+      "decoded": 102025
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=yIp22O3xgPPxC28X",
+      "type": "fetch",
+      "transfer": 2052,
+      "decoded": 10332
+    },
+    {
+      "url": "https://vintz.ai/cdn-cgi/rum?",
+      "type": "xmlhttprequest",
+      "transfer": 300,
+      "decoded": 0
+    },
+    { "url": "https://vintz.ai/api/credit-deal", "type": "fetch", "transfer": 519, "decoded": 453 },
+    {
+      "url": "https://vintz.ai/favicon.ico?favicon.10aowts_5t2ha.ico",
+      "type": "other",
+      "transfer": 14057,
+      "decoded": 13748
+    },
+    {
+      "url": "https://vintz.ai/datenschutz?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 617,
+      "decoded": 601
+    },
+    {
+      "url": "https://vintz.ai/datenschutz?_rsc=-K-VGr9co0SXewG8",
+      "type": "fetch",
+      "transfer": 662,
+      "decoded": 1007
+    },
+    {
+      "url": "https://vintz.ai/datenschutz?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1752,
+      "decoded": 4460
+    },
+    {
+      "url": "https://vintz.ai/datenschutz?_rsc=3KAoP4KdQv1JIasK",
+      "type": "fetch",
+      "transfer": 17243,
+      "decoded": 80699
+    },
+    {
+      "url": "https://vintz.ai/vintai-assets/previews/product-real-shirt-256f3e57d10c.webp",
+      "type": "img",
+      "transfer": 52092,
+      "decoded": 51792
+    },
+    {
+      "url": "https://vintz.ai/vintai-assets/landing/studio-cardigan-after-v1.webp",
+      "type": "img",
+      "transfer": 169312,
+      "decoded": 169012
+    },
+    {
+      "url": "https://vintz.ai/vintai-assets/landing/studio-cardigan-before-v1.webp",
+      "type": "img",
+      "transfer": 197114,
+      "decoded": 196814
+    },
+    {
+      "url": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "type": "img",
+      "transfer": 0,
+      "decoded": 26150
+    },
+    {
+      "url": "https://vintz.ai/vintai-assets/previews/pants-studio-fabafb0486a2.webp",
+      "type": "img",
+      "transfer": 77996,
+      "decoded": 77696
+    },
+    {
+      "url": "https://vintz.ai/privacy?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 614,
+      "decoded": 597
+    },
+    {
+      "url": "https://vintz.ai/kuendigen?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 450,
+      "decoded": 188
+    },
+    {
+      "url": "https://vintz.ai/impressum?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 618,
+      "decoded": 599
+    },
+    {
+      "url": "https://vintz.ai/widerruf?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 613,
+      "decoded": 598
+    },
+    {
+      "url": "https://vintz.ai/terms?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 611,
+      "decoded": 595
+    },
+    {
+      "url": "https://vintz.ai/privacy?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1735,
+      "decoded": 4491
+    },
+    {
+      "url": "https://vintz.ai/privacy?_rsc=3XDUVntrE9f2g4uy",
+      "type": "fetch",
+      "transfer": 659,
+      "decoded": 1007
+    },
+    {
+      "url": "https://vintz.ai/kuendigen?_rsc=tXyZJ52UQVBCVsD3",
+      "type": "fetch",
+      "transfer": 1793,
+      "decoded": 4522
+    },
+    {
+      "url": "https://vintz.ai/privacy?_rsc=HrEtqPkwiCQvqKeY",
+      "type": "fetch",
+      "transfer": 3860,
+      "decoded": 9443
+    },
+    {
+      "url": "https://vintz.ai/terms?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1717,
+      "decoded": 4401
+    },
+    {
+      "url": "https://vintz.ai/terms?_rsc=TPKn2my81RIqaXqX",
+      "type": "fetch",
+      "transfer": 659,
+      "decoded": 1007
+    },
+    {
+      "url": "https://vintz.ai/terms?_rsc=u9R9pMrlguO-Ruom",
+      "type": "fetch",
+      "transfer": 8235,
+      "decoded": 27470
+    },
+    {
+      "url": "https://vintz.ai/widerruf?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1738,
+      "decoded": 4450
+    },
+    {
+      "url": "https://vintz.ai/widerruf?_rsc=AdCS3V13sYDF6CQL",
+      "type": "fetch",
+      "transfer": 659,
+      "decoded": 1007
+    },
+    {
+      "url": "https://vintz.ai/widerruf?_rsc=AW7iO7runJSa5HkI",
+      "type": "fetch",
+      "transfer": 3832,
+      "decoded": 11578
+    },
+    {
+      "url": "https://vintz.ai/impressum?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1675,
+      "decoded": 4356
+    },
+    {
+      "url": "https://vintz.ai/impressum?_rsc=d9W9l1raJAvCV0rm",
+      "type": "fetch",
+      "transfer": 659,
+      "decoded": 1007
+    },
+    {
+      "url": "https://vintz.ai/impressum?_rsc=n3Ty8JSgTNn5TQ6E",
+      "type": "fetch",
+      "transfer": 2321,
+      "decoded": 7122
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 630,
+      "decoded": 634
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=2Md0sTUZcnjCijMr",
+      "type": "fetch",
+      "transfer": 14124,
+      "decoded": 118288
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=yIp22O3xgPPxC28X",
+      "type": "fetch",
+      "transfer": 2080,
+      "decoded": 10332
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=8nTjltbQWvg6NcbE",
+      "type": "fetch",
+      "transfer": 11576,
+      "decoded": 102025
+    },
+    {
+      "url": "https://vintz.ai/?_rsc=7h4NYy5eoyMcNlUN",
+      "type": "fetch",
+      "transfer": 1718,
+      "decoded": 4451
+    },
+    {
+      "url": "https://vintz.ai/auth/login?_rsc=5CB68i4pnAekjehf",
+      "type": "fetch",
+      "transfer": 450,
+      "decoded": 206
+    },
+    {
+      "url": "https://vintz.ai/auth/login?_rsc=tXyZJ52UQVBCVsD3",
+      "type": "fetch",
+      "transfer": 1779,
+      "decoded": 4659
+    },
+    { "url": "https://vintz.ai/cdn-cgi/rum?", "type": "beacon", "transfer": 300, "decoded": 0 },
+    {
+      "url": "https://vintz.ai/cdn-cgi/rum?",
+      "type": "xmlhttprequest",
+      "transfer": 300,
+      "decoded": 0
+    }
+  ],
+  "styles": {
+    "header": { "width": 1200, "height": 58 },
+    "body": "Geist, \"Geist Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif"
+  }
+}

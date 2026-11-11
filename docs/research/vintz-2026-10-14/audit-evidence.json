@@ -1,0 +1,355 @@
+{
+  "capturedDate": "2026-10-14",
+  "desktopViewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "mobileViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "http": [
+    {
+      "path": "/",
+      "status": 200,
+      "decodedBytes": 301660
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200,
+      "decodedBytes": 238
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "decodedBytes": 1461
+    },
+    {
+      "path": "/llms.txt",
+      "status": 404,
+      "decodedBytes": 37138
+    },
+    {
+      "path": "/llms-full.txt",
+      "status": 404,
+      "decodedBytes": 37143
+    }
+  ],
+  "initialHtml": {
+    "lang": "en",
+    "title": "Vinted Seller Cockpit & AI Product Photo Studio – Vintz",
+    "titleLength": 55,
+    "description": "Run your Vinted workflow from one cockpit: better photos, faster listings, safe buyer replies, sold-order tools, inventory sync, and margin tracking.",
+    "hasStandaloneJsonLd": false
+  },
+  "renderedHtml": {
+    "lang": "de",
+    "hasHreflang": false,
+    "schemaTypes": ["SoftwareApplication", "Product", "FAQPage"],
+    "softwareOffers": {
+      "@type": "AggregateOffer",
+      "lowPrice": "9.90",
+      "highPrice": "39.90",
+      "priceCurrency": "EUR",
+      "offerCount": 3
+    },
+    "metaCounts": {
+      "description": 2,
+      "ogTitle": 2
+    }
+  },
+  "sourceAssetBytes": {
+    "css": 759961,
+    "javascript": 1351555
+  },
+  "sitemapLastmodFirst": "2026-10-14T11:59:27.506Z",
+  "sitemapLastmodSecond": "2026-10-14T12:08:05.791Z",
+  "pageSpeedApiStatus": 429,
+  "links": [
+    {
+      "url": "https://vintz.ai/",
+      "status": 200,
+      "final": "https://vintz.ai/",
+      "title": "Vinted Seller Cockpit & AI Product Photo Studio – Vintz",
+      "canonical": "https://vintz.ai/",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Run your Vinted workflow from one cockpit: better photos, faster listings, safe buyer replies, sold-order tools, inventory sync, and margin tracking.",
+      "h1": ["Your Vinted shop, in one place.From phone photo to shipped parcel."]
+    },
+    {
+      "url": "https://vintz.ai/pricing",
+      "status": 200,
+      "final": "https://vintz.ai/pricing",
+      "title": "Pricing – Vintz · Vintz",
+      "canonical": "https://vintz.ai/pricing",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Free, Starter, Pro and Scale memberships for Vinted sellers, plus flexible credit top-ups for AI product photos.",
+      "h1": []
+    },
+    {
+      "url": "https://vintz.ai/terms",
+      "status": 200,
+      "final": "https://vintz.ai/terms",
+      "title": "AGB · Vintz",
+      "canonical": "https://vintz.ai/terms",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Allgemeine Geschäftsbedingungen für Vintz: Image Studio, Credits, Seller Tools und Mitgliedschaften.",
+      "h1": ["Allgemeine Geschäftsbedingungen"]
+    },
+    {
+      "url": "https://vintz.ai/privacy",
+      "status": 200,
+      "final": "https://vintz.ai/privacy",
+      "title": "Privacy · Vintz",
+      "canonical": "https://vintz.ai/",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "A plain-language summary of how Vintz handles account, image, and seller-workspace data.",
+      "h1": ["Privacy summary"]
+    },
+    {
+      "url": "https://vintz.ai/datenschutz",
+      "status": 200,
+      "final": "https://vintz.ai/datenschutz",
+      "title": "Datenschutzerklärung · Vintz",
+      "canonical": "https://vintz.ai/datenschutz",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Datenschutzhinweise für Vintz: Image Studio, Seller Tools, Cloud-Konten, KI-Verarbeitung, Zahlungen, Käuferdaten und Betroffenenrechte.",
+      "h1": ["Datenschutzerklärung"]
+    },
+    {
+      "url": "https://vintz.ai/impressum",
+      "status": 200,
+      "final": "https://vintz.ai/impressum",
+      "title": "Impressum · Vintz",
+      "canonical": "https://vintz.ai/impressum",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Impressum und Anbieterkennzeichnung fuer Vintz.",
+      "h1": ["Impressum"]
+    },
+    {
+      "url": "https://vintz.ai/kuendigen",
+      "status": 200,
+      "final": "https://vintz.ai/kuendigen",
+      "title": "Vertrag kündigen · Vintz",
+      "canonical": "https://vintz.ai/kuendigen",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Kündigen Sie Ihre Vintz Mitgliedschaft (Starter, Pro oder Scale) direkt online. Sie erhalten sofort eine Eingangsbestätigung.",
+      "h1": ["Vertrag kündigen"]
+    },
+    {
+      "url": "https://vintz.ai/demo",
+      "status": 200,
+      "final": "https://vintz.ai/demo",
+      "title": "Interactive demo | Vintz · Vintz",
+      "canonical": "https://vintz.ai/",
+      "robots": ["noindex, nofollow"],
+      "lang": "en",
+      "description": "Turn one phone photo into polished product images in seconds. AI flatlays, on-model try-ons, background removal, ironing and more. 20 starter credits on signup.",
+      "h1": []
+    },
+    {
+      "url": "https://vintz.ai/dashboard",
+      "status": 200,
+      "final": "https://vintz.ai/dashboard",
+      "title": "Image Studio · Vintz",
+      "canonical": "https://vintz.ai/",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Turn one phone photo into polished product images in seconds. AI flatlays, on-model try-ons, background removal, ironing and more. 20 starter credits on signup.",
+      "h1": []
+    },
+    {
+      "url": "https://vintz.ai/widerruf",
+      "status": 200,
+      "final": "https://vintz.ai/widerruf",
+      "title": "Widerrufsbelehrung · Vintz",
+      "canonical": "https://vintz.ai/widerruf",
+      "robots": ["index, follow"],
+      "lang": "en",
+      "description": "Widerrufsrecht und Muster-Widerrufsformular für Verbraucher beim Kauf von Credits und beim Abschluss einer Mitgliedschaft bei Vintz.",
+      "h1": ["Widerrufsbelehrung"]
+    }
+  ],
+  "images": [
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "Vintz",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": false
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/product-real-shirt-256f3e57d10c.webp",
+      "alt": "",
+      "w": 886,
+      "h": 886,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/landing/studio-cardigan-before-v1.webp",
+      "alt": "",
+      "w": 1122,
+      "h": 1402,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/landing/studio-cardigan-after-v1.webp",
+      "alt": "",
+      "w": 1122,
+      "h": 1402,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/product-real-shirt-256f3e57d10c.webp",
+      "alt": "",
+      "w": 886,
+      "h": 886,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/pants-studio-fabafb0486a2.webp",
+      "alt": "",
+      "w": 1600,
+      "h": 1600,
+      "loading": "lazy",
+      "hidden": true
+    },
+    {
+      "src": "https://vintz.ai/vintai-assets/previews/vintz-logo-294940c2eef5.webp",
+      "alt": "",
+      "w": 256,
+      "h": 256,
+      "loading": "lazy",
+      "hidden": false
+    }
+  ],
+  "cards": [
+    {
+      "width": 657.6625366210938,
+      "height": 315,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 466.3374938964844,
+      "height": 315,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 466.32501220703125,
+      "height": 299,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 657.6749877929688,
+      "height": 299,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 753.3250122070312,
+      "height": 356.3999938964844,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 370.6750183105469,
+      "height": 356.3999938964844,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 466.32501220703125,
+      "height": 387,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 657.6749877929688,
+      "height": 387,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 370.6625061035156,
+      "height": 295,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 370.6625061035156,
+      "height": 295,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    },
+    {
+      "width": 370.6750183105469,
+      "height": 295,
+      "radius": "24px",
+      "bg": "rgb(241, 241, 239)",
+      "shadow": "rgba(20, 20, 20, 0.067) 0px 0px 0px 1px inset",
+      "padding": "8px",
+      "gap": "normal"
+    }
+  ]
+}
