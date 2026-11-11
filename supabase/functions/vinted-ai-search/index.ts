@@ -9,8 +9,14 @@ import {
   type SearchModel,
 } from './analysis.ts';
 
-import { searchOpenAi, type ResearchListing as Listing } from './research.ts';
+import {
+  searchOpenAi,
+  type ResearchListing as Listing,
+  type ResearchOptions,
+  type MarketDatasetProvider,
+} from './research.ts';
 import { listingImages, loadListingDetails } from './listing-details.ts';
+import { loadMarketDataset, marketDatasetSection } from './market-dataset.ts';
 export { searchOpenAi, listingImages };
 
 type Reservation = {
@@ -33,7 +39,13 @@ export interface SearchDependencies {
   ): Promise<Reservation>;
   save(id: number, values: Record<string, unknown>): Promise<void>;
   usage(token: string, workspaceId: string): Promise<unknown>;
-  search(listing: Listing, images: string[], model: SearchModel): Promise<Record<string, unknown>>;
+  marketDataset?: MarketDatasetProvider;
+  search(
+    listing: Listing,
+    images: string[],
+    model: SearchModel,
+    options?: ResearchOptions,
+  ): Promise<Record<string, unknown>>;
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const origins = new Set(
@@ -110,8 +122,8 @@ export function createSearchHandler(deps: SearchDependencies) {
       if (!found) return respond({ error: 'listing_not_found' }, 404);
       if (
         found.currency !== 'EUR' ||
-        !Number.isFinite(found.total_price) ||
-        found.total_price < 0 ||
+        (found.total_price !== null &&
+          (!Number.isFinite(found.total_price) || found.total_price < 0)) ||
         !Number.isFinite(found.item_price) ||
         found.item_price < 0
       )
@@ -135,19 +147,54 @@ export function createSearchHandler(deps: SearchDependencies) {
       if (reservation.error) return respond({ error: reservation.error }, 429);
       if (reservation.cached && !reservation.result)
         return respond({ error: 'tracking_unavailable' }, 503);
-      if (reservation.cached && reservation.result)
+      if (reservation.cached && reservation.result) {
+        let cached = reservation.result;
+        const marketDataset = deps.marketDataset;
+        if (marketDataset) {
+          const analysis = record(cached['analysis']);
+          if (!analysis) throw new Error('Invalid cached analysis');
+          const modelName =
+            ['exact', 'likely'].includes(String(analysis['confidence'])) &&
+            typeof analysis['modelName'] === 'string' &&
+            analysis['modelName'].trim()
+              ? analysis['modelName'].slice(0, 200)
+              : null;
+          const dataset = await loadMarketDataset(
+            () => marketDataset(listing, modelName),
+            modelName ? 'model' : 'category',
+          );
+          const research = record(analysis['research']);
+          cached = {
+            ...cached,
+            analysis: {
+              ...analysis,
+              marketDataset: dataset,
+              comparisonBasis: dataset.match,
+              currentMarket: null,
+              soldAverage: null,
+              askingAverage: null,
+              resale: null,
+              ...(research
+                ? { research: { ...research, used: marketDatasetSection(dataset) } }
+                : {}),
+            },
+          };
+        }
         return respond({
-          ...reservation.result,
+          ...cached,
           cacheHit: true,
           stats: await deps.usage(token, workspaceId),
         });
+      }
     } catch {
       return respond({ error: 'tracking_unavailable' }, 503);
     }
 
     let raw: Record<string, unknown>;
     try {
-      raw = await deps.search(listing, images, model as SearchModel);
+      raw = await deps.search(listing, images, model as SearchModel, {
+        marketDataset: deps.marketDataset,
+      });
     } catch {
       // Bei Verbindungsabbruch ist unbekannt, ob OpenAI bereits Kosten erzeugt hat.
       try {
@@ -181,7 +228,10 @@ export function createSearchHandler(deps: SearchDependencies) {
     try {
       const analysis = parseAnalysis(raw, listing.url);
       researchIncomplete = Boolean(
-        analysis.research && Object.values(analysis.research).some((section) => !section.completed),
+        analysis.research &&
+        Object.entries(analysis.research).some(
+          ([key, section]) => !section.completed && !(key === 'used' && analysis.marketDataset),
+        ),
       );
       result = {
         analysis,
@@ -288,6 +338,25 @@ export function createProductionDependencies(): SearchDependencies {
       const { data, error } = await user(token).rpc('vinted_ai_search_usage', {
         p_workspace_id: workspaceId,
       });
+      if (error) throw error;
+      return data;
+    },
+    async marketDataset(listing, modelName) {
+      const categoryId =
+        listing.category?.id && /^\d+$/.test(listing.category.id)
+          ? Number(listing.category.id)
+          : null;
+      const { data, error } = await admin
+        .rpc('vinted_comparison_market', {
+          p_listing_id: listing.id,
+          p_brand: listing.brand,
+          p_category_id:
+            categoryId !== null && Number.isSafeInteger(categoryId) && categoryId > 0
+              ? categoryId
+              : null,
+          p_model: modelName,
+        })
+        .abortSignal(AbortSignal.timeout(8000));
       if (error) throw error;
       return data;
     },

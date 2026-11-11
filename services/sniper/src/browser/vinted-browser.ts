@@ -314,12 +314,18 @@ export class ChromeVintedBrowser implements VintedBrowser {
     this.desktop = new BrowserDesktop((args, input) => this.runtime.execute(args, input));
   }
 
-  private validateUrl(input: string | URL): URL {
+  private validateUrl(input: string | URL, allowItem = false): URL {
     const url = new URL(input);
     const base = new URL(this.baseUrl);
+    const item =
+      allowItem &&
+      url.protocol === 'https:' &&
+      /^\/items\/[1-9]\d{0,19}(?:-[^/]*)?$/.test(url.pathname) &&
+      !url.search &&
+      !url.hash;
     if (
       url.origin !== base.origin ||
-      !['/', '/catalog'].includes(url.pathname) ||
+      (!['/', '/catalog'].includes(url.pathname) && !item) ||
       url.username ||
       url.password
     )
@@ -339,9 +345,9 @@ export class ChromeVintedBrowser implements VintedBrowser {
   private async fetchSerial(input: string | URL, init?: RequestInit): Promise<Response> {
     if (this.manual) throw new Error('Die Botsitzung wird gerade manuell bedient.');
     if (this.needsRestart) throw new Error('Der Feed-Browser muss neu gestartet werden.');
-    const url = this.validateUrl(input);
+    const url = this.validateUrl(input, true);
     if (init?.method && init.method.toUpperCase() !== 'GET')
-      throw new Error('Nur Katalog-GETs sind erlaubt.');
+      throw new Error('Nur lesende Vinted-GETs sind erlaubt.');
     init?.signal?.throwIfAborted();
     const timeout = AbortSignal.timeout(this.requestTimeoutMs);
     const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
@@ -403,9 +409,13 @@ export class ChromeVintedBrowser implements VintedBrowser {
           cleanup,
           this.requestTimeoutMs,
         );
-        this.catalogReady =
-          url.pathname === '/catalog' && (await this.validCatalogResponse(response));
-        if (this.catalogReady) {
+        const readable =
+          (url.pathname === '/catalog' || url.pathname.startsWith('/items/')) &&
+          (await this.validCatalogResponse(response));
+        // Auch eine geprüfte Artikelseite kann Katalog-GETs derselben Herkunft
+        // ausführen. Ein Detailabruf erzwingt deshalb keinen neuen Dokument-Warmup.
+        this.catalogReady = readable;
+        if (readable) {
           const control = await abortableBrowserOperation(
             session.send('Runtime.evaluate', {
               expression: 'Boolean(navigator.serviceWorker?.controller)',
@@ -415,7 +425,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
           );
           if (control.result.type !== 'boolean' || control.result.value !== false)
             throw new VintedNetworkError(
-              'Ein Service Worker verhindert den direkten Katalogabruf.',
+              'Ein Service Worker verhindert den direkten Vinted-Abruf.',
             );
           if (new URL(page.url()).origin !== url.origin)
             throw new VintedNetworkError(

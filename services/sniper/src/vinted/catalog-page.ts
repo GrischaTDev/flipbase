@@ -63,6 +63,7 @@ const CatalogItemsStateSchema = z.object({
       }),
     )
     .max(200),
+  pagination: z.unknown().optional(),
 });
 
 const FLIGHT_PUSH_MARKER = 'self.__next_f.push([1,';
@@ -198,17 +199,21 @@ function toLegacyItem(product: z.infer<typeof CatalogProductSchema>, baseUrl: st
   });
 }
 
-export function parseVintedCatalogPage(page: string, baseUrl: string): VintedItem[] {
+/** Gemeinsamer begrenzter Katalogzustand für Feed und kompakte Preisvergleiche. */
+export function parseVintedCatalogState(page: string) {
   assertPageSize(page);
   const flightPayload = decodeFlightPayload(page);
   const markerStart = flightPayload.indexOf(ITEMS_MARKER);
   if (markerStart < 0) throw new Error('Vinted catalog page has no catalog item data');
 
   const stateStart = markerStart + '"items":'.length;
-  const state = CatalogItemsStateSchema.parse(
+  return CatalogItemsStateSchema.parse(
     parseBoundedPageJson(extractJsonObject(flightPayload, stateStart)),
   );
+}
 
+export function parseVintedCatalogPage(page: string, baseUrl: string): VintedItem[] {
+  const state = parseVintedCatalogState(page);
   return state.items.map((entry) => {
     return toLegacyItem(CatalogProductSchema.parse(entry.productItem), baseUrl);
   });

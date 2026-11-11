@@ -11,6 +11,7 @@ import { RequestBudget } from './runtime/budget.js';
 import { RequestStartGuard } from './runtime/request-start-guard.js';
 import { pacedVintedFetch } from './runtime/paced-vinted-fetch.js';
 import { ListingRetention } from './runtime/listing-retention.js';
+import { ComparisonCollection, ComparisonRequestSlots } from './runtime/comparison-collection.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
@@ -18,6 +19,7 @@ import { VintedConnectionState } from './runtime/vinted-connection-state.js';
 import { WatchlistEvaluator } from './runtime/watchlist-evaluator.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
+import { ComparisonStore } from './store/comparison.store.js';
 import { OriginStateStore } from './store/origin-state.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
@@ -45,6 +47,7 @@ const health = createHealthState(
 // Jede ausgehende Anfrage meldet sich selbst beim Budget - Katalogabfrage,
 // Wiederholungen nach 5xx und der getrennte Kategorieabruf gleichermassen.
 const metrics = new RequestMetrics();
+const comparisonSlots = new ComparisonRequestSlots();
 const browser = new ChromeVintedBrowser(config.vintedBaseUrl, {
   profileDir: config.browserProfileDir,
   cdpPort: config.browserCdpPort,
@@ -70,7 +73,10 @@ const counted = pacedVintedFetch(
     minimumIntervalMs: config.requestMinIntervalMs,
     requestTimeoutMs: config.requestTimeoutMs,
     assertCanStart: () => requestGuard.assertCanStart(),
-    recordStart: () => budget.record(),
+    recordStart: () => {
+      budget.record();
+      comparisonSlots.recordStart();
+    },
   },
 );
 const vintedConnection = new VintedConnectionState();
@@ -94,6 +100,17 @@ const browserSession = new BrowserSessionController({
   onVerificationEnd: () => requestGuard.endOperatorVerification(),
 });
 const retention = new ListingRetention(() => listings.purgeExpired(), log);
+const comparisonCollection = new ComparisonCollection({
+  store: new ComparisonStore(client),
+  fetch: counted,
+  baseUrl: config.vintedBaseUrl,
+  budget,
+  originState,
+  log,
+  connectionState: vintedConnection,
+  onOriginPause: () => requestGuard.pause(),
+  minimumStepIntervalMs: config.requestMinIntervalMs,
+});
 const evaluator = new WatchlistEvaluator({
   listings: {
     evaluatePending: (batchSize) => listings.evaluatePending(batchSize),
@@ -247,7 +264,29 @@ while (!controller.signal.aborted) {
         now,
       );
 
-      return scheduler.runOnce(now);
+      // Nach vier gezählten regulären Abrufen darf ein Vergleichsschritt laufen.
+      // So verhungert der Import auch bei ständig fälligen Filtern nicht. Alles
+      // bleibt im selben Browser-Lock, Mindestabstand und gemeinsamen Budget.
+      if (comparisonSlots.isDue) {
+        const comparisonReport = await comparisonSlots.run(() =>
+          comparisonCollection.runOnce(new Date()),
+        );
+        if (comparisonReport.requested)
+          return {
+            polled: 0,
+            skippedForBudget: 0,
+            newListings: 0,
+            seeded: 0,
+            failed: 0,
+            newHits: 0,
+          };
+      }
+      const feedReport = await scheduler.runOnce(now);
+      // Ruhende Filter lassen freie Zeit für Vergleiche. Die eigene Taktgrenze
+      // begrenzt die Hintergrundarbeit auch ohne fällige Filter.
+      if (feedReport.polled === 0 && feedReport.failed === 0 && !feedReport.originPause)
+        await comparisonSlots.run(() => comparisonCollection.runOnce(new Date()));
+      return feedReport;
     })) ?? {
       polled: 0,
       skippedForBudget: 0,
@@ -307,7 +346,7 @@ while (!controller.signal.aborted) {
       requests_last_minute: snapshot.requests,
       rejected_last_minute: snapshot.rejected,
       request_budget: config.requestsPerMinute,
-      last_cycle_error: cycleError ?? retention.error,
+      last_cycle_error: cycleError ?? comparisonCollection.error ?? retention.error,
       vinted_connected_since: connection.connectedSince?.toISOString() ?? null,
       vinted_last_success_at: connection.lastSuccessAt?.toISOString() ?? null,
     });

@@ -12,6 +12,15 @@ export interface VintedAiComparison {
   price: number;
   evidence: string;
   sameVariant?: boolean;
+  match?: 'model' | 'category' | 'different';
+  listingDate?: {
+    status: 'within_window' | 'outside_window' | 'unknown';
+    earliest: string | null;
+    latest: string | null;
+    label: string | null;
+    checkedAt: string | null;
+    source: 'vinted_listing' | 'unverified';
+  };
 }
 export interface VintedAiUsageSummary {
   model: VintedAiModel;
@@ -28,6 +37,24 @@ export interface VintedAiResearchSection {
   completed: boolean;
   sources: { title: string; url: string }[];
 }
+export interface VintedMarketPriceDistribution {
+  count: number;
+  median: number;
+  lowerQuartile: number;
+  upperQuartile: number;
+  minimum: number;
+  maximum: number;
+}
+export interface VintedMarketDataset {
+  windowDays: 30;
+  initialImportDays: 7;
+  asOf: string;
+  observedSince: string | null;
+  initialImportStatus: 'pending' | 'running' | 'complete' | 'partial' | 'unavailable';
+  match: 'model' | 'category';
+  active: VintedMarketPriceDistribution | null;
+  soldMarked: VintedMarketPriceDistribution | null;
+}
 export interface VintedAiResult {
   analysis: {
     modelName: string;
@@ -36,6 +63,22 @@ export interface VintedAiResult {
     comparisons: VintedAiComparison[];
     soldAverage: number | null;
     askingAverage: number | null;
+    marketDataset?: VintedMarketDataset | null;
+    comparisonBasis?: 'model' | 'category';
+    marketWindow?: {
+      days: 30;
+      checkedAt: string;
+      verifiedCount: number;
+      undatedCount: number;
+      excludedCount: number;
+    };
+    currentMarket?: {
+      low: number;
+      high: number;
+      count: number;
+      basis: 'sold' | 'asking';
+      match: 'model' | 'category';
+    } | null;
     newPriceRange?: { low: number; high: number; count: number } | null;
     research?: {
       identification: VintedAiResearchSection;
@@ -50,7 +93,7 @@ export interface VintedAiResult {
   listing: {
     title: string;
     itemPrice: number;
-    totalPrice: number;
+    totalPrice: number | null;
     currency: string;
     photoCount: number;
     detailsStatus?: 'loaded' | 'unavailable' | null;
@@ -78,6 +121,8 @@ export function resaleEstimate(
   if (
     !resale ||
     !result ||
+    result.analysis.marketDataset ||
+    result.listing.totalPrice === null ||
     shipping === null ||
     feePercent === null ||
     otherCosts === null ||
@@ -94,7 +139,11 @@ export function resaleEstimate(
   const tone =
     high <= 0
       ? 'red'
-      : low >= 20 && roi >= 30 && resale.basis === 'sold' && result.analysis.confidence === 'exact'
+      : low >= 20 &&
+          roi >= 30 &&
+          resale.basis === 'sold' &&
+          result.analysis.confidence === 'exact' &&
+          result.analysis.comparisonBasis !== 'category'
         ? 'green'
         : 'yellow';
   return {
