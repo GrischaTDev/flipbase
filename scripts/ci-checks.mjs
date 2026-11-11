@@ -230,6 +230,12 @@ const checks = {
       args: ['run', 'test:db'],
     },
     {
+      name: 'Test Vinted comparison collection with production SQL protection',
+      command: 'node',
+      args: ['supabase/test-support/vinted-comparison-safeupdate.mjs'],
+      env: { COMPARISON_TEST_DB_CONTAINER: 'supabase_db_flipbase-supabase' },
+    },
+    {
       name: 'Test parallel marketplace browser reservations',
       command: 'node',
       args: ['scripts/marketplace-live-browser-concurrency.mjs'],
