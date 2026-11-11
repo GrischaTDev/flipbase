@@ -127,9 +127,12 @@ begin
                 select id from public.vinted_comparison_items order by first_seen_at desc, id desc
                 offset 250000 limit 10000
             );
-            update public.vinted_comparison_scopes set coverage_limited=true;
+            update public.vinted_comparison_scopes set coverage_limited=true
+            where not coverage_limited;
         end if;
-        update public.vinted_comparison_scopes set maintenance_at=p_now;
+        -- Der gemeinsame Stundentakt gilt auch für frische Bereiche; unveränderte Werte auslassen.
+        update public.vinted_comparison_scopes set maintenance_at=p_now
+        where maintenance_at is distinct from p_now;
     end if;
 
     -- Detailprüfungen wechseln mit Katalogseiten; fehlende Quelle ist niemals ein Verkauf.

@@ -4,6 +4,10 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import test from 'node:test';
+import {
+  assertComparisonSafetyResult,
+  runComparisonSafetyTest,
+} from '../supabase/test-support/vinted-comparison-safeupdate.mjs';
 import { executeCheckCommand, getCheckCommands, runCiCheck } from './ci-checks.mjs';
 import {
   assertParserTemporaryDirectory,
@@ -19,6 +23,38 @@ import {
 const projectLock = JSON.parse(
   await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'),
 );
+
+test('Vergleichsbestand verlangt den echten SQL-Schutz samt vollständigem pgTAP-Ergebnis', () => {
+  const valid =
+    'ok 1 - Der Produktionsschutz gegen unbedingte Updates bleibt eingeschaltet\nok 2 - Claim erfolgreich\n1..2\n';
+  assertComparisonSafetyResult(valid);
+  for (const invalid of [
+    '',
+    valid.replace('ok 2', 'not ok 2'),
+    valid.replace('1..2', '1..3'),
+    valid.replace('Produktionsschutz', 'fehlende Schutzprüfung'),
+    valid + '1..2\n',
+  ])
+    assert.throws(() => assertComparisonSafetyResult(invalid));
+  let command;
+  runComparisonSafetyTest('supabase_db_flipbase-safety', (executable, args, options) => {
+    command = { executable, args, options };
+    return valid;
+  });
+  assert.equal(command.executable, 'docker');
+  assert.ok(command.args.includes('supabase_admin'));
+  assert.ok(command.args.includes('COMPARISON_SAFEUPDATE=1'));
+  assert.match(command.options.input, /load 'safeupdate'/u);
+  for (const container of [undefined, '', 'supabase-db', 'production; command'])
+    assert.throws(() => runComparisonSafetyTest(container));
+  assert.ok(
+    getCheckCommands('database').some(
+      ({ args, env }) =>
+        args.includes('supabase/test-support/vinted-comparison-safeupdate.mjs') &&
+        env?.COMPARISON_TEST_DB_CONTAINER === 'supabase_db_flipbase-supabase',
+    ),
+  );
+});
 
 test('manueller Produktionswiederanlauf behält Vollprüfung und gemeinsame Deploymentsperre', async () => {
   const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');

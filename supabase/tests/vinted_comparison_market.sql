@@ -1,6 +1,14 @@
 \set ON_ERROR_STOP on
+\if :{?COMPARISON_SAFEUPDATE}
+load 'safeupdate';
+\endif
 begin;
 select no_plan();
+
+\if :{?COMPARISON_SAFEUPDATE}
+select throws_ok($$update public.vinted_comparison_scopes set maintenance_at=now()$$,
+    null, 'UPDATE requires a WHERE clause', 'Der Produktionsschutz gegen unbedingte Updates bleibt eingeschaltet');
+\endif
 
 -- Alle Änderungen bleiben in dieser zurückgerollten Testtransaktion.
 update public.sniper_queries set is_active = false where is_active;
@@ -53,6 +61,16 @@ select is((select task->>'kind' from comparison_test_tasks where name = 'catalog
 select isnt((select task->>'id' from comparison_test_tasks where name = 'catalog_a'),
     (select task->>'id' from comparison_test_tasks where name = 'catalog_b'), 'Eine laufende Lease wird nicht doppelt vergeben');
 select is(public.claim_vinted_comparison_task(now()), null::jsonb, 'Bei ausschließlich belegten Bereichen wird kein Auftrag doppelt geliefert');
+reset role;
+update public.vinted_comparison_scopes
+set maintenance_at=case when query_id='56000000-0000-4000-8000-000000000001'
+    then now()-interval '2 hours' else now()-interval '30 minutes' end
+where query_id in ('56000000-0000-4000-8000-000000000001','56000000-0000-4000-8000-000000000002');
+set local role service_role;
+select is(public.claim_vinted_comparison_task(now()), null::jsonb,
+    'Die stündliche Pflege läuft mit Produktionsschutz auch bei belegten Leases');
+select is((select count(*) from public.vinted_comparison_scopes where maintenance_at=now()),2::bigint,
+    'Die gemeinsame Pflege markiert überfällige und frische Bereiche mit demselben Zeitpunkt');
 select is((select count(*) from public.vinted_comparison_scopes where query_id = '56000000-0000-4000-8000-000000000003'), 0::bigint, 'Pausierte Filter erzeugen keinen Erstimport');
 select is((select task->'query'->'priceFrom' from comparison_test_tasks where name = 'catalog_a'), 'null'::jsonb, 'Vergleichsauftrag enthält keine Preisuntergrenze');
 select is((select task->'query'->'priceTo' from comparison_test_tasks where name = 'catalog_a'), 'null'::jsonb, 'Vergleichsauftrag enthält keine Preisobergrenze');
@@ -397,6 +415,22 @@ select is((select task->>'kind' from comparison_test_tasks where name='fair_deta
     'Der gespeicherte Abrufwechsel schützt Detailprüfungen auch beim nächsten Durchgang');
 reset role;
 
+-- Die seltene Mengenbegrenzung muss denselben Produktionsschutz erfüllen wie der erste Claim.
+insert into public.vinted_comparison_items(external_id,url,title,price,first_seen_at)
+select (569000000+n)::text,'https://www.vinted.de/items/'||(569000000+n)::text,
+    'Comparison retention fixture',1,now()-interval '1 day'
+from generate_series(1,250001) n;
+update public.vinted_comparison_scopes set maintenance_at=now()-interval '2 hours'
+where maintenance_at is not null;
+set local role service_role;
+select lives_ok($$select public.claim_vinted_comparison_task(now())$$,
+    'Die Mengenbegrenzung läuft bei mehr als 250000 Artikeln mit aktivem Produktionsschutz');
+select is((select count(*) from public.vinted_comparison_items),250000::bigint,
+    'Die Mengenbegrenzung erhält genau die neuesten 250000 Artikel');
+select ok((select bool_and(coverage_limited) from public.vinted_comparison_scopes),
+    'Die Mengenbegrenzung markiert alle betroffenen Vergleichsbereiche als unvollständig');
+reset role;
+
 set local role anon;
 select throws_ok($$select * from public.vinted_comparison_items$$, '42501', null, 'Anonyme können den Vergleichsbestand nicht auslesen');
 select throws_ok($$select public.claim_vinted_comparison_task(now())$$, '42501', null, 'Anonyme können keine Sammlung starten');
@@ -406,7 +440,7 @@ set local role authenticated;
 select is((select count(*) from public.vinted_comparison_items), 0::bigint, 'Normale Mitglieder sehen keine internen Vergleichsartikel');
 select is((select count(*) from public.vinted_comparison_scopes), 0::bigint, 'Normale Mitglieder sehen keine Sammelbereiche');
 select throws_ok($$select public.claim_vinted_comparison_task(now())$$, '42501', null, 'Mitglieder können keine Dienstaufträge übernehmen');
-select throws_ok($$update public.vinted_comparison_items set price = 1$$, '42501', null, 'Mitglieder können Preise nicht manipulieren');
+select throws_ok($$update public.vinted_comparison_items set price = 1 where external_id='56000301'$$, '42501', null, 'Mitglieder können Preise nicht manipulieren');
 select throws_ok($$select setval('public.vinted_comparison_items_id_seq',1)$$, '42501', null, 'Mitglieder können keine Artikelkennungen manipulieren');
 select ok(not has_table_privilege('authenticated', 'public.' || table_name, 'truncate'),
     'Mitglieder haben kein RLS-umgehendes TRUNCATE-Recht auf ' || table_name)
@@ -419,7 +453,7 @@ select set_config('request.jwt.claim.sub', '56000000-0000-4000-8000-000000000101
 set local role authenticated;
 select ok((select count(*) > 0 from public.vinted_comparison_items), 'Betreiber können den internen Vergleichsbestand lesen');
 select throws_ok($$select public.claim_vinted_comparison_task(now())$$, '42501', null, 'Auch Betreiber dürfen Dienstleases nicht direkt übernehmen');
-select throws_ok($$delete from public.vinted_comparison_items$$, '42501', null, 'Auch Betreiber löschen Vergleichsdaten nicht direkt');
+select throws_ok($$delete from public.vinted_comparison_items where external_id='56000301'$$, '42501', null, 'Auch Betreiber löschen Vergleichsdaten nicht direkt');
 reset role;
 
 select * from finish();
