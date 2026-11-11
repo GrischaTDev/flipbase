@@ -76,6 +76,29 @@ Prüfung sind dagegen ein unvollständiger beziehungsweise fehlgeschlagener
 Entwicklungsnachweis. Lokal ausgeführte Befehle, Ergebnisse und ausstehende
 CI-Nachweise getrennt im PR nennen.
 
+## Manueller Wiederanlauf einer ausgefallenen Veröffentlichung
+
+Wenn ein Pushlauf vor dem ersten Job festhängt und Abbruch sowie Wiederholung
+abgelehnt werden, kann `CI and Production Deployment` auf dem aktuellen `master`
+manuell gestartet werden. `base_sha` ist die vollständige Commit-ID vor der
+ausgefallenen Veröffentlichung. Sie muss ein Vorfahr des Zielstands sein und
+dient dem Migrationsabgleich.
+
+```bash
+gh workflow run ci.yml --ref master -f base_sha=<vollständige-Commit-ID>
+```
+
+Dieser ausdrücklich gewählte Wiederanlauf prüft sämtliche Bereiche erneut;
+er verwendet keine PR-Nachweise wieder. Seine eigene Workflowgruppe verhindert,
+dass der festhängende Push ihn blockiert. Die gemeinsame Sperre
+`deploy-production`, Pflichtprüfungen, Image-Smoke, Sicherung und transaktionale
+Migrationen bleiben für Web, Sniper und Push erhalten. Marketplace-Images behalten
+ihren getrennten Veröffentlichungsweg nach einem erfolgreichen Pushlauf; dieser
+Wiederanlauf veröffentlicht sie nicht. Andere Zweige können so nicht veröffentlichen;
+vor dem Deployment wird der Zielcommit erneut mit dem aktuellen `master`
+verglichen. Das setzt den defekten GitHub-Lauf selbst nicht zurück. Dessen Zustand
+vor und nach dem Wiederanlauf gesondert prüfen; kein laufendes Deployment abbrechen.
+
 ## Was GitHub vor dem Merge prüft
 
 Die Auswahl folgt den geänderten Dateien und ihren tatsächlichen Abhängigkeiten.

@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-11 - Juna - Manuellen Produktionswiederanlauf vorbereiten
+
+**Anlass:** Der Pushlauf nach PR #614 bleibt vor dem ersten Job auf `queued`. Abbruch, erneuter Start und erzwungener Abbruch werden mit widersprüchlichen Statusmeldungen abgelehnt; auch die erneute Anforderung der Prüfsuite wird nicht angenommen. Auf dem Server fehlen deshalb weiterhin die Vergleichsmigration und die neue KI-Funktion.
+
+**Änderung:** Die vorhandene Pipeline erhält einen manuellen Start auf dem aktuellen `master` mit eigener Workflowgruppe. Dieser Weg wählt ausdrücklich sämtliche Prüfbereiche ohne Wiederverwendung von PR-Nachweisen; eine reine CI- oder Dokumentationsdifferenz kann die ausstehende Veröffentlichung nicht ausblenden. Der angegebene Migrationsvergleich muss eine vollständige Commit-ID und ein Vorfahr des Zielstands sein. Die vorhandene gemeinsame Deploymentsperre bleibt erhalten. Der Deploymentjob verweigert veraltete Zielstände vor dem Serverzugang; das Baudatum stammt auch beim manuellen Start aus dem Zielcommit. Normale PRs und Pushes behalten ihre bisherige Auswahl.
+
+**Nachweis:** Die beiden neuen Workflow-/Freigabefälle scheiterten zunächst gegen den unveränderten Stand. Unter Node 22.23.4 bestehen im Vorabcheck Format, Lint, Typen, Suite-Audit und Actionlint. Seine zehn Skriptdateien ergeben 220 bestandene Fälle, zwei bedingte Auslassungen und einen Fehler: Der bestehende Marketplace-Vertrag erkannte die zunächst zusätzlich erlaubte manuelle Veröffentlichung. Dieser getrennte Veröffentlichungsweg bleibt nun unverändert. Die gezielte Nachprüfung der drei betroffenen Gate-Dateien besteht mit 63 Fällen und denselben zwei Auslassungen; die übrigen bestandenen Skriptfälle bleiben gültig. Acht zusätzliche Gegenproben führen die tatsächlichen Bash-/Git-Schutzbefehle aus und verwerfen leere, ungültige, nicht übergeordnete oder veraltete Stände; zwei weitere Aussagen bestätigen das Bildtag und das Baudatum. Nur die GitHub-Antwort zum aktuellen Hauptzweig ist dabei simuliert. Der echte manuelle Preflight-Plan bestätigt die vollständige CI-Bereichsauswahl. Der anfänglich fehlende Actionlint wurde außerhalb des Projekts aus dem offiziellen Release geladen und gegen dessen SHA-256-Liste geprüft. Noch kein neuer Produktionslauf und keine Aktivierung der vorbereiteten KI-Dateien; CI und tatsächlicher Wiederanlauf bleiben offen. Flipbase fehlt weiterhin in der verbundenen Lissie-Projektliste.
+
 ## 2026-11-11 - Juna - KI-Vergleichsbestand aus PR 593 integrieren und Browserprüfung entlasten
 
 **Auftrag:** Den offenen KI-Vergleichsbestand aus PR #593 mit dem aktuellen Hauptzweig zusammenführen und den fehlgeschlagenen Browserfall untersuchen.

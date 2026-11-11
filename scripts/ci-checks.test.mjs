@@ -20,6 +20,46 @@ const projectLock = JSON.parse(
   await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'),
 );
 
+test('manueller Produktionswiederanlauf behält Vollprüfung und gemeinsame Deploymentsperre', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /workflow_dispatch:\s+inputs:\s+base_sha:/u);
+  assert.match(
+    workflow,
+    /group: \$\{\{ github\.event_name == 'workflow_dispatch' && 'ci-recovery' \|\| 'ci' \}\}-\$\{\{ github\.ref \}\}/u,
+  );
+  const changes = workflow.split('  changes:')[1].split('  documentation:')[0];
+  assert.ok(
+    changes.includes(
+      "github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/master'",
+    ),
+  );
+  assert.ok(changes.includes('Validate manual recovery'));
+  assert.ok(changes.includes('BASE_SHA: ${{ inputs.base_sha }}'));
+  assert.ok(changes.includes('git merge-base --is-ancestor "$BASE_SHA" "$GITHUB_SHA"'));
+  assert.ok(changes.includes('EVENT_NAME: ${{ github.event_name }}'));
+  assert.ok(changes.includes('PUSH_BEFORE_SHA: ${{ inputs.base_sha || github.event.before }}'));
+  // Das unveränderte manuelle Ereignis wählt konservativ alle Prüfungen; keine Push-Wiederverwendung.
+  assert.ok(!changes.includes('EVENT_NAME: push'));
+  for (const job of ['image', 'deploy', 'release']) {
+    const section = workflow.split(`  ${job}:`)[1].split(/\n  [a-z][a-z-]*:/u)[0];
+    assert.ok(
+      section.includes("github.event_name == 'workflow_dispatch'"),
+      `${job} fehlt beim Wiederanlauf`,
+    );
+    assert.ok(
+      section.includes("github.ref == 'refs/heads/master'"),
+      `${job} kann einen Nebenbranch veröffentlichen`,
+    );
+  }
+  const deploy = workflow.split('  deploy:')[1].split('  marketplace-release:')[0];
+  assert.match(deploy, /group: deploy-production\s+cancel-in-progress: false/u);
+  assert.ok(deploy.includes('Refuse an outdated deployment'));
+  assert.ok(deploy.includes('gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master"'));
+  assert.ok(deploy.indexOf('Refuse an outdated deployment') < deploy.indexOf('Set up SSH'));
+  const marketplace = workflow.split('  marketplace-release:')[1].split('  release:')[0];
+  assert.ok(!marketplace.includes("github.event_name == 'workflow_dispatch'"));
+});
+
 test('registriert alle Artikelanalyse-Verträge im Edge-Prüflauf', async () => {
   const tests = (
     await readdir(new URL('../supabase/functions/vinted-ai-search/', import.meta.url))

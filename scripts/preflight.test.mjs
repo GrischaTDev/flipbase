@@ -106,6 +106,34 @@ test('Planansicht für reine Dokumentation bleibt ohne technische Prüfungen und
   assert.equal(githubPreflightOutputs(plan).browser_required, false);
 });
 
+test('manueller Wiederanlauf wählt trotz reiner Dokumentationsdifferenz alle CI-Bereiche', async (t) => {
+  const { repository, git, write, base } = await fixture(t);
+  await write('docs/recovery.md', '# Wiederanlauf\n');
+  await git('add', '.');
+  await git('commit', '--quiet', '-m', 'documentation');
+  const plan = await createPreflightPlan({
+    repository,
+    event: {
+      eventName: 'workflow_dispatch',
+      pushBeforeSha: base,
+      headSha: await git('rev-parse', 'HEAD'),
+    },
+  });
+  assert.equal(plan.paths, null);
+  for (const selected of ['application', 'application_tests', 'supabase', 'sniper', 'push'])
+    assert.equal(plan.changes[selected], true, selected);
+  assert.equal(plan.changes.documentation_only, false);
+  const output = githubPreflightOutputs(plan);
+  for (const selected of [
+    'pwa_required',
+    'worker_image_required',
+    'session_image_required',
+    'extension_required',
+  ])
+    assert.equal(output[selected], true, selected);
+  assert.equal(output.workflow_script_tests, 'null');
+});
+
 test('ein Wiederverwendungsnachweis bindet auch native Browser, Extension, Images und Dienstgates', () => {
   const original = {
     changes: { application: true, supabase: false, push: false },

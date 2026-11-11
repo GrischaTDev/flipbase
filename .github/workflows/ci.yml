@@ -5,12 +5,19 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: 'Vollständiger Commit vor der ausgefallenen Veröffentlichung (vollständiger Prüflauf)'
+        required: true
+        type: string
 
-# Two runs of the same ref must never overlap. Pull requests cancel the older
-# run to save minutes. master does not: a cancelled run there could abort
-# halfway through a deployment and leave the server in an unclear state.
+# Normale Läufe derselben Referenz bleiben seriell. Nur PRs brechen Vorgänger ab;
+# ein laufendes Produktionsdeployment darf nicht unterbrochen werden.
 concurrency:
-  group: ci-${{ github.ref }}
+  # Ein unbegonnener, festhängender Push darf einen bewussten Vollprüflauf nicht blockieren.
+  # Der gemeinsame Deploymentjob bleibt zusätzlich über deploy-production gesperrt.
+  group: ${{ github.event_name == 'workflow_dispatch' && 'ci-recovery' || 'ci' }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege by default. The only job that needs more says so itself.
@@ -32,6 +39,7 @@ env:
 jobs:
   changes:
     name: Detect relevant changes
+    if: ${{ github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/master' }}
     permissions:
       contents: read
       actions: read
@@ -69,9 +77,20 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Validate manual recovery
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          BASE_SHA: ${{ inputs.base_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$BASE_SHA" "$GITHUB_SHA"
+          current_master=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
+          test "$GITHUB_SHA" = "$current_master"
+
       - name: Check migration completeness before validation
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: |
           node scripts/check-migration-changes.mjs "$BASE_SHA" "$HEAD_SHA"
@@ -92,7 +111,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_BEFORE_SHA: ${{ inputs.base_sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/preflight.mjs --github-output
 
@@ -492,7 +511,7 @@ jobs:
         marketplace-images,
         pwa,
       ]
-    if: ${{ always() && github.event_name == 'push' && needs.changes.result == 'success' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
+    if: ${{ always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master' && needs.changes.result == 'success' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -557,7 +576,9 @@ jobs:
       # rollback a one-liner instead of a rebuild.
       - name: Determine image tag
         id: tag
-        run: echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "commit_date=$(git show -s --format=%cI "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
 
       # The environment file in the repository points at a local Supabase for
       # development. Until now the server overwrote it with the production
@@ -623,7 +644,7 @@ jobs:
           # Versionsanzeige haette sonst nur einen Platzhalter.
           build-args: |
             FLIPBASE_COMMIT=${{ github.sha }}
-            FLIPBASE_COMMIT_DATE=${{ github.event.head_commit.timestamp }}
+            FLIPBASE_COMMIT_DATE=${{ steps.tag.outputs.commit_date }}
             FLIPBASE_VERSION=${{ steps.gitversion.outputs.value }}
 
       # Gleicher Produktionsbau vor dem Push: nur HTTP und statische Dateien,
@@ -785,7 +806,7 @@ jobs:
   deploy:
     name: Deploy to production
     needs: [changes, required-checks, image]
-    if: ${{ github.event_name == 'push' && always() && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') && needs.required-checks.result == 'success' && needs.image.result == 'success' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master' && always() && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') && needs.required-checks.result == 'success' && needs.image.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is
@@ -807,6 +828,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Refuse an outdated deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_master=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
+          test "$GITHUB_SHA" = "$current_master"
 
       - name: Set up SSH
         env:
@@ -932,7 +960,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: [deploy, image]
-    if: ${{ github.event_name == 'push' && always() && needs.deploy.result == 'success' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master' && always() && needs.deploy.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
