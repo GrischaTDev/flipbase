@@ -97,7 +97,8 @@ try {
   );
 
   const expectedImage =
-    process.env.EVENT_NAME === 'push' && (applicationChanged || sniperChanged)
+    ['push', 'workflow_dispatch'].includes(process.env.EVENT_NAME) &&
+    (applicationChanged || sniperChanged)
       ? 'success'
       : 'skipped';
   requireValue('Produktionsabbild', process.env.IMAGE_RESULT, expectedImage);

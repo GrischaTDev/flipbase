@@ -46,6 +46,21 @@ test('akzeptiert einen vollständigen erfolgreichen Push', () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
+test('manueller Wiederanlauf verlangt erfolgreiche Prüfungen und ein Produktionsabbild', () => {
+  const recovery = { EVENT_NAME: 'workflow_dispatch' };
+  assert.equal(runChecker(recovery).status, 0);
+  for (const overrides of [
+    { QUALITY_RESULT: 'failure' },
+    { DATABASE_RESULT: 'skipped' },
+    { BROWSER_RESULT: 'cancelled' },
+    { IMAGE_RESULT: 'skipped' },
+    { IMAGE_RESULT: 'failure' },
+    { TESTS_REUSED: 'true', QUALITY_RESULT: 'skipped' },
+  ]) {
+    assert.notEqual(runChecker({ ...recovery, ...overrides }).status, 0);
+  }
+});
+
 test('gezielte Anwendungsauswahl verlangt ausschließlich ihre gewählten Prüfungen', () => {
   const selected = {
     UNIT_REQUIRED: 'true',
