@@ -1,0 +1,28 @@
+{
+  "viewport": [390, 844],
+  "docWidth": 375,
+  "docHeight": 11280,
+  "h1": { "size": "34px", "line": "35.02px" },
+  "sections": [
+    { "id": "seller-tools", "y": 0, "height": 1482 },
+    { "id": "features", "y": 1621.25, "height": 1559 },
+    { "id": "seller-workflow", "y": 3180.25, "height": 2778 },
+    { "id": "how-it-works", "y": 5957.85009765625, "height": 880 },
+    { "id": "pricing", "y": 6837.75, "height": 1998 },
+    { "id": "faq", "y": 8835.75, "height": 1047 }
+  ],
+  "iframe": [{ "width": 414, "height": 700, "src": "https://vintz.ai/demo" }],
+  "cards": [
+    { "width": 343, "height": 315 },
+    { "width": 343, "height": 302 },
+    { "width": 343, "height": 272 },
+    { "width": 343, "height": 320 },
+    { "width": 343, "height": 373 },
+    { "width": 343, "height": 352 },
+    { "width": 343, "height": 364 },
+    { "width": 343, "height": 423 },
+    { "width": 343, "height": 288 },
+    { "width": 343, "height": 295 },
+    { "width": 343, "height": 295 }
+  ]
+}

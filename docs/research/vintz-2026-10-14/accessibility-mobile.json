@@ -1,0 +1,55 @@
+{
+  "url": "https://vintz.ai/#features",
+  "timestamp": "2026-10-14T12:04:44.738Z",
+  "passes": 51,
+  "incomplete": [
+    { "id": "color-contrast", "nodes": 103 },
+    { "id": "frame-tested", "nodes": 1 }
+  ],
+  "violations": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+      "nodes": [
+        {
+          "target": [".min-h-\\[54px\\] > .bg-\\[var\\(--vint-teal-tint\\)\\].h-6.px-2"],
+          "html": "<span class=\"inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-[var(--vint-teal-tint)] px-2 text-[11.5px] font-medium text-[var(--vint-teal)]\">",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4 (foreground color: #00838e, background color: #e6f4f1, font size: 8.6pt (11.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            ".text-\\[var\\(--vint-teal\\)\\].font-medium.shrink-0 > .tabular-nums[data-no-translate=\"\"]"
+          ],
+          "html": "<span data-no-translate=\"\" class=\"tabular-nums\">+30,00&nbsp;€</span>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.22 (foreground color: #00838e, background color: #f7f7f7, font size: 9.4pt (12.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            ".py-2\\.5.gap-3.px-3:nth-child(3) > .gap-1.text-\\[var\\(--vint-teal\\)\\].inline-flex"
+          ],
+          "html": "<span class=\"inline-flex shrink-0 items-center gap-1 text-[var(--vint-teal)]\">",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.22 (foreground color: #00838e, background color: #f7f7f7, font size: 9.4pt (12.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [".ConnectionJourney-module__A5aOxq__eyebrow"],
+          "html": "<span class=\"ConnectionJourney-module__A5aOxq__eyebrow\" data-no-translate=\"\">Passt zu deinem Ablauf</span>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4 (foreground color: #00838e, background color: #f1f1ef, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [".ConnectionJourney-module__A5aOxq__approveButton"],
+          "html": "<span class=\"ConnectionJourney-module__A5aOxq__approveButton\">",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.31 (foreground color: #ffffff, background color: #1d887d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "section[aria-labelledby=\"plan-seller-scale\"] > .pt-4.border-t.border-\\[var\\(--vint-line\\)\\] > .mb-2\\.5.text-\\[12\\.5px\\].text-\\[var\\(--vint-teal\\)\\]"
+          ],
+          "html": "<p class=\"mb-2.5 text-[12.5px] font-medium text-[var(--vint-teal)]\">Alles aus Pro, plus</p>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.22 (foreground color: #00838e, background color: #f7f7f6, font size: 9.4pt (12.5px), font weight: normal). Expected contrast ratio of 4.5:1"
+        }
+      ]
+    }
+  ]
+}
