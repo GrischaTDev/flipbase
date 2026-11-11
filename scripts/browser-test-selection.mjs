@@ -95,8 +95,8 @@ export const representativeBrowserFamilies = [
     'vinted-listing-edge-cases.spec.ts',
     'Vinted-Mosaik und Zeit-Badges bei {size}px {theme} @marketplace-preview @core-smoke',
     [320, 390, 834, 1440],
-    // 1440/light enthält zusätzlich die Gegenprobe für null bis fünf Fotos;
-    // beide Varianten erhalten die bedingten Anbieterstatusfälle.
+    // Beide Varianten erhalten die bedingten Anbieterstatusfälle.
+    // Null bis fünf Fotos bleiben als eigenständige Fehlerfälle vollständig ausgewählt.
     [
       [390, 'dark'],
       [1440, 'light'],

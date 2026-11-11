@@ -54,6 +54,20 @@ export class VintedAiSearchModalComponent {
   readonly searchIcon = LucideSearch;
   readonly sparklesIcon = LucideSparkles;
   readonly estimate = computed(() => resaleEstimate(this.result()));
+  readonly marketDatasetGroups = computed(() => {
+    const dataset = this.result()?.analysis.marketDataset;
+    return [
+      { key: 'active', title: 'Aktive Angebote', distribution: dataset?.active },
+      { key: 'soldMarked', title: 'Als verkauft markiert', distribution: dataset?.soldMarked },
+    ];
+  });
+  readonly initialImportStatusLabels = {
+    pending: 'ausstehend',
+    running: 'läuft',
+    complete: 'abgeschlossen',
+    partial: 'teilweise erfasst',
+    unavailable: 'nicht verfügbar',
+  };
   readonly marketSections = computed(() => {
     const analysis = this.result()?.analysis;
     return [
@@ -85,6 +99,16 @@ export class VintedAiSearchModalComponent {
     exact: 'Modell identifiziert',
     likely: 'Modell vermutlich erkannt',
     unknown: 'Modell nicht eindeutig',
+  };
+  readonly comparisonLabels = {
+    model: 'passendes Modell',
+    category: 'ähnlicher Artikel derselben Kategorie',
+    different: 'abweichender Artikel · nicht in der Auswertung',
+  };
+  readonly listingDateLabels = {
+    within_window: 'Innerhalb der letzten 30 Tage eingestellt',
+    outside_window: 'Älter als 30 Tage · nicht in der Auswertung',
+    unknown: 'Einstelldatum ungeklärt · keine 30-Tage-Zuordnung',
   };
   private generation = 0;
 

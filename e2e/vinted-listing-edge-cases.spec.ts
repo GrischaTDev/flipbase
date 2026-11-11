@@ -955,25 +955,45 @@ for (const width of [320, 390, 834, 1440]) {
       await expect(opener).toBeFocused();
       await checkPage(page, errors);
       await screenshot(page, `vinted-mosaic-${width}-${theme}`);
-      if (width === 1440 && theme === 'light') {
-        // Keine Fotoanzahl darf leere Rasterzellen oder verlorene Originale erzeugen.
-        for (const count of [0, 1, 2, 3, 4, 5]) {
-          await prepareListing(page, { ...listing, imageUrls: photos.slice(0, count) });
-          await page.reload();
-          await expect(gallery.getByRole('button')).toHaveCount(count);
-          if (count === 0) await expect(gallery).toContainText('Keine Fotos vorhanden');
-          else {
-            await gallery
-              .getByRole('button', { name: `Foto ${count} von ${count} öffnen` })
-              .click();
-            await expect(dialog.getByRole('img')).toHaveAttribute('src', photos[count - 1]);
-            await page.keyboard.press('Escape');
-          }
-          await checkPage(page, errors);
-        }
-      }
     });
   }
+}
+
+for (const photoCount of [0, 1, 2, 3, 4, 5]) {
+  test(`Vinted-Galerie erhält alle Originale bei ${photoCount} Fotos @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'light'));
+    const photos = Array.from(
+      { length: photoCount },
+      (_, index) => `https://images.example.test/photo-${index}.svg`,
+    );
+    const errors = await prepareListing(page, {
+      title: 'Jacke mit vollständiger Galerie',
+      text: 'Vollständige Beschreibung der Jacke.',
+      textState: 'loaded',
+      imageUrls: photos,
+    });
+    await page.goto(detailPath);
+    const gallery = page.locator('app-product-gallery');
+    await expect(gallery.getByRole('button')).toHaveCount(photoCount);
+    const lastPhoto = photos.at(-1);
+    if (lastPhoto) {
+      const opener = gallery.getByRole('button', {
+        name: `Foto ${photoCount} von ${photoCount} öffnen`,
+      });
+      await opener.click();
+      await expect(
+        page.getByRole('dialog', { name: 'Artikelfotos' }).getByRole('img'),
+      ).toHaveAttribute('src', lastPhoto);
+      await page.keyboard.press('Escape');
+      await expect(opener).toBeFocused();
+    } else {
+      await expect(gallery).toContainText('Keine Fotos vorhanden');
+    }
+    await checkPage(page, errors);
+  });
 }
 
 for (const width of [1440, 390]) {

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
+import type { VintedMarketDataset } from '../src/app/features/deal-monitor/models/vinted-ai-search';
 
 // Diese Datei mockt die gesamte Supabase-API und braucht keine echte Sitzung.
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -85,6 +86,14 @@ const aiSearchResult = {
     ],
     soldAverage: 73.33,
     askingAverage: null,
+    comparisonBasis: 'model',
+    marketWindow: {
+      days: 30,
+      checkedAt: '2026-11-06T12:00:00Z',
+      verifiedCount: 3,
+      undatedCount: 0,
+      excludedCount: 0,
+    },
     resale: { low: 65, high: 85, basis: 'sold', count: 3 },
   },
   model: 'gpt-6-luna',
@@ -118,6 +127,31 @@ const aiSearchResult = {
   ],
 };
 
+const marketDataset: VintedMarketDataset = {
+  windowDays: 30,
+  initialImportDays: 7,
+  asOf: '2026-11-07T12:00:00Z',
+  observedSince: '2026-11-01T12:00:00Z',
+  initialImportStatus: 'complete',
+  match: 'model',
+  active: {
+    count: 1248,
+    median: 55,
+    lowerQuartile: 40,
+    upperQuartile: 70,
+    minimum: 12,
+    maximum: 240,
+  },
+  soldMarked: {
+    count: 214,
+    median: 45,
+    lowerQuartile: 35,
+    upperQuartile: 60,
+    minimum: 10,
+    maximum: 160,
+  },
+};
+
 for (const theme of ['light', 'dark'] as const) {
   for (const width of [320, 390, 834, 1440]) {
     test.describe(`AI Search ${theme} ${width}px`, () => {
@@ -142,7 +176,24 @@ for (const theme of ['light', 'dark'] as const) {
           }
           requests.push(body);
           await gate;
-          await route.fulfill({ json: { ...aiSearchResult, model: body['model'] } });
+          await route.fulfill({
+            json: {
+              ...aiSearchResult,
+              model: body['model'],
+              analysis: {
+                ...aiSearchResult.analysis,
+                marketDataset,
+                research: {
+                  ...aiSearchResult.analysis.research,
+                  used: {
+                    ...aiSearchResult.analysis.research.used,
+                    summary:
+                      'Die Vergleichsbasis enthält aktive und als verkauft markierte Artikel.',
+                  },
+                },
+              },
+            },
+          });
         });
         await page.goto('/vinted-bot');
         const launch = page.getByRole('button', { name: 'AI Search', exact: true }).first();
@@ -164,10 +215,26 @@ for (const theme of ['light', 'dark'] as const) {
           dialog.getByText('Das Modell kostet beim Hersteller aktuell 120 Euro.'),
         ).toBeVisible();
         await expect(
-          dialog.getByText('Vergleichbare Verkäufe liegen zwischen 65 und 85 Euro.'),
+          dialog.getByText(
+            'Die Vergleichsbasis enthält aktive und als verkauft markierte Artikel.',
+          ),
         ).toBeVisible();
         await expect(dialog.getByRole('spinbutton')).toHaveCount(0);
-        await expect(dialog.getByText(/Preisabstand zum Einkauf:/)).toContainText('44,00');
+        const active = dialog.getByRole('region', { name: 'Aktive Angebote', exact: true });
+        const sold = dialog.getByRole('region', { name: 'Als verkauft markiert', exact: true });
+        await expect(active.getByText('1.248', { exact: true })).toBeVisible();
+        await expect(active).toContainText('55,00');
+        await expect(active).toContainText('240,00');
+        await expect(sold.getByText('214', { exact: true })).toBeVisible();
+        await expect(
+          sold.getByText('Zuletzt beobachtete Angebotspreise', { exact: true }),
+        ).toBeVisible();
+        await expect(sold).toContainText('45,00');
+        await expect(dialog.getByText(/Beobachtung seit 01.11.2026/)).toBeVisible();
+        await expect(dialog.getByText(/Erstimport · 7 Tage · abgeschlossen/)).toBeVisible();
+        await expect(dialog.getByText(/Preisabstand zum Einkauf:/)).toHaveCount(0);
+        await expect(dialog.getByText(/30-Tage-Auswahl nach Einstelldatum:/)).toHaveCount(0);
+        await expect(dialog.getByText(/Ø belegte Verkaufspreise/)).toHaveCount(0);
         const modelSource = dialog.getByRole('link', { name: /Modellmerkmale beim Hersteller/ });
         await expect(modelSource).toHaveAttribute('href', 'https://www.nike.com/de/t/test');
         await expect(modelSource).toHaveAttribute('target', '_blank');
@@ -186,6 +253,12 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(
           dialog.getByRole('heading', { name: 'Modellvergleich', exact: true }),
         ).toBeVisible();
+        const modelComparison = dialog.getByRole('region', {
+          name: 'Modellvergleich',
+          exact: true,
+        });
+        await expect(modelComparison.getByText(/1.248 aktive Angebote/)).toHaveCount(2);
+        await expect(modelComparison.getByText(/214 als verkauft markiert/)).toHaveCount(2);
         expect(requests.map((body) => body['model'])).toEqual(['gpt-6-luna', 'gpt-6.1-sol']);
         await page.evaluate(axe.source);
         const accessibility = await page.evaluate(async () => {
@@ -201,6 +274,10 @@ for (const theme of ['light', 'dark'] as const) {
             .scrollIntoViewIfNeeded();
           await page.screenshot({ path: testInfo.outputPath('ai-search-top.png') });
           await dialog
+            .getByRole('region', { name: 'Beobachteter Gebrauchtmarkt', exact: true })
+            .scrollIntoViewIfNeeded();
+          await page.screenshot({ path: testInfo.outputPath('ai-search-market.png') });
+          await dialog
             .getByRole('heading', { name: 'Wiederverkauf', exact: true })
             .scrollIntoViewIfNeeded();
           await page.screenshot({ path: testInfo.outputPath('ai-search-resale.png') });
@@ -215,6 +292,52 @@ for (const theme of ['light', 'dark'] as const) {
     });
   }
 }
+
+test('zeigt den laufenden Erstimport ohne erfundene Vergleichspreise in AI Search', async ({
+  page,
+}) => {
+  await fixture(page, new Map(), undefined, true);
+  await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+    if (route.request().postDataJSON().action === 'usage') {
+      await route.fulfill({ json: { stats: [] } });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        ...aiSearchResult,
+        analysis: {
+          ...aiSearchResult.analysis,
+          marketDataset: {
+            ...marketDataset,
+            initialImportStatus: 'running',
+            observedSince: null,
+            active: null,
+            soldMarked: null,
+          },
+          comparisons: aiSearchResult.analysis.comparisons.filter(
+            (item) => item.kind === 'manufacturer',
+          ),
+          research: {
+            ...aiSearchResult.analysis.research,
+            used: { summary: '', limitations: [], completed: true, sources: [] },
+          },
+        },
+      },
+    });
+  });
+  await page.goto('/vinted-bot');
+  await page.getByRole('button', { name: 'AI Search', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'AI Search', exact: true });
+  await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+  const market = dialog.getByRole('region', { name: 'Beobachteter Gebrauchtmarkt', exact: true });
+  await expect(market.getByText('0 passende Artikel', { exact: true })).toHaveCount(2);
+  await expect(market.getByText(/Erstimport · 7 Tage · läuft/)).toBeVisible();
+  await expect(market.getByText(/Beobachtung seit/)).toHaveCount(0);
+  await expect(dialog.getByText(/Ø belegte Verkaufspreise|Preisabstand zum Einkauf:/)).toHaveCount(
+    0,
+  );
+  await expect(dialog.getByText(/Keine rechnerische Wiederverkaufsspanne/)).toHaveCount(0);
+});
 
 test('verbirgt AI Search für Beta-Nutzer und verwirft verspätete Ergebnisse nach Schließen', async ({
   page,
@@ -280,6 +403,7 @@ test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei feh
         analysis: {
           ...aiSearchResult.analysis,
           confidence: 'likely',
+          marketWindow: { ...aiSearchResult.analysis.marketWindow, verifiedCount: 0 },
           comparisons: [],
           resale: null,
           soldAverage: null,
@@ -323,6 +447,111 @@ test('zeigt Modellquellen und Recherchegrenzen auch ohne Preisbelege und bei feh
   const source = await popup;
   await expect(source.getByText('Modellquelle', { exact: true })).toBeVisible();
   await source.close();
+});
+
+test('trennt Kategorievergleiche mit ungeklärtem Alter von bestätigten 30-Tage-Inseraten', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await fixture(page, new Map(), undefined, true);
+  let searches = 0;
+  await page.route('http://127.0.0.1:54351/functions/v1/vinted-ai-search', async (route) => {
+    if (route.request().postDataJSON().action === 'usage') {
+      await route.fulfill({ json: { stats: [] } });
+      return;
+    }
+    searches++;
+    await route.fulfill({
+      json: {
+        ...aiSearchResult,
+        listing: { ...aiSearchResult.listing, itemPrice: 35, totalPrice: null },
+        analysis: {
+          ...aiSearchResult.analysis,
+          modelName: '',
+          confidence: 'unknown',
+          evidence: 'Marke und Kategorie sind erkennbar, eine Modellnummer fehlt.',
+          comparisonBasis: 'category',
+          newPriceRange: null,
+          soldAverage: null,
+          askingAverage: searches === 1 ? null : 55,
+          resale: searches === 1 ? null : { low: 40, high: 70, basis: 'asking', count: 3 },
+          currentMarket: { low: 40, high: 70, basis: 'asking', count: 3, match: 'category' },
+          marketWindow: {
+            ...aiSearchResult.analysis.marketWindow,
+            verifiedCount: searches === 1 ? 1 : 3,
+            undatedCount: searches === 1 ? 2 : 0,
+            excludedCount: 1,
+          },
+          comparisons: [
+            { price: 40, status: 'within_window', label: '2 Wochen' },
+            { price: 55, status: 'unknown', label: '1 Monat' },
+            { price: 70, status: 'unknown', label: null },
+            { price: 90, status: 'outside_window', label: '3 Monate' },
+          ].map((comparison, index) => ({
+            title: `Vergleichbarer Artikel ${index + 1}`,
+            url: `https://www.vinted.de/items/${5100 + index}`,
+            kind: 'asking',
+            price: comparison.price,
+            evidence: 'Gleiche Marke, Kategorie und vergleichbarer Zustand; Modell unbekannt.',
+            match: 'category',
+            sameVariant: false,
+            listingDate: {
+              status: searches > 1 && index < 3 ? 'within_window' : comparison.status,
+              earliest: comparison.status === 'within_window' ? '2026-10-16T12:00:00Z' : null,
+              latest: comparison.status === 'within_window' ? '2026-10-23T12:00:00Z' : null,
+              label: searches > 1 && index < 3 ? '2 Wochen' : comparison.label,
+              checkedAt: '2026-11-06T12:00:00Z',
+              source: 'vinted_listing',
+            },
+          })),
+          research: {
+            ...aiSearchResult.analysis.research,
+            used: {
+              summary: 'Ähnliche Artikel werden für 40 bis 70 Euro angeboten.',
+              limitations: [],
+              completed: true,
+              sources: [],
+            },
+          },
+        },
+      },
+    });
+  });
+  await page.goto('/vinted-bot');
+  await page.getByRole('button', { name: 'AI Search', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'AI Search', exact: true });
+  await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+  await expect(
+    dialog.getByRole('heading', { name: 'Modell unbekannt', exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByText('Vergleichsbasis: ähnliche Artikel derselben Marke und Kategorie'),
+  ).toBeVisible();
+  await expect(dialog.getByText(/Innerhalb der letzten 30 Tage eingestellt/)).toHaveText(
+    'Innerhalb der letzten 30 Tage eingestellt · Quelle: 2 Wochen',
+  );
+  await expect(dialog.getByText(/Einstelldatum ungeklärt · keine 30-Tage-Zuordnung/)).toHaveCount(
+    2,
+  );
+  await expect(dialog.getByText(/Älter als 30 Tage · nicht in der Auswertung/)).toBeVisible();
+  await expect(dialog.getByText(/Aktuelle Angebotsspanne:/)).toContainText('40,00');
+  await expect(dialog.getByText(/Aktuelle Angebotsspanne:/)).toContainText('70,00');
+  await expect(
+    dialog.getByText('Einschließlich Inseraten ohne bestätigtes Einstelldatum'),
+  ).toBeVisible();
+  await expect(dialog.getByText(/Ø geforderte Gebrauchtpreise/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Suchen', exact: true }).click();
+  await expect(dialog.getByText(/Ø geforderte Gebrauchtpreise/)).toContainText('30-Tage-Inserate');
+  await expect(
+    dialog.getByRole('region', { name: 'Wiederverkaufsbewertung' }).getByText('Angebotsspanne:'),
+  ).toContainText('40,00');
+  await expect(dialog.getByText(/3 geforderte Angebotspreise/)).toContainText(
+    'Inserate innerhalb der letzten 30 Tage eingestellt',
+  );
+  await expect(dialog.getByText('Artikelpreis:')).toContainText('35,00');
+  await expect(dialog.getByText(/Einkauf inkl. gemeldetem Käuferschutz:/)).toHaveCount(0);
+  await expect(dialog.getByText(/Preisabstand zum Einkauf:/)).toHaveCount(0);
+  await expect(dialog.getByText(/15–30 % Abschlag/)).toHaveCount(0);
 });
 
 async function fixture(

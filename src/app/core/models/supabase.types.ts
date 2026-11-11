@@ -9070,6 +9070,200 @@ export type Database = {
         }
         Relationships: []
       }
+      vinted_comparison_items: {
+        Row: {
+          brand: string | null
+          category_id: number | null
+          checked_at: string | null
+          color: string | null
+          condition: string | null
+          consecutive_failures: number
+          currency: string
+          error_kind: string | null
+          external_id: string
+          first_seen_at: string
+          id: number
+          last_active_at: string | null
+          last_seen_at: string
+          lease_token: string | null
+          lease_until: string | null
+          material: string | null
+          model: string | null
+          next_attempt_at: string
+          price: number
+          published_earliest: string | null
+          published_latest: string | null
+          size: string | null
+          sold_detected_at: string | null
+          status: string
+          title: string
+          url: string
+        }
+        Insert: {
+          brand?: string | null
+          category_id?: number | null
+          checked_at?: string | null
+          color?: string | null
+          condition?: string | null
+          consecutive_failures?: number
+          currency?: string
+          error_kind?: string | null
+          external_id: string
+          first_seen_at?: string
+          id?: never
+          last_active_at?: string | null
+          last_seen_at?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          material?: string | null
+          model?: string | null
+          next_attempt_at?: string
+          price: number
+          published_earliest?: string | null
+          published_latest?: string | null
+          size?: string | null
+          sold_detected_at?: string | null
+          status?: string
+          title: string
+          url: string
+        }
+        Update: {
+          brand?: string | null
+          category_id?: number | null
+          checked_at?: string | null
+          color?: string | null
+          condition?: string | null
+          consecutive_failures?: number
+          currency?: string
+          error_kind?: string | null
+          external_id?: string
+          first_seen_at?: string
+          id?: never
+          last_active_at?: string | null
+          last_seen_at?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          material?: string | null
+          model?: string | null
+          next_attempt_at?: string
+          price?: number
+          published_earliest?: string | null
+          published_latest?: string | null
+          size?: string | null
+          sold_detected_at?: string | null
+          status?: string
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      vinted_comparison_matches: {
+        Row: {
+          first_seen_at: string
+          id: number
+          item_id: number
+          last_seen_at: string
+          scope_id: number
+        }
+        Insert: {
+          first_seen_at?: string
+          id?: never
+          item_id: number
+          last_seen_at?: string
+          scope_id: number
+        }
+        Update: {
+          first_seen_at?: string
+          id?: never
+          item_id?: number
+          last_seen_at?: string
+          scope_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_comparison_matches_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_comparison_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinted_comparison_matches_scope_id_fkey"
+            columns: ["scope_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_comparison_scopes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_comparison_scopes: {
+        Row: {
+          consecutive_failures: number
+          coverage_limited: boolean
+          created_at: string
+          error_kind: string | null
+          id: number
+          initial_finished_at: string | null
+          last_catalog_at: string | null
+          last_claim_kind: string | null
+          lease_token: string | null
+          lease_until: string | null
+          maintenance_at: string | null
+          next_attempt_at: string
+          page: number
+          query_id: string
+          query_revision: number
+          request_cursor: number
+          window_start: string
+        }
+        Insert: {
+          consecutive_failures?: number
+          coverage_limited?: boolean
+          created_at?: string
+          error_kind?: string | null
+          id?: never
+          initial_finished_at?: string | null
+          last_catalog_at?: string | null
+          last_claim_kind?: string | null
+          lease_token?: string | null
+          lease_until?: string | null
+          maintenance_at?: string | null
+          next_attempt_at?: string
+          page?: number
+          query_id: string
+          query_revision: number
+          request_cursor: number
+          window_start?: string
+        }
+        Update: {
+          consecutive_failures?: number
+          coverage_limited?: boolean
+          created_at?: string
+          error_kind?: string | null
+          id?: never
+          initial_finished_at?: string | null
+          last_catalog_at?: string | null
+          last_claim_kind?: string | null
+          lease_token?: string | null
+          lease_until?: string | null
+          maintenance_at?: string | null
+          next_attempt_at?: string
+          page?: number
+          query_id?: string
+          query_revision?: number
+          request_cursor?: number
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_comparison_scopes_query_id_fkey"
+            columns: ["query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vinted_listing_catalog_refreshes: {
         Row: {
           id: number
@@ -10290,6 +10484,7 @@ export type Database = {
         Args: { p_channel: string; p_event: string; p_workspace_id: string }
         Returns: boolean
       }
+      claim_vinted_comparison_task: { Args: { p_now: string }; Returns: Json }
       clear_sniper_favorites: {
         Args: { p_expected_user_id: string; p_workspace_id: string }
         Returns: boolean
@@ -10337,6 +10532,10 @@ export type Database = {
           p_revision: number
         }
         Returns: Json
+      }
+      complete_vinted_comparison_task: {
+        Args: { p_lease_token: string; p_result: Json; p_task_id: string }
+        Returns: boolean
       }
       correct_purchase_costing: {
         Args: {
@@ -10871,6 +11070,16 @@ export type Database = {
       fail_beta_lifecycle_operation: {
         Args: { p_lease_id: string; p_request_id: string }
         Returns: undefined
+      }
+      fail_vinted_comparison_task: {
+        Args: {
+          p_error_kind: string
+          p_error_message: string
+          p_lease_token: string
+          p_retry_at: string
+          p_task_id: string
+        }
+        Returns: boolean
       }
       finalize_purchase_costing: {
         Args: { p_purchase_id: string; p_workspace_id: string }
@@ -14449,6 +14658,15 @@ export type Database = {
       }
       vinted_ai_search_usage: {
         Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      vinted_comparison_market: {
+        Args: {
+          p_brand: string
+          p_category_id: number
+          p_listing_id: string
+          p_model: string
+        }
         Returns: Json
       }
       vinted_listing_catalog_status: { Args: never; Returns: Json }

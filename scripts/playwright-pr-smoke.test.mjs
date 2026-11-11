@@ -295,11 +295,11 @@ test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () 
   assert.ok(selected.some(([, title]) => !/@(?:pr|core)-smoke/u.test(title)));
 });
 
-test('direkt geänderte Galerie reduziert 34 Varianten auf fünfzehn unterschiedliche Nachweise', async () => {
+test('direkt geänderte Galerie behält alle Fotoanzahlen und unterschiedliche Bedienfälle', async () => {
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
-  assert.equal(complete.selected.length, 34);
-  assert.equal(selected.length, 15);
+  assert.equal(complete.selected.length, 40);
+  assert.equal(selected.length, 21);
   const completeKeys = new Set(keys(complete.selected));
   assert.ok(keys(selected).every((key) => completeKeys.has(key)));
   assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
@@ -326,6 +326,10 @@ test('direkt geänderte Galerie reduziert 34 Varianten auf fünfzehn unterschied
       ).length,
       1,
     );
+  for (const photoCount of [0, 1, 2, 3, 4, 5]) {
+    const title = `Vinted-Galerie erhält alle Originale bei ${photoCount} Fotos`;
+    assert.equal(selected.filter(([, actual]) => actual.includes(title)).length, 1, title);
+  }
 });
 
 test('bekannte Variantenfamilien behalten jeden Risikofall und lassen unbekannte Titel ungekürzt', async () => {

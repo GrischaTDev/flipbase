@@ -1,10 +1,12 @@
 import {
   createSearchHandler,
+  createProductionDependencies,
   searchOpenAi,
   listingImages,
   type SearchDependencies,
 } from './index.ts';
 import { parseAnalysis, parseUsage } from './analysis.ts';
+import { RESEARCH_LIMITS } from './research.ts';
 import { parseListingDetails, loadListingDetails } from './listing-details.ts';
 
 function recordInit(value: unknown): Record<string, unknown> | null {
@@ -29,6 +31,30 @@ const listing = {
   brand: 'Marke',
   size: '42',
   condition: 'Gut',
+};
+const dataset = {
+  windowDays: 30,
+  initialImportDays: 7,
+  asOf: '2026-11-07T12:00:00.000Z',
+  observedSince: '2026-11-01T12:00:00.000Z',
+  initialImportStatus: 'complete',
+  match: 'model',
+  active: {
+    count: 1000,
+    median: 55,
+    lowerQuartile: 40,
+    upperQuartile: 70,
+    minimum: 1,
+    maximum: 200,
+  },
+  soldMarked: {
+    count: 100,
+    median: 45,
+    lowerQuartile: 35,
+    upperQuartile: 60,
+    minimum: 5,
+    maximum: 160,
+  },
 };
 const comparison = (price: number, index: number, kind = 'sold') => ({
   title: 'Modell 42',
@@ -64,6 +90,54 @@ function provider(
         ],
       },
     ],
+  };
+}
+function productProvider(
+  comparisons = [comparison(120, 1, 'retail')],
+  summary = 'Herstellerpreis 120 EUR',
+) {
+  const raw = provider(comparisons);
+  raw.output[1].content![0].text = JSON.stringify({
+    modelName: 'Marke Modell ABC',
+    searchQuery: 'Marke Modell ABC',
+    confidence: 'exact',
+    evidence: 'Etikett und Hersteller bestätigt',
+    sources: [],
+    retail: { summary, limitations: [], comparisons, sources: [] },
+  });
+  return raw;
+}
+function marketProvider(comparisons = [comparison(70, 2)], summary = 'Marktvergleich') {
+  const raw = provider(comparisons);
+  raw.output[1].content![0].text = JSON.stringify({
+    summary,
+    limitations: [],
+    comparisons,
+    sources: [],
+  });
+  return raw;
+}
+function verifiedProvider(comparisons: ReturnType<typeof comparison>[], confidence = 'exact') {
+  const vinted = comparisons.map((entry, index) => ({
+    ...entry,
+    url: `https://www.vinted.de/items/${index + 1}-jacket`,
+  }));
+  const now = new Date();
+  const postedAt = new Date(now.getTime() - 10 * 86_400_000).toISOString();
+  return {
+    ...provider(vinted, confidence),
+    researchedAt: now.toISOString(),
+    comparisonDates: vinted.map(({ url }) => ({
+      url,
+      listingDate: {
+        status: 'within_window',
+        earliest: postedAt,
+        latest: postedAt,
+        label: '10 Tage',
+        checkedAt: now.toISOString(),
+        source: 'vinted_listing',
+      },
+    })),
   };
 }
 function fixture(overrides: Partial<SearchDependencies> = {}) {
@@ -166,7 +240,14 @@ Deno.test(
     equal(response.status, 200);
     const body = await response.json();
     equal(body.listing.totalPrice, 22);
-    equal(body.analysis.soldAverage, 70);
+    equal(body.analysis.soldAverage, null);
+    equal(body.analysis.currentMarket, {
+      low: 60,
+      high: 80,
+      count: 3,
+      basis: 'sold',
+      match: 'model',
+    });
     equal(test.saved.length, 2);
     equal(test.saved[0].input_tokens, 1000);
     equal(test.saved[1].status, 'completed');
@@ -202,6 +283,159 @@ Deno.test('laedt Cache und Statistik ohne erneuten Anbieteraufruf', async () => 
   equal((await stats.request({ workspaceId, action: 'usage' })).status, 200);
   equal(stats.calls(), 0);
 });
+
+Deno.test(
+  'fragt die produktive Vergleichsstatistik mit serverseitiger Artikelkennung und Modellzuordnung ab',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    const previous = new Map(
+      ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY'].map((key) => [
+        key,
+        Deno.env.get(key),
+      ]),
+    );
+    try {
+      Deno.env.set('SUPABASE_URL', 'https://database.invalid');
+      Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'test-service-role');
+      Deno.env.set('SUPABASE_ANON_KEY', 'test-anon');
+      let calls = 0;
+      globalThis.fetch = async (url, init) => {
+        calls++;
+        equal(String(url), 'https://database.invalid/rest/v1/rpc/vinted_comparison_market');
+        equal(JSON.parse(String(init?.body)), {
+          p_listing_id: listingId,
+          p_brand: 'Marke',
+          p_category_id: 1858,
+          p_model: 'Marke Modell ABC',
+        });
+        equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-service-role');
+        return Response.json(dataset);
+      };
+      const deps = createProductionDependencies();
+      equal(typeof deps.marketDataset, 'function');
+      equal(
+        await deps.marketDataset!(
+          { ...listing, category: { id: '1858', path: ['Fleecejacken'] } },
+          'Marke Modell ABC',
+        ),
+        dataset,
+      );
+      equal(calls, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of previous) {
+        if (value === undefined) Deno.env.delete(key);
+        else Deno.env.set(key, value);
+      }
+    }
+  },
+);
+
+Deno.test(
+  'aktualisiert die Vergleichsdaten auch bei KI-Cachetreffern ohne erneute Kosten',
+  async () => {
+    let datasetCalls = 0;
+    const cached = {
+      analysis: {
+        modelName: 'Marke Modell ABC',
+        confidence: 'likely',
+        resale: { low: 1, high: 2, count: 3, basis: 'sold' },
+        research: {
+          used: {
+            summary: 'Veraltet',
+            limitations: ['Alter Datenfehler'],
+            completed: false,
+            sources: [],
+          },
+        },
+      },
+      usage: { estimatedCostUsd: 0.03 },
+      searchedAt: '2026-11-06T12:00:00Z',
+    };
+    const test = fixture({
+      reserve: async () => ({ id: 1, cached: true, result: cached }),
+      marketDataset: async (item, modelName) => {
+        datasetCalls++;
+        equal(item.id, listingId);
+        equal(modelName, 'Marke Modell ABC');
+        return dataset;
+      },
+    });
+    const response = await test.request();
+    equal(response.status, 200);
+    const body = await response.json();
+    equal(body.cacheHit, true);
+    equal(body.analysis.marketDataset, dataset);
+    equal(body.analysis.resale, null);
+    equal(body.analysis.research.used.completed, true);
+    equal(body.analysis.research.used.limitations, []);
+    equal(body.usage, cached.usage);
+    equal(body.searchedAt, cached.searchedAt);
+    equal(datasetCalls, 1);
+    equal(test.calls(), 0);
+    equal(test.saved.length, 0);
+  },
+);
+
+Deno.test(
+  'behält bei Datenbankfehlern den KI-Cache und kennzeichnet ausschließlich den Vergleichsbestand als nicht verfügbar',
+  async () => {
+    const test = fixture({
+      reserve: async () => ({
+        id: 1,
+        cached: true,
+        result: {
+          analysis: { modelName: 'Fleecejacke', confidence: 'unknown' },
+          usage: { estimatedCostUsd: 0.03 },
+        },
+      }),
+      marketDataset: async (_item, modelName) => {
+        equal(modelName, null);
+        throw new Error('database unavailable');
+      },
+    });
+    const response = await test.request();
+    equal(response.status, 200);
+    const body = await response.json();
+    equal(body.cacheHit, true);
+    equal(body.analysis.marketDataset.initialImportStatus, 'unavailable');
+    equal(body.analysis.marketDataset.match, 'category');
+    equal(body.analysis.marketDataset.active, null);
+    equal(body.usage.estimatedCostUsd, 0.03);
+    equal(test.calls(), 0);
+  },
+);
+
+Deno.test(
+  'speichert erfolgreiche Produktrecherche auch bei ausgefallener Datenbank für spätere kostenlose Aktualisierung',
+  async () => {
+    const originalFetch = globalThis.fetch;
+    let providerCalls = 0;
+    try {
+      globalThis.fetch = async () => {
+        providerCalls++;
+        return Response.json(productProvider());
+      };
+      const test = fixture({
+        marketDataset: async () => {
+          throw new Error('database unavailable');
+        },
+        search: searchOpenAi,
+      });
+      const response = await test.request();
+      equal(response.status, 200);
+      const body = await response.json();
+      equal(body.analysis.marketDataset.initialImportStatus, 'unavailable');
+      equal(body.analysis.research.retail.completed, true);
+      equal(body.analysis.research.used.completed, false);
+      equal(test.saved[1].status, 'completed');
+      equal(test.saved[1].error_code, null);
+      equal(providerCalls, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
 Deno.test(
   'erfasst Kosten auch bei unvollstaendiger Antwort und haelt Abbrueche offen',
   async () => {
@@ -258,18 +492,19 @@ Deno.test('akzeptiert nur gefundene EUR-Quellen derselben Variante und entfernt 
 Deno.test(
   'berechnet bei wahrscheinlichem Modell nur eine vorlaeufige Spanne und benoetigt drei Preise',
   () => {
-    equal(parseAnalysis(provider([comparison(60, 1), comparison(70, 2)])).resale, null);
-    equal(parseAnalysis(provider(undefined, 'likely')).resale?.count, 3);
-    equal(parseAnalysis(provider(undefined, 'unknown')).resale, null);
+    const prices = [comparison(60, 1), comparison(70, 2), comparison(80, 3)];
+    equal(parseAnalysis(verifiedProvider(prices.slice(0, 2))).resale, null);
+    equal(parseAnalysis(verifiedProvider(prices, 'likely')).resale?.count, 3);
+    equal(parseAnalysis(verifiedProvider(prices, 'unknown')).resale, null);
     const asking = parseAnalysis(
-      provider([
+      verifiedProvider([
         comparison(100, 1, 'asking'),
         comparison(100, 2, 'asking'),
         comparison(100, 3, 'asking'),
       ]),
     );
     equal(asking.soldAverage, null);
-    equal(asking.resale, { low: 70, high: 85, basis: 'asking', count: 3 });
+    equal(asking.resale, { low: 100, high: 100, count: 3, basis: 'asking' });
   },
 );
 Deno.test('zaehlt verschiedene Query-Links desselben Inserats nicht als mehrere Verkaeufe', () => {
@@ -319,44 +554,74 @@ Deno.test(
     ];
     const previous = keys.map((key) => Deno.env.get(key));
     const originalFetch = globalThis.fetch;
+    const requests: Record<string, unknown>[] = [];
+    const urls: string[] = [];
     try {
       for (const key of keys)
         Deno.env.set(
           key,
           key === 'SUPABASE_URL' ? 'https://test.supabase.co' : 'synthetic-test-value',
         );
-      globalThis.fetch = async (input, init) => {
-        equal(input, 'https://api.openai.com/v1/responses');
+      globalThis.fetch = async (url, init) => {
+        urls.push(String(url));
+        if (new URL(String(url)).pathname === '/catalog') return new Response('');
         const body = JSON.parse(String(recordInit(init)?.['body']));
-        equal(body.model, 'gpt-6-luna');
-        equal(body.store, false);
-        equal(body.tool_choice, 'required');
-        if (!JSON.parse(body.input[0].content[0].text).identification) {
-          equal(body.reasoning.effort, 'low');
-          equal(body.max_tool_calls, 2);
-          equal(body.max_output_tokens, 1800);
-          equal(body.text.format.schema.properties.sources.maxItems, 3);
-          equal(body.input[0].content.length, 2);
-          equal(body.input[0].content[1].image_url, listing.image_urls[0]);
-          return Response.json(provider());
-        }
-        equal(body.reasoning.effort, 'medium');
-        if (![5, 6].includes(body.max_tool_calls)) throw new Error('Marktrecherche fehlt');
-        equal(body.input[0].content.length, 1);
-        equal(JSON.parse(body.input[0].content[0].text).description, listing.description);
-        const raw = provider();
-        raw.output[1].content![0].text = JSON.stringify({
-          summary: 'Marktvergleich',
-          limitations: [],
-          comparisons: [
-            comparison(70, body.max_tool_calls, body.max_tool_calls === 5 ? 'retail' : 'sold'),
-          ],
-        });
-        return Response.json(raw);
+        requests.push(body);
+        return Response.json(requests.length === 1 ? productProvider() : marketProvider());
       };
       const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-luna');
-      equal(parseUsage(raw, 'gpt-6-luna').inputTokens, 3000);
-      equal(parseUsage(raw, 'gpt-6-luna').webSearchCalls, 3);
+      equal(requests.length, 2);
+      equal(
+        urls.map((url) => new URL(url).hostname),
+        ['api.openai.com', 'www.vinted.de', 'api.openai.com'],
+      );
+      for (const [index, body] of requests.entries()) {
+        const request = body as {
+          model: string;
+          store: boolean;
+          tool_choice: string;
+          reasoning: { effort: string };
+          max_output_tokens: number;
+          max_tool_calls: number;
+          tools: { search_context_size: string }[];
+          text: {
+            format: {
+              schema: {
+                required: string[];
+                properties: { sources: { maxItems: number }; retail?: unknown };
+              };
+            };
+          };
+          input: { content: { text?: string; image_url?: string }[] }[];
+        };
+        equal(request.model, 'gpt-6-luna');
+        equal(request.store, false);
+        equal(request.tool_choice, 'required');
+        equal(request.reasoning.effort, 'low');
+        equal(request.tools[0].search_context_size, 'low');
+        equal(request.max_output_tokens, RESEARCH_LIMITS.outputTokens);
+        equal(
+          request.max_tool_calls,
+          index === 0 ? RESEARCH_LIMITS.productTools : RESEARCH_LIMITS.usedTools,
+        );
+        equal(request.input[0].content.length, index === 0 ? 2 : 1);
+        const input = JSON.parse(request.input[0].content[0].text!);
+        equal(input.description, listing.description);
+        equal(input.itemPrice, 20);
+        equal(input.totalPrice, 22);
+        equal(input.listingWindowDays, 30);
+        if (index === 0) {
+          equal(request.text.format.schema.properties.sources.maxItems, 3);
+          equal(request.text.format.schema.required.includes('searchQuery'), true);
+          equal(request.input[0].content[1].image_url, listing.image_urls[0]);
+        } else {
+          equal(input.identification.modelName, 'Marke Modell ABC');
+          equal(input.identification.searchQuery, 'Marke Modell ABC');
+          equal(input.retail.summary, 'Herstellerpreis 120 EUR');
+        }
+      }
+      equal(parseUsage(raw, 'gpt-6-luna').inputTokens, 2000);
+      equal(parseUsage(raw, 'gpt-6-luna').webSearchCalls, 2);
       equal(parseAnalysis(raw).research?.used.summary, 'Marktvergleich');
     } finally {
       globalThis.fetch = originalFetch;
@@ -405,8 +670,8 @@ Deno.test(
     try {
       globalThis.fetch = async (url, init) => {
         equal(String(url), listing.url);
-        equal(init?.redirect, 'error');
-        equal(init?.headers, undefined);
+        equal(recordInit(init)?.['redirect'], 'error');
+        equal(recordInit(init)?.['headers'], undefined);
         return new Response(html);
       };
       const enriched = await loadListingDetails({ ...listing, description: null });
@@ -419,7 +684,7 @@ Deno.test(
   },
 );
 Deno.test(
-  'liest die Artikelmerkmale der Detailseite und uebergibt sie allen drei Recherchen',
+  'liest die Artikelmerkmale der Detailseite und uebergibt sie beiden Recherchen',
   async () => {
     const attribute = (code: string, label: string, value: unknown) => ({
       code,
@@ -476,12 +741,34 @@ Deno.test(
     const originalFetch = globalThis.fetch;
     const contexts: Record<string, unknown>[] = [];
     try {
+      const requestBodies: { input: { content: { text: string }[] }[] }[] = [];
       globalThis.fetch = async (url, init) => {
         if (String(url) === listing.url) return new Response(html);
-        equal(String(url), 'https://api.openai.com/v1/responses');
-        const body = JSON.parse(String(init?.body));
+        if (new URL(String(url)).pathname === '/catalog') return new Response('');
+        const body = JSON.parse(String(recordInit(init)?.['body']));
+        requestBodies.push(body);
         const input = JSON.parse(body.input[0].content[0].text);
         contexts.push(input);
+        return Response.json(
+          input.identification
+            ? marketProvider([], 'Kontext bestätigt')
+            : productProvider([], 'Kontext bestätigt'),
+        );
+      };
+      const enriched = await loadListingDetails({
+        ...listing,
+        brand: 'Feed-Marke',
+        size: 'XXL',
+        condition: 'Neu',
+      });
+      equal(enriched.attributes?.length, 8);
+      const result = await searchOpenAi(enriched, enriched.image_urls, 'gpt-6-astra');
+      equal(contexts.length, 2);
+      equal(
+        requestBodies.map((body) => body.input[0].content.length),
+        [7, 1],
+      );
+      for (const input of contexts) {
         equal(input.brand, 'Carhartt');
         equal(input.size, 'L');
         equal(input.condition, 'Sehr gut');
@@ -492,7 +779,7 @@ Deno.test(
           path: ['Herren', 'Kleidung', 'Jacken & Mäntel', 'Jacken', 'Fleecejacken'],
         });
         equal(
-          input.attributes.map((entry: { value: string }) => entry.value),
+          (input.attributes as { value: string }[]).map((entry) => entry.value),
           [
             'Carhartt',
             'L',
@@ -507,26 +794,7 @@ Deno.test(
         equal(JSON.stringify(input).includes('private-id'), false);
         equal(JSON.stringify(input).includes('Leder'), false);
         equal(JSON.stringify(input).includes('upload_date'), false);
-        if (!input.identification) equal(body.input[0].content.length, 7);
-        const response = provider();
-        if (input.identification)
-          response.output[1].content![0].text = JSON.stringify({
-            summary: 'Kontext bestätigt',
-            limitations: [],
-            comparisons: [],
-            sources: [],
-          });
-        return Response.json(response);
-      };
-      const enriched = await loadListingDetails({
-        ...listing,
-        brand: 'Feed-Marke',
-        size: 'XXL',
-        condition: 'Neu',
-      });
-      equal(enriched.attributes?.length, 8);
-      const result = await searchOpenAi(enriched, enriched.image_urls, 'gpt-6-astra');
-      equal(contexts.length, 3);
+      }
       equal(parseAnalysis(result).research?.retail.completed, true);
       equal(parseAnalysis(result).research?.used.completed, true);
     } finally {
@@ -616,24 +884,20 @@ Deno.test(
   'weist Kosten nach abgebrochener Teilrecherche als unbekannt aus und behaelt erfolgreiche Recherche',
   async () => {
     const originalFetch = globalThis.fetch;
+    let requests = 0;
     try {
-      globalThis.fetch = async (_url, init) => {
-        const body = JSON.parse(String(init?.body));
-        if (body.max_tool_calls === 6) throw new Error('timeout');
-        const raw = provider();
-        if (body.max_tool_calls === 5)
-          raw.output[1].content![0].text = JSON.stringify({
-            summary: 'Herstellerpreis 120 EUR',
-            limitations: [],
-            comparisons: [comparison(120, 1, 'retail')],
-          });
-        return Response.json(raw);
+      globalThis.fetch = async (url) => {
+        if (new URL(String(url)).pathname === '/catalog') return new Response('');
+        requests++;
+        if (requests === 2) throw new Error('timeout');
+        return Response.json(productProvider());
       };
       const raw = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
+      equal(requests, 2);
       equal(parseUsage(raw, 'gpt-6-astra').estimatedCostUsd, null);
-      equal(parseUsage(raw, 'gpt-6-astra').inputTokens, 2000);
-      equal(parseUsage(raw, 'gpt-6-astra').outputTokens, 1000);
-      equal(parseUsage(raw, 'gpt-6-astra').knownCostUsd, 0.0864);
+      equal(parseUsage(raw, 'gpt-6-astra').inputTokens, 1000);
+      equal(parseUsage(raw, 'gpt-6-astra').outputTokens, 500);
+      equal(parseUsage(raw, 'gpt-6-astra').knownCostUsd, 0.0432);
       equal(parseUsage(raw, 'gpt-6-astra').incomplete, true);
       equal(parseAnalysis(raw).research?.retail.summary, 'Herstellerpreis 120 EUR');
       equal(parseAnalysis(raw).research?.used.completed, false);
@@ -671,25 +935,27 @@ Deno.test(
   async () => {
     const originalFetch = globalThis.fetch;
     try {
-      globalThis.fetch = async () => Response.json({ ...provider(), status: 'incomplete' });
+      let calls = 0;
+      globalThis.fetch = async () => {
+        calls++;
+        return Response.json({ ...provider(), status: 'incomplete' });
+      };
       const incomplete = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
+      equal(calls, 1);
       equal(incomplete.status, 'incomplete');
       equal(parseUsage(incomplete, 'gpt-6-astra').inputTokens, 1000);
-      globalThis.fetch = async (_url, init) => {
-        const body = JSON.parse(String(init?.body));
-        if (body.max_tool_calls === 2) return Response.json(provider());
-        if (body.max_tool_calls === 6)
-          return Response.json({ ...provider(), status: 'incomplete' });
-        const raw = provider();
-        raw.output[1].content![0].text = JSON.stringify({
-          summary: 'Neupreis',
-          limitations: [],
-          comparisons: [],
-        });
-        return Response.json(raw);
+      calls = 0;
+      globalThis.fetch = async (url) => {
+        if (new URL(String(url)).pathname === '/catalog') return new Response('');
+        calls++;
+        return Response.json(
+          calls === 1 ? productProvider() : { ...provider(), status: 'incomplete' },
+        );
       };
       const partial = await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra');
-      equal(parseUsage(partial, 'gpt-6-astra').inputTokens, 3000);
+      equal(calls, 2);
+      equal(parseUsage(partial, 'gpt-6-astra').inputTokens, 2000);
+      equal(parseUsage(partial, 'gpt-6-astra').estimatedCostUsd, 0.0864);
       equal(parseAnalysis(partial).research?.used.completed, false);
     } finally {
       globalThis.fetch = originalFetch;
@@ -722,11 +988,12 @@ Deno.test(
 );
 
 Deno.test(
-  'beendet eine vollstaendige Recherche nach hundert Sekunden ohne die alte 85-Sekunden-Grenze',
+  'beendet eine vollstaendige Recherche nach 113 Sekunden innerhalb der gemeinsamen Grenze',
   async () => {
     const originalFetch = globalThis.fetch;
     const originalTimeout = AbortSignal.timeout;
     let elapsed = 0;
+    let paidCalls = 0;
     const timers: { deadline: number; controller: AbortController }[] = [];
     try {
       AbortSignal.timeout = (milliseconds: number) => {
@@ -734,25 +1001,26 @@ Deno.test(
         timers.push({ deadline: elapsed + milliseconds, controller });
         return controller.signal;
       };
-      globalThis.fetch = async (_url, init) => {
-        const body = JSON.parse(String(init?.body));
-        elapsed += body.max_tool_calls === 2 ? 50_000 : body.max_tool_calls === 5 ? 40_000 : 10_000;
+      globalThis.fetch = async (url, init) => {
+        const catalog = new URL(String(url)).pathname === '/catalog';
+        if (!catalog) paidCalls++;
+        elapsed += catalog ? 4_000 : paidCalls === 1 ? 54_000 : 55_000;
         for (const timer of timers)
           if (elapsed >= timer.deadline)
             timer.controller.abort(new DOMException('Deadline reached', 'TimeoutError'));
-        init?.signal?.throwIfAborted();
-        const response = provider();
-        if (body.max_tool_calls !== 2)
-          response.output[1].content![0].text = JSON.stringify({
-            summary: 'Vollständige Marktrecherche',
-            limitations: [],
-            comparisons: [],
-            sources: [],
-          });
-        return Response.json(response);
+        const requestSignal = recordInit(init)?.['signal'];
+        if (requestSignal instanceof AbortSignal) requestSignal.throwIfAborted();
+        if (catalog) return new Response('');
+        return Response.json(
+          paidCalls === 1
+            ? productProvider([], 'Vollständige Marktrecherche')
+            : marketProvider([], 'Vollständige Marktrecherche'),
+        );
       };
       const result = parseAnalysis(await searchOpenAi(listing, listing.image_urls, 'gpt-6-astra'));
-      equal(elapsed, 100_000);
+      equal(paidCalls, 2);
+      equal(elapsed, 113_000);
+      equal(timers[0].deadline, 130_000);
       equal(result.research?.retail.completed, true);
       equal(result.research?.used.completed, true);
     } finally {
@@ -761,3 +1029,47 @@ Deno.test(
     }
   },
 );
+
+Deno.test('erneuert den Cache-Schlüssel nach Änderung der Rechercheversion', async () => {
+  const hash = async (version: string) =>
+    [
+      ...new Uint8Array(
+        await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(
+            JSON.stringify({ version, ...listing, image_urls: listing.image_urls }),
+          ),
+        ),
+      ),
+    ]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  const oldHash = await hash('vinted-product-research-7');
+  const expectedHash = await hash('vinted-product-research-8');
+  let capturedHash = '';
+  const test = fixture({
+    reserve: async (_user, _workspace, _listing, inputHash) => {
+      capturedHash = inputHash;
+      return { id: 1, cached: inputHash === oldHash, result: { analysis: {}, usage: {} } };
+    },
+  });
+  const response = await test.request();
+  equal(response.status, 200);
+  equal(capturedHash, expectedHash);
+  equal(capturedHash === oldHash, false);
+  equal(test.calls(), 1);
+  equal((await response.json()).cacheHit, false);
+});
+
+Deno.test('erhält unbekannte Gesamtkosten und lehnt tatsächlich ungültige Preise ab', async () => {
+  const unknown = fixture({ listing: async () => ({ ...listing, total_price: null }) });
+  const response = await unknown.request();
+  equal(response.status, 200);
+  equal((await response.json()).listing.totalPrice, null);
+  equal(unknown.calls(), 1);
+  for (const total of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const invalid = fixture({ listing: async () => ({ ...listing, total_price: total }) });
+    equal((await invalid.request()).status, 400);
+    equal(invalid.calls(), 0);
+  }
+});
