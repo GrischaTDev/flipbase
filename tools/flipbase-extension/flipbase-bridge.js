@@ -33,7 +33,7 @@
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: backgroundReachable || kleinanzeigenAvailable,
         backgroundReachable,
-        version: '1.14.4',
+        version: '1.14.5',
         vintedLocal: backgroundReachable,
         vintedSourceDetails: vintedSourceDetailsAvailable,
         kleinanzeigenQuota: kleinanzeigenQuotaAvailable,
@@ -55,7 +55,7 @@
     if (backgroundReachable || kleinanzeigenAvailable)
       window.dispatchEvent(
         new CustomEvent('flipbase:extension-ready', {
-          detail: { version: '1.14.4', ready: true },
+          detail: { version: '1.14.5', ready: true },
         }),
       );
   }

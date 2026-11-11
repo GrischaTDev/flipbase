@@ -99,6 +99,7 @@ function browser(
     existingOnSecondPage?: boolean;
     notifications?: unknown[];
     notificationStatus?: number;
+    conversationMessages?: unknown;
   } = {},
 ) {
   const requests: { path: string; method: string; body: unknown }[] = [];
@@ -156,9 +157,11 @@ function browser(
                 opposite_user: { id: options.wrongRecipient ? 999 : 456 },
                 item_id: options.wrongItem ? 999 : 789,
                 transaction: { id: 888, item_id: 789 },
-                messages: replied
-                  ? [{ id: 11, entity: { id: 11, user_id: 123, body: command.text } }]
-                  : [],
+                messages: Object.hasOwn(options, 'conversationMessages')
+                  ? options.conversationMessages
+                  : replied
+                    ? [{ id: 11, entity: { id: 11, user_id: 123, body: command.text } }]
+                    : [],
               },
             };
           else if (path.endsWith('/replies')) {
@@ -247,6 +250,64 @@ const offerCommand = {
   externalMessageId: '11',
   offer: { type: 'percentage' as const, value: 10 },
 };
+const confirmedFavoriteMessage = {
+  id: 11,
+  entity: { id: 11, user_id: 123, body: command.text },
+};
+for (const senderId of [456, 123]) {
+  test(`skips the favorite offer after another message from ${senderId}`, async () => {
+    for (const conversationMessages of [
+      [confirmedFavoriteMessage, { id: 12, entity: { user_id: senderId, body: 'Manual contact' } }],
+      [{ id: 12, entity: { user_id: senderId, body: 'Manual contact' } }, confirmedFavoriteMessage],
+    ]) {
+      const { page, requests } = browser({ conversationMessages, offerId: 222 });
+      let priceConfirmed = false;
+      assert.deepEqual(
+        await sendVintedFavoriteOffer(
+          page,
+          '123',
+          offerCommand,
+          async () => undefined,
+          async () => {
+            priceConfirmed = true;
+            return true;
+          },
+        ),
+        { outcome: 'skipped', errorCode: 'existing_conversation' },
+      );
+      assert.equal(priceConfirmed, false);
+      assert.equal(
+        requests.some((request) => request.method === 'POST'),
+        false,
+      );
+    }
+  });
+}
+test('rechecks the favorite conversation after server price confirmation', async () => {
+  const options = { conversationMessages: [confirmedFavoriteMessage], offerId: 222 };
+  const { page, requests } = browser(options);
+  let priceConfirmed = false;
+  const result = await sendVintedFavoriteOffer(
+    page,
+    '123',
+    offerCommand,
+    async () => undefined,
+    async () => {
+      priceConfirmed = true;
+      options.conversationMessages.push({
+        id: 12,
+        entity: { id: 12, user_id: 456, body: 'Reply during server confirmation' },
+      });
+      return true;
+    },
+  );
+  assert.equal(priceConfirmed, true);
+  assert.deepEqual(result, { outcome: 'skipped', errorCode: 'existing_conversation' });
+  assert.equal(
+    requests.some((request) => request.method === 'POST'),
+    false,
+  );
+});
 test('requires server confirmation of the current offer price before posting', async () => {
   const { page, requests } = browser({ sentMessage: true });
   let checked = false;
