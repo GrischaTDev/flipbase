@@ -1764,7 +1764,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.14.4');
+  assert.equal(announcement.reply.version, '1.14.5');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1972,7 +1972,7 @@ test('Manifest narrows application and provider access and keeps Kleinanzeigen a
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.14.4');
+  assert.equal(manifest.version, '1.14.5');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>

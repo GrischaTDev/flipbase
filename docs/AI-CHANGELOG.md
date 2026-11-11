@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-11 - Juna - Favoritenangebote bei weiterem Kontakt stoppen
+
+**Auftrag:** Die drei bestätigten Lücken in einem eigenen Zweig schließen und mit passenden Tests absichern.
+
+**Umsetzung:** `juna/vinted-favorite-contact-guard` beginnt im isolierten Worktree bei `origin/master` (`f6cc3f4e`). Cloud und Erweiterung geben ein Folgeangebot nur frei, wenn Gespräch, Person, Artikel, Transaktion und die eigene automatische Nachricht bestätigt sind und kein weiterer Gesprächsinhalt vorliegt. Der Cloud-Worker liest nach Preisfreigabe und Kontoprüfung erneut; die Erweiterung prüft bei Vorbereitung, Wiederaufnahme und unmittelbar vor dem Angebotsaufruf erneut. Fehlender oder unbestätigter Verlauf stoppt das Angebot. Vor einer neuen lokalen Favoritennachricht werden bis zu 25 Postfachseiten geprüft; ungültige oder unvollständige Pagination erlaubt keinen Versand. Erweiterung und Versionsmeldung auf 1.14.5 angehoben. Bestehende Auftrags-, Preis-, Rechte- und Ergebnisverträge bleiben erhalten; keine Migration oder neue Schnittstelle erforderlich.
+
+**Testnachweis:** Die ersten zehn neuen Regressionstests schlugen gegen den unveränderten Code erwartungsgemäß fehl, die bisherigen 33 Favoritentests bestanden. Ein elfter Test durch das tatsächliche Content-Skript reproduzierte danach die abweichende Pfadfreigabe bis Seite 20; diese auf 25 angeglichen. Die Fälle erfassen Antworten und eigene manuelle Nachrichten unabhängig von der Reihenfolge, neue Aktivität während Freigabe und Vorbereitung, fehlende oder fremde Nachrichtenbelege sowie bestehende Kontakte auf späteren Seiten und unvollständiges Postfach. Unter Node 22.23.3 bestehen 147 Erweiterungs-/Runtimefälle am endgültigen Stand und 72 betroffene Workerfälle einschließlich Versandrunner, Speicher und Isolation; die Worker-Typprüfung ist erfolgreich. Der lokale Pflicht-Preflight besteht Format, Lint, Anwendungstypen, Suite-Audit und 294 ausgewählte Skriptfälle. Nach der Anschlusskorrektur deren betroffene Erweiterungstests und Format/Lint erneut erfolgreich geprüft; die aktualisierte Auswahl ergänzt 16 ebenfalls erfolgreiche Verhandlungsfälle. Unveränderte Nachweise bleiben gültig. Der unabhängige Review bestätigt nach Korrektur der Adaptergrenze keine weiteren konkreten Befunde. Vollständige ausgewählte CI-, Browser- und Imageprüfungen stehen vor dem Merge aus.
+
+**Grenzen:** Keine echte Vinted-Nachricht oder Angebotsaktion, kein Deployment und kein Update der installierten Erweiterung. Zwischen dem letzten lesenden Anbieterabruf und dem Angebotsaufruf gibt es keine atomare Vinted-Transaktion. Die primäre Arbeitskopie und fremde Zweige bleiben unverändert. Flipbase fehlt weiterhin in der verbundenen Lissie-Projektliste; dort kein Bericht möglich.
+
 ## 2026-11-10 - Juna - Fallback-Vergleichsbasis für Inseratskennzahlen bei kurzer Historie
 
 **Problem:** Im Kleiderschrank zeigte die Kennzahlenansicht für neuere Inserate oder frisch synchronisierte Konten (z. B. Burberry Schal bei 1 Stunde +5 Aufrufe / +1 Favorit) bei der Auswahl „Tag“ oder „Woche“ gar keinen Zuwachs an.

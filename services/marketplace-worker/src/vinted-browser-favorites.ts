@@ -347,6 +347,42 @@ export function favoriteOfferPriceCents(
     ? price
     : null;
 }
+function checkFavoriteOfferConversation(
+  input: unknown,
+  accountId: string,
+  command: MarketplaceFavoriteOfferCommand,
+): string | null {
+  const conversation = record(input);
+  const transaction = record(conversation['transaction']);
+  const itemIds = [
+    conversation['item_id'],
+    record(conversation['item'])['id'],
+    transaction['item_id'],
+  ].flatMap((candidate) => {
+    const id = identifier(candidate);
+    return id ? [id] : [];
+  });
+  const messages = conversation['messages'];
+  if (
+    identifier(conversation['id']) !== command.conversationId ||
+    identifier(record(conversation['opposite_user'])['id']) !== command.recipientId ||
+    identifier(transaction['id']) !== command.transactionId ||
+    !itemIds.length ||
+    itemIds.some((id) => id !== command.itemId) ||
+    !Array.isArray(messages) ||
+    !messages.some((raw) => {
+      const message = record(raw);
+      const entity = record(message['entity']);
+      return (
+        (identifier(message['id']) ?? identifier(entity['id'])) === command.externalMessageId &&
+        identifier(entity['user_id']) === accountId &&
+        entity['body'] === command.text
+      );
+    })
+  )
+    return 'conversation_unconfirmed';
+  return messages.length === 1 ? null : 'existing_conversation';
+}
 export async function sendVintedFavoriteOffer(
   page: Page,
   accountId: string,
@@ -378,40 +414,20 @@ export async function sendVintedFavoriteOffer(
     const originalPriceCents = Math.round(Number(price['amount']) * 100);
     const offeredPriceCents = favoriteOfferPriceCents(originalPriceCents, command.offer);
     if (offeredPriceCents === null) return { outcome: 'skipped', errorCode: 'invalid_price' };
-    const conversation = record(
-      (await requests.request(`/api/v2/conversations/${command.conversationId}`))['conversation'],
-    );
-    const transaction = record(conversation['transaction']);
-    const itemIds = [
-      conversation['item_id'],
-      record(conversation['item'])['id'],
-      transaction['item_id'],
-    ].flatMap((candidate) => {
-      const id = identifier(candidate);
-      return id ? [id] : [];
-    });
-    const messages = conversation['messages'];
-    if (
-      identifier(conversation['id']) !== command.conversationId ||
-      identifier(record(conversation['opposite_user'])['id']) !== command.recipientId ||
-      identifier(transaction['id']) !== command.transactionId ||
-      !itemIds.length ||
-      itemIds.some((id) => id !== command.itemId) ||
-      !Array.isArray(messages) ||
-      !messages.some((raw) => {
-        const message = record(raw);
-        const entity = record(message['entity']);
-        return (
-          (identifier(message['id']) ?? identifier(entity['id'])) === command.externalMessageId &&
-          identifier(entity['user_id']) === accountId &&
-          entity['body'] === command.text
-        );
-      })
-    )
-      return { outcome: 'skipped', errorCode: 'conversation_unconfirmed' };
+    const checkConversation = async () =>
+      checkFavoriteOfferConversation(
+        (await requests.request(`/api/v2/conversations/${command.conversationId}`))['conversation'],
+        accountId,
+        command,
+      );
+    const preparationError = await checkConversation();
+    if (preparationError) return { outcome: 'skipped', errorCode: preparationError };
     if (!(await confirmPrice(originalPriceCents, offeredPriceCents)))
       return { outcome: 'skipped', errorCode: 'price_unconfirmed' };
     await requests.identify();
+    // Die Preisfreigabe kann dauern; neuer Kontakt stoppt auch ein bereits vorbereitetes Angebot.
+    const sendingError = await checkConversation();
+    if (sendingError) return { outcome: 'skipped', errorCode: sendingError };
     attempted = true;
     const result = await requests.request(
       `/api/v2/transactions/${command.transactionId}/offers`,

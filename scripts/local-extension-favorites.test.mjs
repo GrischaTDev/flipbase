@@ -71,7 +71,10 @@ function setup({ existing = false, history = false, fail = false } = {}) {
         : path.includes('wardrobe/')
           ? { items: [{ id: 42, is_closed: false }], pagination: { total_pages: 1 } }
           : path.includes('inbox?')
-            ? { conversations: existing ? [{ opposite_user: { id: 73 } }] : [] }
+            ? {
+                conversations: existing ? [{ opposite_user: { id: 73 } }] : [],
+                pagination: { total_pages: 1 },
+              }
             : {
                 conversation: {
                   id: 15,
@@ -97,6 +100,7 @@ function offerFixture() {
       result.items[0].price = { amount: '40.00', currency_code: 'EUR' };
     if (result.conversation) {
       result.conversation.transaction = { id: 22, item_id: 42 };
+      result.conversation.messages = [{ id: 123, entity: { user_id: 9, body: command.text } }];
     }
     return result;
   };
@@ -108,10 +112,108 @@ function offerFixture() {
     ...command,
     conversationId: '15',
     transactionId: '22',
+    externalMessageId: '123',
     offer: { type: 'amount', value: 5 },
   };
   return fixture;
 }
+
+for (const senderId of [73, 9]) {
+  test(`favorite offer stops after another message from ${senderId}`, async () => {
+    for (const newestFirst of [false, true]) {
+      const fixture = offerFixture();
+      const originalRead = fixture.adapter.read;
+      fixture.adapter.read = async (path) => {
+        const result = await originalRead(path);
+        if (result.conversation) {
+          const message = { id: 124, entity: { user_id: senderId, body: 'Manual contact' } };
+          if (newestFirst) result.conversation.messages.unshift(message);
+          else result.conversation.messages.push(message);
+        }
+        return result;
+      };
+      assert.deepEqual(
+        await favorites.sendOffer(fixture.adapter, '9', {
+          ...fixture.command,
+          originalPriceCents: 4000,
+          offerPriceCents: 3500,
+        }),
+        { outcome: 'skipped', errorCode: 'existing_conversation' },
+      );
+      assert.equal(fixture.writes.length, 0);
+    }
+  });
+}
+
+test('favorite offer requires the confirmed own message in a readable history', async () => {
+  for (const history of [
+    undefined,
+    null,
+    [],
+    [{ id: 999, entity: { user_id: 9, body: command.text } }],
+    [{ id: 123, entity: { user_id: 73, body: command.text } }],
+    [{ id: 123, entity: { user_id: 9, body: 'Different message' } }],
+  ]) {
+    const fixture = offerFixture();
+    const originalRead = fixture.adapter.read;
+    fixture.adapter.read = async (path) => {
+      const result = await originalRead(path);
+      if (result.conversation) result.conversation.messages = history;
+      return result;
+    };
+    assert.deepEqual(
+      await favorites.sendOffer(fixture.adapter, '9', {
+        ...fixture.command,
+        originalPriceCents: 4000,
+        offerPriceCents: 3500,
+      }),
+      { outcome: 'skipped', errorCode: 'conversation_unconfirmed' },
+    );
+    assert.equal(fixture.writes.length, 0);
+  }
+});
+
+test('favorite offer rechecks activity after its final identity check', async () => {
+  const fixture = offerFixture();
+  const originalRead = fixture.adapter.read;
+  let identityReads = 0;
+  fixture.adapter.read = async (path) => {
+    if (path.endsWith('/current')) identityReads++;
+    const result = await originalRead(path);
+    if (result.conversation && identityReads >= 2)
+      result.conversation.messages.push({
+        id: 124,
+        entity: { user_id: 73, body: 'Reply before posting' },
+      });
+    return result;
+  };
+  assert.deepEqual(
+    await favorites.sendOffer(fixture.adapter, '9', {
+      ...fixture.command,
+      originalPriceCents: 4000,
+      offerPriceCents: 3500,
+    }),
+    { outcome: 'skipped', errorCode: 'existing_conversation' },
+  );
+  assert.equal(fixture.writes.length, 0);
+});
+
+test('favorite offer rechecks activity between preparation and sending', async () => {
+  const fixture = offerFixture();
+  const prepared = await favorites.prepareOffer(fixture.adapter, '9', fixture.command);
+  const originalRead = fixture.adapter.read;
+  fixture.adapter.read = async (path) => {
+    const result = await originalRead(path);
+    if (result.conversation)
+      result.conversation.messages.push({ id: 124, entity: { user_id: 9, body: 'Manual reply' } });
+    return result;
+  };
+  assert.deepEqual(
+    await favorites.sendOffer(fixture.adapter, '9', { ...fixture.command, ...prepared }),
+    { outcome: 'skipped', errorCode: 'existing_conversation' },
+  );
+  assert.equal(fixture.writes.length, 0);
+});
 test('real offer uses the proven transaction endpoint after checking live EUR price', async () => {
   const fixture = offerFixture();
   const prepared = await favorites.prepareOffer(fixture.adapter, '9', fixture.command);
@@ -219,6 +321,57 @@ test('existing conversation never receives a new automatic favorite message', as
     );
   }
 });
+
+test('favorite message finds existing contact on later inbox pages', async () => {
+  const fixture = setup();
+  const originalRead = fixture.adapter.read;
+  const pagesRead = [];
+  fixture.adapter.read = async (path) => {
+    if (!path.includes('/inbox?')) return originalRead(path);
+    pagesRead.push(path);
+    return {
+      conversations: path.includes('page=2&')
+        ? [{ id: 28, opposite_user: { id: 73 } }]
+        : Array.from({ length: 20 }, (_, index) => ({
+            id: index + 100,
+            opposite_user: { id: index + 200 },
+          })),
+      pagination: { total_pages: 2 },
+    };
+  };
+  fixture.messages.send = async () => {
+    assert.fail('Existing contact must not receive a favorite message');
+  };
+  assert.deepEqual(await favorites.send(fixture.adapter, '9', command, fixture.messages), {
+    outcome: 'skipped',
+    errorCode: 'existing_conversation',
+  });
+  assert.equal(pagesRead.length, 2);
+  assert.equal(fixture.writes.length, 0);
+});
+
+test('favorite message refuses incomplete or invalid inbox pagination', async () => {
+  for (const response of [
+    { conversations: [], pagination: { total_pages: 26 } },
+    { conversations: [] },
+    { conversations: [], pagination: { total_pages: 0 } },
+  ]) {
+    const fixture = setup();
+    const originalRead = fixture.adapter.read;
+    fixture.adapter.read = (path) =>
+      path.includes('/inbox?') ? Promise.resolve(response) : originalRead(path);
+    fixture.messages.send = async () => {
+      assert.fail('Unconfirmed inbox must not authorize a favorite message');
+    };
+    const result = await favorites.send(fixture.adapter, '9', command, fixture.messages);
+    assert.equal(result.outcome, 'failed');
+    assert.equal(
+      result.errorCode,
+      response.pagination?.total_pages === 26 ? 'source_partial' : 'invalid_response',
+    );
+    assert.equal(fixture.writes.length, 0);
+  }
+});
 test('lost conversation creation response is unknown and never retried', async () => {
   const fixture = setup({ fail: true });
   assert.equal(
@@ -270,7 +423,7 @@ test('missing browser authorization fails before the first favorite write', asyn
   assert.equal(fixture.writes.length, 0);
 });
 
-test('installed content script scans unread favorites and confirms one reply through the existing sender', async () => {
+async function checkInstalledFavoriteReply(inboxPages) {
   const dom = new JSDOM(
     '<!doctype html><head><meta name="csrf-token" content="synthetic-csrf"></head><body><main>Garderobe</main></body>',
     { url: 'https://www.vinted.de/' },
@@ -289,6 +442,7 @@ test('installed content script scans unread favorites and confirms one reply thr
     },
   };
   const writes = [];
+  const inboxReads = [];
   let sent = false;
   const fetch = async (path, options) => {
     assert.equal(options.credentials, 'include');
@@ -311,8 +465,10 @@ test('installed content script scans unread favorites and confirms one reply thr
         items: [{ id: 42, is_closed: false, price: { amount: '40.00', currency_code: 'EUR' } }],
         pagination: { total_pages: 1 },
       };
-    else if (path.includes('/inbox?')) payload = { conversations: [] };
-    else
+    else if (path.includes('/inbox?')) {
+      inboxReads.push(path);
+      payload = { conversations: [], pagination: { total_pages: inboxPages } };
+    } else
       payload = {
         conversation: {
           id: 15,
@@ -374,6 +530,7 @@ test('installed content script scans unread favorites and confirms one reply thr
     assert.equal(reply.success, true);
     assert.equal(reply.result.outcome.outcome, 'sent');
     assert.equal(reply.result.outcome.externalMessageId, '123');
+    assert.equal(inboxReads.length, inboxPages);
     assert.deepEqual(
       writes.map((write) => write.path),
       ['/api/v2/conversations', '/api/v2/conversations/15/replies'],
@@ -384,6 +541,7 @@ test('installed content script scans unread favorites and confirms one reply thr
       ...command,
       conversationId: '15',
       transactionId: '22',
+      externalMessageId: '123',
       offer: { type: 'amount', value: 5 },
     };
     const prepared = await new Promise((resolve) =>
@@ -423,4 +581,9 @@ test('installed content script scans unread favorites and confirms one reply thr
   } finally {
     dom.window.close();
   }
-});
+}
+
+for (const inboxPages of [1, 25]) {
+  test(`installed content script confirms a favorite reply after checking ${inboxPages} inbox pages`, () =>
+    checkInstalledFavoriteReply(inboxPages));
+}

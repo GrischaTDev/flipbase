@@ -55,6 +55,31 @@
       first.eventAt.localeCompare(second.eventAt),
     );
   }
+  async function hasConversation(adapter, recipientId) {
+    for (let page = 1; page <= 25; page++) {
+      const inbox = await adapter.read(`/api/v2/inbox?page=${page}&per_page=20`);
+      const totalPages = inbox?.pagination?.total_pages;
+      if (
+        !Array.isArray(inbox?.conversations) ||
+        inbox.conversations.length > 20 ||
+        !Number.isSafeInteger(totalPages) ||
+        totalPages < page
+      )
+        throw Object.assign(new Error('Vinted bestätigt das vollständige Postfach nicht.'), {
+          code: 'invalid_response',
+        });
+      if (
+        inbox.conversations.some(
+          (conversation) => identifier(conversation?.opposite_user?.id) === recipientId,
+        )
+      )
+        return true;
+      if (page >= totalPages) return false;
+    }
+    throw Object.assign(new Error('Das Vinted-Postfach konnte nicht vollständig geprüft werden.'), {
+      code: 'source_partial',
+    });
+  }
   async function send(adapter, accountId, command, messages) {
     if (
       !identifier(command.actorId) ||
@@ -87,14 +112,7 @@
       if (!item || item.is_closed !== false || item.is_reserved === true)
         return { outcome: 'skipped', errorCode: 'inactive_item' };
       // Bereits laufende Unterhaltungen werden nicht mit einer Favoritenvorlage unterbrochen.
-      const inbox = await adapter.read('/api/v2/inbox?page=1&per_page=20');
-      if (!Array.isArray(inbox?.conversations))
-        throw new Error('Vinted bestätigt das Postfach nicht.');
-      if (
-        inbox.conversations.some(
-          (conversation) => identifier(conversation.opposite_user?.id) === command.actorId,
-        )
-      )
+      if (await hasConversation(adapter, command.actorId))
         return { outcome: 'skipped', errorCode: 'existing_conversation' };
       if (identifier((await adapter.read('/api/v2/users/current'))?.user?.id) !== accountId)
         throw Object.assign(new Error('Das Vinted-Konto wurde gewechselt.'), {
@@ -166,12 +184,47 @@
       ? price
       : null;
   }
+  async function checkFavoriteOfferConversation(adapter, accountId, command) {
+    const conversation = (await adapter.read(`/api/v2/conversations/${command.conversationId}`))
+      ?.conversation;
+    const itemIds = [
+      conversation?.item_id,
+      conversation?.item?.id,
+      conversation?.transaction?.item_id,
+    ]
+      .map(identifier)
+      .filter(Boolean);
+    if (
+      identifier(conversation?.id) !== command.conversationId ||
+      identifier(conversation?.opposite_user?.id) !== command.actorId ||
+      identifier(conversation?.transaction?.id) !== command.transactionId ||
+      !itemIds.length ||
+      itemIds.some((itemId) => itemId !== command.itemId)
+    )
+      return 'transaction_changed';
+    const messages = conversation?.messages;
+    if (
+      typeof command.text !== 'string' ||
+      !command.text.trim() ||
+      !Array.isArray(messages) ||
+      !messages.some(
+        (message) =>
+          (identifier(message?.id) ?? identifier(message?.entity?.id)) ===
+            command.externalMessageId &&
+          identifier(message?.entity?.user_id) === accountId &&
+          message?.entity?.body === command.text,
+      )
+    )
+      return 'conversation_unconfirmed';
+    return messages.length === 1 ? null : 'existing_conversation';
+  }
   async function prepareOffer(adapter, accountId, command) {
     if (
       !identifier(command.actorId) ||
       !identifier(command.itemId) ||
       !identifier(command.conversationId) ||
-      !identifier(command.transactionId)
+      !identifier(command.transactionId) ||
+      !identifier(command.externalMessageId)
     )
       return { outcome: 'skipped', errorCode: 'missing_transaction' };
     if (identifier((await adapter.read('/api/v2/users/current'))?.user?.id) !== accountId)
@@ -199,23 +252,8 @@
     const originalPriceCents = Math.round(Number(amount) * 100);
     const price = offerPriceCents(originalPriceCents, command.offer);
     if (price === null) return { outcome: 'skipped', errorCode: 'invalid_price' };
-    const conversation = (await adapter.read(`/api/v2/conversations/${command.conversationId}`))
-      ?.conversation;
-    const itemIds = [
-      conversation?.item_id,
-      conversation?.item?.id,
-      conversation?.transaction?.item_id,
-    ]
-      .map(identifier)
-      .filter(Boolean);
-    if (
-      identifier(conversation?.id) !== command.conversationId ||
-      identifier(conversation?.opposite_user?.id) !== command.actorId ||
-      identifier(conversation?.transaction?.id) !== command.transactionId ||
-      !itemIds.length ||
-      itemIds.some((itemId) => itemId !== command.itemId)
-    )
-      return { outcome: 'skipped', errorCode: 'transaction_changed' };
+    const preparationError = await checkFavoriteOfferConversation(adapter, accountId, command);
+    if (preparationError) return { outcome: 'skipped', errorCode: preparationError };
     return { originalPriceCents, offerPriceCents: price };
   }
   async function sendOffer(adapter, accountId, command) {
@@ -236,6 +274,9 @@
         throw Object.assign(new Error('Das Vinted-Konto wurde gewechselt.'), {
           code: 'identity_changed',
         });
+      // Zwischen Vorbereitung und Versand liegen serverseitige Freigabe und Kontoprüfung.
+      const sendingError = await checkFavoriteOfferConversation(adapter, accountId, command);
+      if (sendingError) return { outcome: 'skipped', errorCode: sendingError };
       attempted = true;
       const result = await adapter.write(`/api/v2/transactions/${command.transactionId}/offers`, {
         body: JSON.stringify({

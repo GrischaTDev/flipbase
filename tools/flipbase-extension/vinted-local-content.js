@@ -228,7 +228,7 @@
       interruptedPageState ?? (sessionBlocked ? 'session_blocked' : pageState()),
     );
     if (
-      !/^\/api\/v2\/(?:users\/current|item_upload\/items\/[1-9][0-9]{0,31}|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|inbox\?page=(?:[1-9]|1[0-9]|20)&per_page=20|conversations\/[1-9][0-9]{0,31}|transactions\/[1-9][0-9]{0,31})$/.test(
+      !/^\/api\/v2\/(?:users\/current|item_upload\/items\/[1-9][0-9]{0,31}|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|inbox\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|conversations\/[1-9][0-9]{0,31}|transactions\/[1-9][0-9]{0,31})$/.test(
         path,
       ) &&
       !/^\/web\/api\/notifications\/notifications\?page=[12]&per_page=100&mark_as_read=false$/.test(

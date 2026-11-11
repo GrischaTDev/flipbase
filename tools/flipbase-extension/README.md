@@ -1,6 +1,15 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.4
+## Aktuell: Version 1.14.5
+
+Favoritenangebote werden nur gesendet, wenn die bestätigte automatische Nachricht
+weiterhin der einzige Gesprächsinhalt ist. Antworten und manuelle Nachrichten
+stoppen das Folgeangebot auch zwischen Vorbereitung und Versand. Fehlender oder
+unbestätigter Nachrichtenverlauf gibt kein Angebot frei. Vor der ersten
+Favoritennachricht wird das Postfach seitenweise geprüft; eine unvollständige
+Prüfung stoppt den Versand.
+
+## Version 1.14.4
 
 Ist die Erweiterung gerade mit einem Vinted-Abgleich beschäftigt, meldet sie das
 der Flipbase-Seite ausdrücklich als belegt. Flipbase wartet dann kurz und lädt
