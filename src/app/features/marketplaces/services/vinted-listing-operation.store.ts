@@ -32,13 +32,15 @@ export class VintedListingOperationStore {
   private readonly relistingViews = new Set<{
     readonly scope: Pick<VintedListingOperation, 'userId' | 'workspaceId' | 'connectionId'>;
     readonly update: (job: VintedListingJob) => Promise<boolean>;
+    readonly releaseCancelled?: (job: VintedListingJob) => void;
   }>();
 
   registerRelistingView(
     scope: Pick<VintedListingOperation, 'userId' | 'workspaceId' | 'connectionId'>,
     update: (job: VintedListingJob) => Promise<boolean>,
+    releaseCancelled?: (job: VintedListingJob) => void,
   ): () => void {
-    const view = { scope, update };
+    const view = { scope, update, releaseCancelled };
     this.relistingViews.add(view);
     return () => {
       this.relistingViews.delete(view);
@@ -112,6 +114,23 @@ export class VintedListingOperationStore {
           item.record.job.id !== job.id,
       ),
     );
+    if (
+      job.state !== 'cancelled' ||
+      job.executionMode !== 'cloud' ||
+      job.action !== 'publish' ||
+      !job.relistExternalId ||
+      job.relistDeletedAt != null ||
+      job.externalId !== null
+    )
+      return;
+    for (const view of this.relistingViews) {
+      if (
+        view.scope.userId === userId &&
+        view.scope.workspaceId === job.workspaceId &&
+        view.scope.connectionId === job.connectionId
+      )
+        view.releaseCancelled?.(job);
+    }
   }
   readonly entries = computed(() => {
     const user = this.auth.currentUser();

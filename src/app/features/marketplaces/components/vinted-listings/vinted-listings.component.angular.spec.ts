@@ -479,6 +479,50 @@ it('entfernt die Plansperre nach Verwerfen über die Auftragsübersicht auch bei
   await fixture.plans.refresh();
   expect(fixture.plans.plans()).toHaveLength(0);
 });
+
+it.each([
+  { name: 'bestätigte Quellenlöschung', change: { relistDeletedAt: '2026-11-12T12:00:00Z' } },
+  { name: 'bekannte neue Anzeigenkennung', change: { externalId: '456' } },
+  { name: 'unbekanntes Ergebnis', change: { state: 'outcome_unknown' as const } },
+  { name: 'noch fehlgeschlagener Auftrag', change: { state: 'failed' as const } },
+  { name: 'lokale Ausführung', change: { executionMode: 'local' as const } },
+  { name: 'Vinted-Entwurf statt Veröffentlichung', change: { action: 'vinted_draft' as const } },
+  { name: 'anderer Workspace', change: { workspaceId: 'another-workspace' } },
+  { name: 'andere Verbindung', change: { connectionId: 'another-connection' } },
+  { name: 'andere Anbieteridentität', change: { externalAccountId: '456' } },
+  { name: 'veraltete Abbruchversion', change: { version: 2 } },
+])('erhält die Plansperre bei $name', async ({ change }) => {
+  const initial = acceptedPlan();
+  const record = {
+    ...initial,
+    job: { ...initial.job, state: 'failed' as const, relistDeletedAt: null, version: 3 },
+  };
+  const fixture = loadedPlanStore(record);
+  await settlePlans();
+  TestBed.inject(VintedListingOperationStore).releaseRelisting({
+    ...record.job,
+    state: 'cancelled',
+    version: 4,
+    ...change,
+  });
+  expect(fixture.plans.plans().map(({ job }) => job.id)).toEqual([record.job.id]);
+});
+
+it('gibt die Plansperre nicht durch den Abbruch eines anderen Nutzers frei', async () => {
+  const initial = acceptedPlan();
+  const record = {
+    ...initial,
+    job: { ...initial.job, state: 'failed' as const, relistDeletedAt: null },
+  };
+  const fixture = loadedPlanStore(record);
+  await settlePlans();
+  TestBed.inject(VintedListingOperationStore).releaseRelisting(
+    { ...record.job, state: 'cancelled', version: record.job.version + 1 },
+    'another-user',
+  );
+  expect(fixture.plans.plans().map(({ job }) => job.id)).toEqual([record.job.id]);
+});
+
 it('hält die bestätigte Jobannahme über verspätete und fehlgeschlagene erste Planabrufe bis zum Serverplan gesperrt', async () => {
   const record = acceptedPlan();
   const f = loadedPlanStore(record);

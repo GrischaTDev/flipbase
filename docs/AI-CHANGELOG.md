@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-12 - Juna - Plansperren nach bestätigtem Relist-Abbruch zuverlässig lösen
+
+**Auftrag:** Beide im Review von PR #610 bestätigten Fehler im bestehenden eigenen Zweig `juna/review-failed-relisting-release` beheben und die betroffenen Tests erneut ausführen. Der ursprüngliche PR-Zweig bleibt unverändert.
+
+**Änderung:** Die vorhandene Registrierung offener Relisting-Ansichten übermittelt jetzt auch bestätigte Cloud-Abbrüche vor der Quellenlöschung. Die passende Planansicht entfernt ihre Karte und ihren Cacheeintrag und entwertet bereits laufende Abrufe. Dadurch erreichen sowohl der Artikelknopf als auch „Laufende Aktionen“ dieselbe Freigabe; verspätete Bild-/Snapshotantworten können die Karte nicht zurückbringen. Die Zuordnung prüft Nutzer, Workspace, Verbindung, Anbieteridentität und Auftragsversion. Unklare Ergebnisse, bekannte neue Anzeigen, lokale Ausführung, andere Aktionen und Abbrüche nach Quellenlöschung bleiben geschützt. SQL und Serverfreigaben bleiben unverändert.
+
+**Regressionen:** Vor der Korrektur scheitern erneut genau die beiden bekannten Fälle; 41 bestehende und zusätzliche Schutzfälle bestehen. Mit der Korrektur bestehen zunächst alle 65 Fälle der drei gezielten Dateien. Insgesamt elf ergänzte Gegenproben erhalten Sperren bei fremden oder veralteten Meldungen und unsicheren Abbruchzuständen.
+
+**Abschlussprüfung:** Der aktualisierte Preflight-Plan wählt weiterhin vier Node- und 15 Angular-Dateien. Unter Node 22.23.4 bestehen am Korrekturstand die vollständigen Befehle für Format, Lint, Typen und Suite-Audit, 64 Fälle der Unit-Testauswahl, alle 32 Node- und 362 Angular-Fälle sowie der Produktionsbau einschließlich Angular-Vorlagen. Derselbe Auswahl- und Ausführungsweg wie im lokalen Preflight wird verwendet; das ausführende Skript und Protokoll liegen außerhalb des Quellbaums unter `C:/Users/gt/.codex/artifacts/pr610-review/run-fix-checks.mjs` beziehungsweise `fix-checks.log`, Exit 0. Erfolgreiche unveränderte Migrations-/SQL-Paket-, übrige Skript- und Orchestrierungsnachweise sowie die 243 SQL-Fälle aus dem Review werden weiterverwendet. Der damalige rote Preflight wird nicht nachträglich als grüner Gesamtlauf ausgegeben. Bestehende Template-/CommonJS-/Bundlewarnungen bleiben sichtbar. Browser- und Datenbank-CI sind vor einem Merge weiterhin nachzuweisen. Flipbase fehlt weiterhin in der verbundenen Lissie-Projektliste.
+
 ## 2026-11-12 - Juna - Freigabe fehlgeschlagener Relistings aus PR 610 prüfen
 
 **Auftrag:** Freigabegrenzen und vollständigen Ablauf von PR #610 prüfen und fehlende lokale Nachweise ausführen. Eigener Review-Zweig `juna/review-failed-relisting-release` vom aktuellen `origin/master` (`1f484278a`); PR-Stand `fde609b22` ohne Konflikte zur lokalen Prüfung übernommen. Der ursprüngliche PR-Zweig bleibt unverändert.
