@@ -520,7 +520,16 @@
         return { ...absent, state: 'invalid' };
       const scope = root || document;
       const inputs = [...scope.querySelectorAll('#' + field)];
-      const taggedControls = [...scope.querySelectorAll('[data-testid="' + testIds[field] + '"]')];
+      // Am echten Formular vom 12.11.2026: Größengruppen mit Chips haben eine eigene Feldkennung.
+      const fieldTestIds =
+        field === 'size'
+          ? [testIds.size, 'category-size-single-grid_chips-input']
+          : [testIds[field]];
+      const taggedControls = [
+        ...scope.querySelectorAll(
+          fieldTestIds.map((testId) => '[data-testid="' + testId + '"]').join(','),
+        ),
+      ];
       const elements = [...new Set([...inputs, ...taggedControls])];
       if (elements.length === 0) return absent;
       if (elements.length !== 1) return { ...absent, state: 'multiple' };
@@ -558,7 +567,7 @@
         state: 'ready',
         kind: 'button',
         value: element.innerText.replace(/\s+/g, ' ').trim(),
-        testId: testIds[field],
+        testId: element.dataset.testid,
         visible: visible(element),
         scoped: true,
       };

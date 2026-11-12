@@ -18,6 +18,124 @@ import {
 } from '../../src/vinted-browser-listing-form.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 import { createVintedListingFormFixture } from '../fixtures/vinted-listing-form.ts';
+import { selectVintedListingField } from '../../src/vinted-browser-listing-fields.ts';
+
+test('reads and selects the observed size chips button without treating companion inputs as fields', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingFormFixture(page, { modernControls: true });
+    await page.getByTestId('category-size-single-grid-input').evaluate((element) => {
+      element.setAttribute('data-testid', 'category-size-single-grid_chips-input');
+    });
+    const metadata = await page.evaluate(collectVintedListingFormMetadata);
+    assert.ok(metadata.presentFields.includes('size'));
+    assert.deepEqual(metadata.unknownFields, []);
+    const choices = await openVintedListingChoices(page, 'size');
+    assert.equal(choices.sizeGroupId, 14);
+    assert.equal(choices.choices.find((choice) => choice.id === 209)?.label, 'L');
+    await page.keyboard.press('Escape');
+    await selectVintedListingField(page, choices, [209], async () => undefined);
+    assert.equal(await vintedListingControlValue(page, 'size'), 'L');
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('rejects ambiguous, unbound and unrelated variants of the size chips button', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const control =
+      '<label for="_r_size_">Größe</label><button type="button" id="_r_size_" data-testid="category-size-single-grid_chips-input">M</button><input name="size" readonly>';
+    for (const mutation of ['unbound', 'duplicate', 'old-and-chips', 'unknown'] as const) {
+      await page.setContent(`<main id="content">${control}</main>`);
+      await page.evaluate((change) => {
+        const button = document.querySelector('button');
+        if (!button) throw new Error('Missing fixture button');
+        if (change === 'unbound') document.querySelector('label')?.removeAttribute('for');
+        if (change === 'duplicate') button.after(button.cloneNode(true));
+        if (change === 'old-and-chips')
+          button.insertAdjacentHTML('afterend', '<input id="size" value="Andere Größe">');
+        if (change === 'unknown')
+          button.setAttribute('data-testid', 'category-size-unobserved-input');
+      }, mutation);
+      if (mutation === 'unknown') {
+        await page.evaluate(() => {
+          document
+            .querySelector('main')
+            ?.insertAdjacentHTML(
+              'afterbegin',
+              '<input name="title"><textarea name="description"></textarea>',
+            );
+        });
+        assert.ok(
+          (await page.evaluate(collectVintedListingFormMetadata)).unknownFields.includes(
+            'category-size-unobserved-input',
+          ),
+        );
+      } else {
+        await assert.rejects(vintedListingFormControl(page, 'size'), /nicht eindeutig/);
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('reads and selects a searched brand through the observed native and modern field bindings', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingFormFixture(page);
+    for (const modern of [false, true]) {
+      await page.setContent(`<main id="content"><input name="title"><textarea name="description"></textarea>
+        <label for="${modern ? '_r_brand_' : 'brand'}">Marke</label>
+        ${
+          modern
+            ? '<button type="button" id="_r_brand_" data-testid="brand-select-dropdown-input">Wähle eine Marke</button><input name="brand" readonly>'
+            : '<input readonly id="brand" name="brand" data-testid="brand-select-dropdown-input" value="Wähle eine Marke">'
+        }
+        </main><div id="brand-popup" hidden>
+        <input id="brand-search-input" name="brand-search-input" data-testid="brand-search--input" placeholder="Marke suchen">
+        <div role="radio" id="brand-7" aria-checked="false">H&amp;M</div><div id="brand-results"></div></div>
+        <script>(() => {
+          const control = document.getElementById('${modern ? '_r_brand_' : 'brand'}');
+          const popup = document.querySelector('#brand-popup');
+          control.onclick = () => popup.hidden = false;
+          document.onkeydown = event => { if(event.key === 'Escape') popup.hidden = true; };
+          document.querySelector('#brand-search-input').oninput = event => {
+            if(event.target.value !== 'Puma') return;
+            document.querySelector('#brand-results').innerHTML = '<div role="radio" id="brand-535" aria-checked="false">Puma</div><div role="radio" id="custom-select-brand-radio" aria-checked="false">Puma als Markenname nutzen</div>';
+            document.querySelector('#brand-535').onclick = event => {
+              event.currentTarget.setAttribute('aria-checked', 'true');
+              if(control.tagName === 'BUTTON') control.textContent = 'Puma';
+              else control.value = 'Puma';
+              popup.hidden = true;
+            };
+          };
+        })();</script>`);
+      const metadata = await page.evaluate(collectVintedListingFormMetadata);
+      assert.deepEqual(metadata.presentFields, ['brand']);
+      assert.deepEqual(metadata.unknownFields, []);
+      const choices = await openVintedListingChoices(page, 'brand', [], {
+        brand: { brandId: 535, brandLabel: 'Puma' },
+      });
+      assert.equal(await page.locator('#brand-search-input').inputValue(), 'Puma');
+      assert.equal(choices.choices.find((choice) => choice.id === 535)?.label, 'Puma');
+      assert.equal(choices.choices.length, 2);
+      await page.keyboard.press('Escape');
+      await selectVintedListingField(page, choices, [535], async () => undefined);
+      assert.equal(await vintedListingControlValue(page, 'brand'), 'Puma');
+    }
+    assert.equal(form.uploads(), 0);
+    assert.equal(form.saves(), 0);
+  } finally {
+    await browser.close();
+  }
+});
 
 test('bound modern choice buttons expose their labels while companion inputs carry provider ids', async () => {
   const browser = await chromium.launch();
