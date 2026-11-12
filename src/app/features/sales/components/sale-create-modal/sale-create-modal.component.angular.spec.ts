@@ -5,7 +5,7 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
-import { signal, ɵresolveComponentResources } from '@angular/core';
+import { LOCALE_ID, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 import { readFile, readdir } from 'node:fs/promises';
@@ -1031,6 +1031,7 @@ describe('SaleCreateModalComponent', () => {
       TestBed.configureTestingModule({
         imports: [SaleCreateModalComponent],
         providers: [
+          { provide: LOCALE_ID, useValue: 'de' },
           ...saleSourceProviders(),
           { provide: SalesService, useValue: salesService },
           {
@@ -1074,7 +1075,9 @@ describe('SaleCreateModalComponent', () => {
 
     it.each([
       { text: '12.30', price: 12.3, total: 24.6 },
+      { text: '12,30', price: 12.3, total: 24.6 },
       { text: '0.05', price: 0.05, total: 0.1 },
+      { text: '0,05', price: 0.05, total: 0.1 },
     ])(
       'behält die Dezimaleingabe $text und speichert den berechneten Verkauf',
       async ({ text, price, total }) => {
@@ -1092,7 +1095,7 @@ describe('SaleCreateModalComponent', () => {
         input.value = text;
         input.dispatchEvent(new Event('input'));
         fixture.detectChanges();
-        expect(input.value).toBe(text);
+        expect(input.value).toBe(text.replace('.', ','));
         expect(line.controls.unitSalePrice.value).toBe(price);
         expect(component.totalPrice()).toBeCloseTo(total);
         await component.onSubmit();

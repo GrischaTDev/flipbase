@@ -5,16 +5,22 @@ import {
   computed,
   effect,
   forwardRef,
+  inject,
   input,
+  LOCALE_ID,
   model,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  AbstractControl,
   ControlValueAccessor,
   FormControl,
   NG_VALUE_ACCESSOR,
+  NG_VALIDATORS,
   ReactiveFormsModule,
+  ValidationErrors,
+  Validator,
 } from '@angular/forms';
 
 let nextUniqueId = 0;
@@ -22,9 +28,8 @@ let nextUniqueId = 0;
 /**
  * Einheitliches Zahlenfeld ohne sichtbare Hoch-/Runter-Schaltflächen.
  *
- * Die nativen Browser-Spinner bleiben über die globalen Feldregeln ausgeblendet.
- * Werte werden direkt eingegeben; min, max und step bleiben für Validierung,
- * Tastaturbedienung und numerische Semantik erhalten.
+ * Der Eingabetext bleibt sprachabhängig und auch bei unfertigen Dezimalen erhalten.
+ * Formular und Signal-Aufrufer erhalten weiterhin ausschließlich Zahlen oder null.
  */
 @Component({
   selector: 'app-number-input',
@@ -41,9 +46,18 @@ let nextUniqueId = 0;
       useExisting: forwardRef(() => NumberInputComponent),
       multi: true,
     },
+    {
+      provide: NG_VALIDATORS,
+      useExisting: forwardRef(() => NumberInputComponent),
+      multi: true,
+    },
   ],
 })
-export class NumberInputComponent implements ControlValueAccessor {
+export class NumberInputComponent implements ControlValueAccessor, Validator {
+  readonly locale = inject(LOCALE_ID);
+  private readonly decimalSeparator =
+    new Intl.NumberFormat(this.locale).formatToParts(1.1).find((part) => part.type === 'decimal')
+      ?.value ?? '.';
   readonly label = input('');
   readonly helpText = input('');
   readonly error = input<string | null>(null);
@@ -60,7 +74,7 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaDescribedby = input<string>('');
   readonly ariaInvalid = input<boolean | string | null>(null);
   readonly asCurrency = input<boolean>(false);
-  readonly inputControl = new FormControl<number | null>(null);
+  readonly inputControl = new FormControl('', { nonNullable: true });
   readonly disabled = input<boolean>(false);
   /** Kompatibilität für bestehende Aufrufer; visuelle Stepper werden nicht mehr gerendert. */
   readonly showStepper = input(false);
@@ -102,17 +116,19 @@ export class NumberInputComponent implements ControlValueAccessor {
 
   private onChange: (value: number | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
+  private onValidatorChange: () => void = () => undefined;
 
   constructor() {
-    this.inputControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((amount) => {
+    this.inputControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((text) => {
+      const amount = this.parseAmount(text);
       this.onChange(amount);
       this.value.set(amount);
     });
     effect(() => {
       const amount = this.value();
-      // Gleiche Zahlen nicht zurückschreiben: Der native Dezimaltext darf unfertig bleiben.
-      if (this.inputControl.value !== amount) {
-        this.inputControl.setValue(amount, { emitEvent: false });
+      // Numerisch gleiche Rückmeldungen dürfen Eingabetext und Cursor nicht ersetzen.
+      if (this.parseAmount(this.inputControl.value) !== amount) {
+        this.inputControl.setValue(this.formatAmount(amount), { emitEvent: false });
       }
     });
     effect(() => {
@@ -122,10 +138,15 @@ export class NumberInputComponent implements ControlValueAccessor {
         this.inputControl.enable({ emitEvent: false });
       }
     });
+    effect(() => {
+      this.effectiveMin();
+      this.effectiveMax();
+      this.onValidatorChange();
+    });
   }
 
   writeValue(val: number | null): void {
-    this.inputControl.setValue(val, { emitEvent: false });
+    this.inputControl.setValue(this.formatAmount(val), { emitEvent: false });
     this.value.set(val);
   }
 
@@ -139,6 +160,48 @@ export class NumberInputComponent implements ControlValueAccessor {
 
   setDisabledState(isDisabled: boolean): void {
     this.isAccessorDisabled.set(isDisabled);
+  }
+
+  validate(_control: AbstractControl): ValidationErrors | null {
+    const amount = this.parseAmount(this.inputControl.value);
+    if (amount === null) return this.inputControl.value.trim() ? { number: true } : null;
+    const minimum = this.effectiveMin();
+    const maximum = this.effectiveMax();
+    if (minimum !== null && amount < minimum) return { min: { min: minimum, actual: amount } };
+    if (maximum !== null && amount > maximum) return { max: { max: maximum, actual: amount } };
+    return null;
+  }
+
+  registerOnValidatorChange(onChange: () => void): void {
+    this.onValidatorChange = onChange;
+  }
+
+  handleInput(event: Event): void {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || (event instanceof InputEvent && event.isComposing))
+      return;
+    const normalized = input.value.replace(/[.,]/g, this.decimalSeparator);
+    if (normalized === input.value) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const direction = input.selectionDirection;
+    this.inputControl.setValue(normalized, { emitEvent: false });
+    input.setSelectionRange(start, end, direction ?? undefined);
+  }
+
+  handleKeydown(event: KeyboardEvent): void {
+    if (
+      this.effectiveDisabled() ||
+      event.isComposing ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey
+    )
+      return;
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    if (event.key === 'ArrowUp') this.increment();
+    else this.decrement();
   }
 
   handleBlur(): void {
@@ -178,6 +241,19 @@ export class NumberInputComponent implements ControlValueAccessor {
   }
 
   private setValue(val: number | null): void {
-    this.inputControl.setValue(val);
+    this.inputControl.setValue(this.formatAmount(val));
+  }
+
+  private parseAmount(text: string): number | null {
+    const normalized = text.trim().replace(',', '.');
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(normalized)) return null;
+    const amount = Number(normalized);
+    return Number.isFinite(amount) ? amount : null;
+  }
+
+  private formatAmount(amount: number | null): string {
+    return amount === null || !Number.isFinite(amount)
+      ? ''
+      : String(amount).replace('.', this.decimalSeparator);
   }
 }
