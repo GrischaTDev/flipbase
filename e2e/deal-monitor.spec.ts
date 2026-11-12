@@ -1210,7 +1210,12 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 test.describe('Dezimaleingabe auf dem Tablet', () => {
-  test.use({ viewport: { width: 834, height: 1112 }, hasTouch: true, locale: 'de-DE' });
+  test.use({
+    viewport: { width: 834, height: 1112 },
+    hasTouch: true,
+    locale: 'de-DE',
+    reducedMotion: 'reduce',
+  });
 
   test('erhält Dezimalstellen und Einfügeposition im Preisfilter @pr-smoke', async ({ page }) => {
     const mock = await fixture(page);
@@ -1218,17 +1223,20 @@ test.describe('Dezimaleingabe auf dem Tablet', () => {
     const price = page.getByRole('spinbutton', { name: 'Mindestpreis in Euro', exact: true });
     await expect(price).toBeVisible();
     await price.pressSequentially('12.34', { delay: 50 });
-    await expect(price).toHaveValue('12.34');
+    await expect(price).toHaveValue('12,34');
     await price.press('Home');
     await price.press('ArrowRight');
     await price.pressSequentially('78', { delay: 50 });
-    await expect(price).toHaveValue('1782.34');
+    await expect(price).toHaveValue('1782,34');
     await price.fill('12.30');
     await price.press('Tab');
-    await expect(price).toHaveValue('12.30');
+    await expect(price).toHaveValue('12,30');
+    await price.fill('');
+    await price.pressSequentially('12,30', { delay: 50 });
+    await expect(price).toHaveValue('12,30');
     await price.fill('');
     await price.pressSequentially('0.05', { delay: 50 });
-    await expect(price).toHaveValue('0.05');
+    await expect(price).toHaveValue('0,05');
     await expect
       .poll(
         () =>
@@ -1239,6 +1247,16 @@ test.describe('Dezimaleingabe auf dem Tablet', () => {
       .toBe(0.05);
     await page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }).click();
     await expect(price).toHaveValue('');
+    await expect(page.getByRole('article')).toHaveCount(8);
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+    );
+    await checkAxe(page);
   });
 });
 

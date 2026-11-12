@@ -21,12 +21,15 @@ for (const width of [390, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
         await mockMarketplace(page, false, false, false, false, []);
+        let cancellationRelisted = false;
         await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
         await page.route('**/rest/v1/marketplace_visible_account_entries?**', (route) => {
           const query = new URL(route.request().url()).searchParams;
           if (route.request().method() === 'HEAD')
             return route.fulfill({
-              headers: { 'content-range': `0-0/${query.get('kind') === 'eq.sale' ? 3 : 0}` },
+              headers: {
+                'content-range': `0-0/${query.get('kind') === 'eq.sale' ? (cancellationRelisted ? 1 : 2) : 0}`,
+              },
               body: '',
             });
           return route.fulfill({ json: null });
@@ -65,7 +68,7 @@ for (const width of [390, 1440]) {
                     index === 0
                       ? 'Besonders langer verkaufter Artikel mit vielen Angaben und ohne umbrechenden Titel'
                       : `Paket ${index + 1}`,
-                  saleState,
+                  saleState: index === 1 && cancellationRelisted ? 'relisted' : saleState,
                   occurredAt: '2026-10-21T10:00:00Z',
                   itemCount: 6,
                   itemIds: ['41', '42', '43', '44', '45', '46'],
@@ -92,10 +95,11 @@ for (const width of [390, 1440]) {
           'Besonders langer verkaufter Artikel mit vielen Angaben und ohne umbrechenden Titel',
           'Paket 2',
         ]);
-        await expect(active).toContainText('Noch nicht wieder eingestellt');
-        await expect(active).toContainText('Ursprünglicher Verkaufspreis');
-        await expect(history).toContainText('Paket 3');
-        await expect(history).toContainText('Wieder eingestellt');
+        await expect(active).toContainText('Storniert');
+        await expect(page.locator('app-vinted-sales details')).toHaveCount(0);
+        await expect(page.getByText('Verkaufsdetails', { exact: true })).toHaveCount(0);
+        await expect(history).toHaveCount(0);
+        await expect(page.locator('app-vinted-sales')).not.toContainText('Paket 3');
         await expect(active.getByRole('link', { name: 'Chat öffnen' }).first()).toHaveAttribute(
           'href',
           new RegExp(`connectionId=${accountIds[0]}.*conversationId=${conversationId}`),
@@ -110,6 +114,12 @@ for (const width of [390, 1440]) {
         await checkSurface(page, 'app-vinted-sales');
         await expect(page.locator('app-vinted-workspace [role=alert]')).toHaveCount(0);
         await screenshot(page, `vinted-sales-${width}-${theme}`);
+        cancellationRelisted = true;
+        await page.reload();
+        await expect(active.getByRole('heading', { level: 3 })).toHaveCount(1);
+        await expect(page.locator('app-vinted-sales')).not.toContainText('Paket 2');
+        await expect(history).toHaveCount(0);
+        await checkSurface(page, 'app-vinted-sales');
       });
     }
   });

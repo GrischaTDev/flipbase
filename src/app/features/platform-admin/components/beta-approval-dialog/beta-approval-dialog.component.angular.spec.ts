@@ -84,7 +84,7 @@ describe('BetaApprovalDialogComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Anna Beispiel');
     expect(fixture.nativeElement.textContent).toContain('anna@example.test');
-    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="number"]');
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[role="spinbutton"]');
     expect(input.value).toBe('60');
   });
 

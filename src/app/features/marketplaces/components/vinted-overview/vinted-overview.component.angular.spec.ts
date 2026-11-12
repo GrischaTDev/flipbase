@@ -117,6 +117,27 @@ describe('VintedOverviewComponent', () => {
     expect(element.textContent).toContain('Gespeicherter Verkauf');
   });
 
+  it('zeigt Wiederaufnahmen auch in den letzten Verkäufen nicht mehr an', () => {
+    accountSnapshot.set(
+      snapshot({
+        sales: {
+          items: [
+            { ...entry('Wiederaufnahme'), saleState: 'relisted' },
+            { ...entry('Stornierung'), saleState: 'cancelled' },
+            { ...entry('Verkauf'), saleState: 'sold' },
+          ],
+          total: 3,
+          nextCursor: null,
+        },
+      }),
+    );
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).not.toContain('Wiederaufnahme');
+    expect(element.textContent).toContain('Stornierung');
+    expect(element.textContent).toContain('Verkauf');
+  });
+
   it('overviewUsesStoredTotals: zeigt Kontogesamtzahlen statt der geladenen Teilseite', () => {
     const items = Array.from({ length: 50 }, (_, index) => entry(`listing-${index}`));
     accountSnapshot.set(

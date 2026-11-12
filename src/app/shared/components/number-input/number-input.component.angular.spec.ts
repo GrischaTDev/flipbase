@@ -3,6 +3,7 @@ import {
   ɵresolveComponentResources,
   ChangeDetectionStrategy,
   Component,
+  LOCALE_ID,
   signal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -18,6 +19,8 @@ interface AngularInputMetadata {
 }
 
 class NumberInputFormFixture {
+  readonly minLimit = signal(0.01);
+  readonly maxLimit = signal(1000);
   readonly price = new FormControl<number | null>(null, [
     Validators.required,
     Validators.min(0.01),
@@ -103,6 +106,7 @@ describe('NumberInputComponent', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [NumberInputComponent],
+      providers: [{ provide: LOCALE_ID, useValue: 'de' }],
     });
 
     fixture = TestBed.createComponent(NumberInputComponent);
@@ -123,6 +127,141 @@ describe('NumberInputComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('uses a German comma for both separators and preserves unfinished decimals and trailing zeroes', () => {
+    const input = (fixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    const reported: (number | null)[] = [];
+    component.registerOnChange((amount) => reported.push(amount));
+    for (const [typed, displayed, amount] of [
+      ['12.', '12,', 12],
+      ['12.30', '12,30', 12.3],
+      ['12,30', '12,30', 12.3],
+      ['0.05', '0,05', 0.05],
+      ['-0,05', '-0,05', -0.05],
+    ] as const) {
+      input.value = typed;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      expect(input.value).toBe(displayed);
+      expect(component.value()).toBe(amount);
+    }
+    expect(reported).toEqual([12, 12.3, 12.3, 0.05, -0.05]);
+  });
+
+  it('preserves the insertion position while replacing a decimal point with a comma', () => {
+    const input = (fixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    expect(input.type).toBe('text');
+    input.value = '12.34';
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(input.value).toBe('12,34');
+    expect(input.selectionStart).toBe(3);
+    expect(input.selectionEnd).toBe(3);
+    expect(component.value()).toBe(12.34);
+  });
+
+  it('normalizes completed composition without rewriting text during composition', () => {
+    const input = (fixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    input.dispatchEvent(new CompositionEvent('compositionstart'));
+    input.value = '12.30';
+    input.dispatchEvent(new InputEvent('input', { isComposing: true }));
+    fixture.detectChanges();
+    expect(input.value).toBe('12.30');
+    input.dispatchEvent(new CompositionEvent('compositionend', { data: '12.30' }));
+    fixture.detectChanges();
+    expect(input.value).toBe('12,30');
+    expect(component.value()).toBe(12.3);
+  });
+
+  it('uses the English separator for both typed separators in an English locale', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [NumberInputComponent],
+      providers: [{ provide: LOCALE_ID, useValue: 'en-US' }],
+    });
+    const englishFixture = TestBed.createComponent(NumberInputComponent);
+    englishFixture.detectChanges();
+    const input = (englishFixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    for (const text of ['12.30', '12,30']) {
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      englishFixture.detectChanges();
+      expect(input.value).toBe('12.30');
+      expect(englishFixture.componentInstance.value()).toBe(12.3);
+    }
+    englishFixture.componentInstance.writeValue(19.95);
+    englishFixture.detectChanges();
+    expect(input.value).toBe('19.95');
+  });
+
+  it('does not round external values when localizing their display', () => {
+    const input = (fixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    for (const amount of [1.2345678901234567, 5e-21]) {
+      component.writeValue(amount);
+      fixture.detectChanges();
+      expect(Number(input.value.replace(',', '.'))).toBe(amount);
+      input.dispatchEvent(new Event('input'));
+      expect(component.value()).toBe(amount);
+    }
+  });
+
+  it('retains arrow key stepping and clamps to numeric boundaries', () => {
+    fixture.componentRef.setInput('min', 0);
+    fixture.componentRef.setInput('max', 1);
+    fixture.componentRef.setInput('step', 0.05);
+    fixture.detectChanges();
+    component.writeValue(0.95);
+    const input = (fixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    for (const key of ['ArrowUp', 'ArrowUp', 'ArrowDown']) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key }));
+    }
+    fixture.detectChanges();
+    expect(input.value).toBe('0,95');
+    expect(component.value()).toBe(0.95);
+    expect(input.getAttribute('aria-valuenow')).toBe('0.95');
+  });
+
+  it('does not silently accept a partial number from malformed decimal text', () => {
+    const formFixture = TestBed.createComponent(NumberInputFormFixture);
+    formFixture.detectChanges();
+    const input = (formFixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    input.value = '12,3,4';
+    input.dispatchEvent(new Event('input'));
+    formFixture.detectChanges();
+    expect(formFixture.componentInstance.price.value).toBeNull();
+    expect(formFixture.componentInstance.price.hasError('number')).toBe(true);
+    formFixture.componentInstance.price.reset();
+    formFixture.detectChanges();
+    expect(input.value).toBe('');
+    expect(formFixture.componentInstance.price.hasError('number')).toBe(false);
+  });
+
+  it('retains numeric bounds when localized text or external bounds change', () => {
+    const formFixture = TestBed.createComponent(NumberInputFormFixture);
+    formFixture.detectChanges();
+    const input = (formFixture.nativeElement as HTMLElement).querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    input.value = '25,50';
+    input.dispatchEvent(new Event('input'));
+    formFixture.detectChanges();
+    expect(formFixture.componentInstance.price.value).toBe(25.5);
+    expect(formFixture.componentInstance.price.valid).toBe(true);
+    formFixture.componentInstance.maxLimit.set(20);
+    formFixture.detectChanges();
+    expect(formFixture.componentInstance.price.hasError('max')).toBe(true);
+    formFixture.componentInstance.maxLimit.set(1000);
+    formFixture.componentInstance.minLimit.set(30);
+    formFixture.detectChanges();
+    expect(formFixture.componentInstance.price.hasError('min')).toBe(true);
+  });
+
   it('notifies listeners only after the reactive form contains the entered value', () => {
     const formFixture = TestBed.createComponent(NumberInputFormFixture);
     formFixture.detectChanges();
@@ -141,7 +280,7 @@ describe('NumberInputComponent', () => {
     expect(formFixture.componentInstance.total).toBeNull();
   });
 
-  it('keeps the native decimal text while updating the reactive form and total', () => {
+  it('keeps localized decimal text while updating the reactive form and total', () => {
     const formFixture = TestBed.createComponent(NumberInputFormFixture);
     formFixture.detectChanges();
     const input = (formFixture.nativeElement as HTMLElement).querySelector('input');
@@ -155,7 +294,7 @@ describe('NumberInputComponent', () => {
       input.value = text;
       input.dispatchEvent(new Event('input'));
       formFixture.detectChanges();
-      expect(input.value).toBe(text);
+      expect(input.value).toBe(text.replace('.', ','));
       expect(formFixture.componentInstance.price.value).toBe(amount);
       expect(formFixture.componentInstance.total).toBeCloseTo(total);
     }
@@ -182,14 +321,14 @@ describe('NumberInputComponent', () => {
     formFixture.detectChanges();
     expect(formFixture.componentInstance.minimumPrice()).toBe(12.3);
     expect(formFixture.componentInstance.maximumPrice()).toBe(99.5);
-    expect(minimumInput.value).toBe('12.30');
-    expect(maximumInput.value).toBe('99.50');
+    expect(minimumInput.value).toBe('12,30');
+    expect(maximumInput.value).toBe('99,50');
 
     formFixture.componentInstance.minimumPrice.set(null);
     formFixture.componentInstance.maximumPrice.set(75.25);
     formFixture.detectChanges();
     expect(minimumInput.value).toBe('');
-    expect(maximumInput.value).toBe('75.25');
+    expect(maximumInput.value).toBe('75,25');
   });
 
   it('clears, validates and resets an entered price without stale display text', () => {
@@ -207,7 +346,7 @@ describe('NumberInputComponent', () => {
     expect(formFixture.componentInstance.price.hasError('required')).toBe(true);
     formFixture.componentInstance.price.setValue(19.95);
     formFixture.detectChanges();
-    expect(input.value).toBe('19.95');
+    expect(input.value).toBe('19,95');
     expect(formFixture.componentInstance.price.valid).toBe(true);
     formFixture.componentInstance.price.reset();
     formFixture.detectChanges();
@@ -225,7 +364,7 @@ describe('NumberInputComponent', () => {
     formFixture.componentInstance.price.disable();
     formFixture.detectChanges();
     expect(input.disabled).toBe(true);
-    expect(input.value).toBe('12.34');
+    expect(input.value).toBe('12,34');
     formFixture.componentInstance.price.enable();
     formFixture.detectChanges();
     expect(input.disabled).toBe(false);
@@ -233,7 +372,7 @@ describe('NumberInputComponent', () => {
     expect(formFixture.componentInstance.price.pristine).toBe(true);
   });
 
-  it('retains native numeric constraints, labels and the disabled signal input', () => {
+  it('exposes numeric semantics, the decimal keyboard, labels and disabled state', () => {
     fixture.componentRef.setInput('min', 0.01);
     fixture.componentRef.setInput('max', 999.99);
     fixture.componentRef.setInput('step', 0.01);
@@ -242,7 +381,11 @@ describe('NumberInputComponent', () => {
     fixture.detectChanges();
     const input = (fixture.nativeElement as HTMLElement).querySelector('input');
     if (!input) throw new Error('Number field missing');
-    expect(input.type).toBe('number');
+    expect(input.type).toBe('text');
+    expect(input.inputMode).toBe('decimal');
+    expect(input.getAttribute('role')).toBe('spinbutton');
+    expect(input.getAttribute('aria-valuemin')).toBe('0.01');
+    expect(input.getAttribute('aria-valuemax')).toBe('999.99');
     expect(input.min).toBe('0.01');
     expect(input.max).toBe('999.99');
     expect(input.step).toBe('0.01');

@@ -52,5 +52,9 @@ export class VintedOverviewComponent {
   readonly conversations = computed(() =>
     latestEntries(this.store.snapshot()?.conversations.items ?? []),
   );
-  readonly sales = computed(() => latestEntries(this.store.snapshot()?.sales.items ?? []));
+  readonly sales = computed(() =>
+    latestEntries(
+      (this.store.snapshot()?.sales.items ?? []).filter((entry) => entry.saleState !== 'relisted'),
+    ),
+  );
 }

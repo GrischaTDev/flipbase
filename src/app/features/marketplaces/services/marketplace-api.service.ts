@@ -238,7 +238,7 @@ export class MarketplaceApiService {
         .eq('kind', 'profile')
         .maybeSingle(),
       query().eq('kind', 'publication'),
-      query().eq('kind', 'sale'),
+      this.readVisibleSaleCount(scope),
     ]);
     if (
       profile.error ||
@@ -271,6 +271,34 @@ export class MarketplaceApiService {
     };
   }
 
+  private readVisibleSaleCount(scope: AccountScope) {
+    return this.client
+      .from('marketplace_visible_account_entries')
+      .select('body', { count: 'exact', head: true })
+      .eq('workspace_id', scope.workspaceId)
+      .eq('connection_id', scope.connectionId)
+      .eq('kind', 'sale')
+      .or('body->>saleState.is.null,body->>saleState.neq.relisted');
+  }
+
+  private async readVisibleSalesPage(
+    scope: AccountScope,
+    page: MarketplacePage<MarketplaceEntry>,
+  ): Promise<MarketplacePage<MarketplaceEntry>> {
+    const items = page.items.filter((entry) => entry.saleState !== 'relisted');
+    if (page.nextCursor === null && page.total === page.items.length)
+      return { ...page, items, total: items.length };
+    const { count, error } = await this.readVisibleSaleCount(scope);
+    if (error || count === null) throw new MarketplaceApiError('request_failed');
+    if (count < items.length) throw new MarketplaceResponseError();
+    // Die Gesamtzahl muss auch Wiederaufnahmen auf noch nicht geladenen Seiten ausschließen.
+    return {
+      ...page,
+      items,
+      total: count,
+    };
+  }
+
   async readSnapshot(scope: AccountScope): Promise<MarketplaceSnapshot> {
     const snapshot = parseMarketplaceSnapshot(
       dataOf(
@@ -283,6 +311,7 @@ export class MarketplaceApiService {
     );
     return {
       ...snapshot,
+      sales: await this.readVisibleSalesPage(scope, snapshot.sales),
       publications: {
         ...snapshot.publications,
         items: await this.originals.entries(scope, snapshot.publications.items),
@@ -327,6 +356,7 @@ export class MarketplaceApiService {
       scope,
       kind === 'message' ? (conversationId ?? undefined) : undefined,
     );
+    if (kind === 'sale') return this.readVisibleSalesPage(scope, page);
     return kind === 'publication'
       ? { ...page, items: await this.originals.entries(scope, page.items) }
       : page;

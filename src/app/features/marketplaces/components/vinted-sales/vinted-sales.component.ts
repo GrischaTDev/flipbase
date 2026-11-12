@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   BadgeComponent,
@@ -14,7 +14,6 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
   selector: 'app-vinted-sales',
   imports: [
     CurrencyPipe,
-    DatePipe,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
@@ -27,21 +26,9 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 export class VintedSalesComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly page = computed(() => this.store.snapshot()?.sales);
-  readonly groups = computed(() => {
-    const entries = this.page()?.items ?? [];
-    return [
-      {
-        label: 'Aktuelle Verkaufsvorgänge',
-        history: false,
-        items: entries.filter((entry) => entry.saleState !== 'relisted'),
-      },
-      {
-        label: 'Wieder eingestellte Stornierungen',
-        history: true,
-        items: entries.filter((entry) => entry.saleState === 'relisted'),
-      },
-    ];
-  });
+  readonly entries = computed(() =>
+    (this.page()?.items ?? []).filter((entry) => entry.saleState !== 'relisted'),
+  );
   details(entry: MarketplaceEntry): string {
     if (entry.isBundle || (entry.itemCount ?? 0) > 1)
       return entry.itemCount ? `Paket mit ${entry.itemCount} Artikeln` : 'Artikelpaket';
@@ -57,8 +44,6 @@ export class VintedSalesComponent {
         return { label: 'Abgeschlossen', tone: 'success' };
       case 'cancelled':
         return { label: 'Storniert', tone: 'critical' };
-      case 'relisted':
-        return { label: 'Wieder eingestellt', tone: 'neutral' };
       default:
         return { label: entry.status ?? 'Status noch nicht bestätigt', tone: 'neutral' };
     }
