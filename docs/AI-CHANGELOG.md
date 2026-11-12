@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-12 - Juna - Freigabe fehlgeschlagener Relistings aus PR 610 prüfen
+
+**Auftrag:** Freigabegrenzen und vollständigen Ablauf von PR #610 prüfen und fehlende lokale Nachweise ausführen. Eigener Review-Zweig `juna/review-failed-relisting-release` vom aktuellen `origin/master` (`1f484278a`); PR-Stand `fde609b22` ohne Konflikte zur lokalen Prüfung übernommen. Der ursprüngliche PR-Zweig bleibt unverändert.
+
+**Prüfumfang:** UI-Bestätigung, Rechte und Auftragsversion, Quellenlöschung und neue Anbieterkennung, Entfernung der Artikelsperre sowie verspätete Planabfragen. Der lokale Vorabcheck und eigene isolierte Datenbanktests werden getrennt von der bereits vorhandenen PR-CI nachgewiesen. Keine produktive Lösch-, Relist- oder Veröffentlichungsaktion. Flipbase fehlt weiterhin in der verbundenen Lissie-Projektliste.
+
+**Bestätigte Befunde:** Zwei neue Regressionen im bestehenden Kleiderschrank-Test prüfen die echten Store-/Komponentenwege. Eine bereits geladene Planantwort kann nach verzögerter Signatur der Bild-URL einen inzwischen verworfenen Auftrag wieder einsetzen, weil die Freigabemenge nur vor den weiteren asynchronen Schritten geprüft wird. Beim Verwerfen über die Auftragsübersicht wird nur die Annahme im OperationStore entfernt; die sichtbare Plan-/Cachekarte bleibt bei anschließend fehlgeschlagenem Snapshot-Abruf gesperrt. Beide Fälle scheitern reproduzierbar, die 33 bisherigen Fälle der Datei bestehen. Der Funktionscode des PRs wurde nicht korrigiert; diese Befunde verhindern eine Freigabe.
+
+**Nachweise:** Unter Node 22.23.4 endet `npm run preflight` mit Exit 1 an genau diesen zwei Regressionen: 349 Angular-Fälle erfolgreich, zwei fehlgeschlagen, 15 Dateien. Migrationsumfang, SQL-Paket, vollständiges Format/Lint, Typen, Suite-Audit, ausgewählte Skript-/Nodeprüfungen und Testregistrierung liefen zuvor erfolgreich. Der separat ausgeführte Produktionsbau besteht einschließlich Angular-Vorlagen; vorhandene Template-/CommonJS-/Bundlewarnungen bleiben sichtbar. Nach Ergänzung der Regressionen sind die Typen und das gezielte Lint zusätzlich geprüft. Die konkret ausgewählte CI-Browserprüfung wurde nicht erneut lokal ausgeführt; vorhandene grüne PR-CI enthält die neuen Regressionen nicht.
+
+**Datenbank:** Eigene Instanz `flipbase-pr610-review-20261112` mit getrennten Ports und derselben gesperrten Supabase-CLI 2.114.0 unter WSL. Alle Migrationen einschließlich der PR-Migration sind dort eingespielt. Vier relevante pgTAP-Suiten bestehen: Relisting-Lebenszyklus (85), Aufträge/Rechte (58), Auftragsupdates und Cloud-Ausführung (zusammen 100), insgesamt 243 Fälle. Der Abbruch-Funktionskörper in Schema und Migration stimmt abgesehen von Kommentaren und Leerraum überein. Die Instanz ist anschließend gestoppt; Daten und Protokolle bleiben unter `C:/Users/gt/.codex/artifacts/pr610-review` erhalten. Fremde Container und der ursprüngliche PR-Zweig bleiben unverändert.
+
 ## 2026-11-12 - Juna - Dezimaleingabe im gemeinsamen Zahlenfeld erhalten
 
 **Auftrag:** Den Preisverlust auf dem iPad aus Issue #617 im eigenen Zweig `juna/fix-ipad-decimal-input` untersuchen, beheben und passende Tests ergänzen.
@@ -112,6 +124,36 @@ Aufnahme ist dem Nutzer verlinkt; eine Gleichheit mit den Originaldateien
 von Shopify oder eBay wird nicht behauptet. CI, Hostübernahme und
 Live-Auslieferung werden im zugehörigen PR mit dem tatsächlich ausgeführten
 Stand nachgewiesen.
+
+## 2026-11-10 - Juna - Fehlgeschlagene Vinted-Relistings verwerfen
+
+**Anlass:** Mehrere Vorbereitungsversuche endeten mit „Vorbereitung bei Vinted
+fehlgeschlagen“. Der Relistplan sperrte danach weiterhin den Artikel. Das
+Schließen der Fehlermeldung in „Laufende Aktionen“ veränderte lediglich die
+sichtbare Benachrichtigung; Artikelbearbeitung und Löschen blieben blockiert.
+
+**Umsetzung:** Die bestehende serverseitige Abbruchfunktion akzeptiert jetzt
+endgültig fehlgeschlagene Cloud-Relists nur dann, wenn die Löschung der
+ursprünglichen Vinted-Anzeige nicht bestätigt ist und keine neue Anbieterkennung
+vorliegt. Das Kreuz in „Laufende Aktionen“ bietet dann nach Bestätigung die
+tatsächliche Freigabe statt bloßem Ausblenden. Auch im Kleiderschrank gibt es
+die Aktion „Fehlgeschlagenes Relisting verwerfen“. Der Auftrag bleibt in der
+Historie einschließlich Fehlercode erhalten; nur die Sperre entfällt.
+Planabgleiche dürfen eine gerade verworfene Karte nicht erneut sperren.
+
+**Sicherheit:** Nach bestätigter Löschung, während der Ausführung oder bei
+unklarem Veröffentlichungsergebnis ist dieser Weg gesperrt. Der vorhandene
+Bearbeitungs-/Wiederaufnahmeweg bleibt erhalten. Konto- und
+Workspaceberechtigungen, Auftragsversion sowie der gültige Zustand werden
+serverseitig erneut geprüft. Kein produktiver Lösch- oder Veröffentlichungsversuch
+wurde ausgelöst.
+
+**Prüfstand:** Modell-, Komponenten- und SQL-Regressionsfälle ergänzt.
+Format, Typprüfung, lokale Supabase-Migrationstests, Browserprüfung und
+CI-Pflichtprüfungen konnten in der hier verfügbaren GitHub-only-Sitzung nicht
+ausgeführt werden; kein Merge und kein produktiver Rollout. Die ursprünglichen
+Vinted-Fehlversuche sind ohne die produktiven Worker-Protokolle noch nicht
+ursächlich zugeordnet.
 
 ## 2026-11-09 - Juna - Separaten Sound-Rollout abschließen
 

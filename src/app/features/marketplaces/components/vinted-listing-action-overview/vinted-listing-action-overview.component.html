@@ -51,7 +51,14 @@
             size="slim"
             [icon]="dismissIcon"
             [iconOnly]="true"
-            ariaLabel="Meldung ausblenden"
+            [ariaLabel]="
+              row.discardable ? 'Relisting verwerfen und Artikel freigeben' : 'Meldung ausblenden'
+            "
+            [title]="
+              row.discardable ? 'Relisting verwerfen und Artikel freigeben' : 'Meldung ausblenden'
+            "
+            [disabled]="!!busy()"
+            [loading]="busy() === row.job.id"
             (clicked)="dismiss(row.job)"
           />
         }

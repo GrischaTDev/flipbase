@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { LucideX } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
 import {
+  canDiscardFailedRelisting,
   isVintedListingConfirmationPending,
   vintedRelistingJobLabel,
   type VintedListingJob,
@@ -36,6 +38,7 @@ import {
 export class VintedListingActionOverviewComponent {
   readonly entries = input.required<readonly VintedListingActionEntry[]>();
   private readonly jobsApi = inject(VintedListingJobService);
+  private readonly confirm = inject(ConfirmDialogService);
   private readonly draftsApi = inject(VintedListingDraftService);
   private readonly overview = inject(VintedActionOverviewHeaderStore);
   private readonly operations = inject(VintedListingOperationStore);
@@ -64,6 +67,7 @@ export class VintedListingActionOverviewComponent {
                   (!job.relistExternalId || !!job.relistDeletedAt))
               ? ('paused' as const)
               : ('running' as const),
+      discardable: canDiscardFailedRelisting(job),
       dismissible:
         job.state === 'failed' ||
         (job.state === 'outcome_unknown' && !isVintedListingConfirmationPending(job)),
@@ -83,8 +87,33 @@ export class VintedListingActionOverviewComponent {
       cancellable: ['queued', 'paused'].includes(job.state),
     })),
   );
-  dismiss(job: VintedListingJob): void {
-    this.overview.dismiss(vintedListingDismissKey(job));
+  async dismiss(job: VintedListingJob): Promise<void> {
+    if (!canDiscardFailedRelisting(job)) {
+      this.overview.dismiss(vintedListingDismissKey(job));
+      return;
+    }
+    if (!this.current(job) || this.busy() || this.planning()) return;
+    const confirmed = await this.confirm.frage({
+      titel: 'Fehlgeschlagenes Relisting verwerfen?',
+      text: 'Der fehlgeschlagene Auftrag wird beendet. Die ursprüngliche Vinted-Anzeige wird wieder zur Bearbeitung freigegeben.',
+      bestaetigenText: 'Relisting verwerfen',
+    });
+    if (!confirmed || !this.current(job) || this.busy() || this.planning()) return;
+    const context = this.overview.context();
+    this.busy.set(job.id);
+    this.error.set(null);
+    try {
+      const cancelled = await this.jobsApi.cancel(job);
+      this.operations.releaseRelisting(cancelled);
+      if (context === this.overview.context()) await this.overview.refresh();
+    } catch {
+      if (context === this.overview.context())
+        this.error.set(
+          'Das fehlgeschlagene Relisting konnte nicht verworfen werden. Aktualisiere den Status.',
+        );
+    } finally {
+      this.busy.set(null);
+    }
   }
   readonly planInitial = computed<VintedListingScheduleSelection | null>(() => {
     const job = this.planning()?.job;
