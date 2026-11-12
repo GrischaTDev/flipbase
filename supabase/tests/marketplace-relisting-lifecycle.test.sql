@@ -60,6 +60,11 @@ select lives_ok($$select pg_temp.relist_import('[]')$$,'Import in der Löschlüc
 select is((select body from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),(select source_body from relist_context),'Wartezeit verändert den Originalinhalt nicht');
 reset role;
 update public.marketplace_listing_jobs set state='failed',error_code='listing_read_failed' where id=(select (job->>'id')::bigint from relist_context);
+set local role authenticated;
+select throws_ok(
+  $statement$select public.marketplace_cancel_listing_job((select job->>'id' from relist_context),(select version from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)))$statement$,
+  '22023',null,'Fehlgeschlagener Relist nach bestätigter Löschung kann nicht freigegeben werden');
+reset role;
 set local role service_role;
 select lives_ok($$select pg_temp.relist_import('[]')$$,'Fehlgeschlagener Relist bleibt gegen Prune geschützt');
 select is((select count(*) from public.marketplace_account_entries where id='46900000-0000-4000-8000-000000000041'),1::bigint,'Fehler löscht die ursprüngliche Karte nicht');
@@ -196,6 +201,15 @@ set local role authenticated;
 update relist_context set job=public.marketplace_enqueue_relisting(draft->>'id',1,'46900000-0000-4000-8000-000000000083',false);
 reset role;
 update public.marketplace_listing_jobs set state='failed',error_code='listing_read_failed' where id=(select (job->>'id')::bigint from relist_context);
+-- Der neue Freigabeweg muss die echte Anzeige wieder zugänglich machen, ohne
+-- den fehlgeschlagenen Auftrag oder seine Diagnose aus der Historie zu löschen.
+savepoint failed_relisting_cancellation;
+set local role authenticated;
+update relist_context set job=public.marketplace_cancel_listing_job(job->>'id',(select version from public.marketplace_listing_jobs where id=(relist_context.job->>'id')::bigint));
+select is((select job->>'state' from relist_context),'cancelled','Vor-Delete-Fehler kann ausdrücklich verworfen werden');
+select is(jsonb_array_length(public.marketplace_read_relisting_plans('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021')->'items'),0,'Verworfener Vor-Delete-Relist blockiert den Kleiderschrank nicht mehr');
+select is((select error_code from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'listing_read_failed','Verwerfen erhält den ursprünglichen Diagnosecode');
+rollback to savepoint failed_relisting_cancellation;
 set local role authenticated;
 update relist_context set job=public.marketplace_edit_relisting_plan(job->>'id',(select version from public.marketplace_listing_jobs where id=(relist_context.job->>'id')::bigint),true);
 select is((select editing_previous_state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'failed','Fehler vor dem Löschen öffnet den bestehenden Editor ohne Terminzwang');

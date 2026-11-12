@@ -15,9 +15,11 @@ import { VintedListingDraftService } from '../../services/vinted-listing-draft.s
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { VintedRelistingPlanStore } from '../../services/vinted-relisting-plan.store';
 import { VintedListingsComponent } from './vinted-listings.component';
+import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
+import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import { parseMarketplacePage } from '../../models/marketplace-response';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
-import { parseVintedListingJob } from '../../models/vinted-listing-job';
+import { parseVintedListingJob, type VintedListingJob } from '../../models/vinted-listing-job';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-plan';
@@ -62,6 +64,7 @@ function setup(connectionId: string) {
           plans: signal([]),
           error: signal(null),
           refresh: vi.fn(),
+          discardFailed: vi.fn().mockResolvedValue(undefined),
           canEdit: VintedRelistingPlanStore.prototype.canEdit,
         },
       },
@@ -371,6 +374,11 @@ function loadedPlanStore(record = acceptedPlan()) {
   });
   const listPlans = vi.fn().mockResolvedValue([record]);
   const reloadImportedSnapshot = vi.fn().mockResolvedValue(true);
+  const cancel = vi.fn(async (job: VintedListingJob) => ({
+    ...job,
+    state: 'cancelled' as const,
+    version: job.version + 1,
+  }));
   const load = vi.fn().mockResolvedValue({
     ...record.draft,
     revision: 2,
@@ -390,7 +398,7 @@ function loadedPlanStore(record = acceptedPlan()) {
       },
       {
         provide: VintedListingJobService,
-        useValue: { listPlans, listen: vi.fn(() => () => undefined) },
+        useValue: { listPlans, cancel, listen: vi.fn(() => () => undefined) },
       },
       {
         provide: WorkspaceService,
@@ -406,6 +414,115 @@ function loadedPlanStore(record = acceptedPlan()) {
   const plans = TestBed.runInInjectionContext(() => new VintedRelistingPlanStore());
   return { plans, listPlans, load, reloadImportedSnapshot, selectedConnection, storedEntries };
 }
+
+it('hält einen verworfenen Relist auch bei verspäteter Bildauflösung eines alten Planabrufs freigegeben', async () => {
+  const initial = acceptedPlan();
+  const record = {
+    ...initial,
+    draft: {
+      ...initial.draft,
+      images: [
+        {
+          id: '50',
+          storagePath: `${initial.draft.workspaceId}/${initial.draft.id}/50.jpg`,
+          fileName: 'original.jpg',
+          mimeType: 'image/jpeg' as const,
+          byteSize: 123,
+        },
+      ],
+    },
+    job: { ...initial.job, state: 'failed' as const, relistDeletedAt: null },
+  };
+  const fixture = loadedPlanStore(record);
+  await settlePlans();
+  const thumbnails = vi.spyOn(TestBed.inject(VintedListingImageService), 'thumbnailUrls');
+  let finishThumbnails: (urls: Map<string, string>) => void = () => {
+    throw new Error('Thumbnail request has not started');
+  };
+  thumbnails.mockReturnValueOnce(new Promise((resolve) => (finishThumbnails = resolve)));
+  fixture.listPlans.mockResolvedValueOnce([{ ...record, draft: { ...record.draft, revision: 2 } }]);
+  const refreshing = fixture.plans.refresh();
+  await settlePlans();
+  expect(thumbnails).toHaveBeenCalledTimes(2);
+  await fixture.plans.discardFailed(record.job);
+  expect(fixture.plans.plans()).toHaveLength(0);
+
+  finishThumbnails(new Map([[record.draft.id, 'https://example.test/original.jpg']]));
+  await refreshing;
+  expect(fixture.plans.plans()).toHaveLength(0);
+});
+
+it('entfernt die Plansperre nach Verwerfen über die Auftragsübersicht auch bei fehlgeschlagenem Snapshot-Abruf', async () => {
+  const initial = acceptedPlan();
+  const record = {
+    ...initial,
+    job: { ...initial.job, state: 'failed' as const, relistDeletedAt: null },
+  };
+  TestBed.configureTestingModule({
+    providers: [
+      {
+        provide: VintedActionOverviewHeaderStore,
+        useValue: { context: signal('scope'), refresh: vi.fn().mockResolvedValue(undefined) },
+      },
+    ],
+  });
+  const fixture = loadedPlanStore(record);
+  await settlePlans();
+  fixture.listPlans.mockResolvedValue([]);
+  fixture.reloadImportedSnapshot.mockResolvedValue(false);
+  const overview = TestBed.runInInjectionContext(() => new VintedListingActionOverviewComponent());
+  vi.spyOn(overview, 'entries').mockReturnValue([{ job: record.job, accountName: 'Account' }]);
+  vi.spyOn(TestBed.inject(ConfirmDialogService), 'frage').mockResolvedValue(true);
+
+  await overview.dismiss(record.job);
+  expect(overview.error()).toBeNull();
+  await fixture.plans.refresh();
+  expect(fixture.plans.plans()).toHaveLength(0);
+});
+
+it.each([
+  { name: 'bestätigte Quellenlöschung', change: { relistDeletedAt: '2026-11-12T12:00:00Z' } },
+  { name: 'bekannte neue Anzeigenkennung', change: { externalId: '456' } },
+  { name: 'unbekanntes Ergebnis', change: { state: 'outcome_unknown' as const } },
+  { name: 'noch fehlgeschlagener Auftrag', change: { state: 'failed' as const } },
+  { name: 'lokale Ausführung', change: { executionMode: 'local' as const } },
+  { name: 'Vinted-Entwurf statt Veröffentlichung', change: { action: 'vinted_draft' as const } },
+  { name: 'anderer Workspace', change: { workspaceId: 'another-workspace' } },
+  { name: 'andere Verbindung', change: { connectionId: 'another-connection' } },
+  { name: 'andere Anbieteridentität', change: { externalAccountId: '456' } },
+  { name: 'veraltete Abbruchversion', change: { version: 2 } },
+])('erhält die Plansperre bei $name', async ({ change }) => {
+  const initial = acceptedPlan();
+  const record = {
+    ...initial,
+    job: { ...initial.job, state: 'failed' as const, relistDeletedAt: null, version: 3 },
+  };
+  const fixture = loadedPlanStore(record);
+  await settlePlans();
+  TestBed.inject(VintedListingOperationStore).releaseRelisting({
+    ...record.job,
+    state: 'cancelled',
+    version: 4,
+    ...change,
+  });
+  expect(fixture.plans.plans().map(({ job }) => job.id)).toEqual([record.job.id]);
+});
+
+it('gibt die Plansperre nicht durch den Abbruch eines anderen Nutzers frei', async () => {
+  const initial = acceptedPlan();
+  const record = {
+    ...initial,
+    job: { ...initial.job, state: 'failed' as const, relistDeletedAt: null },
+  };
+  const fixture = loadedPlanStore(record);
+  await settlePlans();
+  TestBed.inject(VintedListingOperationStore).releaseRelisting(
+    { ...record.job, state: 'cancelled', version: record.job.version + 1 },
+    'another-user',
+  );
+  expect(fixture.plans.plans().map(({ job }) => job.id)).toEqual([record.job.id]);
+});
+
 it('hält die bestätigte Jobannahme über verspätete und fehlgeschlagene erste Planabrufe bis zum Serverplan gesperrt', async () => {
   const record = acceptedPlan();
   const f = loadedPlanStore(record);
@@ -599,6 +716,90 @@ it('bindet dieselbe Karte vor Löschung, bei Fehlern und bis zum neuen importier
   TestBed.tick();
   expect(component.tableRows().map((row) => row.entry.id)).toEqual(['before', stableId, 'after']);
   expect(component.tableRows()[1]?.entry.metrics).toEqual(imported.metrics);
+});
+
+it('gibt einen vor der Löschung gescheiterten Relist nach Bestätigung wieder zur Bearbeitung frei', async () => {
+  const { component } = setup('');
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: '46300000-0000-4000-8000-000000000099',
+          externalId: '123',
+          title: 'Zu bearbeitende Jacke',
+          publicationState: 'active',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0]!;
+  const record = acceptedPlan();
+  const plan = {
+    ...record,
+    job: {
+      ...record.job,
+      state: 'failed' as const,
+      connectionId: entry.connectionId,
+      executionMode: 'cloud' as const,
+      relistEntryId: entry.id,
+      relistDeletedAt: null,
+      externalId: null,
+      errorCode: 'provider_unavailable',
+    },
+    imageUrl: null,
+    label: 'Vorbereitung bei Vinted fehlgeschlagen',
+  };
+  component.plans.plans.set([plan]);
+  vi.spyOn(TestBed.inject(ConfirmDialogService), 'frage').mockResolvedValue(true);
+  const discard = vi
+    .spyOn(component.plans, 'discardFailed')
+    .mockImplementation(async () => component.plans.plans.set([]));
+  expect(component.actionsBlocked(entry)).toBe(true);
+  await component.discardFailedRelisting(entry, plan);
+  expect(discard).toHaveBeenCalledWith(plan.job);
+  expect(component.actionsBlocked(entry)).toBe(false);
+  expect(component.canCreateFrom(entry)).toBe(true);
+});
+
+it('bietet kein Verwerfen an, wenn Vinted die alte Anzeige bereits bestätigt gelöscht hat', async () => {
+  const { component } = setup('');
+  const entry = parseMarketplacePage(
+    {
+      items: [
+        {
+          ...accountA,
+          id: '46300000-0000-4000-8000-000000000099',
+          externalId: '123',
+          title: 'Bereits entfernte Quelle',
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    },
+    accountA,
+  ).items[0]!;
+  const record = acceptedPlan();
+  const plan = {
+    ...record,
+    job: {
+      ...record.job,
+      state: 'failed' as const,
+      connectionId: entry.connectionId,
+      relistEntryId: entry.id,
+    },
+    imageUrl: null,
+    label: 'Fehlgeschlagen',
+  };
+  component.plans.plans.set([plan]);
+  const dialog = vi.spyOn(TestBed.inject(ConfirmDialogService), 'frage');
+  const discard = vi.spyOn(component.plans, 'discardFailed');
+  await component.discardFailedRelisting(entry, plan);
+  expect(dialog).not.toHaveBeenCalled();
+  expect(discard).not.toHaveBeenCalled();
+  expect(component.actionsBlocked(entry)).toBe(true);
 });
 
 it('verwendet die servergebundene Entry-ID auch ohne flüchtige Quellkarte', () => {

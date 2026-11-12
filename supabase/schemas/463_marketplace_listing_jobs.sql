@@ -398,7 +398,14 @@ begin
   perform public.marketplace_lock_listing_workspace(v_job.workspace_id);
   select * into v_job from public.marketplace_listing_jobs where id=p_job_id::bigint for update;
   if p_expected_version is null or v_job.version<>p_expected_version then raise exception 'Der Auftrag wurde inzwischen geändert.' using errcode='40001'; end if;
-  if v_job.state not in ('queued','paused') then raise exception 'Dieser Auftrag kann nicht mehr sicher abgebrochen werden.' using errcode='22023'; end if;
+  -- Ein endgültig vor der Quellenlöschung gescheiterter Cloud-Relist darf die Originalanzeige
+  -- nicht dauerhaft blockieren. Unklare Ergebnisse und bestätigte Löschungen bleiben geschützt.
+  if v_job.state not in ('queued','paused') and not (
+    v_job.state='failed' and v_job.action='publish' and v_job.execution_mode='cloud'
+    and v_job.snapshot ? 'relistExternalId' and v_job.external_id is null
+    and not exists(select 1 from public.marketplace_listing_drafts draft
+      where draft.id=v_job.draft_id and draft.relist_deleted_at is not null)
+  ) then raise exception 'Dieser Auftrag kann nicht mehr sicher abgebrochen werden.' using errcode='22023'; end if;
   update public.marketplace_listing_jobs set state='cancelled',version=version+1,updated_at=clock_timestamp() where id=v_job.id returning * into v_job;
   return public.marketplace_listing_job_document(v_job);
 end;

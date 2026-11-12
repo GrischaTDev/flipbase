@@ -235,6 +235,18 @@ export function isVintedListingConfirmationPending(
   );
 }
 
+/** Nur ein endgültig fehlgeschlagener Relist ohne bestätigte Quellenlöschung ist sicher verwerfbar. */
+export function canDiscardFailedRelisting(job: VintedListingJob): boolean {
+  return (
+    job.state === 'failed' &&
+    job.action === 'publish' &&
+    job.executionMode === 'cloud' &&
+    !!job.relistExternalId &&
+    job.relistDeletedAt == null &&
+    job.externalId === null
+  );
+}
+
 export function vintedListingJobLabel(job: VintedListingJob, now = Date.now()): string {
   if (isVintedListingConfirmationPending(job, now)) return 'Veröffentlichung wird geprüft …';
   switch (job.state) {

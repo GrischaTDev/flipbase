@@ -3,7 +3,11 @@ import { AuthService } from '../../../core/services/auth.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedListingJobService } from './vinted-listing-job.service';
 import { VintedListingImageService } from './vinted-listing-image.service';
-import { vintedRelistingJobLabel, type VintedListingJob } from '../models/vinted-listing-job';
+import {
+  canDiscardFailedRelisting,
+  vintedRelistingJobLabel,
+  type VintedListingJob,
+} from '../models/vinted-listing-job';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
 import { VintedListingOperationStore } from './vinted-listing-operation.store';
 
@@ -47,6 +51,7 @@ export class VintedRelistingPlanStore {
   private refreshing = false;
   private thumbnailsLoadedAt = 0;
   private readonly cache = new Map<string, VintedRelistingPlan>();
+  private readonly releasedJobIds = new Set<string>();
   constructor() {
     effect((onCleanup) => {
       const binding = this.binding();
@@ -54,6 +59,7 @@ export class VintedRelistingPlanStore {
         this.generation++;
         this.plans.set([]);
         this.cache.clear();
+        this.releasedJobIds.clear();
         void this.refresh();
       });
       const { account, userId } = untracked(() => ({
@@ -65,6 +71,7 @@ export class VintedRelistingPlanStore {
           this.operations.registerRelistingView(
             { userId, workspaceId: account.workspaceId, connectionId: account.connectionId },
             (job) => this.synchronizeConfirmedRelisting(job, binding),
+            (job) => this.releaseCancelledPlan(job, binding),
           ),
         );
     });
@@ -154,6 +161,44 @@ export class VintedRelistingPlanStore {
     return true;
   }
 
+  /** Entfernt nur einen sicher vor der Quellenlöschung gescheiterten Auftrag. */
+  async discardFailed(job: VintedListingJob): Promise<void> {
+    const binding = this.binding();
+    const account = this.accounts.selectedConnection();
+    const current = this.plans().find(
+      (plan) =>
+        plan.job.id === job.id &&
+        plan.job.version === job.version &&
+        plan.job.workspaceId === account?.workspaceId &&
+        plan.job.connectionId === account?.connectionId,
+    );
+    if (!binding || !current || !canDiscardFailedRelisting(current.job))
+      throw new Error('Der Relisting-Auftrag hat sich geändert. Aktualisiere die Anzeige.');
+
+    const cancelled = await this.jobs.cancel(current.job);
+    if (this.destroyed || binding !== this.binding()) return;
+    this.operations.releaseRelisting(cancelled);
+    await this.refresh();
+  }
+
+  private releaseCancelledPlan(job: VintedListingJob, binding: string): void {
+    const current = this.plans().find((plan) => plan.job.id === job.id);
+    if (
+      this.destroyed ||
+      binding !== this.binding() ||
+      this.accounts.selectedConnection()?.externalAccountId !== job.externalAccountId ||
+      (current?.job.version ?? 0) > job.version ||
+      (this.cache.get(job.id)?.job.version ?? 0) > job.version ||
+      this.releasedJobIds.has(job.id)
+    )
+      return;
+    // Auch Antworten hinter weiteren asynchronen Schritten gehören noch zum alten Abruf.
+    this.generation++;
+    this.releasedJobIds.add(job.id);
+    this.plans.update((plans) => plans.filter((plan) => plan.job.id !== job.id));
+    this.cache.delete(job.id);
+  }
+
   canEdit(job: VintedListingJob): boolean {
     return (
       job.state === 'failed' ||
@@ -185,8 +230,13 @@ export class VintedRelistingPlanStore {
       if (reloadThumbnails) {
         this.thumbnailsLoadedAt = Date.now();
       }
-      const records = await this.jobs.listPlans(account.workspaceId, account.connectionId);
+      const received = await this.jobs.listPlans(account.workspaceId, account.connectionId);
       if (generation !== this.generation || this.destroyed) return;
+      // Ein alter, bereits laufender Abruf darf eine soeben verworfene Karte nicht wieder sperren.
+      const records = received.filter(({ job }) => !this.releasedJobIds.has(job.id));
+      for (const jobId of this.releasedJobIds) {
+        if (!received.some(({ job }) => job.id === jobId)) this.releasedJobIds.delete(jobId);
+      }
       const missing = [...this.cache.values()].filter(
         (previous) => !records.some((record) => record.job.id === previous.job.id),
       );

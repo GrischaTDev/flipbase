@@ -243,18 +243,34 @@
         ariaHaspopup="dialog"
         (clicked)="openEditor(entry, 'template')"
       />
-      <app-button
-        variant="table-action"
-        tone="neutral"
-        size="slim"
-        [icon]="deleteIcon"
-        [iconOnly]="true"
-        [disabled]="actionsBlocked(entry)"
-        title="Inserat löschen"
-        [ariaLabel]="entry.title + ' löschen'"
-        ariaHaspopup="dialog"
-        (clicked)="deleteListing(entry)"
-      />
+      @if (plan && canDiscardFailedRelisting(plan.job)) {
+        <app-button
+          variant="table-action"
+          tone="neutral"
+          size="slim"
+          [icon]="discardIcon"
+          [iconOnly]="true"
+          [disabled]="!!discardingFailedPlan() || operations.isRunning(entry)"
+          [loading]="discardingFailedPlan() === plan.job.id"
+          title="Fehlgeschlagenes Relisting verwerfen"
+          [ariaLabel]="'Fehlgeschlagenes Relisting für ' + entry.title + ' verwerfen'"
+          ariaHaspopup="dialog"
+          (clicked)="discardFailedRelisting(entry, plan)"
+        />
+      } @else {
+        <app-button
+          variant="table-action"
+          tone="neutral"
+          size="slim"
+          [icon]="deleteIcon"
+          [iconOnly]="true"
+          [disabled]="actionsBlocked(entry)"
+          title="Inserat löschen"
+          [ariaLabel]="entry.title + ' löschen'"
+          ariaHaspopup="dialog"
+          (clicked)="deleteListing(entry)"
+        />
+      }
     }
   </ng-template>
   @if (priceEditor.open()) {
