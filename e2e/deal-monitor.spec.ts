@@ -1209,6 +1209,39 @@ for (const theme of ['light', 'dark'] as const) {
   }
 }
 
+test.describe('Dezimaleingabe auf dem Tablet', () => {
+  test.use({ viewport: { width: 834, height: 1112 }, hasTouch: true, locale: 'de-DE' });
+
+  test('erhält Dezimalstellen und Einfügeposition im Preisfilter @pr-smoke', async ({ page }) => {
+    const mock = await fixture(page);
+    await page.goto('/vinted-bot');
+    const price = page.getByRole('spinbutton', { name: 'Mindestpreis in Euro', exact: true });
+    await expect(price).toBeVisible();
+    await price.pressSequentially('12.34', { delay: 50 });
+    await expect(price).toHaveValue('12.34');
+    await price.press('Home');
+    await price.press('ArrowRight');
+    await price.pressSequentially('78', { delay: 50 });
+    await expect(price).toHaveValue('1782.34');
+    await price.fill('12.30');
+    await price.press('Tab');
+    await expect(price).toHaveValue('12.30');
+    await price.fill('');
+    await price.pressSequentially('0.05', { delay: 50 });
+    await expect(price).toHaveValue('0.05');
+    await expect
+      .poll(
+        () =>
+          mock.calls.filter((call) => call.name === 'sniper_feed_search').at(-1)?.body[
+            'p_min_price'
+          ],
+      )
+      .toBe(0.05);
+    await page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }).click();
+    await expect(price).toHaveValue('');
+  });
+});
+
 test('Widescreen-Modus teilt den Feed auf einem 49-Zoll-Bildschirm in mehrere Suchen @pr-smoke', async ({
   page,
 }, testInfo) => {

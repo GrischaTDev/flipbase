@@ -1,1 +1,3 @@
 <app-number-input [formControl]="price" (valueChange)="recalculate()" />
+<app-number-input [(value)]="minimumPrice" />
+<app-number-input [value]="maximumPrice()" (valueChange)="maximumPrice.set($event)" />
