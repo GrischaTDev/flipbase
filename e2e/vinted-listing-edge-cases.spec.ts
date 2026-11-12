@@ -1210,7 +1210,7 @@ for (const width of [390, 1440])
         await opener.click();
         const dialog = page.getByRole('dialog', { name: 'Preis ändern', exact: true });
         const input = dialog.getByRole('spinbutton', { name: 'Neuer Verkaufspreis', exact: true });
-        await expect(input).toHaveValue('29.90');
+        await expect(input).toHaveValue('29.9');
         await expect(input).toBeEnabled();
         expect(reads).toBe(0);
         await page.keyboard.press('Escape');
@@ -1236,6 +1236,7 @@ for (const width of [390, 1440])
         await page.keyboard.press('Escape');
         await opener.click();
         await input.fill('24.50');
+        await expect(input).toHaveValue('24.50');
         for (const key of ['Tab', 'Shift+Tab']) {
           for (let step = 0; step < 5; step++) {
             await page.keyboard.press(key);
@@ -1288,7 +1289,7 @@ for (const width of [390, 1440])
           exact: true,
         });
         await quickPrice.click();
-        await expect(input).toHaveValue('24.50');
+        await expect(input).toHaveValue('24.5');
         await page.keyboard.press('Escape');
         await expect(quickPrice).toBeFocused();
         await wardrobe.getByRole('button', { name: 'Listenansicht', exact: true }).click();

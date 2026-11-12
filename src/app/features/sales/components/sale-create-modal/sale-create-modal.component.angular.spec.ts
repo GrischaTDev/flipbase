@@ -1072,6 +1072,38 @@ describe('SaleCreateModalComponent', () => {
       return { fixture, salesService, items, positions };
     }
 
+    it.each([
+      { text: '12.30', price: 12.3, total: 24.6 },
+      { text: '0.05', price: 0.05, total: 0.1 },
+    ])(
+      'behält die Dezimaleingabe $text und speichert den berechneten Verkauf',
+      async ({ text, price, total }) => {
+        const { fixture, salesService } = await erstelleGerendertenDialog('direct');
+        const component = fixture.componentInstance;
+        component.addFreeLine();
+        const line = component.lines.at(0);
+        component.setFreeTitle(line, 'Decimal price item');
+        line.controls.quantity.setValue(2);
+        fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
+        const input = host.querySelector<HTMLInputElement>('#price-0');
+        if (!input) throw new Error('Sale unit price field missing');
+
+        input.value = text;
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(input.value).toBe(text);
+        expect(line.controls.unitSalePrice.value).toBe(price);
+        expect(component.totalPrice()).toBeCloseTo(total);
+        await component.onSubmit();
+        expect(salesService.recordSale).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lines: [expect.objectContaining({ quantity: 2, unitSalePrice: price })],
+          }),
+        );
+      },
+    );
+
     it('startet ohne Plattform und blendet unpassende Versand- und Gebührenfelder aus', async () => {
       const { fixture } = await erstelleGerendertenDialog('');
       const component = fixture.componentInstance;

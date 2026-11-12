@@ -3,12 +3,19 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   forwardRef,
   input,
   model,
   signal,
 } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  ControlValueAccessor,
+  FormControl,
+  NG_VALUE_ACCESSOR,
+  ReactiveFormsModule,
+} from '@angular/forms';
 
 let nextUniqueId = 0;
 
@@ -21,7 +28,7 @@ let nextUniqueId = 0;
  */
 @Component({
   selector: 'app-number-input',
-  imports: [FormFieldComponent],
+  imports: [FormFieldComponent, ReactiveFormsModule],
   templateUrl: './number-input.component.html',
   host: {
     class: 'block',
@@ -53,15 +60,7 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaDescribedby = input<string>('');
   readonly ariaInvalid = input<boolean | string | null>(null);
   readonly asCurrency = input<boolean>(false);
-  readonly fractionDigits = input<number | null>(null);
-  private readonly editingValue = signal<string | null>(null);
-  readonly displayValue = computed(() => {
-    const value = this.value();
-    const digits = this.fractionDigits();
-    return (
-      this.editingValue() ?? (value !== null && digits !== null ? value.toFixed(digits) : value)
-    );
-  });
+  readonly inputControl = new FormControl<number | null>(null);
   readonly disabled = input<boolean>(false);
   /** Kompatibilität für bestehende Aufrufer; visuelle Stepper werden nicht mehr gerendert. */
   readonly showStepper = input(false);
@@ -104,8 +103,29 @@ export class NumberInputComponent implements ControlValueAccessor {
   private onChange: (value: number | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
+  constructor() {
+    this.inputControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((amount) => {
+      this.onChange(amount);
+      this.value.set(amount);
+    });
+    effect(() => {
+      const amount = this.value();
+      // Gleiche Zahlen nicht zurückschreiben: Der native Dezimaltext darf unfertig bleiben.
+      if (this.inputControl.value !== amount) {
+        this.inputControl.setValue(amount, { emitEvent: false });
+      }
+    });
+    effect(() => {
+      if (this.effectiveDisabled()) {
+        this.inputControl.disable({ emitEvent: false });
+      } else {
+        this.inputControl.enable({ emitEvent: false });
+      }
+    });
+  }
+
   writeValue(val: number | null): void {
-    this.editingValue.set(null);
+    this.inputControl.setValue(val, { emitEvent: false });
     this.value.set(val);
   }
 
@@ -121,14 +141,7 @@ export class NumberInputComponent implements ControlValueAccessor {
     this.isAccessorDisabled.set(isDisabled);
   }
 
-  handleInput(event: Event): void {
-    const raw = (event.target as HTMLInputElement).value;
-    if (this.fractionDigits() !== null) this.editingValue.set(raw);
-    this.setValue(raw === '' ? null : Number(raw));
-  }
-
   handleBlur(): void {
-    this.editingValue.set(null);
     this.onTouched();
   }
 
@@ -149,10 +162,6 @@ export class NumberInputComponent implements ControlValueAccessor {
     this.decrement();
   }
 
-  onEingabe(event: Event): void {
-    this.handleInput(event);
-  }
-
   onVerlassen(): void {
     this.handleBlur();
   }
@@ -169,7 +178,6 @@ export class NumberInputComponent implements ControlValueAccessor {
   }
 
   private setValue(val: number | null): void {
-    this.onChange(val);
-    this.value.set(val);
+    this.inputControl.setValue(val);
   }
 }
