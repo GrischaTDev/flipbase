@@ -80,7 +80,7 @@ beforeEach(async () => {
   }).compileComponents();
 });
 
-it('zeigt einen stornierten Paketverkauf mit echtem Gesamtpreis, Datum und gebundenem Chat', () => {
+it('zeigt einen stornierten Paketverkauf kompakt mit echtem Gesamtpreis und gebundenem Chat', () => {
   current.set(
     makeSnapshot([
       {
@@ -98,20 +98,21 @@ it('zeigt einen stornierten Paketverkauf mit echtem Gesamtpreis, Datum und gebun
   fixture.detectChanges();
   const element = fixture.nativeElement as HTMLElement;
   expect(element.querySelector('app-badge')?.textContent).toContain('Storniert');
-  expect(element.textContent).toContain('Noch nicht wieder eingestellt');
-  expect(element.textContent).toContain('Ursprünglicher Verkaufspreis');
   expect(element.textContent).toContain('40,00');
-  expect(element.textContent).toContain('21.10.2026');
+  expect(element.querySelector('details')).toBeNull();
+  expect(element.textContent).not.toContain('Verkaufsdetails');
+  expect(element.textContent).not.toContain('21.10.2026');
   expect(element.querySelector('a')?.getAttribute('href')).toContain('connectionId=connection-1');
   expect(element.querySelector('a')?.getAttribute('href')).toContain(
     'conversationId=conversation-1',
   );
 });
 
-it('führt wieder eingestellte Stornierungen getrennt von den aktuellen Verkäufen', () => {
+it('entfernt bestätigte Wiederaufnahmen aus den Verkäufen und behält Stornierungen', () => {
   current.set(
     makeSnapshot([
       { title: 'Aktueller Verkauf', saleState: 'sold' },
+      { title: 'Stornierter Verkauf', saleState: 'cancelled' },
       { title: 'Historisches Paket', saleState: 'relisted' },
     ]),
   );
@@ -124,10 +125,40 @@ it('führt wieder eingestellte Stornierungen getrennt von den aktuellen Verkäuf
   expect(
     element.querySelector('[aria-label="Aktuelle Verkaufsvorgänge"]')?.textContent,
   ).not.toContain('Historisches Paket');
-  expect(
-    element.querySelector('[aria-label="Wieder eingestellte Stornierungen"]')?.textContent,
-  ).toContain('Historisches Paket');
-  expect(element.textContent).toContain('wieder eingestellt');
+  expect(element.textContent).toContain('Stornierter Verkauf');
+  expect(element.textContent).not.toContain('Historisches Paket');
+  expect(element.textContent).not.toContain('wieder eingestellt');
+});
+
+it('erhält beim Ausblenden einer ganzen Teilseite den Nachladeweg ohne falschen Leerzustand', () => {
+  current.set(makeSnapshot([{ title: 'Wiederaufnahme', saleState: 'relisted' }], 'next'));
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  const element = fixture.nativeElement as HTMLElement;
+  expect(element.querySelector('article')).toBeNull();
+  expect(element.textContent).not.toContain('Noch keine bestätigten Verkäufe gespeichert');
+  expect(element.textContent).toContain('Weitere Verkäufe laden');
+});
+
+it('zeigt nach Wiederaufnahme aller geladenen Vorgänge ohne Folgeseite den Leerzustand', () => {
+  current.set(makeSnapshot([{ title: 'Wiederaufnahme', saleState: 'relisted' }]));
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('article')).toBeNull();
+  expect(fixture.nativeElement.textContent).toContain(
+    'Noch keine bestätigten Verkäufe gespeichert',
+  );
+});
+
+it('entfernt eine geladene Stornierung nach bestätigter Wiederaufnahme ohne Datenlöschung', () => {
+  current.set(makeSnapshot([{ title: 'Jacke', saleState: 'cancelled' }]));
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('article')).not.toBeNull();
+  current.set(makeSnapshot([{ title: 'Jacke', saleState: 'relisted' }]));
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('article')).toBeNull();
+  expect(current().sales.items).toHaveLength(1);
 });
 
 it('zeigt unbekannte Paketzuordnung und Preise ehrlich und lädt die nächste Seite', () => {
@@ -137,7 +168,7 @@ it('zeigt unbekannte Paketzuordnung und Preise ehrlich und lädt die nächste Se
   const fixture = TestBed.createComponent(VintedSalesComponent);
   fixture.detectChanges();
   const element = fixture.nativeElement as HTMLElement;
-  expect(element.textContent).toContain('Artikelzuordnung noch unvollständig');
+  expect(element.textContent).toContain('Paket mit 6 Artikeln');
   expect(element.textContent).toContain('Preis unbekannt');
   [...element.querySelectorAll('button')]
     .find((button) => button.textContent?.includes('Weitere Verkäufe'))

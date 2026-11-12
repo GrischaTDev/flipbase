@@ -17,15 +17,132 @@ const snapshot = {
 };
 let rpc: ReturnType<typeof vi.fn>;
 let api: MarketplaceApiService;
+let visibleSaleCount: number;
+let saleCountError: { code: string } | null;
+const saleFilters = vi.fn<(field: string, content: string) => void>();
 beforeEach(() => {
   rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+  visibleSaleCount = 0;
+  saleCountError = null;
+  saleFilters.mockReset();
+  const countQuery = {
+    select: () => countQuery,
+    eq: (field: string, amount: string) => {
+      saleFilters(field, amount);
+      return countQuery;
+    },
+    or: (filter: string) => {
+      saleFilters('or', filter);
+      return countQuery;
+    },
+    then: (resolve: (result: unknown) => unknown) =>
+      Promise.resolve({ count: visibleSaleCount, error: saleCountError }).then(resolve),
+  };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    providers: [MarketplaceApiService, { provide: SupabaseService, useValue: { client: { rpc } } }],
+    providers: [
+      MarketplaceApiService,
+      { provide: SupabaseService, useValue: { client: { rpc, from: () => countQuery } } },
+    ],
   });
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('entfernt Wiederaufnahmen aus Snapshot und Gesamtzahl ohne den Kleiderschrank umzuschreiben', async () => {
+    const items = ['sold', 'shipped', 'completed', 'cancelled', null, 'relisted'].map(
+      (saleState, index) => ({
+        ...scope,
+        id: `sale-${index}`,
+        title: saleState,
+        saleState,
+      }),
+    );
+    rpc.mockResolvedValue({
+      data: { ...snapshot, sales: { items, total: 6, nextCursor: 'next' } },
+      error: null,
+    });
+    visibleSaleCount = 5;
+    const result = await api.readSnapshot(scope);
+    expect(result.sales.items.map((entry) => entry.saleState)).toEqual([
+      'sold',
+      'shipped',
+      'completed',
+      'cancelled',
+      null,
+    ]);
+    expect(result.sales.total).toBe(5);
+    expect(result.sales.nextCursor).toBe('next');
+    expect(result.publications).toEqual(page);
+    expect(saleFilters).toHaveBeenCalledWith('workspace_id', scope.workspaceId);
+    expect(saleFilters).toHaveBeenCalledWith('connection_id', scope.connectionId);
+    expect(saleFilters).toHaveBeenCalledWith(
+      'or',
+      'body->>saleState.is.null,body->>saleState.neq.relisted',
+    );
+  });
+  it('erhält den Nachladecursor einer vollständig wieder eingestellten Teilseite und zählt alle sichtbaren Vorgänge', async () => {
+    rpc.mockResolvedValue({
+      data: {
+        items: [{ ...scope, id: 'old', title: 'Wiederaufnahme', saleState: 'relisted' }],
+        total: 80,
+        nextCursor: 'next',
+      },
+      error: null,
+    });
+    visibleSaleCount = 57;
+    const result = await api.readPage(scope, 'sale', 'previous');
+    expect(result).toEqual({ items: [], total: 57, nextCursor: 'next' });
+    expect(rpc).toHaveBeenCalledWith(
+      'marketplace_read_page',
+      expect.objectContaining({ p_cursor: 'previous', p_kind: 'sale' }),
+    );
+  });
+  it('übernimmt einen fehlgeschlagenen Anzahlabruf nicht als leere Verkaufsliste', async () => {
+    rpc.mockResolvedValue({
+      data: { ...snapshot, sales: { items: [], total: 3, nextCursor: 'next' } },
+      error: null,
+    });
+    saleCountError = { code: '42501' };
+    await expect(api.readSnapshot(scope)).rejects.toThrow();
+  });
+  it('erfindet bei einem inzwischen geänderten Gesamtbestand keine passende Anzahl', async () => {
+    rpc.mockResolvedValue({
+      data: {
+        ...snapshot,
+        sales: {
+          items: [{ ...scope, id: 'sale', title: 'Jacke', saleState: 'sold' }],
+          total: 4,
+          nextCursor: 'next',
+        },
+      },
+      error: null,
+    });
+    visibleSaleCount = 0;
+    await expect(api.readSnapshot(scope)).rejects.toThrow();
+  });
+  it('zählt eine vollständig geladene Verkaufsliste ohne zusätzlichen Abruf exakt', async () => {
+    rpc.mockResolvedValue({
+      data: {
+        ...snapshot,
+        sales: {
+          items: ['cancelled', 'relisted'].map((saleState, index) => ({
+            ...scope,
+            id: `sale-${index}`,
+            title: saleState,
+            saleState,
+          })),
+          total: 2,
+          nextCursor: null,
+        },
+      },
+      error: null,
+    });
+    const result = await api.readSnapshot(scope);
+    expect(result.sales.total).toBe(1);
+    expect(result.sales.items).toHaveLength(1);
+    expect(result.sales.items[0].saleState).toBe('cancelled');
+    expect(saleFilters).not.toHaveBeenCalled();
+  });
   it('bestätigt nur die geladene Gesprächsversion als gelesen', async () => {
     rpc.mockResolvedValueOnce({ data: { ok: true, marked: true }, error: null });
     expect(
@@ -92,6 +209,10 @@ describe('Marktplatz-API', () => {
           entry.filters[field] = value;
           return query;
         }),
+        or: vi.fn().mockImplementation((filter) => {
+          entry.filters['or'] = filter;
+          return query;
+        }),
         maybeSingle: vi.fn().mockResolvedValue({
           data: {
             body: {
@@ -145,6 +266,7 @@ describe('Marktplatz-API', () => {
         workspace_id: scope.workspaceId,
         connection_id: scope.connectionId,
         kind: 'sale',
+        or: 'body->>saleState.is.null,body->>saleState.neq.relisted',
         head: true,
       },
     ]);
