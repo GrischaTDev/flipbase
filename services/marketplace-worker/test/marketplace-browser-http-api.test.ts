@@ -159,6 +159,7 @@ async function setup(
   },
   conversationAccess = edits,
   conversationVersions?: () => Promise<VintedConversationVersion[]>,
+  shippingLabels?: ConstructorParameters<typeof MarketplaceBrowserHttpApi>[0]['shippingLabels'],
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -250,6 +251,7 @@ async function setup(
     imports: writeImport ? { write: writeImport, conversationVersions } : undefined,
     edits,
     conversationAccess,
+    shippingLabels,
     operations,
     listingCache,
     profileCache,
@@ -1963,6 +1965,196 @@ test('manueller Vollimport erhält Kaufbelege auch für den vierten nicht vertie
     );
     assert.equal(conversation?.body['saleTransactionId'], '74');
     assert.equal(conversation?.body['saleSellerId'], '123');
+  } finally {
+    await api.close();
+  }
+});
+
+test('shipping labels are requested in the account browser and stored after a confirmed result', async () => {
+  const saleId = '25600000-0000-4000-8000-000000000051';
+  const sale = {
+    accountId: '123',
+    transactionId: '24052549356',
+    externalConversationId: '500969788562',
+    title: 'Jacke',
+  };
+  const saved: unknown[] = [];
+  let authorized = 0;
+  const label = {
+    id: '7',
+    storagePath: `${workspaceA}/${accountA}/24052549356.pdf`,
+    mimeType: 'application/pdf' as const,
+    byteSize: 1200,
+    labelType: 'printable' as const,
+    carrierName: 'DPD Shop2Shop',
+    requestedByFlipbase: true,
+    fetchedAt: '2026-11-13T10:00:00.000Z',
+  };
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      requestShippingLabel: async (account, conversation, transaction, authorize) => {
+        assert.deepEqual(
+          [account, conversation, transaction],
+          ['123', '500969788562', '24052549356'],
+        );
+        await authorize();
+        authorized++;
+        return {
+          outcome: 'ready',
+          transactionId: transaction,
+          shipmentId: '51458635363',
+          labelType: 'printable',
+          carrierName: 'DPD Shop2Shop',
+          labelUrl: 'https://svc-shipping-labels.s3.eu-central-1.amazonaws.com/x?sig=1',
+          requested: true,
+        };
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      sale: async (_scope, id) => {
+        assert.equal(id, saleId);
+        return sale;
+      },
+      save: async (_scope, value, result) => {
+        saved.push([value, result.labelUrl]);
+        return label;
+      },
+    },
+  );
+  try {
+    const response = await api.request('/marketplace-browser/shipping-labels/request', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      saleId,
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { outcome: 'ready', requested: true, label });
+    assert.equal(authorized, 1);
+    assert.equal(saved.length, 1);
+    assert.equal(api.closes(), 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test('shipping label requests report provider refusals without storing anything', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      requestShippingLabel: async (_account, _conversation, transaction) => ({
+        outcome: 'failed',
+        errorCode: 'label_choice_required',
+        transactionId: transaction,
+        shipmentId: null,
+        labelType: null,
+        carrierName: null,
+        labelUrl: null,
+        requested: false,
+      }),
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      sale: async () => ({
+        accountId: '123',
+        transactionId: '1',
+        externalConversationId: '2',
+        title: 'Jacke',
+      }),
+      save: async () => assert.fail('must not store'),
+    },
+  );
+  try {
+    const response = await api.request('/marketplace-browser/shipping-labels/request', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      saleId: '25600000-0000-4000-8000-000000000051',
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      outcome: 'failed',
+      requested: false,
+      errorCode: 'label_choice_required',
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test('shipping label requests reject invalid and foreign sales before starting the browser', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    { requestShippingLabel: async () => assert.fail('must not open') },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      sale: async () => {
+        throw new Error('foreign');
+      },
+      save: async () => assert.fail('must not store'),
+    },
+  );
+  try {
+    for (const saleId of ['invalid', '25600000-0000-4000-8000-000000000051']) {
+      const response = await api.request('/marketplace-browser/shipping-labels/request', {
+        workspaceId: workspaceA,
+        connectionId: accountA,
+        saleId,
+      });
+      assert.equal(response.status, saleId === 'invalid' ? 400 : 403);
+    }
+    assert.equal(api.closes(), 0);
   } finally {
     await api.close();
   }

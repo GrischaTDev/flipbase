@@ -327,3 +327,72 @@ test('ordnet die Marke eines einzelnen Paketteils keinem unvollstaendigen Gesamt
   assert.equal(sale?.body['brand'], null);
   assert.equal(sale?.body['size'], null);
 });
+
+test('liest Versandschein-Schritt, Versandnummer und Frist aus dem gemessenen Vinted-Ablauf', () => {
+  const requestable = {
+    entity_type: 'action_message',
+    event_group: 'sale',
+    event_type: 'success',
+    created_at_ts: '2026-10-22T10:00:00Z',
+    entity: {
+      title: 'Verkauft (vor dem 16 Nov. 10:00 verschicken)',
+      actions: [{ action: 'get_shipping_label', title: 'Versandschein anfordern', primary: true }],
+    },
+  };
+  const before = snapshot(
+    [requestable],
+    {},
+    {
+      shipment_id: 51458635363,
+      available_actions: ['order_shipping_label', 'use_payments'],
+    },
+  ).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(before?.body['saleState'], 'sold');
+  assert.equal(before?.body['shipmentId'], '51458635363');
+  assert.equal(before?.body['shippingLabelAction'], 'order');
+  assert.equal(before?.body['shippingDeadline'], '16 Nov. 10:00');
+
+  const after = snapshot(
+    [
+      system('sale', 'success', 'Verkauft'),
+      {
+        entity_type: 'action_message',
+        event_group: 'shipment',
+        event_type: 'label_success',
+        created_at_ts: '2026-10-22T11:00:00Z',
+        entity: {
+          title: 'Verpacken und verschicken (vor dem 16 Nov. 10:00)',
+          actions: [
+            { action: 'print_label', title: 'Versandschein drucken' },
+            { action: 'view_delivery_instructions', title: 'Versandanleitung' },
+          ],
+        },
+      },
+    ],
+    {},
+    { shipment_id: 51458635363, available_actions: ['send_shipping_label', 'use_payments'] },
+  ).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(after?.body['shippingLabelAction'], 'available');
+  assert.equal(after?.body['shippingDeadline'], '16 Nov. 10:00');
+});
+
+test('bietet für stornierte Verkäufe und unbekannte Aktionen keinen Versandschein an', () => {
+  const cancelled = snapshot(
+    [
+      system('sale', 'success', 'Verkauft'),
+      system('cancelation', 'manually', 'Bestellung storniert', '2026-10-22T11:00:00Z'),
+    ],
+    {},
+    { available_actions: ['order_shipping_label'] },
+  ).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(cancelled?.body['shippingLabelAction'], null);
+  const unknown = snapshot(
+    [system('sale', 'success', 'Verkauft')],
+    {},
+    {
+      available_actions: ['use_payments'],
+    },
+  ).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(unknown?.body['shippingLabelAction'], null);
+  assert.equal(unknown?.body['shipmentId'], null);
+});
