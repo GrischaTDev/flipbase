@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-13 - Juna - Sniper-Sicherheitspaket gezielt übernehmen
+
+**Änderung:** Eigener Zweig `juna/update-sniper-security-packages` vom frisch abgeglichenen `origin/master`. Zod im Sniper auf 4.6.7 mit Mindestversion `^4.6.7` angehoben; source-map-js 1.2.2 und Vite 7.3.7 bleiben transitive Abhängigkeiten. Das mit npm 11.5.2 erzeugte Lockfile verändert ausschließlich diese drei Paketversionen. Vitest bleibt auf 3.2.7; die Major-Migration aus PR #508/#509 und die weiteren Updates aus #607 sind separate Aufgaben. Keine Änderung am Anwendungscode, Root-Paket oder an anderen Dienstmanifesten.
+
+**Nachweise und Grenzen:** Saubere Sniper-Installation mit `npm ci`, `npm run typecheck`, `npm test` und `npm run build` bestehen mit Node 22.23.4 und npm 11.5.2. Die Suite meldet 496 bestandene Fälle aus 51 Dateien; sieben Fälle der vorhandenen Profil-Link-Suite sind unter Windows ausdrücklich deaktiviert und zählen nicht als geprüft. Der Registry-Audit meldet für Zod, source-map-js und Vite keine verbleibenden Advisories. `npm run preflight:plan` und der lokale `npm run preflight` bestehen einschließlich Format, Lint, Anwendungs-/Spec-Typen, Suite-Audit und 152 ausgewählten Skriptfällen ohne Überspringungen. Die abschließend ergänzte Dokumentation wird gesondert formatiert und geprüft. Die ausgewählten zusätzlichen CI-Prüfungen einschließlich Linux- und Container-Smokes stehen noch aus. Protokolle liegen außerhalb des Repositorys unter `C:/Users/gt/.codex/artifacts/sniper-security-*`. Noch kein Push, PR oder Merge. Flipbase fehlt weiterhin in der verbundenen Lissie-Projektliste; ein Regelabruf oder Änderungsbericht kann keinem passenden Projekt zugeordnet werden.
+
 ## 2026-11-13 - Juna - Root-Sicherheitspaket gezielt übernehmen
 
 **Änderung:** Eigener Zweig `juna/update-root-security-packages` vom frisch abgeglichenen `origin/master`. Undici 8.12.3 aus PR #503 und fast-uri 3.1.9 aus PR #502 als transitive Abhängigkeiten übernommen; Nodemailer direkt auf 10.3.1 aus PR #607 angehoben, statt die Zwischenversion aus #501 einzubauen. Vitest, Coverage und die zugehörigen Vitest-Pakete verwenden gemeinsam 4.1.12 einschließlich der Mocker-Korrektur. Keine weiteren Paketversionen oder Dienstmanifeste geändert. Node bleibt auf Major 22; die lokale Prüfung verwendet 22.23.4.
