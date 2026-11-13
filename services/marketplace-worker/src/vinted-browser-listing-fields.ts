@@ -14,6 +14,8 @@ import {
 } from './vinted-browser-listing-form.ts';
 import {
   vintedListingFormSelector,
+  collectVintedListingChoices,
+  parseVintedListingChoices,
   validateVintedListingSubmission,
 } from './vinted-listing-contracts.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
@@ -129,22 +131,30 @@ export async function selectVintedListingField(
   ids: readonly (number | null)[],
   check: () => Promise<void>,
 ): Promise<void> {
-  for (let step = 0; step < 8; step++) {
-    await check();
-    try {
-      const brand =
-        expected.field === 'brand'
-          ? expected.choices.find((choice) => ids.includes(choice.id))
-          : undefined;
-      const actual = await openVintedListingChoices(page, expected.field, [], {
-        brand: brand ? { brandId: brand.id, brandLabel: brand.label } : undefined,
-        // Größen aus einer anderen Gruppe als der angezeigten erst sichtbar machen.
-        sizeId: expected.field === 'size' ? (ids[0] ?? null) : null,
-      });
+  const brand =
+    expected.field === 'brand'
+      ? expected.choices.find((choice) => ids.includes(choice.id))
+      : undefined;
+  let actual: VintedListingChoiceSnapshot | null = null;
+  let hasOpenedChoices = false;
+  try {
+    for (let step = 0; step < 8; step++) {
+      await check();
+      if (!actual) {
+        if (hasOpenedChoices && expected.field !== 'package')
+          await closeVintedListingChoices(page, expected.field);
+        hasOpenedChoices = true;
+        actual = await openVintedListingChoices(page, expected.field, [], {
+          brand: brand ? { brandId: brand.id, brandLabel: brand.label } : undefined,
+          // Größen aus einer anderen Gruppe als der angezeigten erst sichtbar machen.
+          sizeId: expected.field === 'size' ? (ids[0] ?? null) : null,
+        });
+      }
+      const visibleChoices = actual.choices;
       if (
         ids.some((id) => {
           const previous = expected.choices.find((choice) => choice.id === id),
-            current = actual.choices.find((choice) => choice.id === id);
+            current = visibleChoices.find((choice) => choice.id === id);
           return !previous || !current || previous.label !== current.label;
         })
       )
@@ -172,11 +182,32 @@ export async function selectVintedListingField(
           throw new VintedListingReadError('brand_selected');
         }
       }
-    } finally {
-      if (expected.field !== 'package') await closeVintedListingChoices(page, expected.field);
+      // Geöffnete Mehrfachauswahlen direkt gegenlesen, statt sie je Wert neu zu öffnen.
+      const selectionDeadline = performance.now() + 5000;
+      for (;;) {
+        await check();
+        const collected = await page.evaluate(collectVintedListingChoices, expected.field);
+        if (Array.isArray(collected) && collected.length === 0) {
+          actual = null;
+          break;
+        }
+        try {
+          actual = parseVintedListingChoices(expected.field, collected);
+        } catch {
+          throw vintedListingChoiceReadError(expected.field, 'parse');
+        }
+        const selected = actual.choices.find((choice) => choice.id === change.id);
+        if (selected && selected.selected !== change.selected) break;
+        if (performance.now() >= selectionDeadline)
+          throw vintedListingChoiceReadError(expected.field, 'match');
+        await page.waitForTimeout(50);
+      }
     }
+    throw vintedListingChoiceReadError(expected.field, 'match');
+  } finally {
+    if (hasOpenedChoices && expected.field !== 'package')
+      await closeVintedListingChoices(page, expected.field);
   }
-  throw vintedListingChoiceReadError(expected.field, 'match');
 }
 function priceMatches(text: string, cents: number): boolean {
   let value = text.replace(/[€\s]/gu, '');

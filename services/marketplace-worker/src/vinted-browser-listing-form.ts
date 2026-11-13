@@ -15,6 +15,7 @@ import {
 import {
   collectVintedListingChoices,
   collectVintedListingFormMetadata,
+  vintedListingFormSelector,
   parseVintedListingChoices,
 } from './vinted-listing-contracts.ts';
 import {
@@ -296,6 +297,23 @@ export async function closeVintedListingChoices(
 ): Promise<void> {
   try {
     await page.keyboard.press('Escape');
+    if (field !== 'brand') return;
+    const openSearch = page
+      .locator('input#brand-search-input[data-testid="brand-search--input"]')
+      .filter({ visible: true })
+      .first();
+    try {
+      await openSearch.waitFor({ state: 'hidden', timeout: 250 });
+      return;
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== 'TimeoutError') throw error;
+    }
+    // Ein erfolgreicher Tastendruck bestätigt nicht das Schließen des Vinted-Popups.
+    assertListingForm(page);
+    const title = page.locator(vintedListingFormSelector + ' input[name="title"]');
+    if ((await title.count()) !== 1) throw new Error('Vinted-Formular nicht eindeutig.');
+    await title.click({ timeout: 5000 });
+    await openSearch.waitFor({ state: 'hidden', timeout: 1000 });
   } catch {
     throw vintedListingChoiceReadError(field, 'close');
   }

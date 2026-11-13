@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { chromium } from 'playwright';
+import { chromium, type Page } from 'playwright';
 import { createVintedListingFormFixture as fixture } from '../fixtures/vinted-listing-form.ts';
 import {
   prepareVintedListingFields,
   selectVintedListingField,
 } from '../../src/vinted-browser-listing-fields.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
-import { openVintedListingChoices } from '../../src/vinted-browser-listing-form.ts';
+import {
+  closeVintedListingChoices,
+  openVintedListingChoices,
+} from '../../src/vinted-browser-listing-form.ts';
 import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listing-result.ts';
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
@@ -228,6 +231,202 @@ const content = {
   materialIds: [149],
   materialLabels: ['Acryl'],
 };
+
+async function installBrandCloseFixture(page: Page, mode: 'ignored' | 'delayed' | 'blocked') {
+  await page.evaluate((closeMode) => {
+    const popup = document.querySelector<HTMLElement>('#brand-options');
+    const size = document.querySelector<HTMLElement>(
+      '[data-testid="category-size-single-grid-input"],input#size',
+    );
+    const brand = document.querySelector<HTMLElement>(
+      '[data-testid="brand-select-dropdown-input"],input#brand',
+    );
+    const title = document.querySelector<HTMLInputElement>('input[name="title"]');
+    if (!popup || !size || !brand || !title) throw new Error('Missing transition fixture');
+    popup.dataset.outsideCloseClicks = '0';
+    document.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.key !== 'Escape' || popup.hidden) return;
+        event.stopImmediatePropagation();
+        if (closeMode === 'delayed') setTimeout(() => (popup.hidden = true), 120);
+      },
+      true,
+    );
+    document.addEventListener('pointerdown', (event) => {
+      if (event.target !== title || popup.hidden) return;
+      popup.dataset.outsideCloseClicks = String(Number(popup.dataset.outsideCloseClicks) + 1);
+      if (closeMode !== 'blocked') popup.hidden = true;
+    });
+    brand.addEventListener('click', () => {
+      const rectangle = size.getBoundingClientRect();
+      Object.assign(popup.style, {
+        position: 'fixed',
+        left: rectangle.left + 'px',
+        top: rectangle.top + 'px',
+        width: Math.max(200, rectangle.width) + 'px',
+        minHeight: '100px',
+        background: 'white',
+        zIndex: '10',
+      });
+    });
+  }, mode);
+}
+
+for (const modernControls of [false, true]) {
+  test(`closes an Escape-resistant brand list before selecting size with ${modernControls ? 'modern' : 'native'} controls`, async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      const form = await fixture(page, { modernControls, brandSearch: 'matching' });
+      await installBrandCloseFixture(page, 'ignored');
+      const result = await prepareVintedListingFields(
+        page,
+        '123',
+        { ...content, brandId: 254956, brandLabel: 'Jako' },
+        snapshot.images,
+        [5],
+        form.authorize,
+      );
+      assert.equal(
+        result.fields
+          .find((field) => field.field === 'size')
+          ?.choices.find((choice) => choice.selected)?.id,
+        content.sizeId,
+      );
+      assert.equal(await page.locator('#brand-options').isVisible(), false);
+      assert.ok(
+        Number(await page.locator('#brand-options').getAttribute('data-outside-close-clicks')) > 0,
+      );
+      assert.equal(await page.locator('input[name="title"]').inputValue(), content.title);
+      assert.equal(form.writes(), 0);
+      assert.equal(form.uploads(), 0);
+      assert.equal(form.saves(), 0);
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
+test('waits for the brand list to disappear after Escape without an unnecessary outside click', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await fixture(page, { brandSearch: 'matching' });
+    await installBrandCloseFixture(page, 'delayed');
+    await page.locator('#brand').click();
+    await closeVintedListingChoices(page, 'brand');
+    assert.equal(await page.locator('#brand-options').isVisible(), false);
+    assert.equal(
+      await page.locator('#brand-options').getAttribute('data-outside-close-clicks'),
+      '0',
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test('reports brand_close when the list cannot be dismissed and preserves the title', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await fixture(page, { brandSearch: 'matching' });
+    await installBrandCloseFixture(page, 'blocked');
+    await page.locator('input[name="title"]').fill('Eigene Arbeit');
+    await page.locator('#brand').click();
+    await assert.rejects(
+      closeVintedListingChoices(page, 'brand'),
+      (error: unknown) => error instanceof VintedListingReadError && error.step === 'brand_close',
+    );
+    assert.equal(await page.locator('input[name="title"]').inputValue(), 'Eigene Arbeit');
+    assert.equal(await page.locator('#size-options').isVisible(), false);
+    assert.equal(form.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('changes asynchronous multiple colors within one open list and still checks the selected IDs', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    let requests = 0;
+    page.on('request', () => requests++);
+    await page.setContent(`<main id="content"><input id="color" readonly></main>
+      <div id="colors" hidden><div role="checkbox" id="color-1" aria-checked="false">Schwarz</div><div role="checkbox" id="color-2" aria-checked="true">Braun</div><div role="checkbox" id="color-3" aria-checked="false">Grau</div></div>
+      <script>
+        const popup = document.querySelector('#colors');
+        const control = document.querySelector('#color');
+        control.dataset.opens = '0';
+        control.onclick = () => { control.dataset.opens = String(Number(control.dataset.opens) + 1); popup.hidden = false; };
+        popup.querySelectorAll('[role=checkbox]').forEach(choice => choice.onclick = () => setTimeout(() => choice.setAttribute('aria-checked', String(choice.getAttribute('aria-checked') !== 'true')), 2000));
+        document.onkeydown = event => { if(event.key === 'Escape') popup.hidden = true; };
+      </script>`);
+    await selectVintedListingField(
+      page,
+      {
+        field: 'color',
+        sizeGroupId: null,
+        choices: [
+          { id: 1, label: 'Schwarz', selected: false, disabled: false, sizeGroupId: null },
+          { id: 2, label: 'Braun', selected: true, disabled: false, sizeGroupId: null },
+          { id: 3, label: 'Grau', selected: false, disabled: false, sizeGroupId: null },
+        ],
+      },
+      [1, 3],
+      async () => undefined,
+    );
+    assert.equal(await page.locator('#color').getAttribute('data-opens'), '1');
+    assert.deepEqual(
+      await page
+        .locator('[aria-checked=true]')
+        .evaluateAll((choices) => choices.map((choice) => choice.id)),
+      ['color-1', 'color-3'],
+    );
+    assert.equal(await page.locator('#colors').isVisible(), false);
+    assert.equal(requests, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('stops an open multiple selection when authority is revoked and closes its popup', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<main id="content"><input id="color" readonly></main>
+      <div id="colors" hidden><div role="checkbox" id="color-1" aria-checked="false">Schwarz</div><div role="checkbox" id="color-3" aria-checked="false">Grau</div></div>
+      <script>
+        const popup = document.querySelector('#colors');
+        document.querySelector('#color').onclick = () => popup.hidden = false;
+        popup.querySelectorAll('[role=checkbox]').forEach(choice => choice.onclick = () => choice.setAttribute('aria-checked','true'));
+        document.onkeydown = event => { if(event.key === 'Escape') popup.hidden = true; };
+      </script>`);
+    await assert.rejects(
+      selectVintedListingField(
+        page,
+        {
+          field: 'color',
+          sizeGroupId: null,
+          choices: [
+            { id: 1, label: 'Schwarz', selected: false, disabled: false, sizeGroupId: null },
+            { id: 3, label: 'Grau', selected: false, disabled: false, sizeGroupId: null },
+          ],
+        },
+        [1, 3],
+        async () => {
+          if ((await page.locator('#color-1').getAttribute('aria-checked')) === 'true')
+            throw new Error('Freigabe entzogen');
+        },
+      ),
+      /Freigabe entzogen/,
+    );
+    assert.equal(await page.locator('#colors').isVisible(), false);
+    assert.equal(await page.locator('#color-3').getAttribute('aria-checked'), 'false');
+  } finally {
+    await browser.close();
+  }
+});
 
 test('bricht eine nicht zuordenbare eigene Größe vor jedem Upload und Speichern ab', async () => {
   const browser = await chromium.launch({ headless: true });
