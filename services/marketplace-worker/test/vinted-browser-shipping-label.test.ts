@@ -65,7 +65,7 @@ function vinted(
     async authorize() {
       authorized += 1;
     },
-    async wait() {},
+    wait: () => Promise.resolve(),
   };
   return { adapter, calls, authorized: () => authorized };
 }
