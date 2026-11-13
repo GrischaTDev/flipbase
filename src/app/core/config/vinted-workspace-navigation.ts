@@ -26,6 +26,7 @@ export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[
       { path: '/marketplaces/vinted/overview', label: 'Übersicht', icon: 'dashboard' },
       { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: 'shoppingBag' },
       { path: '/marketplaces/vinted/sales', label: 'Verkäufe', icon: 'trendingUp' },
+      { path: '/marketplaces/vinted/shipping-labels', label: 'Versandscheine', icon: 'truck' },
       { path: '/marketplaces/vinted/listings', label: 'Kleiderschrank', icon: 'tag' },
       { path: '/marketplaces/vinted/statistics', label: 'Statistik', icon: 'barChart' },
       { path: '/marketplaces/vinted/listings/new', label: 'Inserat erstellen', icon: 'tag' },

@@ -5,6 +5,7 @@ import {
   CloudNetworkUnavailableError,
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
+  MarketplaceCloudAccountBusyError,
   VintedAccountBusyError,
   VintedInteractionRequiredError,
   VintedListingChangedError,
@@ -744,4 +745,42 @@ it('akzeptiert nur die eindeutige Löschbestätigung und wiederholt weder unklar
     'Die Löschung wurde nicht bestätigt.',
   );
   expect(request).toHaveBeenCalledTimes(6);
+});
+it('fordert einen Versandschein für den Verkauf an und übernimmt nur bekannte Ergebnisse', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ outcome: 'ready', requested: true }));
+  vi.stubGlobal('fetch', fetchMock);
+  expect(await api.requestShippingLabel(scope, id, 'token')).toEqual({
+    outcome: 'ready',
+    requested: true,
+  });
+  expect(fetchMock.mock.calls[0][0]).toBe('/marketplace-browser/shipping-labels/request');
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ...scope, saleId: id });
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ outcome: 'failed', requested: false, errorCode: 'phone_required' }),
+      ),
+  );
+  expect(await api.requestShippingLabel(scope, id, 'token')).toEqual({
+    outcome: 'failed',
+    requested: false,
+    errorCode: 'phone_required',
+  });
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ outcome: 'unknown' })));
+  await expect(api.requestShippingLabel(scope, id, 'token')).rejects.toThrow('Versandschein');
+});
+it('meldet ein belegtes Cloud-Konto beim Versandschein als wiederholbar', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ code: 'browser_session_busy' }, { status: 409 })),
+  );
+  await expect(api.requestShippingLabel(scope, id, 'token')).rejects.toBeInstanceOf(
+    MarketplaceCloudAccountBusyError,
+  );
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({}, { status: 403 })));
+  await expect(api.requestShippingLabel(scope, id, 'token')).rejects.toThrow(
+    'gewählten Cloud-Konto',
+  );
 });

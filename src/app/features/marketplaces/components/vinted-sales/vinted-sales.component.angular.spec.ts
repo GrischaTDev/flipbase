@@ -11,6 +11,9 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { parseMarketplaceSnapshot } from '../../models/marketplace-response';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
+import type { VintedShippingLabel } from '../../models/vinted-shipping-label';
+import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { VintedSalesComponent } from './vinted-sales.component';
 
 const scope = { workspaceId: 'workspace-1', connectionId: 'connection-1' };
@@ -39,6 +42,16 @@ const makeSnapshot = (items: Record<string, unknown>[] = [], nextCursor: string 
 const current = signal(makeSnapshot());
 const unavailable = signal(false);
 const loadMore = vi.fn();
+const labelList = signal<readonly VintedShippingLabel[]>([]);
+const requestLabel = vi.fn();
+const openLabel = vi.fn();
+const downloadLabel = vi.fn();
+const loadLabels = vi.fn();
+const selected = signal<{
+  workspaceId: string;
+  connectionId: string;
+  executionMode: string;
+} | null>(null);
 let reset: (() => void) | undefined;
 beforeAll(async () => {
   registerLocaleData(localeDe);
@@ -49,6 +62,10 @@ beforeAll(async () => {
     {
       type: ProductThumbnailComponent,
       path: 'src/app/shared/components/product-thumbnail/product-thumbnail.component.ts',
+    },
+    {
+      type: VintedShippingLabelActionsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-shipping-label-actions/vinted-shipping-label-actions.component.ts',
     },
     {
       type: VintedSalesComponent,
@@ -62,6 +79,9 @@ beforeEach(async () => {
   current.set(makeSnapshot());
   unavailable.set(false);
   loadMore.mockReset();
+  labelList.set([]);
+  selected.set(null);
+  for (const mock of [requestLabel, openLabel, downloadLabel, loadLabels]) mock.mockReset();
   await TestBed.configureTestingModule({
     imports: [VintedSalesComponent],
     providers: [
@@ -74,6 +94,20 @@ beforeEach(async () => {
           localSalesUnavailable: unavailable,
           loadingPage: signal(null),
           loadMore,
+          selectedConnection: selected,
+        },
+      },
+      {
+        provide: VintedShippingLabelStore,
+        useValue: {
+          byTransaction: () => new Map(labelList().map((label) => [label.transactionId, label])),
+          requesting: signal(new Set<string>()),
+          notices: signal(new Map<string, string>()),
+          load: loadLabels,
+          ensureLoaded: loadLabels,
+          request: requestLabel,
+          open: openLabel,
+          download: downloadLabel,
         },
       },
     ],
@@ -207,4 +241,80 @@ it('verwendet die Kleiderschrankstruktur mit gekürztem Titel und kompakter Fuß
   expect(element.querySelector('[data-sale-details]')?.textContent).toContain('Abgeschlossen');
   expect(element.querySelector('[data-sale-footer]')?.textContent).toContain('Zugestellt');
   expect(element.querySelector('[data-sale-footer]')?.textContent).toContain('Chat öffnen');
+});
+
+it('bietet bei einem frischen Verkauf das Anfordern des Versandscheins mit Frist an', () => {
+  selected.set({ ...scope, executionMode: 'cloud' });
+  current.set(
+    makeSnapshot([
+      {
+        externalId: '24052549356',
+        title: 'Carhartt WIP Teddy-Fleecejacke',
+        saleState: 'sold',
+        shippingLabelAction: 'order',
+        shippingDeadline: '16 Nov. 10:00',
+      },
+    ]),
+  );
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  const element = fixture.nativeElement as HTMLElement;
+  expect(loadLabels).toHaveBeenCalledWith(scope);
+  const actions = element.querySelector('[data-shipping-label-actions]');
+  expect(actions?.textContent).toContain('Verschicken bis 16 Nov. 10:00');
+  const button = [...(actions?.querySelectorAll('button') ?? [])].find((candidate) =>
+    candidate.textContent?.includes('Versandschein anfordern'),
+  );
+  button?.click();
+  expect(requestLabel).toHaveBeenCalledWith(expect.objectContaining({ id: 'sale-0' }));
+});
+
+it('öffnet und lädt einen gespeicherten Versandschein statt erneut anzufordern', async () => {
+  const label: VintedShippingLabel = {
+    id: '7',
+    workspaceId: scope.workspaceId,
+    connectionId: scope.connectionId,
+    transactionId: '24052549356',
+    conversationId: '500969788562',
+    title: 'Carhartt WIP Teddy-Fleecejacke',
+    carrierName: 'DPD Shop2Shop',
+    labelType: 'printable',
+    storagePath: 'workspace-1/connection-1/24052549356.pdf',
+    mimeType: 'application/pdf',
+    requestedByFlipbase: true,
+    fetchedAt: '2026-11-13T10:00:00Z',
+  };
+  labelList.set([label]);
+  current.set(
+    makeSnapshot([
+      { externalId: '24052549356', saleState: 'sold', shippingLabelAction: 'available' },
+    ]),
+  );
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  const element = fixture.nativeElement as HTMLElement;
+  expect(element.textContent).not.toContain('Versandschein anfordern');
+  expect(element.textContent).not.toContain('Versandschein abholen');
+  const open = [...element.querySelectorAll('button')].find((button) =>
+    button.textContent?.includes('Versandschein öffnen'),
+  );
+  open?.click();
+  await fixture.whenStable();
+  expect(openLabel).toHaveBeenCalledWith(label);
+  (
+    element.querySelector('button[aria-label="Versandschein herunterladen"]') as HTMLButtonElement
+  )?.click();
+  await fixture.whenStable();
+  expect(downloadLabel).toHaveBeenCalledWith(label);
+});
+
+it('zeigt für stornierte Verkäufe keine Versandschein-Aktionen', () => {
+  current.set(
+    makeSnapshot([{ externalId: '1', saleState: 'cancelled', shippingLabelAction: 'order' }]),
+  );
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  expect(
+    (fixture.nativeElement as HTMLElement).querySelector('[data-shipping-label-actions]'),
+  ).toBeNull();
 });

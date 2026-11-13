@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-13 - Juna - Vinted-Versandscheine anfordern, speichern und öffnen
+
+**Anlass:** Nach einem Vinted-Verkauf soll der Versandschein direkt aus Flipbase angefordert werden
+können, im Chat und unter Verkäufe. Danach soll er sich öffnen und herunterladen lassen, und eine
+eigene Seite „Versandscheine“ soll alle Scheine je Verkauf zeigen. Wann immer möglich druckfertig,
+weil selbst gedruckt wird.
+
+**Messung und Umsetzung:** Den Ablauf am 08.11.2026 an der Carhartt-Jacke im Cloud-Browser gemessen
+(nur lesend, die Anforderung klickte der Nutzer selbst): `label_options` liefert Versanddienst,
+Abgabeweg und Schein-Arten, `PUT /transactions/{id}/shipment/order` fordert an, `label_url` liefert
+einen sieben Tage gültigen S3-Link. Der Cloud-Worker hat dafür die Browseraktion
+`requestShippingLabel` und den Endpunkt `/marketplace-browser/shipping-labels/request`. Er nimmt den
+druckfertigen Schein, wenn Vinted ihn anbietet, sonst den QR-Code. Er fordert nur bei genau einem
+Abgabeweg und einer eindeutigen Absenderadresse an und holt einen schon vorhandenen Schein ohne neue
+Anforderung ab. Die Datei wird geprüft (PDF/PNG/JPEG am Inhalt), privat im Bucket
+`marketplace-shipping-labels` abgelegt und in der neuen Tabelle `marketplace_shipping_labels`
+eingetragen; Schreiben nur durch den Worker, Lesen für Workspace-Administratoren. Verkäufe tragen
+jetzt `shipmentId`, `shippingLabelAction` und `shippingDeadline`. In der App zeigen Verkaufskarten und
+der Gesprächskopf „Versandschein anfordern“, „abholen“ bzw. „öffnen“ mit Download und die Frist.
+Der neue Menüpunkt „Versandscheine“ listet alle Scheine des Kontos. Lokale Konten haben noch keine
+Verkäufe, deshalb gilt das zunächst für Cloud-Konten. Mehrere Abgabewege (etwa bei DHL) brauchen
+eine Auswahl, die noch fehlt; dann verweist Flipbase auf Vinted. „Neues Inserat aus Verkauf“ ist
+zurückgestellt, weil dafür parallel an der Relisting-Funktion gearbeitet wird.
+
+**Prüfung:** Worker-Suite (867 bestanden) einschließlich neuer Tests für Ablauf, Endpunkt,
+Speicherbaustein und Verkaufsfelder; neue SQL-Testdatei (10 Prüfungen) gegen die Migration in einer
+zurückgerollten Transaktion; Angular-Tests für Verkäufe, Chat, neue Seite, Store, API und
+Seitenleiste. Vorabcheck im Commit.
+
 ## 2026-11-13 - Juna - Root-Sicherheitspaket gezielt übernehmen
 
 **Änderung:** Eigener Zweig `juna/update-root-security-packages` vom frisch abgeglichenen `origin/master`. Undici 8.12.3 aus PR #503 und fast-uri 3.1.9 aus PR #502 als transitive Abhängigkeiten übernommen; Nodemailer direkt auf 10.3.1 aus PR #607 angehoben, statt die Zwischenversion aus #501 einzubauen. Vitest, Coverage und die zugehörigen Vitest-Pakete verwenden gemeinsam 4.1.12 einschließlich der Mocker-Korrektur. Keine weiteren Paketversionen oder Dienstmanifeste geändert. Node bleibt auf Major 22; die lokale Prüfung verwendet 22.23.4.

@@ -1,3 +1,5 @@
+import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
+import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -106,6 +108,7 @@ interface ReadingPosition {
     LucideTag,
     LucideBot,
     VintedOfferActionsComponent,
+    VintedShippingLabelActionsComponent,
   ],
   providers: [VintedActionOverviewStore],
   templateUrl: './vinted-messages.component.html',
@@ -120,6 +123,7 @@ export class VintedMessagesComponent {
   readonly local = inject(VintedLocalExtensionStore);
   readonly messaging = inject(VintedMessagingStore);
   readonly actionOverview = inject(VintedActionOverviewStore);
+  private readonly shippingLabels = inject(VintedShippingLabelStore);
   readonly search = signal('');
   readonly conversationFilter = signal<ConversationFilter | null>('all');
   readonly conversationSort = signal<'latest' | 'oldest' | null>('latest');
@@ -256,6 +260,19 @@ export class VintedMessagesComponent {
         saved?.key === this.conversationKey() ? saved.entry : null,
       );
     return saved?.key === this.conversationKey() ? saved.entry : null;
+  });
+  /** Verkauf zu diesem Gespräch, sofern Vinted dafür einen Versandschein anbietet oder hält. */
+  readonly conversationSale = computed(() => {
+    const conversation = this.conversation();
+    if (!conversation) return null;
+    const sale = this.store
+      .snapshot()
+      ?.sales?.items.find((entry) => entry.conversationId === conversation.id);
+    if (!sale || (sale.saleState !== 'sold' && sale.saleState !== 'shipped')) return null;
+    return sale.shippingLabelAction ||
+      (sale.externalId && this.shippingLabels.byTransaction().has(sale.externalId))
+      ? sale
+      : null;
   });
   readonly partnerProfileUrl = computed(() => {
     const conversation = this.conversation();
