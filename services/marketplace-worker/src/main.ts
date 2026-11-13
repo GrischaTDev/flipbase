@@ -1,3 +1,4 @@
+import { SupabaseShippingLabelStore } from './supabase-shipping-label-store.ts';
 import { MarketplaceNegotiationRunner } from './marketplace-negotiation-runner.ts';
 import { SupabaseMarketplaceNegotiationStore } from './supabase-marketplace-negotiation-store.ts';
 import { GoLoginCloudBrowser } from './gologin-cloud-browser.ts';
@@ -443,6 +444,14 @@ async function main(): Promise<void> {
           publishableKey: config.publishableKey,
         })
       : undefined,
+    shippingLabels:
+      isCloud && (config.provider === 'gologin' || config.chromiumWritesEnabled)
+        ? new SupabaseShippingLabelStore({
+            url: config.supabaseUrl,
+            publishableKey: config.publishableKey,
+            serviceRoleKey: config.serviceRoleKey,
+          })
+        : undefined,
     readOnly: config.provider === 'local',
     listingPublishingEnabled: config.listingPublishingEnabled,
     scheduledSync: dispatcher

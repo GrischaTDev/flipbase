@@ -5662,6 +5662,68 @@ export type Database = {
           },
         ]
       }
+      marketplace_shipping_labels: {
+        Row: {
+          byte_size: number
+          carrier_name: string | null
+          connection_id: string
+          created_at: string
+          external_conversation_id: string | null
+          external_shipment_id: string
+          external_transaction_id: string
+          fetched_at: string
+          id: number
+          label_type: string | null
+          mime_type: string
+          requested_by_flipbase: boolean
+          storage_path: string
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          byte_size: number
+          carrier_name?: string | null
+          connection_id: string
+          created_at?: string
+          external_conversation_id?: string | null
+          external_shipment_id: string
+          external_transaction_id: string
+          fetched_at?: string
+          id?: never
+          label_type?: string | null
+          mime_type: string
+          requested_by_flipbase?: boolean
+          storage_path: string
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number
+          carrier_name?: string | null
+          connection_id?: string
+          created_at?: string
+          external_conversation_id?: string | null
+          external_shipment_id?: string
+          external_transaction_id?: string
+          fetched_at?: string
+          id?: never
+          label_type?: string | null
+          mime_type?: string
+          requested_by_flipbase?: boolean
+          storage_path?: string
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_shipping_labels_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_sync_schedules: {
         Row: {
           activated_by: string

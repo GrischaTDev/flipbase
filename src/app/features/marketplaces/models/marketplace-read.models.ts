@@ -46,6 +46,12 @@ export interface MarketplaceEntry extends AccountScope {
   readonly brand: string | null;
   readonly size: string | null;
   readonly shipmentStatus: string | null;
+  /** Vinted-Versandnummer eines Verkaufs; nur für den Versandschein benötigt. */
+  readonly shipmentId?: string | null;
+  /** `order`: Versandschein kann angefordert werden; `available`: Vinted hält ihn bereit. */
+  readonly shippingLabelAction?: 'order' | 'available' | null;
+  /** Versandfrist im Wortlaut von Vinted, z. B. „16 Nov. 10:00“. */
+  readonly shippingDeadline?: string | null;
   readonly saleState?: 'sold' | 'shipped' | 'completed' | 'cancelled' | 'relisted' | null;
   readonly saleStateAt?: string | null;
   readonly itemIds?: readonly string[];

@@ -1,3 +1,4 @@
+import type { VintedShippingLabelRequestResult } from '../models/vinted-shipping-label';
 import { Injectable } from '@angular/core';
 import {
   parseVintedProfileDetails,
@@ -710,6 +711,53 @@ export class MarketplaceBrowserTestApiService {
     )
       throw new MarketplaceImportError('messages');
     return result.observedAt;
+  }
+
+  /** Fordert im Cloud-Browser den Versandschein eines Verkaufs an oder holt den vorhandenen ab. */
+  async requestShippingLabel(
+    scope: AccountScope,
+    saleId: string,
+    accessToken: string,
+  ): Promise<VintedShippingLabelRequestResult> {
+    if (!uuidPattern.test(saleId)) throw new Error('Dieser Verkauf ist nicht bekannt.');
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/shipping-labels/request',
+        { ...scope, saleId },
+        accessToken,
+      );
+    } catch {
+      throw new Error('Der Cloud-Browser ist nicht erreichbar. Versuche es erneut.');
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    let result: unknown;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+    const value =
+      result && typeof result === 'object' && !Array.isArray(result)
+        ? (result as Record<string, unknown>)
+        : {};
+    if (
+      response.status === 429 ||
+      (response.status === 409 && value['code'] === 'browser_session_busy')
+    )
+      throw new MarketplaceCloudAccountBusyError();
+    if (response.status === 403)
+      throw new Error('Dieser Verkauf gehört nicht zum gewählten Cloud-Konto.');
+    if (response.status === 503)
+      throw new Error('Versandscheine sind für dieses Konto noch nicht freigeschaltet.');
+    if (!response.ok || typeof value['requested'] !== 'boolean')
+      throw new Error('Der Versandschein konnte nicht abgerufen werden. Versuche es erneut.');
+    const requested = value['requested'];
+    if (value['outcome'] === 'ready') return { outcome: 'ready', requested };
+    if (value['outcome'] === 'pending') return { outcome: 'pending', requested };
+    if (value['outcome'] === 'failed' && typeof value['errorCode'] === 'string')
+      return { outcome: 'failed', requested, errorCode: value['errorCode'] };
+    throw new Error('Der Versandschein konnte nicht abgerufen werden. Versuche es erneut.');
   }
 
   async readListingEdit(

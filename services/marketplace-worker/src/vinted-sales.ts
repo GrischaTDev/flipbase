@@ -17,6 +17,43 @@ const stateLabels: Record<SaleState, string> = {
   relisted: 'Storniert · wieder eingestellt',
 };
 
+type ShippingLabelAction = 'order' | 'available';
+// Gemessen am 08.11.2026: vor dem Versandschein bietet Vinted `order_shipping_label`, danach
+// `send_shipping_label`; die Chatmeldungen tragen `get_shipping_label` bzw. `print_label`/`open_qr_code`.
+const orderActions = new Set(['order_shipping_label', 'get_shipping_label']);
+const availableActions = new Set(['send_shipping_label', 'print_label', 'open_qr_code']);
+
+/** Nächster Versandschein-Schritt und Frist aus Transaktion und Vinted-Systemmeldungen. */
+export function readVintedShippingLabelState(
+  relationInput: unknown,
+  messagesInput: unknown,
+): { action: ShippingLabelAction | null; deadline: string | null } {
+  const actions = new Set<string>();
+  const relation = record(relationInput);
+  for (const value of Array.isArray(relation['available_actions'])
+    ? relation['available_actions']
+    : [])
+    if (typeof value === 'string') actions.add(value);
+  let deadline: string | null = null;
+  for (const raw of Array.isArray(messagesInput) ? messagesInput : []) {
+    const message = record(raw);
+    if (message['entity_type'] !== 'action_message') continue;
+    const entity = record(message['entity']);
+    for (const action of Array.isArray(entity['actions']) ? entity['actions'] : []) {
+      const name = record(action)['action'];
+      if (typeof name === 'string') actions.add(name);
+    }
+    const match = /\(vor dem ([^()]{3,40}?)(?: verschicken)?\)$/u.exec(text(entity['title']) ?? '');
+    if (match) deadline = match[1]!.trim();
+  }
+  const action = [...actions].some((name) => availableActions.has(name))
+    ? 'available'
+    : [...actions].some((name) => orderActions.has(name))
+      ? 'order'
+      : null;
+  return { action, deadline: action ? deadline : null };
+}
+
 /** Ausschließlich gebundene Anbietertransaktionen und Systemereignisse, niemals freie Chattexte. */
 export function readVintedSale(
   conversationInput: unknown,
@@ -207,6 +244,14 @@ export function readVintedSale(
       price: Number.isFinite(amount) && amount >= 0 ? amount : null,
       currency,
       shipmentStatus: text(record(transaction['shipment'])['status_title']),
+      shipmentId: id(relation['shipment_id']),
+      ...(() => {
+        const label = readVintedShippingLabelState(relation, conversation['messages']);
+        return {
+          shippingLabelAction: state === 'sold' || state === 'shipped' ? label.action : null,
+          shippingDeadline: state === 'sold' ? label.deadline : null,
+        };
+      })(),
       imageUrl:
         text(record(relation['item_photo'])['url']) ??
         text(record(conversation['item_photo'])['url']),
