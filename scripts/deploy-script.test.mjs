@@ -352,6 +352,7 @@ class RolloutFixture:
         self.broker_restarts = 0
         self.fail_stage = None
         self.permission_hash = "a" * 32
+        self.schedule_hash = "b" * 32
         self.image_ids = {image: "sha256:" + digit * 64 for image, digit in ((WORKER, "4"), (BROKER, "5"), (SESSION, "6"))}
         self.context = {
             "project": "flipbase-chromium-pilot",
@@ -363,7 +364,7 @@ class RolloutFixture:
                 "Id": digit * 64,
                 "RestartCount": 0,
                 "Name": "/flipbase-marketplace-worker" if key == "worker" else "/fixture-broker",
-                "State": {"Status": "running", "Running": True, "OOMKilled": False, "Dead": False, "Health": {"Status": "healthy"}},
+                "State": {"Status": "running", "Running": True, "OOMKilled": False, "Dead": False, "StartedAt": "2026-11-13T10:00:00Z", "Health": {"Status": "healthy"}},
                 "Config": {
                     "Image": self.baseline["services"][service]["image"],
                     "Env": ["SUPABASE_SERVICE_ROLE_KEY=" + SECRET],
@@ -407,6 +408,7 @@ class RolloutFixture:
         snapshot = idle_snapshot(live=not self.worker_stopped or self.started)
         snapshot["counts"].update(self.counts)
         snapshot["listingPermissionHash"] = self.permission_hash
+        snapshot["scheduleAuthorizationHash"] = self.schedule_hash
         snapshot["runtime"]["workerId"] = self.next_worker_id if self.started else self.active_worker_id
         snapshot["runtime"]["epoch"] = self.next_epoch if self.started else self.active_epoch
         snapshot["unknownMessageEvidence"] = copy.deepcopy(self.unknown_messages)
@@ -457,7 +459,7 @@ class RolloutFixture:
                     self.context[key]["Config"]["Image"] = image
                     self.context[key]["Image"] = self.image_ids[image]
                     self.context[key]["RestartCount"] = self.worker_restarts if key == "worker" else self.broker_restarts
-                    self.context[key]["State"] = {"Status": "running", "Running": True, "OOMKilled": False, "Dead": False, "Health": {"Status": "healthy"}}
+                    self.context[key]["State"] = {"Status": "running", "Running": True, "OOMKilled": False, "Dead": False, "StartedAt": "2026-11-13T11:00:00Z", "Health": {"Status": "healthy"}}
                 if self.fail_stage == "start":
                     raise rollout.RolloutError("Fixture: Start angenommen, Antwort unterbrochen.")
                 return ""
@@ -490,6 +492,20 @@ class RolloutFixture:
 
     def mutations(self):
         return [args for args, _timeout in self.calls if args[:2] == ["docker", "stop"] or (args[:2] == ["docker", "compose"] and "up" in args)]
+
+def interrupted_preparation(fixture):
+    manifest = manifest_fixture()
+    fixture.select_manifest(manifest)
+    def browser_during_pull(args, **kwargs):
+        if args[:2] == ["docker", "pull"] and not fixture.sessions:
+            fixture.sessions.append("e" * 64)
+        return fixture.run_command(args, **kwargs)
+    with mock.patch.object(rollout, "run_command", side_effect=browser_during_pull):
+        assert_rejected(lambda: rollout.apply_release(manifest))
+    assert fixture.journal()["phase"] == "preparing"
+    assert fixture.mutations() == []
+    fixture.sessions.clear()
+    return manifest
 `;
   const result = spawnSync(
     python,
@@ -1153,6 +1169,147 @@ with RolloutFixture() as fixture:
     assert_rejected(lambda: rollout.apply_release(manifest))
     assert fixture.mutations() == operations
     assert (fixture.directory / "deployment-state.json").stat().st_mode & 0o777 == 0o600
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH setzt eine durch Browser unterbrochene Vorbereitung nach dessen Ende sicher fort',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    original_source = fixture.source.read_bytes()
+    manifest = interrupted_preparation(fixture)
+    original_journal = (fixture.state_dir / "journal.json").read_bytes()
+    fixture.sessions.append("e" * 64)
+    assert_rejected(lambda: rollout.apply_release(manifest))
+    assert fixture.mutations() == []
+    assert (fixture.state_dir / "journal.json").read_bytes() == original_journal
+    fixture.sessions.clear()
+    assert rollout.apply_release(manifest)["phase"] == "verified"
+    assert fixture.source.read_bytes() == original_source
+    assert len(fixture.mutations()) == 3
+    assert fixture.journal()["history"][0]["phase"] == "preparing"
+    assert [entry["phase"] for entry in fixture.journal()["history"]].count("preparing") == 1
+    assert rollout.read_deployment_record()["manifest"] == manifest
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH baut nach unterbrochenen Vorbereitungsdateien einen vollständig geprüften Plan neu auf',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for failed_file in ("baseline.json", "compose.previous.json", "compose.release.json", "plan.json", "prepared"):
+    with RolloutFixture() as fixture:
+        manifest = manifest_fixture()
+        fixture.select_manifest(manifest)
+        original_write = rollout.write_json
+        def interrupted_write(name, value):
+            if name == failed_file or (failed_file == "prepared" and name == "journal.json" and value.get("phase") == "prepared"):
+                raise rollout.RolloutError("Fixture: Vorbereitung unterbrochen.")
+            original_write(name, value)
+        with mock.patch.object(rollout, "write_json", side_effect=interrupted_write):
+            assert_rejected(lambda: rollout.apply_release(manifest))
+        assert fixture.journal()["phase"] == "preparing"
+        assert fixture.mutations() == []
+        assert rollout.apply_release(manifest)["phase"] == "verified", failed_file
+        assert len(fixture.mutations()) == 3
+        assert fixture.operation_phases == [("worker", "worker_stop_started"), ("broker", "broker_stop_started"), ("start", "start_started")]
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH prüft Images nach unterbrochenem Download oder Runtime-Abgleich erneut vor dem Stopp',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+for stage, image in (("pull", WORKER), ("pull", SESSION), ("runtime", BROKER)):
+    with RolloutFixture() as fixture:
+        manifest = manifest_fixture()
+        fixture.select_manifest(manifest)
+        def interrupted_image(args, **kwargs):
+            if ((stage == "pull" and args[:2] == ["docker", "pull"] and args[2] == image)
+                    or (stage == "runtime" and args[:2] == ["docker", "run"] and args[-2] == image)):
+                raise rollout.RolloutError("Fixture: Imageprüfung unterbrochen.")
+            return fixture.run_command(args, **kwargs)
+        with mock.patch.object(rollout, "run_command", side_effect=interrupted_image):
+            assert_rejected(lambda: rollout.apply_release(manifest))
+        assert fixture.mutations() == []
+        assert fixture.journal()["phase"] == "preparing"
+        fixture.calls.clear()
+        assert rollout.apply_release(manifest)["phase"] == "verified"
+        first_stop = next(index for index, (args, _) in enumerate(fixture.calls) if args[:2] == ["docker", "stop"])
+        before_stop = fixture.calls[:first_stop]
+        assert [args[2] for args, _ in before_stop if args[:2] == ["docker", "pull"]] == [WORKER, BROKER, SESSION]
+        assert [args[-2] for args, _ in before_stop if args[:2] == ["docker", "run"]] == [WORKER, BROKER, SESSION]
+        assert len(fixture.mutations()) == 3
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH sperrt die Wiederaufnahme bei verändertem Ausgangsstand oder unvollständigen Belegen',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+def remove_checkpoint(fixture):
+    journal = fixture.journal()
+    journal.pop("preparation", None)
+    (fixture.state_dir / "journal.json").write_text(json.dumps(journal))
+
+def disguise_stop(fixture):
+    journal = fixture.journal()
+    journal["history"].append({"phase": "worker_stop_started", "at": "2026-11-13T11:00:00Z"})
+    (fixture.state_dir / "journal.json").write_text(json.dumps(journal))
+
+scenarios = [
+    ("fehlender Ausgangsbeleg", remove_checkpoint),
+    ("Stopp in der Historie", disguise_stop),
+    ("fremde Zustandsdatei", lambda f: (f.state_dir / "unknown.json").write_text("{}")),
+    ("andere Compose-Quelldatei", lambda f: f.source.write_text(f.source.read_text() + "\n")),
+    ("geänderte Konfiguration", lambda f: (f.baseline["services"]["marketplace-worker"].update({"labels": {"changed": "yes"}}), f.source.write_text(json.dumps(f.baseline)))),
+    ("anderer Worker", lambda f: f.context["worker"].update({"Id": "f" * 64})),
+    ("anderer Broker", lambda f: f.context["broker"].update({"Id": "f" * 64})),
+    ("Worker neu gestartet", lambda f: f.context["worker"]["State"].update({"StartedAt": "2026-11-13T10:30:00Z"})),
+    ("Broker neu gestartet", lambda f: f.context["broker"]["State"].update({"StartedAt": "2026-11-13T10:30:00Z"})),
+    ("Neustartzähler geändert", lambda f: f.context["worker"].update({"RestartCount": 1})),
+    ("fehlende Containerstartzeit", lambda f: f.context["worker"]["State"].pop("StartedAt")),
+    ("ungültiger Neustartzähler", lambda f: f.context["worker"].update({"RestartCount": True})),
+    ("Freigaben geändert", lambda f: setattr(f, "permission_hash", "c" * 32)),
+    ("Zeitplanfreigaben geändert", lambda f: setattr(f, "schedule_hash", "c" * 32)),
+    ("Runtimebesitzer geändert", lambda f: setattr(f, "active_worker_id", "33333333-3333-4333-8333-333333333333")),
+    ("Runtime-Epoch geändert", lambda f: setattr(f, "active_epoch", 2)),
+]
+for label, change in scenarios:
+    with RolloutFixture() as fixture:
+        manifest = interrupted_preparation(fixture)
+        change(fixture)
+        previous_files = {path.name: path.read_bytes() for path in fixture.state_dir.iterdir()}
+        assert_rejected(lambda: rollout.apply_release(manifest))
+        assert fixture.mutations() == [], label
+        assert {path.name: path.read_bytes() for path in fixture.state_dir.iterdir()} == previous_files, label
+        assert rollout.read_deployment_record() is None, label
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH setzt eine Vorbereitung mit bereits begonnenem Deploymentbeleg nicht zurück',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+with RolloutFixture() as fixture:
+    manifest = interrupted_preparation(fixture)
+    rollout.write_deployment_record(manifest, "pending")
+    previous_files = {path.name: path.read_bytes() for path in fixture.state_dir.iterdir()}
+    assert_rejected(lambda: rollout.apply_release(manifest))
+    assert fixture.mutations() == []
+    assert {path.name: path.read_bytes() for path in fixture.state_dir.iterdir()} == previous_files
+    assert rollout.read_deployment_record()["phase"] == "pending"
 `);
   },
 );

@@ -84,6 +84,21 @@ veröffentlicht und ausgerollt.
 
 ## Grenzen und spätere Änderungen
 
+Ein erneuter Deployment-Aufruf darf eine unterbrochene Vorbereitung (`preparing`)
+fortsetzen, wenn deren Journal den ursprünglichen Ausgangsstand vollständig
+belegt. Containerkennungen, Startzeiten und Neustartzähler, Compose-Datei und
+aufgelöste Konfiguration, Freigaben und Worker-Runtime müssen unverändert sein.
+Aufträge und Browser müssen erneut frei sein. Erst dann werden unvollständige
+Vorbereitungsdateien neu erzeugt und alle Image- und Laufzeitprüfungen wiederholt.
+Die ursprüngliche Journalhistorie bleibt erhalten.
+
+Ältere Journale ohne diesen Ausgangsbeleg, unbekannte Dateien oder ein bereits
+begonnener Dienststopp bleiben für eine automatische Wiederaufnahme gesperrt.
+Ein `pending`-Deploymentbeleg wird dabei nicht zurückgesetzt. Laufende Sitzungen
+werden weder geschlossen noch bereinigt; ein Neuversuch ist erst nach deren
+regulärem Ende möglich. Nach unklarem Stopp bleibt die Betreiberprüfung erforderlich,
+nach begonnenem Start ist weiterhin ausschließlich die Abschlussprüfung erlaubt.
+
 Der Zugang darf geprüfte Worker-, Broker- und Sitzungsimages aus den drei festen
 FlipBase-Repositories ausrollen. Er besitzt damit produktive Deployment-Rechte;
 die feste SSH-Befehlsgrenze ersetzt nicht die Prüfung des ausgerollten Codes.

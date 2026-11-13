@@ -516,7 +516,7 @@ def read_journal():
     return result
 
 
-def write_journal(phase):
+def write_journal(phase, *, preparation=None):
     require(phase in PHASES, "Unbekannte Rollout-Phase.")
     previous = read_journal()
     history = previous.get("history", []) if previous else []
@@ -524,6 +524,8 @@ def write_journal(phase):
     record = {"release": RELEASE, **event, "history": history + [event]}
     if RELEASE_MANIFEST is not None:
         record["manifest_sha256"] = fingerprint(RELEASE_MANIFEST)
+    if preparation is not None:
+        record["preparation"] = preparation
     write_json("journal.json", record)
 
 
@@ -579,8 +581,19 @@ def assert_running(context):
 
 def prepare():
     with rollout_lock():
-        require(read_journal() is None, "Rollout-Journal vorhanden; status oder verify verwenden.")
-        require(not any(STATE_DIR.iterdir()), "Vorhandene Rollout-Dateien ohne Journal; manuellen Zustand prüfen.")
+        journal = read_journal()
+        if journal is None:
+            require(not any(STATE_DIR.iterdir()), "Vorhandene Rollout-Dateien ohne Journal; manuellen Zustand prüfen.")
+        else:
+            history = journal.get("history")
+            require(journal["phase"] == "preparing"
+                    and isinstance(history, list) and len(history) == 1
+                    and isinstance(history[0], dict) and history[0].get("phase") == "preparing",
+                    "Nur eine unbegonnene Vorbereitung darf wiederaufgenommen werden.")
+            preparation_files = {"journal.json", "baseline.json", "compose.previous.json", "compose.release.json", "plan.json"}
+            for path in STATE_DIR.iterdir():
+                require(path.name in preparation_files, "Unbekannte Vorbereitungsdateien; Betreiberprüfung erforderlich.")
+                trusted_path(path, private=True)
         context = discover_active()
         assert_running(context)
         baseline = read_compose(context)
@@ -590,7 +603,28 @@ def prepare():
         permissions = authorization_hashes(snapshot)
         source_bytes = Path(context["source"]).read_bytes()
         require(context["source"] != str(STATE_DIR / "compose.release.json"), "Ziel-Compose ist bereits aktiv.")
-        write_journal("preparing")
+        containers = {}
+        for key in ("worker", "broker"):
+            container = context[key]
+            started_at = container["State"].get("StartedAt")
+            restarts = container.get("RestartCount")
+            require(isinstance(started_at, str) and bool(started_at)
+                    and type(restarts) is int and restarts >= 0,
+                    "Containerstart und Neustartzähler sind nicht nachgewiesen.")
+            containers[key] = {"started_at": started_at, "restarts": restarts}
+        preparation = {
+            "context": context_identity(context), "containers": containers,
+            "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
+            "baseline_sha256": fingerprint(baseline),
+            "authorization": permissions, "runtime": runtime,
+        }
+        if journal is None:
+            write_journal("preparing", preparation=preparation)
+        else:
+            require(journal.get("preparation") == preparation,
+                    "Ausgangsstand der Vorbereitung fehlt oder wurde verändert; Betreiberprüfung erforderlich.")
+        # Teilweise geschriebene Dateien werden erst nach dem vollständigen
+        # Ausgangsabgleich neu erzeugt; kein alter Teilplan wird ausgeführt.
         write_json("baseline.json", baseline)
         write_json("compose.previous.json", escape_compose_dollars(baseline))
         previous_context = {**context, "source": str(STATE_DIR / "compose.previous.json")}
@@ -794,8 +828,8 @@ def apply_release(manifest):
         require(previous is None or previous["phase"] == "verified" or same,
                 "Ein anderer Release ist noch nicht abgeschlossen; keine automatische Fortsetzung.")
         journal = read_journal()
-        if journal is None:
-            require(not same, "Deploymentbeleg ohne zugehöriges Journal; Betreiberprüfung erforderlich.")
+        if journal is None or journal["phase"] == "preparing":
+            require(not same, "Release wurde bereits begonnen oder abgeschlossen; Vorbereitung nicht erneut ausführen.")
             prepare()
             journal = read_journal()
         phase = journal["phase"]
