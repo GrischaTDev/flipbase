@@ -1,3 +1,7 @@
+import type {
+  ShippingLabelSale,
+  SupabaseShippingLabelStore,
+} from './supabase-shipping-label-store.ts';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
 import type { VintedListingPhotoSource } from './vinted-listing-photo-source.ts';
 
@@ -116,6 +120,8 @@ interface BrowserApiOptions {
   listingPhotos?: Pick<VintedListingPhotoSource, 'read'>;
   listingCategories?: Pick<VintedListingCategoryAccess, 'read' | 'authorize'>;
   conversationAccess?: VintedEditAccess;
+  /** Nur bei freigegebenen Cloud-Schreibaktionen: Versandscheine anfordern und ablegen. */
+  shippingLabels?: Pick<SupabaseShippingLabelStore, 'sale' | 'save'>;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'> &
     Partial<
@@ -322,6 +328,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly listingReadAccess?: Pick<VintedEditAccess, 'entry'>;
   private readonly listingCategories?: BrowserApiOptions['listingCategories'];
   private readonly conversationAccess?: VintedEditAccess;
+  private readonly shippingLabels?: BrowserApiOptions['shippingLabels'];
   private readonly operations?: BrowserApiOptions['operations'];
   private readonly listingCache?: BrowserApiOptions['listingCache'];
   private readonly listingPhotos?: BrowserApiOptions['listingPhotos'];
@@ -344,6 +351,7 @@ export class MarketplaceBrowserHttpApi {
     this.listingReadAccess = options.listingReadAccess;
     this.listingCategories = options.listingCategories;
     this.conversationAccess = options.conversationAccess;
+    this.shippingLabels = options.shippingLabels;
     this.operations = options.operations;
     this.listingCache = options.listingCache;
     this.listingPhotos = options.listingPhotos;
@@ -1372,6 +1380,61 @@ export class MarketplaceBrowserHttpApi {
                   sourceResults: result.areas,
                 },
           );
+        } finally {
+          try {
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
+      if (path === '/marketplace-browser/shipping-labels/request') {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.shippingLabels) throw new RequestError(503);
+        if (typeof body['saleId'] !== 'string' || !uuidPattern.test(body['saleId']))
+          throw new RequestError(400);
+        let sale: ShippingLabelSale;
+        try {
+          sale = await this.shippingLabels.sale(scope, body['saleId']);
+        } catch {
+          throw new RequestError(403);
+        }
+        // Teilt die Sperre mit der Synchronisierung: ein Konto, ein Browservorgang.
+        const key = `${scope.workspaceId}:${scope.connectionId}:sync`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
+          const currentSessionId = sessionId;
+          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (!browser.requestShippingLabel) throw new RequestError(503);
+            return browser.requestShippingLabel(
+              sale.accountId,
+              sale.externalConversationId,
+              sale.transactionId,
+              async () => {
+                const current = await this.shippingLabels!.sale(scope, body['saleId'] as string);
+                if (current.accountId !== sale.accountId)
+                  throw new Error('Kontozuordnung geändert');
+                await this.broker.run(scope, currentSessionId, async () => undefined);
+              },
+            );
+          });
+          await (this.broker.finishAction?.(scope, currentSessionId) ??
+            this.broker.close(scope, currentSessionId));
+          sessionId = undefined;
+          if (result.outcome !== 'ready') {
+            json(response, 200, {
+              outcome: result.outcome,
+              requested: result.requested,
+              ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+            });
+            return;
+          }
+          const label = await this.shippingLabels.save(scope, sale, result);
+          json(response, 200, { outcome: 'ready', requested: result.requested, label });
         } finally {
           try {
             if (sessionId) await this.closeAfterFailure(scope, sessionId);

@@ -17,6 +17,7 @@ describe('Vinted-Bereichsgrenzen', () => {
       'Übersicht',
       'Postfach',
       'Verkäufe',
+      'Versandscheine',
       'Kleiderschrank',
       'Statistik',
       'Inserat erstellen',

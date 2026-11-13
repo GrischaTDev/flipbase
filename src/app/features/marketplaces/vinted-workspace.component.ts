@@ -80,7 +80,11 @@ export class VintedWorkspaceComponent {
   readonly showingStatistics = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/statistics',
   );
+  readonly showingShippingLabels = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/shipping-labels',
+  );
   readonly pageTitle = computed(() => {
+    if (this.showingShippingLabels()) return 'Versandscheine';
     if (this.showingMessages()) return 'Nachrichten';
     if (this.showingListings()) return 'Kleiderschrank';
     if (this.showingStatistics()) return 'Statistik';

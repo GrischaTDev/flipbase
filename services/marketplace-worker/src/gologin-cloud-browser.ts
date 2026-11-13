@@ -88,6 +88,13 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     command: MarketplaceMessageCommand,
     authorize: () => Promise<void>,
   ): Promise<MarketplaceMessageResult>;
+  /** Fordert den Versandschein eines eigenen Verkaufs an oder holt den vorhandenen Dateilink. */
+  requestShippingLabel?(
+    accountId: string,
+    externalConversationId: string,
+    transactionId: string,
+    authorize: () => Promise<void>,
+  ): Promise<import('./vinted-browser-shipping-label.ts').VintedShippingLabelResult>;
   initialize?(): Promise<void>;
   capture?(): Promise<Uint8Array>;
   click?(xRatio: number, yRatio: number): Promise<void>;

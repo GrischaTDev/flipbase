@@ -163,6 +163,13 @@ export const MARKETPLACES_ROUTES: Routes = [
           ),
       },
       {
+        path: 'shipping-labels',
+        loadComponent: () =>
+          import('./components/vinted-shipping-labels/vinted-shipping-labels.component').then(
+            (m) => m.VintedShippingLabelsComponent,
+          ),
+      },
+      {
         path: 'statistics',
         loadComponent: () =>
           import('./components/vinted-statistics/vinted-statistics.component').then(

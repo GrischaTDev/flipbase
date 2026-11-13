@@ -235,6 +235,15 @@ export function parseMarketplacePage(
       brand: text(item['brand']),
       size: vintedSizeDisplayLabel(text(item['size'])),
       shipmentStatus: text(item['shipmentStatus']),
+      shipmentId:
+        typeof item['shipmentId'] === 'string' && /^[1-9][0-9]{0,31}$/u.test(item['shipmentId'])
+          ? item['shipmentId']
+          : null,
+      shippingLabelAction:
+        item['shippingLabelAction'] === 'order' || item['shippingLabelAction'] === 'available'
+          ? item['shippingLabelAction']
+          : null,
+      shippingDeadline: text(item['shippingDeadline'])?.slice(0, 40) ?? null,
       saleState:
         item['saleState'] === 'sold' ||
         item['saleState'] === 'shipped' ||

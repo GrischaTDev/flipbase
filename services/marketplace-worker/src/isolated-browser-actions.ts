@@ -55,6 +55,7 @@ import {
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
 import { parseVintedListingPhotoArrangement } from './vinted-browser-listing-photo-order.ts';
+import { parseVintedShippingLabelResult } from './vinted-shipping-label-contracts.ts';
 
 import {
   parseVintedPublicationAge,
@@ -240,6 +241,7 @@ export async function executeBrowserAction(
     updateProfileAbout: [3],
     sendNegotiation: [4],
     sendMessage: [2],
+    requestShippingLabel: [3],
     readFavoriteEvents: [1],
     readListingCatalog: [2],
     sendFavoriteMessage: [2],
@@ -374,6 +376,13 @@ export async function executeBrowserAction(
       return required(browser.sendMessage)(
         identifier(argumentsList[0]),
         messageCommand(argumentsList[1]),
+        authorize,
+      );
+    case 'requestShippingLabel':
+      return required(browser.requestShippingLabel)(
+        identifier(argumentsList[0]),
+        identifier(argumentsList[1]),
+        identifier(argumentsList[2]),
         authorize,
       );
     case 'readFavoriteEvents':
@@ -922,6 +931,7 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
             'sendFavoriteOffer',
             'sendNegotiation',
             'submitListing',
+            'requestShippingLabel',
           ].includes(name)
         )
           return validateBrowserResult(name, event.value);
@@ -982,6 +992,12 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         [account, command, sourceOffer, confirmedOffer],
         authorize,
       )) as Awaited<ReturnType<NonNullable<BrowserInfo['sendNegotiation']>>>,
+    requestShippingLabel: async (account, conversationId, transactionId, authorize) =>
+      (await run(
+        'requestShippingLabel',
+        [account, conversationId, transactionId],
+        authorize,
+      )) as Awaited<ReturnType<NonNullable<BrowserInfo['requestShippingLabel']>>>,
     sendMessage: async (account, command, authorize) =>
       (await run('sendMessage', [account, command], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['sendMessage']>>
@@ -1113,6 +1129,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     if (!isVintedNegotiationResult(input)) throw new Error('Ungültiges Verhandlungsergebnis');
     return input;
   }
+  if (name === 'requestShippingLabel') return parseVintedShippingLabelResult(input);
   if (name === 'readListingCatalog') return parseVintedListingCatalogRead(input);
   if (name === 'readFavoriteEvents') {
     if (!Array.isArray(input) || input.length > 200)

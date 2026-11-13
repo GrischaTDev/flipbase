@@ -1,0 +1,50 @@
+@if (label() || action() || deadline() || notice()) {
+  <div data-shipping-label-actions class="flex min-w-0 flex-col gap-2">
+    @if (deadline()) {
+      <p
+        class="truncate text-xs text-fb-text-secondary"
+        [attr.title]="'Verschicken bis ' + deadline()"
+      >
+        Verschicken bis {{ deadline() }}
+      </p>
+    }
+    @if (label(); as current) {
+      <div class="flex min-w-0 items-center gap-2">
+        <app-button
+          class="min-w-0 flex-1"
+          variant="primary"
+          size="slim"
+          [fullWidth]="true"
+          [icon]="openIcon"
+          (clicked)="open(false)"
+          >Versandschein öffnen</app-button
+        >
+        <app-button
+          class="shrink-0"
+          variant="secondary"
+          size="slim"
+          [icon]="downloadIcon"
+          [iconOnly]="true"
+          ariaLabel="Versandschein herunterladen"
+          title="Versandschein herunterladen"
+          (clicked)="open(true)"
+        />
+      </div>
+    } @else if (action()) {
+      <app-button
+        variant="primary"
+        size="slim"
+        [fullWidth]="true"
+        [icon]="requestIcon"
+        [loading]="requesting()"
+        (clicked)="request()"
+        >{{
+          action() === 'order' ? 'Versandschein anfordern' : 'Versandschein abholen'
+        }}</app-button
+      >
+    }
+    @if (notice()) {
+      <p role="status" class="text-xs text-fb-text-secondary">{{ notice() }}</p>
+    }
+  </div>
+}

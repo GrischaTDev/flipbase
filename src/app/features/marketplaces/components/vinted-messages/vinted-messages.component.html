@@ -222,6 +222,13 @@
               <app-badge tone="neutral">{{ conversation.transactionStatus }}</app-badge>
             }
           </div>
+          @if (conversationSale(); as sale) {
+            <app-vinted-shipping-label-actions
+              data-conversation-shipping-label
+              class="shrink-0 border-b border-fb-line px-3 py-2"
+              [sale]="sale"
+            />
+          }
           <div
             #messageLog
             role="log"

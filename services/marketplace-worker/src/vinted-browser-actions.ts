@@ -30,6 +30,7 @@ import {
 } from './vinted-browser-profile-details.ts';
 import { sendVintedNegotiation } from './vinted-browser-negotiation.ts';
 import { sendVintedMessage } from './vinted-browser-messages.ts';
+import { requestVintedShippingLabel } from './vinted-browser-shipping-label.ts';
 import {
   sendVintedFavoriteMessage,
   sendVintedFavoriteOffer,
@@ -189,6 +190,16 @@ export function vintedBrowserActions(
           command,
           sourceOffer,
           confirmedOffer,
+          authorize,
+        ),
+    ),
+    requestShippingLabel: afterSessionRenewal(
+      (accountId, externalConversationId, transactionId, authorize) =>
+        requestVintedShippingLabel(
+          currentPage(),
+          accountId,
+          externalConversationId,
+          transactionId,
           authorize,
         ),
     ),

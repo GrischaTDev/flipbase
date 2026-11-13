@@ -30,6 +30,7 @@ import { VintedActionOverviewApiService } from '../../services/vinted-action-ove
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
+import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -152,6 +153,10 @@ beforeAll(async () => {
     {
       type: VintedOfferActionsComponent,
       path: 'src/app/features/marketplaces/components/vinted-offer-actions/vinted-offer-actions.component.ts',
+    },
+    {
+      type: VintedShippingLabelActionsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-shipping-label-actions/vinted-shipping-label-actions.component.ts',
     },
     {
       type: VintedMessagesComponent,
@@ -462,6 +467,43 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       ).toContain('Artikel noch nicht geladen');
     },
   );
+  it('zeigt im Gespräch eines frischen Verkaufs das Anfordern des Versandscheins', async () => {
+    const base = snapshot(accounts[0]);
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) =>
+      parseMarketplaceSnapshot(
+        {
+          ...scope,
+          profile: null,
+          publications: emptyPage,
+          activity: emptyPage,
+          conversations: { items: base.conversations.items, total: 1, nextCursor: null },
+          sales: {
+            items: [
+              {
+                ...scope,
+                id: 'sale-1',
+                externalId: '24052549356',
+                title: 'Schal',
+                saleState: 'sold',
+                conversationId: 'conversation-1',
+                shippingLabelAction: 'order',
+                shippingDeadline: '16 Nov. 10:00',
+              },
+            ],
+            total: 1,
+            nextCursor: null,
+          },
+        },
+        scope,
+      ),
+    );
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const actions = fixture.nativeElement.querySelector('[data-conversation-shipping-label]');
+    expect(actions?.textContent).toContain('Versandschein anfordern');
+    expect(actions?.textContent).toContain('Verschicken bis 16 Nov. 10:00');
+  });
   it('überträgt einen fremden lokalen Fehler nicht auf ein gespeichertes Gespräch', async () => {
     const fixture = await render();
     local.error.set('Ein anderer Abruf ist fehlgeschlagen');

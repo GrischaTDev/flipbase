@@ -1,5 +1,12 @@
 import { CurrencyPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  untracked,
+} from '@angular/core';
 import {
   BadgeComponent,
   type BadgeTone,
@@ -9,6 +16,8 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
+import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 
 @Component({
   selector: 'app-vinted-sales',
@@ -18,6 +27,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     ButtonComponent,
     CardComponent,
     ProductThumbnailComponent,
+    VintedShippingLabelActionsComponent,
   ],
   templateUrl: './vinted-sales.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +35,16 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 })
 export class VintedSalesComponent {
   readonly store = inject(MarketplaceAccountStore);
+  private readonly shippingLabels = inject(VintedShippingLabelStore);
+  constructor() {
+    // Versandscheine gibt es nur für Cloud-Konten; sie gehören zum gewählten Konto.
+    effect(() => {
+      const connection = this.store.selectedConnection();
+      if (connection?.executionMode !== 'cloud') return;
+      const scope = { workspaceId: connection.workspaceId, connectionId: connection.connectionId };
+      untracked(() => void this.shippingLabels.load(scope));
+    });
+  }
   readonly page = computed(() => this.store.snapshot()?.sales);
   readonly entries = computed(() =>
     (this.page()?.items ?? []).filter((entry) => entry.saleState !== 'relisted'),
