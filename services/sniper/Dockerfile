@@ -2,7 +2,8 @@
 FROM node:22.23.2-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
+    && npm ci --ignore-scripts
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 RUN npm run build
@@ -10,7 +11,8 @@ RUN npm run build
 FROM node:22.23.2-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
+    && npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:22.23.2-bookworm-slim AS production
 RUN apt-get update \

@@ -10,6 +10,7 @@ const checks = {
     { name: 'Testorchestrierung', command: 'npm', args: ['run', 'test:orchestrator'] },
   ],
   quality: [
+    { name: 'Check package lock reproducibility', command: 'npm', args: ['run', 'lockfile:check'] },
     {
       name: 'Check formatting',
       command: 'npm',
@@ -37,6 +38,7 @@ const checks = {
     },
   ],
   'quality-light': [
+    { name: 'Check package lock reproducibility', command: 'npm', args: ['run', 'lockfile:check'] },
     { name: 'Check formatting', command: 'npm', args: ['run', 'format:check'] },
     { name: 'Lint', command: 'npm', args: ['run', 'lint'] },
     { name: 'Check types', command: 'npm', args: ['run', 'typecheck'] },
