@@ -199,12 +199,6 @@
           </p></app-card
         >
       }
-      @if (selectedWatchlist()?.is_active === false) {
-        <p class="text-sm">
-          Dieser Suchfilter ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
-          sichtbar.
-        </p>
-      }
       @if (state.newCount() > 0) {
         <app-card variant="subtle"
           ><div class="flex flex-wrap items-center justify-between gap-3">

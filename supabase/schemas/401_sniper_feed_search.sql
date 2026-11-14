@@ -39,19 +39,9 @@ begin
     into v_rows from (
         select listing.id, listing.title, listing.url, listing.image_urls, listing.item_price, listing.total_price,
             listing.currency, listing.brand, listing.size, listing.condition, listing.is_hidden, listing.first_seen_at,
-            listing.catalog_id, category.path as category_path,
-            hit.reference_price, hit.reference_scope, hit.discount_percent, hit.watchlist_title
+            listing.catalog_id, category.path as category_path
         from public.sniper_listings as listing
         left join public.vinted_categories as category on category.id = listing.catalog_id
-        left join lateral (
-            select found.reference_price, found.reference_scope, found.discount_percent,
-                watchlist.title as watchlist_title
-            from public.sniper_watchlist_hits as found
-            join public.sniper_watchlists as watchlist on watchlist.id = found.watchlist_id
-            where found.listing_id = listing.id and watchlist.workspace_id = p_workspace_id
-                and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
-            order by found.created_at desc, found.id desc limit 1
-        ) as hit on true
         where listing.first_seen_at >= now() - interval '3 days'
             and not listing.is_initial_stock
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))

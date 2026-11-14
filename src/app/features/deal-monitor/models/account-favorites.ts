@@ -57,10 +57,6 @@ export function readFavoriteItem(value: unknown): FeedItem | null {
     condition: text('condition'),
     catalog_id: number('catalog_id'),
     category_path: text('category_path'),
-    reference_price: number('reference_price'),
-    reference_scope: text('reference_scope'),
-    discount_percent: number('discount_percent'),
-    watchlist_title: text('watchlist_title'),
     is_hidden: row['is_hidden'] === true,
   };
 }

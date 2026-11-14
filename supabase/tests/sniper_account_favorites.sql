@@ -82,5 +82,7 @@ set local role anon;
 select throws_ok($$select * from public.sniper_favorites$$,'42501',null,'Anonyme Leser haben keinen Zugriff');
 select throws_ok($$select pg_temp.favorite_page()$$,'42501',null,'Anonyme RPC-Aufrufe sind gesperrt');
 reset role;
+reset role;
+select ok(not public.sniper_normalize_favorite_item(pg_temp.favorite_item('901')||'{"reference_price":50,"reference_scope":"category_condition","discount_percent":50,"watchlist_title":"Alt"}'::jsonb) ?| array['reference_price','reference_scope','discount_percent','watchlist_title'],'Mitgesendete Deal-Angaben älterer App-Stände werden nicht gespeichert');
 select * from finish();
 rollback;

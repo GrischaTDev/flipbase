@@ -52,7 +52,6 @@ select is((public.complete_sniper_search_filter_run((select id from public.snipe
 select is((select count(*) from public.sniper_query_matches),2::bigint,'Beide Filter erhalten eine Zuordnung');
 select is((select count(*) from public.sniper_listings where external_id='multi-match'),1::bigint,'Artikel bleibt einmalig');
 select ok((select bool_and(is_seed) from public.sniper_query_matches),'Beide Erstbestände bleiben stumm');
-select ok((select watchlist_evaluated_at is not null from public.sniper_listings where external_id='multi-match'),'Stummer Erstbestand bleibt auch für spätere Hintergrundbewertung stumm');
 select is((select coverage_status from public.sniper_queries where title='MATCH narrow'),'initial','Abdeckung wird gespeichert');
 select is((select last_request_duration_ms from public.sniper_queries where title='MATCH narrow'),2300,'Dauer wird gespeichert');
 select is((select shared_filter_count from public.sniper_queries where title='MATCH narrow'),2,'Gemeinsam genutzter Abruf wird sichtbar');
@@ -80,13 +79,9 @@ select is((select listing_count from public.sniper_query_listing_counts() where 
 select lives_ok($$select public.save_sniper_search_filter(null,'MATCH seed-only',null,'[]',array['Pufferjacke'],'all',1000,null,null)$$,'Zusätzlicher Titel-Filter ist unabhängig');
 select public.set_sniper_query_active((select id from public.sniper_queries where title='MATCH seed-only'),true);
 reset role;
--- Ein bereits existierender, noch unbewerteter Artikel darf durch den Erstbestand
--- eines weiteren Filters nicht nachträglich stumm werden.
-update public.sniper_listings set watchlist_evaluated_at=null where external_id='multi-match';
 set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='MATCH seed-only'),2,0,
  '[{"external_id":"multi-match","title":"Pufferjacke","url":"https://www.vinted.de/items/multi-match","item_price":10,"total_price":11,"currency":"EUR","brand":"Testbrand"}]')->>'seeded')::boolean,true,'Zusätzlicher Filter startet mit stillem Bestand');
-select ok((select watchlist_evaluated_at is null from public.sniper_listings where external_id='multi-match'),'Späterer stiller Filter unterdrückt keine offene Bewertung des bestehenden Artikels');
 reset role;
 set local role authenticated;
 select lives_ok($$select public.save_sniper_search_filter((select id from public.sniper_queries where title='MATCH narrow'),'MATCH narrow',9200001,'[]',array['Pufferjacke'],'all',1000,null,2,null,null,null,array['Weste','Kaputt'])$$,'Ausschlüsse lassen sich revidieren');
@@ -113,11 +108,9 @@ set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='MATCH narrow'),6,0,'[]')->>'accepted')::boolean,false,'Gelöschter Filter übernimmt keine Antwort');
 reset role;
 
-insert into public.sniper_query_subscriptions(workspace_id,query_id)
- select 'e2000000-0000-4000-8000-000000000004',id from public.sniper_queries where title='MATCH narrow';
 select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000002',true);
 set local role authenticated;
-select is((select count(*) from public.sniper_query_matches),1::bigint,'Mitglied sieht ausschließlich eigene abonnierte Zuordnungen');
+select is((select count(*) from public.sniper_query_matches),0::bigint,'Mitglieder lesen keine Filterzuordnungen; das bleibt der Administration vorbehalten');
 select throws_ok($$insert into public.sniper_query_matches(query_id,listing_id,filter_revision,is_seed) values (null,null,1,false)$$,'42501',null,'Web-App darf keine Zuordnungen schreiben');
 select throws_ok($$select public.sniper_notify_feed_updates()$$,'42501',null,'Web-App darf Feed-Hinweise nicht auslösen');
 reset role;

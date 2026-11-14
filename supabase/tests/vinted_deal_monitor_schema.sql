@@ -40,8 +40,7 @@ declare
     'image_urls', 'item_price', 'total_price', 'currency', 'brand', 'size',
     'condition', 'country_code', 'seller_name', 'seller_avatar_url',
     'seller_rating', 'seller_review_count', 'is_hidden', 'item_updated_at',
-    'photo_uploaded_at', 'discovered_by_query_id', 'first_seen_at',
-    'evaluated_at'
+    'photo_uploaded_at', 'discovered_by_query_id', 'first_seen_at'
   ];
   missing_columns text[];
 begin
@@ -170,8 +169,8 @@ begin
     and cmd = 'SELECT'
     and 'authenticated' = any(roles);
 
-  if read_policies <> 3 then
-    raise exception 'expected exactly 3 select policies for authenticated including administration, found %', read_policies;
+  if read_policies <> 2 then
+    raise exception 'expected exactly 2 select policies for authenticated including administration, found %', read_policies;
   end if;
 end;
 $$;
@@ -180,10 +179,9 @@ select pass('Angemeldete duerfen lesen, aber nicht schreiben');
 
 -- anon darf auf keiner der beiden Tabellen irgendetwas.
 --
--- deal_monitor_subscriptions.sql und deal_monitor_hits.sql pruefen das schon
--- fuer ihre eigenen Tabellen; sniper_queries und sniper_listings hatten
--- bislang keine solche Pruefung, obwohl dieser Zweig anon hier genau das
--- truncate-Recht entzogen hat (20260902194744_restrict_sniper_tables.sql).
+-- sniper_queries und sniper_listings hatten anfangs keine solche Pruefung,
+-- obwohl anon hier genau das truncate-Recht entzogen wurde
+-- (20260902194744_restrict_sniper_tables.sql).
 -- Ohne diese Pruefung faellt ein zurueckkehrendes Recht niemandem auf.
 do $$
 declare

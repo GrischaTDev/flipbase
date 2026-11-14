@@ -251,7 +251,7 @@ describe('QueryScheduler', () => {
         ? vi.fn(async () => {
             throw new Error('storage failed');
           })
-        : vi.fn(async () => ({ accepted: false, created: 0, seeded: false, hits: 0 }));
+        : vi.fn(async () => ({ accepted: false, created: 0, seeded: false }));
       const { scheduler } = build(makeQuery({ filterFormatVersion: 1 }), {
         originState: origin,
         listings: { completeRun },
@@ -273,7 +273,7 @@ describe('QueryScheduler', () => {
       listings: {
         completeRun: async () => {
           events.push('stored');
-          return { accepted: true, created: 1, seeded: false, hits: 1 };
+          return { accepted: true, created: 1, seeded: false };
         },
       },
     });
@@ -471,7 +471,6 @@ describe('QueryScheduler', () => {
         newListings: 0,
         seeded: 0,
         failed: 1,
-        newHits: 0,
       });
       expect(collector.collect).not.toHaveBeenCalled();
       expect(log.error).toHaveBeenCalledWith('due_queries_failed', {
@@ -739,12 +738,10 @@ describe('QueryScheduler', () => {
 describe('guarded search filter scheduling', () => {
   const current = () => makeQuery({ filterFormatVersion: 1, filterRevision: 3, requestCursor: 7 });
   it('counts an atomic completion without a second unguarded write or evaluation', async () => {
-    const completeRun = vi
-      .fn()
-      .mockResolvedValue({ accepted: true, created: 2, seeded: false, hits: 1 });
+    const completeRun = vi.fn().mockResolvedValue({ accepted: true, created: 2, seeded: false });
     const { scheduler, queries, listings } = build(current(), { listings: { completeRun } });
     const report = await scheduler.runOnce(NOW);
-    expect(report).toMatchObject({ polled: 1, newListings: 2, newHits: 1, seeded: 0 });
+    expect(report).toMatchObject({ polled: 1, newListings: 2, seeded: 0 });
     expect(completeRun).toHaveBeenCalledWith([makeListing('a'), makeListing('b')], current());
     expect(listings.saveNew).not.toHaveBeenCalled();
     expect(queries.markPolled).not.toHaveBeenCalled();
@@ -752,14 +749,13 @@ describe('guarded search filter scheduling', () => {
   });
   it('does not report seeded or stale responses as new listings', async () => {
     for (const outcome of [
-      { accepted: false, created: 0, seeded: false, hits: 0 },
-      { accepted: true, created: 2, seeded: true, hits: 0 },
+      { accepted: false, created: 0, seeded: false },
+      { accepted: true, created: 2, seeded: true },
     ]) {
       const completeRun = vi.fn().mockResolvedValue(outcome);
       const { scheduler, queries } = build(current(), { listings: { completeRun } });
       expect(await scheduler.runOnce(NOW)).toMatchObject({
         newListings: 0,
-        newHits: 0,
         seeded: outcome.seeded ? 1 : 0,
       });
       expect(queries.markPolled).not.toHaveBeenCalled();

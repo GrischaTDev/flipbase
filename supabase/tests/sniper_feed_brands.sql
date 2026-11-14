@@ -35,14 +35,14 @@ select is((select array_agg(brand order by brand) from public.sniper_supported_b
 select ok(not exists(select 1 from public.sniper_supported_brands(
   '92000000-0000-4000-8000-000000000002') where brand in ('Stüssy', 'Gucci')),
   'Mitgefundene Marken und pausierte Filter erscheinen nicht');
-select is(jsonb_array_length(public.sniper_feed_by_brand(
-  '92000000-0000-4000-8000-000000000002', null, ' nike ', null, null, 1)->'items'),
+select is(jsonb_array_length(public.sniper_feed_search(
+  '92000000-0000-4000-8000-000000000002', null, ' nike ', null, null, null, null, null, 1)->'items'),
   1, 'Marke wird vor der Seitenteilung und ohne Beachtung der Schreibweise gefiltert');
-select is(public.sniper_feed_by_brand(
-  '92000000-0000-4000-8000-000000000002', null, 'nike', null, null, 1)
+select is(public.sniper_feed_search(
+  '92000000-0000-4000-8000-000000000002', null, 'nike', null, null, null, null, null, 1)
   ->'items'->0->>'title', 'Nike', 'Erster Treffer gehoert zur gewaehlten Marke');
-select throws_ok($$select public.sniper_feed_by_brand(
-  '92000000-0000-4000-8000-000000000002', null, ' ', null, null, 1)$$,
+select throws_ok($$select public.sniper_feed_search(
+  '92000000-0000-4000-8000-000000000002', null, ' ', null, null, null, null, null, 1)$$,
   '22023', null, 'Leere Marke wird abgelehnt');
 select throws_ok($$select public.sniper_supported_brands(
   '92000000-0000-4000-8000-000000000005')$$,
@@ -53,8 +53,8 @@ set local role anon;
 select throws_ok($$select public.sniper_supported_brands(
   '92000000-0000-4000-8000-000000000002')$$,
   '42501', null, 'Anonyme Markenabfrage ist gesperrt');
-select throws_ok($$select public.sniper_feed_by_brand(
-  '92000000-0000-4000-8000-000000000002', null, null, null, null, 1)$$,
+select throws_ok($$select public.sniper_feed_search(
+  '92000000-0000-4000-8000-000000000002', null, null, null, null, null, null, null, 1)$$,
   '42501', null, 'Anonymer Feedzugriff ist gesperrt');
 reset role;
 

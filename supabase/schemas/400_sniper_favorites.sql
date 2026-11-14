@@ -79,17 +79,15 @@ begin
     if not isfinite(v_first_seen) or v_price not between 0 and 10000000 or v_total not between 0 and 10000000 then
         raise exception 'Ungültiger Fundzeitpunkt oder Preis.' using errcode = '22023';
     end if;
-    foreach v_field in array array['brand','size','condition','reference_scope','watchlist_title','category_path'] loop
+    foreach v_field in array array['brand','size','condition','category_path'] loop
         if p_item->v_field is not null and p_item->v_field <> 'null'::jsonb and
            (jsonb_typeof(p_item->v_field) <> 'string' or length(p_item->>v_field) > case when v_field='category_path' then 1000 else 200 end) then
             raise exception 'Ungültige Artikelmerkmale.' using errcode = '22023';
         end if;
     end loop;
-    foreach v_field in array array['reference_price','discount_percent','catalog_id'] loop
-        if p_item->v_field is not null and p_item->v_field <> 'null'::jsonb and jsonb_typeof(p_item->v_field) <> 'number' then
-            raise exception 'Ungültige Vergleichsangabe.' using errcode = '22023';
-        end if;
-    end loop;
+    if p_item->'catalog_id' is not null and p_item->'catalog_id' <> 'null'::jsonb and jsonb_typeof(p_item->'catalog_id') <> 'number' then
+        raise exception 'Ungültige Kategorieangabe.' using errcode = '22023';
+    end if;
     select coalesce(jsonb_agg(image), '[]'::jsonb) into v_images
     from jsonb_array_elements(p_item->'image_urls') image
     where jsonb_typeof(image)='string' and length(image #>> '{}') <= 2048
@@ -99,8 +97,6 @@ begin
         'item_price', v_price, 'total_price', v_total, 'currency', p_item->>'currency',
         'first_seen_at', v_first_seen, 'brand', p_item->'brand', 'size', p_item->'size',
         'condition', p_item->'condition', 'catalog_id', p_item->'catalog_id', 'category_path', p_item->'category_path',
-        'reference_price', p_item->'reference_price', 'reference_scope', p_item->'reference_scope',
-        'discount_percent', p_item->'discount_percent', 'watchlist_title', p_item->'watchlist_title',
         'is_hidden', coalesce(p_item->'is_hidden' = 'true'::jsonb, false));
 end;
 $$;

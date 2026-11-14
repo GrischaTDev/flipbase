@@ -166,7 +166,7 @@ Die Administration fügt Marken einzeln hinzu. Wenn ein Nutzer eine weitere
 Marke benötigt, wird dafür ein zusätzlicher zentraler Markenfilter angelegt.
 Vollständig ungefilterte Aufträge bleiben gesperrt. Die Vinted-Katalogantwort
 enthält bei einem reinen Markenauftrag weiterhin keine Kategoriekennung. Deshalb
-greifen persönliche Kategoriefilter und die Deal-Berechnung für neue Artikel
+greifen persönliche Kategoriefilter für neue Artikel
 erst, sobald eine Kategorie-Anreicherung vorhanden ist; Marke, Suchbegriff,
 Zustand und Preis können bereits auf dem gemeinsamen Bestand filtern.
 
@@ -349,62 +349,35 @@ der sichtbare Zulauf lässt sich pausieren. Ältere Seiten laden pausiert nach,
 höchstens 300 Artikel gleichzeitig. Fortsetzen beginnt wieder bei den neuesten.
 
 Merkzettel gehören zum Arbeitsbereich. Sie filtern Kategorie, Markenname,
-Suchtext, Zustand und Preis und legen den gewünschten Preisabstand für Deals fest.
+Suchtext, Zustand und Preis auf dem gemeinsamen Bestand.
 Sie lösen keine Vinted-Anfragen aus und verändern keine zentralen Sammelaufträge.
-Eine neue oder geänderte Suche meldet nur künftig entdeckte Deals; die
-Artikelansicht zeigt auch passenden Bestand. Pausierte Merkzettel behalten ihre
-historischen Treffer. Löschen entfernt den Merkzettel samt Treffern, keine Artikel.
-
-Die beiden Migrationen `20260912190016_sniper_watchlists_feed.sql` und
-`20260912191519_sniper_watchlist_legacy_permissions.sql` übernehmen bestehende
-Abonnements und Treffer in getrennte Merkzetteltabellen. Die alten Tabellen
-bleiben erhalten; der alte Browser-Schreibweg für Sammelaufträge wird gesperrt.
-Der aktualisierte Bot bewertet ausschließlich die neuen Merkzettel. Jeder Fund
-kann zu mehreren passenden Merkzetteln gehören, unabhängig vom ersten Auftrag.
+Löschen entfernt den Merkzettel, keine Artikel.
 Übernommene Markenkennungen bleiben kompatibel, bis ein Markenname gesetzt wird;
 für einen Filter ohne diese alte Markenbindung einen neuen Merkzettel anlegen.
 
-**Release-Reihenfolge:** Den bisherigen Bot vor der Datenübernahme anhalten,
-dann Migrationen und Anwendung veröffentlichen, anschließend den Bot mit dem
-geprüften Abbild desselben Releases starten. So entstehen während der Übernahme
-keine ausschließlich alten Treffer. Keine zweite Instanz parallel starten.
-Nach einem Rückwechsel auf die alte Botversion würden neue Merkzettel nicht mehr
-bewertet; das ist kein vollständiger fachlicher Rollback.
+Die frühere Deal-Erkennung (Rabattschwelle je Merkzettel, Referenzpreis aus dem
+Gruppenmedian, festgehaltene Treffer) ist verworfen und seit der Migration
+`20261114150000_sniper_remove_deal_detection.sql` vollständig entfernt. Der
+Preisvergleich läuft getrennt davon über den Vergleichsbestand
+(`vinted_comparison_*`).
 
-## Referenzpreise und Aufbewahrung
-
-Neue Treffer nutzen den Median der letzten 14 Tage aus derselben Kategorie,
-Marke und demselben Zustand. Die Marke wird ohne äußere Leerzeichen und ohne
-Unterscheidung der Großschreibung verglichen. Unter acht passenden Angeboten
-fällt der Vergleich auf Kategorie und Zustand zurück. Fehlt auch dort eine
-ausreichende Grundlage, entsteht kein bewerteter Treffer. Nur positive,
-endliche EUR-Artikelpreise fließen ein. Klebt mehr als ein Drittel der Gruppe
-am jeweiligen Preislimit des entdeckenden Auftrags, bleibt die Bewertung aus;
-eine solche Markengruppe wird nicht durch einen allgemeineren Vergleich ersetzt.
+## Kategorie und Aufbewahrung
 
 Die erste bekannte Kategorie wird am Artikel festgehalten. Ein späterer Fund
 durch einen Kategorieauftrag kann sie ergänzen, ohne Erstfund und ursprünglichen
-Entdeckungsauftrag zu ändern. Dessen Kategoriequelle liefert dann auch das
-Preislimit für den Vergleich. Reine Textfunde ohne bekannte Kategorie bekommen
-keinen geschätzten Referenzpreis. Mehrere Aufträge derselben Kategorie tragen gemeinsam zum
-Vergleich bei. Jeder Treffer speichert `reference_scope` und den damaligen
-Preis; historische Treffer bleiben als `legacy_query_condition` erkennbar.
-Die bisherige RPC-Signatur für Abfrage/Zustand bleibt kompatibel erhalten.
+Entdeckungsauftrag zu ändern.
 
 Die vom Nutzer gewählte Aufbewahrung beträgt **30 Tage seit Erstfund**.
 Der Bot bereinigt beim Start und danach einmal pro Minute bis zu 1.000
 abgelaufene Artikel. War das Paket voll, setzt er die Bereinigung bereits im
-nächsten Sammeltakt fort, damit ein Rückstand abgebaut wird. Ihre Treffer werden
-mitgelöscht; Aufträge und Abonnements bleiben erhalten. Fehler stehen bis zum erfolgreichen Wiederholen
+nächsten Sammeltakt fort, damit ein Rückstand abgebaut wird. Aufträge bleiben
+erhalten. Fehler stehen bis zum erfolgreichen Wiederholen
 im Botbetrieb. Steht der Bot still, pausiert auch die Bereinigung.
 
-Die Migration für Gruppenvergleich und Aufbewahrung muss vor dem neuen
-Botabbild angewendet werden. Sie löscht selbst keine Artikel; die Bereinigung
-beginnt beim Start des aktualisierten Dienstes. Ein Rückwechsel auf das alte
-Abbild stoppt die neue Bereinigung, stellt bereits gelöschte Artikel aber nicht
+Ein Rückwechsel auf ein älteres Abbild stellt bereits gelöschte Artikel nicht
 wieder her. Dafür ist das Datenbankbackup nötig.
 
-Die Statistik zählt mehrfach gefundene Artikel weiterhin beim ersten Auftrag;
-die unabhängige Merkzettelbewertung ist davon getrennt. Gelöschte Artikel können bei
+Die Statistik zählt mehrfach gefundene Artikel weiterhin beim ersten Auftrag.
+Gelöschte Artikel können bei
 einem erneuten Fund wieder aufgenommen werden; eine dauerhafte Liste gelöschter
 Marktplatzkennungen wird nicht geführt.

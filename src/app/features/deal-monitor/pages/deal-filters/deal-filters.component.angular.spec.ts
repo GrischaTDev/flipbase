@@ -121,8 +121,6 @@ describe('DealFiltersComponent', () => {
         price_from: null,
         price_to: 45,
         condition: null,
-        discount_threshold_percent: 40,
-        is_active: true,
         legacy_brand_id: null,
       },
     ]),
@@ -195,29 +193,6 @@ describe('DealFiltersComponent', () => {
     expect(comp.editorOpen()).toBe(false);
   });
 
-  it('toggles a watchlist', async () => {
-    const row = {
-      id: 'wl-1',
-      workspace_id: 'ws-1',
-      title: 'Vintage Sweatshirts',
-      catalog_id: 1,
-      brand: 'Nike',
-      search_text: 'Vintage',
-      price_from: null,
-      price_to: 45,
-      condition: null,
-      discount_threshold_percent: 40,
-      is_active: true,
-      legacy_brand_id: null,
-    };
-
-    comp.toggle(row);
-    expect(mockApi.save).toHaveBeenCalledWith('ws-1', {
-      ...row,
-      is_active: false,
-    });
-  });
-
   it('renders template with watchlists without template errors', async () => {
     const fixture = TestBed.createComponent(DealFiltersComponent);
     fixture.detectChanges();
@@ -227,7 +202,6 @@ describe('DealFiltersComponent', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.textContent).toContain('Suchfilter');
     expect(root.textContent).toContain('Vintage Sweatshirts');
-    expect(root.textContent).toContain('40 % unter Referenzpreis');
   });
 
   it('renders a loading state instead of the empty state', () => {

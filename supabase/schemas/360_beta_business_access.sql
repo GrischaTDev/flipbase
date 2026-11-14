@@ -115,9 +115,6 @@ alter policy "store_orders_select" on public.store_orders using (public.can_acce
 alter policy "price_tracked_items_update" on public.price_tracked_items using (public.can_access_workspace(workspace_id)) with check (public.can_access_workspace(workspace_id));
 alter policy "price_tracked_items_delete" on public.price_tracked_items using (public.can_access_workspace(workspace_id));
 alter policy "Verkaufskosten loeschen" on public.sale_cost_entries using (( SELECT public.can_access_workspace(sale_cost_entries.workspace_id) AS is_workspace_member));
-alter policy "Abonnenten duerfen ihre Abfragen lesen" on public.sniper_queries using ((EXISTS ( SELECT 1
-   FROM sniper_query_subscriptions subscription
-  WHERE ((subscription.query_id = sniper_queries.id) AND public.can_access_workspace(subscription.workspace_id)))));
 alter policy "store_settings_select" on public.store_settings using (public.can_access_workspace(workspace_id));
 alter policy "store_settings_update" on public.store_settings using (public.can_access_workspace(workspace_id)) with check (public.can_access_workspace(workspace_id));
 alter policy "store_settings_insert" on public.store_settings with check (public.can_access_workspace(workspace_id));
@@ -176,10 +173,6 @@ alter policy "Bestandsbewegungen lesen" on public.stock_movements using (public.
 alter policy "Verkaufskosten anlegen" on public.sale_cost_entries with check (( SELECT public.can_access_workspace(sale_cost_entries.workspace_id) AS is_workspace_member));
 alter policy "Inventarklaerungen lesen" on public.inventory_reconciliation_events using (public.can_access_workspace(workspace_id));
 alter policy "Verkaufskosten lesen" on public.sale_cost_entries using (( SELECT public.can_access_workspace(sale_cost_entries.workspace_id) AS is_workspace_member));
-alter policy "Mitglieder duerfen eigene Abonnements lesen" on public.sniper_query_subscriptions using (public.can_access_workspace(workspace_id));
-alter policy "Mitglieder duerfen eigene Treffer lesen" on public.sniper_hits using ((EXISTS ( SELECT 1
-   FROM sniper_query_subscriptions subscription
-  WHERE ((subscription.id = sniper_hits.subscription_id) AND public.can_access_workspace(subscription.workspace_id)))));
 alter policy "Wiederholungsregeln aendern" on public.expense_recurring_rules using (( SELECT public.can_access_workspace(expense_recurring_rules.workspace_id) AS is_workspace_member)) with check ((( SELECT public.can_access_workspace(expense_recurring_rules.workspace_id) AS is_workspace_member) AND (EXISTS ( SELECT 1
    FROM expense_categories category
   WHERE ((category.workspace_id = expense_recurring_rules.workspace_id) AND (category.id = expense_recurring_rules.category_id))))));
@@ -228,9 +221,6 @@ alter policy "Mitglieder lesen Merkzettel" on public.sniper_watchlists using (pu
 alter policy "Marken aendern" on public.brands using (public.can_access_workspace(workspace_id)) with check (public.can_access_workspace(workspace_id));
 alter policy "Marken lesen" on public.brands using (public.can_access_workspace(workspace_id));
 alter policy "Marken loeschen" on public.brands using (public.can_access_workspace(workspace_id));
-alter policy "Mitglieder lesen Merkzetteltreffer" on public.sniper_watchlist_hits using ((EXISTS ( SELECT 1
-   FROM sniper_watchlists watchlist
-  WHERE ((watchlist.id = sniper_watchlist_hits.watchlist_id) AND public.can_access_workspace(watchlist.workspace_id)))));
 alter policy "Belege hochladen" on storage.objects with check (((bucket_id = 'purchase-documents'::text) AND (EXISTS ( SELECT 1
    FROM purchases purchase
   WHERE (((purchase.workspace_id)::text = (storage.foldername(objects.name))[2]) AND ((purchase.id)::text = (storage.foldername(objects.name))[3]) AND is_purchase_document_path(objects.name, purchase.workspace_id, purchase.id) AND ( SELECT public.can_access_workspace(purchase.workspace_id) AS is_workspace_member))))));
@@ -4333,83 +4323,6 @@ end;
 $function$
 ;
 
-create or replace function public.create_sniper_subscription(p_workspace_id uuid, p_search_text text, p_brand_id integer, p_price_from numeric, p_price_to numeric, p_threshold numeric DEFAULT 40)
- RETURNS uuid
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare
-  v_search_text text;
-  v_query_key text;
-  v_query_id uuid;
-  v_subscription_id uuid;
-begin
-  if not public.can_access_workspace(p_workspace_id) then
-    raise exception 'Kein Mitglied dieses Arbeitsbereichs';
-  end if;
-
-  v_search_text := lower(btrim(regexp_replace(p_search_text, '\s+', ' ', 'g')));
-
-  if v_search_text is null or v_search_text = '' then
-    raise exception 'Der Suchbegriff darf nicht leer sein';
-  end if;
-
-  -- Auf zwei Nachkommastellen runden, bevor der Schluessel gebildet wird: die
-  -- Spalten sind numeric(12,2), die Parameter aber unbeschraenkt. 50.567 und
-  -- 50.566 speichern beide 50.57 - ohne diese Rundung vor der Schluesselbildung
-  -- erzeugen sie zwei Abfragezeilen und damit zwei Vinted-Anfragen fuer
-  -- denselben gespeicherten Filter.
-  p_price_from := round(p_price_from, 2);
-  p_price_to := round(p_price_to, 2);
-
-  if p_price_from is not null and p_price_to is not null and p_price_from > p_price_to then
-    raise exception 'Die Preisuntergrenze darf nicht ueber der Preisobergrenze liegen';
-  end if;
-
-  -- trim_scale streicht nachlaufende Nullen: 50.00 und 50 muessen denselben
-  -- Schluessel ergeben, sonst legt derselbe Filter zwei Abfragen an und wird
-  -- zweimal gepollt - genau der Sparmechanismus, um den es hier geht.
-  v_query_key := concat_ws('|',
-    'vinted',
-    'search=' || v_search_text,
-    'catalog=-',
-    'brand=' || coalesce(p_brand_id::text, '-'),
-    'price_from=' || coalesce(trim_scale(p_price_from)::text, '-'),
-    'price_to=' || coalesce(trim_scale(p_price_to)::text, '-')
-  );
-
-  -- Eine stillgelegte Abfrage (drei Fehlschlaege in Folge, is_active = false)
-  -- kommt ohne diesen Zweig nie zurueck - do nothing liesse sie stillgelegt.
-  -- Wer den Filter neu anlegt, will ihn offensichtlich wieder laufen sehen.
-  insert into public.sniper_queries (query_key, search_text, brand_id, price_from, price_to)
-  values (v_query_key, v_search_text, p_brand_id, p_price_from, p_price_to)
-  on conflict (query_key) do update
-    set is_active = true,
-        consecutive_failures = 0;
-
-  select id into v_query_id from public.sniper_queries where query_key = v_query_key;
-
-  -- 30 Prozent ist ein Startwert, kein Naturgesetz: do update uebernimmt die
-  -- neue Schwelle und setzt das Abonnement wieder aktiv. Ohne diesen Zweig
-  -- gaebe es keinen Weg, eine einmal gesetzte Schwelle je zu aendern -
-  -- authenticated hat kein UPDATE-Recht auf der Tabelle.
-  insert into public.sniper_query_subscriptions
-    (workspace_id, query_id, discount_threshold_percent)
-  values (p_workspace_id, v_query_id, p_threshold)
-  on conflict (workspace_id, query_id) do update
-    set discount_threshold_percent = excluded.discount_threshold_percent,
-        is_active = true;
-
-  select id into v_subscription_id
-  from public.sniper_query_subscriptions
-  where workspace_id = p_workspace_id and query_id = v_query_id;
-
-  return v_subscription_id;
-end;
-$function$
-;
-
 create or replace function public.bundle_shipping_orders(p_workspace_id uuid, p_order_ids uuid[], p_order_number text, p_order_date date, p_platform text, p_item_title text, p_item_sku text, p_item_condition text, p_sale_price numeric, p_customer jsonb, p_carrier text, p_package_type text, p_bundled_item_titles text[], p_notes text)
  RETURNS shipping_orders
  LANGUAGE plpgsql
@@ -5084,7 +4997,7 @@ end;
 $function$
 ;
 
-create or replace function public.save_sniper_watchlist(p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer, p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric, p_condition text, p_discount_threshold_percent numeric, p_is_active boolean)
+create or replace function public.save_sniper_watchlist(p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer, p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric, p_condition text)
  RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -5105,73 +5018,20 @@ begin
     end if;
     if p_id is null then
         insert into public.sniper_watchlists(workspace_id, title, catalog_id, brand, search_text,
-            price_from, price_to, condition, discount_threshold_percent, is_active)
+            price_from, price_to, condition)
         values (p_workspace_id, btrim(p_title), p_catalog_id, nullif(btrim(p_brand), ''),
             nullif(btrim(p_search_text), ''), p_price_from, p_price_to,
-            nullif(btrim(p_condition), ''), p_discount_threshold_percent, p_is_active)
+            nullif(btrim(p_condition), ''))
         returning id into v_id;
     else
         update public.sniper_watchlists set title = btrim(p_title), catalog_id = p_catalog_id,
             brand = nullif(btrim(p_brand), ''), search_text = nullif(btrim(p_search_text), ''),
             price_from = p_price_from, price_to = p_price_to, condition = nullif(btrim(p_condition), ''),
-            discount_threshold_percent = p_discount_threshold_percent, is_active = p_is_active,
-            starts_at = case when (catalog_id, brand, search_text, price_from, price_to, condition,
-                discount_threshold_percent, is_active) is distinct from
-                (p_catalog_id, nullif(btrim(p_brand), ''), nullif(btrim(p_search_text), ''),
-                 p_price_from, p_price_to, nullif(btrim(p_condition), ''), p_discount_threshold_percent, p_is_active)
-                then now() else starts_at end,
             legacy_brand_id = case when nullif(btrim(p_brand), '') is not null then null else legacy_brand_id end
         where id = p_id and workspace_id = p_workspace_id returning id into v_id;
         if v_id is null then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
     end if;
     return v_id;
-end;
-$function$
-;
-
-create or replace function public.sniper_feed(p_workspace_id uuid, p_watchlist_id uuid DEFAULT NULL::uuid, p_deals_only boolean DEFAULT false, p_before_time timestamp with time zone DEFAULT NULL::timestamp with time zone, p_before_id uuid DEFAULT NULL::uuid, p_limit integer DEFAULT 60)
- RETURNS jsonb
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare v_watchlist public.sniper_watchlists; v_rows jsonb; v_covered boolean; v_reported_at timestamptz;
-begin
-    if not public.can_access_workspace(p_workspace_id) then
-        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
-    end if;
-    if p_limit is null or p_limit not between 1 and 100 or (p_before_time is null) <> (p_before_id is null) then
-        raise exception 'Ungueltige Seitengroesse oder Position.' using errcode = '22023';
-    end if;
-    if p_watchlist_id is not null then
-        select * into v_watchlist from public.sniper_watchlists where id = p_watchlist_id and workspace_id = p_workspace_id;
-        if not found then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
-    end if;
-    select coalesce(jsonb_agg(to_jsonb(page) order by page.first_seen_at desc, page.id desc), '[]'::jsonb) into v_rows from (
-        select listing.id, listing.title, listing.url, listing.image_urls, listing.item_price, listing.total_price,
-            listing.currency, listing.brand, listing.size, listing.condition, listing.is_hidden, listing.first_seen_at,
-            listing.catalog_id, category.path as category_path,
-            hit.reference_price, hit.reference_scope, hit.discount_percent, hit.watchlist_title
-        from public.sniper_listings as listing
-        left join public.vinted_categories as category on category.id = listing.catalog_id
-        left join lateral (
-            select found.reference_price, found.reference_scope, found.discount_percent, watchlist.title as watchlist_title
-            from public.sniper_watchlist_hits as found join public.sniper_watchlists as watchlist on watchlist.id = found.watchlist_id
-            where found.listing_id = listing.id and watchlist.workspace_id = p_workspace_id
-                and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
-            order by found.created_at desc, found.id desc limit 1
-        ) as hit on true
-        where listing.first_seen_at >= now() - interval '3 days'
-            and not listing.is_initial_stock
-            and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
-            and (not p_deals_only or hit.reference_price is not null)
-            and (p_watchlist_id is null or p_deals_only or public.sniper_watchlist_matches(v_watchlist, listing))
-        order by listing.first_seen_at desc, listing.id desc limit p_limit
-    ) as page;
-    select exists(select 1 from public.sniper_queries where is_active
-        and (v_watchlist.catalog_id is null or catalog_id = v_watchlist.catalog_id)) into v_covered;
-    select reported_at into v_reported_at from public.sniper_runtime_status where id = 1;
-    return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
 end;
 $function$
 ;
@@ -6015,67 +5875,6 @@ end;
 $function$
 ;
 
-create or replace function public.sniper_feed_by_brand(p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_before_time timestamp with time zone, p_before_id uuid, p_limit integer)
- RETURNS jsonb
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare
-    v_watchlist public.sniper_watchlists;
-    v_rows jsonb;
-    v_covered boolean;
-    v_reported_at timestamptz;
-begin
-    if not public.can_access_workspace(p_workspace_id) then
-        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
-    end if;
-    if p_limit is null or p_limit not between 1 and 100 or (p_before_time is null) <> (p_before_id is null) then
-        raise exception 'Ungueltige Seitengroesse oder Position.' using errcode = '22023';
-    end if;
-    if p_brand is not null and (length(btrim(p_brand)) not between 1 and 100) then
-        raise exception 'Ungueltige Marke.' using errcode = '22023';
-    end if;
-    if p_watchlist_id is not null then
-        select * into v_watchlist from public.sniper_watchlists
-        where id = p_watchlist_id and workspace_id = p_workspace_id;
-        if not found then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
-    end if;
-
-    select coalesce(jsonb_agg(to_jsonb(page) order by page.first_seen_at desc, page.id desc), '[]'::jsonb)
-    into v_rows from (
-        select listing.id, listing.title, listing.url, listing.image_urls, listing.item_price, listing.total_price,
-            listing.currency, listing.brand, listing.size, listing.condition, listing.is_hidden, listing.first_seen_at,
-            listing.catalog_id, category.path as category_path,
-            hit.reference_price, hit.reference_scope, hit.discount_percent, hit.watchlist_title
-        from public.sniper_listings as listing
-        left join public.vinted_categories as category on category.id = listing.catalog_id
-        left join lateral (
-            select found.reference_price, found.reference_scope, found.discount_percent,
-                watchlist.title as watchlist_title
-            from public.sniper_watchlist_hits as found
-            join public.sniper_watchlists as watchlist on watchlist.id = found.watchlist_id
-            where found.listing_id = listing.id and watchlist.workspace_id = p_workspace_id
-                and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
-            order by found.created_at desc, found.id desc limit 1
-        ) as hit on true
-        where listing.first_seen_at >= now() - interval '3 days'
-            and not listing.is_initial_stock
-            and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
-            and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
-            and (p_watchlist_id is null or public.sniper_watchlist_matches(v_watchlist, listing))
-        order by listing.first_seen_at desc, listing.id desc limit p_limit
-    ) as page;
-
-    select exists(select 1 from public.sniper_queries as query where query.is_active
-        and (v_watchlist.catalog_id is null or query.catalog_id is null or query.catalog_id = v_watchlist.catalog_id))
-    into v_covered;
-    select reported_at into v_reported_at from public.sniper_runtime_status where id = 1;
-    return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
-end;
-$function$
-;
-
 create or replace function public.sniper_supported_brands(p_workspace_id uuid)
  RETURNS TABLE(brand text)
  LANGUAGE plpgsql
@@ -6098,80 +5897,6 @@ begin
             and not listing.is_initial_stock
             and nullif(btrim(listing.brand), '') is not null
         order by 1;
-end;
-$function$
-;
-
-create or replace function public.sniper_feed_filtered(p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric, p_max_price numeric, p_before_time timestamp with time zone, p_before_id uuid, p_limit integer)
- RETURNS jsonb
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare
-    v_watchlist public.sniper_watchlists;
-    v_rows jsonb;
-    v_covered boolean;
-    v_reported_at timestamptz;
-begin
-    if not public.can_access_workspace(p_workspace_id) then
-        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
-    end if;
-    if p_limit is null or p_limit not between 1 and 100
-        or (p_before_time is null) <> (p_before_id is null) then
-        raise exception 'Ungueltige Seitengroesse oder Position.' using errcode = '22023';
-    end if;
-    if p_brand is not null and length(btrim(p_brand)) not between 1 and 100 then
-        raise exception 'Ungueltige Marke.' using errcode = '22023';
-    end if;
-    if p_size is not null and p_size not in ('xs', 's', 'm', 'l', 'xl', 'xxl', '3xl') then
-        raise exception 'Ungueltige Groesse.' using errcode = '22023';
-    end if;
-    if p_min_price::text in ('NaN', 'Infinity', '-Infinity')
-        or p_max_price::text in ('NaN', 'Infinity', '-Infinity')
-        or p_min_price < 0 or p_max_price < 0 or p_min_price > p_max_price then
-        raise exception 'Ungueltige Preisgrenzen.' using errcode = '22023';
-    end if;
-    if p_watchlist_id is not null then
-        select * into v_watchlist from public.sniper_watchlists
-        where id = p_watchlist_id and workspace_id = p_workspace_id;
-        if not found then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
-    end if;
-
-    select coalesce(jsonb_agg(to_jsonb(page) order by page.first_seen_at desc, page.id desc), '[]'::jsonb)
-    into v_rows from (
-        select listing.id, listing.title, listing.url, listing.image_urls, listing.item_price, listing.total_price,
-            listing.currency, listing.brand, listing.size, listing.condition, listing.is_hidden, listing.first_seen_at,
-            listing.catalog_id, category.path as category_path,
-            hit.reference_price, hit.reference_scope, hit.discount_percent, hit.watchlist_title
-        from public.sniper_listings as listing
-        left join public.vinted_categories as category on category.id = listing.catalog_id
-        left join lateral (
-            select found.reference_price, found.reference_scope, found.discount_percent,
-                watchlist.title as watchlist_title
-            from public.sniper_watchlist_hits as found
-            join public.sniper_watchlists as watchlist on watchlist.id = found.watchlist_id
-            where found.listing_id = listing.id and watchlist.workspace_id = p_workspace_id
-                and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
-            order by found.created_at desc, found.id desc limit 1
-        ) as hit on true
-        where listing.first_seen_at >= now() - interval '3 days'
-            and not listing.is_initial_stock
-            and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
-            and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
-            and (p_size is null or public.sniper_feed_matches_size(listing.size, p_size))
-            and (p_min_price is null or listing.item_price >= p_min_price)
-            and (p_max_price is null or listing.item_price <= p_max_price)
-            and ((p_min_price is null and p_max_price is null) or listing.currency = 'EUR')
-            and (p_watchlist_id is null or public.sniper_watchlist_matches(v_watchlist, listing))
-        order by listing.first_seen_at desc, listing.id desc limit p_limit
-    ) as page;
-
-    select exists(select 1 from public.sniper_queries as query where query.is_active
-        and (v_watchlist.catalog_id is null or query.catalog_id is null or query.catalog_id = v_watchlist.catalog_id))
-    into v_covered;
-    select reported_at into v_reported_at from public.sniper_runtime_status where id = 1;
-    return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
 end;
 $function$
 ;

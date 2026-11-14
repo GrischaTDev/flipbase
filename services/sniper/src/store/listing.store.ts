@@ -9,7 +9,6 @@ export interface SearchFilterRunResult {
   accepted: boolean;
   created: number;
   seeded: boolean;
-  hits: number;
 }
 
 export interface SearchFilterRunDiagnostics {
@@ -55,9 +54,7 @@ export class ListingStore {
       typeof payload?.accepted !== 'boolean' ||
       typeof payload.seeded !== 'boolean' ||
       !Number.isInteger(payload.created) ||
-      payload.created! < 0 ||
-      !Number.isInteger(payload.hits) ||
-      payload.hits! < 0
+      payload.created! < 0
     ) {
       throw new Error('Invalid search filter completion response');
     }
@@ -65,7 +62,6 @@ export class ListingStore {
       accepted: payload.accepted,
       seeded: payload.seeded,
       created: payload.created!,
-      hits: payload.hits!,
     };
   }
 
