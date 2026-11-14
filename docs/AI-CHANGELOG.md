@@ -10,6 +10,20 @@
 
 **Grenzen:** Zusätzliche ausgewählte CI-Nachweise einschließlich Datenbank, Browser, PWA und Marketplace-Images/Isolation bleiben vor dem Merge erforderlich. Protokolle und isolierte Hilfsdateien liegen außerhalb des Repositorys unter `C:/Users/gt/.codex/artifacts/development-packages-*`. Noch kein Push, PR, Merge oder Deployment. Flipbase fehlt weiterhin in der verbundenen Lissie-Projektliste; ein Regelabruf oder Änderungsbericht kann keinem passenden Projekt zugeordnet werden.
 
+**Hauptzweigabgleich für PR #639:** Der erste GitHub-Lauf `43604512548` besteht mit allen 17 ausgewählten Prüfungen. Währenddessen ist PR #638 auf `master` integriert worden. Im eigenen Branch wird ausschließlich der Konflikt im gemeinsamen Protokoll durch Erhalten beider Einträge aufgelöst; Schema, Migration und Datenbanktest werden unverändert aus dem Hauptzweig übernommen. Anwendungscode, Paketdateien und Eingaben der bereits bestandenen lokalen Lint-/Typ-/Dienst-/Bauprüfungen bleiben unverändert. Der Plan und die Formatprüfung werden für den zusammengeführten Stand aktualisiert; die CI prüft den neuen Aufgabenstand vor dem Merge erneut.
+
+## 2026-11-14 - Juna - Abruf des Vinted-Preisvergleichs beschleunigen
+
+**Anlass:** Nach dem Abschalten der alten Deal-Erkennung (PR 635) war `claim_vinted_comparison_task` mit 81 % der verbliebenen Abfragezeit der größte Verbraucher der Datenbank.
+
+**Lesende Messung (keine Änderung am Server):** SSH-Abfragen am 14.11.2026 zwischen 12:20 und 12:25 UTC in schreibgeschützten Transaktionen. 4.709 Aufrufe mit im Mittel 2,8 s. Der Abfrageplan der Detailauswahl zeigt die Ursache: Sie schlägt alle rund 390.000 fälligen Artikel einzeln über den Primärschlüssel nach (1,57 Mio. Blöcke), um einen einzigen auszuwählen, weil kein Index zur Sortierung `checked_at nulls first, next_attempt_at, id` passt. In 24 Stunden kamen rund 296.000 Artikel dazu, nachgeprüft wurden 966. Die Grenze von 250.000 Artikeln hielt nicht (390.000 Zeilen): Die stündliche Bereinigung löschte höchstens 10.000 bei rund 32.000 Zugängen je Stunde.
+
+**Änderung in diesem Zweig (`juna/speed-up-comparison-claim`):** Neuer Teilindex `vinted_comparison_items_detail_order_idx` in der Reihenfolge der Detailauswahl. Die stündliche Mengenbegrenzung löscht bis zu 50.000 statt 10.000 Artikel. Migration `20261114123000_vinted_comparison_claim_index.sql`. Der SQL-Test zur Mengenbegrenzung arbeitet jetzt mit einem Überhang über 10.000, damit ein zu kleiner Löschschritt auffällt.
+
+**Prüfstand:** Mit Node 22.23.5 und npm 11.13.0 bestehen `npm run preflight:plan` und `npm run preflight` (Exit 0): Migrationsumfang und SQL-Paket, Format, Lint, Typen, Suite-Audit und 152 ausgewählte Skriptfälle. Lokal läuft kein Docker: Datenbanktests und die Migration in isoliertem PostgreSQL bleiben erforderlicher CI-Nachweis. Die Migration ist aus der Schemadatei übernommen, nicht per `supabase db diff` erzeugt.
+
+**Offen:** Ob der Planer den neuen Index in der Funktion tatsächlich wählt, lässt sich lokal ohne Docker nicht nachweisen und wird nach der Auslieferung am Server nachgemessen. Pausierte Filter mit vielen zugeordneten Artikeln können die Auswahl weiterhin verlängern. Fachlich offen bleibt das Verhältnis von Sammelmenge zu Nachprüfungen.
+
 ## 2026-11-14 - Juna - Angular und Build aus dem verbleibenden Updatepaket übernehmen
 
 **Umfang:** Eigener Zweig `juna/update-angular-build` vom frisch abgeglichenen `origin/master`. Erster Anwendungsblock aus PR #633: Angular Core/Common/Compiler/Forms/Router/Platform Browser und Compiler CLI auf 22.2.5, CDK und Build auf 22.2.6 sowie tslib auf 2.9.1. CLI 22.2.7, Node 22 und npm 11.13.0 bleiben erhalten. Die übrigen direkten Paketversionen einschließlich Root-PostCSS bleiben auf ihrem bisherigen Stand; der Builder verwendet Vite 8.3.5 und seine passenden transitiven Bauabhängigkeiten.

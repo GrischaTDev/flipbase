@@ -416,10 +416,11 @@ select is((select task->>'kind' from comparison_test_tasks where name='fair_deta
 reset role;
 
 -- Die seltene Mengenbegrenzung muss denselben Produktionsschutz erfüllen wie der erste Claim.
+-- Der Überhang liegt über 10000, damit ein zu kleiner Löschschritt den Bestand nicht stehen lässt.
 insert into public.vinted_comparison_items(external_id,url,title,price,first_seen_at)
 select (569000000+n)::text,'https://www.vinted.de/items/'||(569000000+n)::text,
     'Comparison retention fixture',1,now()-interval '1 day'
-from generate_series(1,250001) n;
+from generate_series(1,265000) n;
 update public.vinted_comparison_scopes set maintenance_at=now()-interval '2 hours'
 where maintenance_at is not null;
 set local role service_role;
