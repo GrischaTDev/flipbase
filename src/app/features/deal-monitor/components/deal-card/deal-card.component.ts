@@ -7,7 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   LucideClock,
   LucideDynamicIcon,
@@ -34,7 +34,6 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
     LucideDynamicIcon,
     CurrencyPipe,
     DatePipe,
-    DecimalPipe,
   ],
   templateUrl: './deal-card.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

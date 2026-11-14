@@ -7,7 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   LucideChevronLeft,
   LucideChevronRight,
@@ -39,7 +39,6 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
     LucideDynamicIcon,
     CurrencyPipe,
     DatePipe,
-    DecimalPipe,
   ],
   templateUrl: './deal-detail-modal.component.html',
   styleUrl: './deal-detail-modal.component.scss',
@@ -74,14 +73,6 @@ export class DealDetailModalComponent {
     discoveryDate(this.item().first_seen_at, this.clock.now()),
   );
   readonly link = computed(() => safeVintedLink(this.item().url));
-
-  readonly referenceLabel = computed(() =>
-    this.item().reference_scope === 'category_brand_condition'
-      ? 'Kategorie, Marke & Zustand'
-      : this.item().reference_scope === 'category_condition'
-        ? 'Kategorie & Zustand'
-        : 'Historischer Vergleich',
-  );
 
   readonly icons = {
     brand: LucideTag,

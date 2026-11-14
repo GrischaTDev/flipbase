@@ -80,10 +80,6 @@ const mockItem = (id: string, size: string | null = null): FeedItem => ({
   first_seen_at: '2026-09-14T12:00:00Z',
   catalog_id: 1,
   category_path: 'Herren > Hoodies',
-  reference_price: 50,
-  reference_scope: 'category_condition',
-  discount_percent: 50,
-  watchlist_title: 'Nike Deals',
 });
 
 describe('DealFavoritesComponent', () => {

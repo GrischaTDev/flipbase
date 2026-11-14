@@ -63,10 +63,6 @@ const mockItem: FeedItem = {
   first_seen_at: '2026-09-14T12:00:00Z',
   catalog_id: 1,
   category_path: 'Herren > Jacken',
-  reference_price: 60,
-  reference_scope: 'category_brand_condition',
-  discount_percent: 41.7,
-  watchlist_title: 'Adidas Jacken',
 };
 
 describe('DealDetailModalComponent', () => {

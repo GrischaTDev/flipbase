@@ -23,10 +23,6 @@ const item = (id = '101'): FeedItem => ({
   first_seen_at: '2026-01-01T12:00:00Z',
   catalog_id: null,
   category_path: null,
-  reference_price: null,
-  reference_scope: null,
-  discount_percent: null,
-  watchlist_title: null,
 });
 const settle = async () => {
   TestBed.flushEffects();

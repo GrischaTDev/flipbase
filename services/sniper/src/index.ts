@@ -271,7 +271,6 @@ while (!controller.signal.aborted) {
             newListings: 0,
             seeded: 0,
             failed: 0,
-            newHits: 0,
           };
       }
       const feedReport = await scheduler.runOnce(now);
@@ -286,11 +285,10 @@ while (!controller.signal.aborted) {
       newListings: 0,
       seeded: 0,
       failed: 0,
-      newHits: 0,
       originPause: { reason: 'interaction_required', until: null },
     };
     health.recordCycle(report, now);
-    if (report.newListings > 0 || report.newHits > 0 || report.seeded > 0) {
+    if (report.newListings > 0 || report.seeded > 0) {
       try {
         await listings.notifyFeedUpdates();
       } catch {

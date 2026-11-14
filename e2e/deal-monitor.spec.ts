@@ -32,10 +32,6 @@ const makeItem = (i: number) => ({
   first_seen_at: new Date(Date.now() - i * 1000).toISOString(),
   catalog_id: 1049,
   category_path: 'Herren > Schuhe > Sneaker',
-  reference_price: i === 1 ? 60 : null,
-  reference_scope: i === 1 ? 'category_brand_condition' : null,
-  discount_percent: i === 1 ? 68.33 : null,
-  watchlist_title: i === 1 ? 'Meine Sneaker' : null,
 });
 
 type FavoriteFixtureStore = Map<string, Record<string, unknown> | null>;
@@ -747,8 +743,6 @@ async function fixture(
         price_from: body['p_price_from'],
         price_to: body['p_price_to'],
         condition: body['p_condition'],
-        discount_threshold_percent: body['p_discount_threshold_percent'],
-        is_active: body['p_is_active'],
         legacy_brand_id: null,
       };
       if (watchlists.length) watchlists[0] = row;
@@ -931,8 +925,6 @@ for (const theme of ['light', 'dark'] as const) {
       page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
     ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Meine Sneaker', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Pausieren', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Aktivieren', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Suchfilter bearbeiten', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');
     await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
@@ -1127,7 +1119,7 @@ for (const theme of ['light', 'dark'] as const) {
           exact: true,
         });
         await expect(firstCard.getByRole('heading', { name: 'Nike Sneaker 1' })).toBeVisible();
-        await expect(firstCard.locator('dl app-badge')).toHaveCount(4);
+        await expect(firstCard.locator('dl app-badge')).toHaveCount(3);
         await expect(firstCard.getByRole('img')).toHaveCount(1);
         await expect
           .poll(() =>

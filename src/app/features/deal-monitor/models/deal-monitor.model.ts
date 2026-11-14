@@ -8,8 +8,6 @@ export interface Watchlist {
   price_from: number | null;
   price_to: number | null;
   condition: string | null;
-  discount_threshold_percent: number;
-  is_active: boolean;
   legacy_brand_id: number | null;
 }
 
@@ -31,10 +29,6 @@ export interface FeedItem {
   first_seen_at: string;
   catalog_id: number | null;
   category_path: string | null;
-  reference_price: number | null;
-  reference_scope: string | null;
-  discount_percent: number | null;
-  watchlist_title: string | null;
 }
 export interface FeedPage {
   items: FeedItem[];
