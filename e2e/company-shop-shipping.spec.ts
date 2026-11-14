@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import axe from 'axe-core';
-import { expect, openDashboard, test } from './support/fixtures';
+import { expect, test } from './support/fixtures';
 
 test('Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Absender @core-smoke', async ({
   page,
@@ -46,7 +46,6 @@ test('Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Abs
     { onConflict: 'workspace_id' },
   );
   expect(store.error).toBeNull();
-  await openDashboard(page);
   await page.goto('/settings/store');
   await expect(page.getByText('DE89 •••• 3000', { exact: true })).toBeVisible();
   await expect(page.getByText('Zentraler Kontoinhaber', { exact: true })).toBeVisible();
@@ -82,11 +81,21 @@ test('Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Abs
       path: join(process.env['E2E_SCREENSHOT_DIR'], 'company-shop-desktop.png'),
     });
 
-  await page.goto('/shop');
-  await expect(page.getByText('Zentraler Inhaber', { exact: true })).toBeVisible();
-  await expect(page.getByText('Altes Shopimpressum', { exact: true })).toHaveCount(0);
+  const shopPage = await page.context().newPage();
+  shopPage.on('pageerror', (error) => runtimeErrors.push(error.message));
+  try {
+    await shopPage.goto('/shop');
+    await expect(shopPage.getByText('Zentraler Inhaber', { exact: true })).toBeVisible();
+    await expect(shopPage.getByText('Altes Shopimpressum', { exact: true })).toHaveCount(0);
+  } finally {
+    await shopPage.close();
+  }
 
-  await page.goto('/settings/shipping');
+  await page
+    .getByRole('navigation', { name: 'Einstellungsbereiche', exact: true })
+    .locator('a[href="/settings/shipping"]')
+    .click();
+  await expect(page).toHaveURL(/\/settings\/shipping$/);
   const useCompany = page.getByRole('checkbox', {
     name: 'Unternehmensanschrift verwenden',
     exact: true,
