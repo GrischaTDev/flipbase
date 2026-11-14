@@ -1119,7 +1119,7 @@ for (const theme of ['light', 'dark'] as const) {
           exact: true,
         });
         await expect(firstCard.getByRole('heading', { name: 'Nike Sneaker 1' })).toBeVisible();
-        await expect(firstCard.locator('dl app-badge')).toHaveCount(4);
+        await expect(firstCard.locator('dl app-badge')).toHaveCount(3);
         await expect(firstCard.getByRole('img')).toHaveCount(1);
         await expect
           .poll(() =>
