@@ -78,7 +78,6 @@ function buildMany(
     collector?: { collect: ReturnType<typeof vi.fn> };
     listings?: {
       saveNew: ReturnType<typeof vi.fn>;
-      evaluateHits?: ReturnType<typeof vi.fn>;
     };
     originState?: unknown;
     budget?: RequestBudget;
@@ -97,7 +96,6 @@ function buildMany(
   };
   const listings = {
     saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-    evaluateHits: vi.fn().mockResolvedValue(0),
     ...overrides.listings,
   };
   const log = overrides.log ?? { info: vi.fn(), error: vi.fn() };
@@ -129,7 +127,6 @@ function build(query: SniperQuery, overrides: Record<string, unknown> = {}) {
   };
   const listings = {
     saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-    evaluateHits: vi.fn().mockResolvedValue(0),
     ...(overrides.listings as Record<string, unknown> | undefined),
   };
   const log = (overrides.log as
@@ -483,77 +480,6 @@ describe('QueryScheduler', () => {
     });
   });
 
-  it('bewertet nach dem Speichern und zaehlt die Treffer', async () => {
-    const listings = {
-      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-      evaluateHits: vi.fn().mockResolvedValue(2),
-    };
-    const { scheduler } = build(makeQuery(), { listings });
-
-    const report = await scheduler.runOnce(NOW);
-
-    expect(listings.evaluateHits).toHaveBeenCalledWith('q1', true);
-    expect(report.newHits).toBe(2);
-  });
-
-  it('meldet im Einlese-Lauf nichts, hakt den Bestand aber ab', async () => {
-    // Die erste Runde einer Abfrage findet einen ganzen Bestand vor - teils
-    // wochenalt, teils laengst verkauft. Wuerde sie melden, kaeme mit dem
-    // Anlegen eines Filters sofort ein Schwall Falschmeldungen. Der Aufruf
-    // erfolgt trotzdem, damit der Bestand als geprueft vermerkt wird und auch
-    // in der naechsten Runde stumm bleibt.
-    const listings = {
-      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-      evaluateHits: vi.fn().mockResolvedValue(0),
-    };
-    const { scheduler } = build(makeQuery({ isSeeded: false }), { listings });
-
-    const report = await scheduler.runOnce(NOW);
-
-    expect(listings.evaluateHits).toHaveBeenCalledWith('q1', false);
-    expect(report.newHits).toBe(0);
-  });
-
-  it('laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen und erhoeht failed nicht', async () => {
-    // Ein Fund ist gespeichert, auch wenn die Bewertung scheitert. Wuerde der
-    // Fehler durchschlagen, bliebe die Abfrage als nicht gepollt stehen und der
-    // naechste Durchgang holte dieselben Artikel erneut. Ein DB-Bewertungsfehler
-    // zaehlt nicht als Vinted-Sammelfehler (failed bleibt 0).
-    const listings = {
-      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-      evaluateHits: vi.fn().mockRejectedValue(new Error('evaluation failed')),
-    };
-    const { scheduler, queries, log } = build(makeQuery(), { listings });
-
-    const report = await scheduler.runOnce(NOW);
-
-    expect(queries.markPolled).toHaveBeenCalledWith('q1', 'ok');
-    expect(report.newHits).toBe(0);
-    expect(log.error).toHaveBeenCalledWith('evaluate_hits_failed', {
-      queryId: 'q1',
-      reason: 'evaluation failed',
-    });
-    expect(report.failed).toBe(0);
-  });
-
-  it('gilt nicht als eingelesen, wenn die Bewertung scheitert', async () => {
-    // Sonst genuegt ein einziger Netzfehler: Die Abfrage waere eingelesen, der
-    // vorgefundene Bestand truege aber keinen Vermerk - und der naechste
-    // Durchgang meldete ihn vollstaendig. Genau der Schwall, den der
-    // Einlese-Lauf verhindern soll.
-    const listings = {
-      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-      evaluateHits: vi.fn().mockRejectedValue(new Error('evaluation failed')),
-    };
-    const { scheduler, queries } = build(makeQuery({ isSeeded: false }), { listings });
-
-    const report = await scheduler.runOnce(NOW);
-
-    expect(queries.markSeeded).not.toHaveBeenCalled();
-    expect(report.seeded).toBe(0);
-    expect(queries.markPolled).toHaveBeenCalledWith('q1', 'ok');
-  });
-
   describe('Arbeitspaket 1: Operational Run State & Origin Protection (Regressionstests)', () => {
     it('Regression 1: HTTP 403 puts query and origin into an expiring cooldown, leaves is_active untouched', async () => {
       const originState = {
@@ -780,67 +706,7 @@ describe('QueryScheduler', () => {
   });
 
   describe('Arbeitspaket 3.2: Deal-Erkennung aus gemeinsamem Datenbestand entkoppeln (Regressionstests)', () => {
-    it('Regression 1: evaluation database failure does not mark query failed or alter origin state', async () => {
-      const originState = {
-        getState: vi.fn().mockResolvedValue({
-          origin: 'vinted',
-          state: 'ready',
-          blockedUntil: null,
-          reason: null,
-          probeInFlight: false,
-          updatedAt: NOW.toISOString(),
-        }),
-        setCooldown: vi.fn(),
-        setBlocked: vi.fn(),
-        tryAcquireProbe: vi.fn().mockResolvedValue(true),
-        releaseProbe: vi.fn(),
-        reset: vi.fn(),
-      };
-      const recordSuccess = vi.fn().mockResolvedValue(undefined);
-      const recordFailure = vi.fn().mockResolvedValue(undefined);
-      const queryStore = {
-        dueQueries: vi.fn().mockResolvedValue([makeQuery({ id: 'q-eval-fail' })]),
-        recordSuccess,
-        recordFailure,
-        markPolled: vi.fn().mockResolvedValue(undefined),
-        markSeeded: vi.fn().mockResolvedValue(undefined),
-        deactivate: vi.fn().mockResolvedValue(undefined),
-      };
-      const listings = {
-        saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
-        evaluateHits: vi
-          .fn()
-          .mockRejectedValue(new Error('relation sniper_watchlists does not exist')),
-      };
-      const log = { info: vi.fn(), error: vi.fn() };
-      const budget = new RequestBudget(10, () => NOW.getTime());
-      const scheduler = new QueryScheduler({
-        now: () => NOW,
-        queries: queryStore,
-        collector: { collect: vi.fn().mockResolvedValue([makeListing('a')]) },
-        listings,
-        budget,
-        originState: originState as never,
-        log,
-      });
-
-      const report = await scheduler.runOnce(NOW);
-
-      // Vinted-Erfassung war erfolgreich: query wurde erfolgreich verbucht
-      expect(recordSuccess).toHaveBeenCalledWith('q-eval-fail', NOW);
-      expect(recordFailure).not.toHaveBeenCalled();
-      expect(originState.setCooldown).not.toHaveBeenCalled();
-      expect(originState.setBlocked).not.toHaveBeenCalled();
-      expect(report.polled).toBe(1);
-      expect(report.failed).toBe(0);
-      expect(report.newHits).toBe(0);
-      expect(log.error).toHaveBeenCalledWith('evaluate_hits_failed', {
-        queryId: 'q-eval-fail',
-        reason: 'relation sniper_watchlists does not exist',
-      });
-    });
-
-    it('Regression 2: scheduler runs in pure ingest mode when evaluateHits is omitted', async () => {
+    it('Regression 7: a legacy query is stored and recorded as successful', async () => {
       const recordSuccess = vi.fn().mockResolvedValue(undefined);
       const queryStore = {
         dueQueries: vi.fn().mockResolvedValue([makeQuery({ id: 'q-pure' })]),
@@ -881,7 +747,6 @@ describe('guarded search filter scheduling', () => {
     expect(report).toMatchObject({ polled: 1, newListings: 2, newHits: 1, seeded: 0 });
     expect(completeRun).toHaveBeenCalledWith([makeListing('a'), makeListing('b')], current());
     expect(listings.saveNew).not.toHaveBeenCalled();
-    expect(listings.evaluateHits).not.toHaveBeenCalled();
     expect(queries.markPolled).not.toHaveBeenCalled();
     expect(queries.markSeeded).not.toHaveBeenCalled();
   });

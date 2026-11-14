@@ -69,35 +69,6 @@ describe('ListingStore HTTP contract', () => {
       'recording listing category failed',
     );
   });
-  it('passes the silent seed flag to the independent evaluator', async () => {
-    const { store, requests } = storeWithResponses([{ body: 0 }]);
-    expect(await store.evaluateHits('query-id', false)).toBe(0);
-    expect(requests.map((request) => request.body)).toEqual([
-      { p_query_id: 'query-id', p_report_hits: false },
-    ]);
-    expect(requests[0]?.path).toBe('/rest/v1/rpc/sniper_evaluate_watchlist_hits');
-  });
-  it('keeps a failed watchlist evaluation retryable instead of reporting success', async () => {
-    const { store } = storeWithResponses([{ body: { message: 'offline' }, status: 400 }]);
-    await expect(store.evaluateHits('query-id')).rejects.toThrow('evaluating watchlists failed');
-  });
-
-  it('calls sniper_evaluate_pending_watchlist_hits with batchSize and parses response', async () => {
-    const { store, requests } = storeWithResponses([{ body: { processed: 42, hits: 3 } }]);
-    const result = await store.evaluatePending(50);
-    expect(result).toEqual({ processed: 42, hits: 3 });
-    expect(requests[0]).toEqual({
-      path: '/rest/v1/rpc/sniper_evaluate_pending_watchlist_hits',
-      body: { p_batch_size: 50 },
-    });
-  });
-
-  it('rejects evaluatePending if rpc returns an error', async () => {
-    const { store } = storeWithResponses([{ body: { message: 'db lock timeout' }, status: 500 }]);
-    await expect(store.evaluatePending(100)).rejects.toThrow(
-      'evaluating pending watchlists failed: db lock timeout',
-    );
-  });
 });
 
 const guardedQuery = {

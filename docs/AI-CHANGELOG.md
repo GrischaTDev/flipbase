@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-14 - Juna - Liveinventur und Abschalten der alten Deal-Erkennung im Sniper
+
+**Anlass:** Planung der Abopakete und Proxy-Kapazität (Unterlagen v8 vom 10.11.2026). Vor Aussagen zu Obergrenzen und Kundenzahl sollte der Server lesend vermessen werden.
+
+**Lesende Messung (keine Änderung am Server):** Statuslauf `operation=status` (Run 43536050377) und SSH-Abfragen am 14.11.2026 um 00:43 und 08:21 UTC, Datenbank ausschließlich in schreibgeschützten Transaktionen. Host mit 4 Kernen, 8 GB RAM, Platte zu 80 % belegt. Die Datenbank lief zeitweise bei über 100 % eines Kerns. In einer Messminute entfielen 82 % der Abfragezeit auf `complete_sniper_search_filter_run` (3,1 s je Aufruf) und `sniper_evaluate_pending_watchlist_hits`. Ursache: 99,96 % der rund 1,1 Mio. Angebote haben keine Kategorie, erhalten deshalb nie einen Referenzpreis und bleiben dauerhaft „unbewertet“; jede Bewertung durchläuft sie vollständig (Abfrageplan: Seq Scan auf `sniper_listings`). Die Vinted-Cloud belegte den einen Browserplatz zu 16 % (3 Konten, 532 Sitzungen in 24 h).
+
+**Entscheidung des Nutzers:** Die Deal-Erkennung aus dem September (Merkzettel/Suchfilter mit Rabattschwelle und Referenzpreis) ist verworfen und wird entfernt. Herz-Favoriten, Feed, Suchfilter-Karten und der neue Preisvergleich bleiben.
+
+**Änderung in diesem Zweig (`juna/remove-sniper-deal-detection`):** Der Sniper-Dienst ruft keine Bewertung mehr auf (`WatchlistEvaluator`, `evaluateHits`, `evaluatePending` samt Tests entfernt). `complete_sniper_search_filter_run` stößt keine Bewertung mehr an und setzt `watchlist_evaluated_at` nicht mehr zurück; Rückgabefeld `hits` bleibt vorerst mit 0 erhalten, damit der noch laufende ältere Dienst während der Auslieferung gültige Antworten bekommt. Migration `20261114093000_sniper_stop_deal_evaluation.sql`. Der SQL-Test zur Trefferreihenfolge in `sniper_query_matches.sql` entfällt.
+
+**Prüfstand:** `npm run typecheck` und `npm test` im Sniper bestehen (483 Fälle aus 50 Dateien, 7 unter Windows deaktiviert). Mit Node 22.23.5 bestehen `npm run preflight:plan` und `npm run preflight` (Exit 0): Migrationsumfang und SQL-Paket, Format, Lint, Typen, Suite-Audit und 152 ausgewählte Skriptfälle. Lokal läuft kein Docker: Datenbanktests, Migrationen in isoliertem PostgreSQL, Sniper-Image und Anwendungsbau sind nicht ausgeführt und bleiben erforderlicher CI-Nachweis. Die Migration ist aus der Schemadatei übernommen, nicht per `supabase db diff` erzeugt.
+
+**Offen:** Tabellen `sniper_watchlist_hits`, `sniper_hits`, `sniper_query_subscriptions`, die Bewertungs- und Referenzpreisfunktionen, die Spalten `watchlist_evaluated_at`/`evaluated_at`/`discount_threshold_percent`, drei Indizes, die Trefferfelder in den Feed-Funktionen und Favoriten sowie die Deal-Anzeige in der Oberfläche bestehen noch. Der teure `claim_vinted_comparison_task` ist nicht untersucht.
+
 ## 2026-11-14 - Juna - Angular CLI aus PR 631 einmalig aktualisieren
 
 **Umfang:** Eigener Zweig `juna/update-angular-cli-22-2-7` vom frisch abgeglichenen `origin/master`. Die Paketdateien aus PR #631 (`ee1a2dbdc`) und #627 (`563d0b854`) sind identisch und werden nur einmal übernommen: Angular CLI und Schematics auf 22.2.7, die zugehörigen MCP-Pakete auf 2.3.1 und deren Zod-Abhängigkeit auf 4.6.6. Andere Paketbereiche und die Botzweige bleiben unverändert.

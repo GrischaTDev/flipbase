@@ -16,7 +16,6 @@ import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
 import { VintedConnectionState } from './runtime/vinted-connection-state.js';
-import { WatchlistEvaluator } from './runtime/watchlist-evaluator.js';
 import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
 import { ComparisonStore } from './store/comparison.store.js';
@@ -110,12 +109,6 @@ const comparisonCollection = new ComparisonCollection({
   connectionState: vintedConnection,
   onOriginPause: () => requestGuard.pause(),
   minimumStepIntervalMs: config.requestMinIntervalMs,
-});
-const evaluator = new WatchlistEvaluator({
-  listings: {
-    evaluatePending: (batchSize) => listings.evaluatePending(batchSize),
-  },
-  log,
 });
 
 const scheduler = new QueryScheduler({
@@ -329,9 +322,6 @@ while (!controller.signal.aborted) {
     cycleError = error instanceof Error ? error.message : String(error);
     log.error('tick_failed', { reason: cycleError });
   }
-
-  // Merkzettel-Bewertung laeuft eigenstaendig und unbeeinflusst von Vinted-Fehlern
-  await evaluator.runOnce();
 
   // Eigene Fehlergrenze: Eine fehlende Statusmeldung darf das Sammeln nicht stoppen.
   await retention.runIfDue();

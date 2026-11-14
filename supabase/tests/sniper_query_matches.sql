@@ -170,46 +170,5 @@ select is((select public.sniper_watchlist_matches(
  jsonb_populate_record(null::public.sniper_watchlists,'{"legacy_brand_id":14}'),listing)
  from public.sniper_listings listing where external_id='multi-match'),true,'Adidas-Merkzettel erkennt passende Marke im gemeinsamen Mehrmarkenabruf');
 
--- Dieselbe frische Antwort muss unabhängig von der Reihenfolge eines neuen
--- Seed-Filters und eines bereits gesäten Empfängers genau einen Treffer melden.
-insert into public.vinted_categories(id,title,slug,path,is_leaf) values (9200002,'Seed-Reihenfolge','seed-order','Seed-Reihenfolge',true);
-insert into public.sniper_queries(id,query_key,title,catalog_id,filter_format_version,is_active,title_keywords,
-    seeded_requests,is_seeded,last_success_at,created_at)
-select ('e2000000-0000-4000-8000-0000000000'||lpad(i::text,2,'0'))::uuid,
-    'seed-order-'||i,'Seed Order '||i,9200002,case when i=10 then 0 else 1 end,true,
-    case when i=10 then '{}'::text[] else array['jacke'] end,
-    case when i in (12,14,16) then array[0] else '{}'::integer[] end,
-    i in (12,14,16),case when i in (12,14,16) then now()-interval '1 hour' end,
-    now()-interval '1 day' from generate_series(10,16) i;
-insert into public.sniper_listings(external_id,title,url,item_price,total_price,currency,brand,condition,
-    catalog_id,catalog_source_query_id,discovered_by_query_id,watchlist_evaluated_at)
-select 'seed-order-reference-'||i,'Referenz','https://www.vinted.de/items/reference-'||i,100,101,'EUR','Seedorder','good',
-    9200002,'e2000000-0000-4000-8000-000000000010','e2000000-0000-4000-8000-000000000010',now()
-from generate_series(1,20) i;
-insert into public.sniper_watchlists(workspace_id,title,catalog_id,brand,discount_threshold_percent,starts_at)
- values ('e2000000-0000-4000-8000-000000000004','Seed-Reihenfolge',9200002,'Seedorder',40,now()-interval '1 day');
-set local role service_role;
-select is((public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000011',1,0,
- '[{"external_id":"seed-first-order","title":"Jacke","url":"https://www.vinted.de/items/seed-first-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]')->>'hits')::integer,0,'Neuer Seed-Empfänger beginnt ohne Meldung');
-select is((public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000012',1,0,
- '[{"external_id":"seed-first-order","title":"Jacke","url":"https://www.vinted.de/items/seed-first-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]')->>'hits')::integer,1,'Bereits gesäter Empfänger meldet frischen Fund trotz vorangegangenem Seed');
-select is((public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000014',1,0,
- '[{"external_id":"ready-first-order","title":"Jacke","url":"https://www.vinted.de/items/ready-first-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]')->>'hits')::integer,1,'Bereits gesäter Empfänger meldet auch als erster');
-select is((public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000013',1,0,
- '[{"external_id":"ready-first-order","title":"Jacke","url":"https://www.vinted.de/items/ready-first-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]')->>'hits')::integer,0,'Nachfolgender Seed-Empfänger erzeugt keine Doppelmeldung');
-select is((select count(*) from public.sniper_watchlist_hits hit join public.sniper_listings listing on listing.id=hit.listing_id
-    where listing.external_id in ('seed-first-order','ready-first-order')),2::bigint,'Beide Reihenfolgen liefern genau einen gleichen Treffer');
-select public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000015',1,0,
- '[{"external_id":"historic-seed-order","title":"Jacke","url":"https://www.vinted.de/items/historic-seed-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]');
-reset role;
-update public.sniper_listings set first_seen_at=now()-interval '2 hours' where external_id='historic-seed-order';
-set local role service_role;
-select is((public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000016',1,0,
- '[{"external_id":"historic-seed-order","title":"Jacke","url":"https://www.vinted.de/items/historic-seed-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]')->>'hits')::integer,0,'Historischer Seed-Bestand vor dem letzten Erfolg bleibt stumm');
-select ok((select watchlist_evaluated_at is not null from public.sniper_listings where external_id='historic-seed-order'),'Historische stille Bewertung bleibt erhalten');
-select is((public.complete_sniper_search_filter_run('e2000000-0000-4000-8000-000000000012',1,1,
- '[{"external_id":"seed-first-order","title":"Jacke","url":"https://www.vinted.de/items/seed-first-order","item_price":10,"total_price":11,"currency":"EUR","brand":"Seedorder","condition":"good"}]')->>'hits')::integer,0,'Bereits echte Bewertung wird bei Wiederholung nicht neu geöffnet');
-reset role;
-
 select * from finish();
 rollback;

@@ -329,7 +329,6 @@ declare
     v_count integer;
     v_index integer;
     v_created integer;
-    v_hits integer;
     v_seed boolean;
     v_newest bigint;
     v_external_ids text[];
@@ -404,25 +403,16 @@ begin
         on conflict (query_id, listing_id) do nothing returning listing_id
     ) select coalesce(array_agg(listing_id), '{}') into v_new_matches from matched;
     -- Ein gleichzeitig neu eingelesener Filter darf einen frischen Fund eines
-    -- bereits gesäten Filters nicht stumm schalten. Älterer Erstbestand und
-    -- bereits über echte Abrufe bewertete Artikel bleiben dagegen unverändert.
+    -- bereits gesäten Filters nicht stumm schalten. Älterer Erstbestand bleibt unverändert.
     if not v_seed then
         -- Frischer Fund eines laufenden Filters: Erstbestand eines anderen Filters wird sichtbar.
         update public.sniper_listings listing set is_initial_stock = false
         where listing.id = any(v_new_matches) and listing.is_initial_stock;
-        update public.sniper_listings listing set watchlist_evaluated_at = null
-        where listing.id = any(v_new_matches) and listing.watchlist_evaluated_at is not null
-          and listing.first_seen_at > coalesce(v_query.last_success_at, v_query.created_at)
-          and exists (select 1 from public.sniper_query_matches matched
-              where matched.listing_id = listing.id and matched.is_seed)
-          and not exists (select 1 from public.sniper_query_matches matched
-              where matched.listing_id = listing.id and not matched.is_seed and matched.query_id <> p_query_id);
     end if;
     -- Eine Oberkategorie ist keine bekannte Blattkategorie für Preisvergleiche.
     if exists (select 1 from public.vinted_categories where id = v_query.catalog_id and is_leaf) then
         perform public.record_sniper_listing_category(p_query_id, v_external_ids);
     end if;
-    v_hits := public.sniper_evaluate_watchlist_hits(p_query_id, not v_seed);
     if v_seed then v_query.seeded_requests := array_append(v_query.seeded_requests, v_index); end if;
     update public.sniper_queries set seeded_requests = v_query.seeded_requests,
         newest_external_id = greatest(v_query.newest_external_id, v_newest),
@@ -434,7 +424,7 @@ begin
         shared_filter_count = coalesce((p_diagnostics->>'shared_filter_count')::integer, 1),
         updated_at = now() where id = p_query_id;
     perform set_config('flipbase.sniper_run', '', true);
-    return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed, 'hits', v_hits);
+    return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed, 'hits', 0);
 end;
 $$;
 revoke all on function public.complete_sniper_search_filter_run(uuid,integer,integer,jsonb,jsonb) from public, anon, authenticated;
