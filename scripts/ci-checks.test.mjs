@@ -221,7 +221,7 @@ test('Quality entfernt geerbte PG-Verbindungen und aktiviert keine Release-Daten
       return child;
     },
   });
-  assert.equal(environments.length, 5);
+  assert.equal(environments.length, 6);
   for (const env of environments) {
     assert.equal(
       Object.keys(env).some((key) => /^PG/iu.test(key)),
@@ -237,6 +237,7 @@ test('leichte Qualität bleibt ohne Workflowinfrastruktur; vollständige Qualit�
   assert.deepEqual(
     lightweight.map(({ args }) => args),
     [
+      ['run', 'lockfile:check'],
       ['run', 'format:check'],
       ['run', 'lint'],
       ['run', 'typecheck'],
