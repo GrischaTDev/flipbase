@@ -30,8 +30,9 @@
 
     @if (salePlatforms.error()) {
       <div role="status" class="flex flex-wrap items-center gap-2 text-sm text-fb-critical">
-        <span>{{ salePlatforms.error() }}</span
-        ><app-button (clicked)="salePlatforms.reload()">Erneut laden</app-button>
+        <span>{{ salePlatforms.error() }}</span><app-button (clicked)="salePlatforms.reload()"
+          >Erneut laden</app-button
+        >
       </div>
     }
     <section aria-label="Kennzahlen">

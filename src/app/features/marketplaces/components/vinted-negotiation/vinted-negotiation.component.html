@@ -325,8 +325,7 @@
                     stepIndex === 0
                       ? 'Wartezeit für die erste Nachricht'
                       : 'Wartezeit für diese Folgenachricht'
-                  }}</label
-                ><app-number-input
+                  }}</label><app-number-input
                   [id]="'negotiation-step-delay-' + section.event + '-' + stepIndex"
                   [value]="delayAmount(step.controls.delaySeconds)"
                   (valueChange)="changeDelay(step.controls.delaySeconds, $event)"

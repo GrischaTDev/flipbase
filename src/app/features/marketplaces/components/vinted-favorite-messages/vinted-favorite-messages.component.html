@@ -319,8 +319,7 @@
     @for (event of settings()?.events ?? []; track event.id) {
       <div class="border-t border-fb-border-subtle py-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <strong class="text-[13px]">{{ event.title }}</strong
-          ><app-badge
+          <strong class="text-[13px]">{{ event.title }}</strong><app-badge
             [tone]="
               event.state === 'sent'
                 ? 'success'

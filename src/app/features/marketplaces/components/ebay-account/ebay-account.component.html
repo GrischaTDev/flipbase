@@ -343,14 +343,16 @@
                           [alt]="listing.title"
                         />
                         <div>
-                          <span class="block max-w-sm break-words">{{ listing.title }}</span
-                          ><span class="text-xs text-fb-text-muted">{{
-                            listing.listingType === 'Chinese'
-                              ? 'Auktion'
-                              : listing.listingType === 'FixedPriceItem'
-                                ? 'Festpreis'
-                                : 'eBay-Inserat'
-                          }}</span>
+                          <span class="block max-w-sm break-words">{{ listing.title }}</span><span
+                            class="text-xs text-fb-text-muted"
+                            >{{
+                              listing.listingType === 'Chinese'
+                                ? 'Auktion'
+                                : listing.listingType === 'FixedPriceItem'
+                                  ? 'Festpreis'
+                                  : 'eBay-Inserat'
+                            }}</span
+                          >
                           @if (listingMappingTitle(listing); as title) {
                             <span class="block text-xs text-fb-text-secondary"
                               >Bestand: {{ title }}</span
@@ -467,10 +469,10 @@
                       {{ order.currency ?? '' }}
                     </td>
                     <td class="px-4 py-3">
-                      <span class="block">{{ paymentLabel(order.paymentStatus) }}</span
-                      ><span class="block text-xs text-fb-text-muted">{{
-                        fulfillmentLabel(order.fulfillmentStatus)
-                      }}</span>
+                      <span class="block">{{ paymentLabel(order.paymentStatus) }}</span><span
+                        class="block text-xs text-fb-text-muted"
+                        >{{ fulfillmentLabel(order.fulfillmentStatus) }}</span
+                      >
                       @if (cancellationLabel(order.cancelStatus); as cancellation) {
                         <app-badge tone="caution">{{ cancellation }}</app-badge>
                       }
