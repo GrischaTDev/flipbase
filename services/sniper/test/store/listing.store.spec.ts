@@ -95,7 +95,6 @@ describe('atomic search filter ingestion HTTP contract', () => {
     expect(await store.completeRun([good, wrong], guardedQuery)).toEqual({
       accepted: true,
       created: 1,
-      hits: 0,
       seeded: false,
     });
     expect(requests).toHaveLength(1);
@@ -121,15 +120,13 @@ describe('atomic search filter ingestion HTTP contract', () => {
     expect((await store.completeRun([], guardedQuery)).seeded).toBe(true);
     expect(requests[0]?.body).toMatchObject({ p_listings: [] });
   });
-  it.each([
-    null,
-    {},
-    { accepted: true, created: -1, hits: 0, seeded: false },
-    { accepted: true, created: 0, hits: 0.5, seeded: false },
-  ])('rejects an invalid server result: %j', async (body) => {
-    const { store } = storeWithResponses([{ body }]);
-    await expect(store.completeRun([], guardedQuery)).rejects.toThrow(
-      'Invalid search filter completion response',
-    );
-  });
+  it.each([null, {}, { accepted: true, created: -1, hits: 0, seeded: false }])(
+    'rejects an invalid server result: %j',
+    async (body) => {
+      const { store } = storeWithResponses([{ body }]);
+      await expect(store.completeRun([], guardedQuery)).rejects.toThrow(
+        'Invalid search filter completion response',
+      );
+    },
+  );
 });

@@ -44,11 +44,6 @@ revoke all on sequence public.sniper_query_matches_id_seq from public, anon, aut
 grant usage, select on sequence public.sniper_query_matches_id_seq to service_role;
 create policy "Administration liest Filterzuordnungen" on public.sniper_query_matches
     for select to authenticated using ((select public.is_platform_operator()));
-create policy "Abonnenten lesen Filterzuordnungen" on public.sniper_query_matches
-    for select to authenticated using (exists (
-        select 1 from public.sniper_query_subscriptions subscription
-        where subscription.query_id = sniper_query_matches.query_id
-          and public.is_workspace_member(subscription.workspace_id)));
 
 -- Zentrale Suchfilter: vollständige Bedingungen, optimistische Bearbeitung und
 -- atomare Übernahme eines einzelnen budgetierten Teilabrufs. Keine Produktivdatenänderung.
@@ -383,11 +378,11 @@ begin
         insert into public.sniper_listings(marketplace, external_id, title, url, description, image_urls,
             item_price, total_price, currency, brand, size, condition, country_code, seller_name,
             seller_avatar_url, seller_rating, seller_review_count, is_hidden, item_updated_at,
-            photo_uploaded_at, discovered_by_query_id, watchlist_evaluated_at, is_initial_stock)
+            photo_uploaded_at, discovered_by_query_id, is_initial_stock)
         select v_query.marketplace, item.external_id, item.title, item.url, item.description, coalesce(item.image_urls, '{}'),
             item.item_price, item.total_price, item.currency, item.brand, item.size, item.condition,
             item.country_code, item.seller_name, item.seller_avatar_url, item.seller_rating, item.seller_review_count,
-            coalesce(item.is_hidden, false), item.item_updated_at, item.photo_uploaded_at, p_query_id, case when v_seed then now() end, v_seed
+            coalesce(item.is_hidden, false), item.item_updated_at, item.photo_uploaded_at, p_query_id, v_seed
         from jsonb_to_recordset(p_listings) item(external_id text, title text, url text, description text, image_urls text[],
             item_price numeric, total_price numeric, currency text, brand text, size text, condition text,
             country_code text, seller_name text, seller_avatar_url text, seller_rating numeric,
@@ -424,6 +419,7 @@ begin
         shared_filter_count = coalesce((p_diagnostics->>'shared_filter_count')::integer, 1),
         updated_at = now() where id = p_query_id;
     perform set_config('flipbase.sniper_run', '', true);
+    -- 'hits' bleibt mit 0 erhalten, solange ein älterer Dienst während einer Auslieferung die Antwort prüft.
     return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed, 'hits', 0);
 end;
 $$;
@@ -490,59 +486,6 @@ returns boolean language sql stable security invoker set search_path = '' as $$
 $$;
 revoke all on function public.sniper_watchlist_matches(public.sniper_watchlists,public.sniper_listings) from public, anon, authenticated;
 grant execute on function public.sniper_watchlist_matches(public.sniper_watchlists,public.sniper_listings) to service_role;
-
-create or replace function public.sniper_evaluate_watchlist_hits(p_query_id uuid, p_report_hits boolean default true)
-returns integer language plpgsql security invoker set search_path = '' as $$
-declare v_created integer;
-begin
-    if not p_report_hits then
-        update public.sniper_listings set watchlist_evaluated_at = now()
-        where watchlist_evaluated_at is null and exists (
-            select 1 from public.sniper_queries query where query.id = p_query_id and (
-                query.filter_format_version = 0 or exists (
-                    select 1 from public.sniper_query_matches matched where matched.query_id = p_query_id
-                        and matched.listing_id = sniper_listings.id and matched.is_seed)))
-          and discovered_by_query_id = p_query_id;
-        return 0;
-    end if;
-    with pending as materialized (
-        select listing.* from public.sniper_listings as listing
-        where (listing.discovered_by_query_id = p_query_id or listing.catalog_source_query_id = p_query_id
-            or exists (select 1 from public.sniper_query_matches matched
-                where matched.query_id = p_query_id and matched.listing_id = listing.id and not matched.is_seed))
-          and listing.watchlist_evaluated_at is null
-          and listing.currency = 'EUR' and listing.item_price > 0 and listing.item_price < 'Infinity'::numeric
-    ), groups as (
-        select distinct catalog_id, lower(btrim(brand)) as brand, condition from pending
-    ), benchmarks as materialized (
-        select groups.*, reference.reference_price, reference.reference_scope
-        from groups cross join lateral public.sniper_reference_price(groups.catalog_id, groups.brand, groups.condition) as reference
-        where reference.reference_price > 0
-    ), evaluated as materialized (
-        select pending.*, benchmarks.reference_price, benchmarks.reference_scope
-        from pending join benchmarks on benchmarks.catalog_id = pending.catalog_id
-            and benchmarks.brand is not distinct from lower(btrim(pending.brand))
-            and benchmarks.condition is not distinct from pending.condition
-    ), inserted as (
-        insert into public.sniper_watchlist_hits(watchlist_id, listing_id, reference_price, reference_scope, discount_percent)
-        select watchlist.id, listing.id, evaluated.reference_price, evaluated.reference_scope,
-            round((1 - listing.item_price / evaluated.reference_price) * 100, 2)
-        from evaluated join public.sniper_listings as listing on listing.id = evaluated.id
-        join public.sniper_watchlists as watchlist on watchlist.is_active
-            and listing.first_seen_at >= watchlist.starts_at
-            and public.sniper_watchlist_matches(watchlist, listing)
-        where listing.item_price <= evaluated.reference_price * (1 - watchlist.discount_threshold_percent / 100)
-        on conflict (watchlist_id, listing_id) do nothing returning 1
-    ), marked as (
-        update public.sniper_listings set watchlist_evaluated_at = now()
-        where id in (select id from evaluated) returning 1
-    ) select count(*)::integer into v_created from inserted;
-    return v_created;
-end;
-$$;
-revoke all on function public.sniper_evaluate_watchlist_hits(uuid,boolean) from public, anon, authenticated;
-grant execute on function public.sniper_evaluate_watchlist_hits(uuid,boolean) to service_role;
-
 create or replace function public.sniper_query_listing_counts()
 returns table (query_id uuid, listing_count bigint)
 language plpgsql stable security definer set search_path = '' as $$

@@ -1,8 +1,5 @@
 <div class="mx-auto flex flex-col gap-6">
-  <app-page-header
-    title="Suchfilter"
-    subtitle="Suchkriterien und automatische Deal-Erkennung für den Vinted-Bot verwalten"
-  >
+  <app-page-header title="Suchfilter" subtitle="Suchkriterien für den Vinted-Bot verwalten">
     <div header-actions data-new-filter>
       <app-button
         [icon]="icons.plus"
@@ -127,12 +124,6 @@
                   }}
                 </dd>
               </div>
-              <div class="flex justify-between">
-                <dt class="text-fb-text-muted">Deal-Schwelle:</dt>
-                <dd class="font-medium text-fb-text-primary">
-                  {{ row.discount_threshold_percent | number: '1.0-0' }} % unter Referenzpreis
-                </dd>
-              </div>
             </dl>
           </div>
 
@@ -181,7 +172,7 @@
         <h3 class="text-lg font-semibold text-fb-text-primary">Noch keine Suchfilter angelegt</h3>
         <p class="max-w-md text-sm text-fb-text-secondary">
           Lege Suchfilter an, um gezielt nach Marken, Kategorien oder Suchbegriffen zu suchen. Der
-          Vinted-Bot überwacht Angebote automatisch und erkennt Deals.
+          Vinted-Bot überwacht Angebote automatisch.
         </p>
       </div>
       <app-button [disabled]="!workspace() || editorOpen() || saving()" (clicked)="openEditor()">

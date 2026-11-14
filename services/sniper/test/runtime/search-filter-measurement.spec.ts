@@ -204,7 +204,7 @@ async function measure(
         const current = queries.find((q) => q.id === snapshot.id)!;
         current.requestCursor = (current.requestCursor ?? 0) + 1;
         current.lastPolledAt = new Date(EPOCH + clock).toISOString();
-        return { accepted: true, created: listings.length, seeded: false, hits: 0 };
+        return { accepted: true, created: listings.length, seeded: false };
       },
     },
   });
@@ -438,7 +438,7 @@ describe('local search filter capacity measurement', () => {
         },
         listings: {
           saveNew: async () => [],
-          completeRun: async () => ({ accepted: true, created: 0, seeded: false, hits: 0 }),
+          completeRun: async () => ({ accepted: true, created: 0, seeded: false }),
         },
       });
       expect((await scheduler.runOnce(new Date(EPOCH + clock))).failed).toBe(1);
@@ -529,7 +529,7 @@ describe('local search filter capacity measurement', () => {
               current.filterRevision === snapshot.filterRevision;
             if (!accepted) staleSubmittedAt = clock;
             else current.lastPolledAt = new Date(EPOCH + clock).toISOString();
-            return { accepted, created: accepted ? 1 : 0, seeded: false, hits: 0 };
+            return { accepted, created: accepted ? 1 : 0, seeded: false };
           },
         },
       });
@@ -625,7 +625,7 @@ describe('local search filter capacity measurement', () => {
               ),
             ).toBe(true);
             assignments++;
-            return { accepted: true, created: 0, seeded: false, hits: 0 };
+            return { accepted: true, created: 0, seeded: false };
           },
         },
       });

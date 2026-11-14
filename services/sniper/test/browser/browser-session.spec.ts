@@ -115,7 +115,6 @@ function setup() {
             behavior.accepted && query.isActive && captured.filterRevision === query.filterRevision,
           created: 0,
           seeded: false,
-          hits: 0,
         };
       },
     },

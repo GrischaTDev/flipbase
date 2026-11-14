@@ -89,21 +89,7 @@
               {{ item().item_price | currency: item().currency }}
             </p>
           </div>
-          @if (item().discount_percent !== null) {
-            <app-badge tone="success">
-              {{ item().discount_percent | number: '1.0-1' }} % günstiger
-            </app-badge>
-          }
         </div>
-
-        @if (item().reference_price !== null) {
-          <div class="border-t border-fb-line pt-2 text-xs text-fb-text-secondary">
-            <p class="font-medium text-fb-text-primary">
-              Vergleichswert: {{ item().reference_price | currency: 'EUR' }}
-            </p>
-            <p class="mt-0.5 text-fb-text-muted">Basis: {{ referenceLabel() }}</p>
-          </div>
-        }
       </div>
 
       <!-- Attributes list -->
@@ -143,18 +129,6 @@
               <span>Größe</span>
             </dt>
             <dd class="font-medium text-fb-text-primary">{{ item().size }}</dd>
-          </div>
-        }
-
-        @if (item().watchlist_title) {
-          <div class="flex items-center justify-between px-3.5 py-2.5">
-            <dt class="text-fb-text-secondary">Suchfilter</dt>
-            <dd
-              class="truncate text-right font-medium text-fb-text-primary"
-              [title]="item().watchlist_title"
-            >
-              {{ item().watchlist_title }}
-            </dd>
           </div>
         }
 

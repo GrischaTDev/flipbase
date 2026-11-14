@@ -23,10 +23,6 @@ const item = (id: string): FeedItem => ({
   first_seen_at: '2026-09-12T12:00:00Z',
   catalog_id: 1,
   category_path: 'Schuhe',
-  reference_price: null,
-  reference_scope: null,
-  discount_percent: null,
-  watchlist_title: null,
 });
 const page = (items: FeedItem[]): FeedPage => ({
   items,

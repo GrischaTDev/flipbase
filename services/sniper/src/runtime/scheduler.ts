@@ -112,7 +112,6 @@ export interface CycleReport {
   newListings: number;
   seeded: number;
   failed: number;
-  newHits: number;
   originPause?: { reason: string; until: string | null };
 }
 
@@ -157,7 +156,6 @@ export class QueryScheduler {
       newListings: 0,
       seeded: 0,
       failed: 0,
-      newHits: 0,
     };
 
     const origin = this.origin;
@@ -289,7 +287,6 @@ export class QueryScheduler {
       seeded: report.seeded,
       failed: report.failed,
       skipped: report.skippedForBudget,
-      newHits: report.newHits,
       budget: this.deps.budget.usageRatio().toFixed(2),
     });
 
@@ -325,7 +322,6 @@ export class QueryScheduler {
       const completed = await completeRun.call(this.deps.listings, listings, query);
       report.polled += 1;
       if (completed.accepted) {
-        report.newHits += completed.hits;
         if (completed.seeded) report.seeded += 1;
         else report.newListings += completed.created;
       } else {
@@ -562,7 +558,6 @@ export class QueryScheduler {
         report.polled += 1;
         if (completed.accepted) {
           accepted = true;
-          report.newHits += completed.hits;
           if (completed.seeded) report.seeded += 1;
           else report.newListings += completed.created;
           // Jede Revision und Teilabfrage behält ihren eigenen bestätigten Stand.
@@ -598,7 +593,6 @@ export class QueryScheduler {
       seeded: report.seeded,
       failed: report.failed,
       skipped: report.skippedForBudget,
-      newHits: report.newHits,
       sharedFilters: plan.consumers.length,
       sourcePages: page,
       coverage: [...new Set([...windows.values()].map((window) => window.coverage))].join(','),

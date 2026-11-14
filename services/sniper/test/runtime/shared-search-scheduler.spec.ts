@@ -21,7 +21,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: {
@@ -50,7 +49,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const collectSource = vi.fn<NonNullable<CollectorLike['collectSource']>>(
       async (_query, options) => {
@@ -95,7 +93,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [searchFilter()], markSeeded: async () => undefined },
@@ -138,7 +135,7 @@ describe('bounded shared search scheduling', () => {
         async (_listings, query) => {
           if (scenario === 'failed storage' && round === 1 && query.id === b.id)
             throw new Error('temporary storage failure');
-          return { accepted: true, created: 0, seeded: false, hits: 0 };
+          return { accepted: true, created: 0, seeded: false };
         },
       );
       const scheduler = new QueryScheduler({
@@ -181,7 +178,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: true,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [query], markSeeded: async () => undefined },
@@ -208,7 +204,7 @@ describe('bounded shared search scheduling', () => {
     };
     const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => {
       if (round === 1) throw new Error('storage unavailable');
-      return { accepted: true, created: 0, seeded: false, hits: 0 };
+      return { accepted: true, created: 0, seeded: false };
     });
     const scheduler = new QueryScheduler({
       queries: {
@@ -316,7 +312,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [first, second], markSeeded: async () => undefined },
@@ -356,7 +351,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const collectSource = vi.fn<NonNullable<CollectorLike['collectSource']>>(
       async (_query, options) => {
@@ -405,7 +399,6 @@ describe('bounded shared search scheduling', () => {
         accepted: true,
         created: 0,
         seeded: false,
-        hits: 0,
       }));
       const scheduler = new QueryScheduler({
         queries: { dueQueries: async () => queries, markSeeded: async () => undefined },
@@ -443,7 +436,7 @@ describe('bounded shared search scheduling', () => {
       now: () => NOW,
       listings: {
         saveNew: vi.fn(),
-        completeRun: async () => ({ accepted: true, created: 0, seeded: false, hits: 0 }),
+        completeRun: async () => ({ accepted: true, created: 0, seeded: false }),
       },
     });
     expect((await scheduler.runOnce(NOW)).polled).toBe(1);
@@ -482,7 +475,6 @@ describe('bounded shared search scheduling', () => {
       accepted: false,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [searchFilter()], markSeeded: async () => undefined },
@@ -492,7 +484,7 @@ describe('bounded shared search scheduling', () => {
       log,
       now: () => NOW,
     });
-    expect(await scheduler.runOnce(NOW)).toMatchObject({ polled: 1, newListings: 0, newHits: 0 });
+    expect(await scheduler.runOnce(NOW)).toMatchObject({ polled: 1, newListings: 0 });
   });
   it('catches up at most three pages and reports an unconfirmed window honestly', async () => {
     let round = 0;
@@ -506,7 +498,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [searchFilter()], markSeeded: async () => undefined },
@@ -536,7 +527,6 @@ describe('bounded shared search scheduling', () => {
       accepted: true,
       created: 0,
       seeded: false,
-      hits: 0,
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [searchFilter()], markSeeded: async () => undefined },

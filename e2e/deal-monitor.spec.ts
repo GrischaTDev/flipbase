@@ -32,10 +32,6 @@ const makeItem = (i: number) => ({
   first_seen_at: new Date(Date.now() - i * 1000).toISOString(),
   catalog_id: 1049,
   category_path: 'Herren > Schuhe > Sneaker',
-  reference_price: i === 1 ? 60 : null,
-  reference_scope: i === 1 ? 'category_brand_condition' : null,
-  discount_percent: i === 1 ? 68.33 : null,
-  watchlist_title: i === 1 ? 'Meine Sneaker' : null,
 });
 
 type FavoriteFixtureStore = Map<string, Record<string, unknown> | null>;
@@ -747,7 +743,6 @@ async function fixture(
         price_from: body['p_price_from'],
         price_to: body['p_price_to'],
         condition: body['p_condition'],
-        discount_threshold_percent: body['p_discount_threshold_percent'],
         is_active: body['p_is_active'],
         legacy_brand_id: null,
       };

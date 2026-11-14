@@ -69,7 +69,6 @@ select is((public.complete_sniper_search_filter_run((select id from public.snipe
 select is((select filter_revision from public.sniper_queries where title='TEST category'),2,'Betriebsupdate verändert die Formularrevision nicht');
 select is((select request_cursor from public.sniper_queries where title='TEST category'),1,'Cursor ist eine fortlaufende Abrufnummer, nicht nur eine wiederholbare Position');
 select is((select is_seeded from public.sniper_queries where title='TEST category'),true,'Einziger Teilabruf ist eingelesen');
-select ok((select watchlist_evaluated_at is not null from public.sniper_listings where external_id='filter-article-1'),'Erster Einleselauf bleibt stumm');
 select is((select catalog_id from public.sniper_listings where external_id='filter-article-1'),9100002,'Blattkategorie wird dem Fund zugeordnet');
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='TEST category'),2,0,'[]')->>'accepted')::boolean,false,'Wiederholte Antwort desselben Teilabrufs wird auch bei einer einzigen Marke verworfen');
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='TEST rotating'),2,0,

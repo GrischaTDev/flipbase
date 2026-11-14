@@ -200,10 +200,7 @@
         >
       }
       @if (selectedWatchlist()?.is_active === false) {
-        <p class="text-sm">
-          Dieser Suchfilter ist pausiert. Er erzeugt keine neuen Deals; der Artikelbestand bleibt
-          sichtbar.
-        </p>
+        <p class="text-sm">Dieser Suchfilter ist pausiert. Der Artikelbestand bleibt sichtbar.</p>
       }
       @if (state.newCount() > 0) {
         <app-card variant="subtle"

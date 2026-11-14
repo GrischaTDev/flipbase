@@ -121,7 +121,6 @@ describe('DealFiltersComponent', () => {
         price_from: null,
         price_to: 45,
         condition: null,
-        discount_threshold_percent: 40,
         is_active: true,
         legacy_brand_id: null,
       },
@@ -206,7 +205,6 @@ describe('DealFiltersComponent', () => {
       price_from: null,
       price_to: 45,
       condition: null,
-      discount_threshold_percent: 40,
       is_active: true,
       legacy_brand_id: null,
     };
@@ -227,7 +225,6 @@ describe('DealFiltersComponent', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.textContent).toContain('Suchfilter');
     expect(root.textContent).toContain('Vintage Sweatshirts');
-    expect(root.textContent).toContain('40 % unter Referenzpreis');
   });
 
   it('renders a loading state instead of the empty state', () => {

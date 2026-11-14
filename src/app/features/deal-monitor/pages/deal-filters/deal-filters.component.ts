@@ -11,7 +11,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import {
   LucideAlertCircle,
   LucideCheckCircle2,
@@ -36,7 +36,6 @@ import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monit
   selector: 'app-deal-filters',
   imports: [
     CurrencyPipe,
-    DecimalPipe,
     PageHeaderComponent,
     ButtonComponent,
     CardComponent,

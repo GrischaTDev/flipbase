@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-14 - Juna - Verworfene Deal-Erkennung des Snipers vollständig entfernen
+
+**Anlass:** Zweiter Teil der vom Nutzer verlangten Bereinigung. PR 635 hatte die Bewertung nur abgeschaltet; Tabellen, Spalten, Funktionen, Feed-Felder und die Anzeige bestanden weiter.
+
+**Bestand vor der Änderung (lesend am Server, 14.11.2026):** `sniper_query_subscriptions` und `sniper_hits` leer, `sniper_watchlist_hits` mit 35 Zeilen, 4 Suchfilter-Karten, 3 Favoriten. Die Oberfläche ruft nur `sniper_feed_search`, `sniper_supported_brands` sowie Speichern und Löschen der Suchfilter-Karten auf.
+
+**Datenbank (Migration `20261114150000_sniper_remove_deal_detection.sql`):** Entfernt die Tabellen `sniper_watchlist_hits`, `sniper_hits`, `sniper_query_subscriptions`, die Spalten `sniper_listings.evaluated_at`/`watchlist_evaluated_at` und `sniper_watchlists.discount_threshold_percent`/`starts_at`, drei Teilindizes, die Bewertungs- und Referenzpreisfunktionen, `create_sniper_subscription` sowie die abgelösten Feed-Fassungen `sniper_feed`, `sniper_feed_by_brand`, `sniper_feed_filtered`. Die beiden Leserichtlinien über Abonnements auf `sniper_queries` und `sniper_query_matches` entfallen; die Administration liest weiter über ihre eigenen Richtlinien. `save_sniper_watchlist` verliert den Parameter für die Rabattschwelle, `sniper_feed_search` und die Favoriten-Normalisierung liefern keine Deal-Angaben mehr, gespeicherte Favoriten verlieren die mitkopierten Deal-Angaben. Die Migration holt alle Tabellensperren vorab gemeinsam ohne Warten und wiederholt bis zu 120 Sekunden, damit sie nicht wie am 31.10.2026 mit laufenden Abrufen verklemmt.
+
+**Bewusst belassen:** `complete_sniper_search_filter_run` liefert weiterhin `hits: 0`. Die Auslieferung spielt Migrationen vor dem neuen Dienst ein; der dann noch laufende ältere Dienst verwirft Antworten ohne dieses Feld. Der neue Dienst liest es nicht mehr.
+
+**Dienst und Oberfläche:** Der Sniper führt keinen Trefferzähler mehr (`hits`, `newHits`). In der Oberfläche entfallen die Rabattschwelle im Editor und in der Filterliste, Preisvorteil, Vergleichswert und Suchfilter-Zeile in Karte und Detailfenster sowie die zugehörigen Modellfelder; vier Texte mit Deal-Bezug sind angepasst. Die Typdatei enthält nur die Löschungen dieser Änderung; eine vorbestehende fachfremde Abweichung zur erzeugten Fassung bleibt unberührt.
+
+**Tests:** Sechs reine Deal-Tests (`deal_monitor_*`) gelöscht, der Aufbewahrungstest heißt jetzt `sniper_listing_retention.sql`. Die Tests der alten Feed-Fassungen prüfen dieselben Fälle an `sniper_feed_search`. Neu geprüft wird, dass Tabellen, Funktionen und Spalten der Deal-Erkennung nicht mehr bestehen und Favoriten keine Deal-Angaben speichern.
+
+**Prüfstand:** Eigene lokale Datenbank (`flipbase-deal-remnants`, verschobene Ports): alle Migrationen einschließlich der neuen laufen durch; die gesamte SQL-Suite besteht (150 Dateien, 5.677 Fälle; ein Sicherheitstest rief die Speicherfunktion noch mit Rabattschwelle auf und ist angepasst). Die Sperrschleife wartete lokal bei gleichzeitig gehaltener Sperre 14 Versuche und hielt danach alle Sperren. `npm run typecheck` und `npm test` im Sniper bestehen (482 Fälle, 7 unter Windows deaktiviert). Mit Node 22.23.5 bestehen `npm run preflight:plan` und `npm run preflight` im umfassenden Umfang (Format, Lint, Typen, Suite-Audit, Skriptverträge, node-, dom- und Angular-Tests, Anwendungsbau). Browsertests, Sniper-Image und Migrationen in isoliertem PostgreSQL bleiben CI-Nachweis.
+
+**Folge für die Bedienung, noch offen:** Das Pausieren einer Suchfilter-Karte hat fachlich keine Wirkung mehr, weil es nur neue Deals verhinderte; die Karte filtert die Artikelansicht weiterhin. Ob der Schalter bleibt, ist eine Nutzerentscheidung.
+
 ## 2026-11-14 - Juna - Abruf des Vinted-Preisvergleichs beschleunigen
 
 **Anlass:** Nach dem Abschalten der alten Deal-Erkennung (PR 635) war `claim_vinted_comparison_task` mit 81 % der verbliebenen Abfragezeit der größte Verbraucher der Datenbank.

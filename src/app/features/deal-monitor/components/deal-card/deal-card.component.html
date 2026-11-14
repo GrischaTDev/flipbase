@@ -99,16 +99,6 @@
             </dd>
           </div>
         }
-        @if (item().discount_percent !== null) {
-          <div>
-            <dt class="sr-only">Preisvorteil:</dt>
-            <dd>
-              <app-badge tone="success" size="sm">
-                {{ item().discount_percent | number: '1.0-1' }} % günstiger
-              </app-badge>
-            </dd>
-          </div>
-        }
       </dl>
 
       <div class="mt-auto flex flex-wrap items-center justify-between gap-2">

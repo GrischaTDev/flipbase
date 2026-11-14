@@ -57,10 +57,6 @@ export class WatchlistEditorComponent {
       Validators.min(0),
       Validators.max(9999999999.99),
     ]),
-    discount_threshold_percent: new FormControl(40, {
-      nonNullable: true,
-      validators: [Validators.min(0.01), Validators.max(99.99)],
-    }),
   });
   private readonly selectedCategory = toSignal(this.form.controls.catalog_id.valueChanges, {
     initialValue: null,
@@ -95,7 +91,6 @@ export class WatchlistEditorComponent {
         condition: row?.condition ?? '',
         price_from: row?.price_from ?? null,
         price_to: row?.price_to ?? null,
-        discount_threshold_percent: row?.discount_threshold_percent ?? 40,
       });
     });
     afterNextRender(() =>

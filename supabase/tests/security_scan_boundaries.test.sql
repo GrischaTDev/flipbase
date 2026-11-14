@@ -57,7 +57,7 @@ select lives_ok($$update public.sniper_watchlists set is_active=true where title
 select lives_ok($$insert into public.sniper_watchlists(workspace_id,title) values ('98000000-0000-4000-8000-000000000004','Other workspace')$$,'Kontingente sind pro Arbeitsbereich');
 select set_config('request.jwt.claim.sub','98000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
-select throws_ok($$select public.save_sniper_watchlist('98000000-0000-4000-8000-000000000003',null,'RPC bypass',null,null,null,null,null,null,40,false)$$,'54000',null,'Authentifizierte RPC kann das Gesamtkontingent nicht umgehen');
+select throws_ok($$select public.save_sniper_watchlist('98000000-0000-4000-8000-000000000003',null,'RPC bypass',null,null,null,null,null,null,false)$$,'54000',null,'Authentifizierte RPC kann das Gesamtkontingent nicht umgehen');
 reset role;
 
 insert into public.beta_discord_links(auth_user_id,discord_user_id,role_assigned_at) values ('98000000-0000-4000-8000-000000000001','discord-a',null);
