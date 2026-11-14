@@ -1,8 +1,9 @@
 <section aria-label="eBay-Verkäufe zu prüfen" class="space-y-4">
   @if (activity.error(); as error) {
     <div role="status" class="flex flex-wrap items-center gap-2 text-sm">
-      <span>{{ error }}</span
-      ><app-button [loading]="activity.loading()" (clicked)="activity.reload()"
+      <span>{{ error }}</span><app-button
+        [loading]="activity.loading()"
+        (clicked)="activity.reload()"
         >Erneut laden</app-button
       >
     </div>
@@ -41,8 +42,7 @@
                       <div>
                         <span class="block">{{
                           draft.source.lines[0]?.title ?? 'eBay-Bestellung'
-                        }}</span
-                        ><span class="block text-xs text-fb-text-secondary"
+                        }}</span><span class="block text-xs text-fb-text-secondary"
                           >{{ draft.orderId }} ·
                           {{ draft.source.createdAt | date: 'dd.MM.yyyy' }}</span
                         >

@@ -48,8 +48,7 @@
   }
   @if (state.error(); as text) {
     <div role="alert" class="flex flex-wrap items-center gap-2 text-sm">
-      <span>{{ text }}</span
-      ><app-button (clicked)="state.refresh()">Erneut laden</app-button>
+      <span>{{ text }}</span><app-button (clicked)="state.refresh()">Erneut laden</app-button>
     </div>
   }
   @if (error(); as text) {
@@ -248,8 +247,7 @@
         [icon]="query.is_active ? pauseIcon : activateIcon"
         [disabled]="isSaving()"
         (clicked)="toggle(query)"
-        >{{ query.is_active ? 'Pausieren' : 'Aktivieren' }}</app-button
-      ><app-button
+        >{{ query.is_active ? 'Pausieren' : 'Aktivieren' }}</app-button><app-button
         variant="primary"
         [icon]="editIcon"
         [disabled]="isSaving()"

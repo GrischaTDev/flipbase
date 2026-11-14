@@ -433,8 +433,9 @@
                           class="font-sans text-fb-text-primary hover:underline"
                           >Einkauf öffnen</a
                         >
-                        <span class="font-sans">{{ lot.receivedAt | date: 'dd.MM.yyyy' }}</span
-                        ><span class="text-right">{{ lot.remainingQuantity }} Stück</span
+                        <span class="font-sans">{{
+                          lot.receivedAt | date: 'dd.MM.yyyy'
+                        }}</span><span class="text-right">{{ lot.remainingQuantity }} Stück</span
                         ><span class="text-right"
                           ><app-cost-state [state]="lot.costPerUnit"
                         /></span>
