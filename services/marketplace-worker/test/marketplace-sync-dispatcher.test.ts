@@ -816,3 +816,64 @@ test('the operator switch stops new claims but keeps the worker runtime alive', 
   assert.equal(calls.filter((call) => call === 'claim').length, 1);
   await dispatcher.drain();
 });
+
+test('parallel worker fills two slots, keeps heartbeat live and drains before release', async () => {
+  const events: string[] = [],
+    gates = [pending<void>(), pending<void>(), pending<void>()];
+  let next = 0,
+    limit = 2;
+  const dispatcher = new MarketplaceSyncDispatcher<number>({
+    workerId,
+    now: () => Date.parse('2026-10-01T12:00:00Z'),
+    maxJobsPerPoll: 32,
+    parallelism: () => limit,
+    store: {
+      acquireWorker: async () => ({ workerId, workerEpoch: 1, expiresAt: '2026-10-01T12:01:30Z' }),
+      heartbeatWorker: async () => {
+        events.push('heartbeat');
+        return true;
+      },
+      releaseWorker: async () => {
+        events.push('release');
+        return true;
+      },
+      recover: async () => ({ interruptedOperations: 0 }),
+      claim: async () => {
+        throw new Error('legacy claim forbidden');
+      },
+    },
+    work: {
+      claim: async () => (next < 3 ? next++ : null),
+      run: async (id) => {
+        events.push('start' + id);
+        await gates[id]!.promise;
+        events.push('end' + id);
+      },
+    },
+    run: async () => {
+      throw new Error('legacy runner forbidden');
+    },
+    onRuntimeLost: () => {
+      events.push('lost');
+    },
+  });
+  await dispatcher.initialize();
+  await dispatcher.poll();
+  assert.deepEqual(events, ['start0', 'start1']);
+  assert.equal(next, 2);
+  assert.equal(await dispatcher.heartbeat(), true);
+  limit = 1;
+  gates[0]!.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(next, 2);
+  gates[1]!.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(next, 3);
+  const release = dispatcher.release();
+  await Promise.resolve();
+  assert.equal(events.includes('release'), false);
+  gates[2]!.resolve();
+  await release;
+  assert.equal(events.at(-1), 'release');
+  assert.equal(events.includes('lost'), false);
+});

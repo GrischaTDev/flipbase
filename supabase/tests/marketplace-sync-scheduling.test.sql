@@ -5,7 +5,7 @@ select no_plan();
 select has_table('public','marketplace_sync_schedules','Zeitpläne sind dauerhaft');
 select has_table('public','marketplace_worker_runtime','Runtime ist dauerhaft exklusiv');
 select has_function('public','marketplace_worker_claim',array['uuid'],'Worker beansprucht Singleton vor Recovery');
-select has_function('public','marketplace_sync_dispatch_claim',array['uuid','bigint','uuid','boolean'],'Dispatcher reserviert Browser atomar');
+select has_function('public','marketplace_sync_dispatch_claim',array['uuid','bigint','uuid','boolean','uuid'],'Dispatcher reserviert Browser atomar');
 
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
  ('31000000-0000-4000-8000-000000000001','authenticated','authenticated','schedule-owner@example.test','{}','{}'),
@@ -36,7 +36,7 @@ create function pg_temp.snapshot() returns jsonb language sql as $$
 $$;
 select ok(not has_table_privilege('authenticated','public.marketplace_sync_schedules','insert'),'Zeitpläne nicht direkt fälschbar');
 select ok(not has_table_privilege('authenticated','public.marketplace_worker_runtime','select'),'Runtime bleibt intern');
-select ok(not has_function_privilege('authenticated','public.marketplace_sync_dispatch_claim(uuid,bigint,uuid,boolean)','execute'),'Browser darf keine Serverfreigabe claimen');
+select ok(not has_function_privilege('authenticated','public.marketplace_sync_dispatch_claim(uuid,bigint,uuid,boolean,uuid)','execute'),'Browser darf keine Serverfreigabe claimen');
 select ok(not has_function_privilege('anon','public.marketplace_set_sync_schedule(uuid,uuid,boolean,integer,bigint)','execute'),'Anonyme Freigabe gesperrt');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"31000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
@@ -53,7 +53,9 @@ set local role service_role;
 -- Kein Nutzer-JWT ist für einen bereits autorisierten Leseauftrag nötig.
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 select is(public.marketplace_worker_claim('31000000-0000-4000-8000-000000000041')->>'workerEpoch','1','Erster Worker besitzt Epoch 1');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select is(public.marketplace_worker_claim('31000000-0000-4000-8000-000000000042'),null::jsonb,'Zweiter Prozess übernimmt kein gültiges Lebenszeichen');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 insert into schedule_context values('run',pg_temp.claim());
 select is((select value->>'authorizationKind' from schedule_context where name='run'),'manual_read','Wartende manuelle Aktion hat Vorrang');
 select is(pg_temp.check_run()->>'active','true','Autorisiertes Lesen funktioniert ohne Nutzer-JWT');
@@ -92,6 +94,7 @@ select is((select authorization_version::int from public.marketplace_sync_schedu
 update public.marketplace_worker_runtime set expires_at=clock_timestamp()-interval '1 second';
 set local role service_role;
 select is(public.marketplace_worker_claim('31000000-0000-4000-8000-000000000042')->>'workerEpoch','2','Neustart erhält neue Sperrversion');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select is(public.marketplace_worker_heartbeat('31000000-0000-4000-8000-000000000041',1)->>'active','false','Alter Prozess kann sein Lebenszeichen nicht erneuern');
 select is(public.marketplace_sync_recover('31000000-0000-4000-8000-000000000042',2)->>'interruptedOperations','0','Recovery lässt abgeschlossene Aufträge bestehen');
 select throws_ok($$select public.marketplace_sync_recover('31000000-0000-4000-8000-000000000041',1)$$,'42501',null,'Alter Prozess darf keine Recovery starten');
@@ -104,6 +107,7 @@ select set_config('request.jwt.claims','{"sub":"31000000-0000-4000-8000-00000000
 select lives_ok($$select public.marketplace_sync_enqueue('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000022')$$,'Neue manuelle Freigabe bleibt dauerhaft wartend');
 set local role service_role;
 select is(public.marketplace_worker_claim('31000000-0000-4000-8000-000000000041')->>'workerEpoch','3','Erneuter Start incrementiert Fencing');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select is(public.marketplace_sync_recover('31000000-0000-4000-8000-000000000041',3)->>'interruptedOperations','1','Nur alte queued Aufträge ohne Freigabe werden unterbrochen');
 select is((select count(*)::int from public.marketplace_operations where state='queued'),1,'Neue queued Leseaufträge überleben Neustart');
 update schedule_context set value=public.marketplace_sync_dispatch_claim('31000000-0000-4000-8000-000000000041',3,'31000000-0000-4000-8000-000000000051',false) where name='run';
@@ -133,6 +137,7 @@ reset role;
 update public.marketplace_worker_runtime set expires_at=clock_timestamp()-interval '1 second';
 set local role service_role;
 select is(public.marketplace_worker_claim('31000000-0000-4000-8000-000000000042')->>'workerEpoch','4','Recovery erhält neue Epoch');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select is(public.marketplace_sync_recover('31000000-0000-4000-8000-000000000042',4)->>'interruptedOperations','0','Ungeklärter Browser verhindert voreiligen Recoveryabschluss');
 select is(pg_temp.check_run()->>'active','false','Alter Besitzer darf nach Übernahme keine Arbeit fortsetzen');
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
@@ -151,6 +156,7 @@ begin
     jsonb_set(pg_temp.snapshot(),'{areas,feedback}',jsonb_build_object('status','partial','failure',p_failure))); end if;
   update public.marketplace_worker_runtime set expires_at=clock_timestamp()-interval '1 second';
   v_worker:=gen_random_uuid(); v_next:=public.marketplace_worker_claim(v_worker);
+  perform public.marketplace_browser_capacity_report(v_worker,(v_next->>'workerEpoch')::bigint,1);
   update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
   perform public.marketplace_sync_recover(v_worker,(v_next->>'workerEpoch')::bigint);
   return (select jsonb_build_object('enabled',enabled,'pausedReason',paused_reason,'consecutiveFailures',consecutive_failures,'retryAfter',retry_after) from public.marketplace_sync_schedules);

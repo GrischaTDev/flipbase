@@ -1,3 +1,4 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import {
   readVintedListingCategoryFields,
@@ -386,6 +387,7 @@ export async function updateVintedListingContent(
     detail = undefined;
     await check();
     step = 'save';
+    await beforeVintedWrite(authorizeChange);
     try {
       await save.click({ timeout: 10_000 });
     } catch {
@@ -543,6 +545,7 @@ export async function updateVintedListingContent(
     detail = undefined;
     await check();
     step = 'save';
+    await beforeVintedWrite(authorizeChange);
     try {
       await save.click({ timeout: 10_000 });
     } catch {

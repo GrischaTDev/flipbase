@@ -346,7 +346,7 @@ export const representativeBrowserFamilies = [
   ),
   browserFamily(
     'vinted-action-overview.spec.ts',
-    'Aktionsübersicht {size}px öffnet nur laufende Aktionen am Header-Icon in {theme} @marketplace-preview',
+    'Aktionsübersicht {size}px zeigt wartende und laufende Aktionen am Header-Icon in {theme} @marketplace-preview',
     [1920, 1280, 390, 320],
     // 1280 enthält zusätzlich den Wechsel vom Tablet zum Telefondialog.
     [

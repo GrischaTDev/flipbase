@@ -25,17 +25,36 @@ export class VintedActionOverviewComponent {
   readonly rows = computed(() =>
     this.actions()
       .filter((action) =>
-        ['running', 'succeeded', 'failed', 'outcome_unknown'].includes(action.state),
+        ['queued', 'running', 'succeeded', 'failed', 'outcome_unknown', 'cancelled'].includes(
+          action.state,
+        ),
       )
       .map((action) => ({
         action,
-        title: describeVintedAction(action),
+        title:
+          action.state === 'queued'
+            ? 'Wartet · ' + describeVintedAction(action)
+            : action.state === 'cancelled'
+              ? 'Abgebrochen'
+              : describeVintedAction(action),
+        waitReason:
+          action.waitReason === 'account_busy'
+            ? 'Konto ist beschäftigt'
+            : action.waitReason === 'pool_busy'
+              ? 'Alle Browserplätze sind belegt'
+              : action.waitReason === 'dependency_unresolved'
+                ? 'Vorherige Änderung muss geprüft werden'
+                : action.waitReason === 'account_paused'
+                  ? 'Konto benötigt Deine Anmeldung'
+                  : null,
         indicator:
-          action.state === 'succeeded'
-            ? ('success' as const)
-            : action.state === 'running'
-              ? ('running' as const)
-              : ('error' as const),
+          action.state === 'queued' || action.state === 'cancelled'
+            ? ('paused' as const)
+            : action.state === 'succeeded'
+              ? ('success' as const)
+              : action.state === 'running'
+                ? ('running' as const)
+                : ('error' as const),
         dismissible:
           !!this.connectionId() &&
           (action.state === 'failed' || action.state === 'outcome_unknown'),

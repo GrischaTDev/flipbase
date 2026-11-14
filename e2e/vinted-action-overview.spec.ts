@@ -1,8 +1,117 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { actionOverviewMessagesUrl, mockActionOverview } from './support/action-overview-fixture';
+import type { VintedAccountAction } from '../src/app/features/marketplaces/models/vinted-account-action';
+import { accountIds, workspaceId } from './support/marketplace-account-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+for (const width of [390, 1440])
+  for (const theme of ['light', 'dark'] as const) {
+    const actionTest = test.extend({ hasTouch: width < 768, isMobile: width < 768 });
+    actionTest(
+      `Gespeicherte Cloud-Aktionen warten nach Neuladen, lassen sich abbrechen und prüfen ${width}px ${theme} @marketplace-preview`,
+      async ({ page }) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme });
+        await mockActionOverview(page, false);
+        await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+        const queued: VintedAccountAction = {
+          id: '60000000-0000-4000-8000-000000000001',
+          requestId: '60000000-0000-4000-8000-000000000002',
+          workspaceId,
+          connectionId: accountIds[0],
+          kind: 'price_save',
+          entryId: '60000000-0000-4000-8000-000000000003',
+          title: 'Wartende Hose',
+          state: 'queued',
+          version: 1,
+          waitReason: 'pool_busy',
+          errorCode: null,
+          result: null,
+          blockedByActionId: null,
+          historyPurged: false,
+          resultExpired: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          startedAt: null,
+          finishedAt: null,
+        };
+        let actions: VintedAccountAction[] = [
+          queued,
+          {
+            ...queued,
+            id: '60000000-0000-4000-8000-000000000004',
+            requestId: '60000000-0000-4000-8000-000000000005',
+            entryId: '60000000-0000-4000-8000-000000000006',
+            title: 'Unklares Inserat',
+            state: 'outcome_unknown',
+            waitReason: null,
+          },
+        ];
+        const cancellations: unknown[] = [],
+          reconciliations: unknown[] = [],
+          writes: string[] = [];
+        page.on('request', (request) => {
+          if (/\/marketplace-browser\/listings\/.+\/save$/.test(new URL(request.url()).pathname))
+            writes.push(request.url());
+        });
+        await page.route('**/rest/v1/rpc/marketplace_account_actions_read', (route) =>
+          route.fulfill({ json: { actions } }),
+        );
+        await page.route('**/rest/v1/rpc/marketplace_account_action_cancel', (route) => {
+          const body: unknown = route.request().postDataJSON();
+          cancellations.push(body);
+          actions = actions.map((action) =>
+            action.id === queued.id
+              ? { ...action, state: 'cancelled', waitReason: null, version: action.version + 1 }
+              : action,
+          );
+          return route.fulfill({ json: { action: actions[0] } });
+        });
+        await page.route('**/rest/v1/rpc/marketplace_account_action_reconcile', (route) => {
+          const body = route.request().postDataJSON() as Record<string, unknown>;
+          reconciliations.push(body);
+          if (typeof body['p_request_id'] !== 'string') return route.fulfill({ status: 400 });
+          const check: VintedAccountAction = {
+            ...queued,
+            id: '60000000-0000-4000-8000-000000000007',
+            requestId: body['p_request_id'],
+            kind: 'outcome_reconcile',
+            state: 'queued',
+            title: 'Unklares Inserat',
+          };
+          actions = [...actions, check];
+          return route.fulfill({ json: { action: check } });
+        });
+        await page.goto('/settings/app');
+        const trigger = page.getByRole('button', { name: /Laufende Aktionen \(/ });
+        await trigger.click();
+        await expect(page.locator('[data-account-action-id="' + queued.id + '"]')).toContainText(
+          'Alle Browserplätze sind belegt',
+        );
+        await page.reload();
+        await trigger.click();
+        const waiting = page.locator('[data-account-action-id="' + queued.id + '"]');
+        await expect(waiting).toContainText('Wartende Hose');
+        await waiting.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+        await expect(waiting).toContainText('Abgebrochen');
+        expect(cancellations).toHaveLength(1);
+        await page.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }).click();
+        await expect.poll(() => reconciliations.length).toBe(1);
+        expect(writes).toEqual([]);
+        actions = actions.map((action) =>
+          action.state === 'outcome_unknown' || action.kind === 'outcome_reconcile'
+            ? { ...action, state: 'succeeded', waitReason: null, version: action.version + 1 }
+            : action,
+        );
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(
+          page.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }),
+        ).toHaveCount(0);
+        await checkAccessibility(page, '#header-action-overview');
+      },
+    );
+  }
 async function checkAccessibility(page: Page, selector: string) {
   await page.addScriptTag({ content: axe.source });
   const violations = await page.evaluate(
@@ -30,25 +139,28 @@ async function checkRunningActions(overview: Locator) {
   await expect(unconfirmed).toHaveCount(1);
   await expect(unconfirmed).toContainText('Annahme nicht bestätigt');
   await expect(unconfirmed.getByRole('button', { name: 'Meldung ausblenden' })).toBeVisible();
+  await expect(overview.locator('[data-action-state="queued"]')).toContainText(
+    'Konto ist beschäftigt',
+  );
   await expect(
     overview.locator(
-      '[data-action-state]:not([data-action-state="running"]):not([data-action-state="outcome_unknown"])',
+      '[data-action-state]:not([data-action-state="running"]):not([data-action-state="queued"]):not([data-action-state="outcome_unknown"])',
     ),
   ).toHaveCount(0);
-  for (const hidden of ['Testperson 2', 'Testperson 4', 'Zuletzt erledigt', 'In der Warteschlange'])
+  for (const hidden of ['Testperson 4', 'Zuletzt erledigt', 'In der Warteschlange'])
     await expect(overview.getByText(hidden, { exact: false })).toHaveCount(0);
 }
 for (const width of [1920, 1280, 390, 320]) {
   test.describe(`Aktionsübersicht ${width}px`, () => {
     test.use({ viewport: { width, height: 1000 }, hasTouch: width <= 1280 });
     for (const theme of ['light', 'dark'] as const) {
-      test(`öffnet nur laufende Aktionen am Header-Icon in ${theme} @marketplace-preview`, async ({
+      test(`zeigt wartende und laufende Aktionen am Header-Icon in ${theme} @marketplace-preview`, async ({
         page,
       }, testInfo) => {
         await mockActionOverview(page);
         await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
         await page.goto(actionOverviewMessagesUrl);
-        const trigger = page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true });
+        const trigger = page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true });
         await expect(trigger).toBeVisible();
         await expect(page.locator('[data-action-overview-spinner]')).toBeVisible();
         await expect(page.locator('[data-action-overview-spinner] svg path').first()).toHaveCSS(
@@ -162,7 +274,7 @@ test('zeigt Vinted-Veröffentlichungen zentral und bricht wartende Aufträge ab 
   };
   fixture.setListingJobs([job]);
   await page.goto(actionOverviewMessagesUrl);
-  const trigger = page.getByRole('button', { name: 'Laufende Aktionen (2)' });
+  const trigger = page.getByRole('button', { name: 'Laufende Aktionen (3)' });
   await expect(trigger).toBeVisible();
   await trigger.click();
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
@@ -171,7 +283,7 @@ test('zeigt Vinted-Veröffentlichungen zentral und bricht wartende Aufträge ab 
   await expect(publications.getByText('Testkonto A')).toBeVisible();
   await publications.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(publications).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Laufende Aktionen (1)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Laufende Aktionen (2)' })).toBeVisible();
 });
 
 test('standardmäßig aus und erst nach Speichern appweit aktiv, auch nach Neuladen @marketplace-preview', async ({
@@ -238,7 +350,7 @@ test('meldet Aktionsabschlüsse per Toast und beendet Kontoabgleiche still @mark
 }) => {
   const fixture = await mockActionOverview(page);
   await page.goto('/settings/app');
-  await page.getByRole('button', { name: 'Laufende Aktionen (1)', exact: true }).click();
+  await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   await checkRunningActions(overview);
   fixture.finishActions();
@@ -300,19 +412,19 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   await page.reload();
   await expect(offer).toContainText('Annahme beauftragt');
-  await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
+  await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
   const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
   await overview
     .locator('[data-action-state="outcome_unknown"]')
     .getByRole('button', { name: 'Meldung ausblenden' })
     .click();
-  await expect(overview.getByText('Alles erledigt')).toBeVisible();
+  await expect(overview.locator('[data-action-state="queued"]')).toHaveCount(2);
   await expect(
-    overview.locator('[data-action-overview-idle] app-action-status-indicator svg'),
+    overview.locator('[data-action-state="queued"] app-action-status-indicator svg').first(),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
-  await expect(overview.getByText('Alles erledigt')).toBeVisible();
+  await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
+  await expect(overview.locator('[data-action-state="queued"]')).toHaveCount(2);
   await expect(overview.locator('[data-action-state="outcome_unknown"]')).toHaveCount(0);
   fixture.rejectRead(true);
   await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert', {

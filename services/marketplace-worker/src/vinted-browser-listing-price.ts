@@ -1,3 +1,4 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
@@ -102,6 +103,7 @@ export async function updateVintedListingPrice(
     await check();
     step = 'save';
     try {
+      await beforeVintedWrite(authorize);
       await save.click({ timeout: 10_000 });
     } catch {
       return { status: 'unconfirmed' };

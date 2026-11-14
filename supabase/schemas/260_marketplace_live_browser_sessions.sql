@@ -62,6 +62,10 @@ begin
     where workspace_id = old.workspace_id and connection_id = old.id and state in ('active', 'stopping')) then
     raise exception 'Browsersitzung muss zuerst beendet werden' using errcode = '23503';
   end if;
+  -- Beim bisherigen Workspace-Cascade ist der Elternsatz schon entfernt; die physische Browsersperre oben gilt trotzdem.
+  if exists(select 1 from public.workspaces where id=old.workspace_id) and exists(select 1 from public.marketplace_account_actions where workspace_id=old.workspace_id and connection_id=old.id and state in ('queued','running','outcome_unknown')) then
+    raise exception 'Wartende, laufende oder ungeklärte Aktionen müssen zuerst abgeschlossen oder abgebrochen werden' using errcode='23503';
+  end if;
   return old;
 end;
 $$;
@@ -74,7 +78,7 @@ create or replace function public.marketplace_browser_session_reserve(p_workspac
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_status text; v_profile_id text; v_session public.marketplace_browser_sessions;
 begin
-  -- Alle Browseraktionen teilen den einen konservativen Cloudplatz.
+  -- Reservierung und Poolzählung bleiben in derselben kurzen Transaktionssperre.
   perform pg_advisory_xact_lock(91731, 1);
   if not public.marketplace_can_manage_cloud(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select status into v_status from public.marketplace_connections
@@ -84,8 +88,7 @@ begin
   select provider_profile_id into v_profile_id from public.marketplace_browser_profiles
     where workspace_id = p_workspace_id and connection_id = p_connection_id;
   if not found then raise exception 'Browserprofil fehlt' using errcode = '22023'; end if;
-  if exists (select 1 from public.marketplace_browser_sessions
-    where state in ('active', 'stopping'))
+  if public.marketplace_browser_slot_status(p_workspace_id,p_connection_id) is not null
   then raise exception 'Konto wird bereits bedient oder bereinigt' using errcode = '55P03'; end if;
   insert into public.marketplace_browser_sessions (workspace_id, connection_id, started_by, provider_profile_id, expires_at)
     values (p_workspace_id, p_connection_id, (select auth.uid()), v_profile_id, clock_timestamp() + interval '10 minutes')
@@ -108,10 +111,12 @@ begin
   if not found then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select * into v_session from public.marketplace_browser_sessions
     where public_id = p_session_id and workspace_id = p_workspace_id and connection_id = p_connection_id
-      and started_by = (select auth.uid()) and cloud_setup_id is null for update;
+      and started_by = (select auth.uid()) and cloud_setup_id is null and account_action_id is null for update;
   if not found then raise exception 'Sitzungszugriff verweigert' using errcode = '42501'; end if;
   if v_session.state = 'active' and (v_session.expires_at <= clock_timestamp() or v_status in ('paused', 'blocked')
-    or not public.marketplace_cloud_network_valid(p_workspace_id,p_connection_id)) then
+    or not public.marketplace_cloud_network_valid(p_workspace_id,p_connection_id)
+    or (v_session.worker_epoch is not null and not exists(select 1 from public.marketplace_worker_runtime where id=1
+      and worker_id=v_session.worker_id and worker_epoch=v_session.worker_epoch and expires_at>clock_timestamp()))) then
     update public.marketplace_browser_sessions set state = 'stopping',
       stop_reason = case when v_status in ('paused', 'blocked') then 'paused' else 'expired' end
       where id = v_session.id returning * into v_session;

@@ -12,6 +12,7 @@ COPY supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs supabas
 COPY supabase/functions/_shared/vinted-selling-tree.mjs supabase/functions/_shared/vinted-selling-tree.d.mts /app/supabase/functions/_shared/
 COPY supabase/functions/_shared/marketplace-listing-contracts.d.ts supabase/functions/_shared/vinted-listing-photo-renderer.mts /app/supabase/functions/_shared/
 COPY supabase/functions/_shared/marketplace-profile-contracts.d.ts /app/supabase/functions/_shared/
+COPY supabase/functions/_shared/vinted-listing-edit-form.mjs supabase/functions/_shared/vinted-listing-edit-form.d.mts supabase/functions/_shared/vinted-listing-edit-intent.mjs supabase/functions/_shared/vinted-listing-edit-intent.d.mts /app/supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-listing-runtime.js /app/tools/flipbase-extension/
 COPY supabase/functions/_shared/kleinanzeigen-listing-validation.mts supabase/functions/_shared/kleinanzeigen-listing-contracts.ts /app/supabase/functions/_shared/
 RUN npm run build
@@ -34,6 +35,7 @@ COPY tools/flipbase-extension/vinted-negotiation-runtime.js /tools/flipbase-exte
 COPY tools/flipbase-extension/vinted-local-inbox-events.js /tools/flipbase-extension/
 COPY supabase/functions/_shared/marketplace-inbox-notification-kinds.mjs /supabase/functions/_shared/
 COPY supabase/functions/_shared/vinted-selling-tree.mjs /supabase/functions/_shared/
+COPY supabase/functions/_shared/vinted-listing-edit-form.mjs supabase/functions/_shared/vinted-listing-edit-intent.mjs /supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-listing-runtime.js /tools/flipbase-extension/
 USER node
 EXPOSE 4179

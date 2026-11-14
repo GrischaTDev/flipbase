@@ -14,6 +14,14 @@ insert into public.marketplace_connections(id,workspace_id,display_name,executio
  ('38500000-0000-4000-8000-000000000021','38500000-0000-4000-8000-000000000011','Cloud messages','cloud','connected','123');
 insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values
  ('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','cloud-message-profile');
+insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id) values
+ ('38500000-0000-4000-8000-000000000022','38500000-0000-4000-8000-000000000011','Neuer manueller Auftrag','cloud','connected','124');
+insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values
+ ('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000022','cloud-favorite-fairness-profile');
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body) values
+ ('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000022','profile','124','{}');
+create temporary table favorite_fairness_context(body jsonb);
+grant all on favorite_fairness_context to authenticated,service_role;
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at) values
  ('38500000-0000-4000-8000-000000000031','38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','conversation','777','{"title":"Buyer"}',clock_timestamp());
 create function pg_temp.config() returns jsonb language sql as $$ select '{"templates":["Danke für Dein Interesse an {article}!"],"delayMinutes":0,"timezone":"Europe/Berlin","rules":[],"offer":{"type":"percentage","value":10}}'::jsonb; $$;
@@ -25,7 +33,7 @@ select public.marketplace_approve_cloud_messages('38500000-0000-4000-8000-000000
 select lives_ok($$select public.marketplace_save_favorite_messages('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',true,pg_temp.config(),0)$$,'Cloud favorites activate explicitly');
 select is(public.marketplace_read_favorite_messages('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021')->>'active','true','Cloud settings bind exact send authorization');
 reset role;
-select has_function('public','marketplace_cloud_favorite_claim',array['uuid','bigint','uuid'],'Cloud favorite dispatch exists');
+select has_function('public','marketplace_cloud_favorite_claim',array['uuid','bigint','uuid','uuid'],'Cloud favorite dispatch exists');
 select has_function('public','marketplace_cloud_favorite_check',array['uuid','uuid','uuid','uuid','uuid','bigint','text'],'Cloud favorite lease checks exist');
 insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at) values
  ('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','publication','456','{"title":"Boots","price":40,"isClosed":false,"isReserved":false}',clock_timestamp());
@@ -39,8 +47,18 @@ create function pg_temp.begin_run(p_original bigint default null,p_offered bigin
 create function pg_temp.finish_run(p_outcome text,p_id text default null,p_conversation text default null,p_transaction text default null) returns jsonb language sql as $$ select public.marketplace_cloud_favorite_finish('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',(body->>'eventId')::uuid,(body->>'claimToken')::uuid,'38500000-0000-4000-8000-000000000051',1,body->>'phase',p_outcome,p_id,null,p_conversation,p_transaction) from favorite_context; $$;
 set local role service_role;
 select public.marketplace_worker_claim('38500000-0000-4000-8000-000000000051');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select lives_ok($$select public.marketplace_record_favorite_events('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','123','cloud',jsonb_build_array(jsonb_build_object('externalId','38500000-0000-4000-8000-000000000041','actorId','789','itemId','456','eventAt',clock_timestamp())))$$,'New cloud favorite imports');
 select lives_ok($$select public.marketplace_record_favorite_events('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','123','cloud',jsonb_build_array(jsonb_build_object('externalId','38500000-0000-4000-8000-000000000041','actorId','789','itemId','456','eventAt',clock_timestamp())))$$,'Cloud favorite replay deduplicates');
+reset role;
+set local role authenticated;
+insert into favorite_fairness_context select public.marketplace_account_action_enqueue('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000022',gen_random_uuid(),'profile_details_read','{}')->'action';
+set local role service_role;
+select is(public.marketplace_browser_next_work()->>'kind','favorite_message','Älterer automatischer Schreibauftrag verhungert nicht hinter neuer manueller Arbeit eines anderen Kontos');
+select is(public.marketplace_browser_next_work()->>'connectionId','38500000-0000-4000-8000-000000000021','Gemeinsame Vergabe bevorzugt das länger wartende Konto');
+set local role authenticated;
+select public.marketplace_account_action_cancel('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000022',(body->>'id')::uuid) from favorite_fairness_context;
+set local role service_role;
 insert into favorite_context values(pg_temp.claim());
 select is((select body->>'phase' from favorite_context),'message','Message before offer');
 select is((select body->'command'->>'text' from favorite_context),'Danke für Dein Interesse an Boots!','Cloud uses shared article template');

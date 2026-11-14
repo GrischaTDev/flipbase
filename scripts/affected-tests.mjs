@@ -431,7 +431,7 @@ export async function readSelectionFiles(cwd = process.cwd()) {
     { cwd, maxBuffer: 8 * 1024 * 1024 },
   );
   const files = sorted(
-    stdout.split('\0').filter((file) => /\.(?:ts|js|html|css|scss)$/u.test(file)),
+    stdout.split('\0').filter((file) => /\.(?:[cm]?[jt]s|html|css|scss)$/u.test(file)),
   );
   return Object.fromEntries(
     await Promise.all(

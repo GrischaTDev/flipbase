@@ -12,6 +12,11 @@
           <p class="truncate text-xs leading-5 text-fb-text-secondary" [attr.title]="row.subtitle">
             {{ row.subtitle }}
           </p>
+          @if (row.waitReason) {
+            <p role="status" class="text-xs leading-5 text-fb-text-secondary">
+              {{ row.waitReason }}
+            </p>
+          }
         </div>
         @if (row.dismissible) {
           <app-button

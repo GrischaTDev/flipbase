@@ -8,6 +8,7 @@ import {
   accountIds,
   emptyPage,
 } from './support/marketplace-account-fixture';
+import type { VintedAccountAction } from '../src/app/features/marketplaces/models/vinted-account-action';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 const connectionId = accountIds[0];
@@ -76,6 +77,7 @@ async function inboxFixture(
     },
   ];
   const queue: Record<string, unknown>[] = [];
+  const accountActions = new Map<string, VintedAccountAction>();
   const enqueues: Record<string, unknown>[] = [];
   const retries: Record<string, unknown>[] = [];
   const bridgeCalls: string[] = [];
@@ -328,14 +330,73 @@ async function inboxFixture(
     }),
   );
   await page.route('**/marketplace-browser/conversations/read', async (route) => {
-    if (pendingDetail) await pendingDetail;
-    const body = route.request().postDataJSON();
-    expect(body).toEqual({ ...scope, conversationId: body['conversationId'] });
+    const requested: unknown = route.request().postDataJSON();
+    if (!requested || typeof requested !== 'object' || Array.isArray(requested))
+      return route.fulfill({ status: 400 });
+    const body = requested as Record<string, unknown>;
+    if (typeof body['requestId'] !== 'string') return route.fulfill({ status: 400 });
+    expect(body).toEqual({
+      ...scope,
+      conversationId: body['conversationId'],
+      requestId: expect.any(String),
+    });
     const conversation = conversations.find((entry) => entry.id === body['conversationId']);
     if (!conversation) throw new Error('Cloud-Testgespräch fehlt');
-    conversation.detailCheckedAt = now;
-    return route.fulfill({ json: { conversationId: conversation.id, observedAt: now } });
+    const existing = [...accountActions.values()].find(
+      (action) => action.requestId === body['requestId'],
+    );
+    if (existing) return route.fulfill({ status: 202, json: { action: existing } });
+    const action: VintedAccountAction = {
+      ...scope,
+      id: `25000000-0000-4000-8000-${String(81 + accountActions.size).padStart(12, '0')}`,
+      requestId: body['requestId'],
+      kind: 'conversations_read',
+      entryId: conversation.id,
+      title: conversation.itemTitle,
+      state: 'queued',
+      version: 1,
+      waitReason: 'account_busy',
+      errorCode: null,
+      result: null,
+      blockedByActionId: null,
+      historyPurged: false,
+      resultExpired: false,
+      createdAt: now,
+      updatedAt: now,
+      startedAt: null,
+      finishedAt: null,
+    };
+    accountActions.set(action.id, action);
+    const complete = () => {
+      conversation.detailCheckedAt = now;
+      accountActions.set(action.id, {
+        ...action,
+        state: 'succeeded',
+        waitReason: null,
+        version: 2,
+        result: { conversationId: conversation.id, observedAt: now },
+        startedAt: now,
+        finishedAt: now,
+      });
+    };
+    if (pendingDetail) void pendingDetail.then(complete);
+    else complete();
+    return route.fulfill({ status: 202, json: { action: accountActions.get(action.id) } });
   });
+  await page.route('**/marketplace-browser/actions/status', (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (
+      body['workspaceId'] !== scope.workspaceId ||
+      body['connectionId'] !== scope.connectionId ||
+      typeof body['actionId'] !== 'string'
+    )
+      return route.fulfill({ status: 403 });
+    const action = accountActions.get(body['actionId']);
+    return action ? route.fulfill({ json: { action } }) : route.fulfill({ status: 404 });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_account_actions_read', (route) =>
+    route.fulfill({ json: { actions: [...accountActions.values()] } }),
+  );
   await page.route('**/rest/v1/rpc/marketplace_read_messages', (route) =>
     route.fulfill({
       json: {

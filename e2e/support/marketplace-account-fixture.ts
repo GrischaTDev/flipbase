@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { mockMarketplaceAccountActions } from './marketplace-account-action-fixture';
 
 export const workspaceId = '25000000-0000-4000-8000-000000000011';
 export const accountIds = [
@@ -40,10 +41,70 @@ export async function mockMarketplace(
     userId: '25000000-0000-4000-8000-000000000001',
   },
 ) {
+  await page.routeWebSocket(/\/realtime\/v1\/websocket/, (socket) => {
+    socket.onMessage((message) => {
+      let value: unknown;
+      try {
+        value = JSON.parse(String(message));
+      } catch {
+        return;
+      }
+      if (
+        Array.isArray(value) &&
+        ['phx_join', 'phx_leave', 'heartbeat'].includes(String(value[3]))
+      ) {
+        socket.send(
+          JSON.stringify([
+            value[0],
+            value[1],
+            value[2],
+            'phx_reply',
+            { status: 'ok', response: {} },
+          ]),
+        );
+      } else if (
+        value &&
+        typeof value === 'object' &&
+        'event' in value &&
+        ['phx_join', 'phx_leave', 'heartbeat'].includes(String(value.event)) &&
+        'topic' in value &&
+        'ref' in value
+      ) {
+        socket.send(
+          JSON.stringify({
+            topic: value.topic,
+            ref: value.ref,
+            event: 'phx_reply',
+            payload: { status: 'ok', response: {} },
+            ...('join_ref' in value ? { join_ref: value.join_ref } : {}),
+          }),
+        );
+      }
+    });
+  });
+  // Die Fixture hält den synthetischen Präsenzkanal bis zum Abort offen wie die echte SSE-Verbindung.
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = async (input, options) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!/\/marketplace-browser\/(?:cloud-setups\/[^/]+|sessions)\/presence$/.test(url))
+        return original(input, options);
+      const response = await original(input, options);
+      if (!response.ok) return response;
+      const initial = await response.text();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(initial));
+          options?.signal?.addEventListener('abort', () => controller.close(), { once: true });
+        },
+      });
+      return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } });
+    };
+  });
   await page.route('**/marketplace-browser/healthz', (route) =>
-    browserLogin
-      ? route.fulfill({ json: { ok: true, readOnly: false, apiVersion: 2 } })
-      : route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
+    route.fulfill({
+      json: { ok: true, readOnly: !browserLogin, apiVersion: 2, accountActionsEnabled: true },
+    }),
   );
   const user = {
     id: backend.userId,
@@ -183,6 +244,8 @@ export async function mockMarketplace(
       submitted: boolean;
       codeSubmitted: boolean;
       identityChecks: number;
+      dialogId: string | null;
+      version: number;
     }
   >();
   await page.route('**/marketplace-browser/cloud-setups/**', async (route) => {
@@ -218,11 +281,23 @@ export async function mockMarketplace(
         submitted: false,
         codeSubmitted: false,
         identityChecks: 0,
+        dialogId: null,
+        version: 1,
       });
       return route.fulfill({
         json: {
           status: 'ready',
-          setup: { workspaceId, connectionId, setupId, state: 'reserved', sessionId: null },
+          setup: {
+            workspaceId,
+            connectionId,
+            setupId,
+            state: 'reserved',
+            sessionId: null,
+            startActionId: null,
+            startState: 'idle',
+            waitReason: null,
+            version: 1,
+          },
         },
       });
     }
@@ -236,15 +311,30 @@ export async function mockMarketplace(
       setupId,
       state: setup.state,
       sessionId: setup.sessionId,
+      startActionId: setup.dialogId ? '70000000-0000-4000-8000-000000000001' : null,
+      startState: setup.sessionId ? 'running' : 'idle',
+      waitReason: null,
+      version: setup.version,
     });
+    if (path.endsWith('/presence')) {
+      if (typeof body['dialogId'] !== 'string') return route.fulfill({ status: 400 });
+      setup.dialogId = body['dialogId'];
+      calls.push({ name: 'browser_cloud_setup_presence', body });
+      return route.fulfill({
+        contentType: 'text/event-stream',
+        body: `event: setup_changed\ndata: ${JSON.stringify(view())}\n\n`,
+      });
+    }
     if (path.endsWith('/open')) {
+      if (body['dialogId'] !== setup.dialogId) return route.fulfill({ status: 409 });
       if (setup.state === 'cancelled' || setup.state === 'cleanup_pending')
         return route.fulfill({ status: 403 });
       if (profileLimit)
         return route.fulfill({ status: 503, json: { code: 'gologin_profile_limit_reached' } });
       setup.state = 'login';
       setup.sessionId = '25000000-0000-4000-8000-000000000031';
-      return route.fulfill({ status: 201, json: { id: setup.sessionId } });
+      setup.version++;
+      return route.fulfill({ status: 202, json: view() });
     }
     if (path.endsWith('/login')) {
       calls.push({ name: 'browser_login', body });
@@ -311,6 +401,15 @@ export async function mockMarketplace(
     let codeSubmitted = false;
     let identityChecks = 0;
     await page.route('**/marketplace-browser/sessions**', async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith('/presence')) {
+        const body = route.request().postDataJSON() as Record<string, unknown>;
+        if (typeof body['dialogId'] !== 'string') return route.fulfill({ status: 400 });
+        calls.push({ name: 'browser_session_presence', body });
+        return route.fulfill({
+          contentType: 'text/event-stream',
+          body: `event: dialog_ready\ndata: ${JSON.stringify({ dialogId: body['dialogId'] })}\n\n`,
+        });
+      }
       const path = new URL(route.request().url()).pathname;
       const body = route.request().postDataJSON() as Record<string, unknown>;
       if (body['workspaceId'] !== workspaceId) return route.fulfill({ status: 403 });
@@ -321,7 +420,10 @@ export async function mockMarketplace(
             json: { code: 'gologin_profile_limit_reached' },
           });
         connectionId = String(body['connectionId']);
-        return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
+        return route.fulfill({
+          status: typeof body['dialogId'] === 'string' ? 200 : 201,
+          json: { id: '25000000-0000-4000-8000-000000000031' },
+        });
       }
       if (body['connectionId'] !== connectionId) return route.fulfill({ status: 403 });
       if (path.endsWith('/login')) {
@@ -392,6 +494,7 @@ export async function mockMarketplace(
     if (name === 'marketplace_read_message_permission')
       json = { executionMode: 'cloud', allowed: false, authorizationVersion: 0 };
     if (name === 'marketplace_read_local_extension') json = { binding: null };
+    if (name === 'marketplace_account_actions_read') json = { actions: [] };
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };
     if (name === 'is_platform_operator') json = true;
@@ -690,5 +793,6 @@ export async function mockMarketplace(
     }
     await route.fulfill({ json });
   });
+  await mockMarketplaceAccountActions(page);
   return calls;
 }

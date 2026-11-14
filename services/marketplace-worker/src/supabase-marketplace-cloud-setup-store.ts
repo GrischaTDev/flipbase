@@ -6,6 +6,7 @@ import type {
 import { parseCloudSetupView, parseCloudSetupResult } from './marketplace-cloud-setup-response.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import { chromiumAccountProfileIdPattern } from './chromium-account-profile-registry.ts';
+import { SupabaseMarketplaceAccountActionStore } from './supabase-marketplace-account-action-store.ts';
 
 interface StoreOptions {
   url: string;
@@ -103,6 +104,26 @@ export class SupabaseMarketplaceCloudSetupStore {
       { ...scope, setupId },
     );
   }
+  async presence(
+    scope: BrowserSessionScope,
+    setupId: string,
+    dialogId: string,
+    connected: boolean,
+  ): Promise<CloudSetupView> {
+    return parseCloudSetupView(
+      await this.rpc(
+        'marketplace_cloud_setup_presence',
+        {
+          p_workspace_id: scope.workspaceId,
+          p_setup_id: setupId,
+          p_dialog_id: dialogId,
+          p_connected: connected,
+        },
+        scope.userAccessToken,
+      ),
+      { ...scope, setupId },
+    );
+  }
   async cancel(scope: BrowserSessionScope, setupId: string): Promise<CloudSetupView> {
     return parseCloudSetupView(
       await this.rpc(
@@ -163,8 +184,15 @@ export class SupabaseMarketplaceCloudSetupStore {
   async assertNetwork(
     scope: BrowserSessionScope,
   ): Promise<{ profileId: string; networkId: string } | null> {
-    if (scope.cloudSetup) {
-      const setup = await this.readAuthorized(scope, scope.cloudSetup.setupId);
+    const setupId = scope.cloudSetup?.setupId ?? scope.accountAction?.setupId;
+    if (setupId) {
+      let setup: PrivateCloudSetup;
+      if (scope.cloudSetup) setup = await this.readAuthorized(scope, setupId);
+      else {
+        if (!(await new SupabaseMarketplaceAccountActionStore(this.options).check(scope)))
+          throw invalid();
+        setup = await this.step(scope, setupId, 'claim');
+      }
       if (!setup.profileId || !['login', 'verified'].includes(setup.setup.state)) throw invalid();
       return { profileId: setup.profileId, networkId: setup.networkId };
     }

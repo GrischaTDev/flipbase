@@ -1,3 +1,4 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedCsrfToken } from './vinted-browser-messages.ts';
 import { isVintedShippingLabelUrl } from './vinted-shipping-label-contracts.ts';
@@ -62,6 +63,7 @@ export async function executeVintedShippingLabel(
   accountId: string,
   externalConversationId: string,
   transactionId: string,
+  readOnly = false,
 ): Promise<VintedShippingLabelResult> {
   const result = (
     outcome: VintedShippingLabelResult['outcome'],
@@ -101,6 +103,7 @@ export async function executeVintedShippingLabel(
     let labelType: VintedShippingLabelResult['labelType'] = null;
     let carrierName: string | null = null;
     if (actions.has('order_shipping_label')) {
+      if (readOnly) return result('pending', { shipmentId });
       const options = record(
         record(await adapter.read(`/api/v2/shipments/${shipmentId}/label_options`))[
           'label_options'
@@ -166,6 +169,7 @@ export async function requestVintedShippingLabel(
   externalConversationId: string,
   transactionId: string,
   authorize: () => Promise<void>,
+  readOnly = false,
 ): Promise<VintedShippingLabelResult> {
   async function request(path: string, method: 'GET' | 'PUT', body?: Record<string, unknown>) {
     await authorize();
@@ -173,6 +177,7 @@ export async function requestVintedShippingLabel(
       throw new VintedShippingLabelError('login_required');
     const token = method === 'GET' ? null : await readVintedCsrfToken(page);
     if (method !== 'GET' && !token) throw new VintedShippingLabelError('login_required');
+    if (method !== 'GET') await beforeVintedWrite(authorize);
     const response = await page.evaluate(
       async ({ path, method, body, token }) => {
         if (location.origin !== 'https://www.vinted.de') return { status: 401, payload: null };
@@ -220,5 +225,6 @@ export async function requestVintedShippingLabel(
     accountId,
     externalConversationId,
     transactionId,
+    readOnly,
   );
 }

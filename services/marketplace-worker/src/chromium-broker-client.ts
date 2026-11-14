@@ -21,6 +21,26 @@ export class ChromiumBrokerClient {
     if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('Privater Broker-Schlüssel fehlt');
     return new ChromiumBrokerClient(profileRoot, token);
   }
+  async capacity(): Promise<number> {
+    const response = await fetch('http://chromium-host-control:4180/capacity', {
+      headers: { Authorization: `Bearer ${this.token}` },
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error('Browserkapazität nicht verfügbar');
+    const result: unknown = await response.json();
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('capacity' in result) ||
+      typeof result.capacity !== 'number' ||
+      !Number.isInteger(result.capacity) ||
+      result.capacity < 1 ||
+      result.capacity > 8
+    )
+      throw new Error('Ungültige Browserkapazität');
+    return result.capacity;
+  }
   private profileId(directory: string): string {
     const profileId = posix.relative(this.profileRoot, directory);
     if (

@@ -22,7 +22,17 @@ export function parseCloudSetupView(
   if (!response || typeof response !== 'object' || Array.isArray(response))
     throw new Error('Ungültige Cloud-Einrichtungsantwort');
   const fields = response as Record<string, unknown>;
-  const names = ['workspaceId', 'connectionId', 'setupId', 'state', 'sessionId'];
+  const names = [
+    'workspaceId',
+    'connectionId',
+    'setupId',
+    'state',
+    'sessionId',
+    'startState',
+    'waitReason',
+    'version',
+    'startActionId',
+  ];
   if (
     Object.keys(fields).length !== names.length ||
     names.some((name) => !Object.hasOwn(fields, name)) ||
@@ -33,6 +43,13 @@ export function parseCloudSetupView(
     (expected.connectionId !== undefined && fields['connectionId'] !== expected.connectionId) ||
     (expected.setupId !== undefined && fields['setupId'] !== expected.setupId) ||
     !states.includes(fields['state'] as CloudSetupState) ||
+    !['idle', 'queued', 'starting', 'running'].includes(String(fields['startState'])) ||
+    ![null, 'account_busy', 'pool_busy'].includes(fields['waitReason'] as string | null) ||
+    !Number.isSafeInteger(fields['version']) ||
+    Number(fields['version']) < 0 ||
+    (fields['startActionId'] !== null &&
+      (typeof fields['startActionId'] !== 'string' ||
+        !uuidPattern.test(fields['startActionId']))) ||
     (fields['sessionId'] !== null &&
       (typeof fields['sessionId'] !== 'string' || !uuidPattern.test(fields['sessionId'])))
   )

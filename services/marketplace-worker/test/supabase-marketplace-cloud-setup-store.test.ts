@@ -18,6 +18,10 @@ const view = {
   setupId,
   state: 'reserved',
   sessionId: null,
+  startState: 'idle',
+  waitReason: null,
+  version: 0,
+  startActionId: null,
 };
 const internal = {
   setup: view,
@@ -68,6 +72,59 @@ test('private setup is read only after user authorization and bound to current w
   });
   assert.equal((await store.readAuthorized(scope, setupId)).networkId, 'iproyal-test-a');
   assert.deepEqual(calls, ['marketplace_cloud_setup_read', 'marketplace_cloud_setup_update']);
+});
+
+test('queued setup resolves its network using its bound action without a persisted user token', async () => {
+  const events: string[] = [];
+  const actionScope = {
+    ...scope,
+    userAccessToken: '',
+    accountAction: {
+      setupId,
+      actionId: '37100000-0000-4000-8000-000000000071',
+      claimToken: '37100000-0000-4000-8000-000000000072',
+      workerId: options.runtime.workerId,
+      workerEpoch: 1,
+      runnerId: '37100000-0000-4000-8000-000000000073',
+      sessionId: '37100000-0000-4000-8000-000000000074',
+      expiresAt: '2099-01-01T00:00:00Z',
+      absoluteExpiresAt: '2099-01-01T00:00:00Z',
+    },
+  };
+  const store = new SupabaseMarketplaceCloudSetupStore({
+    ...options,
+    fetch: async (url, request) => {
+      assert.equal(new Headers(request?.headers).get('authorization'), 'Bearer server');
+      const name = new URL(String(url)).pathname.split('/').at(-1)!;
+      events.push(name);
+      if (name === 'marketplace_account_action_check')
+        return Response.json({
+          active: true,
+          sessionId: actionScope.accountAction.sessionId,
+          expiresAt: actionScope.accountAction.expiresAt,
+          absoluteExpiresAt: actionScope.accountAction.absoluteExpiresAt,
+          target: {
+            accountId: '123',
+            externalId: null,
+            entryId: null,
+            entryKind: null,
+            body: null,
+          },
+        });
+      assert.equal(name, 'marketplace_cloud_setup_update');
+      assert.equal(JSON.parse(String(request?.body)).p_user_id, scope.userId);
+      return Response.json({
+        ...internal,
+        setup: { ...view, state: 'login' },
+        profileId: 'chromium_37100000-0000-4000-8000-000000000051',
+      });
+    },
+  });
+  assert.deepEqual(await store.assertNetwork(actionScope), {
+    profileId: 'chromium_37100000-0000-4000-8000-000000000051',
+    networkId: internal.networkId,
+  });
+  assert.deepEqual(events, ['marketplace_account_action_check', 'marketplace_cloud_setup_update']);
 });
 
 for (const response of [

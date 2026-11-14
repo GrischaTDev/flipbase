@@ -12,7 +12,15 @@ const setupId = '37100000-0000-4000-8000-000000000031';
 const sessionId = '37100000-0000-4000-8000-000000000032';
 type SetupService = Pick<
   MarketplaceCloudSetup,
-  'availability' | 'begin' | 'read' | 'open' | 'authorize' | 'verify' | 'complete' | 'cancel'
+  | 'availability'
+  | 'begin'
+  | 'read'
+  | 'requestOpen'
+  | 'connectPresence'
+  | 'authorize'
+  | 'verify'
+  | 'complete'
+  | 'cancel'
 >;
 function setupService(overrides: Partial<SetupService>): SetupService {
   const unexpected = async (): Promise<never> => {
@@ -22,7 +30,8 @@ function setupService(overrides: Partial<SetupService>): SetupService {
     availability: unexpected,
     begin: unexpected,
     read: unexpected,
-    open: unexpected,
+    requestOpen: unexpected,
+    connectPresence: unexpected,
     authorize: unexpected,
     verify: unexpected,
     complete: unexpected,
@@ -82,7 +91,17 @@ test('setup identity stages verification without invoking normal account writer'
   let normalConfirmations = 0;
   let staged = 0;
   let inputs = 0;
-  const setupView = { workspaceId, connectionId, setupId, state: 'login' as const, sessionId };
+  const setupView = {
+    workspaceId,
+    connectionId,
+    setupId,
+    state: 'login' as const,
+    sessionId,
+    startState: 'running' as const,
+    startActionId: null,
+    waitReason: null,
+    version: 1,
+  };
   const server = new MarketplaceBrowserHttpApi({
     users: { userId: async () => userId },
     broker: {

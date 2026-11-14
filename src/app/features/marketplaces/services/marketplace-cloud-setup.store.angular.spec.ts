@@ -16,6 +16,10 @@ const setup = {
   setupId: '25500000-0000-4000-8000-000000000031',
   state: 'reserved',
   sessionId: null,
+  startActionId: '70000000-0000-4000-8000-000000000001',
+  startState: 'idle',
+  waitReason: null,
+  version: 1,
 };
 let workspace: ReturnType<typeof signal<{ id: string }>>;
 let store: MarketplaceCloudSetupStore;

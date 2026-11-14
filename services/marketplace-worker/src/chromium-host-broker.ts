@@ -7,10 +7,14 @@ import type { BrowserDesktop, BrowserDragPoint } from './gologin-cloud-browser.t
 import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
 import { GoLoginSessionProxy } from './gologin-session-proxy.ts';
 import { ChromiumProfileStore } from './chromium-profile-store.ts';
-import { CloudBrowserStoppedUncleanlyError } from './gologin-cloud-browser.ts';
+import {
+  CloudBrowserStoppedUncleanlyError,
+  CloudBrowserStopUncertainError,
+} from './gologin-cloud-browser.ts';
 
 type LaunchOptions = Parameters<ChromiumContainerLauncher['launch']>[1];
 export interface ChromiumHostOperations {
+  capacity?(): number;
   launch(profileId: string, settings: LaunchOptions): Promise<string>;
   recover(profileId: string): Promise<void>;
   inspect(profileId: string): Promise<number[]>;
@@ -24,35 +28,52 @@ export function chromiumHostOperations(
   launcher: ChromiumContainerLauncher,
   profileRoot: string,
   goLoginProxy?: GoLoginSessionProxy,
+  capacity = 1,
 ): ChromiumHostOperations {
+  if (!Number.isInteger(capacity) || capacity < 1 || capacity > 8)
+    throw new Error('Ungültige Browserkapazität');
   const profiles = new ChromiumProfileStore({
     root: profileRoot,
     inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),
   });
   const contexts = new Map<string, { id: string; expiresAt: number; closeProxy?: () => void }>();
   return {
+    capacity: () => capacity,
     launch: async (profileId, settings) => {
-      if (contexts.size >= 1 || contexts.has(profileId)) throw new Error('Browserlimit erreicht');
-      if (
-        (
-          await readdir(profileRoot).catch((error: unknown) => {
-            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return [];
-            throw error;
-          })
-        ).length > 4096
-      )
-        throw new Error('Profillimit erreicht');
-      const directory = await profiles.prepareStopped(profileId);
-      await launcher.launch(directory, settings);
+      if (contexts.size >= capacity || contexts.has(profileId))
+        throw new Error('Browserlimit erreicht');
       const session = { id: randomUUID(), expiresAt: Date.now() + 12 * 60_000 };
       contexts.set(profileId, session);
-      return session.id;
+      try {
+        if (
+          (
+            await readdir(profileRoot).catch((error: unknown) => {
+              if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return [];
+              throw error;
+            })
+          ).length > 4096
+        )
+          throw new Error('Profillimit erreicht');
+        const directory = await profiles.prepareStopped(profileId);
+        await launcher.launch(directory, settings);
+        return session.id;
+      } catch (error) {
+        if (!(error instanceof CloudBrowserStopUncertainError)) contexts.delete(profileId);
+        throw error;
+      }
     },
     launchGoLogin: async (profileId, token) => {
-      if (!goLoginProxy || contexts.size >= 1 || profileId.startsWith('chromium_'))
+      if (
+        !goLoginProxy ||
+        contexts.size >= capacity ||
+        contexts.has(profileId) ||
+        profileId.startsWith('chromium_')
+      )
         throw new Error('GoLogin-Sitzung nicht verfügbar');
-      const channel = goLoginProxy.open(profileId, token);
+      contexts.set(profileId, { id: randomUUID(), expiresAt: Date.now() + 12 * 60_000 });
+      let channel: ReturnType<GoLoginSessionProxy['open']> | undefined;
       try {
+        channel = goLoginProxy.open(profileId, token);
         const directory = await profiles.prepareStopped(profileId);
         await launcher.launch(
           directory,
@@ -67,7 +88,8 @@ export function chromiumHostOperations(
         contexts.set(profileId, session);
         return session.id;
       } catch (error) {
-        channel.close();
+        channel?.close();
+        if (!(error instanceof CloudBrowserStopUncertainError)) contexts.delete(profileId);
         throw error;
       }
     },
@@ -305,7 +327,7 @@ export async function dispatchChromiumHostCommand(
 
 export function chromiumHostHandler(token: string, operations: ChromiumHostOperations) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('Privater Broker-Schlüssel fehlt');
-  let pending = Promise.resolve();
+  const pending = new Map<string, Promise<void>>();
   let queued = 0;
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     const authorization = Buffer.from(request.headers.authorization ?? '');
@@ -313,6 +335,12 @@ export function chromiumHostHandler(token: string, operations: ChromiumHostOpera
     response.setHeader('Cache-Control', 'no-store');
     if (authorization.length !== expected.length || !timingSafeEqual(authorization, expected)) {
       response.writeHead(401).end();
+      return;
+    }
+    if (request.method === 'GET' && request.url === '/capacity') {
+      response
+        .writeHead(200, { 'Content-Type': 'application/json' })
+        .end(JSON.stringify({ capacity: operations.capacity?.() ?? 1 }));
       return;
     }
     if (request.method !== 'POST' || request.url !== '/command') {
@@ -334,11 +362,20 @@ export function chromiumHostHandler(token: string, operations: ChromiumHostOpera
         chunks.push(bytes);
       }
       const input: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      const command = pending.then(() => dispatchChromiumHostCommand(input, operations));
-      pending = command.then(
+      const profileId = record(input).profileId;
+      if (typeof profileId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(profileId))
+        throw new Error('Ungültige Profilkennung');
+      const command = (pending.get(profileId) ?? Promise.resolve()).then(() =>
+        dispatchChromiumHostCommand(input, operations),
+      );
+      const settled = command.then(
         () => undefined,
         () => undefined,
       );
+      pending.set(profileId, settled);
+      void settled.then(() => {
+        if (pending.get(profileId) === settled) pending.delete(profileId);
+      });
       const result = await command;
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
     } catch {

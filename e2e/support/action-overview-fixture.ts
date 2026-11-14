@@ -193,6 +193,7 @@ export async function mockActionOverview(page: Page, enabled = true) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       errorCode: state === 'outcome_unknown' ? 'provider_result_unknown' : null,
+      waitReason: state === 'queued' ? 'account_busy' : null,
     };
   });
   await page.route('**/rest/v1/rpc/marketplace_read_action_overview', (route) =>

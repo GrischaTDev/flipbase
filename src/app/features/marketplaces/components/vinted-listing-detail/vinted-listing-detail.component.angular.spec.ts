@@ -1,4 +1,9 @@
 import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
+import {
+  resolveVintedListingBasicEditIntent,
+  resolveVintedListingEditIntent,
+  type VintedListingEditIntent,
+} from '../../../../../../supabase/functions/_shared/vinted-listing-edit-intent.mjs';
 import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import type { VintedSellingTreeNode } from '../../../../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -105,7 +110,33 @@ function setup(items: MarketplaceEntry[] = [], queryParams: Record<string, strin
     saveListingPrice: vi.fn().mockResolvedValue(undefined),
     readListingContent: vi.fn().mockImplementation(async () => listingCurrentContentFixture()),
     saveListingContent: vi.fn().mockResolvedValue(undefined),
+    saveListingIntent:
+      vi.fn<
+        (connectionId: string, entryId: string, intent: VintedListingEditIntent) => Promise<void>
+      >(),
   };
+  // Die Serverfixture führt den serialisierten Auftrag aus; die Komponente selbst liest nicht vorab.
+  store.saveListingIntent.mockImplementation(async (connectionId, entryId, intent) => {
+    if (!intent.base) {
+      const fields = resolveVintedListingBasicEditIntent(
+        intent,
+        await store.readListingEdit(connectionId, entryId),
+      );
+      await store.saveListingEdit(connectionId, entryId, fields);
+      return;
+    }
+    const result = resolveVintedListingEditIntent(
+      intent,
+      await store.readListingContent(connectionId, entryId),
+    );
+    await store.saveListingContent(
+      connectionId,
+      entryId,
+      result.base,
+      result.content,
+      ...(result.photos ? [result.photos] : []),
+    );
+  });
   TestBed.configureTestingModule({
     providers: [
       {

@@ -75,6 +75,10 @@ it('reserviert für ein bestehendes Cloudkonto eine IP und öffnet den Einrichtu
       connectionId: account.connectionId,
       setupId: '37100000-0000-4000-8000-000000000031',
       sessionId: null,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'idle',
+      waitReason: null,
+      version: 1,
       state: 'reserved',
     },
   });
@@ -104,6 +108,10 @@ it('öffnet für ein bereits fertig eingerichtetes Cloudkonto keinen neuen Anmel
       connectionId: account.connectionId,
       setupId: '37100000-0000-4000-8000-000000000031',
       sessionId: null,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'idle',
+      waitReason: null,
+      version: 1,
       state: 'completed',
     },
   });
@@ -275,6 +283,10 @@ it.each(['context', 'permission', 'closed'] as const)(
         connectionId: account.connectionId,
         setupId: '37100000-0000-4000-8000-000000000031',
         sessionId: null,
+        startActionId: '70000000-0000-4000-8000-000000000001',
+        startState: 'idle',
+        waitReason: null,
+        version: 1,
         state: 'reserved',
       },
     });
@@ -330,6 +342,10 @@ it.each(['create', 'rename', 'cloud'] as const)(
           connectionId: account.connectionId,
           setupId: '37100000-0000-4000-8000-000000000031',
           sessionId: null,
+          startActionId: '70000000-0000-4000-8000-000000000001',
+          startState: 'idle',
+          waitReason: null,
+          version: 1,
           state: 'reserved',
         },
       });

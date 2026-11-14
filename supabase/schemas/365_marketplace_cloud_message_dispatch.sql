@@ -137,9 +137,9 @@ $$;
 revoke all on function public.marketplace_retry_message(uuid,uuid,uuid,uuid,boolean) from public,anon;
 grant execute on function public.marketplace_retry_message(uuid,uuid,uuid,uuid,boolean) to authenticated;
 
-create or replace function public.marketplace_cloud_message_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid)
+create or replace function public.marketplace_cloud_message_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_target_id uuid default null)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_message public.marketplace_local_message_outbox; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions;
+declare v_message public.marketplace_local_message_outbox; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions; v_next jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if p_runner_id is null then raise exception 'Auftragskennung fehlt' using errcode='22023'; end if;
@@ -155,8 +155,14 @@ begin
   update public.marketplace_local_message_outbox message set state='cancelled',error_code='authorization_expired',updated_at=clock_timestamp()
     where message.execution_mode='cloud' and message.state in ('queued','claimed')
       and not public.marketplace_cloud_message_permission_valid(message.workspace_id,message.connection_id,message.requested_by,message.cloud_authorization_version);
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
+  if p_target_id is null then
+    v_next:=public.marketplace_browser_next_work();
+    if v_next is null or v_next->>'kind'<>'message' then return null; end if;
+    p_target_id:=(v_next->>'jobId')::uuid;
+  end if;
+  if not public.marketplace_browser_job_eligible('message',p_target_id::text) then return null; end if;
   select * into v_message from public.marketplace_local_message_outbox where execution_mode='cloud' and state='queued'
+    and id=p_target_id and public.marketplace_browser_slot_status(workspace_id,connection_id) is null
     and public.marketplace_cloud_write_available(workspace_id,connection_id)
     order by created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
@@ -172,8 +178,8 @@ begin
     'command',jsonb_build_object('externalConversationId',v_message.external_conversation_id,'text',v_message.message_text,'attachment',case when v_message.attachment_name is null then null else jsonb_build_object('name',v_message.attachment_name,'mimeType',v_message.attachment_mime_type,'base64',v_message.attachment_base64) end));
 end;
 $$;
-revoke all on function public.marketplace_cloud_message_claim(uuid,bigint,uuid) from public,anon,authenticated;
-grant execute on function public.marketplace_cloud_message_claim(uuid,bigint,uuid) to service_role;
+revoke all on function public.marketplace_cloud_message_claim(uuid,bigint,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.marketplace_cloud_message_claim(uuid,bigint,uuid,uuid) to service_role;
 
 create or replace function public.marketplace_cloud_message_check(p_workspace_id uuid,p_connection_id uuid,p_message_id uuid,p_claim_token uuid,p_worker_id uuid,p_worker_epoch bigint)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$

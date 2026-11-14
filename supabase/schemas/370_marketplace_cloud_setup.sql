@@ -306,7 +306,7 @@ begin
   perform public.marketplace_cloud_setup_read(p_workspace_id,p_setup_id);
   select * into v_setup from public.marketplace_cloud_setups where public_id=p_setup_id for update;
   if v_setup.state not in ('login','verified') or v_setup.provider_profile_id is null or v_setup.expires_at<=clock_timestamp() then raise exception 'Einrichtung nicht verfügbar' using errcode='55000'; end if;
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then raise exception 'Browser wird bereits bedient oder bereinigt' using errcode='55P03'; end if;
+  if public.marketplace_browser_slot_status(p_workspace_id,v_setup.connection_id) is not null then raise exception 'Browser wird bereits bedient oder bereinigt' using errcode='55P03'; end if;
   insert into public.marketplace_browser_sessions(workspace_id,connection_id,started_by,provider_profile_id,expires_at,cloud_setup_id)
     values(p_workspace_id,v_setup.connection_id,(select auth.uid()),v_setup.provider_profile_id,least(v_setup.expires_at,clock_timestamp()+interval '10 minutes'),p_setup_id) returning * into v_session;
   return jsonb_build_object('id',v_session.public_id,'workspaceId',v_session.workspace_id,'connectionId',v_session.connection_id,'state',v_session.state,'expiresAt',v_session.expires_at);
@@ -322,7 +322,7 @@ begin
   perform pg_advisory_xact_lock(91731,1);
   perform public.marketplace_cloud_setup_read(p_workspace_id,p_setup_id);
   select * into v_setup from public.marketplace_cloud_setups where public_id=p_setup_id;
-  select * into v_session from public.marketplace_browser_sessions where cloud_setup_id=p_setup_id and public_id=p_session_id and started_by=(select auth.uid()) for update;
+  select * into v_session from public.marketplace_browser_sessions where cloud_setup_id=p_setup_id and public_id=p_session_id and started_by=(select auth.uid()) and account_action_id is null for update;
   if not found then raise exception 'Sitzungszugriff verweigert' using errcode='42501'; end if;
   v_active:=v_session.state='active' and v_session.expires_at>clock_timestamp() and v_setup.expires_at>clock_timestamp()
     and v_setup.state in ('login','verified') and exists(select 1 from public.marketplace_cloud_ips where id=v_setup.cloud_ip_id and enabled and country_code='DE' and is_dedicated_isp and verified_at is not null and expires_at>clock_timestamp())

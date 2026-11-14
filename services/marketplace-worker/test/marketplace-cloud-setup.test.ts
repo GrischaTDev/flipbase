@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { MarketplaceCloudSetup } from '../src/marketplace-cloud-setup.ts';
 import type { CloudSetupView } from '../src/marketplace-cloud-setup-contracts.d.ts';
 import type { PrivateCloudSetup } from '../src/supabase-marketplace-cloud-setup-store.ts';
+import type { AccountActionClaim } from '../src/supabase-marketplace-account-action-store.ts';
 
 test('a slow post-purchase registration stays pending and reserves one IP for the same authorized request', async () => {
   const events: string[] = [];
@@ -48,6 +52,7 @@ test('a slow post-purchase registration stays pending and reserves one IP for th
         return purchased ? { status: 'ready', setup: item.view() } : { status: 'no_capacity' };
       },
       read: async () => item.view(),
+      presence: async () => item.view(),
       readAuthorized: async () => {
         throw new Error('unused');
       },
@@ -109,6 +114,7 @@ function fixture(
   uncertainStop = false,
   lostCompleteReply = false,
   inventory?: { authorized?: boolean; fails?: boolean; wait?: Promise<void> },
+  lostStartReply = false,
 ) {
   let view: CloudSetupView = {
     workspaceId: scope.workspaceId,
@@ -116,8 +122,13 @@ function fixture(
     setupId,
     sessionId,
     state: 'login',
+    startState: 'running',
+    waitReason: null,
+    version: 1,
+    startActionId: null,
   };
   const events: string[] = [];
+  let savedStartState: 'queued' | 'succeeded' | 'failed' | 'outcome_unknown' = 'queued';
   const recoveryRows: unknown[] = [];
   const privateView = (): PrivateCloudSetup => ({
     setup: view,
@@ -128,6 +139,38 @@ function fixture(
     ipExpiresAt: '2099-01-01T00:00:00Z',
   });
   const service = new MarketplaceCloudSetup({
+    actions: {
+      enqueue: async (_scope, requestId, kind, payload) => {
+        assert.equal(requestId, payload.dialogId);
+        assert.equal(kind, 'cloud_setup_open');
+        events.push('enqueue');
+        view = {
+          ...view,
+          startState: 'queued',
+          sessionId: null,
+          version: view.version + 1,
+          startActionId: requestId,
+        };
+        return { action: { id: requestId } };
+      },
+      finish: async (_scope, state) => {
+        events.push('finish:' + state);
+        savedStartState = state;
+        if (state === 'succeeded' && lostStartReply) throw new Error('Commit-ACK verloren');
+      },
+      read: async () => {
+        events.push('read-start-receipt');
+        return {
+          action: {
+            id: dialogId,
+            workspaceId: scope.workspaceId,
+            connectionId: scope.connectionId,
+            state: savedStartState,
+            result: { id: sessionId },
+          },
+        };
+      },
+    },
     refreshInventory: inventory
       ? async () => {
           events.push('sync-inventory');
@@ -145,6 +188,10 @@ function fixture(
         return { status: 'no_capacity' };
       },
       read: async () => view,
+      presence: async (_scope, _setupId, _dialogId, connected) => {
+        events.push(connected ? 'presence-on' : 'presence-off');
+        return view;
+      },
       readAuthorized: async () => privateView(),
       rows: async () => recoveryRows,
       cancel: async () => {
@@ -195,6 +242,15 @@ function fixture(
         if (uncertainStop) throw new Error('uncertain');
         view = { ...view, sessionId: null };
       },
+      handoffCloudSetup: async (_scope, id, transferredSetupId, token) => {
+        assert.equal(transferredSetupId, setupId);
+        assert.equal(token, scope.userAccessToken);
+        events.push('handoff');
+        view = { ...view, sessionId: id, startState: 'running', version: view.version + 1 };
+      },
+      discardUnstartedAction: async () => {
+        events.push('discard-unstarted');
+      },
     },
   });
   return {
@@ -218,6 +274,116 @@ test('both new accounts and local upgrades refresh authorized inventory before a
       status: 'no_capacity',
     });
     assert.deepEqual(item.events, ['authorize', 'sync-inventory', 'reserve']);
+  }
+});
+
+const dialogId = '37100000-0000-4000-8000-000000000071';
+function setupClaim(): AccountActionClaim {
+  return {
+    kind: 'account_action',
+    actionId: dialogId,
+    actionKind: 'cloud_setup_open',
+    payload: { setupId, dialogId },
+    target: { accountId: '123', entryId: null, externalId: null, entryKind: null, body: null },
+    scope: {
+      ...scope,
+      userAccessToken: '',
+      accountAction: {
+        setupId,
+        actionId: dialogId,
+        claimToken: '37100000-0000-4000-8000-000000000072',
+        workerId: '37100000-0000-4000-8000-000000000073',
+        workerEpoch: 1,
+        runnerId: '37100000-0000-4000-8000-000000000074',
+        sessionId,
+        expiresAt: '2099-01-01T00:00:00Z',
+        absoluteExpiresAt: '2099-01-01T00:00:00Z',
+      },
+    },
+  };
+}
+
+async function connectedDialog(item: ReturnType<typeof fixture>) {
+  const server = createServer((_request, response) => {
+    void item.service
+      .connectPresence(scope, setupId, dialogId, response)
+      .catch(() => response.destroy());
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const abort = new AbortController();
+  const response = await fetch('http://127.0.0.1:' + address.port, { signal: abort.signal });
+  assert.equal(response.status, 200);
+  const reader = response.body!.getReader();
+  assert.match(new TextDecoder().decode((await reader.read()).value), /event: setup_changed/);
+  return async () => {
+    abort.abort();
+    await reader.cancel().catch(() => undefined);
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    for (let attempts = 0; attempts < 100 && !item.events.includes('presence-off'); attempts++)
+      await delay(5);
+    assert.ok(item.events.includes('presence-off'));
+    await delay(0);
+  };
+}
+
+test('setup is never enqueued without a connected dialog', async () => {
+  const item = fixture();
+  await assert.rejects(item.service.requestOpen(scope, setupId, dialogId), /erneut/);
+  assert.deepEqual(item.events, []);
+});
+
+test('closing a waiting dialog prevents browser launch even after its queued start was claimed', async () => {
+  const item = fixture();
+  item.setView({ sessionId: null, startState: 'idle' });
+  const disconnect = await connectedDialog(item);
+  try {
+    assert.equal((await item.service.requestOpen(scope, setupId, dialogId)).startState, 'queued');
+    assert.ok(!item.events.includes('open'));
+  } finally {
+    await disconnect();
+  }
+  await item.service.runQueuedSetup(setupClaim());
+  assert.ok(!item.events.includes('open'));
+  assert.deepEqual(item.events.slice(-2), ['discard-unstarted', 'finish:failed']);
+});
+
+test('queued setup hands its existing browser to the live dialog and stops it on disconnect', async () => {
+  const item = fixture();
+  item.setView({ sessionId: null, startState: 'idle' });
+  const disconnect = await connectedDialog(item);
+  try {
+    await item.service.requestOpen(scope, setupId, dialogId);
+    await item.service.runQueuedSetup(setupClaim());
+    assert.equal(item.view().sessionId, sessionId);
+    assert.deepEqual(
+      item.events.filter((event) => ['open', 'finish:succeeded', 'handoff'].includes(event)),
+      ['open', 'handoff', 'finish:succeeded'],
+    );
+  } finally {
+    await disconnect();
+  }
+  assert.ok(item.events.includes('stop-browser'));
+});
+
+test('lost setup-start acknowledgement reads the committed receipt without reopening or stopping the browser', async () => {
+  const item = fixture(false, false, undefined, true);
+  item.setView({ sessionId: null, startState: 'idle' });
+  const disconnect = await connectedDialog(item);
+  try {
+    await item.service.requestOpen(scope, setupId, dialogId);
+    await item.service.runQueuedSetup(setupClaim());
+    assert.equal(item.events.filter((event) => event === 'open').length, 1);
+    assert.ok(item.events.includes('read-start-receipt'));
+    assert.ok(!item.events.includes('stop-browser'));
+    assert.ok(!item.events.includes('finish:failed'));
+  } finally {
+    await disconnect();
   }
 });
 

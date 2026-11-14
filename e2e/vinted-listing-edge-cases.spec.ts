@@ -3,6 +3,7 @@ import { expect, test, type Page, type Locator } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createServer, type Server } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { build } from 'esbuild';
 import {
   accountIds,
@@ -14,16 +15,60 @@ import { listingCurrentContentFixture } from '../services/marketplace-worker/tes
 import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
 import type { VintedListingDraft } from '../src/app/features/marketplaces/models/vinted-listing-draft';
 import type { VintedListingJob } from '../src/app/features/marketplaces/models/vinted-listing-job';
+import type { VintedAccountAction } from '../src/app/features/marketplaces/models/vinted-account-action';
+import {
+  putMarketplaceAction,
+  setMarketplaceActionTitle,
+} from './support/marketplace-account-action-fixture';
+import {
+  resolveVintedListingBasicEditIntent,
+  resolveVintedListingEditIntent,
+  type VintedListingEditIntent,
+} from '../supabase/functions/_shared/vinted-listing-edit-intent.mjs';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block', hasTouch: true });
 
-const entryId = 'publication-1';
+const entryId = '25000000-0000-4000-8000-000000000091';
 const images = [
   'https://images.example.test/listing-portrait.svg',
   'https://images.example.test/listing-landscape.svg',
   'https://images.example.test/listing-broken.svg',
 ];
 const detailPath = `/marketplaces/vinted/listings/${accountIds[0]}/${entryId}`;
+
+function browserStartFailure(
+  page: Page,
+  kind: 'price_save' | 'listing_delete',
+  body: Record<string, unknown>,
+  title: string,
+): VintedAccountAction {
+  const requestId = body['requestId'];
+  if (typeof requestId !== 'string') throw new Error('Die Testanfragekennung fehlt.');
+  const at = new Date().toISOString();
+  const action: VintedAccountAction = {
+    workspaceId,
+    connectionId: accountIds[0],
+    id: randomUUID(),
+    requestId,
+    kind,
+    entryId,
+    title,
+    state: 'failed',
+    version: 1,
+    waitReason: null,
+    errorCode: 'browser_unavailable',
+    result: null,
+    blockedByActionId: null,
+    historyPurged: false,
+    resultExpired: false,
+    createdAt: at,
+    updatedAt: at,
+    startedAt: null,
+    finishedAt: at,
+  };
+  putMarketplaceAction(page, action, body);
+  return action;
+}
 
 test('Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast @marketplace-preview', async ({
   page,
@@ -384,8 +429,26 @@ for (const width of [390, 1440])
         }),
       );
       const saves: Record<string, unknown>[] = [];
-      await page.route('**/marketplace-browser/listings/edit/save', (route) => {
-        saves.push(route.request().postDataJSON() as Record<string, unknown>);
+      await page.route('**/marketplace-browser/listings/edit/intent', (route) => {
+        const request = route.request().postDataJSON() as {
+          workspaceId: string;
+          connectionId: string;
+          entryId: string;
+          requestId: string;
+          intent: VintedListingEditIntent;
+        };
+        expect(request.requestId).toMatch(/^[a-f0-9-]{36}$/i);
+        const fields = resolveVintedListingBasicEditIntent(request.intent, {
+          title: 'Unvollständiger Entwurf',
+          description: '',
+          price: '',
+        });
+        saves.push({
+          workspaceId: request.workspaceId,
+          connectionId: request.connectionId,
+          entryId: request.entryId,
+          fields,
+        });
         return route.fulfill({ json: { status: 'confirmed' } });
       });
       await page.goto(detailPath);
@@ -440,6 +503,7 @@ async function prepareListing(page: Page, listing: ListingFixture) {
     Reflect.deleteProperty(Object.getPrototypeOf(navigator), 'serviceWorker'),
   );
   await mockMarketplace(page, true, false, false, false, []);
+  setMarketplaceActionTitle(page, entryId, listing.title);
   await page.route('**/rest/v1/rpc/marketplace_read_relisting_plans', (route) =>
     route.fulfill({ json: { items: [] } }),
   );
@@ -1196,8 +1260,15 @@ for (const width of [390, 1440])
         const saves: unknown[] = [];
         let finishSave!: () => void;
         await page.route('**/marketplace-browser/listings/price/save', async (route) => {
-          saves.push(route.request().postDataJSON());
-          if (saves.length === 1) return route.fulfill({ json: { status: 'unconfirmed' } });
+          const body = route.request().postDataJSON() as Record<string, unknown>;
+          saves.push(body);
+          if (saves.length === 1)
+            return route.fulfill({
+              status: 202,
+              json: {
+                action: browserStartFailure(page, 'price_save', body, 'Jacke für Preisänderung'),
+              },
+            });
           if (saves.length > 3) return route.fulfill({ json: { status: 'confirmed' } });
           await new Promise<void>((resolve) => {
             finishSave = resolve;
@@ -1227,12 +1298,11 @@ for (const width of [390, 1440])
         await expect(detail).toContainText('29,90');
         const runningActions = page.getByRole('button', { name: /Laufende Aktionen/ });
         await runningActions.click();
-        await expect(
-          page.getByText('Preisänderung · Jacke für Preisänderung', { exact: true }),
-        ).toBeVisible();
-        await expect(
-          page.getByText(/Vinted hat die Änderung nicht eindeutig bestätigt/),
-        ).toBeVisible();
+        const failed = page
+          .locator('[data-account-action-state="failed"]')
+          .filter({ hasText: 'Jacke für Preisänderung' });
+        await expect(failed).toContainText('Preisänderung');
+        await expect(failed).toContainText('Der Cloud-Browser konnte nicht gestartet werden.');
         await page.keyboard.press('Escape');
         await opener.click();
         await input.fill('24.50');
@@ -1268,6 +1338,7 @@ for (const width of [390, 1440])
         await expect(detail).not.toContainText('Der neue Preis wurde bei Vinted bestätigt.');
         expect(saves).toEqual(
           [1, 2].map(() => ({
+            requestId: expect.any(String),
             workspaceId,
             connectionId: accountIds[0],
             entryId,
@@ -1335,6 +1406,7 @@ for (const width of [390, 1440])
         await expect(wardrobe).toContainText('22,00');
         await expect(page).toHaveURL(/\/vinted\/listings$/);
         expect(saves[2]).toEqual({
+          requestId: expect.any(String),
           workspaceId,
           connectionId: accountIds[0],
           entryId,
@@ -1380,8 +1452,30 @@ for (const width of [1440, 390]) {
         reads.push(route.request().postDataJSON());
         return route.fulfill({ json: { listing } });
       });
-      await page.route('**/marketplace-browser/listings/content/save', (route) => {
-        saves.push(route.request().postDataJSON() as Record<string, unknown>);
+      await page.route('**/marketplace-browser/listings/edit/intent', (route) => {
+        const request = route.request().postDataJSON() as {
+          workspaceId: string;
+          connectionId: string;
+          entryId: string;
+          requestId: string;
+          intent: VintedListingEditIntent;
+        };
+        expect(request.requestId).toMatch(/^[a-f0-9-]{36}$/i);
+        // Die Serverfixture liest und vereint innerhalb genau einer gespeicherten Kontoaktion.
+        reads.push({
+          workspaceId: request.workspaceId,
+          connectionId: request.connectionId,
+          entryId: request.entryId,
+        });
+        const resolved = resolveVintedListingEditIntent(request.intent, listing);
+        saves.push({
+          workspaceId: request.workspaceId,
+          connectionId: request.connectionId,
+          entryId: request.entryId,
+          base: resolved.base,
+          content: resolved.content,
+          ...(resolved.photos ? { photos: resolved.photos } : {}),
+        });
         return route.fulfill({ json: { status: saves.length === 2 ? 'conflict' : 'confirmed' } });
       });
       await page.goto(detailPath);
@@ -2176,11 +2270,23 @@ for (const width of [390, 1440])
       await page.route('**/marketplace-browser/listings/delete', async (route) => {
         calls++;
         expect(route.request().postDataJSON()).toEqual({
+          requestId: expect.any(String),
           workspaceId,
           connectionId: accountIds[0],
           entryId,
         });
-        if (calls === 1) return route.fulfill({ json: { status: 'outcome_unknown' } });
+        if (calls === 1)
+          return route.fulfill({
+            status: 202,
+            json: {
+              action: browserStartFailure(
+                page,
+                'listing_delete',
+                route.request().postDataJSON() as Record<string, unknown>,
+                'Meine Schuhe',
+              ),
+            },
+          });
         await gate;
         return route.fulfill({ json: { status: 'confirmed' } });
       });
@@ -2202,12 +2308,11 @@ for (const width of [390, 1440])
       await expect(overview.getByRole('button', { name: /Laufende Aktionen/ })).toBeVisible();
       await expect(overview.locator('[data-action-overview-error]')).toHaveCount(1);
       await overview.getByRole('button', { name: /Laufende Aktionen/ }).click();
-      await expect(page.getByText('Löschung · Meine Schuhe', { exact: true })).toBeVisible();
-      await expect(
-        page.getByText('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.', {
-          exact: true,
-        }),
-      ).toBeVisible();
+      const failed = page
+        .locator('[data-account-action-state="failed"]')
+        .filter({ hasText: 'Meine Schuhe' });
+      await expect(failed).toContainText('Inserat löschen');
+      await expect(failed).toContainText('Der Cloud-Browser konnte nicht gestartet werden.');
       await page.keyboard.press('Escape');
       await remove.click();
       await dialog.getByRole('button', { name: 'Löschen', exact: true }).click();

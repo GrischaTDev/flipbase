@@ -53,6 +53,7 @@ update public.marketplace_connections set status='connected' where id='37100000-
 update public.marketplace_local_extension_grants set messages_read=true,messages_send=true where connection_id='37100000-0000-4000-8000-000000000021';
 set local role service_role;
 select public.marketplace_worker_claim('37100000-0000-4000-8000-000000000041');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select is(pg_temp.step('claim')->'setup'->>'state','reserved','Current worker binds the reservation');
 select is(pg_temp.step('bind',null,'chromium_37100000-0000-4000-8000-000000000051')->'setup'->>'state','login','Reserved profile permits setup login');
 reset role;

@@ -94,6 +94,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     externalConversationId: string,
     transactionId: string,
     authorize: () => Promise<void>,
+    readOnly?: boolean,
   ): Promise<import('./vinted-browser-shipping-label.ts').VintedShippingLabelResult>;
   initialize?(): Promise<void>;
   capture?(): Promise<Uint8Array>;
@@ -115,6 +116,11 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   ): Promise<VintedLoginResult>;
   verify?(code: string, authorize: () => Promise<void>): Promise<VintedVerificationResult>;
   readListingEdit?(itemId: string, accountId: string): Promise<VintedListingEditFields>;
+  readListingPresence?(
+    accountId: string,
+    externalId: string,
+    authorize: () => Promise<void>,
+  ): Promise<'present' | 'absent' | 'unknown'>;
   readListingCategory?(
     accountId: string,
     categoryId: number,

@@ -234,17 +234,27 @@ test('Aktionsübersicht bleibt datenbankfrei und erhält Tabletwechsel und Speic
   assert.deepEqual(buildBrowserMatrix(plan), [
     { project: 'changed-ui', shard: '1/1', database: false },
   ]);
-  assert.equal(complete.selected.length, 17);
-  assert.equal(selected.length, 10);
+  assert.equal(complete.selected.length, 21);
+  assert.equal(selected.length, 14);
   for (const title of [
-    'Aktionsübersicht 390px > öffnet nur laufende Aktionen am Header-Icon in dark',
-    'Aktionsübersicht 1280px > öffnet nur laufende Aktionen am Header-Icon in light',
+    'Aktionsübersicht 390px > zeigt wartende und laufende Aktionen am Header-Icon in dark',
+    'Aktionsübersicht 1280px > zeigt wartende und laufende Aktionen am Header-Icon in light',
     'Workspace-Auswahl 1440px > speichert das Ausblenden',
     'Workspace-Auswahl 320px > speichert das Ausblenden',
     'behält den Entwurf bei Speicherfehler und speichert auf erneuten Klick',
     'bietet bei fehlgeschlagener erster Wiederherstellung nur erneutes Lesen an',
   ])
     assert.equal(selected.filter(([, actual]) => actual.includes(title)).length, 1, title);
+  for (const width of [390, 1440])
+    for (const theme of ['light', 'dark']) {
+      const title = `Gespeicherte Cloud-Aktionen warten nach Neuladen, lassen sich abbrechen und prüfen ${width}px ${theme} @marketplace-preview`;
+      for (const selection of [complete.selected, selected])
+        assert.equal(
+          selection.filter(([file, actual]) => file === path.slice(4) && actual === title).length,
+          1,
+          title,
+        );
+    }
 });
 
 test('gemeinsame Controls prüfen sechs echte Verbraucher ohne vollständige Seitenmatrix', async () => {
@@ -608,17 +618,29 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
   const complete = await listPlan(paths);
   const matrix = buildBrowserMatrix(complete.plan);
   assert.deepEqual(matrix, [
+    { project: 'core-smoke', shard: '1/1', database: true },
     { project: 'ui', shard: '1/2', database: false },
     { project: 'ui', shard: '2/2', database: false },
     { project: 'changed-ui', shard: '1/1', database: false },
   ]);
-  assert.ok(complete.selected.length > 0 && complete.selected.length <= 60);
-  assert.deepEqual([...new Set(complete.selected.map(([file]) => file))].sort(), [
-    'vinted-action-overview.spec.ts',
-    'vinted-listing-drafts.spec.ts',
-    'vinted-listing-edge-cases.spec.ts',
-    'vinted-workspace-ui.spec.ts',
-  ]);
+  // Der appweite Cloud-Aktionsstore liest über den bisherigen Headerstore mit;
+  // diese neue Servicegrenze erhält zusätzlich den unveränderten Schutzkern.
+  const coreFiles = new Set(coreBrowserTests.map(([file]) => file));
+  assert.equal(
+    complete.selected.filter(([file]) => coreFiles.has(file)).length,
+    coreBrowserTests.length,
+  );
+  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 57);
+  assert.deepEqual(
+    [...new Set(complete.selected.map(([file]) => file))].sort(),
+    [
+      ...coreFiles,
+      'vinted-action-overview.spec.ts',
+      'vinted-listing-drafts.spec.ts',
+      'vinted-listing-edge-cases.spec.ts',
+      'vinted-workspace-ui.spec.ts',
+    ].sort(),
+  );
   assert.ok(
     complete.selected.some(([, title]) =>
       title.includes('Relisten und Vorlage bewahren Originale'),

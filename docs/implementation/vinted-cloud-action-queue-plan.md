@@ -1,8 +1,8 @@
 # Vinted-Cloud: Plan für parallele Konten und wartende Aktionen
 
-Stand: 14. November 2026. Grundlage: [Codeanalyse](../research/2026-11-14-vinted-cloud-actions-analysis.md) gegen `origin/master` auf `35553d11`.
+Stand: 15. November 2026. Grundlage: [Codeanalyse](../research/2026-11-14-vinted-cloud-actions-analysis.md) gegen `origin/master` auf `35553d11`.
 
-Status: Alle Produktentscheidungen sind bestätigt. Die Agenten beginnen die Umsetzung nach dem gemeinsamen Auftragsvertrag. Angaben des früheren Übergabeprotokolls gelten nicht als aktuelle Freigabe.
+Status: Alle Produktentscheidungen sind bestätigt und die Schritte 0 bis 5 sind implementiert. Datenbank, Worker und Oberfläche wurden gemeinsam integriert; die abschließenden lokalen Prüfungen einschließlich Linux-Preflight sind bestanden. Die inzwischen aktualisierten Hauptzweigstände `068bab69` und `0ef55c0d` sind eingebunden. Push, PR, Merge und Produktionsmessung stehen noch aus. Angaben des früheren Übergabeprotokolls gelten nicht als aktuelle Freigabe.
 
 ## Ziel und feste Grenzen
 
@@ -28,11 +28,21 @@ Alle nachstehenden Entscheidungen hat der Nutzer ausdrücklich bestätigt. Die A
 
 Für die bestätigte Reihenfolge gilt: Die Aufwertung greift bei noch nicht begonnenen automatischen Abgleichen nach fünf Minuten tatsächlicher Wartezeit. Bei gleichem Rang entscheidet das Alter des ausführbaren Auftrags; abhängige Änderungen dürfen nicht überholt werden. Laufende Aktionen werden durch neu eintreffende Aufträge nicht unterbrochen.
 
+Die gemeinsame Auswahl stuft ausschließlich frische automatische Abgleiche zurück. Andere Auftragsfamilien behalten ihren altersabhängigen Rang; dadurch führt der Nutzervorrang nicht zur dauerhaften Verdrängung anderer bestehender Schreibaufträge.
+
 Für die bestätigten Leserouten gilt: Annahme und Ergebnisabruf sind getrennt. Ein verspätetes Ergebnis darf weder nach einem Kontowechsel noch nach neuerer Formulareingabe ungeprüft übernommen werden. Gespeicherte Listen, Entwürfe und browserfreie Fotoabrufe bleiben direkt nutzbar.
 
 Die Warteschlangengrenze ist eine harte Annahmegrenze: Bei 50 wartenden direkten Aufträgen wird ein weiterer neuer Auftrag weder gespeichert noch ausgeführt, auch nicht über einen sofortigen Nebenweg. Die Oberfläche meldet: „Maximale Anzahl wartender Aktionen erreicht. Bitte warte, bis ein Platz frei wird.“ Die Wiederholung einer bereits angenommenen Anfrage liefert weiterhin deren bisherigen Auftrag.
 
 Nach 30 Tagen werden abgeschlossene direkte Aufträge aus dem Verlauf entfernt und ihre Nutzdaten/Ergebnisse bereinigt. Eine minimale unveränderliche Anfragequittung bleibt in derselben Zeile erhalten; dadurch kann dieselbe alte Anfrage niemals eine zweite Ausführung auslösen. Ungeklärte Ergebnisse werden nicht automatisch bereinigt. Artikel, Bilder, Nachrichten und fachliche Dokumente werden durch diese Verlaufsbereinigung nicht gelöscht.
+
+## Betrieb und Freigabe
+
+Das Hostlimit `MARKETPLACE_BROWSER_MAX_CONCURRENT` ist auf 1 voreingestellt und erlaubt Werte von 1 bis 8. Eine Erhöhung erfordert einen kontrollierten Neustart des Brokers. Das Datenbanklimit über `marketplace_set_browser_pool_size` begrenzt die gleichzeitig nutzbaren Plätze zusätzlich; wirksam ist das kleinere bestätigte Limit. Eine Absenkung auf 1 stoppt keine bereits laufende Aktion. Fehlt eine aktuelle Kapazitätsbestätigung des Hosts, starten keine neuen Browser.
+
+Für die spätere Messung mit zwei eigenen Konten müssen Host- und Datenbanklimit jeweils 2 erlauben. Erst nach erfolgreicher Lastmessung bleibt dieser Wert aktiv; bei Problemen wird das Datenbanklimit auf 1 zurückgenommen. Die lokalen Konkurrenztests bestätigen die Vergabe bei einem und zwei Plätzen, ersetzen aber keine Kapazitätsmessung auf dem Produktionsserver.
+
+Die Migration `20261114212835_vinted_cloud_account_actions.sql` wurde aus isolierten Datenbanken erzeugt und auf dem Ausgangsbestand frisch angewendet. Zusätzliche Übernahmen von Berechtigungen, privater Realtime-Policy, Startwert und Reihenfolgenabgleich schließen die ermittelten Grenzen des Schema-Diffs. Der Abgleich mit dem deklarativen Schema umfasst Funktionen, Tabellen, Rechte, Indizes und Trigger. Die abschließenden Prüfnachweise stehen im [Änderungsprotokoll](../AI-CHANGELOG.md).
 
 ## Schritt 0: Vertrag vollständig festlegen
 

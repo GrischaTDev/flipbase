@@ -21,9 +21,9 @@ begin
 end;
 $$;
 
-create or replace function public.marketplace_cloud_listing_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid)
+create or replace function public.marketplace_cloud_listing_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_target_id text default null)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_job public.marketplace_listing_jobs; v_permission public.marketplace_listing_permissions; v_session public.marketplace_browser_sessions;
+declare v_job public.marketplace_listing_jobs; v_permission public.marketplace_listing_permissions; v_session public.marketplace_browser_sessions; v_next jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if p_runner_id is null then raise exception 'Auftragskennung fehlt.' using errcode='22023'; end if;
@@ -34,8 +34,14 @@ begin
     where execution_mode='cloud' and state in ('queued','paused','claimed') and not (job.state='paused' and job.error_code='editing') and not public.marketplace_listing_job_valid(job);
   update public.marketplace_listing_jobs job set state='paused',error_code='schedule_late'
     where execution_mode='cloud' and state='queued' and public.marketplace_listing_job_timing(coalesce(job.relist_publish_at,job.scheduled_at),job.late_policy,clock_timestamp())='paused';
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
+  if p_target_id is null then
+    v_next:=public.marketplace_browser_next_work();
+    if v_next is null or v_next->>'kind'<>'listing' then return null; end if;
+    p_target_id:=v_next->>'jobId';
+  end if;
+  if not public.marketplace_browser_job_eligible('listing',p_target_id) then return null; end if;
   select * into v_job from public.marketplace_listing_jobs job where execution_mode='cloud' and state='queued' and public.marketplace_listing_job_valid(job)
+    and job.id=p_target_id::bigint and public.marketplace_browser_slot_status(job.workspace_id,job.connection_id) is null
     and ((job.snapshot ? 'relistExternalId' and job.relist_publish_at is null) or public.marketplace_listing_job_timing(coalesce(job.relist_publish_at,job.scheduled_at),job.late_policy,clock_timestamp())='due')
     order by scheduled_at nulls first,created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
@@ -124,5 +130,5 @@ begin
 end;
 $$;
 
-revoke all on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb,text) from public,anon,authenticated;
-grant execute on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb,text) to service_role;
+revoke all on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid,text),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb,text) from public,anon,authenticated;
+grant execute on function public.marketplace_expire_cloud_listing_attempts(uuid),public.marketplace_cloud_listing_claim(uuid,bigint,uuid,text),public.marketplace_cloud_listing_check(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_begin(uuid,uuid,text,uuid,uuid,bigint),public.marketplace_cloud_listing_finish(uuid,uuid,text,uuid,uuid,bigint,jsonb,text) to service_role;
