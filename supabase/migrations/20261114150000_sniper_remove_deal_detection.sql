@@ -1,11 +1,12 @@
 -- Entfernt die verworfene Deal-Erkennung des Snipers vollständig aus der Datenbank.
 -- Betroffen: Tabellen public.sniper_watchlist_hits, public.sniper_hits, public.sniper_query_subscriptions (entfallen);
 -- Spalten public.sniper_listings.evaluated_at und .watchlist_evaluated_at sowie
--- public.sniper_watchlists.discount_threshold_percent und .starts_at (entfallen);
+-- public.sniper_watchlists.discount_threshold_percent, .starts_at und .is_active (entfallen);
 -- Funktionen der Bewertung, des Referenzpreises, des alten Abonnements und der abgelösten Feeds (entfallen);
--- public.save_sniper_watchlist, public.complete_sniper_search_filter_run, public.sniper_feed_search und
--- public.sniper_normalize_favorite_item (ohne Deal-Angaben); gespeicherte Favoriten verlieren ihre Deal-Angaben.
--- Suchfilter-Karten, Herz-Favoriten, Feed und Preisvergleich bleiben unverändert nutzbar.
+-- public.save_sniper_watchlist, public.enforce_sniper_watchlist_limit, public.complete_sniper_search_filter_run,
+-- public.sniper_feed_search und public.sniper_normalize_favorite_item (ohne Deal-Angaben);
+-- gespeicherte Favoriten verlieren ihre Deal-Angaben.
+-- Suchfilter-Karten, Herz-Favoriten, Feed und Preisvergleich bleiben nutzbar.
 -- Migration unit 1: schema_changes
 -- Transaction mode: transactional
 -- Boundary reason: default
@@ -67,11 +68,26 @@ drop index if exists public.idx_sniper_listings_watchlist_pending;
 drop index if exists public.idx_sniper_listings_watchlist_pending_global;
 alter table public.sniper_listings drop column if exists evaluated_at, drop column if exists watchlist_evaluated_at;
 
--- Destruktiv: Rabattschwelle und Startzeitpunkt der Deal-Bewertung je Suchfilter-Karte entfallen.
+-- Destruktiv: Rabattschwelle, Startzeitpunkt und Pausieren je Suchfilter-Karte dienten nur der
+-- Deal-Bewertung. Bisher pausierte Karten filtern die Artikelansicht danach unverändert weiter.
 drop function if exists public.save_sniper_watchlist(uuid, uuid, text, integer, text, text, numeric, numeric, text, numeric, boolean);
-alter table public.sniper_watchlists drop column if exists discount_threshold_percent, drop column if exists starts_at;
+drop index if exists public.idx_sniper_watchlists_active_catalog;
+alter table public.sniper_watchlists drop column if exists discount_threshold_percent,
+    drop column if exists starts_at, drop column if exists is_active;
 
-create function public.save_sniper_watchlist(p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer, p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric, p_condition text, p_is_active boolean)
+-- Das Kontingent kennt nur noch die Gesamtzahl je Arbeitsbereich.
+create or replace function public.enforce_sniper_watchlist_limit()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+    perform 1 from public.workspaces where id = new.workspace_id for update;
+    if tg_op = 'INSERT' and (select count(*) from public.sniper_watchlists where workspace_id = new.workspace_id) >= 100 then
+        raise exception 'Maximal 100 Merkzettel pro Arbeitsbereich.' using errcode = '54000';
+    end if;
+    return new;
+end;
+$$;
+
+create function public.save_sniper_watchlist(p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer, p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric, p_condition text)
  RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -92,16 +108,15 @@ begin
     end if;
     if p_id is null then
         insert into public.sniper_watchlists(workspace_id, title, catalog_id, brand, search_text,
-            price_from, price_to, condition, is_active)
+            price_from, price_to, condition)
         values (p_workspace_id, btrim(p_title), p_catalog_id, nullif(btrim(p_brand), ''),
             nullif(btrim(p_search_text), ''), p_price_from, p_price_to,
-            nullif(btrim(p_condition), ''), p_is_active)
+            nullif(btrim(p_condition), ''))
         returning id into v_id;
     else
         update public.sniper_watchlists set title = btrim(p_title), catalog_id = p_catalog_id,
             brand = nullif(btrim(p_brand), ''), search_text = nullif(btrim(p_search_text), ''),
             price_from = p_price_from, price_to = p_price_to, condition = nullif(btrim(p_condition), ''),
-            is_active = p_is_active,
             legacy_brand_id = case when nullif(btrim(p_brand), '') is not null then null else legacy_brand_id end
         where id = p_id and workspace_id = p_workspace_id returning id into v_id;
         if v_id is null then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
@@ -110,8 +125,8 @@ begin
 end;
 $function$
 ;
-revoke all on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text,boolean) from public, anon;
-grant execute on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text,boolean) to authenticated;
+revoke all on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text) from public, anon;
+grant execute on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text) to authenticated;
 
 create or replace function public.complete_sniper_search_filter_run(
     p_query_id uuid, p_revision integer, p_cursor integer, p_listings jsonb, p_diagnostics jsonb default '{}'
@@ -130,13 +145,13 @@ begin
     select * into v_query from public.sniper_queries where id = p_query_id for update;
     if not found or v_query.deleted_at is not null or not v_query.is_active
        or v_query.filter_revision is distinct from p_revision or v_query.request_cursor is distinct from p_cursor then
-        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false, 'hits', 0);
+        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false);
     end if;
     if v_query.filter_format_version <> 1 then raise exception 'Ungültiges Suchfilterformat.' using errcode = '22023'; end if;
     if v_query.catalog_id is not null and not exists (select 1 from public.vinted_categories where id = v_query.catalog_id) then
         update public.sniper_queries set is_active = false, run_state = 'invalid',
             last_error_kind = 'invalid_category', last_error_message = 'Die Kategorie ist nicht mehr verfügbar.', updated_at = now() where id = p_query_id;
-        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false, 'hits', 0);
+        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false);
     end if;
     if p_listings is null or jsonb_typeof(p_listings) <> 'array' then raise exception 'Ungültiges Artikelpaket.' using errcode = '22023'; end if;
     if jsonb_array_length(p_listings) > 288 then raise exception 'Zu viele Artikel in einem Abruf.' using errcode = '22023'; end if;
@@ -217,8 +232,7 @@ begin
         shared_filter_count = coalesce((p_diagnostics->>'shared_filter_count')::integer, 1),
         updated_at = now() where id = p_query_id;
     perform set_config('flipbase.sniper_run', '', true);
-    -- 'hits' bleibt mit 0 erhalten, solange ein älterer Dienst während einer Auslieferung die Antwort prüft.
-    return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed, 'hits', 0);
+    return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed);
 end;
 $$;
 

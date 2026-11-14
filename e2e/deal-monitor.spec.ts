@@ -743,7 +743,6 @@ async function fixture(
         price_from: body['p_price_from'],
         price_to: body['p_price_to'],
         condition: body['p_condition'],
-        is_active: body['p_is_active'],
         legacy_brand_id: null,
       };
       if (watchlists.length) watchlists[0] = row;
@@ -926,8 +925,6 @@ for (const theme of ['light', 'dark'] as const) {
       page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
     ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Meine Sneaker', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Pausieren', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Aktivieren', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Suchfilter bearbeiten', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');
     await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();

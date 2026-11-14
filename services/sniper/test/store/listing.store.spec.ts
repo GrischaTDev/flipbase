@@ -88,7 +88,7 @@ const guardedQuery = {
 describe('atomic search filter ingestion HTTP contract', () => {
   it('sends only matching titles with the exact revision and monotonic cursor to one RPC', async () => {
     const { store, requests } = storeWithResponses([
-      { body: { accepted: true, created: 1, hits: 0, seeded: false } },
+      { body: { accepted: true, created: 1, seeded: false } },
     ]);
     const good = { ...listing('matching'), title: 'VINTAGE Nike Jacke' };
     const wrong = { ...listing('description-only'), description: 'Vintage', title: 'Nike Jacke' };
@@ -109,18 +109,18 @@ describe('atomic search filter ingestion HTTP contract', () => {
   });
   it('preserves a stale result rejection instead of reporting it as new listings', async () => {
     const { store } = storeWithResponses([
-      { body: { accepted: false, created: 0, hits: 0, seeded: false } },
+      { body: { accepted: false, created: 0, seeded: false } },
     ]);
     expect((await store.completeRun([], guardedQuery)).accepted).toBe(false);
   });
   it('still submits an empty response so its request lane can be seeded atomically', async () => {
     const { store, requests } = storeWithResponses([
-      { body: { accepted: true, created: 0, hits: 0, seeded: true } },
+      { body: { accepted: true, created: 0, seeded: true } },
     ]);
     expect((await store.completeRun([], guardedQuery)).seeded).toBe(true);
     expect(requests[0]?.body).toMatchObject({ p_listings: [] });
   });
-  it.each([null, {}, { accepted: true, created: -1, hits: 0, seeded: false }])(
+  it.each([null, {}, { accepted: true, created: -1, seeded: false }])(
     'rejects an invalid server result: %j',
     async (body) => {
       const { store } = storeWithResponses([{ body }]);

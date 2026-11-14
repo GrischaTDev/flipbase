@@ -8,7 +8,6 @@ export interface Watchlist {
   price_from: number | null;
   price_to: number | null;
   condition: string | null;
-  is_active: boolean;
   legacy_brand_id: number | null;
 }
 

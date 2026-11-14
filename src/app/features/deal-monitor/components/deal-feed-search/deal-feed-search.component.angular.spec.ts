@@ -244,7 +244,6 @@ describe('DealFeedSearchComponent', () => {
         price_from: null,
         price_to: 50,
         condition: null,
-        is_active: true,
         legacy_brand_id: null,
       },
     ]),

@@ -235,7 +235,7 @@ describe('bounded shared search scheduling', () => {
         global: {
           fetch: async (_input, init) => {
             bodies.push(JSON.parse(String(init?.body)) as { p_listings: unknown[] });
-            return Response.json({ accepted: true, created: 0, seeded: false, hits: 0 });
+            return Response.json({ accepted: true, created: 0, seeded: false });
           },
         },
       });
@@ -270,7 +270,7 @@ describe('bounded shared search scheduling', () => {
         fetch: async (input, init) => {
           expect(String(input)).toContain('/rpc/complete_sniper_search_filter_run');
           rpcBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-          return Response.json({ accepted: true, created: 0, seeded: false, hits: 0 });
+          return Response.json({ accepted: true, created: 0, seeded: false });
         },
       },
     });

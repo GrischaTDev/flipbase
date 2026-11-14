@@ -121,7 +121,6 @@ describe('DealFiltersComponent', () => {
         price_from: null,
         price_to: 45,
         condition: null,
-        is_active: true,
         legacy_brand_id: null,
       },
     ]),
@@ -192,28 +191,6 @@ describe('DealFiltersComponent', () => {
 
     comp.closeEditor();
     expect(comp.editorOpen()).toBe(false);
-  });
-
-  it('toggles a watchlist', async () => {
-    const row = {
-      id: 'wl-1',
-      workspace_id: 'ws-1',
-      title: 'Vintage Sweatshirts',
-      catalog_id: 1,
-      brand: 'Nike',
-      search_text: 'Vintage',
-      price_from: null,
-      price_to: 45,
-      condition: null,
-      is_active: true,
-      legacy_brand_id: null,
-    };
-
-    comp.toggle(row);
-    expect(mockApi.save).toHaveBeenCalledWith('ws-1', {
-      ...row,
-      is_active: false,
-    });
   });
 
   it('renders template with watchlists without template errors', async () => {

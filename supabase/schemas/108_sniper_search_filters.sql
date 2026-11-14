@@ -332,13 +332,13 @@ begin
     select * into v_query from public.sniper_queries where id = p_query_id for update;
     if not found or v_query.deleted_at is not null or not v_query.is_active
        or v_query.filter_revision is distinct from p_revision or v_query.request_cursor is distinct from p_cursor then
-        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false, 'hits', 0);
+        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false);
     end if;
     if v_query.filter_format_version <> 1 then raise exception 'Ungültiges Suchfilterformat.' using errcode = '22023'; end if;
     if v_query.catalog_id is not null and not exists (select 1 from public.vinted_categories where id = v_query.catalog_id) then
         update public.sniper_queries set is_active = false, run_state = 'invalid',
             last_error_kind = 'invalid_category', last_error_message = 'Die Kategorie ist nicht mehr verfügbar.', updated_at = now() where id = p_query_id;
-        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false, 'hits', 0);
+        return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false);
     end if;
     if p_listings is null or jsonb_typeof(p_listings) <> 'array' then raise exception 'Ungültiges Artikelpaket.' using errcode = '22023'; end if;
     if jsonb_array_length(p_listings) > 288 then raise exception 'Zu viele Artikel in einem Abruf.' using errcode = '22023'; end if;
@@ -419,8 +419,7 @@ begin
         shared_filter_count = coalesce((p_diagnostics->>'shared_filter_count')::integer, 1),
         updated_at = now() where id = p_query_id;
     perform set_config('flipbase.sniper_run', '', true);
-    -- 'hits' bleibt mit 0 erhalten, solange ein älterer Dienst während einer Auslieferung die Antwort prüft.
-    return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed, 'hits', 0);
+    return jsonb_build_object('accepted', true, 'created', v_created, 'seeded', v_seed);
 end;
 $$;
 revoke all on function public.complete_sniper_search_filter_run(uuid,integer,integer,jsonb,jsonb) from public, anon, authenticated;

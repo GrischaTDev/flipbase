@@ -9,7 +9,6 @@ create table public.sniper_watchlists (
     price_from numeric(12, 2),
     price_to numeric(12, 2),
     condition text,
-    is_active boolean not null default true,
     created_at timestamptz not null default now(),
     legacy_brand_id integer,
     constraint sniper_watchlists_price_range check (
@@ -20,7 +19,6 @@ create table public.sniper_watchlists (
 );
 comment on table public.sniper_watchlists is 'Persoenliche Suchkriterien eines Arbeitsbereichs; erzeugen keine Marktplatzanfragen.';
 create index idx_sniper_watchlists_workspace on public.sniper_watchlists(workspace_id);
-create index idx_sniper_watchlists_active_catalog on public.sniper_watchlists(catalog_id) where is_active;
 alter table public.sniper_watchlists enable row level security;
 revoke all on public.sniper_watchlists from public, anon, authenticated;
 grant select on public.sniper_watchlists to authenticated;
@@ -35,11 +33,6 @@ begin
     perform 1 from public.workspaces where id = new.workspace_id for update;
     if tg_op = 'INSERT' and (select count(*) from public.sniper_watchlists where workspace_id = new.workspace_id) >= 100 then
         raise exception 'Maximal 100 Merkzettel pro Arbeitsbereich.' using errcode = '54000';
-    end if;
-    if new.is_active and (tg_op = 'INSERT' or not old.is_active or old.workspace_id is distinct from new.workspace_id) then
-        if (select count(*) from public.sniper_watchlists where workspace_id = new.workspace_id and is_active and id <> new.id) >= 25 then
-            raise exception 'Maximal 25 aktive Merkzettel pro Arbeitsbereich.' using errcode = '54000';
-        end if;
     end if;
     return new;
 end;
@@ -57,7 +50,7 @@ comment on column public.sniper_listings.catalog_source_query_id is 'Auftrag, de
 create or replace function public.save_sniper_watchlist(
     p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer,
     p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric,
-    p_condition text, p_is_active boolean
+    p_condition text
 )
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
@@ -75,16 +68,15 @@ begin
     end if;
     if p_id is null then
         insert into public.sniper_watchlists(workspace_id, title, catalog_id, brand, search_text,
-            price_from, price_to, condition, is_active)
+            price_from, price_to, condition)
         values (p_workspace_id, btrim(p_title), p_catalog_id, nullif(btrim(p_brand), ''),
             nullif(btrim(p_search_text), ''), p_price_from, p_price_to,
-            nullif(btrim(p_condition), ''), p_is_active)
+            nullif(btrim(p_condition), ''))
         returning id into v_id;
     else
         update public.sniper_watchlists set title = btrim(p_title), catalog_id = p_catalog_id,
             brand = nullif(btrim(p_brand), ''), search_text = nullif(btrim(p_search_text), ''),
             price_from = p_price_from, price_to = p_price_to, condition = nullif(btrim(p_condition), ''),
-            is_active = p_is_active,
             legacy_brand_id = case when nullif(btrim(p_brand), '') is not null then null else legacy_brand_id end
         where id = p_id and workspace_id = p_workspace_id returning id into v_id;
         if v_id is null then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
@@ -92,8 +84,8 @@ begin
     return v_id;
 end;
 $$;
-revoke all on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text,boolean) from public, anon;
-grant execute on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text,boolean) to authenticated;
+revoke all on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text) from public, anon;
+grant execute on function public.save_sniper_watchlist(uuid,uuid,text,integer,text,text,numeric,numeric,text) to authenticated;
 
 create or replace function public.delete_sniper_watchlist(p_workspace_id uuid, p_id uuid)
 returns void language plpgsql security definer set search_path = '' as $$

@@ -18,12 +18,12 @@ insert into public.sniper_queries(id,query_key,catalog_id,search_text,price_to) 
 
 select set_config('request.jwt.claim.sub','91000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
-select lives_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Mein Filter',2010000001,' Nike ','Sneaker',5,50,'Gut',true)$$,'Mitglied legt eigenen Merkzettel an');
+select lives_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Mein Filter',2010000001,' Nike ','Sneaker',5,50,'Gut')$$,'Mitglied legt eigenen Merkzettel an');
 select is((select brand from public.sniper_watchlists where title = 'Mein Filter'),'Nike','Marke normalisiert');
-select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000004',null,'Fremd',null,null,null,null,null,null,true)$$,'42501',null,'Fremder Arbeitsbereich bleibt gesperrt');
+select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000004',null,'Fremd',null,null,null,null,null,null)$$,'42501',null,'Fremder Arbeitsbereich bleibt gesperrt');
 select throws_ok($$insert into public.sniper_watchlists(workspace_id,title) values('91000000-0000-4000-8000-000000000003','Direkt')$$,'42501',null,'Keine direkten Schreibrechte');
-select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Preis',null,null,null,50,5,null,true)$$,'23514',null,'Umgekehrte Preisspanne abgelehnt');
-select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Kategorie',999,null,null,null,null,null,true)$$,'22023',null,'Unbekannte Kategorie abgelehnt');
+select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Preis',null,null,null,50,5,null)$$,'23514',null,'Umgekehrte Preisspanne abgelehnt');
+select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Kategorie',999,null,null,null,null,null)$$,'22023',null,'Unbekannte Kategorie abgelehnt');
 select throws_ok($$select public.sniper_feed_search('91000000-0000-4000-8000-000000000004',null,null,null,null,null,null,null,60)$$,'42501',null,'Feed fremder Arbeitsbereiche gesperrt');
 select throws_ok($$select public.sniper_feed_search('91000000-0000-4000-8000-000000000003',null,null,null,null,null,null,null,10000)$$,'22023',null,'Feed ist begrenzt');
 reset role;
@@ -32,7 +32,6 @@ select is((select count(*) from public.sniper_queries),3::bigint,'Nutzerfilter e
 insert into public.sniper_watchlists(id,workspace_id,title,catalog_id,brand) values
 ('91000000-0000-4000-8000-000000000008','91000000-0000-4000-8000-000000000003','Nike A',2010000001,'Nike'),
 ('91000000-0000-4000-8000-000000000009','91000000-0000-4000-8000-000000000004','Nike B',2010000001,'NIKE');
-update public.sniper_watchlists set is_active=false where title='Mein Filter';
 insert into public.sniper_listings(external_id,title,url,item_price,total_price,brand,condition,discovered_by_query_id)
 select 'feed-ref-'||i,'Referenz','https://www.vinted.de/items/1',40,42,'Nike','Gut','91000000-0000-4000-8000-000000000005'::uuid
 from generate_series(1,8) as i;
@@ -87,7 +86,7 @@ update public.sniper_listings set first_seen_at=now()-interval '31 days' where e
 select is(public.sniper_purge_expired_listings(),2,'Aufbewahrung loescht abgelaufene Funde');
 select ok(to_regclass('public.sniper_watchlist_hits') is null and to_regclass('public.sniper_hits') is null and to_regclass('public.sniper_query_subscriptions') is null,'Tabellen der verworfenen Deal-Erkennung bestehen nicht mehr');
 select ok(not exists(select 1 from pg_proc where pronamespace='public'::regnamespace and proname in ('sniper_evaluate_hits','sniper_evaluate_watchlist_hits','sniper_evaluate_pending_watchlist_hits','sniper_reference_price','create_sniper_subscription','sniper_feed','sniper_feed_by_brand','sniper_feed_filtered')),'Funktionen der verworfenen Deal-Erkennung bestehen nicht mehr');
-select ok(not exists(select 1 from information_schema.columns where table_schema='public' and ((table_name='sniper_listings' and column_name in ('evaluated_at','watchlist_evaluated_at')) or (table_name='sniper_watchlists' and column_name in ('discount_threshold_percent','starts_at')))),'Bewertungsspalten bestehen nicht mehr');
+select ok(not exists(select 1 from information_schema.columns where table_schema='public' and ((table_name='sniper_listings' and column_name in ('evaluated_at','watchlist_evaluated_at')) or (table_name='sniper_watchlists' and column_name in ('discount_threshold_percent','starts_at','is_active')))),'Bewertungsspalten bestehen nicht mehr');
 set local role anon;
 select throws_ok($$select public.sniper_feed_search('91000000-0000-4000-8000-000000000003',null,null,null,null,null,null,null,60)$$,'42501',null,'Anonymer Feedzugriff gesperrt');
 select throws_ok('select * from public.sniper_watchlists','42501',null,'Anonyme Merkzettel gesperrt');

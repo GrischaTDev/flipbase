@@ -109,7 +109,6 @@ export class WatchlistEditorComponent {
     this.saved.emit({
       ...value,
       id: this.watchlist()?.id ?? null,
-      is_active: this.watchlist()?.is_active ?? true,
     });
   }
 }

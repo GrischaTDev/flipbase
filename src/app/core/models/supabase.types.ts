@@ -8192,7 +8192,6 @@ export type Database = {
           condition: string | null
           created_at: string
           id: string
-          is_active: boolean
           legacy_brand_id: number | null
           price_from: number | null
           price_to: number | null
@@ -8206,7 +8205,6 @@ export type Database = {
           condition?: string | null
           created_at?: string
           id?: string
-          is_active?: boolean
           legacy_brand_id?: number | null
           price_from?: number | null
           price_to?: number | null
@@ -8220,7 +8218,6 @@ export type Database = {
           condition?: string | null
           created_at?: string
           id?: string
-          is_active?: boolean
           legacy_brand_id?: number | null
           price_from?: number | null
           price_to?: number | null
@@ -14030,7 +14027,6 @@ export type Database = {
           p_catalog_id: number
           p_condition: string
           p_id: string
-          p_is_active: boolean
           p_price_from: number
           p_price_to: number
           p_search_text: string

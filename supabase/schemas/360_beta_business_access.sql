@@ -4997,7 +4997,7 @@ end;
 $function$
 ;
 
-create or replace function public.save_sniper_watchlist(p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer, p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric, p_condition text, p_is_active boolean)
+create or replace function public.save_sniper_watchlist(p_workspace_id uuid, p_id uuid, p_title text, p_catalog_id integer, p_brand text, p_search_text text, p_price_from numeric, p_price_to numeric, p_condition text)
  RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -5018,16 +5018,15 @@ begin
     end if;
     if p_id is null then
         insert into public.sniper_watchlists(workspace_id, title, catalog_id, brand, search_text,
-            price_from, price_to, condition, is_active)
+            price_from, price_to, condition)
         values (p_workspace_id, btrim(p_title), p_catalog_id, nullif(btrim(p_brand), ''),
             nullif(btrim(p_search_text), ''), p_price_from, p_price_to,
-            nullif(btrim(p_condition), ''), p_is_active)
+            nullif(btrim(p_condition), ''))
         returning id into v_id;
     else
         update public.sniper_watchlists set title = btrim(p_title), catalog_id = p_catalog_id,
             brand = nullif(btrim(p_brand), ''), search_text = nullif(btrim(p_search_text), ''),
             price_from = p_price_from, price_to = p_price_to, condition = nullif(btrim(p_condition), ''),
-            is_active = p_is_active,
             legacy_brand_id = case when nullif(btrim(p_brand), '') is not null then null else legacy_brand_id end
         where id = p_id and workspace_id = p_workspace_id returning id into v_id;
         if v_id is null then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;

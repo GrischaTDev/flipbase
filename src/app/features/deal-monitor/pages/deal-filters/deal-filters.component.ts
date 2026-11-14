@@ -24,7 +24,6 @@ import {
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { WatchlistEditorComponent } from '../../components/watchlist-editor/watchlist-editor.component';
 import { DealMonitorService } from '../../services/deal-monitor.service';
@@ -39,7 +38,6 @@ import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monit
     PageHeaderComponent,
     ButtonComponent,
     CardComponent,
-    BadgeComponent,
     ModalShellComponent,
     WatchlistEditorComponent,
     LucideDynamicIcon,
@@ -193,10 +191,6 @@ export class DealFiltersComponent implements UnsavedEntryPage {
     } finally {
       this.saving.set(false);
     }
-  }
-
-  toggle(row: Watchlist): void {
-    void this.save({ ...row, is_active: !row.is_active });
   }
 
   async confirmDelete(): Promise<void> {

@@ -88,7 +88,6 @@ export class DealMonitorService {
       p_price_from: draft.price_from!,
       p_price_to: draft.price_to!,
       p_condition: draft.condition!,
-      p_is_active: draft.is_active,
     });
     if (error)
       throw new Error(
