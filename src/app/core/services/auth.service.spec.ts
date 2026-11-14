@@ -64,6 +64,7 @@ function baueUmgebung(
   reauthFehler: unknown = null,
   passwordUpdateFehler: unknown = null,
   additionalProviders: Provider[] = [],
+  signOutFailure: 'response' | 'throw' | null = null,
 ): Umgebung {
   const ziele: unknown[][] = [];
   const cookie: string[] = [];
@@ -81,6 +82,10 @@ function baueUmgebung(
         getUser: async () => ({ data: { user: null }, error: getUserFehler }),
         signOut: async (optionen?: { scope?: string }) => {
           bereiche.push(optionen?.scope ?? '(ohne Angabe)');
+          if (optionen?.scope === 'global' && signOutFailure) {
+            if (signOutFailure === 'throw') throw new Error('Auth server unavailable');
+            return { error: new Error('Auth server unavailable') };
+          }
           return { error: null };
         },
         signInWithPassword: async (credentials: { email: string; password: string }) => {
@@ -484,6 +489,22 @@ describe('AuthService: Reichweite des Abmeldens', () => {
 
     expect(umgebung.bereiche).toEqual(['global']);
   });
+
+  it.each(['response', 'throw'] as const)(
+    'beendet die SDK-Sitzung lokal, wenn die globale Abmeldung fehlschlaegt: %s',
+    async (failure) => {
+      const environment = baueUmgebung(null, [], null, null, [], failure);
+      environment.melde('SIGNED_IN', sitzung());
+
+      await environment.dienst.abmeldenUeberall();
+
+      expect(environment.bereiche).toEqual(['global', 'local']);
+      expect(environment.dienst.session()).toBeNull();
+      expect(environment.dienst.isAuthenticated()).toBe(false);
+      expect(environment.dienst.isLoading()).toBe(false);
+      expect(environment.ziele).toContainEqual(['/auth/login']);
+    },
+  );
 
   it('meldet in beiden Faellen lokal ab und fuehrt zur Anmeldeseite', async () => {
     const umgebung = baueUmgebung();

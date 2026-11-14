@@ -565,10 +565,21 @@ export class AuthService {
             /* Der gesicherte Serverwiderruf bleibt für die nächste Verbindung erhalten. */
           }
         }
+        let shouldSignOutLocally: boolean;
         try {
-          await this.supabase.client.auth.signOut({ scope: bereich });
+          const { error } = await this.supabase.client.auth.signOut({ scope: bereich });
+          shouldSignOutLocally = bereich === 'global' && !!error;
         } catch {
-          // Auch ohne erreichbares Backend lokal abmelden.
+          shouldSignOutLocally = bereich === 'global';
+        }
+        if (shouldSignOutLocally) {
+          // Das SDK behält die Sitzung bei fehlgeschlagener globaler Abmeldung.
+          this.logger?.warn('Globale Abmeldung fehlgeschlagen; lokale Sitzung wird beendet!');
+          try {
+            await this.supabase.client.auth.signOut({ scope: 'local' });
+          } catch {
+            this.logger?.warn('Die lokale SDK-Abmeldung konnte nicht bestätigt werden!');
+          }
         }
         this.leereSitzungsdaten();
         this.router.navigate(['/auth/login']);
