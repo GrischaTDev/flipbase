@@ -100,12 +100,35 @@ test('every workflow selects the locked npm immediately after selecting Node', a
         .slice(index + 1)
         .findIndex((candidate) => new RegExp(`^ {${indentation}}- `, 'u').test(candidate));
       assert.notEqual(next, -1, `${file}: missing npm setup`);
+      const nodeSetup = lines.slice(index, index + 1 + next).join('\n');
+      assert.match(
+        nodeSetup,
+        /package-manager-cache: false/u,
+        `${file}: npm must be selected before cache discovery`,
+      );
+      assert.doesNotMatch(
+        nodeSetup,
+        /^\s+cache:/mu,
+        `${file}: setup-node must not invoke the old npm`,
+      );
       const following = lines.slice(index + 1 + next, index + 1 + next + 8).join('\n');
       assert.match(following, /run: \|/u, file);
       assert.match(following, /package\.json.*packageManager/u, file);
       assert.match(following, /npm install --global/u, file);
       assert.match(following, /--ignore-scripts/u, file);
       assert.match(following, /npm --version/u, file);
+      const cache = lines.slice(index + 1 + next, index + 1 + next + 20).join('\n');
+      assert.match(cache, /npm config get cache/u, `${file}: discover cache with selected npm`);
+      assert.match(
+        cache,
+        /uses: actions\/cache@[a-f0-9]{40}/u,
+        `${file}: preserve caching after npm setup`,
+      );
+      assert.match(
+        cache,
+        /steps\.project-npm\.outputs\.version/u,
+        `${file}: isolate npm versions in cache keys`,
+      );
     }
   }
   assert.ok(selections > 0);
