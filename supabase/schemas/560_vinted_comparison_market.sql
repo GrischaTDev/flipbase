@@ -55,6 +55,8 @@ comment on table public.vinted_comparison_items is 'Ein kompakter Zustand je öf
 create index vinted_comparison_items_due_idx on public.vinted_comparison_items(next_attempt_at) where status in ('active', 'unknown');
 create index vinted_comparison_items_market_idx on public.vinted_comparison_items(brand, category_id, checked_at);
 create index vinted_comparison_items_retention_idx on public.vinted_comparison_items(first_seen_at);
+-- Entspricht der Reihenfolge der Detailauswahl; ohne ihn durchläuft jeder Abruf alle fälligen Artikel.
+create index vinted_comparison_items_detail_order_idx on public.vinted_comparison_items(checked_at nulls first, next_attempt_at, id) where status in ('active', 'unknown');
 
 create table public.vinted_comparison_matches (
     id bigint generated always as identity primary key,
@@ -113,6 +115,7 @@ begin
     where public.vinted_comparison_scopes.query_revision <> excluded.query_revision;
 
     -- Datumspflege nutzt den Index; eine aufwendigere Mengenkontrolle höchstens stündlich.
+    -- Deren Löschmenge liegt über dem gemessenen Stundenzufluss, sonst wächst der Bestand trotz Grenze.
     delete from public.vinted_comparison_items where id in (
         select id from public.vinted_comparison_items
         where (status = 'sold' and sold_detected_at < p_now - interval '30 days')
@@ -125,7 +128,7 @@ begin
         if (select count(*) from public.vinted_comparison_items) > 250000 then
             delete from public.vinted_comparison_items where id in (
                 select id from public.vinted_comparison_items order by first_seen_at desc, id desc
-                offset 250000 limit 10000
+                offset 250000 limit 50000
             );
             update public.vinted_comparison_scopes set coverage_limited=true
             where not coverage_limited;
