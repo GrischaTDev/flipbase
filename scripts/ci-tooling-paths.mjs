@@ -2,6 +2,9 @@
 // Anwendungs-, Dienst- oder Image-Laufzeit ausgeliefert. Neue unbekannte
 // Werkzeuge bleiben konservativ; keine ganze Verzeichnisgruppe ausnehmen.
 const ciToolingPaths = new Set([
+  'scripts/npm-toolchain.test.mjs',
+  'scripts/update-package-lock.mjs',
+  'scripts/update-package-lock.test.mjs',
   '.github/workflows/ci.yml',
   'playwright.config.ts',
   'playwright.affected.config.ts',

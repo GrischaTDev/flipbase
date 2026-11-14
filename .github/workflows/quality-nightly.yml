@@ -39,6 +39,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci
       - name: Install selected browser
         run: |
@@ -79,6 +86,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci
       - run: npm run test:coverage
       - name: Retain coverage report
@@ -104,6 +118,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci
       - name: Start local Supabase
         run: npx supabase start

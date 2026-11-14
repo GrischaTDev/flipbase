@@ -55,6 +55,13 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Verify source, CI and publication evidence
         id: plan
         env:
@@ -85,6 +92,13 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -152,6 +166,13 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Resolve public immutable digests and reviewed runtime
         id: manifest
         env:
@@ -208,6 +229,13 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
 
       - name: Reject superseded or unverified releases immediately before SSH
         if: steps.enabled.outputs.enabled == 'true'

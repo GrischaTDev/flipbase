@@ -75,14 +75,32 @@ Flipbase ist eine moderne, hochperformante **Angular 22 Standalone Web-Applikati
 
 ### Voraussetzungen
 
-- Node.js >= 20.x
-- npm >= 10.x
+- Node.js 22 (ab 22.22.3)
+- npm 11.13.0, verbindlich durch `packageManager` und `devEngines` festgelegt
+
+Nach der Node-Installation die Projektversion von npm auswählen:
+
+```bash
+npm install --global npm@11.13.0 --ignore-scripts
+npm --version
+```
+
+Lockfiles mit `npm run lockfile:update` erzeugen. Für einen Dienst beispielsweise
+`npm run lockfile:update -- --package services/sniper` aus dem Hauptverzeichnis
+aufrufen. Der Befehl arbeitet in einem frischen temporären Verzeichnis, damit
+vorhandene `node_modules` keine plattformspezifischen Einträge entfernen. Er erhält
+die Paketdatei und übernimmt das Lockfile erst nach erfolgreicher Erzeugung.
+`npm run lockfile:check` prüft alle vier Lockfiles ohne Änderung; derselbe Test
+läuft im lokalen Vorabcheck und in der CI.
+Abweichende npm-Versionen brechen vor Installation und Lockfile-Erzeugung ab.
+CI und Docker wählen die Version aus dem jeweiligen `package.json`;
+Paketversionen nicht nebenbei aktualisieren.
 
 ### Entwicklungsserver starten
 
 ```bash
 # Abhängigkeiten installieren
-npm install
+npm ci
 
 # Lokalen Dev-Server starten (Port 4200)
 npm start

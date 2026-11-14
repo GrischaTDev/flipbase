@@ -7,7 +7,8 @@ WORKDIR /app
 
 # Dependencies zuerst kopieren → Docker-Layer-Caching nutzen
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
+    && npm ci --ignore-scripts
 
 # Quellcode kopieren & produktions-Build erstellen
 COPY . .

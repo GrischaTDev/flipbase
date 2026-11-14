@@ -103,6 +103,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Install locked parser without application hooks
         run: node scripts/install-test-selection-parser.mjs
 
@@ -146,6 +153,13 @@ jobs:
           cache-dependency-path: package-lock.json
 
       # Keine Anwendungs-Hooks ausführen; nur den gesperrten Formatierer verwenden.
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Install dependencies without application hooks
         run: npm ci --ignore-scripts
 
@@ -171,6 +185,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: package-lock.json
+
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
 
       - name: Install dependencies
         run: npm ci
@@ -246,6 +267,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Install dependencies
         run: npm ci
 
@@ -291,6 +319,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Install dependencies
         run: npm ci
 
@@ -326,6 +361,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: services/sniper/package-lock.json
 
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - name: Check Sniper service and image
         run: node scripts/ci-checks.mjs sniper
 
@@ -352,6 +394,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: package-lock.json
+
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
 
       - name: Install dependencies
         run: npm ci
@@ -418,6 +467,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - name: Run isolated extension restart and publication fixtures once
@@ -440,6 +496,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: services/marketplace-worker/package-lock.json
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci --prefix services/marketplace-worker --ignore-scripts
       - name: Install matching worker Chromium
         working-directory: services/marketplace-worker
@@ -480,6 +543,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
       - name: Test production PWA and offline drafts

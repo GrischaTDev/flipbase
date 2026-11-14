@@ -33,6 +33,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Set up locked npm
+        shell: bash
+        run: |
+          package_manager="$(node -p "require('./package.json').packageManager")"
+          npm install --global "$package_manager" --ignore-scripts --no-audit --no-fund
+          test "npm@$(npm --version)" = "$package_manager"
+
       - run: npm ci
       - name: Format review scripts and test migration permissions
         run: |
