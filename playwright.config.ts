@@ -21,7 +21,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npm start -- --host 127.0.0.1 --port 4200',
+      command:
+        'npm start -- --host 127.0.0.1 --port 4200 --build-target=flipbase:build:development,production',
       url: 'http://127.0.0.1:4200',
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,

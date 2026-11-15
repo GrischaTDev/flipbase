@@ -329,8 +329,6 @@ export async function mockMarketplace(
       if (body['dialogId'] !== setup.dialogId) return route.fulfill({ status: 409 });
       if (setup.state === 'cancelled' || setup.state === 'cleanup_pending')
         return route.fulfill({ status: 403 });
-      if (profileLimit)
-        return route.fulfill({ status: 503, json: { code: 'gologin_profile_limit_reached' } });
       setup.state = 'login';
       setup.sessionId = '25000000-0000-4000-8000-000000000031';
       setup.version++;

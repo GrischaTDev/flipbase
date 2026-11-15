@@ -1436,13 +1436,23 @@ test('erklärt eine volle GoLogin-Profilliste ohne Vinted-Anmeldeversuch @market
 }) => {
   const calls = await mockMarketplace(page, true, false, false, true);
   await page.goto('/marketplaces/vinted/accounts');
-  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Neuer Zugang');
-  await chooseCloudConnection(page);
+  await page
+    .locator('app-vinted-account-grid [cdkDrag]')
+    .first()
+    .getByRole('button', { name: 'Cloud verbinden', exact: true })
+    .click();
   await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
   await page.getByLabel('Vinted-Passwort').fill('synthetic');
+  const opening = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === '/marketplace-browser/sessions',
+  );
   await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  const body = (await opening).postDataJSON() as Record<string, unknown>;
   await expect(page.getByText(/maximale Zahl Deiner GoLogin-Profile/)).toBeVisible();
+  expect(body['dialogId']).toEqual(expect.any(String));
+  expect(body['requestId']).toBe(body['dialogId']);
+  expect(calls.filter((call) => call.name === 'browser_session_presence')).toHaveLength(1);
+  expect(calls.filter((call) => call.name === 'browser_cloud_setup_begin')).toHaveLength(0);
   expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(0);
 });
 
