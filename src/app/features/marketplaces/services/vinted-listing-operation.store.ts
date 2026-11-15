@@ -1,5 +1,8 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { parseVintedAccountAction } from '../models/vinted-account-action';
+import {
+  parseVintedAccountAction,
+  type VintedAccountAction,
+} from '../models/vinted-account-action';
 import { claimVintedAccountActionNotification } from './vinted-account-action-transport';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -20,6 +23,7 @@ export interface VintedListingOperation {
   readonly state: 'running' | 'success' | 'error';
   readonly message: string;
   readonly serverActionId?: string;
+  readonly updatedAt: string;
 }
 
 /** Behält den Fortschritt einer Artikelaktion auch nach dem Schließen der Artikelansicht. */
@@ -29,6 +33,39 @@ export class VintedListingOperationStore {
   private readonly workspace = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly actions = signal<readonly VintedListingOperation[]>([]);
+  private readonly accountActions = signal<{
+    userId: string;
+    actions: readonly VintedAccountAction[];
+  } | null>(null);
+
+  updateAccountActions(userId: string, actions: readonly VintedAccountAction[]): void {
+    this.accountActions.set({ userId, actions });
+  }
+  private pendingAccountAction(
+    entry: Pick<MarketplaceEntry, 'workspaceId' | 'connectionId' | 'id'>,
+  ): VintedAccountAction | undefined {
+    const stored = this.accountActions();
+    if (
+      stored?.userId !== this.auth.currentUser()?.id ||
+      this.workspace.currentWorkspace()?.id !== entry.workspaceId ||
+      this.workspace.currentWorkspace()?.archived_at
+    )
+      return undefined;
+    return stored?.actions.find(
+      (action) =>
+        action.workspaceId === entry.workspaceId &&
+        action.connectionId === entry.connectionId &&
+        action.entryId === entry.id &&
+        ['queued', 'running'].includes(action.state) &&
+        [
+          'price_save',
+          'listing_delete',
+          'listing_edit_intent',
+          'listing_edit_save',
+          'listing_content_save',
+        ].includes(action.kind),
+    );
+  }
   constructor() {
     const accepted = (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
@@ -185,29 +222,32 @@ export class VintedListingOperationStore {
         view.releaseCancelled?.(job);
     }
   }
-  readonly entries = computed(() => {
+  private readonly scopedActions = computed(() => {
     const user = this.auth.currentUser();
     const workspace = this.workspace.currentWorkspace();
     return user && workspace && !workspace.archived_at
       ? this.actions().filter(
-          (action) =>
-            action.userId === user.id &&
-            action.workspaceId === workspace.id &&
-            !action.serverActionId,
+          (action) => action.userId === user.id && action.workspaceId === workspace.id,
         )
       : [];
   });
+  readonly entries = computed(() =>
+    this.scopedActions().filter((action) => !action.serverActionId),
+  );
   readonly runningCount = computed(
     () => this.entries().filter((action) => action.state === 'running').length,
   );
 
   isRunning(entry: Pick<MarketplaceEntry, 'workspaceId' | 'connectionId' | 'id'>): boolean {
-    return this.entries().some(
-      (action) =>
-        action.state === 'running' &&
-        action.workspaceId === entry.workspaceId &&
-        action.connectionId === entry.connectionId &&
-        action.entryId === entry.id,
+    return (
+      !!this.pendingAccountAction(entry) ||
+      this.scopedActions().some(
+        (action) =>
+          action.state === 'running' &&
+          action.workspaceId === entry.workspaceId &&
+          action.connectionId === entry.connectionId &&
+          action.entryId === entry.id,
+      )
     );
   }
 
@@ -239,7 +279,15 @@ export class VintedListingOperationStore {
   }
 
   runningLabel(entry: MarketplaceEntry): string {
-    const action = this.entries().find(
+    const server = this.pendingAccountAction(entry);
+    if (server) {
+      if (server.kind === 'price_save')
+        return server.state === 'queued' ? 'Preisänderung wartet' : 'Preis wird geändert';
+      if (server.kind === 'listing_delete')
+        return server.state === 'queued' ? 'Löschen wartet' : 'Inserat wird gelöscht';
+      return server.state === 'queued' ? 'Aktualisierung wartet' : 'Inserat wird aktualisiert';
+    }
+    const action = this.scopedActions().find(
       (action) =>
         action.entryId === entry.id &&
         action.connectionId === entry.connectionId &&
@@ -277,6 +325,7 @@ export class VintedListingOperationStore {
         connectionId: entry.connectionId,
         entryId: entry.id,
         title: entry.title,
+        updatedAt: new Date().toISOString(),
         state: 'running',
         message:
           kind === 'relist'
@@ -332,7 +381,11 @@ export class VintedListingOperationStore {
       return;
     }
     this.actions.update((actions) =>
-      actions.map((action) => (action.key === key ? { ...action, state, message } : action)),
+      actions.map((action) =>
+        action.key === key
+          ? { ...action, state, message, updatedAt: new Date().toISOString() }
+          : action,
+      ),
     );
   }
 

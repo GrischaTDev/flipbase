@@ -7,10 +7,14 @@ import { accountIds, workspaceId } from './support/marketplace-account-fixture';
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 for (const width of [390, 1440])
   for (const theme of ['light', 'dark'] as const) {
-    const actionTest = test.extend({ hasTouch: width < 768, isMobile: width < 768 });
+    const actionTest = test.extend({
+      hasTouch: width < 768,
+      isMobile: width < 768,
+      timezoneId: 'Europe/Berlin',
+    });
     actionTest(
       `Gespeicherte Cloud-Aktionen warten nach Neuladen, lassen sich abbrechen und prüfen ${width}px ${theme} @marketplace-preview`,
-      async ({ page }) => {
+      async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 1000 });
         await page.emulateMedia({ colorScheme: theme });
         await mockActionOverview(page, false);
@@ -31,8 +35,8 @@ for (const width of [390, 1440])
           blockedByActionId: null,
           historyPurged: false,
           resultExpired: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: '2026-11-15T16:25:23Z',
+          updatedAt: '2026-11-15T16:26:03Z',
           startedAt: null,
           finishedAt: null,
         };
@@ -46,6 +50,19 @@ for (const width of [390, 1440])
             title: 'Unklares Inserat',
             state: 'outcome_unknown',
             waitReason: null,
+          },
+          {
+            ...queued,
+            id: '60000000-0000-4000-8000-000000000008',
+            kind: 'listing_content_read',
+            state: 'running',
+          },
+          {
+            ...queued,
+            id: '60000000-0000-4000-8000-000000000009',
+            kind: 'conversations_read',
+            state: 'failed',
+            errorCode: 'browser_unavailable',
           },
         ];
         const cancellations: unknown[] = [],
@@ -78,7 +95,8 @@ for (const width of [390, 1440])
             requestId: body['p_request_id'],
             kind: 'outcome_reconcile',
             state: 'queued',
-            title: 'Unklares Inserat',
+            entryId: null,
+            title: null,
           };
           actions = [...actions, check];
           return route.fulfill({ json: { action: check } });
@@ -86,6 +104,13 @@ for (const width of [390, 1440])
         await page.goto('/settings/app');
         const trigger = page.getByRole('button', { name: /Laufende Aktionen \(/ });
         await trigger.click();
+        const overview = page.locator('#header-action-overview');
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
+        await expect(overview.getByText('Inserat lesen', { exact: true })).toHaveCount(0);
+        await expect(overview.getByText('Gespräch aktualisieren', { exact: true })).toHaveCount(0);
+        const timestamp = overview.locator('[data-account-action-id="' + queued.id + '"] time');
+        await expect(timestamp).toHaveText('15.11.2026, 17:26');
+        await expect(timestamp).toHaveAttribute('datetime', queued.updatedAt);
         await expect(page.locator('[data-account-action-id="' + queued.id + '"]')).toContainText(
           'Alle Browserplätze sind belegt',
         );
@@ -98,7 +123,34 @@ for (const width of [390, 1440])
         expect(cancellations).toHaveLength(1);
         await page.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }).click();
         await expect.poll(() => reconciliations.length).toBe(1);
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
         expect(writes).toEqual([]);
+        await expect(overview.getByText('Ergebnis wird geprüft', { exact: true })).toBeVisible();
+        await page.reload();
+        await trigger.click();
+        await expect(overview.getByText('Ergebnis wird geprüft', { exact: true })).toBeVisible();
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
+        await expect(
+          overview.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }),
+        ).toBeDisabled();
+        actions = actions.map((action) =>
+          action.kind === 'outcome_reconcile'
+            ? {
+                ...action,
+                state: 'failed',
+                errorCode: 'browser_unavailable',
+                version: action.version + 1,
+                updatedAt: '2026-11-15T16:27:17Z',
+              }
+            : action,
+        );
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(
+          overview.getByText(/Nachprüfung fehlgeschlagen: Der Cloud-Browser/),
+        ).toBeVisible();
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
+        const unknown = overview.locator('[data-account-action-state="outcome_unknown"]');
+        await expect(unknown.locator('time')).toHaveText('15.11.2026, 17:27');
         actions = actions.map((action) =>
           action.state === 'outcome_unknown' || action.kind === 'outcome_reconcile'
             ? { ...action, state: 'succeeded', waitReason: null, version: action.version + 1 }
@@ -108,7 +160,12 @@ for (const width of [390, 1440])
         await expect(
           page.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }),
         ).toHaveCount(0);
+        await expect(page.locator('[data-action-overview-error]')).toHaveCount(0);
         await checkAccessibility(page, '#header-action-overview');
+        await page.screenshot({
+          path: testInfo.outputPath(`action-dates-${width}-${theme}.png`),
+          fullPage: false,
+        });
       },
     );
   }

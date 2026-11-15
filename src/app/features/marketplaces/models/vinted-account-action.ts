@@ -21,6 +21,21 @@ export const vintedAccountActionKinds = [
   'cloud_session_open',
 ] as const;
 export type VintedAccountActionKind = (typeof vintedAccountActionKinds)[number];
+const backgroundActionKinds: ReadonlySet<VintedAccountActionKind> = new Set([
+  'listing_edit_read',
+  'listing_content_read',
+  'listing_category_read',
+  'conversations_read',
+  'profile_details_read',
+  'profile_cities_read',
+  'profile_edit_read',
+  'outcome_reconcile',
+]);
+
+/** Diese Schritte gehören zur Hauptaktion und bleiben in der technischen Warteschlange. */
+export function isVisibleVintedAccountAction(kind: VintedAccountActionKind): boolean {
+  return !backgroundActionKinds.has(kind);
+}
 export type VintedAccountActionState =
   'queued' | 'running' | 'succeeded' | 'failed' | 'outcome_unknown' | 'cancelled';
 export interface VintedAccountAction extends AccountScope {

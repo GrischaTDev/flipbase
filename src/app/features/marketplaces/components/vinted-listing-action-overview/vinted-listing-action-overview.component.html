@@ -6,7 +6,7 @@
     @for (row of rows(); track row.job.id) {
       <li
         [attr.data-listing-state]="row.job.state"
-        class="flex min-w-0 items-center gap-2.5 rounded-lg bg-fb-surface-hover px-2 py-2"
+        class="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg bg-fb-surface-hover px-2 py-2"
       >
         <app-action-status-indicator [state]="row.indicator" />
         <div class="min-w-0 flex-1">
@@ -62,6 +62,12 @@
             (clicked)="dismiss(row.job)"
           />
         }
+        <time
+          data-action-time
+          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
+          [attr.datetime]="row.job.updatedAt"
+          >{{ row.job.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+        >
       </li>
     }
   </ul>

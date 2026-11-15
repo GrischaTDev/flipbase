@@ -92,11 +92,13 @@
     }
     @for (entry of accountActions.entries(); track entry.action.id) {
       <div
-        class="flex min-w-0 items-start gap-2.5 rounded-lg bg-fb-surface-hover p-3"
+        class="flex min-w-0 flex-wrap items-start gap-x-2.5 gap-y-1 rounded-lg bg-fb-surface-hover p-3"
         [attr.data-account-action-id]="entry.action.id"
         [attr.data-account-action-state]="entry.action.state"
       >
-        <app-action-status-indicator [state]="accountActionIndicator(entry.action)" />
+        <app-action-status-indicator
+          [state]="accountActionIndicator(entry.action, entry.reconciliation)"
+        />
         <div class="min-w-0 flex-1 space-y-1">
           <p class="text-[13px] font-medium text-fb-text-primary">
             {{ accountActionTitle(entry.action.kind) }}
@@ -108,6 +110,26 @@
           <p role="status" class="text-xs text-fb-text-secondary">
             {{ accountActionStatus(entry.action) }}
           </p>
+          @if (entry.reconciliation; as check) {
+            @if (check.state === 'queued' || check.state === 'running') {
+              <p role="status" class="text-xs text-fb-text-secondary">Ergebnis wird geprüft</p>
+              @if (check.state === 'queued') {
+                <app-button
+                  variant="ghost"
+                  size="slim"
+                  [disabled]="accountActions.busy() !== null"
+                  (clicked)="accountActions.cancel(check)"
+                  >Nachprüfung abbrechen</app-button
+                >
+              }
+            } @else if (check.state === 'failed') {
+              <p role="status" class="text-xs text-fb-text-secondary">
+                Nachprüfung fehlgeschlagen: {{ accountActionStatus(check) }}
+              </p>
+            } @else if (check.state === 'cancelled') {
+              <p role="status" class="text-xs text-fb-text-secondary">Nachprüfung abgebrochen</p>
+            }
+          }
           @if (entry.action.state === 'queued') {
             <app-button
               variant="ghost"
@@ -120,7 +142,11 @@
             <app-button
               variant="secondary"
               size="slim"
-              [disabled]="accountActions.busy() !== null"
+              [disabled]="
+                accountActions.busy() !== null ||
+                entry.reconciliation?.state === 'queued' ||
+                entry.reconciliation?.state === 'running'
+              "
               (clicked)="accountActions.reconcile(entry.action)"
               >Ergebnis nachprüfen</app-button
             >
@@ -140,6 +166,14 @@
             (clicked)="accountActions.dismiss(entry.action)"
           />
         }
+        <time
+          data-action-time
+          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
+          [attr.datetime]="entry.reconciliation?.updatedAt ?? entry.action.updatedAt"
+          >{{
+            entry.reconciliation?.updatedAt ?? entry.action.updatedAt | date: 'dd.MM.yyyy, HH:mm'
+          }}</time
+        >
       </div>
     }
     @if (store.error(); as error) {
@@ -147,7 +181,9 @@
     }
     <!-- In Flipbase gestartete Aktionen stehen oben, die neueste zuerst. -->
     @for (action of listingOperations.entries(); track action.key) {
-      <div class="flex items-start gap-3 rounded-lg border border-fb-border-subtle p-3">
+      <div
+        class="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-lg border border-fb-border-subtle p-3"
+      >
         <app-action-status-indicator [state]="action.state" />
         <div class="min-w-0 flex-1 space-y-1">
           <p class="text-sm font-medium text-fb-text-primary">
@@ -167,6 +203,12 @@
             (clicked)="listingOperations.dismiss(action.key)"
           />
         }
+        <time
+          data-action-time
+          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
+          [attr.datetime]="action.updatedAt"
+          >{{ action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+        >
       </div>
     }
     @for (group of store.groups(); track group.scope.connectionId) {
@@ -181,7 +223,7 @@
     }
     @for (action of kleinanzeigen.entries(); track action.key) {
       <div
-        class="flex items-start gap-2 border-t border-fb-border-subtle py-3"
+        class="flex flex-wrap items-start gap-x-2 gap-y-1 border-t border-fb-border-subtle py-3"
         data-kleinanzeigen-action
       >
         <app-action-status-indicator [state]="action.state" />
@@ -221,6 +263,12 @@
             (clicked)="kleinanzeigen.dismiss(action.key)"
           />
         }
+        <time
+          data-action-time
+          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
+          [attr.datetime]="action.updatedAt"
+          >{{ action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+        >
       </div>
     }
     @if (

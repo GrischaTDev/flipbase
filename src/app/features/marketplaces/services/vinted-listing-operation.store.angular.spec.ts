@@ -78,6 +78,9 @@ it('meldet auch sofort abgeschlossene Serveraktionen genau einmal und zeigt nach
         },
       }),
     );
+    expect(store.entries()).toEqual([]);
+    expect(store.isRunning(item)).toBe(true);
+    expect(store.runningLabel(item)).toBe('Inserat wird aktualisiert');
   });
   expect(toast).toHaveBeenCalledOnce();
   expect(claimVintedAccountActionNotification(id)).toBe(false);

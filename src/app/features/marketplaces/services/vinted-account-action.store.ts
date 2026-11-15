@@ -3,12 +3,14 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import {
+  isVisibleVintedAccountAction,
   vintedAccountActionTitle,
   type VintedAccountAction,
 } from '../models/vinted-account-action';
 import { MarketplaceApiService } from './marketplace-api.service';
 import { VintedAccountActionApiService } from './vinted-account-action-api.service';
 import { VintedActionOverviewHeaderStore } from './vinted-action-overview-header.store';
+import { VintedListingOperationStore } from './vinted-listing-operation.store';
 import {
   claimVintedAccountActionNotification,
   releaseVintedAccountActionRequest,
@@ -17,6 +19,7 @@ import {
 export interface VintedAccountActionEntry {
   readonly action: VintedAccountAction;
   readonly accountName: string;
+  readonly reconciliation?: VintedAccountAction;
 }
 @Injectable({ providedIn: 'root' })
 export class VintedAccountActionStore {
@@ -26,6 +29,7 @@ export class VintedAccountActionStore {
   private readonly api = inject(VintedAccountActionApiService);
   private readonly toast = inject(ToastService);
   private readonly overview = inject(VintedActionOverviewHeaderStore);
+  private readonly listingOperations = inject(VintedListingOperationStore);
   private readonly context = computed(() => {
     const user = this.auth.currentUser(),
       workspace = this.workspace.currentWorkspace();
@@ -41,24 +45,46 @@ export class VintedAccountActionStore {
   private reading: { context: string; repeat: boolean } | null = null;
   private readonly subscriptions = new Map<string, () => void>();
   private destroyed = false;
+  private readonly reconciliations = signal<ReadonlyMap<string, VintedAccountAction>>(new Map());
+  private readonly allEntries = computed(() =>
+    this.snapshot()?.context === this.context() ? (this.snapshot()?.entries ?? []) : [],
+  );
   readonly entries = computed(() =>
-    this.snapshot()?.context === this.context()
-      ? (this.snapshot()?.entries ?? []).filter(
-          ({ action }) =>
-            ['queued', 'running', 'outcome_unknown'].includes(action.state) ||
-            !this.overview.isDismissed(`direct:${action.id}`),
-        )
-      : [],
+    this.allEntries()
+      .filter(
+        ({ action }) =>
+          isVisibleVintedAccountAction(action.kind) &&
+          (['queued', 'running', 'outcome_unknown'].includes(action.state) ||
+            !this.overview.isDismissed(`direct:${action.id}`)),
+      )
+      .map((entry) => {
+        const requested = this.reconciliations().get(entry.action.id);
+        const latest =
+          requested && this.allEntries().find(({ action }) => action.id === requested.id)?.action;
+        return requested
+          ? {
+              ...entry,
+              reconciliation: latest && latest.version >= requested.version ? latest : requested,
+            }
+          : entry;
+      }),
   );
   readonly error = computed(() =>
     this.failure()?.context === this.context() ? (this.failure()?.message ?? null) : null,
   );
   readonly count = computed(
     () =>
-      this.entries().filter(({ action }) => ['queued', 'running'].includes(action.state)).length,
+      this.entries().filter(
+        ({ action, reconciliation }) =>
+          ['queued', 'running'].includes(action.state) ||
+          (reconciliation && ['queued', 'running'].includes(reconciliation.state)),
+      ).length,
   );
   readonly hasRunning = computed(() =>
-    this.entries().some(({ action }) => action.state === 'running'),
+    this.entries().some(
+      ({ action, reconciliation }) =>
+        action.state === 'running' || reconciliation?.state === 'running',
+    ),
   );
   readonly hasFailure = computed(
     () =>
@@ -73,6 +99,7 @@ export class VintedAccountActionStore {
       untracked(() => {
         this.reading = null;
         this.busy.set(null);
+        this.reconciliations.set(new Map());
         this.disconnect();
         void this.refresh();
       });
@@ -135,7 +162,7 @@ export class VintedAccountActionStore {
         ),
       );
       if (!current()) return;
-      const before = new Map(this.entries().map(({ action }) => [action.id, action]));
+      const before = new Map(this.allEntries().map(({ action }) => [action.id, action]));
       const entries = accounts
         .flatMap((account, index) => {
           const result = results[index];
@@ -143,7 +170,7 @@ export class VintedAccountActionStore {
             const reason: unknown = result.reason;
             if (reason && typeof reason === 'object' && 'code' in reason && reason.code === '42501')
               return [];
-            return this.entries().filter(
+            return this.allEntries().filter(
               (entry) => entry.action.connectionId === account.connectionId,
             );
           }
@@ -154,6 +181,7 @@ export class VintedAccountActionStore {
             if (userId) releaseVintedAccountActionRequest(action, userId);
             if (
               action.state === 'succeeded' &&
+              isVisibleVintedAccountAction(action.kind) &&
               previous &&
               ['queued', 'running'].includes(previous.state) &&
               claimVintedAccountActionNotification(action.id)
@@ -168,7 +196,37 @@ export class VintedAccountActionStore {
         .sort(
           (left, right) => Date.parse(right.action.createdAt) - Date.parse(left.action.createdAt),
         );
+      const checks = new Map(this.reconciliations());
+      for (const { action } of entries) {
+        if (!isVisibleVintedAccountAction(action.kind)) continue;
+        try {
+          const key = this.reconciliationKey(action);
+          if (action.state !== 'outcome_unknown') {
+            localStorage.removeItem(key);
+            checks.delete(action.id);
+            continue;
+          }
+          const requestId = localStorage.getItem(key);
+          const check =
+            requestId &&
+            entries.find(
+              ({ action: candidate }) =>
+                candidate.kind === 'outcome_reconcile' &&
+                candidate.requestId === requestId &&
+                candidate.workspaceId === action.workspaceId &&
+                candidate.connectionId === action.connectionId,
+            )?.action;
+          if (check) checks.set(action.id, check);
+        } catch {
+          /* Ohne Browserspeicher bleibt der gespeicherte Hauptauftrag sichtbar. */
+        }
+      }
+      this.reconciliations.set(checks);
       this.snapshot.set({ context, entries });
+      this.listingOperations.updateAccountActions(
+        this.auth.currentUser()?.id ?? '',
+        entries.map(({ action }) => action),
+      );
       this.failure.set(
         results.some((result) => result.status === 'rejected')
           ? {
@@ -201,12 +259,21 @@ export class VintedAccountActionStore {
   }
   async reconcile(action: VintedAccountAction): Promise<void> {
     if (action.state !== 'outcome_unknown') return;
-    const key = `flipbase_reconcile:${this.auth.currentUser()?.id}:${action.workspaceId}:${action.connectionId}:${action.id}`;
+    const previous = this.entries().find((entry) => entry.action.id === action.id)?.reconciliation;
+    if (previous && ['queued', 'running'].includes(previous.state)) return;
+    const context = this.context();
+    const key = this.reconciliationKey(action);
     try {
-      const requestId = localStorage.getItem(key) ?? crypto.randomUUID();
+      const requestId = previous
+        ? crypto.randomUUID()
+        : (localStorage.getItem(key) ?? crypto.randomUUID());
       localStorage.setItem(key, requestId);
-      if (await this.change(action, () => this.api.reconcile(action, requestId)))
-        localStorage.removeItem(key);
+      await this.change(action, async () => {
+        const check = await this.api.reconcile(action, requestId);
+        if (this.context() === context && check.kind === 'outcome_reconcile')
+          this.reconciliations.update((checks) => new Map(checks).set(action.id, check));
+        return check;
+      });
     } catch {
       const context = this.context();
       if (context)
@@ -215,6 +282,9 @@ export class VintedAccountActionStore {
           message: 'Die Nachprüfung konnte nicht beauftragt werden. Versuche es erneut.',
         });
     }
+  }
+  private reconciliationKey(action: VintedAccountAction): string {
+    return `flipbase_reconcile:${this.auth.currentUser()?.id}:${action.workspaceId}:${action.connectionId}:${action.id}`;
   }
   private async change(
     action: VintedAccountAction,
@@ -225,7 +295,10 @@ export class VintedAccountActionStore {
       !context ||
       this.busy() ||
       !this.entries().some(
-        (entry) => entry.action.id === action.id && entry.action.version === action.version,
+        (entry) =>
+          (entry.action.id === action.id && entry.action.version === action.version) ||
+          (entry.reconciliation?.id === action.id &&
+            entry.reconciliation.version === action.version),
       )
     )
       return false;

@@ -13,6 +13,7 @@ export interface KleinanzeigenAction {
   readonly state: 'running' | 'success' | 'paused' | 'error';
   readonly message: string;
   readonly operation: 'relist' | 'delete';
+  readonly updatedAt: string;
   readonly requiresExtensionUpdate?: boolean;
 }
 
@@ -99,6 +100,7 @@ export class KleinanzeigenActionStore {
         reference,
         title,
         accountName,
+        updatedAt: new Date().toISOString(),
         state: 'running',
         operation,
         message:
@@ -124,7 +126,15 @@ export class KleinanzeigenActionStore {
     }
     this.actions.update((actions) =>
       actions.map((action) =>
-        action.key === key ? { ...action, state, message, requiresExtensionUpdate } : action,
+        action.key === key
+          ? {
+              ...action,
+              state,
+              message,
+              requiresExtensionUpdate,
+              updatedAt: new Date().toISOString(),
+            }
+          : action,
       ),
     );
   }
