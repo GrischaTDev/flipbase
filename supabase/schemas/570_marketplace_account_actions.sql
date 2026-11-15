@@ -1,7 +1,7 @@
 -- Dauerhafte direkte Cloudaufträge, gemeinsame Konto-/Poolvergabe und private Statushinweise.
 create table public.marketplace_browser_pool_settings (
   id bigint generated always as identity primary key check (id=1),
-  max_browsers integer not null default 1 check (max_browsers between 1 and 8),
+  max_browsers integer not null default 2 check (max_browsers between 1 and 8),
   updated_at timestamptz not null default now(),
   updated_by uuid references auth.users(id) on delete set null
 );
@@ -154,6 +154,7 @@ $$;
 create or replace function public.marketplace_browser_slot_status(p_workspace_id uuid,p_connection_id uuid)
 returns text language sql stable security invoker set search_path='' as $$
   select case when exists(select 1 from public.marketplace_browser_sessions where workspace_id=p_workspace_id and connection_id=p_connection_id and state in ('active','stopping')) then 'account_busy'
+    when (select count(*) from public.marketplace_browser_sessions where workspace_id=p_workspace_id and state in ('active','stopping'))>=2 then 'pool_busy'
     when (select count(*) from public.marketplace_browser_sessions where state in ('active','stopping'))>=public.marketplace_browser_effective_capacity() then 'pool_busy'
     else null end;
 $$;

@@ -326,6 +326,9 @@ async function main(): Promise<void> {
         `${JSON.stringify({ event: 'marketplace_browser_start_failed', stage, ...(detail ? { detail } : {}) })}\n`,
       );
     },
+    onSessionEvent: (telemetry) => {
+      process.stderr.write(`${JSON.stringify(telemetry)}\n`);
+    },
     leases,
     profiles: registry
       ? new ChromiumBoundProfileStore({
