@@ -1,5 +1,4 @@
 import {
-  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -92,13 +91,6 @@ export class PurchaseSellerDialogComponent {
 
   constructor() {
     this.destroyRef.onDestroy(this.releaseWorkspaceLock);
-    afterNextRender(() => {
-      const countrySelector = this.host.nativeElement.querySelector<HTMLElement>(
-        '.iti__country-selector[role="dialog"]',
-      );
-      countrySelector?.setAttribute('aria-label', 'Landesvorwahl auswählen');
-    });
-
     effect(() => {
       const seller = this.seller();
       if (!seller) return;
@@ -138,6 +130,14 @@ export class PurchaseSellerDialogComponent {
       autocomplete: 'tel',
     };
     return hasPhoneError ? { ...attributes, 'aria-describedby': 'seller-phone-error' } : attributes;
+  }
+
+  labelPhoneCountrySelector(): void {
+    // Die Bibliothek hängt die Länderauswahl erst beim Öffnen an.
+    const countrySelector = this.host.nativeElement.querySelector<HTMLElement>(
+      '.iti__country-selector[role="dialog"]',
+    );
+    countrySelector?.setAttribute('aria-label', 'Landesvorwahl auswählen');
   }
 
   closeIfNotSaving(): void {

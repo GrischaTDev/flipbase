@@ -65,6 +65,7 @@
           [showFlags]="true"
           [strictMode]="true"
           [uiTranslations]="phoneTranslations"
+          (openCountrySelector)="labelPhoneCountrySelector()"
         />
       </div>
       @if (form.controls.phone.invalid && form.controls.phone.touched) {

@@ -331,6 +331,7 @@ for (const hasTouch of [false, true]) {
         await dialog.locator('.iti__selected-country').click();
         const phoneCountries = page.locator('.iti__country-selector').filter({ visible: true });
         await expect(phoneCountries).toBeVisible();
+        await expect(phoneCountries).toHaveAccessibleName('Landesvorwahl auswählen');
         expect(
           await phoneCountries.evaluate(
             (element) => element.closest('app-purchase-seller-dialog') !== null,
@@ -347,6 +348,10 @@ for (const hasTouch of [false, true]) {
               ).violations,
           ),
         ).toEqual([]);
+        await page.keyboard.press('Escape');
+        await expect(dialog.locator('.iti__selected-country')).toBeFocused();
+        await dialog.locator('.iti__selected-country').click();
+        await expect(phoneCountries).toHaveAccessibleName('Landesvorwahl auswählen');
         await page.keyboard.press('Escape');
         await expect(dialog.locator('.iti__selected-country')).toBeFocused();
         await expect(dialog.locator('[data-modal-surface]')).toHaveCSS('border-radius', '16px');
