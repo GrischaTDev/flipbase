@@ -6,9 +6,10 @@ export interface VintedListingPhotoScope {
   readonly workspaceId: string;
   readonly connectionId: string;
   readonly entryId: string;
+  readonly saleItemId?: string;
 }
 
-/** Canvas und Upload lesen dieselben Originalbytes, ohne browserseitigen CDN-CORS-Zugriff. */
+/** Canvas und Upload lesen dieselben Bildbytes, ohne browserseitigen CDN-CORS-Zugriff. */
 @Injectable({ providedIn: 'root' })
 export class VintedListingPhotoSourceService {
   private readonly auth = inject(AuthService);

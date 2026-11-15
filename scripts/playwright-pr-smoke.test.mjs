@@ -630,8 +630,20 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
     complete.selected.filter(([file]) => coreFiles.has(file)).length,
     coreBrowserTests.length,
   );
-  // Vier neue Kopierfälle und vier jetzt datenbankfreie Verkaufsfälle bleiben vollständig enthalten.
-  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 65);
+  // Archivkopien, importierte Verkäufe und die vier datenbankfreien Verkaufsfälle bleiben enthalten.
+  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 69);
+  for (const width of [390, 1440])
+    for (const theme of ['light', 'dark'])
+      assert.equal(
+        complete.selected.filter(
+          ([file, title]) =>
+            file === 'vinted-listing-drafts.spec.ts' &&
+            title.includes(
+              `lädt ohne Originalarchiv Verkaufsangaben und Vinted-Foto und erlaubt das Ergänzen fehlender Fotos bei ${width}px ${theme}`,
+            ),
+        ).length,
+        1,
+      );
   assert.deepEqual(
     [...new Set(complete.selected.map(([file]) => file))].sort(),
     [

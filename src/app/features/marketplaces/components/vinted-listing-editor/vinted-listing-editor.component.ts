@@ -259,6 +259,7 @@ export class VintedListingEditorComponent {
   readonly dirty = signal(false);
   readonly error = signal<string | null>(null);
   readonly loadError = signal<string | null>(null);
+  readonly copyPhotoError = signal<string | null>(null);
   readonly conflict = signal(false);
   readonly progress = signal('');
   readonly publicationAttempted = signal(false);
@@ -1113,6 +1114,7 @@ export class VintedListingEditorComponent {
     this.categories.set([]);
     this.error.set(null);
     this.loadError.set(null);
+    this.copyPhotoError.set(null);
     this.categoryError.set(null);
     this.categoryLoading.set(false);
     this.conflict.set(false);
@@ -1164,6 +1166,7 @@ export class VintedListingEditorComponent {
           this.query().get('copyItemId') ?? '',
         );
         if (!this.current(generation, context)) return;
+        this.copyPhotoError.set(copied.photoError ?? null);
         this.referenceContent.set(copied.content);
         this.patch(copied.content, account.connectionId);
         this.images.set(

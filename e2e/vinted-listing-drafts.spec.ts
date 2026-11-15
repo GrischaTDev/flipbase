@@ -626,7 +626,12 @@ for (const width of [390, 1440]) {
           const kind = new URL(route.request().url()).searchParams.get('kind');
           if (kind === 'eq.sale') return route.fulfill({ json: { id: sale.id, body: sale } });
           if (kind === 'eq.publication')
-            return route.fulfill({ json: { body: { listingContent: source.content } } });
+            return route.fulfill({
+              json: {
+                id: '25000000-0000-4000-8000-000000000098',
+                body: { listingContent: source.content },
+              },
+            });
           return route.fallback();
         });
         await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) =>
@@ -701,6 +706,111 @@ for (const width of [390, 1440]) {
         await page.goto('/marketplaces/vinted/sales');
         await expect(sales.getByRole('heading', { name: sale.title, exact: true })).toBeVisible();
         expect(errors).toEqual([]);
+      });
+    }
+  });
+}
+
+for (const width of [390, 1440]) {
+  test.describe(`Importierten Verkaufsartikel übernehmen ${width}px`, () => {
+    test.use({ hasTouch: width === 390 });
+    for (const theme of ['light', 'dark'] as const) {
+      test(`lädt ohne Originalarchiv Verkaufsangaben und Vinted-Foto und erlaubt das Ergänzen fehlender Fotos bei ${width}px ${theme} @marketplace-preview`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const state = await mockPublication(page);
+        state.startNewDraft();
+        await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+        const scope = { workspaceId, connectionId: accountIds[0] };
+        const sale = {
+          ...scope,
+          id: '25000000-0000-4000-8000-000000000099',
+          externalId: '999',
+          title: 'Importierter alter Verkauf',
+          itemIds: ['123'],
+          itemCount: 1,
+          saleState: 'completed',
+          status: 'Abgeschlossen',
+          price: 18,
+          currency: 'EUR',
+          imageUrl: 'https://images1.vinted.net/legacy-sale.png',
+        };
+        const originalSale = structuredClone(sale);
+        await page.route('**/rest/v1/marketplace_account_entries?**', (route) => {
+          const kind = new URL(route.request().url()).searchParams.get('kind');
+          if (kind === 'eq.sale') return route.fulfill({ json: { id: sale.id, body: sale } });
+          if (kind === 'eq.publication') return route.fulfill({ json: null });
+          return route.fallback();
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) =>
+          route.fulfill({ json: { items: [] } }),
+        );
+        let photoAvailable = true;
+        await page.route('**/marketplace-browser/listings/photo/read', (route) => {
+          expect(route.request().postDataJSON()).toEqual({
+            ...scope,
+            entryId: sale.id,
+            saleItemId: '123',
+            photoUrl: sale.imageUrl,
+          });
+          return photoAvailable
+            ? route.fulfill({ contentType: 'image/png', body: state.pixel })
+            : route.fulfill({ status: 404, json: { error: 'photo_unavailable' } });
+        });
+        const query = new URLSearchParams({ ...scope, copySaleId: sale.id, copyItemId: '123' });
+        await page.goto('/marketplaces/vinted/listings/new?' + query);
+        const editor = page.locator('app-vinted-listing-editor');
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          sale.title,
+        );
+        await expect(
+          editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }),
+        ).toHaveValue('18,00');
+        await expect(
+          editor.getByRole('button', {
+            name: 'Hauptbild: vinted-123-1.png, Details öffnen',
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect
+          .poll(() =>
+            editor
+              .locator('img')
+              .first()
+              .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+          )
+          .toBe(true);
+        await checkListingSurface(page, 'app-vinted-listing-editor');
+        await page.screenshot({
+          path: testInfo.outputPath('imported-sale-copy.png'),
+          fullPage: true,
+        });
+        await saveDraft(page);
+        expect(state.draft().images).toHaveLength(1);
+        expect(state.draft().inventoryItemId).toBeNull();
+        expect(state.draft()).not.toHaveProperty('relistExternalId');
+        photoAvailable = false;
+        state.startNewDraft();
+        await page.reload();
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          sale.title,
+        );
+        await expect(editor.getByRole('alert')).toContainText('Fotos');
+        await expect(editor.getByRole('button', { name: 'Gespeicherten Stand laden' })).toHaveCount(
+          0,
+        );
+        await checkListingSurface(page, 'app-vinted-listing-editor');
+        await editor
+          .locator('input[type=file]')
+          .setInputFiles({ name: 'ergänzt.png', mimeType: 'image/png', buffer: state.pixel });
+        await expect(editor.getByRole('alert')).toHaveCount(0);
+        await saveDraft(page);
+        expect(state.draft().images).toHaveLength(1);
+        expect(state.draft().inventoryItemId).toBeNull();
+        expect(state.draft()).not.toHaveProperty('relistExternalId');
+        expect(sale).toEqual(originalSale);
       });
     }
   });

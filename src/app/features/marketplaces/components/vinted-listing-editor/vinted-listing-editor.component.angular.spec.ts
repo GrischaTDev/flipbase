@@ -399,6 +399,28 @@ it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speic
   expect(f.startRelisting).not.toHaveBeenCalled();
 });
 
+it('zeigt Angaben und Fotoauswahl auch bei fehlenden Verkaufsfotos und speichert einen unabhängigen Entwurf', async () => {
+  const f = setup({
+    workspaceId: 'workspace-a',
+    connectionId: 'account-a',
+    copySaleId: 'sale-a',
+    copyItemId: '123',
+  });
+  vi.mocked(TestBed.inject(VintedSoldItemCopyService).read).mockResolvedValue({
+    content: { ...emptyVintedListingContent(), title: 'Alter Verkauf', priceCents: 1200 },
+    files: [],
+    photoError: 'Die Fotos sind nicht mehr verfügbar. Füge die Fotos hinzu.',
+  });
+  await settle();
+  expect(f.component.loadError()).toBeNull();
+  expect(f.component.form.controls.title.value).toBe('Alter Verkauf');
+  expect(f.component.copyPhotoError()).toContain('Fotos');
+  expect(f.component.canSave()).toBe(true);
+  await f.component.save();
+  expect(f.create).toHaveBeenCalled();
+  expect(TestBed.inject(VintedListingDraftService).createRelisting).not.toHaveBeenCalled();
+});
+
 it('übernimmt einen Verkaufsabruf nach einem Arbeitsbereichswechsel nicht mehr', async () => {
   const f = setup({
     workspaceId: 'workspace-a',

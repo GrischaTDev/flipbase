@@ -932,19 +932,23 @@ export class MarketplaceBrowserHttpApi {
       if (path === '/marketplace-browser/listings/photo/read') {
         if (!this.listingPhotos) throw new RequestError(503);
         const entryId = body['entryId'],
-          photoUrl = body['photoUrl'];
+          photoUrl = body['photoUrl'],
+          saleItemId = body['saleItemId'];
         if (
-          Object.keys(body).length !== 4 ||
+          Object.keys(body).length !== (saleItemId === undefined ? 4 : 5) ||
           Object.keys(body).some(
-            (key) => !['workspaceId', 'connectionId', 'entryId', 'photoUrl'].includes(key),
+            (key) =>
+              !['workspaceId', 'connectionId', 'entryId', 'photoUrl', 'saleItemId'].includes(key),
           ) ||
           typeof entryId !== 'string' ||
           !uuidPattern.test(entryId) ||
           typeof photoUrl !== 'string' ||
-          photoUrl.length > 4096
+          photoUrl.length > 4096 ||
+          (saleItemId !== undefined &&
+            (typeof saleItemId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(saleItemId)))
         )
           throw new RequestError(400);
-        const photo = await this.listingPhotos.read(scope, entryId, photoUrl);
+        const photo = await this.listingPhotos.read(scope, entryId, photoUrl, saleItemId);
         response.writeHead(200, {
           ...responseHeaders,
           'Content-Type': photo.mimeType,

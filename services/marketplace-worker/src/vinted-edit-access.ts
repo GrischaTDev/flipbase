@@ -39,7 +39,7 @@ export class VintedEditAccess {
 
   async entry(
     scope: BrowserSessionScope,
-    kind: 'profile' | 'publication' | 'conversation',
+    kind: 'profile' | 'publication' | 'conversation' | 'sale',
     entryId?: string,
     mode: 'read' | 'write' = 'read',
   ): Promise<ScopedEntry> {
