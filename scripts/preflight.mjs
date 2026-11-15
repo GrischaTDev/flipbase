@@ -137,7 +137,7 @@ export async function selectLocalScriptTests(
 }
 
 const workflowInputPath =
-  /^(?:scripts\/|\.github\/|deploy\/|docker\/|package(?:-lock)?\.json|(?:angular|tsconfig[^/]*|vitest[^/]*|playwright[^/]*)\.(?:json|ts)|\.dockerignore)/u;
+  /^(?:scripts\/|\.github\/|deploy\/|docker\/|package(?:-lock)?\.json|(?:angular|tsconfig[^/]*|vitest[^/]*|playwright[^/]*)\.(?:json|ts)|\.dockerignore|\.nvmrc$)/u;
 
 /** Bekannte Werkzeuge prüfen ihre Verbraucher; unklare Bau-/Hoständerungen bleiben vollständig. */
 export async function selectWorkflowScriptTests(paths, repository = process.cwd()) {
@@ -580,8 +580,8 @@ async function main() {
   } else if (args.includes('--json')) console.log(JSON.stringify(plan));
   else if (args.includes('--plan')) console.log(formatPreflightPlan(plan, { profile, native }));
   else {
-    if (process.versions.node.split('.')[0] !== '22')
-      throw new Error('Der Vorabcheck benötigt wie CI Node 22.');
+    if (process.versions.node.split('.')[0] !== '24')
+      throw new Error('Der Vorabcheck benötigt wie CI Node 24.');
     console.log(
       formatPreflightPlan(plan, { profile, native }).replace(
         'Planansicht führt keine Prüfungen aus.',

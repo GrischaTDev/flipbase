@@ -480,6 +480,7 @@ test('Workflowverträge folgen technischen Werkzeugänderungen statt jeder Fachk
     ['docker/Dockerfile', true],
     ['angular.json', true],
     ['package-lock.json', true],
+    ['.nvmrc', true],
   ]) {
     const plan = selectAffectedTests([path], files);
     assert.equal(plan.checks.workflow, workflow, path);

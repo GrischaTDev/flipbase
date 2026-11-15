@@ -64,10 +64,9 @@ den unprivilegierten Benutzer und die Trennung der beiden Statusendpunkte:
 Die bestehende CI führt Build und Starttest im Job `Sniper service` aus.
 Das testet die Betriebsdateien, installiert aber noch keinen Dienst auf dem Server.
 
-Node bleibt in der vorhandenen Hauptversion 22. Verwendet wird der bei dieser
-Änderung geprüfte stabile Patch `22.23.2-alpine3.24`, entsprechend dem
-[offiziellen Node-Abbild](https://hub.docker.com/_/node).
-Neue npm-Abhängigkeiten oder Hauptversionsupdates sind nicht erforderlich.
+Node 24.22.3 LTS wird für Bau und Laufzeit mit `24.22.3-bookworm-slim` verwendet,
+entsprechend dem [offiziellen Node-Abbild](https://hub.docker.com/_/node).
+Die Projektversion steht in der zentralen `.nvmrc`; npm bleibt auf 11.13.0.
 
 ## Einmalige Installation nach PR-Freigabe
 

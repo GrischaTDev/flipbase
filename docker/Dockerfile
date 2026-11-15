@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────
 # Stage 1 – Build
 # ──────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:24.22.3-alpine3.24 AS build
 
 WORKDIR /app
 

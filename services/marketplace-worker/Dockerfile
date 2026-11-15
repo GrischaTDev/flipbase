@@ -1,4 +1,4 @@
-FROM node:22.23.2-alpine3.24 AS build
+FROM node:24.22.3-alpine3.24 AS build
 WORKDIR /app/services/marketplace-worker
 COPY services/marketplace-worker/package.json services/marketplace-worker/package-lock.json ./
 RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
@@ -17,13 +17,13 @@ COPY tools/flipbase-extension/vinted-listing-runtime.js /app/tools/flipbase-exte
 COPY supabase/functions/_shared/kleinanzeigen-listing-validation.mts supabase/functions/_shared/kleinanzeigen-listing-contracts.ts /app/supabase/functions/_shared/
 RUN npm run build
 
-FROM node:22.23.2-alpine3.24 AS dependencies
+FROM node:24.22.3-alpine3.24 AS dependencies
 WORKDIR /app
 COPY services/marketplace-worker/package.json services/marketplace-worker/package-lock.json ./
 RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
     && npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:22.23.2-alpine3.24 AS runtime
+FROM node:24.22.3-alpine3.24 AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=dependencies /app/package.json ./package.json

@@ -15,6 +15,12 @@ const packagePaths = [
 ];
 const rootManifest = JSON.parse(await readFile('package.json', 'utf8'));
 const npmVersion = rootManifest.packageManager.replace(/^npm@/u, '');
+const nodeVersion = (await readFile('.nvmrc', 'utf8')).trim();
+const nodeMajor = nodeVersion.split('.')[0];
+
+test('development selects the Node 24 LTS toolchain', () => {
+  assert.match(nodeVersion, /^24\.\d+\.\d+$/u);
+});
 
 test('the workflow suite includes npm policy and lockfile generation regressions', () => {
   for (const path of ['scripts/npm-toolchain.test.mjs', 'scripts/update-package-lock.test.mjs'])
@@ -41,49 +47,58 @@ for (const path of packagePaths) {
       version: npmVersion,
       onFail: 'error',
     });
+    assert.equal(manifest.engines?.node, `${nodeMajor}.x`);
+    assert.deepEqual(manifest.devEngines?.runtime, {
+      name: 'node',
+      version: `${nodeMajor}.x`,
+      onFail: 'error',
+    });
+    assert.match(manifest.devDependencies['@types/node'], new RegExp(`^\\^?${nodeMajor}\\.`));
   });
 }
 
-for (const command of [
-  ['ci', '--ignore-scripts', '--dry-run'],
-  ['install', '--package-lock-only', '--ignore-scripts'],
-]) {
-  test(`npm ${command[0]} rejects a mismatched version without changing either package file`, async () => {
-    assert.ok(rootManifest.devEngines?.packageManager, 'The project must enforce npm itself');
-    const directory = await mkdtemp(join(tmpdir(), 'flipbase-npm-policy-'));
-    try {
-      const manifest = {
-        name: 'npm-version-regression',
-        version: '1.0.0',
-        private: true,
-        devEngines: {
-          packageManager: { ...rootManifest.devEngines.packageManager, version: '0.0.0' },
-        },
-      };
-      const packageText = JSON.stringify(manifest);
-      const lockText = JSON.stringify({
-        name: manifest.name,
-        version: manifest.version,
-        lockfileVersion: 3,
-        packages: { '': { name: manifest.name, version: manifest.version } },
-      });
-      await writeFile(join(directory, 'package.json'), packageText);
-      await writeFile(join(directory, 'package-lock.json'), lockText);
-      const result = spawnSync(process.execPath, [await resolveNpmCliPath(), ...command], {
-        cwd: directory,
-        encoding: 'utf8',
-        timeout: 15000,
-        windowsHide: true,
-      });
-      assert.ifError(result.error);
-      assert.notEqual(result.status, 0);
-      assert.match(result.stdout + result.stderr, /EBADDEVENGINES/u);
-      assert.equal(await readFile(join(directory, 'package.json'), 'utf8'), packageText);
-      assert.equal(await readFile(join(directory, 'package-lock.json'), 'utf8'), lockText);
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
+for (const policyField of ['packageManager', 'runtime']) {
+  for (const command of [
+    ['ci', '--ignore-scripts', '--dry-run'],
+    ['install', '--package-lock-only', '--ignore-scripts'],
+  ]) {
+    test(`npm ${command[0]} rejects a mismatched ${policyField} without changing either package file`, async () => {
+      assert.ok(rootManifest.devEngines?.[policyField], `The project must enforce ${policyField}`);
+      const directory = await mkdtemp(join(tmpdir(), 'flipbase-npm-policy-'));
+      try {
+        const manifest = {
+          name: 'npm-version-regression',
+          version: '1.0.0',
+          private: true,
+          devEngines: {
+            [policyField]: { ...rootManifest.devEngines[policyField], version: '0.0.0' },
+          },
+        };
+        const packageText = JSON.stringify(manifest);
+        const lockText = JSON.stringify({
+          name: manifest.name,
+          version: manifest.version,
+          lockfileVersion: 3,
+          packages: { '': { name: manifest.name, version: manifest.version } },
+        });
+        await writeFile(join(directory, 'package.json'), packageText);
+        await writeFile(join(directory, 'package-lock.json'), lockText);
+        const result = spawnSync(process.execPath, [await resolveNpmCliPath(), ...command], {
+          cwd: directory,
+          encoding: 'utf8',
+          timeout: 15000,
+          windowsHide: true,
+        });
+        assert.ifError(result.error);
+        assert.notEqual(result.status, 0);
+        assert.match(result.stdout + result.stderr, /EBADDEVENGINES/u);
+        assert.equal(await readFile(join(directory, 'package.json'), 'utf8'), packageText);
+        assert.equal(await readFile(join(directory, 'package-lock.json'), 'utf8'), lockText);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
+  }
 }
 
 test('every workflow selects the locked npm immediately after selecting Node', async () => {
@@ -101,6 +116,16 @@ test('every workflow selects the locked npm immediately after selecting Node', a
         .findIndex((candidate) => new RegExp(`^ {${indentation}}- `, 'u').test(candidate));
       assert.notEqual(next, -1, `${file}: missing npm setup`);
       const nodeSetup = lines.slice(index, index + 1 + next).join('\n');
+      const selected = nodeSetup.match(/^\s+node-version:\s*(.+)$/mu)?.[1]?.trim();
+      assert.ok(selected, `${file}: explicit Node selection is required`);
+      if (selected === '${{ env.NODE_VERSION }}') {
+        const workflowVersion = lines
+          .join('\n')
+          .match(/^\s+NODE_VERSION:\s*['"]?([\d.]+)['"]?\s*$/mu)?.[1];
+        assert.equal(workflowVersion, nodeVersion, `${file}: shared Node version`);
+      } else {
+        assert.equal(selected.replace(/^['"]|['"]$/gu, ''), nodeVersion, file);
+      }
       assert.match(
         nodeSetup,
         /package-manager-cache: false/u,
@@ -144,6 +169,10 @@ for (const path of [
   test(`${path} selects the package-declared npm before every clean install`, async () => {
     const dockerfile = await readFile(path, 'utf8');
     const commands = dockerfile.replace(/\\\r?\n\s*/gu, ' ').split('\n');
+    const nodeImages = [...dockerfile.matchAll(/^FROM node:([^\s]+)/gmu)].map((match) => match[1]);
+    assert.ok(nodeImages.length > 0);
+    for (const image of nodeImages)
+      assert.ok(image.startsWith(`${nodeVersion}-`), `${path}: ${image}`);
     const installs = commands.filter((line) => /^RUN /u.test(line) && /npm ci\b/u.test(line));
     assert.ok(installs.length > 0);
     for (const command of installs) {
@@ -152,3 +181,10 @@ for (const path of [
     }
   });
 }
+
+test('the browser pilot and migration check use the shared Node toolchain', async () => {
+  const pilot = await readFile('tools/cloud-browser-pilot/Dockerfile', 'utf8');
+  assert.ok(pilot.startsWith(`FROM node:${nodeVersion}-`));
+  const migrationCheck = await readFile('scripts/check-migration-transactions.sh', 'utf8');
+  assert.ok(migrationCheck.includes(`node:${nodeVersion}-`));
+});

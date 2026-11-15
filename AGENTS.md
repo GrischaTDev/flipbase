@@ -172,7 +172,7 @@ unveränderter Teile nach den folgenden Regeln weiterverwenden.
    anderen PR-Ziel beiden Preflight-Befehlen `-- --base <ref>` übergeben. Commits,
    Index, Arbeitskopie sowie neue und gelöschte Dateien müssen berücksichtigt sein.
    Auch die Einsatzstellen gemeinsamer Bausteine prüfen; nur neue Tests reichen nicht.
-3. **Den lokalen Entwicklungscheck ausführen:** `npm run preflight` mit Node 22
+3. **Den lokalen Entwicklungscheck ausführen:** `npm run preflight` mit Node 24
    und den gesperrten Projektabhängigkeiten ausführen. Der Standardlauf prüft die
    betroffenen lokalen Bereiche und zeigt den zusätzlichen CI-Freigabeumfang
    gesondert an. Die Planansicht allein ist kein Testnachweis. Angular-Vorlagen
