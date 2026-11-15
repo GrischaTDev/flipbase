@@ -7,6 +7,12 @@ if (!destination || !/^[a-f0-9]{40}$/u.test(commit ?? ''))
   throw new Error('Push artifact requires a release commit');
 const sources = {
   'push-main/index.ts': 'deploy/push-main/index.ts',
+  'ai-connection/index.ts': 'supabase/functions/ai-connection/index.ts',
+  'ai-connection/handler.ts': 'supabase/functions/ai-connection/handler.ts',
+  'ai-connection/token-handler.ts': 'supabase/functions/ai-connection/token-handler.ts',
+  'ai-connection/tools.ts': 'supabase/functions/ai-connection/tools.ts',
+  'ai-connection/image-validation.ts': 'supabase/functions/ai-connection/image-validation.ts',
+  'ai-connection/request-id.ts': 'supabase/functions/ai-connection/request-id.ts',
   'push-settings/index.ts': 'supabase/functions/push-settings/index.ts',
   'push-settings/handler.ts': 'supabase/functions/push-settings/handler.ts',
   'push-settings/contracts.ts': 'supabase/functions/push-settings/contracts.ts',

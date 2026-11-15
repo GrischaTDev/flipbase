@@ -89,12 +89,13 @@ describe('SettingsShellComponent', () => {
     expect(links.some((link) => link.textContent?.includes('Daten & Protokolle'))).toBe(true);
     expect(
       links
-        .slice(0, 3)
+        .slice(0, 4)
         .map((link) =>
           [...link.querySelectorAll('span.block')].map((part) => part.textContent?.trim()),
         ),
     ).toEqual([
       ['Konto', 'Persönliche Daten & Sicherheit'],
+      ['KI-Verbindung', 'Persönliche KI-Zugänge'],
       ['Unternehmen', 'Geschäfts- und Rechnungsdaten'],
       ['Workspace', 'Mandanten und Vorgaben'],
     ]);
