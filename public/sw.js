@@ -148,7 +148,9 @@ function shouldHandle(request) {
   if (
     url.origin === self.location.origin &&
     request.mode === 'navigate' &&
-    ['/auth/login', '/auth/register', '/auth/set-password'].includes(url.pathname)
+    ['/auth/login', '/auth/register', '/auth/set-password', '/auth/ai-connection'].includes(
+      url.pathname,
+    )
   )
     return true;
   if (
@@ -304,14 +306,21 @@ self.addEventListener('fetch', (event) => {
   const path =
     event.request.mode === 'navigate' ? '/index.html' : new URL(event.request.url).pathname;
   event.respondWith(
-    (event.request.mode === 'navigate'
-      ? readNavigation(event)
-      : readAsset(path, event.clientId)
-    ).catch(async () => {
-      const client = event.clientId ? await self.clients.get(event.clientId) : null;
-      client?.postMessage({ type: 'PWA_ASSETS_STATE', ready: false });
-      return new Response('App-Dateien sind noch nicht bereit.', { status: 503 });
-    }),
+    (event.request.mode === 'navigate' ? readNavigation(event) : readAsset(path, event.clientId))
+      // Archiv-Adressen dürfen relative Modulimporte nicht auf einen zweiten Angular-Stand umlenken.
+      .then(
+        (response) =>
+          new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          }),
+      )
+      .catch(async () => {
+        const client = event.clientId ? await self.clients.get(event.clientId) : null;
+        client?.postMessage({ type: 'PWA_ASSETS_STATE', ready: false });
+        return new Response('App-Dateien sind noch nicht bereit.', { status: 503 });
+      }),
   );
 });
 

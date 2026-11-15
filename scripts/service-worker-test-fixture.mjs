@@ -5,6 +5,13 @@ import { createHash, webcrypto } from 'node:crypto';
 const origin = 'https://app.flipbase.test';
 const hash = (text) => createHash('sha256').update(text).digest('hex');
 
+function preserveNetworkResponseUrl(response, url) {
+  const clone = response.clone.bind(response);
+  Object.defineProperty(response, 'url', { value: url });
+  response.clone = () => preserveNetworkResponseUrl(clone(), url);
+  return response;
+}
+
 export function createWorker({
   corrupt = false,
   clients = [],
@@ -107,7 +114,10 @@ export function createWorker({
     const url = new URL(typeof request === 'string' ? request : request.url, origin);
     calls.push(url.href);
     if (!resources.has(url.pathname)) throw new Error('offline or missing');
-    return new Response(resources.get(url.pathname), { status: 200 });
+    return preserveNetworkResponseUrl(
+      new Response(resources.get(url.pathname), { status: 200 }),
+      url.href,
+    );
   };
   const context = vm.createContext({
     self,

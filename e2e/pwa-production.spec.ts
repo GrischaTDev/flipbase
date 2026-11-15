@@ -2,6 +2,78 @@ import { devices, expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { launchPwaLifecycleBrowser } from './support/pwa-lifecycle-browser';
 
+test('a real second build keeps AI consent pinned during archive repair @worker', async ({
+  page,
+  context,
+}) => {
+  const { mockMarketplace } = await import('./support/marketplace-account-fixture');
+  const configure = (target: Page) =>
+    mockMarketplace(target, false, false, false, false, undefined, undefined, false, 1, {
+      origin: 'https://api.flipbase.de',
+      userId: '25000000-0000-4000-8000-000000000001',
+      preserveExistingSession: true,
+    });
+  await configure(page);
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Übersicht', exact: true })).toBeVisible();
+  await expect(page.locator('#app-startup')).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
+  const oldBuild = await page.locator('html').getAttribute('data-flipbase-build');
+  const missingChunk = await page.evaluate(async () => {
+    const build = document.documentElement.dataset['flipbaseBuild'];
+    const cache = await caches.open(`flipbase-app-${build}`);
+    const inventory = await (await cache.match('/pwa-assets.json'))!.json();
+    const loaded = new Set(
+      performance.getEntriesByType('resource').map((entry) => new URL(entry.name).pathname),
+    );
+    const chunks = inventory.assets.filter(
+      (asset: { url: string }) => /^\/chunk-.*\.js$/.test(asset.url) && !loaded.has(asset.url),
+    ) as { url: string }[];
+    for (const chunk of chunks) await cache.delete(chunk.url);
+    return chunks[0]?.url;
+  });
+  expect(missingChunk).toBeDefined();
+  await page.request.post('/api/__pwa_test__/build?name=b');
+  try {
+    const entry = await context.newPage();
+    const errors: string[] = [];
+    entry.on('pageerror', (error) => errors.push(error.message));
+    await entry.addInitScript(() => {
+      window.addEventListener('DOMContentLoaded', () => {
+        if (!sessionStorage.getItem('pwa_test_ai_entry_first_build'))
+          sessionStorage.setItem(
+            'pwa_test_ai_entry_first_build',
+            document.documentElement.dataset['flipbaseBuild'] ?? '',
+          );
+      });
+    });
+    await configure(entry);
+    await entry.route(
+      'https://api.flipbase.de/auth/v1/oauth/authorizations/archive-entry',
+      (route) => route.fulfill({ json: { client: { name: 'ChatGPT' } } }),
+    );
+    const navigation = await entry.goto('/auth/ai-connection?authorization_id=archive-entry');
+    expect(navigation?.fromServiceWorker()).toBe(true);
+    await expect(
+      entry.getByRole('heading', { name: 'ChatGPT mit Flipbase verbinden' }),
+    ).toBeVisible();
+    await expect(entry.locator('#app-startup')).toHaveCount(0);
+    expect(
+      await entry.evaluate(() => sessionStorage.getItem('pwa_test_ai_entry_first_build')),
+    ).toBe(oldBuild);
+    await expect(entry).toHaveURL(/\/auth\/ai-connection\?authorization_id=archive-entry$/);
+    await expect(entry.getByRole('combobox', { name: 'Zugriff auf die Anwendung' })).toHaveText(
+      'Nur lesen',
+    );
+    expect(errors).toEqual([]);
+    await entry.screenshot({ path: test.info().outputPath('ai-consent-entry.png') });
+  } finally {
+    await page.request.post('/api/__pwa_test__/build?name=a');
+  }
+});
+
 /**
  * Mehrfenster-Updatefälle beginnen erst nach der vollständigen App-Initialisierung.
  * Der direkte PWA-Start wird separat geprüft; hier zählen bereits geöffnete
