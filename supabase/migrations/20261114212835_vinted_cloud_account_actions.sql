@@ -536,8 +536,21 @@ create function public.marketplace_account_actions_read (
 declare v_actions jsonb;
 begin
   if not public.marketplace_can_manage_cloud(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
-  select coalesce(jsonb_agg(public.marketplace_account_action_public(action) order by action.queue_order),'[]'::jsonb) into v_actions
-    from public.marketplace_account_actions action where action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.history_purged_at is null;
+  with selected as (
+    select action from public.marketplace_account_actions action
+      where action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.history_purged_at is null
+        and action.state in ('queued','running','outcome_unknown')
+    union all
+    (select action from public.marketplace_account_actions action
+      where action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.history_purged_at is null
+        and action.state in ('succeeded','failed','cancelled')
+      order by action.updated_at desc,action.id desc limit 10)
+  )
+  -- Fachresultate vor dem JSON-Aufbau ersetzen; der Einzelabruf bleibt vollständig.
+  select coalesce(jsonb_agg(public.marketplace_account_action_public(jsonb_populate_record(selected.action,
+      jsonb_build_object('result',case when (selected.action).state='failed' and (selected.action).result->>'status'='conflict'
+        then jsonb_build_object('status','conflict') else null end))) order by (selected.action).queue_order),'[]'::jsonb) into v_actions
+    from selected;
   return jsonb_build_object('actions',v_actions);
 end;
 $function$;
@@ -2037,20 +2050,20 @@ alter table public.marketplace_account_actions
 
 grant all on public.marketplace_account_actions to service_role;
 
-create index marketplace_account_actions_scope on public.marketplace_account_actions (workspace_id, connection_id, created_at desc);
-
-create index marketplace_account_actions_due on public.marketplace_account_actions (queue_order)
-  where state = 'queued'::text;
-
-create index marketplace_account_actions_requester on public.marketplace_account_actions (requested_by);
+create index marketplace_account_actions_retention on public.marketplace_account_actions (finished_at)
+  where history_purged_at is null and (state = any (array['succeeded'::text, 'failed'::text, 'cancelled'::text]));
 
 create index marketplace_account_actions_resource on public.marketplace_account_actions (workspace_id, connection_id, resource_key, queue_order)
   where is_write and (state = any (array['queued'::text, 'running'::text, 'outcome_unknown'::text]));
 
-create index marketplace_account_actions_reconciliation on public.marketplace_account_actions (reconciliation_action_id);
+create index marketplace_account_actions_requester on public.marketplace_account_actions (requested_by);
 
-create index marketplace_account_actions_retention on public.marketplace_account_actions (finished_at)
-  where history_purged_at is null and (state = any (array['succeeded'::text, 'failed'::text, 'cancelled'::text]));
+create index marketplace_account_actions_due on public.marketplace_account_actions (queue_order)
+  where state = 'queued'::text;
+
+create index marketplace_account_actions_scope on public.marketplace_account_actions (workspace_id, connection_id, created_at desc);
+
+create index marketplace_account_actions_reconciliation on public.marketplace_account_actions (reconciliation_action_id);
 
 create index marketplace_account_actions_session on public.marketplace_account_actions (browser_session_id);
 

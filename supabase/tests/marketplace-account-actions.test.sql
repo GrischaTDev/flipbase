@@ -265,5 +265,46 @@ set local role service_role;
 select is(public.marketplace_browser_effective_capacity(),0,'Veraltete Kapazitätsmeldungen geben keinen neuen Browserplatz frei');
 select is(public.marketplace_browser_capacity_report('57000000-0000-4000-8000-000000000099',1,8),false,'Fremder Worker darf keine Hostkapazität setzen');
 select throws_ok($$select public.marketplace_browser_capacity_report('57000000-0000-4000-8000-000000000041',1,9)$$,'22023',null,'Hostgrenze größer als acht ist ungültig');
+reset role;
+-- Der globale Verlauf lädt nur Statusdaten; große Fachresultate bleiben im Einzelabruf.
+insert into public.marketplace_connections(id,workspace_id,display_name,status,execution_mode,external_account_id) values
+ ('57000000-0000-4000-8000-000000000024','57000000-0000-4000-8000-000000000011','Kompakter Verlauf','connected','cloud','5704');
+insert into public.marketplace_account_actions(workspace_id,connection_id,requested_by,request_id,request_hash,kind,payload,provider_profile_id,is_write,state,result,updated_at)
+select '57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024','57000000-0000-4000-8000-000000000001',
+ ('57600000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,repeat('a',64),'profile_details_read','{}','overview-profile',false,
+ case when n=2 then 'failed' else 'succeeded' end,
+ case when n=2 then jsonb_build_object('status','conflict','profile',repeat('x',300000)) else jsonb_build_object('profile',repeat('x',300000)) end,
+ clock_timestamp()-make_interval(mins=>n)
+from generate_series(1,12) n;
+insert into public.marketplace_account_actions(workspace_id,connection_id,requested_by,request_id,request_hash,kind,payload,provider_profile_id,is_write,state,result)
+select '57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024','57000000-0000-4000-8000-000000000001',
+ ('57600000-0000-4000-8001-'||lpad(n::text,12,'0'))::uuid,repeat('b',64),'profile_details_read','{}','overview-profile',false,
+ case when n<=12 then 'queued' else 'outcome_unknown' end,jsonb_build_object('profile',repeat('x',300000))
+from generate_series(1,24) n;
+insert into public.marketplace_account_actions(workspace_id,connection_id,requested_by,request_id,request_hash,kind,payload,provider_profile_id,is_write,state,claim_token,worker_id,worker_epoch,runner_id,browser_session_id)
+select '57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024','57000000-0000-4000-8000-000000000001',
+ '57600000-0000-4000-8002-000000000001',repeat('c',64),'profile_details_read','{}','overview-profile',false,'running',gen_random_uuid(),gen_random_uuid(),1,gen_random_uuid(),public_id
+from public.marketplace_browser_sessions where connection_id='57000000-0000-4000-8000-000000000021' limit 1;
+create temporary table action_overview_snapshot(body jsonb);
+grant all on action_overview_snapshot to authenticated;
+set local role authenticated;
+insert into action_overview_snapshot select public.marketplace_account_actions_read('57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024');
+select is((select jsonb_array_length(body->'actions') from action_overview_snapshot),35,'Verlauf enthält alle 25 offenen und genau zehn abgeschlossene Aufträge');
+select is((select count(*)::integer from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->>'state'='queued'),12,'Mehr als zehn wartende Aufträge bleiben vollständig sichtbar');
+select is((select count(*)::integer from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->>'state'='outcome_unknown'),12,'Mehr als zehn ungeklärte Aufträge bleiben vollständig sichtbar');
+select is((select count(*)::integer from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->>'state'='running'),1,'Laufende Aufträge bleiben neben dem begrenzten Verlauf sichtbar');
+select is((select count(*)::integer from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->>'state' in ('succeeded','failed','cancelled')),10,'Nur die zehn zuletzt aktualisierten abgeschlossenen Aufträge werden geladen');
+select ok(not exists(select 1 from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->>'requestId' in ('57600000-0000-4000-8000-000000000011','57600000-0000-4000-8000-000000000012')),'Terminalauswahl folgt der letzten Aktualisierung statt der Annahmereihenfolge');
+select is((select action->'result' from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->>'requestId'='57600000-0000-4000-8000-000000000002'),'{"status":"conflict"}'::jsonb,'Konflikthinweis bleibt ohne großes Fachresultat erhalten');
+select is((select count(*)::integer from action_overview_snapshot,jsonb_array_elements(body->'actions') action where action->'result'<>'null'::jsonb),1,'Alle übrigen Listeneinträge enthalten kein Fachresultat');
+select ok((select octet_length(body::text)<50000 from action_overview_snapshot),'Mehrere Megabyte Fachresultate werden nicht im globalen Verlauf übertragen');
+select is(length(public.marketplace_account_action_find('57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024','57600000-0000-4000-8000-000000000001')->'action'->'result'->>'profile'),300000,'Anfragewiederherstellung liefert weiterhin das vollständige Fachresultat');
+reset role;
+set local role authenticated;
+select is(length(public.marketplace_account_action_read('57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024',(public.marketplace_account_action_find('57000000-0000-4000-8000-000000000011','57000000-0000-4000-8000-000000000024','57600000-0000-4000-8000-000000000001')->'action'->>'id')::uuid)->'action'->'result'->>'profile'),300000,'Einzelabruf liefert weiterhin das vollständige Fachresultat');
+reset role;
+select is((select count(*)::integer from public.marketplace_account_actions where connection_id='57000000-0000-4000-8000-000000000024'),37,'Die Listenbegrenzung löscht keine älteren Daten');
+select is((select length(result->>'profile') from public.marketplace_account_actions where request_id='57600000-0000-4000-8000-000000000012'),300000,'Auch ausgeblendete ältere Fachresultate bleiben unverändert gespeichert');
+select is((select array_agg((action->>'requestId')::uuid order by ordinal) from action_overview_snapshot,jsonb_array_elements(body->'actions') with ordinality item(action,ordinal)),(select array_agg(request_id order by queue_order) from public.marketplace_account_actions where connection_id='57000000-0000-4000-8000-000000000024' and request_id not in ('57600000-0000-4000-8000-000000000011','57600000-0000-4000-8000-000000000012')),'Die gemeinsame Liste bleibt nach Annahmereihenfolge sortiert');
 select * from finish();
 rollback;

@@ -2,7 +2,7 @@
 
 Stand: 15. November 2026. Grundlage: [Codeanalyse](../research/2026-11-14-vinted-cloud-actions-analysis.md) gegen `origin/master` auf `35553d11`.
 
-Status: Alle Produktentscheidungen sind bestätigt und die Schritte 0 bis 5 sind implementiert. Datenbank, Worker und Oberfläche wurden gemeinsam integriert; die abschließenden lokalen Prüfungen einschließlich Linux-Preflight sind bestanden. Die inzwischen aktualisierten Hauptzweigstände `068bab69` und `0ef55c0d` sind eingebunden. Push, PR, Merge und Produktionsmessung stehen noch aus. Angaben des früheren Übergabeprotokolls gelten nicht als aktuelle Freigabe.
+Status: Alle Produktentscheidungen sind bestätigt und die Schritte 0 bis 5 sind implementiert. Datenbank, Worker und Oberfläche wurden gemeinsam integriert; der ursprüngliche Linux-Preflight ist bestanden. Die anschließenden CI-Fixturekorrekturen und der kompakte Listenabruf sind gemeinsam durch einen erneuten vollständigen Linux-Preflight geprüft. Die inzwischen aktualisierten Hauptzweigstände `068bab69` und `0ef55c0d` sind eingebunden. PR #650 ist nach Nutzerfreigabe erstellt; die CI-Nachprüfung der korrigierten E2E-Fixtures und des kompakten Listenabrufs läuft vor dem Merge. Die Produktionsmessung steht noch aus. Angaben des früheren Übergabeprotokolls gelten nicht als aktuelle Freigabe.
 
 ## Ziel und feste Grenzen
 
@@ -35,6 +35,8 @@ Für die bestätigten Leserouten gilt: Annahme und Ergebnisabruf sind getrennt. 
 Die Warteschlangengrenze ist eine harte Annahmegrenze: Bei 50 wartenden direkten Aufträgen wird ein weiterer neuer Auftrag weder gespeichert noch ausgeführt, auch nicht über einen sofortigen Nebenweg. Die Oberfläche meldet: „Maximale Anzahl wartender Aktionen erreicht. Bitte warte, bis ein Platz frei wird.“ Die Wiederholung einer bereits angenommenen Anfrage liefert weiterhin deren bisherigen Auftrag.
 
 Nach 30 Tagen werden abgeschlossene direkte Aufträge aus dem Verlauf entfernt und ihre Nutzdaten/Ergebnisse bereinigt. Eine minimale unveränderliche Anfragequittung bleibt in derselben Zeile erhalten; dadurch kann dieselbe alte Anfrage niemals eine zweite Ausführung auslösen. Ungeklärte Ergebnisse werden nicht automatisch bereinigt. Artikel, Bilder, Nachrichten und fachliche Dokumente werden durch diese Verlaufsbereinigung nicht gelöscht.
+
+Die Kopfzeile lädt kompakte Statusdaten aller offenen und ungeklärten Aufträge sowie der zehn zuletzt aktualisierten Abschlüsse. Vollständige Formular-/Profildaten werden ausschließlich einzeln abgerufen; Einzelresultate, Anfragequittungen und ihre 30-Tage-Aufbewahrung bleiben erhalten.
 
 ## Betrieb und Freigabe
 

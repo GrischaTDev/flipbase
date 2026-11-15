@@ -2048,7 +2048,13 @@ for (const width of [390, 1440])
         );
         await page.route('**/marketplace-browser/healthz', (route) =>
           route.fulfill({
-            json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: true },
+            json: {
+              ok: true,
+              readOnly: false,
+              apiVersion: 2,
+              accountActionsEnabled: true,
+              listingPublishingEnabled: true,
+            },
           }),
         );
         await page.route('**/storage/v1/**', (route) =>
@@ -2551,7 +2557,13 @@ test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzö
   );
   await page.route('**/marketplace-browser/healthz', (route) =>
     route.fulfill({
-      json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: true },
+      json: {
+        ok: true,
+        readOnly: false,
+        apiVersion: 2,
+        accountActionsEnabled: true,
+        listingPublishingEnabled: true,
+      },
     }),
   );
   await page.route('**/rest/v1/rpc/marketplace_read_listing_jobs', (route) =>

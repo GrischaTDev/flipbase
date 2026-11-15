@@ -139,13 +139,41 @@ export async function mockMarketplaceAccountActions(page: Page): Promise<void> {
   });
   await page.route('**/rest/v1/rpc/marketplace_account_actions_read', (route) => {
     const request = record(route.request().postDataJSON());
+    const scoped = [...fixture.actions.values()].filter(
+      (action) =>
+        action.workspaceId === request['p_workspace_id'] &&
+        action.connectionId === request['p_connection_id'] &&
+        !action.historyPurged,
+    );
+    const active = (action: VintedAccountAction) =>
+      ['queued', 'running', 'outcome_unknown'].includes(action.state);
+    const recentTerminal = new Set(
+      scoped
+        .map((action, queueIndex) => ({ action, queueIndex }))
+        .filter(({ action }) => !active(action))
+        .sort(
+          (left, right) =>
+            Date.parse(right.action.updatedAt) - Date.parse(left.action.updatedAt) ||
+            right.queueIndex - left.queueIndex,
+        )
+        .slice(0, 10)
+        .map(({ action }) => action.id),
+    );
     return route.fulfill({
       json: {
-        actions: [...fixture.actions.values()].filter(
-          (action) =>
-            action.workspaceId === request['p_workspace_id'] &&
-            action.connectionId === request['p_connection_id'],
-        ),
+        actions: scoped
+          .filter((action) => active(action) || recentTerminal.has(action.id))
+          .map((action) => ({
+            ...action,
+            result:
+              action.state === 'failed' &&
+              action.result &&
+              typeof action.result === 'object' &&
+              'status' in action.result &&
+              action.result.status === 'conflict'
+                ? { status: 'conflict' }
+                : null,
+          })),
       },
     });
   });

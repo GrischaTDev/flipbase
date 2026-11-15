@@ -387,8 +387,21 @@ returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare v_actions jsonb;
 begin
   if not public.marketplace_can_manage_cloud(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
-  select coalesce(jsonb_agg(public.marketplace_account_action_public(action) order by action.queue_order),'[]'::jsonb) into v_actions
-    from public.marketplace_account_actions action where action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.history_purged_at is null;
+  with selected as (
+    select action from public.marketplace_account_actions action
+      where action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.history_purged_at is null
+        and action.state in ('queued','running','outcome_unknown')
+    union all
+    (select action from public.marketplace_account_actions action
+      where action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.history_purged_at is null
+        and action.state in ('succeeded','failed','cancelled')
+      order by action.updated_at desc,action.id desc limit 10)
+  )
+  -- Fachresultate vor dem JSON-Aufbau ersetzen; der Einzelabruf bleibt vollständig.
+  select coalesce(jsonb_agg(public.marketplace_account_action_public(jsonb_populate_record(selected.action,
+      jsonb_build_object('result',case when (selected.action).state='failed' and (selected.action).result->>'status'='conflict'
+        then jsonb_build_object('status','conflict') else null end))) order by (selected.action).queue_order),'[]'::jsonb) into v_actions
+    from selected;
   return jsonb_build_object('actions',v_actions);
 end;
 $$;
