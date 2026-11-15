@@ -1,0 +1,62 @@
+<main class="mx-auto max-w-lg px-4 py-10">
+  <app-card variant="section">
+    <div class="space-y-5">
+      <h1 class="text-xl font-semibold text-fb-text-primary">
+        {{ clientName() ? clientName() + ' mit Flipbase verbinden' : 'KI-Verbindung' }}
+      </h1>
+      @if (error()) {
+        <p role="alert" class="text-sm text-red-700 dark:text-red-400">{{ error() }}</p>
+      }
+      @if (busy() && !clientName()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Anmeldung wird geladen …</p>
+      }
+      @if (clientName()) {
+        <form [formGroup]="form" (ngSubmit)="decide(true)" class="space-y-4">
+          <app-custom-select
+            label="Workspace"
+            ariaLabel="Workspace"
+            [options]="workspaceOptions()"
+            formControlName="workspace"
+            [disabled]="busy() || workspaceOptions().length === 1"
+          />
+          <app-custom-select
+            label="Zugriff auf die Anwendung"
+            ariaLabel="Zugriff auf die Anwendung"
+            [options]="modes"
+            formControlName="mode"
+            [disabled]="busy()"
+          />
+          @if (accounts().length) {
+            <fieldset class="grid gap-3">
+              <legend class="mb-2 text-sm font-medium text-fb-text-primary">Vinted-Konten</legend>
+              @for (account of accounts(); track account.id) {
+                <app-custom-checkbox
+                  [label]="account.display_name"
+                  [checked]="selectedAccounts().includes(account.id)"
+                  [disabled]="busy()"
+                  (checkedChange)="selectAccount(account.id, $event)"
+                />
+              }
+            </fieldset>
+          }
+          <div class="flex flex-wrap justify-end gap-2">
+            <app-button
+              type="button"
+              variant="secondary"
+              size="touch"
+              [disabled]="busy()"
+              (clicked)="decide(false)"
+              >Abbrechen</app-button
+            >
+            <app-button
+              type="submit"
+              size="touch"
+              [disabled]="busy() || loadingAccounts() || !form.controls.workspace.value"
+              >Verbinden</app-button
+            >
+          </div>
+        </form>
+      }
+    </div>
+  </app-card>
+</main>

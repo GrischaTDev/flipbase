@@ -62,6 +62,7 @@ COPY --from=build /app/deploy/chromium-seccomp.json /opt/flipbase/chromium-secco
 COPY --from=build /app/release-push-functions /opt/flipbase/push-functions
 COPY --from=build /app/deploy/docker-compose.push.yml /opt/flipbase/docker-compose.push.yml
 COPY --from=build /app/deploy/docker-compose.push-functions.yml /opt/flipbase/docker-compose.push-functions.yml
+COPY --from=build /app/deploy/docker-compose.ai-connections.yml /opt/flipbase/docker-compose.ai-connections.yml
 # Migrationsdateien gehören zum Release, sind aber niemals öffentlich erreichbar.
 COPY --from=build /app/release-migrations /opt/flipbase/migrations/
 

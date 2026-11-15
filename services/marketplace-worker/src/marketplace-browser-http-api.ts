@@ -3,6 +3,8 @@ import type {
   SupabaseShippingLabelStore,
 } from './supabase-shipping-label-store.ts';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
+import type { AiConnectionPriceStore } from './ai-connection-price-store.ts';
+import { runAiConnectionPrice } from './ai-connection-price-runner.ts';
 import type { VintedListingPhotoSource } from './vinted-listing-photo-source.ts';
 
 import type { VintedPublicationVersion } from './vinted-publication-age.ts';
@@ -87,6 +89,7 @@ interface BrowserUserVerifier {
 }
 
 interface BrowserApiOptions {
+  aiPrices?: AiConnectionPriceStore;
   broker: BrowserBroker;
   users: BrowserUserVerifier;
   profiles?: {
@@ -319,6 +322,7 @@ export function listingFailureContext(
 }
 
 export class MarketplaceBrowserHttpApi {
+  private readonly aiPrices?: AiConnectionPriceStore;
   private readonly broker: BrowserBroker;
   private readonly users: BrowserUserVerifier;
   private readonly profiles?: BrowserApiOptions['profiles'];
@@ -342,6 +346,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly listingFailurePhases = new WeakMap<object, string>();
 
   constructor(options: BrowserApiOptions) {
+    this.aiPrices = options.aiPrices;
     this.broker = options.broker;
     this.users = options.users;
     this.profiles = options.profiles;
@@ -443,6 +448,29 @@ export class MarketplaceBrowserHttpApi {
       if (request.method !== 'POST') throw new RequestError(404);
       const token = request.headers.authorization?.match(/^Bearer ([^\s]{1,4096})$/)?.[1];
       if (!token) throw new RequestError(401);
+      if (path === '/marketplace-browser/ai/listings/price/save') {
+        if (this.readOnly || !this.aiPrices) throw new RequestError(403);
+        const payload = await readBody(request, 256);
+        const requestId = payload['requestId'];
+        if (
+          Object.keys(payload).length !== 1 ||
+          typeof requestId !== 'string' ||
+          !uuidPattern.test(requestId)
+        )
+          throw new RequestError(400);
+        json(
+          response,
+          200,
+          await runAiConnectionPrice(
+            token,
+            requestId,
+            this.aiPrices,
+            this.broker,
+            this.listingCache,
+          ),
+        );
+        return;
+      }
       let userId: string;
       try {
         userId = await this.users.userId(token);

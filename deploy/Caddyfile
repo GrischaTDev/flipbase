@@ -8,13 +8,67 @@
 # Authelia mit Anmeldeseite und zweitem Faktor.
 # ---------------------------------------------------------------------------
 {$PROXY_DOMAIN} {
-	# MCP bleibt intern, auch wenn der Gateway spaeter anders konfiguriert wird.
+	# Der administrative Supabase-MCP bleibt intern.
 	@supabase_mcp path /mcp /mcp/* /api/mcp /api/mcp/*
 	handle @supabase_mcp {
 		respond 404
 	}
 
 	@supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /sso/*
+	@ai_metadata path /.well-known/oauth-protected-resource/functions/v1/ai-connection
+	handle @ai_metadata {
+		rewrite * /functions/v1/ai-connection/.well-known/oauth-protected-resource
+		reverse_proxy flipbase-push-gateway:4177 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	@ai_requests path /functions/v1/ai-connection /functions/v1/ai-connection/*
+	handle @ai_requests {
+		request_body {
+			max_size 300KB
+		}
+		reverse_proxy flipbase-push-gateway:4177 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	@oauth_discovery path /.well-known/oauth-authorization-server/auth/v1
+	handle @oauth_discovery {
+		rewrite * /.well-known/oauth-authorization-server
+		reverse_proxy auth:9999 {
+			header_up X-Forwarded-Prefix /auth/v1
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	@ai_token path /auth/v1/oauth/token
+	handle @ai_token {
+		request_body {
+			max_size 16KB
+		}
+		rewrite * /functions/v1/ai-connection/oauth/token
+		reverse_proxy flipbase-push-gateway:4177 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	@ai_oauth path /auth/v1/.well-known/oauth-authorization-server /auth/v1/.well-known/openid-configuration /auth/v1/.well-known/jwks.json /auth/v1/oauth/authorize /auth/v1/oauth/clients/register
+	handle @ai_oauth {
+		uri strip_prefix /auth/v1
+		request_body {
+			max_size 16KB
+		}
+		reverse_proxy auth:9999 {
+			header_up X-Forwarded-Prefix /auth/v1
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	# Zustimmung bleibt hinter dem normalen App-Gateway; alternative Tokenpfade bleiben gesperrt.
+	@ai_consent path_regexp aiConsent ^/auth/v1/(oauth/authorizations/[A-Za-z0-9_-]+(/consent)?|user/oauth/grants)$
+	handle @ai_consent {
+		reverse_proxy api-gw:8000
+	}
+	@oauth_other path_regexp oauthOther (?i)^/auth/v1/.*oauth/
+	handle @oauth_other {
+		respond 404
+	}
 	@push_requests path /functions/v1/push-settings /functions/v1/push-settings/* /functions/v1/push-revoke /functions/v1/push-revoke/*
 	handle @push_requests {
 		request_body {

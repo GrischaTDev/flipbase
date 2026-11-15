@@ -16,6 +16,8 @@ export interface BrowserSessionScope {
   connectionId: string;
   userId: string;
   userAccessToken: string;
+  /** Ausschließlich nach verifiziertem MCP-Token und dauerhaftem Preisauftrag setzen. */
+  aiPrice?: { grantId: string; authSessionId: string; requestId: string; attemptId: string };
   /** Nur nach serverseitiger Einrichtungsprüfung setzen; niemals aus HTTP-Nutzdaten übernehmen. */
   cloudSetup?: { setupId: string };
   /** Interne, ausschließlich lesende Auftragserlaubnis; niemals aus HTTP-Nutzdaten übernehmen. */
@@ -159,6 +161,10 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     left.workspaceId === right.workspaceId &&
     left.connectionId === right.connectionId &&
     left.userId === right.userId &&
+    left.aiPrice?.grantId === right.aiPrice?.grantId &&
+    left.aiPrice?.authSessionId === right.aiPrice?.authSessionId &&
+    left.aiPrice?.requestId === right.aiPrice?.requestId &&
+    left.aiPrice?.attemptId === right.aiPrice?.attemptId &&
     left.cloudSetup?.setupId === right.cloudSetup?.setupId &&
     Boolean(left.syncRead) === Boolean(right.syncRead) &&
     Boolean(left.messageWrite) === Boolean(right.messageWrite) &&
@@ -293,6 +299,7 @@ export class MarketplaceBrowserSessionBroker {
           scope.favoriteWrite,
           scope.negotiationWrite,
           scope.listingWrite,
+          scope.aiPrice,
         ].filter(Boolean).length > 1
       )
         throw new Error('Sitzungszugriff verweigert');

@@ -13,6 +13,7 @@ import { ChromiumProfileProvisioner } from './chromium-profile-provisioner.ts';
 import { ChromiumProfileStore } from './chromium-profile-store.ts';
 import { MarketplaceProfileBrowser } from './marketplace-profile-browser.ts';
 import { LocalPlaywrightBrowser } from './local-playwright-browser.ts';
+import { AiConnectionPriceStore } from './ai-connection-price-store.ts';
 import {
   MarketplaceBrowserRecovery,
   SupabaseBrowserRecoveryStore,
@@ -273,7 +274,13 @@ async function main(): Promise<void> {
       networks,
     });
   dispatcher?.startMonitoring();
+  const aiPrices = new AiConnectionPriceStore({
+    url: config.supabaseUrl,
+    publishableKey: config.publishableKey,
+    serviceRoleKey: config.serviceRoleKey,
+  });
   const leases = new SupabaseBrowserSessionStore({
+    aiPrices,
     url: config.supabaseUrl,
     publishableKey: config.publishableKey,
     serviceRoleKey: config.serviceRoleKey,
@@ -391,6 +398,7 @@ async function main(): Promise<void> {
       void dispatcher?.poll().catch(() => undefined);
     });
   const server = new MarketplaceBrowserHttpApi({
+    aiPrices: isCloud ? aiPrices : undefined,
     broker,
     listingCategories: isCloud
       ? new VintedListingCategoryAccess({

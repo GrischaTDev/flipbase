@@ -29,7 +29,7 @@ services:
       EBAY_DELETION_VERIFICATION_TOKEN: ${EBAY_DELETION_VERIFICATION_TOKEN:-}
       EBAY_DELETION_ENDPOINT: ${EBAY_DELETION_ENDPOINT:-}
     networks: [default, push-observer]
-    mem_limit: 256m
+    mem_limit: 512m
     cpus: 0.5
   push-gateway:
     image: ${FLIPBASE_PUSH_IMAGE:?Geprueften Pushdigest angeben}
