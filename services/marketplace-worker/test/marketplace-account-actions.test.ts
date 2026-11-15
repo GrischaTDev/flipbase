@@ -70,7 +70,7 @@ function fixture(kind = 'profile_edit_read', payload: Record<string, unknown> = 
       calls.push({ name, body });
       const result =
         name === 'marketplace_account_action_check'
-          ? { active: true, sessionId, expiresAt, absoluteExpiresAt, target }
+          ? { active: true, sessionId, expiresAt, absoluteExpiresAt, target: claim.target }
           : true;
       return Response.json(result);
     },
@@ -389,9 +389,49 @@ test('hard queue-limit rejection exposes one fixed German validation error', asy
   );
 });
 
+test('reconciliation cannot read an item from a different parent account', async () => {
+  const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
+  claim.reconciliationContext = {
+    actionId: entryId,
+    kind: 'price_save',
+    payload: { entryId, priceCents: 1000 },
+    target: { ...claim.target, accountId: '999' },
+  };
+  let reads = 0;
+  const runner = new MarketplaceAccountActionRunner({
+    url: 'https://db.example',
+    serviceRoleKey: 'server',
+    publishableKey: 'public',
+    store,
+    broker: {
+      open: async () => sessionId,
+      run: async (_scope, _id, operation) =>
+        operation({
+          version: () => '',
+          readListingContent: async () => {
+            reads++;
+            throw new Error('must not read another account');
+          },
+        }),
+      close: async () => undefined,
+      discardUnstartedAction: async () => undefined,
+    },
+  });
+  await runner.run(claim);
+  assert.equal(reads, 0);
+  assert.equal(calls.at(-1)?.body.p_state, 'failed');
+  assert.equal(calls.at(-1)?.body.p_error_code, 'authorization_revoked');
+});
+
 test('unknown deletion is reconciled by read only evidence without another delete', async () => {
   const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
-  claim.reconciliationContext = { actionId: entryId, kind: 'listing_delete', payload: { entryId } };
+  claim.target = { accountId: '123', externalId: null, entryId: null, entryKind: null, body: null };
+  claim.reconciliationContext = {
+    target: { accountId: '123', externalId: '456', entryId, entryKind: 'publication', body: {} },
+    actionId: entryId,
+    kind: 'listing_delete',
+    payload: { entryId },
+  };
   let reads = 0;
   let removals = 0;
   const runner = new MarketplaceAccountActionRunner({
@@ -443,6 +483,13 @@ for (const kind of [
 ])
   test(`confirmed reconciliation refreshes the account cache without provider writes: ${kind}`, async () => {
     const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
+    claim.target = {
+      accountId: '123',
+      externalId: null,
+      entryId: null,
+      entryKind: null,
+      body: null,
+    };
     const current = { ...listingCurrentContentFixture(), externalId: '456' };
     const profile = {
       about: 'Neu',
@@ -469,7 +516,12 @@ for (const kind of [
                   language: profile.language,
                 },
               };
-    claim.reconciliationContext = { actionId: entryId, kind, payload };
+    claim.reconciliationContext = {
+      target: { accountId: '123', externalId: '456', entryId, entryKind: 'publication', body: {} },
+      actionId: entryId,
+      kind,
+      payload,
+    };
     const persisted: Record<string, unknown>[] = [];
     const runner = new MarketplaceAccountActionRunner({
       url: 'https://db.example',
@@ -487,7 +539,11 @@ for (const kind of [
         run: async (_scope, _id, operation) =>
           operation({
             version: () => '',
-            readListingContent: async () => current,
+            readListingContent: async (account, external) => {
+              assert.equal(account, '123');
+              assert.equal(external, '456');
+              return current;
+            },
             readProfileAbout: async () => 'Neu',
             readProfileDetails: async () => profile,
           }),
@@ -523,7 +579,9 @@ for (const kind of [
 
 test('failed cache repair never discards read-only provider confirmation or repeats a write', async () => {
   const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
+  claim.target = { accountId: '123', externalId: null, entryId: null, entryKind: null, body: null };
   claim.reconciliationContext = {
+    target: { accountId: '123', externalId: '456', entryId, entryKind: 'publication', body: {} },
     actionId: entryId,
     kind: 'profile_edit_save',
     payload: { about: 'Neu' },
@@ -552,7 +610,13 @@ test('failed cache repair never discards read-only provider confirmation or repe
 
 test('a still-present listing yields a replayable failed delete without another delete click', async () => {
   const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
-  claim.reconciliationContext = { actionId: entryId, kind: 'listing_delete', payload: { entryId } };
+  claim.target = { accountId: '123', externalId: null, entryId: null, entryKind: null, body: null };
+  claim.reconciliationContext = {
+    target: { accountId: '123', externalId: '456', entryId, entryKind: 'publication', body: {} },
+    actionId: entryId,
+    kind: 'listing_delete',
+    payload: { entryId },
+  };
   const runner = new MarketplaceAccountActionRunner({
     url: 'https://db.example',
     serviceRoleKey: 'server',
@@ -587,6 +651,7 @@ test('a still-present listing yields a replayable failed delete without another 
 
 test('matching profile text cannot confirm an unverified profile photo or fabricate a replay result', async () => {
   const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
+  claim.target = { accountId: '123', externalId: null, entryId: null, entryKind: null, body: null };
   const profile = {
     about: 'Neu',
     city: 'Berlin',
@@ -598,6 +663,7 @@ test('matching profile text cannot confirm an unverified profile photo or fabric
     canUploadPhoto: true,
   };
   claim.reconciliationContext = {
+    target: { accountId: '123', externalId: '456', entryId, entryKind: 'publication', body: {} },
     actionId: entryId,
     kind: 'profile_details_save',
     payload: {

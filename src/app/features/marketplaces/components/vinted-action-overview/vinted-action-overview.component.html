@@ -4,7 +4,7 @@
       <li
         [attr.data-action-state]="row.action.state"
         [attr.data-action-id]="row.action.id"
-        class="flex min-w-0 items-center gap-2.5 rounded-lg bg-fb-surface-hover px-2 py-2"
+        class="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg bg-fb-surface-hover px-2 py-2"
       >
         <app-action-status-indicator [state]="row.indicator" />
         <div class="min-w-0 flex-1">
@@ -28,6 +28,12 @@
             (clicked)="dismiss(row.action)"
           />
         }
+        <time
+          data-action-time
+          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
+          [attr.datetime]="row.action.updatedAt"
+          >{{ row.action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+        >
       </li>
     }
   </ul>

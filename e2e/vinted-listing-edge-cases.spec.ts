@@ -1410,6 +1410,40 @@ for (const width of [390, 1440])
           priceCents: 2200,
         });
         expect(reads).toBe(0);
+        const pendingBody = {
+          requestId: randomUUID(),
+          workspaceId,
+          connectionId: accountIds[0],
+          entryId,
+          expectedPriceCents: 2200,
+          priceCents: 1900,
+        };
+        const pending = {
+          ...browserStartFailure(page, 'price_save', pendingBody, 'Jacke für Preisänderung'),
+          state: 'queued' as const,
+          errorCode: null,
+          finishedAt: null,
+        };
+        putMarketplaceAction(page, pending, pendingBody);
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(wardrobe.getByText('Preisänderung wartet', { exact: true })).toBeVisible();
+        await page.reload();
+        await expect(wardrobe.getByText('Preisänderung wartet', { exact: true })).toBeVisible();
+        putMarketplaceAction(page, { ...pending, state: 'running', version: 2 }, pendingBody);
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(wardrobe.getByText('Preis wird geändert', { exact: true })).toBeVisible();
+        await wardrobe.getByRole('button', { name: 'Rasteransicht', exact: true }).click();
+        await expect(wardrobe.locator('article[data-listing-row][aria-busy="true"]')).toHaveCount(
+          1,
+        );
+        await expect(wardrobe.getByText('Preis wird geändert', { exact: true })).toBeVisible();
+        putMarketplaceAction(
+          page,
+          { ...pending, state: 'succeeded', version: 3, result: { status: 'confirmed' } },
+          pendingBody,
+        );
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(0);
         await page.evaluate(axe.source);
         expect(
           (

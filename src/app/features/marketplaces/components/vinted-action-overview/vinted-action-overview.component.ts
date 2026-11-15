@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { LucideX } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
@@ -10,7 +11,7 @@ import {
 
 @Component({
   selector: 'app-vinted-action-overview',
-  imports: [ActionStatusIndicatorComponent, ButtonComponent],
+  imports: [DatePipe, ActionStatusIndicatorComponent, ButtonComponent],
   templateUrl: './vinted-action-overview.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },

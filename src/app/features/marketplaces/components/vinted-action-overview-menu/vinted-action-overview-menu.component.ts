@@ -1,4 +1,4 @@
-import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { DatePipe, NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -35,6 +35,7 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
 @Component({
   selector: 'app-vinted-action-overview-menu',
   imports: [
+    DatePipe,
     NgOptimizedImage,
     NgTemplateOutlet,
     ActionStatusIndicatorComponent,
@@ -63,7 +64,12 @@ export class VintedActionOverviewMenuComponent {
   readonly accountActions = inject(VintedAccountActionStore);
   readonly accountActionTitle = vintedAccountActionTitle;
   readonly accountActionStatus = vintedAccountActionStatus;
-  accountActionIndicator(action: VintedAccountAction): 'running' | 'success' | 'error' | 'paused' {
+  accountActionIndicator(
+    action: VintedAccountAction,
+    reconciliation?: VintedAccountAction,
+  ): 'running' | 'success' | 'error' | 'paused' {
+    if (reconciliation?.state === 'running') return 'running';
+    if (reconciliation?.state === 'queued') return 'paused';
     return action.state === 'queued' || action.state === 'cancelled'
       ? 'paused'
       : action.state === 'running'
