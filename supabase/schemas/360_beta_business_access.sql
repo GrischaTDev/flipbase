@@ -6052,6 +6052,17 @@ begin
     select 1 from public.marketplace_worker_runtime where worker_id = v_session.worker_id
       and worker_epoch = v_session.worker_epoch and expires_at > clock_timestamp()
   ) then raise exception 'Worker nicht mehr aktiv' using errcode = '42501'; end if;
+  if v_session.account_action_id is not null and not exists (
+    select 1 from public.marketplace_account_actions action where action.public_id=v_session.account_action_id
+      and action.browser_session_id=v_session.public_id and action.kind='conversations_read' and action.state='running'
+      and action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.requested_by=p_user_id
+      and action.worker_id=v_session.worker_id and action.worker_epoch=v_session.worker_epoch
+      and public.marketplace_account_action_check(action.public_id,action.claim_token,action.worker_id,action.worker_epoch,action.runner_id,false)->>'active'='true'
+      and jsonb_typeof(p_snapshot->'entries')='array' and not exists(
+        select 1 from jsonb_array_elements(p_snapshot->'entries') entry where entry->>'kind' not in ('profile','conversation','message')
+          or (entry->>'kind'='conversation' and entry->>'externalId' is distinct from action.external_id)
+          or (entry->>'kind'='message' and entry->>'parentExternalId' is distinct from action.external_id))
+  ) then raise exception 'Auftragsgebundener Importzugriff verweigert' using errcode='42501'; end if;
   if v_session.operation_id is not null and not exists (
     select 1 from public.marketplace_operations o
       left join public.marketplace_sync_schedules s on s.id=o.schedule_id and s.workspace_id=o.workspace_id and s.connection_id=o.connection_id

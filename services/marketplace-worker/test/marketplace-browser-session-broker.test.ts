@@ -11,6 +11,8 @@ import {
   CloudBrowserStopUncertainError,
   CloudBrowserStoppedUncleanlyError,
 } from '../src/gologin-cloud-browser.ts';
+import { SupabaseBrowserSessionStore } from '../src/supabase-browser-session-store.ts';
+import { ChromiumBoundProfileStore } from '../src/chromium-bound-profile-store.ts';
 
 type BrokerOptions = ConstructorParameters<typeof MarketplaceBrowserSessionBroker>[0];
 
@@ -22,6 +24,76 @@ function createTestBroker(
     recovery: options.recovery ?? { recover: async () => undefined },
   });
 }
+
+test('closed setup presence still permits immutable session cleanup through the real bound profile path', async () => {
+  const id = '57000000-0000-4000-8000-000000000001',
+    profileId = 'chromium_57000000-0000-4000-8000-000000000002';
+  const scope: BrowserSessionScope = {
+    workspaceId: id,
+    connectionId: id,
+    userId: id,
+    userAccessToken: '',
+    accountAction: {
+      actionId: id,
+      claimToken: id,
+      workerId: id,
+      workerEpoch: 1,
+      runnerId: id,
+      sessionId: id,
+      setupId: id,
+      expiresAt: new Date(Date.now() + 90_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  const events: string[] = [];
+  const leases = new SupabaseBrowserSessionStore({
+    url: 'https://db.example',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    runtime: { workerId: id, workerEpoch: 1 },
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      assert.equal(url.pathname, '/rest/v1/marketplace_browser_sessions');
+      assert.equal(url.searchParams.get('public_id'), 'eq.' + id);
+      if (init?.method === 'PATCH') {
+        events.push('release');
+        assert.equal(JSON.parse(String(init.body)).state, 'closed');
+        return Response.json([{}]);
+      }
+      if (url.searchParams.get('state') === 'eq.closed') return Response.json([]);
+      assert.equal(url.searchParams.get('cloud_setup_id'), 'eq.' + id);
+      events.push('profile-read');
+      return Response.json([{ provider_profile_id: profileId }]);
+    },
+  });
+  const bound = new ChromiumBoundProfileStore({
+    profiles: leases,
+    registry: { resolve: async () => ({ profileId, workspaceId: id, connectionId: id }) },
+    assertNetwork: async () => {
+      events.push('execution-denied');
+      throw new Error('dialog presence revoked');
+    },
+  });
+  const lease = { id, scope, expiresAt: Date.now() + 90_000, active: true };
+  await assert.rejects(bound.resolve(lease), /dialog presence revoked/);
+  events.length = 0;
+  const broker = createTestBroker({
+    leases,
+    profiles: bound,
+    authorizeRuntime: async () => true,
+    browsers: {
+      open: async () => {
+        throw new Error('must not launch');
+      },
+      stop: async (profile) => {
+        assert.equal(profile, profileId);
+        events.push('physical-stop');
+      },
+    },
+  });
+  await broker.discardUnstartedAction(scope);
+  assert.deepEqual(events, ['profile-read', 'physical-stop', 'release']);
+});
 
 const scopeA: BrowserSessionScope = {
   workspaceId: 'workspace-a',
@@ -832,9 +904,10 @@ test('short account action session keeps its lease until confirmed stop and reus
   await broker.finishAction(scopeA, first);
   const second = await broker.openAction(scopeB);
   assert.notEqual(second, first);
-  assert.equal(leases.get(first)?.active, false);
-  assert.deepEqual(stopped, ['provider-account-a']);
+  assert.equal(leases.get(first)?.active, true);
+  assert.deepEqual(stopped, []);
   await broker.close(scopeB, second);
+  await broker.close(scopeA, first);
 });
 
 test('idle reusable session yields to the existing queue only after confirmed cleanup', async () => {
@@ -852,7 +925,8 @@ test('another action cannot borrow a held session even for the same account', as
   const { broker } = setup();
   const id = await broker.openAction(scopeA);
   await assert.rejects(broker.openAction(scopeA), /Browsersitzung/);
-  await assert.rejects(broker.openAction(scopeB), /Browsersitzung/);
+  const other = await broker.openAction(scopeB);
+  await broker.close(scopeB, other);
   await broker.close(scopeA, id);
 });
 
@@ -869,8 +943,8 @@ test('reuse cannot bypass a revoked account lease', async () => {
 
 test('unauthorized replacement cannot stop an idle session belonging to another account', async () => {
   const { broker, leases, stopped } = setup({
-    authorizeScope: async () => {
-      throw new Error('Sitzungszugriff verweigert');
+    authorizeScope: async (scope) => {
+      if (scope.connectionId === scopeB.connectionId) throw new Error('Sitzungszugriff verweigert');
     },
   });
   const id = await broker.openAction(scopeA);

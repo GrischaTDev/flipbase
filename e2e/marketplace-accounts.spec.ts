@@ -709,9 +709,18 @@ for (const challengeStage of ['login', 'identify', 'verify'] as const) {
       'base64',
     );
     await page.route('**/marketplace-browser/healthz', (route) =>
-      route.fulfill({ json: { ok: true, readOnly: false, apiVersion: 2, dragSupported: true } }),
+      route.fulfill({
+        json: {
+          ok: true,
+          readOnly: false,
+          apiVersion: 2,
+          dragSupported: true,
+          accountActionsEnabled: true,
+        },
+      }),
     );
     const calls: string[] = [];
+    let dialogId: string | null = null;
     await page.route('**/marketplace-browser/sessions**', (route) => {
       const path = new URL(route.request().url()).pathname;
       const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -719,8 +728,17 @@ for (const challengeStage of ['login', 'identify', 'verify'] as const) {
       expect(body['connectionId']).toBe(accountIds[0]);
       const action = path.split('/').at(-1) ?? '';
       calls.push(action);
-      if (action === 'sessions')
-        return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
+      if (action === 'presence') {
+        expect(body['dialogId']).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i);
+        dialogId = String(body['dialogId']);
+        return route.fallback();
+      }
+      if (action === 'sessions') {
+        expect(dialogId).not.toBeNull();
+        expect(body['dialogId']).toBe(dialogId);
+        expect(body['requestId']).toBe(dialogId);
+        return route.fallback();
+      }
       if (action === 'login')
         return route.fulfill({
           json: {
@@ -773,6 +791,7 @@ for (const challengeStage of ['login', 'identify', 'verify'] as const) {
     await expect.poll(() => calls.slice(count).length).toBeGreaterThan(0);
     expect(calls.slice(count).every((action) => action === 'identify')).toBe(true);
     expect(calls.filter((action) => action === 'login')).toHaveLength(1);
+    expect(calls.slice(0, 2)).toEqual(['presence', 'sessions']);
     expect(calls.filter((action) => action === 'frame')).toHaveLength(1);
     expect(calls).not.toContain('input');
     expect(calls).not.toContain('close');
@@ -811,19 +830,30 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
         readOnly: false,
         apiVersion: 2,
         dragSupported: true,
+        accountActionsEnabled: true,
       },
     }),
   );
   const inputs: { kind: string; points?: { x: number; y: number; elapsedMs: number }[] }[] = [];
   let frames = 0;
   let identityChecks = 0;
+  let dialogId: string | null = null;
   await page.route('**/marketplace-browser/sessions**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const body = route.request().postDataJSON() as Record<string, unknown>;
     expect(body['workspaceId']).toBe(workspaceId);
     expect(body['connectionId']).toBe(accountIds[0]);
-    if (path.endsWith('/sessions'))
-      return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
+    if (path.endsWith('/presence')) {
+      expect(body['dialogId']).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i);
+      dialogId = String(body['dialogId']);
+      return route.fallback();
+    }
+    if (path.endsWith('/sessions')) {
+      expect(dialogId).not.toBeNull();
+      expect(body['dialogId']).toBe(dialogId);
+      expect(body['requestId']).toBe(dialogId);
+      return route.fallback();
+    }
     if (path.endsWith('/frame')) {
       frames++;
       return route.fulfill({ contentType: 'image/jpeg', body: jpeg });
@@ -980,6 +1010,7 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
         ok: true,
         readOnly: false,
         apiVersion: 2,
+        accountActionsEnabled: true,
         ...(scheduledSyncAvailable
           ? {
               scheduledSync: {
@@ -1405,13 +1436,23 @@ test('erklärt eine volle GoLogin-Profilliste ohne Vinted-Anmeldeversuch @market
 }) => {
   const calls = await mockMarketplace(page, true, false, false, true);
   await page.goto('/marketplaces/vinted/accounts');
-  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Neuer Zugang');
-  await chooseCloudConnection(page);
+  await page
+    .locator('app-vinted-account-grid [cdkDrag]')
+    .first()
+    .getByRole('button', { name: 'Cloud verbinden', exact: true })
+    .click();
   await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
   await page.getByLabel('Vinted-Passwort').fill('synthetic');
+  const opening = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === '/marketplace-browser/sessions',
+  );
   await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  const body = (await opening).postDataJSON() as Record<string, unknown>;
   await expect(page.getByText(/maximale Zahl Deiner GoLogin-Profile/)).toBeVisible();
+  expect(body['dialogId']).toEqual(expect.any(String));
+  expect(body['requestId']).toBe(body['dialogId']);
+  expect(calls.filter((call) => call.name === 'browser_session_presence')).toHaveLength(1);
+  expect(calls.filter((call) => call.name === 'browser_cloud_setup_begin')).toHaveLength(0);
   expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(0);
 });
 

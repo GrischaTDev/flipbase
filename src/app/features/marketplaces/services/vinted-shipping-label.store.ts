@@ -9,14 +9,8 @@ import {
   vintedShippingLabelFileName,
   type VintedShippingLabel,
 } from '../models/vinted-shipping-label';
-import {
-  MarketplaceBrowserTestApiService,
-  MarketplaceCloudAccountBusyError,
-} from './marketplace-browser-test-api.service';
+import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 
-// Eine Cloud-Synchronisierung belegt den Browser des Kontos meist unter einer Minute.
-const busyRetryDelayMs = 3_000;
-const busyRetryLimitMs = 90_000;
 const signedUrlSeconds = 120;
 
 /** Versandscheine des gewählten Vinted-Kontos: Liste, Anfordern und Öffnen der privaten Kopie. */
@@ -87,26 +81,16 @@ export class VintedShippingLabelStore {
     this.requesting.update((ids) => new Set(ids).add(sale.id));
     this.setNotice(sale.id, null);
     try {
-      const deadline = Date.now() + busyRetryLimitMs;
-      for (;;) {
-        const token = this.auth.session()?.access_token;
-        if (!token) throw new Error('Bitte melde Dich erneut an.');
-        try {
-          const result = await this.api.requestShippingLabel(scope, sale.id, token);
-          if (result.outcome === 'failed')
-            this.setNotice(sale.id, vintedShippingLabelErrorMessage(result.errorCode));
-          else if (result.outcome === 'pending')
-            this.setNotice(
-              sale.id,
-              'Vinted erstellt den Versandschein noch. Hol ihn gleich noch einmal ab.',
-            );
-          break;
-        } catch (error) {
-          if (!(error instanceof MarketplaceCloudAccountBusyError) || Date.now() >= deadline)
-            throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, busyRetryDelayMs));
-      }
+      const token = this.auth.session()?.access_token;
+      if (!token) throw new Error('Bitte melde Dich erneut an.');
+      const result = await this.api.requestShippingLabel(scope, sale.id, token);
+      if (result.outcome === 'failed')
+        this.setNotice(sale.id, vintedShippingLabelErrorMessage(result.errorCode));
+      else if (result.outcome === 'pending')
+        this.setNotice(
+          sale.id,
+          'Vinted erstellt den Versandschein noch. Hol ihn gleich noch einmal ab.',
+        );
       const current = this.scope();
       if (current?.workspaceId === scope.workspaceId && current.connectionId === scope.connectionId)
         await this.load(scope);

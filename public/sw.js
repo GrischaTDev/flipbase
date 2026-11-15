@@ -412,8 +412,12 @@ async function updateReply(event) {
       if (!(await bindings.match(key))) await bindings.put(key, new Response('unassigned'));
     }
     if (updateAttempt !== attempt) return;
-    if (!(await self.clients.get(attempt.client.id)))
-      return finishUpdate('blocked', 'requester_closed');
+    const requester = await self.clients.get(attempt.client.id);
+    if (updateAttempt !== attempt) return;
+    if (!requester) return finishUpdate('blocked', 'requester_closed');
+    // Beide Zustimmungen liegen vor. Die Aktivierung ist keine ausstehende
+    // Antwort des Fensters und darf nicht nachträglich als Timeout scheitern.
+    clearTimeout(attempt.timer);
     await self.skipWaiting();
     if (updateAttempt === attempt) await finishUpdate('applied');
   } catch {

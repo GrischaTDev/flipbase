@@ -1,3 +1,4 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
@@ -76,6 +77,7 @@ export async function updateVintedListing(
     throw new Error('Speichern nicht verfügbar');
   await authorize();
   try {
+    await beforeVintedWrite(authorize);
     await save.click({ timeout: 10_000 });
     // Die Bestätigungsabfrage darf Vinteds noch laufenden Speichervorgang nicht wegnavigieren.
     await page.waitForURL(

@@ -23,6 +23,12 @@ import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-ov
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
+import { VintedAccountActionStore } from '../../services/vinted-account-action.store';
+import {
+  vintedAccountActionStatus,
+  vintedAccountActionTitle,
+  type VintedAccountAction,
+} from '../../models/vinted-account-action';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
 
@@ -54,6 +60,18 @@ export class VintedActionOverviewMenuComponent {
   readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly kleinanzeigen = inject(KleinanzeigenActionStore);
   readonly listingOperations = inject(VintedListingOperationStore);
+  readonly accountActions = inject(VintedAccountActionStore);
+  readonly accountActionTitle = vintedAccountActionTitle;
+  readonly accountActionStatus = vintedAccountActionStatus;
+  accountActionIndicator(action: VintedAccountAction): 'running' | 'success' | 'error' | 'paused' {
+    return action.state === 'queued' || action.state === 'cancelled'
+      ? 'paused'
+      : action.state === 'running'
+        ? 'running'
+        : action.state === 'succeeded'
+          ? 'success'
+          : 'error';
+  }
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   readonly opened = signal(false);
@@ -61,18 +79,21 @@ export class VintedActionOverviewMenuComponent {
   readonly count = computed(
     () =>
       this.store.count() +
+      this.accountActions.count() +
       this.kleinanzeigen.runningCount() +
       this.listingOperations.runningCount(),
   );
   readonly hasRunning = computed(
     () =>
       this.store.hasRunning() ||
+      this.accountActions.hasRunning() ||
       this.kleinanzeigen.runningCount() > 0 ||
       this.listingOperations.runningCount() > 0,
   );
   readonly hasFailure = computed(
     () =>
       this.kleinanzeigen.hasFailure() ||
+      this.accountActions.hasFailure() ||
       this.listingOperations.entries().some((action) => action.state === 'error') ||
       !!this.store.error() ||
       this.store
@@ -114,6 +135,7 @@ export class VintedActionOverviewMenuComponent {
     if (this.opened()) return this.close();
     this.opened.set(true);
     void this.store.refresh();
+    void this.accountActions.refresh();
     if (!this.mobile())
       afterNextRender(
         () => {

@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { ToastService } from '../../../shared/components/toast/toast.service';
+import { claimVintedAccountActionNotification } from './vinted-account-action-transport';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
@@ -44,4 +46,44 @@ it('zeigt die neueste Aktion zuerst und eine laufende Aktualisierung mit eigenem
   finish();
   await saving;
   expect(store.entries().map((action) => action.title)).toEqual(['Alte Jacke']);
+});
+
+it('meldet auch sofort abgeschlossene Serveraktionen genau einmal und zeigt nach Kontowechsel keine alten Titel', async () => {
+  const toast = vi.spyOn(TestBed.inject(ToastService), 'success');
+  const item = entry('33333333-3333-4333-8333-333333333333', 'Private Jacke');
+  const id = '66666666-6666-4666-8666-666666666666';
+  await store.updateListing(item, async () => {
+    window.dispatchEvent(
+      new CustomEvent('flipbase-account-action-accepted', {
+        detail: {
+          id,
+          requestId: '55555555-5555-4555-8555-555555555555',
+          workspaceId: 'workspace-a',
+          connectionId: 'account-a',
+          entryId: item.id,
+          title: item.title,
+          kind: 'listing_edit_intent',
+          state: 'succeeded',
+          version: 1,
+          waitReason: null,
+          errorCode: null,
+          result: { status: 'confirmed' },
+          blockedByActionId: null,
+          historyPurged: false,
+          resultExpired: false,
+          createdAt: '2026-11-14T12:00:00Z',
+          updatedAt: '2026-11-14T12:00:00Z',
+          startedAt: null,
+          finishedAt: null,
+        },
+      }),
+    );
+  });
+  expect(toast).toHaveBeenCalledOnce();
+  expect(claimVintedAccountActionNotification(id)).toBe(false);
+  toast.mockClear();
+  await store.updateListing(item, async () => {
+    TestBed.inject(WorkspaceService).currentWorkspace.set(null);
+  });
+  expect(toast).not.toHaveBeenCalled();
 });

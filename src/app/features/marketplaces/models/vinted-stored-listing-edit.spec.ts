@@ -7,6 +7,7 @@ import {
   storedVintedListingEdit,
 } from './vinted-stored-listing-edit';
 import { vintedListingEditSelection, withVintedListingBrand } from './vinted-listing-edit-form';
+import { resolveVintedListingEditIntent } from '../../../../../supabase/functions/_shared/vinted-listing-edit-intent.mjs';
 
 function fixture() {
   const current = listingCurrentContentFixture();
@@ -47,6 +48,34 @@ function fixture() {
 }
 
 describe('Stored Vinted listing editing', () => {
+  it('führt eine gespeicherte Bearbeitung nach JSON-Rundreise gegen den frischen Stand zusammen', () => {
+    const { current, stored, fields } = fixture();
+    const intent = {
+      base: stored,
+      fields: { ...fields, title: 'Neuer Titel' },
+      initialFields: fields,
+      categoryEdit: null,
+      extras: null,
+      photos: null,
+    };
+    const live = {
+      ...current,
+      content: { ...current.content, description: 'Später bei Vinted geändert', priceCents: 3200 },
+    };
+    const result = resolveVintedListingEditIntent(structuredClone(intent), live);
+    expect(result.base).toBe(live.content);
+    expect(result.content).toMatchObject({
+      title: 'Neuer Titel',
+      description: 'Später bei Vinted geändert',
+      priceCents: 3200,
+    });
+    expect(() =>
+      resolveVintedListingEditIntent(intent, {
+        ...live,
+        content: { ...live.content, title: 'Fremde Änderung' },
+      }),
+    ).toThrow('inzwischen');
+  });
   it('prefills stored selections and keeps the saved photo order', () => {
     const { stored } = fixture();
     expect(stored.content.sizeLabel).toBe('38');

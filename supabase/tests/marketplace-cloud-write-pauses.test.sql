@@ -48,6 +48,7 @@ reset role;
 set local role service_role;
 update public.marketplace_local_message_outbox set created_at=created_at+interval '1 second' where request_id='36600000-0000-4000-8000-000000000042';
 select public.marketplace_worker_claim('36600000-0000-4000-8000-000000000051');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 reset role;
 savepoint write_failure_case;
 set local role service_role;

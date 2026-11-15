@@ -67,7 +67,16 @@ for (const uncertainStop of [false, true]) {
       });
       let mapping: string | null = old.profileId;
       let privateSetup: PrivateCloudSetup = {
-        setup: { ...scope, setupId: 'setup-a', state: 'reserved', sessionId: null },
+        setup: {
+          ...scope,
+          setupId: 'setup-a',
+          state: 'reserved',
+          sessionId: null,
+          startState: 'idle',
+          waitReason: null,
+          version: 0,
+          startActionId: null,
+        },
         networkId: 'iproyal-test-a',
         profileId: null,
         previousProfileId: null,

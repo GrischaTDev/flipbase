@@ -1,3 +1,10 @@
+import { SupabaseMarketplaceAccountActionStore } from './supabase-marketplace-account-action-store.ts';
+import { MarketplaceAccountActionRunner } from './marketplace-account-action-runner.ts';
+import { MarketplaceBrowserDialog } from './marketplace-browser-dialog.ts';
+import {
+  createMarketplaceBrowserWorkDispatch,
+  type MarketplaceBrowserWorkClaim,
+} from './marketplace-browser-work-dispatch.ts';
 import { SupabaseShippingLabelStore } from './supabase-shipping-label-store.ts';
 import { MarketplaceNegotiationRunner } from './marketplace-negotiation-runner.ts';
 import { SupabaseMarketplaceNegotiationStore } from './supabase-marketplace-negotiation-store.ts';
@@ -52,10 +59,6 @@ import { MarketplaceFavoriteMessageRunner } from './marketplace-favorite-message
 import { SupabaseMarketplaceFavoriteMessageStore } from './supabase-marketplace-favorite-message-store.ts';
 import { MarketplaceListingRunner } from './marketplace-listing-runner.ts';
 import { SupabaseMarketplaceListingStore } from './supabase-marketplace-listing-store.ts';
-import {
-  createMarketplaceCloudWriteDispatch,
-  type MarketplaceCloudWriteClaim,
-} from './marketplace-cloud-write-dispatch.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -192,47 +195,75 @@ async function main(): Promise<void> {
         feature: 'vinted',
       })
     : undefined;
+  const accountActions = isCloud
+    ? new SupabaseMarketplaceAccountActionStore({
+        url: config.supabaseUrl,
+        publishableKey: config.publishableKey,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
+  let actionRunner: MarketplaceAccountActionRunner | undefined;
+  let browserCapacity = 0;
+  let capacityReadAt = 0;
+  const reportCapacity = async () => {
+    if (!accountActions || !runtimeBinding) return;
+    if (Date.now() - capacityReadAt < 20_000) return;
+    let capacity: number;
+    try {
+      capacity = (await isolatedLauncher?.capacity()) ?? 0;
+    } catch {
+      capacity = 0;
+    }
+    if (
+      (await accountActions.rpc('marketplace_browser_capacity_report', {
+        p_worker_id: runtimeBinding.workerId,
+        p_worker_epoch: runtimeBinding.workerEpoch,
+        p_capacity: capacity,
+      })) !== true
+    )
+      throw new Error('Browserkapazität nicht bestätigt');
+    browserCapacity = capacity;
+    capacityReadAt = Date.now();
+  };
   const dispatcher = dispatchStore
-    ? new MarketplaceSyncDispatcher<MarketplaceCloudWriteClaim>({
+    ? new MarketplaceSyncDispatcher<MarketplaceBrowserWorkClaim>({
         store: dispatchStore,
         isPaused: async () => !((await vintedSwitch?.isEnabled()) ?? true),
-        writes: messageStore
-          ? createMarketplaceCloudWriteDispatch({
-              listingWritesEnabled: config.listingPublishingEnabled,
-              messages: {
-                claim: (workerId, epoch, runnerId) => messageStore.claim(workerId, epoch, runnerId),
-                run: (claim) =>
-                  messageRunner?.run(claim) ??
-                  Promise.reject(new Error('Versanddienst ist noch nicht bereit')),
+        parallelism: () => browserCapacity,
+        beforeHeartbeat: reportCapacity,
+        work: accountActions
+          ? createMarketplaceBrowserWorkDispatch({
+              actions: accountActions,
+              sync: dispatchStore,
+              messages: messageStore,
+              negotiations: negotiationStore,
+              listings: config.listingPublishingEnabled ? listingStore : undefined,
+              favorites: config.scheduledSyncEnabled ? favoriteStore : undefined,
+              includeScheduled: config.scheduledSyncEnabled,
+              run: (claim) => {
+                switch (claim.kind) {
+                  case 'account_action':
+                    if (actionRunner) return actionRunner.run(claim);
+                    break;
+                  case 'sync':
+                    if (syncRunner) return syncRunner.runDispatched(claim.scope);
+                    break;
+                  case 'message':
+                    if (messageRunner) return messageRunner.run(claim);
+                    break;
+                  case 'negotiation':
+                    if (negotiationRunner) return negotiationRunner.run(claim);
+                    break;
+                  case 'listing':
+                    if (listingRunner) return listingRunner.run(claim);
+                    break;
+                  case 'favorite_message':
+                  case 'favorite_offer':
+                    if (favoriteRunner) return favoriteRunner.run(claim);
+                    break;
+                }
+                return Promise.reject(new Error('Auftragsdienst ist noch nicht bereit'));
               },
-              negotiations: negotiationStore
-                ? {
-                    claim: (workerId, epoch, runnerId) =>
-                      negotiationStore.claim(workerId, epoch, runnerId),
-                    run: (claim) =>
-                      negotiationRunner?.run(claim) ??
-                      Promise.reject(new Error('Verhandlungsdienst ist noch nicht bereit')),
-                  }
-                : undefined,
-              listings: listingStore
-                ? {
-                    claim: (workerId, epoch, runnerId) =>
-                      listingStore.claim(workerId, epoch, runnerId),
-                    run: (claim) =>
-                      listingRunner?.run(claim) ??
-                      Promise.reject(new Error('Inseratdienst ist noch nicht bereit')),
-                  }
-                : undefined,
-              favorites:
-                config.scheduledSyncEnabled && favoriteStore
-                  ? {
-                      claim: (workerId, epoch, runnerId) =>
-                        favoriteStore.claim(workerId, epoch, runnerId),
-                      run: (claim) =>
-                        favoriteRunner?.run(claim) ??
-                        Promise.reject(new Error('Favoritendienst ist noch nicht bereit')),
-                    }
-                  : undefined,
             })
           : undefined,
         includeScheduled: config.scheduledSyncEnabled,
@@ -257,6 +288,8 @@ async function main(): Promise<void> {
     : undefined;
   // Erst die alleinige Runtime beanspruchen; ein zweiter Prozess darf keine Recovery ausführen.
   const runtime = await dispatcher?.initialize();
+  const runtimeBinding: { workerId: string; workerEpoch: number } | undefined = runtime;
+  await reportCapacity();
   const cloudSetupStore =
     registry && runtime && networks
       ? new SupabaseMarketplaceCloudSetupStore({
@@ -353,6 +386,10 @@ async function main(): Promise<void> {
           })
         : undefined;
     cloudSetups = new MarketplaceCloudSetup({
+      actions: accountActions,
+      wake: () => {
+        void dispatcher?.poll();
+      },
       store: cloudSetupStore,
       profiles,
       broker,
@@ -390,7 +427,36 @@ async function main(): Promise<void> {
     syncRunner = new MarketplaceSyncRunner(broker, importWriter, operationStore, undefined, () => {
       void dispatcher?.poll().catch(() => undefined);
     });
+  const browserDialogs =
+    accountActions && profiles
+      ? new MarketplaceBrowserDialog({
+          actions: accountActions,
+          profiles,
+          broker,
+          wake: () => {
+            void dispatcher?.poll();
+          },
+        })
+      : undefined;
+  if (accountActions)
+    actionRunner = new MarketplaceAccountActionRunner({
+      url: config.supabaseUrl,
+      publishableKey: config.publishableKey,
+      serviceRoleKey: config.serviceRoleKey,
+      broker,
+      store: accountActions,
+      runSetup: (claim) => {
+        if (!cloudSetups) return Promise.reject(new Error('Einrichtung nicht verfügbar'));
+        return cloudSetups.runQueuedSetup(claim);
+      },
+      runSession: (claim) =>
+        browserDialogs
+          ? browserDialogs.run(claim)
+          : Promise.reject(new Error('Anmeldedialog nicht verfügbar')),
+    });
   const server = new MarketplaceBrowserHttpApi({
+    accountActions,
+    browserDialogs,
     broker,
     listingCategories: isCloud
       ? new VintedListingCategoryAccess({
@@ -502,6 +568,8 @@ async function main(): Promise<void> {
     stopping = true;
     dispatcher?.stop();
     clearInterval(interval);
+    browserDialogs?.shutdownPresence();
+    cloudSetups?.shutdownPresence();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await dispatcher?.drain();
     const cleanup = await Promise.allSettled([broker.shutdown()]);

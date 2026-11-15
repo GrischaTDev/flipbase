@@ -1,4 +1,6 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { parseVintedAccountAction } from '../models/vinted-account-action';
+import { claimVintedAccountActionNotification } from './vinted-account-action-transport';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
@@ -17,6 +19,7 @@ export interface VintedListingOperation {
   readonly title: string;
   readonly state: 'running' | 'success' | 'error';
   readonly message: string;
+  readonly serverActionId?: string;
 }
 
 /** Behält den Fortschritt einer Artikelaktion auch nach dem Schließen der Artikelansicht. */
@@ -26,6 +29,56 @@ export class VintedListingOperationStore {
   private readonly workspace = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly actions = signal<readonly VintedListingOperation[]>([]);
+  constructor() {
+    const accepted = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const action: unknown = event.detail;
+      if (
+        !action ||
+        typeof action !== 'object' ||
+        !('workspaceId' in action) ||
+        typeof action.workspaceId !== 'string' ||
+        !('connectionId' in action) ||
+        typeof action.connectionId !== 'string'
+      )
+        return;
+      let server;
+      try {
+        server = parseVintedAccountAction(action, {
+          workspaceId: action.workspaceId,
+          connectionId: action.connectionId,
+        });
+      } catch {
+        return;
+      }
+      const kind =
+        server.kind === 'price_save'
+          ? 'price'
+          : server.kind === 'listing_delete'
+            ? 'delete'
+            : ['listing_edit_intent', 'listing_edit_save', 'listing_content_save'].includes(
+                  server.kind,
+                )
+              ? 'edit'
+              : null;
+      if (!kind) return;
+      this.actions.update((actions) =>
+        actions.map((pending) =>
+          pending.state === 'running' &&
+          pending.workspaceId === server.workspaceId &&
+          pending.connectionId === server.connectionId &&
+          pending.entryId === server.entryId &&
+          pending.kind === kind
+            ? { ...pending, serverActionId: server.id }
+            : pending,
+        ),
+      );
+    };
+    window.addEventListener('flipbase-account-action-accepted', accepted);
+    inject(DestroyRef).onDestroy(() =>
+      window.removeEventListener('flipbase-account-action-accepted', accepted),
+    );
+  }
   private readonly accepted = signal<
     readonly { userId: string; record: VintedRelistingPlanRecord; imageUrl: string | null }[]
   >([]);
@@ -137,7 +190,10 @@ export class VintedListingOperationStore {
     const workspace = this.workspace.currentWorkspace();
     return user && workspace && !workspace.archived_at
       ? this.actions().filter(
-          (action) => action.userId === user.id && action.workspaceId === workspace.id,
+          (action) =>
+            action.userId === user.id &&
+            action.workspaceId === workspace.id &&
+            !action.serverActionId,
         )
       : [];
   });
@@ -260,8 +316,18 @@ export class VintedListingOperationStore {
 
   private finish(key: string, state: 'success' | 'error', message: string): void {
     if (state === 'success') {
-      const completed = this.entries().find((action) => action.key === key);
-      if (completed) this.toast.success(message, completed.title);
+      const completed = this.actions().find((action) => action.key === key);
+      const workspace = this.workspace.currentWorkspace();
+      if (
+        completed &&
+        completed.userId === this.auth.currentUser()?.id &&
+        workspace &&
+        !workspace.archived_at &&
+        completed.workspaceId === workspace.id &&
+        (!completed.serverActionId ||
+          claimVintedAccountActionNotification(completed.serverActionId))
+      )
+        this.toast.success(message, completed.title);
       this.actions.update((actions) => actions.filter((action) => action.key !== key));
       return;
     }

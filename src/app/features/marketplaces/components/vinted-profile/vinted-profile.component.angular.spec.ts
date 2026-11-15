@@ -118,7 +118,7 @@ describe('VintedProfileComponent', () => {
         { provide: ActivatedRoute, useValue: { fragment, snapshot: { fragment: null } } },
         {
           provide: MarketplaceAccountStore,
-          useValue: { snapshot: accountSnapshot, selectedConnection },
+          useValue: { snapshot: accountSnapshot, selectedConnection, selectionVersion: signal(0) },
         },
       ],
     }).compileComponents();

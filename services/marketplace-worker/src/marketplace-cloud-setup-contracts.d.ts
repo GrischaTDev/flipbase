@@ -11,6 +11,10 @@ export interface CloudSetupView {
   setupId: string;
   state: CloudSetupState;
   sessionId: string | null;
+  startState: 'idle' | 'queued' | 'starting' | 'running';
+  waitReason: 'account_busy' | 'pool_busy' | null;
+  version: number;
+  startActionId: string | null;
 }
 
 export type CloudSetupResult =

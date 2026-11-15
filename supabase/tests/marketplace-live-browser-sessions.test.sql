@@ -2,6 +2,8 @@
 begin;
 set local search_path = public, extensions;
 select no_plan();
+select public.marketplace_worker_claim('25600000-0000-4000-8000-000000000091');
+select public.marketplace_browser_capacity_report('25600000-0000-4000-8000-000000000091',1,1);
 
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
  ('25600000-0000-4000-8000-000000000001','authenticated','authenticated','browser-owner@example.test','{}','{}'),

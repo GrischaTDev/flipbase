@@ -417,11 +417,12 @@ create or replace function public.marketplace_cancel_unknown_negotiation_followu
 returns trigger language plpgsql volatile security invoker set search_path='' as $$
 begin
   if new.state='outcome_unknown' and old.state is distinct from new.state then
-    -- Auch ein Timeout ohne Runner-Ergebnis verwirft Folgen dauerhaft vor einem späteren Erfolgsbeleg.
+    -- Lokale Folgen bleiben unverändert; Cloudfolgen warten auf einen belegten Ausgang ihres Vorgängers.
     with recursive following as (
       select id from public.marketplace_negotiation_jobs where predecessor_id=new.id
       union all select job.id from public.marketplace_negotiation_jobs job join following on job.predecessor_id=following.id
-    ) update public.marketplace_negotiation_jobs set state='cancelled',error_code='predecessor_not_sent',updated_at=clock_timestamp()
+    ) update public.marketplace_negotiation_jobs set state=case when new.execution_mode='cloud' then state else 'cancelled' end,
+      error_code=case when new.execution_mode='cloud' then 'dependency_unresolved' else 'predecessor_not_sent' end,updated_at=clock_timestamp()
       where id in(select id from following) and state in ('queued','claimed');
   end if;
   return null;
@@ -542,9 +543,9 @@ begin
 end;
 $$;
 
-create or replace function public.marketplace_cloud_negotiation_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid)
+create or replace function public.marketplace_cloud_negotiation_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_target_id uuid default null)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_job public.marketplace_negotiation_jobs; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions;
+declare v_job public.marketplace_negotiation_jobs; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions; v_next jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if p_runner_id is null then raise exception 'Auftragskennung fehlt' using errcode='22023'; end if;
@@ -554,9 +555,17 @@ begin
   -- Eine abgelaufene Browserlease gibt das Profil erst nach bestätigtem physischem Stopp frei.
   update public.marketplace_negotiation_jobs set state='queued',claim_token=null,lease_expires_at=null,cloud_browser_session_id=null,cloud_worker_id=null,cloud_worker_epoch=null,cloud_runner_id=null,updated_at=clock_timestamp()
     where execution_mode='cloud' and state='claimed' and exists(select 1 from public.marketplace_browser_sessions where public_id=cloud_browser_session_id and state='closed');
-  update public.marketplace_negotiation_jobs job set state='cancelled',error_code='authorization_expired',updated_at=clock_timestamp() where execution_mode='cloud' and state in ('queued','claimed') and due_at is not null and not public.marketplace_negotiation_job_valid(job);
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
-  select * into v_job from public.marketplace_negotiation_jobs job where execution_mode='cloud' and state='queued' and due_at<=clock_timestamp() and public.marketplace_negotiation_job_valid(job) order by due_at,created_at,id limit 1 for update skip locked;
+  update public.marketplace_negotiation_jobs job set state='cancelled',error_code='authorization_expired',updated_at=clock_timestamp() where execution_mode='cloud' and state in ('queued','claimed') and due_at is not null and not public.marketplace_negotiation_job_valid(job)
+    and not exists(select 1 from public.marketplace_negotiation_jobs predecessor where predecessor.id=job.predecessor_id and predecessor.state='outcome_unknown');
+  if p_target_id is null then
+    v_next:=public.marketplace_browser_next_work();
+    if v_next is null or v_next->>'kind'<>'negotiation' then return null; end if;
+    p_target_id:=(v_next->>'jobId')::uuid;
+  end if;
+  if not public.marketplace_browser_job_eligible('negotiation',p_target_id::text) then return null; end if;
+  select * into v_job from public.marketplace_negotiation_jobs job where id=p_target_id and execution_mode='cloud' and state='queued'
+    and public.marketplace_browser_slot_status(workspace_id,connection_id) is null and due_at<=clock_timestamp()
+    and public.marketplace_negotiation_job_valid(job) order by due_at,created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
   select * into v_permission from public.marketplace_cloud_message_permissions where workspace_id=v_job.workspace_id and connection_id=v_job.connection_id for update;
   insert into public.marketplace_browser_sessions(workspace_id,connection_id,started_by,provider_profile_id,expires_at,worker_id,worker_epoch,heartbeat_at,absolute_expires_at)
@@ -613,8 +622,8 @@ revoke all on function public.marketplace_negotiation_discount_valid(jsonb),publ
 grant execute on function public.marketplace_negotiation_discount_valid(jsonb),public.marketplace_negotiation_config_valid(jsonb),public.marketplace_negotiation_default_config(),public.marketplace_negotiation_authorized(uuid,uuid,uuid,text,text,bigint,bigint),public.marketplace_negotiation_offer_valid(uuid,uuid,uuid,jsonb),public.marketplace_negotiation_minimum_price(bigint,jsonb),public.marketplace_negotiation_plan(public.marketplace_negotiation_settings,public.marketplace_negotiation_threads,text,jsonb,text,text,bigint,uuid),public.marketplace_record_negotiation_entry(),public.marketplace_negotiation_job_valid(public.marketplace_negotiation_jobs),public.marketplace_negotiation_finish_job(public.marketplace_negotiation_jobs,text,text,text) to service_role;
 revoke all on function public.marketplace_read_negotiation(uuid,uuid),public.marketplace_save_negotiation(uuid,uuid,bigint,boolean,jsonb),public.marketplace_enqueue_negotiation(uuid,uuid,uuid,uuid,uuid,text,bigint) from public,anon,authenticated;
 grant execute on function public.marketplace_read_negotiation(uuid,uuid),public.marketplace_save_negotiation(uuid,uuid,bigint,boolean,jsonb),public.marketplace_enqueue_negotiation(uuid,uuid,uuid,uuid,uuid,text,bigint) to authenticated;
-revoke all on function public.marketplace_local_negotiation_claim(uuid,uuid,text),public.marketplace_local_negotiation_check(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_begin(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_finish(uuid,uuid,text,uuid,uuid,text,text,text),public.marketplace_cloud_negotiation_claim(uuid,bigint,uuid),public.marketplace_cloud_negotiation_check(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_begin(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_finish(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text) from public,anon,authenticated;
-grant execute on function public.marketplace_local_negotiation_claim(uuid,uuid,text),public.marketplace_local_negotiation_check(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_begin(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_finish(uuid,uuid,text,uuid,uuid,text,text,text),public.marketplace_cloud_negotiation_claim(uuid,bigint,uuid),public.marketplace_cloud_negotiation_check(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_begin(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_finish(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text) to service_role;
+revoke all on function public.marketplace_local_negotiation_claim(uuid,uuid,text),public.marketplace_local_negotiation_check(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_begin(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_finish(uuid,uuid,text,uuid,uuid,text,text,text),public.marketplace_cloud_negotiation_claim(uuid,bigint,uuid,uuid),public.marketplace_cloud_negotiation_check(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_begin(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_finish(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text) from public,anon,authenticated;
+grant execute on function public.marketplace_local_negotiation_claim(uuid,uuid,text),public.marketplace_local_negotiation_check(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_begin(uuid,uuid,text,uuid,uuid),public.marketplace_local_negotiation_finish(uuid,uuid,text,uuid,uuid,text,text,text),public.marketplace_cloud_negotiation_claim(uuid,bigint,uuid,uuid),public.marketplace_cloud_negotiation_check(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_begin(uuid,uuid,uuid,uuid,uuid,bigint),public.marketplace_cloud_negotiation_finish(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text) to service_role;
 
 create or replace function public.marketplace_cancel_invalid_negotiation()
 returns trigger language plpgsql volatile security invoker set search_path='' as $$

@@ -14,7 +14,6 @@ import type { MarketplaceSnapshot } from '../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../models/marketplace-response';
 import {
   MarketplaceBrowserTestApiService,
-  MarketplaceCloudAccountBusyError,
   MarketplaceConnectionRemovalError,
   VintedListingPriceChangedError,
 } from './marketplace-browser-test-api.service';
@@ -169,6 +168,19 @@ describe('Profilbearbeitung', () => {
     canUploadPhoto: true,
   };
   const changes = { about: 'Neu', city: 'Hamburg', showCity: false, language: 'de-DE' };
+  it('überschreibt nach A–B–A keinen neu geladenen Profilstand mit einem späten Auftragsergebnis', async () => {
+    await settle();
+    await store.selectConnection(accountA.connectionId);
+    const response = deferred<{ profile: typeof profile; cachePending: boolean }>();
+    browserApi.saveProfileDetails.mockReturnValueOnce(response.promise);
+    const saving = store.saveProfileDetails(accountA.connectionId, changes, profile);
+    await store.selectConnection(accountB.connectionId);
+    await store.selectConnection(accountA.connectionId);
+    const before = store.snapshot()?.profile;
+    response.resolve({ profile, cachePending: false });
+    await saving;
+    expect(store.snapshot()?.profile).toEqual(before);
+  });
   it('übernimmt bestätigte Profildaten ohne eine ausgeblendete Stadt öffentlich anzuzeigen', async () => {
     await settle();
     await store.selectConnection(accountA.connectionId);
@@ -311,28 +323,30 @@ describe('Cloud-Gesprächsabruf', () => {
     await store.openConversation('conversation-a');
     vi.useFakeTimers();
     try {
-      browserApi.readConversation
-        .mockRejectedValueOnce(new MarketplaceCloudAccountBusyError())
-        .mockResolvedValueOnce('2026-10-07T21:00:00Z');
+      const response = deferred<string>();
+      browserApi.readConversation.mockReturnValueOnce(response.promise);
       const read = store.refreshCloudConversation('conversation-a', () => true);
-      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(90_000);
+      expect(browserApi.readConversation).toHaveBeenCalledOnce();
+      response.resolve('2026-10-07T21:00:00Z');
       expect(await read).toEqual({ status: 'success', observedAt: '2026-10-07T21:00:00Z' });
-      expect(browserApi.readConversation).toHaveBeenCalledTimes(2);
+      expect(browserApi.readConversation).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }
   });
-  it('wartet nach einem Gesprächswechsel nicht weiter auf das belegte Cloud-Konto', async () => {
+  it('übernimmt nach einem Gesprächswechsel kein spätes Ergebnis eines gespeicherten Leseauftrags', async () => {
     await settle();
     await store.openConversation('conversation-a');
     vi.useFakeTimers();
     try {
       let current = true;
-      browserApi.readConversation.mockRejectedValue(new MarketplaceCloudAccountBusyError());
+      const response = deferred<string>();
+      browserApi.readConversation.mockReturnValueOnce(response.promise);
       const read = store.refreshCloudConversation('conversation-a', () => current);
       await vi.advanceTimersByTimeAsync(0);
       current = false;
-      await vi.advanceTimersByTimeAsync(3_000);
+      response.resolve('2026-10-07T21:00:00Z');
       expect(await read).toEqual({ status: 'cancelled' });
       expect(browserApi.readConversation).toHaveBeenCalledTimes(1);
     } finally {

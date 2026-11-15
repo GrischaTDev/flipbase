@@ -10,6 +10,23 @@ import {
 const labelUrl =
   'https://svc-shipping-labels.s3.eu-central-1.amazonaws.com/9f7jte2ih25oazq13x9bc9130fai?X-Amz-Expires=604800&X-Amz-Signature=abc';
 
+test('lesende Wiederherstellung bestellt auch bei verfügbarem Bestellknopf keinen Versandschein', async () => {
+  const { adapter, calls } = vinted();
+  const result = await executeVintedShippingLabel(
+    adapter,
+    '46984021',
+    '500969788562',
+    '24052549356',
+    true,
+  );
+  assert.equal(result.outcome, 'pending');
+  assert.equal(result.requested, false);
+  assert.equal(
+    calls.some((call) => call.method === 'PUT'),
+    false,
+  );
+});
+
 // Gemessene Antwortformen der Carhartt-Jacke vom 08.11.2026, persönliche Angaben ersetzt.
 function vinted(
   overrides: {

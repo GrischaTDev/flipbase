@@ -258,8 +258,10 @@ def compose_fixture():
     }
 
 def changed_paths(before, after, path=()):
-    if isinstance(before, dict) and isinstance(after, dict) and before.keys() == after.keys():
-        return [change for key in before for change in changed_paths(before[key], after[key], path + (key,))]
+    if isinstance(before, dict) and isinstance(after, dict):
+        return [change for key in before.keys() | after.keys()
+                for change in (changed_paths(before[key], after[key], path + (key,))
+                               if key in before and key in after else [path + (key,)])]
     return [] if before == after else [path]
 
 def assert_rejected(operation):
@@ -277,7 +279,10 @@ def stopped_fixture(code=0, **overrides):
 
 def idle_snapshot(live=True):
     return {
-        "counts": {key: 0 for key in ("listingJobs", "operations", "sessions", "messages", "favorites", "negotiations", "setups")},
+        "counts": {key: 0 for key in rollout.COUNT_KEYS},
+        "waitingCounts": {key: 0 for key in rollout.COUNT_KEYS if key not in ("sessions", "setups")},
+        "liveSessions": [],
+        "activeWork": [],
         "runtime": {"live": live, "workerId": "11111111-1111-4111-8111-111111111111", "epoch": 1},
         "listingPermissionHash": "a" * 32,
         "scheduleAuthorizationHash": "b" * 32,
@@ -524,7 +529,7 @@ def interrupted_preparation(fixture):
 }
 
 test(
-  'Marketplace-Rollout ersetzt genau vier Imagefelder und erhält den restlichen Compose-Stand',
+  'Marketplace-Rollout aktualisiert Abbilder und Browserobergrenze und erhält den übrigen Compose-Stand',
   marketplaceRolloutOptions,
   () => {
     runMarketplaceRolloutPython(String.raw`
@@ -536,6 +541,8 @@ expected = {
     ("services", "chromium-host-broker", "image"): BROKER,
     ("services", "marketplace-worker", "environment", "MARKETPLACE_CHROMIUM_IMAGE"): SESSION,
     ("services", "chromium-host-broker", "environment", "MARKETPLACE_CHROMIUM_IMAGE"): SESSION,
+    ("services", "marketplace-worker", "environment", "MARKETPLACE_BROWSER_MAX_CONCURRENT"): "1",
+    ("services", "chromium-host-broker", "environment", "MARKETPLACE_BROWSER_MAX_CONCURRENT"): "1",
 }
 assert set(changed_paths(before, after)) == set(expected)
 for path, expected_value in expected.items():
@@ -623,6 +630,105 @@ for broker in (False, True):
         {},
     ):
         assert_rejected(lambda: rollout.assert_stopped(state, broker=broker))
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout erhält wartende Aufträge und prüft laufende neue Sitzungen gegen ihren Besitzer',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+snapshot = idle_snapshot()
+snapshot["waitingCounts"]["accountActions"] = 50
+snapshot["waitingCounts"]["messages"] = 7
+rollout.assert_preflight(snapshot)
+snapshot["counts"]["accountActions"] = 1
+assert_rejected(lambda: rollout.assert_preflight(snapshot))
+assert_rejected(lambda: rollout.assert_preflight(snapshot, allow_active=True))
+for invalid in (-1, True, None, "50"):
+    candidate = idle_snapshot()
+    candidate["waitingCounts"]["accountActions"] = invalid
+    assert_rejected(lambda: rollout.assert_preflight(candidate))
+
+context = {"broker": {"Config": {"Env": ["MARKETPLACE_CHROMIUM_HOST_ID=pilot-01"]}},
+    "worker": {"State": {"StartedAt": "2026-11-13T11:00:00Z"}}}
+snapshot = idle_snapshot()
+snapshot["counts"]["sessions"] = 1
+snapshot["liveSessions"] = [{"profileId": "chromium_test", "workerId": snapshot["runtime"]["workerId"],
+    "workerEpoch": 1, "state": "active", "expiresAt": "2099-01-01T00:00:00Z"}]
+container = {"Config": {"Image": SESSION, "Labels": {"de.flipbase.chromium.role": "session",
+    "de.flipbase.chromium.host": "pilot-01", "de.flipbase.chromium.profile": "chromium_test"}},
+    "Created": "2026-11-13T11:00:01Z",
+    "State": {"Running": True, "Paused": False, "Dead": False, "OOMKilled": False,"StartedAt":"2026-11-13T11:00:02Z"}}
+with mock.patch.object(rollout, "inspect_container", return_value=container):
+    rollout.verify_new_sessions(context, snapshot, ["a" * 64])
+    assert_rejected(lambda: rollout.verify_new_sessions(context, snapshot, ["a" * 64, "b" * 64]))
+    for field, invalid in (("workerId", "other-worker"), ("workerEpoch", 2), ("state", "stopping"), ("expiresAt", "2000-01-01T00:00:00Z")):
+        candidate = copy.deepcopy(snapshot)
+        candidate["liveSessions"][0][field] = invalid
+        assert_rejected(lambda: rollout.verify_new_sessions(context, candidate, ["a" * 64]))
+    container["Config"]["Labels"]["de.flipbase.chromium.profile"] = "foreign"
+    assert_rejected(lambda: rollout.verify_new_sessions(context, snapshot, ["a" * 64]))
+
+baseline = compose_fixture()
+baseline["services"]["chromium-host-broker"]["environment"]["MARKETPLACE_BROWSER_MAX_CONCURRENT"] = "2"
+release = rollout.build_release_config(baseline)
+assert all(release["services"][key]["environment"]["MARKETPLACE_BROWSER_MAX_CONCURRENT"] == "2" for key in rollout.SERVICES)
+for invalid in ("0", "9", "2x", 2, None):
+    baseline["services"]["chromium-host-broker"]["environment"]["MARKETPLACE_BROWSER_MAX_CONCURRENT"] = invalid
+    assert_rejected(lambda: rollout.build_release_config(baseline))
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout lehnt alte physische Container trotz passender neuer Profilbindung ab',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+snapshot=idle_snapshot()
+snapshot["counts"]["sessions"]=1
+snapshot["liveSessions"]=[{"profileId":"chromium_test","workerId":snapshot["runtime"]["workerId"],"workerEpoch":1,"state":"active","expiresAt":"2099-01-01T00:00:00Z"}]
+context={"broker":{"Config":{"Env":["MARKETPLACE_CHROMIUM_HOST_ID=pilot-01"]}},"worker":{"State":{"StartedAt":"2026-11-13T11:00:00Z"}}}
+container={"Created":"2026-11-13T11:00:01Z","Config":{"Image":SESSION,"Labels":{"de.flipbase.chromium.role":"session","de.flipbase.chromium.host":"pilot-01","de.flipbase.chromium.profile":"chromium_test"}},"State":{"StartedAt":"2026-11-13T11:00:02Z","Running":True,"Paused":False,"Dead":False,"OOMKilled":False}}
+with mock.patch.object(rollout,"inspect_container",return_value=container):
+    rollout.verify_new_sessions(context,snapshot,["a"*64])
+    for field in ("Created","StartedAt"):
+        for value in ("2020-01-01T00:00:00Z",None,"invalid","2026-11-13T11:00:00"):
+            candidate=copy.deepcopy(container)
+            (candidate if field=="Created" else candidate["State"])[field]=value
+            with mock.patch.object(rollout,"inspect_container",return_value=candidate):
+                assert_rejected(lambda:rollout.verify_new_sessions(context,snapshot,["a"*64]))
+`);
+  },
+);
+
+test(
+  'Marketplace-Rollout erlaubt aktive Aufträge nur mit vollständig passender neuer Workerbindung',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+now=rollout.datetime.datetime.now(rollout.datetime.timezone.utc)
+uuid="30000000-1111-4111-8111-111111111111"
+for family in rollout.COUNT_KEYS:
+    if family=="sessions":continue
+    snapshot=idle_snapshot();snapshot["counts"][family]=1
+    assert_rejected(lambda:rollout.assert_preflight(snapshot,allow_active=True))
+    job={"family":family,"id":uuid,"workspaceId":uuid,"connectionId":uuid,"requestedBy":uuid,"sessionId":uuid,
+      "workerId":snapshot["runtime"]["workerId"],"workerEpoch":1,"leaseExpiresAt":(now+rollout.datetime.timedelta(seconds=90)).isoformat(),
+      "session":{"id":uuid,"workspaceId":uuid,"connectionId":uuid,"startedBy":uuid,"workerId":snapshot["runtime"]["workerId"],"workerEpoch":1,
+        "state":"closed","expiresAt":(now+rollout.datetime.timedelta(seconds=90)).isoformat(),"providerStoppedAt":now.isoformat()}}
+    snapshot["activeWork"]=[job]
+    rollout.assert_preflight(snapshot,allow_active=True)
+    for field,value in (("workerId","20000000-1111-4111-8111-111111111111"),("workerEpoch",2),("session",None),("leaseExpiresAt","2000-01-01T00:00:00Z")):
+        candidate=copy.deepcopy(snapshot);candidate["activeWork"][0][field]=value
+        assert_rejected(lambda:rollout.assert_preflight(candidate,allow_active=True))
+    for field,value in (("id","20000000-1111-4111-8111-111111111111"),("workerEpoch",2),("startedBy","20000000-1111-4111-8111-111111111111"),("providerStoppedAt",None),("providerStoppedAt",(now-rollout.datetime.timedelta(seconds=91)).isoformat())):
+        candidate=copy.deepcopy(snapshot);candidate["activeWork"][0]["session"][field]=value
+        assert_rejected(lambda:rollout.assert_preflight(candidate,allow_active=True))
+    candidate=copy.deepcopy(snapshot);candidate["activeWork"].append(copy.deepcopy(job))
+    assert_rejected(lambda:rollout.assert_preflight(candidate,allow_active=True))
 `);
   },
 );
@@ -1053,7 +1159,7 @@ with RolloutFixture() as fixture:
     with rollout.configured_release(manifest):
         target = rollout.build_release_config(fixture.baseline)
         assert target["services"]["marketplace-worker"]["image"] == "ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:" + "a" * 64
-        assert len(changed_paths(fixture.baseline, target)) == 4
+        assert len(changed_paths(fixture.baseline, target)) == 6
 `);
   },
 );

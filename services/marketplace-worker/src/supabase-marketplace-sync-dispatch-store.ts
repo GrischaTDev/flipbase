@@ -119,6 +119,15 @@ export class SupabaseMarketplaceSyncDispatchStore implements MarketplaceSyncDisp
       p_runner_id: runnerId,
       p_include_scheduled: includeScheduled,
     });
+    return this.parseClaim(value, workerId, workerEpoch, runnerId, includeScheduled);
+  }
+  parseClaim(
+    value: unknown,
+    workerId: string,
+    workerEpoch: number,
+    runnerId: string,
+    includeScheduled = false,
+  ): BrowserSessionScope | null {
     if (value === null) return null;
     const result = fields(value, [
       'operationId',

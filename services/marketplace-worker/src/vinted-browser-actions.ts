@@ -17,7 +17,7 @@ import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
 import { readVintedListingEdit, updateVintedListing } from './vinted-browser-listing-edit.ts';
 import { submitVintedListing } from './vinted-browser-listing-submit.ts';
 import { readVintedListingNewCategory } from './vinted-browser-listing-category.ts';
-import { deleteVintedListing } from './vinted-browser-listing-delete.ts';
+import { deleteVintedListing, readVintedListingPresence } from './vinted-browser-listing-delete.ts';
 import { readVintedListingCurrentContent } from './vinted-browser-listing-content.ts';
 import { updateVintedListingContent } from './vinted-browser-listing-update.ts';
 import { updateVintedListingPrice } from './vinted-browser-listing-price.ts';
@@ -138,6 +138,9 @@ export function vintedBrowserActions(
       }
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
     }),
+    readListingPresence: afterSessionRenewal((accountId, externalId, authorize) =>
+      readVintedListingPresence(currentPage(), accountId, externalId, authorize),
+    ),
     deleteListing: afterSessionRenewal(async (accountId, externalId, authorize) => {
       await authorize();
       const contexts = connection.contexts?.();
@@ -194,13 +197,14 @@ export function vintedBrowserActions(
         ),
     ),
     requestShippingLabel: afterSessionRenewal(
-      (accountId, externalConversationId, transactionId, authorize) =>
+      (accountId, externalConversationId, transactionId, authorize, readOnly) =>
         requestVintedShippingLabel(
           currentPage(),
           accountId,
           externalConversationId,
           transactionId,
           authorize,
+          readOnly,
         ),
     ),
     readFavoriteEvents: afterSessionRenewal((accountId, authorize) =>
